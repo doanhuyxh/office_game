@@ -24,7 +24,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Hợp đồng lao động, phụ lục, lương mã hoá, file S3, nhắc hết hạn | [.agent/business/contracts.md](.agent/business/contracts.md) |
 | Luồng duyệt, thêm loại đơn | [.agent/business/approval.md](.agent/business/approval.md) |
 | Nghỉ phép, quỹ phép năm | [.agent/business/leave.md](.agent/business/leave.md) |
-| Văn phòng 3D, SignalR, bản đồ, voice | [.agent/business/office.md](.agent/business/office.md) |
+| Văn phòng 3D: bản đồ v2, lưới va chạm, SignalR, voice | [.agent/business/office.md](.agent/business/office.md) · engine 3D / HUD: [.agent/business/office-engine.md](.agent/business/office-engine.md) · mặt bằng + lộ trình: [design/README.md](design/README.md) |
 
 ## Luật không được vi phạm
 

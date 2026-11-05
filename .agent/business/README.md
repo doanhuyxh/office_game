@@ -12,6 +12,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Hồ sơ nhân viên, phòng ban, chức vụ, cấp / mời tài khoản, vai trò, nghỉ việc, `IEmployeeDirectory` | [organization.md](organization.md) |
 | Nút chấm công, cách tính đi muộn / thiếu giờ, ca, lịch tuần, ngày lễ, bảng công, báo cáo | [attendance.md](attendance.md) |
 | Văn phòng 3D, SignalR hub, bản đồ `shared/office-map.json`, chat, voice token, chấm công trong 3D | [office.md](office.md) |
+| Engine 3D (Three.js): camera, đi / tìm đường, ngồi, minimap, đồ đạc, avatar | [office-engine.md](office-engine.md) |
 | Luồng duyệt (quản lý → HR), không tự duyệt, `IApprovalHandler`, thêm loại đơn | [approval.md](approval.md) |
 | Loại phép, quỹ phép năm (cộng dồn, không hết hạn), đơn nghỉ, điều chỉnh của HR | [leave.md](leave.md) |
 | Giải trình chấm công (bổ sung giờ vào / ra) | [attendance-corrections.md](attendance-corrections.md) |

@@ -54,7 +54,7 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
         var p = new Player
         {
             UserId = UserId, Name = name, ConnectionId = Context.ConnectionId, Context = Context, AuthCookie = authCookie,
-            X = map.Spawn.X, Z = map.Spawn.Z, LastMoveTicks = Stopwatch.GetTimestamp(), LastActiveAt = DateTimeOffset.UtcNow,
+            X = (float)map.Spawn.X, Z = (float)map.Spawn.Z, LastMoveTicks = Stopwatch.GetTimestamp(), LastActiveAt = DateTimeOffset.UtcNow,
         };
         var old = presence.Add(p);
         if (old is not null)
@@ -85,7 +85,8 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
         var now = Stopwatch.GetTimestamp();
         var dt = (float)Stopwatch.GetElapsedTime(p.LastMoveTicks, now).TotalSeconds;
         var dist = MathF.Sqrt((x - p.X) * (x - p.X) + (z - p.Z) * (z - p.Z));
-        if (!map.Floor.Contains(x, z) || dist > MaxSpeed * dt + Slack)
+        // Ngoài sàn / xuyên tường, đồ vật (lưới va chạm chung với FE) / đi quá nhanh → kéo về vị trí cũ
+        if (!map.CanStand(x, z) || dist > MaxSpeed * dt + Slack)
         {
             await Clients.Caller.Teleport(p.X, p.Z);
             return;

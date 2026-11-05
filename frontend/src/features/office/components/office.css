@@ -14,7 +14,7 @@
 .office-root .dot.online { background: #22c55e; }
 .office-root .dot.reconnecting, .office-root .dot.connecting { background: #f59e0b; }
 .office-root .dot.offline, .office-root .dot.kicked { background: #ef4444; }
-.office-root .zone { top: 12px; left: 50%; transform: translateX(-50%); }
+.office-root .zone { top: 12px; left: 50%; transform: translateX(-50%); font-weight: 600; }
 .office-root .chat { position: absolute; left: 12px; bottom: 12px; width: min(340px, calc(100vw - 24px)); }
 .office-root .chat .log { max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
 .office-root .chat .log div { background: rgba(15, 23, 42, .6); border-radius: 8px; padding: 3px 8px; width: fit-content; max-width: 100%; }
@@ -29,3 +29,10 @@
 .office-root kbd { background: rgba(255, 255, 255, .15); border-radius: 5px; padding: 1px 6px; font: 700 12px ui-monospace, monospace; }
 .office-root .overlay { position: absolute; inset: 0; display: grid; place-content: center; gap: 12px; text-align: center; background: rgba(2, 6, 23, .85); font-size: 16px; }
 .office-root .overlay button { padding: 10px 18px; border-radius: 10px; border: 0; background: #3b82f6; color: #fff; font-weight: 700; }
+.office-root .minimap { top: 56px; right: 12px; padding: 0; width: 216px; height: auto; cursor: pointer; border-radius: 10px; }
+.office-root .camera { top: 206px; right: 12px; display: flex; gap: 4px; padding: 4px; }
+.office-root .camera button { width: 32px; height: 30px; border: 0; border-radius: 8px; background: rgba(148, 163, 184, .18); color: inherit; font: 700 15px system-ui; cursor: pointer; }
+.office-root .camera button:hover { background: rgba(148, 163, 184, .35); }
+.office-root .help { top: 76px; left: 12px; display: grid; gap: 4px; font-size: 13px; max-width: 290px; }
+.office-root .help button { justify-self: start; margin-top: 4px; padding: 4px 10px; border: 0; border-radius: 8px; background: #3b82f6; color: #fff; font: 600 12px system-ui; cursor: pointer; }
+.office-root .help kbd { margin-right: 2px; }

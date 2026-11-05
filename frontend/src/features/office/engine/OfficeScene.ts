@@ -1,134 +1,256 @@
 import * as THREE from 'three';
-import map from '@shared/office-map.json';
-import { THEME_COLORS } from '@/config/theme';
+import { ANIM, Avatar, type AnimCode } from './avatar';
+import type { Seat } from './mapTypes';
+import { NavGrid } from './navGrid';
+import { FACING_ANGLE, OFFICE_MAP } from './officeMap';
+import { P } from './palette';
+import { buildWorld } from './world';
 
 /**
- * Engine 3D tối giản (khung). Không phụ thuộc React.
- * Bước tiếp theo: port world.js / office.js / avatar.js từ legacy-mvp/public/js sang đây.
+ * Engine văn phòng 3D (Three.js thuần, không phụ thuộc React — React chỉ vẽ HUD trong OfficeView).
+ *  - Camera chéo cố định, xoay từng 90° (Q / R), cuộn để zoom.
+ *  - WASD / mũi tên: đi theo hướng màn hình, trượt theo tường (lưới va chạm NavGrid — giống server).
+ *  - Bấm chuột lên sàn: tự tìm đường (A*). Bấm vào ghế: đi tới rồi ngồi.
+ *  - `toggleSit()` (phím E ở OfficeView): ngồi ghế gần nhất còn trống / đứng dậy.
  */
-type Avatar = { mesh: THREE.Group; tx: number; tz: number; tr: number };
+const SPEED = 4.2; // m/s — server cho tối đa 7 m/s
+const RADIUS = 0.22; // bán kính va chạm của avatar
+const SEAT_REACH = 1.2;
+const ACTION_REACH = 1.8;
 
-const SPEED = 4.2;
+type Other = { avatar: Avatar; tx: number; tz: number; tr: number; name: string };
+export interface MinimapSnapshot { me: { x: number; z: number; r: number } | null; others: { x: number; z: number; name: string; anim: number }[]; target: [number, number] | null }
 
 export class OfficeScene {
+  readonly nav = new NavGrid(OFFICE_MAP);
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
-  private camera = new THREE.PerspectiveCamera(55, 1, 0.1, 200);
+  private camera = new THREE.PerspectiveCamera(40, 1, 0.1, 300);
   private clock = new THREE.Clock();
   private keys = new Set<string>();
-  private others = new Map<string, Avatar>();
-  private me: THREE.Group | null = null;
+  private others = new Map<string, Other>();
+  private me: Avatar | null = null;
   private raf = 0;
   private sendAcc = 0;
+  private path: [number, number][] = [];
+  private sitOnArrive: Seat | null = null;
+  private seat: Seat | null = null;
+  private marker: THREE.Mesh;
+  // Camera: góc phương vị (bội số 90°), khoảng cách, góc ngẩng
+  private azimuthStep = 0;
+  private azimuth = 0;
+  private distance = 17;
+  private readonly elevation = THREE.MathUtils.degToRad(52);
+  private camTarget = new THREE.Vector3(OFFICE_MAP.spawn.x, 0, OFFICE_MAP.spawn.z);
+  private ray = new THREE.Raycaster();
+  private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  private downAt: { x: number; y: number } | null = null;
 
   onMove?: (x: number, z: number, r: number, anim: number) => void;
   onZone?: (zone: string | null) => void;
   private lastZone: string | null = null;
-  /** Đứng gần đồ vật có hành động (vd máy chấm công ở lễ tân) → action, đi xa → null. */
+  /** Đứng gần đồ vật có hành động (máy chấm công) → action; đi xa → null. */
   onNearAction?: (action: string | null) => void;
   private lastAction: string | null = null;
+  /** Ghế gần nhất có thể ngồi (hoặc ghế đang ngồi, kèm `sitting`). */
+  onSeat?: (info: { seat: Seat; sitting: boolean } | null) => void;
+  private lastSeatKey = '';
+  /** Thông báo ngắn cho HUD (vd "Ghế đã có người ngồi"). */
+  onHint?: (text: string) => void;
 
   constructor(private host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     host.appendChild(this.renderer.domElement);
-    this.scene.background = new THREE.Color(0x0f172a);
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x334155, 2.2));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.5);
-    sun.position.set(10, 20, 8);
-    this.scene.add(sun);
-    this.buildFloor();
+
+    this.scene.background = new THREE.Color(P.sky);
+    this.scene.fog = new THREE.Fog(P.sky, 45, 90);
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0xb8c2cc, 2.0));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+    const f = OFFICE_MAP.floor;
+    const cx = (f.x0 + f.x1) / 2, cz = (f.z0 + f.z1) / 2;
+    sun.position.set(cx + 8, 18, cz + 10);
+    sun.target.position.set(cx, 0, cz);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 12, bottom: -12, near: 1, far: 50 });
+    sun.shadow.bias = -0.0008;
+    this.scene.add(sun, sun.target);
+    this.scene.add(buildWorld(OFFICE_MAP));
+
+    this.marker = new THREE.Mesh(new THREE.RingGeometry(0.18, 0.3, 24), new THREE.MeshBasicMaterial({ color: 0x2563eb, transparent: true, opacity: 0.9, depthWrite: false }));
+    this.marker.rotation.x = -Math.PI / 2;
+    this.marker.position.y = 0.03;
+    this.marker.visible = false;
+    this.scene.add(this.marker);
+
     addEventListener('resize', this.resize);
     addEventListener('keydown', this.keyDown);
     addEventListener('keyup', this.keyUp);
+    addEventListener('blur', this.clearKeys);
+    const el = this.renderer.domElement;
+    el.addEventListener('pointerdown', this.pointerDown);
+    el.addEventListener('pointerup', this.pointerUp);
+    el.addEventListener('wheel', this.wheel, { passive: false });
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
     this.resize();
     this.loop();
   }
 
-  private buildFloor() {
-    const f = map.floor;
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(f.x1 - f.x0, f.z1 - f.z0), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.set((f.x0 + f.x1) / 2, 0, (f.z0 + f.z1) / 2);
-    this.scene.add(floor);
-    for (const z of map.zones) {
-      const m = new THREE.Mesh(
-        new THREE.PlaneGeometry(z.x1 - z.x0 - 0.2, z.z1 - z.z0 - 0.2),
-        new THREE.MeshStandardMaterial({ color: THEME_COLORS.zones[z.id] ?? 0x475569 }),
-      );
-      m.rotation.x = -Math.PI / 2;
-      m.position.set((z.x0 + z.x1) / 2, 0.01, (z.z0 + z.z1) / 2);
-      this.scene.add(m);
+  // ---------- người chơi ----------
+
+  spawnMe(id: string, name: string, x: number, z: number) {
+    if (!this.me) {
+      this.me = new Avatar(id, name, true);
+      this.scene.add(this.me.root);
     }
-    for (const o of map.objects ?? []) {
-      const box = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.4, 0.4), new THREE.MeshStandardMaterial({ color: 0xf59e0b }));
-      box.position.set(o.x, 0.7, o.z);
-      this.scene.add(box);
-    }
-  }
-
-  private makeAvatar(name: string, color: number) {
-    const g = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.8, 4, 12), new THREE.MeshStandardMaterial({ color }));
-    body.position.y = 0.7;
-    const nose = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.25), new THREE.MeshStandardMaterial({ color: 0xffffff }));
-    nose.position.set(0, 1.1, 0.3);
-    g.add(body, nose, this.label(name));
-    this.scene.add(g);
-    return g;
-  }
-
-  private label(text: string) {
-    const c = document.createElement('canvas');
-    c.width = 256; c.height = 64;
-    const ctx = c.getContext('2d')!;
-    ctx.fillStyle = 'rgba(15,23,42,.75)';
-    ctx.roundRect(0, 8, 256, 48, 24);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 26px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText(text.slice(0, 18), 128, 42);
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false }));
-    s.scale.set(1.6, 0.4, 1);
-    s.position.y = 1.9;
-    return s;
-  }
-
-  spawnMe(name: string, x: number, z: number) {
-    this.me ??= this.makeAvatar(name, THEME_COLORS.avatarSelf);
-    this.me.position.set(x, 0, z);
+    this.me.root.position.set(x, 0, z);
+    this.camTarget.set(x, 0, z);
   }
 
   teleportMe(x: number, z: number) {
-    this.me?.position.set(x, 0, z);
+    this.me?.root.position.set(x, 0, z);
+    this.path = [];
+    this.seat = null;
+    if (this.me) this.me.anim = ANIM.idle;
   }
 
-  upsertOther(id: string, name: string, x: number, z: number, r: number) {
-    let a = this.others.get(id);
-    if (!a) {
-      a = { mesh: this.makeAvatar(name, THEME_COLORS.avatarOther), tx: x, tz: z, tr: r };
-      a.mesh.position.set(x, 0, z);
-      this.others.set(id, a);
+  upsertOther(id: string, name: string, x: number, z: number, r: number, anim = 0) {
+    let o = this.others.get(id);
+    if (!o) {
+      o = { avatar: new Avatar(id, name, false), tx: x, tz: z, tr: r, name };
+      o.avatar.root.position.set(x, 0, z);
+      this.scene.add(o.avatar.root);
+      this.others.set(id, o);
     }
-    a.tx = x; a.tz = z; a.tr = r;
+    Object.assign(o, { tx: x, tz: z, tr: r });
+    o.avatar.anim = anim as AnimCode;
   }
 
-  moveOther(id: string, x: number, z: number, r: number) {
-    const a = this.others.get(id);
-    if (a) { a.tx = x; a.tz = z; a.tr = r; }
+  moveOther(id: string, x: number, z: number, r: number, anim = 0) {
+    const o = this.others.get(id);
+    if (!o) return;
+    Object.assign(o, { tx: x, tz: z, tr: r });
+    o.avatar.anim = anim as AnimCode;
   }
 
   removeOther(id: string) {
-    const a = this.others.get(id);
-    if (a) { this.scene.remove(a.mesh); this.others.delete(id); }
+    const o = this.others.get(id);
+    if (!o) return;
+    this.scene.remove(o.avatar.root);
+    o.avatar.dispose();
+    this.others.delete(id);
   }
 
+  /** Đi tới điểm (x, z) bằng tìm đường (bản đồ nhỏ / bấm chuột). */
+  walkTo(x: number, z: number, sitAt: Seat | null = null) {
+    if (!this.me) return;
+    this.standUp();
+    const p = this.me.root.position;
+    this.path = this.nav.findPath(p.x, p.z, x, z, RADIUS);
+    this.sitOnArrive = sitAt;
+    if (!this.path.length) { this.marker.visible = false; return this.onHint?.('Không có đường tới chỗ đó'); }
+    const [tx, tz] = this.path[this.path.length - 1];
+    this.marker.position.set(tx, 0.03, tz);
+    this.marker.visible = true;
+  }
+
+  // ---------- ngồi ----------
+
+  private seatTaken(s: Seat) {
+    for (const o of this.others.values()) if (o.avatar.anim === ANIM.sit && Math.hypot(o.tx - s.x, o.tz - s.z) < 0.15) return true;
+    return false;
+  }
+
+  private nearestSeat(x: number, z: number, reach: number) {
+    let best: Seat | null = null, bd = reach;
+    for (const s of OFFICE_MAP.seats) {
+      const d = Math.hypot(s.x - x, s.z - z);
+      if (d < bd && !this.seatTaken(s)) { bd = d; best = s; }
+    }
+    return best;
+  }
+
+  private sit(s: Seat) {
+    if (!this.me) return;
+    if (this.seatTaken(s)) return this.onHint?.(`Ghế ${s.id} đã có người ngồi`);
+    this.path = [];
+    this.marker.visible = false;
+    this.seat = s;
+    this.me.root.position.set(s.x, 0, s.z);
+    this.me.root.rotation.y = FACING_ANGLE[s.facing];
+    this.me.anim = ANIM.sit;
+    this.sendNow();
+  }
+
+  /** Đứng dậy: bước ra ô trống gần nhất (ghế có thể chạm cạnh bàn). */
+  private standUp() {
+    if (!this.me || !this.seat) return;
+    const p = this.me.root.position;
+    const free = this.nav.nearestFree(p.x, p.z);
+    if (free) { const [x, z] = this.nav.center(free[0], free[1]); p.set(x, 0, z); }
+    this.seat = null;
+    this.me.anim = ANIM.idle;
+    this.sendNow();
+  }
+
+  /** Phím E: đang ngồi → đứng; đứng gần ghế trống → ngồi. Trả false nếu không có gì để làm. */
+  toggleSit(): boolean {
+    if (!this.me) return false;
+    if (this.seat) { this.standUp(); return true; }
+    const s = this.nearestSeat(this.me.root.position.x, this.me.root.position.z, SEAT_REACH);
+    if (!s) return false;
+    this.sit(s);
+    return true;
+  }
+
+  snapshot(): MinimapSnapshot {
+    const p = this.me?.root.position;
+    return {
+      me: p ? { x: p.x, z: p.z, r: this.me!.root.rotation.y } : null,
+      others: [...this.others.values()].map((o) => ({ x: o.avatar.root.position.x, z: o.avatar.root.position.z, name: o.name, anim: o.avatar.anim })),
+      target: this.marker.visible ? [this.marker.position.x, this.marker.position.z] : null,
+    };
+  }
+
+  /** Xoay camera 90° (dir = 1 / -1). */
+  rotateCamera(dir: 1 | -1) { this.azimuthStep += dir; }
+
+  // ---------- input ----------
+
+  private isTyping = (e: Event) => ['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName);
+
   private keyDown = (e: KeyboardEvent) => {
-    if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
-    this.keys.add(e.key.toLowerCase());
+    if (this.isTyping(e)) return;
+    const k = e.key.toLowerCase();
+    if (k === 'q') this.rotateCamera(-1);
+    else if (k === 'r') this.rotateCamera(1);
+    this.keys.add(k);
   };
   private keyUp = (e: KeyboardEvent) => this.keys.delete(e.key.toLowerCase());
+  private clearKeys = () => this.keys.clear();
+
+  private pointerDown = (e: PointerEvent) => {
+    if (e.button === 0) this.downAt = { x: e.clientX, y: e.clientY };
+  };
+  private pointerUp = (e: PointerEvent) => {
+    const d = this.downAt;
+    this.downAt = null;
+    if (!d || e.button !== 0 || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return;
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.ray.setFromCamera(new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1), this.camera);
+    const hit = this.ray.ray.intersectPlane(this.groundPlane, new THREE.Vector3());
+    if (!hit) return;
+    // Bấm sát một ghế → đi tới cạnh ghế rồi ngồi
+    const seat = this.nearestSeat(hit.x, hit.z, 0.45);
+    this.walkTo(hit.x, hit.z, seat);
+  };
+  private wheel = (e: WheelEvent) => {
+    e.preventDefault();
+    this.distance = THREE.MathUtils.clamp(this.distance * (1 + Math.sign(e.deltaY) * 0.1), 8, 32);
+  };
 
   private resize = () => {
     const w = this.host.clientWidth, h = this.host.clientHeight;
@@ -137,42 +259,88 @@ export class OfficeScene {
     this.camera.updateProjectionMatrix();
   };
 
+  private sendNow() {
+    this.sendAcc = 1;
+  }
+
+  // ---------- vòng lặp ----------
+
+  private tryMove(dx: number, dz: number) {
+    const p = this.me!.root.position;
+    let moved = false;
+    if (dx && this.nav.fits(p.x + dx, p.z, RADIUS)) { p.x += dx; moved = true; }
+    if (dz && this.nav.fits(p.x, p.z + dz, RADIUS)) { p.z += dz; moved = true; }
+    return moved;
+  }
+
   private loop = () => {
     this.raf = requestAnimationFrame(this.loop);
     const dt = Math.min(this.clock.getDelta(), 0.1);
+    this.azimuth += (this.azimuthStep * (Math.PI / 2) - this.azimuth) * (1 - Math.exp(-8 * dt));
 
     if (this.me) {
-      const k = this.keys;
-      const dx = (k.has('d') || k.has('arrowright') ? 1 : 0) - (k.has('a') || k.has('arrowleft') ? 1 : 0);
-      const dz = (k.has('s') || k.has('arrowdown') ? 1 : 0) - (k.has('w') || k.has('arrowup') ? 1 : 0);
-      const moving = dx !== 0 || dz !== 0;
-      if (moving) {
-        const len = Math.hypot(dx, dz);
-        const f = map.floor;
-        this.me.position.x = THREE.MathUtils.clamp(this.me.position.x + (dx / len) * SPEED * dt, f.x0 + 0.4, f.x1 - 0.4);
-        this.me.position.z = THREE.MathUtils.clamp(this.me.position.z + (dz / len) * SPEED * dt, f.z0 + 0.4, f.z1 - 0.4);
-        this.me.rotation.y = Math.atan2(dx, dz);
+      const me = this.me, p = me.root.position, k = this.keys;
+      const ix = (k.has('d') || k.has('arrowright') ? 1 : 0) - (k.has('a') || k.has('arrowleft') ? 1 : 0);
+      const iz = (k.has('s') || k.has('arrowdown') ? 1 : 0) - (k.has('w') || k.has('arrowup') ? 1 : 0);
+      let walking = false;
+      if (ix || iz) {
+        this.path = [];
+        this.marker.visible = false;
+        this.standUp();
+        // Đổi hướng phím theo góc camera: "W" luôn là đi lên màn hình
+        const len = Math.hypot(ix, iz), c = Math.cos(this.azimuth), s = Math.sin(this.azimuth);
+        const dx = ((ix * c + iz * s) / len) * SPEED * dt, dz = ((-ix * s + iz * c) / len) * SPEED * dt;
+        walking = this.tryMove(dx, dz);
+        if (walking) me.root.rotation.y = Math.atan2(dx, dz);
+      } else if (this.path.length) {
+        const [tx, tz] = this.path[0];
+        const ddx = tx - p.x, ddz = tz - p.z, dist = Math.hypot(ddx, ddz), step = SPEED * dt;
+        if (dist <= step) {
+          p.x = tx; p.z = tz;
+          this.path.shift();
+          if (!this.path.length) {
+            this.marker.visible = false;
+            if (this.sitOnArrive) { const st = this.sitOnArrive; this.sitOnArrive = null; if (Math.hypot(st.x - p.x, st.z - p.z) < SEAT_REACH + 0.3) this.sit(st); }
+          }
+        } else {
+          p.x += (ddx / dist) * step; p.z += (ddz / dist) * step;
+        }
+        if (dist > 1e-3) me.root.rotation.y = Math.atan2(ddx, ddz);
+        walking = true;
       }
+      if (!this.seat) me.anim = walking ? ANIM.walk : ANIM.idle;
+
       this.sendAcc += dt;
       if (this.sendAcc >= 0.1) {
         this.sendAcc = 0;
-        this.onMove?.(this.me.position.x, this.me.position.z, this.me.rotation.y, moving ? 1 : 0);
+        this.onMove?.(p.x, p.z, me.root.rotation.y, me.anim);
       }
-      const p = this.me.position;
-      const zone = map.zones.find((z) => p.x >= z.x0 && p.x <= z.x1 && p.z >= z.z0 && p.z <= z.z1)?.name ?? null;
+      const zone = this.nav.zoneAt(p.x, p.z)?.name ?? null;
       if (zone !== this.lastZone) { this.lastZone = zone; this.onZone?.(zone); }
-      const near = (map.objects ?? []).find((o) => o.action && Math.hypot(o.x - p.x, o.z - p.z) < 1.8)?.action ?? null;
+      const near = OFFICE_MAP.objects.find((o) => o.action && Math.hypot(o.x - p.x, o.z - p.z) < ACTION_REACH)?.action ?? null;
       if (near !== this.lastAction) { this.lastAction = near; this.onNearAction?.(near); }
-      this.camera.position.lerp(new THREE.Vector3(p.x, 11, p.z + 10), 1 - Math.exp(-6 * dt));
-      this.camera.lookAt(p.x, 0.8, p.z);
+      const seatInfo = this.seat ? { seat: this.seat, sitting: true } : (() => { const s = this.nearestSeat(p.x, p.z, SEAT_REACH); return s ? { seat: s, sitting: false } : null; })();
+      const seatKey = seatInfo ? `${seatInfo.seat.id}:${seatInfo.sitting}` : '';
+      if (seatKey !== this.lastSeatKey) { this.lastSeatKey = seatKey; this.onSeat?.(seatInfo); }
+      this.camTarget.lerp(new THREE.Vector3(p.x, 0, p.z), 1 - Math.exp(-6 * dt));
+      me.update(dt);
     }
 
     const t = 1 - Math.exp(-12 * dt);
-    for (const a of this.others.values()) {
-      a.mesh.position.x += (a.tx - a.mesh.position.x) * t;
-      a.mesh.position.z += (a.tz - a.mesh.position.z) * t;
-      a.mesh.rotation.y = a.tr;
+    for (const o of this.others.values()) {
+      const r = o.avatar.root;
+      r.position.x += (o.tx - r.position.x) * t;
+      r.position.z += (o.tz - r.position.z) * t;
+      let dr = o.tr - r.rotation.y;
+      dr = Math.atan2(Math.sin(dr), Math.cos(dr));
+      r.rotation.y += dr * t;
+      o.avatar.update(dt);
     }
+
+    const flat = this.distance * Math.cos(this.elevation);
+    this.camera.position.set(this.camTarget.x + Math.sin(this.azimuth) * flat, this.distance * Math.sin(this.elevation), this.camTarget.z + Math.cos(this.azimuth) * flat);
+    this.camera.lookAt(this.camTarget.x, 0.6, this.camTarget.z);
+    this.marker.scale.setScalar(1 + Math.sin(this.clock.elapsedTime * 6) * 0.08);
     this.renderer.render(this.scene, this.camera);
   };
 
@@ -181,6 +349,16 @@ export class OfficeScene {
     removeEventListener('resize', this.resize);
     removeEventListener('keydown', this.keyDown);
     removeEventListener('keyup', this.keyUp);
+    removeEventListener('blur', this.clearKeys);
+    for (const id of [...this.others.keys()]) this.removeOther(id);
+    this.me?.dispose();
+    this.scene.traverse((o) => {
+      if (o instanceof THREE.Mesh) {
+        o.geometry.dispose();
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach((m) => { (m as THREE.MeshBasicMaterial).map?.dispose(); m.dispose(); });
+      }
+    });
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }

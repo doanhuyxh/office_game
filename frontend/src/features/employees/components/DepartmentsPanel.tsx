@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import map from '@shared/office-map.json';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
@@ -14,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { useDeleteDepartment, useDepartments, useEmployees, useSaveDepartment } from '../hooks/useOrg';
 import type { IDepartment, IUpsertDepartment } from '../types/employee.types';
+import { MAP_ZONES, mapZoneName } from '../utils/mapZones';
 
 function DepartmentDialog({ open, onOpenChange, dept }: { open: boolean; onOpenChange: (o: boolean) => void; dept: IDepartment | null }) {
   const save = useSaveDepartment();
@@ -47,7 +47,7 @@ function DepartmentDialog({ open, onOpenChange, dept }: { open: boolean; onOpenC
           <SelectField id="d-head" label="Trưởng phòng" allowEmpty value={form.headEmployeeId} onChange={(v) => setForm({ ...form, headEmployeeId: v })}
             error={errors.headEmployeeId} options={employees.map((e) => ({ value: e.id, label: `${e.code} · ${e.fullName}` }))} />
           <SelectField id="d-zone" label="Khu vực trong văn phòng 3D" allowEmpty value={form.mapZone} onChange={(v) => setForm({ ...form, mapZone: v })}
-            options={map.zones.map((z) => ({ value: z.id, label: z.name }))} />
+            options={MAP_ZONES.map((z) => ({ value: z.id, label: z.name }))} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
             <Button type="submit" disabled={save.isPending}>Lưu</Button>
@@ -64,7 +64,6 @@ export function DepartmentsPanel({ canEdit }: { canEdit: boolean }) {
   const [editing, setEditing] = useState<IDepartment | null | undefined>(undefined); // undefined = đóng, null = thêm mới
   const [deleting, setDeleting] = useState<IDepartment | null>(null);
   const byId = new Map(departments.map((d) => [d.id, d]));
-  const zoneName = (id: string | null) => map.zones.find((z) => z.id === id)?.name;
 
   return (
     <div className="space-y-4">
@@ -86,7 +85,7 @@ export function DepartmentsPanel({ canEdit }: { canEdit: boolean }) {
                 <TableCell><span className="font-medium">{d.name}</span>{d.code && <span className="ml-2 text-xs text-muted-foreground">{d.code}</span>}</TableCell>
                 <TableCell>{d.parentId ? byId.get(d.parentId)?.name : '—'}</TableCell>
                 <TableCell>{d.headName ?? '—'}</TableCell>
-                <TableCell>{zoneName(d.mapZone) ?? '—'}</TableCell>
+                <TableCell>{mapZoneName(d.mapZone) ?? d.mapZone ?? '—'}</TableCell>
                 <TableCell className="text-right">{d.employeeCount}</TableCell>
                 {canEdit && (
                   <TableCell className="text-right">

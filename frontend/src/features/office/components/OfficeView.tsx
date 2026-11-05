@@ -9,6 +9,8 @@ import { useOffice } from '../store/office.store';
 import { PATHS } from '@/config/paths';
 import { OfficeScene } from '../engine/OfficeScene';
 import { OfficeConnection } from '../api/officeHub';
+import type { Seat } from '../engine/mapTypes';
+import { Minimap } from './Minimap';
 import './office.css';
 
 /** Văn phòng 3D. Route /_protected/office đã kiểm tra đăng nhập trước khi tải trang này. */
@@ -19,6 +21,9 @@ export function OfficeView() {
   const { me, conn, online, zone, chat, kickReason } = useOffice();
   const [text, setText] = useState('');
   const [nearAction, setNearAction] = useState<string | null>(null);
+  const [seatInfo, setSeatInfo] = useState<{ seat: Seat; sitting: boolean } | null>(null);
+  const [scene, setScene] = useState<OfficeScene | null>(null);
+  const [help, setHelp] = useState(true);
   const { data: today, noProfile } = useToday();
   const check = useCheck();
 
@@ -34,15 +39,16 @@ export function OfficeView() {
   const doCheckRef = useRef(doCheck);
   doCheckRef.current = doCheck;
 
-  // Phím E khi đứng cạnh máy chấm công
+  // Phím E: gần máy chấm công → chấm công; không thì ngồi / đứng ở ghế gần nhất
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() !== 'e' || (e.target as HTMLElement)?.tagName === 'INPUT') return;
-      if (nearAction === 'attendance.checkin') doCheckRef.current();
+      if (e.key.toLowerCase() !== 'e' || e.repeat || (e.target as HTMLElement)?.tagName === 'INPUT') return;
+      if (nearAction === 'attendance.checkin' && !seatInfo?.sitting) doCheckRef.current();
+      else scene?.toggleSit();
     };
     addEventListener('keydown', onKey);
     return () => removeEventListener('keydown', onKey);
-  }, [nearAction]);
+  }, [nearAction, seatInfo, scene]);
 
   // 1) Đưa tài khoản vào store của văn phòng
   useEffect(() => {
@@ -62,15 +68,15 @@ export function OfficeView() {
         s.setConn('online');
         for (const p of w.players) {
           players.set(p.id, p.name);
-          if (p.id === w.selfId) scene.spawnMe(p.name, p.x, p.z);
-          else scene.upsertOther(p.id, p.name, p.x, p.z, p.r);
+          if (p.id === w.selfId) scene.spawnMe(p.id, p.name, p.x, p.z);
+          else scene.upsertOther(p.id, p.name, p.x, p.z, p.r, p.anim);
         }
         s.setOnline(players.size);
       },
       playerJoined: (p) => {
         if (p.id === me.id) return;
         players.set(p.id, p.name);
-        scene.upsertOther(p.id, p.name, p.x, p.z, p.r);
+        scene.upsertOther(p.id, p.name, p.x, p.z, p.r, p.anim);
         s.setOnline(players.size);
       },
       playerLeft: (id) => {
@@ -78,7 +84,7 @@ export function OfficeView() {
         scene.removeOther(id);
         s.setOnline(players.size);
       },
-      positions: (list) => list.forEach((p) => p.id !== me.id && scene.moveOther(p.id, p.x, p.z, p.r)),
+      positions: (list) => list.forEach((p) => p.id !== me.id && scene.moveOther(p.id, p.x, p.z, p.r, p.anim)),
       chat: (m) => s.pushChat({ ...m, at: String(m.at) }),
       teleport: (x, z) => scene.teleportMe(x, z),
       kicked: (reason) => s.kick(reason),
@@ -87,12 +93,17 @@ export function OfficeView() {
     scene.onMove = (x, z, r, a) => c.move(x, z, r, a);
     scene.onZone = (z) => s.setZone(z);
     scene.onNearAction = setNearAction;
+    scene.onSeat = setSeatInfo;
+    scene.onHint = (t) => toast.info(t);
+    setScene(scene);
+    if (import.meta.env.DEV) (window as unknown as { __officeScene?: OfficeScene }).__officeScene = scene; // chỉ để test e2e khi dev
     connRef.current = c;
     // Hoãn 1 tick: React StrictMode (dev) gọi effect → cleanup → effect ngay lập tức; tránh mở rồi huỷ kết nối giữa chừng.
     const startTimer = setTimeout(() => c.start().catch(() => s.setConn('offline')), 0);
     return () => {
       clearTimeout(startTimer);
       void c.stop();
+      setScene(null);
       scene.dispose();
     };
   }, [meId]);
@@ -126,8 +137,28 @@ export function OfficeView() {
           </div>
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Nhập tin nhắn, Enter để gửi" maxLength={200} />
         </form>
-        {nearAction === 'attendance.checkin' && (
+        {nearAction === 'attendance.checkin' && !seatInfo?.sitting ? (
           <div className="card prompt">Máy chấm công · bấm <kbd>E</kbd> để {today?.checkedIn ? 'chấm công ra' : 'chấm công vào'}</div>
+        ) : seatInfo && (
+          <div className="card prompt" data-testid="office-seat-prompt">
+            {seatInfo.sitting ? <>Đang ngồi ở bàn <b>{seatInfo.seat.id}</b> · <kbd>E</kbd> hoặc di chuyển để đứng dậy</> : <>Bàn <b>{seatInfo.seat.id}</b> · bấm <kbd>E</kbd> để ngồi</>}
+          </div>
+        )}
+        <Minimap scene={scene} />
+        <div className="card camera">
+          <button type="button" onClick={() => scene?.rotateCamera(-1)} title="Xoay trái (Q)">⟲</button>
+          <button type="button" onClick={() => scene?.rotateCamera(1)} title="Xoay phải (R)">⟳</button>
+          <button type="button" onClick={() => setHelp((h) => !h)} title="Hướng dẫn">?</button>
+        </div>
+        {help && (
+          <div className="card help" data-testid="office-help">
+            <b>Điều khiển</b>
+            <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / mũi tên · đi</span>
+            <span>Bấm chuột lên sàn / bản đồ nhỏ · tự đi tới</span>
+            <span><kbd>E</kbd> · ngồi / đứng, chấm công ở máy</span>
+            <span><kbd>Q</kbd> <kbd>R</kbd> · xoay góc nhìn · cuộn chuột · zoom</span>
+            <button type="button" onClick={() => setHelp(false)}>Đã hiểu</button>
+          </div>
         )}
         <button className={`card checkin ${today?.checkedIn ? 'on' : ''}`} onClick={doCheck} disabled={check.isPending || noProfile}
           title={noProfile ? 'Tài khoản chưa gắn hồ sơ nhân viên' : undefined} data-testid="office-check">

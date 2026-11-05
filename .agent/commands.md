@@ -37,6 +37,7 @@ bun run dev                                   # http://localhost:5173, proxy /ap
 | Typecheck FE | `bun run typecheck` (`tsc -b`) | `frontend/` |
 | Build FE | `bun run build` (`tsc -b && vite build`) | `frontend/` |
 | Sinh type từ OpenAPI | `bun run api:generate` (Orval → `src/types/generated/`, thư mục **chưa tồn tại** tới khi chạy lần đầu; cần Api đang chạy) | `frontend/` |
+| Sửa bản đồ văn phòng 3D | sửa `shared/office-map.json` → `bun design/tools/render-plan.ts` (vẽ `design/floor-plan.svg`, ghi `shared/office-map.grid.txt`, kiểm tra; lỗi → exit 1) | gốc repo |
 | Thêm / cập nhật component shadcn | `bun run ui:add <tên…> [--overwrite]` → vào `src/components/common/` (**không** gọi `bunx shadcn add` trực tiếp) | `frontend/` |
 
 FE **không có lint/test runner** (không có ESLint, Vitest). Kiểm tra = `bun run build`.

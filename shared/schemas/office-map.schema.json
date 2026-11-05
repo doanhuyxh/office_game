@@ -1,27 +1,62 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OfficeMap",
+  "title": "OfficeMap v2",
+  "description": "Bản đồ văn phòng 3D. Đơn vị mét, gốc góc tây-bắc, x sang đông, z xuống nam. Lưới va chạm sinh ra từ tường + objects solid (không lưu). Sửa xong chạy: bun design/tools/render-plan.ts",
   "type": "object",
-  "required": ["version", "floor", "spawn", "zones"],
+  "required": ["version", "name", "grid", "floor", "spawn", "rooms", "areas", "seats", "objects", "outerDoors"],
   "properties": {
-    "version": { "type": "integer" },
+    "$schema": { "type": "string" },
+    "version": { "const": 2 },
     "name": { "type": "string" },
+    "notes": { "type": "string" },
+    "unit": { "const": "m" },
+    "grid": { "type": "number", "exclusiveMinimum": 0 },
     "floor": { "$ref": "#/$defs/rect" },
     "wallHeight": { "type": "number" },
-    "spawn": { "type": "object", "required": ["x", "z"], "properties": { "x": { "type": "number" }, "z": { "type": "number" } } },
-    "zones": { "type": "array", "items": { "allOf": [{ "$ref": "#/$defs/rect" }, { "required": ["id", "name"] }] } },
-    "objects": {
+    "outerDoors": { "type": "array", "items": { "$ref": "#/$defs/door" } },
+    "spawn": { "$ref": "#/$defs/point" },
+    "rooms": {
       "type": "array",
       "items": {
-        "type": "object", "required": ["id", "prefab", "x", "z"],
-        "properties": { "id": { "type": "string" }, "prefab": { "type": "string" }, "x": { "type": "number" }, "z": { "type": "number" }, "r": { "type": "number" }, "action": { "type": "string" } }
+        "allOf": [{ "$ref": "#/$defs/rect" }],
+        "type": "object",
+        "required": ["id", "name", "kind", "zone", "walls"],
+        "properties": {
+          "id": { "type": "string" }, "name": { "type": "string" },
+          "kind": { "enum": ["office", "meeting", "booth", "open", "lounge", "lobby", "pantry"] },
+          "zone": { "type": "string", "description": "Id khu (departments.MapZone dùng id này hoặc areas[].id)" },
+          "walls": { "type": "boolean" }, "glass": { "type": "boolean" },
+          "capacity": { "type": "integer" }, "voice": { "const": "room" },
+          "doors": { "type": "array", "items": { "$ref": "#/$defs/door" } }
+        }
       }
+    },
+    "areas": {
+      "type": "array",
+      "items": { "allOf": [{ "$ref": "#/$defs/rect" }], "type": "object", "required": ["id", "name", "dept"],
+        "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "dept": { "type": "string" } } }
+    },
+    "seats": {
+      "type": "array",
+      "items": { "type": "object", "required": ["id", "dept", "zone", "x", "z", "facing"],
+        "properties": { "id": { "type": "string" }, "dept": { "type": "string" }, "zone": { "type": "string" }, "x": { "type": "number" }, "z": { "type": "number" }, "facing": { "$ref": "#/$defs/side" } } }
+    },
+    "objects": {
+      "type": "array",
+      "items": { "type": "object", "required": ["id", "prefab", "x", "z", "w", "d", "rot", "solid"],
+        "properties": {
+          "id": { "type": "string" }, "prefab": { "type": "string" }, "x": { "type": "number" }, "z": { "type": "number" },
+          "w": { "type": "number" }, "d": { "type": "number" }, "rot": { "enum": [0, 90, 180, 270] }, "solid": { "type": "boolean" },
+          "action": { "enum": ["attendance.checkin"] }, "interact": { "type": "string" }
+        } }
     }
   },
   "$defs": {
-    "rect": {
-      "type": "object", "required": ["x0", "x1", "z0", "z1"],
-      "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "x0": { "type": "number" }, "x1": { "type": "number" }, "z0": { "type": "number" }, "z1": { "type": "number" } }
-    }
+    "side": { "enum": ["n", "s", "e", "w"] },
+    "point": { "type": "object", "required": ["x", "z"], "properties": { "x": { "type": "number" }, "z": { "type": "number" } } },
+    "rect": { "type": "object", "required": ["x0", "x1", "z0", "z1"],
+      "properties": { "x0": { "type": "number" }, "x1": { "type": "number" }, "z0": { "type": "number" }, "z1": { "type": "number" } } },
+    "door": { "type": "object", "required": ["side", "at", "w"],
+      "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "side": { "$ref": "#/$defs/side" }, "at": { "type": "number" }, "w": { "type": "number" } } }
   }
 }

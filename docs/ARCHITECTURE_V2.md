@@ -14,7 +14,7 @@
 | Cấu hình tập trung trong `.env`, báo thiếu key khi khởi động, `/health/ready` kiểm tra DB / S3 / SMTP | ✅ |
 | Đăng nhập bằng email hoặc tên đăng nhập, cookie dùng chung giữa Api và Realtime, đổi mật khẩu bắt buộc, khoá 15 phút sau 5 lần sai | ✅ |
 | Tự chạy migration, tự tạo admin đầu tiên từ `.env` | ✅ |
-| Văn phòng 3D tối giản: bản đồ từ `shared/office-map.json`, đi lại, thấy người khác, chat, chống teleport, một tài khoản chỉ một tab | ✅ |
+| **Văn phòng 3D giai đoạn 1**: mặt bằng v2 (24 × 16 m, 10 phòng, 24 chỗ ngồi theo phòng ban, `design/`), engine mới (camera chéo xoay 90°, đồ đạc low-poly, avatar đi / ngồi), va chạm + tìm đường A* (lưới dùng chung FE / server, server chặn xuyên tường), ngồi ghế, bản đồ nhỏ; chat, chống teleport, một tài khoản một tab | ✅ |
 | Cấp token voice LiveKit | ✅ (chưa có UI voice) |
 | Front-end feature-based: đăng nhập, đổi mật khẩu, layout nhân sự, `/office` lazy load | ✅ |
 | **Organization**: phòng ban, chức vụ, hồ sơ nhân viên, HR cấp tài khoản (mời qua email / mật khẩu tạm), đổi vai trò, nghỉ việc / khôi phục | ✅ |
@@ -778,7 +778,7 @@ Hiện tại các tương tác dưới đây được làm **đồng bộ qua `*
 | **Tăng ca** ✅ | Đơn tăng ca, duyệt quản lý → HR, giờ theo hệ số loại ngày, cảnh báo giới hạn | Tăng ca có trên bảng công |
 | **Thông báo** ✅ | Chuông in-app + email cho luồng duyệt | Người duyệt biết ngay có đơn |
 | **Tiếp theo** ⏳ | Quy ra tiền phép năm / tăng ca; nhắc quên chấm ra; Audit; nhập nhân viên từ Excel | Đủ quy trình nhân sự hằng ngày |
-| **Văn phòng 3D** ⏳ | Viết mới engine đầy đủ, bản đồ theo mặt bằng thật, chỗ ngồi theo phòng ban, hiện trạng thái "Nghỉ phép" trên avatar | Văn phòng 3D giống thật |
+| **Văn phòng 3D** — giai đoạn 1 ✅ · 2–4 ⏳ | Viết mới engine đầy đủ, bản đồ theo mặt bằng thật, chỗ ngồi theo phòng ban, hiện trạng thái "Nghỉ phép" trên avatar | Văn phòng 3D giống thật |
 | **Hợp đồng lao động** ✅ | Hợp đồng, phụ lục, lương mã hoá, file S3, nhắc 30 / 7 ngày | HR quản lý hợp đồng trên hệ thống |
 | **2. Hoàn thiện** ⏳ | Bảng công tháng + Excel, mẫu hợp đồng, quy ra tiền tăng ca, voice + đặt phòng họp | Bỏ quy trình giấy/Excel |
 | **3. Mở rộng** ⏳ | Webhook máy chấm công, PWA/mobile, ký điện tử, tích hợp lương | Tuỳ nhu cầu |

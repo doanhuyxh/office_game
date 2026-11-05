@@ -1,19 +1,1496 @@
 {
   "$schema": "./schemas/office-map.schema.json",
-  "version": 1,
-  "name": "Văn phòng chính",
-  "floor": { "x0": -20, "x1": 20, "z0": -15, "z1": 15 },
+  "version": 2,
+  "name": "Văn phòng OfficeHub",
+  "notes": "Mặt bằng v1 do Claude đề xuất khi chưa có bản vẽ thật (chủ dự án duyệt 2026-11-05). Đơn vị mét, gốc (0,0) góc tây-bắc, x sang đông, z xuống nam. Cửa căn theo lưới. Lưới va chạm sinh ra từ tường + objects solid (frontend/src/features/office/engine/navGrid.ts = backend NavGrid.cs). Sửa xong chạy: bun design/tools/render-plan.ts",
+  "unit": "m",
+  "grid": 0.5,
+  "floor": {
+    "x0": 0,
+    "x1": 24,
+    "z0": 0,
+    "z1": 16
+  },
   "wallHeight": 3,
-  "spawn": { "x": 0, "z": 9 },
-  "zones": [
-    { "id": "work",    "name": "Khu làm việc", "x0": -20, "x1": 6,  "z0": -15, "z1": 5 },
-    { "id": "meeting", "name": "Phòng họp",    "x0": 6,   "x1": 20, "z0": -15, "z1": -4 },
-    { "id": "pantry",  "name": "Pantry",       "x0": 8,   "x1": 20, "z0": 4,   "z1": 15 },
-    { "id": "lounge",  "name": "Khu nghỉ",     "x0": -20, "x1": -8, "z0": 5,   "z1": 15 },
-    { "id": "reception", "name": "Lễ tân",     "x0": -4,  "x1": 4,  "z0": 10,  "z1": 15 }
+  "outerDoors": [
+    {
+      "id": "entrance",
+      "side": "s",
+      "at": 10.5,
+      "w": 2.0,
+      "name": "Cửa chính"
+    }
+  ],
+  "spawn": {
+    "x": 11.5,
+    "z": 15.0
+  },
+  "rooms": [
+    {
+      "id": "bgd",
+      "name": "Phòng Giám đốc",
+      "kind": "office",
+      "zone": "dept-bgd",
+      "x0": 0,
+      "x1": 6,
+      "z0": 0,
+      "z1": 5.5,
+      "walls": true,
+      "doors": [
+        {
+          "side": "s",
+          "at": 4.0,
+          "w": 1.0
+        }
+      ]
+    },
+    {
+      "id": "meeting-large",
+      "name": "Phòng họp lớn",
+      "kind": "meeting",
+      "zone": "meeting",
+      "x0": 6,
+      "x1": 13,
+      "z0": 0,
+      "z1": 5.5,
+      "walls": true,
+      "glass": true,
+      "capacity": 10,
+      "voice": "room",
+      "doors": [
+        {
+          "side": "s",
+          "at": 0.5,
+          "w": 1.0
+        }
+      ]
+    },
+    {
+      "id": "kt",
+      "name": "Phòng Kế toán",
+      "kind": "office",
+      "zone": "dept-kt",
+      "x0": 13,
+      "x1": 18.5,
+      "z0": 0,
+      "z1": 5.5,
+      "walls": true,
+      "doors": [
+        {
+          "side": "s",
+          "at": 4.0,
+          "w": 1.0
+        }
+      ]
+    },
+    {
+      "id": "meeting-small",
+      "name": "Phòng họp nhỏ",
+      "kind": "meeting",
+      "zone": "meeting",
+      "x0": 18.5,
+      "x1": 24.0,
+      "z0": 0,
+      "z1": 5.5,
+      "walls": true,
+      "glass": true,
+      "capacity": 4,
+      "voice": "room",
+      "doors": [
+        {
+          "side": "s",
+          "at": 0.5,
+          "w": 1.0
+        }
+      ]
+    },
+    {
+      "id": "booth-1",
+      "name": "Phòng gọi 1",
+      "kind": "booth",
+      "zone": "booth",
+      "x0": 21,
+      "x1": 24,
+      "z0": 6,
+      "z1": 8.5,
+      "walls": true,
+      "glass": true,
+      "capacity": 2,
+      "voice": "room",
+      "doors": [
+        {
+          "side": "w",
+          "at": 0.5,
+          "w": 1.0
+        }
+      ]
+    },
+    {
+      "id": "booth-2",
+      "name": "Phòng gọi 2",
+      "kind": "booth",
+      "zone": "booth",
+      "x0": 21,
+      "x1": 24,
+      "z0": 8.5,
+      "z1": 11.0,
+      "walls": true,
+      "glass": true,
+      "capacity": 2,
+      "voice": "room",
+      "doors": [
+        {
+          "side": "w",
+          "at": 0.5,
+          "w": 1.0
+        }
+      ]
+    },
+    {
+      "id": "open",
+      "name": "Khu làm việc chung",
+      "kind": "open",
+      "zone": "work",
+      "x0": 0,
+      "x1": 21,
+      "z0": 5.5,
+      "z1": 11.0,
+      "walls": false
+    },
+    {
+      "id": "lounge",
+      "name": "Khu nghỉ",
+      "kind": "lounge",
+      "zone": "lounge",
+      "x0": 0,
+      "x1": 7,
+      "z0": 11,
+      "z1": 16,
+      "walls": false
+    },
+    {
+      "id": "lobby",
+      "name": "Sảnh & Lễ tân",
+      "kind": "lobby",
+      "zone": "reception",
+      "x0": 7,
+      "x1": 16,
+      "z0": 11,
+      "z1": 16,
+      "walls": false
+    },
+    {
+      "id": "pantry",
+      "name": "Pantry",
+      "kind": "pantry",
+      "zone": "pantry",
+      "x0": 16,
+      "x1": 24,
+      "z0": 11,
+      "z1": 16,
+      "walls": false
+    }
+  ],
+  "areas": [
+    {
+      "id": "dept-kth",
+      "name": "Kỹ thuật",
+      "dept": "KTH",
+      "x0": 0.6,
+      "x1": 6.8,
+      "z0": 6,
+      "z1": 9.6
+    },
+    {
+      "id": "dept-kd",
+      "name": "Kinh doanh",
+      "dept": "KD",
+      "x0": 8.2,
+      "x1": 14.4,
+      "z0": 6,
+      "z1": 9.6
+    },
+    {
+      "id": "dept-hcns",
+      "name": "Hành chính – Nhân sự",
+      "dept": "HCNS",
+      "x0": 15.2,
+      "x1": 19.1,
+      "z0": 6,
+      "z1": 9.6
+    }
+  ],
+  "seats": [
+    {
+      "id": "KTH-01",
+      "dept": "KTH",
+      "zone": "dept-kth",
+      "x": 1.9,
+      "z": 6.75,
+      "facing": "s"
+    },
+    {
+      "id": "KTH-02",
+      "dept": "KTH",
+      "zone": "dept-kth",
+      "x": 3.5,
+      "z": 6.75,
+      "facing": "s"
+    },
+    {
+      "id": "KTH-03",
+      "dept": "KTH",
+      "zone": "dept-kth",
+      "x": 5.1,
+      "z": 6.75,
+      "facing": "s"
+    },
+    {
+      "id": "KTH-04",
+      "dept": "KTH",
+      "zone": "dept-kth",
+      "x": 1.9,
+      "z": 8.75,
+      "facing": "n"
+    },
+    {
+      "id": "KTH-05",
+      "dept": "KTH",
+      "zone": "dept-kth",
+      "x": 3.5,
+      "z": 8.75,
+      "facing": "n"
+    },
+    {
+      "id": "KTH-06",
+      "dept": "KTH",
+      "zone": "dept-kth",
+      "x": 5.1,
+      "z": 8.75,
+      "facing": "n"
+    },
+    {
+      "id": "KD-01",
+      "dept": "KD",
+      "zone": "dept-kd",
+      "x": 9.5,
+      "z": 6.75,
+      "facing": "s"
+    },
+    {
+      "id": "KD-02",
+      "dept": "KD",
+      "zone": "dept-kd",
+      "x": 11.1,
+      "z": 6.75,
+      "facing": "s"
+    },
+    {
+      "id": "KD-03",
+      "dept": "KD",
+      "zone": "dept-kd",
+      "x": 12.7,
+      "z": 6.75,
+      "facing": "s"
+    },
+    {
+      "id": "KD-04",
+      "dept": "KD",
+      "zone": "dept-kd",
+      "x": 9.5,
+      "z": 8.75,
+      "facing": "n"
+    },
+    {
+      "id": "KD-05",
+      "dept": "KD",
+      "zone": "dept-kd",
+      "x": 11.1,
+      "z": 8.75,
+      "facing": "n"
+    },
+    {
+      "id": "KD-06",
+      "dept": "KD",
+      "zone": "dept-kd",
+      "x": 12.7,
+      "z": 8.75,
+      "facing": "n"
+    },
+    {
+      "id": "HCNS-01",
+      "dept": "HCNS",
+      "zone": "dept-hcns",
+      "x": 16.4,
+      "z": 6.75,
+      "facing": "s"
+    },
+    {
+      "id": "HCNS-02",
+      "dept": "HCNS",
+      "zone": "dept-hcns",
+      "x": 18.0,
+      "z": 6.75,
+      "facing": "s"
+    },
+    {
+      "id": "HCNS-03",
+      "dept": "HCNS",
+      "zone": "dept-hcns",
+      "x": 16.4,
+      "z": 8.75,
+      "facing": "n"
+    },
+    {
+      "id": "HCNS-04",
+      "dept": "HCNS",
+      "zone": "dept-hcns",
+      "x": 18.0,
+      "z": 8.75,
+      "facing": "n"
+    },
+    {
+      "id": "KT-01",
+      "dept": "KT",
+      "zone": "dept-kt",
+      "x": 14.9,
+      "z": 1.65,
+      "facing": "s"
+    },
+    {
+      "id": "KT-02",
+      "dept": "KT",
+      "zone": "dept-kt",
+      "x": 16.5,
+      "z": 1.65,
+      "facing": "s"
+    },
+    {
+      "id": "KT-03",
+      "dept": "KT",
+      "zone": "dept-kt",
+      "x": 14.9,
+      "z": 3.65,
+      "facing": "n"
+    },
+    {
+      "id": "KT-04",
+      "dept": "KT",
+      "zone": "dept-kt",
+      "x": 16.5,
+      "z": 3.65,
+      "facing": "n"
+    },
+    {
+      "id": "BGD-01",
+      "dept": "BGD",
+      "zone": "dept-bgd",
+      "x": 1.5,
+      "z": 0.95,
+      "facing": "s"
+    },
+    {
+      "id": "BGD-02",
+      "dept": "BGD",
+      "zone": "dept-bgd",
+      "x": 4.5,
+      "z": 0.95,
+      "facing": "s"
+    },
+    {
+      "id": "LT-01",
+      "dept": "LT",
+      "zone": "reception",
+      "x": 10.7,
+      "z": 12.05,
+      "facing": "s"
+    },
+    {
+      "id": "LT-02",
+      "dept": "LT",
+      "zone": "reception",
+      "x": 12.3,
+      "z": 12.05,
+      "facing": "s"
+    }
   ],
   "objects": [
-    { "id": "timeclock", "prefab": "time-clock", "x": 0, "z": 13.5, "r": 3.14159, "action": "attendance.checkin" }
-  ],
-  "notes": "Bản tạm từ MVP. Sẽ vẽ lại theo mặt bằng thật của văn phòng (phòng ban → zone, bàn → seat)."
+    {
+      "id": "desk-KTH-01",
+      "prefab": "desk",
+      "x": 1.9,
+      "z": 7.4,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KTH-01",
+      "prefab": "computerScreen",
+      "x": 1.9,
+      "z": 7.4,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KTH-02",
+      "prefab": "desk",
+      "x": 3.5,
+      "z": 7.4,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KTH-02",
+      "prefab": "computerScreen",
+      "x": 3.5,
+      "z": 7.4,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KTH-03",
+      "prefab": "desk",
+      "x": 5.1,
+      "z": 7.4,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KTH-03",
+      "prefab": "computerScreen",
+      "x": 5.1,
+      "z": 7.4,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KTH-04",
+      "prefab": "desk",
+      "x": 1.9,
+      "z": 8.1,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KTH-04",
+      "prefab": "computerScreen",
+      "x": 1.9,
+      "z": 8.1,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KTH-05",
+      "prefab": "desk",
+      "x": 3.5,
+      "z": 8.1,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KTH-05",
+      "prefab": "computerScreen",
+      "x": 3.5,
+      "z": 8.1,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KTH-06",
+      "prefab": "desk",
+      "x": 5.1,
+      "z": 8.1,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KTH-06",
+      "prefab": "computerScreen",
+      "x": 5.1,
+      "z": 8.1,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KD-01",
+      "prefab": "desk",
+      "x": 9.5,
+      "z": 7.4,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KD-01",
+      "prefab": "computerScreen",
+      "x": 9.5,
+      "z": 7.4,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KD-02",
+      "prefab": "desk",
+      "x": 11.1,
+      "z": 7.4,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KD-02",
+      "prefab": "computerScreen",
+      "x": 11.1,
+      "z": 7.4,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KD-03",
+      "prefab": "desk",
+      "x": 12.7,
+      "z": 7.4,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KD-03",
+      "prefab": "computerScreen",
+      "x": 12.7,
+      "z": 7.4,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KD-04",
+      "prefab": "desk",
+      "x": 9.5,
+      "z": 8.1,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KD-04",
+      "prefab": "computerScreen",
+      "x": 9.5,
+      "z": 8.1,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KD-05",
+      "prefab": "desk",
+      "x": 11.1,
+      "z": 8.1,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KD-05",
+      "prefab": "computerScreen",
+      "x": 11.1,
+      "z": 8.1,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KD-06",
+      "prefab": "desk",
+      "x": 12.7,
+      "z": 8.1,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KD-06",
+      "prefab": "computerScreen",
+      "x": 12.7,
+      "z": 8.1,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-HCNS-01",
+      "prefab": "desk",
+      "x": 16.4,
+      "z": 7.4,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-HCNS-01",
+      "prefab": "computerScreen",
+      "x": 16.4,
+      "z": 7.4,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-HCNS-02",
+      "prefab": "desk",
+      "x": 18.0,
+      "z": 7.4,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-HCNS-02",
+      "prefab": "computerScreen",
+      "x": 18.0,
+      "z": 7.4,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-HCNS-03",
+      "prefab": "desk",
+      "x": 16.4,
+      "z": 8.1,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-HCNS-03",
+      "prefab": "computerScreen",
+      "x": 16.4,
+      "z": 8.1,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-HCNS-04",
+      "prefab": "desk",
+      "x": 18.0,
+      "z": 8.1,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-HCNS-04",
+      "prefab": "computerScreen",
+      "x": 18.0,
+      "z": 8.1,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KT-01",
+      "prefab": "desk",
+      "x": 14.9,
+      "z": 2.3,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KT-01",
+      "prefab": "computerScreen",
+      "x": 14.9,
+      "z": 2.3,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KT-02",
+      "prefab": "desk",
+      "x": 16.5,
+      "z": 2.3,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KT-02",
+      "prefab": "computerScreen",
+      "x": 16.5,
+      "z": 2.3,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KT-03",
+      "prefab": "desk",
+      "x": 14.9,
+      "z": 3.0,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KT-03",
+      "prefab": "computerScreen",
+      "x": 14.9,
+      "z": 3.0,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KT-04",
+      "prefab": "desk",
+      "x": 16.5,
+      "z": 3.0,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KT-04",
+      "prefab": "computerScreen",
+      "x": 16.5,
+      "z": 3.0,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-BGD-01",
+      "prefab": "deskLarge",
+      "x": 1.5,
+      "z": 1.6,
+      "w": 1.8,
+      "d": 0.8,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-BGD-01",
+      "prefab": "computerScreen",
+      "x": 1.5,
+      "z": 1.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-BGD-02",
+      "prefab": "deskLarge",
+      "x": 4.5,
+      "z": 1.6,
+      "w": 1.8,
+      "d": 0.8,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-BGD-02",
+      "prefab": "computerScreen",
+      "x": 4.5,
+      "z": 1.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "bgd-sofa",
+      "prefab": "loungeSofa",
+      "x": 1.6,
+      "z": 4.4,
+      "w": 2.2,
+      "d": 0.9,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "bgd-table",
+      "prefab": "tableCoffee",
+      "x": 1.6,
+      "z": 3.5,
+      "w": 1.2,
+      "d": 0.6,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "bgd-shelf",
+      "prefab": "bookcaseOpen",
+      "x": 5.6,
+      "z": 3.2,
+      "w": 0.4,
+      "d": 1.6,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "bgd-plant",
+      "prefab": "pottedPlant",
+      "x": 5.5,
+      "z": 4.9,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "kt-cabinet-1",
+      "prefab": "cabinetFiles",
+      "x": 13.6,
+      "z": 0.35,
+      "w": 0.9,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "kt-cabinet-2",
+      "prefab": "cabinetFiles",
+      "x": 14.6,
+      "z": 0.35,
+      "w": 0.9,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "kt-cabinet-3",
+      "prefab": "cabinetFiles",
+      "x": 15.6,
+      "z": 0.35,
+      "w": 0.9,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "kt-safe",
+      "prefab": "safe",
+      "x": 18.0,
+      "z": 0.4,
+      "w": 0.6,
+      "d": 0.6,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "ml-table",
+      "prefab": "tableMeeting",
+      "x": 9.5,
+      "z": 2.9,
+      "w": 4.2,
+      "d": 1.4,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "ml-chair-0-s",
+      "prefab": "chair",
+      "x": 8.0,
+      "z": 1.9,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-0-n",
+      "prefab": "chair",
+      "x": 8.0,
+      "z": 3.9,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-1-s",
+      "prefab": "chair",
+      "x": 9.0,
+      "z": 1.9,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-1-n",
+      "prefab": "chair",
+      "x": 9.0,
+      "z": 3.9,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-2-s",
+      "prefab": "chair",
+      "x": 10.0,
+      "z": 1.9,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-2-n",
+      "prefab": "chair",
+      "x": 10.0,
+      "z": 3.9,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-3-s",
+      "prefab": "chair",
+      "x": 11.0,
+      "z": 1.9,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-3-n",
+      "prefab": "chair",
+      "x": 11.0,
+      "z": 3.9,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-w",
+      "prefab": "chair",
+      "x": 7.1,
+      "z": 2.9,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-e",
+      "prefab": "chair",
+      "x": 11.9,
+      "z": 2.9,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-screen",
+      "prefab": "televisionWall",
+      "x": 9.5,
+      "z": 0.15,
+      "w": 2.0,
+      "d": 0.1,
+      "rot": 0,
+      "solid": true,
+      "interact": "screen"
+    },
+    {
+      "id": "ml-board",
+      "prefab": "whiteboard",
+      "x": 12.85,
+      "z": 2.8,
+      "w": 0.1,
+      "d": 1.8,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "ms-table",
+      "prefab": "tableMeeting",
+      "x": 21.25,
+      "z": 2.9,
+      "w": 2.2,
+      "d": 1.1,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "ms-chair-20.7-2.1",
+      "prefab": "chair",
+      "x": 20.7,
+      "z": 2.1,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ms-chair-20.7-3.7",
+      "prefab": "chair",
+      "x": 20.7,
+      "z": 3.7,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ms-chair-21.8-2.1",
+      "prefab": "chair",
+      "x": 21.8,
+      "z": 2.1,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ms-chair-21.8-3.7",
+      "prefab": "chair",
+      "x": 21.8,
+      "z": 3.7,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ms-screen",
+      "prefab": "televisionWall",
+      "x": 21.25,
+      "z": 0.15,
+      "w": 1.4,
+      "d": 0.1,
+      "rot": 0,
+      "solid": true,
+      "interact": "screen"
+    },
+    {
+      "id": "booth-1-table",
+      "prefab": "tableSmall",
+      "x": 22.9,
+      "z": 7.25,
+      "w": 0.6,
+      "d": 1.0,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "booth-1-chair",
+      "prefab": "chair",
+      "x": 22.2,
+      "z": 7.25,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "booth-2-table",
+      "prefab": "tableSmall",
+      "x": 22.9,
+      "z": 9.75,
+      "w": 0.6,
+      "d": 1.0,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "booth-2-chair",
+      "prefab": "chair",
+      "x": 22.2,
+      "z": 9.75,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "printer",
+      "prefab": "printer",
+      "x": 19.9,
+      "z": 6.4,
+      "w": 0.7,
+      "d": 0.6,
+      "rot": 0,
+      "solid": true,
+      "interact": "printer"
+    },
+    {
+      "id": "lockers",
+      "prefab": "lockers",
+      "x": 7.4,
+      "z": 8.0,
+      "w": 0.5,
+      "d": 1.8,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "plant-open-1",
+      "prefab": "pottedPlant",
+      "x": 0.4,
+      "z": 5.9,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "plant-open-2",
+      "prefab": "pottedPlant",
+      "x": 7.4,
+      "z": 9.9,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "plant-open-3",
+      "prefab": "pottedPlant",
+      "x": 14.7,
+      "z": 9.9,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "plant-open-4",
+      "prefab": "pottedPlant",
+      "x": 20.5,
+      "z": 10.6,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "lounge-sofa-1",
+      "prefab": "loungeSofaCorner",
+      "x": 1.4,
+      "z": 12.4,
+      "w": 2.4,
+      "d": 1.6,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "lounge-table",
+      "prefab": "tableCoffee",
+      "x": 2.2,
+      "z": 13.9,
+      "w": 1.2,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "lounge-sofa-2",
+      "prefab": "loungeSofa",
+      "x": 2.2,
+      "z": 15.3,
+      "w": 2.2,
+      "d": 0.9,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "lounge-shelf",
+      "prefab": "bookcaseOpen",
+      "x": 0.25,
+      "z": 14.6,
+      "w": 0.4,
+      "d": 1.8,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "lounge-game",
+      "prefab": "tableGame",
+      "x": 5.2,
+      "z": 12.6,
+      "w": 1.4,
+      "d": 0.9,
+      "rot": 0,
+      "solid": true,
+      "interact": "game"
+    },
+    {
+      "id": "lounge-beanbag-1",
+      "prefab": "beanbag",
+      "x": 5.0,
+      "z": 14.6,
+      "w": 0.8,
+      "d": 0.8,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "lounge-beanbag-2",
+      "prefab": "beanbag",
+      "x": 6.2,
+      "z": 14.9,
+      "w": 0.8,
+      "d": 0.8,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "lounge-plant",
+      "prefab": "pottedPlantLarge",
+      "x": 6.5,
+      "z": 11.5,
+      "w": 0.6,
+      "d": 0.6,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "reception-desk",
+      "prefab": "deskReception",
+      "x": 11.5,
+      "z": 12.7,
+      "w": 4.0,
+      "d": 0.8,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "timeclock",
+      "prefab": "timeclock",
+      "x": 14.9,
+      "z": 13.4,
+      "w": 0.5,
+      "d": 0.4,
+      "rot": 0,
+      "solid": true,
+      "action": "attendance.checkin"
+    },
+    {
+      "id": "lobby-sofa",
+      "prefab": "loungeSofa",
+      "x": 8.4,
+      "z": 14.6,
+      "w": 0.9,
+      "d": 2.0,
+      "rot": 90,
+      "solid": true
+    },
+    {
+      "id": "lobby-logo",
+      "prefab": "logoWall",
+      "x": 11.5,
+      "z": 11.15,
+      "w": 3.0,
+      "d": 0.1,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "lobby-plant-1",
+      "prefab": "pottedPlantLarge",
+      "x": 9.6,
+      "z": 15.5,
+      "w": 0.6,
+      "d": 0.6,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "lobby-plant-2",
+      "prefab": "pottedPlantLarge",
+      "x": 13.4,
+      "z": 15.5,
+      "w": 0.6,
+      "d": 0.6,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "noticeboard",
+      "prefab": "noticeBoard",
+      "x": 15.8,
+      "z": 12.2,
+      "w": 0.1,
+      "d": 1.4,
+      "rot": 0,
+      "solid": true,
+      "interact": "notices"
+    },
+    {
+      "id": "pantry-counter",
+      "prefab": "kitchenCounter",
+      "x": 20.0,
+      "z": 15.6,
+      "w": 7.0,
+      "d": 0.6,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pantry-fridge",
+      "prefab": "kitchenFridge",
+      "x": 23.6,
+      "z": 13.0,
+      "w": 0.7,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pantry-coffee",
+      "prefab": "coffeeMachine",
+      "x": 18.0,
+      "z": 15.6,
+      "w": 0.4,
+      "d": 0.4,
+      "rot": 0,
+      "solid": false,
+      "interact": "coffee"
+    },
+    {
+      "id": "pantry-water",
+      "prefab": "waterDispenser",
+      "x": 16.4,
+      "z": 15.6,
+      "w": 0.4,
+      "d": 0.4,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pantry-table",
+      "prefab": "tableDining",
+      "x": 19.8,
+      "z": 13.0,
+      "w": 2.4,
+      "d": 1.1,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pantry-chair-19.0-12.2",
+      "prefab": "chair",
+      "x": 19.0,
+      "z": 12.2,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "pantry-chair-19.0-13.8",
+      "prefab": "chair",
+      "x": 19.0,
+      "z": 13.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "pantry-chair-19.8-12.2",
+      "prefab": "chair",
+      "x": 19.8,
+      "z": 12.2,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "pantry-chair-19.8-13.8",
+      "prefab": "chair",
+      "x": 19.8,
+      "z": 13.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "pantry-chair-20.6-12.2",
+      "prefab": "chair",
+      "x": 20.6,
+      "z": 12.2,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "pantry-chair-20.6-13.8",
+      "prefab": "chair",
+      "x": 20.6,
+      "z": 13.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    }
+  ]
 }
