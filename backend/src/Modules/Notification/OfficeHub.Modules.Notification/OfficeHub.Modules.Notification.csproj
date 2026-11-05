@@ -2,6 +2,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\OfficeHub.BuildingBlocks\OfficeHub.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\OfficeHub.Modules.Notification.Contracts\OfficeHub.Modules.Notification.Contracts.csproj" />
+    <ProjectReference Include="..\..\Identity\OfficeHub.Modules.Identity.Contracts\OfficeHub.Modules.Identity.Contracts.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

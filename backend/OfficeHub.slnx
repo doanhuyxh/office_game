@@ -30,6 +30,7 @@
     <Project Path="src/Modules/Leave/OfficeHub.Modules.Leave/OfficeHub.Modules.Leave.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Notification/">
+    <Project Path="src/Modules/Notification/OfficeHub.Modules.Notification.Contracts/OfficeHub.Modules.Notification.Contracts.csproj" />
     <Project Path="src/Modules/Notification/OfficeHub.Modules.Notification/OfficeHub.Modules.Notification.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Organization/">
@@ -43,5 +44,6 @@
     <Project Path="tests/OfficeHub.Architecture.Tests/OfficeHub.Architecture.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Attendance.Tests/OfficeHub.Modules.Attendance.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Leave.Tests/OfficeHub.Modules.Leave.Tests.csproj" />
+    <Project Path="tests/OfficeHub.Modules.Notification.Tests/OfficeHub.Modules.Notification.Tests.csproj" />
   </Folder>
 </Solution>

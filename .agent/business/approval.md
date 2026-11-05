@@ -53,7 +53,9 @@ Handler chạy **trước** khi lưu đơn duyệt. Nếu handler ném lỗi, đ
 
 Thêm loại đơn mới: hằng số trong `ApprovalTypes` + class `IApprovalHandler` ở module sở hữu, đăng ký `services.AddScoped<IApprovalHandler, …>()`. Thiếu handler → `InvalidOperationException` khi quyết định.
 
-**Chưa có:** email / thông báo cho người duyệt (chỉ có badge số đơn), uỷ quyền duyệt, sửa đơn đã gửi (huỷ rồi gửi lại).
+**Thông báo:** sau khi lưu, `ApprovalNotifications` báo người duyệt (gửi đơn / chuyển bước) và người gửi (duyệt / từ chối), báo người duyệt khi đơn bị huỷ — chi tiết [notifications.md](notifications.md). Không bao giờ làm hỏng thao tác duyệt.
+
+**Chưa có:** uỷ quyền duyệt, sửa đơn đã gửi (huỷ rồi gửi lại).
 
 ## UI (`frontend/src/features/approvals/`)
 

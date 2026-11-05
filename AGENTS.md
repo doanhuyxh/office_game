@@ -12,13 +12,14 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Viết code đúng chuẩn: module BE, validation, đặt tên | [.agent/conventions.md](.agent/conventions.md) |
 | Front-end: feature, shadcn/ui, theme sáng/tối, layout sidebar/header | [.agent/frontend.md](.agent/frontend.md) |
 | Luồng request, cookie Api ↔ Realtime, route/trang, cache | [.agent/architecture.md](.agent/architecture.md) |
-| Thêm/sửa bảng, index, migration, quy tắc ghi dữ liệu | [.agent/database.md](.agent/database.md) |
+| Thêm/sửa bảng, index, migration, quy tắc ghi dữ liệu | [.agent/database.md](.agent/database.md) (schema approval / leave / notifications: [.agent/database-workflow.md](.agent/database-workflow.md)) |
 | Nguyên tắc phân quyền, nợ kỹ thuật đã biết | [.agent/business/README.md](.agent/business/README.md) |
 | Đăng nhập, mật khẩu, link mời, admin seed | [.agent/business/auth.md](.agent/business/auth.md) |
 | Nhân viên, phòng ban, cấp tài khoản, vai trò | [.agent/business/organization.md](.agent/business/organization.md) |
 | Chấm công, ca, lịch, ngày lễ, bảng công | [.agent/business/attendance.md](.agent/business/attendance.md) |
 | Giải trình chấm công | [.agent/business/attendance-corrections.md](.agent/business/attendance-corrections.md) |
 | Tăng ca | [.agent/business/attendance-overtime.md](.agent/business/attendance-overtime.md) |
+| Thông báo (chuông in-app, email, hàng đợi gửi) | [.agent/business/notifications.md](.agent/business/notifications.md) |
 | Luồng duyệt, thêm loại đơn | [.agent/business/approval.md](.agent/business/approval.md) |
 | Nghỉ phép, quỹ phép năm | [.agent/business/leave.md](.agent/business/leave.md) |
 | Văn phòng 3D, SignalR, bản đồ, voice | [.agent/business/office.md](.agent/business/office.md) |
@@ -37,7 +38,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 ## Giữ tài liệu đúng
 
 - `.agent/` là nguồn sự thật duy nhất cho agent (`docs/ARCHITECTURE_V2.md` là kế hoạch, có phần chưa làm).
-- Đổi business rule → sửa file trong `.agent/business/`; đổi schema → `database.md`; thêm lệnh/script/env → `commands.md`; đổi cấu trúc/luồng dữ liệu → `architecture.md`.
+- Đổi business rule → sửa file trong `.agent/business/`; đổi schema → `database.md` / `database-workflow.md`; thêm lệnh/script/env → `commands.md`; đổi cấu trúc/luồng dữ liệu → `architecture.md`.
 - Mỗi file ≤ ~8 KB, chỉ đọc file cần cho task; vượt thì tách theo domain con, thêm dòng vào bảng định tuyến (ở đây và `business/README.md`).
 - Nếu tài liệu khác code, tin code và sửa tài liệu trong cùng commit.
 

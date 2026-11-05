@@ -51,22 +51,9 @@ Quy tắc ghi:
 | `corrections` | `EmployeeId`, `WorkDate`, `Type` (`In`/`Out`), `Time`, `WorkMode`, `Reason` (≤500), `Status` (`Pending`/`Approved`/`Rejected`/`Cancelled`), `ApprovalRequestId`, `RejectReason` | index (`EmployeeId`,`WorkDate`). Duyệt xong sinh sự kiện `IdempotencyKey = "correction:{Id}"` |
 | `overtime_requests` (migration `AddOvertime`) | `EmployeeId`, `WorkDate`, `StartTime`, `EndTime` (TimeOnly, cùng ngày), `Minutes`, `Reason` (≤500), `Status` (`Pending`/`Approved`/`Rejected`/`Cancelled`), `ApprovalRequestId`, `RejectReason` (≤1000), `CreatedAt`, `DecidedAt` | index (`EmployeeId`,`WorkDate`). Không lưu loại ngày (tính lúc đọc). Chống trùng giờ bằng code |
 
-## Schema `approval` — `ApprovalDbContext` (migration `InitialApproval`)
+## Schema `approval`, `leave`, `notifications`
 
-| Bảng | Field chính | Ràng buộc / index |
-|---|---|---|
-| `requests` | `Type`, `SubjectId`, `RequesterEmployeeId`, `Title`, `Summary`, `Status`, `CreatedAt`, `DecidedAt` | unique (`Type`,`SubjectId`); index (`RequesterEmployeeId`,`Status`) |
-| `steps` | `RequestId`, `Order`, `Kind` (`Manager`/`Hr`), `ApproverEmployeeId`, `Status` (`Waiting`/`Pending`/`Approved`/`Rejected`), `DecidedByUserId`, `DecidedByName`, `Comment` | FK cascade; unique (`RequestId`,`Order`) |
-
-## Schema `leave` — `LeaveDbContext` (migration `InitialLeave`)
-
-| Bảng | Field chính | Ràng buộc / index |
-|---|---|---|
-| `types` | `Code` (unique), `Name`, `IsPaid`, `UsesAnnualBalance`, `SortOrder`, `IsActive` | seed 4 loại |
-| `requests` | `EmployeeId`, `LeaveTypeId`, `StartDate`, `EndDate`, `Period`, `Days` numeric(6,2), `Reason`, `Status`, `ApprovalRequestId`, `RejectReason` | FK type (Restrict); chống trùng ngày bằng code (không EXCLUDE) |
-| `adjustments` | `EmployeeId`, `Days` (±), `Reason`, `CreatedAt`, `CreatedByName` | chỉ thêm |
-
-Quỹ phép **không lưu**: tính khi đọc ([business/leave.md](business/leave.md)).
+Xem [database-workflow.md](database-workflow.md) (đơn, duyệt, nghỉ phép, thông báo).
 
 ## Dữ liệu seed khi khởi động
 
@@ -74,7 +61,7 @@ Quỹ phép **không lưu**: tính khi đọc ([business/leave.md](business/leav
 |---|---|---|
 | `IdentitySeeder` | luôn | 4 vai trò; admin từ `Seed__*` nếu chưa có user vai trò admin (vai trò `admin` + `hr`) |
 | `AttendanceSeeder` | bảng `shifts` trống (kể cả bản xoá mềm) | ca "Hành chính" 08:30–17:30 (nghỉ 12:00–13:30, trễ 5′), ca "Linh hoạt 8 tiếng" (480′, vào 07:00–10:00, nghỉ 12:00–13:00), lịch công ty `EffectiveFrom = 2000-01-01`: T2–T6 = Hành chính, T7/CN nghỉ |
-| `OrgMigrator`, `ApprovalMigrator` | — | chỉ migrate |
+| `OrgMigrator`, `ApprovalMigrator`, `NotificationMigrator` | — | chỉ migrate |
 | `LeaveSeeder` | `leave.types` trống | 4 loại phép |
 
 Mọi seeder/migrator chỉ chạy migration khi `Database__MigrateOnStartup` khác `false`.
@@ -88,4 +75,4 @@ Mọi seeder/migrator chỉ chạy migration khi `Database__MigrateOnStartup` kh
 
 ## Không có
 
-Không transaction trải nhiều module (mỗi request gọi `SaveChangesAsync` riêng từng DbContext). Ví dụ cấp tài khoản: Identity tạo user → Organization ghi `UserId`; nếu bước 2 lỗi sẽ còn user mồ côi (cần xác nhận cách xử lý nếu xảy ra). Không audit log, không outbox.
+Không transaction trải nhiều module (mỗi request gọi `SaveChangesAsync` riêng từng DbContext). Ví dụ cấp tài khoản: Identity tạo user → Organization ghi `UserId`; nếu bước 2 lỗi sẽ còn user mồ côi (cần xác nhận cách xử lý nếu xảy ra). Không audit log. Hàng đợi email thông báo nằm trong bảng `notifications.notifications` (cột `Email*`), không có outbox sự kiện giữa module.

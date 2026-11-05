@@ -12,6 +12,7 @@ import {
 import { Separator } from '@/components/common/separator';
 import { SidebarTrigger } from '@/components/common/sidebar';
 import { useLogout, useMe } from '@/features/auth';
+import { NotificationBell } from '@/features/notifications';
 import { useSearch } from '@/context/search-provider';
 import { useTheme, type Theme } from '@/context/theme-provider';
 import { PATHS } from '@/config/paths';
@@ -140,7 +141,7 @@ function ProfileDropdown() {
   );
 }
 
-/** Thanh trên cùng (dính khi cuộn): nút thu gọn sidebar, tìm nhanh, theme, tài khoản. */
+/** Thanh trên cùng (dính khi cuộn): nút thu gọn sidebar, tìm nhanh, thông báo, theme, tài khoản. */
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -161,6 +162,7 @@ export function Header() {
         <Separator orientation="vertical" className="h-6!" />
         <SearchButton />
         <div className="ms-auto flex items-center gap-2">
+          <NotificationBell />
           <ThemeSwitch />
           <ProfileDropdown />
         </div>

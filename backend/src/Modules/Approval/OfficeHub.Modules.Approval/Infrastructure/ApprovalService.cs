@@ -4,7 +4,7 @@ using OfficeHub.Modules.Organization.Contracts;
 
 namespace OfficeHub.Modules.Approval.Infrastructure;
 
-internal sealed class ApprovalService(ApprovalDbContext db, IEmployeeDirectory dir, TimeProvider clock) : IApprovalService
+internal sealed class ApprovalService(ApprovalDbContext db, IEmployeeDirectory dir, TimeProvider clock, ApprovalNotifications notify) : IApprovalService
 {
     public async Task<Guid> SubmitAsync(ApprovalSubmission s, CancellationToken ct = default)
     {
@@ -36,6 +36,7 @@ internal sealed class ApprovalService(ApprovalDbContext db, IEmployeeDirectory d
             request.Steps.Add(new ApprovalStep { Order = 0, Kind = ApprovalStepKind.Hr, Status = StepStatus.Pending });
         db.Requests.Add(request);
         await db.SaveChangesAsync(ct);
+        await notify.SubmittedAsync(request, ct); // không ném lỗi
         return request.Id;
     }
 }

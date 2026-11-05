@@ -9,7 +9,7 @@ assets/styles/global.css      # Tailwind v4 + biến màu theme shadcn
 components/common/            # shadcn (tên file thường: button.tsx, dialog.tsx…) + FormField, SelectField
 components/feedback/          # Spinner, ComingSoon
 context/                      # theme-provider (sáng/tối), search-provider (Ctrl/⌘+K)
-components/layout/            # MainLayout, AppSidebar, Header (⌘K, theme, tài khoản), PageHeader, navigation.ts
+components/layout/            # MainLayout, AppSidebar, Header (⌘K, chuông thông báo, theme, tài khoản), PageHeader, navigation.ts
 config/                       # env.ts, paths.ts (PATHS), roles.ts (ROLE), theme.ts
 features/<x>/                 # mỗi màn hình / nghiệp vụ một feature
 hooks/                        # hook dùng chung (useDebounce, use-mobile của sidebar shadcn)
@@ -50,7 +50,7 @@ features/employees/
 Theo mẫu [shadcn-admin](https://github.com/satnaing/shadcn-admin) (MIT), chỉ lấy bố cục, không copy feature:
 
 - `SidebarProvider` + `AppSidebar` (`variant="inset"`, `collapsible="icon"`, Ctrl/⌘+B; trạng thái lưu cookie `sidebar_state`). Đầu sidebar: logo; giữa: nhóm menu từ `navigation.ts` (lọc vai trò bằng `useNavigation`); badge số đơn chờ trên "Phê duyệt"; chân: menu tài khoản (văn phòng 3D, đổi mật khẩu, đăng xuất).
-- `Header` dính đầu trang: nút thu sidebar, ô tìm nhanh (Ctrl/⌘+K mở `CommandMenu`: nhảy màn hình + đổi theme), nút theme, avatar.
+- `Header` dính đầu trang: nút thu sidebar, ô tìm nhanh (Ctrl/⌘+K mở `CommandMenu`: nhảy màn hình + đổi theme), chuông `NotificationBell` (`@/features/notifications`), nút theme, avatar.
 - `<main>` tối đa `max-w-7xl`; mỗi trang mở đầu bằng `PageHeader`.
 - Theme sáng / tối / theo hệ thống: `context/theme-provider.tsx`, lưu localStorage `officehub:theme`; script nhỏ trong `index.html` áp class `dark` trước khi React tải (đổi key thì sửa cả hai chỗ). Font Inter (Google Fonts).
 - Màn đăng nhập / đặt mật khẩu: `features/auth/components/AuthShell` (logo + thẻ giữa trang).

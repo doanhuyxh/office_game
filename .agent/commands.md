@@ -52,7 +52,7 @@ dotnet ef migrations add <TenMigration> \
   --context <DbContext> -o Infrastructure/Migrations
 ```
 
-DbContext hiện có: `OfficeIdentityDbContext`, `OrgDbContext`, `AttendanceDbContext`, `ApprovalDbContext`, `LeaveDbContext`. Migration tự chạy khi Api khởi động nếu `Database__MigrateOnStartup=true`. Chi tiết: [database.md](database.md).
+DbContext hiện có: `OfficeIdentityDbContext`, `OrgDbContext`, `AttendanceDbContext`, `ApprovalDbContext`, `LeaveDbContext`, `NotificationDbContext`. Migration tự chạy khi Api khởi động nếu `Database__MigrateOnStartup=true`. Chi tiết: [database.md](database.md).
 
 ## Biến môi trường
 

@@ -92,23 +92,26 @@ internal static class ApprovalEndpoints
     }
 
     private static async Task<Results<Ok<ApprovalDto>, NotFound, ProblemHttpResult>> ApproveAsync(Guid id, DecisionRequest req, ClaimsPrincipal user,
-        ApprovalDbContext db, IEmployeeDirectory dir, IEnumerable<IApprovalHandler> handlers, TimeProvider clock, CancellationToken ct)
-        => await DecideAsync(id, approve: true, req.Comment, user, db, dir, handlers, clock, ct);
+        ApprovalDbContext db, IEmployeeDirectory dir, IEnumerable<IApprovalHandler> handlers, TimeProvider clock, ApprovalNotifications notify,
+        CancellationToken ct)
+        => await DecideAsync(id, approve: true, req.Comment, user, db, dir, handlers, clock, notify, ct);
 
     private static async Task<Results<Ok<ApprovalDto>, NotFound, ProblemHttpResult>> RejectAsync(Guid id, DecisionRequest req, ClaimsPrincipal user,
-        ApprovalDbContext db, IEmployeeDirectory dir, IEnumerable<IApprovalHandler> handlers, TimeProvider clock, CancellationToken ct)
+        ApprovalDbContext db, IEmployeeDirectory dir, IEnumerable<IApprovalHandler> handlers, TimeProvider clock, ApprovalNotifications notify,
+        CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.Comment))
             return TypedResults.Problem("Nhập lý do từ chối", statusCode: StatusCodes.Status400BadRequest);
-        return await DecideAsync(id, approve: false, req.Comment, user, db, dir, handlers, clock, ct);
+        return await DecideAsync(id, approve: false, req.Comment, user, db, dir, handlers, clock, notify, ct);
     }
 
     /// <summary>
     /// Thứ tự (giữ nguyên khi sửa): cập nhật bước → nếu là quyết định cuối thì gọi handler của module sở hữu → lưu.
-    /// Handler idempotent nên nếu lưu lỗi, duyệt lại sẽ không áp dụng hai lần.
+    /// Handler idempotent nên nếu lưu lỗi, duyệt lại sẽ không áp dụng hai lần. Thông báo gửi SAU khi lưu (không ném lỗi).
     /// </summary>
     private static async Task<Results<Ok<ApprovalDto>, NotFound, ProblemHttpResult>> DecideAsync(Guid id, bool approve, string? comment,
-        ClaimsPrincipal user, ApprovalDbContext db, IEmployeeDirectory dir, IEnumerable<IApprovalHandler> handlers, TimeProvider clock, CancellationToken ct)
+        ClaimsPrincipal user, ApprovalDbContext db, IEmployeeDirectory dir, IEnumerable<IApprovalHandler> handlers, TimeProvider clock,
+        ApprovalNotifications notify, CancellationToken ct)
     {
         var a = await ActorAsync(user, dir, ct);
         var r = await WithSteps(db).FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -143,24 +146,28 @@ internal static class ApprovalEndpoints
             r.DecidedAt = now;
         }
         await db.SaveChangesAsync(ct);
+        if (r.Status == RequestStatus.Pending) await notify.AdvancedAsync(r, a.Name, ct);
+        else await notify.DecidedAsync(r, approve, a.Name, step.Comment, ct);
         return TypedResults.Ok((await ToDtosAsync([r], a, dir, ct))[0]);
     }
 
     /// <summary>Người gửi huỷ đơn khi còn chờ duyệt.</summary>
     private static async Task<Results<Ok<ApprovalDto>, NotFound, ProblemHttpResult>> CancelAsync(Guid id, ClaimsPrincipal user, ApprovalDbContext db,
-        IEmployeeDirectory dir, IEnumerable<IApprovalHandler> handlers, TimeProvider clock, CancellationToken ct)
+        IEmployeeDirectory dir, IEnumerable<IApprovalHandler> handlers, TimeProvider clock, ApprovalNotifications notify, CancellationToken ct)
     {
         var a = await ActorAsync(user, dir, ct);
         var r = await WithSteps(db).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (r is null) return TypedResults.NotFound();
         if (r.RequesterEmployeeId != a.EmployeeId) return TypedResults.Problem("Chỉ người gửi được huỷ đơn", statusCode: StatusCodes.Status403Forbidden);
         if (r.Status != RequestStatus.Pending) return Problems.Conflict("Chỉ huỷ được đơn đang chờ duyệt");
+        var approvers = await notify.CurrentApproversAsync(r, ct); // lấy trước khi huỷ (sau đó không còn bước hiện tại)
         var handler = handlers.First(h => h.Type == r.Type);
         await handler.OnCancelledAsync(r.SubjectId, ct);
         r.Status = RequestStatus.Cancelled;
         r.DecidedAt = clock.GetUtcNow();
         foreach (var s in r.Steps.Where(s => s.Status is StepStatus.Pending or StepStatus.Waiting)) s.Status = StepStatus.Waiting;
         await db.SaveChangesAsync(ct);
+        await notify.CancelledAsync(r, approvers, ct);
         return TypedResults.Ok((await ToDtosAsync([r], a, dir, ct))[0]);
     }
 

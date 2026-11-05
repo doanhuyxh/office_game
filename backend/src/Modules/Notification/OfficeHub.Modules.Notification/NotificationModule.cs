@@ -4,26 +4,26 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OfficeHub.BuildingBlocks.Modules;
+using OfficeHub.BuildingBlocks.Persistence;
+using OfficeHub.Modules.Notification.Contracts;
+using OfficeHub.Modules.Notification.Features;
+using OfficeHub.Modules.Notification.Infrastructure;
 
 namespace OfficeHub.Modules.Notification;
 
-/// <summary>Email, thông báo in-app.</summary>
-/// <remarks>
-/// Cấu trúc: Domain/ (entity, quy tắc) · Features/ (mỗi use case một thư mục: Endpoint + Handler + Validator)
-/// · Infrastructure/ (DbContext schema riêng, migrations) · Contracts/ (sự kiện, interface công khai). Khi module khác cần dùng: tách thành project OfficeHub.Modules.X.Contracts.
-/// </remarks>
+/// <summary>Thông báo in-app (chuông trên header) + email gửi nền qua hàng đợi trong DB. Module khác gọi qua <see cref="INotifier"/>.</summary>
 public sealed class NotificationModule : IModule
 {
     public string Name => "notifications";
 
     public void Register(IServiceCollection services, IConfiguration config)
     {
-        // TODO: services.AddModuleDbContext<NotificationDbContext>(config, "notifications");
+        services.AddModuleDbContext<NotificationDbContext>(config, NotificationDbContext.Schema);
+        services.AddScoped<INotifier, Notifier>();
+        services.AddHostedService<NotificationMigrator>(); // trước EmailDispatcher: bảng phải có trước khi worker quét
+        services.AddHostedService<EmailDispatcher>();
     }
 
-    public void MapEndpoints(IEndpointRouteBuilder api)
-    {
-        var g = api.MapGroup("/notifications").WithTags("Notification").RequireAuthorization();
-        g.MapGet("/_status", () => TypedResults.Ok(new { module = "Notification", status = "chưa triển khai" }));
-    }
+    public void MapEndpoints(IEndpointRouteBuilder api) =>
+        NotificationEndpoints.Map(api.MapGroup("/notifications").WithTags("Notification").RequireAuthorization());
 }

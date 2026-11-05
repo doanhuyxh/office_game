@@ -110,9 +110,15 @@ internal sealed class AccountService(
         {
             var roles = await users.GetRolesAsync(u);
             result[u.Id] = new AccountInfo(u.Id, u.UserName!, u.Email, [.. roles], u.IsActive, u.MustChangePassword,
-                InvitePending: u.PasswordHash is null, u.LastLoginAt);
+                InvitePending: u.PasswordHash is null, u.LastLoginAt, u.FullName);
         }
         return result;
+    }
+
+    public async Task<IReadOnlyList<AccountInfo>> ListByRoleAsync(string role, CancellationToken ct = default)
+    {
+        var ids = (await users.GetUsersInRoleAsync(role)).Where(u => u.IsActive).Select(u => u.Id).ToList();
+        return [.. (await GetManyAsync(ids, ct)).Values];
     }
 
     /// <summary>Gửi link đặt mật khẩu: dùng cho lời mời và quên mật khẩu (token reset của Identity, hết hạn 72 giờ).</summary>

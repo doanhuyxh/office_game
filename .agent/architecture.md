@@ -13,9 +13,9 @@ backend/                         ASP.NET Core .NET 10 — solution OfficeHub.sln
     Hosting/HostingExtensions.cs AddOfficeHubDefaults (Serilog→Seq, Sentry, DataProtection, ForwardedHeaders), S3, Email
     Auth/                        AuthCookie (cookie dùng chung), Roles, ClaimNames, AuthPolicies
     Health/, Http/Validation.cs, Persistence/, Storage/(IFileStorage→S3), Email/(IEmailSender→SMTP), Office/OfficeNetwork
-  src/Modules/                   Identity · Organization · Attendance · Approval · Leave (mỗi cái + .Contracts) ← có nghiệp vụ
-                                 LaborContracts · Notification · Reporting · Audit ← chỉ khung (/_status)
-  tests/                         OfficeHub.Architecture.Tests, OfficeHub.Modules.Attendance.Tests, OfficeHub.Modules.Leave.Tests
+  src/Modules/                   Identity · Organization · Attendance · Approval · Leave · Notification (mỗi cái + .Contracts) ← có nghiệp vụ
+                                 LaborContracts · Reporting · Audit ← chỉ khung (/_status)
+  tests/                         OfficeHub.Architecture.Tests, OfficeHub.Modules.{Attendance,Leave,Notification}.Tests
 frontend/                        React 19 + Vite + TS (bun) — chi tiết: conventions.md
 shared/office-map.json           bản đồ văn phòng 3D, dùng chung FE (vẽ) + Realtime (kiểm tra sàn)
 infra/                           docker-compose.dev.yml, docker-compose.yml (prod), backup/, livekit/
@@ -51,11 +51,12 @@ Hosted service khởi động: `IdentitySeeder` (migrate + roles + admin), `OrgM
 |---|---|---|
 | `/api/auth/*` | Identity | [business/auth.md](business/auth.md) |
 | `/api/org/*` | Organization | [business/organization.md](business/organization.md) |
-| `/api/attendance/*` | Attendance | [business/attendance.md](business/attendance.md), [business/attendance-corrections.md](business/attendance-corrections.md) |
+| `/api/attendance/*` | Attendance | [business/attendance.md](business/attendance.md), [business/attendance-corrections.md](business/attendance-corrections.md), [business/attendance-overtime.md](business/attendance-overtime.md) |
+| `/api/notifications/*` | Notification | [business/notifications.md](business/notifications.md) |
 | `/api/approval/*` | Approval | [business/approval.md](business/approval.md) |
 | `/api/leave/*` | Leave | [business/leave.md](business/leave.md) |
 | `/rt/hub/office`, `/rt/voice/token` | Realtime | [business/office.md](business/office.md) |
-| `/api/contracts`, `/api/notifications`, `/api/reports`, `/api/audit` | khung | chỉ `GET /_status` |
+| `/api/contracts`, `/api/reports`, `/api/audit` | khung | chỉ `GET /_status` |
 
 ## Trang front-end (`routes/router.tsx`)
 

@@ -32,6 +32,9 @@ public interface IAccountService
     Task<AccountInfo?> GetAsync(Guid userId, CancellationToken ct = default);
 
     Task<IReadOnlyDictionary<Guid, AccountInfo>> GetManyAsync(IReadOnlyCollection<Guid> userIds, CancellationToken ct = default);
+
+    /// <summary>Tài khoản đang hoạt động có vai trò <paramref name="role"/> (vd gửi thông báo cho mọi HR).</summary>
+    Task<IReadOnlyList<AccountInfo>> ListByRoleAsync(string role, CancellationToken ct = default);
 }
 
 public sealed record NewAccount(string UserName, string? Email, string FullName, IReadOnlyCollection<string> Roles);
@@ -57,4 +60,5 @@ public sealed record AccountInfo(
     bool IsActive,
     bool MustChangePassword,
     bool InvitePending,
-    DateTimeOffset? LastLoginAt);
+    DateTimeOffset? LastLoginAt,
+    string FullName = "");
