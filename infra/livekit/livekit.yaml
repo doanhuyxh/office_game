@@ -6,7 +6,7 @@ rtc:
   use_external_ip: false
   # IP báo cho trình duyệt = --node-ip (compose: LIVEKIT_NODE_IP) — IP public mà người dùng tới được 7881/7882:
   # IP VPS proxy (nếu chuyển tiếp qua đó) hoặc IP chính VPS này.
-# Signal (wss://APP_DOMAIN/livekit) đi qua nginx → container web → host:7880. Media: 7881/tcp + 7882/udp tới LIVEKIT_NODE_IP.
+# Signal (wss://APP_DOMAIN/livekit) đi qua nginx → container web → livekit:7880 (mạng Docker). Media: 7881/tcp + 7882/udp tới LIVEKIT_NODE_IP.
 # TURN (người dùng sau mạng công ty / NAT chặn UDP): LiveKit có TURN dựng sẵn — cần chứng chỉ TLS cho domain TURN.
 # Bỏ comment + điền domain / file chứng chỉ khi deploy (chưa thử trên VPS):
 # turn:

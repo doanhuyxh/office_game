@@ -5,7 +5,7 @@
 # Một domain, một cổng — container "web" (nginx) chia đường dẫn (frontend/nginx.conf):
 #   /            → FE (trang nhân sự, /office = văn phòng 3D)
 #   /api/*       → api        /rt/* → realtime (SignalR, token voice)
-#   /livekit/*   → livekit (network_mode: host, :7880) — LiveKit__Url=wss://APP_DOMAIN/livekit
+#   /livekit/*   → livekit:7880 (mạng Docker) — LiveKit__Url=wss://APP_DOMAIN/livekit
 #
 # Tuỳ chọn:  --profile logs     chạy Seq (xem log: ssh -L 5341:localhost:5341 vps)
 #            --profile localdb  chạy Postgres ngay trên VPS (đặt POSTGRES_HOST=postgres)
@@ -50,8 +50,7 @@ services:
     environment:
       <<: *backend-env
       SERVICE: OfficeHub.Realtime
-      LiveKit__ApiUrl: http://host.docker.internal:7880   # đẩy người khỏi room voice qua mạng nội bộ
-    extra_hosts: ["host.docker.internal:host-gateway"]
+      LiveKit__ApiUrl: http://livekit:7880   # đẩy người khỏi room voice qua mạng Docker
     pull_policy: never  # dùng chung image officehub/backend do service api build
     depends_on: [api]
 
@@ -64,7 +63,6 @@ services:
     ports: ["${HTTP_BIND:-0.0.0.0}:${HTTP_PORT:-7080}:80"]
     environment:
       TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-}   # IP VPS chạy nginx proxy (cách nhau dấu phẩy)
-    extra_hosts: ["host.docker.internal:host-gateway"]   # /livekit → LiveKit trên host
     restart: unless-stopped
 
   livekit:
@@ -74,7 +72,9 @@ services:
     environment:
       LIVEKIT_KEYS: "${LiveKit__ApiKey}: ${LiveKit__ApiSecret}"
     volumes: [./livekit/livekit.yaml:/etc/livekit.yaml:ro]
-    network_mode: host               # media: 7881/tcp + 7882/udp (mở trên firewall / chuyển tiếp từ VPS proxy)
+    # Media: 7881/tcp + 7882/udp (một cổng UDP → không cần network_mode: host). Cổng 7880 (tín hiệu) chỉ trong mạng Docker,
+    # đi qua container web (/livekit). IP báo cho trình duyệt = LIVEKIT_NODE_IP (--node-ip) nên NAT của Docker không ảnh hưởng.
+    ports: ["7881:7881/tcp", "7882:7882/udp"]
     restart: unless-stopped
 
   backup:
