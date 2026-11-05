@@ -104,5 +104,7 @@ FE (`frontend/.env`, không có bí mật): `VITE_API_TARGET`, `VITE_RT_TARGET` 
 
 - `.github/workflows/ci.yml`: job `backend` (`dotnet build -warnaserror`, `dotnet test --no-build`), job `frontend` (`bun install --frozen-lockfile`, `bun run build`); push `main` → build & đẩy 3 image `api`, `realtime`, `web` lên GHCR. **Chưa có bước deploy SSH** (cần xác nhận khi có VPS).
 - Image: `backend/Dockerfile` (`--build-arg SERVICE=OfficeHub.Api|OfficeHub.Realtime`, copy cả `shared/`), `frontend/Dockerfile` (bun build → nginx). Build từ **gốc repo**.
-- Production: `infra/docker-compose.yml` (traefik, api, realtime, web, postgres, seq, livekit, backup). Route: `/api` → api, `/rt` → realtime, còn lại → web.
+- Production: `infra/docker-compose.yml` (traefik, api, realtime, web, seq, livekit, backup; `postgres` chỉ chạy với `--profile localdb`). Route: `/api` → api, `/rt` → realtime, còn lại → web; `VOICE_DOMAIN` → LiveKit qua `infra/traefik/voice.yml` (file provider → `host.docker.internal:7880`).
+- Biến prod: `POSTGRES_HOST/PORT/DB/USER/PASSWORD` (compose ghép `ConnectionStrings__Default`; mặc định host `postgres`), `LiveKit__Url=wss://<VOICE_DOMAIN>`. File mẫu đã điền: `.env.pro` ở gốc repo (gitignore) → copy lên VPS thành `/opt/officehub/.env`. Chạy với tên file khác: `OFFICEHUB_ENV_FILE=../.env.pro docker compose --env-file .env.pro -f infra/docker-compose.yml …` (thiếu `--env-file` → biến trống, lỗi `/api:`).
+- Firewall VPS: mở 80, 443, 7881/tcp, 50000–60000/udp; **chặn** 7880 và 5341 từ ngoài. Image GHCR private → `docker login ghcr.io` trên VPS bằng PAT `read:packages`.
 - Backup: container `backup` chạy `infra/backup/backup.sh` mỗi 24h → `s3://$S3__BucketBackup/{KeyPrefix}backup/db|keys/`.

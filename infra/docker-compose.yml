@@ -1,18 +1,22 @@
-# Production trên VPS.
+# Production trên VPS (file cấu hình tên .env ở gốc repo):
 #   cd /opt/officehub && docker compose --env-file .env -f infra/docker-compose.yml up -d
+# Dùng file khác (vd .env.pro): truyền CẢ HAI — --env-file cho biến ${...} trong file này, OFFICEHUB_ENV_FILE cho container:
+#   OFFICEHUB_ENV_FILE=../.env.pro docker compose --env-file .env.pro -f infra/docker-compose.yml up -d
 # Định tuyến (cùng một domain → cookie dùng chung, không cần CORS):
 #   https://APP_DOMAIN/          → web (FE: trang nhân sự, /office = văn phòng 3D)
 #   https://APP_DOMAIN/api/*     → api
 #   https://APP_DOMAIN/rt/*      → realtime (SignalR WebSocket, voice token)
-#   https://VOICE_DOMAIN         → livekit
+#   https://VOICE_DOMAIN         → livekit (Traefik → cổng 7880 trên host, xem infra/traefik/voice.yml)
+# Database: mặc định dùng Postgres NGOÀI (POSTGRES_HOST trong .env). Muốn chạy Postgres ngay trên VPS:
+#   POSTGRES_HOST=postgres và thêm  --profile localdb  vào lệnh docker compose.
 name: officehub
 
 x-app-env: &app-env
-  env_file: [../.env]
+  env_file: ["${OFFICEHUB_ENV_FILE:-../.env}"]
   environment:
     ASPNETCORE_ENVIRONMENT: Production
     ASPNETCORE_HTTP_PORTS: "8080"
-    ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+    ConnectionStrings__Default: Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
     DataProtection__KeysPath: /keys
     Seq__Url: http://seq:5341
     App__BaseUrl: https://${APP_DOMAIN}
@@ -34,17 +38,22 @@ services:
       - --certificatesresolvers.le.acme.email=${ACME_EMAIL}
       - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
       - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+      - --providers.file.directory=/etc/traefik/dynamic
     ports: ["80:80", "443:443"]
+    environment:
+      VOICE_DOMAIN: ${VOICE_DOMAIN}
+    extra_hosts: ["host.docker.internal:host-gateway"]   # LiveKit chạy network_mode: host
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - letsencrypt:/letsencrypt
+      - ./traefik:/etc/traefik/dynamic:ro
     restart: unless-stopped
 
   api:
     <<: *app-env
     image: ${IMAGE_REGISTRY}/api:${IMAGE_TAG}
     depends_on:
-      postgres: { condition: service_healthy }
+      postgres: { condition: service_healthy, required: false }
     labels:
       - traefik.enable=true
       - traefik.http.routers.api.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/api`)
@@ -75,12 +84,13 @@ services:
     restart: unless-stopped
 
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
+    profiles: [localdb]
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes: [pgdata:/var/lib/postgresql/data]
+    volumes: [pgdata:/var/lib/postgresql]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -106,10 +116,11 @@ services:
     restart: unless-stopped
 
   backup:
-    image: postgres:17-alpine
-    env_file: [../.env]
+    image: postgres:18-alpine   # pg_dump phải cùng hoặc mới hơn bản server (DB công ty: 18.6)
+    env_file: ["${OFFICEHUB_ENV_FILE:-../.env}"]
     environment:
-      PGHOST: postgres
+      PGHOST: ${POSTGRES_HOST:-postgres}
+      PGPORT: ${POSTGRES_PORT:-5432}
       PGUSER: ${POSTGRES_USER}
       PGPASSWORD: ${POSTGRES_PASSWORD}
       PGDATABASE: ${POSTGRES_DB}
@@ -118,7 +129,7 @@ services:
       - keys:/keys:ro
     entrypoint: ["/bin/sh", "-c", "apk add --no-cache aws-cli >/dev/null && while true; do /bin/sh /backup.sh; sleep 86400; done"]
     depends_on:
-      postgres: { condition: service_healthy }
+      postgres: { condition: service_healthy, required: false }
     restart: unless-stopped
 
 volumes:
