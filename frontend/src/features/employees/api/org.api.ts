@@ -1,0 +1,54 @@
+import { http, httpPost } from '@/services/api-client';
+import type {
+  AccountMode, IAccountCreated, IDepartment, IEmployee, IEmployeeDetail, IEmployeeFilter, IPosition,
+  IUpsertDepartment, IUpsertEmployee, IUpsertPosition,
+} from '../types/employee.types';
+
+const put = <T>(url: string, body: unknown) => http<T>(url, { method: 'PUT', body: JSON.stringify(body) });
+const del = (url: string) => http<void>(url, { method: 'DELETE' });
+
+export const orgKeys = {
+  all: ['org'] as const,
+  employees: (f: IEmployeeFilter = {}) => ['org', 'employees', f] as const,
+  employee: (id: string) => ['org', 'employee', id] as const,
+  myProfile: ['org', 'employee', 'me'] as const,
+  departments: ['org', 'departments'] as const,
+  positions: ['org', 'positions'] as const,
+};
+
+export const employeesApi = {
+  list: (f: IEmployeeFilter = {}) => {
+    const q = new URLSearchParams();
+    if (f.search) q.set('search', f.search);
+    if (f.departmentId) q.set('departmentId', f.departmentId);
+    if (f.includeResigned) q.set('includeResigned', 'true');
+    return http<IEmployee[]>(`/api/org/employees?${q}`);
+  },
+  get: (id: string) => http<IEmployeeDetail>(`/api/org/employees/${id}`),
+  me: () => http<IEmployeeDetail>('/api/org/employees/me'),
+  nextCode: () => http<{ code: string }>('/api/org/employees/next-code'),
+  create: (body: IUpsertEmployee) => httpPost<IEmployeeDetail>('/api/org/employees', body),
+  update: (id: string, body: IUpsertEmployee) => put<IEmployeeDetail>(`/api/org/employees/${id}`, body),
+  resign: (id: string, leftAt: string) => httpPost<void>(`/api/org/employees/${id}/resign`, { leftAt }),
+  reactivate: (id: string) => httpPost<void>(`/api/org/employees/${id}/reactivate`),
+  // Tài khoản đăng nhập
+  createAccount: (id: string, mode: AccountMode, roles: string[], userName?: string) =>
+    httpPost<IAccountCreated>(`/api/org/employees/${id}/account`, { mode, roles, userName: userName || null }),
+  resendInvite: (id: string) => httpPost<void>(`/api/org/employees/${id}/account/resend-invite`),
+  resetPassword: (id: string) => httpPost<{ tempPassword: string }>(`/api/org/employees/${id}/account/reset-password`),
+  setRoles: (id: string, roles: string[]) => put<void>(`/api/org/employees/${id}/account/roles`, { roles }),
+};
+
+export const departmentsApi = {
+  list: () => http<IDepartment[]>('/api/org/departments'),
+  create: (body: IUpsertDepartment) => httpPost<string>('/api/org/departments', body),
+  update: (id: string, body: IUpsertDepartment) => put<void>(`/api/org/departments/${id}`, body),
+  remove: (id: string) => del(`/api/org/departments/${id}`),
+};
+
+export const positionsApi = {
+  list: () => http<IPosition[]>('/api/org/positions'),
+  create: (body: IUpsertPosition) => httpPost<string>('/api/org/positions', body),
+  update: (id: string, body: IUpsertPosition) => put<void>(`/api/org/positions/${id}`, body),
+  remove: (id: string) => del(`/api/org/positions/${id}`),
+};

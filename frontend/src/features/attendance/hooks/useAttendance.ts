@@ -1,0 +1,73 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ApiError } from '@/services/api-client';
+import { attendanceApi, attendanceKeys } from '../api/attendance.api';
+import type { CheckSource, IUpsertShift, IWeekDay } from '../types/attendance.types';
+
+/** Trạng thái chấm công hôm nay. `noProfile` = tài khoản chưa gắn hồ sơ nhân viên (ví dụ admin hệ thống). */
+export function useToday() {
+  const q = useQuery({
+    queryKey: attendanceKeys.today,
+    queryFn: attendanceApi.today,
+    refetchInterval: 60_000, // cập nhật giờ làm đang chạy
+    retry: (n, err) => !(err instanceof ApiError && err.status === 409) && n < 1,
+  });
+  const noProfile = q.error instanceof ApiError && q.error.problem.title === 'no_employee_profile';
+  return { ...q, noProfile };
+}
+
+/** Bấm chấm công (vào ↔ ra). */
+export function useCheck() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (source: CheckSource) => attendanceApi.check(source),
+    onSuccess: (today) => {
+      qc.setQueryData(attendanceKeys.today, today);
+      qc.invalidateQueries({ queryKey: attendanceKeys.all, predicate: (q) => q.queryKey[1] !== 'today' });
+    },
+  });
+}
+
+export const useMyMonth = (month: string) => useQuery({ queryKey: attendanceKeys.my(month), queryFn: () => attendanceApi.my(month) });
+export const useEmployeeMonth = (id: string | null, month: string) =>
+  useQuery({ queryKey: attendanceKeys.employee(id ?? '', month), queryFn: () => attendanceApi.employeeMonth(id!, month), enabled: !!id });
+export const useBoard = (date?: string) => useQuery({ queryKey: attendanceKeys.board(date), queryFn: () => attendanceApi.board(date), refetchInterval: 60_000 });
+export const useReport = (month: string) => useQuery({ queryKey: attendanceKeys.report(month), queryFn: () => attendanceApi.report(month) });
+export const useShifts = () => useQuery({ queryKey: attendanceKeys.shifts, queryFn: attendanceApi.shifts });
+export const useSchedules = () => useQuery({ queryKey: attendanceKeys.schedules, queryFn: attendanceApi.schedules });
+export const useHolidays = (year: number) => useQuery({ queryKey: attendanceKeys.holidays(year), queryFn: () => attendanceApi.holidays(year) });
+
+function useInvalidate() {
+  const qc = useQueryClient();
+  return () => qc.invalidateQueries({ queryKey: attendanceKeys.all });
+}
+
+export function useSaveShift() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ id, body }: { id?: string; body: IUpsertShift }) => (id ? attendanceApi.updateShift(id, body) : attendanceApi.createShift(body)),
+    onSuccess: invalidate,
+  });
+}
+export function useDeleteShift() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: (id: string) => attendanceApi.deleteShift(id), onSuccess: invalidate });
+}
+export function useSaveSchedule() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (v: { employeeId: string | null; effectiveFrom: string; days: IWeekDay[] }) => attendanceApi.saveSchedule(v.employeeId, v.effectiveFrom, v.days),
+    onSuccess: invalidate,
+  });
+}
+export function useDeleteSchedule() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: (v: { employeeId: string | null; effectiveFrom: string }) => attendanceApi.deleteSchedule(v.employeeId, v.effectiveFrom), onSuccess: invalidate });
+}
+export function useCreateHoliday() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: (v: { date: string; name: string }) => attendanceApi.createHoliday(v.date, v.name), onSuccess: invalidate });
+}
+export function useDeleteHoliday() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: (id: string) => attendanceApi.deleteHoliday(id), onSuccess: invalidate });
+}

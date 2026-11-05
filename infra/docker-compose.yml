@@ -1,0 +1,127 @@
+# Production trên VPS.
+#   cd /opt/officehub && docker compose --env-file .env -f infra/docker-compose.yml up -d
+# Định tuyến (cùng một domain → cookie dùng chung, không cần CORS):
+#   https://APP_DOMAIN/          → web (FE: trang nhân sự, /office = văn phòng 3D)
+#   https://APP_DOMAIN/api/*     → api
+#   https://APP_DOMAIN/rt/*      → realtime (SignalR WebSocket, voice token)
+#   https://VOICE_DOMAIN         → livekit
+name: officehub
+
+x-app-env: &app-env
+  env_file: [../.env]
+  environment:
+    ASPNETCORE_ENVIRONMENT: Production
+    ASPNETCORE_HTTP_PORTS: "8080"
+    ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+    DataProtection__KeysPath: /keys
+    Seq__Url: http://seq:5341
+    App__BaseUrl: https://${APP_DOMAIN}
+    Realtime__MapPath: /app/shared/office-map.json
+  volumes:
+    - keys:/keys
+  restart: unless-stopped
+
+services:
+  traefik:
+    image: traefik:v3.5
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+    ports: ["80:80", "443:443"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+    restart: unless-stopped
+
+  api:
+    <<: *app-env
+    image: ${IMAGE_REGISTRY}/api:${IMAGE_TAG}
+    depends_on:
+      postgres: { condition: service_healthy }
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.api.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/api`)
+      - traefik.http.routers.api.entrypoints=websecure
+      - traefik.http.routers.api.tls.certresolver=le
+      - traefik.http.services.api.loadbalancer.server.port=8080
+
+  realtime:
+    <<: *app-env
+    image: ${IMAGE_REGISTRY}/realtime:${IMAGE_TAG}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.rt.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/rt`)
+      - traefik.http.routers.rt.entrypoints=websecure
+      - traefik.http.routers.rt.tls.certresolver=le
+      - traefik.http.services.rt.loadbalancer.server.port=8080
+
+  # FE build đóng gói trong nginx. Bản build cũng được đẩy lên S3 bucket web để lưu trữ/rollback.
+  web:
+    image: ${IMAGE_REGISTRY}/web:${IMAGE_TAG}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.web.rule=Host(`${APP_DOMAIN}`)
+      - traefik.http.routers.web.priority=1
+      - traefik.http.routers.web.entrypoints=websecure
+      - traefik.http.routers.web.tls.certresolver=le
+      - traefik.http.services.web.loadbalancer.server.port=80
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped   # KHÔNG mở cổng ra ngoài
+
+  seq:
+    image: datalust/seq:latest
+    environment:
+      ACCEPT_EULA: "Y"
+      SEQ_FIRSTADMIN_PASSWORD: ${SEQ_ADMIN_PASSWORD}
+    volumes: [seqdata:/data]
+    ports: ["127.0.0.1:5341:80"]   # chỉ xem qua SSH tunnel: ssh -L 5341:localhost:5341 vps
+    restart: unless-stopped
+
+  livekit:
+    image: livekit/livekit-server:latest
+    command: --config /etc/livekit.yaml
+    environment:
+      LIVEKIT_KEYS: "${LiveKit__ApiKey}: ${LiveKit__ApiSecret}"
+    volumes: [./livekit/livekit.yaml:/etc/livekit.yaml:ro]
+    network_mode: host               # WebRTC cần UDP trực tiếp: mở 7881/tcp + 50000-60000/udp trên firewall
+    restart: unless-stopped
+
+  backup:
+    image: postgres:17-alpine
+    env_file: [../.env]
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+    volumes:
+      - ./backup/backup.sh:/backup.sh:ro
+      - keys:/keys:ro
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache aws-cli >/dev/null && while true; do /bin/sh /backup.sh; sleep 86400; done"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  seqdata:
+  keys:
+  letsencrypt:

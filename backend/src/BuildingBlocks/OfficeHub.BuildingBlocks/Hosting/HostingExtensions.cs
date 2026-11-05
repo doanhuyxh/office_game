@@ -1,0 +1,90 @@
+using Amazon.S3;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using OfficeHub.BuildingBlocks.Configuration;
+using OfficeHub.BuildingBlocks.Email;
+using OfficeHub.BuildingBlocks.Health;
+using OfficeHub.BuildingBlocks.Office;
+using OfficeHub.BuildingBlocks.Storage;
+using Serilog;
+
+namespace OfficeHub.BuildingBlocks.Hosting;
+
+public static class HostingExtensions
+{
+    /// <summary>Cấu hình chung cho mọi host: log, Sentry, DataProtection, health check, proxy headers.</summary>
+    public static WebApplicationBuilder AddOfficeHubDefaults(this WebApplicationBuilder builder, string serviceName)
+    {
+        var cfg = builder.Configuration;
+
+        // Log: console + Seq (nếu có Seq__Url)
+        builder.Host.UseSerilog((ctx, log) =>
+        {
+            log.ReadFrom.Configuration(ctx.Configuration)
+               .Enrich.FromLogContext()
+               .Enrich.WithProperty("service", serviceName)
+               .WriteTo.Console();
+            var seqUrl = ctx.Configuration["Seq:Url"];
+            if (!string.IsNullOrWhiteSpace(seqUrl))
+                log.WriteTo.Seq(seqUrl, apiKey: ctx.Configuration["Seq:ApiKey"]);
+        });
+
+        // Sentry: chỉ bật khi có Sentry__Dsn
+        if (!string.IsNullOrWhiteSpace(cfg["Sentry:Dsn"]))
+            builder.WebHost.UseSentry(o => o.Environment = builder.Environment.EnvironmentName);
+
+        builder.Services.AddValidatedOptions<AppSettings>(cfg, AppSettings.Section);
+        builder.Services.AddValidatedOptions<OfficeSettings>(cfg, OfficeSettings.Section);
+        builder.Services.AddValidatedOptions<DataProtectionSettings>(cfg, DataProtectionSettings.Section);
+
+        var keysPath = EnvLoader.ResolvePath(cfg["DataProtection:KeysPath"] ?? ".keys", builder.Environment.ContentRootPath);
+        builder.Services.AddDataProtection()
+            .SetApplicationName("OfficeHub")
+            .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton<OfficeNetwork>();
+        builder.Services.AddProblemDetails();
+        builder.Services.AddHealthChecks().AddCheck<PostgresCheck>("postgres", tags: ["ready"]);
+        builder.Services.Configure<ForwardedHeadersOptions>(o =>
+        {
+            // Chạy sau Traefik trong mạng Docker: tin X-Forwarded-* để lấy đúng IP client (chấm công văn phòng / từ xa).
+            o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+            o.KnownIPNetworks.Clear();
+            o.KnownProxies.Clear();
+        });
+        return builder;
+    }
+
+    public static IServiceCollection AddOfficeHubFileStorage(this IServiceCollection services, Microsoft.Extensions.Configuration.IConfiguration cfg)
+    {
+        services.AddValidatedOptions<S3Settings>(cfg, S3Settings.Section);
+        services.AddSingleton<IAmazonS3>(sp => S3FileStorage.CreateClient(sp.GetRequiredService<IOptions<S3Settings>>().Value));
+        services.AddSingleton<IFileStorage, S3FileStorage>();
+        services.AddHealthChecks().AddCheck<S3Check>("s3", tags: ["ready"]);
+        return services;
+    }
+
+    public static IServiceCollection AddOfficeHubEmail(this IServiceCollection services, Microsoft.Extensions.Configuration.IConfiguration cfg)
+    {
+        services.AddValidatedOptions<SmtpSettings>(cfg, SmtpSettings.Section);
+        services.AddSingleton<IEmailSender, SmtpEmailSender>();
+        services.AddHealthChecks().AddCheck<SmtpCheck>("smtp", tags: ["ready"]);
+        return services;
+    }
+
+    public static WebApplication UseOfficeHubDefaults(this WebApplication app)
+    {
+        app.UseForwardedHeaders();
+        app.UseExceptionHandler();
+        app.UseStatusCodePages();
+        app.UseSerilogRequestLogging();
+        app.MapOfficeHubHealth();
+        return app;
+    }
+}

@@ -1,0 +1,37 @@
+using OfficeHub.Modules.Identity.Contracts;
+
+namespace OfficeHub.Modules.Organization.Features.Employees;
+
+public sealed record EmployeeListItem(
+    Guid Id, string Code, string FullName, string? Email, string? Phone,
+    Guid? DepartmentId, string? DepartmentName, Guid? PositionId, string? PositionName,
+    Guid? ManagerId, string? ManagerName, string Status, DateOnly JoinedAt, DateOnly? LeftAt,
+    Guid? UserId, AccountSummary? Account);
+
+/// <summary>Tóm tắt tài khoản đăng nhập (chỉ HR / chính chủ thấy).</summary>
+public sealed record AccountSummary(string UserName, IReadOnlyList<string> Roles, bool IsActive, bool MustChangePassword,
+    bool InvitePending, DateTimeOffset? LastLoginAt)
+{
+    public static AccountSummary From(AccountInfo a) =>
+        new(a.UserName, a.Roles, a.IsActive, a.MustChangePassword, a.InvitePending, a.LastLoginAt);
+}
+
+public sealed record EmployeeDetail(EmployeeListItem Employee, DateOnly? DateOfBirth, string? Note, int SubordinateCount);
+
+public sealed record UpsertEmployeeRequest(
+    string? Code, string FullName, string? Email, string? Phone, DateOnly? DateOfBirth,
+    Guid? DepartmentId, Guid? PositionId, Guid? ManagerId, string? Status, DateOnly JoinedAt, string? Note);
+
+public sealed record ResignRequest(DateOnly LeftAt);
+
+/// <summary>mode = "invite" (gửi email mời) hoặc "password" (HR cấp mật khẩu tạm).</summary>
+public sealed record CreateAccountRequest(string Mode, string? UserName, string[]? Roles);
+
+public sealed record SetRolesRequest(string[] Roles);
+
+/// <summary>Trả về mật khẩu tạm MỘT LẦN để HR đưa cho nhân viên (không lưu ở đâu khác).</summary>
+public sealed record AccountCreatedResponse(Guid UserId, string UserName, string? TempPassword, bool InviteSent);
+
+public sealed record TempPasswordResponse(string TempPassword);
+
+public sealed record NextCodeResponse(string Code);

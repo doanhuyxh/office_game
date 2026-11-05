@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\OfficeHub.BuildingBlocks\OfficeHub.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\..\Identity\OfficeHub.Modules.Identity.Contracts\OfficeHub.Modules.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\OfficeHub.Modules.Organization.Contracts\OfficeHub.Modules.Organization.Contracts.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

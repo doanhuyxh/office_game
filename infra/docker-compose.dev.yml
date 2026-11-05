@@ -1,0 +1,66 @@
+# Hạ tầng cho máy dev. Api / Realtime / FE chạy trực tiếp trên máy (dotnet run, npm run dev).
+#   docker compose --env-file .env -f infra/docker-compose.dev.yml up -d
+name: officehub-dev
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      retries: 10
+
+  # S3 giả lập để không đụng bucket thật (RustFS: tương thích S3, thay MinIO vì MinIO đã ngừng phát hành image)
+  s3:
+    image: rustfs/rustfs:latest
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3__AccessKey}
+      RUSTFS_SECRET_KEY: ${S3__SecretKey}
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports: ["9000:9000", "9001:9001"]   # 9001: giao diện web
+    volumes: [s3data:/data]
+
+  s3-init:
+    image: amazon/aws-cli:latest
+    depends_on: [s3]
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3__AccessKey}
+      AWS_SECRET_ACCESS_KEY: ${S3__SecretKey}
+      AWS_DEFAULT_REGION: ${S3__Region}
+    entrypoint: >
+      /bin/sh -c "
+      until aws --endpoint-url http://s3:9000 s3 ls >/dev/null 2>&1; do sleep 1; done;
+      for b in ${S3__BucketFiles} ${S3__BucketBackup} ${S3__BucketWeb}; do aws --endpoint-url http://s3:9000 s3 mb s3://$$b 2>/dev/null || true; done;
+      aws --endpoint-url http://s3:9000 s3 ls"
+
+  # Bắt mọi email gửi đi: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    ports: ["1025:1025", "8025:8025"]
+
+  # Xem log: http://localhost:5341
+  seq:
+    image: datalust/seq:latest
+    environment:
+      ACCEPT_EULA: "Y"
+      SEQ_FIRSTRUN_NOAUTHENTICATION: "true"
+    ports: ["5341:80"]
+    volumes: [seqdata:/data]
+
+  livekit:
+    image: livekit/livekit-server:latest
+    command: --dev --bind 0.0.0.0
+    environment:
+      LIVEKIT_KEYS: "${LiveKit__ApiKey}: ${LiveKit__ApiSecret}"
+    ports: ["7880:7880", "7881:7881", "7882:7882/udp"]
+
+volumes:
+  pgdata:
+  s3data:
+  seqdata:

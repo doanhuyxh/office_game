@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OfficeMap",
+  "type": "object",
+  "required": ["version", "floor", "spawn", "zones"],
+  "properties": {
+    "version": { "type": "integer" },
+    "name": { "type": "string" },
+    "floor": { "$ref": "#/$defs/rect" },
+    "wallHeight": { "type": "number" },
+    "spawn": { "type": "object", "required": ["x", "z"], "properties": { "x": { "type": "number" }, "z": { "type": "number" } } },
+    "zones": { "type": "array", "items": { "allOf": [{ "$ref": "#/$defs/rect" }, { "required": ["id", "name"] }] } },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["id", "prefab", "x", "z"],
+        "properties": { "id": { "type": "string" }, "prefab": { "type": "string" }, "x": { "type": "number" }, "z": { "type": "number" }, "r": { "type": "number" }, "action": { "type": "string" } }
+      }
+    }
+  },
+  "$defs": {
+    "rect": {
+      "type": "object", "required": ["x0", "x1", "z0", "z1"],
+      "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "x0": { "type": "number" }, "x1": { "type": "number" }, "z0": { "type": "number" }, "z1": { "type": "number" } }
+    }
+  }
+}

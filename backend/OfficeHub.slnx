@@ -1,0 +1,43 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OfficeHub.Api/OfficeHub.Api.csproj" />
+    <Project Path="src/OfficeHub.Realtime/OfficeHub.Realtime.csproj" />
+  </Folder>
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/OfficeHub.BuildingBlocks/OfficeHub.BuildingBlocks.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Modules/Approval/">
+    <Project Path="src/Modules/Approval/OfficeHub.Modules.Approval/OfficeHub.Modules.Approval.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Attendance/">
+    <Project Path="src/Modules/Attendance/OfficeHub.Modules.Attendance/OfficeHub.Modules.Attendance.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Audit/">
+    <Project Path="src/Modules/Audit/OfficeHub.Modules.Audit/OfficeHub.Modules.Audit.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Identity/">
+    <Project Path="src/Modules/Identity/OfficeHub.Modules.Identity.Contracts/OfficeHub.Modules.Identity.Contracts.csproj" />
+    <Project Path="src/Modules/Identity/OfficeHub.Modules.Identity/OfficeHub.Modules.Identity.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/LaborContracts/">
+    <Project Path="src/Modules/LaborContracts/OfficeHub.Modules.LaborContracts/OfficeHub.Modules.LaborContracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Leave/">
+    <Project Path="src/Modules/Leave/OfficeHub.Modules.Leave/OfficeHub.Modules.Leave.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Notification/">
+    <Project Path="src/Modules/Notification/OfficeHub.Modules.Notification/OfficeHub.Modules.Notification.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Organization/">
+    <Project Path="src/Modules/Organization/OfficeHub.Modules.Organization.Contracts/OfficeHub.Modules.Organization.Contracts.csproj" />
+    <Project Path="src/Modules/Organization/OfficeHub.Modules.Organization/OfficeHub.Modules.Organization.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Reporting/">
+    <Project Path="src/Modules/Reporting/OfficeHub.Modules.Reporting/OfficeHub.Modules.Reporting.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OfficeHub.Architecture.Tests/OfficeHub.Architecture.Tests.csproj" />
+    <Project Path="tests/OfficeHub.Modules.Attendance.Tests/OfficeHub.Modules.Attendance.Tests.csproj" />
+  </Folder>
+</Solution>

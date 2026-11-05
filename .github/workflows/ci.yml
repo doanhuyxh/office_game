@@ -1,0 +1,49 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: backend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { global-json-file: backend/global.json }
+      - run: dotnet build -warnaserror
+      - run: dotnet test --no-build
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+
+  # Build & push image lên GHCR khi merge vào main. Bước deploy (SSH vào VPS) thêm sau khi có VPS.
+  images:
+    if: github.ref == 'refs/heads/main'
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    strategy:
+      matrix:
+        include:
+          - { name: api, file: backend/Dockerfile, args: "SERVICE=OfficeHub.Api" }
+          - { name: realtime, file: backend/Dockerfile, args: "SERVICE=OfficeHub.Realtime" }
+          - { name: web, file: frontend/Dockerfile, args: "" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          build-args: ${{ matrix.args }}
+          push: true
+          tags: ghcr.io/${{ github.repository }}/${{ matrix.name }}:${{ github.sha }},ghcr.io/${{ github.repository }}/${{ matrix.name }}:latest

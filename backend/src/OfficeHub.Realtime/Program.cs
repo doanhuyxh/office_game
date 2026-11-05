@@ -1,0 +1,35 @@
+using OfficeHub.BuildingBlocks.Auth;
+using OfficeHub.BuildingBlocks.Configuration;
+using OfficeHub.BuildingBlocks.Hosting;
+using OfficeHub.Realtime.Hubs;
+using OfficeHub.Realtime.Simulation;
+using OfficeHub.Realtime.Voice;
+
+EnvLoader.Load();
+var builder = WebApplication.CreateBuilder(args);
+builder.AddOfficeHubDefaults("officehub-realtime");
+
+// Đọc cookie do OfficeHub.Api cấp (cùng scheme, cùng tên cookie, cùng khoá DataProtection).
+builder.Services.AddAuthentication(AuthCookie.Scheme).AddCookie(AuthCookie.Scheme, AuthCookie.Configure);
+builder.Services.AddAuthorization();
+
+builder.Services.AddSignalR(o => o.MaximumReceiveMessageSize = 16 * 1024).AddMessagePackProtocol();
+
+var mapPath = EnvLoader.ResolvePath(builder.Configuration["Realtime:MapPath"] ?? "shared/office-map.json", builder.Environment.ContentRootPath);
+builder.Services.AddSingleton(OfficeMap.Load(mapPath));
+builder.Services.AddSingleton<Presence>();
+builder.Services.AddHostedService<OfficeLoop>();
+builder.Services.AddOptions<LiveKitSettings>()
+    .Bind(builder.Configuration.GetSection(LiveKitSettings.Section))
+    .Validate(s => !s.Enabled || s.ApiSecret!.Length >= 32, "LiveKit__ApiSecret phải dài tối thiểu 32 ký tự (openssl rand -base64 32)")
+    .ValidateOnStart();
+
+var app = builder.Build();
+app.UseOfficeHubDefaults();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapHub<OfficeRoomHub>(OfficeRoomHub.Path);
+app.MapVoice();
+
+app.Run();

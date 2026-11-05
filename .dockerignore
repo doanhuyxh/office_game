@@ -1,0 +1,7 @@
+**/node_modules
+**/dist
+.env
+**/bin
+**/obj
+.keys
+.git

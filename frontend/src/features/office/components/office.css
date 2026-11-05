@@ -1,0 +1,31 @@
+/* Mọi style của văn phòng 3D nằm trong .office-root để không ảnh hưởng các trang nhân sự (Tailwind). */
+.office-root { position: fixed; inset: 0; overflow: hidden; color-scheme: dark; color: #e2e8f0; background: #0f172a;
+  font: 14px/1.45 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+.office-root * { box-sizing: border-box; }
+.office-root .scene { position: absolute; inset: 0; }
+.office-root .hud { position: absolute; inset: 0; pointer-events: none; }
+.office-root .hud > * { pointer-events: auto; }
+.office-root .card { position: absolute; background: rgba(15, 23, 42, .85); border: 1px solid rgba(148, 163, 184, .25); border-radius: 12px; padding: 8px 12px; backdrop-filter: blur(8px); }
+.office-root .me { top: 12px; left: 12px; display: grid; gap: 2px; }
+.office-root .me small { color: #fbbf24; }
+.office-root .me a { color: #93c5fd; font-size: 12px; text-decoration: underline; }
+.office-root .status { top: 12px; right: 12px; display: flex; gap: 8px; align-items: center; }
+.office-root .dot { width: 9px; height: 9px; border-radius: 50%; background: #94a3b8; }
+.office-root .dot.online { background: #22c55e; }
+.office-root .dot.reconnecting, .office-root .dot.connecting { background: #f59e0b; }
+.office-root .dot.offline, .office-root .dot.kicked { background: #ef4444; }
+.office-root .zone { top: 12px; left: 50%; transform: translateX(-50%); }
+.office-root .chat { position: absolute; left: 12px; bottom: 12px; width: min(340px, calc(100vw - 24px)); }
+.office-root .chat .log { max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
+.office-root .chat .log div { background: rgba(15, 23, 42, .6); border-radius: 8px; padding: 3px 8px; width: fit-content; max-width: 100%; }
+.office-root .chat .log b { color: #93c5fd; }
+.office-root .chat input { width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(148, 163, 184, .25); background: rgba(15, 23, 42, .85); color: inherit; outline: none; font: inherit; }
+.office-root .checkin { right: 12px; bottom: 12px; color: #fff; font: inherit; font-weight: 700; display: grid; gap: 2px; text-align: left;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8); border-color: transparent; cursor: pointer; }
+.office-root .checkin.on { background: linear-gradient(135deg, #d97706, #b45309); }
+.office-root .checkin small { font-weight: 500; opacity: .85; font-size: 12px; }
+.office-root .checkin:disabled { opacity: .5; cursor: default; }
+.office-root .prompt { left: 50%; bottom: 80px; transform: translateX(-50%); font-weight: 600; }
+.office-root kbd { background: rgba(255, 255, 255, .15); border-radius: 5px; padding: 1px 6px; font: 700 12px ui-monospace, monospace; }
+.office-root .overlay { position: absolute; inset: 0; display: grid; place-content: center; gap: 12px; text-align: center; background: rgba(2, 6, 23, .85); font-size: 16px; }
+.office-root .overlay button { padding: 10px 18px; border-radius: 10px; border: 0; background: #3b82f6; color: #fff; font-weight: 700; }

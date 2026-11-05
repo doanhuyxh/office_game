@@ -1,0 +1,19 @@
+{
+  "$schema": "./schemas/office-map.schema.json",
+  "version": 1,
+  "name": "Văn phòng chính",
+  "floor": { "x0": -20, "x1": 20, "z0": -15, "z1": 15 },
+  "wallHeight": 3,
+  "spawn": { "x": 0, "z": 9 },
+  "zones": [
+    { "id": "work",    "name": "Khu làm việc", "x0": -20, "x1": 6,  "z0": -15, "z1": 5 },
+    { "id": "meeting", "name": "Phòng họp",    "x0": 6,   "x1": 20, "z0": -15, "z1": -4 },
+    { "id": "pantry",  "name": "Pantry",       "x0": 8,   "x1": 20, "z0": 4,   "z1": 15 },
+    { "id": "lounge",  "name": "Khu nghỉ",     "x0": -20, "x1": -8, "z0": 5,   "z1": 15 },
+    { "id": "reception", "name": "Lễ tân",     "x0": -4,  "x1": 4,  "z0": 10,  "z1": 15 }
+  ],
+  "objects": [
+    { "id": "timeclock", "prefab": "time-clock", "x": 0, "z": 13.5, "r": 3.14159, "action": "attendance.checkin" }
+  ],
+  "notes": "Bản tạm từ MVP. Sẽ vẽ lại theo mặt bằng thật của văn phòng (phòng ban → zone, bàn → seat)."
+}
