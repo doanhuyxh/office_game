@@ -21,3 +21,6 @@ dist/
 .idea/
 # Added by code-review-graph
 .code-review-graph/
+
+# Tài khoản thử nghiệm dev (có mật khẩu)
+account.txt
