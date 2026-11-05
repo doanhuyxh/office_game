@@ -26,18 +26,18 @@ docs/ARCHITECTURE_V2.md          thiết kế + lộ trình (người đọc)
 
 ```
 Trình duyệt (SPA :5173)
-  ├─ /api/*  ──(Vite proxy dev | Traefik prod)──▶ OfficeHub.Api ─▶ <M>Module endpoints ─▶ DbContext (schema riêng) ─▶ PostgreSQL
+  ├─ /api/*  ──(Vite proxy dev | nginx VPS → container web prod)──▶ OfficeHub.Api ─▶ <M>Module endpoints ─▶ DbContext (schema riêng) ─▶ PostgreSQL
   │                                                     └─▶ IAccountService / IEmployeeDirectory (Contracts) giữa các module
   └─ /rt/*   ──(WebSocket)──────────────────────────▶ OfficeHub.Realtime ─▶ Presence (RAM) — không ghi DB
                                                           └─▶ HTTP GET Api /api/auth/me (kiểm tra phiên, cookie người dùng)
 ```
 
-- FE và API **cùng origin** (dev: Vite proxy; prod: Traefik) → cookie đăng nhập dùng được cho cả `/api` và `/rt`, không cần CORS.
+- FE và API **cùng origin** (dev: Vite proxy; prod: nginx VPS → container `web` chia `/api`, `/rt`, `/livekit`) → cookie đăng nhập dùng được cho cả `/api` và `/rt`, không cần CORS.
 - **Cookie dùng chung 2 host**: Api cấp cookie `officehub.auth` (scheme `Identity.Application`); Realtime đọc lại nhờ cùng scheme, cùng tên cookie, cùng thư mục khoá `DataProtection__KeysPath`, application name `OfficeHub` (`AuthCookie.cs`, `HostingExtensions.cs`).
 - Không có message bus: module gọi nhau đồng bộ qua interface trong `*.Contracts` (DI scope cùng request): `IAccountService` (Identity), `IEmployeeDirectory` (Organization), `IApprovalService` + `IApprovalHandler` (Approval ← Leave, Attendance), `ILeaveCalendar` (Leave → Attendance), `IWorkCalendar` (Attendance → Leave). Realtime ↔ Api chỉ có một đường: Realtime gọi `/api/auth/me` ([business/office.md](business/office.md)).
 - FE: mọi query/mutation trả **401** → `onUnauthorized` (`App.tsx`) xoá cache và chuyển `/login?returnUrl=…`; query không retry khi 401.
 - Business logic nằm ở back-end. FE chỉ hiển thị và điều hướng; `routes/guards.ts` và menu theo vai trò **không phải** lớp bảo mật.
-- IP client: Api dùng `ForwardedHeaders` (tin mọi proxy) → `HttpContext.Connection.RemoteIpAddress` là IP thật sau Traefik. Dev qua Vite proxy → IP là localhost.
+- IP client: Api dùng `ForwardedHeaders` (tin mọi proxy) → `HttpContext.Connection.RemoteIpAddress` là IP thật sau nginx (nginx VPS gửi `X-Forwarded-For`, container `web` chuyển tiếp nguyên). Dev qua Vite proxy → IP là localhost.
 
 ## Host Api
 

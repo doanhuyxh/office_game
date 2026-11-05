@@ -16,8 +16,12 @@ public sealed class LiveKitSettings
     public string? ApiSecret { get; set; }
     public bool Enabled => !string.IsNullOrWhiteSpace(Url) && !string.IsNullOrWhiteSpace(ApiKey) && !string.IsNullOrWhiteSpace(ApiSecret);
 
-    /// <summary>URL HTTP của API LiveKit (đẩy người khỏi room) — suy ra từ <see cref="Url"/>: ws → http, wss → https.</summary>
-    public string ApiHttpUrl => Url!.StartsWith("wss://", StringComparison.OrdinalIgnoreCase) ? "https://" + Url[6..]
+    /// <summary>URL HTTP nội bộ tới API LiveKit (tuỳ chọn, vd http://host.docker.internal:7880). Trống → suy ra từ <see cref="Url"/>.</summary>
+    public string? ApiUrl { get; set; }
+
+    /// <summary>URL HTTP của API LiveKit (đẩy người khỏi room): <see cref="ApiUrl"/>, hoặc từ <see cref="Url"/> (ws → http, wss → https).</summary>
+    public string ApiHttpUrl => !string.IsNullOrWhiteSpace(ApiUrl) ? ApiUrl
+        : Url!.StartsWith("wss://", StringComparison.OrdinalIgnoreCase) ? "https://" + Url[6..]
         : Url.StartsWith("ws://", StringComparison.OrdinalIgnoreCase) ? "http://" + Url[5..] : Url;
 }
 

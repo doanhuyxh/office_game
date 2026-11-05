@@ -5,3 +5,5 @@
 **/obj
 .keys
 .git
+.env.*
+!.env.example

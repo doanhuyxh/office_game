@@ -1,20 +1,22 @@
-# Build một trong hai service:  docker build -f backend/Dockerfile --build-arg SERVICE=OfficeHub.Api .
-# (chạy từ gốc repo vì cần thư mục shared/)
-ARG SERVICE=OfficeHub.Api
-
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-ARG SERVICE
+# Một image cho CẢ Api và Realtime (build một lần, tiết kiệm ổ cứng). Chạy từ gốc repo (cần thư mục shared/):
+#   docker build -f backend/Dockerfile -t officehub/backend .
+# Chọn service khi chạy: biến SERVICE=OfficeHub.Api | OfficeHub.Realtime (docker-compose đặt sẵn).
+FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 WORKDIR /src
 COPY backend/ ./
-RUN dotnet publish src/$SERVICE/$SERVICE.csproj -c Release -o /out
+RUN dotnet publish src/OfficeHub.Api/OfficeHub.Api.csproj -c Release -o /out/OfficeHub.Api \
+ && dotnet publish src/OfficeHub.Realtime/OfficeHub.Realtime.csproj -c Release -o /out/OfficeHub.Realtime
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0
-ARG SERVICE
-# Npgsql cần libgssapi (Kerberos) — thiếu thì log báo lỗi mỗi lần kết nối
-RUN apt-get update && apt-get install -y --no-install-recommends libgssapi-krb5-2 && rm -rf /var/lib/apt/lists/*
-ENV SERVICE_DLL=$SERVICE.dll
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine
+# icu: định dạng / văn hoá vi-VN · tzdata: múi giờ Asia/Ho_Chi_Minh · krb5-libs: Npgsql (libgssapi)
+RUN apk add --no-cache icu-libs tzdata krb5-libs
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false \
+    SERVICE=OfficeHub.Api
 WORKDIR /app
 COPY --from=build /out ./
 COPY shared/ ./shared/
+# Thư mục khoá DataProtection (volume "keys"): tạo sẵn với quyền user app — volume mới sẽ chép quyền này, không thì Permission denied
+RUN mkdir -p /keys && chown $APP_UID:$APP_UID /keys
 USER $APP_UID
-ENTRYPOINT ["sh", "-c", "exec dotnet $SERVICE_DLL"]
+# Content root = thư mục của service (appsettings.json riêng)
+ENTRYPOINT ["sh", "-c", "cd /app/$SERVICE && exec dotnet $SERVICE.dll"]

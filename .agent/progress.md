@@ -26,7 +26,7 @@ Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` 88 test ✔, `
 
 ## Việc tiếp theo — chủ dự án CHƯA chọn (hỏi trước khi làm)
 
-1. **Voice – phần còn lại**: chat theo phòng; deploy LiveKit thật (TLS cho `VOICE_DOMAIN`, mở UDP 50000–60000, bật TURN trong `infra/livekit/livekit.yaml`) — chưa thử trên VPS.
+1. **Voice – phần còn lại**: chat theo phòng; deploy thật lên VPS (`sh scripts/deploy.sh`, voice qua `wss://<APP_DOMAIN>/livekit`, mở UDP 50000–60000; TURN chưa bật) — chưa thử trên VPS.
 2. **Văn phòng 3D – hình ảnh / thiết bị**: model GLB CC0 thay khối dựng tay (`engine/furniture.ts`), mobile (joystick).
 3. **Báo cáo**: trang `/reports` đang `ComingSoon`; xuất Excel bảng công tháng, tổng hợp phép, tăng ca.
 4. **Quy ra tiền** phép năm chưa dùng + tăng ca (hệ số 150 / 200 / 300%) từ lương hợp đồng (`ContractDto.currentSalary`).

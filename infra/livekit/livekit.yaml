@@ -5,7 +5,7 @@ rtc:
   port_range_start: 50000
   port_range_end: 60000
   use_external_ip: true
-# Signal (wss://VOICE_DOMAIN) đi qua Traefik → host:7880 (infra/traefik/voice.yml). Media đi thẳng UDP 50000–60000 / TCP 7881.
+# Signal (wss://APP_DOMAIN/livekit) đi qua nginx VPS → container web → host:7880. Media đi thẳng UDP 50000–60000 / TCP 7881.
 # TURN (người dùng sau mạng công ty / NAT chặn UDP): LiveKit có TURN dựng sẵn — cần chứng chỉ TLS cho domain TURN.
 # Bỏ comment + điền domain / file chứng chỉ khi deploy (chưa thử trên VPS):
 # turn:

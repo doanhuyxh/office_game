@@ -1,24 +1,33 @@
-# Production trên VPS (file cấu hình tên .env ở gốc repo):
-#   cd /opt/officehub && docker compose --env-file .env -f infra/docker-compose.yml up -d
-# Dùng file khác (vd .env.pro): truyền CẢ HAI — --env-file cho biến ${...} trong file này, OFFICEHUB_ENV_FILE cho container:
-#   OFFICEHUB_ENV_FILE=../.env.pro docker compose --env-file .env.pro -f infra/docker-compose.yml up -d
-# Định tuyến (cùng một domain → cookie dùng chung, không cần CORS):
-#   https://APP_DOMAIN/          → web (FE: trang nhân sự, /office = văn phòng 3D)
-#   https://APP_DOMAIN/api/*     → api
-#   https://APP_DOMAIN/rt/*      → realtime (SignalR WebSocket, voice token)
-#   https://VOICE_DOMAIN         → livekit (Traefik → cổng 7880 trên host, xem infra/traefik/voice.yml)
-# Database: mặc định dùng Postgres NGOÀI (POSTGRES_HOST trong .env). Muốn chạy Postgres ngay trên VPS:
-#   POSTGRES_HOST=postgres và thêm  --profile localdb  vào lệnh docker compose.
+# OfficeHub production trên VPS. Nginx của VPS chỉ cần proxy DOMAIN → 127.0.0.1:${HTTP_PORT:-7080} (infra/nginx/officehub.conf).
+#   cd /opt/officehub && sh scripts/deploy.sh        (git pull + build + chạy + dọn cache build)
+#   hoặc: docker compose --env-file .env -f infra/docker-compose.yml up -d --build
+#
+# Một domain, một cổng — container "web" (nginx) chia đường dẫn (frontend/nginx.conf):
+#   /            → FE (trang nhân sự, /office = văn phòng 3D)
+#   /api/*       → api        /rt/* → realtime (SignalR, token voice)
+#   /livekit/*   → livekit (network_mode: host, :7880) — LiveKit__Url=wss://APP_DOMAIN/livekit
+#
+# Tuỳ chọn:  --profile logs     chạy Seq (xem log: ssh -L 5341:localhost:5341 vps)
+#            --profile localdb  chạy Postgres ngay trên VPS (đặt POSTGRES_HOST=postgres)
+# Dùng file env khác tên .env:  OFFICEHUB_ENV_FILE=../.env.pro docker compose --env-file .env.pro -f infra/docker-compose.yml …
 name: officehub
 
-x-app-env: &app-env
+# Log Docker xoay vòng: tối đa 3 × 10 MB mỗi container (không thì log lớn dần tới khi đầy ổ cứng)
+x-logging: &logging
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+x-backend: &backend
+  <<: *logging
+  image: officehub/backend:latest
   env_file: ["${OFFICEHUB_ENV_FILE:-../.env}"]
-  environment:
+  environment: &backend-env
     ASPNETCORE_ENVIRONMENT: Production
     ASPNETCORE_HTTP_PORTS: "8080"
     ConnectionStrings__Default: Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
     DataProtection__KeysPath: /keys
-    Seq__Url: http://seq:5341
+    Seq__Url: ${SEQ_URL:-}           # --profile logs → SEQ_URL=http://seq:5341
     App__BaseUrl: https://${APP_DOMAIN}
     Realtime__MapPath: /app/shared/office-map.json
     Realtime__ApiBaseUrl: http://api:8080   # Realtime hỏi Api để kiểm tra phiên đăng nhập
@@ -27,87 +36,36 @@ x-app-env: &app-env
   restart: unless-stopped
 
 services:
-  traefik:
-    image: traefik:v3.5
-    command:
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-      - --entrypoints.web.http.redirections.entrypoint.to=websecure
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.le.acme.email=${ACME_EMAIL}
-      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
-      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
-      - --providers.file.directory=/etc/traefik/dynamic
-    ports: ["80:80", "443:443"]
-    environment:
-      VOICE_DOMAIN: ${VOICE_DOMAIN}
-    extra_hosts: ["host.docker.internal:host-gateway"]   # LiveKit chạy network_mode: host
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - letsencrypt:/letsencrypt
-      - ./traefik:/etc/traefik/dynamic:ro
-    restart: unless-stopped
-
   api:
-    <<: *app-env
-    image: ${IMAGE_REGISTRY}/api:${IMAGE_TAG}
+    <<: *backend
+    build: { context: .., dockerfile: backend/Dockerfile }
+    environment:
+      <<: *backend-env
+      SERVICE: OfficeHub.Api
     depends_on:
       postgres: { condition: service_healthy, required: false }
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.api.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/api`)
-      - traefik.http.routers.api.entrypoints=websecure
-      - traefik.http.routers.api.tls.certresolver=le
-      - traefik.http.services.api.loadbalancer.server.port=8080
 
   realtime:
-    <<: *app-env
-    image: ${IMAGE_REGISTRY}/realtime:${IMAGE_TAG}
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.rt.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/rt`)
-      - traefik.http.routers.rt.entrypoints=websecure
-      - traefik.http.routers.rt.tls.certresolver=le
-      - traefik.http.services.rt.loadbalancer.server.port=8080
+    <<: *backend
+    environment:
+      <<: *backend-env
+      SERVICE: OfficeHub.Realtime
+      LiveKit__ApiUrl: http://host.docker.internal:7880   # đẩy người khỏi room voice qua mạng nội bộ
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    pull_policy: never  # dùng chung image officehub/backend do service api build
+    depends_on: [api]
 
-  # FE build đóng gói trong nginx. Bản build cũng được đẩy lên S3 bucket web để lưu trữ/rollback.
   web:
-    image: ${IMAGE_REGISTRY}/web:${IMAGE_TAG}
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.web.rule=Host(`${APP_DOMAIN}`)
-      - traefik.http.routers.web.priority=1
-      - traefik.http.routers.web.entrypoints=websecure
-      - traefik.http.routers.web.tls.certresolver=le
-      - traefik.http.services.web.loadbalancer.server.port=80
-    restart: unless-stopped
-
-  postgres:
-    image: postgres:18-alpine
-    profiles: [localdb]
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes: [pgdata:/var/lib/postgresql]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
-      retries: 10
-    restart: unless-stopped   # KHÔNG mở cổng ra ngoài
-
-  seq:
-    image: datalust/seq:latest
-    environment:
-      ACCEPT_EULA: "Y"
-      SEQ_FIRSTADMIN_PASSWORD: ${SEQ_ADMIN_PASSWORD}
-    volumes: [seqdata:/data]
-    ports: ["127.0.0.1:5341:80"]   # chỉ xem qua SSH tunnel: ssh -L 5341:localhost:5341 vps
+    <<: *logging
+    image: officehub/web:latest
+    build: { context: .., dockerfile: frontend/Dockerfile }
+    ports: ["127.0.0.1:${HTTP_PORT:-7080}:80"]   # chỉ nginx của VPS vào được
+    extra_hosts: ["host.docker.internal:host-gateway"]   # /livekit → LiveKit trên host
     restart: unless-stopped
 
   livekit:
-    image: livekit/livekit-server:latest
+    <<: *logging
+    image: livekit/livekit-server:v1.13.11
     command: --config /etc/livekit.yaml
     environment:
       LIVEKIT_KEYS: "${LiveKit__ApiKey}: ${LiveKit__ApiSecret}"
@@ -116,6 +74,7 @@ services:
     restart: unless-stopped
 
   backup:
+    <<: *logging
     image: postgres:18-alpine   # pg_dump phải cùng hoặc mới hơn bản server (DB công ty: 18.6)
     env_file: ["${OFFICEHUB_ENV_FILE:-../.env}"]
     environment:
@@ -132,8 +91,33 @@ services:
       postgres: { condition: service_healthy, required: false }
     restart: unless-stopped
 
+  postgres:
+    <<: *logging
+    image: postgres:18-alpine
+    profiles: [localdb]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: [pgdata:/var/lib/postgresql]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped   # KHÔNG mở cổng ra ngoài
+
+  seq:
+    <<: *logging
+    image: datalust/seq:2025.2
+    profiles: [logs]
+    environment:
+      ACCEPT_EULA: "Y"
+      SEQ_FIRSTADMIN_PASSWORD: ${SEQ_ADMIN_PASSWORD}
+    volumes: [seqdata:/data]
+    ports: ["127.0.0.1:5341:80"]
+    restart: unless-stopped
+
 volumes:
   pgdata:
   seqdata:
   keys:
-  letsencrypt:

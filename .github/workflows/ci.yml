@@ -33,8 +33,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - { name: api, file: backend/Dockerfile, args: "SERVICE=OfficeHub.Api" }
-          - { name: realtime, file: backend/Dockerfile, args: "SERVICE=OfficeHub.Realtime" }
+          - { name: backend, file: backend/Dockerfile, args: "" }   # một image cho Api + Realtime (biến SERVICE)
           - { name: web, file: frontend/Dockerfile, args: "" }
     steps:
       - uses: actions/checkout@v4
