@@ -48,7 +48,7 @@ Realtime không đọc được dữ liệu tài khoản (ranh giới module) n�
 | `SessionWatch` mỗi `Realtime__SessionCheckSeconds` (30s) cho mọi người online | 401/403 → `Kicked("Phiên đăng nhập đã hết hiệu lực. Vui lòng đăng nhập lại.")`, `Abort` sau 500ms |
 | Api không trả lời / 5xx | `Unknown` → **cho qua** (ghi log `WRN`), để Api restart không đá cả văn phòng |
 
-Tên hiển thị = claim `full_name`. `anim` (byte) chỉ chuyển tiếp: 0 đứng, 1 đi, 2 ngồi. Chưa có: trạng thái "Vắng" / nghỉ phép, gán chỗ ngồi, voice theo phòng (giai đoạn 2–3). Realtime **chưa** phát sự kiện presence sang Attendance.
+Tên hiển thị = claim `full_name`. `anim` (byte) chỉ chuyển tiếp: 0 đứng, 1 đi, 2 ngồi. Không làm (chủ dự án bỏ): trạng thái "Vắng" / nghỉ phép trên avatar, gán chỗ ngồi. Chưa có: voice theo phòng (giai đoạn 3). Realtime **chưa** phát sự kiện presence sang Attendance.
 
 ## Voice (`Voice/VoiceEndpoints.cs`)
 

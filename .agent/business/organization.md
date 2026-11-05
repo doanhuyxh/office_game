@@ -83,7 +83,7 @@ Không có API xoá nhân viên (giữ dữ liệu chấm công).
 | Ràng buộc khác | cha: `"Phòng ban cha không được là chính nó"`, `"Phòng ban cha không tồn tại"`, `"Không được chọn phòng ban con làm phòng ban cha"`; trưởng phòng: `"Trưởng phòng không tồn tại hoặc đã nghỉ việc"` | — |
 | Xoá bị chặn (409) | `"Phòng ban còn phòng ban con, hãy chuyển hoặc xoá phòng ban con trước"`, `"Phòng ban còn nhân viên, hãy chuyển nhân viên sang phòng ban khác trước"` | `"Chức vụ đang có nhân viên, hãy đổi chức vụ cho họ trước"` |
 
-`MapZone` của phòng ban = `areas[].id` hoặc `rooms[].zone` trong `shared/office-map.json` v2 (danh sách: `features/employees/utils/mapZones.ts`; chưa dùng để xếp chỗ — giai đoạn 2 văn phòng 3D).
+`MapZone` của phòng ban = `areas[].id` hoặc `rooms[].zone` trong `shared/office-map.json` v2 (danh sách: `features/employees/utils/mapZones.ts`; không dùng để xếp chỗ ngồi — chủ dự án bỏ tính năng gán chỗ).
 
 ## `IEmployeeDirectory` (Organization.Contracts → `Infrastructure/EmployeeDirectory.cs`)
 

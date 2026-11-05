@@ -778,7 +778,7 @@ Hiện tại các tương tác dưới đây được làm **đồng bộ qua `*
 | **Tăng ca** ✅ | Đơn tăng ca, duyệt quản lý → HR, giờ theo hệ số loại ngày, cảnh báo giới hạn | Tăng ca có trên bảng công |
 | **Thông báo** ✅ | Chuông in-app + email cho luồng duyệt | Người duyệt biết ngay có đơn |
 | **Tiếp theo** ⏳ | Quy ra tiền phép năm / tăng ca; nhắc quên chấm ra; Audit; nhập nhân viên từ Excel | Đủ quy trình nhân sự hằng ngày |
-| **Văn phòng 3D** — giai đoạn 1 ✅ · 2–4 ⏳ | Viết mới engine đầy đủ, bản đồ theo mặt bằng thật, chỗ ngồi theo phòng ban, hiện trạng thái "Nghỉ phép" trên avatar | Văn phòng 3D giống thật |
+| **Văn phòng 3D** — giai đoạn 1 ✅ · 2 bỏ · 3–4 ⏳ | Engine mới, mặt bằng v2, va chạm, ngồi, bản đồ nhỏ ✅. Bỏ (chủ dự án): gán chỗ ngồi, trạng thái "Nghỉ phép" / vắng trên avatar. Còn: voice theo khoảng cách / phòng, model GLB, mobile | Văn phòng 3D giống thật |
 | **Hợp đồng lao động** ✅ | Hợp đồng, phụ lục, lương mã hoá, file S3, nhắc 30 / 7 ngày | HR quản lý hợp đồng trên hệ thống |
 | **2. Hoàn thiện** ⏳ | Bảng công tháng + Excel, mẫu hợp đồng, quy ra tiền tăng ca, voice + đặt phòng họp | Bỏ quy trình giấy/Excel |
 | **3. Mở rộng** ⏳ | Webhook máy chấm công, PWA/mobile, ký điện tử, tích hợp lương | Tuỳ nhu cầu |

@@ -21,4 +21,4 @@ Quy tắc cần giữ khi sửa:
 - Ngồi: chỉ ghế trống (không có người khác `anim = 2` trong 0,15 m), đứng dậy = bước ra ô trống gần nhất. Ghế có thể nằm trong ô chạm cạnh bàn → server cho phép riêng toạ độ ghế.
 - Khi dev, `window.__officeScene` trỏ tới scene (chỉ để test e2e; không có trong bản build).
 
-**Giai đoạn tiếp theo** (lộ trình `design/office-3d-proposal.md`): gán chỗ ngồi trong trang Nhân viên, trạng thái trên đầu avatar (chấm công, nghỉ phép, vắng), "tìm đồng nghiệp", rồi voice theo khoảng cách / phòng (LiveKit), thay khối dựng tay bằng model GLB.
+**Lộ trình** (`design/office-3d-proposal.md`): giai đoạn 2 (gán chỗ ngồi, trạng thái trên avatar, tìm đồng nghiệp) **đã bỏ theo quyết định chủ dự án** — không đề xuất lại. Còn: voice theo khoảng cách / phòng (LiveKit), model GLB thay khối dựng tay, mobile, sửa bản đồ trong app.

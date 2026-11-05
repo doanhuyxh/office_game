@@ -27,7 +27,7 @@
 
 **24 chỗ ngồi** cho 14 người hiện có → còn chỗ tăng lên ~20 người. Lối đi chính rộng ≥ 1,5 m (khu mở z 9,2–11) để avatar không kẹt.
 
-### Gán chỗ ngồi đề xuất (sửa trong app ở giai đoạn 2)
+### Gán chỗ ngồi đề xuất (tham khảo — không làm tính năng gán chỗ, xem giai đoạn 2 đã bỏ)
 
 | Chỗ | Người | Chỗ | Người |
 |---|---|---|---|
@@ -74,7 +74,7 @@ Khi duyệt mặt bằng: đổi `departments.MapZone` từ `work` sang khu riê
 | Giai đoạn | Làm gì | Xong khi |
 |---|---|---|
 | **1. Thế giới** ✅ | Engine mới theo mục 5; dựng mặt bằng v2; tường, cửa, đồ vật; va chạm FE + server; bấm để đi + WASD; bản đồ nhỏ; avatar có animation; ngồi vào chỗ của mình (phím E) | Đi lại tự nhiên trong văn phòng, không xuyên tường, ngồi được |
-| **2. Hiện diện** | Gán chỗ ngồi trong trang Nhân viên; trạng thái trên đầu avatar (đang làm, chưa chấm công, **nghỉ phép**, vắng sau `Office__InactiveMinutes`, ngoài giờ); bàn người nghỉ phép có biển; "Tìm đồng nghiệp" (đi tới bàn); người offline hiện dạng mờ tại bàn | Mở văn phòng là biết ai đang làm, ai vắng, ở đâu |
+| ~~**2. Hiện diện**~~ ✕ | **Bỏ** — chủ dự án quyết định không cần (2026-11-05): gán chỗ ngồi, trạng thái trên đầu avatar, "tìm đồng nghiệp", người offline hiện mờ tại bàn | — |
 | **3. Giao tiếp** | Voice theo khoảng cách + phòng họp / phòng gọi có kênh riêng, chia sẻ màn hình trong phòng họp; chat theo phòng | Họp và trao đổi nhanh ngay trong văn phòng ảo |
 | **4. Mở rộng** | Trang sửa mặt bằng cho admin (kéo thả bàn ghế), đặt phòng họp, tuỳ chỉnh avatar, mobile | Tuỳ nhu cầu |
 
