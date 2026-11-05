@@ -80,6 +80,7 @@ Một file `.env` ở gốc repo cho BE + Docker Compose. Quy ước `Section__K
 | `Smtp__Host`, `Smtp__FromEmail` | ✔ | SMTP (MailKit, timeout 15s mỗi lần gửi). `Smtp__Port/UseSsl/Username/Password/FromName` tuỳ chọn. Cổng 587 ↔ `UseSsl=false` (STARTTLS), 465 ↔ `UseSsl=true` |
 | `Smtp__CheckCertificateRevocation` | – (true) | Kiểm tra thu hồi chứng chỉ TLS. Chủ dự án có thể đặt `false` trên máy dev macOS nếu Gmail báo "incomplete certificate revocation check" |
 | `LiveKit__Url/ApiKey/ApiSecret` | – | Thiếu → voice trả 503. Secret < 32 ký tự → Realtime không khởi động |
+| `LIVEKIT_NODE_IP` | `127.0.0.1` | Chỉ dev compose (`--node-ip`). Không đặt → LiveKit báo IP container, trình duyệt báo "Không kết nối được máy chủ voice". Test từ máy khác trong LAN → IP LAN + đổi `LiveKit__Url` theo |
 | `Seq__Url`, `Seq__ApiKey`, `Sentry__Dsn` | – | Log / lỗi; trống = tắt |
 | `Realtime__MapPath` | – | Mặc định `shared/office-map.json` |
 | `Realtime__ApiBaseUrl` | – (`http://localhost:5080`) | Realtime gọi Api để kiểm tra phiên. Prod compose: `http://api:8080` |

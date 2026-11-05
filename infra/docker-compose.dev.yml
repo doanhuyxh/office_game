@@ -55,7 +55,9 @@ services:
 
   livekit:
     image: livekit/livekit-server:latest
-    command: --dev --bind 0.0.0.0
+    # --node-ip: địa chỉ LiveKit báo cho trình duyệt (ICE). Mặc định IP container (172.x) → máy host không tới được.
+    # Test từ máy khác trong LAN: đặt LIVEKIT_NODE_IP=<IP LAN của máy dev> và LiveKit__Url=ws://<IP đó>:7880 trong .env.
+    command: --dev --bind 0.0.0.0 --node-ip ${LIVEKIT_NODE_IP:-127.0.0.1}
     environment:
       LIVEKIT_KEYS: "${LiveKit__ApiKey}: ${LiveKit__ApiSecret}"
     ports: ["7880:7880", "7881:7881", "7882:7882/udp"]

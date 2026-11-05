@@ -56,3 +56,4 @@ Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` 88 test ✔, `
 - Sửa `shared/office-map.json` → phải chạy `bun design/tools/render-plan.ts` (ghi lại `office-map.grid.txt`), nếu không test Realtime fail.
 - Thêm component shadcn: `bun run ui:add` (trả lời `n` khi hỏi ghi đè).
 - Job nền (email, nhắc hợp đồng) giả định **một** instance Api.
+- Voice báo "Không kết nối được máy chủ voice" mà token vẫn 200 → lỗi ICE: LiveKit trong Docker báo IP container. Dev compose đã có `--node-ip ${LIVEKIT_NODE_IP:-127.0.0.1}`; đổi xong phải `up -d livekit` để tạo lại container.
