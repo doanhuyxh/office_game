@@ -20,12 +20,17 @@
 | **Organization**: phòng ban, chức vụ, hồ sơ nhân viên, HR cấp tài khoản (mời qua email / mật khẩu tạm), đổi vai trò, nghỉ việc / khôi phục | ✅ |
 | **Identity**: quên mật khẩu, nhận lời mời qua email (link 72 giờ), giới hạn tần suất đăng nhập | ✅ |
 | **Attendance**: nút chấm công (web + văn phòng 3D), ca cố định / linh hoạt, lịch tuần (công ty + riêng từng người), ngày lễ, bảng công tháng, bảng hôm nay, tổng hợp tháng | ✅ |
-| Leave, LaborContracts, Approval, Notification, Reporting, Audit: khung project + `/_status` | ✅ khung · ⏳ nghiệp vụ |
+| **Approval**: luồng duyệt dùng chung quản lý → HR, không tự duyệt, hộp "Chờ tôi duyệt" + badge menu, từ chối bắt buộc lý do, người gửi huỷ được | ✅ |
+| **Leave**: 4 loại phép, quỹ phép năm (12 ngày + thâm niên, cộng dồn tháng, **không hết hạn**), đơn cả ngày / nửa ngày, xem trước số ngày, lịch nghỉ team, HR điều chỉnh quỹ phép | ✅ |
+| **Giải trình chấm công**: bổ sung giờ vào / ra trong 31 ngày gần nhất, duyệt xong bảng công tự đúng; bảng công hiện "Nghỉ phép" | ✅ |
+| Khoá tài khoản có hiệu lực ngay (Api kiểm tra security stamp mọi request; văn phòng 3D đẩy người bị khoá ra ≤ 30 giây) | ✅ |
+| SMTP: timeout 15 giây, tuỳ chọn `Smtp__CheckCertificateRevocation` (mặc định bật) | ✅ |
+| LaborContracts, Notification, Reporting, Audit: khung project + `/_status` | ✅ khung · ⏳ nghiệp vụ |
 | Docker image (api, realtime, web), compose production, backup S3, CI GitHub Actions | ✅ (chưa deploy thật) |
-| Test kiến trúc (module không tham chiếu chéo nhau) | ✅ |
+| Test: kiến trúc (module không tham chiếu chéo) + bộ tính công + quy tắc phép năm (29 test) | ✅ |
 | Wolverine (sự kiện/outbox), Hangfire (job), Audit interceptor | ⏳ |
-| Giải trình / sửa công, nhắc quên chấm ra, tăng ca (cần module Approval) | ⏳ |
-| Leave, Approval, … | ⏳ |
+| Tăng ca, nhắc quên chấm ra, thông báo email cho người duyệt / người gửi đơn | ⏳ |
+| Quy ra tiền phép năm (UI hiện "Đang phát triển") | ⏳ |
 | Engine 3D đầy đủ (viết mới), dựng theo mặt bằng thật | ⏳ |
 
 ---
@@ -213,10 +218,10 @@ Modules/<M>/OfficeHub.Modules.<M>/
 |---|---|---|---|---|
 | `Identity` | `/api/auth` | `identity` | ✅ | Tài khoản, đăng nhập, mật khẩu, vai trò |
 | `Organization` | `/api/org` | `org` | ✅ | Phòng ban, chức vụ, nhân viên, cấp tài khoản cho nhân viên |
-| `Attendance` | `/api/attendance` | `attendance` | ✅ | Chấm công, ca làm, lịch tuần, ngày lễ, bảng công · ⏳ giải trình, webhook máy |
-| `Leave` | `/api/leave` | `leave` | khung | Loại phép, chính sách, quỹ phép, đơn nghỉ |
+| `Attendance` | `/api/attendance` | `attendance` | ✅ | Chấm công, ca làm, lịch tuần, ngày lễ, bảng công, giải trình · ⏳ webhook máy, tăng ca |
+| `Leave` | `/api/leave` | `leave` | ✅ | Loại phép, quỹ phép năm, đơn nghỉ, điều chỉnh của HR |
 | `LaborContracts` | `/api/contracts` | `contracts` | khung | Hợp đồng, phụ lục, mẫu, file S3 |
-| `Approval` | `/api/approval` | `approval` | khung | Luồng duyệt dùng chung |
+| `Approval` | `/api/approval` | `approval` | ✅ | Luồng duyệt dùng chung (nghỉ phép, giải trình) |
 | `Notification` | `/api/notifications` | `notifications` | khung | Email, in-app |
 | `Reporting` | `/api/reports` | (đọc qua view) | khung | Bảng công tháng, xuất Excel |
 | `Audit` | `/api/audit` | `audit` | khung | Lịch sử thay đổi dữ liệu nhân sự |
@@ -294,7 +299,13 @@ Module khung hiện chỉ có `GET /api/<route>/_status` (cần đăng nhập).
 - Tài khoản chưa gắn hồ sơ nhân viên (ví dụ admin hệ thống) gọi chấm công thì nhận **409** với `title: "no_employee_profile"`.
 - Lần chạy đầu, hệ thống tạo sẵn ca **"Hành chính" 08:30–17:30** (nghỉ trưa 12:00–13:30, cho phép trễ 5 phút), ca **"Linh hoạt 8 tiếng"** (vào 07:00–10:00), và lịch công ty **thứ 2–6 làm ca Hành chính**.
 
-### 4.8 Realtime ✅
+### 4.8 Approval & Leave ✅ (tóm tắt — chi tiết ở `.agent/business/approval.md`, `leave.md`)
+
+- **Approval** nhận đơn qua `IApprovalService.SubmitAsync` với các bước `[Manager, Hr]`. Module sở hữu đơn nhận kết quả qua `IApprovalHandler` (phải idempotent). Thứ tự quyết định: cập nhật bước → gọi handler → lưu (handler lỗi thì đơn vẫn ở bước cũ, duyệt lại được).
+- **Leave** đếm số ngày nghỉ bằng `IWorkCalendar` (chỉ ngày có ca, bỏ ngày lễ). Attendance đọc ngày nghỉ đã duyệt qua `ILeaveCalendar` để hiện "Nghỉ phép". Quỹ phép **tính khi đọc** từ ngày vào làm + đơn đã duyệt + điều chỉnh, không lưu sẵn.
+- Module gọi nhau **đồng bộ qua `*.Contracts`** (chưa có Wolverine / outbox).
+
+### 4.9 Realtime ✅
 
 **Hub** `/rt/hub/office` (`[Authorize]`, MessagePack):
 
@@ -352,7 +363,9 @@ frontend/
     │   ├── attendance/    ✅ api · hooks/useAttendance (useToday, useCheck…) · components/(AttendancePage, CheckInCard,
     │   │                  MonthTimesheet, TeamTables, ShiftsPanel, SchedulesPanel, HolidaysPanel) · types · utils · index.ts
     │   ├── dashboard/     components/Dashboard (dùng CheckInCard) · index.ts
-    │   └── leave/ approvals/ contracts/ reports/   # components/<Page> (ComingSoon) · index.ts
+    │   ├── approvals/     ✅ ApprovalsPage, ApprovalCard (duyệt / từ chối / huỷ), useInboxCount (badge menu)
+    │   ├── leave/         ✅ LeavePage, BalanceCards, LeaveRequestDialog, LeaveTables (của tôi / lịch nghỉ / quỹ phép)
+    │   └── contracts/ reports/   # components/<Page> (ComingSoon) · index.ts
     ├── hooks/             useDebounce
     ├── routes/            router.tsx (khai báo route, lazy load) · guards.ts (requireAuth, requireSession, guestOnly)
     ├── services/          api-client.ts (fetch + cookie + ApiError theo ProblemDetails)
@@ -418,7 +431,7 @@ root
 
 ---
 
-## 6. Chấm công ✅ (giải trình, webhook ⏳)
+## 6. Chấm công ✅ (webhook máy, tăng ca ⏳)
 
 ### 6.1 Mọi nguồn đổ về một chỗ
 
@@ -476,7 +489,7 @@ Trạng thái ngày: `Present` (đủ cặp vào/ra), `Working` (đang làm), `M
   Đứng gần máy chấm công (< 1.8m) thì HUD hiện gợi ý "bấm E".
 - Không cần đăng ký làm từ xa. Server tự ghi `work_mode`.
 - Giờ lấy theo server (`Office__TimeZone`). Hai lần bấm cách nhau dưới 1 phút thì bỏ qua lần sau.
-- **Quên chấm ra:** ✅ hiện trạng thái "Thiếu giờ ra" và phiên đó không tính giờ. ⏳ Gửi nhắc và giải trình (cần module Approval): quản lý duyệt thì hệ thống sinh sự kiện `manual`, bảng công tự đúng lại.
+- **Quên chấm ra:** ✅ hiện trạng thái "Thiếu giờ ra" và phiên đó không tính giờ. ✅ Giải trình: nhân viên khai giờ thực tế → quản lý → HR duyệt → hệ thống thêm sự kiện `Manual` (khoá chống trùng `correction:{id}`), bảng công tự đúng. ⏳ Gửi nhắc tự động. Thiết kế ban đầu: quản lý duyệt thì hệ thống sinh sự kiện `manual`, bảng công tự đúng lại.
 - Hoạt động trong 3D **không ảnh hưởng công**. Trạng thái "Vắng" (sau `Office__InactiveMinutes`) chỉ để đồng nghiệp thấy.
 
 ### 6.4 Webhook máy chấm công (giai đoạn 3)
@@ -518,19 +531,26 @@ Trạng thái ngày: `Present` (đủ cặp vào/ra), `Working` (đang làm), `M
 - `shifts` (Fixed / Flexible, xoá mềm);
 - `schedules` (`EmployeeId` null = công ty, `EffectiveFrom`, `DayOfWeek`, `ShiftId` null = nghỉ; duy nhất theo người × ngày hiệu lực × thứ);
 - `events` (`OccurredAt`, `WorkDate`, `Type` In/Out, `Source` Web/Office3D/Device/Manual, `WorkMode` Onsite/Remote, `Ip`, `UserAgent`, `IdempotencyKey`);
-- `holidays`.
+- `holidays`;
+- `corrections` (migration `AddCorrections`): giải trình giờ vào / ra, trạng thái, `ApprovalRequestId`.
+
+**✅ `approval`** (migration `InitialApproval`): `requests` (unique `Type` + `SubjectId`), `steps` (`Kind` Manager/Hr, `Status` Waiting/Pending/Approved/Rejected, người quyết định, ghi chú).
+
+**✅ `leave`** (migration `InitialLeave`): `types` (4 loại seed), `requests` (`Period` FullDay/Morning/Afternoon, `Days`, `Status`, `ApprovalRequestId`), `adjustments` (± ngày, chỉ thêm). Chống trùng ngày bằng code (không dùng `EXCLUDE`). Quỹ phép không có bảng riêng.
 
 Mỗi schema có bảng `__ef_migrations` riêng.
 
 **⏳ Thiết kế:**
 - **`org`:** thêm `company_settings`, `seat_id`; CCCD, số tài khoản, lương **mã hoá**.
-- **`attendance`:** thêm `corrections` (giải trình), `devices`, `device_user_mappings`.
-- **`leave`:** `leave_types`, `leave_policies`, `leave_balances`, `leave_ledger`, `leave_requests` (`period daterange` + `EXCLUDE` chống trùng).
+- **`attendance`:** thêm `devices`, `device_user_mappings`, tăng ca.
+- **`leave`:** chính sách phép cấu hình được (hiện cố định trong `AnnualLeavePolicy`), quy ra tiền.
 - **`contracts`:** `contract_types`, `contract_templates`, `contracts` (`period daterange` + `EXCLUDE`, `file_key` → S3), `amendments`.
-- **`approval`:** `workflows`, `approval_requests`, `approval_steps`.
 - **`audit`:** `audit_log` (chỉ thêm).
 
 ### Sự kiện giữa các module ⏳ (Wolverine, outbox trên Postgres)
+
+Hiện tại các tương tác dưới đây được làm **đồng bộ qua `*.Contracts`**: `ApprovalDecided` = `IApprovalHandler`; `LeaveApproved` → Attendance đọc `ILeaveCalendar` khi tính công; `EmployeeDeactivated` → Organization gọi `IAccountService.SetActiveAsync`, Realtime tự đẩy ra qua kiểm tra phiên. Bảng dưới là thiết kế khi chuyển sang sự kiện bất đồng bộ.
+
 
 | Sự kiện | Phát từ | Ai nghe | Kết quả |
 |---|---|---|---|
@@ -637,7 +657,9 @@ Mỗi schema có bảng `__ef_migrations` riêng.
 | Container chạy user không phải root | ✅ |
 | Chống open redirect sau đăng nhập | ✅ |
 | Chống CSRF (antiforgery) cho request ghi dữ liệu | ⏳ |
-| Rate limit đăng nhập và webhook | ⏳ |
+| Rate limit đăng nhập / quên mật khẩu (30/phút theo IP + endpoint) | ✅ |
+| Khoá tài khoản có hiệu lực ngay (Api + văn phòng 3D) | ✅ |
+| Rate limit webhook máy chấm công | ⏳ |
 | Mã hoá cột nhạy cảm bằng Data Protection | ⏳ |
 | Audit log | ⏳ |
 | 2FA cho admin/hr | ⏳ |
@@ -711,6 +733,16 @@ Mỗi schema có bảng `__ef_migrations` riêng.
 - Tăng ca **phải có đơn được duyệt** mới tính vào công.
 - Luồng duyệt: **quản lý trực tiếp → HR**. Người không có quản lý thì chuyển thẳng HR.
 
+**Nghỉ phép** (chốt 2026-11-05):
+
+| Câu hỏi | Quyết định |
+|---|---|
+| Phép năm | 12 ngày/năm + 1 ngày cho mỗi 5 năm thâm niên, cộng dồn mỗi tháng |
+| Loại phép | Phép năm, nghỉ ốm, việc riêng có lương, nghỉ không lương |
+| Phép chưa dùng cuối năm | Hai lựa chọn: **chuyển sang năm sau** (không có hạn sử dụng) hoặc **quy ra tiền** theo lương ngày công |
+| Ai chọn | **Nhân viên đề xuất, HR duyệt** |
+| Quy ra tiền | **Đang phát triển** — hiện mọi phép còn lại tự chuyển sang năm sau |
+
 ---
 
 ## 12. Lộ trình
@@ -719,9 +751,10 @@ Mỗi schema có bảng `__ef_migrations` riêng.
 |---|---|---|
 | **Base** ✅ | Solution .NET, Identity, Realtime tối giản, front-end feature-based, cấu hình `.env`, Docker, CI | Đăng nhập, vào văn phòng 3D, thấy nhau, chat |
 | **Organization + Chấm công** ✅ | Phòng ban, chức vụ, nhân viên, cấp/mời tài khoản, quên mật khẩu; chấm công web + 3D, ca cố định/linh hoạt, lịch tuần, ngày lễ, bảng công | HR quản lý nhân viên; cả công ty chấm công được |
-| **Tiếp theo** ⏳ | **Approval** (luồng duyệt) → **Leave** (nghỉ phép) → giải trình chấm công, tăng ca; Notification; Audit; nhập nhân viên từ Excel | Xin nghỉ, giải trình bằng hệ thống |
-| **Văn phòng 3D** ⏳ | Port engine đầy đủ từ MVP, bản đồ theo mặt bằng thật, chỗ ngồi theo phòng ban | Văn phòng 3D giống thật |
+| **Phê duyệt + Nghỉ phép + Giải trình** ✅ | Luồng duyệt quản lý → HR, quỹ phép năm, đơn nghỉ, lịch nghỉ, giải trình chấm công; khoá tài khoản hiệu lực ngay | Xin nghỉ, giải trình bằng hệ thống |
+| **Tiếp theo** ⏳ | Tăng ca; Notification (email cho người duyệt / người gửi); quy ra tiền phép năm; Audit; nhập nhân viên từ Excel | Đủ quy trình nhân sự hằng ngày |
+| **Văn phòng 3D** ⏳ | Viết mới engine đầy đủ, bản đồ theo mặt bằng thật, chỗ ngồi theo phòng ban, hiện trạng thái "Nghỉ phép" trên avatar | Văn phòng 3D giống thật |
 | **2. Hoàn thiện** ⏳ | Hợp đồng (file S3, nhắc hạn), bảng công tháng + Excel, tăng ca, voice + đặt phòng họp | Bỏ quy trình giấy/Excel |
 | **3. Mở rộng** ⏳ | Webhook máy chấm công, PWA/mobile, ký điện tử, tích hợp lương | Tuỳ nhu cầu |
 
-**Bước tiếp theo:** module **Approval** (dùng chung) → **Leave** → giải trình chấm công.
+**Bước tiếp theo** (chủ dự án chọn): tăng ca · thông báo email · văn phòng 3D đầy đủ · hợp đồng lao động.

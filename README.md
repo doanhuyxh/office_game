@@ -2,17 +2,20 @@
 
 **Văn phòng ảo 3D + quản lý nhân sự nội bộ** cho một công ty (~12 nhân sự, một văn phòng, làm việc tại văn phòng hoặc từ xa).
 
-Nhân viên đăng nhập vào một văn phòng 3D để gặp đồng nghiệp, trò chuyện và chấm công. Phía sau là hệ thống nhân sự: hồ sơ nhân viên, phòng ban, ca làm, bảng công.
+Nhân viên đăng nhập vào một văn phòng 3D để gặp đồng nghiệp, trò chuyện và chấm công. Phía sau là hệ thống nhân sự: hồ sơ nhân viên, phòng ban, ca làm, bảng công, nghỉ phép, phê duyệt.
 
 ## Tính năng
 
 | Đã có | Đang làm tiếp |
 |---|---|
-| Đăng nhập bằng email hoặc mã nhân viên, quên mật khẩu, mời qua email, mật khẩu tạm | Phê duyệt (luồng duyệt dùng chung) |
-| Quản lý nhân viên, phòng ban, chức vụ, vai trò (admin / HR / quản lý / nhân viên) | Nghỉ phép |
-| Chấm công trên web hoặc tại máy chấm công trong văn phòng 3D; tự nhận biết làm tại văn phòng hay từ xa | Giải trình chấm công, tăng ca |
+| Đăng nhập bằng email hoặc mã nhân viên, quên mật khẩu, mời qua email, mật khẩu tạm; khoá tài khoản có hiệu lực ngay | Tăng ca |
+| Quản lý nhân viên, phòng ban, chức vụ, vai trò (admin / HR / quản lý / nhân viên) | Thông báo email khi có đơn mới / đơn được duyệt |
+| Chấm công trên web hoặc tại máy chấm công trong văn phòng 3D; tự nhận biết làm tại văn phòng hay từ xa | Quy ra tiền phép năm |
 | Ca cố định và ca linh hoạt, lịch tuần theo công ty hoặc từng người, ngày lễ | Văn phòng 3D đầy đủ theo mặt bằng thật, voice |
-| Bảng công tháng, tình trạng hôm nay, tổng hợp tháng cho quản lý / HR | Hợp đồng lao động, báo cáo |
+| Bảng công tháng, tình trạng hôm nay, tổng hợp tháng cho quản lý / HR | Hợp đồng lao động, báo cáo, xuất Excel |
+| **Phê duyệt** dùng chung: quản lý trực tiếp → HR, không tự duyệt đơn của mình | |
+| **Nghỉ phép**: phép năm 12 ngày + thâm niên, cộng dồn tháng, không hết hạn; nghỉ cả ngày / nửa ngày; lịch nghỉ team; HR điều chỉnh quỹ phép | |
+| **Giải trình chấm công**: bổ sung giờ vào / ra, duyệt xong bảng công tự cập nhật | |
 | Văn phòng 3D: thấy đồng nghiệp di chuyển, chat | |
 
 ## Công nghệ
