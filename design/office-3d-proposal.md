@@ -75,7 +75,7 @@ Khi duyệt mặt bằng: đổi `departments.MapZone` từ `work` sang khu riê
 |---|---|---|
 | **1. Thế giới** ✅ | Engine mới theo mục 5; dựng mặt bằng v2; tường, cửa, đồ vật; va chạm FE + server; bấm để đi + WASD; bản đồ nhỏ; avatar có animation; ngồi vào chỗ của mình (phím E) | Đi lại tự nhiên trong văn phòng, không xuyên tường, ngồi được |
 | ~~**2. Hiện diện**~~ ✕ | **Bỏ** — chủ dự án quyết định không cần (2026-11-05): gán chỗ ngồi, trạng thái trên đầu avatar, "tìm đồng nghiệp", người offline hiện mờ tại bàn | — |
-| **3. Giao tiếp** | Voice theo khoảng cách + phòng họp / phòng gọi có kênh riêng, chia sẻ màn hình trong phòng họp; chat theo phòng | Họp và trao đổi nhanh ngay trong văn phòng ảo |
+| **3. Giao tiếp** ✅ (trừ chat theo phòng) | Voice theo khoảng cách + phòng họp / phòng gọi có kênh riêng, chia sẻ màn hình trong phòng họp; chat theo phòng | Họp và trao đổi nhanh ngay trong văn phòng ảo |
 | **4. Mở rộng** | Trang sửa mặt bằng cho admin (kéo thả bàn ghế), đặt phòng họp, tuỳ chỉnh avatar, mobile | Tuỳ nhu cầu |
 
 ## 7. Cần chủ dự án xác nhận

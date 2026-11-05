@@ -13,12 +13,16 @@
 | `engine/avatar.ts` | Nhân vật có khớp tay / chân: đi, đứng, ngồi; màu áo / tóc theo id; nhãn tên (mình: nền xanh + vòng dưới chân) |
 | `engine/officeMap.ts`, `mapTypes.ts`, `palette.ts` | Bản đồ có kiểu, `FACING_ANGLE`, bảng màu cảnh |
 | `api/officeHub.ts`, `store/office.store.ts`, `components/office.css` | Như trước (SignalR + MessagePack, Zustand, CSS bọc `.office-root`) |
+| `api/voiceClient.ts` | `VoiceClient` (không React): bật / tắt voice, đổi kênh khi `scene.onVoiceChannel` (chờ 400 ms ở cửa), xin token (server trả kênh khác → hỏi lại tối đa 6 lần / 500 ms), `autoSubscribe: false` + 4 lần/giây bật / tắt nhận âm và chỉnh âm lượng theo khoảng cách, micro, chia sẻ màn hình, `ActiveSpeakers` → `scene.setSpeaking`. `livekit-client` chỉ `import()` khi bật voice lần đầu (chunk riêng ~570 KB) |
+| `engine/voiceChannel.ts` | `voiceChannelAt` (giống `OfficeMap.VoiceAt`), `voiceVolume`: ≤ 2 m = 1, giảm bậc 2 tới 0 ở 6 m; ngoài 6 m (+1 m trễ) huỷ nhận âm |
+| `components/VoicePanel.tsx` | Thẻ voice (góc dưới phải): Bật voice / micro (`M`) / Chia sẻ (chỉ phòng họp) / Tắt, "Bấm để nghe âm thanh" khi trình duyệt chặn autoplay; `ScreenView` hiện màn hình được chia sẻ (bấm để phóng to) |
 
 Quy tắc cần giữ khi sửa:
 - Nhận `Kicked` → đặt cờ, `stop()` và **không tự reconnect** (2 tab sẽ đá nhau). Overlay hiện `kickReason`, "Vào lại" tải lại trang.
 - Effect kết nối phụ thuộc `me.id` và `start()` hoãn 1 tick (`setTimeout 0`) vì React StrictMode.
 - Ô chat đang focus thì phím di chuyển / `E` / `Q` / `R` bị bỏ qua.
 - Ngồi: chỉ ghế trống (không có người khác `anim = 2` trong 0,15 m), đứng dậy = bước ra ô trống gần nhất. Ghế có thể nằm trong ô chạm cạnh bàn → server cho phép riêng toạ độ ghế.
-- Khi dev, `window.__officeScene` trỏ tới scene (chỉ để test e2e; không có trong bản build).
+- Khi dev, `window.__officeScene` / `window.__officeVoice` trỏ tới scene / voice (chỉ để test e2e; không có trong bản build).
+- Voice: identity LiveKit = id người chơi trên hub (userId) → vị trí lấy từ scene. Người đang nói có vòng xanh lá dưới chân (`Avatar.speaking`). Bị `Kicked` → tắt voice. Đổi luật kênh → sửa cả `voiceChannel.ts` và `OfficeMap.VoiceAt` (+ test `Voice_channel_by_position`).
 
-**Lộ trình** (`design/office-3d-proposal.md`): giai đoạn 2 (gán chỗ ngồi, trạng thái trên avatar, tìm đồng nghiệp) **đã bỏ theo quyết định chủ dự án** — không đề xuất lại. Còn: voice theo khoảng cách / phòng (LiveKit), model GLB thay khối dựng tay, mobile, sửa bản đồ trong app.
+**Lộ trình** (`design/office-3d-proposal.md`): giai đoạn 2 (gán chỗ ngồi, trạng thái trên avatar, tìm đồng nghiệp) **đã bỏ theo quyết định chủ dự án** — không đề xuất lại. Voice (giai đoạn 3) ✅ trừ chat theo phòng. Còn: model GLB thay khối dựng tay, mobile, sửa bản đồ trong app, TURN cho voice khi deploy.

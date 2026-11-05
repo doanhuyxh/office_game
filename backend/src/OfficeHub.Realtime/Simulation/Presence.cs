@@ -17,6 +17,10 @@ public sealed class Player
     public long LastMoveTicks;
     public DateTimeOffset LastActiveAt;
     public DateTimeOffset LastChatAt;
+    /// <summary>Room LiveKit đã cấp token gần nhất (null = chưa vào voice / đã bị đẩy ra). Xem VoiceGuard.</summary>
+    public string? VoiceRoom;
+    /// <summary>Lúc vị trí bắt đầu lệch khỏi kênh <see cref="VoiceRoom"/> (null = đang đúng kênh).</summary>
+    public DateTimeOffset? VoiceMismatchSince;
 }
 
 /// <summary>Ai đang ở trong văn phòng ảo. Một tài khoản chỉ một kết nối: mở tab mới thì tab cũ bị đóng.</summary>

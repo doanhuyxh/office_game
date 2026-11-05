@@ -29,6 +29,23 @@ public sealed record OfficeMap(int Version, string Name, double Grid, Rect Floor
     public string? ZoneAt(double x, double z) =>
         Areas.FirstOrDefault(a => a.Contains(x, z))?.Id
         ?? (Rooms.FirstOrDefault(r => r.Walls && r.Contains(x, z)) ?? Rooms.FirstOrDefault(r => r.Contains(x, z)))?.Zone;
+
+    /// <summary>
+    /// Kênh voice tại vị trí: đứng trong phòng có tường → kênh riêng của phòng đó (người ngoài không nghe được);
+    /// còn lại → kênh chung "open" (FE giảm âm lượng theo khoảng cách). Giống voiceChannelAt ở FE (engine/voiceChannel.ts).
+    /// </summary>
+    public VoiceChannel VoiceAt(double x, double z) =>
+        Rooms.FirstOrDefault(r => r.Walls && r.Contains(x, z)) is { } room
+            ? new VoiceChannel(room.Id, room.Voice == "room")
+            : new VoiceChannel(VoiceChannel.Open, false);
+}
+
+/// <summary>Kênh voice. <c>Meeting</c> = phòng có <c>voice: "room"</c>: cả phòng nghe rõ như nhau + được chia sẻ màn hình.</summary>
+public sealed record VoiceChannel(string Id, bool Meeting)
+{
+    public const string Open = "open";
+    /// <summary>Tên room LiveKit (có tiền tố để không đụng project khác dùng chung server LiveKit).</summary>
+    public string LiveKitRoom => $"officehub-{Id}";
 }
 
 public record Rect(double X0, double X1, double Z0, double Z1)

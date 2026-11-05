@@ -1,6 +1,6 @@
 // E2E văn phòng 3D: 2 trình duyệt, tài khoản thử kythuat.nhanvien1 + kythuat.truongphong. Cần FE (dev) + Api + Realtime đang chạy.
 //   TEST_PASSWORD=… bun scripts/dev/office-e2e.ts <thư-mục-ảnh> <tiền-tố-profile-chrome>
-import { launch } from './cdp';
+import { BASE, launch } from './cdp';
 const PW = process.env.TEST_PASSWORD ?? (() => { throw new Error('Đặt TEST_PASSWORD (mật khẩu chung trong account.txt)'); })();
 const [shots = '/tmp/office-shots', prof = '/tmp/office-e2e-profile'] = process.argv.slice(2);
 let pass = 0, total = 0;
@@ -12,7 +12,7 @@ try {
   check('login A', (await A.login('kythuat.nhanvien1', PW)) === 200);
   check('login B', (await B.login('kythuat.truongphong', PW)) === 200);
   await A.evalJs(`localStorage.setItem('officehub:theme','light')`);
-  await A.go('http://localhost:5173/office', 1000); await B.go('http://localhost:5173/office', 1000);
+  await A.go(`${BASE}/office`, 1000); await B.go(`${BASE}/office`, 1000);
   check('A scene ready + online', await waitFor(A, `!!window.__officeScene?.snapshot().me && document.body.innerText.includes('người online')`));
   check('B scene ready', await waitFor(B, `!!window.__officeScene?.snapshot().me`));
   check('A sees B (by name)', await waitFor(A, `window.__officeScene.snapshot().others.some(o=>o.name==='Ngô Thanh Tùng')`));

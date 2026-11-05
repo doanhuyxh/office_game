@@ -5,6 +5,7 @@ import { NavGrid } from './navGrid';
 import { FACING_ANGLE, OFFICE_MAP } from './officeMap';
 import { P } from './palette';
 import { buildWorld } from './world';
+import { voiceChannelAt, type VoiceChannelInfo } from './voiceChannel';
 
 /**
  * Engine văn phòng 3D (Three.js thuần, không phụ thuộc React — React chỉ vẽ HUD trong OfficeView).
@@ -57,6 +58,9 @@ export class OfficeScene {
   private lastSeatKey = '';
   /** Thông báo ngắn cho HUD (vd "Ghế đã có người ngồi"). */
   onHint?: (text: string) => void;
+  /** Kênh voice tại vị trí của mình đổi (đi qua cửa phòng có tường). */
+  onVoiceChannel?: (ch: VoiceChannelInfo) => void;
+  private lastVoice = '';
 
   constructor(private host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -215,6 +219,22 @@ export class OfficeScene {
     };
   }
 
+  /** Vị trí của mình / người khác (cho voice theo khoảng cách). */
+  myPosition() {
+    const p = this.me?.root.position;
+    return p ? { x: p.x, z: p.z } : null;
+  }
+  positionOf(id: string) {
+    const o = this.others.get(id);
+    return o ? { x: o.avatar.root.position.x, z: o.avatar.root.position.z } : null;
+  }
+
+  /** Người đang nói (identity LiveKit = id người chơi) → vòng xanh dưới chân. */
+  setSpeaking(ids: Set<string>) {
+    if (this.me) this.me.speaking = ids.has(this.me.id);
+    for (const [id, o] of this.others) o.avatar.speaking = ids.has(id);
+  }
+
   /** Xoay camera 90° (dir = 1 / -1). */
   rotateCamera(dir: 1 | -1) { this.azimuthStep += dir; }
 
@@ -317,6 +337,8 @@ export class OfficeScene {
       }
       const zone = this.nav.zoneAt(p.x, p.z)?.name ?? null;
       if (zone !== this.lastZone) { this.lastZone = zone; this.onZone?.(zone); }
+      const voice = voiceChannelAt(OFFICE_MAP, p.x, p.z);
+      if (voice.id !== this.lastVoice) { this.lastVoice = voice.id; this.onVoiceChannel?.(voice); }
       const near = OFFICE_MAP.objects.find((o) => o.action && Math.hypot(o.x - p.x, o.z - p.z) < ACTION_REACH)?.action ?? null;
       if (near !== this.lastAction) { this.lastAction = near; this.onNearAction?.(near); }
       const seatInfo = this.seat ? { seat: this.seat, sitting: true } : (() => { const s = this.nearestSeat(p.x, p.z, SEAT_REACH); return s ? { seat: s, sitting: false } : null; })();

@@ -11,6 +11,8 @@ import { OfficeScene } from '../engine/OfficeScene';
 import { OfficeConnection } from '../api/officeHub';
 import type { Seat } from '../engine/mapTypes';
 import { Minimap } from './Minimap';
+import { VoiceClient, type VoiceView } from '../api/voiceClient';
+import { ScreenView, VoicePanel } from './VoicePanel';
 import './office.css';
 
 /** Văn phòng 3D. Route /_protected/office đã kiểm tra đăng nhập trước khi tải trang này. */
@@ -24,6 +26,8 @@ export function OfficeView() {
   const [seatInfo, setSeatInfo] = useState<{ seat: Seat; sitting: boolean } | null>(null);
   const [scene, setScene] = useState<OfficeScene | null>(null);
   const [help, setHelp] = useState(true);
+  const [voice, setVoice] = useState<VoiceClient | null>(null);
+  const [voiceView, setVoiceView] = useState<VoiceView>(VOICE_OFF);
   const { data: today, noProfile } = useToday();
   const check = useCheck();
 
@@ -50,6 +54,16 @@ export function OfficeView() {
     return () => removeEventListener('keydown', onKey);
   }, [nearAction, seatInfo, scene]);
 
+  // Phím M: bật / tắt micro khi đang trong voice
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== 'm' || e.repeat || (e.target as HTMLElement)?.tagName === 'INPUT') return;
+      if (voice?.state.status === 'on') void voice.toggleMic();
+    };
+    addEventListener('keydown', onKey);
+    return () => removeEventListener('keydown', onKey);
+  }, [voice]);
+
   // 1) Đưa tài khoản vào store của văn phòng
   useEffect(() => {
     if (account) useOffice.getState().setMe(account);
@@ -63,6 +77,10 @@ export function OfficeView() {
     if (!me || !hostRef.current) return;
     const scene = new OfficeScene(hostRef.current);
     const players = new Map<string, string>();
+    const voice = new VoiceClient({ me: () => scene.myPosition(), of: (id) => scene.positionOf(id) });
+    voice.onChange = setVoiceView;
+    voice.onSpeaking = (ids) => scene.setSpeaking(ids);
+    voice.onError = (t) => toast.error(t);
     const c = new OfficeConnection({
       welcome: (w) => {
         s.setConn('online');
@@ -87,7 +105,7 @@ export function OfficeView() {
       positions: (list) => list.forEach((p) => p.id !== me.id && scene.moveOther(p.id, p.x, p.z, p.r, p.anim)),
       chat: (m) => s.pushChat({ ...m, at: String(m.at) }),
       teleport: (x, z) => scene.teleportMe(x, z),
-      kicked: (reason) => s.kick(reason),
+      kicked: (reason) => { s.kick(reason); void voice.disable(); },
       state: (st) => s.setConn(st),
     });
     scene.onMove = (x, z, r, a) => c.move(x, z, r, a);
@@ -95,14 +113,19 @@ export function OfficeView() {
     scene.onNearAction = setNearAction;
     scene.onSeat = setSeatInfo;
     scene.onHint = (t) => toast.info(t);
+    scene.onVoiceChannel = (ch) => voice.setChannel(ch);
     setScene(scene);
-    if (import.meta.env.DEV) (window as unknown as { __officeScene?: OfficeScene }).__officeScene = scene; // chỉ để test e2e khi dev
+    setVoice(voice);
+    if (import.meta.env.DEV) Object.assign(window, { __officeScene: scene, __officeVoice: voice }); // chỉ để test e2e khi dev
     connRef.current = c;
     // Hoãn 1 tick: React StrictMode (dev) gọi effect → cleanup → effect ngay lập tức; tránh mở rồi huỷ kết nối giữa chừng.
     const startTimer = setTimeout(() => c.start().catch(() => s.setConn('offline')), 0);
     return () => {
       clearTimeout(startTimer);
       void c.stop();
+      voice.dispose();
+      setVoice(null);
+      setVoiceView(VOICE_OFF);
       setScene(null);
       scene.dispose();
     };
@@ -157,9 +180,12 @@ export function OfficeView() {
             <span>Bấm chuột lên sàn / bản đồ nhỏ · tự đi tới</span>
             <span><kbd>E</kbd> · ngồi / đứng, chấm công ở máy</span>
             <span><kbd>Q</kbd> <kbd>R</kbd> · xoay góc nhìn · cuộn chuột · zoom</span>
+            <span><kbd>M</kbd> · bật / tắt micro (khi đã bật voice)</span>
             <button type="button" onClick={() => setHelp(false)}>Đã hiểu</button>
           </div>
         )}
+        <VoicePanel voice={voice} view={voiceView} />
+        <ScreenView screen={voiceView.screen} />
         <button className={`card checkin ${today?.checkedIn ? 'on' : ''}`} onClick={doCheck} disabled={check.isPending || noProfile}
           title={noProfile ? 'Tài khoản chưa gắn hồ sơ nhân viên' : undefined} data-testid="office-check">
           🕘 {noProfile ? 'Không chấm công' : today?.checkedIn ? 'Chấm công ra' : 'Chấm công vào'}
@@ -176,4 +202,5 @@ export function OfficeView() {
   );
 }
 
+const VOICE_OFF: VoiceView = { status: 'off', channel: null, micOn: false, sharing: false, peers: 0, needsAudioClick: false, screen: null };
 const STATUS = { connecting: 'Đang kết nối…', reconnecting: 'Mất kết nối, đang thử lại…', offline: 'Mất kết nối', kicked: 'Đã đăng nhập nơi khác', online: '' };

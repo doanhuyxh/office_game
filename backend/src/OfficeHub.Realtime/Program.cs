@@ -31,6 +31,8 @@ builder.Services.AddOptions<LiveKitSettings>()
     .Bind(builder.Configuration.GetSection(LiveKitSettings.Section))
     .Validate(s => !s.Enabled || s.ApiSecret!.Length >= 32, "LiveKit__ApiSecret phải dài tối thiểu 32 ký tự (openssl rand -base64 32)")
     .ValidateOnStart();
+builder.Services.AddSingleton<VoiceGuard>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<VoiceGuard>());
 
 var app = builder.Build();
 app.UseOfficeHubDefaults();

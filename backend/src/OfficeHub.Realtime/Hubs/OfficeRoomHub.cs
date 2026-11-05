@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.Realtime.Auth;
 using OfficeHub.Realtime.Simulation;
+using OfficeHub.Realtime.Voice;
 
 namespace OfficeHub.Realtime.Hubs;
 
@@ -27,7 +28,8 @@ public interface IOfficeClient
 }
 
 [Authorize]
-public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValidator sessions, ILogger<OfficeRoomHub> log) : Hub<IOfficeClient>
+public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValidator sessions, VoiceGuard voice,
+    ILogger<OfficeRoomHub> log) : Hub<IOfficeClient>
 {
     public const string Path = "/rt/hub/office";
     private const string Room = "office";
@@ -74,8 +76,10 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        if (Context.UserIdentifier is { } uid && presence.Remove(uid, Context.ConnectionId))
-            await Clients.OthersInGroup(Room).PlayerLeft(uid);
+        if (Context.UserIdentifier is not { } uid || !presence.TryGet(uid, out var p) || !presence.Remove(uid, Context.ConnectionId)) return;
+        // Rời văn phòng (đóng tab, bị khoá tài khoản…) → rời luôn voice. Mở tab mới thì không vào đây (kết nối cũ không còn là kết nối hiện tại).
+        if (p.VoiceRoom is { } voiceRoom) voice.Kick(voiceRoom, uid);
+        await Clients.OthersInGroup(Room).PlayerLeft(uid);
     }
 
     /// <summary>Client gửi vị trí ~10 lần/giây. Server kiểm tra tốc độ để chống dịch chuyển tức thời.</summary>

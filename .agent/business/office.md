@@ -48,11 +48,25 @@ Realtime không đọc được dữ liệu tài khoản (ranh giới module) n�
 | `SessionWatch` mỗi `Realtime__SessionCheckSeconds` (30s) cho mọi người online | 401/403 → `Kicked("Phiên đăng nhập đã hết hiệu lực. Vui lòng đăng nhập lại.")`, `Abort` sau 500ms |
 | Api không trả lời / 5xx | `Unknown` → **cho qua** (ghi log `WRN`), để Api restart không đá cả văn phòng |
 
-Tên hiển thị = claim `full_name`. `anim` (byte) chỉ chuyển tiếp: 0 đứng, 1 đi, 2 ngồi. Không làm (chủ dự án bỏ): trạng thái "Vắng" / nghỉ phép trên avatar, gán chỗ ngồi. Chưa có: voice theo phòng (giai đoạn 3). Realtime **chưa** phát sự kiện presence sang Attendance.
+Tên hiển thị = claim `full_name`. `anim` (byte) chỉ chuyển tiếp: 0 đứng, 1 đi, 2 ngồi. Không làm (chủ dự án bỏ): trạng thái "Vắng" / nghỉ phép trên avatar, gán chỗ ngồi. Realtime **chưa** phát sự kiện presence sang Attendance.
 
-## Voice (`Voice/VoiceEndpoints.cs`)
+## Voice (`Voice/VoiceEndpoints.cs`, `Voice/VoiceGuard.cs`) — giai đoạn 3
 
-`POST /rt/voice/token?room=<tên>` (đăng nhập) → `{ url, token, room }` (LiveKit JWT, TTL 2 giờ, grant `RoomJoin`). Phiên hết hiệu lực → 401. Thiếu cấu hình → 503 `"Voice chưa được cấu hình (LiveKit__*)"`. `LiveKit__ApiSecret` < 32 ký tự → Realtime không khởi động. Room do client tự đặt (chưa kiểm tra theo vị trí). FE chưa dùng.
+**Kênh theo vị trí** (`OfficeMap.VoiceAt`, giống `engine/voiceChannel.ts`): đứng trong phòng có `walls` → kênh riêng của phòng đó (room LiveKit `officehub-<rooms[].id>`); còn lại (khu mở, sảnh, pantry, khu nghỉ) → `officehub-open`. Phòng có `voice: "room"` (họp lớn / nhỏ, 2 phòng gọi) = **phòng họp**: cả phòng nghe rõ như nhau + được chia sẻ màn hình. Phòng có tường khác (Giám đốc, Kế toán) vẫn là kênh riêng nhưng nghe theo khoảng cách.
+
+`POST /rt/voice/token` (đăng nhập) → `{ url, token, room, channel, meeting }`:
+
+| Quy tắc | Xử lý |
+|---|---|
+| Room | **Server quyết định** theo vị trí hiện tại trong `Presence` (bỏ qua mọi tham số client) → đứng ngoài không xin được token phòng họp |
+| Chưa vào hub văn phòng | 409 `"Hãy vào văn phòng 3D trước khi bật voice"` |
+| Phiên hết hiệu lực | 401 · thiếu `LiveKit__*` → 503 · secret < 32 ký tự → Realtime không khởi động |
+| Grant | identity = userId, TTL 10 phút (chỉ để vào room; LiveKit tự gia hạn). Nguồn được publish: `microphone`; phòng họp thêm `screen_share`, `screen_share_audio`. Không có data channel |
+| Đổi kênh | Cấp token room mới → đẩy khỏi room cũ (`RemoveParticipant`) |
+
+`VoiceGuard` (mỗi giây): người có `Player.VoiceRoom` mà kênh tại vị trí khác room đó quá **3 giây** → bị đẩy khỏi room LiveKit (client chuẩn tự đổi kênh sau ~0,5 s; guard chặn client bị sửa ở lại nghe lén). Rời hub (đóng tab, bị khoá tài khoản, `Kicked`) → cũng bị đẩy khỏi voice; mở tab mới thì không (LiveKit tự thay kết nối cùng identity). API LiveKit gọi qua URL suy ra từ `LiveKit__Url` (ws → http, wss → https).
+
+Giới hạn đã biết: kênh `open` chứa mọi người ở khu mở; giảm âm theo khoảng cách làm ở **client** → client bị sửa có thể nghe cả khu mở (chấp nhận: khu mở vốn công khai). Phòng có tường thì được server bảo vệ.
 
 ## Front-end
 

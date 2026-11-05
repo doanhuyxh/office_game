@@ -57,4 +57,18 @@ public class NavGridTests
     [InlineData(11.5, 14.0, "reception")]
     [InlineData(10.5, 10.5, "work")]
     public void Zone_lookup(double x, double z, string zone) => Assert.Equal(zone, Map.ZoneAt(x, z));
+
+    [Theory]
+    [InlineData(10.0, 3.0, "meeting-large", true)] // phòng họp: kênh riêng, chia sẻ màn hình
+    [InlineData(22.5, 7.0, "booth-1", true)]
+    [InlineData(3.0, 3.0, "bgd", false)] // phòng có tường nhưng không phải phòng họp: vẫn kênh riêng
+    [InlineData(10.5, 10.5, "open", false)] // khu mở, sảnh, pantry: kênh chung theo khoảng cách
+    [InlineData(11.5, 14.0, "open", false)]
+    public void Voice_channel_by_position(double x, double z, string channel, bool meeting)
+    {
+        var ch = Map.VoiceAt(x, z);
+        Assert.Equal(channel, ch.Id);
+        Assert.Equal(meeting, ch.Meeting);
+        Assert.Equal($"officehub-{channel}", ch.LiveKitRoom);
+    }
 }

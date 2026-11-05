@@ -14,8 +14,9 @@
 | **Hợp đồng lao động**: loại / thời hạn theo BLLĐ, phụ lục, lương mã hoá AES-GCM, file S3, nhắc 30 / 7 ngày | `business/contracts.md` |
 | **Giao diện** theo shadcn-admin: sidebar inset, ⌘K, sáng / tối, `PageHeader`, `StatusBadge` | `frontend.md` |
 | **Văn phòng 3D giai đoạn 1**: bản đồ v2 (24 × 16 m, 24 chỗ), engine mới (low-poly, camera chéo, A*, ngồi, minimap), lưới va chạm chung FE / server | `business/office.md`, `business/office-engine.md`, `design/` |
+| **Voice (giai đoạn 3)**: LiveKit, khu mở nghe theo khoảng cách (≤ 6 m), phòng có tường = kênh riêng do server chọn theo vị trí (+ `VoiceGuard` đẩy ra), phòng họp chia sẻ màn hình, vòng "đang nói" | `business/office.md#voice`, `business/office-engine.md` |
 
-Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` 83 test ✔, `bun run build` ✔, e2e văn phòng 3D 16/16 ✔.
+Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` 88 test ✔, `bun run build` ✔, e2e văn phòng 3D 16/16 ✔, e2e voice 26/26 ✔.
 
 ## Quyết định đã chốt gần đây (đừng hỏi / đề xuất lại)
 
@@ -25,7 +26,7 @@ Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` 83 test ✔, `
 
 ## Việc tiếp theo — chủ dự án CHƯA chọn (hỏi trước khi làm)
 
-1. **Văn phòng 3D – voice** (giai đoạn 3): theo khoảng cách ở khu mở, kênh riêng khi vào phòng có `voice: "room"`, chia sẻ màn hình phòng họp. Cần LiveKit server (dev compose có service `livekit`) + TURN; token đã có `POST /rt/voice/token`.
+1. **Voice – phần còn lại**: chat theo phòng; deploy LiveKit thật (TLS cho `VOICE_DOMAIN`, mở UDP 50000–60000, bật TURN trong `infra/livekit/livekit.yaml`) — chưa thử trên VPS.
 2. **Văn phòng 3D – hình ảnh / thiết bị**: model GLB CC0 thay khối dựng tay (`engine/furniture.ts`), mobile (joystick).
 3. **Báo cáo**: trang `/reports` đang `ComingSoon`; xuất Excel bảng công tháng, tổng hợp phép, tăng ca.
 4. **Quy ra tiền** phép năm chưa dùng + tăng ca (hệ số 150 / 200 / 300%) từ lương hợp đồng (`ContractDto.currentSalary`).
@@ -44,6 +45,7 @@ Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` 83 test ✔, `
 | `seed-org.ts` | Tạo lại phòng ban + 12 tài khoản thử + ghi `account.txt` (bỏ qua cái đã có) |
 | `seed-contracts.ts` | Hợp đồng mẫu cho tài khoản thử |
 | `office-e2e.ts` (+ `cdp.ts`) | 2 Chrome headless vào `/office`: tìm đường, va chạm tường, ngồi / đứng, ghế đã có người, đồng bộ vị trí, lỗi console. Dùng hook dev `window.__officeScene` |
+| `voice-e2e.ts` | 2 Chrome micro giả: nghe gần / huỷ nhận âm khi xa, phím M, đổi kênh vào phòng họp, server không cấp token phòng khi đứng ngoài, chia sẻ màn hình, `VoiceGuard` đẩy client không đổi kênh. Cần container `livekit` (`docker compose … up -d livekit`). Hook `window.__officeVoice` |
 
 ## Bẫy đã gặp
 

@@ -1,7 +1,10 @@
 // Chrome headless qua DevTools Protocol (không cần Playwright, chỉ cần Google Chrome trên macOS). Mỗi phiên một profile riêng → cookie riêng.
-export async function launch(port: number, profile: string, width = 1440, height = 900) {
+/** Gốc FE (đổi khi chạy Vite ở cổng khác): BASE_URL=http://localhost:5174 */
+export const BASE = process.env.BASE_URL ?? 'http://localhost:5173';
+
+export async function launch(port: number, profile: string, width = 1440, height = 900, extraArgs: string[] = []) {
   const chrome = Bun.spawn(['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '--headless=new', `--remote-debugging-port=${port}`,
-    `--user-data-dir=${profile}`, `--window-size=${width},${height}`, '--hide-scrollbars', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', 'about:blank'],
+    `--user-data-dir=${profile}`, `--window-size=${width},${height}`, '--hide-scrollbars', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', ...extraArgs, 'about:blank'],
     { stdout: 'ignore', stderr: 'ignore' });
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   let targets: any[] = [];
@@ -22,13 +25,13 @@ export async function launch(port: number, profile: string, width = 1440, height
   const shot = async (path: string) => { const r = await send('Page.captureScreenshot', { format: 'png' }); await Bun.write(path, Buffer.from(r.result.data, 'base64')); };
   const go = async (url: string, wait = 2500) => { await send('Page.navigate', { url }); await sleep(wait); };
   const key = async (k: string, ms: number) => {
-    const code = { w: 'KeyW', a: 'KeyA', s: 'KeyS', d: 'KeyD', e: 'KeyE', q: 'KeyQ', r: 'KeyR' }[k] ?? k;
+    const code = { w: 'KeyW', a: 'KeyA', s: 'KeyS', d: 'KeyD', e: 'KeyE', q: 'KeyQ', r: 'KeyR', m: 'KeyM' }[k] ?? k;
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key: k, code, text: k });
     await sleep(ms);
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code });
   };
   const login = async (user: string, password: string) => {
-    await go('http://localhost:5173/login', 1500);
+    await go(`${BASE}/login`, 1500);
     return evalJs(`fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({login:${JSON.stringify(user)},password:${JSON.stringify(password)}})}).then(r=>r.status)`);
   };
   return { send, evalJs, shot, go, key, login, sleep, errors, close: () => { ws.close(); chrome.kill(); } };

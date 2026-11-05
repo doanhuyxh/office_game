@@ -36,3 +36,17 @@
 .office-root .help { top: 76px; left: 12px; display: grid; gap: 4px; font-size: 13px; max-width: 290px; }
 .office-root .help button { justify-self: start; margin-top: 4px; padding: 4px 10px; border: 0; border-radius: 8px; background: #3b82f6; color: #fff; font: 600 12px system-ui; cursor: pointer; }
 .office-root .help kbd { margin-right: 2px; }
+.office-root .voice { right: 12px; bottom: 76px; display: grid; gap: 6px; width: 260px; font-size: 13px; }
+.office-root .voice small { color: #94a3b8; font-size: 12px; }
+.office-root .voice .title { display: flex; align-items: center; gap: 8px; }
+.office-root .voice .row { display: flex; gap: 6px; flex-wrap: wrap; }
+.office-root .voice button { padding: 6px 10px; border: 0; border-radius: 8px; background: rgba(148, 163, 184, .18); color: inherit; font: 600 12px system-ui; cursor: pointer; }
+.office-root .voice button:hover:not(:disabled) { background: rgba(148, 163, 184, .35); }
+.office-root .voice button:disabled { opacity: .5; cursor: default; }
+.office-root .voice button.primary { background: #16a34a; color: #fff; font-size: 13px; }
+.office-root .voice button.on { background: #16a34a; color: #fff; }
+.office-root .voice button.off { background: #b91c1c; color: #fff; }
+.office-root .screen { top: 56px; left: 50%; transform: translateX(-50%); padding: 6px; width: min(480px, calc(100vw - 480px)); display: grid; gap: 4px; cursor: zoom-in; }
+.office-root .screen.big { top: 12px; width: min(1100px, calc(100vw - 24px)); z-index: 5; cursor: zoom-out; }
+.office-root .screen video { width: 100%; border-radius: 8px; background: #000; aspect-ratio: 16 / 9; object-fit: contain; }
+.office-root .screen small { color: #cbd5e1; font-size: 12px; }

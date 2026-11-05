@@ -23,9 +23,12 @@ export class Avatar {
   private armR = new THREE.Group();
   private label: THREE.Sprite;
   private t = Math.random() * 10;
+  private talk: THREE.Mesh;
   anim: AnimCode = ANIM.idle;
+  /** Đang nói (voice) → vòng xanh lá nhấp nháy dưới chân. */
+  speaking = false;
 
-  constructor(id: string, name: string, isMe: boolean) {
+  constructor(readonly id: string, name: string, isMe: boolean) {
     const h = Math.abs(hash(id));
     const shirt = m(SHIRTS[h % SHIRTS.length]), hair = m(HAIRS[(h >> 3) % HAIRS.length]), skin = m(SKIN), pants = m(PANTS);
     const part = (g: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number) => {
@@ -59,6 +62,11 @@ export class Avatar {
       ring.position.y = 0.015;
       this.root.add(ring);
     }
+    this.talk = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.52, 32), new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.9, depthWrite: false }));
+    this.talk.rotation.x = -Math.PI / 2;
+    this.talk.position.y = 0.02;
+    this.talk.visible = false;
+    this.root.add(this.talk);
     const { tex, aspect } = textTexture(name.length > 22 ? name.slice(0, 21) + '…' : name, {
       color: '#ffffff', bg: isMe ? 'rgba(37,99,235,.92)' : 'rgba(15,23,42,.78)', font: 'bold 34px Inter, system-ui, sans-serif', pad: 22,
     });
@@ -87,6 +95,8 @@ export class Avatar {
     this.armL.rotation.x += (armFwd + arms - this.armL.rotation.x) * lerp;
     this.armR.rotation.x += (armFwd - arms - this.armR.rotation.x) * lerp;
     this.body.position.y += (bodyY - this.body.position.y) * lerp;
+    this.talk.visible = this.speaking;
+    if (this.speaking) this.talk.scale.setScalar(1 + Math.sin(this.t * 9) * 0.07);
   }
 
   dispose() {
