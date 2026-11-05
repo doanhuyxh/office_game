@@ -70,11 +70,11 @@ services:
   livekit:
     <<: *logging
     image: livekit/livekit-server:v1.13.11
-    command: --config /etc/livekit.yaml
+    command: --config /etc/livekit.yaml --node-ip ${LIVEKIT_NODE_IP:?Thiếu LIVEKIT_NODE_IP trong .env (IP public người dùng gửi voice tới)}
     environment:
       LIVEKIT_KEYS: "${LiveKit__ApiKey}: ${LiveKit__ApiSecret}"
     volumes: [./livekit/livekit.yaml:/etc/livekit.yaml:ro]
-    network_mode: host               # WebRTC cần UDP trực tiếp: mở 7881/tcp + 50000-60000/udp trên firewall
+    network_mode: host               # media: 7881/tcp + 7882/udp (mở trên firewall / chuyển tiếp từ VPS proxy)
     restart: unless-stopped
 
   backup:

@@ -608,7 +608,7 @@ Hiện tại các tương tác dưới đây được làm **đồng bộ qua `*
 | `web` | nginx phục vụ bản build FE (SPA fallback, asset cache 1 năm) |
 | `postgres` | Không mở cổng ra ngoài |
 | `seq` | Chỉ nghe `127.0.0.1` (xem qua SSH tunnel) |
-| `livekit` | `network_mode: host`; mở 7881/tcp + 50000–60000/udp |
+| `livekit` | `network_mode: host`; mở 7881/tcp + 7882/udp (một cổng UDP), `--node-ip $LIVEKIT_NODE_IP` |
 | `backup` | Mỗi ngày `pg_dump` + nén thư mục khoá → `S3__BucketBackup` |
 
 **CI** (`.github/workflows/ci.yml`):

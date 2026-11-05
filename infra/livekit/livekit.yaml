@@ -1,11 +1,12 @@
 # LiveKit production. Key/secret lấy từ biến LIVEKIT_KEYS (docker-compose).
 port: 7880
 rtc:
-  tcp_port: 7881
-  port_range_start: 50000
-  port_range_end: 60000
-  use_external_ip: true
-# Signal (wss://APP_DOMAIN/livekit) đi qua nginx VPS → container web → host:7880. Media đi thẳng UDP 50000–60000 / TCP 7881.
+  tcp_port: 7881     # media qua TCP (dự phòng khi mạng chặn UDP)
+  udp_port: 7882     # MỘT cổng UDP cho mọi người (dễ chuyển tiếp qua VPS proxy hơn dải 50000–60000)
+  use_external_ip: false
+  # IP báo cho trình duyệt = --node-ip (compose: LIVEKIT_NODE_IP) — IP public mà người dùng tới được 7881/7882:
+  # IP VPS proxy (nếu chuyển tiếp qua đó) hoặc IP chính VPS này.
+# Signal (wss://APP_DOMAIN/livekit) đi qua nginx → container web → host:7880. Media: 7881/tcp + 7882/udp tới LIVEKIT_NODE_IP.
 # TURN (người dùng sau mạng công ty / NAT chặn UDP): LiveKit có TURN dựng sẵn — cần chứng chỉ TLS cho domain TURN.
 # Bỏ comment + điền domain / file chứng chỉ khi deploy (chưa thử trên VPS):
 # turn:
