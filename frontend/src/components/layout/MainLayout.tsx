@@ -1,5 +1,6 @@
 import { Link, Outlet } from '@tanstack/react-router';
 import { buttonVariants } from '@/components/common/button';
+import { useInboxCount } from '@/features/approvals';
 import { hasRole, useLogout, useMe } from '@/features/auth';
 import { PATHS } from '@/config/paths';
 import { cn } from '@/utils/cn';
@@ -8,6 +9,7 @@ import { NAVIGATION } from './navigation';
 export function MainLayout() {
   const { data: me } = useMe(); // route _protected đã đảm bảo đã đăng nhập
   const logout = useLogout();
+  const { data: inboxCount = 0 } = useInboxCount();
   const items = NAVIGATION.filter((n) => !n.roles || hasRole(me, ...n.roles));
 
   return (
@@ -25,6 +27,9 @@ export function MainLayout() {
             >
               <span>{n.icon}</span>
               {n.label}
+              {n.to === PATHS.approvals && inboxCount > 0 && (
+                <span className="ml-auto rounded-full bg-destructive px-2 text-xs font-semibold text-white" data-testid="inbox-badge">{inboxCount}</span>
+              )}
             </Link>
           ))}
         </nav>

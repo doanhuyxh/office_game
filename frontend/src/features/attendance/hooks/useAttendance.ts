@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/services/api-client';
 import { attendanceApi, attendanceKeys } from '../api/attendance.api';
-import type { CheckSource, IUpsertShift, IWeekDay } from '../types/attendance.types';
+import type { CheckSource, ICreateCorrection, IUpsertShift, IWeekDay } from '../types/attendance.types';
 
 /** Trạng thái chấm công hôm nay. `noProfile` = tài khoản chưa gắn hồ sơ nhân viên (ví dụ admin hệ thống). */
 export function useToday() {
@@ -70,4 +70,15 @@ export function useCreateHoliday() {
 export function useDeleteHoliday() {
   const invalidate = useInvalidate();
   return useMutation({ mutationFn: (id: string) => attendanceApi.deleteHoliday(id), onSuccess: invalidate });
+}
+
+export const useMyCorrections = (month: string) =>
+  useQuery({ queryKey: attendanceKeys.corrections(month), queryFn: () => attendanceApi.myCorrections(month), retry: false });
+
+export function useCreateCorrection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ICreateCorrection) => attendanceApi.createCorrection(body),
+    onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: attendanceKeys.all }), qc.invalidateQueries({ queryKey: ['approval'] })]),
+  });
 }

@@ -13,9 +13,9 @@ backend/                         ASP.NET Core .NET 10 — solution OfficeHub.sln
     Hosting/HostingExtensions.cs AddOfficeHubDefaults (Serilog→Seq, Sentry, DataProtection, ForwardedHeaders), S3, Email
     Auth/                        AuthCookie (cookie dùng chung), Roles, ClaimNames, AuthPolicies
     Health/, Http/Validation.cs, Persistence/, Storage/(IFileStorage→S3), Email/(IEmailSender→SMTP), Office/OfficeNetwork
-  src/Modules/                   Identity(+.Contracts) · Organization(+.Contracts) · Attendance  ← có nghiệp vụ
-                                 Leave · LaborContracts · Approval · Notification · Reporting · Audit ← chỉ khung (/_status)
-  tests/                         OfficeHub.Architecture.Tests, OfficeHub.Modules.Attendance.Tests
+  src/Modules/                   Identity · Organization · Attendance · Approval · Leave (mỗi cái + .Contracts) ← có nghiệp vụ
+                                 LaborContracts · Notification · Reporting · Audit ← chỉ khung (/_status)
+  tests/                         OfficeHub.Architecture.Tests, OfficeHub.Modules.Attendance.Tests, OfficeHub.Modules.Leave.Tests
 frontend/                        React 19 + Vite + TS (bun) — chi tiết: conventions.md
 shared/office-map.json           bản đồ văn phòng 3D, dùng chung FE (vẽ) + Realtime (kiểm tra sàn)
 infra/                           docker-compose.dev.yml, docker-compose.yml (prod), backup/, livekit/
@@ -34,7 +34,7 @@ Trình duyệt (SPA :5173)
 
 - FE và API **cùng origin** (dev: Vite proxy; prod: Traefik) → cookie đăng nhập dùng được cho cả `/api` và `/rt`, không cần CORS.
 - **Cookie dùng chung 2 host**: Api cấp cookie `officehub.auth` (scheme `Identity.Application`); Realtime đọc lại nhờ cùng scheme, cùng tên cookie, cùng thư mục khoá `DataProtection__KeysPath`, application name `OfficeHub` (`AuthCookie.cs`, `HostingExtensions.cs`).
-- Không có message bus: module gọi nhau đồng bộ qua interface trong `*.Contracts` (DI scope cùng request). Realtime ↔ Api chỉ có một đường: Realtime gọi `/api/auth/me` ([business/office.md](business/office.md)).
+- Không có message bus: module gọi nhau đồng bộ qua interface trong `*.Contracts` (DI scope cùng request): `IAccountService` (Identity), `IEmployeeDirectory` (Organization), `IApprovalService` + `IApprovalHandler` (Approval ← Leave, Attendance), `ILeaveCalendar` (Leave → Attendance), `IWorkCalendar` (Attendance → Leave). Realtime ↔ Api chỉ có một đường: Realtime gọi `/api/auth/me` ([business/office.md](business/office.md)).
 - FE: mọi query/mutation trả **401** → `onUnauthorized` (`App.tsx`) xoá cache và chuyển `/login?returnUrl=…`; query không retry khi 401.
 - Business logic nằm ở back-end. FE chỉ hiển thị và điều hướng; `routes/guards.ts` và menu theo vai trò **không phải** lớp bảo mật.
 - IP client: Api dùng `ForwardedHeaders` (tin mọi proxy) → `HttpContext.Connection.RemoteIpAddress` là IP thật sau Traefik. Dev qua Vite proxy → IP là localhost.
@@ -51,9 +51,11 @@ Hosted service khởi động: `IdentitySeeder` (migrate + roles + admin), `OrgM
 |---|---|---|
 | `/api/auth/*` | Identity | [business/auth.md](business/auth.md) |
 | `/api/org/*` | Organization | [business/organization.md](business/organization.md) |
-| `/api/attendance/*` | Attendance | [business/attendance.md](business/attendance.md) |
+| `/api/attendance/*` | Attendance | [business/attendance.md](business/attendance.md), [business/attendance-corrections.md](business/attendance-corrections.md) |
+| `/api/approval/*` | Approval | [business/approval.md](business/approval.md) |
+| `/api/leave/*` | Leave | [business/leave.md](business/leave.md) |
 | `/rt/hub/office`, `/rt/voice/token` | Realtime | [business/office.md](business/office.md) |
-| `/api/leave`, `/api/contracts`, `/api/approval`, `/api/notifications`, `/api/reports`, `/api/audit` | khung | chỉ `GET /_status` |
+| `/api/contracts`, `/api/notifications`, `/api/reports`, `/api/audit` | khung | chỉ `GET /_status` |
 
 ## Trang front-end (`routes/router.tsx`)
 
@@ -63,7 +65,7 @@ Hosted service khởi động: `IdentitySeeder` (migrate + roles + admin), `OrgM
 | `/accept-invite`, `/reset-password` | không (link email, search `uid`, `token`) | `AcceptInviteForm`, `ResetPasswordForm` |
 | `/change-password` | `requireSession` | `ChangePasswordForm` |
 | `/office` | `requireAuth`, toàn màn hình | `OfficeView` (`@/features/office`, lazy, kéo Three.js) |
-| `/` `/attendance` `/employees` `/leave` `/approvals` `/contracts` `/reports` | `requireAuth`, trong `MainLayout` | `Dashboard`, `AttendancePage`, `EmployeesPage`, các trang `ComingSoon` |
+| `/` `/attendance` `/employees` `/leave` `/approvals` `/contracts` `/reports` | `requireAuth`, trong `MainLayout` | `Dashboard`, `AttendancePage`, `EmployeesPage`, `LeavePage`, `ApprovalsPage`; contracts/reports là `ComingSoon` |
 
 `requireAuth`: chưa đăng nhập → `/login?returnUrl=…`; `mustChangePassword` → `/change-password`. Quay lại sau đăng nhập dùng `safeReturnPath` (chỉ đường dẫn cùng origin). Mọi trang trong `page(...)` là lazy chunk; Three.js tách chunk `three` (`vite.config.ts` `manualChunks`). Menu sidebar lọc theo `roles` trong `components/layout/navigation.ts` (Phê duyệt: admin/hr/manager; Hợp đồng, Báo cáo: admin/hr).
 
@@ -77,6 +79,8 @@ Hosted service khởi động: `IdentitySeeder` (migrate + roles + admin), `OrgM
 | `['auth','me']` | `features/auth/api/auth.api.ts` (`authKeys`) | `staleTime` 60s; null = chưa đăng nhập; guard gọi `queryClient.fetchQuery(meQuery)` |
 | `['org', …]` | `features/employees/api/org.api.ts` (`orgKeys`) | mọi mutation org → invalidate `['org']` |
 | `['attendance', …]` | `features/attendance/api/attendance.api.ts` (`attendanceKeys`) | `today`, `board` tự refetch 60s; `useCheck` ghi thẳng `today` rồi invalidate phần còn lại |
+| `['leave', …]` | `features/leave/api/leave.api.ts` (`leaveKeys`) | gửi đơn / điều chỉnh → invalidate `['leave']` + `['approval']` |
+| `['approval', …]` | `features/approvals/api/approval.api.ts` (`approvalKeys`) | inbox count refetch 60s; duyệt / từ chối / huỷ → invalidate `approval`, `leave`, `attendance` |
 
 - Đăng xuất (`useLogout`): `me` = null, xoá mọi query khác, về `/login`.
 - Không có cache phía server (không Redis). Bảng công tính lại mỗi lần đọc ([business/attendance.md](business/attendance.md)).

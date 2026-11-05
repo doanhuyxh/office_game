@@ -2,6 +2,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\OfficeHub.BuildingBlocks\OfficeHub.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\OfficeHub.Modules.Leave.Contracts\OfficeHub.Modules.Leave.Contracts.csproj" />
+    <ProjectReference Include="..\..\Approval\OfficeHub.Modules.Approval.Contracts\OfficeHub.Modules.Approval.Contracts.csproj" />
+    <ProjectReference Include="..\..\Organization\OfficeHub.Modules.Organization.Contracts\OfficeHub.Modules.Organization.Contracts.csproj" />
+    <ProjectReference Include="..\..\Attendance\OfficeHub.Modules.Attendance.Contracts\OfficeHub.Modules.Attendance.Contracts.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

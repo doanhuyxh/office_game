@@ -6,8 +6,8 @@ Route dưới `/api/attendance` (đăng nhập). Schema: [database.md](../databa
 
 ## Nguyên tắc
 
-1. **Sự kiện thô chỉ thêm** (`attendance.events`). Không sửa / xoá. Sửa công sau này = thêm sự kiện `Manual` (chưa làm).
-2. **Bảng công không lưu**: mỗi lần đọc, `AttendanceService.ComputeAsync(employees, from, to)` lấy events + schedules + holidays rồi gọi `TimesheetCalculator.Compute` (hàm thuần, test ở `tests/OfficeHub.Modules.Attendance.Tests`). Sửa quy tắc tính → sửa calculator **và** test.
+1. **Sự kiện thô chỉ thêm** (`attendance.events`). Không sửa / xoá. Sửa công = giải trình được duyệt → thêm sự kiện `Manual` ([attendance-corrections.md](attendance-corrections.md)).
+2. **Bảng công không lưu**: mỗi lần đọc, `AttendanceService.ComputeAsync(employees, from, to)` lấy events + schedules + holidays + ngày nghỉ đã duyệt (`ILeaveCalendar`) rồi gọi `TimesheetCalculator.Compute` (hàm thuần, test ở `tests/OfficeHub.Modules.Attendance.Tests`). Sửa quy tắc tính → sửa calculator **và** test.
 3. **Server quyết định thời gian**: `TimeProvider` + `Office__TimeZone`. `WorkDate` = ngày địa phương lúc chấm.
 4. Tài khoản không gắn hồ sơ nhân viên (vd admin seed) → **409**, `title: "no_employee_profile"`, `"Tài khoản chưa gắn hồ sơ nhân viên nên chưa chấm công được. Liên hệ HR."`.
 
@@ -50,6 +50,16 @@ Không cần đăng ký làm từ xa. Không giới hạn số lần vào/ra tro
 
 Làm ngày nghỉ / ngày lễ vẫn ghi `Present` với required = 0. **Chưa có**: giờ lõi ca linh hoạt (`EarliestIn` không dùng khi tính), tăng ca, ca qua đêm.
 
+**Nghỉ phép đã duyệt** (`DayLeave`; sáng + chiều cùng ngày cộng thành cả ngày):
+
+| | Nghỉ cả ngày | Nghỉ nửa ngày |
+|---|---|---|
+| Phải làm | 0 | một nửa |
+| Không chấm công | `Leave` | `Absent` / `NotYet` (buổi còn lại) |
+| Đi muộn / về sớm | không xét | nghỉ sáng → không xét muộn; nghỉ chiều → không xét về sớm (ca cố định) |
+
+`Scheduled` = có ca và không phải ngày lễ. `DayDto` thêm `leaveFraction`, `leaveName`.
+
 ## Lịch làm việc (`AttendanceService.ShiftIdFor`)
 
 Ca của nhân viên ngày D: bộ lịch **riêng** của nhân viên có `EffectiveFrom` lớn nhất ≤ D; nếu không có → bộ lịch **công ty** (`EmployeeId = null`). Lấy dòng theo `DayOfWeek`; `ShiftId` null = nghỉ.
@@ -63,7 +73,7 @@ Ca của nhân viên ngày D: bộ lịch **riêng** của nhân viên có `Effe
 | GET | `/board?date=` | Manager | 1 ngày (mặc định hôm nay), nhân viên đang làm trong phạm vi |
 | GET | `/report?month=` | Manager | tổng hợp tháng, tới hôm nay |
 
-Tháng sai → 400 `"Tháng không hợp lệ (định dạng yyyy-MM)"`. `SummaryDto` (`DtoMap.Summary`): `PresentDays` = Present + Working + MissingCheckout; `RequiredMinutes` bỏ ngày `NotYet`.
+Tháng sai → 400 `"Tháng không hợp lệ (định dạng yyyy-MM)"`. `SummaryDto` (`DtoMap.Summary`): `WorkDays` = số ngày `Scheduled`; `PresentDays` = Present + Working + MissingCheckout; `LeaveDays` = tổng `LeaveFraction` ngày `Scheduled`; `RequiredMinutes` bỏ ngày `NotYet`.
 
 ## Ca, lịch, ngày lễ (`Features/Shifts/ShiftEndpoints.cs`)
 
@@ -82,7 +92,9 @@ Validate ca (giờ `"HH:mm"`): `"Ca cố định cần giờ vào"`, `"Ca cố �
 | Xoá bộ lịch công ty duy nhất | 409 `"Không thể xoá lịch công ty duy nhất"` |
 | Trùng ngày lễ | 400 `"Ngày này đã là ngày lễ"` |
 
-`GET /schedules` trả bộ đang hiệu lực + bộ tương lai cho công ty và từng nhân viên còn làm. Không có API sửa sự kiện chấm công, chưa có giải trình / duyệt sửa công.
+`GET /schedules` trả bộ đang hiệu lực + bộ tương lai cho công ty và từng nhân viên còn làm. Không có API sửa sự kiện chấm công.
+
+**`IWorkCalendar`** (Attendance.Contracts → `WorkCalendar` trong `AttendanceService.cs`): ngày có ca và không phải ngày lễ — Leave dùng để đếm số ngày nghỉ.
 
 ## UI (`frontend/src/features/attendance/`)
 

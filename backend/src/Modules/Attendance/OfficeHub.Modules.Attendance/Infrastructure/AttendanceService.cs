@@ -2,12 +2,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.Modules.Attendance.Domain;
+using OfficeHub.Modules.Attendance.Contracts;
+using OfficeHub.Modules.Leave.Contracts;
 using OfficeHub.Modules.Organization.Contracts;
 
 namespace OfficeHub.Modules.Attendance.Infrastructure;
 
 /// <summary>Tra ca theo lịch + tính bảng công cho một khoảng ngày (tính trực tiếp từ sự kiện, không lưu sẵn).</summary>
-internal sealed class AttendanceService(AttendanceDbContext db, IOptions<OfficeSettings> office, TimeProvider clock)
+internal sealed class AttendanceService(AttendanceDbContext db, IOptions<OfficeSettings> office, TimeProvider clock, ILeaveCalendar leaves)
 {
     public TimeZoneInfo Tz { get; } = TimeZoneInfo.FindSystemTimeZoneById(office.Value.TimeZone);
 
@@ -26,6 +28,12 @@ internal sealed class AttendanceService(AttendanceDbContext db, IOptions<OfficeS
         var schedules = await db.Schedules.AsNoTracking()
             .Where(s => s.EmployeeId == null || employeeIds.Contains(s.EmployeeId.Value)).ToListAsync(ct);
         var holidays = await db.Holidays.AsNoTracking().Where(h => h.Date >= from && h.Date <= to).ToDictionaryAsync(h => h.Date, h => h.Name, ct);
+        // Nghỉ phép đã duyệt (module Leave). Sáng + chiều cùng ngày (2 đơn nửa ngày) → cộng thành cả ngày.
+        var leaveByDay = (await leaves.GetApprovedAsync(employeeIds, from, to, ct))
+            .GroupBy(l => (l.EmployeeId, l.Date))
+            .ToDictionary(g => g.Key, g => new DayLeave(Math.Min(1m, g.Sum(x => x.Fraction)),
+                Morning: g.Any(x => x.Half == LeaveHalf.Morning), Afternoon: g.Any(x => x.Half == LeaveHalf.Afternoon),
+                Name: string.Join(" + ", g.Select(x => x.TypeName).Distinct())));
         var events = (await db.Events.AsNoTracking()
                 .Where(e => employeeIds.Contains(e.EmployeeId) && e.WorkDate >= from && e.WorkDate <= to).ToListAsync(ct))
             .ToLookup(e => (e.EmployeeId, e.WorkDate));
@@ -46,7 +54,8 @@ internal sealed class AttendanceService(AttendanceDbContext db, IOptions<OfficeS
                 var shift = shiftId is { } sid ? shifts.GetValueOrDefault(sid) : null;
                 var holiday = holidays.GetValueOrDefault(d);
                 var punches = events[(emp, d)].Select(e => new Punch(e.OccurredAt, e.Type, e.WorkMode));
-                days.Add(new ComputedDay(TimesheetCalculator.Compute(d, punches, shift, holiday is not null, Now, Tz), shift, holiday));
+                days.Add(new ComputedDay(TimesheetCalculator.Compute(d, punches, shift, holiday is not null, Now, Tz,
+                    leaveByDay.GetValueOrDefault((emp, d))), shift, holiday));
             }
             result[emp] = days;
         }
@@ -60,6 +69,8 @@ internal sealed class AttendanceService(AttendanceDbContext db, IOptions<OfficeS
     }
 
     /// <summary>Lịch riêng của nhân viên (bộ mới nhất đã hiệu lực) → nếu không có thì lịch công ty.</summary>
+    internal static Guid? ShiftIdForDate(List<ScheduleEntry> all, Guid employeeId, DateOnly date) => ShiftIdFor(all, employeeId, date);
+
     private static Guid? ShiftIdFor(List<ScheduleEntry> all, Guid employeeId, DateOnly date)
     {
         var own = Latest(all.Where(s => s.EmployeeId == employeeId), date);
@@ -73,5 +84,19 @@ internal sealed class AttendanceService(AttendanceDbContext db, IOptions<OfficeS
         if (effective.Count == 0) return null;
         var max = effective.Max(s => s.EffectiveFrom);
         return effective.Where(s => s.EffectiveFrom == max).ToList();
+    }
+}
+
+/// <summary>Leave dùng để đếm số ngày nghỉ: chỉ những ngày có ca và không phải ngày lễ.</summary>
+internal sealed class WorkCalendar(AttendanceDbContext db) : IWorkCalendar
+{
+    public async Task<IReadOnlyList<DateOnly>> WorkingDaysAsync(Guid employeeId, DateOnly from, DateOnly to, CancellationToken ct = default)
+    {
+        var schedules = await db.Schedules.AsNoTracking().Where(s => s.EmployeeId == null || s.EmployeeId == employeeId).ToListAsync(ct);
+        var holidays = (await db.Holidays.AsNoTracking().Where(h => h.Date >= from && h.Date <= to).Select(h => h.Date).ToListAsync(ct)).ToHashSet();
+        var result = new List<DateOnly>();
+        for (var d = from; d <= to; d = d.AddDays(1))
+            if (!holidays.Contains(d) && AttendanceService.ShiftIdForDate(schedules, employeeId, d) is not null) result.Add(d);
+        return result;
     }
 }

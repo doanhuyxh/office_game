@@ -91,3 +91,25 @@ public sealed class Holiday
     public DateOnly Date { get; set; }
     public required string Name { get; set; }
 }
+
+public enum CorrectionStatus { Pending = 0, Approved = 1, Rejected = 2, Cancelled = 3 }
+
+/// <summary>
+/// Giải trình chấm công: nhân viên khai một lần chấm bị thiếu / sai (vào hoặc ra, giờ thực tế, hình thức).
+/// Duyệt xong → thêm AttendanceEvent Source = Manual (IdempotencyKey = "correction:{Id}"), bảng công tự tính lại.
+/// </summary>
+public sealed class AttendanceCorrection
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid EmployeeId { get; set; }
+    public DateOnly WorkDate { get; set; }
+    public PunchType Type { get; set; }
+    public TimeOnly Time { get; set; }
+    public WorkMode WorkMode { get; set; }
+    public required string Reason { get; set; }
+    public CorrectionStatus Status { get; set; }
+    public Guid? ApprovalRequestId { get; set; }
+    public string? RejectReason { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? DecidedAt { get; set; }
+}

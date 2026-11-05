@@ -48,13 +48,33 @@ Quy tắc ghi:
 - `shifts` xoá mềm (bảng công cũ vẫn tra được tên ca: `AttendanceService` dùng `IgnoreQueryFilters()`).
 - `holidays` xoá cứng.
 
+| `corrections` | `EmployeeId`, `WorkDate`, `Type` (`In`/`Out`), `Time`, `WorkMode`, `Reason` (≤500), `Status` (`Pending`/`Approved`/`Rejected`/`Cancelled`), `ApprovalRequestId`, `RejectReason` | index (`EmployeeId`,`WorkDate`). Duyệt xong sinh sự kiện `IdempotencyKey = "correction:{Id}"` |
+
+## Schema `approval` — `ApprovalDbContext` (migration `InitialApproval`)
+
+| Bảng | Field chính | Ràng buộc / index |
+|---|---|---|
+| `requests` | `Type`, `SubjectId`, `RequesterEmployeeId`, `Title`, `Summary`, `Status`, `CreatedAt`, `DecidedAt` | unique (`Type`,`SubjectId`); index (`RequesterEmployeeId`,`Status`) |
+| `steps` | `RequestId`, `Order`, `Kind` (`Manager`/`Hr`), `ApproverEmployeeId`, `Status` (`Waiting`/`Pending`/`Approved`/`Rejected`), `DecidedByUserId`, `DecidedByName`, `Comment` | FK cascade; unique (`RequestId`,`Order`) |
+
+## Schema `leave` — `LeaveDbContext` (migration `InitialLeave`)
+
+| Bảng | Field chính | Ràng buộc / index |
+|---|---|---|
+| `types` | `Code` (unique), `Name`, `IsPaid`, `UsesAnnualBalance`, `SortOrder`, `IsActive` | seed 4 loại |
+| `requests` | `EmployeeId`, `LeaveTypeId`, `StartDate`, `EndDate`, `Period`, `Days` numeric(6,2), `Reason`, `Status`, `ApprovalRequestId`, `RejectReason` | FK type (Restrict); chống trùng ngày bằng code (không EXCLUDE) |
+| `adjustments` | `EmployeeId`, `Days` (±), `Reason`, `CreatedAt`, `CreatedByName` | chỉ thêm |
+
+Quỹ phép **không lưu**: tính khi đọc ([business/leave.md](business/leave.md)).
+
 ## Dữ liệu seed khi khởi động
 
 | Seeder | Điều kiện | Tạo |
 |---|---|---|
 | `IdentitySeeder` | luôn | 4 vai trò; admin từ `Seed__*` nếu chưa có user vai trò admin (vai trò `admin` + `hr`) |
 | `AttendanceSeeder` | bảng `shifts` trống (kể cả bản xoá mềm) | ca "Hành chính" 08:30–17:30 (nghỉ 12:00–13:30, trễ 5′), ca "Linh hoạt 8 tiếng" (480′, vào 07:00–10:00, nghỉ 12:00–13:00), lịch công ty `EffectiveFrom = 2000-01-01`: T2–T6 = Hành chính, T7/CN nghỉ |
-| `OrgMigrator` | — | chỉ migrate |
+| `OrgMigrator`, `ApprovalMigrator` | — | chỉ migrate |
+| `LeaveSeeder` | `leave.types` trống | 4 loại phép |
 
 Mọi seeder/migrator chỉ chạy migration khi `Database__MigrateOnStartup` khác `false`.
 

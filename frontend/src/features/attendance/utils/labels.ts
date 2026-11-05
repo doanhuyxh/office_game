@@ -9,6 +9,7 @@ export const DAY_STATUS: Record<DayStatus, { label: string; className: string }>
   DayOff: { label: 'Nghỉ', className: 'bg-slate-50 text-slate-400' },
   Holiday: { label: 'Ngày lễ', className: 'bg-violet-100 text-violet-800' },
   NotEmployed: { label: '—', className: 'text-slate-300' },
+  Leave: { label: 'Nghỉ phép', className: 'bg-violet-100 text-violet-800' },
 };
 
 export const WORK_MODE: Record<WorkModeValue, string> = {

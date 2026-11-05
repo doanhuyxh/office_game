@@ -44,7 +44,7 @@ public sealed class SmtpCheck(IOptions<SmtpSettings> opt) : IHealthCheck
     public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken ct = default)
     {
         var c = opt.Value;
-        using var client = new SmtpClient { Timeout = 10_000 };
+        using var client = new SmtpClient { Timeout = 10_000, CheckCertificateRevocation = c.CheckCertificateRevocation };
         await client.ConnectAsync(c.Host, c.Port, c.UseSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTlsWhenAvailable, ct);
         if (!string.IsNullOrEmpty(c.Username)) await client.AuthenticateAsync(c.Username, c.Password ?? "", ct);
         await client.DisconnectAsync(true, ct);

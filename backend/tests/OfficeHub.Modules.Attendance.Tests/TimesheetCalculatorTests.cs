@@ -132,4 +132,49 @@ public class TimesheetCalculatorTests
         Assert.Equal(120, r.WorkedMinutes);
         Assert.Equal(0, r.RequiredMinutes);
     }
+
+    // ---------- Nghỉ phép ----------
+
+    [Fact]
+    public void Full_day_leave_without_punch_is_leave_not_absent()
+    {
+        var r = TimesheetCalculator.Compute(Day, [], Fixed, false, NextDay, Tz, new DayLeave(1m, false, false, "Phép năm"));
+        Assert.Equal(DayStatus.Leave, r.Status);
+        Assert.Equal(0, r.RequiredMinutes);
+        Assert.True(r.Scheduled);
+        Assert.Equal(1m, r.LeaveFraction);
+    }
+
+    [Fact]
+    public void Morning_leave_halves_required_and_skips_late()
+    {
+        var r = TimesheetCalculator.Compute(Day, [In(13, 30), Out(17, 30)], Fixed, false, NextDay, Tz, new DayLeave(0.5m, true, false, "Phép năm"));
+        Assert.Equal(DayStatus.Present, r.Status);
+        Assert.Equal(225, r.RequiredMinutes);
+        Assert.Equal(0, r.LateMinutes);
+        Assert.Equal(0, r.ShortMinutes);
+    }
+
+    [Fact]
+    public void Afternoon_leave_skips_early_leave()
+    {
+        var r = TimesheetCalculator.Compute(Day, [In(8, 30), Out(12, 0)], Fixed, false, NextDay, Tz, new DayLeave(0.5m, false, true, "Phép năm"));
+        Assert.Equal(0, r.ShortMinutes);
+        Assert.Equal(0, r.LateMinutes);
+    }
+
+    [Fact]
+    public void Half_leave_without_punch_is_still_absent_for_other_half()
+    {
+        var r = TimesheetCalculator.Compute(Day, [], Fixed, false, NextDay, Tz, new DayLeave(0.5m, true, false, "Phép năm"));
+        Assert.Equal(DayStatus.Absent, r.Status);
+    }
+
+    [Fact]
+    public void Leave_on_day_off_is_not_scheduled()
+    {
+        var r = TimesheetCalculator.Compute(Day, [], null, false, NextDay, Tz, new DayLeave(1m, false, false, "Phép năm"));
+        Assert.Equal(DayStatus.DayOff, r.Status);
+        Assert.False(r.Scheduled);
+    }
 }

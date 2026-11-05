@@ -14,7 +14,7 @@ export const NAVIGATION: NavItem[] = [
   { to: PATHS.dashboard, label: 'Tổng quan', icon: '🏠' },
   { to: PATHS.attendance, label: 'Chấm công', icon: '🕘' },
   { to: PATHS.leave, label: 'Nghỉ phép', icon: '🌴' },
-  { to: PATHS.approvals, label: 'Phê duyệt', icon: '✅', roles: [ROLE.admin, ROLE.hr, ROLE.manager] },
+  { to: PATHS.approvals, label: 'Phê duyệt', icon: '✅' },
   { to: PATHS.employees, label: 'Nhân viên', icon: '👥' },
   { to: PATHS.contracts, label: 'Hợp đồng', icon: '📄', roles: [ROLE.admin, ROLE.hr] },
   { to: PATHS.reports, label: 'Báo cáo', icon: '📊', roles: [ROLE.admin, ROLE.hr] },

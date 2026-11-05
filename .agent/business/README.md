@@ -12,7 +12,10 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Hồ sơ nhân viên, phòng ban, chức vụ, cấp / mời tài khoản, vai trò, nghỉ việc, `IEmployeeDirectory` | [organization.md](organization.md) |
 | Nút chấm công, cách tính đi muộn / thiếu giờ, ca, lịch tuần, ngày lễ, bảng công, báo cáo | [attendance.md](attendance.md) |
 | Văn phòng 3D, SignalR hub, bản đồ `shared/office-map.json`, chat, voice token, chấm công trong 3D | [office.md](office.md) |
-| Leave, LaborContracts, Approval, Notification, Reporting, Audit | Chưa có nghiệp vụ — chỉ `GET /api/<route>/_status`. FE: `ComingSoon`. Thiết kế dự kiến: `docs/ARCHITECTURE_V2.md` |
+| Luồng duyệt (quản lý → HR), không tự duyệt, `IApprovalHandler`, thêm loại đơn | [approval.md](approval.md) |
+| Loại phép, quỹ phép năm (cộng dồn, không hết hạn), đơn nghỉ, điều chỉnh của HR | [leave.md](leave.md) |
+| Giải trình chấm công (bổ sung giờ vào / ra) | [attendance-corrections.md](attendance-corrections.md) |
+| LaborContracts, Notification, Reporting, Audit | Chưa có nghiệp vụ — chỉ `GET /api/<route>/_status`. FE: `ComingSoon`. Thiết kế dự kiến: `docs/ARCHITECTURE_V2.md` |
 
 ## Nguyên tắc chung
 
@@ -26,7 +29,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 
 ## Điểm cần lưu ý / nợ kỹ thuật đã biết
 
-1. **SMTP Gmail trên macOS**: MailKit mặc định kiểm tra thu hồi chứng chỉ (CRL/OCSP); trên máy dev macOS báo "incomplete certificate revocation check" → gửi mail / `/health/ready` smtp lỗi. Chưa sửa (tắt kiểm tra thu hồi là quyết định bảo mật của chủ dự án). Dev có thể trỏ SMTP về Mailpit (`localhost:1025`).
+1. **SMTP Gmail trên macOS**: MailKit kiểm tra thu hồi chứng chỉ (CRL/OCSP); trên macOS dev báo "incomplete certificate revocation check". Có tuỳ chọn `Smtp__CheckCertificateRevocation` (mặc định `true`); chỉ chủ dự án tự đặt `false` trong `.env` dev. Agent **không** tự đổi giá trị này.
 2. Realtime phụ thuộc Api để kiểm tra phiên; Api không phản hồi thì **cho qua** (fail-open) — người bị khoá có thể vào văn phòng 3D trong lúc Api sập. Người đang online bị đẩy ra trễ tối đa `Realtime__SessionCheckSeconds`.
 3. Không có transaction trải nhiều module (xem [database.md](../database.md#không-có)).
 4. 2FA: `LoginAsync` có nhánh `RequiresTwoFactor` nhưng chưa có API bật 2FA.
@@ -34,7 +37,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 6. Khai báo nhưng chưa dùng: `Office__InactiveMinutes`, `IFileStorage` (chưa module nào upload), FE `ENV`, `STORAGE_KEY`, `REALTIME.voiceToken`, `VITE_SENTRY_DSN`, thư mục `src/context/`, `src/assets/icons|images` trống.
 7. `frontend/package.json` có dependency `cn` (^0.5.2) **không được import** — do `shadcn add` sinh nhầm `from "cn"`; có thể gỡ.
 8. Dev chạy qua Vite proxy → IP là localhost → chấm công luôn `Remote` trừ khi `Office__IpRanges` chứa `127.0.0.1/32`.
-9. Bảng công tính lại mỗi lần đọc (đủ nhanh cho ~12 người). Chưa có "chốt công", tăng ca, giờ lõi ca linh hoạt, ca qua đêm, giải trình.
+9. Bảng công và quỹ phép tính lại mỗi lần đọc (đủ nhanh cho ~12 người). Chưa có "chốt công", tăng ca, giờ lõi ca linh hoạt, ca qua đêm, quy ra tiền phép năm, thông báo email cho người duyệt.
 10. `reactivate` không khôi phục `ManagerId` / `HeadEmployeeId` đã bị gỡ khi nghỉ việc. `departments.HeadEmployeeId` không có FK.
 11. Văn phòng 3D là bản tối giản (sàn, vùng, avatar capsule); code game MVP cũ đã được xoá có chủ ý, engine đầy đủ sẽ viết mới trong `features/office/engine`.
 12. FE không có lint và test tự động; BE chỉ có test kiến trúc + test `TimesheetCalculator`.

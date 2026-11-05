@@ -1,11 +1,15 @@
 import { Link } from '@tanstack/react-router';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
+import { useInboxCount } from '@/features/approvals';
 import { CheckInCard } from '@/features/attendance';
+import { useMyBalance } from '@/features/leave';
 import { useMe } from '@/features/auth';
 import { PATHS } from '@/config/paths';
 
 export function Dashboard() {
   const { data: me } = useMe();
+  const { data: balance } = useMyBalance();
+  const { data: inbox = 0 } = useInboxCount();
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Xin chào, {me?.fullName} 👋</h1>
@@ -33,16 +37,20 @@ export function Dashboard() {
           <Card>
             <CardHeader>
               <CardDescription>Phép năm còn lại</CardDescription>
-              <CardTitle className="text-lg">—</CardTitle>
+              <CardTitle className="text-lg">{balance ? `${balance.available.toLocaleString('vi-VN')} ngày` : '—'}</CardTitle>
             </CardHeader>
-            <CardContent className="text-xs text-muted-foreground">Module Nghỉ phép đang phát triển</CardContent>
+            <CardContent>
+              <Link to={PATHS.leave} className="text-sm text-primary hover:underline">Xin nghỉ →</Link>
+            </CardContent>
           </Card>
           <Card>
             <CardHeader>
-              <CardDescription>Đơn chờ duyệt</CardDescription>
-              <CardTitle className="text-lg">—</CardTitle>
+              <CardDescription>Đơn chờ tôi duyệt</CardDescription>
+              <CardTitle className="text-lg">{inbox}</CardTitle>
             </CardHeader>
-            <CardContent className="text-xs text-muted-foreground">Module Phê duyệt đang phát triển</CardContent>
+            <CardContent>
+              <Link to={PATHS.approvals} className="text-sm text-primary hover:underline">Xem đơn →</Link>
+            </CardContent>
           </Card>
         </div>
       </div>

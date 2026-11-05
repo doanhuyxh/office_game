@@ -28,6 +28,8 @@ src/Modules/<M>/
 - Đăng ký module: thêm `new <M>Module()` vào mảng `modules` trong `src/OfficeHub.Api/Program.cs`.
 - **Ranh giới**: module KHÔNG tham chiếu project của module khác, chỉ được tham chiếu `*.Contracts` (test `tests/OfficeHub.Architecture.Tests/ModuleBoundaryTests.cs` sẽ fail). Ví dụ: Organization dùng `IAccountService` (Identity.Contracts); Attendance dùng `IEmployeeDirectory` (Organization.Contracts). `OfficeHub.Realtime` không tham chiếu module nghiệp vụ.
 - Tên module hợp đồng lao động là `LaborContracts` (không đặt `Contracts` vì đụng quy ước hậu tố `.Contracts`).
+- Đơn cần duyệt: lưu bản ghi `Pending` → `IApprovalService.SubmitAsync` → lưu `ApprovalRequestId` (lỗi thì xoá bản ghi); kết quả nhận qua `IApprovalHandler` **idempotent** ([business/approval.md](business/approval.md)). Mẫu: `Leave/Features/LeaveEndpoints.cs`, `Attendance/Features/Corrections/`.
+- Ghi `DateTimeOffset` xuống Postgres luôn ở **UTC** (`.ToUniversalTime()`); Npgsql từ chối offset khác 0.
 - DTO: `public sealed record` đặt cạnh endpoint. Ngày dùng `DateOnly`, giờ trong ngày `TimeOnly` (API trả chuỗi `"HH:mm"`), thời điểm `DateTimeOffset` (UTC).
 
 ### Validation & lỗi

@@ -10,10 +10,11 @@ public sealed record ShiftDto(Guid Id, string Name, string Type, string? StartTi
 public sealed record SessionDto(DateTimeOffset In, DateTimeOffset? Out);
 
 public sealed record DayDto(DateOnly Date, string Status, IReadOnlyList<SessionDto> Sessions, DateTimeOffset? FirstIn, DateTimeOffset? LastOut,
-    int WorkedMinutes, int RequiredMinutes, int LateMinutes, int ShortMinutes, string? WorkMode, string? ShiftName, string? HolidayName);
+    int WorkedMinutes, int RequiredMinutes, int LateMinutes, int ShortMinutes, string? WorkMode, string? ShiftName, string? HolidayName,
+    decimal LeaveFraction, string? LeaveName);
 
 public sealed record SummaryDto(int WorkDays, int PresentDays, int AbsentDays, int LateCount, int LateMinutes, int ShortMinutes,
-    int WorkedMinutes, int RequiredMinutes, int OnsiteDays, int RemoteDays, int MixedDays, int MissingCheckoutDays);
+    int WorkedMinutes, int RequiredMinutes, int OnsiteDays, int RemoteDays, int MixedDays, int MissingCheckoutDays, decimal LeaveDays);
 
 public sealed record EmployeeBrief(Guid Id, string Code, string FullName, string? DepartmentName);
 
@@ -36,7 +37,7 @@ internal static class DtoMap
     public static DayDto Day(AttendanceService.ComputedDay c) => new(c.Result.Date, c.Result.Status.ToString(),
         [.. c.Result.Sessions.Select(s => new SessionDto(s.In, s.Out))], c.Result.FirstIn, c.Result.LastOut,
         c.Result.WorkedMinutes, c.Result.RequiredMinutes, c.Result.LateMinutes, c.Result.ShortMinutes, c.Result.WorkMode,
-        c.Shift?.Name, c.HolidayName);
+        c.Shift?.Name, c.HolidayName, c.Result.LeaveFraction, c.Result.LeaveName);
 
     public static EmployeeBrief Brief(EmployeeRef e) => new(e.Id, e.Code, e.FullName, e.DepartmentName);
 
@@ -45,7 +46,8 @@ internal static class DtoMap
         var list = days.Select(d => d.Result).ToList();
         bool attended(DayResult r) => r.Status is DayStatus.Present or DayStatus.Working or DayStatus.MissingCheckout;
         return new SummaryDto(
-            WorkDays: list.Count(r => r.RequiredMinutes > 0),
+            // Ngày phải đi làm theo lịch (kể cả ngày nghỉ phép) → "ngày công / số ngày phải làm"
+            WorkDays: list.Count(r => r.Scheduled),
             PresentDays: list.Count(attended),
             AbsentDays: list.Count(r => r.Status == DayStatus.Absent),
             LateCount: list.Count(r => r.LateMinutes > 0),
@@ -56,6 +58,7 @@ internal static class DtoMap
             OnsiteDays: list.Count(r => r.WorkMode == "Onsite"),
             RemoteDays: list.Count(r => r.WorkMode == "Remote"),
             MixedDays: list.Count(r => r.WorkMode == "Mixed"),
-            MissingCheckoutDays: list.Count(r => r.Status == DayStatus.MissingCheckout));
+            MissingCheckoutDays: list.Count(r => r.Status == DayStatus.MissingCheckout),
+            LeaveDays: list.Where(r => r.Scheduled).Sum(r => r.LeaveFraction));
     }
 }

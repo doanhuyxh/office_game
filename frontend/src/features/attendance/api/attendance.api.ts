@@ -1,6 +1,6 @@
 import { http, httpPost } from '@/services/api-client';
 import type {
-  CheckSource, IBoardRow, IHoliday, IMonth, IReportRow, ISchedule, IShift, IToday, IUpsertShift, IWeekDay,
+  CheckSource, IBoardRow, ICorrection, ICreateCorrection, IHoliday, IMonth, IReportRow, ISchedule, IShift, IToday, IUpsertShift, IWeekDay,
 } from '../types/attendance.types';
 
 const put = <T>(url: string, body: unknown) => http<T>(url, { method: 'PUT', body: JSON.stringify(body) });
@@ -16,6 +16,7 @@ export const attendanceKeys = {
   shifts: ['attendance', 'shifts'] as const,
   schedules: ['attendance', 'schedules'] as const,
   holidays: (year: number) => ['attendance', 'holidays', year] as const,
+  corrections: (month: string) => ['attendance', 'corrections', month] as const,
 };
 
 export const attendanceApi = {
@@ -40,4 +41,7 @@ export const attendanceApi = {
   holidays: (year: number) => http<IHoliday[]>(`/api/attendance/holidays?year=${year}`),
   createHoliday: (date: string, name: string) => httpPost<IHoliday>('/api/attendance/holidays', { date, name }),
   deleteHoliday: (id: string) => del(`/api/attendance/holidays/${id}`),
+
+  myCorrections: (month: string) => http<ICorrection[]>(`/api/attendance/corrections/my?month=${month}`),
+  createCorrection: (body: ICreateCorrection) => httpPost<ICorrection>('/api/attendance/corrections', body),
 };

@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { formatTime } from '@/utils/date';
 import { cn } from '@/utils/cn';
-import type { IMonth } from '../types/attendance.types';
+import type { ICorrection, IDay, IMonth } from '../types/attendance.types';
 import { hm, WEEKDAY_SHORT, weekdayOf, WORK_MODE } from '../utils/labels';
 import { StatusBadge } from './StatusBadge';
 
@@ -14,19 +14,32 @@ function Stat({ label, value, tone }: { label: string; value: string | number; t
   );
 }
 
-/** Bảng công một tháng của một nhân viên + tổng hợp. */
-export function MonthTimesheet({ data }: { data: IMonth }) {
+const CORRECTION_LABEL: Record<ICorrection['status'], string> = { Pending: '⏳ chờ duyệt', Approved: '✓ đã duyệt', Rejected: '✕ bị từ chối', Cancelled: 'đã huỷ' };
+
+/** Ngày được phép giải trình: trong 31 ngày gần nhất, không phải tương lai (khớp CorrectionEndpoints.MaxDaysBack). */
+const canCorrect = (d: IDay) => {
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
+  const min = new Date(Date.parse(today) - 31 * 864e5).toISOString().slice(0, 10);
+  return d.date <= today && d.date >= min && d.status !== 'NotEmployed' && d.status !== 'NotYet';
+};
+
+/**
+ * Bảng công một tháng của một nhân viên + tổng hợp.
+ * Truyền `onCorrect` (bảng công của chính mình) để hiện nút "Giải trình"; `corrections` để hiện trạng thái giải trình theo ngày.
+ */
+export function MonthTimesheet({ data, onCorrect, corrections = [] }: { data: IMonth; onCorrect?: (day: IDay) => void; corrections?: ICorrection[] }) {
   const s = data.summary;
   const days = data.days.filter((d) => d.status !== 'NotEmployed');
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
         <Stat label="Ngày công" value={`${s.presentDays}/${s.workDays}`} />
         <Stat label="Giờ làm" value={`${hm(s.workedMinutes)} / ${hm(s.requiredMinutes)}`} />
         <Stat label="Đi muộn" value={s.lateCount ? `${s.lateCount} lần · ${s.lateMinutes}′` : 0} tone={s.lateCount ? 'text-red-600' : undefined} />
         <Stat label="Vắng" value={s.absentDays} tone={s.absentDays ? 'text-red-600' : undefined} />
         <Stat label="Thiếu giờ ra" value={s.missingCheckoutDays} tone={s.missingCheckoutDays ? 'text-amber-600' : undefined} />
         <Stat label="VP / Từ xa / KH" value={`${s.onsiteDays} / ${s.remoteDays} / ${s.mixedDays}`} />
+        <Stat label="Nghỉ phép" value={s.leaveDays} />
       </div>
       <div className="rounded-xl border bg-card">
         <Table>
@@ -35,6 +48,7 @@ export function MonthTimesheet({ data }: { data: IMonth }) {
               <TableHead>Ngày</TableHead><TableHead>Ca</TableHead><TableHead>Vào</TableHead><TableHead>Ra</TableHead>
               <TableHead className="text-right">Giờ làm</TableHead><TableHead className="text-right">Muộn</TableHead>
               <TableHead className="text-right">Thiếu</TableHead><TableHead>Hình thức</TableHead><TableHead>Trạng thái</TableHead>
+              {onCorrect && <TableHead className="w-28" />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -43,14 +57,27 @@ export function MonthTimesheet({ data }: { data: IMonth }) {
               return (
                 <TableRow key={d.date} className={cn((wd === 0 || wd === 6) && 'bg-muted/40')}>
                   <TableCell className="font-mono text-xs">{WEEKDAY_SHORT[wd]} {d.date.slice(8)}/{d.date.slice(5, 7)}</TableCell>
-                  <TableCell className="text-xs">{d.holidayName ?? d.shiftName ?? '—'}</TableCell>
+                  <TableCell className="text-xs">
+                    {d.holidayName ?? d.shiftName ?? '—'}
+                    {d.leaveName && <div className="text-violet-700">{d.leaveFraction < 1 ? '½ ' : ''}{d.leaveName}</div>}
+                  </TableCell>
                   <TableCell className="font-mono tabular-nums">{d.firstIn ? formatTime(d.firstIn) : ''}</TableCell>
                   <TableCell className="font-mono tabular-nums">{d.lastOut ? formatTime(d.lastOut) : ''}{d.sessions.length > 1 && <span className="ml-1 text-xs text-muted-foreground">({d.sessions.length} lần)</span>}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{hm(d.workedMinutes)}</TableCell>
                   <TableCell className={cn('text-right tabular-nums', d.lateMinutes > 0 && 'text-red-600')}>{d.lateMinutes || ''}</TableCell>
                   <TableCell className={cn('text-right tabular-nums', d.shortMinutes > 0 && 'text-amber-600')}>{d.shortMinutes || ''}</TableCell>
                   <TableCell className="text-xs">{d.workMode ? WORK_MODE[d.workMode] : ''}</TableCell>
-                  <TableCell><StatusBadge status={d.status} /></TableCell>
+                  <TableCell>
+                    <StatusBadge status={d.status} />
+                    {corrections.filter((c) => c.workDate === d.date).map((c) => (
+                      <div key={c.id} className="mt-1 text-xs text-muted-foreground">Giải trình {c.type === 'In' ? 'vào' : 'ra'} {c.time} {CORRECTION_LABEL[c.status]}</div>
+                    ))}
+                  </TableCell>
+                  {onCorrect && (
+                    <TableCell className="text-right">
+                      {canCorrect(d) && <button className="text-xs text-primary hover:underline" onClick={() => onCorrect(d)} data-testid={`correct-${d.date}`}>Giải trình</button>}
+                    </TableCell>
+                  )}
                 </TableRow>
               );
             })}

@@ -51,6 +51,11 @@ public sealed class SmtpSettings
     public bool UseSsl { get; set; }
     [Required(ErrorMessage = "Thiếu Smtp__FromEmail trong .env"), EmailAddress] public string FromEmail { get; set; } = "";
     public string FromName { get; set; } = "OfficeHub";
+    /// <summary>
+    /// Kiểm tra thu hồi chứng chỉ (CRL/OCSP) khi bắt tay TLS. Mặc định BẬT. Chỉ chủ dự án tắt khi môi trường không hoàn tất
+    /// được bước này (vd macOS dev với Gmail: "incomplete certificate revocation check"). Chuỗi chứng chỉ + tên máy chủ vẫn được kiểm tra.
+    /// </summary>
+    public bool CheckCertificateRevocation { get; set; } = true;
 }
 
 public sealed class OfficeSettings

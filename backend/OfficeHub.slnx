@@ -8,9 +8,11 @@
   </Folder>
   <Folder Name="/src/Modules/" />
   <Folder Name="/src/Modules/Approval/">
+    <Project Path="src/Modules/Approval/OfficeHub.Modules.Approval.Contracts/OfficeHub.Modules.Approval.Contracts.csproj" />
     <Project Path="src/Modules/Approval/OfficeHub.Modules.Approval/OfficeHub.Modules.Approval.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Attendance/">
+    <Project Path="src/Modules/Attendance/OfficeHub.Modules.Attendance.Contracts/OfficeHub.Modules.Attendance.Contracts.csproj" />
     <Project Path="src/Modules/Attendance/OfficeHub.Modules.Attendance/OfficeHub.Modules.Attendance.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Audit/">
@@ -24,6 +26,7 @@
     <Project Path="src/Modules/LaborContracts/OfficeHub.Modules.LaborContracts/OfficeHub.Modules.LaborContracts.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Leave/">
+    <Project Path="src/Modules/Leave/OfficeHub.Modules.Leave.Contracts/OfficeHub.Modules.Leave.Contracts.csproj" />
     <Project Path="src/Modules/Leave/OfficeHub.Modules.Leave/OfficeHub.Modules.Leave.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Notification/">
@@ -39,5 +42,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/OfficeHub.Architecture.Tests/OfficeHub.Architecture.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Attendance.Tests/OfficeHub.Modules.Attendance.Tests.csproj" />
+    <Project Path="tests/OfficeHub.Modules.Leave.Tests/OfficeHub.Modules.Leave.Tests.csproj" />
   </Folder>
 </Solution>

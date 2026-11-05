@@ -17,7 +17,12 @@ public enum DayStatus
     Absent,
     /// <summary>Trước ngày vào làm hoặc sau ngày nghỉ việc — không tính công.</summary>
     NotEmployed,
+    /// <summary>Nghỉ phép cả ngày (đơn đã duyệt), không chấm công.</summary>
+    Leave,
 }
+
+/// <summary>Nghỉ phép đã duyệt trong ngày. Fraction 1 = cả ngày, 0.5 = nửa ngày (Morning / Afternoon).</summary>
+public sealed record DayLeave(decimal Fraction, bool Morning, bool Afternoon, string Name);
 
 public sealed record Punch(DateTimeOffset At, PunchType Type, WorkMode Mode);
 
@@ -35,7 +40,12 @@ public sealed record DayResult(
     /// <summary>Ca cố định: về sớm. Ca linh hoạt: thiếu giờ so với số giờ phải đủ.</summary>
     int ShortMinutes,
     /// <summary>"Onsite" / "Remote" / "Mixed" / null nếu không chấm công.</summary>
-    string? WorkMode);
+    string? WorkMode,
+    /// <summary>Có ca và không phải ngày lễ (ngày phải đi làm theo lịch).</summary>
+    bool Scheduled = false,
+    /// <summary>Phần ngày nghỉ phép đã duyệt (0, 0.5, 1).</summary>
+    decimal LeaveFraction = 0,
+    string? LeaveName = null);
 
 /// <summary>
 /// Tính công MỘT ngày từ sự kiện thô + ca làm. Hàm thuần (không DB) để test được.
@@ -44,8 +54,11 @@ public sealed record DayResult(
 public static class TimesheetCalculator
 {
     public static DayResult Compute(DateOnly date, IEnumerable<Punch> punches, Shift? shift, bool isHoliday,
-        DateTimeOffset now, TimeZoneInfo tz)
+        DateTimeOffset now, TimeZoneInfo tz, DayLeave? leave = null)
     {
+        var scheduled = shift is not null && !isHoliday;
+        var fullLeave = leave is { Fraction: >= 1 };
+        var halfLeave = leave is { Fraction: > 0 and < 1 };
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, tz).DateTime);
         var isToday = date == today;
         var ordered = punches.OrderBy(p => p.At).ToList();
@@ -60,7 +73,8 @@ public static class TimesheetCalculator
         }
         if (open is { } o) sessions.Add(new WorkSession(o, null));
 
-        var required = RequiredMinutes(shift);
+        // Nghỉ cả ngày: không phải làm. Nghỉ nửa ngày: phải làm một nửa.
+        var required = isHoliday || fullLeave ? 0 : halfLeave ? RequiredMinutes(shift) / 2 : RequiredMinutes(shift);
         var mode = ordered.Count == 0 ? null
             : ordered.Select(p => p.Mode).Distinct().Count() > 1 ? "Mixed"
             : ordered[0].Mode == Domain.WorkMode.Onsite ? "Onsite" : "Remote";
@@ -69,9 +83,10 @@ public static class TimesheetCalculator
         {
             var status = isHoliday ? DayStatus.Holiday
                 : shift is null ? DayStatus.DayOff
+                : fullLeave ? DayStatus.Leave
                 : date > today || (isToday && !ShiftEnded(date, shift, now, tz)) ? DayStatus.NotYet
                 : DayStatus.Absent;
-            return new DayResult(date, status, [], null, null, 0, isHoliday ? 0 : required, 0, 0, null);
+            return new DayResult(date, status, [], null, null, 0, required, 0, 0, null, scheduled, leave?.Fraction ?? 0, leave?.Name);
         }
 
         // 2) Phiên đang mở: hôm nay → tính tới hiện tại; ngày cũ → thiếu giờ ra, không tính.
@@ -87,22 +102,26 @@ public static class TimesheetCalculator
         var dayStatus = hasOpen ? (isToday ? DayStatus.Working : DayStatus.MissingCheckout) : DayStatus.Present;
 
         int late = 0, shortMin = 0;
-        if (shift is not null && !isHoliday)
+        // Nghỉ buổi sáng → không xét đi muộn; nghỉ buổi chiều → không xét về sớm (ca cố định).
+        if (shift is not null && !isHoliday && !fullLeave)
         {
+            var skipLate = leave?.Morning == true;
+            var skipEarly = leave?.Afternoon == true;
             if (shift.Type == ShiftType.Fixed && shift.StartTime is { } st && shift.EndTime is { } et)
             {
                 var start = At(date, st, tz);
-                if (firstIn > start.AddMinutes(shift.GraceMinutes)) late = Minutes(start, firstIn);
-                if (dayStatus == DayStatus.Present && lastOut is { } lo && lo < At(date, et, tz)) shortMin = Minutes(lo, At(date, et, tz));
+                if (!skipLate && firstIn > start.AddMinutes(shift.GraceMinutes)) late = Minutes(start, firstIn);
+                if (!skipEarly && dayStatus == DayStatus.Present && lastOut is { } lo && lo < At(date, et, tz)) shortMin = Minutes(lo, At(date, et, tz));
             }
             else if (shift.Type == ShiftType.Flexible)
             {
-                if (shift.LatestIn is { } li && firstIn > At(date, li, tz)) late = Minutes(At(date, li, tz), firstIn);
+                if (!skipLate && shift.LatestIn is { } li && firstIn > At(date, li, tz)) late = Minutes(At(date, li, tz), firstIn);
                 if (dayStatus == DayStatus.Present) shortMin = Math.Max(0, required - worked);
             }
         }
 
-        return new DayResult(date, dayStatus, sessions, firstIn, lastOut, worked, isHoliday ? 0 : required, late, shortMin, mode);
+        return new DayResult(date, dayStatus, sessions, firstIn, lastOut, worked, required, late, shortMin, mode, scheduled,
+            leave?.Fraction ?? 0, leave?.Name);
     }
 
     public static int RequiredMinutes(Shift? shift)

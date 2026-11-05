@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatTime } from '@/utils/date';
 import { cn } from '@/utils/cn';
 import { useBoard, useEmployeeMonth, useReport } from '../hooks/useAttendance';
-import type { IEmployeeBrief } from '../types/attendance.types';
+import type { DayStatus, IEmployeeBrief } from '../types/attendance.types';
 import { hm, WORK_MODE } from '../utils/labels';
 import { MonthTimesheet } from './MonthTimesheet';
 import { StatusBadge } from './StatusBadge';
@@ -12,13 +12,13 @@ import { StatusBadge } from './StatusBadge';
 /** Tình trạng chấm công hôm nay của cả công ty (HR) / cấp dưới (quản lý). */
 export function BoardTable() {
   const { data: rows = [], isLoading } = useBoard();
-  const order = { Working: 0, Present: 1, MissingCheckout: 2, NotYet: 3, Absent: 4, Holiday: 5, DayOff: 6, NotEmployed: 7 } as const;
+  const order: Record<DayStatus, number> = { Working: 0, Present: 1, MissingCheckout: 2, NotYet: 3, Leave: 4, Absent: 5, Holiday: 6, DayOff: 7, NotEmployed: 8 };
   const sorted = [...rows].sort((a, b) => order[a.day.status] - order[b.day.status] || a.employee.code.localeCompare(b.employee.code));
   const count = (s: string) => rows.filter((r) => r.day.status === s).length;
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Đang làm <b>{count('Working')}</b> · Đã xong <b>{count('Present')}</b> · Chưa chấm <b>{count('NotYet')}</b> · Vắng <b>{count('Absent')}</b>
+        Đang làm <b>{count('Working')}</b> · Đã xong <b>{count('Present')}</b> · Chưa chấm <b>{count('NotYet')}</b> · Nghỉ phép <b>{count('Leave')}</b> · Vắng <b>{count('Absent')}</b>
       </p>
       <div className="rounded-xl border bg-card">
         <Table>

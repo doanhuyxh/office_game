@@ -1,6 +1,6 @@
 // Khớp với DTO ở backend/src/Modules/Attendance/.../Features/Dtos.cs
 
-export type DayStatus = 'DayOff' | 'Holiday' | 'NotYet' | 'Working' | 'Present' | 'MissingCheckout' | 'Absent' | 'NotEmployed';
+export type DayStatus = 'DayOff' | 'Holiday' | 'NotYet' | 'Working' | 'Present' | 'MissingCheckout' | 'Absent' | 'NotEmployed' | 'Leave';
 export type WorkModeValue = 'Onsite' | 'Remote' | 'Mixed';
 export type ShiftType = 'Fixed' | 'Flexible';
 
@@ -40,6 +40,9 @@ export interface IDay {
   workMode: WorkModeValue | null;
   shiftName: string | null;
   holidayName: string | null;
+  /** 0 | 0.5 | 1 — phần ngày nghỉ phép đã duyệt */
+  leaveFraction: number;
+  leaveName: string | null;
 }
 
 export interface ISummary {
@@ -55,6 +58,7 @@ export interface ISummary {
   remoteDays: number;
   mixedDays: number;
   missingCheckoutDays: number;
+  leaveDays: number;
 }
 
 export interface IEmployeeBrief {
@@ -111,3 +115,26 @@ export interface IHoliday {
 }
 
 export type CheckSource = 'web' | 'office3d';
+
+export type CorrectionStatus = 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
+
+export interface ICorrection {
+  id: string;
+  workDate: string;
+  type: 'In' | 'Out';
+  time: string; // HH:mm
+  workMode: 'Onsite' | 'Remote';
+  reason: string;
+  status: CorrectionStatus;
+  rejectReason: string | null;
+  approvalRequestId: string | null;
+  createdAt: string;
+}
+
+export interface ICreateCorrection {
+  workDate: string;
+  type: 'In' | 'Out';
+  time: string;
+  workMode: 'Onsite' | 'Remote';
+  reason: string;
+}

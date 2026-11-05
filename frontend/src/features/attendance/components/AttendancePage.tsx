@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Input } from '@/components/common/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
 import { hasRole, useMe } from '@/features/auth';
-import { useMyMonth, useToday } from '../hooks/useAttendance';
+import { useMyCorrections, useMyMonth, useToday } from '../hooks/useAttendance';
+import type { IDay } from '../types/attendance.types';
+import { CorrectionDialog } from './CorrectionDialog';
 import { currentMonth } from '../utils/labels';
 import { CheckInCard } from './CheckInCard';
 import { HolidaysPanel } from './HolidaysPanel';
@@ -19,6 +21,8 @@ function MyTab() {
   const [month, setMonth] = useState(currentMonth());
   const { noProfile } = useToday();
   const { data } = useMyMonth(month);
+  const { data: corrections = [] } = useMyCorrections(month);
+  const [correcting, setCorrecting] = useState<IDay | null>(null);
   return (
     <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
       <CheckInCard className="h-fit" />
@@ -28,7 +32,8 @@ function MyTab() {
             <h3 className="font-semibold">Bảng công của tôi</h3>
             <MonthPicker value={month} onChange={setMonth} />
           </div>
-          {data ? <MonthTimesheet data={data} /> : <p className="text-sm text-muted-foreground">Đang tải…</p>}
+          {data ? <MonthTimesheet data={data} onCorrect={setCorrecting} corrections={corrections} /> : <p className="text-sm text-muted-foreground">Đang tải…</p>}
+          <CorrectionDialog day={correcting} onClose={() => setCorrecting(null)} />
         </div>
       )}
     </div>

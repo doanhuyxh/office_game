@@ -33,7 +33,7 @@ bun run dev                                   # http://localhost:5173, proxy /ap
 | Việc | Lệnh | Thư mục |
 |---|---|---|
 | Build BE (như CI) | `dotnet build -warnaserror` | `backend/` |
-| Test BE | `dotnet test` (OfficeHub.Architecture.Tests + OfficeHub.Modules.Attendance.Tests) | `backend/` |
+| Test BE | `dotnet test` (OfficeHub.Architecture.Tests, OfficeHub.Modules.Attendance.Tests, OfficeHub.Modules.Leave.Tests) | `backend/` |
 | Typecheck FE | `bun run typecheck` (`tsc -b`) | `frontend/` |
 | Build FE | `bun run build` (`tsc -b && vite build`) | `frontend/` |
 | Sinh type từ OpenAPI | `bun run api:generate` (Orval → `src/types/generated/`, thư mục **chưa tồn tại** tới khi chạy lần đầu; cần Api đang chạy) | `frontend/` |
@@ -52,7 +52,7 @@ dotnet ef migrations add <TenMigration> \
   --context <DbContext> -o Infrastructure/Migrations
 ```
 
-DbContext hiện có: `OfficeIdentityDbContext`, `OrgDbContext`, `AttendanceDbContext`. Migration tự chạy khi Api khởi động nếu `Database__MigrateOnStartup=true`. Chi tiết: [database.md](database.md).
+DbContext hiện có: `OfficeIdentityDbContext`, `OrgDbContext`, `AttendanceDbContext`, `ApprovalDbContext`, `LeaveDbContext`. Migration tự chạy khi Api khởi động nếu `Database__MigrateOnStartup=true`. Chi tiết: [database.md](database.md).
 
 ## Biến môi trường
 
@@ -74,7 +74,8 @@ Một file `.env` ở gốc repo cho BE + Docker Compose. Quy ước `Section__K
 | `S3__KeyPrefix` | – | Thư mục gốc trong bucket (bucket dùng chung dự án khác) |
 | `S3__PresignMinutes` | – (5) | Hạn presigned URL |
 | `S3__BucketBackup`, `S3__BucketWeb` | script | Dùng bởi `infra/backup/backup.sh`, `frontend/scripts/upload-web-s3.sh` |
-| `Smtp__Host`, `Smtp__FromEmail` | ✔ | SMTP (MailKit, timeout 15s mỗi lần gửi). `Smtp__Port/UseSsl/Username/Password/FromName` tuỳ chọn |
+| `Smtp__Host`, `Smtp__FromEmail` | ✔ | SMTP (MailKit, timeout 15s mỗi lần gửi). `Smtp__Port/UseSsl/Username/Password/FromName` tuỳ chọn. Cổng 587 ↔ `UseSsl=false` (STARTTLS), 465 ↔ `UseSsl=true` |
+| `Smtp__CheckCertificateRevocation` | – (true) | Kiểm tra thu hồi chứng chỉ TLS. Chủ dự án có thể đặt `false` trên máy dev macOS nếu Gmail báo "incomplete certificate revocation check" |
 | `LiveKit__Url/ApiKey/ApiSecret` | – | Thiếu → voice trả 503. Secret < 32 ký tự → Realtime không khởi động |
 | `Seq__Url`, `Seq__ApiKey`, `Sentry__Dsn` | – | Log / lỗi; trống = tắt |
 | `Realtime__MapPath` | – | Mặc định `shared/office-map.json` |

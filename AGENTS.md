@@ -13,10 +13,13 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Luồng request, cookie Api ↔ Realtime, route/trang, cache | [.agent/architecture.md](.agent/architecture.md) |
 | Thêm/sửa bảng, index, migration, quy tắc ghi dữ liệu | [.agent/database.md](.agent/database.md) |
 | Nguyên tắc phân quyền, nợ kỹ thuật đã biết | [.agent/business/README.md](.agent/business/README.md) |
-| Sửa đăng nhập, mật khẩu, link mời, quên mật khẩu, admin seed | [.agent/business/auth.md](.agent/business/auth.md) |
-| Sửa nhân viên, phòng ban, chức vụ, cấp tài khoản, vai trò, nghỉ việc | [.agent/business/organization.md](.agent/business/organization.md) |
-| Sửa chấm công, ca, lịch tuần, ngày lễ, cách tính muộn / thiếu giờ, bảng công | [.agent/business/attendance.md](.agent/business/attendance.md) |
-| Sửa văn phòng 3D, SignalR hub, bản đồ, chat, voice, chấm công trong 3D | [.agent/business/office.md](.agent/business/office.md) |
+| Đăng nhập, mật khẩu, link mời, admin seed | [.agent/business/auth.md](.agent/business/auth.md) |
+| Nhân viên, phòng ban, cấp tài khoản, vai trò | [.agent/business/organization.md](.agent/business/organization.md) |
+| Chấm công, ca, lịch, ngày lễ, bảng công | [.agent/business/attendance.md](.agent/business/attendance.md) |
+| Giải trình chấm công | [.agent/business/attendance-corrections.md](.agent/business/attendance-corrections.md) |
+| Luồng duyệt, thêm loại đơn | [.agent/business/approval.md](.agent/business/approval.md) |
+| Nghỉ phép, quỹ phép năm | [.agent/business/leave.md](.agent/business/leave.md) |
+| Văn phòng 3D, SignalR, bản đồ, voice | [.agent/business/office.md](.agent/business/office.md) |
 
 ## Luật không được vi phạm
 
@@ -26,7 +29,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 4. **`attendance.events` chỉ thêm, không sửa/xoá**; bảng công luôn tính từ sự kiện qua `TimesheetCalculator`. Đổi quy tắc tính → sửa cả `tests/OfficeHub.Modules.Attendance.Tests`.
 5. **Thời gian do server quyết định** (`TimeProvider` + `Office__TimeZone`); lưu `DateTimeOffset` UTC.
 6. **Không commit secret**: cấu hình qua `.env` (gitignore). Thêm biến → Settings có `ErrorMessage = "Thiếu X__Y trong .env"`, cập nhật `.env.example` + `commands.md`.
-7. **FE**: ngoài feature chỉ import qua `@/features/<x>`; màn hình mới = feature + một dòng `page(...)` trong `routes/router.tsx` (không tạo file route bọc component). Dùng component/helper sẵn có (`components/common`, `utils`, `BuildingBlocks`) trước khi tạo mới. Chỉ dùng bun.
+7. **FE**: ngoài feature chỉ import qua `@/features/<x>`; màn hình mới = feature + `page(...)` trong `routes/router.tsx`. Dùng helper sẵn có trước khi tạo mới. Chỉ dùng bun.
 8. **Xong việc phải pass**: `backend/`: `dotnet build -warnaserror` và `dotnet test`; `frontend/`: `bun run build`.
 
 ## Giữ tài liệu đúng

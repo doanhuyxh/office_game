@@ -4,26 +4,28 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OfficeHub.BuildingBlocks.Modules;
+using OfficeHub.BuildingBlocks.Persistence;
+using OfficeHub.Modules.Approval.Contracts;
+using OfficeHub.Modules.Leave.Contracts;
+using OfficeHub.Modules.Leave.Features;
+using OfficeHub.Modules.Leave.Infrastructure;
 
 namespace OfficeHub.Modules.Leave;
 
-/// <summary>Loại phép, chính sách cộng phép, quỹ phép, đơn nghỉ.</summary>
-/// <remarks>
-/// Cấu trúc: Domain/ (entity, quy tắc) · Features/ (mỗi use case một thư mục: Endpoint + Handler + Validator)
-/// · Infrastructure/ (DbContext schema riêng, migrations) · Contracts/ (sự kiện, interface công khai). Khi module khác cần dùng: tách thành project OfficeHub.Modules.X.Contracts.
-/// </remarks>
+/// <summary>Nghỉ phép: loại phép, quỹ phép năm (cộng dồn, không hết hạn), đơn nghỉ qua luồng duyệt, điều chỉnh của HR.</summary>
 public sealed class LeaveModule : IModule
 {
     public string Name => "leave";
 
     public void Register(IServiceCollection services, IConfiguration config)
     {
-        // TODO: services.AddModuleDbContext<LeaveDbContext>(config, "leave");
+        services.AddModuleDbContext<LeaveDbContext>(config, LeaveDbContext.Schema);
+        services.AddScoped<LeaveBalanceService>();
+        services.AddScoped<ILeaveCalendar, LeaveCalendar>();
+        services.AddScoped<IApprovalHandler, LeaveApprovalHandler>();
+        services.AddHostedService<LeaveSeeder>();
     }
 
-    public void MapEndpoints(IEndpointRouteBuilder api)
-    {
-        var g = api.MapGroup("/leave").WithTags("Leave").RequireAuthorization();
-        g.MapGet("/_status", () => TypedResults.Ok(new { module = "Leave", status = "chưa triển khai" }));
-    }
+    public void MapEndpoints(IEndpointRouteBuilder api) =>
+        LeaveEndpoints.Map(api.MapGroup("/leave").WithTags("Leave").RequireAuthorization());
 }

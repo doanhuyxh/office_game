@@ -28,7 +28,11 @@ public sealed class SmtpEmailSender(IOptions<SmtpSettings> options) : IEmailSend
         // Giới hạn tổng thời gian: SMTP sai cấu hình có thể treo kết nối > 1 phút → người dùng chờ vô ích.
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(SendTimeout);
-        using var client = new SmtpClient { Timeout = (int)SendTimeout.TotalMilliseconds };
+        using var client = new SmtpClient
+        {
+            Timeout = (int)SendTimeout.TotalMilliseconds,
+            CheckCertificateRevocation = _cfg.CheckCertificateRevocation, // mặc định true — xem SmtpSettings
+        };
         var security = _cfg.UseSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTlsWhenAvailable;
         await client.ConnectAsync(_cfg.Host, _cfg.Port, security, timeout.Token);
         if (!string.IsNullOrEmpty(_cfg.Username))
