@@ -50,7 +50,7 @@ Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` 88 test ✔, `
 ## Bẫy đã gặp
 
 - SMTP dev là Gmail thật → email tới địa chỉ thật sẽ gửi thật; tên miền dành riêng bị bỏ qua (`EmailPolicy`).
-- S3 là bucket dùng chung (`finsplit`), chỉ ghi trong `S3__KeyPrefix=officehub/`; không mở quyền public.
+- S3: bucket riêng `officehubdoanhuyxh` + IAM user `OfficeHub` (chỉ quyền trên `officehub/*`), không public. File upload trước khi đổi vẫn ở bucket cũ `finsplit/officehub/` (chưa chuyển).
 - Lần migrate đầu của schema mới, EF log `ERR … __ef_migrations` — bình thường.
 - `dotnet ef migrations remove` cần DB → với migration đầu của context, xoá tay 3 file (migration, Designer, Snapshot).
 - Sửa `shared/office-map.json` → phải chạy `bun design/tools/render-plan.ts` (ghi lại `office-map.grid.txt`), nếu không test Realtime fail.

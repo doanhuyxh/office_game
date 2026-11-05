@@ -619,7 +619,7 @@ Hiện tại các tương tác dưới đây được làm **đồng bộ qua `*
 
 ### S3
 
-**Đang dùng:** AWS S3, bucket **`finsplit`** (region `ap-southeast-2`). Bucket này **dùng chung với dự án khác**, nên mọi thứ của OfficeHub nằm dưới tiền tố `S3__KeyPrefix=officehub/`:
+**Đang dùng (từ 2026-11-05):** AWS S3, bucket riêng **`officehubdoanhuyxh`** (region `ap-southeast-2`), IAM user riêng **`OfficeHub`**. Mọi thứ vẫn nằm dưới tiền tố `S3__KeyPrefix=officehub/`:
 
 | Đường dẫn | Dùng cho | Ghi bởi |
 |---|---|---|
@@ -628,23 +628,23 @@ Hiện tại các tương tác dưới đây được làm **đồng bộ qua `*
 | `officehub/web/releases/<version>/` | Lưu các bản build FE để rollback | `frontend/scripts/upload-web-s3.sh` |
 
 **Bảo mật (đã kiểm tra 2026-11-05):**
-- Policy hiện tại chỉ mở đọc công khai `finsplit/draw-money-app/*` (của dự án kia). `officehub/*` **không public**: gọi URL trực tiếp trả 403, chỉ đọc được qua presigned URL (mặc định 5 phút).
-- Bucket mã hoá mặc định AES256. Khi dùng AWS, `S3FileStorage` gửi kèm SSE AES256.
-- Bucket **chưa bật versioning**. Nên bật để không mất hợp đồng khi ghi đè hoặc xoá nhầm.
-- **Không được mở rộng policy public ra `officehub/*`.** Nếu sửa policy cho dự án kia, giữ `Resource` chỉ ở thư mục của dự án đó.
-- Key hiện dùng là IAM user `finsplit` (dùng chung với dự án kia). Khuyến nghị tạo **IAM user riêng** cho OfficeHub, chỉ có quyền trên tiền tố của mình:
+- Bucket không public: gọi URL trực tiếp trả 403, chỉ đọc được qua presigned URL (mặc định 5 phút). **Không mở policy public.**
+- IAM user `OfficeHub` chỉ có quyền trên tiền tố `officehub/` (Put / Get / Delete + List có điều kiện prefix) — đã thử: ghi, liệt kê, đọc, xoá được.
+- Khi dùng AWS, `S3FileStorage` gửi kèm SSE AES256. Nên bật **versioning** để không mất hợp đồng khi ghi đè hoặc xoá nhầm.
 
 ```json
 {
   "Version": "2012-10-17",
   "Statement": [
     { "Effect": "Allow", "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-      "Resource": "arn:aws:s3:::finsplit/officehub/*" },
-    { "Effect": "Allow", "Action": "s3:ListBucket", "Resource": "arn:aws:s3:::finsplit",
+      "Resource": "arn:aws:s3:::officehubdoanhuyxh/officehub/*" },
+    { "Effect": "Allow", "Action": "s3:ListBucket", "Resource": "arn:aws:s3:::officehubdoanhuyxh",
       "Condition": { "StringLike": { "s3:prefix": ["officehub/*"] } } }
   ]
 }
 ```
+
+Trước đó (tới 2026-11-05) dùng bucket chung `finsplit` + IAM user `finsplit`; file upload lúc đó vẫn nằm ở `finsplit/officehub/` (chưa chuyển).
 
 **Dev offline:** RustFS trong `docker-compose.dev.yml` (giá trị mẫu trong `.env.example`, `S3__KeyPrefix` để trống).
 
