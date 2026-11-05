@@ -9,11 +9,17 @@ public interface IAccountService
     /// <summary>HR tạo sẵn tài khoản với mật khẩu tạm → nhân viên bắt buộc đổi mật khẩu lần đầu.</summary>
     Task<AccountResult> CreateWithPasswordAsync(NewAccount account, string tempPassword, CancellationToken ct = default);
 
-    /// <summary>Tạo tài khoản chưa có mật khẩu và gửi email mời (link đặt mật khẩu, hết hạn 72 giờ).</summary>
-    Task<AccountResult> InviteAsync(NewAccount account, CancellationToken ct = default);
+    /// <summary>
+    /// Tạo tài khoản CHƯA có mật khẩu (chưa gửi email). Bên gọi phải lưu liên kết tới tài khoản trước,
+    /// rồi mới gọi <see cref="SendInviteAsync"/> — để lỗi email không bao giờ để lại tài khoản mồ côi.
+    /// </summary>
+    Task<AccountResult> CreateInvitedAsync(NewAccount account, CancellationToken ct = default);
 
-    /// <summary>Gửi lại email mời cho tài khoản chưa đặt mật khẩu.</summary>
-    Task<AccountResult> ResendInviteAsync(Guid userId, CancellationToken ct = default);
+    /// <summary>
+    /// Gửi (hoặc gửi lại) email mời cho tài khoản chưa đặt mật khẩu (link đặt mật khẩu, hết hạn 72 giờ).
+    /// SMTP lỗi → Fail với <see cref="AccountResult.Code"/> = <see cref="AccountErrors.EmailFailed"/> (không ném exception).
+    /// </summary>
+    Task<AccountResult> SendInviteAsync(Guid userId, CancellationToken ct = default);
 
     /// <summary>HR đặt lại mật khẩu tạm (nhân viên quên mật khẩu, không có email).</summary>
     Task<AccountResult> ResetToTempPasswordAsync(Guid userId, string tempPassword, CancellationToken ct = default);
@@ -30,10 +36,17 @@ public interface IAccountService
 
 public sealed record NewAccount(string UserName, string? Email, string FullName, IReadOnlyCollection<string> Roles);
 
-public sealed record AccountResult(bool Succeeded, Guid? UserId, IReadOnlyList<string> Errors)
+public sealed record AccountResult(bool Succeeded, Guid? UserId, IReadOnlyList<string> Errors, string? Code = null)
 {
     public static AccountResult Ok(Guid userId) => new(true, userId, []);
     public static AccountResult Fail(params string[] errors) => new(false, null, errors);
+    public static AccountResult FailWithCode(string code, string error) => new(false, null, [error], code);
+}
+
+/// <summary>Mã lỗi để bên gọi phân biệt cách xử lý (vd trả 502 khi email lỗi).</summary>
+public static class AccountErrors
+{
+    public const string EmailFailed = "email_failed";
 }
 
 public sealed record AccountInfo(

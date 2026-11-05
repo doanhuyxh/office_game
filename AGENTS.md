@@ -25,7 +25,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 3. **Business logic đặt ở back-end** (endpoint/service/`Domain` của module). FE chỉ hiển thị, gọi API qua `services/api-client.ts`.
 4. **`attendance.events` chỉ thêm, không sửa/xoá**; bảng công luôn tính từ sự kiện qua `TimesheetCalculator`. Đổi quy tắc tính → sửa cả `tests/OfficeHub.Modules.Attendance.Tests`.
 5. **Thời gian do server quyết định** (`TimeProvider` + `Office__TimeZone`); lưu `DateTimeOffset` UTC.
-6. **Không commit secret**: mọi cấu hình qua `.env` (đã gitignore). Thêm biến → khai báo Settings có `ErrorMessage = "Thiếu X__Y trong .env"`, cập nhật `.env.example` và `commands.md`.
+6. **Không commit secret**: cấu hình qua `.env` (gitignore). Thêm biến → Settings có `ErrorMessage = "Thiếu X__Y trong .env"`, cập nhật `.env.example` + `commands.md`.
 7. **FE**: ngoài feature chỉ import qua `@/features/<x>`; màn hình mới = feature + một dòng `page(...)` trong `routes/router.tsx` (không tạo file route bọc component). Dùng component/helper sẵn có (`components/common`, `utils`, `BuildingBlocks`) trước khi tạo mới. Chỉ dùng bun.
 8. **Xong việc phải pass**: `backend/`: `dotnet build -warnaserror` và `dotnet test`; `frontend/`: `bun run build`.
 

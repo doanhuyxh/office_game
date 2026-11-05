@@ -17,6 +17,7 @@ x-app-env: &app-env
     Seq__Url: http://seq:5341
     App__BaseUrl: https://${APP_DOMAIN}
     Realtime__MapPath: /app/shared/office-map.json
+    Realtime__ApiBaseUrl: http://api:8080   # Realtime hỏi Api để kiểm tra phiên đăng nhập
   volumes:
     - keys:/keys
   restart: unless-stopped

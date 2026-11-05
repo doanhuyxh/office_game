@@ -1,4 +1,5 @@
 using OfficeHub.BuildingBlocks.Auth;
+using OfficeHub.Realtime.Auth;
 using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.BuildingBlocks.Hosting;
 using OfficeHub.Realtime.Hubs;
@@ -12,6 +13,13 @@ builder.AddOfficeHubDefaults("officehub-realtime");
 // Đọc cookie do OfficeHub.Api cấp (cùng scheme, cùng tên cookie, cùng khoá DataProtection).
 builder.Services.AddAuthentication(AuthCookie.Scheme).AddCookie(AuthCookie.Scheme, AuthCookie.Configure);
 builder.Services.AddAuthorization();
+
+// Kiểm tra phiên qua OfficeHub.Api (tài khoản bị khoá → đẩy khỏi văn phòng)
+builder.Services.AddOptions<RealtimeSettings>().Bind(builder.Configuration.GetSection(RealtimeSettings.Section));
+var apiBase = builder.Configuration.GetSection(RealtimeSettings.Section).Get<RealtimeSettings>()?.ApiBaseUrl ?? new RealtimeSettings().ApiBaseUrl;
+builder.Services.AddHttpClient(SessionValidator.HttpClientName, c => { c.BaseAddress = new Uri(apiBase); c.Timeout = TimeSpan.FromSeconds(5); });
+builder.Services.AddSingleton<SessionValidator>();
+builder.Services.AddHostedService<SessionWatch>();
 
 builder.Services.AddSignalR(o => o.MaximumReceiveMessageSize = 16 * 1024).AddMessagePackProtocol();
 

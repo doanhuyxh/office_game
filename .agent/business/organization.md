@@ -49,15 +49,16 @@ Không có API xoá nhân viên (giữ dữ liệu chấm công).
 
 - `userName` trống → dùng `Code`. Email tài khoản lấy từ `employee.Email`.
 - `roles` luôn được thêm `employee` và bỏ trùng (`NormalizeRoles`).
-- **Mật khẩu tạm** (`GenerateTempPassword`): 10 ký tự, có thường + HOA + số, bỏ ký tự dễ nhầm (0/O, 1/l/I). Chỉ trả về **một lần** trong response, không lưu ở đâu khác.
-- Sau khi tạo, `employee.UserId = result.UserId` (bước ghi riêng sau Identity — xem [database.md](../database.md#không-có)).
+- **Mật khẩu tạm** (`GenerateTempPassword`): 10 ký tự thường + HOA + số, bỏ ký tự dễ nhầm. Chỉ trả về **một lần**, không lưu ở đâu khác.
+- Thứ tự (giữ nguyên khi sửa): **1)** tạo tài khoản → **2)** ghi `employee.UserId` → **3)** `SendInviteAsync` (chế độ invite). Email lỗi ở bước 3 thì tài khoản vẫn đã gắn, HR bấm "Gửi lại lời mời".
 
 | Trường hợp | Kết quả |
 |---|---|
 | Nhân viên đã có tài khoản | 409 `"Nhân viên đã có tài khoản"` |
 | Nhân viên đã nghỉ | 409 `"Nhân viên đã nghỉ việc"` |
 | `invite` mà chưa có email | 400 (`mode`) `"Nhân viên chưa có email, hãy nhập email hoặc chọn cấp mật khẩu tạm"` |
-| `invite` mà SMTP lỗi | 502 `"Đã tạo tài khoản nhưng gửi email thất bại. Kiểm tra cấu hình SMTP rồi bấm 'Gửi lại lời mời'."` — **lúc này user đã tạo nhưng `employee.UserId` chưa được ghi** (cần xác nhận cách xử lý) |
+| `invite` mà SMTP lỗi | 502 `"Đã tạo tài khoản nhưng gửi email thất bại. Kiểm tra cấu hình SMTP rồi bấm 'Gửi lại lời mời'."` (tài khoản đã gắn, `invitePending`) |
+| `resend-invite` mà SMTP lỗi | 502 `"Gửi email thất bại. Kiểm tra cấu hình SMTP rồi thử lại."` |
 | `mode` khác | 400 `"Chọn 'invite' (mời qua email) hoặc 'password' (mật khẩu tạm)"` |
 | Lỗi từ Identity (trùng tên đăng nhập / email…) | 400, key `account` |
 
@@ -94,4 +95,3 @@ Không có API xoá nhân viên (giữ dữ liệu chấm công).
 - `EmployeeTable`: tìm kiếm (debounce 300ms), lọc phòng ban, "Hiện người đã nghỉ", menu từng dòng: Sửa hồ sơ, Cấp tài khoản, Gửi lại lời mời (khi `invitePending`), Đổi vai trò, Cấp lại mật khẩu tạm, Nghỉ việc / Khôi phục.
 - `EmployeeFormDialog` (lỗi field từ server qua `fieldErrors`), `AccountDialogs.tsx` (`CreateAccountDialog`, `RolesDialog`, `TempPasswordDialog`, `ResignDialog`), `DepartmentsPanel`, `PositionsPanel`.
 - `CreateAccountDialog` trả mật khẩu tạm lên cha qua `onTempPassword` (dialog đóng ngay khi tạo xong; **đừng** hiển thị mật khẩu bên trong dialog này). Lựa chọn vai trò `admin` chỉ hiện với admin.
-- Nhãn tài khoản: Chưa có / Chờ nhận lời mời / Mật khẩu tạm / Hoạt động / Đã khoá.

@@ -74,10 +74,12 @@ Một file `.env` ở gốc repo cho BE + Docker Compose. Quy ước `Section__K
 | `S3__KeyPrefix` | – | Thư mục gốc trong bucket (bucket dùng chung dự án khác) |
 | `S3__PresignMinutes` | – (5) | Hạn presigned URL |
 | `S3__BucketBackup`, `S3__BucketWeb` | script | Dùng bởi `infra/backup/backup.sh`, `frontend/scripts/upload-web-s3.sh` |
-| `Smtp__Host`, `Smtp__FromEmail` | ✔ | SMTP (MailKit). `Smtp__Port/UseSsl/Username/Password/FromName` tuỳ chọn |
+| `Smtp__Host`, `Smtp__FromEmail` | ✔ | SMTP (MailKit, timeout 15s mỗi lần gửi). `Smtp__Port/UseSsl/Username/Password/FromName` tuỳ chọn |
 | `LiveKit__Url/ApiKey/ApiSecret` | – | Thiếu → voice trả 503. Secret < 32 ký tự → Realtime không khởi động |
 | `Seq__Url`, `Seq__ApiKey`, `Sentry__Dsn` | – | Log / lỗi; trống = tắt |
 | `Realtime__MapPath` | – | Mặc định `shared/office-map.json` |
+| `Realtime__ApiBaseUrl` | – (`http://localhost:5080`) | Realtime gọi Api để kiểm tra phiên. Prod compose: `http://api:8080` |
+| `Realtime__SessionCheckSeconds` | – (30, tối thiểu 5) | Chu kỳ kiểm tra lại phiên người đang online |
 | `APP_DOMAIN`, `VOICE_DOMAIN`, `ACME_EMAIL`, `IMAGE_REGISTRY`, `IMAGE_TAG`, `SEQ_ADMIN_PASSWORD` | prod | Chỉ cho `infra/docker-compose.yml` |
 
 FE (`frontend/.env`, không có bí mật): `VITE_API_TARGET`, `VITE_RT_TARGET` (đích proxy khi dev), `VITE_SENTRY_DSN` (khai báo, chưa dùng).

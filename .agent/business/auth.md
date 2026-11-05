@@ -34,6 +34,7 @@ Việc **cấp tài khoản cho nhân viên** do HR làm ở module Organization
 
 - Scheme `Identity.Application`, tên `officehub.auth`, `HttpOnly`, `SameSite=Lax`, `Secure` theo request, hạn 7 ngày **trượt**.
 - Chưa đăng nhập / thiếu quyền → **401 / 403** (không redirect).
+- **Kiểm tra security stamp ở mọi request** (`SecurityStampValidatorOptions.ValidationInterval = TimeSpan.Zero` trong `IdentityModule.cs`): khoá tài khoản, đổi vai trò, cấp lại mật khẩu tạm → cookie cũ bị từ chối ngay ở request kế tiếp. Đổi lại sẽ mở lại lỗ hổng "khoá chưa có hiệu lực".
 - Claim thêm (`AppClaimsFactory`): `full_name`; `must_change_password = "true"` khi đang dùng mật khẩu tạm.
 - OfficeHub.Realtime đọc cùng cookie ([office.md](office.md)); claim `must_change_password` làm hub từ chối kết nối.
 
@@ -42,7 +43,7 @@ Việc **cấp tài khoản cho nhân viên** do HR làm ở module Organization
 | Luồng | Cách làm | Sau đó |
 |---|---|---|
 | HR cấp mật khẩu tạm | `CreateWithPasswordAsync` → `MustChangePassword = true` | Đăng nhập được, FE bắt sang `/change-password`. Đổi xong → cờ về false, `RefreshSignInAsync` cấp cookie mới |
-| HR mời qua email | `InviteAsync` → user **không có mật khẩu** + email link `{App__BaseUrl}/accept-invite?uid=&token=` | Không đăng nhập được tới khi đặt mật khẩu |
+| HR mời qua email | `CreateInvitedAsync` (user **không có mật khẩu**) → bên gọi lưu liên kết → `SendInviteAsync` gửi link `{App__BaseUrl}/accept-invite?uid=&token=` | Không đăng nhập được tới khi đặt mật khẩu |
 | Quên mật khẩu | `/forgot-password`: chỉ gửi nếu user tồn tại, `IsActive`, có email; lỗi SMTP chỉ ghi log | Link `{App__BaseUrl}/reset-password?uid=&token=` |
 | Đặt mật khẩu qua link | `/reset-password` (dùng chung cho mời + quên) | `EmailConfirmed = true`, `MustChangePassword = false`, mở khoá |
 
@@ -56,8 +57,8 @@ Module khác **chỉ** thao tác tài khoản qua interface này.
 | Hàm | Lỗi trả về (`AccountResult.Errors`) |
 |---|---|
 | `CreateWithPasswordAsync(NewAccount, tempPassword)` | `"Tên đăng nhập '{x}' đã tồn tại"`, `"Email '{x}' đã có tài khoản"`, `"Vai trò không hợp lệ: …"`, lỗi mật khẩu Identity |
-| `InviteAsync(NewAccount)` | thêm `"Cần email để gửi lời mời"`; **ném exception** nếu SMTP lỗi (user đã được tạo) |
-| `ResendInviteAsync(userId)` | `"Không tìm thấy tài khoản"`, `"Tài khoản đã đặt mật khẩu, không cần mời lại"`, `"Tài khoản không có email"` |
+| `CreateInvitedAsync(NewAccount)` | như trên + `"Cần email để gửi lời mời"`. **Không gửi email** |
+| `SendInviteAsync(userId)` (gửi / gửi lại) | `"Không tìm thấy tài khoản"`, `"Tài khoản đã đặt mật khẩu, không cần mời lại"`, `"Tài khoản không có email"`; SMTP lỗi → **không ném**, trả `Code = AccountErrors.EmailFailed` |
 | `ResetToTempPasswordAsync(userId, temp)` | đặt mật khẩu mới + `MustChangePassword`, mở khoá, **đổi security stamp** |
 | `SetRolesAsync(userId, roles)` | thay toàn bộ vai trò, **đổi security stamp** |
 | `SetActiveAsync(userId, active)` | `false` → đổi security stamp |

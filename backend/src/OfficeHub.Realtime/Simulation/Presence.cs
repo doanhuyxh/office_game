@@ -9,6 +9,8 @@ public sealed class Player
     public required string Name { get; init; }
     public required string ConnectionId { get; init; }
     public required HubCallerContext Context { get; init; }
+    /// <summary>Cookie đăng nhập lúc kết nối — dùng để kiểm tra lại phiên định kỳ (SessionWatch).</summary>
+    public string? AuthCookie { get; init; }
     public float X, Z, R;
     public byte Anim;
     public bool Dirty = true;

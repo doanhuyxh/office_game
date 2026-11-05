@@ -38,6 +38,10 @@ public sealed class IdentityModule : IModule
             .AddClaimsPrincipalFactory<AppClaimsFactory>()
             .AddDefaultTokenProviders();
 
+        // Kiểm tra lại security stamp ở MỌI request: khoá tài khoản / đổi vai trò / cấp lại mật khẩu có hiệu lực ngay
+        // (mặc định của Identity là 30 phút). Công ty ~12 người → thêm 1 truy vấn user mỗi request là không đáng kể.
+        services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.Zero);
+
         // Link mời / quên mật khẩu hết hạn sau 72 giờ
         services.Configure<DataProtectionTokenProviderOptions>(o => o.TokenLifespan = TimeSpan.FromHours(72));
         services.AddScoped<AccountService>();

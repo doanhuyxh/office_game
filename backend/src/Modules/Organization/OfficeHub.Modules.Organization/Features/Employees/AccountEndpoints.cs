@@ -37,37 +37,48 @@ internal static class AccountEndpoints
         var userName = string.IsNullOrWhiteSpace(req.UserName) ? e.Code : req.UserName.Trim();
         var account = new NewAccount(userName, e.Email, e.FullName, roles);
 
-        AccountResult result;
-        string? temp = null;
-        switch (req.Mode?.ToLowerInvariant())
-        {
-            case "invite":
-                if (string.IsNullOrWhiteSpace(e.Email))
-                    return new Validation().Add("mode", "Nhân viên chưa có email, hãy nhập email hoặc chọn cấp mật khẩu tạm").Problem();
-                try { result = await accounts.InviteAsync(account, ct); }
-                catch (Exception) { return TypedResults.Problem("Đã tạo tài khoản nhưng gửi email thất bại. Kiểm tra cấu hình SMTP rồi bấm 'Gửi lại lời mời'.", statusCode: 502); }
-                break;
-            case "password":
-                temp = GenerateTempPassword();
-                result = await accounts.CreateWithPasswordAsync(account, temp, ct);
-                break;
-            default:
-                return new Validation().Add("mode", "Chọn 'invite' (mời qua email) hoặc 'password' (mật khẩu tạm)").Problem();
-        }
+        var mode = req.Mode?.ToLowerInvariant();
+        if (mode is not ("invite" or "password"))
+            return new Validation().Add("mode", "Chọn 'invite' (mời qua email) hoặc 'password' (mật khẩu tạm)").Problem();
+        if (mode == "invite" && string.IsNullOrWhiteSpace(e.Email))
+            return new Validation().Add("mode", "Nhân viên chưa có email, hãy nhập email hoặc chọn cấp mật khẩu tạm").Problem();
+
+        // Thứ tự quan trọng (giữ nguyên khi sửa): 1) tạo tài khoản → 2) gắn vào hồ sơ → 3) gửi email.
+        // Email lỗi ở bước 3 thì tài khoản vẫn đã gắn, HR bấm "Gửi lại lời mời" được — không còn tài khoản mồ côi.
+        var temp = mode == "password" ? GenerateTempPassword() : null;
+        var result = temp is null
+            ? await accounts.CreateInvitedAsync(account, ct)
+            : await accounts.CreateWithPasswordAsync(account, temp, ct);
         if (!result.Succeeded) return new Validation().Add("account", string.Join(" ", result.Errors)).Problem();
 
         e.UserId = result.UserId;
         await db.SaveChangesAsync(ct);
+
+        if (temp is null)
+        {
+            var sent = await accounts.SendInviteAsync(result.UserId!.Value, ct);
+            if (!sent.Succeeded)
+                return sent.Code == AccountErrors.EmailFailed
+                    ? EmailFailed()
+                    : Problems.Conflict(string.Join(" ", sent.Errors));
+        }
         return TypedResults.Ok(new AccountCreatedResponse(result.UserId!.Value, userName, temp, InviteSent: temp is null));
     }
+
+    private static ProblemHttpResult EmailFailed() => TypedResults.Problem(
+        "Đã tạo tài khoản nhưng gửi email thất bại. Kiểm tra cấu hình SMTP rồi bấm 'Gửi lại lời mời'.",
+        statusCode: StatusCodes.Status502BadGateway);
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> ResendInviteAsync(
         Guid id, OrgDbContext db, IAccountService accounts, CancellationToken ct)
     {
         var e = await db.Employees.FindAsync([id], ct);
         if (e?.UserId is not { } uid) return TypedResults.NotFound();
-        var r = await accounts.ResendInviteAsync(uid, ct);
-        return r.Succeeded ? TypedResults.NoContent() : Problems.Conflict(string.Join(" ", r.Errors));
+        var r = await accounts.SendInviteAsync(uid, ct);
+        if (r.Succeeded) return TypedResults.NoContent();
+        return r.Code == AccountErrors.EmailFailed
+            ? TypedResults.Problem("Gửi email thất bại. Kiểm tra cấu hình SMTP rồi thử lại.", statusCode: StatusCodes.Status502BadGateway)
+            : Problems.Conflict(string.Join(" ", r.Errors));
     }
 
     private static async Task<Results<Ok<TempPasswordResponse>, NotFound, ProblemHttpResult>> ResetPasswordAsync(

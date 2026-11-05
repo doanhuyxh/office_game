@@ -28,16 +28,27 @@ Quy tắc server:
 | Tình huống | Xử lý |
 |---|---|
 | Cookie có `must_change_password` | `Context.Abort()` ngay khi kết nối |
+| Phiên không còn hợp lệ lúc kết nối (`SessionValidator` hỏi Api → 401/403) | `Kicked(SessionWatch.ExpiredReason)` rồi `Abort` |
 | Cùng tài khoản kết nối lần 2 | kết nối cũ nhận `Kicked("Tài khoản vừa đăng nhập ở nơi khác")`, bị `Abort` sau 500ms |
 | `Move` ra ngoài `floor` hoặc quãng đường > `7·dt + 2.5` | không cập nhật, gửi `Teleport` về vị trí cũ |
 | `SendChat` | trim, rỗng → bỏ; cắt 200 ký tự; < 1 giây từ lần trước → `HubException("Gửi chậm lại một chút")` |
 | Ngắt kết nối | `Presence.Remove(userId, connectionId)` chỉ xoá nếu đúng kết nối hiện tại, rồi gửi `PlayerLeft` |
 
+### Kiểm tra phiên (`Auth/SessionValidator.cs`, `Auth/SessionWatch.cs`)
+
+Realtime không đọc được dữ liệu tài khoản (ranh giới module) nên hỏi Api `GET {Realtime__ApiBaseUrl}/api/auth/me` bằng chính cookie `officehub.auth*` của người dùng (lưu ở `Player.AuthCookie` lúc kết nối):
+
+| Khi | Kết quả |
+|---|---|
+| Kết nối hub, xin token voice | Api 401/403 → từ chối (voice trả 401) |
+| `SessionWatch` mỗi `Realtime__SessionCheckSeconds` (30s) cho mọi người online | 401/403 → `Kicked("Phiên đăng nhập đã hết hiệu lực. Vui lòng đăng nhập lại.")`, `Abort` sau 500ms |
+| Api không trả lời / 5xx | `Unknown` → **cho qua** (ghi log `WRN`), để Api restart không đá cả văn phòng |
+
 Tên hiển thị = claim `full_name`. Không có va chạm đồ vật, ngồi, phòng họp, trạng thái "Vắng" (chưa làm). Realtime **chưa** phát sự kiện presence sang Attendance.
 
 ## Voice (`Voice/VoiceEndpoints.cs`)
 
-`POST /rt/voice/token?room=<tên>` (đăng nhập) → `{ url, token, room }` (LiveKit JWT, TTL 2 giờ, grant `RoomJoin`). Thiếu cấu hình → 503 `"Voice chưa được cấu hình (LiveKit__*)"`. `LiveKit__ApiSecret` < 32 ký tự → Realtime không khởi động. Room do client tự đặt (chưa kiểm tra theo vị trí). FE chưa dùng.
+`POST /rt/voice/token?room=<tên>` (đăng nhập) → `{ url, token, room }` (LiveKit JWT, TTL 2 giờ, grant `RoomJoin`). Phiên hết hiệu lực → 401. Thiếu cấu hình → 503 `"Voice chưa được cấu hình (LiveKit__*)"`. `LiveKit__ApiSecret` < 32 ký tự → Realtime không khởi động. Room do client tự đặt (chưa kiểm tra theo vị trí). FE chưa dùng.
 
 ## Front-end (`frontend/src/features/office/`)
 
@@ -50,7 +61,7 @@ Tên hiển thị = claim `full_name`. Không có va chạm đồ vật, ngồi,
 | `features/office/components/office.css` | Mọi selector bọc trong `.office-root` (không được lộ ra trang khác) |
 
 Quy tắc cần giữ khi sửa:
-- Nhận `Kicked` → đặt cờ, `stop()` và **không tự reconnect** (nếu không, 2 tab sẽ đá nhau liên tục).
+- Nhận `Kicked` → đặt cờ, `stop()` và **không tự reconnect** (nếu không, 2 tab sẽ đá nhau liên tục). Overlay hiện đúng `reason` (`useOffice().kickReason`), nút "Vào lại" tải lại trang (phiên hết hạn → guard đưa về `/login`).
 - Effect kết nối phụ thuộc `me.id` (không phụ thuộc object `me`) và `start()` hoãn 1 tick (`setTimeout 0`) để React StrictMode không mở rồi huỷ kết nối.
 - Ô chat đang focus thì phím di chuyển / `E` bị bỏ qua (kiểm tra `tagName === 'INPUT'`).
 

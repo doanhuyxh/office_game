@@ -11,8 +11,11 @@ interface OfficeState {
   online: number;
   zone: string | null;
   chat: ChatLine[];
+  /** Lý do server đẩy ra (đăng nhập nơi khác, phiên hết hiệu lực…) */
+  kickReason: string | null;
   setMe: (me: IMe) => void;
   setConn: (c: ConnState) => void;
+  kick: (reason: string) => void;
   setOnline: (n: number) => void;
   setZone: (z: string | null) => void;
   pushChat: (l: ChatLine) => void;
@@ -24,8 +27,10 @@ export const useOffice = create<OfficeState>((set) => ({
   online: 0,
   zone: null,
   chat: [],
+  kickReason: null,
   setMe: (me) => set({ me }),
   setConn: (conn) => set({ conn }),
+  kick: (kickReason) => set({ conn: 'kicked', kickReason }),
   setOnline: (online) => set({ online }),
   setZone: (zone) => set({ zone }),
   pushChat: (l) => set((s) => ({ chat: [...s.chat.slice(-49), l] })),

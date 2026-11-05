@@ -28,26 +28,31 @@ internal sealed class AccountService(
         return await AssignRolesAsync(user, a.Roles);
     }
 
-    public async Task<AccountResult> InviteAsync(NewAccount a, CancellationToken ct = default)
+    public async Task<AccountResult> CreateInvitedAsync(NewAccount a, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(a.Email)) return AccountResult.Fail("Cần email để gửi lời mời");
         if (await ValidateNewAsync(a) is { } fail) return fail;
         var user = NewUser(a);
         var r = await users.CreateAsync(user); // chưa có mật khẩu
         if (!r.Succeeded) return Fail(r);
-        var roles = await AssignRolesAsync(user, a.Roles);
-        if (!roles.Succeeded) return roles;
-        await SendLinkAsync(user, invite: true, ct);
-        return AccountResult.Ok(user.Id);
+        return await AssignRolesAsync(user, a.Roles);
     }
 
-    public async Task<AccountResult> ResendInviteAsync(Guid userId, CancellationToken ct = default)
+    public async Task<AccountResult> SendInviteAsync(Guid userId, CancellationToken ct = default)
     {
         var user = await users.FindByIdAsync(userId.ToString());
         if (user is null) return AccountResult.Fail("Không tìm thấy tài khoản");
         if (await users.HasPasswordAsync(user)) return AccountResult.Fail("Tài khoản đã đặt mật khẩu, không cần mời lại");
         if (string.IsNullOrWhiteSpace(user.Email)) return AccountResult.Fail("Tài khoản không có email");
-        await SendLinkAsync(user, invite: true, ct);
+        try
+        {
+            await SendLinkAsync(user, invite: true, ct);
+        }
+        catch (Exception)
+        {
+            // SendLinkAsync đã ghi log chi tiết
+            return AccountResult.FailWithCode(AccountErrors.EmailFailed, "Gửi email thất bại, kiểm tra cấu hình SMTP");
+        }
         return AccountResult.Ok(user.Id);
     }
 

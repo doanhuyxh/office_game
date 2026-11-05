@@ -3,6 +3,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using OfficeHub.BuildingBlocks.Auth;
+using OfficeHub.Realtime.Auth;
 using OfficeHub.Realtime.Simulation;
 
 namespace OfficeHub.Realtime.Hubs;
@@ -26,7 +27,7 @@ public interface IOfficeClient
 }
 
 [Authorize]
-public sealed class OfficeRoomHub(Presence presence, OfficeMap map, ILogger<OfficeRoomHub> log) : Hub<IOfficeClient>
+public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValidator sessions, ILogger<OfficeRoomHub> log) : Hub<IOfficeClient>
 {
     public const string Path = "/rt/hub/office";
     private const string Room = "office";
@@ -41,10 +42,18 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, ILogger<Offi
             Context.Abort();
             return;
         }
+        // Cookie còn hạn chưa đủ: hỏi Api xem tài khoản còn hoạt động không (bị khoá / nghỉ việc → từ chối ngay).
+        var authCookie = SessionValidator.AuthCookieHeader(Context.GetHttpContext()?.Request.Headers.Cookie.ToString());
+        if (await sessions.CheckAsync(authCookie, Context.ConnectionAborted) == SessionState.Invalid)
+        {
+            await Clients.Caller.Kicked(SessionWatch.ExpiredReason);
+            Context.Abort();
+            return;
+        }
         var name = Context.User?.FindFirstValue(ClaimNames.FullName) ?? Context.User?.Identity?.Name ?? "?";
         var p = new Player
         {
-            UserId = UserId, Name = name, ConnectionId = Context.ConnectionId, Context = Context,
+            UserId = UserId, Name = name, ConnectionId = Context.ConnectionId, Context = Context, AuthCookie = authCookie,
             X = map.Spawn.X, Z = map.Spawn.Z, LastMoveTicks = Stopwatch.GetTimestamp(), LastActiveAt = DateTimeOffset.UtcNow,
         };
         var old = presence.Add(p);

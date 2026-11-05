@@ -26,8 +26,8 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 
 ## Điểm cần lưu ý / nợ kỹ thuật đã biết
 
-1. **Mời qua email lỗi SMTP để lại tài khoản mồ côi**: `AccountService.InviteAsync` tạo user rồi mới gửi mail; mail lỗi → `AccountEndpoints` trả 502 **trước khi** ghi `employee.UserId`. Hồ sơ không liên kết tài khoản, "Gửi lại lời mời" không khả dụng, tạo lại báo `"Tên đăng nhập '…' đã tồn tại"`.
-2. **Khoá tài khoản chưa có hiệu lực tức thì**: OfficeHub.Realtime dùng `AddCookie` thường (không kiểm tra security stamp) → người bị khoá / nghỉ việc vẫn vào văn phòng 3D tới khi cookie hết hạn (7 ngày trượt). Ở Api, cookie được kiểm tra lại theo chu kỳ mặc định của ASP.NET Identity (cần xác nhận: 30 phút); chỉ `/api/auth/me` và `/api/attendance/check` tự kiểm tra `IsActive`.
+1. **SMTP Gmail trên macOS**: MailKit mặc định kiểm tra thu hồi chứng chỉ (CRL/OCSP); trên máy dev macOS báo "incomplete certificate revocation check" → gửi mail / `/health/ready` smtp lỗi. Chưa sửa (tắt kiểm tra thu hồi là quyết định bảo mật của chủ dự án). Dev có thể trỏ SMTP về Mailpit (`localhost:1025`).
+2. Realtime phụ thuộc Api để kiểm tra phiên; Api không phản hồi thì **cho qua** (fail-open) — người bị khoá có thể vào văn phòng 3D trong lúc Api sập. Người đang online bị đẩy ra trễ tối đa `Realtime__SessionCheckSeconds`.
 3. Không có transaction trải nhiều module (xem [database.md](../database.md#không-có)).
 4. 2FA: `LoginAsync` có nhánh `RequiresTwoFactor` nhưng chưa có API bật 2FA.
 5. Không có chống CSRF (antiforgery); đang dựa vào `SameSite=Lax` + body JSON (cần xác nhận khi lên production).

@@ -16,7 +16,7 @@ export function OfficeView() {
   const { data: account } = useMe();
   const hostRef = useRef<HTMLDivElement>(null);
   const connRef = useRef<OfficeConnection | null>(null);
-  const { me, conn, online, zone, chat } = useOffice();
+  const { me, conn, online, zone, chat, kickReason } = useOffice();
   const [text, setText] = useState('');
   const [nearAction, setNearAction] = useState<string | null>(null);
   const { data: today, noProfile } = useToday();
@@ -81,7 +81,7 @@ export function OfficeView() {
       positions: (list) => list.forEach((p) => p.id !== me.id && scene.moveOther(p.id, p.x, p.z, p.r)),
       chat: (m) => s.pushChat({ ...m, at: String(m.at) }),
       teleport: (x, z) => scene.teleportMe(x, z),
-      kicked: () => s.setConn('kicked'),
+      kicked: (reason) => s.kick(reason),
       state: (st) => s.setConn(st),
     });
     scene.onMove = (x, z, r, a) => c.move(x, z, r, a);
@@ -136,7 +136,10 @@ export function OfficeView() {
         </button>
       </div>
       {conn === 'kicked' && (
-        <div className="overlay">Tài khoản vừa vào văn phòng từ tab/thiết bị khác.<button onClick={() => location.reload()}>Vào lại ở đây</button></div>
+        <div className="overlay">
+          {kickReason ?? 'Bạn đã bị ngắt khỏi văn phòng.'}
+          <button onClick={() => location.reload()}>Vào lại</button>
+        </div>
       )}
     </div>
   );
