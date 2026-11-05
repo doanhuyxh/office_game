@@ -19,3 +19,5 @@ dist/
 # OS / IDE
 .DS_Store
 .idea/
+# Added by code-review-graph
+.code-review-graph/

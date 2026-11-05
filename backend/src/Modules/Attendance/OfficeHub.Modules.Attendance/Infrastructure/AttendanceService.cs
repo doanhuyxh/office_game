@@ -34,6 +34,11 @@ internal sealed class AttendanceService(AttendanceDbContext db, IOptions<OfficeS
             .ToDictionary(g => g.Key, g => new DayLeave(Math.Min(1m, g.Sum(x => x.Fraction)),
                 Morning: g.Any(x => x.Half == LeaveHalf.Morning), Afternoon: g.Any(x => x.Half == LeaveHalf.Afternoon),
                 Name: string.Join(" + ", g.Select(x => x.TypeName).Distinct())));
+        // Tăng ca đã duyệt: cộng phút theo ngày (một ngày có thể nhiều đơn).
+        var overtime = (await db.Overtime.AsNoTracking()
+                .Where(o => employeeIds.Contains(o.EmployeeId) && o.WorkDate >= from && o.WorkDate <= to && o.Status == OvertimeStatus.Approved)
+                .Select(o => new { o.EmployeeId, o.WorkDate, o.Minutes }).ToListAsync(ct))
+            .GroupBy(o => (o.EmployeeId, o.WorkDate)).ToDictionary(g => g.Key, g => g.Sum(x => x.Minutes));
         var events = (await db.Events.AsNoTracking()
                 .Where(e => employeeIds.Contains(e.EmployeeId) && e.WorkDate >= from && e.WorkDate <= to).ToListAsync(ct))
             .ToLookup(e => (e.EmployeeId, e.WorkDate));
@@ -55,7 +60,7 @@ internal sealed class AttendanceService(AttendanceDbContext db, IOptions<OfficeS
                 var holiday = holidays.GetValueOrDefault(d);
                 var punches = events[(emp, d)].Select(e => new Punch(e.OccurredAt, e.Type, e.WorkMode));
                 days.Add(new ComputedDay(TimesheetCalculator.Compute(d, punches, shift, holiday is not null, Now, Tz,
-                    leaveByDay.GetValueOrDefault((emp, d))), shift, holiday));
+                    leaveByDay.GetValueOrDefault((emp, d)), overtime.GetValueOrDefault((emp, d))), shift, holiday));
             }
             result[emp] = days;
         }

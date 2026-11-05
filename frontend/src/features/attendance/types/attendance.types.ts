@@ -43,6 +43,9 @@ export interface IDay {
   /** 0 | 0.5 | 1 — phần ngày nghỉ phép đã duyệt */
   leaveFraction: number;
   leaveName: string | null;
+  /** Phút tăng ca đã duyệt (theo đơn) */
+  overtimeMinutes: number;
+  overtimeKind: OvertimeKind | null;
 }
 
 export interface ISummary {
@@ -59,6 +62,10 @@ export interface ISummary {
   mixedDays: number;
   missingCheckoutDays: number;
   leaveDays: number;
+  overtimeMinutes: number;
+  overtimeWeekdayMinutes: number;
+  overtimeRestDayMinutes: number;
+  overtimeHolidayMinutes: number;
 }
 
 export interface IEmployeeBrief {
@@ -137,4 +144,45 @@ export interface ICreateCorrection {
   time: string;
   workMode: 'Onsite' | 'Remote';
   reason: string;
+}
+
+/** Loại ngày tăng ca → hệ số 150 / 200 / 300% (OvertimeRules ở back-end). */
+export type OvertimeKind = 'Weekday' | 'RestDay' | 'Holiday';
+export type OvertimeStatus = 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
+
+export interface IOvertime {
+  id: string;
+  workDate: string;
+  startTime: string; // HH:mm
+  endTime: string;
+  minutes: number;
+  kind: OvertimeKind;
+  percent: number;
+  reason: string;
+  status: OvertimeStatus;
+  rejectReason: string | null;
+  approvalRequestId: string | null;
+  createdAt: string;
+}
+
+export interface ICreateOvertime {
+  workDate: string;
+  startTime: string;
+  endTime: string;
+  reason: string;
+}
+
+export interface IOvertimePreview {
+  minutes: number;
+  kind: OvertimeKind;
+  percent: number;
+  /** Đã duyệt + đang chờ trong tháng / năm (chưa tính đơn này) */
+  monthMinutes: number;
+  yearMinutes: number;
+  warnings: string[];
+}
+
+export interface IOvertimeCreated {
+  overtime: IOvertime;
+  warnings: string[];
 }

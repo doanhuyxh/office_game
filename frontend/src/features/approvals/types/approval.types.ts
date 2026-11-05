@@ -2,7 +2,7 @@
 
 export type ApprovalStatus = 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
 export type StepStatus = 'Waiting' | 'Pending' | 'Approved' | 'Rejected';
-export type ApprovalType = 'leave' | 'attendance_correction';
+export type ApprovalType = 'leave' | 'attendance_correction' | 'overtime';
 
 export interface IPersonBrief {
   id: string;

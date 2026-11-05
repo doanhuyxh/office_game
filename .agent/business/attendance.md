@@ -48,7 +48,9 @@ Không cần đăng ký làm từ xa. Không giới hạn số lần vào/ra tro
 | `Absent` | có ca, không chấm, đã qua / đã hết ca |
 | `Working` / `Present` / `MissingCheckout` | như trên |
 
-Làm ngày nghỉ / ngày lễ vẫn ghi `Present` với required = 0. **Chưa có**: giờ lõi ca linh hoạt (`EarliestIn` không dùng khi tính), tăng ca, ca qua đêm.
+Làm ngày nghỉ / ngày lễ vẫn ghi `Present` với required = 0. **Chưa có**: giờ lõi ca linh hoạt (`EarliestIn` không dùng khi tính), ca qua đêm.
+
+**Tăng ca đã duyệt**: tham số `overtimeMinutes` → `OvertimeMinutes` + `OvertimeKind` (150 / 200 / 300%), không phụ thuộc chấm công — xem [attendance-overtime.md](attendance-overtime.md).
 
 **Nghỉ phép đã duyệt** (`DayLeave`; sáng + chiều cùng ngày cộng thành cả ngày):
 

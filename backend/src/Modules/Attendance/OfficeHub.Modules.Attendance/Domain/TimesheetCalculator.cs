@@ -45,7 +45,11 @@ public sealed record DayResult(
     bool Scheduled = false,
     /// <summary>Phần ngày nghỉ phép đã duyệt (0, 0.5, 1).</summary>
     decimal LeaveFraction = 0,
-    string? LeaveName = null);
+    string? LeaveName = null,
+    /// <summary>Phút tăng ca đã duyệt trong ngày (tính đúng theo đơn, không đối chiếu chấm công).</summary>
+    int OvertimeMinutes = 0,
+    /// <summary>Loại ngày tăng ca (hệ số 150 / 200 / 300%); null nếu không tăng ca.</summary>
+    OvertimeKind? OvertimeKind = null);
 
 /// <summary>
 /// Tính công MỘT ngày từ sự kiện thô + ca làm. Hàm thuần (không DB) để test được.
@@ -54,9 +58,10 @@ public sealed record DayResult(
 public static class TimesheetCalculator
 {
     public static DayResult Compute(DateOnly date, IEnumerable<Punch> punches, Shift? shift, bool isHoliday,
-        DateTimeOffset now, TimeZoneInfo tz, DayLeave? leave = null)
+        DateTimeOffset now, TimeZoneInfo tz, DayLeave? leave = null, int overtimeMinutes = 0)
     {
         var scheduled = shift is not null && !isHoliday;
+        OvertimeKind? otKind = overtimeMinutes > 0 ? OvertimeRules.Classify(isHoliday, shift is not null) : null;
         var fullLeave = leave is { Fraction: >= 1 };
         var halfLeave = leave is { Fraction: > 0 and < 1 };
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, tz).DateTime);
@@ -86,7 +91,8 @@ public static class TimesheetCalculator
                 : fullLeave ? DayStatus.Leave
                 : date > today || (isToday && !ShiftEnded(date, shift, now, tz)) ? DayStatus.NotYet
                 : DayStatus.Absent;
-            return new DayResult(date, status, [], null, null, 0, required, 0, 0, null, scheduled, leave?.Fraction ?? 0, leave?.Name);
+            return new DayResult(date, status, [], null, null, 0, required, 0, 0, null, scheduled, leave?.Fraction ?? 0, leave?.Name,
+                overtimeMinutes, otKind);
         }
 
         // 2) Phiên đang mở: hôm nay → tính tới hiện tại; ngày cũ → thiếu giờ ra, không tính.
@@ -121,7 +127,7 @@ public static class TimesheetCalculator
         }
 
         return new DayResult(date, dayStatus, sessions, firstIn, lastOut, worked, required, late, shortMin, mode, scheduled,
-            leave?.Fraction ?? 0, leave?.Name);
+            leave?.Fraction ?? 0, leave?.Name, overtimeMinutes, otKind);
     }
 
     public static int RequiredMinutes(Shift? shift)

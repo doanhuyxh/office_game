@@ -113,3 +113,26 @@ public sealed class AttendanceCorrection
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? DecidedAt { get; set; }
 }
+
+public enum OvertimeStatus { Pending = 0, Approved = 1, Rejected = 2, Cancelled = 3 }
+
+/// <summary>
+/// Đơn tăng ca: một khoảng giờ trong một ngày (không qua đêm). Đăng ký trước hoặc khai bù trong 7 ngày.
+/// Được duyệt (quản lý → HR) thì tính ĐÚNG số giờ trên đơn vào công (không đối chiếu chấm công).
+/// Loại ngày (thường / nghỉ tuần / lễ) xác định lúc đọc bảng công → HR thêm ngày lễ sau vẫn đúng.
+/// </summary>
+public sealed class OvertimeRequest
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid EmployeeId { get; set; }
+    public DateOnly WorkDate { get; set; }
+    public TimeOnly StartTime { get; set; }
+    public TimeOnly EndTime { get; set; }
+    public int Minutes { get; set; }
+    public required string Reason { get; set; }
+    public OvertimeStatus Status { get; set; }
+    public Guid? ApprovalRequestId { get; set; }
+    public string? RejectReason { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? DecidedAt { get; set; }
+}

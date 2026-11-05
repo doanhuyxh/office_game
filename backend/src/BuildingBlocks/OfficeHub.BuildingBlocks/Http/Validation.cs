@@ -13,6 +13,9 @@ public sealed class Validation
 
     public bool Failed => _errors.Count > 0;
 
+    /// <summary>Field đã có lỗi chưa (để bỏ qua kiểm tra phụ thuộc field đó).</summary>
+    public bool Has(string field) => _errors.ContainsKey(field);
+
     public Validation Add(string field, string message)
     {
         if (!_errors.TryGetValue(field, out var list)) _errors[field] = list = [];

@@ -6,7 +6,7 @@ Luồng duyệt **dùng chung**. Module sở hữu đơn (Leave, Attendance) g�
 
 ## Gửi đơn (`IApprovalService.SubmitAsync`, project `Approval.Contracts`)
 
-`ApprovalSubmission { Type, SubjectId, RequesterEmployeeId, Title, Summary, Steps }`. `Type` ∈ `ApprovalTypes.Leave` (`"leave"`), `ApprovalTypes.AttendanceCorrection` (`"attendance_correction"`). Mỗi (`Type`, `SubjectId`) chỉ một đơn (unique index).
+`ApprovalSubmission { Type, SubjectId, RequesterEmployeeId, Title, Summary, Steps }`. `Type` ∈ `ApprovalTypes.Leave` (`"leave"`), `ApprovalTypes.AttendanceCorrection` (`"attendance_correction"`), `ApprovalTypes.Overtime` (`"overtime"`). Mỗi (`Type`, `SubjectId`) chỉ một đơn (unique index).
 
 Tạo bước (`Infrastructure/ApprovalService.cs`):
 
@@ -15,7 +15,7 @@ Tạo bước (`Infrastructure/ApprovalService.cs`):
 | `Manager` | `ManagerId` của người gửi (lưu `ApproverEmployeeId`) | Không có quản lý, hoặc quản lý đã nghỉ việc |
 | `Hr` | Bất kỳ ai có vai trò `hr` / `admin` | — |
 
-Nếu mọi bước bị bỏ qua thì luôn còn 1 bước `Hr`. Bước đầu `Pending`, các bước sau `Waiting`. Leave và giải trình đều gửi `[Manager, Hr]`.
+Nếu mọi bước bị bỏ qua thì luôn còn 1 bước `Hr`. Bước đầu `Pending`, các bước sau `Waiting`. Leave, giải trình và tăng ca đều gửi `[Manager, Hr]`.
 
 ## Ai được quyết định (`CanDecide`)
 

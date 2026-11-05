@@ -1,6 +1,7 @@
 import { http, httpPost } from '@/services/api-client';
 import type {
-  CheckSource, IBoardRow, ICorrection, ICreateCorrection, IHoliday, IMonth, IReportRow, ISchedule, IShift, IToday, IUpsertShift, IWeekDay,
+  CheckSource, IBoardRow, ICorrection, ICreateCorrection, ICreateOvertime, IHoliday, IMonth, IOvertime, IOvertimeCreated, IOvertimePreview,
+  IReportRow, ISchedule, IShift, IToday, IUpsertShift, IWeekDay,
 } from '../types/attendance.types';
 
 const put = <T>(url: string, body: unknown) => http<T>(url, { method: 'PUT', body: JSON.stringify(body) });
@@ -17,6 +18,8 @@ export const attendanceKeys = {
   schedules: ['attendance', 'schedules'] as const,
   holidays: (year: number) => ['attendance', 'holidays', year] as const,
   corrections: (month: string) => ['attendance', 'corrections', month] as const,
+  overtime: (month: string) => ['attendance', 'overtime', month] as const,
+  overtimePreview: (v: Omit<ICreateOvertime, 'reason'>) => ['attendance', 'overtime-preview', v.workDate, v.startTime, v.endTime] as const,
 };
 
 export const attendanceApi = {
@@ -44,4 +47,9 @@ export const attendanceApi = {
 
   myCorrections: (month: string) => http<ICorrection[]>(`/api/attendance/corrections/my?month=${month}`),
   createCorrection: (body: ICreateCorrection) => httpPost<ICorrection>('/api/attendance/corrections', body),
+
+  myOvertime: (month: string) => http<IOvertime[]>(`/api/attendance/overtime/my?month=${month}`),
+  previewOvertime: (v: Omit<ICreateOvertime, 'reason'>) =>
+    http<IOvertimePreview>(`/api/attendance/overtime/preview?${new URLSearchParams({ workDate: v.workDate, startTime: v.startTime, endTime: v.endTime })}`),
+  createOvertime: (body: ICreateOvertime) => httpPost<IOvertimeCreated>('/api/attendance/overtime', body),
 };

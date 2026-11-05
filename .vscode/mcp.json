@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "code-review-graph": {
+      "command": "/Users/user/Library/Application Support/pipx/venvs/code-review-graph/bin/python",
+      "args": [
+        "-m",
+        "code_review_graph",
+        "serve"
+      ],
+      "cwd": "/Users/user/Desktop/Code_Data/freelane_project/office_game",
+      "type": "stdio"
+    }
+  }
+}

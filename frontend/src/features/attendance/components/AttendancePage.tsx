@@ -10,6 +10,7 @@ import { currentMonth } from '../utils/labels';
 import { CheckInCard } from './CheckInCard';
 import { HolidaysPanel } from './HolidaysPanel';
 import { MonthTimesheet } from './MonthTimesheet';
+import { OvertimeTab } from './OvertimeTab';
 import { SchedulesPanel } from './SchedulesPanel';
 import { ShiftsPanel } from './ShiftsPanel';
 import { BoardTable, ReportTable } from './TeamTables';
@@ -46,6 +47,7 @@ export function AttendancePage() {
   const { data: me } = useMe();
   const isManager = hasRole(me, 'admin', 'hr', 'manager');
   const isHr = hasRole(me, 'admin', 'hr');
+  const { noProfile } = useToday();
   const [month, setMonth] = useState(currentMonth());
   return (
     <div className="space-y-6">
@@ -53,11 +55,13 @@ export function AttendancePage() {
       <Tabs defaultValue="my">
         <TabsList>
           <TabsTrigger value="my">Của tôi</TabsTrigger>
+          {!noProfile && <TabsTrigger value="overtime">Tăng ca</TabsTrigger>}
           {isManager && <TabsTrigger value="board">Hôm nay</TabsTrigger>}
           {isManager && <TabsTrigger value="report">Tổng hợp tháng</TabsTrigger>}
           {isHr && <TabsTrigger value="settings">Ca &amp; lịch</TabsTrigger>}
         </TabsList>
         <TabsContent value="my" className="mt-4"><MyTab /></TabsContent>
+        {!noProfile && <TabsContent value="overtime" className="mt-4"><OvertimeTab /></TabsContent>}
         {isManager && <TabsContent value="board" className="mt-4"><BoardTable /></TabsContent>}
         {isManager && (
           <TabsContent value="report" className="mt-4 space-y-3">

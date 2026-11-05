@@ -29,7 +29,8 @@
 | Docker image (api, realtime, web), compose production, backup S3, CI GitHub Actions | ✅ (chưa deploy thật) |
 | Test: kiến trúc (module không tham chiếu chéo) + bộ tính công + quy tắc phép năm (29 test) | ✅ |
 | Wolverine (sự kiện/outbox), Hangfire (job), Audit interceptor | ⏳ |
-| Tăng ca, nhắc quên chấm ra, thông báo email cho người duyệt / người gửi đơn | ⏳ |
+| **Tăng ca**: đăng ký trước / khai bù 7 ngày, duyệt quản lý → HR, tính theo giờ trên đơn, tách 150 / 200 / 300% theo loại ngày, cảnh báo 40 giờ/tháng · 200 giờ/năm | ✅ |
+| Nhắc quên chấm ra, thông báo email cho người duyệt / người gửi đơn, quy ra tiền tăng ca | ⏳ |
 | Quy ra tiền phép năm (UI hiện "Đang phát triển") | ⏳ |
 | Engine 3D đầy đủ (viết mới), dựng theo mặt bằng thật | ⏳ |
 
@@ -218,7 +219,7 @@ Modules/<M>/OfficeHub.Modules.<M>/
 |---|---|---|---|---|
 | `Identity` | `/api/auth` | `identity` | ✅ | Tài khoản, đăng nhập, mật khẩu, vai trò |
 | `Organization` | `/api/org` | `org` | ✅ | Phòng ban, chức vụ, nhân viên, cấp tài khoản cho nhân viên |
-| `Attendance` | `/api/attendance` | `attendance` | ✅ | Chấm công, ca làm, lịch tuần, ngày lễ, bảng công, giải trình · ⏳ webhook máy, tăng ca |
+| `Attendance` | `/api/attendance` | `attendance` | ✅ | Chấm công, ca làm, lịch tuần, ngày lễ, bảng công, giải trình, tăng ca · ⏳ webhook máy |
 | `Leave` | `/api/leave` | `leave` | ✅ | Loại phép, quỹ phép năm, đơn nghỉ, điều chỉnh của HR |
 | `LaborContracts` | `/api/contracts` | `contracts` | khung | Hợp đồng, phụ lục, mẫu, file S3 |
 | `Approval` | `/api/approval` | `approval` | ✅ | Luồng duyệt dùng chung (nghỉ phép, giải trình) |
@@ -431,7 +432,7 @@ root
 
 ---
 
-## 6. Chấm công ✅ (webhook máy, tăng ca ⏳)
+## 6. Chấm công ✅ (webhook máy ⏳)
 
 ### 6.1 Mọi nguồn đổ về một chỗ
 
@@ -474,7 +475,9 @@ Trạng thái ngày: `Present` (đủ cặp vào/ra), `Working` (đang làm), `M
 | Cấu hình | Giờ vào/ra, nghỉ trưa, số phút cho phép trễ (mặc định 5) | Số giờ phải đủ, khung giờ được vào, giờ lõi (tuỳ chọn), nghỉ trưa |
 | Đi muộn | Vào sau giờ bắt đầu + số phút cho phép | Vào sau giờ muộn nhất, hoặc vắng trong giờ lõi |
 | Về sớm | Ra trước giờ kết thúc | Tổng giờ không đủ (**thiếu giờ**) |
-| Tăng ca | Sau giờ kết thúc, **cần đơn được duyệt** | Vượt số giờ phải đủ, **cần đơn được duyệt** |
+| Tăng ca ✅ | Ngoài khung giờ ca, **cần đơn được duyệt** | Không kiểm tra khung giờ, **cần đơn được duyệt** |
+
+Tăng ca tính theo giờ trên đơn đã duyệt (không đối chiếu chấm công), hệ số theo loại ngày — chi tiết `.agent/business/attendance-overtime.md`.
 
 **Gán ca (`schedules`):** nhân viên (hoặc mặc định cả công ty) × ngày trong tuần × `effective_from/to`.
 - Đổi ca thì thêm dòng mới, không sửa dòng cũ, để bảng công các tháng trước vẫn đúng.
@@ -532,7 +535,8 @@ Trạng thái ngày: `Present` (đủ cặp vào/ra), `Working` (đang làm), `M
 - `schedules` (`EmployeeId` null = công ty, `EffectiveFrom`, `DayOfWeek`, `ShiftId` null = nghỉ; duy nhất theo người × ngày hiệu lực × thứ);
 - `events` (`OccurredAt`, `WorkDate`, `Type` In/Out, `Source` Web/Office3D/Device/Manual, `WorkMode` Onsite/Remote, `Ip`, `UserAgent`, `IdempotencyKey`);
 - `holidays`;
-- `corrections` (migration `AddCorrections`): giải trình giờ vào / ra, trạng thái, `ApprovalRequestId`.
+- `corrections` (migration `AddCorrections`): giải trình giờ vào / ra, trạng thái, `ApprovalRequestId`;
+- `overtime_requests` (migration `AddOvertime`): ngày, giờ từ – đến, số phút, lý do, trạng thái, `ApprovalRequestId`.
 
 **✅ `approval`** (migration `InitialApproval`): `requests` (unique `Type` + `SubjectId`), `steps` (`Kind` Manager/Hr, `Status` Waiting/Pending/Approved/Rejected, người quyết định, ghi chú).
 
@@ -542,7 +546,7 @@ Mỗi schema có bảng `__ef_migrations` riêng.
 
 **⏳ Thiết kế:**
 - **`org`:** thêm `company_settings`, `seat_id`; CCCD, số tài khoản, lương **mã hoá**.
-- **`attendance`:** thêm `devices`, `device_user_mappings`, tăng ca.
+- **`attendance`:** thêm `devices`, `device_user_mappings`.
 - **`leave`:** chính sách phép cấu hình được (hiện cố định trong `AnnualLeavePolicy`), quy ra tiền.
 - **`contracts`:** `contract_types`, `contract_templates`, `contracts` (`period daterange` + `EXCLUDE`, `file_key` → S3), `amendments`.
 - **`audit`:** `audit_log` (chỉ thêm).
@@ -743,6 +747,15 @@ Hiện tại các tương tác dưới đây được làm **đồng bộ qua `*
 | Ai chọn | **Nhân viên đề xuất, HR duyệt** |
 | Quy ra tiền | **Đang phát triển** — hiện mọi phép còn lại tự chuyển sang năm sau |
 
+**Tăng ca** (chốt 2026-11-05):
+
+| Câu hỏi | Quyết định |
+|---|---|
+| Khi nào đăng ký | Trước khi làm, hoặc khai bù trong 7 ngày |
+| Giờ được tính | Theo giờ trên đơn đã duyệt (không đối chiếu chấm công) |
+| Hệ số | Tách theo loại ngày: thường 150%, nghỉ tuần 200%, lễ 300% (chỉ thống kê giờ) |
+| Vượt 40 giờ/tháng, 200 giờ/năm | Cảnh báo người gửi và người duyệt, không chặn |
+
 ---
 
 ## 12. Lộ trình
@@ -752,9 +765,10 @@ Hiện tại các tương tác dưới đây được làm **đồng bộ qua `*
 | **Base** ✅ | Solution .NET, Identity, Realtime tối giản, front-end feature-based, cấu hình `.env`, Docker, CI | Đăng nhập, vào văn phòng 3D, thấy nhau, chat |
 | **Organization + Chấm công** ✅ | Phòng ban, chức vụ, nhân viên, cấp/mời tài khoản, quên mật khẩu; chấm công web + 3D, ca cố định/linh hoạt, lịch tuần, ngày lễ, bảng công | HR quản lý nhân viên; cả công ty chấm công được |
 | **Phê duyệt + Nghỉ phép + Giải trình** ✅ | Luồng duyệt quản lý → HR, quỹ phép năm, đơn nghỉ, lịch nghỉ, giải trình chấm công; khoá tài khoản hiệu lực ngay | Xin nghỉ, giải trình bằng hệ thống |
-| **Tiếp theo** ⏳ | Tăng ca; Notification (email cho người duyệt / người gửi); quy ra tiền phép năm; Audit; nhập nhân viên từ Excel | Đủ quy trình nhân sự hằng ngày |
+| **Tăng ca** ✅ | Đơn tăng ca, duyệt quản lý → HR, giờ theo hệ số loại ngày, cảnh báo giới hạn | Tăng ca có trên bảng công |
+| **Tiếp theo** ⏳ | Notification (email cho người duyệt / người gửi); quy ra tiền phép năm; Audit; nhập nhân viên từ Excel | Đủ quy trình nhân sự hằng ngày |
 | **Văn phòng 3D** ⏳ | Viết mới engine đầy đủ, bản đồ theo mặt bằng thật, chỗ ngồi theo phòng ban, hiện trạng thái "Nghỉ phép" trên avatar | Văn phòng 3D giống thật |
-| **2. Hoàn thiện** ⏳ | Hợp đồng (file S3, nhắc hạn), bảng công tháng + Excel, tăng ca, voice + đặt phòng họp | Bỏ quy trình giấy/Excel |
+| **2. Hoàn thiện** ⏳ | Hợp đồng (file S3, nhắc hạn), bảng công tháng + Excel, quy ra tiền tăng ca, voice + đặt phòng họp | Bỏ quy trình giấy/Excel |
 | **3. Mở rộng** ⏳ | Webhook máy chấm công, PWA/mobile, ký điện tử, tích hợp lương | Tuỳ nhu cầu |
 
-**Bước tiếp theo** (chủ dự án chọn): tăng ca · thông báo email · văn phòng 3D đầy đủ · hợp đồng lao động.
+**Bước tiếp theo** (chủ dự án chọn): thông báo email · văn phòng 3D đầy đủ · hợp đồng lao động.

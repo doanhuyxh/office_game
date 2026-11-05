@@ -13,4 +13,5 @@ export const STEP_ICON: Record<StepStatus, string> = { Waiting: '○', Pending: 
 export const APPROVAL_TYPE: Record<string, string> = {
   leave: '🌴 Nghỉ phép',
   attendance_correction: '🕘 Giải trình chấm công',
+  overtime: '⏱ Tăng ca',
 };

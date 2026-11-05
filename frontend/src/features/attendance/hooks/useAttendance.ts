@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/services/api-client';
 import { attendanceApi, attendanceKeys } from '../api/attendance.api';
-import type { CheckSource, ICreateCorrection, IUpsertShift, IWeekDay } from '../types/attendance.types';
+import type { CheckSource, ICreateCorrection, ICreateOvertime, IUpsertShift, IWeekDay } from '../types/attendance.types';
 
 /** Trạng thái chấm công hôm nay. `noProfile` = tài khoản chưa gắn hồ sơ nhân viên (ví dụ admin hệ thống). */
 export function useToday() {
@@ -79,6 +79,27 @@ export function useCreateCorrection() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: ICreateCorrection) => attendanceApi.createCorrection(body),
+    onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: attendanceKeys.all }), qc.invalidateQueries({ queryKey: ['approval'] })]),
+  });
+}
+
+export const useMyOvertime = (month: string) =>
+  useQuery({ queryKey: attendanceKeys.overtime(month), queryFn: () => attendanceApi.myOvertime(month), retry: false });
+
+/** Xem trước đơn tăng ca (số giờ, loại ngày, cảnh báo vượt giới hạn). Chỉ gọi khi đủ ngày + giờ. Lỗi 400 trả theo field. */
+export const useOvertimePreview = (v: Omit<ICreateOvertime, 'reason'>, enabled: boolean) =>
+  useQuery({
+    queryKey: attendanceKeys.overtimePreview(v),
+    queryFn: () => attendanceApi.previewOvertime(v),
+    enabled: enabled && !!v.workDate && /^\d{2}:\d{2}$/.test(v.startTime) && /^\d{2}:\d{2}$/.test(v.endTime),
+    retry: false,
+    staleTime: 10_000,
+  });
+
+export function useCreateOvertime() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ICreateOvertime) => attendanceApi.createOvertime(body),
     onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: attendanceKeys.all }), qc.invalidateQueries({ queryKey: ['approval'] })]),
   });
 }

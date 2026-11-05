@@ -1,0 +1,15 @@
+{
+  "mcp": {
+    "code-review-graph": {
+      "type": "local",
+      "command": [
+        "/Users/user/Library/Application Support/pipx/venvs/code-review-graph/bin/python",
+        "-m",
+        "code_review_graph",
+        "serve",
+        "--repo",
+        "/Users/user/Desktop/Code_Data/freelane_project/office_game"
+      ]
+    }
+  }
+}

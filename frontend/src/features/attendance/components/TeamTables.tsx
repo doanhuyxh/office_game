@@ -60,10 +60,10 @@ export function ReportTable({ month }: { month: string }) {
           <TableHeader>
             <TableRow><TableHead>Nhân viên</TableHead><TableHead className="text-right">Ngày công</TableHead><TableHead className="text-right">Giờ làm</TableHead>
               <TableHead className="text-right">Đi muộn</TableHead><TableHead className="text-right">Vắng</TableHead><TableHead className="text-right">Thiếu giờ ra</TableHead>
-              <TableHead className="text-right">VP / Từ xa / KH</TableHead></TableRow>
+              <TableHead className="text-right">Tăng ca</TableHead><TableHead className="text-right">VP / Từ xa / KH</TableHead></TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Đang tải…</TableCell></TableRow>}
+            {isLoading && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Đang tải…</TableCell></TableRow>}
             {rows.map(({ employee: e, summary: s }) => (
               <TableRow key={e.id} className="cursor-pointer" onClick={() => setSelected(e)}>
                 <TableCell><span className="font-mono text-xs text-muted-foreground">{e.code}</span> {e.fullName}</TableCell>
@@ -72,6 +72,9 @@ export function ReportTable({ month }: { month: string }) {
                 <TableCell className={cn('text-right', s.lateCount > 0 && 'text-destructive')}>{s.lateCount ? `${s.lateCount} (${s.lateMinutes}′)` : 0}</TableCell>
                 <TableCell className={cn('text-right', s.absentDays > 0 && 'text-destructive')}>{s.absentDays}</TableCell>
                 <TableCell className={cn('text-right', s.missingCheckoutDays > 0 && 'text-warning')}>{s.missingCheckoutDays}</TableCell>
+                <TableCell className="text-right font-mono" title={`Ngày thường ${hm(s.overtimeWeekdayMinutes)} · nghỉ tuần ${hm(s.overtimeRestDayMinutes)} · lễ ${hm(s.overtimeHolidayMinutes)}`}>
+                  {hm(s.overtimeMinutes)}
+                </TableCell>
                 <TableCell className="text-right">{s.onsiteDays} / {s.remoteDays} / {s.mixedDays}</TableCell>
               </TableRow>
             ))}

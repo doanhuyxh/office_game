@@ -13,6 +13,7 @@ public sealed class AttendanceDbContext(DbContextOptions<AttendanceDbContext> op
     public DbSet<AttendanceEvent> Events => Set<AttendanceEvent>();
     public DbSet<Holiday> Holidays => Set<Holiday>();
     public DbSet<AttendanceCorrection> Corrections => Set<AttendanceCorrection>();
+    public DbSet<OvertimeRequest> Overtime => Set<OvertimeRequest>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -49,6 +50,14 @@ public sealed class AttendanceDbContext(DbContextOptions<AttendanceDbContext> op
             e.ToTable("corrections");
             e.Property(x => x.Type).HasConversion<string>().HasMaxLength(10);
             e.Property(x => x.WorkMode).HasConversion<string>().HasMaxLength(10);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Reason).HasMaxLength(500);
+            e.Property(x => x.RejectReason).HasMaxLength(1000);
+            e.HasIndex(x => new { x.EmployeeId, x.WorkDate });
+        });
+        b.Entity<OvertimeRequest>(e =>
+        {
+            e.ToTable("overtime_requests");
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.Reason).HasMaxLength(500);
             e.Property(x => x.RejectReason).HasMaxLength(1000);

@@ -1,5 +1,5 @@
 import type { StatusTone } from '@/components/common/StatusBadge';
-import type { DayStatus, WorkModeValue } from '../types/attendance.types';
+import type { DayStatus, OvertimeKind, OvertimeStatus, WorkModeValue } from '../types/attendance.types';
 
 export const DAY_STATUS: Record<DayStatus, { label: string; tone: StatusTone }> = {
   Present: { label: 'Đủ công', tone: 'success' },
@@ -30,3 +30,17 @@ export const hm = (min: number) => (min > 0 ? `${Math.floor(min / 60)}:${String(
 
 /** Thứ trong tuần của "yyyy-MM-dd" (không lệch múi giờ). */
 export const weekdayOf = (date: string) => new Date(`${date}T00:00:00`).getDay();
+
+/** Loại ngày tăng ca + hệ số (khớp OvertimeRules.Percent ở back-end). */
+export const OVERTIME_KIND: Record<OvertimeKind, { label: string; short: string; tone: StatusTone }> = {
+  Weekday: { label: 'Ngày thường · 150%', short: '150%', tone: 'primary' },
+  RestDay: { label: 'Ngày nghỉ tuần · 200%', short: '200%', tone: 'warning' },
+  Holiday: { label: 'Ngày lễ · 300%', short: '300%', tone: 'info' },
+};
+
+export const OVERTIME_STATUS: Record<OvertimeStatus, { label: string; tone: StatusTone }> = {
+  Pending: { label: 'Chờ duyệt', tone: 'warning' },
+  Approved: { label: 'Đã duyệt', tone: 'success' },
+  Rejected: { label: 'Từ chối', tone: 'danger' },
+  Cancelled: { label: 'Đã huỷ', tone: 'muted' },
+};

@@ -15,6 +15,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Luồng duyệt (quản lý → HR), không tự duyệt, `IApprovalHandler`, thêm loại đơn | [approval.md](approval.md) |
 | Loại phép, quỹ phép năm (cộng dồn, không hết hạn), đơn nghỉ, điều chỉnh của HR | [leave.md](leave.md) |
 | Giải trình chấm công (bổ sung giờ vào / ra) | [attendance-corrections.md](attendance-corrections.md) |
+| Tăng ca (đơn, hệ số theo loại ngày, giới hạn) | [attendance-overtime.md](attendance-overtime.md) |
 | LaborContracts, Notification, Reporting, Audit | Chưa có nghiệp vụ — chỉ `GET /api/<route>/_status`. FE: `ComingSoon`. Thiết kế dự kiến: `docs/ARCHITECTURE_V2.md` |
 
 ## Nguyên tắc chung
@@ -37,7 +38,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 6. Khai báo nhưng chưa dùng: `Office__InactiveMinutes`, `IFileStorage` (chưa module nào upload), FE `ENV`, `REALTIME.voiceToken`, `VITE_SENTRY_DSN`, `src/assets/icons|images` trống.
 7. Registry shadcn `new-york-v4` viết sẵn `import { cn } from "cn"` và CLI cài gói npm rác `cn` → luôn thêm component bằng `bun run ui:add` (`frontend/scripts/ui-add.ts` tự sửa import + gỡ gói). CLI hỏi ghi đè file đã có (vd. `button.tsx` khi thêm `sidebar`) → trả lời `n` trừ khi muốn cập nhật.
 8. Dev chạy qua Vite proxy → IP là localhost → chấm công luôn `Remote` trừ khi `Office__IpRanges` chứa `127.0.0.1/32`.
-9. Bảng công và quỹ phép tính lại mỗi lần đọc (đủ nhanh cho ~12 người). Chưa có "chốt công", tăng ca, giờ lõi ca linh hoạt, ca qua đêm, quy ra tiền phép năm, thông báo email cho người duyệt.
+9. Bảng công và quỹ phép tính lại mỗi lần đọc (đủ nhanh cho ~12 người). Chưa có "chốt công", quy ra tiền tăng ca / giờ làm đêm, giờ lõi ca linh hoạt, ca qua đêm, quy ra tiền phép năm, thông báo email cho người duyệt.
 10. `reactivate` không khôi phục `ManagerId` / `HeadEmployeeId` đã bị gỡ khi nghỉ việc. `departments.HeadEmployeeId` không có FK.
 11. Văn phòng 3D là bản tối giản (sàn, vùng, avatar capsule); code game MVP cũ đã được xoá có chủ ý, engine đầy đủ sẽ viết mới trong `features/office/engine`.
 12. FE không có lint và test tự động; BE chỉ có test kiến trúc + test `TimesheetCalculator`.

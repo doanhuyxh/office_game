@@ -49,6 +49,7 @@ Quy tắc ghi:
 - `holidays` xoá cứng.
 
 | `corrections` | `EmployeeId`, `WorkDate`, `Type` (`In`/`Out`), `Time`, `WorkMode`, `Reason` (≤500), `Status` (`Pending`/`Approved`/`Rejected`/`Cancelled`), `ApprovalRequestId`, `RejectReason` | index (`EmployeeId`,`WorkDate`). Duyệt xong sinh sự kiện `IdempotencyKey = "correction:{Id}"` |
+| `overtime_requests` (migration `AddOvertime`) | `EmployeeId`, `WorkDate`, `StartTime`, `EndTime` (TimeOnly, cùng ngày), `Minutes`, `Reason` (≤500), `Status` (`Pending`/`Approved`/`Rejected`/`Cancelled`), `ApprovalRequestId`, `RejectReason` (≤1000), `CreatedAt`, `DecidedAt` | index (`EmployeeId`,`WorkDate`). Không lưu loại ngày (tính lúc đọc). Chống trùng giờ bằng code |
 
 ## Schema `approval` — `ApprovalDbContext` (migration `InitialApproval`)
 
