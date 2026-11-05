@@ -40,6 +40,16 @@ public sealed class S3Settings
     [Range(1, 1440)] public int PresignMinutes { get; set; } = 5;
 }
 
+/// <summary>
+/// Khoá AES-256 mã hoá từng trường nhạy cảm trong DB (lương trên hợp đồng…). Base64 của đúng 32 byte: `openssl rand -base64 32`.
+/// KHÁC DataProtection: không xoay vòng, không nằm trong thư mục .keys. MẤT KHOÁ = MẤT DỮ LIỆU ĐÃ MÃ HOÁ → sao lưu cùng DB, không đổi khi đã có dữ liệu.
+/// </summary>
+public sealed class EncryptionSettings
+{
+    public const string Section = "Encryption";
+    [Required(ErrorMessage = "Thiếu Encryption__Key trong .env")] public string Key { get; set; } = "";
+}
+
 public sealed class SmtpSettings
 {
     public const string Section = "Smtp";

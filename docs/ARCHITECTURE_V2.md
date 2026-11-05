@@ -26,7 +26,8 @@
 | Khoá tài khoản có hiệu lực ngay (Api kiểm tra security stamp mọi request; văn phòng 3D đẩy người bị khoá ra ≤ 30 giây) | ✅ |
 | SMTP: timeout 15 giây, tuỳ chọn `Smtp__CheckCertificateRevocation` (mặc định bật) | ✅ |
 | **Notification**: chuông in-app + email (hàng đợi trong DB, thử lại 5 lần, bỏ qua tên miền thử nghiệm) cho gửi / duyệt / từ chối / huỷ đơn | ✅ |
-| LaborContracts, Reporting, Audit: khung project + `/_status` | ✅ khung · ⏳ nghiệp vụ |
+| **LaborContracts**: hợp đồng (vô thời hạn / có thời hạn ≤ 36 tháng / thử việc ≤ 180 ngày), phụ lục, lương mã hoá AES-GCM, file S3, nhắc HR + quản lý 30 / 7 ngày; nhân viên xem của mình | ✅ |
+| Reporting, Audit: khung project + `/_status` | ✅ khung · ⏳ nghiệp vụ |
 | Docker image (api, realtime, web), compose production, backup S3, CI GitHub Actions | ✅ (chưa deploy thật) |
 | Test: kiến trúc (module không tham chiếu chéo) + bộ tính công + quy tắc phép năm (29 test) | ✅ |
 | Wolverine (sự kiện/outbox), Hangfire (job), Audit interceptor | ⏳ |
@@ -165,7 +166,7 @@ backend/
 │       ├── Identity/              # ✅  + Identity.Contracts (IAccountService)
 │       ├── Organization/          # ✅  + Organization.Contracts (IEmployeeDirectory)
 │       ├── Attendance/            # ✅
-│       └── Leave/ Approval/ Notification/ ✅ · LaborContracts/ Reporting/ Audit/   # khung
+│       └── Leave/ Approval/ Notification/ LaborContracts/ ✅ · Reporting/ Audit/   # khung
 └── tests/
     ├── OfficeHub.Architecture.Tests/       # module không tham chiếu chéo
     └── OfficeHub.Modules.Attendance.Tests/ # 12 test cho bộ tính công
@@ -222,7 +223,7 @@ Modules/<M>/OfficeHub.Modules.<M>/
 | `Organization` | `/api/org` | `org` | ✅ | Phòng ban, chức vụ, nhân viên, cấp tài khoản cho nhân viên |
 | `Attendance` | `/api/attendance` | `attendance` | ✅ | Chấm công, ca làm, lịch tuần, ngày lễ, bảng công, giải trình, tăng ca · ⏳ webhook máy |
 | `Leave` | `/api/leave` | `leave` | ✅ | Loại phép, quỹ phép năm, đơn nghỉ, điều chỉnh của HR |
-| `LaborContracts` | `/api/contracts` | `contracts` | khung | Hợp đồng, phụ lục, mẫu, file S3 |
+| `LaborContracts` | `/api/contracts` | `contracts` | ✅ | Hợp đồng, phụ lục, lương mã hoá, file S3, nhắc hết hạn · ⏳ mẫu hợp đồng, ký điện tử |
 | `Approval` | `/api/approval` | `approval` | ✅ | Luồng duyệt dùng chung (nghỉ phép, giải trình) |
 | `Notification` | `/api/notifications` | `notifications` | ✅ | Chuông in-app, email gửi nền (hàng đợi trong DB) |
 | `Reporting` | `/api/reports` | (đọc qua view) | khung | Bảng công tháng, xuất Excel |
@@ -748,6 +749,14 @@ Hiện tại các tương tác dưới đây được làm **đồng bộ qua `*
 | Ai chọn | **Nhân viên đề xuất, HR duyệt** |
 | Quy ra tiền | **Đang phát triển** — hiện mọi phép còn lại tự chuyển sang năm sau |
 
+**Hợp đồng lao động** (chốt 2026-11-05):
+
+| Câu hỏi | Quyết định |
+|---|---|
+| Ai xem | HR quản lý tất cả; nhân viên xem hợp đồng của mình; quản lý không xem của cấp dưới |
+| Lương | Lưu lương + phụ cấp, mã hoá khi lưu (`Encryption__Key`) |
+| Nhắc hết hạn | 30 và 7 ngày trước, gửi HR + quản lý trực tiếp |
+
 **Tăng ca** (chốt 2026-11-05):
 
 | Câu hỏi | Quyết định |
@@ -770,7 +779,8 @@ Hiện tại các tương tác dưới đây được làm **đồng bộ qua `*
 | **Thông báo** ✅ | Chuông in-app + email cho luồng duyệt | Người duyệt biết ngay có đơn |
 | **Tiếp theo** ⏳ | Quy ra tiền phép năm / tăng ca; nhắc quên chấm ra; Audit; nhập nhân viên từ Excel | Đủ quy trình nhân sự hằng ngày |
 | **Văn phòng 3D** ⏳ | Viết mới engine đầy đủ, bản đồ theo mặt bằng thật, chỗ ngồi theo phòng ban, hiện trạng thái "Nghỉ phép" trên avatar | Văn phòng 3D giống thật |
-| **2. Hoàn thiện** ⏳ | Hợp đồng (file S3, nhắc hạn), bảng công tháng + Excel, quy ra tiền tăng ca, voice + đặt phòng họp | Bỏ quy trình giấy/Excel |
+| **Hợp đồng lao động** ✅ | Hợp đồng, phụ lục, lương mã hoá, file S3, nhắc 30 / 7 ngày | HR quản lý hợp đồng trên hệ thống |
+| **2. Hoàn thiện** ⏳ | Bảng công tháng + Excel, mẫu hợp đồng, quy ra tiền tăng ca, voice + đặt phòng họp | Bỏ quy trình giấy/Excel |
 | **3. Mở rộng** ⏳ | Webhook máy chấm công, PWA/mobile, ký điện tử, tích hợp lương | Tuỳ nhu cầu |
 
-**Bước tiếp theo** (chủ dự án chọn): văn phòng 3D đầy đủ · hợp đồng lao động.
+**Bước tiếp theo** (chủ dự án chọn): văn phòng 3D đầy đủ · báo cáo + xuất Excel · quy ra tiền phép / tăng ca (dùng lương trên hợp đồng).

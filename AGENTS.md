@@ -11,8 +11,9 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Chạy dev, build, test, migration, biến `.env`, CI, deploy | [.agent/commands.md](.agent/commands.md) |
 | Viết code đúng chuẩn: module BE, validation, đặt tên | [.agent/conventions.md](.agent/conventions.md) |
 | Front-end: feature, shadcn/ui, theme sáng/tối, layout sidebar/header | [.agent/frontend.md](.agent/frontend.md) |
-| Luồng request, cookie Api ↔ Realtime, route/trang, cache | [.agent/architecture.md](.agent/architecture.md) |
-| Thêm/sửa bảng, index, migration, quy tắc ghi dữ liệu | [.agent/database.md](.agent/database.md) (schema approval / leave / notifications: [.agent/database-workflow.md](.agent/database-workflow.md)) |
+| Luồng request, cookie Api ↔ Realtime, cache | [.agent/architecture.md](.agent/architecture.md) |
+| Tiền tố `/api/*` → module, danh sách trang FE + guard | [.agent/routes.md](.agent/routes.md) |
+| Thêm/sửa bảng, index, migration, quy tắc ghi dữ liệu | [.agent/database.md](.agent/database.md) (schema approval / leave / notifications / contracts: [.agent/database-workflow.md](.agent/database-workflow.md)) |
 | Nguyên tắc phân quyền, nợ kỹ thuật đã biết | [.agent/business/README.md](.agent/business/README.md) |
 | Đăng nhập, mật khẩu, link mời, admin seed | [.agent/business/auth.md](.agent/business/auth.md) |
 | Nhân viên, phòng ban, cấp tài khoản, vai trò | [.agent/business/organization.md](.agent/business/organization.md) |
@@ -20,6 +21,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Giải trình chấm công | [.agent/business/attendance-corrections.md](.agent/business/attendance-corrections.md) |
 | Tăng ca | [.agent/business/attendance-overtime.md](.agent/business/attendance-overtime.md) |
 | Thông báo (chuông in-app, email, hàng đợi gửi) | [.agent/business/notifications.md](.agent/business/notifications.md) |
+| Hợp đồng lao động, phụ lục, lương mã hoá, file S3, nhắc hết hạn | [.agent/business/contracts.md](.agent/business/contracts.md) |
 | Luồng duyệt, thêm loại đơn | [.agent/business/approval.md](.agent/business/approval.md) |
 | Nghỉ phép, quỹ phép năm | [.agent/business/leave.md](.agent/business/leave.md) |
 | Văn phòng 3D, SignalR, bản đồ, voice | [.agent/business/office.md](.agent/business/office.md) |

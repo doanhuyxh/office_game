@@ -34,7 +34,7 @@ features/employees/
 - Ngoài feature **chỉ import qua `@/features/<x>`** (barrel). Trong feature dùng đường dẫn tương đối. Feature được có thêm thư mục riêng (vd `office/engine`, `office/store`).
 - Màn hình mới: tạo feature → thêm `page(PATHS.x, () => import('@/features/x'), '<Export>')` trong `routes/router.tsx` → thêm `PATHS.x` vào `config/paths.ts` → thêm menu vào `components/layout/navigation.ts` (chọn nhóm, icon lucide). Đầu trang dùng `<PageHeader title description actions />`. **Không** tạo file route bọc lại component (không có thư mục `app/`).
 - Interface đặt tên `I<Tên>`; kiểu union string literal cho enum (khớp tên enum C#).
-- Gọi API **luôn** qua `http`/`httpPost` (`services/api-client.ts`, `credentials: 'include'`). Không lưu token (đăng nhập bằng cookie HttpOnly).
+- Gọi API **luôn** qua `http`/`httpPost`/`httpUpload` (file, multipart field `file`) (`services/api-client.ts`, `credentials: 'include'`). Không lưu token (đăng nhập bằng cookie HttpOnly).
 - Lỗi: `fieldErrors(err)` cho form, `errorMessage(err)` cho toast (`utils/errors.ts`). Toast dùng `toast` từ `sonner`.
 - Form: `FormField` / `SelectField` (`components/common`). `SelectField` dùng giá trị đặc biệt cho "không chọn" (Radix không nhận value rỗng) và trả `null`.
 - Ngày giờ hiển thị: `formatDate`, `formatTime`, `formatMinutes` (`utils/date.ts`, múi giờ `Asia/Ho_Chi_Minh`).

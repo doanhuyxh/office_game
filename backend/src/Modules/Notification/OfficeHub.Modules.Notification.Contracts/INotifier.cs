@@ -30,4 +30,6 @@ public static class NotificationCategories
     public const string ApprovalRejected = "approval_rejected";
     /// <summary>Đơn người nhận đang phải duyệt đã bị người gửi huỷ.</summary>
     public const string ApprovalCancelled = "approval_cancelled";
+    /// <summary>Hợp đồng lao động sắp hết hạn (30 / 7 ngày) — gửi HR và quản lý trực tiếp.</summary>
+    public const string ContractExpiring = "contract_expiring";
 }

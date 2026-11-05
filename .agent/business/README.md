@@ -17,7 +17,8 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Giải trình chấm công (bổ sung giờ vào / ra) | [attendance-corrections.md](attendance-corrections.md) |
 | Tăng ca (đơn, hệ số theo loại ngày, giới hạn) | [attendance-overtime.md](attendance-overtime.md) |
 | Thông báo: chuông in-app + email (hàng đợi, thử lại), ai nhận gì khi gửi / duyệt / từ chối / huỷ đơn, `INotifier` | [notifications.md](notifications.md) |
-| LaborContracts, Reporting, Audit | Chưa có nghiệp vụ — chỉ `GET /api/<route>/_status`. FE: `ComingSoon`. Thiết kế dự kiến: `docs/ARCHITECTURE_V2.md` |
+| Hợp đồng lao động: loại / thời hạn theo BLLĐ, phụ lục, lương mã hoá, file S3, nhắc 30 / 7 ngày, quyền xem | [contracts.md](contracts.md) |
+| Reporting, Audit | Chưa có nghiệp vụ — chỉ `GET /api/<route>/_status`. FE: `ComingSoon`. Thiết kế dự kiến: `docs/ARCHITECTURE_V2.md` |
 
 ## Nguyên tắc chung
 
@@ -36,7 +37,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 3. Không có transaction trải nhiều module (xem [database.md](../database.md#không-có)).
 4. 2FA: `LoginAsync` có nhánh `RequiresTwoFactor` nhưng chưa có API bật 2FA.
 5. Không có chống CSRF (antiforgery); đang dựa vào `SameSite=Lax` + body JSON (cần xác nhận khi lên production).
-6. Khai báo nhưng chưa dùng: `Office__InactiveMinutes`, `IFileStorage` (chưa module nào upload), FE `ENV`, `REALTIME.voiceToken`, `VITE_SENTRY_DSN`, `src/assets/icons|images` trống.
+6. Khai báo nhưng chưa dùng: `Office__InactiveMinutes`, FE `ENV`, `REALTIME.voiceToken`, `VITE_SENTRY_DSN`, `src/assets/icons|images` trống.
 7. Registry shadcn `new-york-v4` viết sẵn `import { cn } from "cn"` và CLI cài gói npm rác `cn` → luôn thêm component bằng `bun run ui:add` (`frontend/scripts/ui-add.ts` tự sửa import + gỡ gói). CLI hỏi ghi đè file đã có (vd. `button.tsx` khi thêm `sidebar`) → trả lời `n` trừ khi muốn cập nhật.
 8. Dev chạy qua Vite proxy → IP là localhost → chấm công luôn `Remote` trừ khi `Office__IpRanges` chứa `127.0.0.1/32`.
 9. Bảng công và quỹ phép tính lại mỗi lần đọc (đủ nhanh cho ~12 người). Chưa có "chốt công", quy ra tiền tăng ca / giờ làm đêm, giờ lõi ca linh hoạt, ca qua đêm, quy ra tiền phép năm, tuỳ chọn tắt email thông báo.

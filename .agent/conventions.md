@@ -46,6 +46,7 @@ src/Modules/<M>/
 ### Cấu hình
 
 - Settings class trong `BuildingBlocks/Configuration/Settings.cs` (DataAnnotations, `ErrorMessage = "Thiếu X__Y trong .env"`) + `AddValidatedOptions<T>(config, Section)` (ValidateOnStart). Thêm biến mới → cập nhật `.env.example` và [commands.md](commands.md).
+- Dữ liệu cá nhân nhạy cảm (lương…) lưu qua `IFieldEncryptor` (`BuildingBlocks/Security`, `services.AddFieldEncryption(config)`, cột `…Encrypted`) — không tìm / sắp xếp được trên cột mã hoá.
 
 ## Front-end
 

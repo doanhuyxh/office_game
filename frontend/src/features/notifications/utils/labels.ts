@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Ban, Bell, CheckCircle2, Inbox, XCircle } from 'lucide-react';
+import { Ban, Bell, CheckCircle2, FileClock, Inbox, XCircle } from 'lucide-react';
 
 /** Icon + màu (token theme) theo loại thông báo. */
 export const CATEGORY: Record<string, { icon: LucideIcon; className: string }> = {
@@ -7,6 +7,7 @@ export const CATEGORY: Record<string, { icon: LucideIcon; className: string }> =
   approval_approved: { icon: CheckCircle2, className: 'text-success' },
   approval_rejected: { icon: XCircle, className: 'text-destructive' },
   approval_cancelled: { icon: Ban, className: 'text-muted-foreground' },
+  contract_expiring: { icon: FileClock, className: 'text-warning' },
 };
 export const FALLBACK = { icon: Bell, className: 'text-muted-foreground' };
 

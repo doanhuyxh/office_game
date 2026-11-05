@@ -52,7 +52,7 @@ dotnet ef migrations add <TenMigration> \
   --context <DbContext> -o Infrastructure/Migrations
 ```
 
-DbContext hiện có: `OfficeIdentityDbContext`, `OrgDbContext`, `AttendanceDbContext`, `ApprovalDbContext`, `LeaveDbContext`, `NotificationDbContext`. Migration tự chạy khi Api khởi động nếu `Database__MigrateOnStartup=true`. Chi tiết: [database.md](database.md).
+DbContext hiện có: `OfficeIdentityDbContext`, `OrgDbContext`, `AttendanceDbContext`, `ApprovalDbContext`, `LeaveDbContext`, `NotificationDbContext`, `ContractsDbContext`. Migration tự chạy khi Api khởi động nếu `Database__MigrateOnStartup=true`. Chi tiết: [database.md](database.md).
 
 ## Biến môi trường
 
@@ -66,6 +66,7 @@ Một file `.env` ở gốc repo cho BE + Docker Compose. Quy ước `Section__K
 | `Database__MigrateOnStartup` | – (mặc định true) | Tự chạy migration khi Api khởi động |
 | `Seed__AdminEmail`, `Seed__AdminPassword`, `Seed__AdminFullName` | khi DB chưa có admin | Tạo admin đầu tiên |
 | `DataProtection__KeysPath` | ✔ | Thư mục khoá mã hoá cookie. Api và Realtime **phải dùng chung**. Đường dẫn tương đối tính từ thư mục chứa `.env` |
+| `Encryption__Key` | ✔ | Base64 của 32 byte (`openssl rand -base64 32`), AES-256-GCM cho trường nhạy cảm (lương hợp đồng). **Mất / đổi khoá = mất dữ liệu đã mã hoá** → sao lưu cùng DB. Sai định dạng → app dừng |
 | `Office__TimeZone` | ✔ | Múi giờ tính công (`Asia/Ho_Chi_Minh`) |
 | `Office__IpRanges` | – | CIDR, cách nhau dấu phẩy. Trống → mọi lần chấm công là "Remote" |
 | `Office__InactiveMinutes` | – | Khai báo nhưng **chưa được code dùng** |

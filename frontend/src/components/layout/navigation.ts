@@ -40,7 +40,7 @@ export const NAVIGATION: NavGroup[] = [
     title: 'Tổ chức',
     items: [
       { to: PATHS.employees, label: 'Nhân viên', icon: Users },
-      { to: PATHS.contracts, label: 'Hợp đồng', icon: FileText, roles: [ROLE.admin, ROLE.hr] },
+      { to: PATHS.contracts, label: 'Hợp đồng', icon: FileText }, // HR: tất cả; nhân viên: của mình (quyền kiểm tra ở back-end)
       { to: PATHS.reports, label: 'Báo cáo', icon: BarChart3, roles: [ROLE.admin, ROLE.hr] },
     ],
   },

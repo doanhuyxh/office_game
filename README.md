@@ -9,14 +9,15 @@ Nhân viên đăng nhập vào một văn phòng 3D để gặp đồng nghiệp
 | Đã có | Đang làm tiếp |
 |---|---|
 | Đăng nhập bằng email hoặc mã nhân viên, quên mật khẩu, mời qua email, mật khẩu tạm; khoá tài khoản có hiệu lực ngay | Quy ra tiền tăng ca / phép năm |
-| Quản lý nhân viên, phòng ban, chức vụ, vai trò (admin / HR / quản lý / nhân viên) | Hợp đồng lao động (file S3, nhắc hết hạn) |
+| Quản lý nhân viên, phòng ban, chức vụ, vai trò (admin / HR / quản lý / nhân viên) | Quy ra tiền phép năm / tăng ca |
 | Chấm công trên web hoặc tại máy chấm công trong văn phòng 3D; tự nhận biết làm tại văn phòng hay từ xa | Nhắc quên chấm ra |
 | Ca cố định và ca linh hoạt, lịch tuần theo công ty hoặc từng người, ngày lễ | Văn phòng 3D đầy đủ theo mặt bằng thật, voice |
-| Bảng công tháng, tình trạng hôm nay, tổng hợp tháng cho quản lý / HR | Hợp đồng lao động, báo cáo, xuất Excel |
+| Bảng công tháng, tình trạng hôm nay, tổng hợp tháng cho quản lý / HR | Báo cáo, xuất Excel, audit |
 | **Phê duyệt** dùng chung: quản lý trực tiếp → HR, không tự duyệt đơn của mình | |
 | **Nghỉ phép**: phép năm 12 ngày + thâm niên, cộng dồn tháng, không hết hạn; nghỉ cả ngày / nửa ngày; lịch nghỉ team; HR điều chỉnh quỹ phép | |
 | **Giải trình chấm công**: bổ sung giờ vào / ra, duyệt xong bảng công tự cập nhật | |
 | **Thông báo**: chuông trong app + email khi có đơn chờ duyệt, đơn được duyệt / từ chối / huỷ | |
+| **Hợp đồng lao động**: loại / thời hạn theo luật, phụ lục, lương mã hoá, file scan S3, nhắc HR + quản lý 30 / 7 ngày trước hết hạn; nhân viên xem hợp đồng của mình | |
 | **Tăng ca**: đăng ký trước hoặc khai bù 7 ngày, quản lý → HR duyệt, giờ tách theo hệ số 150 / 200 / 300%, cảnh báo vượt 40 giờ/tháng · 200 giờ/năm | |
 | Văn phòng 3D: thấy đồng nghiệp di chuyển, chat | |
 

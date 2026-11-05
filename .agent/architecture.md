@@ -12,10 +12,10 @@ backend/                         ASP.NET Core .NET 10 — solution OfficeHub.sln
     Configuration/               EnvLoader (.env), Settings.cs, AddValidatedOptions
     Hosting/HostingExtensions.cs AddOfficeHubDefaults (Serilog→Seq, Sentry, DataProtection, ForwardedHeaders), S3, Email
     Auth/                        AuthCookie (cookie dùng chung), Roles, ClaimNames, AuthPolicies
-    Health/, Http/Validation.cs, Persistence/, Storage/(IFileStorage→S3), Email/(IEmailSender→SMTP), Office/OfficeNetwork
-  src/Modules/                   Identity · Organization · Attendance · Approval · Leave · Notification (mỗi cái + .Contracts) ← có nghiệp vụ
-                                 LaborContracts · Reporting · Audit ← chỉ khung (/_status)
-  tests/                         OfficeHub.Architecture.Tests, OfficeHub.Modules.{Attendance,Leave,Notification}.Tests
+    Health/, Http/Validation.cs, Persistence/, Storage/(IFileStorage→S3), Email/(IEmailSender→SMTP), Security/(IFieldEncryptor AES-GCM), Office/OfficeNetwork
+  src/Modules/                   Identity · Organization · Attendance · Approval · Leave · Notification (mỗi cái + .Contracts) · LaborContracts ← có nghiệp vụ
+                                 Reporting · Audit ← chỉ khung (/_status)
+  tests/                         OfficeHub.Architecture.Tests, OfficeHub.Modules.{Attendance,Leave,Notification,LaborContracts}.Tests
 frontend/                        React 19 + Vite + TS (bun) — chi tiết: conventions.md
 shared/office-map.json           bản đồ văn phòng 3D, dùng chung FE (vẽ) + Realtime (kiểm tra sàn)
 infra/                           docker-compose.dev.yml, docker-compose.yml (prod), backup/, livekit/
@@ -45,30 +45,9 @@ Trình duyệt (SPA :5173)
 
 Hosted service khởi động: `IdentitySeeder` (migrate + roles + admin), `OrgMigrator`, `AttendanceSeeder` (migrate + ca mặc định).
 
-## Route API
+## Route API và trang front-end
 
-| Tiền tố | Module | Tài liệu |
-|---|---|---|
-| `/api/auth/*` | Identity | [business/auth.md](business/auth.md) |
-| `/api/org/*` | Organization | [business/organization.md](business/organization.md) |
-| `/api/attendance/*` | Attendance | [business/attendance.md](business/attendance.md), [business/attendance-corrections.md](business/attendance-corrections.md), [business/attendance-overtime.md](business/attendance-overtime.md) |
-| `/api/notifications/*` | Notification | [business/notifications.md](business/notifications.md) |
-| `/api/approval/*` | Approval | [business/approval.md](business/approval.md) |
-| `/api/leave/*` | Leave | [business/leave.md](business/leave.md) |
-| `/rt/hub/office`, `/rt/voice/token` | Realtime | [business/office.md](business/office.md) |
-| `/api/contracts`, `/api/reports`, `/api/audit` | khung | chỉ `GET /_status` |
-
-## Trang front-end (`routes/router.tsx`)
-
-| Path | Guard | Component (barrel) |
-|---|---|---|
-| `/login`, `/forgot-password` | `guestOnly` (đã đăng nhập → `/`) | `LoginForm`, `ForgotPasswordForm` (`@/features/auth`) |
-| `/accept-invite`, `/reset-password` | không (link email, search `uid`, `token`) | `AcceptInviteForm`, `ResetPasswordForm` |
-| `/change-password` | `requireSession` | `ChangePasswordForm` |
-| `/office` | `requireAuth`, toàn màn hình | `OfficeView` (`@/features/office`, lazy, kéo Three.js) |
-| `/` `/attendance` `/employees` `/leave` `/approvals` `/contracts` `/reports` | `requireAuth`, trong `MainLayout` | `Dashboard`, `AttendancePage`, `EmployeesPage`, `LeavePage`, `ApprovalsPage`; contracts/reports là `ComingSoon` |
-
-`requireAuth`: chưa đăng nhập → `/login?returnUrl=…`; `mustChangePassword` → `/change-password`. Quay lại sau đăng nhập dùng `safeReturnPath` (chỉ đường dẫn cùng origin). Mọi trang trong `page(...)` là lazy chunk; Three.js tách chunk `three` (`vite.config.ts` `manualChunks`). Menu sidebar (nhóm → mục, icon lucide) lọc theo `roles` trong `components/layout/navigation.ts` (Hợp đồng, Báo cáo: admin/hr; còn lại ai cũng thấy). Bố cục khung trang: [frontend.md](frontend.md#bố-cục-mainlayout).
+Bảng tiền tố `/api/*` → module và danh sách trang / guard: [routes.md](routes.md).
 
 ## Dữ liệu phía client & cache
 
