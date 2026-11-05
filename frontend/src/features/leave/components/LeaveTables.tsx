@@ -4,9 +4,9 @@ import { Button } from '@/components/common/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/common/input';
+import { StatusBadge as Badge } from '@/components/common/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { useCancelApproval } from '@/features/approvals';
-import { cn } from '@/utils/cn';
 import { formatDate } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { useAdjustLeave, useAllBalances, useMyLeaves, useTeamLeaves } from '../hooks/useLeave';
@@ -16,9 +16,7 @@ import { fmtDays, LEAVE_STATUS, PERIOD_LABEL } from '../utils/labels';
 const range = (r: ILeaveRequest) =>
   r.startDate === r.endDate ? `${formatDate(r.startDate)}${r.period !== 'FullDay' ? ` · ${PERIOD_LABEL[r.period]}` : ''}` : `${formatDate(r.startDate)} → ${formatDate(r.endDate)}`;
 
-const StatusBadge = ({ s }: { s: ILeaveRequest['status'] }) => (
-  <span className={cn('rounded-md px-2 py-0.5 text-xs font-medium', LEAVE_STATUS[s].className)}>{LEAVE_STATUS[s].label}</span>
-);
+const StatusBadge = ({ s }: { s: ILeaveRequest['status'] }) => <Badge tone={LEAVE_STATUS[s].tone}>{LEAVE_STATUS[s].label}</Badge>;
 
 /** Đơn nghỉ của tôi; đơn chờ duyệt có nút huỷ (huỷ qua luồng phê duyệt). */
 export function MyLeavesTable() {
@@ -40,7 +38,7 @@ export function MyLeavesTable() {
               <TableCell className="text-sm">{range(r)}</TableCell>
               <TableCell className="text-right font-mono">{fmtDays(r.days)}</TableCell>
               <TableCell className="max-w-64 text-sm text-muted-foreground">
-                {r.reason}{r.rejectReason && <div className="text-red-600">Lý do từ chối: {r.rejectReason}</div>}
+                {r.reason}{r.rejectReason && <div className="text-destructive">Lý do từ chối: {r.rejectReason}</div>}
               </TableCell>
               <TableCell><StatusBadge s={r.status} /></TableCell>
               <TableCell>

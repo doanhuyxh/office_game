@@ -1,3 +1,4 @@
+import { Badge } from '@/components/common/badge';
 import { Button } from '@/components/common/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
 import type { IBalance } from '../types/leave.types';
@@ -49,7 +50,7 @@ export function YearEndCard({ b }: { b: IBalance }) {
         <div className="rounded-lg border p-3 opacity-60">
           <div className="flex items-center justify-between gap-2">
             <b>Quy ra tiền</b>
-            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs">Đang phát triển</span>
+            <Badge variant="secondary">Đang phát triển</Badge>
           </div>
           <p className="text-muted-foreground">Thanh toán theo lương ngày công. Nhân viên đề xuất, HR duyệt.</p>
           <Button size="sm" variant="outline" className="mt-2" disabled>Đề xuất quy ra tiền</Button>

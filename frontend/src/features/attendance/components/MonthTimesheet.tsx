@@ -1,3 +1,4 @@
+import { Button } from '@/components/common/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { formatTime } from '@/utils/date';
@@ -8,8 +9,8 @@ import { StatusBadge } from './StatusBadge';
 
 function Stat({ label, value, tone }: { label: string; value: string | number; tone?: string }) {
   return (
-    <Card className="py-3">
-      <CardHeader className="px-4 py-0"><CardDescription>{label}</CardDescription><CardTitle className={cn('text-xl', tone)}>{value}</CardTitle></CardHeader>
+    <Card className="gap-0 py-3">
+      <CardHeader className="gap-1 px-4"><CardDescription>{label}</CardDescription><CardTitle className={cn('text-xl', tone)}>{value}</CardTitle></CardHeader>
     </Card>
   );
 }
@@ -35,9 +36,9 @@ export function MonthTimesheet({ data, onCorrect, corrections = [] }: { data: IM
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
         <Stat label="Ngày công" value={`${s.presentDays}/${s.workDays}`} />
         <Stat label="Giờ làm" value={`${hm(s.workedMinutes)} / ${hm(s.requiredMinutes)}`} />
-        <Stat label="Đi muộn" value={s.lateCount ? `${s.lateCount} lần · ${s.lateMinutes}′` : 0} tone={s.lateCount ? 'text-red-600' : undefined} />
-        <Stat label="Vắng" value={s.absentDays} tone={s.absentDays ? 'text-red-600' : undefined} />
-        <Stat label="Thiếu giờ ra" value={s.missingCheckoutDays} tone={s.missingCheckoutDays ? 'text-amber-600' : undefined} />
+        <Stat label="Đi muộn" value={s.lateCount ? `${s.lateCount} lần · ${s.lateMinutes}′` : 0} tone={s.lateCount ? 'text-destructive' : undefined} />
+        <Stat label="Vắng" value={s.absentDays} tone={s.absentDays ? 'text-destructive' : undefined} />
+        <Stat label="Thiếu giờ ra" value={s.missingCheckoutDays} tone={s.missingCheckoutDays ? 'text-warning' : undefined} />
         <Stat label="VP / Từ xa / KH" value={`${s.onsiteDays} / ${s.remoteDays} / ${s.mixedDays}`} />
         <Stat label="Nghỉ phép" value={s.leaveDays} />
       </div>
@@ -59,13 +60,13 @@ export function MonthTimesheet({ data, onCorrect, corrections = [] }: { data: IM
                   <TableCell className="font-mono text-xs">{WEEKDAY_SHORT[wd]} {d.date.slice(8)}/{d.date.slice(5, 7)}</TableCell>
                   <TableCell className="text-xs">
                     {d.holidayName ?? d.shiftName ?? '—'}
-                    {d.leaveName && <div className="text-violet-700">{d.leaveFraction < 1 ? '½ ' : ''}{d.leaveName}</div>}
+                    {d.leaveName && <div className="text-info">{d.leaveFraction < 1 ? '½ ' : ''}{d.leaveName}</div>}
                   </TableCell>
                   <TableCell className="font-mono tabular-nums">{d.firstIn ? formatTime(d.firstIn) : ''}</TableCell>
                   <TableCell className="font-mono tabular-nums">{d.lastOut ? formatTime(d.lastOut) : ''}{d.sessions.length > 1 && <span className="ml-1 text-xs text-muted-foreground">({d.sessions.length} lần)</span>}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{hm(d.workedMinutes)}</TableCell>
-                  <TableCell className={cn('text-right tabular-nums', d.lateMinutes > 0 && 'text-red-600')}>{d.lateMinutes || ''}</TableCell>
-                  <TableCell className={cn('text-right tabular-nums', d.shortMinutes > 0 && 'text-amber-600')}>{d.shortMinutes || ''}</TableCell>
+                  <TableCell className={cn('text-right tabular-nums', d.lateMinutes > 0 && 'text-destructive')}>{d.lateMinutes || ''}</TableCell>
+                  <TableCell className={cn('text-right tabular-nums', d.shortMinutes > 0 && 'text-warning')}>{d.shortMinutes || ''}</TableCell>
                   <TableCell className="text-xs">{d.workMode ? WORK_MODE[d.workMode] : ''}</TableCell>
                   <TableCell>
                     <StatusBadge status={d.status} />
@@ -75,7 +76,7 @@ export function MonthTimesheet({ data, onCorrect, corrections = [] }: { data: IM
                   </TableCell>
                   {onCorrect && (
                     <TableCell className="text-right">
-                      {canCorrect(d) && <button className="text-xs text-primary hover:underline" onClick={() => onCorrect(d)} data-testid={`correct-${d.date}`}>Giải trình</button>}
+                      {canCorrect(d) && <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => onCorrect(d)} data-testid={`correct-${d.date}`}>Giải trình</Button>}
                     </TableCell>
                   )}
                 </TableRow>

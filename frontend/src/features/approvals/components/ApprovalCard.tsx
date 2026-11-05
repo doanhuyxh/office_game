@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { Card, CardContent } from '@/components/common/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
+import { StatusBadge } from '@/components/common/StatusBadge';
 import { Label } from '@/components/common/label';
 import { Textarea } from '@/components/common/textarea';
 import { cn } from '@/utils/cn';
@@ -13,7 +14,7 @@ import type { IApproval } from '../types/approval.types';
 import { APPROVAL_STATUS, APPROVAL_TYPE, STEP_ICON } from '../utils/labels';
 
 export function ApprovalStatusBadge({ status }: { status: IApproval['status'] }) {
-  return <span className={cn('rounded-md px-2 py-0.5 text-xs font-medium', APPROVAL_STATUS[status].className)}>{APPROVAL_STATUS[status].label}</span>;
+  return <StatusBadge tone={APPROVAL_STATUS[status].tone}>{APPROVAL_STATUS[status].label}</StatusBadge>;
 }
 
 /** Một đơn: tiêu đề, người gửi, tiến trình các bước duyệt, nút duyệt / từ chối / huỷ theo quyền (server trả canDecide, canCancel). */
@@ -27,7 +28,7 @@ export function ApprovalCard({ item, showRequester }: { item: IApproval; showReq
 
   return (
     <Card data-testid="approval-card">
-      <CardContent className="grid gap-3 pt-6">
+      <CardContent className="grid gap-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <div className="text-xs text-muted-foreground">{APPROVAL_TYPE[item.type] ?? item.type} · gửi {formatDateTime(item.createdAt)}</div>
@@ -43,7 +44,7 @@ export function ApprovalCard({ item, showRequester }: { item: IApproval; showReq
         <p className="text-sm">{item.summary}</p>
         <ol className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
           {item.steps.map((s) => (
-            <li key={s.order} className={cn(s.status === 'Rejected' && 'text-red-600', s.status === 'Approved' && 'text-emerald-700', s.status === 'Pending' && 'font-semibold')}>
+            <li key={s.order} className={cn(s.status === 'Rejected' && 'text-destructive', s.status === 'Approved' && 'text-success', s.status === 'Pending' && 'font-semibold')}>
               {STEP_ICON[s.status]} {s.kind === 'Manager' ? `Quản lý: ${s.approverName}` : 'HR'}
               {s.decidedByName && ` (${s.decidedByName})`}
               {s.comment && <span className="text-muted-foreground"> — “{s.comment}”</span>}

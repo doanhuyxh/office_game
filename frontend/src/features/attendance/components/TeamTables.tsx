@@ -36,7 +36,7 @@ export function BoardTable() {
                 <TableCell className="font-mono tabular-nums">{d.firstIn ? formatTime(d.firstIn) : ''}</TableCell>
                 <TableCell className="font-mono tabular-nums">{d.lastOut ? formatTime(d.lastOut) : ''}</TableCell>
                 <TableCell className="text-right font-mono tabular-nums">{hm(d.workedMinutes)}</TableCell>
-                <TableCell className={cn('text-right', d.lateMinutes > 0 && 'text-red-600')}>{d.lateMinutes || ''}</TableCell>
+                <TableCell className={cn('text-right', d.lateMinutes > 0 && 'text-destructive')}>{d.lateMinutes || ''}</TableCell>
                 <TableCell className="text-xs">{d.workMode ? WORK_MODE[d.workMode] : ''}</TableCell>
                 <TableCell><StatusBadge status={d.status} /></TableCell>
               </TableRow>
@@ -69,9 +69,9 @@ export function ReportTable({ month }: { month: string }) {
                 <TableCell><span className="font-mono text-xs text-muted-foreground">{e.code}</span> {e.fullName}</TableCell>
                 <TableCell className="text-right">{s.presentDays}/{s.workDays}</TableCell>
                 <TableCell className="text-right font-mono">{hm(s.workedMinutes)} / {hm(s.requiredMinutes)}</TableCell>
-                <TableCell className={cn('text-right', s.lateCount > 0 && 'text-red-600')}>{s.lateCount ? `${s.lateCount} (${s.lateMinutes}′)` : 0}</TableCell>
-                <TableCell className={cn('text-right', s.absentDays > 0 && 'text-red-600')}>{s.absentDays}</TableCell>
-                <TableCell className={cn('text-right', s.missingCheckoutDays > 0 && 'text-amber-600')}>{s.missingCheckoutDays}</TableCell>
+                <TableCell className={cn('text-right', s.lateCount > 0 && 'text-destructive')}>{s.lateCount ? `${s.lateCount} (${s.lateMinutes}′)` : 0}</TableCell>
+                <TableCell className={cn('text-right', s.absentDays > 0 && 'text-destructive')}>{s.absentDays}</TableCell>
+                <TableCell className={cn('text-right', s.missingCheckoutDays > 0 && 'text-warning')}>{s.missingCheckoutDays}</TableCell>
                 <TableCell className="text-right">{s.onsiteDays} / {s.remoteDays} / {s.mixedDays}</TableCell>
               </TableRow>
             ))}

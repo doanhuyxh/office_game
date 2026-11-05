@@ -67,7 +67,7 @@ export function CheckInCard({ className }: { className?: string }) {
         {today && (
           <>
             <Button size="lg" onClick={onCheck} disabled={check.isPending} data-testid="check-button"
-              className={cn('h-12 text-base', today.checkedIn && 'bg-amber-600 hover:bg-amber-600/90')}>
+              className={cn('h-12 text-base', today.checkedIn && 'bg-warning text-warning-foreground hover:bg-warning/90')}>
               {today.checkedIn ? <LogOut /> : <LogIn />}
               {check.isPending ? 'Đang chấm…' : today.checkedIn ? 'Chấm công ra' : 'Chấm công vào'}
             </Button>
@@ -84,7 +84,7 @@ export function CheckInCard({ className }: { className?: string }) {
                 ))}
                 <div className="mt-1 flex justify-between border-t pt-1 text-xs text-muted-foreground">
                   <span>Đã làm {formatMinutes(day.workedMinutes)}{day.requiredMinutes > 0 && ` / ${formatMinutes(day.requiredMinutes)}`}</span>
-                  {day.lateMinutes > 0 && <span className="text-red-600">Muộn {day.lateMinutes} phút</span>}
+                  {day.lateMinutes > 0 && <span className="text-destructive">Muộn {day.lateMinutes} phút</span>}
                 </div>
               </div>
             )}

@@ -1,5 +1,6 @@
 import { Link, Outlet } from '@tanstack/react-router';
-import { buttonVariants } from '@/components/common/button';
+import { Badge } from '@/components/common/badge';
+import { Button, buttonVariants } from '@/components/common/button';
 import { useInboxCount } from '@/features/approvals';
 import { hasRole, useLogout, useMe } from '@/features/auth';
 import { PATHS } from '@/config/paths';
@@ -14,21 +15,21 @@ export function MainLayout() {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="hidden w-60 flex-col border-r bg-card p-4 md:flex">
+      <aside className="hidden w-60 flex-col border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground md:flex">
         <div className="mb-6 px-2 text-lg font-bold">🏢 OfficeHub</div>
         <nav className="flex-1 space-y-1">
           {items.map((n) => (
             <Link
               key={n.to}
               to={n.to}
-              className="flex gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              activeProps={{ className: 'bg-accent font-semibold !text-primary' }}
+              className="flex gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              activeProps={{ className: 'bg-sidebar-accent font-semibold !text-sidebar-primary' }}
               activeOptions={{ exact: n.to === PATHS.dashboard }}
             >
               <span>{n.icon}</span>
               {n.label}
               {n.to === PATHS.approvals && inboxCount > 0 && (
-                <span className="ml-auto rounded-full bg-destructive px-2 text-xs font-semibold text-white" data-testid="inbox-badge">{inboxCount}</span>
+                <Badge variant="destructive" className="ml-auto" data-testid="inbox-badge">{inboxCount}</Badge>
               )}
             </Link>
           ))}
@@ -39,9 +40,9 @@ export function MainLayout() {
         <div className="border-t pt-3 text-sm">
           <div className="font-semibold">{me?.fullName}</div>
           <div className="text-xs text-muted-foreground">{me?.roles.join(', ')}</div>
-          <button onClick={logout} className="mt-2 text-xs text-destructive hover:underline">
+          <Button variant="link" size="sm" onClick={logout} className="mt-2 h-auto p-0 text-xs text-destructive">
             Đăng xuất
-          </button>
+          </Button>
         </div>
       </aside>
       <main className="flex-1 p-6">

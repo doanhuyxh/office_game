@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
+import { Checkbox } from '@/components/common/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/common/radio-group';
+import { cn } from '@/utils/cn';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/common/input';
@@ -21,11 +24,10 @@ function RolePicker({ value, onChange }: { value: string[]; onChange: (r: string
       <p className="text-xs text-muted-foreground">Mọi tài khoản đều có vai trò "{ROLE_LABEL.employee}".</p>
       <div className="flex flex-wrap gap-4">
         {roles.map((r) => (
-          <label key={r} className="flex items-center gap-2 text-sm">
-            <input type="checkbox" className="size-4 accent-primary" checked={value.includes(r)}
-              onChange={(e) => onChange(e.target.checked ? [...value, r] : value.filter((x) => x !== r))} />
+          <Label key={r} className="font-normal">
+            <Checkbox checked={value.includes(r)} onCheckedChange={(c) => onChange(c === true ? [...value, r] : value.filter((x) => x !== r))} />
             {ROLE_LABEL[r]}
-          </label>
+          </Label>
         ))}
       </div>
     </div>
@@ -106,10 +108,12 @@ export function CreateAccountDialog({ open, onOpenChange, employee, onTempPasswo
           <form onSubmit={submit} className="grid gap-4">
             <div className="grid gap-2">
               <Label>Cách cấp</Label>
+              <RadioGroup value={mode} onValueChange={(v) => setMode(v as AccountMode)}>
               {(['invite', 'password'] as const).map((m) => (
-                <label key={m} className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm ${mode === m ? 'border-primary bg-accent' : ''}`}>
-                  <input type="radio" name="mode" className="mt-1 accent-primary" checked={mode === m} disabled={m === 'invite' && !employee.email}
-                    onChange={() => setMode(m)} />
+                <Label key={m} htmlFor={`mode-${m}`}
+                  className={cn('cursor-pointer items-start gap-3 rounded-lg border p-3 font-normal leading-normal', mode === m && 'border-primary bg-accent',
+                    m === 'invite' && !employee.email && 'cursor-not-allowed opacity-60')}>
+                  <RadioGroupItem id={`mode-${m}`} value={m} className="mt-0.5" disabled={m === 'invite' && !employee.email} />
                   <span>
                     <b>{m === 'invite' ? 'Mời qua email' : 'Mật khẩu tạm'}</b>
                     <span className="block text-muted-foreground">
@@ -118,8 +122,9 @@ export function CreateAccountDialog({ open, onOpenChange, employee, onTempPasswo
                         : 'Hệ thống tạo mật khẩu tạm để HR gửi cho nhân viên; bắt buộc đổi khi đăng nhập lần đầu'}
                     </span>
                   </span>
-                </label>
+                </Label>
               ))}
+              </RadioGroup>
             </div>
             <FormField id="userName" label="Tên đăng nhập" value={userName} onChange={(e) => setUserName(e.target.value)}
               hint="Mặc định là mã nhân viên. Nhân viên có thể đăng nhập bằng tên này hoặc email." />

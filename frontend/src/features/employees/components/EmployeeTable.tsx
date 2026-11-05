@@ -3,6 +3,8 @@ import { MoreHorizontal, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/common/badge';
 import { Button } from '@/components/common/button';
+import { Checkbox } from '@/components/common/checkbox';
+import { Label } from '@/components/common/label';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/common/dropdown-menu';
@@ -64,10 +66,10 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
           <SelectField id="filter-dept" label="Phòng ban" allowEmpty emptyLabel="Tất cả phòng ban" value={departmentId} onChange={setDepartmentId}
             options={departments.map((d) => ({ value: d.id, label: d.name }))} />
         </div>
-        <label className="flex h-9 items-center gap-2 text-sm">
-          <input type="checkbox" className="size-4 accent-primary" checked={includeResigned} onChange={(e) => setIncludeResigned(e.target.checked)} />
+        <Label className="h-9 font-normal">
+          <Checkbox checked={includeResigned} onCheckedChange={(c) => setIncludeResigned(c === true)} />
           Hiện người đã nghỉ
-        </label>
+        </Label>
         {canEdit && (
           <Button onClick={() => setDialog({ kind: 'form', employee: null })}>
             <Plus /> Thêm nhân viên

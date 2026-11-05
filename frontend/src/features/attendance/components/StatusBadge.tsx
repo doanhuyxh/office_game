@@ -1,7 +1,5 @@
-import { cn } from '@/utils/cn';
+import { StatusBadge as Badge } from '@/components/common/StatusBadge';
 import type { DayStatus } from '../types/attendance.types';
 import { DAY_STATUS } from '../utils/labels';
 
-export const StatusBadge = ({ status }: { status: DayStatus }) => (
-  <span className={cn('inline-flex rounded-md px-2 py-0.5 text-xs font-medium', DAY_STATUS[status].className)}>{DAY_STATUS[status].label}</span>
-);
+export const StatusBadge = ({ status }: { status: DayStatus }) => <Badge tone={DAY_STATUS[status].tone}>{DAY_STATUS[status].label}</Badge>;

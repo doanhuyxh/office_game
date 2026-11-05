@@ -37,7 +37,7 @@ bun run dev                                   # http://localhost:5173, proxy /ap
 | Typecheck FE | `bun run typecheck` (`tsc -b`) | `frontend/` |
 | Build FE | `bun run build` (`tsc -b && vite build`) | `frontend/` |
 | Sinh type từ OpenAPI | `bun run api:generate` (Orval → `src/types/generated/`, thư mục **chưa tồn tại** tới khi chạy lần đầu; cần Api đang chạy) | `frontend/` |
-| Thêm component shadcn | `bunx shadcn@latest add <tên>` → vào `src/components/common/` | `frontend/` |
+| Thêm / cập nhật component shadcn | `bun run ui:add <tên…> [--overwrite]` → vào `src/components/common/` (**không** gọi `bunx shadcn add` trực tiếp) | `frontend/` |
 
 FE **không có lint/test runner** (không có ESLint, Vitest). Kiểm tra = `bun run build`.
 

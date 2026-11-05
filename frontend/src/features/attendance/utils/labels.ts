@@ -1,15 +1,16 @@
+import type { StatusTone } from '@/components/common/StatusBadge';
 import type { DayStatus, WorkModeValue } from '../types/attendance.types';
 
-export const DAY_STATUS: Record<DayStatus, { label: string; className: string }> = {
-  Present: { label: 'Đủ công', className: 'bg-emerald-100 text-emerald-800' },
-  Working: { label: 'Đang làm', className: 'bg-blue-100 text-blue-800' },
-  MissingCheckout: { label: 'Thiếu giờ ra', className: 'bg-amber-100 text-amber-800' },
-  Absent: { label: 'Vắng', className: 'bg-red-100 text-red-800' },
-  NotYet: { label: 'Chưa chấm', className: 'bg-slate-100 text-slate-600' },
-  DayOff: { label: 'Nghỉ', className: 'bg-slate-50 text-slate-400' },
-  Holiday: { label: 'Ngày lễ', className: 'bg-violet-100 text-violet-800' },
-  NotEmployed: { label: '—', className: 'text-slate-300' },
-  Leave: { label: 'Nghỉ phép', className: 'bg-violet-100 text-violet-800' },
+export const DAY_STATUS: Record<DayStatus, { label: string; tone: StatusTone }> = {
+  Present: { label: 'Đủ công', tone: 'success' },
+  Working: { label: 'Đang làm', tone: 'primary' },
+  MissingCheckout: { label: 'Thiếu giờ ra', tone: 'warning' },
+  Absent: { label: 'Vắng', tone: 'danger' },
+  NotYet: { label: 'Chưa chấm', tone: 'muted' },
+  DayOff: { label: 'Nghỉ', tone: 'faint' },
+  Holiday: { label: 'Ngày lễ', tone: 'info' },
+  NotEmployed: { label: '—', tone: 'faint' },
+  Leave: { label: 'Nghỉ phép', tone: 'info' },
 };
 
 export const WORK_MODE: Record<WorkModeValue, string> = {
