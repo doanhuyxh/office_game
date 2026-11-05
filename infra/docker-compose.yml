@@ -1,4 +1,4 @@
-# OfficeHub production trên VPS. Nginx của VPS chỉ cần proxy DOMAIN → 127.0.0.1:${HTTP_PORT:-7080} (infra/nginx/officehub.conf).
+# OfficeHub production. Nginx (cùng VPS hoặc VPS khác) chỉ cần proxy DOMAIN → <IP>:${HTTP_PORT:-7080} (infra/nginx/officehub.conf).
 #   cd /opt/officehub && sh scripts/deploy.sh        (git pull + build + chạy + dọn cache build)
 #   hoặc: docker compose --env-file .env -f infra/docker-compose.yml up -d --build
 #
@@ -59,7 +59,11 @@ services:
     <<: *logging
     image: officehub/web:latest
     build: { context: .., dockerfile: frontend/Dockerfile }
-    ports: ["127.0.0.1:${HTTP_PORT:-7080}:80"]   # chỉ nginx của VPS vào được
+    # Mặc định mở 0.0.0.0 để nginx ở VPS khác proxy vào. Docker BỎ QUA ufw → chặn cổng này bằng firewall nhà cung cấp
+    # (chỉ cho IP VPS proxy). Nginx cùng máy: HTTP_BIND=127.0.0.1
+    ports: ["${HTTP_BIND:-0.0.0.0}:${HTTP_PORT:-7080}:80"]
+    environment:
+      TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-}   # IP VPS chạy nginx proxy (cách nhau dấu phẩy)
     extra_hosts: ["host.docker.internal:host-gateway"]   # /livekit → LiveKit trên host
     restart: unless-stopped
 
