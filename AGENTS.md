@@ -8,6 +8,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 
 | Khi bạn cần... | Đọc |
 |---|---|
+| **Đầu phiên**: tiến độ, việc tiếp theo, dữ liệu / tài khoản thử, bẫy đã gặp | [.agent/progress.md](.agent/progress.md) |
 | Chạy dev, build, test, migration, biến `.env`, CI, deploy | [.agent/commands.md](.agent/commands.md) |
 | Viết code đúng chuẩn: module BE, validation, đặt tên | [.agent/conventions.md](.agent/conventions.md) |
 | Front-end: feature, shadcn/ui, theme sáng/tối, layout sidebar/header | [.agent/frontend.md](.agent/frontend.md) |
