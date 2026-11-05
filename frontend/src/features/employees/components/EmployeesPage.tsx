@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components/layout/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
 import { hasRole, useMe } from '@/features/auth';
 import { DepartmentsPanel } from './DepartmentsPanel';
@@ -10,12 +11,10 @@ export function EmployeesPage() {
   const canEdit = hasRole(me, 'admin', 'hr');
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Nhân viên</h1>
-        <p className="text-sm text-muted-foreground">
-          {canEdit ? 'Quản lý hồ sơ, phòng ban, chức vụ và tài khoản đăng nhập.' : 'Danh bạ nhân viên trong công ty.'}
-        </p>
-      </div>
+      <PageHeader
+        title="Nhân viên"
+        description={canEdit ? 'Quản lý hồ sơ, phòng ban, chức vụ và tài khoản đăng nhập.' : 'Danh bạ nhân viên trong công ty.'}
+      />
       <Tabs defaultValue="employees">
         <TabsList>
           <TabsTrigger value="employees">Nhân viên</TabsTrigger>

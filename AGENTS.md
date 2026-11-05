@@ -9,7 +9,8 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Khi bạn cần... | Đọc |
 |---|---|
 | Chạy dev, build, test, migration, biến `.env`, CI, deploy | [.agent/commands.md](.agent/commands.md) |
-| Viết code đúng chuẩn: module BE, feature FE, validation, đặt tên | [.agent/conventions.md](.agent/conventions.md) |
+| Viết code đúng chuẩn: module BE, validation, đặt tên | [.agent/conventions.md](.agent/conventions.md) |
+| Front-end: feature, shadcn/ui, theme sáng/tối, layout sidebar/header | [.agent/frontend.md](.agent/frontend.md) |
 | Luồng request, cookie Api ↔ Realtime, route/trang, cache | [.agent/architecture.md](.agent/architecture.md) |
 | Thêm/sửa bảng, index, migration, quy tắc ghi dữ liệu | [.agent/database.md](.agent/database.md) |
 | Nguyên tắc phân quyền, nợ kỹ thuật đã biết | [.agent/business/README.md](.agent/business/README.md) |

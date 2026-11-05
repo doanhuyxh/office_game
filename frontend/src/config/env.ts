@@ -12,5 +12,5 @@ export const REALTIME = {
 
 /** Key localStorage (chỉ cho tiện ích phía client, không lưu dữ liệu quan trọng). */
 export const STORAGE_KEY = {
-  sidebarCollapsed: 'officehub:sidebar-collapsed',
+  theme: 'officehub:theme',
 } as const;

@@ -32,7 +32,7 @@ export function LoginForm() {
   const error = login.error instanceof ApiError ? login.error.message : login.error ? 'Không kết nối được máy chủ' : '';
 
   return (
-    <AuthShell title="OfficeHub" description="Đăng nhập bằng email hoặc mã nhân viên">
+    <AuthShell title="Đăng nhập" description="Đăng nhập bằng email hoặc mã nhân viên">
       <form onSubmit={submit} className="grid gap-4">
         <FormField id="login" label="Email / Mã nhân viên" autoComplete="username" required autoFocus
           value={form.login} onChange={(e) => setForm({ ...form, login: e.target.value })} />

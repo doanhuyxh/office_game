@@ -22,7 +22,7 @@ if (args.length === 0) {
 }
 
 const run = (cmd: string[]) => {
-  const r = Bun.spawnSync(cmd, { cwd: root, stdout: 'inherit', stderr: 'inherit' });
+  const r = Bun.spawnSync(cmd, { cwd: root, stdin: 'inherit', stdout: 'inherit', stderr: 'inherit' });
   if (r.exitCode !== 0) process.exit(r.exitCode ?? 1);
 };
 

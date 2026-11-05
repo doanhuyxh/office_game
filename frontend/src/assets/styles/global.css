@@ -2,9 +2,9 @@
 @import "tw-animate-css";
 
 /*
- * Stylesheet toàn cục — theme shadcn/ui chuẩn cho Tailwind v4 (baseColor slate).
- * - Đổi màu chủ đạo: sửa --primary / --ring (đang dùng xanh dương thương hiệu, khác slate mặc định).
- * - Dark mode: thêm class "dark" lên <html> (biến màu bên dưới đã có sẵn, app chưa bật).
+ * Stylesheet toàn cục — theme shadcn/ui (slate) theo mẫu shadcn-admin, Tailwind v4.
+ * - Đổi màu chủ đạo: sửa --primary / --ring (đang là slate-900 như mẫu).
+ * - Dark mode: class "dark" trên <html>, do src/context/theme-provider.tsx bật (nút đổi theme ở header).
  * - Thêm component: `bun run ui:add <tên>` (KHÔNG dùng trực tiếp `bunx shadcn add`, xem scripts/ui-add.ts).
  * - Văn phòng 3D dùng CSS riêng trong .office-root, không phụ thuộc theme này.
  */
@@ -13,25 +13,25 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.984 0.003 247.858);
+  --background: oklch(1 0 0);
   --foreground: oklch(0.129 0.042 264.695);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.129 0.042 264.695);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.546 0.245 262.881);
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.208 0.042 265.755);
+  --primary-foreground: oklch(0.984 0.003 247.858);
   --secondary: oklch(0.968 0.007 247.896);
   --secondary-foreground: oklch(0.208 0.042 265.755);
   --muted: oklch(0.968 0.007 247.896);
   --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.951 0.026 236.824);
+  --accent: oklch(0.968 0.007 247.896);
   --accent-foreground: oklch(0.208 0.042 265.755);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
   --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.869 0.022 252.894);
-  --ring: oklch(0.546 0.245 262.881);
+  --input: oklch(0.929 0.013 255.508);
+  --ring: oklch(0.704 0.04 256.788);
   /* Màu trạng thái (ngoài bộ shadcn chuẩn): dùng text-success / bg-warning/15 / bg-info… */
   --success: oklch(0.508 0.118 165.612);
   --success-foreground: oklch(0.985 0 0);
@@ -44,25 +44,25 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.546 0.245 262.881);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.546 0.245 262.881);
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 }
 
 .dark {
   --background: oklch(0.129 0.042 264.695);
   --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
+  --card: oklch(0.14 0.04 259.21);
   --card-foreground: oklch(0.984 0.003 247.858);
   --popover: oklch(0.208 0.042 265.755);
   --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.623 0.214 259.815);
-  --primary-foreground: oklch(0.984 0.003 247.858);
+  --primary: oklch(0.929 0.013 255.508);
+  --primary-foreground: oklch(0.208 0.042 265.755);
   --secondary: oklch(0.279 0.041 260.031);
   --secondary-foreground: oklch(0.984 0.003 247.858);
   --muted: oklch(0.279 0.041 260.031);
@@ -73,7 +73,7 @@
   --destructive-foreground: oklch(0.984 0.003 247.858);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.623 0.214 259.815);
+  --ring: oklch(0.551 0.027 264.364);
   --success: oklch(0.765 0.177 163.223);
   --success-foreground: oklch(0.262 0.051 172.552);
   --warning: oklch(0.828 0.189 84.429);
@@ -85,17 +85,18 @@
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.623 0.214 259.815);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.623 0.214 259.815);
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 }
 
 @theme inline {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -143,8 +144,21 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  html {
+    @apply overflow-x-hidden;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply min-h-svh w-full bg-background font-sans text-foreground antialiased has-[div[data-variant='inset']]:bg-sidebar;
+  }
+  /* Radix khoá cuộn khi mở menu → giữ header dính hoạt động */
+  body[data-scroll-locked] {
+    overflow: unset !important;
+  }
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
   }
 }

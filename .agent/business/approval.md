@@ -59,5 +59,5 @@ Thêm loại đơn mới: hằng số trong `ApprovalTypes` + class `IApprovalHa
 
 - `ApprovalsPage`: tab "Chờ tôi duyệt (n)" / "Đơn của tôi". Tab mặc định chọn **sau khi** inbox tải xong (có đơn → inbox).
 - `ApprovalCard`: loại, người gửi, tóm tắt, các bước (`○` chờ tới lượt, `⏳` đang chờ, `✓`, `✕` + người quyết định + ghi chú), nút Duyệt / Từ chối (dialog bắt buộc lý do) / Huỷ đơn.
-- Badge số đơn trên menu "Phê duyệt" (`MainLayout`, `useInboxCount` refetch 60s). Menu hiện cho mọi người.
+- Badge số đơn trên menu "Phê duyệt" (`AppSidebar`, `useInboxCount` refetch 60s). Menu hiện cho mọi người.
 - Mutation duyệt / từ chối / huỷ invalidate `['approval']`, `['leave']`, `['attendance']`.

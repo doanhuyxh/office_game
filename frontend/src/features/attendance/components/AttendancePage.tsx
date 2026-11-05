@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useState } from 'react';
 import { Input } from '@/components/common/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
@@ -48,10 +49,7 @@ export function AttendancePage() {
   const [month, setMonth] = useState(currentMonth());
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Chấm công</h1>
-        <p className="text-sm text-muted-foreground">Bấm chấm công khi bắt đầu và kết thúc làm việc — ở văn phòng hay ở nhà đều được.</p>
-      </div>
+      <PageHeader title="Chấm công" description="Bấm chấm công khi bắt đầu và kết thúc làm việc — ở văn phòng hay ở nhà đều được." />
       <Tabs defaultValue="my">
         <TabsList>
           <TabsTrigger value="my">Của tôi</TabsTrigger>

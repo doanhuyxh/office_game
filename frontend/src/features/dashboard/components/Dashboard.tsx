@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components/layout/PageHeader';
 import { Link } from '@tanstack/react-router';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
 import { useInboxCount } from '@/features/approvals';
@@ -12,7 +13,7 @@ export function Dashboard() {
   const { data: inbox = 0 } = useInboxCount();
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Xin chào, {me?.fullName} 👋</h1>
+      <PageHeader title={`Xin chào, ${me?.fullName ?? ''} 👋`} description="Tổng quan chấm công, phép năm và đơn cần xử lý của bạn." />
       <div className="grid gap-4 lg:grid-cols-[380px_1fr]">
         <CheckInCard />
         <div className="grid h-fit gap-4 sm:grid-cols-2">

@@ -1,21 +1,47 @@
+import type { LucideIcon } from 'lucide-react';
+import { BarChart3, Building2, CheckSquare, Clock, FileText, LayoutDashboard, Palmtree, Users } from 'lucide-react';
 import { PATHS } from '@/config/paths';
 import { ROLE, type Role } from '@/config/roles';
 
 export interface NavItem {
   to: string;
   label: string;
-  icon: string;
+  icon: LucideIcon;
   /** Để trống = ai cũng thấy */
   roles?: Role[];
 }
 
-/** Menu sidebar. Thêm màn hình mới: tạo features/<x>, thêm route trong routes/router.tsx, rồi thêm dòng ở đây. */
-export const NAVIGATION: NavItem[] = [
-  { to: PATHS.dashboard, label: 'Tổng quan', icon: '🏠' },
-  { to: PATHS.attendance, label: 'Chấm công', icon: '🕘' },
-  { to: PATHS.leave, label: 'Nghỉ phép', icon: '🌴' },
-  { to: PATHS.approvals, label: 'Phê duyệt', icon: '✅' },
-  { to: PATHS.employees, label: 'Nhân viên', icon: '👥' },
-  { to: PATHS.contracts, label: 'Hợp đồng', icon: '📄', roles: [ROLE.admin, ROLE.hr] },
-  { to: PATHS.reports, label: 'Báo cáo', icon: '📊', roles: [ROLE.admin, ROLE.hr] },
+export interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
+/**
+ * Menu sidebar (nhóm → mục). Cũng dùng cho hộp tìm nhanh Ctrl/⌘ + K.
+ * Thêm màn hình mới: tạo features/<x>, thêm route trong routes/router.tsx, rồi thêm dòng ở đây.
+ */
+export const NAVIGATION: NavGroup[] = [
+  {
+    title: 'Chung',
+    items: [
+      { to: PATHS.dashboard, label: 'Tổng quan', icon: LayoutDashboard },
+      { to: PATHS.office, label: 'Văn phòng 3D', icon: Building2 },
+    ],
+  },
+  {
+    title: 'Công việc',
+    items: [
+      { to: PATHS.attendance, label: 'Chấm công', icon: Clock },
+      { to: PATHS.leave, label: 'Nghỉ phép', icon: Palmtree },
+      { to: PATHS.approvals, label: 'Phê duyệt', icon: CheckSquare },
+    ],
+  },
+  {
+    title: 'Tổ chức',
+    items: [
+      { to: PATHS.employees, label: 'Nhân viên', icon: Users },
+      { to: PATHS.contracts, label: 'Hợp đồng', icon: FileText, roles: [ROLE.admin, ROLE.hr] },
+      { to: PATHS.reports, label: 'Báo cáo', icon: BarChart3, roles: [ROLE.admin, ROLE.hr] },
+    ],
+  },
 ];

@@ -67,7 +67,7 @@ Hosted service khởi động: `IdentitySeeder` (migrate + roles + admin), `OrgM
 | `/office` | `requireAuth`, toàn màn hình | `OfficeView` (`@/features/office`, lazy, kéo Three.js) |
 | `/` `/attendance` `/employees` `/leave` `/approvals` `/contracts` `/reports` | `requireAuth`, trong `MainLayout` | `Dashboard`, `AttendancePage`, `EmployeesPage`, `LeavePage`, `ApprovalsPage`; contracts/reports là `ComingSoon` |
 
-`requireAuth`: chưa đăng nhập → `/login?returnUrl=…`; `mustChangePassword` → `/change-password`. Quay lại sau đăng nhập dùng `safeReturnPath` (chỉ đường dẫn cùng origin). Mọi trang trong `page(...)` là lazy chunk; Three.js tách chunk `three` (`vite.config.ts` `manualChunks`). Menu sidebar lọc theo `roles` trong `components/layout/navigation.ts` (Phê duyệt: admin/hr/manager; Hợp đồng, Báo cáo: admin/hr).
+`requireAuth`: chưa đăng nhập → `/login?returnUrl=…`; `mustChangePassword` → `/change-password`. Quay lại sau đăng nhập dùng `safeReturnPath` (chỉ đường dẫn cùng origin). Mọi trang trong `page(...)` là lazy chunk; Three.js tách chunk `three` (`vite.config.ts` `manualChunks`). Menu sidebar (nhóm → mục, icon lucide) lọc theo `roles` trong `components/layout/navigation.ts` (Hợp đồng, Báo cáo: admin/hr; còn lại ai cũng thấy). Bố cục khung trang: [frontend.md](frontend.md#bố-cục-mainlayout).
 
 ## Dữ liệu phía client & cache
 

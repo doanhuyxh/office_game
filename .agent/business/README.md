@@ -34,8 +34,8 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 3. Không có transaction trải nhiều module (xem [database.md](../database.md#không-có)).
 4. 2FA: `LoginAsync` có nhánh `RequiresTwoFactor` nhưng chưa có API bật 2FA.
 5. Không có chống CSRF (antiforgery); đang dựa vào `SameSite=Lax` + body JSON (cần xác nhận khi lên production).
-6. Khai báo nhưng chưa dùng: `Office__InactiveMinutes`, `IFileStorage` (chưa module nào upload), FE `ENV`, `STORAGE_KEY`, `REALTIME.voiceToken`, `VITE_SENTRY_DSN`, thư mục `src/context/`, `src/assets/icons|images` trống.
-7. Registry shadcn `new-york-v4` viết sẵn `import { cn } from "cn"` và CLI cài gói npm rác `cn` → luôn thêm component bằng `bun run ui:add` (`frontend/scripts/ui-add.ts` tự sửa import + gỡ gói). Theme dark (`.dark`) đã có biến màu nhưng app chưa có nút bật.
+6. Khai báo nhưng chưa dùng: `Office__InactiveMinutes`, `IFileStorage` (chưa module nào upload), FE `ENV`, `REALTIME.voiceToken`, `VITE_SENTRY_DSN`, `src/assets/icons|images` trống.
+7. Registry shadcn `new-york-v4` viết sẵn `import { cn } from "cn"` và CLI cài gói npm rác `cn` → luôn thêm component bằng `bun run ui:add` (`frontend/scripts/ui-add.ts` tự sửa import + gỡ gói). CLI hỏi ghi đè file đã có (vd. `button.tsx` khi thêm `sidebar`) → trả lời `n` trừ khi muốn cập nhật.
 8. Dev chạy qua Vite proxy → IP là localhost → chấm công luôn `Remote` trừ khi `Office__IpRanges` chứa `127.0.0.1/32`.
 9. Bảng công và quỹ phép tính lại mỗi lần đọc (đủ nhanh cho ~12 người). Chưa có "chốt công", tăng ca, giờ lõi ca linh hoạt, ca qua đêm, quy ra tiền phép năm, thông báo email cho người duyệt.
 10. `reactivate` không khôi phục `ManagerId` / `HeadEmployeeId` đã bị gỡ khi nghỉ việc. `departments.HeadEmployeeId` không có FK.

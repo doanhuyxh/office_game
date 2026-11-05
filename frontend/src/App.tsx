@@ -1,5 +1,6 @@
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
+import { ThemeProvider } from '@/context/theme-provider';
 import { Toaster } from '@/components/common/sonner';
 import { authKeys } from '@/features/auth';
 import { PATHS } from '@/config/paths';
@@ -28,9 +29,11 @@ const router = createAppRouter(queryClient);
 /** Root component: bọc Providers & Router. Thêm provider mới (toast, theme, i18n...) ở đây. */
 export function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-      <Toaster position="top-right" richColors closeButton />
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+        <Toaster position="top-right" richColors closeButton />
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

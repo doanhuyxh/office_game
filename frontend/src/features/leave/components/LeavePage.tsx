@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components/layout/PageHeader';
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/common/button';
@@ -19,13 +20,11 @@ export function LeavePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Nghỉ phép</h1>
-          <p className="text-sm text-muted-foreground">Xin nghỉ cả ngày hoặc nửa ngày. Đơn được quản lý trực tiếp rồi HR duyệt.</p>
-        </div>
-        {!noProfile && <Button onClick={() => setOpen(true)}><Plus /> Xin nghỉ</Button>}
-      </div>
+      <PageHeader
+        title="Nghỉ phép"
+        description="Xin nghỉ cả ngày hoặc nửa ngày. Đơn được quản lý trực tiếp rồi HR duyệt."
+        actions={!noProfile && <Button onClick={() => setOpen(true)}><Plus /> Xin nghỉ</Button>}
+      />
       <Tabs defaultValue={noProfile && isManager ? 'team' : 'my'}>
         <TabsList>
           <TabsTrigger value="my">Của tôi</TabsTrigger>
