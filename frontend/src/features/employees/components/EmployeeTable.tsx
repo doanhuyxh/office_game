@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MoreHorizontal, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/common/badge';
@@ -24,6 +24,7 @@ import { EmployeeFormDialog } from './EmployeeFormDialog';
 import { departmentOptions } from '../utils/orgTree';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import { EmployeePrivateDialog } from '@/features/profile';
+import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';
 
 type DialogState =
   | { kind: 'form'; employee: IEmployee | null }
@@ -49,6 +50,13 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
   const { data: employees = [], isLoading } = useEmployees({ search: debounced, departmentId: departmentId ?? undefined, includeResigned: canEdit && includeResigned });
   // Trạng thái / ngày vào làm: BE chỉ trả cho HR, chính chủ và quản lý của người đó → không có dòng nào thì bỏ cả cột
   const showStatus = canEdit || employees.some((e) => e.status);
+  const columnDefs = useMemo<ColumnDef[]>(() => [
+    { id: 'code', label: 'Mã' }, { id: 'name', label: 'Họ tên', required: true }, { id: 'department', label: 'Phòng ban' },
+    { id: 'position', label: 'Chức vụ · chức danh' }, { id: 'manager', label: 'Quản lý' },
+    ...(showStatus ? [{ id: 'status', label: 'Trạng thái' }] : []), ...(canEdit ? [{ id: 'account', label: 'Tài khoản' }] : []),
+  ], [showStatus, canEdit]);
+  const cols = useColumns('employees', columnDefs);
+  const v = cols.show;
   const { data: departments = [] } = useDepartments();
   const [dialog, setDialog] = useState<DialogState>(null);
   const close = () => setDialog(null);
@@ -77,39 +85,42 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
             Hiện người đã nghỉ
           </Label>
         )}
-        {canEdit && (
-          <Button onClick={() => setDialog({ kind: 'form', employee: null })}>
-            <Plus /> Thêm nhân viên
-          </Button>
-        )}
+        <div className="ms-auto flex items-center gap-2">
+          <ColumnsMenu state={cols} />
+          {canEdit && (
+            <Button onClick={() => setDialog({ kind: 'form', employee: null })}>
+              <Plus /> Thêm nhân viên
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="rounded-xl border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Mã</TableHead>
+              {v('code') && <TableHead>Mã</TableHead>}
               <TableHead>Họ tên</TableHead>
-              <TableHead>Phòng ban</TableHead>
-              <TableHead>Chức vụ · chức danh</TableHead>
-              <TableHead>Quản lý</TableHead>
-              {showStatus && <TableHead>Trạng thái</TableHead>}
-              {canEdit && <TableHead>Tài khoản</TableHead>}
+              {v('department') && <TableHead>Phòng ban</TableHead>}
+              {v('position') && <TableHead>Chức vụ · chức danh</TableHead>}
+              {v('manager') && <TableHead>Quản lý</TableHead>}
+              {showStatus && v('status') && <TableHead>Trạng thái</TableHead>}
+              {canEdit && v('account') && <TableHead>Tài khoản</TableHead>}
               {canEdit && <TableHead className="w-10" />}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading && (
-              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Đang tải…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={cols.span(1)} className="text-center text-muted-foreground">Đang tải…</TableCell></TableRow>
             )}
             {!isLoading && employees.length === 0 && (
-              <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+              <TableRow><TableCell colSpan={cols.span(1)} className="py-8 text-center text-muted-foreground">
                 {search || departmentId ? 'Không tìm thấy nhân viên phù hợp' : 'Chưa có nhân viên nào'}
               </TableCell></TableRow>
             )}
             {employees.map((e) => (
               <TableRow key={e.id} className={e.status === 'Resigned' ? 'opacity-60' : undefined}>
-                <TableCell className="font-mono text-xs">{e.code}</TableCell>
+                {v('code') && <TableCell className="font-mono text-xs">{e.code}</TableCell>}
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <PersonAvatar name={e.fullName} url={e.avatarUrl} className="size-8" fallbackClassName="text-xs" />
@@ -119,13 +130,15 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>{e.departmentName ?? '—'}</TableCell>
-                <TableCell>
-                  <div>{e.positionName ?? '—'}</div>
-                  {e.jobTitle && <div className="text-xs text-muted-foreground">{e.jobTitle}</div>}
-                </TableCell>
-                <TableCell>{e.managerName ?? '—'}</TableCell>
-                {showStatus && (
+                {v('department') && <TableCell>{e.departmentName ?? '—'}</TableCell>}
+                {v('position') && (
+                  <TableCell>
+                    <div>{e.positionName ?? '—'}</div>
+                    {e.jobTitle && <div className="text-xs text-muted-foreground">{e.jobTitle}</div>}
+                  </TableCell>
+                )}
+                {v('manager') && <TableCell>{e.managerName ?? '—'}</TableCell>}
+                {showStatus && v('status') && (
                   <TableCell>
                     {e.status && <>
                       <Badge variant={STATUS_VARIANT[e.status]}>{STATUS_LABEL[e.status]}</Badge>
@@ -135,7 +148,7 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
                     </>}
                   </TableCell>
                 )}
-                {canEdit && (
+                {canEdit && v('account') && (
                   <TableCell>
                     <AccountBadge e={e} />
                     {e.account && (

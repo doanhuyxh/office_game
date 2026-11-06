@@ -3,6 +3,7 @@ import {
   createRoute,
   createRouter,
   lazyRouteComponent,
+  notFound,
   Outlet,
 } from '@tanstack/react-router';
 import type { QueryClient } from '@tanstack/react-query';
@@ -11,8 +12,9 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Spinner } from '@/components/feedback/Spinner';
 import { AcceptInviteForm, ChangePasswordForm, ForgotPasswordForm, LoginForm, ResetPasswordForm } from '@/features/auth';
 import { PATHS } from '@/config/paths';
-import { PAGE_ROLES } from '@/config/access';
-import { RoleGate } from '@/routes/RoleGate';
+import { Forbidden } from '@/components/feedback/Forbidden';
+import { NotFoundPage } from '@/components/feedback/NotFoundPage';
+import { canAccessPage, PAGE_ROLES } from '@/config/access';
 
 /**
  * Định tuyến. Mỗi màn hình là một feature trong src/features/<feature> — route import qua barrel '@/features/<feature>'.
@@ -81,17 +83,26 @@ const oauthAuthorize = createRoute({
 });
 
 // Các màn hình nhân sự: dùng chung sidebar.
-const main = createRoute({ getParentRoute: () => protectedRoute, id: 'main', component: MainLayout });
+// notFoundComponent: trang con ném notFound({ data: { forbidden: true } }) khi sai vai trò → "không có quyền"; còn lại là 404 thật.
+const main = createRoute({
+  getParentRoute: () => protectedRoute, id: 'main', component: MainLayout,
+  notFoundComponent: ({ data }) => ((data as { forbidden?: boolean } | undefined)?.forbidden ? <Forbidden /> : <NotFoundPage />),
+});
 
 // Generic theo path để TanStack Router biết chính xác các đường dẫn (Link to={PATHS.x} được kiểm tra kiểu).
-// Trang có trong PAGE_ROLES (config/access.ts) được bọc RoleGate: sai vai trò → "không có quyền", không tải chunk trang.
-const page = <const P extends string>(path: P, load: Parameters<typeof lazyRouteComponent>[0], exportName: string) => {
-  const Page = lazyRouteComponent(load, exportName);
-  return createRoute({
+// Trang có trong PAGE_ROLES (config/access.ts): kiểm tra vai trò ở beforeLoad (context.me từ protectedRoute) → sai vai trò ném notFound
+// có cờ forbidden (không qua error boundary, giữ URL) → main hiện <Forbidden />; không tải chunk trang, không gọi API.
+// Component route vẫn là trang lazy gốc (không bọc) để router preload / suspend đúng cách.
+const page = <const P extends string>(path: P, load: Parameters<typeof lazyRouteComponent>[0], exportName: string) =>
+  createRoute({
     getParentRoute: () => main, path,
-    component: PAGE_ROLES[path] ? () => <RoleGate path={path}><Page /></RoleGate> : Page,
+    component: lazyRouteComponent(load, exportName),
+    ...(PAGE_ROLES[path] && {
+      beforeLoad: ({ context }: { context: { me: { roles: string[] } } }) => {
+        if (!canAccessPage(context.me.roles, path)) throw notFound({ data: { forbidden: true } });
+      },
+    }),
   });
-};
 
 const routeTree = root.addChildren([
   login,
@@ -127,6 +138,7 @@ export function createAppRouter(queryClient: QueryClient) {
     defaultPreload: 'intent',
     defaultPendingComponent: Spinner, // hiện khi đang tải chunk của màn hình (lazy)
     defaultPendingMs: 200,
+    defaultNotFoundComponent: NotFoundPage, // URL lạ (ngoài khung trang) — trong khung trang dùng notFoundComponent của main
   });
 }
 

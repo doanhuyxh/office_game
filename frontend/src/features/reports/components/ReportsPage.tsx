@@ -14,6 +14,7 @@ import { downloadUrl, formatMoney } from '@/utils/money';
 import { excelUrl } from '../api/report.api';
 import { useLeavePayout, useOvertimePay } from '../hooks/useReports';
 import { days, hours } from '../utils/labels';
+import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';
 
 function MonthPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return <Input type="month" value={value} onChange={(e) => e.target.value && onChange(e.target.value)} className="w-44" aria-label="Chọn tháng" />;
@@ -39,37 +40,51 @@ function TimesheetTab() {
   );
 }
 
+const OVERTIME_COLUMNS: ColumnDef[] = [
+  { id: 'employee', label: 'Nhân viên', required: true }, { id: 'salary', label: 'Lương HĐ' }, { id: 'std', label: 'Công chuẩn' },
+  { id: 'hourly', label: 'Lương giờ' }, { id: 'w150', label: '150% (ngày thường)' }, { id: 'w200', label: '200% (nghỉ tuần)' },
+  { id: 'w300', label: '300% (lễ)' }, { id: 'total', label: 'Tổng giờ' }, { id: 'amount', label: 'Thành tiền' },
+];
+const PAYOUT_COLUMNS: ColumnDef[] = [
+  { id: 'employee', label: 'Nhân viên', required: true }, { id: 'accrued', label: 'Tích luỹ năm nay' }, { id: 'carried', label: 'Năm trước chuyển' },
+  { id: 'used', label: 'Đã dùng' }, { id: 'pending', label: 'Chờ duyệt' }, { id: 'available', label: 'Còn lại' },
+  { id: 'daily', label: 'Lương ngày' }, { id: 'payout', label: 'Tiền phép' },
+];
+
 function OvertimePayTab() {
   const [month, setMonth] = useState(currentMonthVn);
   const { data, isLoading } = useOvertimePay(month);
   const rows = data?.rows.filter((r) => r.totalMinutes > 0) ?? [];
+  const cols = useColumns('report-overtime', OVERTIME_COLUMNS);
+  const v = cols.show;
+  const before = ['employee', 'salary', 'std', 'hourly', 'w150', 'w200', 'w300'].filter(v).length;
   return (
     <div className="grid grid-cols-1 gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
           Chỉ đơn tăng ca <b>đã duyệt</b>. Lương giờ = lương hợp đồng ÷ ngày công chuẩn của tháng ÷ 8 (không gồm phụ cấp); ngày công chuẩn tính cả ngày lễ.
         </p>
-        <div className="flex gap-2"><MonthPicker value={month} onChange={setMonth} /><ExcelButton url={excelUrl.overtimePay(month)} /></div>
+        <div className="flex gap-2"><MonthPicker value={month} onChange={setMonth} /><ColumnsMenu state={cols} className="h-9" /><ExcelButton url={excelUrl.overtimePay(month)} /></div>
       </div>
       <div className="overflow-x-auto rounded-xl border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Nhân viên</TableHead>
-              <TableHead className="text-right">Lương HĐ</TableHead>
-              <TableHead className="text-right">Công chuẩn</TableHead>
-              <TableHead className="text-right">Lương giờ</TableHead>
-              <TableHead className="text-right">150%</TableHead>
-              <TableHead className="text-right">200%</TableHead>
-              <TableHead className="text-right">300%</TableHead>
-              <TableHead className="text-right">Tổng giờ</TableHead>
-              <TableHead className="text-right">Thành tiền</TableHead>
+              {v('salary') && <TableHead className="text-right">Lương HĐ</TableHead>}
+              {v('std') && <TableHead className="text-right">Công chuẩn</TableHead>}
+              {v('hourly') && <TableHead className="text-right">Lương giờ</TableHead>}
+              {v('w150') && <TableHead className="text-right">150%</TableHead>}
+              {v('w200') && <TableHead className="text-right">200%</TableHead>}
+              {v('w300') && <TableHead className="text-right">300%</TableHead>}
+              {v('total') && <TableHead className="text-right">Tổng giờ</TableHead>}
+              {v('amount') && <TableHead className="text-right">Thành tiền</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={9}><Spinner /></TableCell></TableRow>}
+            {isLoading && <TableRow><TableCell colSpan={cols.span()}><Spinner /></TableCell></TableRow>}
             {!isLoading && rows.length === 0 && (
-              <TableRow><TableCell colSpan={9} className="py-6 text-center text-muted-foreground">Không có tăng ca đã duyệt trong tháng.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={cols.span()} className="py-6 text-center text-muted-foreground">Không có tăng ca đã duyệt trong tháng.</TableCell></TableRow>
             )}
             {rows.map((r) => (
               <TableRow key={r.employee.id}>
@@ -77,23 +92,23 @@ function OvertimePayTab() {
                   <span className="font-mono text-xs text-muted-foreground">{r.employee.code}</span> {r.employee.fullName}
                   <div><Warn text={r.warning} /></div>
                 </TableCell>
-                <TableCell className="text-right">{formatMoney(r.salary)}</TableCell>
-                <TableCell className="text-right">{r.standardDays}</TableCell>
-                <TableCell className="text-right">{formatMoney(r.hourlyWage)}</TableCell>
-                <TableCell className="text-right font-mono">{hours(r.weekdayMinutes)}</TableCell>
-                <TableCell className="text-right font-mono">{hours(r.restDayMinutes)}</TableCell>
-                <TableCell className="text-right font-mono">{hours(r.holidayMinutes)}</TableCell>
-                <TableCell className="text-right font-mono">{hours(r.totalMinutes)}</TableCell>
-                <TableCell className="text-right font-medium">{formatMoney(r.totalAmount)}</TableCell>
+                {v('salary') && <TableCell className="text-right">{formatMoney(r.salary)}</TableCell>}
+                {v('std') && <TableCell className="text-right">{r.standardDays}</TableCell>}
+                {v('hourly') && <TableCell className="text-right">{formatMoney(r.hourlyWage)}</TableCell>}
+                {v('w150') && <TableCell className="text-right font-mono">{hours(r.weekdayMinutes)}</TableCell>}
+                {v('w200') && <TableCell className="text-right font-mono">{hours(r.restDayMinutes)}</TableCell>}
+                {v('w300') && <TableCell className="text-right font-mono">{hours(r.holidayMinutes)}</TableCell>}
+                {v('total') && <TableCell className="text-right font-mono">{hours(r.totalMinutes)}</TableCell>}
+                {v('amount') && <TableCell className="text-right font-medium">{formatMoney(r.totalAmount)}</TableCell>}
               </TableRow>
             ))}
           </TableBody>
           {rows.length > 0 && data && (
             <TableFooter>
               <TableRow>
-                <TableCell colSpan={7}>Tổng tháng {month.slice(5)}/{month.slice(0, 4)}</TableCell>
-                <TableCell className="text-right font-mono">{hours(data.totalMinutes)}</TableCell>
-                <TableCell className="text-right">{formatMoney(data.totalAmount)}</TableCell>
+                <TableCell colSpan={before}>Tổng tháng {month.slice(5)}/{month.slice(0, 4)}</TableCell>
+                {v('total') && <TableCell className="text-right font-mono">{hours(data.totalMinutes)}</TableCell>}
+                {v('amount') && <TableCell className="text-right">{formatMoney(data.totalAmount)}</TableCell>}
               </TableRow>
             </TableFooter>
           )}
@@ -106,6 +121,8 @@ function OvertimePayTab() {
 function LeavePayoutTab() {
   const { data: rows = [], isLoading } = useLeavePayout();
   const due = rows.filter((r) => r.payoutDue);
+  const cols = useColumns('report-leave-payout', PAYOUT_COLUMNS);
+  const v = cols.show;
   return (
     <div className="grid grid-cols-1 gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -113,7 +130,7 @@ function LeavePayoutTab() {
           Phép năm chưa dùng được quy ra tiền <b>khi nghỉ việc</b> (Điều 113 BLLĐ): ngày còn lại × lương ngày (lương HĐ ÷ công chuẩn tháng nghỉ việc).
           Người đang làm hiện giá trị ước tính.
         </p>
-        <ExcelButton url={excelUrl.leavePayout()} />
+        <div className="flex gap-2"><ColumnsMenu state={cols} className="h-9" /><ExcelButton url={excelUrl.leavePayout()} /></div>
       </div>
       {due.length > 0 && (
         <Card className="border-warning/50">
@@ -136,17 +153,17 @@ function LeavePayoutTab() {
           <TableHeader>
             <TableRow>
               <TableHead>Nhân viên</TableHead>
-              <TableHead className="text-right">Tích luỹ năm nay</TableHead>
-              <TableHead className="text-right">Năm trước chuyển</TableHead>
-              <TableHead className="text-right">Đã dùng</TableHead>
-              <TableHead className="text-right">Chờ duyệt</TableHead>
-              <TableHead className="text-right">Còn lại</TableHead>
-              <TableHead className="text-right">Lương ngày</TableHead>
-              <TableHead className="text-right">Tiền phép</TableHead>
+              {v('accrued') && <TableHead className="text-right">Tích luỹ năm nay</TableHead>}
+              {v('carried') && <TableHead className="text-right">Năm trước chuyển</TableHead>}
+              {v('used') && <TableHead className="text-right">Đã dùng</TableHead>}
+              {v('pending') && <TableHead className="text-right">Chờ duyệt</TableHead>}
+              {v('available') && <TableHead className="text-right">Còn lại</TableHead>}
+              {v('daily') && <TableHead className="text-right">Lương ngày</TableHead>}
+              {v('payout') && <TableHead className="text-right">Tiền phép</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={8}><Spinner /></TableCell></TableRow>}
+            {isLoading && <TableRow><TableCell colSpan={cols.span()}><Spinner /></TableCell></TableRow>}
             {rows.map((r) => (
               <TableRow key={r.employee.id} className={r.employee.isActive ? undefined : 'text-muted-foreground'}>
                 <TableCell>
@@ -154,16 +171,18 @@ function LeavePayoutTab() {
                   {!r.employee.isActive && <StatusBadge tone="muted" className="ml-2">Đã nghỉ</StatusBadge>}
                   <div><Warn text={r.warning} /></div>
                 </TableCell>
-                <TableCell className="text-right">{days(r.accrued)}</TableCell>
-                <TableCell className="text-right">{days(r.carried)}</TableCell>
-                <TableCell className="text-right">{days(r.used)}</TableCell>
-                <TableCell className="text-right">{days(r.pending)}</TableCell>
-                <TableCell className="text-right font-medium">{days(r.available)}</TableCell>
-                <TableCell className="text-right">{formatMoney(r.dailyWage)}</TableCell>
-                <TableCell className="text-right">
-                  {formatMoney(r.payoutAmount)}
-                  <div className="text-xs text-muted-foreground">{r.payoutDue ? 'phải trả' : 'ước tính'}</div>
-                </TableCell>
+                {v('accrued') && <TableCell className="text-right">{days(r.accrued)}</TableCell>}
+                {v('carried') && <TableCell className="text-right">{days(r.carried)}</TableCell>}
+                {v('used') && <TableCell className="text-right">{days(r.used)}</TableCell>}
+                {v('pending') && <TableCell className="text-right">{days(r.pending)}</TableCell>}
+                {v('available') && <TableCell className="text-right font-medium">{days(r.available)}</TableCell>}
+                {v('daily') && <TableCell className="text-right">{formatMoney(r.dailyWage)}</TableCell>}
+                {v('payout') && (
+                  <TableCell className="text-right">
+                    {formatMoney(r.payoutAmount)}
+                    <div className="text-xs text-muted-foreground">{r.payoutDue ? 'phải trả' : 'ước tính'}</div>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>

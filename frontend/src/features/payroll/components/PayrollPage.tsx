@@ -23,11 +23,17 @@ import {
 } from '../hooks/usePayroll';
 import type { IPayProfile, IPayrollRules, IPayslip } from '../types/payroll.types';
 import { EmployerCost, PayslipView } from './PayslipView';
+import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';
 
 const monthLabel = (m: string) => `${m.slice(5)}/${m.slice(0, 4)}`;
 const prevMonth = () => { const [y, m] = currentMonthVn().split('-').map(Number); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`; };
 
 // ---------------- Kỳ lương ----------------
+
+const PERIOD_COLUMNS: ColumnDef[] = [
+  { id: 'employee', label: 'Nhân viên', required: true }, { id: 'days', label: 'Công' }, { id: 'gross', label: 'Tổng thu nhập' },
+  { id: 'insurance', label: 'BH (NLĐ)' }, { id: 'tax', label: 'Thuế TNCN' }, { id: 'net', label: 'Thực lĩnh' }, { id: 'cost', label: 'Chi phí DN' },
+];
 
 function PayslipDialog({ slip, periodId, locked, onClose }: { slip: IPayslip | null; periodId: string; locked: boolean; onClose: () => void }) {
   const add = useAddAdjustment();
@@ -89,6 +95,8 @@ function PeriodsTab() {
   const [open, setOpen] = useState<string | null>(null);
   useEffect(() => { if (!selected && periods.data?.length) setSelected(periods.data[0].id); }, [periods.data, selected]);
   const detail = usePeriod(selected);
+  const cols = useColumns('payroll-period', PERIOD_COLUMNS);
+  const v = cols.show;
   const p = detail.data?.period;
   const locked = p?.status === 'Locked';
   const run = (a: 'compute' | 'lock' | 'unlock', msg: string) => p && action.mutate({ id: p.id, action: a }, {
@@ -127,6 +135,7 @@ function PeriodsTab() {
               </CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
+              <ColumnsMenu state={cols} className="h-9" />
               {!locked && <Button variant="outline" disabled={action.isPending} onClick={() => run('compute', 'Đã tính lại')}><Calculator className="size-4" /> Tính lại</Button>}
               <Button variant="outline" onClick={() => downloadUrl(payrollApi.exportUrl(p.id))}><FileSpreadsheet className="size-4" /> Excel</Button>
               {locked
@@ -139,9 +148,9 @@ function PeriodsTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nhân viên</TableHead><TableHead className="text-right">Công</TableHead><TableHead className="text-right">Tổng thu nhập</TableHead>
-                    <TableHead className="text-right">BH (NLĐ)</TableHead><TableHead className="text-right">Thuế TNCN</TableHead><TableHead className="text-right">Thực lĩnh</TableHead>
-                    <TableHead className="text-right">Chi phí DN</TableHead>
+                    <TableHead>Nhân viên</TableHead>{v('days') && <TableHead className="text-right">Công</TableHead>}{v('gross') && <TableHead className="text-right">Tổng thu nhập</TableHead>}
+                    {v('insurance') && <TableHead className="text-right">BH (NLĐ)</TableHead>}{v('tax') && <TableHead className="text-right">Thuế TNCN</TableHead>}{v('net') && <TableHead className="text-right">Thực lĩnh</TableHead>}
+                    {v('cost') && <TableHead className="text-right">Chi phí DN</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -152,23 +161,23 @@ function PeriodsTab() {
                         {s.data.warnings.length > 0 && <AlertTriangle className="ml-1 inline size-3.5 text-warning" aria-label={s.data.warnings.join('; ')} />}
                         {s.adjustments.length > 0 && <span className="ml-1 text-xs text-muted-foreground">+{s.adjustments.length} khoản</span>}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">{s.data.paidDays.toLocaleString('vi-VN')}/{s.data.standardDays}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatMoney(s.data.gross)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatMoney(s.data.employeeInsurance)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatMoney(s.data.tax)}</TableCell>
-                      <TableCell className="text-right font-medium tabular-nums">{formatMoney(s.data.net)}</TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">{formatMoney(s.data.employerCost)}</TableCell>
+                      {v('days') && <TableCell className="text-right tabular-nums">{s.data.paidDays.toLocaleString('vi-VN')}/{s.data.standardDays}</TableCell>}
+                      {v('gross') && <TableCell className="text-right tabular-nums">{formatMoney(s.data.gross)}</TableCell>}
+                      {v('insurance') && <TableCell className="text-right tabular-nums">{formatMoney(s.data.employeeInsurance)}</TableCell>}
+                      {v('tax') && <TableCell className="text-right tabular-nums">{formatMoney(s.data.tax)}</TableCell>}
+                      {v('net') && <TableCell className="text-right font-medium tabular-nums">{formatMoney(s.data.net)}</TableCell>}
+                      {v('cost') && <TableCell className="text-right tabular-nums text-muted-foreground">{formatMoney(s.data.employerCost)}</TableCell>}
                     </TableRow>
                   ))}
                 </TableBody>
                 <TableFooter>
                   <TableRow>
-                    <TableCell>Tổng ({p.employees} người)</TableCell><TableCell />
-                    <TableCell className="text-right">{formatMoney(p.totalGross)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(p.totalEmployeeInsurance)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(p.totalTax)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(p.totalNet)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(p.totalEmployerCost)}</TableCell>
+                    <TableCell>Tổng ({p.employees} người)</TableCell>{v('days') && <TableCell />}
+                    {v('gross') && <TableCell className="text-right">{formatMoney(p.totalGross)}</TableCell>}
+                    {v('insurance') && <TableCell className="text-right">{formatMoney(p.totalEmployeeInsurance)}</TableCell>}
+                    {v('tax') && <TableCell className="text-right">{formatMoney(p.totalTax)}</TableCell>}
+                    {v('net') && <TableCell className="text-right">{formatMoney(p.totalNet)}</TableCell>}
+                    {v('cost') && <TableCell className="text-right">{formatMoney(p.totalEmployerCost)}</TableCell>}
                   </TableRow>
                 </TableFooter>
               </Table>

@@ -26,8 +26,13 @@ import { ContractDetails, ContractStatusBadge } from './ContractDetails';
 import { ContractFormDialog } from './ContractFormDialog';
 import { PendingSignBanner, SignRequestList } from './SignPanel';
 import { GenerateFromTemplateDialog, TemplatesPanel } from './TemplatesPanel';
+import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';
 
 type Filter = 'all' | 'active' | 'expiring' | 'ended';
+const CONTRACT_COLUMNS: ColumnDef[] = [
+  { id: 'employee', label: 'Nhân viên', required: true }, { id: 'number', label: 'Số HĐ' }, { id: 'type', label: 'Loại' },
+  { id: 'term', label: 'Thời hạn' }, { id: 'salary', label: 'Lương hiện tại' }, { id: 'status', label: 'Trạng thái' },
+];
 const FILTERS: { value: Filter; label: string; match: (c: IContract) => boolean }[] = [
   { value: 'all', label: 'Tất cả', match: () => true },
   { value: 'active', label: 'Đang hiệu lực', match: (c) => c.status === 'Active' || c.status === 'Upcoming' },
@@ -78,6 +83,8 @@ function AllContracts() {
   const { data: employees = [] } = useEmployees({});
   const remove = useDeleteContract();
   const sendSign = useCreateSignRequest();
+  const cols = useColumns('contracts', CONTRACT_COLUMNS);
+  const v = cols.show;
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
   const [viewing, setViewing] = useState<string | null>(null);
@@ -117,28 +124,31 @@ function AllContracts() {
             </Button>
           ))}
         </div>
-        <Button onClick={() => setEditing(null)} data-testid="contract-new"><Plus /> Thêm hợp đồng</Button>
+        <div className="ms-auto flex items-center gap-2">
+          <ColumnsMenu state={cols} />
+          <Button onClick={() => setEditing(null)} data-testid="contract-new"><Plus /> Thêm hợp đồng</Button>
+        </div>
       </div>
       <div className="rounded-xl border bg-card">
         <Table>
           <TableHeader>
-            <TableRow><TableHead>Nhân viên</TableHead><TableHead>Số HĐ</TableHead><TableHead>Loại</TableHead><TableHead>Thời hạn</TableHead>
-              <TableHead className="text-right">Lương hiện tại</TableHead><TableHead>Trạng thái</TableHead><TableHead className="w-12" /></TableRow>
+            <TableRow><TableHead>Nhân viên</TableHead>{v('number') && <TableHead>Số HĐ</TableHead>}{v('type') && <TableHead>Loại</TableHead>}{v('term') && <TableHead>Thời hạn</TableHead>}
+              {v('salary') && <TableHead className="text-right">Lương hiện tại</TableHead>}{v('status') && <TableHead>Trạng thái</TableHead>}<TableHead className="w-12" /></TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Đang tải…</TableCell></TableRow>}
-            {!isLoading && shown.length === 0 && <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Không có hợp đồng nào</TableCell></TableRow>}
+            {isLoading && <TableRow><TableCell colSpan={cols.span(1)} className="text-center text-muted-foreground">Đang tải…</TableCell></TableRow>}
+            {!isLoading && shown.length === 0 && <TableRow><TableCell colSpan={cols.span(1)} className="py-8 text-center text-muted-foreground">Không có hợp đồng nào</TableCell></TableRow>}
             {shown.map((c) => (
               <TableRow key={c.id} className="cursor-pointer" onClick={() => setViewing(c.id)}>
                 <TableCell>
                   <span className="font-mono text-xs text-muted-foreground">{c.employee.code}</span> {c.employee.fullName}
                   {c.employee.departmentName && <div className="text-xs text-muted-foreground">{c.employee.departmentName}</div>}
                 </TableCell>
-                <TableCell className="font-mono text-xs">{c.number}{c.amendments.length > 0 && <span className="ml-1 text-muted-foreground">+{c.amendments.length} PL</span>}</TableCell>
-                <TableCell className="text-sm">{CONTRACT_TYPE[c.type]}</TableCell>
-                <TableCell className="text-sm tabular-nums">{formatDate(c.startDate)} → {c.endDate ? formatDate(c.endDate) : '∞'}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatMoney(c.currentSalary)}</TableCell>
-                <TableCell><ContractStatusBadge c={c} /></TableCell>
+                {v('number') && <TableCell className="font-mono text-xs">{c.number}{c.amendments.length > 0 && <span className="ml-1 text-muted-foreground">+{c.amendments.length} PL</span>}</TableCell>}
+                {v('type') && <TableCell className="text-sm">{CONTRACT_TYPE[c.type]}</TableCell>}
+                {v('term') && <TableCell className="text-sm tabular-nums">{formatDate(c.startDate)} → {c.endDate ? formatDate(c.endDate) : '∞'}</TableCell>}
+                {v('salary') && <TableCell className="text-right tabular-nums">{formatMoney(c.currentSalary)}</TableCell>}
+                {v('status') && <TableCell><ContractStatusBadge c={c} /></TableCell>}
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="size-8" aria-label="Thao tác"><MoreHorizontal /></Button></DropdownMenuTrigger>

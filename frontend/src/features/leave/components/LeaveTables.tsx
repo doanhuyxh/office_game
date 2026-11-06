@@ -13,6 +13,7 @@ import { useAdjustLeave, useAllBalances, useMyLeaves, useTeamLeaves } from '../h
 import type { IEmployeeBalance, ILeaveRequest } from '../types/leave.types';
 import { fmtDays, LEAVE_STATUS, PERIOD_LABEL } from '../utils/labels';
 import { currentMonthVn } from '@/utils/date';
+import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';
 
 const range = (r: ILeaveRequest) =>
   r.startDate === r.endDate ? `${formatDate(r.startDate)}${r.period !== 'FullDay' ? ` · ${PERIOD_LABEL[r.period]}` : ''}` : `${formatDate(r.startDate)} → ${formatDate(r.endDate)}`;
@@ -88,8 +89,15 @@ export function TeamCalendar() {
 }
 
 /** HR: số dư phép năm của mọi người + điều chỉnh tay. */
+const BALANCE_COLUMNS: ColumnDef[] = [
+  { id: 'employee', label: 'Nhân viên', required: true }, { id: 'accrued', label: 'Tích luỹ năm nay' }, { id: 'carried', label: 'Chuyển từ năm trước' },
+  { id: 'adjusted', label: 'Điều chỉnh' }, { id: 'used', label: 'Đã nghỉ' }, { id: 'pending', label: 'Chờ duyệt' }, { id: 'available', label: 'Còn lại' },
+];
+
 export function BalancesTable() {
   const { data: rows = [], isLoading } = useAllBalances(true);
+  const cols = useColumns('leave-balances', BALANCE_COLUMNS);
+  const v = cols.show;
   const adjust = useAdjustLeave();
   const [target, setTarget] = useState<IEmployeeBalance | null>(null);
   const [days, setDays] = useState('');
@@ -106,24 +114,25 @@ export function BalancesTable() {
   };
   return (
     <>
+      <div className="mb-2 flex justify-end"><ColumnsMenu state={cols} /></div>
       <div className="rounded-xl border bg-card">
         <Table>
           <TableHeader>
-            <TableRow><TableHead>Nhân viên</TableHead><TableHead className="text-right">Tích luỹ năm nay</TableHead><TableHead className="text-right">Chuyển từ năm trước</TableHead>
-              <TableHead className="text-right">Điều chỉnh</TableHead><TableHead className="text-right">Đã nghỉ</TableHead><TableHead className="text-right">Chờ duyệt</TableHead>
-              <TableHead className="text-right">Còn lại</TableHead><TableHead className="w-24" /></TableRow>
+            <TableRow><TableHead>Nhân viên</TableHead>{v('accrued') && <TableHead className="text-right">Tích luỹ năm nay</TableHead>}{v('carried') && <TableHead className="text-right">Chuyển từ năm trước</TableHead>}
+              {v('adjusted') && <TableHead className="text-right">Điều chỉnh</TableHead>}{v('used') && <TableHead className="text-right">Đã nghỉ</TableHead>}{v('pending') && <TableHead className="text-right">Chờ duyệt</TableHead>}
+              {v('available') && <TableHead className="text-right">Còn lại</TableHead>}<TableHead className="w-24" /></TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Đang tải…</TableCell></TableRow>}
+            {isLoading && <TableRow><TableCell colSpan={cols.span(1)} className="text-center text-muted-foreground">Đang tải…</TableCell></TableRow>}
             {rows.map((r) => (
               <TableRow key={r.employee.id}>
                 <TableCell><span className="font-mono text-xs text-muted-foreground">{r.employee.code}</span> {r.employee.fullName}</TableCell>
-                <TableCell className="text-right font-mono">{fmtDays(r.balance.accruedThisYear)}</TableCell>
-                <TableCell className="text-right font-mono">{fmtDays(r.balance.carriedFromPreviousYears)}</TableCell>
-                <TableCell className="text-right font-mono">{fmtDays(r.balance.adjustedThisYear)}</TableCell>
-                <TableCell className="text-right font-mono">{fmtDays(r.balance.usedThisYear)}</TableCell>
-                <TableCell className="text-right font-mono">{fmtDays(r.balance.pending)}</TableCell>
-                <TableCell className="text-right font-mono font-semibold">{fmtDays(r.balance.available)}</TableCell>
+                {v('accrued') && <TableCell className="text-right font-mono">{fmtDays(r.balance.accruedThisYear)}</TableCell>}
+                {v('carried') && <TableCell className="text-right font-mono">{fmtDays(r.balance.carriedFromPreviousYears)}</TableCell>}
+                {v('adjusted') && <TableCell className="text-right font-mono">{fmtDays(r.balance.adjustedThisYear)}</TableCell>}
+                {v('used') && <TableCell className="text-right font-mono">{fmtDays(r.balance.usedThisYear)}</TableCell>}
+                {v('pending') && <TableCell className="text-right font-mono">{fmtDays(r.balance.pending)}</TableCell>}
+                {v('available') && <TableCell className="text-right font-mono font-semibold">{fmtDays(r.balance.available)}</TableCell>}
                 <TableCell className="text-right"><Button size="sm" variant="ghost" onClick={() => open(r)}>Điều chỉnh</Button></TableCell>
               </TableRow>
             ))}
