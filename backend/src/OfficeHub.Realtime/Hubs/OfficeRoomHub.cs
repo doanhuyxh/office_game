@@ -11,7 +11,8 @@ using OfficeHub.Realtime.Voice;
 namespace OfficeHub.Realtime.Hubs;
 
 // ---- Dữ liệu gửi qua SignalR (MessagePack). FE sinh type TS từ đây. ----
-public sealed record PlayerDto(string Id, string Name, float X, float Z, float R, byte Anim);
+/// <summary>Look = ngoại hình nhân vật (chuỗi JSON, null = mặc định) — client tự parse theo shared/avatar-catalog.json.</summary>
+public sealed record PlayerDto(string Id, string Name, float X, float Z, float R, byte Anim, string? Look = null);
 public sealed record PositionDto(string Id, float X, float Z, float R, byte Anim);
 public sealed record WelcomeDto(string SelfId, string MapName, PlayerDto[] Players);
 /// <summary>
@@ -30,6 +31,8 @@ public interface IOfficeClient
     Task Chat(ChatDto message);
     Task Teleport(float x, float z);
     Task Kicked(string reason);
+    /// <summary>Người chơi đổi nhân vật (look = JSON, null = mặc định).</summary>
+    Task LookChanged(string id, string? look);
 }
 
 [Authorize]
@@ -51,7 +54,8 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
         }
         // Cookie còn hạn chưa đủ: hỏi Api xem tài khoản còn hoạt động không (bị khoá / nghỉ việc → từ chối ngay).
         var authCookie = SessionValidator.AuthCookieHeader(Context.GetHttpContext()?.Request.Headers.Cookie.ToString());
-        if (await sessions.CheckAsync(authCookie, Context.ConnectionAborted) == SessionState.Invalid)
+        var (state, look) = await sessions.CheckWithLookAsync(authCookie, Context.ConnectionAborted);
+        if (state == SessionState.Invalid)
         {
             await Clients.Caller.Kicked(SessionWatch.ExpiredReason);
             Context.Abort();
@@ -60,7 +64,7 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
         var name = Context.User?.FindFirstValue(ClaimNames.FullName) ?? Context.User?.Identity?.Name ?? "?";
         var p = new Player
         {
-            UserId = UserId, Name = name, ConnectionId = Context.ConnectionId, Context = Context, AuthCookie = authCookie,
+            UserId = UserId, Name = name, ConnectionId = Context.ConnectionId, Context = Context, AuthCookie = authCookie, Look = look,
             X = (float)map.Spawn.X, Z = (float)map.Spawn.Z, LastMoveTicks = Stopwatch.GetTimestamp(), LastActiveAt = clock.GetUtcNow(),
         };
         var old = presence.Add(p);
@@ -73,8 +77,8 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
 
         await Groups.AddToGroupAsync(Context.ConnectionId, Room);
         await Clients.Caller.Welcome(new WelcomeDto(UserId, map.Name,
-            presence.All.Select(x => new PlayerDto(x.UserId, x.Name, x.X, x.Z, x.R, x.Anim)).ToArray()));
-        await Clients.OthersInGroup(Room).PlayerJoined(new PlayerDto(p.UserId, p.Name, p.X, p.Z, p.R, p.Anim));
+            presence.All.Select(ToDto).ToArray()));
+        await Clients.OthersInGroup(Room).PlayerJoined(ToDto(p));
         log.LogInformation("{User} vào văn phòng ({Count} online)", name, presence.Count);
         // TODO (Attendance): phát sự kiện PresenceChanged qua Wolverine.
     }
@@ -107,6 +111,24 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
             p.LastActiveAt = clock.GetUtcNow();
         }
     }
+
+    /// <summary>
+    /// Client vừa lưu nhân vật qua REST (PUT /api/auth/avatar) → server tự hỏi lại Api bằng cookie của người chơi rồi phát
+    /// LookChanged cho cả văn phòng. Không nhận ngoại hình từ client (Api đã kiểm tra theo danh mục). Tối đa 1 lần / 2 giây.
+    /// </summary>
+    public async Task RefreshLook()
+    {
+        if (!presence.TryGet(UserId, out var p) || p.ConnectionId != Context.ConnectionId) return;
+        var now = clock.GetUtcNow();
+        if (now - p.LastLookAt < TimeSpan.FromSeconds(2)) throw new HubException("Đổi nhân vật chậm lại một chút");
+        p.LastLookAt = now;
+        var (state, look) = await sessions.CheckWithLookAsync(p.AuthCookie, Context.ConnectionAborted);
+        if (state != SessionState.Valid) throw new HubException("Chưa tải được nhân vật mới, thử lại sau");
+        p.Look = look;
+        await Clients.Group(Room).LookChanged(p.UserId, look);
+    }
+
+    private static PlayerDto ToDto(Player p) => new(p.UserId, p.Name, p.X, p.Z, p.R, p.Anim, p.Look);
 
     public async Task SendChat(string text)
     {

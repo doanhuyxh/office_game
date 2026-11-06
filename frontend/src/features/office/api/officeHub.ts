@@ -12,6 +12,7 @@ export interface OfficeHandlers {
   chat(m: ChatDto): void;
   teleport(x: number, z: number): void;
   kicked(reason: string): void;
+  lookChanged(id: string, look: string | null): void;
   state(s: 'online' | 'reconnecting' | 'offline'): void;
 }
 
@@ -43,6 +44,7 @@ export class OfficeConnection {
     this.conn.on('Positions', (l) => h.positions(camel(l)));
     this.conn.on('Chat', (m) => h.chat(camel(m)));
     this.conn.on('Teleport', (x: number, z: number) => h.teleport(x, z));
+    this.conn.on('LookChanged', (id: string, look: string | null) => h.lookChanged(id, look ?? null));
     this.conn.on('Kicked', (reason: string) => {
       this.kicked = true;
       h.kicked(reason);
@@ -71,6 +73,11 @@ export class OfficeConnection {
   /** Chat chỉ trong phòng có tường đang đứng (server tự xác định phòng theo vị trí). */
   roomChat(text: string) {
     return this.conn.invoke('SendRoomChat', text);
+  }
+
+  /** Vừa lưu nhân vật qua REST → server tự đọc lại từ Api rồi phát LookChanged cho cả văn phòng. */
+  refreshLook() {
+    return this.conn.state === HubConnectionState.Connected ? this.conn.invoke('RefreshLook') : Promise.resolve();
   }
 
   stop() {

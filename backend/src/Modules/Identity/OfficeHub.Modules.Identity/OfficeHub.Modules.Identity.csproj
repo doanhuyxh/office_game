@@ -11,6 +11,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Danh mục nhân vật 3D dùng chung với FE (sinh bởi scripts/dev/import-characters.ts). Docker: build stage chép shared/ vào /shared. -->
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)../../../../../shared/avatar-catalog.json" LogicalName="avatar-catalog.json" Link="avatar-catalog.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\OfficeHub.BuildingBlocks\OfficeHub.BuildingBlocks.csproj" />
     <ProjectReference Include="..\OfficeHub.Modules.Identity.Contracts\OfficeHub.Modules.Identity.Contracts.csproj" />
   </ItemGroup>

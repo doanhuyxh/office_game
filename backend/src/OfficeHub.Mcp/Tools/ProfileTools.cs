@@ -23,7 +23,7 @@ public sealed class ProfileTools
         var now = TimeZoneInfo.ConvertTime(clock.GetUtcNow(), tz);
         return Out(new JsonObject
         {
-            ["account"] = me?.DeepClone(),
+            ["account"] = WithoutAvatar(me),
             ["employee"] = employee?["employee"]?.DeepClone(),
             ["now"] = now.ToString("yyyy-MM-dd'T'HH:mm:sszzz"),
             ["weekday"] = now.ToString("dddd", new System.Globalization.CultureInfo("vi-VN")),
@@ -44,5 +44,13 @@ public sealed class ProfileTools
     {
         await api.PostAsync(notificationId is { } id ? $"/api/notifications/{id}/read" : "/api/notifications/read-all", null, ct);
         return Out(new { ok = true });
+    }
+
+    /// <summary>Ngoại hình nhân vật 3D (avatar) không có ích cho AI → bỏ khỏi thông tin tài khoản.</summary>
+    private static JsonNode? WithoutAvatar(JsonNode? me)
+    {
+        var copy = me?.DeepClone();
+        (copy as JsonObject)?.Remove("avatar");
+        return copy;
     }
 }

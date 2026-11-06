@@ -19,13 +19,15 @@ Mặt bằng **68 × 30 m (2 040 m²)** = lõi 50 × 30 m chủ dự án duyệt
 | Hướng | Tên | Dữ liệu |
 |---|---|---|
 | server → client | `Welcome` | `{ selfId, mapName, players[] }` |
-| | `PlayerJoined` / `PlayerLeft` | `PlayerDto { id, name, x, z, r, anim }` / `id` |
+| | `PlayerJoined` / `PlayerLeft` | `PlayerDto { id, name, x, z, r, anim, look }` / `id` (`look` = nhân vật, [office-avatar.md](office-avatar.md)) |
+| | `LookChanged` | `(id, look)` — ai đó đổi nhân vật |
 | | `Positions` | `PositionDto[]` — chỉ người đã đổi, phát mỗi 100ms (`Simulation/OfficeLoop.cs`) |
 | | `Chat` | `{ id, name, text, at, channel: "office"\|"room", roomId?, roomName? }` |
 | | `Teleport` | `(x, z)` — kéo về vị trí hợp lệ |
 | | `Kicked` | `reason` |
 | client → server | `Move(x, z, r, anim)` | |
 | | `SendChat(text)` / `SendRoomChat(text)` | toàn văn phòng / chỉ phòng có tường đang đứng |
+| | `RefreshLook()` | vừa lưu nhân vật → server đọc lại từ Api rồi phát `LookChanged` (1 lần / 2 s) |
 
 Quy tắc server:
 

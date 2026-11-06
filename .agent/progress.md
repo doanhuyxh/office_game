@@ -10,6 +10,7 @@
 | Báo cáo + Excel, quy ra tiền tăng ca / phép (khi nghỉ việc) · đặt phòng họp (+ "Đang họp" trong 3D) | `reports`, `meetings` |
 | Nhắc quên chấm ra (chuông) · nhập nhân viên từ Excel · lịch sử sửa dữ liệu nhân sự (`[Audited]`, che lương) | `attendance-corrections`, `employee-import`, `audit` |
 | Văn phòng 3D giai đoạn 1 (bản đồ v2, engine low-poly, A*, ngồi, minimap) + voice LiveKit (khoảng cách, phòng riêng, chia sẻ màn hình) | `office`, `office-engine`, `design/` |
+| **Nhân vật 3D tuỳ chỉnh** (2026-11-06, chưa deploy; migration `UserAvatars`): model Quaternius CC0, editor ở HUD + `/profile`, đồng bộ `LookChanged`; sửa lỗi cookie jar của Realtime (kiểm tra phiên nhầm người) | `office-avatar` |
 | Kết nối AI: MCP 34 tool (không hợp đồng / lương, chấm công AI = Remote), token cá nhân + OAuth 2.1, nhật ký AI, HR thu hồi | `mcp`, `mcp-oauth` |
 | Giao diện shadcn-admin (sidebar, ⌘K, sáng / tối) · PWA cài được (không push) + giao diện mobile | `../frontend.md` |
 | Chat theo phòng, model GLB (chờ bộ Kenney), joystick + zoom cảm ứng | `office`, `office-engine` |
@@ -25,6 +26,7 @@ Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` ✔ (12 projec
 
 ## Quyết định đã chốt gần đây (đừng hỏi / đề xuất lại)
 
+- Nhân vật 3D: chưa chọn = **một mẫu chung**; model miễn phí (Quaternius CC0); HR **không** khoá trang phục.
 - Văn phòng 3D: mặt bằng **50 × 30 m** đã duyệt 2026-11-06 (Giám đốc 2 bàn, Kỹ thuật 1 cụm 6 xoay dọc cạnh Kinh doanh sát tường tây, phòng gọi 2 ghế đối diện, dải tiện ích z 20–22); giả định cũ vẫn giữ (camera chéo low-poly, laptop trước, voice ở giai đoạn 3). **Giai đoạn 2 bị bỏ**: không làm gán chỗ ngồi, trạng thái (chấm công / nghỉ phép / vắng) trên avatar, "tìm đồng nghiệp", người offline hiện mờ.
 - Hợp đồng: HR quản lý tất cả, nhân viên xem của mình, quản lý **không** xem của cấp dưới; lương mã hoá; nhắc HR + quản lý trực tiếp.
 - Thông báo: email + chuông. Tăng ca / nghỉ phép: xem §11 `ARCHITECTURE_V2.md`.

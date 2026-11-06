@@ -16,9 +16,14 @@ import { VOICE_INITIAL, VoiceClient, type VoiceView } from '../api/voiceClient';
 import { ScreenView, VoicePanel } from './VoicePanel';
 import { Joystick } from './Joystick';
 import type { VoiceChannelInfo } from '../engine/voiceChannel';
+import { DEFAULT_LOOK, parseLook, validLook } from '../engine/avatarLook';
+import { AvatarEditorDialog } from './AvatarEditorDialog';
 
 /** Màn hình cảm ứng (điện thoại / máy tính bảng): hiện joystick, nút zoom, chat thu gọn. */
 const IS_TOUCH = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+/** Đã bấm "Để sau" ở gợi ý tạo nhân vật (chỉ là tiện ích trên trình duyệt này). */
+const PROMPT_KEY = 'officehub.avatar.prompt-dismissed';
+const promptDismissed = () => { try { return localStorage.getItem(PROMPT_KEY) === '1'; } catch { return true; } };
 import './office.css';
 
 /** Văn phòng 3D. Route /_protected/office đã kiểm tra đăng nhập trước khi tải trang này. */
@@ -32,6 +37,10 @@ export function OfficeView() {
   const [seatInfo, setSeatInfo] = useState<{ seat: SitSpot; sitting: boolean } | null>(null);
   const [scene, setScene] = useState<OfficeScene | null>(null);
   const roomsNow = useRoomsNow();
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [avatarPrompt, setAvatarPrompt] = useState(() => !promptDismissed());
+  const hasLook = validLook(account?.avatar) !== null;
+  const dismissPrompt = () => { setAvatarPrompt(false); try { localStorage.setItem(PROMPT_KEY, '1'); } catch { /* bỏ qua */ } };
 
   // Bảng "Đang họp" trên phòng họp (lịch đặt phòng — module Meetings), làm mới mỗi phút.
   useEffect(() => {
@@ -121,8 +130,8 @@ export function OfficeView() {
         s.setConn('online');
         for (const p of w.players) {
           players.set(p.id, p.name);
-          if (p.id === w.selfId) scene.spawnMe(p.id, p.name, p.x, p.z);
-          else scene.upsertOther(p.id, p.name, p.x, p.z, p.r, p.anim);
+          if (p.id === w.selfId) scene.spawnMe(p.id, p.name, p.x, p.z, parseLook(p.look));
+          else scene.upsertOther(p.id, p.name, p.x, p.z, p.r, p.anim, parseLook(p.look));
         }
         s.setOnline(players.size);
         void voice.enable(); // vào văn phòng = vào voice để nghe (micro mặc định tắt)
@@ -130,7 +139,7 @@ export function OfficeView() {
       playerJoined: (p) => {
         if (p.id === me.id) return;
         players.set(p.id, p.name);
-        scene.upsertOther(p.id, p.name, p.x, p.z, p.r, p.anim);
+        scene.upsertOther(p.id, p.name, p.x, p.z, p.r, p.anim, parseLook(p.look));
         s.setOnline(players.size);
       },
       playerLeft: (id) => {
@@ -141,6 +150,7 @@ export function OfficeView() {
       positions: (list) => list.forEach((p) => p.id !== me.id && scene.moveOther(p.id, p.x, p.z, p.r, p.anim)),
       chat: (m) => s.pushChat(m),
       teleport: (x, z) => scene.teleportMe(x, z),
+      lookChanged: (id, look) => scene.setLook(id, parseLook(look)),
       kicked: (reason) => { s.kick(reason); void voice.disable(); },
       state: (st) => s.setConn(st),
     });
@@ -184,7 +194,17 @@ export function OfficeView() {
           <b>{me?.fullName ?? '…'}</b>
           <small>{me?.roles.join(', ')}</small>
           <Link to={PATHS.dashboard}>Cổng nhân sự →</Link>
+          <button type="button" className="link" onClick={() => setEditorOpen(true)} data-testid="office-avatar">👤 Nhân vật</button>
         </div>
+        {account && !hasLook && avatarPrompt && conn === 'online' && (
+          <div className="card avatar-prompt" data-testid="office-avatar-prompt">
+            <span>Bạn đang dùng <b>nhân vật mặc định</b>. Tạo nhân vật riêng để đồng nghiệp dễ nhận ra?</span>
+            <div>
+              <button type="button" className="primary" onClick={() => { dismissPrompt(); setEditorOpen(true); }}>Tạo nhân vật</button>
+              <button type="button" onClick={dismissPrompt}>Để sau</button>
+            </div>
+          </div>
+        )}
         <div className="card status">
           <span className={`dot ${conn}`} /> {conn === 'online' ? `${online} người online` : STATUS[conn]}
         </div>
@@ -259,6 +279,11 @@ export function OfficeView() {
           {today?.day.firstIn && <small>Vào {formatTime(today.day.firstIn)}</small>}
         </button>
       </div>
+      <AvatarEditorDialog open={editorOpen} onOpenChange={setEditorOpen}
+        onSaved={(look) => {
+          if (me) scene?.setLook(me.id, look ?? DEFAULT_LOOK);
+          void connRef.current?.refreshLook().catch((err: unknown) => toast.error(errorMessage(err)));
+        }} />
       {conn === 'kicked' && (
         <div className="overlay">
           {kickReason ?? 'Bạn đã bị ngắt khỏi văn phòng.'}

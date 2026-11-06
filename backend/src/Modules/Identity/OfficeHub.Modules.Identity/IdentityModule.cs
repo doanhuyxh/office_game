@@ -66,6 +66,7 @@ public sealed class IdentityModule : IModule
         AuthEndpoints.Map(api);
         PasswordEndpoints.Map(api);
         AccessTokenEndpoints.Map(api);
+        AvatarEndpoints.Map(api);
         OAuthEndpoints.Map(api);
     }
 }

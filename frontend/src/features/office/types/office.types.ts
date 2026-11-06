@@ -1,6 +1,7 @@
 // Khớp với OfficeHub.Realtime/Hubs/OfficeRoomHub.cs (IOfficeClient + các record DTO).
 // Sau này sinh tự động bằng TypedSignalR.Client.TypeScript.
-export interface PlayerDto { id: string; name: string; x: number; z: number; r: number; anim: number }
+/** look = ngoại hình nhân vật (chuỗi JSON, null = mặc định) — parse bằng engine/avatarLook.parseLook. */
+export interface PlayerDto { id: string; name: string; x: number; z: number; r: number; anim: number; look?: string | null }
 export interface PositionDto { id: string; x: number; z: number; r: number; anim: number }
 export interface WelcomeDto { selfId: string; mapName: string; players: PlayerDto[] }
 /** at = ISO 8601 UTC "…Z" (server). channel: "office" toàn văn phòng | "room" chỉ người trong phòng roomId. */

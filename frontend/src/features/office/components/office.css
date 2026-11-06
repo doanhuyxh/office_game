@@ -9,6 +9,12 @@
 .office-root .me { top: 12px; left: 12px; display: grid; gap: 2px; }
 .office-root .me small { color: #fbbf24; }
 .office-root .me a { color: #93c5fd; font-size: 12px; text-decoration: underline; }
+.office-root .me .link { justify-self: start; padding: 0; border: 0; background: none; color: #93c5fd; font: 12px system-ui; text-decoration: underline; cursor: pointer; }
+/* Gợi ý tạo nhân vật (chưa có nhân vật riêng) */
+.office-root .avatar-prompt { top: 60px; left: 50%; transform: translateX(-50%); width: min(420px, calc(100vw - 24px)); display: grid; gap: 8px; font-size: 13px; }
+.office-root .avatar-prompt div { display: flex; gap: 6px; justify-content: flex-end; }
+.office-root .avatar-prompt button { padding: 6px 12px; border-radius: 8px; border: 0; background: rgba(148, 163, 184, .2); color: inherit; font: 600 13px system-ui; cursor: pointer; }
+.office-root .avatar-prompt button.primary { background: #2563eb; color: #fff; }
 .office-root .status { top: 12px; right: 12px; display: flex; gap: 8px; align-items: center; }
 .office-root .dot { width: 9px; height: 9px; border-radius: 50%; background: #94a3b8; }
 .office-root .dot.online { background: #22c55e; }
@@ -75,4 +81,5 @@
   .office-root .zone { display: none; }
   .office-root .prompt { bottom: 160px; max-width: calc(100vw - 32px); }
   .office-root .help { left: 12px; right: 12px; width: auto; }
+  .office-root .avatar-prompt { top: 52px; left: 12px; transform: none; width: calc(100vw - 168px); }
 }

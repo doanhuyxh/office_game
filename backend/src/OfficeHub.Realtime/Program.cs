@@ -17,7 +17,10 @@ builder.Services.AddAuthorization();
 // Kiểm tra phiên qua OfficeHub.Api (tài khoản bị khoá → đẩy khỏi văn phòng)
 builder.Services.AddOptions<RealtimeSettings>().Bind(builder.Configuration.GetSection(RealtimeSettings.Section));
 var apiBase = builder.Configuration.GetSection(RealtimeSettings.Section).Get<RealtimeSettings>()?.ApiBaseUrl ?? new RealtimeSettings().ApiBaseUrl;
-builder.Services.AddHttpClient(SessionValidator.HttpClientName, c => { c.BaseAddress = new Uri(apiBase); c.Timeout = TimeSpan.FromSeconds(5); });
+// UseCookies = false: mỗi request mang cookie của CHÍNH người chơi (header Cookie tự đặt). Mặc định handler (dùng chung trong pool)
+// có CookieContainer → lưu Set-Cookie gia hạn của người A rồi gửi kèm cho request của người B → kiểm tra phiên / đọc nhân vật nhầm người.
+builder.Services.AddHttpClient(SessionValidator.HttpClientName, c => { c.BaseAddress = new Uri(apiBase); c.Timeout = TimeSpan.FromSeconds(5); })
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { UseCookies = false });
 builder.Services.AddSingleton<SessionValidator>();
 builder.Services.AddHostedService<SessionWatch>();
 

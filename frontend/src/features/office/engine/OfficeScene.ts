@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ANIM, Avatar, type AnimCode } from './avatar';
+import type { AvatarLook } from './avatarLook';
 import { buildSitSpots, type SitSpot } from './sitSpots';
 import { NavGrid } from './navGrid';
 import { OFFICE_MAP } from './officeMap';
@@ -124,11 +125,11 @@ export class OfficeScene {
 
   // ---------- người chơi ----------
 
-  spawnMe(id: string, name: string, x: number, z: number) {
+  spawnMe(id: string, name: string, x: number, z: number, look?: AvatarLook) {
     if (!this.me) {
-      this.me = new Avatar(id, name, true);
+      this.me = new Avatar(id, name, true, look);
       this.scene.add(this.me.root);
-    }
+    } else if (look) this.me.setLook(look);
     this.me.root.position.set(x, 0, z);
     this.camTarget.set(x, 0, z);
   }
@@ -140,14 +141,14 @@ export class OfficeScene {
     if (this.me) this.me.anim = ANIM.idle;
   }
 
-  upsertOther(id: string, name: string, x: number, z: number, r: number, anim = 0) {
+  upsertOther(id: string, name: string, x: number, z: number, r: number, anim = 0, look?: AvatarLook) {
     let o = this.others.get(id);
     if (!o) {
-      o = { avatar: new Avatar(id, name, false), tx: x, tz: z, tr: r, name };
+      o = { avatar: new Avatar(id, name, false, look), tx: x, tz: z, tr: r, name };
       o.avatar.root.position.set(x, 0, z);
       this.scene.add(o.avatar.root);
       this.others.set(id, o);
-    }
+    } else if (look) o.avatar.setLook(look);
     Object.assign(o, { tx: x, tz: z, tr: r });
     o.avatar.anim = anim as AnimCode;
   }
@@ -157,6 +158,12 @@ export class OfficeScene {
     if (!o) return;
     Object.assign(o, { tx: x, tz: z, tr: r });
     o.avatar.anim = anim as AnimCode;
+  }
+
+  /** Đổi nhân vật của một người (mình hoặc người khác) — sự kiện LookChanged / vừa lưu ở editor. */
+  setLook(id: string, look: AvatarLook) {
+    if (this.me?.id === id) this.me.setLook(look);
+    else this.others.get(id)?.avatar.setLook(look);
   }
 
   removeOther(id: string) {

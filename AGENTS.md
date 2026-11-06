@@ -33,7 +33,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Luồng duyệt, thêm loại đơn | [.agent/business/approval.md](.agent/business/approval.md) |
 | Nghỉ phép, quỹ phép năm | [.agent/business/leave.md](.agent/business/leave.md) |
 | Kết nối AI (MCP): token cá nhân, host `OfficeHub.Mcp`, danh sách tool · OAuth, nhật ký AI, quản trị HR | [.agent/business/mcp.md](.agent/business/mcp.md) · [.agent/business/mcp-oauth.md](.agent/business/mcp-oauth.md) |
-| Văn phòng 3D: bản đồ v2, lưới va chạm, SignalR, voice | [.agent/business/office.md](.agent/business/office.md) · engine 3D / HUD: [.agent/business/office-engine.md](.agent/business/office-engine.md) · mặt bằng + lộ trình: [design/README.md](design/README.md) |
+| Văn phòng 3D: bản đồ v2, lưới va chạm, SignalR, voice | [.agent/business/office.md](.agent/business/office.md) · engine 3D / HUD: [.agent/business/office-engine.md](.agent/business/office-engine.md) · nhân vật tuỳ chỉnh: [.agent/business/office-avatar.md](.agent/business/office-avatar.md) · mặt bằng + lộ trình: [design/README.md](design/README.md) |
 
 ## Luật không được vi phạm
 

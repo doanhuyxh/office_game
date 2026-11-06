@@ -442,6 +442,23 @@ namespace OfficeHub.Modules.Identity.Infrastructure.Migrations
                     b.ToTable("oauth_grants", "identity");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Identity.Domain.UserAvatar", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Look")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("user_avatars", "identity");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
@@ -533,6 +550,15 @@ namespace OfficeHub.Modules.Identity.Infrastructure.Migrations
                     b.HasOne("OfficeHub.Modules.Identity.Domain.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Identity.Domain.UserAvatar", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Identity.Domain.AppUser", null)
+                        .WithOne()
+                        .HasForeignKey("OfficeHub.Modules.Identity.Domain.UserAvatar", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

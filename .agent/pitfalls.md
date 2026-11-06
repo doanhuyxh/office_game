@@ -16,4 +16,5 @@
 - Đừng bọc component lazy của route trong component khác (React lỗi `use()`); chặn theo vai trò dùng `beforeLoad` + `notFound({ data: { forbidden: true } })`.
 - Pipeline xác thực đặt `Cache-Control: no-store` cho mọi response API → không cache được ảnh đại diện qua endpoint chuyển hướng (chấp nhận).
 - Thời hạn token AI chỉ nhận 30 / 90 / 180 / 365 ngày (script test từng dùng 7 → tạo token thất bại âm thầm).
+- `AddHttpClient` mặc định có **cookie jar dùng chung** (handler trong pool): gọi Api thay mặt người dùng bằng header `Cookie` tự đặt thì phải `ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { UseCookies = false })`, nếu không cookie gia hạn của người A bị gửi kèm request của người B (Realtime từng kiểm tra phiên / đọc nhân vật nhầm người — sửa 2026-11-06).
 - Voice báo "Không kết nối được máy chủ voice" mà token vẫn 200 → lỗi ICE: LiveKit trong Docker báo IP container. Dev compose đã có `--node-ip ${LIVEKIT_NODE_IP:-127.0.0.1}`; đổi xong phải `up -d livekit` để tạo lại container.

@@ -13,6 +13,9 @@ public sealed class Player
     public string? AuthCookie { get; init; }
     public float X, Z, R;
     public byte Anim;
+    /// <summary>Ngoại hình nhân vật (JSON từ Api /auth/me → avatar; null = mặc định). Đổi qua hub RefreshLook.</summary>
+    public string? Look;
+    public DateTimeOffset LastLookAt;
     public bool Dirty = true;
     public long LastMoveTicks;
     public DateTimeOffset LastActiveAt;

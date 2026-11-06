@@ -40,7 +40,7 @@ bun run dev                                   # http://localhost:5173, proxy /ap
 | Sinh type từ OpenAPI | `bun run api:generate` (Orval → `src/types/generated/`, thư mục **chưa tồn tại** tới khi chạy lần đầu; cần Api đang chạy) | `frontend/` |
 | Sửa bản đồ văn phòng 3D | sửa `shared/office-map.json` → `bun design/tools/render-plan.ts` (vẽ `design/floor-plan.svg`, ghi `shared/office-map.grid.txt`, kiểm tra; lỗi → exit 1) | gốc repo |
 | Tạo lại tài khoản / hợp đồng thử, e2e văn phòng 3D | `TEST_PASSWORD=… [BASE_URL=http://localhost:5173] bun scripts/dev/<seed-org|seed-contracts|office-e2e|voice-e2e>.ts` (xem [progress.md](progress.md)) | gốc repo |
-| Icon PWA · nhập model GLB văn phòng 3D | `bun scripts/dev/make-icons.ts` · `bun scripts/dev/import-furniture.ts <kenney.zip\|thư-mục>` (ghi `frontend/public/models/furniture/` + manifest) | gốc repo |
+| Icon PWA · nhập model GLB văn phòng 3D | `bun scripts/dev/make-icons.ts` · `bun scripts/dev/import-furniture.ts <kenney.zip\|thư-mục>` (ghi `frontend/public/models/furniture/` + manifest) · nhân vật: `bun scripts/dev/import-characters.ts <dir có men/ women/ .gltf>` (ghi `public/models/characters/` + `shared/avatar-catalog.json`) | gốc repo |
 | E2E khác (MCP, OAuth, chat phòng, lương / ký…) | xem [e2e.md](e2e.md) | gốc repo |
 | Thêm / cập nhật component shadcn | `bun run ui:add <tên…> [--overwrite]` → vào `src/components/common/` (**không** gọi `bunx shadcn add` trực tiếp) | `frontend/` |
 

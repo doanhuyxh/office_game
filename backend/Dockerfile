@@ -4,6 +4,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 WORKDIR /src
 COPY backend/ ./
+# Identity nhúng shared/avatar-catalog.json lúc build (đường dẫn ../../../../../shared tính từ project → /shared)
+COPY shared/ /shared/
 RUN dotnet publish src/OfficeHub.Api/OfficeHub.Api.csproj -c Release -o /out/OfficeHub.Api \
  && dotnet publish src/OfficeHub.Realtime/OfficeHub.Realtime.csproj -c Release -o /out/OfficeHub.Realtime \
  && dotnet publish src/OfficeHub.Mcp/OfficeHub.Mcp.csproj -c Release -o /out/OfficeHub.Mcp

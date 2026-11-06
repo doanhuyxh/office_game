@@ -10,7 +10,8 @@ Việc **cấp tài khoản cho nhân viên** do HR làm ở module Organization
 |---|---|---|---|
 | POST | `/api/auth/login` | ẩn danh, rate limit | `{ login, password, rememberMe=true }` → 200 `MeResponse` + cookie |
 | POST | `/api/auth/logout` | đăng nhập | 204, xoá cookie |
-| GET | `/api/auth/me` | đăng nhập | `MeResponse { id, userName, email, fullName, roles[], mustChangePassword }`; 401 nếu user không tồn tại hoặc `IsActive=false` |
+| GET | `/api/auth/me` | đăng nhập | `MeResponse { id, userName, email, fullName, roles[], mustChangePassword, avatar }`; 401 nếu user không tồn tại hoặc `IsActive=false`. `avatar` = nhân vật 3D (null = mặc định) |
+| PUT / DELETE | `/api/auth/avatar` | đăng nhập | Lưu / bỏ nhân vật 3D của chính mình — [office-avatar.md](office-avatar.md) |
 | POST | `/api/auth/change-password` | đăng nhập | `{ currentPassword, newPassword }` → 204; sai → 400 ValidationProblem (key = mã lỗi Identity) |
 | POST | `/api/auth/forgot-password` | ẩn danh, rate limit | `{ email }` → **luôn 204** |
 | POST | `/api/auth/reset-password` | ẩn danh, rate limit | `{ userId, token, newPassword }` → 204 |

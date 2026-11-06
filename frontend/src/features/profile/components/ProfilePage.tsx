@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Camera, Clock, Eye, EyeOff, Lock, Send, Trash2, X } from 'lucide-react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { Camera, Clock, Eye, EyeOff, Lock, Send, Shirt, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Textarea } from '@/components/common/textarea';
 import { Spinner } from '@/components/feedback/Spinner';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { useMe } from '@/features/auth';
 import { formatDate, formatDateTime } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { useCancelProfileRequest, useDeleteAvatar, useMyProfile, useSaveContact, useSubmitProfileRequest, useUploadAvatar } from '../hooks/useProfile';
@@ -203,6 +204,34 @@ function SensitiveCard({ p }: { p: IMyProfile }) {
   );
 }
 
+// Editor nhân vật kéo theo Three.js + model → chỉ tải khi mở (dùng chung chunk của văn phòng 3D)
+const AvatarEditorDialog = lazy(() => import('@/features/office').then((m) => ({ default: m.AvatarEditorDialog })));
+
+/** Nhân vật trong văn phòng 3D (mọi tài khoản, kể cả chưa có hồ sơ nhân viên). */
+function OfficeCharacterCard() {
+  const { data: me } = useMe();
+  const [open, setOpen] = useState(false);
+  const custom = me?.avatar != null;
+  return (
+    <Card>
+      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-2">
+        <div className="space-y-1.5">
+          <CardTitle className="text-base">Nhân vật văn phòng 3D</CardTitle>
+          <CardDescription>
+            {custom ? 'Bạn đã tạo nhân vật riêng.' : 'Bạn đang dùng nhân vật mặc định.'} Chọn dáng người, tóc, màu da, mắt, trang phục — đồng nghiệp thấy khi vào văn phòng.
+          </CardDescription>
+        </div>
+        <Button variant="outline" onClick={() => setOpen(true)} data-testid="profile-avatar-edit"><Shirt /> {custom ? 'Sửa nhân vật' : 'Tạo nhân vật'}</Button>
+      </CardHeader>
+      {open && (
+        <Suspense fallback={null}>
+          <AvatarEditorDialog open={open} onOpenChange={setOpen} />
+        </Suspense>
+      )}
+    </Card>
+  );
+}
+
 /** Hồ sơ cá nhân của người đang đăng nhập (chủ dự án chốt 2026-11-06). */
 export function ProfilePage() {
   const { data: p, isLoading } = useMyProfile();
@@ -230,6 +259,7 @@ export function ProfilePage() {
           <SensitiveCard p={p} />
         </>
       )}
+      <OfficeCharacterCard />
     </div>
   );
 }

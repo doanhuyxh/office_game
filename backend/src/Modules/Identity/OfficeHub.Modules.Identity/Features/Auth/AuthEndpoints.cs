@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -6,12 +8,15 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.Modules.Identity.Domain;
+using OfficeHub.Modules.Identity.Infrastructure;
 
 namespace OfficeHub.Modules.Identity.Features.Auth;
 
 public sealed record LoginRequest([Required] string Login, [Required] string Password, bool RememberMe = true);
 public sealed record ChangePasswordRequest([Required] string CurrentPassword, [Required] string NewPassword);
-public sealed record MeResponse(Guid Id, string UserName, string? Email, string FullName, string[] Roles, bool MustChangePassword);
+/// <summary>Avatar = ngoại hình nhân vật 3D (JSON, xem AvatarRules); null = nhân vật mặc định. Realtime đọc trường này khi vào văn phòng.</summary>
+public sealed record MeResponse(Guid Id, string UserName, string? Email, string FullName, string[] Roles, bool MustChangePassword,
+    JsonElement? Avatar = null);
 
 internal static class AuthEndpoints
 {
@@ -28,7 +33,7 @@ internal static class AuthEndpoints
 
     /// <summary>Đăng nhập bằng email HOẶC tên đăng nhập (mã nhân viên).</summary>
     private static async Task<Results<Ok<MeResponse>, ProblemHttpResult>> LoginAsync(
-        LoginRequest req, UserManager<AppUser> users, SignInManager<AppUser> signIn, TimeProvider clock)
+        LoginRequest req, UserManager<AppUser> users, SignInManager<AppUser> signIn, OfficeIdentityDbContext db, TimeProvider clock)
     {
         var user = await users.FindByNameAsync(req.Login) ?? await users.FindByEmailAsync(req.Login);
         if (user is null || !user.IsActive)
@@ -44,13 +49,14 @@ internal static class AuthEndpoints
 
         user.LastLoginAt = clock.GetUtcNow();
         await users.UpdateAsync(user);
-        return TypedResults.Ok(await ToMe(user, users));
+        return TypedResults.Ok(await ToMe(user, users, db));
     }
 
-    private static async Task<Results<Ok<MeResponse>, UnauthorizedHttpResult>> MeAsync(HttpContext ctx, UserManager<AppUser> users)
+    private static async Task<Results<Ok<MeResponse>, UnauthorizedHttpResult>> MeAsync(HttpContext ctx, UserManager<AppUser> users,
+        OfficeIdentityDbContext db)
     {
         var user = await users.GetUserAsync(ctx.User);
-        return user is { IsActive: true } ? TypedResults.Ok(await ToMe(user, users)) : TypedResults.Unauthorized();
+        return user is { IsActive: true } ? TypedResults.Ok(await ToMe(user, users, db)) : TypedResults.Unauthorized();
     }
 
     private static async Task<Results<NoContent, ValidationProblem, UnauthorizedHttpResult>> ChangePasswordAsync(
@@ -69,6 +75,10 @@ internal static class AuthEndpoints
         return TypedResults.NoContent();
     }
 
-    private static async Task<MeResponse> ToMe(AppUser u, UserManager<AppUser> users) =>
-        new(u.Id, u.UserName!, u.Email, u.FullName, [.. await users.GetRolesAsync(u)], u.MustChangePassword);
+    private static async Task<MeResponse> ToMe(AppUser u, UserManager<AppUser> users, OfficeIdentityDbContext db)
+    {
+        var look = await db.UserAvatars.AsNoTracking().Where(a => a.UserId == u.Id).Select(a => a.Look).FirstOrDefaultAsync();
+        return new(u.Id, u.UserName!, u.Email, u.FullName, [.. await users.GetRolesAsync(u)], u.MustChangePassword,
+            look is null ? null : JsonDocument.Parse(look).RootElement.Clone());
+    }
 }

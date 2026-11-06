@@ -1,0 +1,517 @@
+{
+  "$comment": "Sinh bởi scripts/dev/import-characters.ts — KHÔNG sửa tay. FE: features/office/engine/character*.ts; BE: Identity AvatarCatalog.",
+  "version": 1,
+  "source": "Quaternius Ultimate Modular Men / Women — CC0 1.0 (https://quaternius.com)",
+  "palettes": {
+    "skin": [
+      "#f8dcc8",
+      "#f1c7a0",
+      "#e0ac85",
+      "#c68b62",
+      "#9c6644",
+      "#6e4630"
+    ],
+    "hair": [
+      "#151515",
+      "#3b2418",
+      "#6b4226",
+      "#9a6a3a",
+      "#d6b26e",
+      "#c9c9c9",
+      "#a33b2b",
+      "#2f4f9e"
+    ],
+    "eyes": [
+      "#2b1d14",
+      "#5a3a22",
+      "#3a6ea5",
+      "#3f7d4a",
+      "#555555"
+    ],
+    "cloth": [
+      "#f4f4f5",
+      "#a1a1aa",
+      "#27272a",
+      "#1e3a8a",
+      "#2563eb",
+      "#0891b2",
+      "#16a34a",
+      "#65a30d",
+      "#ca8a04",
+      "#ea580c",
+      "#dc2626",
+      "#db2777",
+      "#7c3aed",
+      "#7c4a1e",
+      "#d6c4a8"
+    ]
+  },
+  "default": {
+    "v": 1,
+    "body": "male",
+    "head": "short",
+    "top": "tee",
+    "bottom": "jeans",
+    "shoes": "sneaker",
+    "skin": null,
+    "hair": null,
+    "eyes": null,
+    "topColor": 4,
+    "bottomColor": null,
+    "shoesColor": null
+  },
+  "bodies": {
+    "male": {
+      "label": "Nam",
+      "file": "male.glb",
+      "parts": {
+        "head": [
+          {
+            "id": "slick",
+            "label": "Tóc vuốt",
+            "hair": [
+              "Hair"
+            ],
+            "eyes": [
+              "Eye"
+            ]
+          },
+          {
+            "id": "short",
+            "label": "Tóc ngắn",
+            "hair": [
+              "Hair"
+            ],
+            "eyes": [
+              "Eye"
+            ]
+          },
+          {
+            "id": "fade",
+            "label": "Tóc undercut",
+            "hair": [
+              "Hair"
+            ],
+            "eyes": [
+              "Eye"
+            ]
+          },
+          {
+            "id": "messy",
+            "label": "Tóc bù xù",
+            "hair": [
+              "Hair"
+            ],
+            "eyes": [
+              "Eye"
+            ]
+          },
+          {
+            "id": "long",
+            "label": "Tóc dài",
+            "hair": [
+              "Hair"
+            ],
+            "eyes": [
+              "Eye"
+            ]
+          },
+          {
+            "id": "mohawk",
+            "label": "Mohican",
+            "hair": [
+              "Red",
+              "Red_Dark"
+            ],
+            "eyes": [
+              "Eye"
+            ]
+          },
+          {
+            "id": "hat",
+            "label": "Mũ rơm",
+            "hair": [],
+            "eyes": [
+              "Eye"
+            ]
+          },
+          {
+            "id": "helmet",
+            "label": "Mũ bảo hộ",
+            "hair": [
+              "Moustache"
+            ],
+            "eyes": [
+              "Eye"
+            ]
+          }
+        ],
+        "top": [
+          {
+            "id": "suit",
+            "label": "Vest",
+            "tint": [
+              "Suit"
+            ]
+          },
+          {
+            "id": "tee",
+            "label": "Áo phông",
+            "tint": [
+              "LightBrown"
+            ]
+          },
+          {
+            "id": "hoodie",
+            "label": "Hoodie",
+            "tint": [
+              "Purple"
+            ]
+          },
+          {
+            "id": "jacket",
+            "label": "Áo khoác",
+            "tint": [
+              "Green"
+            ]
+          },
+          {
+            "id": "punk",
+            "label": "Áo da",
+            "tint": [
+              "Black"
+            ]
+          },
+          {
+            "id": "overall",
+            "label": "Áo yếm",
+            "tint": [
+              "LightBlue"
+            ]
+          },
+          {
+            "id": "vest",
+            "label": "Áo gile",
+            "tint": [
+              "Worker_Vest"
+            ]
+          },
+          {
+            "id": "tank",
+            "label": "Áo ba lỗ",
+            "tint": [
+              "LightBrown"
+            ]
+          }
+        ],
+        "bottom": [
+          {
+            "id": "suit",
+            "label": "Quần âu",
+            "tint": [
+              "Suit"
+            ]
+          },
+          {
+            "id": "jeans",
+            "label": "Quần jean",
+            "tint": [
+              "LightBlue"
+            ]
+          },
+          {
+            "id": "jeans2",
+            "label": "Quần jean xắn",
+            "tint": [
+              "LightBlue"
+            ]
+          },
+          {
+            "id": "cargo",
+            "label": "Quần túi hộp",
+            "tint": [
+              "Brown"
+            ]
+          },
+          {
+            "id": "punk",
+            "label": "Quần rách",
+            "tint": [
+              "LightBlue"
+            ]
+          },
+          {
+            "id": "work",
+            "label": "Quần kaki",
+            "tint": [
+              "LightBlue"
+            ]
+          },
+          {
+            "id": "trek",
+            "label": "Quần dã ngoại",
+            "tint": [
+              "Brown"
+            ]
+          },
+          {
+            "id": "shorts",
+            "label": "Quần short",
+            "tint": [
+              "Red_Dark"
+            ]
+          }
+        ],
+        "shoes": [
+          {
+            "id": "oxford",
+            "label": "Giày tây",
+            "tint": [
+              "Black"
+            ]
+          },
+          {
+            "id": "sneaker",
+            "label": "Giày thể thao",
+            "tint": [
+              "Red_Dark"
+            ]
+          },
+          {
+            "id": "sneaker2",
+            "label": "Giày cổ cao",
+            "tint": [
+              "Purple"
+            ]
+          },
+          {
+            "id": "boots",
+            "label": "Giày bảo hộ",
+            "tint": [
+              "Grey"
+            ]
+          },
+          {
+            "id": "punk",
+            "label": "Bốt",
+            "tint": [
+              "Black"
+            ]
+          },
+          {
+            "id": "farm",
+            "label": "Bốt da",
+            "tint": [
+              "Brown"
+            ]
+          },
+          {
+            "id": "trek",
+            "label": "Giày leo núi",
+            "tint": [
+              "Grey"
+            ]
+          },
+          {
+            "id": "sandal",
+            "label": "Dép",
+            "tint": [
+              "Red_Dark"
+            ]
+          }
+        ]
+      }
+    },
+    "female": {
+      "label": "Nữ",
+      "file": "female.glb",
+      "parts": {
+        "head": [
+          {
+            "id": "bob",
+            "label": "Tóc ngang vai",
+            "hair": [
+              "Hair_Blond",
+              "Hair_Brown"
+            ],
+            "eyes": [
+              "Brown"
+            ]
+          },
+          {
+            "id": "side",
+            "label": "Tóc buộc lệch",
+            "hair": [
+              "Red"
+            ],
+            "eyes": [
+              "Brown"
+            ]
+          },
+          {
+            "id": "short",
+            "label": "Tóc ngắn",
+            "hair": [
+              "Hair_Brown"
+            ],
+            "eyes": [
+              "Brown"
+            ]
+          },
+          {
+            "id": "punk",
+            "label": "Tóc cá tính",
+            "hair": [
+              "Pink"
+            ],
+            "eyes": [
+              "Brown"
+            ]
+          },
+          {
+            "id": "helmet",
+            "label": "Mũ bảo hộ",
+            "hair": [
+              "DarkBrown"
+            ],
+            "eyes": [
+              "Brown"
+            ]
+          }
+        ],
+        "top": [
+          {
+            "id": "tee",
+            "label": "Áo phông",
+            "tint": [
+              "White"
+            ]
+          },
+          {
+            "id": "blazer",
+            "label": "Vest",
+            "tint": [
+              "Black"
+            ]
+          },
+          {
+            "id": "dress",
+            "label": "Đầm",
+            "tint": [
+              "LimeGreen"
+            ]
+          },
+          {
+            "id": "vest",
+            "label": "Áo gile",
+            "tint": [
+              "Worker_Vest"
+            ]
+          },
+          {
+            "id": "punk",
+            "label": "Áo cá tính",
+            "tint": [
+              "Pink"
+            ]
+          },
+          {
+            "id": "jacket",
+            "label": "Áo khoác",
+            "tint": [
+              "LightGreen"
+            ]
+          }
+        ],
+        "bottom": [
+          {
+            "id": "pants",
+            "label": "Quần dài",
+            "tint": [
+              "Orange"
+            ]
+          },
+          {
+            "id": "suit",
+            "label": "Quần âu",
+            "tint": [
+              "Black"
+            ]
+          },
+          {
+            "id": "skirt",
+            "label": "Váy",
+            "tint": [
+              "LimeGreen"
+            ]
+          },
+          {
+            "id": "cargo",
+            "label": "Quần túi hộp",
+            "tint": [
+              "Brown_02"
+            ]
+          },
+          {
+            "id": "punk",
+            "label": "Quần bó",
+            "tint": [
+              "Black"
+            ]
+          },
+          {
+            "id": "trek",
+            "label": "Quần dã ngoại",
+            "tint": [
+              "Brown_02"
+            ]
+          }
+        ],
+        "shoes": [
+          {
+            "id": "flats",
+            "label": "Giày bệt",
+            "tint": [
+              "Grey"
+            ]
+          },
+          {
+            "id": "heels",
+            "label": "Giày cao gót",
+            "tint": [
+              "Black"
+            ]
+          },
+          {
+            "id": "sandal",
+            "label": "Sandal",
+            "tint": [
+              "Red"
+            ]
+          },
+          {
+            "id": "boots",
+            "label": "Giày bảo hộ",
+            "tint": [
+              "Black"
+            ]
+          },
+          {
+            "id": "punk",
+            "label": "Bốt",
+            "tint": [
+              "Black"
+            ]
+          },
+          {
+            "id": "trek",
+            "label": "Bốt da",
+            "tint": [
+              "Brown_02"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

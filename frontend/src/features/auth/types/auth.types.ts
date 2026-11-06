@@ -6,6 +6,8 @@ export interface IMe {
   fullName: string;
   roles: string[];
   mustChangePassword: boolean;
+  /** Ngoại hình nhân vật văn phòng 3D (xem features/office/engine/avatarLook.ts); null = nhân vật mặc định. */
+  avatar?: unknown;
 }
 
 export interface ILoginRequest {
