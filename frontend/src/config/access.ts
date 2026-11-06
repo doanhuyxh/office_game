@@ -10,6 +10,7 @@ export const PAGE_ROLES: Partial<Record<string, readonly Role[]>> = {
   [PATHS.payroll]: [ROLE.admin, ROLE.hr],
   [PATHS.reports]: [ROLE.admin, ROLE.hr],
   [PATHS.audit]: [ROLE.admin, ROLE.hr],
+  [PATHS.system]: [ROLE.admin],
 };
 
 /** Người dùng (danh sách vai trò) có vào được trang `path` không. */

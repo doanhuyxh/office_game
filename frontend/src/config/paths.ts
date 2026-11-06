@@ -14,6 +14,7 @@ export const PATHS = {
   payslips: '/payslips',
   profile: '/profile',
   aiAccess: '/ai-access',
+  system: '/system',
   oauthAuthorize: '/oauth/authorize',
   login: '/login',
   changePassword: '/change-password',

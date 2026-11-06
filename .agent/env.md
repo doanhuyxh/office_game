@@ -28,6 +28,7 @@ Một file `.env` ở gốc repo cho BE + Docker Compose. Quy ước `Section__K
 | `LiveKit__Url/ApiKey/ApiSecret` | – | Thiếu → voice trả 503. Secret < 32 ký tự → Realtime không khởi động |
 | `LIVEKIT_NODE_IP` | `127.0.0.1` | Chỉ dev compose (`--node-ip`). Không đặt → LiveKit báo IP container, trình duyệt báo "Không kết nối được máy chủ voice". Test từ máy khác trong LAN → IP LAN + đổi `LiveKit__Url` theo |
 | `Seq__Url`, `Seq__ApiKey`, `Sentry__Dsn` | – | Log / lỗi; trống = tắt |
+| `SystemTools__LogsUrl`, `SystemTools__MailUrl` | – | Link trên trang **Hệ thống** (admin). Trống: log = `http://localhost:5341` (chỉ Development), mail suy từ `Smtp__Host` (localhost/mailpit → Mailpit :8025, Gmail → mail.google.com) |
 | `Realtime__MapPath` | – | Mặc định `shared/office-map.json` |
 | `Realtime__ApiBaseUrl` | – (`http://localhost:5080`) | Realtime gọi Api để kiểm tra phiên. Prod compose: `http://api:8080` |
 | `Attendance__Reminders__Enabled`, `__Email`, `__GraceMinutes`, `__FlexibleAt`, `__NextMorningAt` | – (true, false, 30, 21:00, 08:00) | Nhắc quên chấm ra ([business/attendance-corrections.md](business/attendance-corrections.md)) |

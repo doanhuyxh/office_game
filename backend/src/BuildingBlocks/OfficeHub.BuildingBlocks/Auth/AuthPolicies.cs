@@ -10,12 +10,15 @@ public static class AuthPolicies
     public const string Hr = "hr";
     /// <summary>admin, hr hoặc manager: xem/duyệt cho cấp dưới.</summary>
     public const string Manager = "manager";
+    /// <summary>Chỉ quản trị hệ thống (trang Hệ thống, tài liệu API).</summary>
+    public const string Admin = "admin";
 
     public static IServiceCollection AddOfficeHubAuthorization(this IServiceCollection services)
     {
         services.AddAuthorizationBuilder()
             .AddPolicy(Hr, p => p.RequireRole(Roles.Admin, Roles.Hr))
-            .AddPolicy(Manager, p => p.RequireRole(Roles.Admin, Roles.Hr, Roles.Manager));
+            .AddPolicy(Manager, p => p.RequireRole(Roles.Admin, Roles.Hr, Roles.Manager))
+            .AddPolicy(Admin, p => p.RequireRole(Roles.Admin));
         return services;
     }
 

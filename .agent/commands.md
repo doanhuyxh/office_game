@@ -68,7 +68,8 @@ Bảng đầy đủ: [env.md](env.md).
 | URL | |
 |---|---|
 | :5173 | Web (SPA) |
-| :5080/scalar, :5080/openapi/v1.json | Tài liệu API (chỉ Development) |
+| :5080/scalar, :5080/openapi/v1.json | Tài liệu API (chỉ Development, không cần đăng nhập — Orval dùng) |
+| `/api/system/docs/` (mọi môi trường, qua FE `/system`) | Tài liệu API cho **admin đã đăng nhập** (cả production) |
 | :8025 | Mailpit (email đã gửi) |
 | :5341 | Seq (log) |
 

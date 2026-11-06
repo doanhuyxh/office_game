@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Bot, Building2, CalendarClock, CheckSquare, Clock, FileText, History, Landmark, LayoutDashboard, Palmtree, UserRound, Users, Wallet } from 'lucide-react';
+import { BarChart3, Bot, Building2, CalendarClock, CheckSquare, Clock, FileText, History, Landmark, Server, LayoutDashboard, Palmtree, UserRound, Users, Wallet } from 'lucide-react';
 import { PATHS } from '@/config/paths';
 
 export interface NavItem {
@@ -46,6 +46,12 @@ export const NAVIGATION: NavGroup[] = [
       { to: PATHS.payroll, label: 'Bảng lương', icon: Landmark },
       { to: PATHS.reports, label: 'Báo cáo', icon: BarChart3 },
       { to: PATHS.audit, label: 'Lịch sử thay đổi', icon: History },
+    ],
+  },
+  {
+    title: 'Quản trị',
+    items: [
+      { to: PATHS.system, label: 'Hệ thống', icon: Server }, // chỉ admin: tài liệu API, log, mail server, tình trạng dịch vụ
     ],
   },
 ];

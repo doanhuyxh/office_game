@@ -13,6 +13,7 @@ using OfficeHub.Modules.Payroll;
 using OfficeHub.Modules.Notification;
 using OfficeHub.Modules.Organization;
 using OfficeHub.Modules.Reporting;
+using OfficeHub.Api;
 using Scalar.AspNetCore;
 
 EnvLoader.Load();
@@ -53,6 +54,8 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();                 // /openapi/v1.json → FE sinh client bằng Orval
     app.MapScalarApiReference();      // /scalar → giao diện thử API
 }
+
+app.MapSystemEndpoints();          // /api/system/*: trang Hệ thống + tài liệu API cho admin (mọi môi trường)
 
 var api = app.MapGroup("/api");
 foreach (var m in modules) m.MapEndpoints(api);
