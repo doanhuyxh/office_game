@@ -11,9 +11,11 @@
 - Enum lưu dạng **chuỗi** (`HasConversion<string>()`).
 - Id: `Guid.CreateVersion7()` (UUID v7, sắp theo thời gian).
 
-## Schema `identity` — `OfficeIdentityDbContext` (migration `InitialIdentity`)
+## Schema `identity` — `OfficeIdentityDbContext` (migration `InitialIdentity`, `AccessTokens`)
 
 Bảng ASP.NET Identity đổi tên: `users`, `roles`, `user_roles`, `user_claims`, `user_logins`, `user_tokens`, `role_claims`.
+
+`access_tokens` (token AI, [business/mcp.md](business/mcp.md)): `UserId` (FK `users`, cascade, `ix_access_tokens_user`), `Name` ≤100, `TokenHash` SHA-256 hex (unique `ux_access_tokens_hash`), `Prefix` ≤20, `CreatedAt`, `ExpiresAt`, `LastUsedAt?`, `RevokedAt?` (thu hồi = đặt giá trị, không xoá dòng).
 
 `users` (`AppUser : IdentityUser<Guid>`) thêm: `FullName` (≤200), `MustChangePassword`, `IsActive` (default true), `CreatedAt`, `LastLoginAt`.
 - `UserName` duy nhất (`UserNameIndex`). Email **không bắt buộc**; nếu có thì duy nhất: index `ux_users_email` trên `NormalizedEmail` lọc `IS NOT NULL` (`User.RequireUniqueEmail = false`).

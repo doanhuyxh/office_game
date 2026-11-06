@@ -16,13 +16,13 @@ Route dưới `/api/attendance` (đăng nhập). Schema: [database.md](../databa
 | Method | Path | Kết quả |
 |---|---|---|
 | GET | `/today` | `TodayDto { employee, checkedIn, nextAction "in"\|"out", day, shift, serverTime, currentWorkMode }` |
-| POST | `/check` | `{ source: "web" \| "office3d" }` → `TodayDto` sau khi ghi |
+| POST | `/check` | `{ source: "web" \| "office3d" }` → `TodayDto` sau khi ghi (gọi bằng token AI: luôn `Mcp` + `Remote`, [mcp.md](mcp.md)) |
 
 Bước của `/check` (giữ thứ tự):
 1. Tìm nhân viên theo user; `IsActive=false` → 403 `"Nhân viên đã nghỉ việc"`.
 2. Lấy sự kiện mới nhất **trong `WorkDate` hôm nay**. Cách < 1 phút → 409 `"Bạn vừa chấm công lúc HH:mm. Đợi 1 phút rồi thử lại."`.
 3. `Type` = `Out` nếu sự kiện cuối là `In`, ngược lại `In` (sang ngày mới luôn bắt đầu `In`).
-4. `Source`: `office3d` → `Office3D`, còn lại → `Web`. `WorkMode` = `OfficeNetwork.IsOnsite(RemoteIpAddress)` ? `Onsite` : `Remote` (so với `Office__IpRanges`; trống → luôn Remote). Lưu `Ip`, `UserAgent` (≤512).
+4. `Source`: token AI (`IsAccessToken()`) → `Mcp`; `office3d` → `Office3D`; còn lại → `Web`. `WorkMode` = token AI → luôn `Remote`; ngược lại `OfficeNetwork.IsOnsite(RemoteIpAddress)` ? `Onsite` : `Remote` (so với `Office__IpRanges`; trống → luôn Remote). Lưu `Ip`, `UserAgent` (≤512).
 
 Không cần đăng ký làm từ xa. Không giới hạn số lần vào/ra trong ngày.
 

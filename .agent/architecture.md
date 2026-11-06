@@ -8,6 +8,7 @@
 backend/                         ASP.NET Core .NET 10 — solution OfficeHub.slnx
   src/OfficeHub.Api/             host REST: Program.cs liệt kê IModule[]; /api/*, /health, /openapi, /scalar
   src/OfficeHub.Realtime/        host SignalR: Hubs/OfficeRoomHub.cs, Simulation/(OfficeMap, Presence, OfficeLoop), Voice/
+  src/OfficeHub.Mcp/             host MCP (/mcp) cho trợ lý AI: Tools/, Infrastructure/(OfficeHubApi, BearerGate) — không đọc DB
   src/BuildingBlocks/OfficeHub.BuildingBlocks/
     Configuration/               EnvLoader (.env), Settings.cs, AddValidatedOptions
     Hosting/HostingExtensions.cs AddOfficeHubDefaults (Serilog→Seq, Sentry, DataProtection, ForwardedHeaders), S3, Email
@@ -15,7 +16,7 @@ backend/                         ASP.NET Core .NET 10 — solution OfficeHub.sln
     Health/, Http/Validation.cs, Persistence/, Storage/(IFileStorage→S3), Email/(IEmailSender→SMTP), Security/(IFieldEncryptor AES-GCM), Office/OfficeNetwork
   src/Modules/                   Identity · Organization · Attendance · Approval · Leave · Notification (mỗi cái + .Contracts) · LaborContracts ← có nghiệp vụ
                                  Reporting · Audit ← chỉ khung (/_status)
-  tests/                         OfficeHub.Architecture.Tests, OfficeHub.Modules.{Attendance,Leave,Notification,LaborContracts}.Tests
+  tests/                         OfficeHub.Architecture.Tests, OfficeHub.Modules.{Attendance,Leave,Notification,LaborContracts}.Tests, OfficeHub.{Realtime,Mcp}.Tests
 frontend/                        React 19 + Vite + TS (bun) — chi tiết: conventions.md
 shared/office-map.json           bản đồ văn phòng 3D, dùng chung FE (vẽ) + Realtime (kiểm tra sàn)
 infra/                           docker-compose.dev.yml, docker-compose.yml (prod), backup/, livekit/
@@ -28,13 +29,14 @@ docs/ARCHITECTURE_V2.md          thiết kế + lộ trình (người đọc)
 Trình duyệt (SPA :5173)
   ├─ /api/*  ──(Vite proxy dev | nginx VPS → container web prod)──▶ OfficeHub.Api ─▶ <M>Module endpoints ─▶ DbContext (schema riêng) ─▶ PostgreSQL
   │                                                     └─▶ IAccountService / IEmployeeDirectory (Contracts) giữa các module
+  ├─ /mcp    ──(AI client, Bearer ohk_…)──▶ OfficeHub.Mcp ─▶ HTTP /api/* của Api bằng chính token đó (business/mcp.md)
   └─ /rt/*   ──(WebSocket)──────────────────────────▶ OfficeHub.Realtime ─▶ Presence (RAM) — không ghi DB
                                                           └─▶ HTTP GET Api /api/auth/me (kiểm tra phiên, cookie người dùng)
 ```
 
 - FE và API **cùng origin** (dev: Vite proxy; prod: nginx VPS → container `web` chia `/api`, `/rt`, `/livekit`) → cookie đăng nhập dùng được cho cả `/api` và `/rt`, không cần CORS.
 - **Cookie dùng chung 2 host**: Api cấp cookie `officehub.auth` (scheme `Identity.Application`); Realtime đọc lại nhờ cùng scheme, cùng tên cookie, cùng thư mục khoá `DataProtection__KeysPath`, application name `OfficeHub` (`AuthCookie.cs`, `HostingExtensions.cs`).
-- Không có message bus: module gọi nhau đồng bộ qua interface trong `*.Contracts` (DI scope cùng request): `IAccountService` (Identity), `IEmployeeDirectory` (Organization), `IApprovalService` + `IApprovalHandler` (Approval ← Leave, Attendance), `ILeaveCalendar` (Leave → Attendance), `IWorkCalendar` (Attendance → Leave). Realtime ↔ Api chỉ có một đường: Realtime gọi `/api/auth/me` ([business/office.md](business/office.md)).
+- Không có message bus: module gọi nhau đồng bộ qua interface trong `*.Contracts` (DI scope cùng request): `IAccountService` (Identity), `IEmployeeDirectory` (Organization), `IApprovalService` + `IApprovalHandler` (Approval ← Leave, Attendance), `ILeaveCalendar` (Leave → Attendance), `IWorkCalendar` (Attendance → Leave). Realtime ↔ Api chỉ có một đường: Realtime gọi `/api/auth/me` ([business/office.md](business/office.md)). Mcp ↔ Api: Mcp gọi `/api/*` với Bearer token của người dùng, Api chỉ cho các route trong `AccessTokenAuth.IsAllowed` ([business/mcp.md](business/mcp.md)).
 - FE: mọi query/mutation trả **401** → `onUnauthorized` (`App.tsx`) xoá cache và chuyển `/login?returnUrl=…`; query không retry khi 401.
 - Business logic nằm ở back-end. FE chỉ hiển thị và điều hướng; `routes/guards.ts` và menu theo vai trò **không phải** lớp bảo mật.
 - IP client: Api dùng `ForwardedHeaders` (tin mọi proxy) → `HttpContext.Connection.RemoteIpAddress` là IP thật sau nginx (nginx VPS gửi `X-Forwarded-For`, container `web` chuyển tiếp nguyên). Dev qua Vite proxy → IP là localhost.

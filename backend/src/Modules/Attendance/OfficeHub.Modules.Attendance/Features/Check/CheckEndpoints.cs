@@ -12,7 +12,7 @@ using OfficeHub.Modules.Organization.Contracts;
 
 namespace OfficeHub.Modules.Attendance.Features.Check;
 
-/// <summary>source = "web" | "office3d"</summary>
+/// <summary>source = "web" | "office3d". Gọi bằng token AI (MCP) thì server bỏ qua source: luôn Mcp + Remote.</summary>
 public sealed record CheckRequest(string? Source);
 
 /// <summary>Nút chấm công (web + văn phòng 3D). Một nút đổi trạng thái vào ↔ ra; giờ và IP do server ghi.</summary>
@@ -50,14 +50,16 @@ internal static class CheckEndpoints
                 $"Bạn vừa chấm công lúc {TimeZoneInfo.ConvertTime(last.OccurredAt, svc.Tz):HH:mm}. Đợi 1 phút rồi thử lại.",
                 statusCode: StatusCodes.Status409Conflict);
 
+        var viaAi = user.IsAccessToken();
         db.Events.Add(new AttendanceEvent
         {
             EmployeeId = emp.Id,
             OccurredAt = now,
             WorkDate = today,
             Type = last?.Type == PunchType.In ? PunchType.Out : PunchType.In,
-            Source = req.Source?.ToLowerInvariant() == "office3d" ? PunchSource.Office3D : PunchSource.Web,
-            WorkMode = net.IsOnsite(http.Connection.RemoteIpAddress) ? WorkMode.Onsite : WorkMode.Remote,
+            Source = viaAi ? PunchSource.Mcp : req.Source?.ToLowerInvariant() == "office3d" ? PunchSource.Office3D : PunchSource.Web,
+            // Qua MCP, IP là của máy chủ MCP chứ không phải của nhân viên → không thể biết có ở văn phòng hay không.
+            WorkMode = !viaAi && net.IsOnsite(http.Connection.RemoteIpAddress) ? WorkMode.Onsite : WorkMode.Remote,
             Ip = http.Connection.RemoteIpAddress?.ToString(),
             UserAgent = http.Request.Headers.UserAgent.ToString() is { Length: > 0 } ua ? ua[..Math.Min(ua.Length, 512)] : null,
         });
@@ -75,7 +77,7 @@ internal static class CheckEndpoints
         var checkedIn = last?.Type == PunchType.In;
         return new TodayDto(DtoMap.Brief(emp), checkedIn, checkedIn ? "out" : "in", DtoMap.Day(day),
             day.Shift is null ? null : DtoMap.Shift(day.Shift), svc.Now,
-            net.IsOnsite(http.Connection.RemoteIpAddress) ? "Onsite" : "Remote");
+            !http.User.IsAccessToken() && net.IsOnsite(http.Connection.RemoteIpAddress) ? "Onsite" : "Remote");
     }
 
     internal static async Task<EmployeeRef?> CurrentEmployeeAsync(ClaimsPrincipal user, IEmployeeDirectory dir, CancellationToken ct) =>

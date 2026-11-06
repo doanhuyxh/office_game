@@ -62,6 +62,8 @@ public enum PunchSource
     Device = 2,
     /// <summary>Giải trình được duyệt</summary>
     Manual = 3,
+    /// <summary>Trợ lý AI qua MCP (token truy cập) — luôn tính làm từ xa</summary>
+    Mcp = 4,
 }
 
 public enum WorkMode { Onsite = 0, Remote = 1 }

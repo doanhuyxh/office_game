@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Building2, CheckSquare, Clock, FileText, LayoutDashboard, Palmtree, Users } from 'lucide-react';
+import { BarChart3, Bot, Building2, CheckSquare, Clock, FileText, LayoutDashboard, Palmtree, Users } from 'lucide-react';
 import { PATHS } from '@/config/paths';
 import { ROLE, type Role } from '@/config/roles';
 
@@ -26,6 +26,7 @@ export const NAVIGATION: NavGroup[] = [
     items: [
       { to: PATHS.dashboard, label: 'Tổng quan', icon: LayoutDashboard },
       { to: PATHS.office, label: 'Văn phòng 3D', icon: Building2 },
+      { to: PATHS.aiAccess, label: 'Kết nối AI', icon: Bot },
     ],
   },
   {

@@ -11,10 +11,23 @@ public sealed class OfficeIdentityDbContext(DbContextOptions<OfficeIdentityDbCon
 {
     public const string Schema = "identity";
 
+    public DbSet<AccessToken> AccessTokens => Set<AccessToken>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
         b.HasDefaultSchema(Schema);
+
+        b.Entity<AccessToken>(t =>
+        {
+            t.ToTable("access_tokens");
+            t.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            t.Property(x => x.TokenHash).HasMaxLength(64).IsRequired();
+            t.Property(x => x.Prefix).HasMaxLength(20).IsRequired();
+            t.HasIndex(x => x.TokenHash).IsUnique().HasDatabaseName("ux_access_tokens_hash");
+            t.HasIndex(x => x.UserId).HasDatabaseName("ix_access_tokens_user");
+            t.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
 
         b.Entity<AppUser>(u =>
         {

@@ -1,6 +1,6 @@
 # Tiến độ & bàn giao phiên
 
-> Cập nhật **2026-11-05** (sau commit `91a5a58`, working tree sạch). Đọc file này đầu phiên mới. Chi tiết nghiệp vụ: bảng định tuyến trong [AGENTS.md](../AGENTS.md); kế hoạch tổng: `docs/ARCHITECTURE_V2.md` (§0 trạng thái, §11 quyết định đã chốt, §12 lộ trình).
+> Cập nhật **2026-11-06** (thêm Kết nối AI / MCP). Đọc file này đầu phiên mới. Chi tiết nghiệp vụ: bảng định tuyến trong [AGENTS.md](../AGENTS.md); kế hoạch tổng: `docs/ARCHITECTURE_V2.md` (§0 trạng thái, §11 quyết định đã chốt, §12 lộ trình).
 
 ## Đã xong
 
@@ -14,9 +14,10 @@
 | **Hợp đồng lao động**: loại / thời hạn theo BLLĐ, phụ lục, lương mã hoá AES-GCM, file S3, nhắc 30 / 7 ngày | `business/contracts.md` |
 | **Giao diện** theo shadcn-admin: sidebar inset, ⌘K, sáng / tối, `PageHeader`, `StatusBadge` | `frontend.md` |
 | **Văn phòng 3D giai đoạn 1**: bản đồ v2 (24 × 16 m, 24 chỗ), engine mới (low-poly, camera chéo, A*, ngồi, minimap), lưới va chạm chung FE / server | `business/office.md`, `business/office-engine.md`, `design/` |
+| **Kết nối AI (MCP)**: token cá nhân (`/ai-access`), host `OfficeHub.Mcp` 30 tool (đọc + ghi, không hợp đồng / lương), chấm công qua AI = Remote. Chưa: OAuth, audit log | `business/mcp.md` |
 | **Voice (giai đoạn 3)**: LiveKit, khu mở nghe theo khoảng cách (≤ 6 m), phòng có tường = kênh riêng do server chọn theo vị trí (+ `VoiceGuard` đẩy ra), phòng họp chia sẻ màn hình, vòng "đang nói" | `business/office.md#voice`, `business/office-engine.md` |
 
-Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` 88 test ✔, `bun run build` ✔, e2e văn phòng 3D 16/16 ✔, e2e voice 26/26 ✔.
+Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` 129 test ✔, `bun run build` ✔, e2e văn phòng 3D 16/16 ✔, e2e voice 26/26 ✔, e2e MCP 33/33 ✔.
 
 ## Quyết định đã chốt gần đây (đừng hỏi / đề xuất lại)
 
@@ -30,6 +31,7 @@ Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` 88 test ✔, `
 2. **Văn phòng 3D – hình ảnh / thiết bị**: model GLB CC0 thay khối dựng tay (`engine/furniture.ts`), mobile (joystick).
 3. **Báo cáo**: trang `/reports` đang `ComingSoon`; xuất Excel bảng công tháng, tổng hợp phép, tăng ca.
 4. **Quy ra tiền** phép năm chưa dùng + tăng ca (hệ số 150 / 200 / 300%) từ lương hợp đồng (`ContractDto.currentSalary`).
+5. **Kết nối AI – giai đoạn sau**: OAuth 2.1 (claude.ai web / app điện thoại / ChatGPT), audit log tool call (module Audit), rate limit theo token, HR bật / tắt MCP theo người; deploy `mcp` lên VPS chưa thử.
 
 ## Chạy & dữ liệu dev
 
@@ -45,6 +47,7 @@ Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` 88 test ✔, `
 | `seed-org.ts` | Tạo lại phòng ban + 12 tài khoản thử + ghi `account.txt` (bỏ qua cái đã có) |
 | `seed-contracts.ts` | Hợp đồng mẫu cho tài khoản thử |
 | `office-e2e.ts` (+ `cdp.ts`) | 2 Chrome headless vào `/office`: tìm đường, va chạm tường, ngồi / đứng, ghế đã có người, đồng bộ vị trí, lỗi console. Dùng hook dev `window.__officeScene` |
+| `mcp-e2e.ts` | Token AI: tạo / thu hồi, route bị chặn (hợp đồng, tạo token, `/leave/balances`), MCP 401 khi thiếu token, `tools/list`, gọi tool đọc + chấm công (Remote) + gửi rồi huỷ đơn nghỉ. Cần Api + `OfficeHub.Mcp` đang chạy |
 | `voice-e2e.ts` | 2 Chrome micro giả: nghe gần / huỷ nhận âm khi xa, phím M, đổi kênh vào phòng họp, server không cấp token phòng khi đứng ngoài, chia sẻ màn hình, `VoiceGuard` đẩy client không đổi kênh. Cần container `livekit` (`docker compose … up -d livekit`). Hook `window.__officeVoice` |
 
 ## Bẫy đã gặp

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
@@ -20,7 +21,11 @@ public sealed class IdentityModule : IModule
     {
         services.AddModuleDbContext<OfficeIdentityDbContext>(config, OfficeIdentityDbContext.Schema);
 
-        services.AddAuthentication(AuthCookie.Scheme)
+        // Mặc định: cookie trình duyệt. Có "Authorization: Bearer ohk_…" (trợ lý AI qua MCP) → token truy cập.
+        services.AddAuthentication(AccessTokenAuth.SelectorScheme)
+            .AddPolicyScheme(AccessTokenAuth.SelectorScheme, "Cookie hoặc token AI", o => o.ForwardDefaultSelector = ctx =>
+                AccessTokenAuth.HasBearerToken(ctx.Request.Headers.Authorization.ToString()) ? AccessTokenAuth.Scheme : AuthCookie.Scheme)
+            .AddScheme<AuthenticationSchemeOptions, AccessTokenHandler>(AccessTokenAuth.Scheme, null)
             .AddIdentityCookies(c => c.ApplicationCookie!.Configure(AuthCookie.Configure));
 
         services.AddIdentityCore<AppUser>(o =>
@@ -55,5 +60,6 @@ public sealed class IdentityModule : IModule
     {
         AuthEndpoints.Map(api);
         PasswordEndpoints.Map(api);
+        AccessTokenEndpoints.Map(api);
     }
 }

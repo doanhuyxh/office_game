@@ -38,6 +38,10 @@ Việc **cấp tài khoản cho nhân viên** do HR làm ở module Organization
 - Claim thêm (`AppClaimsFactory`): `full_name`; `must_change_password = "true"` khi đang dùng mật khẩu tạm.
 - OfficeHub.Realtime đọc cùng cookie ([office.md](office.md)); claim `must_change_password` làm hub từ chối kết nối.
 
+## Token truy cập cho AI
+
+`/api/auth/access-tokens` (tạo / liệt kê / thu hồi) và scheme Bearer `AccessToken` (scheme mặc định là policy `OfficeHub`: Bearer `ohk_…` → token, còn lại cookie) → [mcp.md](mcp.md).
+
 ## Mật khẩu tạm / lời mời / quên mật khẩu
 
 | Luồng | Cách làm | Sau đó |

@@ -26,6 +26,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': { target: env.VITE_API_TARGET ?? 'http://localhost:5080' },
         '/rt': { target: env.VITE_RT_TARGET ?? 'http://localhost:5090', ws: true },
+        '/mcp': { target: env.VITE_MCP_TARGET ?? 'http://localhost:5100' }, // máy chủ MCP cho trợ lý AI
       },
     },
     build: {

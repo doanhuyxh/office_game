@@ -5,6 +5,7 @@
 # Một domain, một cổng — container "web" (nginx) chia đường dẫn (frontend/nginx.conf):
 #   /            → FE (trang nhân sự, /office = văn phòng 3D)
 #   /api/*       → api        /rt/* → realtime (SignalR, token voice)
+#   /mcp         → mcp (máy chủ MCP cho trợ lý AI: Claude, Cursor, Codex — https://APP_DOMAIN/mcp)
 #   /livekit/*   → livekit:7880 (mạng Docker) — LiveKit__Url=wss://APP_DOMAIN/livekit
 #
 # Tuỳ chọn:  --profile logs     chạy Seq (xem log: ssh -L 5341:localhost:5341 vps)
@@ -51,6 +52,15 @@ services:
       <<: *backend-env
       SERVICE: OfficeHub.Realtime
       LiveKit__ApiUrl: http://livekit:7880   # đẩy người khỏi room voice qua mạng Docker
+    pull_policy: never  # dùng chung image officehub/backend do service api build
+    depends_on: [api]
+
+  mcp:
+    <<: *backend
+    environment:
+      <<: *backend-env
+      SERVICE: OfficeHub.Mcp
+      Mcp__ApiBaseUrl: http://api:8080   # gọi lại /api/* bằng token của người dùng
     pull_policy: never  # dùng chung image officehub/backend do service api build
     depends_on: [api]
 

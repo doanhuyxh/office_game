@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/OfficeHub.Api/OfficeHub.Api.csproj" />
+    <Project Path="src/OfficeHub.Mcp/OfficeHub.Mcp.csproj" />
     <Project Path="src/OfficeHub.Realtime/OfficeHub.Realtime.csproj" />
   </Folder>
   <Folder Name="/src/BuildingBlocks/">
@@ -42,6 +43,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OfficeHub.Architecture.Tests/OfficeHub.Architecture.Tests.csproj" />
+    <Project Path="tests/OfficeHub.Mcp.Tests/OfficeHub.Mcp.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Attendance.Tests/OfficeHub.Modules.Attendance.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Leave.Tests/OfficeHub.Modules.Leave.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.LaborContracts.Tests/OfficeHub.Modules.LaborContracts.Tests.csproj" />
