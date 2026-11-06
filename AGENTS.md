@@ -9,7 +9,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Khi bạn cần... | Đọc |
 |---|---|
 | **Đầu phiên**: tiến độ, việc tiếp theo, dữ liệu / tài khoản thử, bẫy đã gặp | [.agent/progress.md](.agent/progress.md) |
-| Chạy dev, build, test, migration, biến `.env`, CI, deploy | [.agent/commands.md](.agent/commands.md) |
+| Chạy dev, build, test, migration, CI, deploy · biến `.env` | [.agent/commands.md](.agent/commands.md) · [.agent/env.md](.agent/env.md) |
 | Viết code đúng chuẩn: module BE, validation, đặt tên | [.agent/conventions.md](.agent/conventions.md) |
 | Front-end: feature, shadcn/ui, theme sáng/tối, layout sidebar/header | [.agent/frontend.md](.agent/frontend.md) |
 | Luồng request, cookie Api ↔ Realtime, cache | [.agent/architecture.md](.agent/architecture.md) |
@@ -17,8 +17,8 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Thêm/sửa bảng, index, migration, quy tắc ghi dữ liệu | [.agent/database.md](.agent/database.md) (schema approval / leave / notifications / contracts: [.agent/database-workflow.md](.agent/database-workflow.md)) |
 | Nguyên tắc phân quyền, nợ kỹ thuật đã biết | [.agent/business/README.md](.agent/business/README.md) |
 | Đăng nhập, mật khẩu, link mời, admin seed | [.agent/business/auth.md](.agent/business/auth.md) |
-| Nhân viên, phòng ban, cấp tài khoản, vai trò | [.agent/business/organization.md](.agent/business/organization.md) |
-| Chấm công, ca, lịch, ngày lễ, bảng công | [.agent/business/attendance.md](.agent/business/attendance.md) |
+| Nhân viên, phòng ban · cấp tài khoản, vai trò | [.agent/business/organization.md](.agent/business/organization.md) · [.agent/business/organization-accounts.md](.agent/business/organization-accounts.md) |
+| Chấm công, bảng công · ca, lịch, ngày lễ | [.agent/business/attendance.md](.agent/business/attendance.md) · [.agent/business/attendance-shifts.md](.agent/business/attendance-shifts.md) |
 | Giải trình chấm công, nhắc quên chấm ra | [.agent/business/attendance-corrections.md](.agent/business/attendance-corrections.md) |
 | Tăng ca | [.agent/business/attendance-overtime.md](.agent/business/attendance-overtime.md) |
 | Thông báo (chuông in-app, email, hàng đợi gửi) | [.agent/business/notifications.md](.agent/business/notifications.md) |
