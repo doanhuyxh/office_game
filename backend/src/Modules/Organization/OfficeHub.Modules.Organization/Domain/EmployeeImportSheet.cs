@@ -6,7 +6,7 @@ namespace OfficeHub.Modules.Organization.Domain;
 
 /// <summary>Một dòng đọc từ file Excel (chưa tra phòng ban / chức vụ / quản lý). RowNumber = số dòng trong Excel.</summary>
 public sealed record ImportSheetRow(int RowNumber, string? Code, string? FullName, string? Email, string? Phone, DateOnly? DateOfBirth,
-    string? Department, string? Position, string? ManagerCode, DateOnly? JoinedAt, string? Status, string? Note, List<string> Errors);
+    string? Department, string? Position, string? JobTitle, string? ManagerCode, DateOnly? JoinedAt, string? Status, string? Note, List<string> Errors);
 
 /// <summary>
 /// Đọc / tạo file Excel nhập nhân viên. Cột nhận diện theo TIÊU ĐỀ dòng 1 (không phân biệt hoa thường, bỏ dấu, thứ tự tuỳ ý).
@@ -26,7 +26,8 @@ public static class EmployeeImportSheet
         new("phone", "Điện thoại", false, "", "so dien thoai", "sdt"),
         new("dateOfBirth", "Ngày sinh", false, "dd/MM/yyyy"),
         new("department", "Phòng ban", false, "Tên hoặc mã phòng ban đã có", "phong"),
-        new("position", "Chức vụ", false, "Tên chức vụ đã có"),
+        new("position", "Chức vụ", false, "Cấp bậc — tên chức vụ đã có (Trưởng phòng, Chuyên viên, Nhân viên…)", "cap bac"),
+        new("jobTitle", "Chức danh", false, "Công việc cụ thể, gõ tự do (Lễ tân, Lập trình viên…)", "chuc danh cong viec", "vi tri"),
         new("managerCode", "Mã quản lý", false, "Mã NV của quản lý trực tiếp (đã có, hoặc có trong file)", "quan ly", "ma ql"),
         new("joinedAt", "Ngày vào làm", true, "Bắt buộc, dd/MM/yyyy", "ngay vao"),
         new("status", "Trạng thái", false, "Thử việc (mặc định) / Chính thức", "tinh trang"),
@@ -78,7 +79,7 @@ public static class EmployeeImportSheet
                 return null;
             }
             var row = new ImportSheetRow(r.RowNumber(), Text("code")?.ToUpperInvariant(), Text("fullName"), Text("email"), Text("phone"),
-                Date("dateOfBirth", "Ngày sinh"), Text("department"), Text("position"), Text("managerCode")?.ToUpperInvariant(),
+                Date("dateOfBirth", "Ngày sinh"), Text("department"), Text("position"), Text("jobTitle"), Text("managerCode")?.ToUpperInvariant(),
                 Date("joinedAt", "Ngày vào làm"), Text("status"), Text("note"), errors);
             // Dòng hoàn toàn trống (chỉ có định dạng) → bỏ qua
             if (row is { Code: null, FullName: null, Email: null, Phone: null, Department: null, Position: null, JoinedAt: null } && errors.Count == 0) continue;
@@ -113,7 +114,8 @@ public static class EmployeeImportSheet
             c.Style.Font.SetBold().Fill.SetBackgroundColor(Columns[i].Required ? XLColor.FromHtml("#FDE68A") : XLColor.FromHtml("#E2E8F0"));
             if (Columns[i].Hint.Length > 0) c.CreateComment().AddText(Columns[i].Hint);
         }
-        object[] sample = ["", "Nguyễn Văn An", "an.nguyen@congty.vn", "0901234567", "15/08/1995", departments.FirstOrDefault() ?? "", positions.FirstOrDefault() ?? "", "", "01/12/2026", "Thử việc", "Dòng ví dụ — xoá trước khi nhập"];
+        object[] sample = ["", "Nguyễn Văn An", "an.nguyen@congty.vn", "0901234567", "15/08/1995", departments.FirstOrDefault() ?? "", positions.FirstOrDefault() ?? "", "Lập trình viên", "", "01/12/2026", "Thử việc", "Dòng ví dụ — xoá trước khi nhập"];
+        // phải khớp thứ tự Columns (test Template_round_trips_through_reader)
         for (var i = 0; i < sample.Length; i++) { ws.Cell(2, i + 1).Value = sample[i]?.ToString(); ws.Cell(2, i + 1).Style.Font.Italic = true; }
         ws.Range(2, 1, MaxRows + 1, Columns.Length).Style.NumberFormat.Format = "@"; // giữ nguyên chữ (mã, SĐT có số 0 đầu, ngày dd/MM/yyyy)
         ws.Columns(1, Columns.Length).Width = 18;

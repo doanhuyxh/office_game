@@ -31,8 +31,8 @@ Mọi entity kế thừa `Entity` (`Id`, `CreatedAt`, `UpdatedAt`, `DeletedAt`).
 | Bảng | Field chính | Ràng buộc / index |
 |---|---|---|
 | `departments` | `Name` (≤150), `Code` (≤30), `ParentId`, `HeadEmployeeId`, `MapZone` (≤50, id zone trong `shared/office-map.json`), `SortOrder` | `Name` unique (lọc `DeletedAt IS NULL`); FK `ParentId` → departments (Restrict). `HeadEmployeeId` **không có FK** |
-| `positions` | `Name` (≤150), `SortOrder` | `Name` unique (lọc chưa xoá) |
-| `employees` | `Code` (≤30), `FullName` (≤200), `Email` (≤256, lưu chữ thường), `Phone`, `DateOfBirth`, `DepartmentId`, `PositionId`, `ManagerId`, `Status` (`Probation`/`Active`/`Resigned`), `JoinedAt`, `LeftAt`, `UserId`, `Note` (≤2000) | `Code` unique (lọc chưa xoá); `UserId` unique (lọc NOT NULL); index `DepartmentId`, `ManagerId`, `PositionId`; FK Department/Position/Manager đều Restrict |
+| `positions` | `Name` (≤150), `Level` (cấp bậc, 1 = cao nhất; 0 = dữ liệu cũ chưa chuyển), `SortOrder` | `Name` unique (lọc chưa xoá); index `Level` (migration `PositionLevelJobTitle`) |
+| `employees` | `Code` (≤30), `FullName` (≤200), `Email` (≤256, lưu chữ thường), `Phone`, `DateOfBirth`, `DepartmentId`, `PositionId`, `JobTitle` (≤150, chức danh), `ManagerId`, `Status` (`Probation`/`Active`/`Resigned`), `JoinedAt`, `LeftAt`, `UserId`, `Note` (≤2000) | `Code` unique (lọc chưa xoá); `UserId` unique (lọc NOT NULL); index `DepartmentId`, `ManagerId`, `PositionId`; FK Department/Position/Manager đều Restrict |
 
 - Nghỉ việc **không xoá** nhân viên: `Status = Resigned` + `LeftAt`. Chưa có API xoá nhân viên.
 - `NextCodeAsync` đọc cả bản ghi đã xoá mềm (`IgnoreQueryFilters`) để không tái dùng mã `NV###`.

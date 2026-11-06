@@ -14,6 +14,7 @@ import { errorMessage, fieldErrors } from '@/utils/errors';
 import { useDeleteDepartment, useDepartments, useEmployees, useSaveDepartment } from '../hooks/useOrg';
 import type { IDepartment, IUpsertDepartment } from '../types/employee.types';
 import { MAP_ZONES, mapZoneName } from '../utils/mapZones';
+import { departmentOptions, departmentTree, descendantIds } from '../utils/orgTree';
 
 function DepartmentDialog({ open, onOpenChange, dept }: { open: boolean; onOpenChange: (o: boolean) => void; dept: IDepartment | null }) {
   const save = useSaveDepartment();
@@ -43,7 +44,7 @@ function DepartmentDialog({ open, onOpenChange, dept }: { open: boolean; onOpenC
           <FormField id="d-code" label="Mã" value={form.code ?? ''} onChange={(e) => setForm({ ...form, code: e.target.value })} />
           <SelectField id="d-parent" label="Thuộc phòng ban" allowEmpty emptyLabel="— Cấp cao nhất —" value={form.parentId}
             onChange={(v) => setForm({ ...form, parentId: v })} error={errors.parentId}
-            options={departments.filter((d) => d.id !== dept?.id).map((d) => ({ value: d.id, label: d.name }))} />
+            options={departmentOptions(departments, (d) => !!dept && (d.id === dept.id || descendantIds(departments, dept.id).has(d.id)))} />
           <SelectField id="d-head" label="Trưởng phòng" allowEmpty value={form.headEmployeeId} onChange={(v) => setForm({ ...form, headEmployeeId: v })}
             error={errors.headEmployeeId} options={employees.map((e) => ({ value: e.id, label: `${e.code} · ${e.fullName}` }))} />
           <SelectField id="d-zone" label="Khu vực trong văn phòng 3D" allowEmpty value={form.mapZone} onChange={(v) => setForm({ ...form, mapZone: v })}
@@ -80,9 +81,9 @@ export function DepartmentsPanel({ canEdit }: { canEdit: boolean }) {
             {!isLoading && departments.length === 0 && (
               <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Chưa có phòng ban</TableCell></TableRow>
             )}
-            {departments.map((d) => (
+            {departmentTree(departments).map(({ dept: d, depth }) => (
               <TableRow key={d.id}>
-                <TableCell><span className="font-medium">{d.name}</span>{d.code && <span className="ml-2 text-xs text-muted-foreground">{d.code}</span>}</TableCell>
+                <TableCell style={{ paddingLeft: `${0.5 + depth * 1.5}rem` }}>{depth > 0 && <span className="mr-1 text-muted-foreground">└</span>}<span className="font-medium">{d.name}</span>{d.code && <span className="ml-2 text-xs text-muted-foreground">{d.code}</span>}</TableCell>
                 <TableCell>{d.parentId ? byId.get(d.parentId)?.name : '—'}</TableCell>
                 <TableCell>{d.headName ?? '—'}</TableCell>
                 <TableCell>{mapZoneName(d.mapZone) ?? d.mapZone ?? '—'}</TableCell>

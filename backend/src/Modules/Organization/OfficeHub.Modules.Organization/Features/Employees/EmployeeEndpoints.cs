@@ -135,6 +135,7 @@ internal static class EmployeeEndpoints
         e.DateOfBirth = r.DateOfBirth;
         e.DepartmentId = r.DepartmentId;
         e.PositionId = r.PositionId;
+        e.JobTitle = string.IsNullOrWhiteSpace(r.JobTitle) ? null : r.JobTitle.Trim();
         e.ManagerId = r.ManagerId;
         e.JoinedAt = r.JoinedAt;
         e.Note = string.IsNullOrWhiteSpace(r.Note) ? null : r.Note.Trim();
@@ -148,6 +149,7 @@ internal static class EmployeeEndpoints
             .MaxLength(r.Code, 30, "code", "Mã nhân viên")
             .Email(r.Email, "email")
             .MaxLength(r.Phone, 30, "phone", "Số điện thoại")
+            .MaxLength(r.JobTitle, 150, "jobTitle", "Chức danh")
             .When(r.JoinedAt == default, "joinedAt", "Ngày vào làm không được để trống")
             .When(r.Status is not null && !Enum.TryParse<EmployeeStatus>(r.Status, true, out _), "status", "Trạng thái không hợp lệ")
             .When(r.Status is not null && r.Status.Equals(nameof(EmployeeStatus.Resigned), StringComparison.OrdinalIgnoreCase),
@@ -189,7 +191,7 @@ internal static class EmployeeEndpoints
         IAccountService accounts, CancellationToken ct)
     {
         var deps = await db.Departments.AsNoTracking().ToDictionaryAsync(d => d.Id, d => d.Name, ct);
-        var poss = await db.Positions.AsNoTracking().ToDictionaryAsync(p => p.Id, p => p.Name, ct);
+        var poss = await db.Positions.IgnoreQueryFilters().AsNoTracking().ToDictionaryAsync(p => p.Id, p => (p.Name, p.Level), ct);
         var managerIds = rows.Where(r => r.ManagerId != null).Select(r => r.ManagerId!.Value).Distinct().ToList();
         var managers = await db.Employees.AsNoTracking().Where(e => managerIds.Contains(e.Id)).ToDictionaryAsync(e => e.Id, e => e.FullName, ct);
         var accs = includeAccount
@@ -198,7 +200,8 @@ internal static class EmployeeEndpoints
         return rows.Select(e => new EmployeeListItem(
             e.Id, e.Code, e.FullName, e.Email, e.Phone,
             e.DepartmentId, e.DepartmentId is { } d ? deps.GetValueOrDefault(d) : null,
-            e.PositionId, e.PositionId is { } p ? poss.GetValueOrDefault(p) : null,
+            e.PositionId, e.PositionId is { } p && poss.TryGetValue(p, out var pos) ? pos.Name : null, e.PositionId is { } p2 && poss.TryGetValue(p2, out var pl) ? pl.Level : null,
+            e.JobTitle,
             e.ManagerId, e.ManagerId is { } m ? managers.GetValueOrDefault(m) : null,
             e.Status.ToString(), e.JoinedAt, e.LeftAt, e.UserId,
             e.UserId is { } u && accs.TryGetValue(u, out var a) ? AccountSummary.From(a) : null)).ToList();

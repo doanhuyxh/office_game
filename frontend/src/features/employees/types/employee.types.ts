@@ -21,6 +21,10 @@ export interface IEmployee {
   departmentName: string | null;
   positionId: string | null;
   positionName: string | null;
+  /** Cấp bậc của chức vụ (1 = cao nhất) */
+  positionLevel: number | null;
+  /** Chức danh — công việc cụ thể (Lễ tân, Lập trình viên…) */
+  jobTitle: string | null;
   managerId: string | null;
   managerName: string | null;
   status: EmployeeStatus;
@@ -46,6 +50,7 @@ export interface IUpsertEmployee {
   dateOfBirth?: string | null;
   departmentId?: string | null;
   positionId?: string | null;
+  jobTitle?: string | null;
   managerId?: string | null;
   status?: EmployeeStatus | null;
   joinedAt: string;
@@ -88,15 +93,18 @@ export interface IUpsertDepartment {
   sortOrder?: number;
 }
 
+/** Chức vụ = cấp bậc. level 1 = cao nhất; nhiều chức vụ có thể cùng cấp. */
 export interface IPosition {
   id: string;
   name: string;
+  level: number;
   sortOrder: number;
   employeeCount: number;
 }
 
 export interface IUpsertPosition {
   name: string;
+  level: number;
   sortOrder?: number;
 }
 
@@ -110,6 +118,7 @@ export interface IImportRow {
   dateOfBirth: string | null;
   departmentName: string | null;
   positionName: string | null;
+  jobTitle: string | null;
   managerCode: string | null;
   managerName: string | null;
   joinedAt: string | null;

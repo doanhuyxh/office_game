@@ -4,7 +4,7 @@ namespace OfficeHub.Modules.Organization.Features.Employees;
 
 public sealed record EmployeeListItem(
     Guid Id, string Code, string FullName, string? Email, string? Phone,
-    Guid? DepartmentId, string? DepartmentName, Guid? PositionId, string? PositionName,
+    Guid? DepartmentId, string? DepartmentName, Guid? PositionId, string? PositionName, int? PositionLevel, string? JobTitle,
     Guid? ManagerId, string? ManagerName, string Status, DateOnly JoinedAt, DateOnly? LeftAt,
     Guid? UserId, AccountSummary? Account);
 
@@ -20,7 +20,7 @@ public sealed record EmployeeDetail(EmployeeListItem Employee, DateOnly? DateOfB
 
 public sealed record UpsertEmployeeRequest(
     string? Code, string FullName, string? Email, string? Phone, DateOnly? DateOfBirth,
-    Guid? DepartmentId, Guid? PositionId, Guid? ManagerId, string? Status, DateOnly JoinedAt, string? Note);
+    Guid? DepartmentId, Guid? PositionId, Guid? ManagerId, string? Status, DateOnly JoinedAt, string? Note, string? JobTitle = null);
 
 public sealed record ResignRequest(DateOnly LeftAt);
 

@@ -31,8 +31,9 @@ const dept = (code: string) => depts.find((x) => x.code === code);
 
 // ---- Chức vụ ----
 let positions: any[] = await call(admin, 'GET', '/api/org/positions');
-for (const [i, name] of ['Trưởng phòng', 'Chuyên viên', 'Nhân viên'].entries())
-  if (!positions.some((p) => p.name === name)) await call(admin, 'POST', '/api/org/positions', { name, sortOrder: 10 + i });
+// Api tự tạo thang cấp bậc mặc định khi khởi động; chỉ bổ sung nếu HR đã xoá
+for (const [name, level] of [['Trưởng phòng', 3], ['Chuyên viên', 6], ['Nhân viên', 7]] as const)
+  if (!positions.some((p) => p.name === name)) await call(admin, 'POST', '/api/org/positions', { name, level });
 positions = await call(admin, 'GET', '/api/org/positions');
 const pos = (name: string) => positions.find((p) => p.name.toLowerCase() === name.toLowerCase())?.id ?? null;
 

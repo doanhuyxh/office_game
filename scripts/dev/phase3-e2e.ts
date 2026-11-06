@@ -34,7 +34,7 @@ if (admin.status !== 200) throw new Error('Không đăng nhập được admin s
 if (phase === 'a') {
   // ---------- Chuẩn bị ----------
   await call(admin.cookie, 'POST', '/api/org/departments', { name: 'Kỹ thuật', code: 'KT' });
-  await call(admin.cookie, 'POST', '/api/org/positions', { name: 'Chuyên viên' });
+  // Chức vụ: Api tự tạo thang cấp bậc mặc định (Chuyên viên = cấp 6) khi khởi động
 
   // ---------- Nhập Excel ----------
   const tpl = await fetch(`${API}/api/org/employees/import-template`, { headers: { cookie: admin.cookie } });

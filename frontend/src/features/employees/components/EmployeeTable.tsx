@@ -21,6 +21,7 @@ import type { IEmployee } from '../types/employee.types';
 import { ROLE_LABEL, STATUS_LABEL, STATUS_VARIANT } from '../utils/labels';
 import { CreateAccountDialog, ResignDialog, RolesDialog, TempPasswordDialog } from './AccountDialogs';
 import { EmployeeFormDialog } from './EmployeeFormDialog';
+import { departmentOptions } from '../utils/orgTree';
 
 type DialogState =
   | { kind: 'form'; employee: IEmployee | null }
@@ -64,7 +65,7 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
         </div>
         <div className="w-56">
           <SelectField id="filter-dept" label="Phòng ban" allowEmpty emptyLabel="Tất cả phòng ban" value={departmentId} onChange={setDepartmentId}
-            options={departments.map((d) => ({ value: d.id, label: d.name }))} />
+            options={departmentOptions(departments)} />
         </div>
         <Label className="h-9 font-normal">
           <Checkbox checked={includeResigned} onCheckedChange={(c) => setIncludeResigned(c === true)} />
@@ -84,7 +85,7 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
               <TableHead>Mã</TableHead>
               <TableHead>Họ tên</TableHead>
               <TableHead>Phòng ban</TableHead>
-              <TableHead>Chức vụ</TableHead>
+              <TableHead>Chức vụ · chức danh</TableHead>
               <TableHead>Quản lý</TableHead>
               <TableHead>Trạng thái</TableHead>
               {canEdit && <TableHead>Tài khoản</TableHead>}
@@ -108,7 +109,10 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
                   <div className="text-xs text-muted-foreground">{e.email ?? e.phone ?? ''}</div>
                 </TableCell>
                 <TableCell>{e.departmentName ?? '—'}</TableCell>
-                <TableCell>{e.positionName ?? '—'}</TableCell>
+                <TableCell>
+                  <div>{e.positionName ?? '—'}</div>
+                  {e.jobTitle && <div className="text-xs text-muted-foreground">{e.jobTitle}</div>}
+                </TableCell>
                 <TableCell>{e.managerName ?? '—'}</TableCell>
                 <TableCell>
                   <Badge variant={STATUS_VARIANT[e.status]}>{STATUS_LABEL[e.status]}</Badge>

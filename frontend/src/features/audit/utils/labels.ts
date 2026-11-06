@@ -20,7 +20,7 @@ const FIELD_LABEL: Record<string, string> = {
   FullName: 'Họ tên', Code: 'Mã', Email: 'Email', Phone: 'Điện thoại', DateOfBirth: 'Ngày sinh', DepartmentId: 'Phòng ban',
   PositionId: 'Chức vụ', ManagerId: 'Quản lý', Status: 'Trạng thái', JoinedAt: 'Ngày vào làm', LeftAt: 'Ngày nghỉ việc', UserId: 'Tài khoản',
   Note: 'Ghi chú', DeletedAt: 'Xoá', Name: 'Tên', ParentId: 'Phòng ban cha', HeadEmployeeId: 'Trưởng phòng', MapZone: 'Khu vực 3D',
-  SortOrder: 'Thứ tự', Number: 'Số', Type: 'Loại', SignedDate: 'Ngày ký', StartDate: 'Bắt đầu', EndDate: 'Kết thúc', JobTitle: 'Chức danh',
+  SortOrder: 'Thứ tự', Level: 'Cấp bậc', Number: 'Số', Type: 'Loại', SignedDate: 'Ngày ký', StartDate: 'Bắt đầu', EndDate: 'Kết thúc', JobTitle: 'Chức danh',
   SalaryEncrypted: 'Lương', AllowanceEncrypted: 'Phụ cấp', TerminatedOn: 'Ngày chấm dứt', TerminationReason: 'Lý do chấm dứt',
   EffectiveDate: 'Hiệu lực', Content: 'Nội dung', ContractType: 'Loại HĐ', Fields: 'Trường mẫu', IsActive: 'Đang hoạt động',
   MustChangePassword: 'Buộc đổi mật khẩu', PasswordHash: 'Mật khẩu', UserName: 'Tên đăng nhập', Roles: 'Vai trò', EmailConfirmed: 'Đã xác nhận email',

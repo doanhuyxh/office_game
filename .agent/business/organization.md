@@ -44,10 +44,16 @@ Mời qua email / mật khẩu tạm, đổi vai trò, bảo vệ vai trò admin
 
 ## Phòng ban & chức vụ
 
+Chủ dự án chốt 2026-11-06: **phòng ban mở rộng tự do** (cây nhiều cấp), **chức vụ = cấp bậc** (`Level`, 1 = cao nhất, bắt buộc, nhiều chức vụ được cùng cấp; HR vẫn thêm / sửa / xoá), **chức danh** = công việc cụ thể, chữ tự do trên hồ sơ (`Employee.JobTitle`: Lễ tân, Lập trình viên…).
+
+- Thang mặc định (`Domain/PositionLadder.cs`): 1 Giám đốc · 2 Phó giám đốc · 3 Trưởng phòng · 4 Phó phòng · 5 Trưởng nhóm · 6 Chuyên viên · 7 Nhân viên · 8 Thực tập sinh.
+- `OrgMigrator.EnsurePositionLadderAsync` chạy **một lần** khi khởi động (DB chưa có chức vụ, hoặc còn chức vụ `Level = 0`): thêm bậc mặc định còn thiếu; chức vụ cũ khớp tên → gán cấp; tên nằm trong `JobFunctionNames` ("Lễ tân") → chuyển thành chức danh của nhân viên + cấp Nhân viên, xoá mềm chức vụ đó (chủ dự án cho phép áp dụng cả với NV001); còn lại → cấp 7, HR chỉnh. Ghi qua EF → có trong lịch sử sửa (nguồn `system`). Sau đó không seed lại.
+- FE: danh sách phòng ban hiển thị dạng cây (`utils/orgTree.ts`), Select phòng ban thụt lề, không chọn được phòng con làm cha. Form nhân viên: đổi phòng ban → tự điền **quản lý trực tiếp = trưởng phòng** (chính họ là trưởng / phòng chưa có trưởng → trưởng phòng cấp cha gần nhất), chỉ khi ô quản lý đang trống hoặc đang là gợi ý cũ; HR sửa tay được.
+
 | | Phòng ban (`/departments`) | Chức vụ (`/positions`) |
 |---|---|---|
 | Đọc | `GET` (đăng nhập): kèm `employeeCount` (không tính Resigned), `headName` | `GET`: kèm `employeeCount` |
-| Ghi (HR) | `POST` → 201 Guid, `PUT /{id}` → 204, `DELETE /{id}` → 204 (xoá mềm) | tương tự |
+| Ghi (HR) | `POST` → 201 Guid, `PUT /{id}` → 204, `DELETE /{id}` → 204 (xoá mềm) | tương tự, body `{ name, level, sortOrder? }`; `level` 1–99 bắt buộc; `GET` sắp theo `level` rồi tên |
 | Trùng tên | `"Tên phòng ban đã tồn tại"` | `"Tên chức vụ đã tồn tại"` |
 | Ràng buộc khác | cha: `"Phòng ban cha không được là chính nó"`, `"Phòng ban cha không tồn tại"`, `"Không được chọn phòng ban con làm phòng ban cha"`; trưởng phòng: `"Trưởng phòng không tồn tại hoặc đã nghỉ việc"` | — |
 | Xoá bị chặn (409) | `"Phòng ban còn phòng ban con, hãy chuyển hoặc xoá phòng ban con trước"`, `"Phòng ban còn nhân viên, hãy chuyển nhân viên sang phòng ban khác trước"` | `"Chức vụ đang có nhân viên, hãy đổi chức vụ cho họ trước"` |

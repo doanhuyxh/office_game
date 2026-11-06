@@ -78,7 +78,7 @@ public class EmployeeImportSheetTests
         var rows = EmployeeImportSheet.Read(ms, out var err);
         Assert.Null(err);
         var sample = Assert.Single(rows);
-        Assert.Equal(("Nguyễn Văn An", "Kỹ thuật", "Chuyên viên", new DateOnly(2026, 12, 1)), (sample.FullName, sample.Department, sample.Position, sample.JoinedAt));
+        Assert.Equal(("Nguyễn Văn An", "Kỹ thuật", "Chuyên viên", "Lập trình viên", new DateOnly(2026, 12, 1)), (sample.FullName, sample.Department, sample.Position, sample.JobTitle, sample.JoinedAt));
         Assert.Empty(sample.Errors);
     }
 }

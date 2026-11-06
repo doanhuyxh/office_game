@@ -30,6 +30,7 @@ public sealed class OrgDbContext(DbContextOptions<OrgDbContext> options, TimePro
         {
             e.ToTable("positions");
             e.Property(x => x.Name).HasMaxLength(150);
+            e.HasIndex(x => x.Level);
             e.HasIndex(x => x.Name).IsUnique().HasFilter("\"DeletedAt\" IS NULL");
             e.HasQueryFilter(x => x.DeletedAt == null);
         });
@@ -41,6 +42,7 @@ public sealed class OrgDbContext(DbContextOptions<OrgDbContext> options, TimePro
             e.Property(x => x.FullName).HasMaxLength(200);
             e.Property(x => x.Email).HasMaxLength(256);
             e.Property(x => x.Phone).HasMaxLength(30);
+            e.Property(x => x.JobTitle).HasMaxLength(150);
             e.Property(x => x.Note).HasMaxLength(2000);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             e.HasIndex(x => x.Code).IsUnique().HasFilter("\"DeletedAt\" IS NULL");

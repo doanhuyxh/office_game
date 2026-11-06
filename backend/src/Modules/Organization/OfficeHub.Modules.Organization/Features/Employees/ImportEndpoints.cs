@@ -12,7 +12,7 @@ namespace OfficeHub.Modules.Organization.Features.Employees;
 
 /// <param name="Code">Mã sẽ dùng (đã tự cấp nếu file để trống).</param>
 public sealed record ImportRowDto(int Row, string? Code, string? FullName, string? Email, string? Phone, DateOnly? DateOfBirth,
-    string? DepartmentName, string? PositionName, string? ManagerCode, string? ManagerName, DateOnly? JoinedAt, string Status, IReadOnlyList<string> Errors);
+    string? DepartmentName, string? PositionName, string? JobTitle, string? ManagerCode, string? ManagerName, DateOnly? JoinedAt, string Status, IReadOnlyList<string> Errors);
 public sealed record ImportPreviewDto(IReadOnlyList<ImportRowDto> Rows, int ValidCount, int ErrorCount, string? FileError);
 public sealed record ImportResultDto(int Created, IReadOnlyList<string> Codes);
 
@@ -36,7 +36,7 @@ internal static class ImportEndpoints
     private static async Task<FileContentHttpResult> TemplateAsync(OrgDbContext db, CancellationToken ct)
     {
         var deps = await db.Departments.AsNoTracking().OrderBy(d => d.SortOrder).ThenBy(d => d.Name).Select(d => d.Name).ToListAsync(ct);
-        var pos = await db.Positions.AsNoTracking().OrderBy(p => p.SortOrder).ThenBy(p => p.Name).Select(p => p.Name).ToListAsync(ct);
+        var pos = await db.Positions.AsNoTracking().OrderBy(p => p.Level).ThenBy(p => p.SortOrder).ThenBy(p => p.Name).Select(p => p.Name).ToListAsync(ct);
         return TypedResults.File(EmployeeImportSheet.Template(deps, pos), XlsxType, "mau-nhap-nhan-vien.xlsx");
     }
 
@@ -149,14 +149,14 @@ internal static class ImportEndpoints
             }
 
             var req = new UpsertEmployeeRequest(code, r.FullName ?? "", r.Email, r.Phone, r.DateOfBirth, dep?.Id, pos?.Id, managerId,
-                (status ?? EmployeeStatus.Probation).ToString(), r.JoinedAt ?? default, r.Note);
+                (status ?? EmployeeStatus.Probation).ToString(), r.JoinedAt ?? default, r.Note, r.JobTitle);
             var v = await EmployeeEndpoints.ValidateAsync(req, null, db, ct);
             foreach (var (field, msgs) in v.Errors)
                 foreach (var m in msgs)
                     if (!(field == "joinedAt" && r.Errors.Any(e => e.StartsWith("Ngày vào làm"))))
                         errors.Add(FieldLabel.TryGetValue(field, out var label) && !m.Contains(label, StringComparison.OrdinalIgnoreCase) ? $"{label}: {m}" : m);
 
-            dtos.Add(new ImportRowDto(r.RowNumber, code, r.FullName, r.Email, r.Phone, r.DateOfBirth, dep?.Name, pos?.Name, r.ManagerCode, managerName,
+            dtos.Add(new ImportRowDto(r.RowNumber, code, r.FullName, r.Email, r.Phone, r.DateOfBirth, dep?.Name, pos?.Name, r.JobTitle, r.ManagerCode, managerName,
                 r.JoinedAt, status == EmployeeStatus.Active ? "Chính thức" : "Thử việc", errors));
             if (errors.Count == 0) plan.Add(new Planned(req, managerInFile));
         }

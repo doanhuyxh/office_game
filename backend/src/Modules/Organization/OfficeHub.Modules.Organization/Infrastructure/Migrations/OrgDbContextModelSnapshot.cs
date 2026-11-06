@@ -103,6 +103,10 @@ namespace OfficeHub.Modules.Organization.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("JobTitle")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
                     b.Property<DateOnly>("JoinedAt")
                         .HasColumnType("date");
 
@@ -165,6 +169,9 @@ namespace OfficeHub.Modules.Organization.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("Level")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
@@ -177,6 +184,8 @@ namespace OfficeHub.Modules.Organization.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Level");
 
                     b.HasIndex("Name")
                         .IsUnique()

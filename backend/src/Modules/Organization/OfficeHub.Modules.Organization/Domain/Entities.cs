@@ -27,6 +27,8 @@ public sealed class Department : Entity
 public sealed class Position : Entity
 {
     public required string Name { get; set; }
+    /// <summary>Cấp bậc: 1 = cao nhất (Giám đốc). Nhiều chức vụ có thể cùng cấp. 0 = dữ liệu cũ chưa chuyển (xem <see cref="PositionLadder"/>).</summary>
+    public int Level { get; set; }
     public int SortOrder { get; set; }
 }
 
@@ -51,7 +53,10 @@ public sealed class Employee : Entity
     public string? Phone { get; set; }
     public DateOnly? DateOfBirth { get; set; }
     public Guid? DepartmentId { get; set; }
+    /// <summary>Chức vụ = cấp bậc (Trưởng phòng, Chuyên viên…).</summary>
     public Guid? PositionId { get; set; }
+    /// <summary>Chức danh = công việc cụ thể, chữ tự do (Lễ tân, Lập trình viên, Kế toán viên…).</summary>
+    public string? JobTitle { get; set; }
     /// <summary>Quản lý trực tiếp (duyệt đơn, giải trình).</summary>
     public Guid? ManagerId { get; set; }
     public EmployeeStatus Status { get; set; } = EmployeeStatus.Probation;

@@ -94,7 +94,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
                       </TableCell>
                       <TableCell className="text-xs">{r.email}</TableCell>
                       <TableCell className="text-xs">{r.departmentName}</TableCell>
-                      <TableCell className="text-xs">{r.positionName}</TableCell>
+                      <TableCell className="text-xs">{r.positionName}{r.jobTitle && <div className="text-muted-foreground">{r.jobTitle}</div>}</TableCell>
                       <TableCell className="text-xs">{r.managerCode && `${r.managerCode}${r.managerName ? ` · ${r.managerName}` : ''}`}</TableCell>
                       <TableCell className="text-xs">{r.joinedAt ? formatDate(r.joinedAt) : ''}</TableCell>
                       <TableCell className="text-xs">{r.status}</TableCell>

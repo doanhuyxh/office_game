@@ -10,10 +10,11 @@ import { errorMessage, fieldErrors } from '@/utils/errors';
 import { useDepartments, useEmployees, useNextEmployeeCode, usePositions, useSaveEmployee } from '../hooks/useOrg';
 import type { IEmployee, IUpsertEmployee } from '../types/employee.types';
 import { STATUS_LABEL, today } from '../utils/labels';
+import { departmentOptions, positionLabel, suggestedManager } from '../utils/orgTree';
 
 const empty = (): IUpsertEmployee => ({
   code: '', fullName: '', email: '', phone: '', dateOfBirth: null,
-  departmentId: null, positionId: null, managerId: null, status: 'Probation', joinedAt: today(), note: '',
+  departmentId: null, positionId: null, jobTitle: '', managerId: null, status: 'Probation', joinedAt: today(), note: '',
 });
 
 /** Thêm / sửa hồ sơ nhân viên (HR). */
@@ -38,7 +39,7 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, note, dateOfB
     setForm(employee
       ? {
           code: employee.code, fullName: employee.fullName, email: employee.email ?? '', phone: employee.phone ?? '',
-          dateOfBirth: dateOfBirth ?? null, departmentId: employee.departmentId, positionId: employee.positionId,
+          dateOfBirth: dateOfBirth ?? null, departmentId: employee.departmentId, positionId: employee.positionId, jobTitle: employee.jobTitle ?? '',
           managerId: employee.managerId, status: employee.status === 'Resigned' ? null : employee.status,
           joinedAt: employee.joinedAt, note: note ?? '',
         }
@@ -48,11 +49,19 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, note, dateOfB
 
   const set = <K extends keyof IUpsertEmployee>(k: K, v: IUpsertEmployee[K]) => setForm((f) => ({ ...f, [k]: v }));
   const errors = fieldErrors(save.error);
+  const suggestion = suggestedManager(departments, form.departmentId, employee?.id);
+  const suggestionName = employees.find((x) => x.id === suggestion)?.fullName;
+  /** Đổi phòng ban: tự điền quản lý = trưởng phòng nếu ô quản lý đang trống hoặc đang là gợi ý cũ (HR đã chọn tay thì giữ). */
+  const changeDepartment = (v: string | null) => setForm((f) => {
+    const oldSuggestion = suggestedManager(departments, f.departmentId, employee?.id);
+    const next = suggestedManager(departments, v, employee?.id);
+    return { ...f, departmentId: v, managerId: !f.managerId || f.managerId === oldSuggestion ? next : f.managerId };
+  });
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     save.mutate(
-      { id: employee?.id, body: { ...form, dateOfBirth: form.dateOfBirth || null } },
+      { id: employee?.id, body: { ...form, dateOfBirth: form.dateOfBirth || null, jobTitle: form.jobTitle?.trim() || null } },
       {
         onSuccess: (d) => {
           toast.success(isEdit ? 'Đã lưu hồ sơ' : `Đã thêm nhân viên ${d.employee.code}`);
@@ -77,13 +86,20 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, note, dateOfB
           <FormField id="email" label="Email cá nhân" type="email" value={form.email ?? ''} onChange={(e) => set('email', e.target.value)}
             hint="Dùng để gửi lời mời / đặt lại mật khẩu" error={errors.email} />
           <FormField id="phone" label="Số điện thoại" value={form.phone ?? ''} onChange={(e) => set('phone', e.target.value)} error={errors.phone} />
-          <SelectField id="departmentId" label="Phòng ban" allowEmpty value={form.departmentId} onChange={(v) => set('departmentId', v)}
-            options={departments.map((d) => ({ value: d.id, label: d.name }))} error={errors.departmentId} />
+          <SelectField id="departmentId" label="Phòng ban" allowEmpty value={form.departmentId} onChange={changeDepartment}
+            options={departmentOptions(departments)} error={errors.departmentId} />
           <SelectField id="positionId" label="Chức vụ" allowEmpty value={form.positionId} onChange={(v) => set('positionId', v)}
-            options={positions.map((p) => ({ value: p.id, label: p.name }))} error={errors.positionId} />
+            options={positions.map((p) => ({ value: p.id, label: positionLabel(p) }))} error={errors.positionId} />
+          <FormField id="jobTitle" label="Chức danh" value={form.jobTitle ?? ''} maxLength={150} onChange={(e) => set('jobTitle', e.target.value)}
+            placeholder="Vd: Lễ tân, Lập trình viên, Kế toán viên" hint="Công việc cụ thể — khác chức vụ (cấp bậc)" error={errors.jobTitle} />
           <SelectField id="managerId" label="Quản lý trực tiếp" allowEmpty value={form.managerId} onChange={(v) => set('managerId', v)}
             options={employees.filter((x) => x.id !== employee?.id).map((x) => ({ value: x.id, label: `${x.code} · ${x.fullName}` }))}
             error={errors.managerId} />
+          {suggestion && form.managerId !== suggestion && (
+            <button type="button" className="-mt-2 text-left text-xs text-primary hover:underline sm:col-start-2" onClick={() => set('managerId', suggestion)}>
+              Gợi ý: trưởng phòng {suggestionName ?? ''} — bấm để chọn
+            </button>
+          )}
           {employee?.status === 'Resigned' ? (
             <div className="grid gap-2"><Label>Trạng thái</Label><p className="text-sm text-muted-foreground">Đã nghỉ việc (dùng "Khôi phục" để đi làm lại)</p></div>
           ) : (

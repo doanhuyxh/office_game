@@ -10,8 +10,9 @@ using OfficeHub.Modules.Organization.Infrastructure;
 
 namespace OfficeHub.Modules.Organization.Features.Positions;
 
-public sealed record PositionDto(Guid Id, string Name, int SortOrder, int EmployeeCount);
-public sealed record UpsertPositionRequest(string Name, int SortOrder = 0);
+/// <param name="Level">Cấp bậc, 1 = cao nhất. Danh sách luôn sắp theo cấp rồi tên.</param>
+public sealed record PositionDto(Guid Id, string Name, int Level, int SortOrder, int EmployeeCount);
+public sealed record UpsertPositionRequest(string Name, int Level, int SortOrder = 0);
 
 internal static class PositionEndpoints
 {
@@ -28,15 +29,15 @@ internal static class PositionEndpoints
     {
         var counts = await db.Employees.Where(e => e.Status != EmployeeStatus.Resigned && e.PositionId != null)
             .GroupBy(e => e.PositionId!.Value).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
-        var list = await db.Positions.AsNoTracking().OrderBy(p => p.SortOrder).ThenBy(p => p.Name).ToListAsync(ct);
-        return TypedResults.Ok(list.Select(p => new PositionDto(p.Id, p.Name, p.SortOrder, counts.GetValueOrDefault(p.Id))).ToList());
+        var list = await db.Positions.AsNoTracking().OrderBy(p => p.Level).ThenBy(p => p.SortOrder).ThenBy(p => p.Name).ToListAsync(ct);
+        return TypedResults.Ok(list.Select(p => new PositionDto(p.Id, p.Name, p.Level, p.SortOrder, counts.GetValueOrDefault(p.Id))).ToList());
     }
 
     private static async Task<Results<Created<Guid>, ValidationProblem>> CreateAsync(UpsertPositionRequest req, OrgDbContext db, CancellationToken ct)
     {
         var v = await ValidateAsync(req, null, db, ct);
         if (v.Failed) return v.Problem();
-        var p = new Position { Name = req.Name.Trim(), SortOrder = req.SortOrder };
+        var p = new Position { Name = req.Name.Trim(), Level = req.Level, SortOrder = req.SortOrder };
         db.Positions.Add(p);
         await db.SaveChangesAsync(ct);
         return TypedResults.Created($"/api/org/positions/{p.Id}", p.Id);
@@ -49,6 +50,7 @@ internal static class PositionEndpoints
         var v = await ValidateAsync(req, id, db, ct);
         if (v.Failed) return v.Problem();
         p.Name = req.Name.Trim();
+        p.Level = req.Level;
         p.SortOrder = req.SortOrder;
         await db.SaveChangesAsync(ct);
         return TypedResults.NoContent();
@@ -67,7 +69,8 @@ internal static class PositionEndpoints
 
     private static async Task<Validation> ValidateAsync(UpsertPositionRequest r, Guid? selfId, OrgDbContext db, CancellationToken ct)
     {
-        var v = new Validation().Required(r.Name, "name", "Tên chức vụ").MaxLength(r.Name, 150, "name", "Tên chức vụ");
+        var v = new Validation().Required(r.Name, "name", "Tên chức vụ").MaxLength(r.Name, 150, "name", "Tên chức vụ")
+            .When(r.Level is < 1 or > PositionLadder.MaxLevel, "level", $"Cấp bậc phải từ 1 (cao nhất) đến {PositionLadder.MaxLevel}");
         if (!string.IsNullOrWhiteSpace(r.Name) && await db.Positions.AnyAsync(x => x.Name == r.Name.Trim() && x.Id != selfId, ct))
             v.Add("name", "Tên chức vụ đã tồn tại");
         return v;
