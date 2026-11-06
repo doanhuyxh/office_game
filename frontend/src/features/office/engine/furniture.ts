@@ -82,6 +82,10 @@ export function buildPrefab(prefab: string, w: number, d: number): Part[] {
     case 'lockers': return [box(w, 1.9, d, 0, 0.95, 0, 0x60a5fa), ...[-0.6, 0, 0.6].map((z) => box(0.01, 1.8, 0.02, w / 2, 0.95, z * (d / 1.8), P.brand))];
     case 'deskReception': return [box(w, 1.05, d, 0, 0.525, 0, P.white), box(w + 0.06, 0.05, d + 0.1, 0, 1.07, 0, P.woodDark), box(w * 0.98, 0.12, 0.01, 0, 0.75, d / 2 + 0.005, P.brand)];
     case 'timeclock': return [box(w, 1.25, d, 0, 0.625, 0, P.dark), box(w * 0.75, 0.22, 0.01, 0, 1.1, d / 2 + 0.006, 0x22c55e, true), box(w * 0.5, 0.06, 0.01, 0, 0.8, d / 2 + 0.006, 0x86efac, true)];
+    // Studio (cánh Nội dung số): phông xanh treo tường (khối theo w × d nên đặt dọc / ngang đều được), đèn chân, máy quay trên chân ba càng
+    case 'greenScreen': return [box(w, 2.4, d, 0, 1.25, 0, 0x22c55e), box(w + 0.04, 0.05, d + 0.04, 0, 2.47, 0, P.metal)];
+    case 'studioLight': return [cyl(0.02, 0.02, 1.7, 0, 0.85, 0, P.metal, 6), cyl(0.2, 0.2, 0.03, 0, 0.02, 0, P.metal, 8), box(0.42, 0.32, 0.08, 0, 1.8, 0, P.dark), box(0.38, 0.28, 0.01, 0, 1.8, 0.045, 0xfef9c3, true)];
+    case 'cameraTripod': return [...[0, 2.1, 4.2].map((a) => cyl(0.015, 0.015, 1.3, Math.sin(a) * 0.18, 0.65, Math.cos(a) * 0.18, P.metal, 5)), box(0.18, 0.14, 0.28, 0, 1.38, 0, P.dark), cyl(0.05, 0.05, 0.08, 0, 1.38, -0.17, 0x0f172a, 10)];
     case 'logoWall': return [box(w, 1.5, 0.08, 0, 0.75, 0, P.brand)];
     case 'kitchenCounter': return [box(w, 0.88, d, 0, 0.44, 0, P.white), box(w, 0.04, d + 0.02, 0, 0.9, 0, P.dark)];
     case 'kitchenFridge': return [box(w, 1.85, d, 0, 0.925, 0, P.metalLight), box(0.03, 0.5, 0.04, w / 2 - 0.1, 1.3, d / 2 + 0.02, P.dark)];

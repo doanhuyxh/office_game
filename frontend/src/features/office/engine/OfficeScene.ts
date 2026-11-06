@@ -79,7 +79,7 @@ export class OfficeScene {
     this.scene.background = new THREE.Color(P.sky);
     this.scene.fog = new THREE.Fog(P.sky, 45, 90);
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0xb8c2cc, 2.0));
-    // Nắng + khung bóng đổ ±16 × ±12 m đi theo người chơi (sàn 50 × 30 m quá lớn cho một khung bóng cố định)
+    // Nắng + khung bóng đổ ±16 × ±12 m đi theo người chơi (sàn 68 × 30 m quá lớn cho một khung bóng cố định)
     const sun = new THREE.DirectionalLight(0xffffff, 1.6);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);

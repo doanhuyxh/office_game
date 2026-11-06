@@ -57,6 +57,8 @@ public class NavGridTests
     [InlineData(25.0, 28.0, "reception")]
     [InlineData(23.0, 19.0, "work")]
     [InlineData(46.5, 6.0, "quiet")]
+    [InlineData(55.0, 5.0, "dept-studio")] // cánh đông Nội dung số
+    [InlineData(56.0, 22.0, "studio-prep")]
     public void Zone_lookup(double x, double z, string zone) => Assert.Equal(zone, Map.ZoneAt(x, z));
 
     [Theory]
@@ -64,6 +66,11 @@ public class NavGridTests
     [InlineData(16.0, 6.5, "meeting-hall", true)]
     [InlineData(48.0, 9.5, "booth-1", true)]
     [InlineData(3.0, 3.0, "bgd", false)] // phòng có tường nhưng không phải phòng họp: vẫn kênh riêng
+    [InlineData(55.0, 5.0, "studio", false)] // Studio Nội dung: kênh riêng của đội, nghe theo khoảng cách
+    [InlineData(63.5, 5.0, "film-main", true)] // phòng quay / livestream / thu âm: như phòng họp
+    [InlineData(65.0, 15.0, "live-1", true)]
+    [InlineData(65.0, 27.0, "recording", true)]
+    [InlineData(56.0, 22.0, "open", false)] // khu chuẩn bị Studio: kênh chung
     [InlineData(23.0, 19.0, "open", false)] // khu mở, sảnh, pantry: kênh chung theo khoảng cách
     [InlineData(25.0, 28.0, "open", false)]
     public void Voice_channel_by_position(double x, double z, string channel, bool meeting)

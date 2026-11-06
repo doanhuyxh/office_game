@@ -23,7 +23,7 @@
         "required": ["id", "name", "kind", "zone", "walls"],
         "properties": {
           "id": { "type": "string" }, "name": { "type": "string" },
-          "kind": { "enum": ["office", "meeting", "booth", "open", "lounge", "lobby", "pantry"] },
+          "kind": { "enum": ["office", "meeting", "booth", "open", "lounge", "lobby", "pantry", "studio"] },
           "zone": { "type": "string", "description": "Id khu (departments.MapZone dùng id này hoặc areas[].id)" },
           "walls": { "type": "boolean" }, "glass": { "type": "boolean" },
           "capacity": { "type": "integer" }, "voice": { "const": "room" },

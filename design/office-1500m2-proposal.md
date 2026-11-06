@@ -1,5 +1,7 @@
 # Đề xuất mở rộng văn phòng 3D lên 1 500 m² (50 × 30 m)
 
+> **Cập nhật 2026-11-06 (sau)**: sàn mở rộng về phía đông thành 68 × 30 m — thêm cánh "Nội dung số" x 50–68 (Studio Nội dung 14 chỗ, Phòng quay, Livestream 1 / 2, Phòng thu âm, Khu chuẩn bị; vào từ Pantry). Mọi toạ độ dưới đây không đổi; nguồn: `design/tools/gen-map-1500.ts`.
+>
 > Trạng thái: **đã duyệt và áp dụng** (2026-11-06) — `shared/office-map.json` hiện là bản này; các mục 3 / 5 bên dưới đã làm (chỉ còn khác: minimap không cần đổi vì canvas đã co theo CSS 216 px). Bản nháp để xem: [drafts/floor-plan-1500.svg](drafts/floor-plan-1500.svg) (vẽ từ [drafts/office-map-1500.json](drafts/office-map-1500.json), sinh bởi `bun design/tools/gen-map-1500.ts`, kiểm tra bằng `render-plan.ts` sạch lỗi).  Bản hiện tại: 24 × 16 m = 384 m², 24 chỗ, 10 phòng, 107 đồ vật ([office-3d-proposal.md](office-3d-proposal.md), [floor-plan.svg](floor-plan.svg)). Khi duyệt: sửa `shared/office-map.json` + vài hằng số ở mục 5, chạy `bun design/tools/render-plan.ts`, cập nhật test.
 
 ## 0. Một lưu ý trước khi duyệt

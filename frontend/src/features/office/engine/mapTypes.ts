@@ -4,7 +4,7 @@
 export type Side = 'n' | 's' | 'e' | 'w';
 export interface Rect { x0: number; x1: number; z0: number; z1: number }
 export interface Door { side: Side; at: number; w: number; id?: string; name?: string }
-export type RoomKind = 'office' | 'meeting' | 'booth' | 'open' | 'lounge' | 'lobby' | 'pantry';
+export type RoomKind = 'office' | 'meeting' | 'booth' | 'open' | 'lounge' | 'lobby' | 'pantry' | 'studio';
 export interface Room extends Rect {
   id: string; name: string; kind: RoomKind; zone: string; walls: boolean; glass?: boolean; capacity?: number; voice?: string; doors?: Door[];
 }

@@ -107,9 +107,9 @@ const X = (x: number) => +(M + (x - map.floor.x0) * S).toFixed(1);
 const Z = (z: number) => +(MT + (z - map.floor.z0) * S).toFixed(1);
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const FILL: Record<string, string> = {
-  office: '#eef2ff', meeting: '#ecfeff', booth: '#f0f9ff', open: '#f8fafc', lounge: '#f0fdf4', lobby: '#fff7ed', pantry: '#fefce8',
+  office: '#eef2ff', meeting: '#ecfeff', booth: '#f0f9ff', open: '#f8fafc', lounge: '#f0fdf4', lobby: '#fff7ed', pantry: '#fefce8', studio: '#f5f3ff',
 };
-const DEPT: Record<string, string> = { BGD: '#7c3aed', HCNS: '#db2777', KT: '#0891b2', KD: '#ea580c', KTH: '#2563eb', LT: '#16a34a', MR: '#64748b', YT: '#0d9488' };
+const DEPT: Record<string, string> = { BGD: '#7c3aed', HCNS: '#db2777', KT: '#0891b2', KD: '#ea580c', KTH: '#2563eb', LT: '#16a34a', MR: '#64748b', YT: '#0d9488', ND: '#c026d3' };
 const out: string[] = [];
 out.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="Inter, Arial, sans-serif">`);
 out.push(`<rect width="${W}" height="${H}" fill="#ffffff"/>`);

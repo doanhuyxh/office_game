@@ -1,5 +1,6 @@
 /**
- * NGUỒN SINH mặt bằng 50 × 30 m (1 500 m²) — duyệt 2026-11-06 (design/office-1500m2-proposal.md). shared/office-map.json là bản sao của
+ * NGUỒN SINH mặt bằng 68 × 30 m (2 040 m²): lõi 50 × 30 duyệt 2026-11-06 (design/office-1500m2-proposal.md) + cánh đông
+ * "Nội dung số" x 50–68 (Studio, phòng quay, livestream, thu âm — cùng ngày). Tên file giữ "1500" cho khỏi đổi tài liệu. shared/office-map.json là bản sao của
  * kết quả script này (đổi $schema, name, notes) → sửa mặt bằng = sửa file này, KHÔNG sửa tay JSON. Quy trình đầy đủ: design/README.md.
  *
  *   bun design/tools/gen-map-1500.ts                      # → design/drafts/office-map-1500.json (bản nháp để xem trước)
@@ -77,6 +78,16 @@ const rooms = [
   { id: 'lounge', name: 'Khu nghỉ', kind: 'lounge', zone: 'lounge', x0: 0, x1: 17, z0: 22, z1: 30, walls: false },
   { id: 'lobby', name: 'Sảnh & Lễ tân', kind: 'lobby', zone: 'reception', x0: 17, x1: 33, z0: 22, z1: 30, walls: false },
   { id: 'pantry', name: 'Pantry', kind: 'pantry', zone: 'pantry', x0: 33, x1: 50, z0: 22, z1: 30, walls: false },
+  // ---------- cánh đông "Nội dung số" x 50–68 (chủ dự án chốt 2026-11-06: mở rộng sàn, không nhét vào khu cũ) ----------
+  // Vào từ Pantry (mép đông pantry không có tường). Studio = phòng làm việc của đội (kênh voice riêng, nghe theo khoảng cách);
+  // phòng quay / livestream / thu âm = kind 'studio' + voice 'room' (cả phòng nghe rõ, chia sẻ màn hình), KHÔNG đặt lịch qua Meetings.
+  { id: 'studio', name: 'Studio Nội dung', kind: 'office', zone: 'dept-studio', x0: 50, x1: 59, z0: 0, z1: 12, walls: true, doors: [{ side: 's', at: 6.5, w: 1.5 }] },
+  { id: 'film-main', name: 'Phòng quay', kind: 'studio', zone: 'studio-film', x0: 59, x1: 68, z0: 0, z1: 12, walls: true, capacity: 8, voice: 'room', doors: [{ side: 's', at: 1.0, w: 1.5 }] },
+  { id: 'studio-prep', name: 'Khu chuẩn bị Studio', kind: 'lounge', zone: 'studio-prep', x0: 50, x1: 62, z0: 12, z1: 30, walls: false },
+  ...([['live-1', 'Livestream 1'], ['live-2', 'Livestream 2'], ['recording', 'Phòng thu âm']] as const).map(([id, name], i) => ({
+    id, name, kind: 'studio', zone: 'studio-film', x0: 62, x1: 68, z0: 12 + i * 6, z1: 18 + i * 6, walls: true, capacity: id === 'recording' ? 4 : 3, voice: 'room',
+    doors: [{ side: 'w', at: 3.5, w: 1.5 }],
+  })),
 ];
 
 // ---------- khu mở (chủ dự án chốt 2026-11-06): Kinh doanh sát tường tây, Kỹ thuật xoay dọc kế bên, rồi 5 cột cụm thường + 1 cụm dọc sát phòng gọi ----------
@@ -227,14 +238,76 @@ diningTable('pantry-table-2', 41.5, 24.6);
 diningTable('pantry-table-3', 46.5, 24.6);
 obj('pantry-plant', 'pottedPlantLarge', 49.5, 22.6, 0.6, 0.6);
 
+// ---------- Studio Nội dung (x 50–59, z 0–12): 12 chỗ (2 cụm) + 2 bàn dựng + góc duyệt clip ----------
+n = cluster('ND', 'dept-studio', 52.9, 2.4, 1);
+n = cluster('ND', 'dept-studio', 52.9, 7.6, n);
+for (const z of [6.6, 9.2]) {
+  const id = `ND-${String(n++).padStart(2, '0')}`; // bàn dựng (màn lớn)
+  obj(`desk-${id}`, 'deskLarge', 57.6, z, 1.8, 0.8);
+  obj(`pc-${id}`, 'computerScreen', 57.6, z, 0.5, 0.2, { solid: false });
+  seats.push({ id, dept: 'ND', zone: 'dept-studio', x: 57.6, z: r2(z - 0.65), facing: 's' });
+}
+obj('studio-review-tv', 'televisionWall', 57.5, 0.15, 2.0, 0.1, { interact: 'screen' });
+obj('studio-review-table', 'tableCoffee', 57.5, 2.0, 1.2, 0.6);
+obj('studio-review-sofa', 'loungeSofa', 57.5, 3.1, 2.2, 0.9, { rot: 180 });
+obj('studio-board', 'whiteboard', 50.15, 5.0, 0.1, 1.8);
+obj('studio-plant-1', 'pottedPlant', 50.5, 11.5, 0.5, 0.5);
+obj('studio-plant-2', 'pottedPlant', 58.5, 11.5, 0.5, 0.5);
+
+// ---------- Phòng quay (x 59–68, z 0–12): phông xanh, bộ sofa talkshow, 2 máy quay, đèn, bàn đạo diễn ----------
+obj('film-backdrop', 'greenScreen', 63.5, 0.3, 6.0, 0.2);
+obj('film-sofa', 'loungeSofa', 63.5, 2.3, 2.2, 0.9);
+obj('film-table', 'tableCoffee', 63.5, 3.4, 1.2, 0.6);
+obj('film-light-1', 'studioLight', 60.3, 2.5, 0.5, 0.5);
+obj('film-light-2', 'studioLight', 66.7, 2.5, 0.5, 0.5);
+obj('film-camera-1', 'cameraTripod', 62.3, 6.8, 0.6, 0.6);
+obj('film-camera-2', 'cameraTripod', 64.7, 6.8, 0.6, 0.6);
+obj('film-director', 'tableSmall', 64.5, 9.6, 1.8, 0.7);
+obj('film-monitor-1', 'computerScreen', 63.9, 9.6, 0.5, 0.2, { solid: false });
+obj('film-monitor-2', 'computerScreen', 65.1, 9.6, 0.5, 0.2, { solid: false });
+obj('film-chair-1', 'chair', 63.9, 10.35, 0.5, 0.5, { solid: false });
+obj('film-chair-2', 'chair', 65.1, 10.35, 0.5, 0.5, { solid: false });
+obj('film-props', 'bookcaseOpen', 67.75, 9.0, 0.4, 1.8);
+
+// ---------- Livestream 1, 2 + Phòng thu âm (x 62–68, mỗi phòng 6 × 6 m, cửa phía tây) ----------
+for (const [i, id] of ['live-1', 'live-2'].entries()) {
+  const z0 = 12 + i * 6, zc = z0 + 2.2;
+  obj(`${id}-backdrop`, 'greenScreen', 67.8, zc, 0.2, 3.0);
+  obj(`${id}-desk`, 'tableSmall', 65.8, zc, 0.7, 1.4);
+  obj(`${id}-chair`, 'chair', 66.6, zc, 0.5, 0.5, { solid: false });
+  obj(`${id}-camera`, 'cameraTripod', 64.3, zc, 0.5, 0.5);
+  obj(`${id}-light`, 'studioLight', 64.3, zc - 1.4, 0.5, 0.5);
+  obj(`${id}-shelf`, 'bookcaseOpen', 65.0, z0 + 0.3, 2.0, 0.4); // kệ sản phẩm affiliate
+}
+meetingTable('rec', 65.5, 26.5, 1.6, 0.9, 2, false);
+obj('rec-light', 'studioLight', 67.5, 24.6, 0.5, 0.5);
+obj('rec-plant', 'pottedPlant', 67.5, 29.5, 0.5, 0.5);
+
+// ---------- Khu chuẩn bị Studio (x 50–62, z 12–30; mở, nối Pantry ở x = 50) ----------
+obj('prep-props', 'bookcaseOpen', 52.4, 12.3, 2.4, 0.4);
+obj('prep-makeup', 'tableSmall', 50.6, 15.0, 0.8, 2.6);
+obj('prep-makeup-chair-1', 'chair', 51.4, 14.3, 0.5, 0.5, { solid: false });
+obj('prep-makeup-chair-2', 'chair', 51.4, 15.7, 0.5, 0.5, { solid: false });
+obj('prep-wardrobe', 'lockers', 50.4, 19.0, 0.6, 2.4);
+meetingTable('prep-plan', 56.0, 17.5, 2.4, 1.1, 3, true); // họp kịch bản
+obj('prep-board', 'whiteboard', 58.6, 17.5, 0.1, 1.8);
+obj('prep-schedule', 'noticeBoard', 61.85, 14.0, 0.1, 1.4, { interact: 'notices' }); // lịch quay
+obj('prep-sofa', 'loungeSofa', 55.0, 26.5, 2.2, 0.9);
+obj('prep-table', 'tableCoffee', 55.0, 25.4, 1.2, 0.6);
+obj('prep-beanbag-1', 'beanbag', 58.0, 25.0, 0.8, 0.8, { solid: false });
+obj('prep-beanbag-2', 'beanbag', 59.2, 25.8, 0.8, 0.8, { solid: false });
+obj('prep-plant-1', 'pottedPlantLarge', 61.5, 12.5, 0.6, 0.6);
+obj('prep-plant-2', 'pottedPlantLarge', 61.5, 29.5, 0.6, 0.6);
+obj('prep-plant-3', 'pottedPlantLarge', 52.0, 29.5, 0.6, 0.6);
+
 const map = {
   $schema: '../../shared/schemas/office-map.schema.json',
   version: 2,
-  name: 'Văn phòng OfficeHub (nháp 1 500 m²)',
-  notes: 'BẢN NHÁP 50 × 30 m sinh bởi design/tools/gen-map-1500.ts theo design/office-1500m2-proposal.md — chưa duyệt. Đơn vị mét, gốc (0,0) góc tây-bắc, x sang đông, z xuống nam.',
+  name: 'Văn phòng OfficeHub (68 × 30 m)',
+  notes: 'Sinh bởi design/tools/gen-map-1500.ts: lõi 50 × 30 m (design/office-1500m2-proposal.md) + cánh đông Nội dung số x 50–68 (Studio, phòng quay, livestream, thu âm). Đơn vị mét, gốc (0,0) góc tây-bắc, x sang đông, z xuống nam.',
   unit: 'm',
   grid: 0.5,
-  floor: { x0: 0, x1: 50, z0: 0, z1: 30 },
+  floor: { x0: 0, x1: 68, z0: 0, z1: 30 },
   wallHeight: 3,
   outerDoors: [{ id: 'entrance', side: 's', at: 24, w: 2.0, name: 'Cửa chính' }],
   spawn: { x: 25, z: 29 },

@@ -1,6 +1,6 @@
 # design/
 
-Tài liệu thiết kế văn phòng 3D. Mặt bằng hiện hành: **50 × 30 m (1 500 m²), duyệt 2026-11-06** — bản đồ chính thức `shared/office-map.json` **được sinh** từ `tools/gen-map-1500.ts` (không sửa tay JSON).
+Tài liệu thiết kế văn phòng 3D. Mặt bằng hiện hành: **68 × 30 m (2 040 m²)** = lõi 50 × 30 m duyệt 2026-11-06 + cánh đông "Nội dung số" x 50–68 (Studio, phòng quay, 2 phòng livestream, phòng thu âm; cùng ngày) — bản đồ chính thức `shared/office-map.json` **được sinh** từ `tools/gen-map-1500.ts` (không sửa tay JSON).
 
 | File | Nội dung |
 |---|---|
