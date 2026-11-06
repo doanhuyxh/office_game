@@ -11,7 +11,7 @@ import { OfficeScene } from '../engine/OfficeScene';
 import { OfficeConnection } from '../api/officeHub';
 import type { Seat } from '../engine/mapTypes';
 import { Minimap } from './Minimap';
-import { VoiceClient, type VoiceView } from '../api/voiceClient';
+import { VOICE_INITIAL, VoiceClient, type VoiceView } from '../api/voiceClient';
 import { ScreenView, VoicePanel } from './VoicePanel';
 import './office.css';
 
@@ -27,7 +27,7 @@ export function OfficeView() {
   const [scene, setScene] = useState<OfficeScene | null>(null);
   const [help, setHelp] = useState(true);
   const [voice, setVoice] = useState<VoiceClient | null>(null);
-  const [voiceView, setVoiceView] = useState<VoiceView>(VOICE_OFF);
+  const [voiceView, setVoiceView] = useState<VoiceView>(VOICE_INITIAL);
   const { data: today, noProfile } = useToday();
   const check = useCheck();
 
@@ -53,6 +53,15 @@ export function OfficeView() {
     addEventListener('keydown', onKey);
     return () => removeEventListener('keydown', onKey);
   }, [nearAction, seatInfo, scene]);
+
+  // Trình duyệt chặn phát âm thanh tới khi người dùng thao tác → lần bấm / gõ phím đầu tiên (đi lại, chat…) mở âm thanh luôn
+  useEffect(() => {
+    if (!voice || !voiceView.needsAudioClick) return;
+    const resume = () => void voice.resumeAudio();
+    addEventListener('pointerdown', resume, { once: true });
+    addEventListener('keydown', resume, { once: true });
+    return () => { removeEventListener('pointerdown', resume); removeEventListener('keydown', resume); };
+  }, [voice, voiceView.needsAudioClick]);
 
   // Phím M: bật / tắt micro khi đang trong voice
   useEffect(() => {
@@ -90,6 +99,7 @@ export function OfficeView() {
           else scene.upsertOther(p.id, p.name, p.x, p.z, p.r, p.anim);
         }
         s.setOnline(players.size);
+        void voice.enable(); // vào văn phòng = vào voice để nghe (micro mặc định tắt)
       },
       playerJoined: (p) => {
         if (p.id === me.id) return;
@@ -125,7 +135,7 @@ export function OfficeView() {
       void c.stop();
       voice.dispose();
       setVoice(null);
-      setVoiceView(VOICE_OFF);
+      setVoiceView(VOICE_INITIAL);
       setScene(null);
       scene.dispose();
     };
@@ -180,7 +190,7 @@ export function OfficeView() {
             <span>Bấm chuột lên sàn / bản đồ nhỏ · tự đi tới</span>
             <span><kbd>E</kbd> · ngồi / đứng, chấm công ở máy</span>
             <span><kbd>Q</kbd> <kbd>R</kbd> · xoay góc nhìn · cuộn chuột · zoom</span>
-            <span><kbd>M</kbd> · bật / tắt micro (khi đã bật voice)</span>
+            <span><kbd>M</kbd> · bật / tắt micro (voice tự kết nối, micro mặc định tắt)</span>
             <button type="button" onClick={() => setHelp(false)}>Đã hiểu</button>
           </div>
         )}
@@ -202,5 +212,4 @@ export function OfficeView() {
   );
 }
 
-const VOICE_OFF: VoiceView = { status: 'off', channel: null, micOn: false, sharing: false, peers: 0, needsAudioClick: false, screen: null };
 const STATUS = { connecting: 'Đang kết nối…', reconnecting: 'Mất kết nối, đang thử lại…', offline: 'Mất kết nối', kicked: 'Đã đăng nhập nơi khác', online: '' };

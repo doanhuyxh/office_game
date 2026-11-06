@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import type { VoiceClient, VoiceView } from '../api/voiceClient';
 
-/** Thẻ voice ở góc dưới phải: bật / tắt voice, micro (M), chia sẻ màn hình (chỉ phòng họp). */
+/** Thẻ voice ở góc dưới phải: tự kết nối để nghe; micro (M, mặc định tắt), loa, chia sẻ màn hình (chỉ phòng họp). */
 export function VoicePanel({ voice, view }: { voice: VoiceClient | null; view: VoiceView }) {
   if (!voice) return null;
-  const { status, channel, micOn, sharing, peers, needsAudioClick } = view;
+  const { status, channel, micOn, speakerOn, sharing, peers, needsAudioClick, error } = view;
 
   if (status === 'off') {
     return (
-      <div className="card voice">
-        <button type="button" className="primary" onClick={() => void voice.enable()} data-testid="office-voice-toggle">🎙 Bật voice</button>
-        <small>Nói chuyện với người đứng gần, hoặc vào phòng họp để có kênh riêng</small>
+      <div className="card voice" data-testid="office-voice" data-status="off">
+        <div className="title"><span className="dot offline" /><b>Voice chưa kết nối</b></div>
+        {error && <small data-testid="office-voice-error">{error}</small>}
+        <div className="row">
+          <button type="button" className="primary" onClick={() => void voice.enable()} data-testid="office-voice-retry">↻ Kết nối lại</button>
+        </div>
       </div>
     );
   }
@@ -24,21 +27,26 @@ export function VoicePanel({ voice, view }: { voice: VoiceClient | null; view: V
       {status === 'on' && (
         <small data-testid="office-voice-peers">
           {channel?.meeting ? 'Kênh riêng của phòng' : channel?.id === 'open' ? 'Nghe người trong ~6 m' : 'Kênh riêng · nghe theo khoảng cách'}
-          {' · '}{peers === 0 ? 'chưa có ai nghe' : `${peers} người nghe được bạn`}
+          {' · '}{peers === 0 ? 'chưa có ai nghe' : `${peers} người trong tầm nghe`}
         </small>
       )}
-      {needsAudioClick && <button type="button" className="primary" onClick={() => void voice.resumeAudio()}>🔊 Bấm để nghe âm thanh</button>}
+      {needsAudioClick && speakerOn && (
+        <button type="button" className="primary" onClick={() => void voice.resumeAudio()}>🔊 Bấm để nghe âm thanh</button>
+      )}
       <div className="row">
         <button type="button" className={micOn ? 'on' : 'off'} onClick={() => void voice.toggleMic()} disabled={status !== 'on'}
           title="Bật / tắt micro (M)" data-testid="office-voice-mic" data-on={micOn}>
           {micOn ? '🎙 Micro bật' : '🔇 Micro tắt'}
+        </button>
+        <button type="button" className={speakerOn ? '' : 'off'} onClick={() => voice.toggleSpeaker()}
+          title="Bật / tắt nghe — vẫn ở trong kênh" data-testid="office-voice-speaker" data-on={speakerOn}>
+          {speakerOn ? '🔊 Loa' : '🔈 Loa tắt'}
         </button>
         {channel?.meeting && (
           <button type="button" className={sharing ? 'on' : ''} onClick={() => void voice.toggleScreen()} disabled={status !== 'on'} title="Chia sẻ màn hình">
             🖥 {sharing ? 'Dừng chia sẻ' : 'Chia sẻ'}
           </button>
         )}
-        <button type="button" onClick={() => void voice.disable()} title="Tắt voice" data-testid="office-voice-off">Tắt</button>
       </div>
     </div>
   );

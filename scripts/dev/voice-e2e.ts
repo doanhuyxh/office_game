@@ -27,13 +27,16 @@ try {
   check('scenes ready', await waitFor(A, `!!window.__officeScene?.snapshot().me`) && await waitFor(B, `!!window.__officeScene?.snapshot().me`));
   await waitFor(A, `window.__officeScene.snapshot().others.some(o=>o.name===${JSON.stringify(NAME_B)})`);
 
-  // 1) Khu mở, đứng cách nhau ~1 m → bật voice, nghe được nhau
+  // 1) Vào văn phòng là tự vào voice để nghe, micro mặc định tắt
+  check('A auto-joined voice, mic off', await waitFor(A, `window.__officeVoice.state.status==='on' && !window.__officeVoice.state.micOn`), await voice(A));
+  check('no voice toggle button anymore', !(await A.evalJs(`!!document.querySelector('[data-testid=office-voice-toggle]')`)));
   await Promise.all([walk(A, 10.5, 10), walk(B, 11.5, 10)]);
-  await click(A, 'office-voice-toggle'); await click(B, 'office-voice-toggle');
+  await click(A, 'office-voice-mic'); await click(B, 'office-voice-mic');
+  check('mic turns on when clicked', await waitFor(B, `document.querySelector('[data-testid=office-voice-mic]').dataset.on==='true'`, 5000), await voice(B));
   check('A voice on, channel open', await waitFor(A, `document.querySelector('[data-testid=office-voice]')?.dataset.status==='on' && document.querySelector('[data-testid=office-voice]').dataset.channel==='open'`), await voice(A));
   check('B voice on', await waitFor(B, `document.querySelector('[data-testid=office-voice]')?.dataset.status==='on'`), await voice(B));
   check('A subscribed to B mic (near)', await waitFor(A, `[...(window.__officeVoice.room?.remoteParticipants.values() ?? [])].some(p=>[...p.trackPublications.values()].some(t=>t.source==='microphone' && t.isSubscribed))`), await voice(A));
-  check('A HUD: 1 người nghe được', await waitFor(A, `document.querySelector('[data-testid=office-voice-peers]')?.textContent.includes('1 người nghe được bạn')`), await voice(A));
+  check('A HUD: 1 người nghe được', await waitFor(A, `document.querySelector('[data-testid=office-voice-peers]')?.textContent.includes('1 người trong tầm nghe')`), await voice(A));
   check('B speaking ring visible to A (fake mic beeps)', await waitFor(A, `(()=>{const s=window.__officeScene; return [...s['others'].values()].some(o=>o.avatar.speaking)})()`, 12000));
   await A.sleep(600);
   await A.shot(`${shots}/60-voice-open.png`);
@@ -62,7 +65,7 @@ try {
   // 5) B vào phòng họp → nghe cả phòng; A chia sẻ màn hình → B thấy
   await walk(B, 11, 4);
   check('B joined meeting-large', await waitFor(B, `window.__officeVoice.room?.name==='officehub-meeting-large' && window.__officeVoice.state.status==='on'`, 8000), await voice(B));
-  check('A and B hear each other in meeting', await waitFor(A, `document.querySelector('[data-testid=office-voice-peers]')?.textContent.includes('1 người nghe được bạn')`, 6000), await voice(A));
+  check('A and B hear each other in meeting', await waitFor(A, `document.querySelector('[data-testid=office-voice-peers]')?.textContent.includes('1 người trong tầm nghe')`, 6000), await voice(A));
   await A.evalJs(`window.__officeVoice.toggleScreen()`);
   const sharing = await waitFor(A, `window.__officeVoice.state.sharing`, 5000);
   check('A screen share started', sharing, await voice(A));
@@ -79,11 +82,14 @@ try {
   await walk(A, 10, 9);
   check('server kicks A out of meeting room after leaving', await waitFor(B, `![...window.__officeVoice.room.remoteParticipants.values()].some(p=>p.name===${JSON.stringify(NAME_A)})`, 9000), await voice(B));
 
-  // 7) Tắt voice
-  await click(B, 'office-voice-off');
-  check('B voice off', await waitFor(B, `!!document.querySelector('[data-testid=office-voice-toggle]') && !window.__officeVoice.room`, 4000));
+  // 7) Tắt loa: vẫn ở trong kênh, chỉ không phát âm thanh người khác
+  await click(B, 'office-voice-speaker');
+  check('speaker off keeps voice connected', await waitFor(B, `document.querySelector('[data-testid=office-voice-speaker]').dataset.on==='false' && !!window.__officeVoice.room && window.__officeVoice.state.status==='on'`, 4000), await voice(B));
+  await click(B, 'office-voice-speaker');
+  check('speaker back on', await waitFor(B, `document.querySelector('[data-testid=office-voice-speaker]').dataset.on==='true'`, 4000));
 
-  const ignore = (e: string) => /Permissions policy|DevTools|could not playback audio/i.test(e);
+  // LiveKit tự log khi kết nối bị chủ động đóng (đổi kênh, server đẩy khỏi phòng) — không phải lỗi app
+  const ignore = (e: string) => /Permissions policy|DevTools|could not playback audio|User-Initiated Abort|data channel '\w+' closed unexpectedly/i.test(e);
   check('no console errors A', A.errors.filter((e) => !ignore(e)).length === 0, A.errors.slice(0, 5));
   check('no console errors B', B.errors.filter((e) => !ignore(e)).length === 0, B.errors.slice(0, 5));
 } finally {

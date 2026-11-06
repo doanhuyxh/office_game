@@ -13,6 +13,8 @@ export interface VoiceView {
   /** Kênh đang ở (đã kết nối) — null khi tắt voice. */
   channel: VoiceChannelInfo | null;
   micOn: boolean;
+  /** Đang nghe (loa bật). Tắt loa = vẫn trong kênh nhưng không phát âm thanh người khác. */
+  speakerOn: boolean;
   sharing: boolean;
   /** Số người nghe thấy mình (khu mở: trong ~6 m; phòng: cả phòng). */
   peers: number;
@@ -20,7 +22,13 @@ export interface VoiceView {
   needsAudioClick: boolean;
   /** Màn hình đang được chia sẻ trong phòng họp (của người khác). */
   screen: { track: RemoteTrack; name: string } | null;
+  /** Lý do không vào được voice (hiện trên thẻ voice, kèm nút thử lại). */
+  error: string | null;
 }
+
+export const VOICE_INITIAL: VoiceView = {
+  status: 'off', channel: null, micOn: false, speakerOn: true, sharing: false, peers: 0, needsAudioClick: false, screen: null, error: null,
+};
 
 /** Vị trí lấy từ OfficeScene (identity LiveKit = userId = id người chơi trên hub). */
 export interface VoicePositions {
@@ -38,7 +46,8 @@ const TOKEN_RETRY = 500; // server chưa nhận vị trí mới (Move gửi mỗ
 const HYSTERESIS = 1; // m — tránh bật / tắt nhận âm liên tục khi đứng ở rìa 6 m
 
 /**
- * Voice LiveKit cho văn phòng 3D (không phụ thuộc React).
+ * Voice LiveKit cho văn phòng 3D (không phụ thuộc React). Vào văn phòng là tự vào voice ĐỂ NGHE; micro mặc định tắt
+ * (chỉ xin quyền micro khi người dùng bật). "Tắt loa" chỉ ngừng phát âm thanh, vẫn giữ kết nối.
  * - Server quyết định room theo vị trí (`POST /rt/voice/token`); client chỉ báo đổi kênh khi đi qua cửa phòng.
  * - Kênh không phải phòng họp: chỉ nhận âm người trong ~6 m, âm lượng giảm theo khoảng cách (`voiceVolume`).
  * - Phòng họp (`voice: "room"`): nghe cả phòng, được chia sẻ màn hình.
@@ -48,12 +57,13 @@ export class VoiceClient {
   private joined: VoiceChannelInfo | null = null;
   private wanted: VoiceChannelInfo | null = null;
   private enabled = false;
-  private micWanted = true;
+  private micWanted = false;
+  private speakerOn = true;
   private gen = 0;
   private switchTimer = 0;
   private tick = 0;
   private audioHost = document.createElement('div');
-  private view: VoiceView = { status: 'off', channel: null, micOn: false, sharing: false, peers: 0, needsAudioClick: false, screen: null };
+  private view: VoiceView = VOICE_INITIAL;
 
   onChange?: (v: VoiceView) => void;
   onSpeaking?: (ids: Set<string>) => void;
@@ -75,11 +85,11 @@ export class VoiceClient {
     this.switchTimer = window.setTimeout(() => void this.join(), SWITCH_DEBOUNCE);
   }
 
-  /** Bật voice (gọi từ thao tác bấm của người dùng để trình duyệt cho phát âm thanh). */
+  /** Vào voice (tự gọi khi vào văn phòng). Micro giữ nguyên trạng thái người dùng chọn (mặc định tắt). */
   async enable() {
     if (this.enabled) return;
     this.enabled = true;
-    this.micWanted = true;
+    this.set({ error: null });
     const me = this.pos.me();
     if (!this.wanted && me) this.wanted = voiceChannelAt(OFFICE_MAP, me.x, me.z);
     await this.join();
@@ -91,6 +101,13 @@ export class VoiceClient {
     clearTimeout(this.switchTimer);
     await this.leave();
     this.set({ status: 'off', channel: null, micOn: false, sharing: false, peers: 0, screen: null, needsAudioClick: false });
+  }
+
+  /** Bật / tắt nghe (loa) — vẫn ở trong kênh, người khác vẫn nghe mình nếu micro bật. */
+  toggleSpeaker() {
+    this.speakerOn = !this.speakerOn;
+    this.set({ speakerOn: this.speakerOn });
+    this.updateHearing();
   }
 
   async toggleMic() {
@@ -128,6 +145,12 @@ export class VoiceClient {
 
   // ---------- nội bộ ----------
 
+  /** Không vào được voice: dừng, ghi lý do lên thẻ voice (không toast — tự vào khi mở văn phòng nên tránh làm phiền). */
+  private fail(message: string) {
+    this.enabled = false;
+    this.set({ status: 'off', channel: null, error: message });
+  }
+
   private set(p: Partial<VoiceView>) {
     this.view = { ...this.view, ...p };
     this.onChange?.(this.view);
@@ -159,9 +182,7 @@ export class VoiceClient {
         tk = await httpPost<VoiceToken>(REALTIME.voiceToken);
       } catch (e) {
         if (g !== this.gen) return;
-        this.enabled = false;
-        this.set({ status: 'off', channel: null });
-        this.onError?.(e instanceof ApiError ? e.message : 'Không kết nối được voice');
+        this.fail(e instanceof ApiError ? e.message : 'Không kết nối được voice');
         return;
       }
       if (g !== this.gen) return;
@@ -177,9 +198,7 @@ export class VoiceClient {
       lk = await loadLiveKit();
     } catch {
       if (g !== this.gen) return;
-      this.enabled = false;
-      this.set({ status: 'off', channel: null });
-      this.onError?.('Không tải được module voice, thử tải lại trang');
+      this.fail('Không tải được module voice, thử tải lại trang');
       return;
     }
     if (g !== this.gen) return;
@@ -193,9 +212,7 @@ export class VoiceClient {
       await room.connect(tk.url, tk.token, { autoSubscribe: false });
     } catch {
       if (g !== this.gen) return;
-      this.set({ status: 'off', channel: null });
-      this.enabled = false;
-      this.onError?.('Không kết nối được máy chủ voice');
+      this.fail('Không kết nối được máy chủ voice');
       return;
     }
     if (g !== this.gen) { void room.disconnect(); return; }
@@ -287,9 +304,10 @@ export class VoiceClient {
     let want: boolean;
     if (pub.source === Track.Source.Microphone) {
       want = meeting || dist < VOICE_FAR + (pub.isSubscribed ? HYSTERESIS : 0);
-      p.setVolume(meeting ? 1 : voiceVolume(dist), Track.Source.Microphone);
+      p.setVolume(!this.speakerOn ? 0 : meeting ? 1 : voiceVolume(dist), Track.Source.Microphone);
     } else {
       want = meeting && isScreen(pub); // màn hình chỉ có ở phòng họp
+      if (pub.source === Track.Source.ScreenShareAudio) p.setVolume(this.speakerOn ? 1 : 0, Track.Source.ScreenShareAudio);
     }
     if (pub.isSubscribed !== want) pub.setSubscribed(want);
   }
