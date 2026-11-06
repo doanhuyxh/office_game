@@ -46,6 +46,9 @@ public class AccessTokenScopeTests
     [InlineData("PUT", "/api/org/employees/0193a000-0000-7000-8000-000000000000")]
     [InlineData("POST", "/api/org/employees/0193a000-0000-7000-8000-000000000000/account/reset-password")]
     [InlineData("PUT", "/api/org/departments/0193a000-0000-7000-8000-000000000000/guide")] // AI không sửa hướng dẫn
+    [InlineData("GET", "/api/org/profile/me")]                 // CCCD, tài khoản ngân hàng: không bao giờ ra MCP
+    [InlineData("GET", "/api/org/profile/employees/0193a000-0000-7000-8000-000000000000")]
+    [InlineData("POST", "/api/org/profile/me/requests")]
     [InlineData("PUT", "/api/org/positions/0193a000-0000-7000-8000-000000000000/guide")]
     [InlineData("GET", "/api/leave/balances")]          // quỹ phép mọi người (HR) — không bị mở bởi tiền tố /balance
     [InlineData("POST", "/api/leave/adjustments")]

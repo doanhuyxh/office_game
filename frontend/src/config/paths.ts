@@ -12,6 +12,7 @@ export const PATHS = {
   audit: '/audit',
   payroll: '/payroll',
   payslips: '/payslips',
+  profile: '/profile',
   aiAccess: '/ai-access',
   oauthAuthorize: '/oauth/authorize',
   login: '/login',

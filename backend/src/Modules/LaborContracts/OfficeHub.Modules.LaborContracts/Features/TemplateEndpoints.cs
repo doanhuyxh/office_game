@@ -119,7 +119,8 @@ internal static class TemplateEndpoints
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), TimeZoneInfo.FindSystemTimeZoneById(office.Value.TimeZone)).DateTime);
         var values = ContractFields.Values(new ContractFields.Source(p.Employee.FullName, p.Employee.Code, p.DateOfBirth, p.Email, p.Phone,
             p.Employee.DepartmentName, p.PositionName, c.Number, c.Type, c.SignedDate, c.StartDate, c.EndDate, c.JobTitle,
-            enc.DecryptDecimal(c.SalaryEncrypted), enc.DecryptDecimal(c.AllowanceEncrypted), today));
+            enc.DecryptDecimal(c.SalaryEncrypted), enc.DecryptDecimal(c.AllowanceEncrypted), today,
+            p.IdNumber, p.IdIssuedOn, p.IdIssuedPlace, p.PermanentAddress, p.CurrentAddress));
         await using var src = await storage.OpenReadAsync(key, ct);
         var bytes = DocxTemplate.Fill(src, values);
         var fileName = $"{c.Number}-{p.Employee.Code}.docx".Replace('/', '-').Replace('\\', '-');

@@ -17,9 +17,16 @@ public interface IEmployeeDirectory
     Task<IReadOnlyList<EmployeeRef>> ListEmployedAsync(DateOnly from, DateOnly to, CancellationToken ct = default);
     /// <summary>Hồ sơ đầy đủ hơn (email, điện thoại, ngày sinh, chức vụ) — dùng điền mẫu hợp đồng.</summary>
     Task<EmployeeProfile?> GetProfileAsync(Guid employeeId, CancellationToken ct = default);
+    /// <summary>Tài khoản nhận lương (đã giải mã) — chỉ cho Payroll xuất file chuyển khoản (HR). Người chưa khai thì không có trong kết quả.</summary>
+    Task<IReadOnlyDictionary<Guid, BankAccountInfo>> GetBankAccountsAsync(IReadOnlyCollection<Guid> employeeIds, CancellationToken ct = default);
 }
 
-public sealed record EmployeeProfile(EmployeeRef Employee, string? Email, string? Phone, DateOnly? DateOfBirth, string? PositionName);
+public sealed record BankAccountInfo(string? BankName, string Account, string? Holder);
+
+/// <summary>IdNumber đã giải mã — chỉ dùng phía server (điền mẫu hợp đồng, HR).</summary>
+public sealed record EmployeeProfile(EmployeeRef Employee, string? Email, string? Phone, DateOnly? DateOfBirth, string? PositionName,
+    string? IdNumber = null, DateOnly? IdIssuedOn = null, string? IdIssuedPlace = null, string? PermanentAddress = null, string? CurrentAddress = null,
+    string? JobTitle = null);
 
 public sealed record EmployeeRef(
     Guid Id,

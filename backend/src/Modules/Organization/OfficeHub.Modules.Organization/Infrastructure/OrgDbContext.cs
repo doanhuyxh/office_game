@@ -10,6 +10,7 @@ public sealed class OrgDbContext(DbContextOptions<OrgDbContext> options, TimePro
 
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<Position> Positions => Set<Position>();
+    public DbSet<ProfileChangeRequest> ProfileRequests => Set<ProfileChangeRequest>();
     public DbSet<Employee> Employees => Set<Employee>();
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -49,6 +50,17 @@ public sealed class OrgDbContext(DbContextOptions<OrgDbContext> options, TimePro
             e.Property(x => x.Email).HasMaxLength(256);
             e.Property(x => x.Phone).HasMaxLength(30);
             e.Property(x => x.JobTitle).HasMaxLength(150);
+            e.Property(x => x.CurrentAddress).HasMaxLength(PersonalProfile.AddressMax);
+            e.Property(x => x.PermanentAddress).HasMaxLength(PersonalProfile.AddressMax);
+            e.Property(x => x.EmergencyContactName).HasMaxLength(PersonalProfile.NameMax);
+            e.Property(x => x.EmergencyContactRelation).HasMaxLength(PersonalProfile.RelationMax);
+            e.Property(x => x.EmergencyContactPhone).HasMaxLength(30);
+            e.Property(x => x.AvatarKey).HasMaxLength(300);
+            e.Property(x => x.IdNumberEncrypted).HasMaxLength(200);
+            e.Property(x => x.IdIssuedPlace).HasMaxLength(PersonalProfile.NameMax);
+            e.Property(x => x.BankName).HasMaxLength(100);
+            e.Property(x => x.BankAccountEncrypted).HasMaxLength(200);
+            e.Property(x => x.BankAccountHolder).HasMaxLength(PersonalProfile.NameMax);
             e.Property(x => x.Note).HasMaxLength(2000);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             e.HasIndex(x => x.Code).IsUnique().HasFilter("\"DeletedAt\" IS NULL");
@@ -59,6 +71,18 @@ public sealed class OrgDbContext(DbContextOptions<OrgDbContext> options, TimePro
             e.HasOne<Position>().WithMany().HasForeignKey(x => x.PositionId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<Employee>().WithMany().HasForeignKey(x => x.ManagerId).OnDelete(DeleteBehavior.Restrict);
             e.HasQueryFilter(x => x.DeletedAt == null);
+        });
+
+        b.Entity<ProfileChangeRequest>(e =>
+        {
+            e.ToTable("profile_change_requests");
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(10);
+            e.Property(x => x.DataEncrypted).HasMaxLength(4000);
+            e.Property(x => x.Note).HasMaxLength(500);
+            e.Property(x => x.DecidedByName).HasMaxLength(200);
+            e.Property(x => x.RejectReason).HasMaxLength(500);
+            e.HasIndex(x => new { x.EmployeeId, x.Status });
+            e.HasIndex(x => x.Status);
         });
 
         b.Entity<Department>().HasOne<Department>().WithMany().HasForeignKey(x => x.ParentId).OnDelete(DeleteBehavior.Restrict);

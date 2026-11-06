@@ -8,7 +8,7 @@ Nhân viên dùng trợ lý AI của mình (Claude web / Desktop / điện tho�
 
 - Client: Claude, Cursor, Codex, GitHub Copilot (thêm 2026-11-06). Hai cách: **Đăng nhập OAuth** (khuyên dùng, bắt buộc với claude.ai / Desktop / điện thoại) và **token cá nhân (PAT)** dán vào header → OAuth, nhật ký, quản trị HR: [mcp-oauth.md](mcp-oauth.md).
 - **Cho ghi**: chấm công, gửi đơn nghỉ / tăng ca / giải trình, huỷ đơn, duyệt / từ chối (quản lý / HR).
-- **Hợp đồng và lương ẩn hoàn toàn**: không tool, và token bị chặn ở Api (`/api/contracts/*` → 403).
+- **Hợp đồng, lương và thông tin cá nhân nhạy cảm ẩn hoàn toàn**: không tool, và token bị chặn ở Api (`/api/contracts/*`, `/api/payroll/*`, `/api/org/profile/*` — CCCD, ngân hàng, địa chỉ → 403).
 - **Chấm công qua AI được phép, luôn tính là làm từ xa**: `Source = Mcp`, `WorkMode = Remote` (server quyết, bỏ qua `source` client gửi, bỏ qua IP).
 
 ## Luồng
@@ -32,7 +32,7 @@ AI client ──POST /mcp (Bearer ohk_…)──▶ OfficeHub.Mcp (BearerGate �
 
 - Token = `ohk_` + 32 byte ngẫu nhiên base64url. Lưu SHA-256 (`identity.access_tokens.TokenHash`, unique) + `Prefix` để hiển thị. Chỉ quản lý được bằng cookie web (token gọi → 403).
 - Xác thực (`Infrastructure/AccessTokenHandler.cs`, scheme `AccessToken`): scheme mặc định của Api là policy `OfficeHub` → có `Authorization: Bearer ohk_…` thì dùng token, ngược lại cookie. Mỗi request đọc lại token + user (+ grant nếu là token OAuth): token / grant thu hồi, hết hạn, user `IsActive=false`, đang khoá, `MustChangePassword`, hoặc `AccessTokens__Enabled=false` → 401. Principal tạo bằng `AppClaimsFactory` (vai trò hiện tại) + claim `access_token_id`; `LastUsedAt` ghi tối đa 5 phút / lần.
-- **Danh sách route cho phép** `AccessTokenAuth.IsAllowed` (mặc định chặn; khớp theo đoạn path): route ngoài danh sách → **403** dù token hợp lệ. Cố ý không có: `/api/contracts` (cả mẫu hợp đồng), `/api/reports` (lương / tiền), `/api/auth/*` trừ `/me`, ghi của `/api/org` (nhân viên, tài khoản, vai trò), ca / lịch / ngày lễ, `/api/leave/balances`, `/api/leave/adjustments`. Thêm endpoint mới cho AI → thêm vào đây + test `tests/OfficeHub.Mcp.Tests/AccessTokenScopeTests.cs`.
+- **Danh sách route cho phép** `AccessTokenAuth.IsAllowed` (mặc định chặn; khớp theo đoạn path): route ngoài danh sách → **403** dù token hợp lệ. Cố ý không có: `/api/contracts` (cả mẫu hợp đồng), `/api/reports` (lương / tiền), `/api/payroll`, `/api/org/profile` (hồ sơ cá nhân), `/api/auth/*` trừ `/me`, ghi của `/api/org` (nhân viên, tài khoản, vai trò), ca / lịch / ngày lễ, `/api/leave/balances`, `/api/leave/adjustments`. Thêm endpoint mới cho AI → thêm vào đây + test `tests/OfficeHub.Mcp.Tests/AccessTokenScopeTests.cs`.
 - Code module khác nhận biết request từ AI bằng `ClaimsPrincipal.IsAccessToken()` (BuildingBlocks).
 
 ## Tool (34)

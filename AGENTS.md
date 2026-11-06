@@ -20,6 +20,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Đăng nhập, mật khẩu, link mời, admin seed | [.agent/business/auth.md](.agent/business/auth.md) |
 | Nhân viên, phòng ban · cấp tài khoản, vai trò | [.agent/business/organization.md](.agent/business/organization.md) · [.agent/business/organization-accounts.md](.agent/business/organization-accounts.md) |
 | Mô tả + hướng dẫn phòng ban / chức vụ cho trợ lý AI | [.agent/business/org-guides.md](.agent/business/org-guides.md) |
+| Hồ sơ cá nhân: liên hệ, ảnh, CCCD, ngân hàng, yêu cầu HR duyệt | [.agent/business/profile.md](.agent/business/profile.md) |
 | Chấm công, bảng công · ca, lịch, ngày lễ | [.agent/business/attendance.md](.agent/business/attendance.md) · [.agent/business/attendance-shifts.md](.agent/business/attendance-shifts.md) |
 | Giải trình chấm công, nhắc quên chấm ra | [.agent/business/attendance-corrections.md](.agent/business/attendance-corrections.md) |
 | Tăng ca | [.agent/business/attendance-overtime.md](.agent/business/attendance-overtime.md) |

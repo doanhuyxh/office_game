@@ -8,22 +8,20 @@ import { useDepartments, useEmployees } from '../hooks/useOrg';
 import type { IDepartment, IEmployee } from '../types/employee.types';
 import { departmentTree } from '../utils/orgTree';
 import './orgChart.css';
+import { PersonAvatar } from '@/components/common/PersonAvatar';
 
 type Mode = 'department' | 'manager';
 const NO_DEPT = '__none__';
 
 /** Sắp theo cấp bậc (1 = cao nhất, chưa có chức vụ xuống cuối) rồi tên. */
 const byRank = (a: IEmployee, b: IEmployee) => (a.positionLevel ?? 99) - (b.positionLevel ?? 99) || a.fullName.localeCompare(b.fullName, 'vi');
-const initials = (name: string) => name.split(' ').filter(Boolean).slice(-2).map((w) => w[0]).join('').toUpperCase();
 const roleLine = (e: IEmployee) => [e.jobTitle, e.positionName].filter(Boolean).join(' · ') || 'Chưa có chức vụ';
 
 function Person({ e, compact, highlight }: { e: IEmployee; compact?: boolean; highlight?: boolean }) {
   return (
     <div className={cn('flex items-center gap-2 text-left', compact ? 'py-0.5' : '')}>
-      <span className={cn('flex shrink-0 items-center justify-center rounded-full font-semibold',
-        compact ? 'size-6 text-[10px]' : 'size-8 text-xs', highlight ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
-        {initials(e.fullName)}
-      </span>
+      <PersonAvatar name={e.fullName} url={e.avatarUrl} className={cn('shrink-0', compact ? 'size-6' : 'size-8')}
+        fallbackClassName={cn('font-semibold', compact ? 'text-[10px]' : 'text-xs', highlight ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')} />
       <span className="min-w-0">
         <span className={cn('block truncate font-medium', compact ? 'text-xs' : 'text-sm')}>{e.fullName}</span>
         <span className="block truncate text-[11px] text-muted-foreground">{roleLine(e)}{e.status === 'Probation' ? ' · thử việc' : ''}</span>

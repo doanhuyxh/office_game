@@ -34,6 +34,8 @@ export interface IEmployee {
   userId: string | null;
   /** Chỉ HR (hoặc chính chủ) nhận được */
   account: IAccountSummary | null;
+  /** /api/org/profile/avatars/{id}?v=… hoặc null */
+  avatarUrl: string | null;
 }
 
 export interface IEmployeeDetail {

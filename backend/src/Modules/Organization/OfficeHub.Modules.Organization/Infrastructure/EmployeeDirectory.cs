@@ -1,10 +1,11 @@
+using OfficeHub.BuildingBlocks.Security;
 using Microsoft.EntityFrameworkCore;
 using OfficeHub.Modules.Organization.Contracts;
 using OfficeHub.Modules.Organization.Domain;
 
 namespace OfficeHub.Modules.Organization.Infrastructure;
 
-internal sealed class EmployeeDirectory(OrgDbContext db) : IEmployeeDirectory
+internal sealed class EmployeeDirectory(OrgDbContext db, IFieldEncryptor enc) : IEmployeeDirectory
 {
     /// <summary>Lọc trên bảng Employee TRƯỚC, rồi mới chiếu sang EmployeeRef (EF không dịch được Where trên record đã chiếu).</summary>
     private IQueryable<EmployeeRef> Project(IQueryable<Employee> employees) =>
@@ -46,7 +47,16 @@ internal sealed class EmployeeDirectory(OrgDbContext db) : IEmployeeDirectory
         var row = await (from e in db.Employees.AsNoTracking().Where(e => e.Id == employeeId)
                          join p in db.Positions on e.PositionId equals p.Id into pj
                          from p in pj.DefaultIfEmpty()
-                         select new { e.Email, e.Phone, e.DateOfBirth, Position = p != null ? p.Name : null }).FirstAsync(ct);
-        return new EmployeeProfile(emp, row.Email, row.Phone, row.DateOfBirth, row.Position);
+                         select new { e.Email, e.Phone, e.DateOfBirth, Position = p != null ? p.Name : null,
+                             e.IdNumberEncrypted, e.IdIssuedOn, e.IdIssuedPlace, e.PermanentAddress, e.CurrentAddress, e.JobTitle }).FirstAsync(ct);
+        return new EmployeeProfile(emp, row.Email, row.Phone, row.DateOfBirth, row.Position,
+            row.IdNumberEncrypted is null ? null : enc.Decrypt(row.IdNumberEncrypted), row.IdIssuedOn, row.IdIssuedPlace, row.PermanentAddress, row.CurrentAddress, row.JobTitle);
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, BankAccountInfo>> GetBankAccountsAsync(IReadOnlyCollection<Guid> employeeIds, CancellationToken ct = default)
+    {
+        var rows = await db.Employees.AsNoTracking().Where(e => employeeIds.Contains(e.Id) && e.BankAccountEncrypted != null)
+            .Select(e => new { e.Id, e.BankName, e.BankAccountEncrypted, e.BankAccountHolder }).ToListAsync(ct);
+        return rows.ToDictionary(r => r.Id, r => new BankAccountInfo(r.BankName, enc.Decrypt(r.BankAccountEncrypted!), r.BankAccountHolder));
     }
 }

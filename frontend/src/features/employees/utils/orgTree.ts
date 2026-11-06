@@ -54,4 +54,5 @@ export function suggestedManager(departments: IDepartment[], departmentId: strin
   return null;
 }
 
-export const positionLabel = (p: IPosition) => `Cấp ${p.level} · ${p.name}`;
+/** "Cấp 3 · Trưởng phòng"; thiếu cấp (dữ liệu cũ / Api chưa cập nhật) → chỉ tên. */
+export const positionLabel = (p: IPosition) => (Number.isFinite(p.level) && p.level > 0 ? `Cấp ${p.level} · ${p.name}` : p.name);

@@ -22,10 +22,12 @@ import { ROLE_LABEL, STATUS_LABEL, STATUS_VARIANT } from '../utils/labels';
 import { CreateAccountDialog, ResignDialog, RolesDialog, TempPasswordDialog } from './AccountDialogs';
 import { EmployeeFormDialog } from './EmployeeFormDialog';
 import { departmentOptions } from '../utils/orgTree';
+import { PersonAvatar } from '@/components/common/PersonAvatar';
+import { EmployeePrivateDialog } from '@/features/profile';
 
 type DialogState =
   | { kind: 'form'; employee: IEmployee | null }
-  | { kind: 'account' | 'roles' | 'resign'; employee: IEmployee }
+  | { kind: 'account' | 'roles' | 'resign' | 'private'; employee: IEmployee }
   | { kind: 'temp'; userName: string; password: string }
   | null;
 
@@ -109,8 +111,13 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
               <TableRow key={e.id} className={e.status === 'Resigned' ? 'opacity-60' : undefined}>
                 <TableCell className="font-mono text-xs">{e.code}</TableCell>
                 <TableCell>
-                  <div className="font-medium">{e.fullName}</div>
-                  <div className="text-xs text-muted-foreground">{e.email ?? e.phone ?? ''}</div>
+                  <div className="flex items-center gap-2">
+                    <PersonAvatar name={e.fullName} url={e.avatarUrl} className="size-8" fallbackClassName="text-xs" />
+                    <div className="min-w-0">
+                      <div className="font-medium">{e.fullName}</div>
+                      <div className="text-xs text-muted-foreground">{[e.email, e.phone].filter(Boolean).join(' · ')}</div>
+                    </div>
+                  </div>
                 </TableCell>
                 <TableCell>{e.departmentName ?? '—'}</TableCell>
                 <TableCell>
@@ -147,6 +154,7 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>{e.code}</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => setDialog({ kind: 'form', employee: e })}>Sửa hồ sơ</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setDialog({ kind: 'private', employee: e })}>Thông tin cá nhân (CCCD, ngân hàng…)</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         {!e.userId && e.status !== 'Resigned' && (
                           <DropdownMenuItem onClick={() => setDialog({ kind: 'account', employee: e })}>Cấp tài khoản</DropdownMenuItem>
@@ -188,6 +196,7 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
       <EmployeeFormDialog open={dialog?.kind === 'form'} onOpenChange={close} employee={dialog?.kind === 'form' ? dialog.employee : null} />
       <CreateAccountDialog open={dialog?.kind === 'account'} onOpenChange={close} employee={dialog?.kind === 'account' ? dialog.employee : null}
         onTempPassword={(userName, password) => setDialog({ kind: 'temp', userName, password })} />
+      <EmployeePrivateDialog employeeId={dialog?.kind === 'private' ? dialog.employee.id : null} name={dialog?.kind === 'private' ? dialog.employee.fullName : ''} onClose={close} />
       <RolesDialog open={dialog?.kind === 'roles'} onOpenChange={close} employee={dialog?.kind === 'roles' ? dialog.employee : null} />
       <ResignDialog open={dialog?.kind === 'resign'} onOpenChange={close} employee={dialog?.kind === 'resign' ? dialog.employee : null}
         pending={resign.isPending}

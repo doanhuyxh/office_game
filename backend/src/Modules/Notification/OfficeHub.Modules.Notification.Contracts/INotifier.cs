@@ -42,4 +42,8 @@ public static class NotificationCategories
     /// <summary>Hợp đồng chờ nhân viên ký điện tử / nhân viên đã ký (module LaborContracts).</summary>
     public const string ContractSignRequested = "contract_sign_requested";
     public const string ContractSigned = "contract_signed";
+    /// <summary>Nhân viên đề nghị đổi ngày sinh / CCCD / tài khoản ngân hàng (gửi HR) · HR duyệt / từ chối (gửi nhân viên) — module Organization.</summary>
+    public const string ProfileChangeRequested = "profile_change_requested";
+    public const string ProfileChangeApproved = "profile_change_approved";
+    public const string ProfileChangeRejected = "profile_change_rejected";
 }

@@ -251,7 +251,7 @@ internal static class PayrollEndpoints
 
     // ---------------- Excel ----------------
 
-    private static async Task<Results<FileContentHttpResult, NotFound>> ExportAsync(Guid id, PayrollDbContext db, PayrollService svc, CancellationToken ct)
+    private static async Task<Results<FileContentHttpResult, NotFound>> ExportAsync(Guid id, PayrollDbContext db, PayrollService svc, IEmployeeDirectory dir, CancellationToken ct)
     {
         var p = await db.Periods.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (p is null) return TypedResults.NotFound();
@@ -283,6 +283,32 @@ internal static class PayrollEndpoints
         ws.Range(4, 7, r, 8).Style.NumberFormat.Format = "0.##";
         ws.SheetView.Freeze(3, 2);
         ws.Columns(1, head.Length).AdjustToContents(3, Math.Max(3, r), 8, 30);
+
+        // Sheet 2: danh sách chuyển khoản (tài khoản nhân viên tự khai, HR duyệt — module Organization)
+        var slipRows = await db.Payslips.AsNoTracking().Where(s => s.PeriodId == id).Select(s => s.EmployeeId).ToListAsync(ct);
+        var banks = await dir.GetBankAccountsAsync(slipRows, ct);
+        var byCode = (await db.Payslips.AsNoTracking().Where(s => s.PeriodId == id).ToListAsync(ct)).ToDictionary(s => svc.Read(s).EmployeeCode, s => s.EmployeeId);
+        var tx = wb.AddWorksheet("Chuyển khoản");
+        string[] th = ["Mã NV", "Họ tên", "Ngân hàng", "Số tài khoản", "Chủ tài khoản", "Số tiền (thực lĩnh)", "Nội dung"];
+        for (var i = 0; i < th.Length; i++) tx.Cell(1, i + 1).Value = th[i];
+        tx.Range(1, 1, 1, th.Length).Style.Font.SetBold().Fill.SetBackgroundColor(XLColor.FromHtml("#E2E8F0"));
+        var tr = 2;
+        foreach (var s in slips.Where(s => s.Net > 0))
+        {
+            var b = byCode.TryGetValue(s.EmployeeCode, out var eid) ? banks.GetValueOrDefault(eid) : null;
+            tx.Cell(tr, 1).Value = s.EmployeeCode;
+            tx.Cell(tr, 2).Value = s.FullName;
+            tx.Cell(tr, 3).Value = b?.BankName ?? "";
+            tx.Cell(tr, 4).SetValue(b?.Account ?? "CHƯA KHAI TÀI KHOẢN"); // chữ, giữ số 0 đầu
+            tx.Cell(tr, 5).Value = b?.Holder ?? "";
+            tx.Cell(tr, 6).Value = s.Net;
+            tx.Cell(tr, 7).Value = $"Luong thang {p.Month:MM/yyyy} {s.EmployeeCode}";
+            if (b is null) tx.Row(tr).Style.Font.FontColor = XLColor.Red;
+            tr++;
+        }
+        tx.Column(4).Style.NumberFormat.Format = "@";
+        tx.Range(2, 6, Math.Max(2, tr), 6).Style.NumberFormat.Format = "#,##0";
+        tx.Columns(1, th.Length).AdjustToContents();
         using var ms = new MemoryStream();
         wb.SaveAs(ms);
         return TypedResults.File(ms.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"bang-luong-{p.Month:yyyy-MM}.xlsx");

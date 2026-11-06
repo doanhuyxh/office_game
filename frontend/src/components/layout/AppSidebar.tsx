@@ -1,6 +1,5 @@
 import { Link, useLocation } from '@tanstack/react-router';
-import { Building2, ChevronsUpDown, KeyRound, LogOut } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/common/avatar';
+import { Building2, ChevronsUpDown, KeyRound, LogOut, UserRound } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/common/dropdown-menu';
@@ -12,7 +11,9 @@ import { useInboxCount } from '@/features/approvals';
 import { useLogout, useMe } from '@/features/auth';
 import { PATHS } from '@/config/paths';
 import type { NavItem } from './navigation';
-import { initials, useNavigation } from './useNavigation';
+import { useNavigation } from './useNavigation';
+import { PersonAvatar } from '@/components/common/PersonAvatar';
+import { useMyProfile } from '@/features/profile';
 
 const isActive = (pathname: string, to: string) => (to === PATHS.dashboard ? pathname === to : pathname === to || pathname.startsWith(`${to}/`));
 
@@ -56,11 +57,10 @@ function NavUser() {
   const { data: me } = useMe();
   const logout = useLogout();
   const { isMobile } = useSidebar();
+  const { data: profile } = useMyProfile();
   const who = (
     <>
-      <Avatar className="size-8 rounded-lg">
-        <AvatarFallback className="rounded-lg">{initials(me?.fullName)}</AvatarFallback>
-      </Avatar>
+      <PersonAvatar name={me?.fullName} url={profile?.avatarUrl} className="rounded-lg" fallbackClassName="rounded-lg" />
       <div className="grid flex-1 text-start text-sm leading-tight">
         <span className="truncate font-semibold">{me?.fullName}</span>
         <span className="truncate text-xs text-muted-foreground">{me?.email ?? me?.userName}</span>
@@ -89,6 +89,9 @@ function NavUser() {
               <DropdownMenuItem asChild>
                 <Link to={PATHS.changePassword}><KeyRound /> Đổi mật khẩu</Link>
               </DropdownMenuItem>
+              {profile && <DropdownMenuItem asChild>
+                <Link to={PATHS.profile}><UserRound /> Hồ sơ cá nhân</Link>
+              </DropdownMenuItem>}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onClick={logout}>

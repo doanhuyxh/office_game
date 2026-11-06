@@ -22,7 +22,7 @@ export function PositionsPanel({ canEdit }: { canEdit: boolean }) {
     if (editing === undefined) return;
     save.reset();
     setName(editing?.name ?? '');
-    setLevel(editing ? String(editing.level) : '');
+    setLevel(editing?.level ? String(editing.level) : '');
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [editing]);
   const errors = fieldErrors(save.error);
@@ -56,7 +56,7 @@ export function PositionsPanel({ canEdit }: { canEdit: boolean }) {
             )}
             {positions.map((p) => (
               <TableRow key={p.id}>
-                <TableCell><span className="inline-flex size-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{p.level}</span></TableCell>
+                <TableCell>{p.level > 0 ? <span className="inline-flex size-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{p.level}</span> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
                 <TableCell><div className="font-medium">{p.name}</div>{p.description && <div className="max-w-md truncate text-xs text-muted-foreground" title={p.description}>{p.description}</div>}</TableCell>
                 <TableCell className="text-right">{p.employeeCount}</TableCell>
                 <TableCell className="text-right whitespace-nowrap">
@@ -79,7 +79,7 @@ export function PositionsPanel({ canEdit }: { canEdit: boolean }) {
           <form onSubmit={submit} className="grid gap-4">
             <FormField id="p-name" label="Tên chức vụ *" required autoFocus value={name} onChange={(e) => setName(e.target.value)} error={errors.name} />
             <FormField id="p-level" label="Cấp bậc *" type="number" min={1} max={99} required value={level} onChange={(e) => setLevel(e.target.value)}
-              hint={`1 = cao nhất. Hiện có: ${[...new Set(positions.map((p) => p.level))].map((l) => `${l} ${positions.filter((p) => p.level === l).map((p) => p.name).join('/')}`).join(' · ')}`}
+              hint={`1 = cao nhất. Hiện có: ${[...new Set(positions.map((p) => p.level).filter((l) => l > 0))].map((l) => `${l} ${positions.filter((p) => p.level === l).map((p) => p.name).join('/')}`).join(' · ')}`}
               error={errors.level} />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditing(undefined)}>Huỷ</Button>

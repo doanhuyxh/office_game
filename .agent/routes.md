@@ -7,7 +7,7 @@
 | Tiền tố | Module | Tài liệu |
 |---|---|---|
 | `/api/auth/*` | Identity | [business/auth.md](business/auth.md) |
-| `/api/org/*` | Organization | [business/organization.md](business/organization.md) |
+| `/api/org/*` | Organization | [business/organization.md](business/organization.md), hồ sơ cá nhân `/api/org/profile/*` [business/profile.md](business/profile.md) |
 | `/api/attendance/*` | Attendance | [business/attendance.md](business/attendance.md), [business/attendance-corrections.md](business/attendance-corrections.md), [business/attendance-overtime.md](business/attendance-overtime.md) |
 | `/api/notifications/*` | Notification | [business/notifications.md](business/notifications.md) |
 | `/api/contracts/*` | LaborContracts | [business/contracts.md](business/contracts.md), ký điện tử [business/contracts-esign.md](business/contracts-esign.md) |
@@ -30,7 +30,7 @@
 | `/change-password` | `requireSession` | `ChangePasswordForm` |
 | `/office` | `requireAuth`, toàn màn hình | `OfficeView` (`@/features/office`, lazy, kéo Three.js) |
 | `/oauth/authorize` | `requireAuth`, toàn màn hình | `OAuthConsentPage` (`@/features/ai-access`) — trang đồng ý cho ứng dụng AI |
-| `/` `/attendance` `/employees` `/leave` `/approvals` `/meetings` `/contracts` `/payroll` `/payslips` `/reports` `/audit` `/ai-access` | `requireAuth`, trong `MainLayout` | `Dashboard`, `AttendancePage`, `EmployeesPage`, `LeavePage`, `ApprovalsPage`, `MeetingsPage`, `ContractsPage`, `PayrollPage`, `PayslipsPage`, `ReportsPage`, `AuditPage`, `AiAccessPage` |
+| `/` `/attendance` `/employees` `/leave` `/approvals` `/meetings` `/contracts` `/payroll` `/payslips` `/profile` `/reports` `/audit` `/ai-access` | `requireAuth`, trong `MainLayout` | `Dashboard`, `AttendancePage`, `EmployeesPage`, `LeavePage`, `ApprovalsPage`, `MeetingsPage`, `ContractsPage`, `PayrollPage`, `PayslipsPage`, `ProfilePage`, `ReportsPage`, `AuditPage`, `AiAccessPage` |
 
 `requireAuth`: chưa đăng nhập → `/login?returnUrl=…`; `mustChangePassword` → `/change-password`. Quay lại sau đăng nhập dùng `safeReturnPath` (chỉ đường dẫn cùng origin). Mọi trang trong `page(...)` là lazy chunk; Three.js tách chunk `three` (`vite.config.ts` `manualChunks`). **Trang theo vai trò: `config/access.ts` → `PAGE_ROLES`** (nguồn duy nhất): Bảng lương, Báo cáo, Lịch sử thay đổi = admin/hr. Menu sidebar / ⌘K (`useNavigation`) ẩn mục không đủ quyền; route trong `PAGE_ROLES` được `page(...)` bọc `routes/RoleGate.tsx` → gõ thẳng URL sai vai trò hiện `components/feedback/Forbidden.tsx` ("Bạn không có quyền xem trang này"), không tải chunk trang, không gọi API. Trang khác ai cũng vào, nội dung lọc theo vai trò bên trong (Hợp đồng: nhân viên chỉ xem của mình). Query bị 403 → toast "Bạn không có quyền xem dữ liệu này" (gộp 1 lần, không retry — `App.tsx`). Chỉ là lớp giao diện, quyền thật ở back-end. Bố cục khung trang: [frontend.md](frontend.md#bố-cục-mainlayout).
 

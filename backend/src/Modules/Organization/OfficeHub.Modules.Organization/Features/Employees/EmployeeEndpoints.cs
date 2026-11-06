@@ -228,7 +228,7 @@ internal static class EmployeeEndpoints
             e.JobTitle,
             e.ManagerId, e.ManagerId is { } m ? managers.GetValueOrDefault(m) : null,
             hrFields(e) ? e.Status.ToString() : null, hrFields(e) ? e.JoinedAt : null, hrFields(e) ? e.LeftAt : null, e.UserId,
-            e.UserId is { } u && accs.TryGetValue(u, out var a) ? AccountSummary.From(a) : null)).ToList();
+            e.UserId is { } u && accs.TryGetValue(u, out var a) ? AccountSummary.From(a) : null, Profile.ProfileEndpoints.AvatarUrl(e))).ToList();
     }
 
     internal static async Task<EmployeeDetail> ToDetailAsync(Employee e, bool includeAccount, OrgDbContext db, IAccountService accounts, CancellationToken ct,

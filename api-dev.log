@@ -1,0 +1,35 @@
+Using launch settings from src/OfficeHub.Api/Properties/launchSettings.json...
+[16:56:01 INF] No migrations were applied. The database is already up to date.
+[16:56:01 INF] Applying migration '20261106093956_PersonalProfile'.
+[16:56:02 INF] No migrations were applied. The database is already up to date.
+[16:56:02 INF] No migrations were applied. The database is already up to date.
+[16:56:02 INF] No migrations were applied. The database is already up to date.
+[16:56:02 INF] No migrations were applied. The database is already up to date.
+[16:56:02 INF] No migrations were applied. The database is already up to date.
+[16:56:02 INF] No migrations were applied. The database is already up to date.
+[16:56:02 INF] No migrations were applied. The database is already up to date.
+[16:56:03 INF] No migrations were applied. The database is already up to date.
+[16:56:03 INF] Now listening on: http://localhost:5080
+[16:56:03 INF] Application started. Press Ctrl+C to shut down.
+[16:56:03 INF] Hosting environment: Development
+[16:56:03 INF] Content root path: /Users/user/Desktop/Code_Data/freelane_project/office_game/backend/src/OfficeHub.Api
+[16:56:04 INF] HTTP GET /health responded 200 in 24.8168 ms
+[16:56:15 INF] HTTP POST /api/auth/login responded 200 in 224.1593 ms
+[16:56:15 INF] HTTP GET /api/org/positions responded 200 in 384.9426 ms
+[16:56:15 INF] HTTP GET /api/org/employees responded 200 in 326.4778 ms
+[16:56:15 INF] HTTP GET /api/payroll/settings responded 200 in 111.2559 ms
+[16:56:16 INF] HTTP GET /api/contracts/sign-requests responded 200 in 115.8618 ms
+[16:56:16 INF] HTTP GET /api/org/employees/me/role responded 200 in 132.9816 ms
+[16:56:16 INF] HTTP GET /api/org/profile/me responded 200 in 163.8631 ms
+[16:56:16 INF] HTTP GET /api/org/profile/requests responded 200 in 114.2443 ms
+[16:57:57 INF] HTTP GET /api/auth/me responded 200 in 64.3978 ms
+[16:57:57 INF] HTTP GET /api/org/positions responded 200 in 94.2634 ms
+[16:57:57 INF] HTTP GET /api/notifications responded 200 in 102.0551 ms
+[16:57:57 INF] HTTP GET /api/org/profile/me responded 404 in 139.1701 ms
+[16:57:57 INF] HTTP GET /api/org/departments responded 200 in 153.2123 ms
+[16:57:57 INF] HTTP GET /api/approval/inbox/count responded 200 in 171.7538 ms
+[16:57:57 INF] HTTP GET /api/org/profile/requests responded 200 in 82.9821 ms
+[16:57:57 INF] HTTP GET /api/org/employees responded 200 in 292.7059 ms
+[16:57:57 INF] HTTP GET /api/org/employees responded 200 in 212.3983 ms
+[16:58:15 INF] HTTP GET /api/org/profile/employees/01a1ab80-ed91-73a7-8060-e5947f189126 responded 200 in 109.4469 ms
+[16:58:27 INF] HTTP GET /api/notifications responded 200 in 94.3280 ms

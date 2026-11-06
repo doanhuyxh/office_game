@@ -10,7 +10,7 @@ public sealed record EmployeeListItem(
     Guid Id, string Code, string FullName, string? Email, string? Phone,
     Guid? DepartmentId, string? DepartmentName, Guid? PositionId, string? PositionName, int? PositionLevel, string? JobTitle,
     Guid? ManagerId, string? ManagerName, string? Status, DateOnly? JoinedAt, DateOnly? LeftAt,
-    Guid? UserId, AccountSummary? Account);
+    Guid? UserId, AccountSummary? Account, string? AvatarUrl = null);
 
 /// <summary>Tóm tắt tài khoản đăng nhập (chỉ HR / chính chủ thấy).</summary>
 public sealed record AccountSummary(string UserName, IReadOnlyList<string> Roles, bool IsActive, bool MustChangePassword,

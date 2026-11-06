@@ -8,6 +8,8 @@ using OfficeHub.Modules.Organization.Contracts;
 using OfficeHub.Modules.Organization.Features.Departments;
 using OfficeHub.Modules.Organization.Features.Employees;
 using OfficeHub.Modules.Organization.Features.Positions;
+using OfficeHub.Modules.Organization.Features.Profile;
+using OfficeHub.BuildingBlocks.Security;
 using OfficeHub.Modules.Organization.Features.Guides;
 using OfficeHub.Modules.Organization.Infrastructure;
 
@@ -21,6 +23,7 @@ public sealed class OrganizationModule : IModule
     public void Register(IServiceCollection services, IConfiguration config)
     {
         services.AddModuleDbContext<OrgDbContext>(config, OrgDbContext.Schema);
+        services.AddFieldEncryption(config); // CCCD, số tài khoản ngân hàng
         services.AddScoped<IEmployeeDirectory, EmployeeDirectory>();
         services.AddHostedService<OrgMigrator>();
     }
@@ -31,6 +34,7 @@ public sealed class OrganizationModule : IModule
         DepartmentEndpoints.Map(org);
         PositionEndpoints.Map(org);
         GuideEndpoints.Map(org);
+        ProfileEndpoints.Map(org);
         EmployeeEndpoints.Map(org);
         ImportEndpoints.Map(org);
         AccountEndpoints.Map(org);

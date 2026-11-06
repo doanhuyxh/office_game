@@ -14,6 +14,11 @@ public static class ContractFields
         new("NgaySinh", "Ngày sinh", "15/08/1995"),
         new("Email", "Email", "an.nguyen@congty.vn"),
         new("SoDienThoai", "Số điện thoại", "0901234567"),
+        new("SoCCCD", "Số CCCD", "079095001234"),
+        new("NgayCapCCCD", "Ngày cấp CCCD", "10/05/2021"),
+        new("NoiCapCCCD", "Nơi cấp CCCD", "Cục Cảnh sát QLHC về TTXH"),
+        new("DiaChiThuongTru", "Địa chỉ thường trú", "12 Lê Lợi, P. Bến Nghé, Q.1, TP.HCM"),
+        new("DiaChiHienTai", "Địa chỉ hiện tại (trống → thường trú)", "34 Nguyễn Trãi, Q.5, TP.HCM"),
         new("PhongBan", "Phòng ban", "Kỹ thuật"),
         new("ChucVu", "Chức vụ (hồ sơ nhân viên)", "Chuyên viên"),
         new("ChucDanh", "Chức danh trên hợp đồng (trống → chức vụ)", "Lập trình viên"),
@@ -37,7 +42,8 @@ public static class ContractFields
 
     public sealed record Source(string FullName, string Code, DateOnly? DateOfBirth, string? Email, string? Phone, string? Department, string? Position,
         string Number, ContractType Type, DateOnly? SignedDate, DateOnly StartDate, DateOnly? EndDate, string? JobTitle,
-        decimal? Salary, decimal? Allowance, DateOnly Today);
+        decimal? Salary, decimal? Allowance, DateOnly Today,
+        string? IdNumber = null, DateOnly? IdIssuedOn = null, string? IdIssuedPlace = null, string? PermanentAddress = null, string? CurrentAddress = null);
 
     private static readonly CultureInfo Vi = CultureInfo.GetCultureInfo("vi-VN");
 
@@ -52,6 +58,11 @@ public static class ContractFields
             ["NgaySinh"] = D(s.DateOfBirth),
             ["Email"] = s.Email ?? "",
             ["SoDienThoai"] = s.Phone ?? "",
+            ["SoCCCD"] = s.IdNumber ?? "",
+            ["NgayCapCCCD"] = D(s.IdIssuedOn),
+            ["NoiCapCCCD"] = s.IdIssuedPlace ?? "",
+            ["DiaChiThuongTru"] = s.PermanentAddress ?? "",
+            ["DiaChiHienTai"] = s.CurrentAddress ?? s.PermanentAddress ?? "",
             ["PhongBan"] = s.Department ?? "",
             ["ChucVu"] = s.Position ?? "",
             ["ChucDanh"] = string.IsNullOrWhiteSpace(s.JobTitle) ? s.Position ?? "" : s.JobTitle,

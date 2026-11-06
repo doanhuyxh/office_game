@@ -77,4 +77,39 @@ public sealed class Employee : Entity
     /// <summary>Tài khoản đăng nhập (module Identity). Null = chưa cấp tài khoản.</summary>
     public Guid? UserId { get; set; }
     public string? Note { get; set; }
+
+    // ---- Thông tin cá nhân (xem PersonalProfile). Liên hệ: nhân viên tự sửa. Ngày sinh / CCCD / ngân hàng: qua yêu cầu HR duyệt. ----
+    public string? CurrentAddress { get; set; }
+    public string? PermanentAddress { get; set; }
+    public string? EmergencyContactName { get; set; }
+    public string? EmergencyContactRelation { get; set; }
+    public string? EmergencyContactPhone { get; set; }
+    /// <summary>Khoá S3 ảnh đại diện (employees/{id}/avatar/{uuid}.{ext}); uuid đổi mỗi lần tải → dùng làm phiên bản cache.</summary>
+    public string? AvatarKey { get; set; }
+    /// <summary>Số CCCD — mã hoá AES-GCM (IFieldEncryptor).</summary>
+    public string? IdNumberEncrypted { get; set; }
+    public DateOnly? IdIssuedOn { get; set; }
+    public string? IdIssuedPlace { get; set; }
+    public string? BankName { get; set; }
+    /// <summary>Số tài khoản ngân hàng — mã hoá AES-GCM.</summary>
+    public string? BankAccountEncrypted { get; set; }
+    public string? BankAccountHolder { get; set; }
+}
+
+public enum ProfileRequestStatus { Pending = 0, Approved = 1, Rejected = 2, Cancelled = 3 }
+
+/// <summary>Yêu cầu cập nhật thông tin cần HR duyệt (ngày sinh, CCCD, tài khoản ngân hàng). Mỗi nhân viên tối đa 1 yêu cầu Pending.</summary>
+[Audited]
+public sealed class ProfileChangeRequest
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid EmployeeId { get; set; }
+    public ProfileRequestStatus Status { get; set; }
+    /// <summary>JSON <see cref="SensitiveChange"/> (chỉ các trường muốn đổi) — mã hoá vì chứa CCCD / số tài khoản.</summary>
+    public string DataEncrypted { get; set; } = "";
+    public string? Note { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? DecidedAt { get; set; }
+    public string? DecidedByName { get; set; }
+    public string? RejectReason { get; set; }
 }

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { ArrowRight, Building2, Check, KeyRound, Laptop, LogOut, Moon, SearchIcon, Share, Smartphone, Sun } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/common/avatar';
+import { ArrowRight, Building2, Check, KeyRound, Laptop, LogOut, Moon, SearchIcon, Share, Smartphone, Sun, UserRound } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator,
@@ -19,7 +18,9 @@ import { PATHS } from '@/config/paths';
 import { cn } from '@/utils/cn';
 import { usePwaInstall } from '@/pwa';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/common/dialog';
-import { initials, useNavigation } from './useNavigation';
+import { useNavigation } from './useNavigation';
+import { PersonAvatar } from '@/components/common/PersonAvatar';
+import { useMyProfile } from '@/features/profile';
 
 const THEMES: { value: Theme; label: string; icon: typeof Sun }[] = [
   { value: 'light', label: 'Sáng', icon: Sun },
@@ -110,15 +111,14 @@ function ProfileDropdown() {
   const { data: me } = useMe();
   const logout = useLogout();
   const pwa = usePwaInstall();
+  const { data: profile } = useMyProfile();
   const [iosHelp, setIosHelp] = useState(false);
   return (
     <>
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative size-8 rounded-full">
-          <Avatar className="size-8">
-            <AvatarFallback>{initials(me?.fullName)}</AvatarFallback>
-          </Avatar>
+          <PersonAvatar name={me?.fullName} url={profile?.avatarUrl} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end">
@@ -130,6 +130,9 @@ function ProfileDropdown() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
+          {profile && <DropdownMenuItem asChild>
+            <Link to={PATHS.profile}><UserRound /> Hồ sơ cá nhân</Link>
+          </DropdownMenuItem>}
           <DropdownMenuItem asChild>
             <Link to={PATHS.office}><Building2 /> Vào văn phòng 3D</Link>
           </DropdownMenuItem>
@@ -172,7 +175,7 @@ export function Header() {
   }, []);
 
   return (
-    <header className={cn('sticky top-0 z-40 h-16', scrolled ? 'shadow-lg' : 'shadow-sm')}>
+    <header className={cn('sticky top-0 z-40 h-16 rounded-t-[inherit]', scrolled ? 'shadow-lg' : 'shadow-sm')}>
       <div
         className={cn(
           'relative flex h-full items-center gap-3 p-4 sm:gap-4',

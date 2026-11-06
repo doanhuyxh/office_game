@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { AlarmClock, Ban, Bell, CalendarClock, CalendarX, CheckCircle2, FileClock, FilePen, FileSignature, Inbox, Wallet, XCircle } from 'lucide-react';
+import { AlarmClock, Ban, Bell, CalendarClock, CalendarX, CheckCircle2, FileClock, FilePen, FileSignature, Inbox, UserCheck, UserPen, UserX, Wallet, XCircle } from 'lucide-react';
 import { formatDate } from '@/utils/date';
 
 /** Icon + màu (token theme) theo loại thông báo. */
@@ -15,6 +15,9 @@ export const CATEGORY: Record<string, { icon: LucideIcon; className: string }> =
   payslip_ready: { icon: Wallet, className: 'text-success' },
   contract_sign_requested: { icon: FilePen, className: 'text-primary' },
   contract_signed: { icon: FileSignature, className: 'text-success' },
+  profile_change_requested: { icon: UserPen, className: 'text-primary' },
+  profile_change_approved: { icon: UserCheck, className: 'text-success' },
+  profile_change_rejected: { icon: UserX, className: 'text-destructive' },
 };
 export const FALLBACK = { icon: Bell, className: 'text-muted-foreground' };
 
