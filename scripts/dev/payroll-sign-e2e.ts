@@ -188,7 +188,8 @@ const curP = await json(admin.cookie, 'POST', '/api/payroll/periods', { month: c
 ok('kỳ tháng hiện tại: chốt bị chặn (chưa hết tháng)', curP.status === 200 && (await call(admin.cookie, 'POST', `/api/payroll/periods/${curP.body.id}/lock`)).status === 409);
 
 // ---------- Token AI không chạm được lương / hợp đồng ----------
-const tok = await json(nv.cookie, 'POST', '/api/auth/access-tokens', { name: 'e2e', expiresInDays: 7 });
+const tok = await json(nv.cookie, 'POST', '/api/auth/access-tokens', { name: 'e2e', expiresInDays: 30 });
+ok('tạo token AI cho nhân viên', tok.status === 200 && String(tok.body?.token).startsWith('ohk_'), tok);
 const bearer = { authorization: `Bearer ${tok.body?.token}` };
 const st = async (p: string, m = 'GET') => (await fetch(API + p, { method: m, headers: bearer })).status;
 ok('token AI: /api/payroll/my bị chặn', [401, 403].includes(await st('/api/payroll/my')));

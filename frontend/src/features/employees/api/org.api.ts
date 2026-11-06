@@ -2,6 +2,7 @@ import { http, httpPost } from '@/services/api-client';
 import type {
   AccountMode, IAccountCreated, IDepartment, IEmployee, IEmployeeDetail, IEmployeeFilter, IPosition,
   IImportPreview, IImportResult, IUpsertDepartment, IUpsertEmployee, IUpsertPosition,
+  IDepartmentDetail, IGuide, IMyRole, IPositionDetail,
 } from '../types/employee.types';
 
 const put = <T>(url: string, body: unknown) => http<T>(url, { method: 'PUT', body: JSON.stringify(body) });
@@ -14,6 +15,10 @@ export const orgKeys = {
   myProfile: ['org', 'employee', 'me'] as const,
   departments: ['org', 'departments'] as const,
   positions: ['org', 'positions'] as const,
+  department: (id: string) => ['org', 'departments', id] as const,
+  position: (id: string) => ['org', 'positions', id] as const,
+  myRole: ['org', 'my-role'] as const,
+  guideTemplates: ['org', 'guide-templates'] as const,
 };
 
 export const employeesApi = {
@@ -61,4 +66,14 @@ export const positionsApi = {
   create: (body: IUpsertPosition) => httpPost<string>('/api/org/positions', body),
   update: (id: string, body: IUpsertPosition) => put<void>(`/api/org/positions/${id}`, body),
   remove: (id: string) => del(`/api/org/positions/${id}`),
+};
+
+/** Mô tả + hướng dẫn (đọc: mọi người; sửa phòng ban: HR / trưởng phòng đó; sửa chức vụ: HR). */
+export const guidesApi = {
+  department: (id: string) => http<IDepartmentDetail>(`/api/org/departments/${id}`),
+  position: (id: string) => http<IPositionDetail>(`/api/org/positions/${id}`),
+  saveDepartment: (id: string, body: { description: string | null; guide: string | null }) => put<IGuide>(`/api/org/departments/${id}/guide`, body),
+  savePosition: (id: string, body: { description: string | null; guide: string | null }) => put<IGuide>(`/api/org/positions/${id}/guide`, body),
+  myRole: () => http<IMyRole>('/api/org/employees/me/role'),
+  templates: () => http<{ department: string; position: string }>('/api/org/guide-templates'),
 };

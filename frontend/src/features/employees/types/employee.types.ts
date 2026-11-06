@@ -82,6 +82,8 @@ export interface IDepartment {
   mapZone: string | null;
   sortOrder: number;
   employeeCount: number;
+  description: string | null;
+  hasGuide: boolean;
 }
 
 export interface IUpsertDepartment {
@@ -100,6 +102,8 @@ export interface IPosition {
   level: number;
   sortOrder: number;
   employeeCount: number;
+  description: string | null;
+  hasGuide: boolean;
 }
 
 export interface IUpsertPosition {
@@ -137,3 +141,21 @@ export interface IImportResult {
   created: number;
   codes: string[];
 }
+
+/** Mô tả + hướng dẫn phòng ban / chức vụ — mọi nhân viên và trợ lý AI (MCP) đọc được. */
+export interface IGuide {
+  description: string | null;
+  guide: string | null;
+  guideUpdatedAt: string | null;
+  guideUpdatedByName: string | null;
+}
+export interface IDepartmentDetail {
+  id: string; name: string; code: string | null; parentId: string | null; parentName: string | null;
+  headEmployeeId: string | null; headName: string | null; employeeCount: number; guide: IGuide; canEditGuide: boolean;
+}
+export interface IPositionDetail { id: string; name: string; level: number; employeeCount: number; guide: IGuide; canEditGuide: boolean }
+export interface IRolePerson { id: string; code: string; fullName: string; jobTitle: string | null; positionName: string | null }
+export interface IRoleDepartment { id: string; name: string; code: string | null; headName: string | null; isHead: boolean; description: string | null; guide: string | null }
+export interface IRolePosition { id: string; name: string; level: number; description: string | null; guide: string | null }
+/** Vai trò của tôi — cùng nội dung tool MCP get_my_role trả cho trợ lý AI. departments: phòng mình trước, rồi phòng cha. */
+export interface IMyRole { me: IRolePerson; position: IRolePosition | null; departments: IRoleDepartment[]; manager: IRolePerson | null; headOf: string[] }

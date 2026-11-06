@@ -60,6 +60,8 @@ Chủ dự án chốt 2026-11-06: **phòng ban mở rộng tự do** (cây nhi�
 
 `MapZone` của phòng ban = `areas[].id` hoặc `rooms[].zone` trong `shared/office-map.json` v2 (danh sách: `features/employees/utils/mapZones.ts`; không dùng để xếp chỗ ngồi — chủ dự án bỏ tính năng gán chỗ).
 
+**Mô tả + hướng dẫn** phòng ban / chức vụ (cho nhân viên + trợ lý AI, trưởng phòng sửa được phòng mình): [org-guides.md](org-guides.md).
+
 ## `IEmployeeDirectory` (Organization.Contracts → `Infrastructure/EmployeeDirectory.cs`)
 
 `GetByUserIdAsync`, `GetAsync`, `ListActiveAsync` (không Resigned, theo `Code`), `GetSubordinateIdsAsync` (cấp dưới trực tiếp + gián tiếp, duyệt cây trong RAM). Trả `EmployeeRef { Id, Code, FullName, UserId, DepartmentId, DepartmentName, ManagerId, IsActive, JoinedAt, LeftAt }`. **Lọc trên `db.Employees` trước khi chiếu sang record** — EF không dịch được `Where` trên record đã chiếu.

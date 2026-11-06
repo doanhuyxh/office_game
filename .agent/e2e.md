@@ -15,9 +15,9 @@
 | `voice-e2e.ts` | 2 Chrome micro giả: nghe gần / huỷ nhận âm khi xa, phím M, đổi kênh vào phòng họp, server không cấp token phòng khi đứng ngoài, chia sẻ màn hình, `VoiceGuard` đẩy client không đổi kênh. Cần container `livekit` (`docker compose … up -d livekit`). Hook `window.__officeVoice` |
 | `office-chat-e2e.ts` | 2 Chrome: chat toàn văn phòng, chat phòng (chỉ người trong phòng nhận, khu mở bị từ chối), joystick / zoom trên màn cảm ứng giả lập |
 | `payroll-sign-e2e.ts` | Ký điện tử (PDF, OTP qua Mailpit, sai mã, không đồng ý, ký, SHA bản đã ký, huỷ) + bảng lương (thông số, hồ sơ thuế, kỳ, khoản cộng/trừ, Excel, chốt, phiếu của tôi, chặn token AI). **Chỉ DB tạm + Mailpit** (hướng dẫn trong đầu file) |
+| `org-guide-e2e.ts` | Mô tả + hướng dẫn: quyền HR / trưởng phòng / nhân viên / token AI, `me/role`, lịch sử sửa, 5 tool MCP thật. **Chỉ DB tạm**; host MCP chạy `Mcp__ApiBaseUrl=http://localhost:5180 ASPNETCORE_URLS=http://localhost:5200` |
 
 ## Test trên DB tạm (khi test tạo dữ liệu không xoá được, vd nhân viên)
 
 `docker run -d --name officehub-e2e-pg -e POSTGRES_DB=officehub_e2e -e POSTGRES_USER=e2e -e POSTGRES_PASSWORD=<tuỳ ý> -p 127.0.0.1:55432:5432 postgres:18-alpine` → chạy Api với `ConnectionStrings__Default=Host=127.0.0.1;Port=55432;…` (tự migrate + tạo admin từ `Seed__*`) → test → `docker rm -f officehub-e2e-pg`. S3 / SMTP vẫn là dịch vụ thật trong `.env`.
 Cần đọc email (OTP ký): thêm container Mailpit (`axllent/mailpit`, SMTP 11025, API 18025) và chạy Api với `Smtp__Host=127.0.0.1 Smtp__Port=11025 Smtp__UseSsl=false Smtp__Username= Smtp__Password=` → không gửi email thật.
-

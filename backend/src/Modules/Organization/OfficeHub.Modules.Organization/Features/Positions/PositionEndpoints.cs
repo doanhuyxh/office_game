@@ -11,7 +11,7 @@ using OfficeHub.Modules.Organization.Infrastructure;
 namespace OfficeHub.Modules.Organization.Features.Positions;
 
 /// <param name="Level">Cấp bậc, 1 = cao nhất. Danh sách luôn sắp theo cấp rồi tên.</param>
-public sealed record PositionDto(Guid Id, string Name, int Level, int SortOrder, int EmployeeCount);
+public sealed record PositionDto(Guid Id, string Name, int Level, int SortOrder, int EmployeeCount, string? Description = null, bool HasGuide = false);
 public sealed record UpsertPositionRequest(string Name, int Level, int SortOrder = 0);
 
 internal static class PositionEndpoints
@@ -30,7 +30,7 @@ internal static class PositionEndpoints
         var counts = await db.Employees.Where(e => e.Status != EmployeeStatus.Resigned && e.PositionId != null)
             .GroupBy(e => e.PositionId!.Value).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
         var list = await db.Positions.AsNoTracking().OrderBy(p => p.Level).ThenBy(p => p.SortOrder).ThenBy(p => p.Name).ToListAsync(ct);
-        return TypedResults.Ok(list.Select(p => new PositionDto(p.Id, p.Name, p.Level, p.SortOrder, counts.GetValueOrDefault(p.Id))).ToList());
+        return TypedResults.Ok(list.Select(p => new PositionDto(p.Id, p.Name, p.Level, p.SortOrder, counts.GetValueOrDefault(p.Id), p.Description, p.Guide != null)).ToList());
     }
 
     private static async Task<Results<Created<Guid>, ValidationProblem>> CreateAsync(UpsertPositionRequest req, OrgDbContext db, CancellationToken ct)

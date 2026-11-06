@@ -19,6 +19,9 @@ public sealed class OrgDbContext(DbContextOptions<OrgDbContext> options, TimePro
         b.Entity<Department>(e =>
         {
             e.ToTable("departments");
+            e.Property(x => x.Description).HasMaxLength(OrgGuide.DescriptionMax);
+            e.Property(x => x.Guide).HasMaxLength(OrgGuide.GuideMax);
+            e.Property(x => x.GuideUpdatedByName).HasMaxLength(200);
             e.Property(x => x.Name).HasMaxLength(150);
             e.Property(x => x.Code).HasMaxLength(30);
             e.Property(x => x.MapZone).HasMaxLength(50);
@@ -31,6 +34,9 @@ public sealed class OrgDbContext(DbContextOptions<OrgDbContext> options, TimePro
             e.ToTable("positions");
             e.Property(x => x.Name).HasMaxLength(150);
             e.HasIndex(x => x.Level);
+            e.Property(x => x.Description).HasMaxLength(OrgGuide.DescriptionMax);
+            e.Property(x => x.Guide).HasMaxLength(OrgGuide.GuideMax);
+            e.Property(x => x.GuideUpdatedByName).HasMaxLength(200);
             e.HasIndex(x => x.Name).IsUnique().HasFilter("\"DeletedAt\" IS NULL");
             e.HasQueryFilter(x => x.DeletedAt == null);
         });

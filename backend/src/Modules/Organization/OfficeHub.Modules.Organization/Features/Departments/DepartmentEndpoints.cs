@@ -11,7 +11,7 @@ using OfficeHub.Modules.Organization.Infrastructure;
 namespace OfficeHub.Modules.Organization.Features.Departments;
 
 public sealed record DepartmentDto(Guid Id, string Name, string? Code, Guid? ParentId, Guid? HeadEmployeeId, string? HeadName,
-    string? MapZone, int SortOrder, int EmployeeCount);
+    string? MapZone, int SortOrder, int EmployeeCount, string? Description = null, bool HasGuide = false);
 
 public sealed record UpsertDepartmentRequest(string Name, string? Code, Guid? ParentId, Guid? HeadEmployeeId, string? MapZone, int SortOrder = 0);
 
@@ -37,7 +37,7 @@ internal static class DepartmentEndpoints
             orderby d.SortOrder, d.Name
             select new { d, HeadName = h != null ? h.FullName : null }).ToListAsync(ct);
         return TypedResults.Ok(list.Select(x => new DepartmentDto(x.d.Id, x.d.Name, x.d.Code, x.d.ParentId, x.d.HeadEmployeeId, x.HeadName,
-            x.d.MapZone, x.d.SortOrder, counts.GetValueOrDefault(x.d.Id))).ToList());
+            x.d.MapZone, x.d.SortOrder, counts.GetValueOrDefault(x.d.Id), x.d.Description, x.d.Guide != null)).ToList());
     }
 
     private static async Task<Results<Created<Guid>, ValidationProblem>> CreateAsync(UpsertDepartmentRequest req, OrgDbContext db, CancellationToken ct)

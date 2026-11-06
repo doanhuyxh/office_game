@@ -8,6 +8,7 @@ using OfficeHub.Modules.Organization.Contracts;
 using OfficeHub.Modules.Organization.Features.Departments;
 using OfficeHub.Modules.Organization.Features.Employees;
 using OfficeHub.Modules.Organization.Features.Positions;
+using OfficeHub.Modules.Organization.Features.Guides;
 using OfficeHub.Modules.Organization.Infrastructure;
 
 namespace OfficeHub.Modules.Organization;
@@ -29,6 +30,7 @@ public sealed class OrganizationModule : IModule
         var org = api.MapGroup("/org").RequireAuthorization();
         DepartmentEndpoints.Map(org);
         PositionEndpoints.Map(org);
+        GuideEndpoints.Map(org);
         EmployeeEndpoints.Map(org);
         ImportEndpoints.Map(org);
         AccountEndpoints.Map(org);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { BookOpen, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -15,6 +15,7 @@ import { useDeleteDepartment, useDepartments, useEmployees, useSaveDepartment } 
 import type { IDepartment, IUpsertDepartment } from '../types/employee.types';
 import { MAP_ZONES, mapZoneName } from '../utils/mapZones';
 import { departmentOptions, departmentTree, descendantIds } from '../utils/orgTree';
+import { GuideDialog, type GuideTarget } from './GuideDialog';
 
 function DepartmentDialog({ open, onOpenChange, dept }: { open: boolean; onOpenChange: (o: boolean) => void; dept: IDepartment | null }) {
   const save = useSaveDepartment();
@@ -64,6 +65,7 @@ export function DepartmentsPanel({ canEdit }: { canEdit: boolean }) {
   const remove = useDeleteDepartment();
   const [editing, setEditing] = useState<IDepartment | null | undefined>(undefined); // undefined = đóng, null = thêm mới
   const [deleting, setDeleting] = useState<IDepartment | null>(null);
+  const [guide, setGuide] = useState<GuideTarget>(null);
   const byId = new Map(departments.map((d) => [d.id, d]));
 
   return (
@@ -74,31 +76,37 @@ export function DepartmentsPanel({ canEdit }: { canEdit: boolean }) {
           <TableHeader>
             <TableRow>
               <TableHead>Phòng ban</TableHead><TableHead>Thuộc</TableHead><TableHead>Trưởng phòng</TableHead>
-              <TableHead>Khu vực 3D</TableHead><TableHead className="text-right">Nhân viên</TableHead>{canEdit && <TableHead className="w-24" />}
+              <TableHead>Khu vực 3D</TableHead><TableHead className="text-right">Nhân viên</TableHead><TableHead className="w-32" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {!isLoading && departments.length === 0 && (
-              <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Chưa có phòng ban</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Chưa có phòng ban</TableCell></TableRow>
             )}
             {departmentTree(departments).map(({ dept: d, depth }) => (
               <TableRow key={d.id}>
-                <TableCell style={{ paddingLeft: `${0.5 + depth * 1.5}rem` }}>{depth > 0 && <span className="mr-1 text-muted-foreground">└</span>}<span className="font-medium">{d.name}</span>{d.code && <span className="ml-2 text-xs text-muted-foreground">{d.code}</span>}</TableCell>
+                <TableCell style={{ paddingLeft: `${0.5 + depth * 1.5}rem` }}>{depth > 0 && <span className="mr-1 text-muted-foreground">└</span>}<span className="font-medium">{d.name}</span>{d.code && <span className="ml-2 text-xs text-muted-foreground">{d.code}</span>}
+                  {d.description && <div className="max-w-md truncate text-xs text-muted-foreground" title={d.description}>{d.description}</div>}</TableCell>
                 <TableCell>{d.parentId ? byId.get(d.parentId)?.name : '—'}</TableCell>
                 <TableCell>{d.headName ?? '—'}</TableCell>
                 <TableCell>{mapZoneName(d.mapZone) ?? d.mapZone ?? '—'}</TableCell>
                 <TableCell className="text-right">{d.employeeCount}</TableCell>
+                <TableCell className="text-right whitespace-nowrap">
+                  <Button variant="ghost" size="icon" aria-label="Mô tả & hướng dẫn" title="Mô tả & hướng dẫn" onClick={() => setGuide({ kind: 'department', id: d.id, name: d.name })}>
+                    <BookOpen className={d.hasGuide ? 'text-primary' : undefined} /></Button>
                 {canEdit && (
-                  <TableCell className="text-right">
+                  <>
                     <Button variant="ghost" size="icon" aria-label="Sửa" onClick={() => setEditing(d)}><Pencil /></Button>
                     <Button variant="ghost" size="icon" aria-label="Xoá" onClick={() => setDeleting(d)}><Trash2 /></Button>
-                  </TableCell>
+                  </>
                 )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+      <GuideDialog target={guide} onClose={() => setGuide(null)} />
       <DepartmentDialog open={editing !== undefined} onOpenChange={() => setEditing(undefined)} dept={editing ?? null} />
       <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <AlertDialogContent>

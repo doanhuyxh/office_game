@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { BookOpen, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { useDeletePosition, usePositions, useSavePosition } from '../hooks/useOrg';
 import type { IPosition } from '../types/employee.types';
+import { GuideDialog, type GuideTarget } from './GuideDialog';
 
 export function PositionsPanel({ canEdit }: { canEdit: boolean }) {
   const { data: positions = [], isLoading } = usePositions();
@@ -16,6 +17,7 @@ export function PositionsPanel({ canEdit }: { canEdit: boolean }) {
   const [editing, setEditing] = useState<IPosition | null | undefined>(undefined);
   const [name, setName] = useState('');
   const [level, setLevel] = useState('');
+  const [guide, setGuide] = useState<GuideTarget>(null);
   useEffect(() => {
     if (editing === undefined) return;
     save.reset();
@@ -46,7 +48,7 @@ export function PositionsPanel({ canEdit }: { canEdit: boolean }) {
       <div className="rounded-xl border bg-card">
         <Table>
           <TableHeader>
-            <TableRow><TableHead className="w-20">Cấp</TableHead><TableHead>Chức vụ</TableHead><TableHead className="text-right">Nhân viên</TableHead>{canEdit && <TableHead className="w-24" />}</TableRow>
+            <TableRow><TableHead className="w-20">Cấp</TableHead><TableHead>Chức vụ</TableHead><TableHead className="text-right">Nhân viên</TableHead><TableHead className="w-32" /></TableRow>
           </TableHeader>
           <TableBody>
             {!isLoading && positions.length === 0 && (
@@ -55,19 +57,22 @@ export function PositionsPanel({ canEdit }: { canEdit: boolean }) {
             {positions.map((p) => (
               <TableRow key={p.id}>
                 <TableCell><span className="inline-flex size-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{p.level}</span></TableCell>
-                <TableCell className="font-medium">{p.name}</TableCell>
+                <TableCell><div className="font-medium">{p.name}</div>{p.description && <div className="max-w-md truncate text-xs text-muted-foreground" title={p.description}>{p.description}</div>}</TableCell>
                 <TableCell className="text-right">{p.employeeCount}</TableCell>
-                {canEdit && (
-                  <TableCell className="text-right">
+                <TableCell className="text-right whitespace-nowrap">
+                  <Button variant="ghost" size="icon" aria-label="Mô tả & hướng dẫn" title="Mô tả & hướng dẫn" onClick={() => setGuide({ kind: 'position', id: p.id, name: p.name })}>
+                    <BookOpen className={p.hasGuide ? 'text-primary' : undefined} /></Button>
+                  {canEdit && <>
                     <Button variant="ghost" size="icon" aria-label="Sửa" onClick={() => setEditing(p)}><Pencil /></Button>
                     <Button variant="ghost" size="icon" aria-label="Xoá" onClick={() => onDelete(p)}><Trash2 /></Button>
-                  </TableCell>
-                )}
+                  </>}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+      <GuideDialog target={guide} onClose={() => setGuide(null)} />
       <Dialog open={editing !== undefined} onOpenChange={(o) => !o && setEditing(undefined)}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editing ? 'Sửa chức vụ' : 'Thêm chức vụ'}</DialogTitle></DialogHeader>

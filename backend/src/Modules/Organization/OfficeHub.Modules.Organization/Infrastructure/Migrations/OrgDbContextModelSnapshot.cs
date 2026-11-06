@@ -39,6 +39,21 @@ namespace OfficeHub.Modules.Organization.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Guide")
+                        .HasMaxLength(10000)
+                        .HasColumnType("character varying(10000)");
+
+                    b.Property<DateTimeOffset?>("GuideUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GuideUpdatedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<Guid?>("HeadEmployeeId")
                         .HasColumnType("uuid");
 
@@ -168,6 +183,21 @@ namespace OfficeHub.Modules.Organization.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Guide")
+                        .HasMaxLength(10000)
+                        .HasColumnType("character varying(10000)");
+
+                    b.Property<DateTimeOffset?>("GuideUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GuideUpdatedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<int>("Level")
                         .HasColumnType("integer");

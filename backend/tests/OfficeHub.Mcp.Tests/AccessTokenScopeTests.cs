@@ -13,6 +13,9 @@ public class AccessTokenScopeTests
     [InlineData("GET", "/api/auth/me")]
     [InlineData("GET", "/api/org/employees")]
     [InlineData("GET", "/api/org/employees/me")]
+    [InlineData("GET", "/api/org/employees/me/role")]
+    [InlineData("GET", "/api/org/departments/0193a000-0000-7000-8000-000000000000")]
+    [InlineData("GET", "/api/org/positions/0193a000-0000-7000-8000-000000000000")]
     [InlineData("GET", "/api/attendance/today")]
     [InlineData("POST", "/api/attendance/check")]
     [InlineData("GET", "/api/attendance/my")]
@@ -42,6 +45,8 @@ public class AccessTokenScopeTests
     [InlineData("POST", "/api/org/employees")]
     [InlineData("PUT", "/api/org/employees/0193a000-0000-7000-8000-000000000000")]
     [InlineData("POST", "/api/org/employees/0193a000-0000-7000-8000-000000000000/account/reset-password")]
+    [InlineData("PUT", "/api/org/departments/0193a000-0000-7000-8000-000000000000/guide")] // AI không sửa hướng dẫn
+    [InlineData("PUT", "/api/org/positions/0193a000-0000-7000-8000-000000000000/guide")]
     [InlineData("GET", "/api/leave/balances")]          // quỹ phép mọi người (HR) — không bị mở bởi tiền tố /balance
     [InlineData("POST", "/api/leave/adjustments")]
     [InlineData("POST", "/api/attendance/holidays")]

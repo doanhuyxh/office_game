@@ -39,7 +39,7 @@ AI client ──POST /mcp (Bearer ohk_…)──▶ OfficeHub.Mcp (BearerGate �
 
 | Nhóm | Tool |
 |---|---|
-| Chung | `get_my_profile` (tài khoản, hồ sơ, `now` giờ VN), `list_notifications`, `mark_notifications_read`, `search_colleagues` (bỏ thông tin tài khoản), `list_departments` |
+| Chung | `get_my_profile` (tài khoản, hồ sơ, `now` giờ VN), `list_notifications`, `mark_notifications_read`, `search_colleagues` (bỏ thông tin tài khoản; có `jobTitle`, `positionLevel`), `list_departments`, `list_positions`, `get_my_role`, `get_department`, `get_position` (vai trò + hướng dẫn: [org-guides.md](org-guides.md)) |
 | Chấm công | `get_today_attendance`, `check_in_out`, `get_my_timesheet`, `list_holidays`, `list_shifts`, `list_my_corrections`, `submit_attendance_correction`, `list_my_overtime`, `preview_overtime`, `register_overtime` |
 | Nghỉ phép | `list_leave_types`, `get_leave_balance`, `list_my_leave_requests`, `preview_leave`, `submit_leave_request` (`leaveType` = mã / tên / id) |
 | Duyệt | `list_approval_inbox`, `list_my_approval_requests`, `get_approval_request`, `approve_request`, `reject_request` (bắt buộc lý do), `cancel_my_request` |

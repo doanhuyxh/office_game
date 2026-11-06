@@ -5,6 +5,7 @@ import { useInboxCount } from '@/features/approvals';
 import { CheckInCard } from '@/features/attendance';
 import { useMyBalance } from '@/features/leave';
 import { useMe } from '@/features/auth';
+import { MyRoleCard } from '@/features/employees';
 import { PATHS } from '@/config/paths';
 
 export function Dashboard() {
@@ -55,6 +56,7 @@ export function Dashboard() {
           </Card>
         </div>
       </div>
+      <MyRoleCard />
     </div>
   );
 }

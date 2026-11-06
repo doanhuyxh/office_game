@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { departmentsApi, employeesApi, orgKeys, positionsApi } from '../api/org.api';
+import { ApiError } from '@/services/api-client';
+import { departmentsApi, employeesApi, guidesApi, orgKeys, positionsApi } from '../api/org.api';
 import type { AccountMode, IEmployeeFilter, IUpsertDepartment, IUpsertEmployee, IUpsertPosition } from '../types/employee.types';
 
 // ---------- Đọc ----------
@@ -82,4 +83,24 @@ export function useSavePosition() {
 export function useDeletePosition() {
   const invalidate = useInvalidateOrg();
   return useMutation({ mutationFn: (id: string) => positionsApi.remove(id), onSuccess: invalidate });
+}
+
+// ---------- Mô tả + hướng dẫn ----------
+export const useDepartmentDetail = (id: string | null) =>
+  useQuery({ queryKey: orgKeys.department(id ?? ''), queryFn: () => guidesApi.department(id!), enabled: !!id });
+export const usePositionDetail = (id: string | null) =>
+  useQuery({ queryKey: orgKeys.position(id ?? ''), queryFn: () => guidesApi.position(id!), enabled: !!id });
+export const useGuideTemplates = () => useQuery({ queryKey: orgKeys.guideTemplates, queryFn: guidesApi.templates, staleTime: Infinity });
+/** 404 no_employee_profile → null (admin hệ thống không có hồ sơ). */
+export const useMyRole = () => useQuery({
+  queryKey: orgKeys.myRole, retry: false,
+  queryFn: () => guidesApi.myRole().catch((e) => { if (e instanceof ApiError && e.status === 404) return null; throw e; }),
+});
+export function useSaveGuide() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { kind: 'department' | 'position'; id: string; description: string | null; guide: string | null }) =>
+      v.kind === 'department' ? guidesApi.saveDepartment(v.id, v) : guidesApi.savePosition(v.id, v),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orgKeys.all }),
+  });
 }
