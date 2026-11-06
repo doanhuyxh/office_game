@@ -177,7 +177,7 @@ function LeavePayoutTab() {
 export function ReportsPage() {
   return (
     <div className="grid grid-cols-1 gap-6">
-      <PageHeader title="Báo cáo" description="Bảng công, tiền tăng ca và phép năm theo tháng — xuất Excel để làm lương." />
+      <PageHeader title="Báo cáo" />
       <Tabs defaultValue="timesheet">
         <TabsList>
           <TabsTrigger value="timesheet">Bảng công</TabsTrigger>

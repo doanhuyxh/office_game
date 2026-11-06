@@ -21,7 +21,7 @@ export function ApprovalsPage() {
   useEffect(() => { if (tab === null && inbox.isSuccess) setTab(count > 0 ? 'inbox' : 'mine'); }, [tab, inbox.isSuccess, count]);
   return (
     <div className="space-y-6">
-      <PageHeader title="Phê duyệt" description="Đơn nghỉ phép và giải trình chấm công. Thứ tự duyệt: quản lý trực tiếp → HR." />
+      <PageHeader title="Phê duyệt" />
       <Tabs value={tab ?? 'inbox'} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="inbox">Chờ tôi duyệt{count > 0 && ` (${count})`}</TabsTrigger>

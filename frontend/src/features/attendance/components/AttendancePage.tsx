@@ -54,7 +54,7 @@ export function AttendancePage() {
   const [month, setMonth] = useState(currentMonth());
   return (
     <div className="space-y-6">
-      <PageHeader title="Chấm công" description="Bấm chấm công khi bắt đầu và kết thúc làm việc — ở văn phòng hay ở nhà đều được." />
+      <PageHeader title="Chấm công" />
       <Tabs defaultValue="my">
         <TabsList>
           <TabsTrigger value="my">Của tôi</TabsTrigger>

@@ -206,8 +206,7 @@ export function ContractsPage() {
   const isHr = hasRole(me, 'admin', 'hr');
   return (
     <div className="space-y-6">
-      <PageHeader title="Hợp đồng lao động"
-        description={isHr ? 'Hợp đồng, phụ lục và file scan của nhân viên. Hệ thống nhắc HR và quản lý 30 và 7 ngày trước khi hết hạn.' : 'Hợp đồng lao động và phụ lục của bạn.'} />
+      <PageHeader title="Hợp đồng lao động" />
       <PendingSignBanner />
       {isHr ? (
         <Tabs defaultValue="all">

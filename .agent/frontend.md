@@ -32,7 +32,7 @@ features/employees/
 ```
 
 - Ngoài feature **chỉ import qua `@/features/<x>`** (barrel). Trong feature dùng đường dẫn tương đối. Feature được có thêm thư mục riêng (vd `office/engine`, `office/store`).
-- Màn hình mới: tạo feature → thêm `page(PATHS.x, () => import('@/features/x'), '<Export>')` trong `routes/router.tsx` → thêm `PATHS.x` vào `config/paths.ts` → thêm menu vào `components/layout/navigation.ts` (chọn nhóm, icon lucide). Đầu trang dùng `<PageHeader title actions />` — **không hiện tiêu đề / mô tả** (chủ dự án chốt 2026-11-06; `title` thành `<h1 class="sr-only">`, chỉ hiện hàng nút `actions` căn phải). Đừng thêm lại tiêu đề / đoạn mô tả hiển thị ở đầu trang. **Không** tạo file route bọc lại component (không có thư mục `app/`).
+- Màn hình mới: tạo feature → thêm `page(PATHS.x, () => import('@/features/x'), '<Export>')` trong `routes/router.tsx` → thêm `PATHS.x` vào `config/paths.ts` → thêm menu vào `components/layout/navigation.ts` (chọn nhóm, icon lucide). Đầu trang: `<PageHeader title />` (chỉ `<h1 class="sr-only">` — **không hiện tiêu đề / mô tả**, chủ dự án chốt 2026-11-06) + `<PageToolbar actions={…}>` cùng file `components/layout/PageHeader.tsx`: nút hành động **ngang hàng thanh tab** (đặt `<TabsList>` làm children, bên trong `<Tabs>`), căn phải. Trang không có tab: nút vào hàng điều khiển sẵn có của trang (vd Phòng họp: cạnh ô chọn ngày), không có gì thì `<PageToolbar actions />` đứng một mình bên phải. **Không** tạo file route bọc lại component (không có thư mục `app/`).
 - Interface đặt tên `I<Tên>`; kiểu union string literal cho enum (khớp tên enum C#).
 - Gọi API **luôn** qua `http`/`httpPost`/`httpUpload` (file, multipart field `file`) (`services/api-client.ts`, `credentials: 'include'`). Không lưu token (đăng nhập bằng cookie HttpOnly).
 - Lỗi: `fieldErrors(err)` cho form, `errorMessage(err)` cho toast (`utils/errors.ts`). Toast dùng `toast` từ `sonner`.
@@ -51,7 +51,7 @@ Theo mẫu [shadcn-admin](https://github.com/satnaing/shadcn-admin) (MIT), chỉ
 
 - `SidebarProvider` + `AppSidebar` (`variant="inset"`, `collapsible="icon"`, Ctrl/⌘+B; trạng thái lưu cookie `sidebar_state`). Đầu sidebar: logo; giữa: nhóm menu từ `navigation.ts` (lọc vai trò bằng `useNavigation`); badge số đơn chờ trên "Phê duyệt"; chân: menu tài khoản (văn phòng 3D, đổi mật khẩu, đăng xuất).
 - `Header` dính đầu trang: nút thu sidebar, ô tìm nhanh (Ctrl/⌘+K mở `CommandMenu`: nhảy màn hình + đổi theme), chuông `NotificationBell` (`@/features/notifications`), nút theme, avatar.
-- `<main>` tối đa `max-w-7xl`; mỗi trang mở đầu bằng `PageHeader` (chỉ hiện nút hành động, tiêu đề ẩn).
+- `<main>` tối đa `max-w-7xl`; mỗi trang mở đầu bằng `PageHeader` (tiêu đề ẩn) và, nếu có nút hành động, `PageToolbar`.
 - Theme sáng / tối / theo hệ thống: `context/theme-provider.tsx`, lưu localStorage `officehub:theme`; script nhỏ trong `index.html` áp class `dark` trước khi React tải (đổi key thì sửa cả hai chỗ). Font Inter (Google Fonts).
 - Màn đăng nhập / đặt mật khẩu: `features/auth/components/AuthShell` (logo + thẻ giữa trang).
 - Văn phòng 3D (`/office`) toàn màn hình, không nằm trong `MainLayout`.

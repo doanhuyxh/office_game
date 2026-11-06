@@ -16,7 +16,7 @@ export function PayslipsPage() {
   const current = list.find((p) => p.periodId === sel) ?? list[0];
   return (
     <div className="grid grid-cols-1 gap-6">
-      <PageHeader title="Phiếu lương" description="Phiếu lương các tháng HR đã chốt. Thắc mắc về số liệu, liên hệ HR / kế toán." />
+      <PageHeader title="Phiếu lương" />
       {my.isLoading ? <Spinner /> : list.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-12 text-sm text-muted-foreground"><Wallet className="size-8" />Chưa có phiếu lương nào.</div>
       ) : (

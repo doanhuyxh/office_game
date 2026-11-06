@@ -4,17 +4,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useInboxCount } from '@/features/approvals';
 import { CheckInCard } from '@/features/attendance';
 import { useMyBalance } from '@/features/leave';
-import { useMe } from '@/features/auth';
 import { MyRoleCard } from '@/features/employees';
 import { PATHS } from '@/config/paths';
 
 export function Dashboard() {
-  const { data: me } = useMe();
   const { data: balance } = useMyBalance();
   const { data: inbox = 0 } = useInboxCount();
   return (
     <div className="space-y-6">
-      <PageHeader title={`Xin chào, ${me?.fullName ?? ''} 👋`} description="Tổng quan chấm công, phép năm và đơn cần xử lý của bạn." />
+      <PageHeader title="Tổng quan" />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[380px_minmax(0,1fr)]">
         <CheckInCard />
         <div className="grid h-fit gap-4 sm:grid-cols-2">

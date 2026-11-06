@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/common/button';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
 import { hasRole, useMe } from '@/features/auth';
 import { DepartmentsPanel } from './DepartmentsPanel';
@@ -17,18 +17,16 @@ export function EmployeesPage() {
   const [importing, setImporting] = useState(false);
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Nhân viên"
-        description={canEdit ? 'Quản lý hồ sơ, phòng ban, chức vụ và tài khoản đăng nhập.' : 'Danh bạ nhân viên trong công ty.'}
-        actions={canEdit && <Button variant="outline" onClick={() => setImporting(true)}><FileSpreadsheet className="size-4" /> Nhập từ Excel</Button>}
-      />
+      <PageHeader title="Nhân viên" />
       <Tabs defaultValue="employees">
+        <PageToolbar actions={canEdit && <Button variant="outline" onClick={() => setImporting(true)}><FileSpreadsheet className="size-4" /> Nhập từ Excel</Button>}>
         <TabsList>
           <TabsTrigger value="employees">Nhân viên</TabsTrigger>
           <TabsTrigger value="departments">Phòng ban</TabsTrigger>
           <TabsTrigger value="positions">Chức vụ</TabsTrigger>
           {canEdit && <TabsTrigger value="chart">Sơ đồ tổ chức</TabsTrigger>}
         </TabsList>
+        </PageToolbar>
         <TabsContent value="employees" className="mt-4"><EmployeeTable canEdit={canEdit} /></TabsContent>
         <TabsContent value="departments" className="mt-4"><DepartmentsPanel canEdit={canEdit} /></TabsContent>
         <TabsContent value="positions" className="mt-4"><PositionsPanel canEdit={canEdit} /></TabsContent>

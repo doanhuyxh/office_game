@@ -11,7 +11,7 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
 import { Spinner } from '@/components/feedback/Spinner';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
 import { hasRole, useMe } from '@/features/auth';
 import { formatDate, formatDateTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
@@ -284,25 +284,27 @@ export function AiAccessPage() {
   const isHr = hasRole(me.data, 'admin', 'hr');
   const [creating, setCreating] = useState(false);
   const [newToken, setNewToken] = useState<string | null>(null);
+  const createButton = <Button variant="outline" onClick={() => setCreating(true)}><Plus className="size-4" /> Tạo token</Button>;
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <PageHeader
-        title="Kết nối AI"
-        description="Dùng trợ lý AI (Claude, Cursor, Codex, GitHub Copilot…) để chấm công, xin nghỉ, xem bảng công… bằng lời nói thay vì mở web."
-        actions={<Button variant="outline" onClick={() => setCreating(true)}><Plus className="size-4" /> Tạo token</Button>}
-      />
+      <PageHeader title="Kết nối AI" />
       {isHr ? (
         <Tabs defaultValue="me">
-          <TabsList>
-            <TabsTrigger value="me">Của tôi</TabsTrigger>
-            <TabsTrigger value="company">Toàn công ty</TabsTrigger>
-          </TabsList>
+          <PageToolbar actions={createButton}>
+            <TabsList>
+              <TabsTrigger value="me">Của tôi</TabsTrigger>
+              <TabsTrigger value="company">Toàn công ty</TabsTrigger>
+            </TabsList>
+          </PageToolbar>
           <TabsContent value="me" className="pt-2"><MyTab onCreate={() => setCreating(true)} newToken={newToken} /></TabsContent>
           <TabsContent value="company" className="pt-2"><CompanyTab /></TabsContent>
         </Tabs>
       ) : (
-        <MyTab onCreate={() => setCreating(true)} newToken={newToken} />
+        <>
+          <PageToolbar actions={createButton} />
+          <MyTab onCreate={() => setCreating(true)} newToken={newToken} />
+        </>
       )}
       <CreateTokenDialog open={creating} onOpenChange={setCreating} onCreated={setNewToken} />
     </div>

@@ -1,15 +1,22 @@
 import type { ReactNode } from 'react';
 
 /**
- * Đầu trang chuẩn. Chủ dự án chốt 2026-11-06: giao diện **không hiện tiêu đề / mô tả** trang (sidebar đã cho biết đang ở đâu).
- * `title` vẫn render thành <h1> ẩn (sr-only) cho trình đọc màn hình; `description` bỏ qua. Chỉ hiện hàng nút `actions` (căn phải) nếu có.
+ * Tiêu đề trang — chỉ cho trình đọc màn hình. Chủ dự án chốt 2026-11-06: giao diện **không hiện tiêu đề / mô tả** trang
+ * (sidebar đã cho biết đang ở đâu). Nút hành động của trang đặt bằng {@link PageToolbar}, ngang hàng thanh tab.
  */
-export function PageHeader({ title, actions }: { title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
-  if (!actions) return <h1 className="sr-only">{title}</h1>;
+export function PageHeader({ title }: { title: ReactNode }) {
+  return <h1 className="sr-only">{title}</h1>;
+}
+
+/**
+ * Hàng đầu trang: bên trái là thanh tab (`<TabsList>` — đặt bên trong `<Tabs>`) hoặc bộ lọc / chọn ngày của trang,
+ * bên phải là nút hành động (căn phải; xuống dòng gọn trên điện thoại). Trang không có gì bên trái → nút đứng một mình bên phải.
+ */
+export function PageToolbar({ children, actions }: { children?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
-      <h1 className="sr-only">{title}</h1>
-      {actions}
+    <div className="flex flex-wrap items-center gap-2">
+      {children}
+      {actions && <div className="ms-auto flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 }

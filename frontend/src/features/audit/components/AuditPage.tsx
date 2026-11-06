@@ -72,7 +72,7 @@ export function AuditPage() {
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <PageHeader title="Lịch sử thay đổi" description="Mọi lần thêm / sửa / xoá hồ sơ nhân viên, phòng ban, hợp đồng, ca làm, ngày lễ, quỹ phép, tài khoản và vai trò." />
+      <PageHeader title="Lịch sử thay đổi" />
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-56"><SelectField id="au-entity" label="Loại dữ liệu" value={entity} onChange={setEntity} options={ENTITY_OPTIONS} allowEmpty emptyLabel="— Tất cả —" /></div>
         <Input className="w-72" placeholder="Tìm theo tên đối tượng hoặc người sửa…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Tìm" />

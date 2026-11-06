@@ -308,7 +308,7 @@ function SettingsTab() {
 export function PayrollPage() {
   return (
     <div className="grid grid-cols-1 gap-6">
-      <PageHeader title="Bảng lương" description="Tính lương theo công, tăng ca, bảo hiểm và thuế TNCN; chốt kỳ để nhân viên xem phiếu lương." />
+      <PageHeader title="Bảng lương" />
       <Tabs defaultValue="periods">
         <TabsList>
           <TabsTrigger value="periods">Kỳ lương</TabsTrigger>

@@ -69,8 +69,7 @@ export function MeetingsPage() {
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <PageHeader title="Phòng họp" description="Đặt phòng họp, mời đồng nghiệp. Phòng đang có lịch hiện “Đang họp” trong văn phòng 3D."
-        actions={<Button onClick={() => setDraft({ date })}><Plus className="size-4" /> Đặt phòng</Button>} />
+      <PageHeader title="Phòng họp" />
 
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
@@ -83,6 +82,7 @@ export function MeetingsPage() {
             <Input type="date" className="w-40" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Chọn ngày" />
             <Button size="icon" variant="outline" aria-label="Ngày sau" onClick={() => setDate(addDays(date, 1))}><ChevronRight className="size-4" /></Button>
             {date !== today && <Button variant="ghost" onClick={() => setDate(today)}>Hôm nay</Button>}
+            <Button className="ms-1" onClick={() => setDraft({ date })}><Plus className="size-4" /> Đặt phòng</Button>
           </div>
         </CardHeader>
         <CardContent className="grid gap-4">
