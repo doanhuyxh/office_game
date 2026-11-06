@@ -1,3 +1,4 @@
+using OfficeHub.BuildingBlocks.Auditing;
 namespace OfficeHub.Modules.Organization.Domain;
 
 /// <summary>Trường chung: thời điểm tạo/sửa, xoá mềm.</summary>
@@ -9,6 +10,7 @@ public abstract class Entity
     public DateTimeOffset? DeletedAt { get; set; }
 }
 
+[Audited]
 public sealed class Department : Entity
 {
     public required string Name { get; set; }
@@ -21,6 +23,7 @@ public sealed class Department : Entity
     public int SortOrder { get; set; }
 }
 
+[Audited]
 public sealed class Position : Entity
 {
     public required string Name { get; set; }
@@ -37,6 +40,7 @@ public enum EmployeeStatus
     Resigned = 2,
 }
 
+[Audited]
 public sealed class Employee : Entity
 {
     /// <summary>Mã nhân viên, duy nhất (NV001...). Dùng làm tên đăng nhập mặc định.</summary>

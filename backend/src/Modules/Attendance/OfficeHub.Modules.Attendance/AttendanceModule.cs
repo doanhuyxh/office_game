@@ -3,10 +3,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.BuildingBlocks.Modules;
 using OfficeHub.BuildingBlocks.Persistence;
 using OfficeHub.Modules.Approval.Contracts;
 using OfficeHub.Modules.Attendance.Contracts;
+using OfficeHub.Modules.Attendance.Domain;
 using OfficeHub.Modules.Attendance.Features.Check;
 using OfficeHub.Modules.Attendance.Features.Corrections;
 using OfficeHub.Modules.Attendance.Features.Overtime;
@@ -30,6 +32,8 @@ public sealed class AttendanceModule : IModule
         services.AddScoped<IApprovalHandler, CorrectionApprovalHandler>();
         services.AddScoped<IApprovalHandler, OvertimeApprovalHandler>();
         services.AddHostedService<AttendanceSeeder>();
+        services.AddValidatedOptions<ReminderSettings>(config, ReminderSettings.Section);
+        services.AddHostedService<CheckoutReminderJob>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder api)

@@ -1,7 +1,7 @@
 // Khớp DTO ở backend/src/Modules/Notification/.../Features/NotificationEndpoints.cs
 
 /** NotificationCategories ở Notification.Contracts */
-export type NotificationCategory = 'approval_requested' | 'approval_approved' | 'approval_rejected' | 'approval_cancelled' | 'contract_expiring' | 'meeting_invited' | 'meeting_cancelled';
+export type NotificationCategory = 'approval_requested' | 'approval_approved' | 'approval_rejected' | 'approval_cancelled' | 'contract_expiring' | 'meeting_invited' | 'meeting_cancelled' | 'attendance_reminder';
 
 export interface INotification {
   id: string;

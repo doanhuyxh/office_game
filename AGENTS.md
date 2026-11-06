@@ -19,12 +19,13 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Đăng nhập, mật khẩu, link mời, admin seed | [.agent/business/auth.md](.agent/business/auth.md) |
 | Nhân viên, phòng ban, cấp tài khoản, vai trò | [.agent/business/organization.md](.agent/business/organization.md) |
 | Chấm công, ca, lịch, ngày lễ, bảng công | [.agent/business/attendance.md](.agent/business/attendance.md) |
-| Giải trình chấm công | [.agent/business/attendance-corrections.md](.agent/business/attendance-corrections.md) |
+| Giải trình chấm công, nhắc quên chấm ra | [.agent/business/attendance-corrections.md](.agent/business/attendance-corrections.md) |
 | Tăng ca | [.agent/business/attendance-overtime.md](.agent/business/attendance-overtime.md) |
 | Thông báo (chuông in-app, email, hàng đợi gửi) | [.agent/business/notifications.md](.agent/business/notifications.md) |
 | Hợp đồng lao động, phụ lục, lương mã hoá, file S3, nhắc hết hạn, mẫu hợp đồng Word | [.agent/business/contracts.md](.agent/business/contracts.md) |
 | Báo cáo + Excel, quy ra tiền tăng ca / phép năm | [.agent/business/reports.md](.agent/business/reports.md) |
 | Đặt phòng họp | [.agent/business/meetings.md](.agent/business/meetings.md) |
+| Lịch sử sửa dữ liệu (`[Audited]`) · nhập nhân viên từ Excel | [.agent/business/audit.md](.agent/business/audit.md) · [.agent/business/employee-import.md](.agent/business/employee-import.md) |
 | Luồng duyệt, thêm loại đơn | [.agent/business/approval.md](.agent/business/approval.md) |
 | Nghỉ phép, quỹ phép năm | [.agent/business/leave.md](.agent/business/leave.md) |
 | Kết nối AI (MCP): token cá nhân, host `OfficeHub.Mcp`, danh sách tool · OAuth, nhật ký AI, quản trị HR | [.agent/business/mcp.md](.agent/business/mcp.md) · [.agent/business/mcp-oauth.md](.agent/business/mcp-oauth.md) |

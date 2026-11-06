@@ -137,6 +137,35 @@ namespace OfficeHub.Modules.Attendance.Infrastructure.Migrations
                     b.ToTable("events", "attendance");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Attendance.Domain.AttendanceReminder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTimeOffset>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("WorkDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId", "WorkDate", "Kind")
+                        .IsUnique()
+                        .HasDatabaseName("ux_reminders_employee_day_kind");
+
+                    b.ToTable("reminders", "attendance");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Attendance.Domain.Holiday", b =>
                 {
                     b.Property<Guid>("Id")

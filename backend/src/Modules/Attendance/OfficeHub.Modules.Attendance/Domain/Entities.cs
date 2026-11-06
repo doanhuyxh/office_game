@@ -1,3 +1,4 @@
+using OfficeHub.BuildingBlocks.Auditing;
 namespace OfficeHub.Modules.Attendance.Domain;
 
 public enum ShiftType
@@ -8,6 +9,7 @@ public enum ShiftType
     Flexible = 1,
 }
 
+[Audited]
 public sealed class Shift
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
@@ -39,6 +41,7 @@ public sealed class Shift
 /// Lịch làm việc theo tuần: ngày trong tuần → ca. EmployeeId = null là lịch mặc định của công ty.
 /// Đổi lịch = thêm bộ dòng mới với EffectiveFrom mới; không sửa dòng cũ → bảng công quá khứ vẫn đúng.
 /// </summary>
+[Audited]
 public sealed class ScheduleEntry
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
@@ -87,6 +90,7 @@ public sealed class AttendanceEvent
     public string? IdempotencyKey { get; set; }
 }
 
+[Audited]
 public sealed class Holiday
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();

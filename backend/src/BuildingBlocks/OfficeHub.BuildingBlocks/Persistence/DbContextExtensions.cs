@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using OfficeHub.BuildingBlocks.Auditing;
 
 namespace OfficeHub.BuildingBlocks.Persistence;
 
@@ -17,8 +19,13 @@ public static class DbContextExtensions
     {
         var cs = config.GetConnectionString(ConnectionName)
                  ?? throw new InvalidOperationException("Thiếu ConnectionStrings__Default trong .env");
-        services.AddDbContext<TContext>(o => o
+        // Lịch sử sửa: entity có [Audited] được ghi lại qua IChangeAuditSink (module Audit). Không có module Audit → bỏ qua.
+        services.AddHttpContextAccessor();
+        services.TryAddSingleton<IChangeAuditSink, NullChangeAuditSink>();
+        services.TryAddSingleton<AuditSaveChangesInterceptor>();
+        services.AddDbContext<TContext>((sp, o) => o
             .UseNpgsql(cs, npg => npg.MigrationsHistoryTable("__ef_migrations", schema))
+            .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>())
             .UseSnakeCaseNamingConventionIfAvailable());
         return services;
     }

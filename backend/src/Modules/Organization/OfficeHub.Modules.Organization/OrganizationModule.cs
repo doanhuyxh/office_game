@@ -30,6 +30,7 @@ public sealed class OrganizationModule : IModule
         DepartmentEndpoints.Map(org);
         PositionEndpoints.Map(org);
         EmployeeEndpoints.Map(org);
+        ImportEndpoints.Map(org);
         AccountEndpoints.Map(org);
     }
 }

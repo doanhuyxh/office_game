@@ -1,6 +1,6 @@
 # Tiến độ & bàn giao phiên
 
-> Cập nhật **2026-11-06** (Kết nối AI / MCP; giai đoạn 2: báo cáo + quy ra tiền, mẫu hợp đồng, phòng họp). Đọc file này đầu phiên mới. Chi tiết nghiệp vụ: bảng định tuyến trong [AGENTS.md](../AGENTS.md); kế hoạch tổng: `docs/ARCHITECTURE_V2.md` (§0 trạng thái, §11 quyết định đã chốt, §12 lộ trình).
+> Cập nhật **2026-11-06** (Kết nối AI / MCP; giai đoạn 2; nhắc quên chấm ra, nhập Excel, lịch sử sửa). Đọc file này đầu phiên mới. Chi tiết nghiệp vụ: bảng định tuyến trong [AGENTS.md](../AGENTS.md); kế hoạch tổng: `docs/ARCHITECTURE_V2.md` (§0 trạng thái, §11 quyết định đã chốt, §12 lộ trình).
 
 ## Đã xong
 
@@ -8,11 +8,12 @@
 |---|---|
 | Identity, Organization, chấm công + giải trình + tăng ca, phê duyệt, nghỉ phép, thông báo, hợp đồng (+ mẫu Word) | `auth`, `organization`, `attendance*`, `approval`, `leave`, `notifications`, `contracts` |
 | Báo cáo + Excel, quy ra tiền tăng ca / phép (khi nghỉ việc) · đặt phòng họp (+ "Đang họp" trong 3D) | `reports`, `meetings` |
+| Nhắc quên chấm ra (chuông) · nhập nhân viên từ Excel · lịch sử sửa dữ liệu nhân sự (`[Audited]`, che lương) | `attendance-corrections`, `employee-import`, `audit` |
 | Văn phòng 3D giai đoạn 1 (bản đồ v2, engine low-poly, A*, ngồi, minimap) + voice LiveKit (khoảng cách, phòng riêng, chia sẻ màn hình) | `office`, `office-engine`, `design/` |
 | Kết nối AI: MCP 34 tool (không hợp đồng / lương, chấm công AI = Remote), token cá nhân + OAuth 2.1, nhật ký AI, HR thu hồi | `mcp`, `mcp-oauth` |
 | Giao diện shadcn-admin (sidebar, ⌘K, sáng / tối) | `../frontend.md` |
 
-Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` 207 test (10 project) ✔, `bun run build` ✔, e2e văn phòng 3D 16/16 ✔, e2e voice 26/26 (trước giai đoạn 2), e2e MCP 33/33 ✔, e2e OAuth 30/30, e2e giai đoạn 2 28/28 ✔.
+Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` 223 test (11 project) ✔, `bun run build` ✔, e2e văn phòng 3D 16/16, MCP 33/33, OAuth 30/30, giai đoạn 2 28/28, nhắc / nhập Excel / lịch sử 18/18 (DB tạm) ✔.
 
 ## Quyết định đã chốt gần đây (đừng hỏi / đề xuất lại)
 
@@ -22,10 +23,9 @@ Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` 207 test (10 p
 
 ## Việc tiếp theo — chủ dự án CHƯA chọn (hỏi trước khi làm)
 
-1. **Deploy thật lên VPS** (`sh scripts/deploy.sh`): cả hệ thống + voice (`wss://<APP_DOMAIN>/livekit`, mở 7881/tcp + 7882/udp, `LIVEKIT_NODE_IP`) + `mcp` (thử claude.ai / Copilot thật, cần HTTPS public). Chưa thử trên VPS.
-2. **Nhân sự hằng ngày**: nhắc quên chấm ra, nhập nhân viên từ Excel, Audit lịch sử sửa dữ liệu nhân sự.
-3. **Voice – còn lại**: chat theo phòng. **Văn phòng 3D**: model GLB CC0 thay khối dựng tay, mobile (joystick).
-4. **Mở rộng (giai đoạn 3)**: webhook máy chấm công, PWA, ký điện tử, tích hợp tính lương; Kết nối AI: HR bật / tắt theo người.
+1. **Deploy thật lên VPS** (`sh scripts/deploy.sh` — chủ dự án chạy): cả hệ thống + voice (`wss://<APP_DOMAIN>/livekit`, mở 7881/tcp + 7882/udp, `LIVEKIT_NODE_IP`) + `mcp` (thử claude.ai / Copilot thật, cần HTTPS public). Chưa thử trên VPS.
+2. **Voice – còn lại**: chat theo phòng. **Văn phòng 3D**: model GLB CC0 thay khối dựng tay, mobile (joystick).
+3. **Mở rộng (giai đoạn 3)**: webhook máy chấm công, PWA, ký điện tử, tích hợp tính lương; Kết nối AI: HR bật / tắt theo người.
 
 ## Chạy & dữ liệu dev
 
@@ -44,7 +44,12 @@ Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` 207 test (10 p
 | `mcp-e2e.ts` | Token AI: tạo / thu hồi, route bị chặn (hợp đồng, tạo token, `/leave/balances`), MCP 401 khi thiếu token, `tools/list`, gọi tool đọc + chấm công (Remote) + gửi rồi huỷ đơn nghỉ. Cần Api + `OfficeHub.Mcp` đang chạy |
 | `mcp-oauth-e2e.ts` | OAuth cho AI qua Vite :5173: discovery, DCR, đồng ý, PKCE, refresh xoay vòng, dùng lại mã / refresh token, nhật ký AI, HR xem + thu hồi. Cần Api + Mcp + Vite |
 | `phase2-e2e.ts <mẫu.docx>` | Giai đoạn 2 (Api :5080): Excel bảng công / tăng ca / phép + quyền, tiền tăng ca / phép, mẫu hợp đồng (upload, trường bị tách run, xuất .docx — chỉ hợp đồng tài khoản thử), đặt phòng (múi giờ, trùng giờ, sát giờ, mời + thông báo, huỷ). Cần `fflate` (có trong `frontend/node_modules` → chạy từ `frontend/`) |
+| `phase3-e2e.ts <dir> a\|b` | Nhập Excel (lỗi từng dòng, quản lý trong file), lịch sử sửa (che lương, vai trò), nhắc quên chấm ra (pha b sau khi khởi động lại Api). **Tạo dữ liệu thật → chỉ chạy trên DB tạm** (`E2E_LOCAL_DB=1`) |
 | `voice-e2e.ts` | 2 Chrome micro giả: nghe gần / huỷ nhận âm khi xa, phím M, đổi kênh vào phòng họp, server không cấp token phòng khi đứng ngoài, chia sẻ màn hình, `VoiceGuard` đẩy client không đổi kênh. Cần container `livekit` (`docker compose … up -d livekit`). Hook `window.__officeVoice` |
+
+## Test trên DB tạm (khi test tạo dữ liệu không xoá được, vd nhân viên)
+
+`docker run -d --name officehub-e2e-pg -e POSTGRES_DB=officehub_e2e -e POSTGRES_USER=e2e -e POSTGRES_PASSWORD=<tuỳ ý> -p 127.0.0.1:55432:5432 postgres:18-alpine` → chạy Api với `ConnectionStrings__Default=Host=127.0.0.1;Port=55432;…` (tự migrate + tạo admin từ `Seed__*`) → test → `docker rm -f officehub-e2e-pg`. S3 / SMTP vẫn là dịch vụ thật trong `.env`.
 
 ## Bẫy đã gặp
 

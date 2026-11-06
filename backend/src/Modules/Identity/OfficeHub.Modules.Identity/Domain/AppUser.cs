@@ -1,3 +1,4 @@
+using OfficeHub.BuildingBlocks.Auditing;
 using Microsoft.AspNetCore.Identity;
 
 namespace OfficeHub.Modules.Identity.Domain;
@@ -7,6 +8,7 @@ namespace OfficeHub.Modules.Identity.Domain;
 /// liên kết qua <c>employees.user_id</c>.
 /// UserName = mã nhân viên hoặc email. Email có thể trống (HR tạo tài khoản không email).
 /// </summary>
+[Audited]
 public sealed class AppUser : IdentityUser<Guid>
 {
     public string FullName { get; set; } = "";

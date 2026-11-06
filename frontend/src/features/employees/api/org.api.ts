@@ -1,7 +1,7 @@
 import { http, httpPost } from '@/services/api-client';
 import type {
   AccountMode, IAccountCreated, IDepartment, IEmployee, IEmployeeDetail, IEmployeeFilter, IPosition,
-  IUpsertDepartment, IUpsertEmployee, IUpsertPosition,
+  IImportPreview, IImportResult, IUpsertDepartment, IUpsertEmployee, IUpsertPosition,
 } from '../types/employee.types';
 
 const put = <T>(url: string, body: unknown) => http<T>(url, { method: 'PUT', body: JSON.stringify(body) });
@@ -37,7 +37,17 @@ export const employeesApi = {
   resendInvite: (id: string) => httpPost<void>(`/api/org/employees/${id}/account/resend-invite`),
   resetPassword: (id: string) => httpPost<{ tempPassword: string }>(`/api/org/employees/${id}/account/reset-password`),
   setRoles: (id: string, roles: string[]) => put<void>(`/api/org/employees/${id}/account/roles`, { roles }),
+  // Nhập từ Excel (HR)
+  importTemplateUrl: '/api/org/employees/import-template',
+  importPreview: (file: File) => uploadForm<IImportPreview>('/api/org/employees/import/preview', file),
+  importCommit: (file: File) => uploadForm<IImportResult>('/api/org/employees/import', file),
 };
+
+function uploadForm<T>(url: string, file: File) {
+  const form = new FormData();
+  form.append('file', file);
+  return http<T>(url, { method: 'POST', body: form });
+}
 
 export const departmentsApi = {
   list: () => http<IDepartment[]>('/api/org/departments'),

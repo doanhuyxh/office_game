@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Http;
+using OfficeHub.BuildingBlocks.Auditing;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.BuildingBlocks.Email;
@@ -16,6 +18,8 @@ internal sealed class AccountService(
     IEmailSender email,
     IOptions<AppSettings> app,
     TimeProvider clock,
+    IChangeAuditSink audit,
+    IHttpContextAccessor http,
     ILogger<AccountService> log) : IAccountService
 {
     public async Task<AccountResult> CreateWithPasswordAsync(NewAccount a, string tempPassword, CancellationToken ct = default)
@@ -86,6 +90,15 @@ internal sealed class AccountService(
         var add = await users.AddToRolesAsync(user, roles.Except(current));
         if (!add.Succeeded) return Fail(add);
         await users.UpdateSecurityStampAsync(user); // cookie cũ hết hiệu lực → nhận vai trò mới khi đăng nhập lại
+        // user_roles là bảng nối của ASP.NET Identity (không gắn [Audited] được) → ghi lịch sử tay.
+        var before = string.Join(", ", current.Order());
+        var after = string.Join(", ", roles.Distinct().Order());
+        if (before != after)
+        {
+            var (source, actorId, actorName) = AuditActor.From(http);
+            audit.Enqueue(new ChangeRecord(clock.GetUtcNow(), source, actorId, actorName, OfficeIdentityDbContext.Schema, "AppUser", user.Id.ToString(),
+                user.FullName, "Modified", [new FieldChange("Roles", before, after)]));
+        }
         return AccountResult.Ok(user.Id);
     }
 

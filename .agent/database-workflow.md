@@ -46,3 +46,12 @@ Trạng thái hợp đồng tính lúc đọc. Không trùng thời gian / số 
 | `attendees` | PK (`BookingId`, `EmployeeId`), `UserId?`, `Name` | FK `bookings` cascade; index `EmployeeId` |
 
 Reporting **không có schema** (chỉ đọc qua `*.Contracts`).
+
+## Schema `audit` — `AuditDbContext` (migration `InitialAudit`, `ChangeLog`)
+
+| Bảng | Cột chính | Ghi chú |
+|---|---|---|
+| `ai_requests` | request bằng token AI | index (`UserId`,`OccurredAt`), `OccurredAt`; tự xoá > 180 ngày ([business/mcp-oauth.md](business/mcp-oauth.md)) |
+| `changes` | `OccurredAt`, `Source` (web/ai/system), `UserId?`, `UserName`, `Module` (schema), `Entity`, `EntityId`, `EntityLabel`, `Action`, `ChangesJson` (jsonb `[{field, old, new, masked}]`) | index `OccurredAt`, (`Entity`,`EntityId`,`OccurredAt`), (`UserId`,`OccurredAt`); không tự xoá ([business/audit.md](business/audit.md)) |
+
+`attendance.reminders` (migration `Reminders`): `EmployeeId`, `WorkDate`, `Kind` (Checkout / MissingCheckout), `SentAt`; unique (`EmployeeId`,`WorkDate`,`Kind`) — chống nhắc lặp.

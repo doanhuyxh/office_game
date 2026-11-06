@@ -35,4 +35,6 @@ public static class NotificationCategories
     /// <summary>Được mời họp (module Meetings).</summary>
     public const string MeetingInvited = "meeting_invited";
     public const string MeetingCancelled = "meeting_cancelled";
+    /// <summary>Nhắc chấm công ra / gửi giải trình khi quên chấm ra (module Attendance).</summary>
+    public const string AttendanceReminder = "attendance_reminder";
 }

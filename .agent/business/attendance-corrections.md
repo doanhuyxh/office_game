@@ -39,3 +39,11 @@ Bảng công tính lại khi đọc nên tự đúng ngay. Giải trình một l
 
 - `MonthTimesheet` nhận `onCorrect` (chỉ ở tab "Của tôi" của `AttendancePage`): nút "Giải trình" (`data-testid="correct-yyyy-MM-dd"`) cho ngày trong 31 ngày gần nhất, không phải `NotYet` / `NotEmployed`. Dưới trạng thái ngày hiện "Giải trình vào/ra HH:mm ⏳ chờ duyệt / ✓ đã duyệt / ✕ bị từ chối".
 - `CorrectionDialog` gợi ý loại (đã có giờ vào → "Giờ ra") và giờ (08:30 / 17:30), mặc định "Tại văn phòng".
+
+## Nhắc quên chấm ra (`Infrastructure/CheckoutReminderJob.cs`, quy tắc `Domain/ReminderRules.cs`)
+
+Job nền mỗi 10 phút (host Api, một instance):
+- **Trong ngày**: lần chấm cuối hôm nay là VÀO và đã tới giờ nhắc → "Bạn chưa chấm công ra". Ca cố định: giờ kết thúc + `GraceMinutes` (30, quá nửa đêm → 23:59); ca linh hoạt / không có ca: `FlexibleAt` (21:00).
+- **Sáng hôm sau** (từ `NextMorningAt`, 08:00): hôm qua lần chấm cuối là VÀO và chưa có giải trình giờ ra (chờ duyệt / đã duyệt) → nhắc gửi giải trình.
+- Mỗi (nhân viên, ngày, loại) nhắc **một lần**: bảng `attendance.reminders` (unique `EmployeeId, WorkDate, Kind`; ghi dấu trước khi gửi). Chỉ nhân viên đang làm, có tài khoản.
+- Thông báo `attendance_reminder`, link `/attendance`. **Mặc định chỉ chuông**; email bật bằng `Attendance__Reminders__Email=true`. Tắt hẳn: `Attendance__Reminders__Enabled=false`.

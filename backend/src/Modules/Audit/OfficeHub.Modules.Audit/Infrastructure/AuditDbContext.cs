@@ -11,6 +11,7 @@ public sealed class AuditDbContext(DbContextOptions<AuditDbContext> options) : D
 {
     public const string Schema = "audit";
     public DbSet<AiRequestLog> AiRequests => Set<AiRequestLog>();
+    public DbSet<ChangeLog> Changes => Set<ChangeLog>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -25,6 +26,21 @@ public sealed class AuditDbContext(DbContextOptions<AuditDbContext> options) : D
             e.Property(x => x.Ip).HasMaxLength(64);
             e.HasIndex(x => x.OccurredAt).HasDatabaseName("ix_ai_requests_time");
             e.HasIndex(x => new { x.UserId, x.OccurredAt }).HasDatabaseName("ix_ai_requests_user_time");
+        });
+        b.Entity<ChangeLog>(e =>
+        {
+            e.ToTable("changes");
+            e.Property(x => x.Source).HasMaxLength(10);
+            e.Property(x => x.UserName).HasMaxLength(200);
+            e.Property(x => x.Module).HasMaxLength(30);
+            e.Property(x => x.Entity).HasMaxLength(60);
+            e.Property(x => x.EntityId).HasMaxLength(100);
+            e.Property(x => x.EntityLabel).HasMaxLength(200);
+            e.Property(x => x.Action).HasMaxLength(10);
+            e.Property(x => x.ChangesJson).HasColumnType("jsonb");
+            e.HasIndex(x => x.OccurredAt).HasDatabaseName("ix_changes_time");
+            e.HasIndex(x => new { x.Entity, x.EntityId, x.OccurredAt }).HasDatabaseName("ix_changes_entity");
+            e.HasIndex(x => new { x.UserId, x.OccurredAt }).HasDatabaseName("ix_changes_user");
         });
     }
 }

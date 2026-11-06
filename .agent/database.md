@@ -81,6 +81,6 @@ Mọi seeder/migrator chỉ chạy migration khi `Database__MigrateOnStartup` kh
 
 Không transaction trải nhiều module (mỗi request gọi `SaveChangesAsync` riêng từng DbContext). Ví dụ cấp tài khoản: Identity tạo user → Organization ghi `UserId`; nếu bước 2 lỗi sẽ còn user mồ côi (cần xác nhận cách xử lý nếu xảy ra). Không audit log. Hàng đợi email thông báo nằm trong bảng `notifications.notifications` (cột `Email*`), không có outbox sự kiện giữa module.
 
-## Schema `audit` — `AuditDbContext` (migration `InitialAudit`)
+## Schema `audit`, `meetings`, …
 
-`ai_requests`: mọi request bằng token AI; index `(UserId, OccurredAt)`, `OccurredAt`. Chỉ thêm, tự xoá > 180 ngày — chi tiết [business/mcp-oauth.md](business/mcp-oauth.md#nhật-ký-ai-module-audit-schema-audit).
+Xem [database-workflow.md](database-workflow.md).

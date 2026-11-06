@@ -30,3 +30,25 @@ public static class AuditRules
     public static string? CleanTool(string? value) =>
         value is { Length: > 0 and <= 64 } && value.All(c => c is >= 'a' and <= 'z' or >= '0' and <= '9' or '_') ? value : null;
 }
+
+/// <summary>
+/// Lịch sử sửa dữ liệu nhân sự (entity có [Audited] ở các module + đổi vai trò). CHỈ THÊM, không xoá tự động.
+/// Trường bí mật (lương mã hoá, hash) chỉ ghi "•••".
+/// </summary>
+public sealed class ChangeLog
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public DateTimeOffset OccurredAt { get; set; }
+    /// <summary>"web" | "ai" | "system".</summary>
+    public string Source { get; set; } = "";
+    public Guid? UserId { get; set; }
+    public string? UserName { get; set; }
+    /// <summary>Schema của module (org, contracts, attendance, leave, identity).</summary>
+    public string Module { get; set; } = "";
+    public string Entity { get; set; } = "";
+    public string EntityId { get; set; } = "";
+    public string? EntityLabel { get; set; }
+    public string Action { get; set; } = "";
+    /// <summary>JSON: [{ field, old, new, masked }].</summary>
+    public string ChangesJson { get; set; } = "[]";
+}

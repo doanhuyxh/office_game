@@ -13,6 +13,9 @@ public sealed class Validation
 
     public bool Failed => _errors.Count > 0;
 
+    /// <summary>Lỗi theo field (vd để gắn vào từng dòng khi nhập Excel).</summary>
+    public IReadOnlyDictionary<string, List<string>> Errors => _errors;
+
     /// <summary>Field đã có lỗi chưa (để bỏ qua kiểm tra phụ thuộc field đó).</summary>
     public bool Has(string field) => _errors.ContainsKey(field);
 

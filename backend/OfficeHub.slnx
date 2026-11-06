@@ -54,6 +54,7 @@
     <Project Path="tests/OfficeHub.Modules.LaborContracts.Tests/OfficeHub.Modules.LaborContracts.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Meetings.Tests/OfficeHub.Modules.Meetings.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Notification.Tests/OfficeHub.Modules.Notification.Tests.csproj" />
+    <Project Path="tests/OfficeHub.Modules.Organization.Tests/OfficeHub.Modules.Organization.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Reporting.Tests/OfficeHub.Modules.Reporting.Tests.csproj" />
     <Project Path="tests/OfficeHub.Realtime.Tests/OfficeHub.Realtime.Tests.csproj" />
   </Folder>

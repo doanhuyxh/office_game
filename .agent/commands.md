@@ -85,6 +85,7 @@ Một file `.env` ở gốc repo cho BE + Docker Compose. Quy ước `Section__K
 | `Seq__Url`, `Seq__ApiKey`, `Sentry__Dsn` | – | Log / lỗi; trống = tắt |
 | `Realtime__MapPath` | – | Mặc định `shared/office-map.json` |
 | `Realtime__ApiBaseUrl` | – (`http://localhost:5080`) | Realtime gọi Api để kiểm tra phiên. Prod compose: `http://api:8080` |
+| `Attendance__Reminders__Enabled`, `__Email`, `__GraceMinutes`, `__FlexibleAt`, `__NextMorningAt` | – (true, false, 30, 21:00, 08:00) | Nhắc quên chấm ra ([business/attendance-corrections.md](business/attendance-corrections.md)) |
 | `AccessTokens__Enabled`, `AccessTokens__RequestsPerMinute` | – (true, 120) | Công tắc kết nối AI toàn công ty; giới hạn request / phút / token |
 | `Mcp__ApiBaseUrl`, `Mcp__TokenCacheSeconds` | – (`http://localhost:5080`, 30) | OfficeHub.Mcp gọi lại Api bằng token người dùng; prod compose: `http://api:8080` |
 | `Realtime__SessionCheckSeconds` | – (30, tối thiểu 5) | Chu kỳ kiểm tra lại phiên người đang online |

@@ -1,3 +1,4 @@
+using OfficeHub.BuildingBlocks.Auditing;
 namespace OfficeHub.Modules.LaborContracts.Domain;
 
 /// <summary>Loại hợp đồng theo Bộ luật Lao động 2019 (Điều 20) + hợp đồng thử việc (Điều 24–25).</summary>
@@ -27,6 +28,7 @@ public sealed class StoredFile
 /// Hợp đồng lao động của một nhân viên. Lương / phụ cấp lưu dạng mã hoá (IFieldEncryptor, Encryption__Key).
 /// Xoá = xoá mềm (DeletedAt); file trên S3 giữ lại.
 /// </summary>
+[Audited]
 public sealed class LaborContract
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
@@ -60,6 +62,7 @@ public sealed class LaborContract
 }
 
 /// <summary>Phụ lục: đổi nội dung / lương từ một ngày. KHÔNG đổi thời hạn hợp đồng (BLLĐ 2019 Điều 22).</summary>
+[Audited]
 public sealed class ContractAmendment
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
@@ -75,6 +78,7 @@ public sealed class ContractAmendment
 }
 
 /// <summary>Mẫu hợp đồng Word (.docx) có trường {{Ten}} — HR tải lên, hệ thống điền từ hồ sơ + hợp đồng (Domain/DocxTemplate.cs).</summary>
+[Audited]
 public sealed class ContractTemplate
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();

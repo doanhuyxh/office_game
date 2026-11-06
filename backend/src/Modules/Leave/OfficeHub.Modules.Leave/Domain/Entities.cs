@@ -1,5 +1,7 @@
+using OfficeHub.BuildingBlocks.Auditing;
 namespace OfficeHub.Modules.Leave.Domain;
 
+[Audited]
 public sealed class LeaveType
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
@@ -37,6 +39,7 @@ public sealed class LeaveRequest
 }
 
 /// <summary>HR điều chỉnh tay quỹ phép năm (± ngày), vd nhập số dư ban đầu khi chuyển từ Excel.</summary>
+[Audited]
 public sealed class LeaveAdjustment
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();

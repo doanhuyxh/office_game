@@ -127,7 +127,7 @@ internal static class EmployeeEndpoints
 
     // ---------------- Hỗ trợ ----------------
 
-    private static void Apply(Employee e, UpsertEmployeeRequest r)
+    internal static void Apply(Employee e, UpsertEmployeeRequest r)
     {
         e.FullName = r.FullName.Trim();
         e.Email = string.IsNullOrWhiteSpace(r.Email) ? null : r.Email.Trim().ToLowerInvariant();
@@ -141,7 +141,7 @@ internal static class EmployeeEndpoints
         if (Enum.TryParse<EmployeeStatus>(r.Status, true, out var st) && st != EmployeeStatus.Resigned) e.Status = st;
     }
 
-    private static async Task<Validation> ValidateAsync(UpsertEmployeeRequest r, Guid? selfId, OrgDbContext db, CancellationToken ct)
+    internal static async Task<Validation> ValidateAsync(UpsertEmployeeRequest r, Guid? selfId, OrgDbContext db, CancellationToken ct)
     {
         var v = new Validation()
             .Required(r.FullName, "fullName", "Họ tên").MaxLength(r.FullName, 200, "fullName", "Họ tên")

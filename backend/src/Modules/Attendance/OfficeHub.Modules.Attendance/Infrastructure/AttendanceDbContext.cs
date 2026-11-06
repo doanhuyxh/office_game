@@ -14,9 +14,16 @@ public sealed class AttendanceDbContext(DbContextOptions<AttendanceDbContext> op
     public DbSet<Holiday> Holidays => Set<Holiday>();
     public DbSet<AttendanceCorrection> Corrections => Set<AttendanceCorrection>();
     public DbSet<OvertimeRequest> Overtime => Set<OvertimeRequest>();
+    public DbSet<AttendanceReminder> Reminders => Set<AttendanceReminder>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        b.Entity<AttendanceReminder>(e =>
+        {
+            e.ToTable("reminders");
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(20);
+            e.HasIndex(x => new { x.EmployeeId, x.WorkDate, x.Kind }).IsUnique().HasDatabaseName("ux_reminders_employee_day_kind");
+        });
         b.HasDefaultSchema(Schema);
         b.Entity<Shift>(e =>
         {

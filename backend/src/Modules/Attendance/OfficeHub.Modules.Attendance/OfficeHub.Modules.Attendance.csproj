@@ -6,6 +6,7 @@
     <ProjectReference Include="..\OfficeHub.Modules.Attendance.Contracts\OfficeHub.Modules.Attendance.Contracts.csproj" />
     <ProjectReference Include="..\..\Approval\OfficeHub.Modules.Approval.Contracts\OfficeHub.Modules.Approval.Contracts.csproj" />
     <ProjectReference Include="..\..\Leave\OfficeHub.Modules.Leave.Contracts\OfficeHub.Modules.Leave.Contracts.csproj" />
+    <ProjectReference Include="..\..\Notification\OfficeHub.Modules.Notification.Contracts\OfficeHub.Modules.Notification.Contracts.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

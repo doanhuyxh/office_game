@@ -16,7 +16,7 @@ backend/                         ASP.NET Core .NET 10 — solution OfficeHub.sln
     Health/, Http/Validation.cs, Persistence/, Storage/(IFileStorage→S3), Email/(IEmailSender→SMTP), Security/(IFieldEncryptor AES-GCM), Office/OfficeNetwork
   src/Modules/                   Identity · Organization · Attendance · Approval · Leave · Notification (mỗi cái + .Contracts) · LaborContracts ← có nghiệp vụ
                                  Meetings ← đặt phòng họp · Reporting ← báo cáo / Excel / quy ra tiền (không DB, chỉ đọc qua *.Contracts)
-                                 Audit ← nhật ký AI (IStartupFilter bọc pipeline)
+                                 Audit ← nhật ký AI (IStartupFilter) + lịch sử sửa (IChangeAuditSink ← interceptor [Audited] ở BuildingBlocks)
   tests/                         OfficeHub.Architecture.Tests, OfficeHub.Modules.{Attendance,Leave,Notification,LaborContracts}.Tests, OfficeHub.Modules.Identity.Tests, OfficeHub.{Realtime,Mcp}.Tests
 frontend/                        React 19 + Vite + TS (bun) — chi tiết: conventions.md
 shared/office-map.json           bản đồ văn phòng 3D, dùng chung FE (vẽ) + Realtime (kiểm tra sàn)

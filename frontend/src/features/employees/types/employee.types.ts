@@ -99,3 +99,32 @@ export interface IUpsertPosition {
   name: string;
   sortOrder?: number;
 }
+
+/** Một dòng xem trước khi nhập Excel (ImportRowDto). row = số dòng trong file. */
+export interface IImportRow {
+  row: number;
+  code: string | null;
+  fullName: string | null;
+  email: string | null;
+  phone: string | null;
+  dateOfBirth: string | null;
+  departmentName: string | null;
+  positionName: string | null;
+  managerCode: string | null;
+  managerName: string | null;
+  joinedAt: string | null;
+  status: string;
+  errors: string[];
+}
+
+export interface IImportPreview {
+  rows: IImportRow[];
+  validCount: number;
+  errorCount: number;
+  fileError: string | null;
+}
+
+export interface IImportResult {
+  created: number;
+  codes: string[];
+}
