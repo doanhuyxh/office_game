@@ -68,7 +68,7 @@ Chủ dự án chốt 2026-11-06: **phòng ban mở rộng tự do** (cây nhi�
 
 ## UI (`frontend/src/features/employees/`)
 
-- `EmployeesPage`: 3 tab Nhân viên / Phòng ban / Chức vụ. `canEdit = hasRole(me, 'admin', 'hr')`; người khác chỉ xem danh bạ (ẩn cột Tài khoản và menu thao tác).
+- `EmployeesPage`: tab Nhân viên / Phòng ban / Chức vụ + **Sơ đồ tổ chức** (chỉ admin/HR, `OrgChart.tsx`: cây CSS thuần `orgChart.css`, không thư viện). 2 chế độ: *theo phòng ban* (thẻ phòng: trưởng phòng, số người, nhân viên sắp theo cấp bậc, thu gọn phòng con) và *theo quản lý trực tiếp* (= người duyệt đơn). Cảnh báo phòng chưa có trưởng / người cấp dưới chưa có quản lý (nhóm riêng). Phóng to / thu nhỏ bằng CSS `zoom`, tự "Vừa khung". Chỉ hiển thị, dữ liệu từ `GET /departments` + `/employees` (không tính người đã nghỉ). `canEdit = hasRole(me, 'admin', 'hr')`; người khác chỉ xem danh bạ (ẩn cột Tài khoản và menu thao tác).
 - `EmployeeTable`: tìm kiếm (debounce 300ms), lọc phòng ban, "Hiện người đã nghỉ", menu từng dòng: Sửa hồ sơ, Cấp tài khoản, Gửi lại lời mời (khi `invitePending`), Đổi vai trò, Cấp lại mật khẩu tạm, Nghỉ việc / Khôi phục.
 - `EmployeeFormDialog` (lỗi field từ server qua `fieldErrors`), `AccountDialogs.tsx` (`CreateAccountDialog`, `RolesDialog`, `TempPasswordDialog`, `ResignDialog`), `DepartmentsPanel`, `PositionsPanel`.
 - `CreateAccountDialog` trả mật khẩu tạm lên cha qua `onTempPassword` (dialog đóng ngay khi tạo xong; **đừng** hiển thị mật khẩu bên trong dialog này). Lựa chọn vai trò `admin` chỉ hiện với admin.

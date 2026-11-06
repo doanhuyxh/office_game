@@ -7,6 +7,7 @@ import { hasRole, useMe } from '@/features/auth';
 import { DepartmentsPanel } from './DepartmentsPanel';
 import { EmployeeTable } from './EmployeeTable';
 import { ImportDialog } from './ImportDialog';
+import { OrgChart } from './OrgChart';
 import { PositionsPanel } from './PositionsPanel';
 
 /** Màn hình Nhân sự: danh sách nhân viên, phòng ban, chức vụ. Chỉ admin/HR được sửa. */
@@ -26,10 +27,12 @@ export function EmployeesPage() {
           <TabsTrigger value="employees">Nhân viên</TabsTrigger>
           <TabsTrigger value="departments">Phòng ban</TabsTrigger>
           <TabsTrigger value="positions">Chức vụ</TabsTrigger>
+          {canEdit && <TabsTrigger value="chart">Sơ đồ tổ chức</TabsTrigger>}
         </TabsList>
         <TabsContent value="employees" className="mt-4"><EmployeeTable canEdit={canEdit} /></TabsContent>
         <TabsContent value="departments" className="mt-4"><DepartmentsPanel canEdit={canEdit} /></TabsContent>
         <TabsContent value="positions" className="mt-4"><PositionsPanel canEdit={canEdit} /></TabsContent>
+        {canEdit && <TabsContent value="chart" className="mt-4"><OrgChart /></TabsContent>}
       </Tabs>
       {canEdit && <ImportDialog open={importing} onOpenChange={setImporting} />}
     </div>

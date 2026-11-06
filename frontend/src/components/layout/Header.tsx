@@ -36,9 +36,9 @@ function SearchButton() {
       aria-keyshortcuts="Meta+K Control+K"
       onClick={() => setOpen(true)}
     >
-      <SearchIcon className="absolute start-1.5 top-1/2 -translate-y-1/2" />
+      <SearchIcon className="absolute inset-s-1.5 top-1/2 -translate-y-1/2" />
       <span className="ms-4">Tìm nhanh…</span>
-      <kbd className="pointer-events-none absolute end-[0.3rem] top-[0.3rem] hidden h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium select-none sm:flex">
+      <kbd className="pointer-events-none absolute inset-e-[0.3rem] top-[0.3rem] hidden h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium select-none sm:flex">
         <span className="text-xs">⌘</span>K
       </kbd>
     </Button>
