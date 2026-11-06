@@ -104,4 +104,13 @@ internal sealed class WorkCalendar(AttendanceDbContext db) : IWorkCalendar
             if (!holidays.Contains(d) && AttendanceService.ShiftIdForDate(schedules, employeeId, d) is not null) result.Add(d);
         return result;
     }
+
+    public async Task<int> StandardDaysAsync(Guid employeeId, DateOnly from, DateOnly to, CancellationToken ct = default)
+    {
+        var schedules = await db.Schedules.AsNoTracking().Where(s => s.EmployeeId == null || s.EmployeeId == employeeId).ToListAsync(ct);
+        var n = 0;
+        for (var d = from; d <= to; d = d.AddDays(1))
+            if (AttendanceService.ShiftIdForDate(schedules, employeeId, d) is not null) n++;
+        return n;
+    }
 }

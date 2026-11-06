@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { useCheck, useToday } from '@/features/attendance';
 import { useMe } from '@/features/auth';
+import { useRoomsNow } from '@/features/meetings';
 import { errorMessage } from '@/utils/errors';
 import { formatTime } from '@/utils/date';
 import { useOffice } from '../store/office.store';
@@ -25,6 +26,17 @@ export function OfficeView() {
   const [nearAction, setNearAction] = useState<string | null>(null);
   const [seatInfo, setSeatInfo] = useState<{ seat: Seat; sitting: boolean } | null>(null);
   const [scene, setScene] = useState<OfficeScene | null>(null);
+  const roomsNow = useRoomsNow();
+
+  // Bảng "Đang họp" trên phòng họp (lịch đặt phòng — module Meetings), làm mới mỗi phút.
+  useEffect(() => {
+    if (!scene) return;
+    for (const r of roomsNow.data ?? []) {
+      const text = r.current ? `Đang họp · ${r.current.title} · đến ${formatTime(r.current.endAt)}`
+        : r.next ? `Trống · ${formatTime(r.next.startAt)} ${r.next.title}` : null;
+      scene.setRoomStatus(r.roomId, text, !!r.current);
+    }
+  }, [scene, roomsNow.data]);
   const [help, setHelp] = useState(true);
   const [voice, setVoice] = useState<VoiceClient | null>(null);
   const [voiceView, setVoiceView] = useState<VoiceView>(VOICE_INITIAL);

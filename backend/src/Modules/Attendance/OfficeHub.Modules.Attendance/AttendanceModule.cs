@@ -26,6 +26,7 @@ public sealed class AttendanceModule : IModule
         services.AddModuleDbContext<AttendanceDbContext>(config, AttendanceDbContext.Schema);
         services.AddScoped<AttendanceService>();
         services.AddScoped<IWorkCalendar, WorkCalendar>();
+        services.AddScoped<IAttendanceReports, AttendanceReports>();
         services.AddScoped<IApprovalHandler, CorrectionApprovalHandler>();
         services.AddScoped<IApprovalHandler, OvertimeApprovalHandler>();
         services.AddHostedService<AttendanceSeeder>();

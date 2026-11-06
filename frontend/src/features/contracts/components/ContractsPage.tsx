@@ -24,6 +24,7 @@ import type { IContract } from '../types/contract.types';
 import { CONTRACT_TYPE, EXPIRING_DAYS, formatMoney } from '../utils/labels';
 import { ContractDetails, ContractStatusBadge } from './ContractDetails';
 import { ContractFormDialog } from './ContractFormDialog';
+import { GenerateFromTemplateDialog, TemplatesPanel } from './TemplatesPanel';
 
 type Filter = 'all' | 'active' | 'expiring' | 'ended';
 const FILTERS: { value: Filter; label: string; match: (c: IContract) => boolean }[] = [
@@ -80,6 +81,7 @@ function AllContracts() {
   const [viewing, setViewing] = useState<string | null>(null);
   const [editing, setEditing] = useState<IContract | null | undefined>(undefined); // undefined = đóng, null = thêm mới
   const [terminating, setTerminating] = useState<IContract | null>(null);
+  const [generating, setGenerating] = useState<IContract | null>(null);
 
   const q = search.trim().toLowerCase();
   const shown = rows.filter((c) => FILTERS.find((f) => f.value === filter)!.match(c)
@@ -141,6 +143,7 @@ function AllContracts() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onSelect={() => setViewing(c.id)}>Xem chi tiết</DropdownMenuItem>
                       <DropdownMenuItem onSelect={() => setEditing(c)}>Sửa</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setGenerating(c)}>Xuất từ mẫu…</DropdownMenuItem>
                       {!c.terminatedOn && c.status !== 'Expired' && <DropdownMenuItem onSelect={() => setTerminating(c)}>Chấm dứt…</DropdownMenuItem>}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem variant="destructive" onSelect={() => confirm(`Xoá hợp đồng ${c.number}? Chỉ dùng khi nhập nhầm.`) &&
@@ -164,6 +167,7 @@ function AllContracts() {
       </Dialog>
       <ContractFormDialog open={editing !== undefined} contract={editing} onClose={() => setEditing(undefined)} />
       <TerminateDialog contract={terminating} onClose={() => setTerminating(null)} />
+      <GenerateFromTemplateDialog contract={generating} onClose={() => setGenerating(null)} />
     </div>
   );
 }
@@ -199,8 +203,9 @@ export function ContractsPage() {
         description={isHr ? 'Hợp đồng, phụ lục và file scan của nhân viên. Hệ thống nhắc HR và quản lý 30 và 7 ngày trước khi hết hạn.' : 'Hợp đồng lao động và phụ lục của bạn.'} />
       {isHr ? (
         <Tabs defaultValue="all">
-          <TabsList><TabsTrigger value="all">Tất cả hợp đồng</TabsTrigger><TabsTrigger value="my">Của tôi</TabsTrigger></TabsList>
+          <TabsList><TabsTrigger value="all">Tất cả hợp đồng</TabsTrigger><TabsTrigger value="templates">Mẫu hợp đồng</TabsTrigger><TabsTrigger value="my">Của tôi</TabsTrigger></TabsList>
           <TabsContent value="all" className="mt-4"><AllContracts /></TabsContent>
+          <TabsContent value="templates" className="mt-4"><TemplatesPanel /></TabsContent>
           <TabsContent value="my" className="mt-4"><MyContracts /></TabsContent>
         </Tabs>
       ) : <MyContracts />}

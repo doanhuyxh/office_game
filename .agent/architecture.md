@@ -15,7 +15,8 @@ backend/                         ASP.NET Core .NET 10 — solution OfficeHub.sln
     Auth/                        AuthCookie (cookie dùng chung), Roles, ClaimNames, AuthPolicies
     Health/, Http/Validation.cs, Persistence/, Storage/(IFileStorage→S3), Email/(IEmailSender→SMTP), Security/(IFieldEncryptor AES-GCM), Office/OfficeNetwork
   src/Modules/                   Identity · Organization · Attendance · Approval · Leave · Notification (mỗi cái + .Contracts) · LaborContracts ← có nghiệp vụ
-                                 Audit ← nhật ký AI (IStartupFilter bọc pipeline) · Reporting ← chỉ khung (/_status)
+                                 Meetings ← đặt phòng họp · Reporting ← báo cáo / Excel / quy ra tiền (không DB, chỉ đọc qua *.Contracts)
+                                 Audit ← nhật ký AI (IStartupFilter bọc pipeline)
   tests/                         OfficeHub.Architecture.Tests, OfficeHub.Modules.{Attendance,Leave,Notification,LaborContracts}.Tests, OfficeHub.Modules.Identity.Tests, OfficeHub.{Realtime,Mcp}.Tests
 frontend/                        React 19 + Vite + TS (bun) — chi tiết: conventions.md
 shared/office-map.json           bản đồ văn phòng 3D, dùng chung FE (vẽ) + Realtime (kiểm tra sàn)
@@ -37,7 +38,7 @@ Trình duyệt (SPA :5173)
 
 - FE và API **cùng origin** (dev: Vite proxy; prod: nginx VPS → container `web` chia `/api`, `/rt`, `/livekit`) → cookie đăng nhập dùng được cho cả `/api` và `/rt`, không cần CORS.
 - **Cookie dùng chung 2 host**: Api cấp cookie `officehub.auth` (scheme `Identity.Application`); Realtime đọc lại nhờ cùng scheme, cùng tên cookie, cùng thư mục khoá `DataProtection__KeysPath`, application name `OfficeHub` (`AuthCookie.cs`, `HostingExtensions.cs`).
-- Không có message bus: module gọi nhau đồng bộ qua interface trong `*.Contracts` (DI scope cùng request): `IAccountService` (Identity), `IEmployeeDirectory` (Organization), `IApprovalService` + `IApprovalHandler` (Approval ← Leave, Attendance), `ILeaveCalendar` (Leave → Attendance), `IWorkCalendar` (Attendance → Leave). Realtime ↔ Api chỉ có một đường: Realtime gọi `/api/auth/me` ([business/office.md](business/office.md)). Mcp ↔ Api: Mcp gọi `/api/*` với Bearer token của người dùng, Api chỉ cho các route trong `AccessTokenAuth.IsAllowed` ([business/mcp.md](business/mcp.md)).
+- Không có message bus: module gọi nhau đồng bộ qua interface trong `*.Contracts` (DI scope cùng request): `IAccountService` (Identity), `IEmployeeDirectory` (Organization), `IApprovalService` + `IApprovalHandler` (Approval ← Leave, Attendance), `ILeaveCalendar` (Leave → Attendance), `IWorkCalendar` (Attendance → Leave, Reporting), `IAttendanceReports` (Attendance → Reporting), `ILeaveBalances` (Leave → Reporting), `ISalaryLookup` (LaborContracts → Reporting), `INotifier` (→ Meetings…). Realtime ↔ Api chỉ có một đường: Realtime gọi `/api/auth/me` ([business/office.md](business/office.md)). Mcp ↔ Api: Mcp gọi `/api/*` với Bearer token của người dùng, Api chỉ cho các route trong `AccessTokenAuth.IsAllowed` ([business/mcp.md](business/mcp.md)).
 - FE: mọi query/mutation trả **401** → `onUnauthorized` (`App.tsx`) xoá cache và chuyển `/login?returnUrl=…`; query không retry khi 401.
 - Business logic nằm ở back-end. FE chỉ hiển thị và điều hướng; `routes/guards.ts` và menu theo vai trò **không phải** lớp bảo mật.
 - IP client: Api dùng `ForwardedHeaders` (tin mọi proxy) → `HttpContext.Connection.RemoteIpAddress` là IP thật sau nginx (nginx VPS gửi `X-Forwarded-For`, container `web` chuyển tiếp nguyên). Dev qua Vite proxy → IP là localhost.

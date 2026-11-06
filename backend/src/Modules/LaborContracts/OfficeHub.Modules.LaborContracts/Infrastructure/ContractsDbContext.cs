@@ -10,6 +10,7 @@ public sealed class ContractsDbContext(DbContextOptions<ContractsDbContext> opti
 
     public DbSet<LaborContract> Contracts => Set<LaborContract>();
     public DbSet<ContractAmendment> Amendments => Set<ContractAmendment>();
+    public DbSet<ContractTemplate> Templates => Set<ContractTemplate>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -42,6 +43,15 @@ public sealed class ContractsDbContext(DbContextOptions<ContractsDbContext> opti
             e.OwnsOne(x => x.File, File);
             e.Navigation(x => x.File).IsRequired();
             e.HasIndex(x => new { x.ContractId, x.EffectiveDate });
+        });
+        b.Entity<ContractTemplate>(e =>
+        {
+            e.ToTable("templates");
+            e.Property(x => x.Name).HasMaxLength(200);
+            e.Property(x => x.ContractType).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.CreatedByName).HasMaxLength(200);
+            e.OwnsOne(x => x.File, File);
+            e.Navigation(x => x.File).IsRequired();
         });
     }
 

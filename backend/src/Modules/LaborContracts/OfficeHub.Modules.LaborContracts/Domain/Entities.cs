@@ -73,3 +73,17 @@ public sealed class ContractAmendment
     public StoredFile File { get; set; } = new();
     public DateTimeOffset CreatedAt { get; set; }
 }
+
+/// <summary>Mẫu hợp đồng Word (.docx) có trường {{Ten}} — HR tải lên, hệ thống điền từ hồ sơ + hợp đồng (Domain/DocxTemplate.cs).</summary>
+public sealed class ContractTemplate
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public required string Name { get; set; }
+    /// <summary>Gợi ý loại hợp đồng dùng mẫu này (null = mọi loại).</summary>
+    public ContractType? ContractType { get; set; }
+    public StoredFile File { get; set; } = new();
+    /// <summary>Các trường tìm thấy trong file lúc tải lên.</summary>
+    public List<string> Fields { get; set; } = [];
+    public DateTimeOffset CreatedAt { get; set; }
+    public string? CreatedByName { get; set; }
+}

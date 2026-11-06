@@ -16,6 +16,8 @@ public interface IFileStorage
     Task UploadAsync(string key, Stream content, string contentType, CancellationToken ct = default);
     Task<string> GetDownloadUrlAsync(string key, TimeSpan? ttl = null);
     Task DeleteAsync(string key, CancellationToken ct = default);
+    /// <summary>Đọc file vào bộ nhớ (stream seek được) — chỉ cho file nhỏ xử lý phía server (vd mẫu hợp đồng .docx).</summary>
+    Task<MemoryStream> OpenReadAsync(string key, CancellationToken ct = default);
 }
 
 public sealed class S3FileStorage(IAmazonS3 s3, IOptions<S3Settings> options, TimeProvider clock) : IFileStorage
@@ -43,6 +45,15 @@ public sealed class S3FileStorage(IAmazonS3 s3, IOptions<S3Settings> options, Ti
 
     public Task DeleteAsync(string key, CancellationToken ct = default) =>
         s3.DeleteObjectAsync(_cfg.BucketFiles, FullKey(key), ct);
+
+    public async Task<MemoryStream> OpenReadAsync(string key, CancellationToken ct = default)
+    {
+        using var res = await s3.GetObjectAsync(_cfg.BucketFiles, FullKey(key), ct);
+        var ms = new MemoryStream();
+        await res.ResponseStream.CopyToAsync(ms, ct);
+        ms.Position = 0;
+        return ms;
+    }
 
     private string FullKey(string key)
     {

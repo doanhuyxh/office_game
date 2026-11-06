@@ -65,6 +65,9 @@ public static class AccessTokenAuth
         ("POST", "/api/leave/requests"),
         ("GET", "/api/approval/"),
         ("POST", "/api/approval/"),
+        ("GET", "/api/meetings"),
+        ("POST", "/api/meetings/bookings"),
+        ("DELETE", "/api/meetings/bookings/"),
         ("GET", "/api/notifications"),
         ("POST", "/api/notifications/"),
     ];

@@ -28,6 +28,24 @@ export function parseInstant(v: Date | string | number): Date {
   return new Date(v);
 }
 
+/**
+ * Ngày + giờ đồng hồ tại văn phòng → thời điểm gửi API, kèm múi giờ VN: ("2026-11-07", "09:30") → "2026-11-07T09:30:00+07:00".
+ * Việt Nam không đổi giờ mùa hè nên offset cố định +07:00.
+ */
+export const vnInstant = (date: string, time: string) => `${date}T${time.length === 5 ? `${time}:00` : time}+07:00`;
+
+/** Thời điểm → "HH:mm" theo giờ VN (cho ô input type="time"). */
+export const toVnTime = (v: Date | string) => formatTime(v);
+
+/** Thời điểm → "yyyy-MM-dd" theo giờ VN. */
+export const toVnDate = (v: Date | string) => parseInstant(v).toLocaleDateString('sv-SE', { timeZone: TZ });
+
+/** Cộng n ngày vào ngày "yyyy-MM-dd" (tính theo lịch, không theo múi giờ máy). */
+export const addDays = (date: string, n: number) => {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+};
+
 /** Gửi thời điểm lên API: ISO 8601 UTC "2026-11-06T02:14:39.000Z". */
 export const toApiInstant = (v: Date) => v.toISOString();
 

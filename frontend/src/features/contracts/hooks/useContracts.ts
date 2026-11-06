@@ -45,3 +45,18 @@ export function useUploadContractFile() {
   const invalidate = useInvalidate();
   return useMutation({ mutationFn: (v: { id: string; file: File; amendmentId?: string }) => contractApi.uploadFile(v.id, v.file, v.amendmentId), onSuccess: invalidate });
 }
+
+// ---------- Mẫu hợp đồng (HR) ----------
+export const useTemplates = (enabled = true) => useQuery({ queryKey: contractKeys.templates, queryFn: contractApi.templates, enabled });
+export const useTemplateFields = () => useQuery({ queryKey: contractKeys.templateFields, queryFn: contractApi.templateFields, staleTime: Infinity });
+export function useUploadTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { file: File; name: string; contractType: string | null }) => contractApi.uploadTemplate(v.file, v.name, v.contractType),
+    onSuccess: () => qc.invalidateQueries({ queryKey: contractKeys.templates }),
+  });
+}
+export function useRemoveTemplate() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: contractApi.removeTemplate, onSuccess: () => qc.invalidateQueries({ queryKey: contractKeys.templates }) });
+}

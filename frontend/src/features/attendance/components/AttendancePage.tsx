@@ -1,4 +1,7 @@
 import { PageHeader } from '@/components/layout/PageHeader';
+import { FileSpreadsheet } from 'lucide-react';
+import { Button } from '@/components/common/button';
+import { downloadUrl } from '@/utils/money';
 import { useState } from 'react';
 import { Input } from '@/components/common/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
@@ -65,7 +68,13 @@ export function AttendancePage() {
         {isManager && <TabsContent value="board" className="mt-4"><BoardTable /></TabsContent>}
         {isManager && (
           <TabsContent value="report" className="mt-4 space-y-3">
-            <div className="flex justify-end"><MonthPicker value={month} onChange={setMonth} /></div>
+            <div className="flex justify-end gap-2">
+              <MonthPicker value={month} onChange={setMonth} />
+              {/* Excel: HR mọi người, quản lý bản thân + cấp dưới (back-end lọc) */}
+              <Button variant="outline" onClick={() => downloadUrl(`/api/reports/timesheet.xlsx?month=${month}`)}>
+                <FileSpreadsheet className="size-4" /> Xuất Excel
+              </Button>
+            </div>
             <ReportTable month={month} />
           </TabsContent>
         )}

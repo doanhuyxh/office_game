@@ -74,3 +74,22 @@ export interface ICreateAmendment {
   salary: number | null;
   allowance: number | null;
 }
+
+/** Mẫu hợp đồng Word (TemplateDto). unknownFields = trường hệ thống không hỗ trợ (giữ nguyên khi xuất). */
+export interface IContractTemplate {
+  id: string;
+  name: string;
+  contractType: ContractType | null;
+  fileName: string;
+  fileSize: number | null;
+  fields: string[];
+  unknownFields: string[];
+  createdAt: string;
+  createdByName: string | null;
+}
+
+export interface ITemplateField {
+  name: string;
+  description: string;
+  example: string;
+}

@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Bot, Building2, CheckSquare, Clock, FileText, LayoutDashboard, Palmtree, Users } from 'lucide-react';
+import { BarChart3, Bot, Building2, CalendarClock, CheckSquare, Clock, FileText, LayoutDashboard, Palmtree, Users } from 'lucide-react';
 import { PATHS } from '@/config/paths';
 import { ROLE, type Role } from '@/config/roles';
 
@@ -35,6 +35,7 @@ export const NAVIGATION: NavGroup[] = [
       { to: PATHS.attendance, label: 'Chấm công', icon: Clock },
       { to: PATHS.leave, label: 'Nghỉ phép', icon: Palmtree },
       { to: PATHS.approvals, label: 'Phê duyệt', icon: CheckSquare },
+      { to: PATHS.meetings, label: 'Phòng họp', icon: CalendarClock },
     ],
   },
   {

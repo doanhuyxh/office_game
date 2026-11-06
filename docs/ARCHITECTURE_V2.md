@@ -27,13 +27,16 @@
 | SMTP: timeout 15 giây, tuỳ chọn `Smtp__CheckCertificateRevocation` (mặc định bật) | ✅ |
 | **Notification**: chuông in-app + email (hàng đợi trong DB, thử lại 5 lần, bỏ qua tên miền thử nghiệm) cho gửi / duyệt / từ chối / huỷ đơn | ✅ |
 | **LaborContracts**: hợp đồng (vô thời hạn / có thời hạn ≤ 36 tháng / thử việc ≤ 180 ngày), phụ lục, lương mã hoá AES-GCM, file S3, nhắc HR + quản lý 30 / 7 ngày; nhân viên xem của mình | ✅ |
-| Reporting, Audit: khung project + `/_status` | ✅ khung · ⏳ nghiệp vụ |
+| **Reporting**: Excel bảng công (tổng hợp · lưới công · chi tiết giờ VN), tiền tăng ca (lương HĐ ÷ ngày công chuẩn ÷ 8 × 150/200/300%), tiền phép chưa dùng **khi nghỉ việc** | ✅ |
+| **Mẫu hợp đồng Word**: HR tải .docx có `{{Truong}}`, xuất hợp đồng điền sẵn (lương bằng chữ) | ✅ |
+| **Meetings**: đặt phòng họp, chặn trùng giờ, mời (chuông + email), bảng "Đang họp" trong văn phòng 3D | ✅ |
+| **Kết nối AI (MCP)**: host `OfficeHub.Mcp` 34 tool cho Claude / Cursor / Codex / GitHub Copilot, token cá nhân + OAuth 2.1, nhật ký AI (Audit), không hợp đồng / lương — `.agent/business/mcp.md` | ✅ |
+| Audit: lịch sử sửa dữ liệu nhân sự | ⏳ (hiện chỉ nhật ký AI) |
 | Docker image (api, realtime, web), compose production, backup S3, CI GitHub Actions | ✅ (chưa deploy thật) |
-| Test: kiến trúc (module không tham chiếu chéo) + bộ tính công + quy tắc phép năm (29 test) | ✅ |
+| Test: kiến trúc (ranh giới module, nguồn giờ, hợp đồng thời điểm) + tính công, phép, tăng ca, hợp đồng, OAuth, MCP, báo cáo, phòng họp (207 test) | ✅ |
 | Wolverine (sự kiện/outbox), Hangfire (job), Audit interceptor | ⏳ |
 | **Tăng ca**: đăng ký trước / khai bù 7 ngày, duyệt quản lý → HR, tính theo giờ trên đơn, tách 150 / 200 / 300% theo loại ngày, cảnh báo 40 giờ/tháng · 200 giờ/năm | ✅ |
-| Nhắc quên chấm ra, quy ra tiền tăng ca | ⏳ |
-| Quy ra tiền phép năm (UI hiện "Đang phát triển") | ⏳ |
+| Nhắc quên chấm ra | ⏳ |
 | Engine 3D đầy đủ (viết mới), dựng theo mặt bằng thật | ⏳ |
 
 ---
@@ -224,10 +227,11 @@ Modules/<M>/OfficeHub.Modules.<M>/
 | `Attendance` | `/api/attendance` | `attendance` | ✅ | Chấm công, ca làm, lịch tuần, ngày lễ, bảng công, giải trình, tăng ca · ⏳ webhook máy |
 | `Leave` | `/api/leave` | `leave` | ✅ | Loại phép, quỹ phép năm, đơn nghỉ, điều chỉnh của HR |
 | `LaborContracts` | `/api/contracts` | `contracts` | ✅ | Hợp đồng, phụ lục, lương mã hoá, file S3, nhắc hết hạn · ⏳ mẫu hợp đồng, ký điện tử |
-| `Approval` | `/api/approval` | `approval` | ✅ | Luồng duyệt dùng chung (nghỉ phép, giải trình) |
+| `Approval` | `/api/approval` | `approval` | ✅ | Luồng duyệt dùng chung (nghỉ phép, giải trình, tăng ca) |
 | `Notification` | `/api/notifications` | `notifications` | ✅ | Chuông in-app, email gửi nền (hàng đợi trong DB) |
-| `Reporting` | `/api/reports` | (đọc qua view) | khung | Bảng công tháng, xuất Excel |
-| `Audit` | `/api/audit` | `audit` | khung | Lịch sử thay đổi dữ liệu nhân sự |
+| `Reporting` | `/api/reports` | (không có — đọc qua `*.Contracts`) | ✅ | Excel bảng công, tiền tăng ca, tiền phép khi nghỉ việc |
+| `Meetings` | `/api/meetings` | `meetings` | ✅ | Đặt phòng họp |
+| `Audit` | `/api/audit` | `audit` | một phần | Nhật ký AI ✅ · lịch sử thay đổi dữ liệu nhân sự ⏳ |
 
 Module khung hiện chỉ có `GET /api/<route>/_status` (cần đăng nhập).
 
@@ -777,10 +781,11 @@ Trước đó (tới 2026-11-05) dùng bucket chung `finsplit` + IAM user `finsp
 | **Phê duyệt + Nghỉ phép + Giải trình** ✅ | Luồng duyệt quản lý → HR, quỹ phép năm, đơn nghỉ, lịch nghỉ, giải trình chấm công; khoá tài khoản hiệu lực ngay | Xin nghỉ, giải trình bằng hệ thống |
 | **Tăng ca** ✅ | Đơn tăng ca, duyệt quản lý → HR, giờ theo hệ số loại ngày, cảnh báo giới hạn | Tăng ca có trên bảng công |
 | **Thông báo** ✅ | Chuông in-app + email cho luồng duyệt | Người duyệt biết ngay có đơn |
-| **Tiếp theo** ⏳ | Quy ra tiền phép năm / tăng ca; nhắc quên chấm ra; Audit; nhập nhân viên từ Excel | Đủ quy trình nhân sự hằng ngày |
+| **Kết nối AI** ✅ | MCP (34 tool), token cá nhân + OAuth 2.1, nhật ký AI, HR thu hồi, giới hạn tần suất | Nhân viên làm việc với hệ thống qua trợ lý AI |
+| **Tiếp theo** ⏳ | Nhắc quên chấm ra; Audit lịch sử sửa; nhập nhân viên từ Excel | Đủ quy trình nhân sự hằng ngày |
 | **Văn phòng 3D** — giai đoạn 1 ✅ · 2 bỏ · 3 ✅ (voice) · 4 ⏳ | Engine mới, mặt bằng v2, va chạm, ngồi, bản đồ nhỏ ✅. Bỏ (chủ dự án): gán chỗ ngồi, trạng thái "Nghỉ phép" / vắng trên avatar. Voice theo khoảng cách / phòng họp ✅. Còn: chat theo phòng, model GLB, mobile | Văn phòng 3D giống thật |
 | **Hợp đồng lao động** ✅ | Hợp đồng, phụ lục, lương mã hoá, file S3, nhắc 30 / 7 ngày | HR quản lý hợp đồng trên hệ thống |
-| **2. Hoàn thiện** ⏳ | Bảng công tháng + Excel, mẫu hợp đồng, quy ra tiền tăng ca, voice + đặt phòng họp | Bỏ quy trình giấy/Excel |
+| **2. Hoàn thiện** ✅ | Bảng công tháng + Excel, mẫu hợp đồng, quy ra tiền tăng ca + phép (khi nghỉ việc), voice + đặt phòng họp | Bỏ quy trình giấy/Excel |
 | **3. Mở rộng** ⏳ | Webhook máy chấm công, PWA/mobile, ký điện tử, tích hợp lương | Tuỳ nhu cầu |
 
-**Bước tiếp theo** (chủ dự án chọn): văn phòng 3D đầy đủ · báo cáo + xuất Excel · quy ra tiền phép / tăng ca (dùng lương trên hợp đồng).
+**Bước tiếp theo** (chủ dự án chọn): deploy thật lên VPS · nhắc quên chấm ra / nhập Excel / Audit · văn phòng 3D đầy đủ (GLB, mobile) · giai đoạn 3.

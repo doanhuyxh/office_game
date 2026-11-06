@@ -1,5 +1,5 @@
 import { http, httpPost, httpUpload } from '@/services/api-client';
-import type { IContract, ICreateAmendment, IStoredFile, IUpsertContract } from '../types/contract.types';
+import type { IContract, IContractTemplate, ICreateAmendment, IStoredFile, ITemplateField, IUpsertContract } from '../types/contract.types';
 
 const put = <T>(url: string, body: unknown) => http<T>(url, { method: 'PUT', body: JSON.stringify(body) });
 const del = (url: string) => http<void>(url, { method: 'DELETE' });
@@ -8,6 +8,8 @@ export const contractKeys = {
   all: ['contracts'] as const,
   list: ['contracts', 'list'] as const,
   my: ['contracts', 'my'] as const,
+  templates: ['contracts', 'templates'] as const,
+  templateFields: ['contracts', 'templates', 'fields'] as const,
 };
 
 const base = '/api/contracts';
@@ -24,4 +26,18 @@ export const contractApi = {
     httpUpload<IStoredFile>(`${base}/${id}${amendmentId ? `/amendments/${amendmentId}` : ''}/file`, file),
   fileUrl: (id: string, amendmentId?: string) =>
     http<{ url: string; name: string }>(`${base}/${id}${amendmentId ? `/amendments/${amendmentId}` : ''}/file`),
+  // Mẫu hợp đồng Word (HR)
+  templates: () => http<IContractTemplate[]>(`${base}/templates`),
+  templateFields: () => http<ITemplateField[]>(`${base}/templates/fields`),
+  uploadTemplate: (file: File, name: string, contractType: string | null) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('name', name);
+    if (contractType) form.append('contractType', contractType);
+    return http<IContractTemplate>(`${base}/templates`, { method: 'POST', body: form });
+  },
+  templateFileUrl: (id: string) => http<{ url: string; name: string }>(`${base}/templates/${id}/file`),
+  removeTemplate: (id: string) => del(`${base}/templates/${id}`),
+  /** Link tải hợp đồng đã điền từ mẫu (.docx). */
+  generateUrl: (contractId: string, templateId: string) => `${base}/${contractId}/generate?templateId=${templateId}`,
 };

@@ -93,3 +93,27 @@ public class ApiErrorTests
         Assert.Throws<McpException>(() => ToolHelpers.OptionalMonth("11-2026"));
     }
 }
+
+public class MeetingToolTests
+{
+    [Fact]
+    public void Office_wall_clock_becomes_instant_with_offset()
+    {
+        var tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+        Assert.Equal("2026-11-07T09:30:00+07:00", MeetingTools.Instant(new DateOnly(2026, 11, 7), new TimeOnly(9, 30), tz));
+    }
+
+    [Theory]
+    [InlineData("GET", "/api/meetings/rooms")]
+    [InlineData("GET", "/api/meetings/bookings")]
+    [InlineData("POST", "/api/meetings/bookings")]
+    [InlineData("DELETE", "/api/meetings/bookings/0193a000-0000-7000-8000-000000000000")]
+    public void Meetings_routes_allowed_for_ai(string method, string path) => Assert.True(AccessTokenAuth.IsAllowed(method, path));
+
+    [Theory]
+    [InlineData("GET", "/api/reports/overtime-pay")]
+    [InlineData("GET", "/api/reports/leave-payout/me")]
+    [InlineData("GET", "/api/contracts/templates")]
+    [InlineData("DELETE", "/api/meetings/bookings")]
+    public void Salary_reports_and_templates_blocked_for_ai(string method, string path) => Assert.False(AccessTokenAuth.IsAllowed(method, path));
+}

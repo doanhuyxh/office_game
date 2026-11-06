@@ -20,7 +20,7 @@ Chưa có API thêm / sửa loại phép.
 - Mỗi năm: **12 ngày + 1 ngày cho mỗi 5 năm thâm niên** (thâm niên tính tại 1/1 của năm đó).
 - Cộng dồn theo tháng: mỗi tháng = 1/12 số ngày của năm. Tính từ tháng vào làm tới **tháng hiện tại (tính luôn)**, dừng ở tháng nghỉ việc. Làm tròn 2 chữ số.
 - **Phép còn lại tự chuyển sang năm sau, không hết hạn** (chủ dự án chốt). Số dư = tổng tích luỹ mọi năm.
-- **Quy ra tiền: chưa làm.** UI hiện "Đang phát triển" (nhân viên đề xuất, HR duyệt — khi làm sẽ là loại đơn Approval mới).
+- **Quy ra tiền: chỉ khi nghỉ việc** (chủ dự án chốt 2026-11-06, Điều 113) = ngày còn lại × lương ngày — tính ở module Reporting ([reports.md](reports.md)); không có đơn đề xuất quy ra tiền hằng năm. `ILeaveBalances` (Contracts) trả quỹ phép cho Reporting.
 
 Số dư (`LeaveBalanceService.ComputeAsync`, năm = năm hiện tại theo `Office__TimeZone`):
 
@@ -65,7 +65,7 @@ Ngày quá khứ được phép (nghỉ ốm khai sau). Được xin phép năm 
 ## UI (`frontend/src/features/leave/`)
 
 - `LeavePage` tabs: Của tôi (mọi người) · Lịch nghỉ (admin/hr/manager) · Quỹ phép (admin/hr). Nút "Xin nghỉ" ẩn khi `noProfile`.
-- `BalanceCard` (từng dòng cộng/trừ), `YearEndCard` (chuyển sang năm sau — tự động; quy ra tiền — nút tắt "Đang phát triển").
+- `BalanceCard` (từng dòng cộng/trừ), `YearEndCard` (chuyển sang năm sau — tự động; quy ra tiền khi nghỉ việc + số tiền ước tính `useMyLeavePayout`).
 - `LeaveRequestDialog`: chọn "Buổi" chỉ khi 1 ngày; xem trước số ngày (`useLeavePreview`, debounce 300ms); nút gửi tắt khi 0 ngày.
 - `MyLeavesTable` (huỷ đơn chờ duyệt bằng `useCancelApproval` từ `@/features/approvals`), `TeamCalendar` (chọn tháng), `BalancesTable` + dialog điều chỉnh.
 - Dashboard dùng `useMyBalance` hiện "Phép năm còn lại".

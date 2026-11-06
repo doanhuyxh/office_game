@@ -32,4 +32,7 @@ public static class NotificationCategories
     public const string ApprovalCancelled = "approval_cancelled";
     /// <summary>Hợp đồng lao động sắp hết hạn (30 / 7 ngày) — gửi HR và quản lý trực tiếp.</summary>
     public const string ContractExpiring = "contract_expiring";
+    /// <summary>Được mời họp (module Meetings).</summary>
+    public const string MeetingInvited = "meeting_invited";
+    public const string MeetingCancelled = "meeting_cancelled";
 }

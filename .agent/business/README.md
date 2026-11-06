@@ -18,10 +18,12 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Giải trình chấm công (bổ sung giờ vào / ra) | [attendance-corrections.md](attendance-corrections.md) |
 | Tăng ca (đơn, hệ số theo loại ngày, giới hạn) | [attendance-overtime.md](attendance-overtime.md) |
 | Thông báo: chuông in-app + email (hàng đợi, thử lại), ai nhận gì khi gửi / duyệt / từ chối / huỷ đơn, `INotifier` | [notifications.md](notifications.md) |
-| Hợp đồng lao động: loại / thời hạn theo BLLĐ, phụ lục, lương mã hoá, file S3, nhắc 30 / 7 ngày, quyền xem | [contracts.md](contracts.md) |
+| Hợp đồng lao động: loại / thời hạn theo BLLĐ, phụ lục, lương mã hoá, file S3, nhắc 30 / 7 ngày, quyền xem, mẫu hợp đồng Word | [contracts.md](contracts.md) |
 | Kết nối AI (MCP): token truy cập cá nhân, route token được gọi, tool cho Claude / Cursor / Codex | [mcp.md](mcp.md) |
 | Kết nối AI: OAuth 2.1 (DCR, PKCE, refresh), nhật ký AI (Audit), HR thu hồi, giới hạn / công tắc tắt | [mcp-oauth.md](mcp-oauth.md) |
-| Reporting; Audit (ngoài nhật ký AI) | Chưa có nghiệp vụ — Reporting chỉ `GET /api/reports/_status`, FE `ComingSoon`. Audit hiện chỉ có nhật ký AI ([mcp-oauth.md](mcp-oauth.md)). Thiết kế dự kiến: `docs/ARCHITECTURE_V2.md` |
+| Báo cáo + Excel (bảng công, tiền tăng ca, tiền phép khi nghỉ việc), quy tắc lương giờ / ngày công chuẩn | [reports.md](reports.md) |
+| Đặt phòng họp, chặn trùng giờ, mời họp, bảng "Đang họp" trong 3D | [meetings.md](meetings.md) |
+| Audit (ngoài nhật ký AI) | Chưa có lịch sử sửa dữ liệu nhân sự — Audit hiện chỉ có nhật ký AI ([mcp-oauth.md](mcp-oauth.md)) |
 
 ## Nguyên tắc chung
 

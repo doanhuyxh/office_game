@@ -36,4 +36,17 @@ internal sealed class EmployeeDirectory(OrgDbContext db) : IEmployeeDirectory
                 if (result.Add(child)) stack.Push(child);
         return result;
     }
+
+    public async Task<IReadOnlyList<EmployeeRef>> ListEmployedAsync(DateOnly from, DateOnly to, CancellationToken ct = default) =>
+        await Project(db.Employees.Where(e => e.JoinedAt <= to && (e.LeftAt == null || e.LeftAt >= from)).OrderBy(e => e.Code)).ToListAsync(ct);
+
+    public async Task<EmployeeProfile?> GetProfileAsync(Guid employeeId, CancellationToken ct = default)
+    {
+        if (await GetAsync(employeeId, ct) is not { } emp) return null;
+        var row = await (from e in db.Employees.AsNoTracking().Where(e => e.Id == employeeId)
+                         join p in db.Positions on e.PositionId equals p.Id into pj
+                         from p in pj.DefaultIfEmpty()
+                         select new { e.Email, e.Phone, e.DateOfBirth, Position = p != null ? p.Name : null }).FirstAsync(ct);
+        return new EmployeeProfile(emp, row.Email, row.Phone, row.DateOfBirth, row.Position);
+    }
 }

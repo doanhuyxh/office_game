@@ -57,7 +57,7 @@ Quy tắc ghi:
 
 ## Schema `approval`, `leave`, `notifications`
 
-Xem [database-workflow.md](database-workflow.md) (đơn, duyệt, nghỉ phép, thông báo).
+Xem [database-workflow.md](database-workflow.md) (đơn, duyệt, nghỉ phép, thông báo, hợp đồng + mẫu Word, phòng họp).
 
 ## Dữ liệu seed khi khởi động
 

@@ -17,7 +17,6 @@ export const CONTRACT_STATUS: Record<ContractStatus, { label: string; tone: Stat
 /** Khớp ContractRules.RemindDays ở back-end: hiện cảnh báo "sắp hết hạn". */
 export const EXPIRING_DAYS = 30;
 
-const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
-export const formatMoney = (v: number | null | undefined) => (v == null ? '—' : money.format(v));
+export { formatMoney } from '@/utils/money';
 
 export const ACCEPT_FILES = 'application/pdf,image/jpeg,image/png';

@@ -28,6 +28,7 @@ const CAN = [
   'Chấm công vào / ra (luôn tính là làm việc từ xa)',
   'Xem quỹ phép, gửi đơn nghỉ phép, tăng ca, giải trình chấm công; huỷ đơn đang chờ',
   'Quản lý / HR: xem đơn chờ duyệt, duyệt / từ chối, xem chấm công và lịch nghỉ của nhóm',
+  'Xem lịch / đặt / huỷ phòng họp và mời đồng nghiệp',
   'Xem thông báo, tra danh bạ đồng nghiệp',
 ];
 const CANNOT = [

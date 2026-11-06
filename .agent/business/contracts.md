@@ -52,4 +52,13 @@ File lưu `contracts/{employeeId}/{contractId}[/amendments/{aid}]/{uuid}.{ext}` 
 - Menu "Hợp đồng" hiện cho mọi người. HR: tab **Tất cả hợp đồng** (cảnh báo nhân viên đang làm chưa có hợp đồng hiệu lực, tìm kiếm, lọc Tất cả / Đang hiệu lực / Sắp hết hạn ≤ 30 ngày / Hết hạn – chấm dứt, menu dòng: xem / sửa / chấm dứt / xoá) + tab **Của tôi**. Nhân viên: thẻ hợp đồng của mình (chỉ xem, tải file).
 - `ContractFormDialog` (thêm / sửa), `ContractDetails` (thông tin, lương hiện tại, phụ lục, file — `canEdit` cho HR), `TerminateDialog`, `AmendmentDialog`. Upload qua `httpUpload` (`services/api-client.ts`).
 
-**Chưa có:** mẫu hợp đồng / sinh file, ký điện tử, lịch sử sửa (audit), nhắc hợp đồng thử việc chuyển chính thức, liên kết lương với quy ra tiền phép / tăng ca.
+## Mẫu hợp đồng Word (chủ dự án chốt 2026-11-06: upload .docx, điền tự động)
+
+- HR tải mẫu `.docx` (≤ 5 MB) có trường `{{TenTruong}}` (không phân biệt hoa thường, cho phép `{{ HoTen }}`) → lưu S3 `contract-templates/{id}.docx`, bảng `contracts.templates` (tên, loại HĐ gợi ý, danh sách trường tìm thấy). Trường lạ báo `unknownFields`, khi xuất giữ nguyên.
+- Trường hỗ trợ: `Domain/ContractFields.cs` (`GET /api/contracts/templates/fields`): họ tên, mã, ngày sinh, email, SĐT, phòng ban, chức vụ, chức danh HĐ, số / loại / thời hạn / ngày ký / bắt đầu / kết thúc, `Luong`, `LuongBangChu` (`VietnameseNumber`), `PhuCap`, `PhuCapBangChu`, `NgayHienTai`, `Ngay` / `Thang` / `Nam`. Thông tin cố định của công ty gõ thẳng vào mẫu. Lương lấy theo **hợp đồng** (không phải phụ lục).
+- `Domain/DocxTemplate.cs` (OpenXML): thay ở thân, header, footer; trường bị Word tách nhiều run vẫn thay đúng, chữ xung quanh giữ định dạng.
+- `GET /api/contracts/{id}/generate?templateId=` (HR) → tải `.docx` đã điền, **không lưu** — HR in, ký rồi tải bản ký lên mục file của hợp đồng. Hồ sơ đầy đủ lấy qua `IEmployeeDirectory.GetProfileAsync`.
+- Endpoint mẫu (HR): `GET/POST /api/contracts/templates`, `GET /templates/{id}/file` (link tải mẫu gốc), `DELETE /templates/{id}`. FE: tab "Mẫu hợp đồng" + menu ⋯ "Xuất từ mẫu…".
+- `ISalaryLookup` (project `OfficeHub.Modules.LaborContracts.Contracts`): lương hiệu lực tại ngày D cho Reporting ([reports.md](reports.md)).
+
+**Chưa có:** ký điện tử, lịch sử sửa (audit), nhắc hợp đồng thử việc chuyển chính thức.

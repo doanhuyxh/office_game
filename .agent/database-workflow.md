@@ -1,4 +1,4 @@
-# Cơ sở dữ liệu — đơn, duyệt, nghỉ phép, thông báo, hợp đồng
+# Cơ sở dữ liệu — đơn, duyệt, nghỉ phép, thông báo, hợp đồng, phòng họp
 
 > Phần chung (quy ước, seed, viết migration): [database.md](database.md). Nguồn sự thật là code: `*DbContext.cs` + `Infrastructure/Migrations/`. Về [AGENTS.md](../AGENTS.md).
 
@@ -27,11 +27,22 @@ Quỹ phép **không lưu**: tính khi đọc ([business/leave.md](business/leav
 
 Một dòng cho mỗi người nhận. Chỉ module Notification ghi; `EmailDispatcher` cập nhật cột `Email*`. Chưa có job xoá thông báo cũ ([business/notifications.md](business/notifications.md)).
 
-## Schema `contracts` — `ContractsDbContext` (migration `InitialContracts`)
+## Schema `contracts` — `ContractsDbContext` (migration `InitialContracts`, `ContractTemplates`)
 
 | Bảng | Field chính | Ràng buộc / index |
 |---|---|---|
 | `contracts` | `EmployeeId`, `Number` (≤50), `Type` (`Indefinite`/`Fixed`/`Probation`), `SignedDate`, `StartDate`, `EndDate` (null = vô thời hạn), `JobTitle`, `SalaryEncrypted` / `AllowanceEncrypted` (≤200, `v1:…` AES-GCM), `Note`, `TerminatedOn`, `TerminationReason`, `FileKey`/`FileName`/`FileContentType`/`FileSize` (owned `StoredFile`), `Reminded30At`, `Reminded7At`, `CreatedAt`, `UpdatedAt`, `DeletedAt` | `Number` unique lọc `DeletedAt IS NULL`; index (`EmployeeId`,`StartDate`); index `EndDate` lọc chưa xoá + chưa chấm dứt; query filter xoá mềm |
 | `amendments` | `ContractId`, `Number`, `EffectiveDate`, `Content` (≤2000), `SalaryEncrypted`, `AllowanceEncrypted`, `File*` | FK cascade; index (`ContractId`,`EffectiveDate`) |
 
+`templates` (mẫu Word): `Name` ≤200, `ContractType?` (string), `Fields text[]`, file owned `StoredFile` (S3 `contract-templates/{id}.docx`), `CreatedAt`, `CreatedByName`; xoá cứng + xoá file S3.
+
 Trạng thái hợp đồng tính lúc đọc. Không trùng thời gian / số phụ lục kiểm tra bằng code ([business/contracts.md](business/contracts.md)). Cột `…Encrypted` cần `Encryption__Key` cũ để đọc.
+
+## Schema `meetings` — `MeetingsDbContext` (migration `InitialMeetings`)
+
+| Bảng | Cột chính | Ràng buộc |
+|---|---|---|
+| `bookings` | `RoomId` (≤50, id phòng trong `shared/office-map.json`), `Title` ≤200, `StartAt` / `EndAt` (timestamptz UTC), `OrganizerEmployeeId`, `OrganizerUserId`, `OrganizerName`, `Note` ≤1000, `CreatedAt`, `CancelledAt?` | index (`RoomId`, `StartAt`); không trùng giờ kiểm tra bằng code + `pg_advisory_xact_lock` theo phòng ([business/meetings.md](business/meetings.md)) |
+| `attendees` | PK (`BookingId`, `EmployeeId`), `UserId?`, `Name` | FK `bookings` cascade; index `EmployeeId` |
+
+Reporting **không có schema** (chỉ đọc qua `*.Contracts`).

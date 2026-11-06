@@ -1,6 +1,6 @@
-import { Badge } from '@/components/common/badge';
-import { Button } from '@/components/common/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
+import { useMyLeavePayout } from '@/features/reports';
+import { formatMoney } from '@/utils/money';
 import type { IBalance } from '../types/leave.types';
 import { fmtDays } from '../utils/labels';
 
@@ -34,8 +34,9 @@ export function BalanceCard({ b }: { b: IBalance }) {
   );
 }
 
-/** Phép còn lại cuối năm: chuyển sang năm sau (tự động, không hết hạn) hoặc quy ra tiền (đang phát triển). */
+/** Phép còn lại cuối năm: tự chuyển sang năm sau (không hết hạn); quy ra tiền khi nghỉ việc (Điều 113 BLLĐ) — hiện giá trị ước tính. */
 export function YearEndCard({ b }: { b: IBalance }) {
+  const payout = useMyLeavePayout();
   return (
     <Card>
       <CardHeader>
@@ -47,13 +48,21 @@ export function YearEndCard({ b }: { b: IBalance }) {
           <b>Chuyển sang năm {b.year + 1}</b>
           <p className="text-muted-foreground">Áp dụng tự động cho số phép còn lại. Phép chuyển sang <b>không có hạn sử dụng</b>.</p>
         </div>
-        <div className="rounded-lg border p-3 opacity-60">
+        <div className="rounded-lg border p-3">
           <div className="flex items-center justify-between gap-2">
-            <b>Quy ra tiền</b>
-            <Badge variant="secondary">Đang phát triển</Badge>
+            <b>Quy ra tiền khi nghỉ việc</b>
+            {payout.data?.payoutAmount != null && <b>{formatMoney(payout.data.payoutAmount)}</b>}
           </div>
-          <p className="text-muted-foreground">Thanh toán theo lương ngày công. Nhân viên đề xuất, HR duyệt.</p>
-          <Button size="sm" variant="outline" className="mt-2" disabled>Đề xuất quy ra tiền</Button>
+          <p className="text-muted-foreground">
+            Phép chưa dùng được thanh toán khi nghỉ việc: số ngày còn lại × lương ngày (lương hợp đồng ÷ ngày công chuẩn của tháng).
+          </p>
+          {payout.data && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {payout.data.payoutAmount != null
+                ? `Ước tính nếu nghỉ hôm nay: ${fmtDays(Math.max(0, payout.data.available))} × ${formatMoney(payout.data.dailyWage)}.`
+                : payout.data.warning ?? 'Chưa đủ dữ liệu lương để ước tính.'}
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>

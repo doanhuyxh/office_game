@@ -1,7 +1,19 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\OfficeHub.BuildingBlocks\OfficeHub.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\..\Organization\OfficeHub.Modules.Organization.Contracts\OfficeHub.Modules.Organization.Contracts.csproj" />
+    <ProjectReference Include="..\..\Attendance\OfficeHub.Modules.Attendance.Contracts\OfficeHub.Modules.Attendance.Contracts.csproj" />
+    <ProjectReference Include="..\..\Leave\OfficeHub.Modules.Leave.Contracts\OfficeHub.Modules.Leave.Contracts.csproj" />
+    <ProjectReference Include="..\..\LaborContracts\OfficeHub.Modules.LaborContracts.Contracts\OfficeHub.Modules.LaborContracts.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="OfficeHub.Modules.Reporting.Tests" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -13,7 +13,13 @@ public interface IEmployeeDirectory
 
     /// <summary>Id các nhân viên cấp dưới (trực tiếp và gián tiếp) của một nhân viên.</summary>
     Task<IReadOnlyCollection<Guid>> GetSubordinateIdsAsync(Guid managerEmployeeId, CancellationToken ct = default);
+    /// <summary>Nhân viên có làm việc trong [from, to] (vào làm ≤ to và chưa nghỉ hoặc nghỉ ≥ from) — báo cáo theo kỳ, gồm cả người đã nghỉ.</summary>
+    Task<IReadOnlyList<EmployeeRef>> ListEmployedAsync(DateOnly from, DateOnly to, CancellationToken ct = default);
+    /// <summary>Hồ sơ đầy đủ hơn (email, điện thoại, ngày sinh, chức vụ) — dùng điền mẫu hợp đồng.</summary>
+    Task<EmployeeProfile?> GetProfileAsync(Guid employeeId, CancellationToken ct = default);
 }
+
+public sealed record EmployeeProfile(EmployeeRef Employee, string? Email, string? Phone, DateOnly? DateOfBirth, string? PositionName);
 
 public sealed record EmployeeRef(
     Guid Id,

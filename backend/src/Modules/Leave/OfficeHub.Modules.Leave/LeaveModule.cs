@@ -22,6 +22,7 @@ public sealed class LeaveModule : IModule
         services.AddModuleDbContext<LeaveDbContext>(config, LeaveDbContext.Schema);
         services.AddScoped<LeaveBalanceService>();
         services.AddScoped<ILeaveCalendar, LeaveCalendar>();
+        services.AddScoped<ILeaveBalances, LeaveBalances>();
         services.AddScoped<IApprovalHandler, LeaveApprovalHandler>();
         services.AddHostedService<LeaveSeeder>();
     }

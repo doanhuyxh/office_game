@@ -4,7 +4,7 @@ import type { Seat } from './mapTypes';
 import { NavGrid } from './navGrid';
 import { FACING_ANGLE, OFFICE_MAP } from './officeMap';
 import { P } from './palette';
-import { buildWorld } from './world';
+import { buildWorld, textTexture } from './world';
 import { voiceChannelAt, type VoiceChannelInfo } from './voiceChannel';
 
 /**
@@ -235,6 +235,35 @@ export class OfficeScene {
     for (const [id, o] of this.others) o.avatar.speaking = ids.has(id);
   }
 
+  private roomSigns = new Map<string, THREE.Sprite>();
+
+  /**
+   * Bảng nổi phía trên phòng họp: "Đang họp · …" (đỏ) / lịch kế tiếp (xám); null = gỡ bảng.
+   * Dữ liệu từ /api/meetings/bookings/now (OfficeView hỏi lại mỗi phút).
+   */
+  setRoomStatus(roomId: string, text: string | null, busy: boolean) {
+    const old = this.roomSigns.get(roomId);
+    if (old) {
+      this.scene.remove(old);
+      old.material.map?.dispose();
+      old.material.dispose();
+      this.roomSigns.delete(roomId);
+    }
+    const room = OFFICE_MAP.rooms.find((r) => r.id === roomId);
+    if (!text || !room) return;
+    const label = text.length > 48 ? `${text.slice(0, 47)}…` : text;
+    const { tex, aspect } = textTexture(label, {
+      color: '#ffffff', bg: busy ? '#dc2626' : '#475569', font: 'bold 36px Inter, system-ui, sans-serif', pad: 22,
+    });
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+    const h = 0.42;
+    sprite.scale.set(h * aspect, h, 1);
+    sprite.position.set((room.x0 + room.x1) / 2, 2.7, (room.z0 + room.z1) / 2);
+    sprite.renderOrder = 10;
+    this.scene.add(sprite);
+    this.roomSigns.set(roomId, sprite);
+  }
+
   /** Xoay camera 90° (dir = 1 / -1). */
   rotateCamera(dir: 1 | -1) { this.azimuthStep += dir; }
 
@@ -373,6 +402,7 @@ export class OfficeScene {
     removeEventListener('keyup', this.keyUp);
     removeEventListener('blur', this.clearKeys);
     for (const id of [...this.others.keys()]) this.removeOther(id);
+    for (const id of [...this.roomSigns.keys()]) this.setRoomStatus(id, null, false);
     this.me?.dispose();
     this.scene.traverse((o) => {
       if (o instanceof THREE.Mesh) {

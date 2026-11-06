@@ -50,7 +50,20 @@ public static class HostingExtensions
 
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<OfficeNetwork>();
-        builder.Services.AddProblemDetails();
+        // Body JSON sai (kiểu dữ liệu, thời điểm thiếu múi giờ…) → 400 ở MỌI môi trường (mặc định Development ném ra thành 500,
+        // Production trả 400 không nội dung). Thông điệp tiếng Việt của Instants được giữ để FE / AI hiển thị.
+        builder.Services.Configure<Microsoft.AspNetCore.Routing.RouteHandlerOptions>(o => o.ThrowOnBadRequest = true);
+        builder.Services.Configure<ExceptionHandlerOptions>(o =>
+            o.StatusCodeSelector = ex => ex is Microsoft.AspNetCore.Http.BadHttpRequestException bad ? bad.StatusCode : 500);
+        builder.Services.AddProblemDetails(o => o.CustomizeProblemDetails = ctx =>
+        {
+            if (ctx.Exception is not Microsoft.AspNetCore.Http.BadHttpRequestException bad) return;
+            ctx.ProblemDetails.Status = bad.StatusCode;
+            ctx.ProblemDetails.Title = "Dữ liệu gửi lên không hợp lệ";
+            ctx.ProblemDetails.Detail = bad.InnerException is System.Text.Json.JsonException { Message: Instants.MissingZoneMessage }
+                ? Instants.MissingZoneMessage
+                : "Dữ liệu gửi lên không đúng định dạng";
+        });
         // Thời điểm trong JSON: trả UTC 'Z', nhận bắt buộc kèm múi giờ (Http/Instants.cs).
         builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new UtcInstantJsonConverter()));
         builder.Services.AddHealthChecks().AddCheck<PostgresCheck>("postgres", tags: ["ready"]);

@@ -89,3 +89,17 @@ internal sealed class LeaveApprovalHandler(LeaveDbContext db, TimeProvider clock
         await db.SaveChangesAsync(ct);
     }
 }
+
+internal sealed class LeaveBalances(LeaveBalanceService balances, OfficeHub.Modules.Organization.Contracts.IEmployeeDirectory dir) : ILeaveBalances
+{
+    public async Task<IReadOnlyDictionary<Guid, LeaveBalanceInfo>> GetAsync(IReadOnlyCollection<Guid> employeeIds, CancellationToken ct = default)
+    {
+        var emps = new List<OfficeHub.Modules.Organization.Contracts.EmployeeRef>();
+        foreach (var id in employeeIds.Distinct())
+            if (await dir.GetAsync(id, ct) is { } e) emps.Add(e);
+        if (emps.Count == 0) return new Dictionary<Guid, LeaveBalanceInfo>();
+        var map = await balances.ComputeAsync(emps, ct);
+        return map.ToDictionary(kv => kv.Key, kv => new LeaveBalanceInfo(kv.Key, kv.Value.Year, kv.Value.EntitlementThisYear, kv.Value.AccruedThisYear,
+            kv.Value.CarriedFromPreviousYears, kv.Value.AdjustedThisYear, kv.Value.UsedThisYear, kv.Value.Pending, kv.Value.Available));
+    }
+}

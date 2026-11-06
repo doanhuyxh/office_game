@@ -32,10 +32,10 @@ AI client ──POST /mcp (Bearer ohk_…)──▶ OfficeHub.Mcp (BearerGate �
 
 - Token = `ohk_` + 32 byte ngẫu nhiên base64url. Lưu SHA-256 (`identity.access_tokens.TokenHash`, unique) + `Prefix` để hiển thị. Chỉ quản lý được bằng cookie web (token gọi → 403).
 - Xác thực (`Infrastructure/AccessTokenHandler.cs`, scheme `AccessToken`): scheme mặc định của Api là policy `OfficeHub` → có `Authorization: Bearer ohk_…` thì dùng token, ngược lại cookie. Mỗi request đọc lại token + user (+ grant nếu là token OAuth): token / grant thu hồi, hết hạn, user `IsActive=false`, đang khoá, `MustChangePassword`, hoặc `AccessTokens__Enabled=false` → 401. Principal tạo bằng `AppClaimsFactory` (vai trò hiện tại) + claim `access_token_id`; `LastUsedAt` ghi tối đa 5 phút / lần.
-- **Danh sách route cho phép** `AccessTokenAuth.IsAllowed` (mặc định chặn; khớp theo đoạn path): route ngoài danh sách → **403** dù token hợp lệ. Cố ý không có: `/api/contracts`, `/api/auth/*` trừ `/me`, ghi của `/api/org` (nhân viên, tài khoản, vai trò), ca / lịch / ngày lễ, `/api/leave/balances`, `/api/leave/adjustments`. Thêm endpoint mới cho AI → thêm vào đây + test `tests/OfficeHub.Mcp.Tests/AccessTokenScopeTests.cs`.
+- **Danh sách route cho phép** `AccessTokenAuth.IsAllowed` (mặc định chặn; khớp theo đoạn path): route ngoài danh sách → **403** dù token hợp lệ. Cố ý không có: `/api/contracts` (cả mẫu hợp đồng), `/api/reports` (lương / tiền), `/api/auth/*` trừ `/me`, ghi của `/api/org` (nhân viên, tài khoản, vai trò), ca / lịch / ngày lễ, `/api/leave/balances`, `/api/leave/adjustments`. Thêm endpoint mới cho AI → thêm vào đây + test `tests/OfficeHub.Mcp.Tests/AccessTokenScopeTests.cs`.
 - Code module khác nhận biết request từ AI bằng `ClaimsPrincipal.IsAccessToken()` (BuildingBlocks).
 
-## Tool (30)
+## Tool (34)
 
 | Nhóm | Tool |
 |---|---|
@@ -43,6 +43,7 @@ AI client ──POST /mcp (Bearer ohk_…)──▶ OfficeHub.Mcp (BearerGate �
 | Chấm công | `get_today_attendance`, `check_in_out`, `get_my_timesheet`, `list_holidays`, `list_shifts`, `list_my_corrections`, `submit_attendance_correction`, `list_my_overtime`, `preview_overtime`, `register_overtime` |
 | Nghỉ phép | `list_leave_types`, `get_leave_balance`, `list_my_leave_requests`, `preview_leave`, `submit_leave_request` (`leaveType` = mã / tên / id) |
 | Duyệt | `list_approval_inbox`, `list_my_approval_requests`, `get_approval_request`, `approve_request`, `reject_request` (bắt buộc lý do), `cancel_my_request` |
+| Phòng họp | `list_meeting_rooms`, `list_meetings`, `book_meeting_room` (ngày + giờ VN → `+07:00`, mời bằng mã / email / tên), `cancel_meeting` ([meetings.md](meetings.md)) |
 | Quản lý / HR | `get_team_attendance`, `get_team_attendance_report`, `get_employee_timesheet`, `list_team_leave` (Api trả 403 nếu không đủ quyền) |
 
 Tham số ngày `yyyy-MM-dd`, tháng `yyyy-MM`, giờ `HH:mm` (kiểm tra trong `Tools/ToolHelpers.cs`). Tool ghi có annotation `destructiveHint` (duyệt / từ chối / huỷ) hoặc `readOnlyHint=false`.
