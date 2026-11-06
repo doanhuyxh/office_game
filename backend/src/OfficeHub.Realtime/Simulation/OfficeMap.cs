@@ -14,16 +14,32 @@ public sealed record OfficeMap(int Version, string Name, double Grid, Rect Floor
 
     public NavGrid Nav { get; private init; } = null!;
 
+    /// <summary>Footprint các đồ ngồi được (<see cref="Sittable"/>), tính một lần lúc nạp bản đồ.</summary>
+    public Rect[] SitAreas { get; private init; } = [];
+
     public static OfficeMap Load(string path)
     {
         var map = JsonSerializer.Deserialize<OfficeMap>(File.ReadAllText(path), new JsonSerializerOptions(JsonSerializerDefaults.Web))
                   ?? throw new InvalidOperationException($"Không đọc được bản đồ {path}");
         if (map.Version != 2) throw new InvalidOperationException($"Bản đồ {path} phải là version 2 (đang là {map.Version})");
-        return map with { Nav = new NavGrid(map) };
+        return map with
+        {
+            Nav = new NavGrid(map),
+            SitAreas = map.Objects.Where(o => Sittable.Contains(o.Prefab)).Select(NavGrid.Footprint).ToArray(),
+        };
     }
 
-    /// <summary>Vị trí hợp lệ: ô trống trong lưới, hoặc đúng chỗ ngồi.</summary>
-    public bool CanStand(double x, double z) => Nav.Walkable(x, z) || Seats.Any(s => Math.Abs(s.X - x) <= SeatTolerance && Math.Abs(s.Z - z) <= SeatTolerance);
+    /// <summary>
+    /// Đồ ngồi được ngoài bàn làm việc (ghế phòng họp / phòng gọi / pantry, ghế lười, sofa). Khớp SITTABLE_PREFABS ở FE
+    /// (frontend/src/features/office/engine/sitSpots.ts) — FE tính chỗ ngồi cụ thể, server chỉ cần điểm nằm trong footprint đồ đó.
+    /// </summary>
+    public static readonly string[] Sittable = ["chair", "beanbag", "loungeSofa", "loungeSofaCorner"];
+
+    /// <summary>Vị trí hợp lệ: ô trống trong lưới, đúng chỗ ngồi ở bàn làm việc, hoặc trên một đồ ngồi được.</summary>
+    public bool CanStand(double x, double z) =>
+        Nav.Walkable(x, z)
+        || Seats.Any(s => Math.Abs(s.X - x) <= SeatTolerance && Math.Abs(s.Z - z) <= SeatTolerance)
+        || SitAreas.Any(f => x >= f.X0 - SeatTolerance && x <= f.X1 + SeatTolerance && z >= f.Z0 - SeatTolerance && z <= f.Z1 + SeatTolerance);
 
     /// <summary>Khu phòng ban trong khu mở trước, rồi tới phòng (giống NavGrid.zoneAt ở FE).</summary>
     public string? ZoneAt(double x, double z) =>

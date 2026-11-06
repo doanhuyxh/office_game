@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { ANIM, Avatar, type AnimCode } from './avatar';
-import type { Seat } from './mapTypes';
+import { buildSitSpots, type SitSpot } from './sitSpots';
 import { NavGrid } from './navGrid';
-import { FACING_ANGLE, OFFICE_MAP } from './officeMap';
+import { OFFICE_MAP } from './officeMap';
 import { P } from './palette';
 import { buildWorld, textTexture } from './world';
 import { loadFurnitureModels } from './models';
@@ -40,8 +40,10 @@ export class OfficeScene {
   furnitureModels = 0;
   private sendAcc = 0;
   private path: [number, number][] = [];
-  private sitOnArrive: Seat | null = null;
-  private seat: Seat | null = null;
+  private sitOnArrive: SitSpot | null = null;
+  private seat: SitSpot | null = null;
+  /** Bàn làm việc + ghế / ghế lười / sofa trong objects (sitSpots.ts). */
+  private readonly spots = buildSitSpots(OFFICE_MAP);
   private marker: THREE.Mesh;
   // Camera: góc phương vị (bội số 90°), khoảng cách, góc ngẩng
   private azimuthStep = 0;
@@ -61,7 +63,7 @@ export class OfficeScene {
   onNearAction?: (action: string | null) => void;
   private lastAction: string | null = null;
   /** Ghế gần nhất có thể ngồi (hoặc ghế đang ngồi, kèm `sitting`). */
-  onSeat?: (info: { seat: Seat; sitting: boolean } | null) => void;
+  onSeat?: (info: { seat: SitSpot; sitting: boolean } | null) => void;
   private lastSeatKey = '';
   /** Thông báo ngắn cho HUD (vd "Ghế đã có người ngồi"). */
   onHint?: (text: string) => void;
@@ -166,7 +168,7 @@ export class OfficeScene {
   }
 
   /** Đi tới điểm (x, z) bằng tìm đường (bản đồ nhỏ / bấm chuột). */
-  walkTo(x: number, z: number, sitAt: Seat | null = null) {
+  walkTo(x: number, z: number, sitAt: SitSpot | null = null) {
     if (!this.me) return;
     this.standUp();
     const p = this.me.root.position;
@@ -180,28 +182,28 @@ export class OfficeScene {
 
   // ---------- ngồi ----------
 
-  private seatTaken(s: Seat) {
+  private seatTaken(s: SitSpot) {
     for (const o of this.others.values()) if (o.avatar.anim === ANIM.sit && Math.hypot(o.tx - s.x, o.tz - s.z) < 0.15) return true;
     return false;
   }
 
   private nearestSeat(x: number, z: number, reach: number) {
-    let best: Seat | null = null, bd = reach;
-    for (const s of OFFICE_MAP.seats) {
+    let best: SitSpot | null = null, bd = reach;
+    for (const s of this.spots) {
       const d = Math.hypot(s.x - x, s.z - z);
       if (d < bd && !this.seatTaken(s)) { bd = d; best = s; }
     }
     return best;
   }
 
-  private sit(s: Seat) {
+  private sit(s: SitSpot) {
     if (!this.me) return;
-    if (this.seatTaken(s)) return this.onHint?.(`Ghế ${s.id} đã có người ngồi`);
+    if (this.seatTaken(s)) return this.onHint?.(`${s.label.charAt(0).toUpperCase()}${s.label.slice(1)} đã có người ngồi`);
     this.path = [];
     this.marker.visible = false;
     this.seat = s;
     this.me.root.position.set(s.x, 0, s.z);
-    this.me.root.rotation.y = FACING_ANGLE[s.facing];
+    this.me.root.rotation.y = s.angle;
     this.me.anim = ANIM.sit;
     this.sendNow();
   }

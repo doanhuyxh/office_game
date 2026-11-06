@@ -34,7 +34,7 @@ Quy tắc server:
 | Cookie có `must_change_password` | `Context.Abort()` ngay khi kết nối |
 | Phiên không còn hợp lệ lúc kết nối (`SessionValidator` hỏi Api → 401/403) | `Kicked(SessionWatch.ExpiredReason)` rồi `Abort` |
 | Cùng tài khoản kết nối lần 2 | kết nối cũ nhận `Kicked("Tài khoản vừa đăng nhập ở nơi khác")`, bị `Abort` sau 500ms |
-| `Move` tới ô bị chặn (ngoài sàn, tường, đồ vật — `OfficeMap.CanStand`; đúng toạ độ ghế ±0,05 thì cho phép) hoặc quãng đường > `7·dt + 2.5` | không cập nhật, gửi `Teleport` về vị trí cũ |
+| `Move` tới ô bị chặn (ngoài sàn, tường, đồ vật — `OfficeMap.CanStand`; cho phép: đúng toạ độ bàn làm việc ±0,05, hoặc trong footprint đồ ngồi được `OfficeMap.Sittable` = chair / beanbag / loungeSofa / loungeSofaCorner — khớp `SITTABLE_PREFABS` ở FE) hoặc quãng đường > `7·dt + 2.5` | không cập nhật, gửi `Teleport` về vị trí cũ |
 | `SendChat` | trim, rỗng → bỏ; cắt 200 ký tự; < 1 giây từ lần trước → `HubException("Gửi chậm lại một chút")` |
 | `SendRoomChat` | cùng giới hạn như `SendChat`; server tự xác định phòng theo vị trí (`RoomOf`), đứng ở khu mở → `HubException`; chỉ gửi cho người đang ở trong phòng đó lúc gửi |
 | Ngắt kết nối | `Presence.Remove(userId, connectionId)` chỉ xoá nếu đúng kết nối hiện tại, rồi gửi `PlayerLeft` |

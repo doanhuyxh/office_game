@@ -50,6 +50,22 @@ public class NavGridTests
         Assert.All(Map.Seats, s => Assert.True(Map.CanStand(s.X, s.Z), $"Không ngồi được ghế {s.Id}"));
     }
 
+    [Fact]
+    public void Can_sit_on_chairs_beanbags_and_sofas()
+    {
+        var sittable = Map.Objects.Where(o => OfficeMap.Sittable.Contains(o.Prefab)).ToList();
+        Assert.Contains(sittable, o => o.Id.StartsWith("booth-1-chair"));   // phòng gọi
+        Assert.Contains(sittable, o => o.Id.StartsWith("pantry-table-1-chair")); // pantry
+        Assert.All(sittable, o => Assert.True(Map.CanStand(o.X, o.Z), $"Không ngồi được {o.Id}"));
+        // sofa là vật cản trong lưới nhưng vẫn ngồi được
+        var sofa = Map.Objects.First(o => o.Id == "lounge-sofa-2");
+        Assert.False(Map.Nav.Walkable(sofa.X, sofa.Z));
+        Assert.True(Map.CanStand(sofa.X, sofa.Z));
+        // bàn (không phải đồ ngồi) vẫn bị chặn
+        var table = Map.Objects.First(o => o.Id == "pantry-table-1");
+        Assert.False(Map.CanStand(table.X, table.Z));
+    }
+
     [Theory]
     [InlineData(7.85, 13.0, "dept-kth")]
     [InlineData(2.8, 11.0, "dept-kd")]

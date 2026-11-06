@@ -23,7 +23,7 @@ Quy tắc cần giữ khi sửa:
 - Nhận `Kicked` → đặt cờ, `stop()` và **không tự reconnect** (2 tab sẽ đá nhau). Overlay hiện `kickReason`, "Vào lại" tải lại trang.
 - Effect kết nối phụ thuộc `me.id` và `start()` hoãn 1 tick (`setTimeout 0`) vì React StrictMode.
 - Ô chat đang focus thì phím di chuyển / `E` / `Q` / `R` bị bỏ qua.
-- Ngồi: chỉ ghế trống (không có người khác `anim = 2` trong 0,15 m), đứng dậy = bước ra ô trống gần nhất. Ghế có thể nằm trong ô chạm cạnh bàn → server cho phép riêng toạ độ ghế.
+- Ngồi: chỗ ngồi = bàn làm việc (`seats[]`) + ghế / ghế lười / sofa trong `objects[]` (`engine/sitSpots.ts`: ghế quay về bàn / quầy gần nhất như lúc vẽ, sofa chia ~0,8 m một chỗ; HUD hiện "bàn KTH-02" / "ghế · Phòng gọi 1"). Thêm prefab ngồi được → sửa cả `SITTABLE_PREFABS` và `OfficeMap.Sittable` (server). Chỉ ghế trống (không có người khác `anim = 2` trong 0,15 m), đứng dậy = bước ra ô trống gần nhất. Ghế có thể nằm trong ô chạm cạnh bàn → server cho phép riêng toạ độ ghế.
 - Khi dev, `window.__officeScene` / `window.__officeVoice` trỏ tới scene / voice (chỉ để test e2e; không có trong bản build).
 - Voice: identity LiveKit = id người chơi trên hub (userId) → vị trí lấy từ scene. Người đang nói có vòng xanh lá dưới chân (`Avatar.speaking`). Bị `Kicked` → tắt voice. Đổi luật kênh → sửa cả `voiceChannel.ts` và `OfficeMap.VoiceAt` (+ test `Voice_channel_by_position`).
 

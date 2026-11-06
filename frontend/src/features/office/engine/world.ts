@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildPrefab, chair, type Part } from './furniture';
-import type { MapObject, OfficeMapV2, Rect } from './mapTypes';
+import type { OfficeMapV2, Rect } from './mapTypes';
 import { wallRect, wallSegments } from './navGrid';
 import { FACING_ANGLE } from './officeMap';
 import { placeModel, type FurnitureModels } from './models';
+import { chairAngle } from './sitSpots';
 import { P } from './palette';
 
 /** Tường thấp (cắt ngang) để camera chéo nhìn được vào phòng; vách kính cao hơn vì trong suốt. */
@@ -96,15 +97,6 @@ function floorLabel(text: string, x: number, z: number, size: number, color: str
 }
 
 /** Ghế không có hướng trong bản đồ → quay về phía bàn gần nhất. */
-function chairAngle(o: MapObject, all: MapObject[]) {
-  let best: MapObject | null = null, bd = 2.5;
-  for (const t of all) {
-    if (t === o || !/^(table|desk)/.test(t.prefab)) continue;
-    const dist = Math.hypot(t.x - o.x, t.z - o.z);
-    if (dist < bd) { bd = dist; best = t; }
-  }
-  return best ? Math.atan2(best.x - o.x, best.z - o.z) : 0;
-}
 
 /**
  * Dựng phần tĩnh của văn phòng (sàn, tường, đồ đạc, chữ). Trả về group để add vào scene.

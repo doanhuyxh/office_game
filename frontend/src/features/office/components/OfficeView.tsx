@@ -10,7 +10,7 @@ import { useOffice } from '../store/office.store';
 import { PATHS } from '@/config/paths';
 import { OfficeScene } from '../engine/OfficeScene';
 import { OfficeConnection } from '../api/officeHub';
-import type { Seat } from '../engine/mapTypes';
+import type { SitSpot } from '../engine/sitSpots';
 import { Minimap } from './Minimap';
 import { VOICE_INITIAL, VoiceClient, type VoiceView } from '../api/voiceClient';
 import { ScreenView, VoicePanel } from './VoicePanel';
@@ -29,7 +29,7 @@ export function OfficeView() {
   const { me, conn, online, zone, chat, kickReason } = useOffice();
   const [text, setText] = useState('');
   const [nearAction, setNearAction] = useState<string | null>(null);
-  const [seatInfo, setSeatInfo] = useState<{ seat: Seat; sitting: boolean } | null>(null);
+  const [seatInfo, setSeatInfo] = useState<{ seat: SitSpot; sitting: boolean } | null>(null);
   const [scene, setScene] = useState<OfficeScene | null>(null);
   const roomsNow = useRoomsNow();
 
@@ -218,8 +218,8 @@ export function OfficeView() {
         ) : seatInfo && (
           <button type="button" className="card prompt" data-testid="office-seat-prompt" onClick={doAction}>
             {seatInfo.sitting
-              ? <>Đang ngồi ở bàn <b>{seatInfo.seat.id}</b> · {IS_TOUCH ? 'chạm' : <kbd>E</kbd>} hoặc di chuyển để đứng dậy</>
-              : <>Bàn <b>{seatInfo.seat.id}</b> · {IS_TOUCH ? 'chạm' : <>bấm <kbd>E</kbd></>} để ngồi</>}
+              ? <>Đang ngồi ở <b>{seatInfo.seat.label}</b> · {IS_TOUCH ? 'chạm' : <kbd>E</kbd>} hoặc di chuyển để đứng dậy</>
+              : <><b>{seatInfo.seat.label.charAt(0).toUpperCase() + seatInfo.seat.label.slice(1)}</b> · {IS_TOUCH ? 'chạm' : <>bấm <kbd>E</kbd></>} để ngồi</>}
           </button>
         )}
         <Minimap scene={scene} />
