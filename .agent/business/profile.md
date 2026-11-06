@@ -34,7 +34,7 @@ Chủ dự án chốt 2026-11-06. Về [organization.md](organization.md).
 
 ## UI
 
-- `/profile` (`features/profile`, menu tài khoản Header + sidebar "Hồ sơ cá nhân", ẩn với tài khoản không có hồ sơ): ảnh + thông tin công việc (chỉ xem), form Liên hệ, thẻ "Thông tin cần HR duyệt" (số che 4 số cuối, nút Hiện số; dialog "Đề nghị cập nhật" chỉ gửi trường đã đổi; yêu cầu đang chờ + huỷ; kết quả lần trước / lý do từ chối).
+- `/profile` (`features/profile`, menu chính nhóm "Chung" (sidebar + ⌘K, lọc trong `useNavigation`) + menu tài khoản Header / sidebar; mọi nhân viên có hồ sơ đều thấy, ẩn với tài khoản không có hồ sơ): ảnh + thông tin công việc (chỉ xem), form Liên hệ, thẻ "Thông tin cần HR duyệt" (số che 4 số cuối, nút Hiện số; dialog "Đề nghị cập nhật" chỉ gửi trường đã đổi; yêu cầu đang chờ + huỷ; kết quả lần trước / lý do từ chối).
 - HR: trang Nhân viên → tab **Yêu cầu cập nhật** (badge số chờ) duyệt / từ chối; menu ⋯ dòng nhân viên → "Thông tin cá nhân (CCCD, ngân hàng…)" (`EmployeePrivateDialog`).
 - `components/common/PersonAvatar.tsx` (ảnh hoặc chữ viết tắt): Header, sidebar, danh bạ, sơ đồ tổ chức.
 

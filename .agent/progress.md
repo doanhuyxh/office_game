@@ -1,6 +1,6 @@
 # Tiến độ & bàn giao phiên
 
-> Cập nhật **2026-11-06 (tối)**: production `https://office.lokid.me` (commit `ab8fac0`). Sau đó làm xong, **chưa commit / deploy**: PWA + mobile, 3D (chat phòng, GLB, joystick), bảng lương, ký điện tử, cấp bậc + chức danh, hướng dẫn phòng ban / chức vụ cho AI, sơ đồ tổ chức, phân quyền UI + danh bạ theo vai trò, hồ sơ cá nhân, nút cấu hình cột. Api dev :5080 đã khởi động lại với code mới (migration đã chạy trên DB thật). Đọc file này đầu phiên mới. Chi tiết: bảng định tuyến [AGENTS.md](../AGENTS.md); kế hoạch tổng `docs/ARCHITECTURE_V2.md`.
+> Cập nhật **2026-11-06 (tối muộn)**: toàn bộ việc dưới đây **đã commit** (`6cea7c6`, gồm mặt bằng 3D 50 × 30 m); production `https://office.lokid.me` vẫn ở `ab8fac0` → **chưa deploy** (PWA + mobile, 3D mới, bảng lương, ký điện tử, cấp bậc + chức danh, hướng dẫn phòng ban / chức vụ cho AI, sơ đồ tổ chức, phân quyền UI + danh bạ, hồ sơ cá nhân, nút cấu hình cột). Tiến trình dev (Api :5080, Realtime :5090, FE :5173) đã tắt cuối phiên — đầu phiên mới khởi động lại theo [commands.md](commands.md). Chi tiết: bảng định tuyến [AGENTS.md](../AGENTS.md); kế hoạch tổng `docs/ARCHITECTURE_V2.md`.
 
 ## Đã xong
 
@@ -35,7 +35,7 @@ Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` ✔ (12 projec
 
 ## Việc tiếp theo
 
-1. **Chủ dự án commit + deploy** (migration mới tự chạy khi Api khởi động: `InitialPayroll`, `SignRequests`, `PositionLevelJobTitle`, `OrgGuides`, `PersonalProfile`) rồi chạy `prod-smoke.ts`. Thêm `api-dev.log` vào `.gitignore` hoặc đừng commit nó.
+1. **Deploy** `6cea7c6` (migration mới tự chạy khi Api khởi động: `InitialPayroll`, `SignRequests`, `PositionLevelJobTitle`, `OrgGuides`, `PersonalProfile`; image Realtime copy `shared/` nên bản đồ mới tự theo) rồi chạy `prod-smoke.ts`. Thêm `api-dev.log` vào `.gitignore` nếu chưa.
 2. **Kế toán đối chiếu thông số lương** tại `/payroll` → Thông số trước khi chốt kỳ thật. **HR / trưởng phòng soạn mô tả + hướng dẫn** phòng ban / chức vụ (AI mới có nội dung). Kiểm tra lại cấp của từng chức vụ ở tab Chức vụ.
 3. Model 3D: chủ dự án tải tay Kenney Furniture Kit (kenney.nl, CC0) → `bun scripts/dev/import-furniture.ts <zip>`.
 4. Đề xuất chưa làm (hỏi trước): 2FA cho admin / HR, chốt công tháng, nhắc hết thử việc, chống CSRF, ca qua đêm, API loại phép, uỷ quyền duyệt, tắt email theo người, xuất sơ đồ tổ chức ra ảnh / PDF. Lỗi nhỏ đã biết: thẻ phép năm hiện "−0" khi bằng 0.
