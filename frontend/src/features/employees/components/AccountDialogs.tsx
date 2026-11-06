@@ -13,6 +13,7 @@ import { errorMessage } from '@/utils/errors';
 import { useCreateAccount, useSetRoles } from '../hooks/useOrg';
 import type { AccountMode, IEmployee } from '../types/employee.types';
 import { GRANTABLE_ROLES, ROLE_LABEL } from '../utils/labels';
+import { todayVn } from '@/utils/date';
 
 /** Chọn vai trò (employee luôn có). Chỉ admin thấy lựa chọn "admin". */
 function RolePicker({ value, onChange }: { value: string[]; onChange: (r: string[]) => void }) {
@@ -174,7 +175,7 @@ export function ResignDialog({ open, onOpenChange, employee, onConfirm, pending 
   open: boolean; onOpenChange: (o: boolean) => void; employee: IEmployee | null; onConfirm: (leftAt: string) => void; pending: boolean;
 }) {
   const [leftAt, setLeftAt] = useState('');
-  useEffect(() => { if (open) setLeftAt(new Date().toLocaleDateString('sv-SE')); }, [open]);
+  useEffect(() => { if (open) setLeftAt(todayVn()); }, [open]);
   if (!employee) return null;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

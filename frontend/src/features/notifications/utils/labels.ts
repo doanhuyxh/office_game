@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import { Ban, Bell, CheckCircle2, FileClock, Inbox, XCircle } from 'lucide-react';
+import { formatDate } from '@/utils/date';
 
 /** Icon + màu (token theme) theo loại thông báo. */
 export const CATEGORY: Record<string, { icon: LucideIcon; className: string }> = {
@@ -18,5 +19,5 @@ export function timeAgo(iso: string, now = Date.now()) {
   if (s < 3600) return `${Math.floor(s / 60)} phút trước`;
   if (s < 86400) return `${Math.floor(s / 3600)} giờ trước`;
   if (s < 7 * 86400) return `${Math.floor(s / 86400)} ngày trước`;
-  return new Date(iso).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+  return formatDate(iso);
 }

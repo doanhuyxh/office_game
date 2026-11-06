@@ -54,13 +54,13 @@ internal static class PositionEndpoints
         return TypedResults.NoContent();
     }
 
-    private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteAsync(Guid id, OrgDbContext db, CancellationToken ct)
+    private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteAsync(Guid id, OrgDbContext db, TimeProvider clock, CancellationToken ct)
     {
         var p = await db.Positions.FindAsync([id], ct);
         if (p is null) return TypedResults.NotFound();
         if (await db.Employees.AnyAsync(e => e.PositionId == id && e.Status != EmployeeStatus.Resigned, ct))
             return Problems.Conflict("Chức vụ đang có nhân viên, hãy đổi chức vụ cho họ trước");
-        p.DeletedAt = DateTimeOffset.UtcNow;
+        p.DeletedAt = clock.GetUtcNow();
         await db.SaveChangesAsync(ct);
         return TypedResults.NoContent();
     }

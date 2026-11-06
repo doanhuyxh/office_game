@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using OfficeHub.BuildingBlocks.Auth;
+using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.Modules.Audit.Infrastructure;
 using OfficeHub.Modules.Identity.Contracts;
 
@@ -18,16 +19,23 @@ internal static class AiRequestEndpoints
 {
     public static void Map(RouteGroupBuilder g) => g.MapGet("/ai-requests", ListAsync);
 
-    private static async Task<Results<Ok<List<AiRequestDto>>, ProblemHttpResult>> ListAsync(Guid? userId, DateTimeOffset? before, int? take,
+    private static async Task<Results<Ok<List<AiRequestDto>>, ValidationProblem, ProblemHttpResult>> ListAsync(Guid? userId, string? before, int? take,
         ClaimsPrincipal user, AuditDbContext db, IAccountService accounts, CancellationToken ct)
     {
         if (user.IsAccessToken()) return TypedResults.Problem("Chỉ xem khi đăng nhập trên web", statusCode: StatusCodes.Status403Forbidden);
+        // before = mốc ISO 8601 kèm múi giờ (phân trang lùi); query string không qua JSON converter → parse chặt tại đây.
+        DateTimeOffset? cursor = null;
+        if (!string.IsNullOrWhiteSpace(before))
+        {
+            if (!Instants.TryParse(before, out var c)) return new Validation().Add("before", Instants.MissingZoneMessage).Problem();
+            cursor = c;
+        }
         var me = user.GetUserId()!.Value;
         var filterUser = user.IsHr() ? userId : me;
 
         var q = db.AiRequests.AsNoTracking();
         if (filterUser is { } uid) q = q.Where(x => x.UserId == uid);
-        if (before is { } b) q = q.Where(x => x.OccurredAt < b);
+        if (cursor is { } b) q = q.Where(x => x.OccurredAt < b);
         var rows = await q.OrderByDescending(x => x.OccurredAt).Take(Math.Clamp(take ?? 50, 1, 200)).ToListAsync(ct);
 
         var people = await accounts.GetManyAsync(rows.Select(r => r.UserId).Distinct().ToList(), ct);

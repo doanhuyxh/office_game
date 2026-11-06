@@ -18,7 +18,7 @@ public interface IFileStorage
     Task DeleteAsync(string key, CancellationToken ct = default);
 }
 
-public sealed class S3FileStorage(IAmazonS3 s3, IOptions<S3Settings> options) : IFileStorage
+public sealed class S3FileStorage(IAmazonS3 s3, IOptions<S3Settings> options, TimeProvider clock) : IFileStorage
 {
     private readonly S3Settings _cfg = options.Value;
 
@@ -38,7 +38,7 @@ public sealed class S3FileStorage(IAmazonS3 s3, IOptions<S3Settings> options) : 
             BucketName = _cfg.BucketFiles,
             Key = FullKey(key),
             Verb = HttpVerb.GET,
-            Expires = DateTime.UtcNow.Add(ttl ?? TimeSpan.FromMinutes(_cfg.PresignMinutes)),
+            Expires = clock.GetUtcNow().UtcDateTime.Add(ttl ?? TimeSpan.FromMinutes(_cfg.PresignMinutes)),
         });
 
     public Task DeleteAsync(string key, CancellationToken ct = default) =>

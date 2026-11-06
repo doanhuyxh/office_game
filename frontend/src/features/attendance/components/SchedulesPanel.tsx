@@ -12,9 +12,10 @@ import { errorMessage } from '@/utils/errors';
 import { useDeleteSchedule, useSaveSchedule, useSchedules, useShifts } from '../hooks/useAttendance';
 import type { ISchedule, IWeekDay } from '../types/attendance.types';
 import { WEEKDAY_LONG, WEEKDAY_SHORT } from '../utils/labels';
+import { todayVn } from '@/utils/date';
 
 const ORDER = [1, 2, 3, 4, 5, 6, 0]; // hiển thị T2 → CN
-const todayStr = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
+const todayStr = todayVn;
 
 /** Sửa lịch tuần: công ty (employeeId = null) hoặc riêng một nhân viên, hiệu lực từ một ngày. */
 function ScheduleDialog({ initial, onClose }: { initial: ISchedule | 'new-employee' | null; onClose: () => void }) {

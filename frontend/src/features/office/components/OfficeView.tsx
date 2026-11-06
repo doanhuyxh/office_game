@@ -113,7 +113,7 @@ export function OfficeView() {
         s.setOnline(players.size);
       },
       positions: (list) => list.forEach((p) => p.id !== me.id && scene.moveOther(p.id, p.x, p.z, p.r, p.anim)),
-      chat: (m) => s.pushChat({ ...m, at: String(m.at) }),
+      chat: (m) => s.pushChat(m),
       teleport: (x, z) => scene.teleportMe(x, z),
       kicked: (reason) => { s.kick(reason); void voice.disable(); },
       state: (st) => s.setConn(st),

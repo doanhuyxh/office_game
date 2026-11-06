@@ -12,6 +12,7 @@ import { errorMessage, fieldErrors } from '@/utils/errors';
 import { useAdjustLeave, useAllBalances, useMyLeaves, useTeamLeaves } from '../hooks/useLeave';
 import type { IEmployeeBalance, ILeaveRequest } from '../types/leave.types';
 import { fmtDays, LEAVE_STATUS, PERIOD_LABEL } from '../utils/labels';
+import { currentMonthVn } from '@/utils/date';
 
 const range = (r: ILeaveRequest) =>
   r.startDate === r.endDate ? `${formatDate(r.startDate)}${r.period !== 'FullDay' ? ` · ${PERIOD_LABEL[r.period]}` : ''}` : `${formatDate(r.startDate)} → ${formatDate(r.endDate)}`;
@@ -57,7 +58,7 @@ export function MyLeavesTable() {
 
 /** Lịch nghỉ của team trong tháng (quản lý: bản thân + cấp dưới; HR: cả công ty). */
 export function TeamCalendar() {
-  const [month, setMonth] = useState(() => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 7));
+  const [month, setMonth] = useState(currentMonthVn);
   const from = `${month}-01`;
   const to = useMemo(() => { const [y, m] = month.split('-').map(Number); return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); }, [month]);
   const { data: rows = [], isLoading } = useTeamLeaves(from, to);

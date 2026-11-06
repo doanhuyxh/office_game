@@ -62,7 +62,7 @@ internal static class DepartmentEndpoints
         return TypedResults.NoContent();
     }
 
-    private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteAsync(Guid id, OrgDbContext db, CancellationToken ct)
+    private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteAsync(Guid id, OrgDbContext db, TimeProvider clock, CancellationToken ct)
     {
         var d = await db.Departments.FindAsync([id], ct);
         if (d is null) return TypedResults.NotFound();
@@ -70,7 +70,7 @@ internal static class DepartmentEndpoints
             return Problems.Conflict("Phòng ban còn phòng ban con, hãy chuyển hoặc xoá phòng ban con trước");
         if (await db.Employees.AnyAsync(e => e.DepartmentId == id && e.Status != EmployeeStatus.Resigned, ct))
             return Problems.Conflict("Phòng ban còn nhân viên, hãy chuyển nhân viên sang phòng ban khác trước");
-        d.DeletedAt = DateTimeOffset.UtcNow; // xoá mềm
+        d.DeletedAt = clock.GetUtcNow(); // xoá mềm
         await db.SaveChangesAsync(ct);
         return TypedResults.NoContent();
     }

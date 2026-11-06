@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.BuildingBlocks.Email;
 using OfficeHub.BuildingBlocks.Health;
+using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.BuildingBlocks.Office;
 using OfficeHub.BuildingBlocks.Storage;
 using Serilog;
@@ -50,6 +51,8 @@ public static class HostingExtensions
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<OfficeNetwork>();
         builder.Services.AddProblemDetails();
+        // Thời điểm trong JSON: trả UTC 'Z', nhận bắt buộc kèm múi giờ (Http/Instants.cs).
+        builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new UtcInstantJsonConverter()));
         builder.Services.AddHealthChecks().AddCheck<PostgresCheck>("postgres", tags: ["ready"]);
         builder.Services.Configure<ForwardedHeadersOptions>(o =>
         {

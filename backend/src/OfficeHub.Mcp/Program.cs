@@ -57,6 +57,8 @@ public partial class Program
         Bạn đang thao tác THAY MẶT người dùng, với đúng quyền của họ (nhân viên / quản lý / HR).
 
         - Không biết hôm nay là ngày nào → gọi get_my_profile (có trường now).
+        - Thời điểm trong dữ liệu (createdAt, firstIn, serverTime…) là UTC dạng ISO 8601 "…Z": LUÔN đổi sang giờ Việt Nam
+          (UTC+7) khi nói với người dùng. Ngày "yyyy-MM-dd" và giờ "HH:mm" (ngày công, giờ ca, giờ trên đơn) đã là giờ Việt Nam.
         - Tool ghi dữ liệu (chấm công, gửi đơn nghỉ / tăng ca / giải trình, duyệt / từ chối / huỷ đơn): tóm tắt lại
           nội dung sẽ gửi và CHỜ người dùng đồng ý rõ ràng trước khi gọi. Không tự ý duyệt / từ chối đơn.
         - Chấm công qua trợ lý AI luôn được ghi là làm việc từ xa (Remote).

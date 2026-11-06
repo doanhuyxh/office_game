@@ -17,8 +17,9 @@ import { errorMessage, fieldErrors } from '@/utils/errors';
 import { useCreateOvertime, useMyMonth, useMyOvertime, useOvertimePreview } from '../hooks/useAttendance';
 import type { ICreateOvertime } from '../types/attendance.types';
 import { currentMonth, hm, OVERTIME_KIND, OVERTIME_STATUS } from '../utils/labels';
+import { todayVn } from '@/utils/date';
 
-const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
+const today = todayVn;
 /** 150 → "2,5 giờ" */
 const hours = (min: number) => `${(Math.round((min / 60) * 100) / 100).toLocaleString('vi-VN')} giờ`;
 

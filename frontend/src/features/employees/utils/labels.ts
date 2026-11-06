@@ -1,4 +1,5 @@
 import type { EmployeeStatus } from '../types/employee.types';
+import { todayVn } from '@/utils/date';
 
 export const STATUS_LABEL: Record<EmployeeStatus, string> = {
   Probation: 'Thử việc',
@@ -22,4 +23,4 @@ export const ROLE_LABEL: Record<string, string> = {
 /** Vai trò HR được cấp (admin chỉ admin cấp). "employee" luôn có. */
 export const GRANTABLE_ROLES = ['manager', 'hr', 'admin'] as const;
 
-export const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }); // yyyy-MM-dd
+export const today = todayVn; // yyyy-MM-dd theo giờ VN

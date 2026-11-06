@@ -1,3 +1,4 @@
+using OfficeHub.BuildingBlocks.Http;
 using System.Diagnostics;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
@@ -13,7 +14,8 @@ namespace OfficeHub.Realtime.Hubs;
 public sealed record PlayerDto(string Id, string Name, float X, float Z, float R, byte Anim);
 public sealed record PositionDto(string Id, float X, float Z, float R, byte Anim);
 public sealed record WelcomeDto(string SelfId, string MapName, PlayerDto[] Players);
-public sealed record ChatDto(string Id, string Name, string Text, DateTimeOffset At);
+/// <summary>At = ISO 8601 UTC 'Z' (Instants.Format) — MessagePack không có kiểu thời điểm chuẩn cho JS.</summary>
+public sealed record ChatDto(string Id, string Name, string Text, string At);
 
 /// <summary>Các hàm server gọi xuống client.</summary>
 public interface IOfficeClient
@@ -29,7 +31,7 @@ public interface IOfficeClient
 
 [Authorize]
 public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValidator sessions, VoiceGuard voice,
-    ILogger<OfficeRoomHub> log) : Hub<IOfficeClient>
+    TimeProvider clock, ILogger<OfficeRoomHub> log) : Hub<IOfficeClient>
 {
     public const string Path = "/rt/hub/office";
     private const string Room = "office";
@@ -56,7 +58,7 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
         var p = new Player
         {
             UserId = UserId, Name = name, ConnectionId = Context.ConnectionId, Context = Context, AuthCookie = authCookie,
-            X = (float)map.Spawn.X, Z = (float)map.Spawn.Z, LastMoveTicks = Stopwatch.GetTimestamp(), LastActiveAt = DateTimeOffset.UtcNow,
+            X = (float)map.Spawn.X, Z = (float)map.Spawn.Z, LastMoveTicks = Stopwatch.GetTimestamp(), LastActiveAt = clock.GetUtcNow(),
         };
         var old = presence.Add(p);
         if (old is not null)
@@ -99,7 +101,7 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
         {
             p.X = x; p.Z = z; p.R = r; p.Anim = anim; p.Dirty = true;
             p.LastMoveTicks = now;
-            p.LastActiveAt = DateTimeOffset.UtcNow;
+            p.LastActiveAt = clock.GetUtcNow();
         }
     }
 
@@ -109,10 +111,10 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
         text = (text ?? "").Trim();
         if (text.Length == 0) return;
         if (text.Length > 200) text = text[..200];
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.GetUtcNow();
         if (now - p.LastChatAt < TimeSpan.FromSeconds(1)) throw new HubException("Gửi chậm lại một chút");
         p.LastChatAt = now;
         p.LastActiveAt = now;
-        await Clients.Group(Room).Chat(new ChatDto(p.UserId, p.Name, text, now));
+        await Clients.Group(Room).Chat(new ChatDto(p.UserId, p.Name, text, Instants.Format(now)));
     }
 }

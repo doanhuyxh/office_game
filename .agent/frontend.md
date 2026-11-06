@@ -37,7 +37,7 @@ features/employees/
 - Gọi API **luôn** qua `http`/`httpPost`/`httpUpload` (file, multipart field `file`) (`services/api-client.ts`, `credentials: 'include'`). Không lưu token (đăng nhập bằng cookie HttpOnly).
 - Lỗi: `fieldErrors(err)` cho form, `errorMessage(err)` cho toast (`utils/errors.ts`). Toast dùng `toast` từ `sonner`.
 - Form: `FormField` / `SelectField` (`components/common`). `SelectField` dùng giá trị đặc biệt cho "không chọn" (Radix không nhận value rỗng) và trả `null`.
-- Ngày giờ hiển thị: `formatDate`, `formatTime`, `formatMinutes` (`utils/date.ts`, múi giờ `Asia/Ho_Chi_Minh`).
+- Ngày giờ (`utils/date.ts`, múi giờ `Asia/Ho_Chi_Minh`): API trả thời điểm UTC `…Z` → hiển thị bằng `formatDate` / `formatTime` / `formatDateTime` (đổi sang giờ VN); gửi thời điểm lên bằng `toApiInstant(date)` (BE từ chối chuỗi thiếu múi giờ). Ngày / tháng "hôm nay" theo VN: `todayVn()` / `currentMonthVn()` — **không** dùng `toLocaleDateString()` không kèm `timeZone` (lấy theo máy người dùng). Ngày `yyyy-MM-dd`, giờ `HH:mm` gửi nguyên dạng.
 - State: TanStack Query cho dữ liệu server; Zustand chỉ cho văn phòng 3D (`features/office/store`). Không dùng Redux.
 - Style: Tailwind class; ghép class bằng `cn()` (`utils/cn.ts`). CSS thuần chỉ ở văn phòng 3D (`office.css`, mọi selector bọc trong `.office-root`).
 - UI dùng **shadcn/ui** (style `new-york`, Tailwind v4, `components.json`): button, card, dialog, input, label, select, checkbox, radio-group, tabs, table, badge… trong `components/common`. Không dùng `<input type="checkbox|radio">` / `<select>` thuần — dùng `Checkbox` (`onCheckedChange={(c) => set(c === true)}`), `RadioGroup`, `SelectField`.

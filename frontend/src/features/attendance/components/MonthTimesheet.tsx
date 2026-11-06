@@ -6,6 +6,7 @@ import { cn } from '@/utils/cn';
 import type { ICorrection, IDay, IMonth } from '../types/attendance.types';
 import { hm, OVERTIME_KIND, WEEKDAY_SHORT, weekdayOf, WORK_MODE } from '../utils/labels';
 import { StatusBadge } from './StatusBadge';
+import { todayVn } from '@/utils/date';
 
 function Stat({ label, value, tone }: { label: string; value: string | number; tone?: string }) {
   return (
@@ -19,7 +20,7 @@ const CORRECTION_LABEL: Record<ICorrection['status'], string> = { Pending: '⏳ 
 
 /** Ngày được phép giải trình: trong 31 ngày gần nhất, không phải tương lai (khớp CorrectionEndpoints.MaxDaysBack). */
 const canCorrect = (d: IDay) => {
-  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
+  const today = todayVn();
   const min = new Date(Date.parse(today) - 31 * 864e5).toISOString().slice(0, 10);
   return d.date <= today && d.date >= min && d.status !== 'NotEmployed' && d.status !== 'NotYet';
 };

@@ -8,7 +8,7 @@ namespace OfficeHub.Realtime.Voice;
 /// Giữ voice khớp vị trí: ai đã ra khỏi phòng (kênh tại vị trí khác room đã cấp token) quá <see cref="Grace"/> thì bị đẩy khỏi room LiveKit.
 /// Client tử tế tự đổi kênh trong ~0,5 giây; guard chỉ để client bị sửa không ở lại nghe lén. Rời văn phòng / bị kick → cũng đẩy khỏi voice.
 /// </summary>
-public sealed class VoiceGuard(Presence presence, OfficeMap map, IOptions<LiveKitSettings> options, ILogger<VoiceGuard> log) : BackgroundService
+public sealed class VoiceGuard(Presence presence, OfficeMap map, IOptions<LiveKitSettings> options, TimeProvider clock, ILogger<VoiceGuard> log) : BackgroundService
 {
     public static readonly TimeSpan Grace = TimeSpan.FromSeconds(3);
     private readonly RoomServiceClient? _rooms = options.Value.Enabled
@@ -40,7 +40,7 @@ public sealed class VoiceGuard(Presence presence, OfficeMap map, IOptions<LiveKi
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         while (await timer.WaitForNextTickAsync(ct))
         {
-            var now = DateTimeOffset.UtcNow;
+            var now = clock.GetUtcNow();
             foreach (var p in presence.All)
             {
                 string? kick = null;

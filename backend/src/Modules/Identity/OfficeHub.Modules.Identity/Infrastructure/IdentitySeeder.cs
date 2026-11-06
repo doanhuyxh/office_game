@@ -18,7 +18,7 @@ public sealed class SeedSettings
 }
 
 /// <summary>Khi khởi động: chạy migration (nếu bật), tạo các vai trò, tạo admin đầu tiên từ .env nếu chưa có.</summary>
-public sealed class IdentitySeeder(IServiceProvider sp, IConfiguration config, ILogger<IdentitySeeder> log) : IHostedService
+public sealed class IdentitySeeder(IServiceProvider sp, IConfiguration config, TimeProvider clock, ILogger<IdentitySeeder> log) : IHostedService
 {
     public async Task StartAsync(CancellationToken ct)
     {
@@ -46,7 +46,7 @@ public sealed class IdentitySeeder(IServiceProvider sp, IConfiguration config, I
             Email = seed.AdminEmail,
             EmailConfirmed = true,
             FullName = seed.AdminFullName,
-            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedAt = clock.GetUtcNow(),
         };
         var result = await users.CreateAsync(admin, seed.AdminPassword);
         if (!result.Succeeded)
