@@ -77,6 +77,31 @@ ok('admin không có hồ sơ → 404 no_employee_profile', (await json(admin, '
 const changes = (await json(admin, 'GET', '/api/audit/changes?take=50')).body;
 ok('lịch sử sửa ghi lần sửa hướng dẫn', changes.some((c: any) => c.entity === 'Department' && c.changes.some((f: any) => f.field === 'Guide')), changes[0]);
 
+// ---------- Danh bạ: thông tin nhân sự theo vai trò ----------
+const outsider = await mkEmp('NV962', 'Kế Toán Viên', posStaff.id, other, null, 'e2e.ketoan');
+const gone = (await json(admin, 'POST', '/api/org/employees', { code: 'NV963', fullName: 'Người Đã Nghỉ', email: null, phone: null, dateOfBirth: null,
+  departmentId: tech, positionId: posStaff.id, managerId: head.e.id, status: 'Active', joinedAt: '2025-01-01', note: null })).body.employee;
+await json(admin, 'POST', `/api/org/employees/${gone.id}/resign`, { leftAt: '2026-10-31' });
+const dir = async (c: string, q = '') => (await json(c, 'GET', '/api/org/employees' + q)).body as any[];
+const find = (rows: any[], code: string) => rows.find((r) => r.code === code);
+const hrRows = await dir(admin, '?includeResigned=true');
+ok('HR: thấy trạng thái + ngày vào làm của mọi người, thấy người đã nghỉ', find(hrRows, 'NV962')?.status === 'Active' && find(hrRows, 'NV962')?.joinedAt === '2026-01-05'
+  && find(hrRows, 'NV963')?.status === 'Resigned', hrRows.map((r) => [r.code, r.status]));
+const staffRows = await dir(staff.cookie, '?includeResigned=true');
+ok('nhân viên: vẫn thấy liên lạc (email, phòng, chức vụ) của đồng nghiệp', find(staffRows, 'NV962')?.email === 'e2e.ketoan@e2e.test' && find(staffRows, 'NV962')?.positionName === 'Chuyên viên');
+ok('nhân viên: KHÔNG thấy trạng thái / ngày vào làm của người khác, chỉ của mình', find(staffRows, 'NV962')?.status === null && find(staffRows, 'NV962')?.joinedAt === null
+  && find(staffRows, 'NV960')?.status === null && find(staffRows, 'NV961')?.status === 'Active', staffRows.map((r) => [r.code, r.status, r.joinedAt]));
+ok('nhân viên: includeResigned bị bỏ qua → không thấy người đã nghỉ', !find(staffRows, 'NV963'));
+ok('nhân viên: lọc theo trạng thái bị bỏ qua (không dò ra ai thử việc)', (await dir(staff.cookie, '?status=Probation')).length === staffRows.length);
+ok('nhân viên: xem chi tiết người đã nghỉ → 404', (await json(staff.cookie, 'GET', `/api/org/employees/${gone.id}`)).status === 404);
+const other1 = await json(staff.cookie, 'GET', `/api/org/employees/${outsider.e.id}`);
+ok('nhân viên: chi tiết đồng nghiệp ẩn trạng thái, ngày sinh, ghi chú, tài khoản', other1.status === 200 && other1.body.employee.status === null
+  && other1.body.dateOfBirth === null && other1.body.employee.account === null, other1.body);
+const headRows = await dir(head.cookie);
+ok('quản lý: thấy trạng thái cấp dưới (NV961) + của mình, KHÔNG thấy người ngoài nhánh (NV962)', find(headRows, 'NV961')?.status === 'Active'
+  && find(headRows, 'NV960')?.status === 'Active' && find(headRows, 'NV962')?.status === null, headRows.map((r) => [r.code, r.status]));
+ok('quản lý: chi tiết cấp dưới có ngày vào làm', (await json(head.cookie, 'GET', `/api/org/employees/${staff.e.id}`)).body.employee.joinedAt === '2026-01-05');
+
 // ---------- Token AI + MCP ----------
 const tok = (await json(staff.cookie, 'POST', '/api/auth/access-tokens', { name: 'e2e-guide', expiresInDays: 30 })).body.token;
 const bearer = { authorization: `Bearer ${tok}` };
@@ -112,6 +137,8 @@ const gd = await call('get_department', { departmentId: root });
 ok('MCP get_department (không lộ canEditGuide)', !gd.err && gd.j.guide?.guide?.includes('BGĐ') && gd.j.canEditGuide === undefined, gd.j);
 const gp = await call('get_position', { positionId: posStaff.id });
 ok('MCP get_position', !gp.err && gp.j.guide?.description === 'Mô tả Chuyên viên', gp.j);
+const scOther = await call('search_colleagues', { search: 'NV962' });
+ok('MCP search_colleagues: trạng thái người khác = null', !scOther.err && scOther.j[0]?.status === null && scOther.j[0]?.email === 'e2e.ketoan@e2e.test', scOther.j);
 const sc = await call('search_colleagues', { search: 'NV961' });
 ok('MCP search_colleagues có jobTitle + positionLevel', !sc.err && sc.j[0]?.jobTitle === 'Lập trình viên' && sc.j[0]?.positionLevel === 6, sc.j);
 

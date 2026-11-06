@@ -11,7 +11,8 @@ public sealed class DirectoryTools
 {
     [McpServerTool(Name = "search_colleagues", Title = "Tìm đồng nghiệp", ReadOnly = true, OpenWorld = false)]
     [Description("Danh bạ công ty: tìm nhân viên theo tên, mã hoặc email; lọc theo phòng ban. Trả về id, mã, họ tên, email, điện thoại, " +
-                 "phòng ban, chức vụ (cấp bậc, positionLevel 1 = cao nhất), chức danh (jobTitle: công việc cụ thể), quản lý trực tiếp, trạng thái.")]
+                 "phòng ban, chức vụ (cấp bậc, positionLevel 1 = cao nhất), chức danh (jobTitle: công việc cụ thể), quản lý trực tiếp. status (thử việc / chính thức) chỉ có với chính người dùng và cấp dưới của họ " +
+                 "(HR: mọi người); null = không có quyền xem, đừng đoán.")]
     public static async Task<string> SearchColleagues(OfficeHubApi api,
         [Description("Từ khoá: tên, mã nhân viên hoặc email; bỏ trống = tất cả")] string? search = null,
         [Description("Id phòng ban (từ list_departments)")] Guid? departmentId = null,

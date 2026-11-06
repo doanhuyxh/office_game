@@ -8,10 +8,10 @@ Mọi route dưới `/api/org` yêu cầu đăng nhập. Ghi = policy `AuthPolic
 
 | Method | Path | Quyền | Ghi chú |
 |---|---|---|---|
-| GET | `/employees?search=&departmentId=&status=&includeResigned=` | đăng nhập | Mặc định ẩn `Resigned`. `search` ILIKE `FullName`/`Code`/`Email`. `account` chỉ trả cho HR |
+| GET | `/employees?search=&departmentId=&status=&includeResigned=` | đăng nhập | Danh bạ liên lạc cho mọi người. `search` ILIKE `FullName`/`Code`/`Email`. **Chỉ HR**: `includeResigned`, lọc `status`, `account`. `status` / `joinedAt` / `leftAt` = null trừ khi người xem là HR, chính chủ hoặc quản lý (trực tiếp / gián tiếp) — `HrFieldsVisibilityAsync` (chủ dự án chốt 2026-11-06) |
 | GET | `/employees/me` | đăng nhập | 404 nếu tài khoản chưa gắn hồ sơ |
 | GET | `/employees/next-code` | HR | `NV` + số lớn nhất + 1, 3 chữ số (`NV001`) |
-| GET | `/employees/{id}` | đăng nhập | `account`, `dateOfBirth`, `note` chỉ trả khi là HR hoặc chính chủ |
+| GET | `/employees/{id}` | đăng nhập | `account`, `dateOfBirth`, `note` chỉ HR / chính chủ; `status` / `joinedAt` như danh sách; người đã nghỉ → 404 với người không phải HR |
 | POST | `/employees` | HR | 201 `EmployeeDetail`. `code` trống → tự sinh; mã được chuyển chữ HOA |
 | PUT | `/employees/{id}` | HR | 200 `EmployeeDetail` |
 | POST | `/employees/{id}/resign` | HR | `{ leftAt }` → 204 |

@@ -44,7 +44,9 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
   const [departmentId, setDepartmentId] = useState<string | null>(null);
   const [includeResigned, setIncludeResigned] = useState(false);
   const debounced = useDebounce(search, 300);
-  const { data: employees = [], isLoading } = useEmployees({ search: debounced, departmentId: departmentId ?? undefined, includeResigned });
+  const { data: employees = [], isLoading } = useEmployees({ search: debounced, departmentId: departmentId ?? undefined, includeResigned: canEdit && includeResigned });
+  // Trạng thái / ngày vào làm: BE chỉ trả cho HR, chính chủ và quản lý của người đó → không có dòng nào thì bỏ cả cột
+  const showStatus = canEdit || employees.some((e) => e.status);
   const { data: departments = [] } = useDepartments();
   const [dialog, setDialog] = useState<DialogState>(null);
   const close = () => setDialog(null);
@@ -67,10 +69,12 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
           <SelectField id="filter-dept" label="Phòng ban" allowEmpty emptyLabel="Tất cả phòng ban" value={departmentId} onChange={setDepartmentId}
             options={departmentOptions(departments)} />
         </div>
-        <Label className="h-9 font-normal">
-          <Checkbox checked={includeResigned} onCheckedChange={(c) => setIncludeResigned(c === true)} />
-          Hiện người đã nghỉ
-        </Label>
+        {canEdit && (
+          <Label className="h-9 font-normal">
+            <Checkbox checked={includeResigned} onCheckedChange={(c) => setIncludeResigned(c === true)} />
+            Hiện người đã nghỉ
+          </Label>
+        )}
         {canEdit && (
           <Button onClick={() => setDialog({ kind: 'form', employee: null })}>
             <Plus /> Thêm nhân viên
@@ -87,7 +91,7 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
               <TableHead>Phòng ban</TableHead>
               <TableHead>Chức vụ · chức danh</TableHead>
               <TableHead>Quản lý</TableHead>
-              <TableHead>Trạng thái</TableHead>
+              {showStatus && <TableHead>Trạng thái</TableHead>}
               {canEdit && <TableHead>Tài khoản</TableHead>}
               {canEdit && <TableHead className="w-10" />}
             </TableRow>
@@ -114,12 +118,16 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
                   {e.jobTitle && <div className="text-xs text-muted-foreground">{e.jobTitle}</div>}
                 </TableCell>
                 <TableCell>{e.managerName ?? '—'}</TableCell>
-                <TableCell>
-                  <Badge variant={STATUS_VARIANT[e.status]}>{STATUS_LABEL[e.status]}</Badge>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {e.status === 'Resigned' && e.leftAt ? `Nghỉ ${formatDate(e.leftAt)}` : `Vào ${formatDate(e.joinedAt)}`}
-                  </div>
-                </TableCell>
+                {showStatus && (
+                  <TableCell>
+                    {e.status && <>
+                      <Badge variant={STATUS_VARIANT[e.status]}>{STATUS_LABEL[e.status]}</Badge>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {e.status === 'Resigned' && e.leftAt ? `Nghỉ ${formatDate(e.leftAt)}` : e.joinedAt ? `Vào ${formatDate(e.joinedAt)}` : ''}
+                      </div>
+                    </>}
+                  </TableCell>
+                )}
                 {canEdit && (
                   <TableCell>
                     <AccountBadge e={e} />

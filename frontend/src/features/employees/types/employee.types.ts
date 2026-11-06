@@ -27,8 +27,9 @@ export interface IEmployee {
   jobTitle: string | null;
   managerId: string | null;
   managerName: string | null;
-  status: EmployeeStatus;
-  joinedAt: string; // yyyy-MM-dd
+  /** Thông tin nhân sự: null nếu người xem không phải HR / chính chủ / quản lý của người này (BE ẩn). */
+  status: EmployeeStatus | null;
+  joinedAt: string | null; // yyyy-MM-dd
   leftAt: string | null;
   userId: string | null;
   /** Chỉ HR (hoặc chính chủ) nhận được */

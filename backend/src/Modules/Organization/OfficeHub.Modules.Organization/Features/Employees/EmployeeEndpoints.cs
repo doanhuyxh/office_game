@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.Modules.Identity.Contracts;
+using OfficeHub.Modules.Organization.Contracts;
 using OfficeHub.Modules.Organization.Domain;
 using OfficeHub.Modules.Organization.Infrastructure;
 
@@ -29,11 +30,16 @@ internal static class EmployeeEndpoints
 
     // ---------------- Đọc ----------------
 
-    /// <summary>Danh bạ nhân viên. Ai đăng nhập cũng xem được; thông tin tài khoản chỉ HR thấy.</summary>
+    /// <summary>
+    /// Danh bạ nhân viên. Ai đăng nhập cũng xem được thông tin liên lạc (tên, email, điện thoại, phòng ban, chức vụ, quản lý).
+    /// Chỉ HR: người đã nghỉ việc, lọc theo trạng thái, thông tin tài khoản. Trạng thái / ngày vào làm: HR, chính chủ, quản lý của người đó.
+    /// </summary>
     private static async Task<Ok<List<EmployeeListItem>>> ListAsync(
         string? search, Guid? departmentId, string? status, bool? includeResigned,
-        ClaimsPrincipal user, OrgDbContext db, IAccountService accounts, CancellationToken ct)
+        ClaimsPrincipal user, OrgDbContext db, IAccountService accounts, IEmployeeDirectory dir, CancellationToken ct)
     {
+        var hr = user.IsHr();
+        if (!hr) { includeResigned = false; status = null; } // lọc theo trạng thái cũng làm lộ trạng thái → bỏ qua với người không phải HR
         var q = db.Employees.AsNoTracking();
         if (includeResigned != true && status is null) q = q.Where(e => e.Status != EmployeeStatus.Resigned);
         if (Enum.TryParse<EmployeeStatus>(status, true, out var st)) q = q.Where(e => e.Status == st);
@@ -44,16 +50,18 @@ internal static class EmployeeEndpoints
             q = q.Where(e => EF.Functions.ILike(e.FullName, s) || EF.Functions.ILike(e.Code, s) || (e.Email != null && EF.Functions.ILike(e.Email, s)));
         }
         var rows = await q.OrderBy(e => e.Code).ToListAsync(ct);
-        return TypedResults.Ok(await ToItemsAsync(rows, user.IsHr(), db, accounts, ct));
+        return TypedResults.Ok(await ToItemsAsync(rows, hr, db, accounts, ct, await HrFieldsVisibilityAsync(user, db, dir, ct)));
     }
 
     private static async Task<Results<Ok<EmployeeDetail>, NotFound, ForbidHttpResult>> GetAsync(
-        Guid id, ClaimsPrincipal user, OrgDbContext db, IAccountService accounts, CancellationToken ct)
+        Guid id, ClaimsPrincipal user, OrgDbContext db, IAccountService accounts, IEmployeeDirectory dir, CancellationToken ct)
     {
         var e = await db.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (e is null) return TypedResults.NotFound();
         var self = e.UserId is { } uid && uid == user.GetUserId();
-        return TypedResults.Ok(await ToDetailAsync(e, user.IsHr() || self, db, accounts, ct));
+        var visible = await HrFieldsVisibilityAsync(user, db, dir, ct);
+        if (e.Status == EmployeeStatus.Resigned && !user.IsHr() && !self) return TypedResults.NotFound(); // người đã nghỉ: chỉ HR xem
+        return TypedResults.Ok(await ToDetailAsync(e, user.IsHr() || self, db, accounts, ct, visible(e)));
     }
 
     /// <summary>Hồ sơ của người đang đăng nhập. 404 nếu tài khoản chưa gắn hồ sơ nhân viên (ví dụ admin hệ thống).</summary>
@@ -187,9 +195,25 @@ internal static class EmployeeEndpoints
         return $"NV{max + 1:000}";
     }
 
-    internal static async Task<List<EmployeeListItem>> ToItemsAsync(List<Employee> rows, bool includeAccount, OrgDbContext db,
-        IAccountService accounts, CancellationToken ct)
+    /// <summary>
+    /// Ai được xem thông tin nhân sự (trạng thái thử việc / chính thức, ngày vào làm / nghỉ) của nhân viên nào:
+    /// HR → mọi người; người khác → chính mình + cấp dưới trực tiếp / gián tiếp (quản lý); không có hồ sơ → không ai.
+    /// </summary>
+    internal static async Task<Func<Employee, bool>> HrFieldsVisibilityAsync(ClaimsPrincipal user, OrgDbContext db, IEmployeeDirectory dir, CancellationToken ct)
     {
+        if (user.IsHr()) return _ => true;
+        var uid = user.GetUserId();
+        var me = await db.Employees.Where(e => e.UserId == uid).Select(e => (Guid?)e.Id).FirstOrDefaultAsync(ct);
+        if (me is not { } meId) return _ => false;
+        var allowed = (await dir.GetSubordinateIdsAsync(meId, ct)).ToHashSet();
+        allowed.Add(meId);
+        return e => allowed.Contains(e.Id);
+    }
+
+    internal static async Task<List<EmployeeListItem>> ToItemsAsync(List<Employee> rows, bool includeAccount, OrgDbContext db,
+        IAccountService accounts, CancellationToken ct, Func<Employee, bool>? hrFields = null)
+    {
+        hrFields ??= _ => true;
         var deps = await db.Departments.AsNoTracking().ToDictionaryAsync(d => d.Id, d => d.Name, ct);
         var poss = await db.Positions.IgnoreQueryFilters().AsNoTracking().ToDictionaryAsync(p => p.Id, p => (p.Name, p.Level), ct);
         var managerIds = rows.Where(r => r.ManagerId != null).Select(r => r.ManagerId!.Value).Distinct().ToList();
@@ -203,13 +227,14 @@ internal static class EmployeeEndpoints
             e.PositionId, e.PositionId is { } p && poss.TryGetValue(p, out var pos) ? pos.Name : null, e.PositionId is { } p2 && poss.TryGetValue(p2, out var pl) ? pl.Level : null,
             e.JobTitle,
             e.ManagerId, e.ManagerId is { } m ? managers.GetValueOrDefault(m) : null,
-            e.Status.ToString(), e.JoinedAt, e.LeftAt, e.UserId,
+            hrFields(e) ? e.Status.ToString() : null, hrFields(e) ? e.JoinedAt : null, hrFields(e) ? e.LeftAt : null, e.UserId,
             e.UserId is { } u && accs.TryGetValue(u, out var a) ? AccountSummary.From(a) : null)).ToList();
     }
 
-    internal static async Task<EmployeeDetail> ToDetailAsync(Employee e, bool includeAccount, OrgDbContext db, IAccountService accounts, CancellationToken ct)
+    internal static async Task<EmployeeDetail> ToDetailAsync(Employee e, bool includeAccount, OrgDbContext db, IAccountService accounts, CancellationToken ct,
+        bool hrFields = true)
     {
-        var item = (await ToItemsAsync([e], includeAccount, db, accounts, ct))[0];
+        var item = (await ToItemsAsync([e], includeAccount, db, accounts, ct, _ => hrFields))[0];
         var subs = await db.Employees.CountAsync(x => x.ManagerId == e.Id && x.Status != EmployeeStatus.Resigned, ct);
         return new EmployeeDetail(item, includeAccount ? e.DateOfBirth : null, includeAccount ? e.Note : null, subs);
     }

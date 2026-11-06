@@ -2,10 +2,14 @@ using OfficeHub.Modules.Identity.Contracts;
 
 namespace OfficeHub.Modules.Organization.Features.Employees;
 
+/// <summary>
+/// Một dòng danh bạ. Status / JoinedAt / LeftAt là thông tin nhân sự: null khi người xem không phải HR, chính chủ hay quản lý
+/// (trực tiếp / gián tiếp) của nhân viên đó — xem <see cref="EmployeeEndpoints.HrFieldsVisibilityAsync"/>.
+/// </summary>
 public sealed record EmployeeListItem(
     Guid Id, string Code, string FullName, string? Email, string? Phone,
     Guid? DepartmentId, string? DepartmentName, Guid? PositionId, string? PositionName, int? PositionLevel, string? JobTitle,
-    Guid? ManagerId, string? ManagerName, string Status, DateOnly JoinedAt, DateOnly? LeftAt,
+    Guid? ManagerId, string? ManagerName, string? Status, DateOnly? JoinedAt, DateOnly? LeftAt,
     Guid? UserId, AccountSummary? Account);
 
 /// <summary>Tóm tắt tài khoản đăng nhập (chỉ HR / chính chủ thấy).</summary>

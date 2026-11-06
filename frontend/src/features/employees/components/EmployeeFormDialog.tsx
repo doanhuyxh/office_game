@@ -41,7 +41,7 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, note, dateOfB
           code: employee.code, fullName: employee.fullName, email: employee.email ?? '', phone: employee.phone ?? '',
           dateOfBirth: dateOfBirth ?? null, departmentId: employee.departmentId, positionId: employee.positionId, jobTitle: employee.jobTitle ?? '',
           managerId: employee.managerId, status: employee.status === 'Resigned' ? null : employee.status,
-          joinedAt: employee.joinedAt, note: note ?? '',
+          joinedAt: employee.joinedAt ?? '', note: note ?? '',
         }
       : empty());
     // eslint-disable-next-line react-hooks/exhaustive-deps
