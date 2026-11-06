@@ -1,6 +1,7 @@
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { ThemeProvider } from '@/context/theme-provider';
+import { toast } from 'sonner';
 import { Toaster } from '@/components/common/sonner';
 import { authKeys } from '@/features/auth';
 import { PATHS } from '@/config/paths';
@@ -19,9 +20,17 @@ function onUnauthorized(err: unknown) {
   void router.navigate({ to: PATHS.login, search: { returnUrl: location.pathname + location.search } });
 }
 
+/** Đọc dữ liệu bị 403 (không có quyền) → báo rõ một lần, tránh để trang hiện "chưa có dữ liệu" gây hiểu nhầm. Mutation đã có errorMessage. */
+function onQueryError(err: unknown) {
+  onUnauthorized(err);
+  if (err instanceof ApiError && err.status === 403)
+    toast.error(err.problem.detail ?? 'Bạn không có quyền xem dữ liệu này', { id: 'forbidden' });
+}
+
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: (n, err) => !(err instanceof ApiError && err.status === 401) && n < 1, refetchOnWindowFocus: false } },
-  queryCache: new QueryCache({ onError: onUnauthorized }),
+  // 401 / 403 không thử lại (kết quả không đổi)
+  defaultOptions: { queries: { retry: (n, err) => !(err instanceof ApiError && (err.status === 401 || err.status === 403)) && n < 1, refetchOnWindowFocus: false } },
+  queryCache: new QueryCache({ onError: onQueryError }),
   mutationCache: new MutationCache({ onError: onUnauthorized }),
 });
 const router = createAppRouter(queryClient);

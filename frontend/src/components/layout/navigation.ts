@@ -1,15 +1,13 @@
 import type { LucideIcon } from 'lucide-react';
 import { BarChart3, Bot, Building2, CalendarClock, CheckSquare, Clock, FileText, History, Landmark, LayoutDashboard, Palmtree, Users, Wallet } from 'lucide-react';
 import { PATHS } from '@/config/paths';
-import { ROLE, type Role } from '@/config/roles';
 
 export interface NavItem {
   to: string;
   label: string;
   icon: LucideIcon;
-  /** Để trống = ai cũng thấy */
-  roles?: Role[];
 }
+// Vai trò được thấy mục nào: theo PAGE_ROLES (config/access.ts) — cùng nguồn với chặn route.
 
 export interface NavGroup {
   title: string;
@@ -44,9 +42,9 @@ export const NAVIGATION: NavGroup[] = [
     items: [
       { to: PATHS.employees, label: 'Nhân viên', icon: Users },
       { to: PATHS.contracts, label: 'Hợp đồng', icon: FileText }, // HR: tất cả; nhân viên: của mình (quyền kiểm tra ở back-end)
-      { to: PATHS.payroll, label: 'Bảng lương', icon: Landmark, roles: [ROLE.admin, ROLE.hr] },
-      { to: PATHS.reports, label: 'Báo cáo', icon: BarChart3, roles: [ROLE.admin, ROLE.hr] },
-      { to: PATHS.audit, label: 'Lịch sử thay đổi', icon: History, roles: [ROLE.admin, ROLE.hr] },
+      { to: PATHS.payroll, label: 'Bảng lương', icon: Landmark },
+      { to: PATHS.reports, label: 'Báo cáo', icon: BarChart3 },
+      { to: PATHS.audit, label: 'Lịch sử thay đổi', icon: History },
     ],
   },
 ];

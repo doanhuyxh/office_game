@@ -11,6 +11,8 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Spinner } from '@/components/feedback/Spinner';
 import { AcceptInviteForm, ChangePasswordForm, ForgotPasswordForm, LoginForm, ResetPasswordForm } from '@/features/auth';
 import { PATHS } from '@/config/paths';
+import { PAGE_ROLES } from '@/config/access';
+import { RoleGate } from '@/routes/RoleGate';
 
 /**
  * Định tuyến. Mỗi màn hình là một feature trong src/features/<feature> — route import qua barrel '@/features/<feature>'.
@@ -82,8 +84,14 @@ const oauthAuthorize = createRoute({
 const main = createRoute({ getParentRoute: () => protectedRoute, id: 'main', component: MainLayout });
 
 // Generic theo path để TanStack Router biết chính xác các đường dẫn (Link to={PATHS.x} được kiểm tra kiểu).
-const page = <const P extends string>(path: P, load: Parameters<typeof lazyRouteComponent>[0], exportName: string) =>
-  createRoute({ getParentRoute: () => main, path, component: lazyRouteComponent(load, exportName) });
+// Trang có trong PAGE_ROLES (config/access.ts) được bọc RoleGate: sai vai trò → "không có quyền", không tải chunk trang.
+const page = <const P extends string>(path: P, load: Parameters<typeof lazyRouteComponent>[0], exportName: string) => {
+  const Page = lazyRouteComponent(load, exportName);
+  return createRoute({
+    getParentRoute: () => main, path,
+    component: PAGE_ROLES[path] ? () => <RoleGate path={path}><Page /></RoleGate> : Page,
+  });
+};
 
 const routeTree = root.addChildren([
   login,
