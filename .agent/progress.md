@@ -13,6 +13,7 @@
 | Kết nối AI: MCP 34 tool (không hợp đồng / lương, chấm công AI = Remote), token cá nhân + OAuth 2.1, nhật ký AI, HR thu hồi | `mcp`, `mcp-oauth` |
 | Giao diện shadcn-admin (sidebar, ⌘K, sáng / tối) · PWA cài được (không push) + giao diện mobile | `../frontend.md` |
 | Chat theo phòng, model GLB (chờ bộ Kenney), joystick + zoom cảm ứng | `office`, `office-engine` |
+| **Mặt bằng 3D 50 × 30 m (1 500 m²)** duyệt + áp dụng 2026-11-06: 14 phòng (hội trường 20, họp lớn 10, họp nhỏ 6, 4 phòng gọi, phòng yên tĩnh), 100 chỗ, dải tiện ích (cà phê phụ, bàn trao đổi nhanh, thư viện mini…); JSON sinh từ `design/tools/gen-map-1500.ts`; nắng đi theo người chơi, zoom tới 40 | `office`, `../../design/README.md` |
 | Bảng lương theo luật VN (thông số HR sửa được; tháng nghỉ không lương ≥ 14 ngày không đóng BH) · ký hợp đồng nội bộ + OTP email | `payroll`, `contracts-esign` |
 | Chức vụ = cấp bậc (`Level`, thang 8 bậc, HR quản lý) + chức danh tự do · phòng ban dạng cây, gợi ý quản lý = trưởng phòng · sơ đồ tổ chức (HR) | `organization` |
 | Mô tả + hướng dẫn phòng ban / chức vụ (trưởng phòng sửa phòng mình) → MCP `get_my_role`, `list_positions`, `get_department`, `get_position`; thẻ "Vai trò của tôi" | `org-guides`, `mcp` |
@@ -24,7 +25,7 @@ Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` ✔ (12 projec
 
 ## Quyết định đã chốt gần đây (đừng hỏi / đề xuất lại)
 
-- Văn phòng 3D: mặt bằng + giả định đã duyệt (camera chéo low-poly, laptop trước, voice ở giai đoạn 3). **Giai đoạn 2 bị bỏ**: không làm gán chỗ ngồi, trạng thái (chấm công / nghỉ phép / vắng) trên avatar, "tìm đồng nghiệp", người offline hiện mờ.
+- Văn phòng 3D: mặt bằng **50 × 30 m** đã duyệt 2026-11-06 (Giám đốc 2 bàn, Kỹ thuật 1 cụm 6 xoay dọc cạnh Kinh doanh sát tường tây, phòng gọi 2 ghế đối diện, dải tiện ích z 20–22); giả định cũ vẫn giữ (camera chéo low-poly, laptop trước, voice ở giai đoạn 3). **Giai đoạn 2 bị bỏ**: không làm gán chỗ ngồi, trạng thái (chấm công / nghỉ phép / vắng) trên avatar, "tìm đồng nghiệp", người offline hiện mờ.
 - Hợp đồng: HR quản lý tất cả, nhân viên xem của mình, quản lý **không** xem của cấp dưới; lương mã hoá; nhắc HR + quản lý trực tiếp.
 - Thông báo: email + chuông. Tăng ca / nghỉ phép: xem §11 `ARCHITECTURE_V2.md`.
 - Lương: đầy đủ luật VN, HR sửa thông số; ký điện tử = nội bộ + OTP email (không CA); **chưa làm** máy chấm công; PWA **không** push.

@@ -2,6 +2,7 @@
  * Vẽ sơ đồ mặt bằng (SVG) từ bản đồ v2 + kiểm tra dữ liệu. Không cần cài gói.
  *
  *   bun design/tools/render-plan.ts      # shared/office-map.json → design/floor-plan.svg + shared/office-map.grid.txt
+ *   bun design/tools/render-plan.ts <map.json> <out.svg> [grid.txt]   # vẽ bản nháp khác (không ghi grid nếu bỏ tham số 3)
  *
  * Kiểm tra: phòng / đồ vật trong sàn, cửa nằm trong cạnh tường và căn theo lưới, chỗ ngồi không bị đồ vật chắn, nằm đúng khu,
  * id không trùng, cửa không bị chặn, điểm xuất hiện đứng được, mọi phòng / chỗ ngồi / máy chấm công đi tới được.
@@ -9,7 +10,7 @@
  * test server (tests/OfficeHub.Realtime.Tests) so sánh lưới C# với file này. Sửa bản đồ → chạy lại script này. Lỗi → exit 1.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { NavGrid } from '../../frontend/src/features/office/engine/navGrid';
 import type { OfficeMapV2 } from '../../frontend/src/features/office/engine/mapTypes';
 
@@ -22,9 +23,10 @@ type Obj = { id: string; prefab: string; x: number; z: number; w: number; d: num
 type MapV2 = { name: string; grid: number; floor: Rect; outerDoors: Door[]; spawn: { x: number; z: number }; rooms: Room[]; areas: Area[]; seats: Seat[]; objects: Obj[] };
 
 const root = join(import.meta.dir, '..', '..');
-const inPath = join(root, 'shared', 'office-map.json');
-const outPath = join(root, 'design', 'floor-plan.svg');
-const gridPath = join(root, 'shared', 'office-map.grid.txt');
+const [argIn, argOut, argGrid] = process.argv.slice(2);
+const inPath = argIn ? resolve(argIn) : join(root, 'shared', 'office-map.json');
+const outPath = argOut ? resolve(argOut) : join(root, 'design', 'floor-plan.svg');
+const gridPath = argIn && !argGrid ? null : argGrid ? resolve(argGrid) : join(root, 'shared', 'office-map.grid.txt');
 const map: MapV2 = JSON.parse(readFileSync(inPath, 'utf8'));
 const nav = new NavGrid(map as unknown as OfficeMapV2);
 
@@ -93,7 +95,7 @@ for (const r of map.rooms) {
   }
   if (!ok) errors.push(`phòng ${r.id} không vào được từ cửa chính`);
 }
-writeFileSync(gridPath, nav.toText());
+if (gridPath) writeFileSync(gridPath, nav.toText());
 
 // ---------- vẽ ----------
 const S = 40; // px / m
@@ -107,7 +109,7 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const FILL: Record<string, string> = {
   office: '#eef2ff', meeting: '#ecfeff', booth: '#f0f9ff', open: '#f8fafc', lounge: '#f0fdf4', lobby: '#fff7ed', pantry: '#fefce8',
 };
-const DEPT: Record<string, string> = { BGD: '#7c3aed', HCNS: '#db2777', KT: '#0891b2', KD: '#ea580c', KTH: '#2563eb', LT: '#16a34a' };
+const DEPT: Record<string, string> = { BGD: '#7c3aed', HCNS: '#db2777', KT: '#0891b2', KD: '#ea580c', KTH: '#2563eb', LT: '#16a34a', MR: '#64748b', YT: '#0d9488' };
 const out: string[] = [];
 out.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="Inter, Arial, sans-serif">`);
 out.push(`<rect width="${W}" height="${H}" fill="#ffffff"/>`);
@@ -199,7 +201,7 @@ for (const r of map.rooms) {
   const y = r.kind === 'booth' ? Z(r.z0) + 14 : ['lounge', 'lobby', 'pantry'].includes(r.kind) ? Z(r.z0) + 16 : Z(r.z1) - 10;
   out.push(`<text x="${X(cx)}" y="${y}" font-size="${r.kind === 'booth' ? 10 : 12}" font-weight="700" fill="#0f172a" text-anchor="middle">${esc(label)}${r.voice ? ' 🎙' : ''}</text>`);
 }
-out.push(`<text x="${X(10.5)}" y="${Z(5.5) + 16}" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">Khu làm việc chung</text>`);
+for (const r of map.rooms.filter((r) => r.kind === 'open')) out.push(`<text x="${X((r.x0 + r.x1) / 2)}" y="${Z(r.z0) + 16}" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">${esc(r.name)}</text>`);
 
 // điểm xuất hiện
 out.push(`<circle cx="${X(map.spawn.x)}" cy="${Z(map.spawn.z)}" r="6" fill="none" stroke="#16a34a" stroke-width="2"/><text x="${X(map.spawn.x) + 10}" y="${Z(map.spawn.z) + 4}" font-size="10" fill="#16a34a">vào đây</text>`);
@@ -219,6 +221,7 @@ ly += 26;
 let lx = M;
 for (const [dept, color] of Object.entries(DEPT)) {
   const n = map.seats.filter((s) => s.dept === dept).length;
+  if (!n) continue;
   legend(lx, `<circle cx="8" cy="0" r="8" fill="${color}"/>`, `${dept} · ${n} chỗ`);
   lx += 110;
 }
@@ -229,7 +232,7 @@ out.push('</svg>');
 
 writeFileSync(outPath, out.join('\n'));
 console.log(`✔ ${outPath} (${map.rooms.length} phòng, ${map.seats.length} chỗ ngồi, ${map.objects.length} đồ vật)`);
-console.log(`✔ ${gridPath} (${nav.cols}×${nav.rows} ô)`);
+if (gridPath) console.log(`✔ ${gridPath} (${nav.cols}×${nav.rows} ô)`);
 if (errors.length) {
   console.error(`✖ ${errors.length} lỗi dữ liệu:\n  - ${errors.join('\n  - ')}`);
   process.exit(1);

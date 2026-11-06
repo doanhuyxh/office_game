@@ -3,7 +3,7 @@ export const P = {
   sky: 0xeef2f7,
   ground: 0xcbd5e1,
   floor: { office: 0xe8dfd0, meeting: 0xdbe7f5, booth: 0xe0eef8, open: 0xf1f5f9, lounge: 0xd9efdf, lobby: 0xf6ead2, pantry: 0xf5efcf } as Record<string, number>,
-  dept: { BGD: 0x7c3aed, HCNS: 0xdb2777, KT: 0x0891b2, KD: 0xea580c, KTH: 0x2563eb, LT: 0x16a34a } as Record<string, number>,
+  dept: { BGD: 0x7c3aed, HCNS: 0xdb2777, KT: 0x0891b2, KD: 0xea580c, KTH: 0x2563eb, LT: 0x16a34a, MR: 0x64748b, YT: 0x0d9488 } as Record<string, number>,
   wall: 0xf8fafc,
   wallCap: 0x475569,
   glass: 0x7dd3fc,

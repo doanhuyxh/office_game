@@ -6,12 +6,12 @@ Host riêng, port dev 5090, route `/rt/*`. Không có DB: mọi trạng thái n�
 
 ## Bản đồ v2 (`shared/office-map.json`, schema `shared/schemas/office-map.schema.json`)
 
-Mặt bằng 24 × 16 m do Claude đề xuất, chủ dự án duyệt 2026-11-05 (lý do bố trí: `design/office-3d-proposal.md`). Đơn vị mét, gốc góc tây-bắc, x sang đông, z xuống nam.
+Mặt bằng **50 × 30 m (1 500 m²)**, chủ dự án duyệt 2026-11-06 (bố trí + lý do: `design/office-1500m2-proposal.md`; bản 24 × 16 cũ: `design/office-3d-proposal.md`). File JSON **sinh bởi `design/tools/gen-map-1500.ts`** → sửa script, không sửa tay JSON (quy trình: `design/README.md`). Đơn vị mét, gốc góc tây-bắc, x sang đông, z xuống nam.
 
-- `rooms[]` (kind office / meeting / booth / open / lounge / lobby / pantry, `zone`, `walls`, `glass`, `doors[]` {side, at, w}, `voice: "room"`), `areas[]` (khu phòng ban trong khu mở, `dept`), `seats[]` (24 chỗ, id `KTH-01`…, `facing`), `objects[]` (`prefab`, w×d, `rot`, `solid`, `action` / `interact`), `outerDoors`, `spawn`, `grid` = 0,5.
+- `rooms[]` (kind office / meeting / booth / open / lounge / lobby / pantry, `zone`, `walls`, `glass`, `doors[]` {side, at, w}, `voice: "room"`), `areas[]` (khu phòng ban trong khu mở, `dept`), `seats[]` (100 chỗ, id `KTH-01`…, `MR-xx` = chỗ chưa gán phòng ban, `YT-xx` = phòng yên tĩnh; `facing` n/s/e/w), `objects[]` (`prefab`, w×d, `rot`, `solid`, `action` / `interact`), `outerDoors`, `spawn`, `grid` = 0,5.
 - **Lưới va chạm** sinh khi tải (không lưu): ô bị chặn nếu giao tường (dải ±0,05 m dọc cạnh phòng có `walls` + cạnh sàn, trừ cửa) hoặc đồ vật `solid`. Code **giống hệt** ở FE `engine/navGrid.ts` và server `Simulation/NavGrid.cs`.
 - **Sửa bản đồ**: sửa JSON → `bun design/tools/render-plan.ts` (vẽ `design/floor-plan.svg`, ghi `shared/office-map.grid.txt`, báo lỗi: cửa không căn lưới / rộng < 1 m, ghế bị chắn, phòng / ghế / máy chấm công không đi tới được, id trùng → exit 1). Test `tests/OfficeHub.Realtime.Tests` so lưới C# với `office-map.grid.txt` → quên chạy script hoặc 2 bản code lệch là test fail.
-- `departments.MapZone` = `areas[].id` hoặc `rooms[].zone` (danh sách chọn: `features/employees/utils/mapZones.ts`). Phòng ban thử: `dept-bgd`, `dept-hcns`, `dept-kt`, `dept-kd`, `dept-kth`, `reception`.
+- `departments.MapZone` = `areas[].id` hoặc `rooms[].zone` (danh sách chọn: `features/employees/utils/mapZones.ts`). Phòng ban thử: `dept-bgd`, `dept-hcns`, `dept-kt`, `dept-kd`, `dept-kth`, `reception`; thêm `quiet` (Phòng yên tĩnh, không gán phòng ban). Phòng họp: `meeting-hall` (20), `meeting-large` (10), `meeting-small` (6); 4 phòng gọi `booth-1..4`.
 - Realtime đọc qua `Realtime__MapPath` (`OfficeMap.Load`, bắt buộc `version: 2`), FE import `@shared/office-map.json`. Docker image Realtime copy thư mục `shared/`.
 
 ## Hub `/rt/hub/office` (`Hubs/OfficeRoomHub.cs`, `[Authorize]`, MessagePack)
@@ -53,7 +53,7 @@ Tên hiển thị = claim `full_name`. `anim` (byte) chỉ chuyển tiếp: 0 đ
 
 ## Voice (`Voice/VoiceEndpoints.cs`, `Voice/VoiceGuard.cs`) — giai đoạn 3
 
-**Kênh theo vị trí** (`OfficeMap.VoiceAt`, giống `engine/voiceChannel.ts`): đứng trong phòng có `walls` → kênh riêng của phòng đó (room LiveKit `officehub-<rooms[].id>`); còn lại (khu mở, sảnh, pantry, khu nghỉ) → `officehub-open`. Phòng có `voice: "room"` (họp lớn / nhỏ, 2 phòng gọi) = **phòng họp**: cả phòng nghe rõ như nhau + được chia sẻ màn hình. Phòng có tường khác (Giám đốc, Kế toán) vẫn là kênh riêng nhưng nghe theo khoảng cách.
+**Kênh theo vị trí** (`OfficeMap.VoiceAt`, giống `engine/voiceChannel.ts`): đứng trong phòng có `walls` → kênh riêng của phòng đó (room LiveKit `officehub-<rooms[].id>`); còn lại (khu mở, sảnh, pantry, khu nghỉ) → `officehub-open`. Phòng có `voice: "room"` (hội trường, họp lớn / nhỏ, 4 phòng gọi) = **phòng họp**: cả phòng nghe rõ như nhau + được chia sẻ màn hình. Phòng có tường khác (Giám đốc, Kế toán) vẫn là kênh riêng nhưng nghe theo khoảng cách.
 
 `POST /rt/voice/token` (đăng nhập) → `{ url, token, room, channel, meeting }`:
 

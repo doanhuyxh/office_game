@@ -1,6 +1,6 @@
 # Đề xuất văn phòng 3D — mặt bằng v1 và hướng làm
 
-> Trạng thái: **đã duyệt** (2026-11-05, toàn bộ giả định mục 1). **Giai đoạn 1 xong** (bản đồ `shared/office-map.json`, engine mới, va chạm FE + server, ngồi, minimap). Thay đổi so với bản vẽ đầu: cửa căn theo lưới 0,5 m, bàn Giám đốc dời ra để đi vào được. Chưa có bản vẽ văn phòng thật nên mặt bằng dưới đây do Claude đề xuất cho 6 phòng ban hiện có. Khi có văn phòng thật: sửa `shared/office-map.json`, chạy `bun design/tools/render-plan.ts` — phần code không phải đổi.
+> Trạng thái: **đã duyệt** (2026-11-05, toàn bộ giả định mục 1). **Mặt bằng mục 2 đã được thay** bằng bản 50 × 30 m ngày 2026-11-06 — xem [office-1500m2-proposal.md](office-1500m2-proposal.md); các mục giả định / kỹ thuật / lộ trình vẫn đúng. **Giai đoạn 1 xong** (bản đồ `shared/office-map.json`, engine mới, va chạm FE + server, ngồi, minimap). Thay đổi so với bản vẽ đầu: cửa căn theo lưới 0,5 m, bàn Giám đốc dời ra để đi vào được. Chưa có bản vẽ văn phòng thật nên mặt bằng dưới đây do Claude đề xuất cho 6 phòng ban hiện có. Khi có văn phòng thật: sửa `shared/office-map.json`, chạy `bun design/tools/render-plan.ts` — phần code không phải đổi.
 
 ![Mặt bằng đề xuất](floor-plan.svg)
 

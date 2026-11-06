@@ -49,6 +49,7 @@ export class OfficeScene {
   private distance = 17;
   private readonly elevation = THREE.MathUtils.degToRad(52);
   private camTarget = new THREE.Vector3(OFFICE_MAP.spawn.x, 0, OFFICE_MAP.spawn.z);
+  private sun: THREE.DirectionalLight;
   private ray = new THREE.Raycaster();
   private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private downAt: { x: number; y: number } | null = null;
@@ -78,15 +79,14 @@ export class OfficeScene {
     this.scene.background = new THREE.Color(P.sky);
     this.scene.fog = new THREE.Fog(P.sky, 45, 90);
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0xb8c2cc, 2.0));
+    // Nắng + khung bóng đổ ±16 × ±12 m đi theo người chơi (sàn 50 × 30 m quá lớn cho một khung bóng cố định)
     const sun = new THREE.DirectionalLight(0xffffff, 1.6);
-    const f = OFFICE_MAP.floor;
-    const cx = (f.x0 + f.x1) / 2, cz = (f.z0 + f.z1) / 2;
-    sun.position.set(cx + 8, 18, cz + 10);
-    sun.target.position.set(cx, 0, cz);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 12, bottom: -12, near: 1, far: 50 });
     sun.shadow.bias = -0.0008;
+    this.sun = sun;
+    this.moveSun();
     this.scene.add(sun, sun.target);
     // Hiện ngay bằng khối dựng tay; có model GLB (public/models/furniture) thì thay khi tải xong.
     let world = buildWorld(OFFICE_MAP);
@@ -288,7 +288,14 @@ export class OfficeScene {
   setStick(x: number, y: number) { this.stick = { x, y }; }
 
   /** Phóng to (-1) / thu nhỏ (1) — nút trên màn hình cảm ứng (máy tính dùng cuộn chuột). */
-  zoom(dir: 1 | -1) { this.distance = THREE.MathUtils.clamp(this.distance * (1 + dir * 0.15), 8, 32); }
+  zoom(dir: 1 | -1) { this.distance = THREE.MathUtils.clamp(this.distance * (1 + dir * 0.15), 8, 40); }
+
+  /** Đặt nắng lệch đông-nam so với điểm camera đang nhìn → bóng luôn có quanh người chơi. */
+  private moveSun() {
+    const t = this.camTarget;
+    this.sun.position.set(t.x + 8, 18, t.z + 10);
+    this.sun.target.position.set(t.x, 0, t.z);
+  }
 
   // ---------- input ----------
 
@@ -321,7 +328,7 @@ export class OfficeScene {
   };
   private wheel = (e: WheelEvent) => {
     e.preventDefault();
-    this.distance = THREE.MathUtils.clamp(this.distance * (1 + Math.sign(e.deltaY) * 0.1), 8, 32);
+    this.distance = THREE.MathUtils.clamp(this.distance * (1 + Math.sign(e.deltaY) * 0.1), 8, 40);
   };
 
   private resize = () => {
@@ -414,6 +421,7 @@ export class OfficeScene {
       o.avatar.update(dt);
     }
 
+    this.moveSun();
     const flat = this.distance * Math.cos(this.elevation);
     this.camera.position.set(this.camTarget.x + Math.sin(this.azimuth) * flat, this.distance * Math.sin(this.elevation), this.camTarget.z + Math.cos(this.azimuth) * flat);
     this.camera.lookAt(this.camTarget.x, 0.6, this.camTarget.z);

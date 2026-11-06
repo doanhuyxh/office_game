@@ -81,7 +81,7 @@ if (DOCX) {
 
 // ---------- Đặt phòng họp ----------
 const rooms = await (await get(emp, '/api/meetings/rooms')).json();
-ok('phòng họp từ bản đồ', rooms.length === 2 && rooms.some((r: any) => r.id === 'meeting-small' && r.capacity === 4), rooms);
+ok('phòng họp từ bản đồ', rooms.length === 3 && rooms.some((r: any) => r.id === 'meeting-small' && r.capacity === 6), rooms);
 const me = await (await get(mgr, '/api/org/employees?search=kythuat.nhanvien')).json();
 const day = new Date(Date.now() + 3 * 864e5).toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
 const body = { roomId: 'meeting-small', title: 'E2E họp thử', startAt: `${day}T09:00:00+07:00`, endAt: `${day}T10:00:00+07:00`, attendeeIds: me.slice(0, 1).map((x: any) => x.id) };

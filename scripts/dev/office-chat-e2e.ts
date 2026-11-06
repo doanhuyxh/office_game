@@ -27,9 +27,9 @@ try {
   check('điện thoại: có joystick, chat thu gọn mặc định', await C.evalJs("!!document.querySelector('[data-testid=office-joystick]')"));
   check('máy tính: không có joystick', !(await A.evalJs("!!document.querySelector('[data-testid=office-joystick]')")));
 
-  await A.evalJs('window.__officeScene.walkTo(9.5, 3)');
-  await B.evalJs('window.__officeScene.walkTo(10.5, 3)');
-  await A.sleep(6000);
+  await A.evalJs('window.__officeScene.walkTo(25, 6.5)');
+  await B.evalJs('window.__officeScene.walkTo(27, 6.5)');
+  await A.sleep(9000);
   check('A, B trong phòng: có tab phòng', await A.evalJs("!!document.querySelector('[data-testid=office-chat-room-tab]')") && await B.evalJs("!!document.querySelector('[data-testid=office-chat-room-tab]')"));
   check('C ngoài phòng: không có tab phòng', !(await C.evalJs("!!document.querySelector('[data-testid=office-chat-room-tab]')")));
 

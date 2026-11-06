@@ -4,7 +4,7 @@
 
 Chủ dự án chốt (2026-11-06): **lịch đặt + hiển thị trong 3D**, mời người (chuông + email), **không chặn** ai vào phòng / kênh voice.
 
-- **Phòng** = `rooms[kind = "meeting"]` trong `shared/office-map.json` (đọc qua `Realtime__MapPath`, cùng nguồn với văn phòng 3D): `meeting-large` (10 chỗ), `meeting-small` (4 chỗ). Thêm phòng họp = sửa bản đồ.
+- **Phòng** = `rooms[kind = "meeting"]` trong `shared/office-map.json` (đọc qua `Realtime__MapPath`, cùng nguồn với văn phòng 3D): `meeting-hall` (Hội trường, 20 chỗ), `meeting-large` (10 chỗ), `meeting-small` (6 chỗ). Thêm phòng họp = sửa bản đồ (`design/tools/gen-map-1500.ts`).
 - **Bảng** `meetings.bookings` (+ `attendees`): `RoomId`, `Title`, `StartAt` / `EndAt` (timestamptz UTC), người đặt, ghi chú, `CancelledAt` (huỷ = đặt giá trị, giữ lịch sử).
 - **Quy tắc** (`Domain/Booking.cs` `BookingRules`, test `tests/OfficeHub.Modules.Meetings.Tests`): 15 phút ≤ thời lượng ≤ 8 giờ; không đặt quá khứ (cho lùi 5 phút); tối đa trước 60 ngày; ≤ 50 người mời (đang làm). Trùng = khoảng nửa mở `[start, end)` giao nhau — sát nhau (10:00 / 10:00) không trùng.
 - **Chặn trùng khi đặt đồng thời**: transaction + `pg_advisory_xact_lock(hashtext('meetings:' + roomId))` rồi mới kiểm tra trùng → 409 kèm lịch đang chiếm.

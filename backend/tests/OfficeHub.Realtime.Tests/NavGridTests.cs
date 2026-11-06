@@ -28,18 +28,18 @@ public class NavGridTests
     {
         Assert.True(Map.CanStand(Map.Spawn.X, Map.Spawn.Z));
         Assert.False(Map.CanStand(-1, 5));
-        Assert.False(Map.CanStand(12, 16.2));
+        Assert.False(Map.CanStand(12, 30.2));
     }
 
     [Fact]
     public void Walls_block_except_doors()
     {
-        // Tường nam phòng Giám đốc (z = 5.5), cửa ở x 4–5
-        Assert.False(Map.CanStand(2.25, 5.45));
-        Assert.True(Map.CanStand(4.25, 5.45));
-        Assert.True(Map.CanStand(4.75, 5.6));
-        // Tường giữa phòng Giám đốc và phòng họp lớn (x = 6)
-        Assert.False(Map.CanStand(5.95, 2.75));
+        // Tường nam phòng Giám đốc (z = 8), cửa ở x 8.5–9.5
+        Assert.False(Map.CanStand(2.25, 7.95));
+        Assert.True(Map.CanStand(8.75, 7.95));
+        Assert.True(Map.CanStand(9.25, 8.1));
+        // Tường giữa phòng Giám đốc và Hội trường (x = 10)
+        Assert.False(Map.CanStand(9.95, 2.75));
     }
 
     [Fact]
@@ -51,19 +51,21 @@ public class NavGridTests
     }
 
     [Theory]
-    [InlineData(3.5, 7.0, "dept-kth")]
-    [InlineData(11.0, 6.5, "dept-kd")]
-    [InlineData(10.0, 3.0, "meeting")]
-    [InlineData(11.5, 14.0, "reception")]
-    [InlineData(10.5, 10.5, "work")]
+    [InlineData(7.85, 13.0, "dept-kth")]
+    [InlineData(2.8, 11.0, "dept-kd")]
+    [InlineData(26.0, 3.0, "meeting")]
+    [InlineData(25.0, 28.0, "reception")]
+    [InlineData(23.0, 19.0, "work")]
+    [InlineData(46.5, 6.0, "quiet")]
     public void Zone_lookup(double x, double z, string zone) => Assert.Equal(zone, Map.ZoneAt(x, z));
 
     [Theory]
-    [InlineData(10.0, 3.0, "meeting-large", true)] // phòng họp: kênh riêng, chia sẻ màn hình
-    [InlineData(22.5, 7.0, "booth-1", true)]
+    [InlineData(26.0, 3.0, "meeting-large", true)] // phòng họp: kênh riêng, chia sẻ màn hình
+    [InlineData(16.0, 6.5, "meeting-hall", true)]
+    [InlineData(48.0, 9.5, "booth-1", true)]
     [InlineData(3.0, 3.0, "bgd", false)] // phòng có tường nhưng không phải phòng họp: vẫn kênh riêng
-    [InlineData(10.5, 10.5, "open", false)] // khu mở, sảnh, pantry: kênh chung theo khoảng cách
-    [InlineData(11.5, 14.0, "open", false)]
+    [InlineData(23.0, 19.0, "open", false)] // khu mở, sảnh, pantry: kênh chung theo khoảng cách
+    [InlineData(25.0, 28.0, "open", false)]
     public void Voice_channel_by_position(double x, double z, string channel, bool meeting)
     {
         var ch = Map.VoiceAt(x, z);

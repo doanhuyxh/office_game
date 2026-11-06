@@ -19,23 +19,23 @@ try {
   await A.sleep(1500);
   await A.shot(`${shots}/50-office-spawn.png`);
 
-  // 1) Tìm đường vào phòng Giám đốc (phải đi qua cửa x 4–5, z 5.5); (2.5, 2.75) là ô trống giữa phòng
-  await A.evalJs(`window.__officeScene.walkTo(2.75, 2.75)`);
-  check('pathfinding into director room', await waitFor(A, `(()=>{const m=window.__officeScene.snapshot().me;return Math.hypot(m.x-2.75,m.z-2.75)<0.2 && !window.__officeScene.snapshot().target})()`, 12000), await snap(A));
-  // 2) Va chạm: giữ S 1.5s trong phòng → không xuyên tường nam (z < 5.5)
+  // 1) Tìm đường vào phòng Giám đốc (phải đi qua cửa x 8.5–9.5, z 8); (4, 4) là ô trống giữa phòng
+  await A.evalJs(`window.__officeScene.walkTo(4, 4)`);
+  check('pathfinding into director room', await waitFor(A, `(()=>{const m=window.__officeScene.snapshot().me;return Math.hypot(m.x-4,m.z-4)<0.2 && !window.__officeScene.snapshot().target})()`, 20000), await snap(A));
+  // 2) Va chạm: giữ S 1.5s trong phòng → không xuyên tường nam (z < 8)
   await A.key('s', 1500);
   let me = (await snap(A)).me;
-  check('wall blocks walking (stay inside room)', me.z < 5.45 && me.x < 6, me);
-  // 3) Ra khỏi phòng, tới khu Kỹ thuật, bấm "đi tới ghế rồi ngồi"
-  await A.evalJs(`(()=>{const sc=window.__officeScene;const seat=${JSON.stringify({ id: 'KTH-02', dept: 'KTH', zone: 'dept-kth', x: 3.5, z: 6.75, facing: 's' })};sc.walkTo(3.5,6.6,seat)})()`);
+  check('wall blocks walking (stay inside room)', me.z < 7.95 && me.x < 10, me);
+  // 3) Ra khỏi phòng, tới khu Kỹ thuật (cụm xoay dọc, ghế KTH-02 ở x 6.85 quay mặt đông), bấm "đi tới ghế rồi ngồi"
+  await A.evalJs(`(()=>{const sc=window.__officeScene;const seat=${JSON.stringify({ id: 'KTH-02', dept: 'KTH', zone: 'dept-kth', x: 6.85, z: 13.75, facing: 'e' })};sc.walkTo(6.7,13.75,seat)})()`);
   check('walk to seat and sit', await waitFor(A, `document.body.innerText.includes('Đang ngồi ở bàn KTH-02')`, 15000), await snap(A));
   check('zone label = Kỹ thuật', await A.evalJs(`[...document.querySelectorAll('.zone')].some(e=>e.textContent.includes('Kỹ thuật'))`));
-  check('B sees A sitting', await waitFor(B, `window.__officeScene.snapshot().others.some(o=>o.anim===2 && Math.hypot(o.x-3.5,o.z-6.75)<0.3)`, 5000), await snap(B));
+  check('B sees A sitting', await waitFor(B, `window.__officeScene.snapshot().others.some(o=>o.anim===2 && Math.hypot(o.x-6.85,o.z-13.75)<0.3)`, 5000), await snap(B));
   await A.sleep(800);
   await A.shot(`${shots}/51-office-sitting.png`);
   // 4) B tới ngồi đúng ghế đó → bị từ chối
-  await B.evalJs(`window.__officeScene.walkTo(3.5, 6.3)`);
-  await waitFor(B, `(()=>{const m=window.__officeScene.snapshot().me;return Math.hypot(m.x-3.5,m.z-6.3)<0.3})()`, 15000);
+  await B.evalJs(`window.__officeScene.walkTo(6.4, 13.75)`);
+  await waitFor(B, `(()=>{const m=window.__officeScene.snapshot().me;return Math.hypot(m.x-6.4,m.z-13.75)<0.3})()`, 20000);
   const bSat = await B.evalJs(`window.__officeScene.toggleSit()`);
   const bText = await B.evalJs(`document.body.innerText`);
   check('B cannot take occupied seat (sits elsewhere or nothing)', !bText.includes('Đang ngồi ở bàn KTH-02'), { bSat });

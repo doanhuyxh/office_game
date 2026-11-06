@@ -2,28 +2,28 @@
   "$schema": "./schemas/office-map.schema.json",
   "version": 2,
   "name": "Văn phòng OfficeHub",
-  "notes": "Mặt bằng v1 do Claude đề xuất khi chưa có bản vẽ thật (chủ dự án duyệt 2026-11-05). Đơn vị mét, gốc (0,0) góc tây-bắc, x sang đông, z xuống nam. Cửa căn theo lưới. Lưới va chạm sinh ra từ tường + objects solid (frontend/src/features/office/engine/navGrid.ts = backend NavGrid.cs). Sửa xong chạy: bun design/tools/render-plan.ts",
+  "notes": "Mặt bằng 50 × 30 m (1 500 m²) do Claude đề xuất, chủ dự án duyệt 2026-11-06 (design/office-1500m2-proposal.md). File này SINH bởi design/tools/gen-map-1500.ts — sửa script rồi chạy: bun design/tools/gen-map-1500.ts && cp design/drafts/office-map-1500.json … (xem design/README.md). Đơn vị mét, gốc (0,0) góc tây-bắc, x sang đông, z xuống nam. Cửa căn theo lưới. Lưới va chạm sinh ra từ tường + objects solid (frontend/src/features/office/engine/navGrid.ts = backend NavGrid.cs). Sửa xong chạy: bun design/tools/render-plan.ts",
   "unit": "m",
   "grid": 0.5,
   "floor": {
     "x0": 0,
-    "x1": 24,
+    "x1": 50,
     "z0": 0,
-    "z1": 16
+    "z1": 30
   },
   "wallHeight": 3,
   "outerDoors": [
     {
       "id": "entrance",
       "side": "s",
-      "at": 10.5,
-      "w": 2.0,
+      "at": 24,
+      "w": 2,
       "name": "Cửa chính"
     }
   ],
   "spawn": {
-    "x": 11.5,
-    "z": 15.0
+    "x": 25,
+    "z": 29
   },
   "rooms": [
     {
@@ -32,15 +32,41 @@
       "kind": "office",
       "zone": "dept-bgd",
       "x0": 0,
-      "x1": 6,
+      "x1": 10,
       "z0": 0,
-      "z1": 5.5,
+      "z1": 8,
       "walls": true,
       "doors": [
         {
           "side": "s",
-          "at": 4.0,
-          "w": 1.0
+          "at": 8.5,
+          "w": 1
+        }
+      ]
+    },
+    {
+      "id": "meeting-hall",
+      "name": "Hội trường",
+      "kind": "meeting",
+      "zone": "meeting",
+      "x0": 10,
+      "x1": 22,
+      "z0": 0,
+      "z1": 8,
+      "walls": true,
+      "glass": true,
+      "capacity": 20,
+      "voice": "room",
+      "doors": [
+        {
+          "side": "s",
+          "at": 0.5,
+          "w": 1.5
+        },
+        {
+          "side": "s",
+          "at": 10,
+          "w": 1.5
         }
       ]
     },
@@ -49,10 +75,10 @@
       "name": "Phòng họp lớn",
       "kind": "meeting",
       "zone": "meeting",
-      "x0": 6,
-      "x1": 13,
+      "x0": 22,
+      "x1": 30,
       "z0": 0,
-      "z1": 5.5,
+      "z1": 8,
       "walls": true,
       "glass": true,
       "capacity": 10,
@@ -61,25 +87,7 @@
         {
           "side": "s",
           "at": 0.5,
-          "w": 1.0
-        }
-      ]
-    },
-    {
-      "id": "kt",
-      "name": "Phòng Kế toán",
-      "kind": "office",
-      "zone": "dept-kt",
-      "x0": 13,
-      "x1": 18.5,
-      "z0": 0,
-      "z1": 5.5,
-      "walls": true,
-      "doors": [
-        {
-          "side": "s",
-          "at": 4.0,
-          "w": 1.0
+          "w": 1
         }
       ]
     },
@@ -88,19 +96,55 @@
       "name": "Phòng họp nhỏ",
       "kind": "meeting",
       "zone": "meeting",
-      "x0": 18.5,
-      "x1": 24.0,
+      "x0": 30,
+      "x1": 35,
       "z0": 0,
-      "z1": 5.5,
+      "z1": 8,
       "walls": true,
       "glass": true,
-      "capacity": 4,
+      "capacity": 6,
       "voice": "room",
       "doors": [
         {
           "side": "s",
           "at": 0.5,
-          "w": 1.0
+          "w": 1
+        }
+      ]
+    },
+    {
+      "id": "kt",
+      "name": "Phòng Kế toán",
+      "kind": "office",
+      "zone": "dept-kt",
+      "x0": 35,
+      "x1": 43,
+      "z0": 0,
+      "z1": 8,
+      "walls": true,
+      "doors": [
+        {
+          "side": "s",
+          "at": 6.5,
+          "w": 1
+        }
+      ]
+    },
+    {
+      "id": "focus",
+      "name": "Phòng yên tĩnh",
+      "kind": "office",
+      "zone": "quiet",
+      "x0": 43,
+      "x1": 50,
+      "z0": 0,
+      "z1": 8,
+      "walls": true,
+      "doors": [
+        {
+          "side": "s",
+          "at": 1,
+          "w": 1
         }
       ]
     },
@@ -109,10 +153,10 @@
       "name": "Phòng gọi 1",
       "kind": "booth",
       "zone": "booth",
-      "x0": 21,
-      "x1": 24,
-      "z0": 6,
-      "z1": 8.5,
+      "x0": 46,
+      "x1": 50,
+      "z0": 8,
+      "z1": 11.5,
       "walls": true,
       "glass": true,
       "capacity": 2,
@@ -120,8 +164,8 @@
       "doors": [
         {
           "side": "w",
-          "at": 0.5,
-          "w": 1.0
+          "at": 1,
+          "w": 1
         }
       ]
     },
@@ -130,10 +174,10 @@
       "name": "Phòng gọi 2",
       "kind": "booth",
       "zone": "booth",
-      "x0": 21,
-      "x1": 24,
-      "z0": 8.5,
-      "z1": 11.0,
+      "x0": 46,
+      "x1": 50,
+      "z0": 11.5,
+      "z1": 15,
       "walls": true,
       "glass": true,
       "capacity": 2,
@@ -141,8 +185,50 @@
       "doors": [
         {
           "side": "w",
-          "at": 0.5,
-          "w": 1.0
+          "at": 1,
+          "w": 1
+        }
+      ]
+    },
+    {
+      "id": "booth-3",
+      "name": "Phòng gọi 3",
+      "kind": "booth",
+      "zone": "booth",
+      "x0": 46,
+      "x1": 50,
+      "z0": 15,
+      "z1": 18.5,
+      "walls": true,
+      "glass": true,
+      "capacity": 2,
+      "voice": "room",
+      "doors": [
+        {
+          "side": "w",
+          "at": 1,
+          "w": 1
+        }
+      ]
+    },
+    {
+      "id": "booth-4",
+      "name": "Phòng gọi 4",
+      "kind": "booth",
+      "zone": "booth",
+      "x0": 46,
+      "x1": 50,
+      "z0": 18.5,
+      "z1": 22,
+      "walls": true,
+      "glass": true,
+      "capacity": 2,
+      "voice": "room",
+      "doors": [
+        {
+          "side": "w",
+          "at": 1,
+          "w": 1
         }
       ]
     },
@@ -152,9 +238,9 @@
       "kind": "open",
       "zone": "work",
       "x0": 0,
-      "x1": 21,
-      "z0": 5.5,
-      "z1": 11.0,
+      "x1": 46,
+      "z0": 8,
+      "z1": 22,
       "walls": false
     },
     {
@@ -163,9 +249,9 @@
       "kind": "lounge",
       "zone": "lounge",
       "x0": 0,
-      "x1": 7,
-      "z0": 11,
-      "z1": 16,
+      "x1": 17,
+      "z0": 22,
+      "z1": 30,
       "walls": false
     },
     {
@@ -173,10 +259,10 @@
       "name": "Sảnh & Lễ tân",
       "kind": "lobby",
       "zone": "reception",
-      "x0": 7,
-      "x1": 16,
-      "z0": 11,
-      "z1": 16,
+      "x0": 17,
+      "x1": 33,
+      "z0": 22,
+      "z1": 30,
       "walls": false
     },
     {
@@ -184,208 +270,720 @@
       "name": "Pantry",
       "kind": "pantry",
       "zone": "pantry",
-      "x0": 16,
-      "x1": 24,
-      "z0": 11,
-      "z1": 16,
+      "x0": 33,
+      "x1": 50,
+      "z0": 22,
+      "z1": 30,
       "walls": false
     }
   ],
   "areas": [
     {
-      "id": "dept-kth",
-      "name": "Kỹ thuật",
-      "dept": "KTH",
-      "x0": 0.6,
-      "x1": 6.8,
-      "z0": 6,
-      "z1": 9.6
-    },
-    {
       "id": "dept-kd",
       "name": "Kinh doanh",
       "dept": "KD",
-      "x0": 8.2,
-      "x1": 14.4,
-      "z0": 6,
-      "z1": 9.6
+      "x0": 0.2,
+      "x1": 5.699999999999999,
+      "z0": 9.5,
+      "z1": 18
+    },
+    {
+      "id": "dept-kth",
+      "name": "Kỹ thuật",
+      "dept": "KTH",
+      "x0": 6.35,
+      "x1": 9.35,
+      "z0": 11,
+      "z1": 16.5
     },
     {
       "id": "dept-hcns",
       "name": "Hành chính – Nhân sự",
       "dept": "HCNS",
-      "x0": 15.2,
-      "x1": 19.1,
-      "z0": 6,
-      "z1": 9.6
+      "x0": 34.3,
+      "x1": 40.3,
+      "z0": 14.5,
+      "z1": 18
     }
   ],
   "seats": [
     {
-      "id": "KTH-01",
-      "dept": "KTH",
-      "zone": "dept-kth",
-      "x": 1.9,
-      "z": 6.75,
-      "facing": "s"
-    },
-    {
-      "id": "KTH-02",
-      "dept": "KTH",
-      "zone": "dept-kth",
-      "x": 3.5,
-      "z": 6.75,
-      "facing": "s"
-    },
-    {
-      "id": "KTH-03",
-      "dept": "KTH",
-      "zone": "dept-kth",
-      "x": 5.1,
-      "z": 6.75,
-      "facing": "s"
-    },
-    {
-      "id": "KTH-04",
-      "dept": "KTH",
-      "zone": "dept-kth",
-      "x": 1.9,
-      "z": 8.75,
-      "facing": "n"
-    },
-    {
-      "id": "KTH-05",
-      "dept": "KTH",
-      "zone": "dept-kth",
-      "x": 3.5,
-      "z": 8.75,
-      "facing": "n"
-    },
-    {
-      "id": "KTH-06",
-      "dept": "KTH",
-      "zone": "dept-kth",
-      "x": 5.1,
-      "z": 8.75,
-      "facing": "n"
-    },
-    {
       "id": "KD-01",
       "dept": "KD",
       "zone": "dept-kd",
-      "x": 9.5,
-      "z": 6.75,
+      "x": 1.2,
+      "z": 10.25,
       "facing": "s"
     },
     {
       "id": "KD-02",
       "dept": "KD",
       "zone": "dept-kd",
-      "x": 11.1,
-      "z": 6.75,
+      "x": 2.8,
+      "z": 10.25,
       "facing": "s"
     },
     {
       "id": "KD-03",
       "dept": "KD",
       "zone": "dept-kd",
-      "x": 12.7,
-      "z": 6.75,
+      "x": 4.4,
+      "z": 10.25,
       "facing": "s"
     },
     {
       "id": "KD-04",
       "dept": "KD",
       "zone": "dept-kd",
-      "x": 9.5,
-      "z": 8.75,
+      "x": 1.2,
+      "z": 12.25,
       "facing": "n"
     },
     {
       "id": "KD-05",
       "dept": "KD",
       "zone": "dept-kd",
-      "x": 11.1,
-      "z": 8.75,
+      "x": 2.8,
+      "z": 12.25,
       "facing": "n"
     },
     {
       "id": "KD-06",
       "dept": "KD",
       "zone": "dept-kd",
-      "x": 12.7,
-      "z": 8.75,
+      "x": 4.4,
+      "z": 12.25,
       "facing": "n"
+    },
+    {
+      "id": "KD-07",
+      "dept": "KD",
+      "zone": "dept-kd",
+      "x": 1.2,
+      "z": 15.25,
+      "facing": "s"
+    },
+    {
+      "id": "KD-08",
+      "dept": "KD",
+      "zone": "dept-kd",
+      "x": 2.8,
+      "z": 15.25,
+      "facing": "s"
+    },
+    {
+      "id": "KD-09",
+      "dept": "KD",
+      "zone": "dept-kd",
+      "x": 4.4,
+      "z": 15.25,
+      "facing": "s"
+    },
+    {
+      "id": "KD-10",
+      "dept": "KD",
+      "zone": "dept-kd",
+      "x": 1.2,
+      "z": 17.25,
+      "facing": "n"
+    },
+    {
+      "id": "KD-11",
+      "dept": "KD",
+      "zone": "dept-kd",
+      "x": 2.8,
+      "z": 17.25,
+      "facing": "n"
+    },
+    {
+      "id": "KD-12",
+      "dept": "KD",
+      "zone": "dept-kd",
+      "x": 4.4,
+      "z": 17.25,
+      "facing": "n"
+    },
+    {
+      "id": "KTH-01",
+      "dept": "KTH",
+      "zone": "dept-kth",
+      "x": 6.85,
+      "z": 12.15,
+      "facing": "e"
+    },
+    {
+      "id": "KTH-02",
+      "dept": "KTH",
+      "zone": "dept-kth",
+      "x": 6.85,
+      "z": 13.75,
+      "facing": "e"
+    },
+    {
+      "id": "KTH-03",
+      "dept": "KTH",
+      "zone": "dept-kth",
+      "x": 6.85,
+      "z": 15.35,
+      "facing": "e"
+    },
+    {
+      "id": "KTH-04",
+      "dept": "KTH",
+      "zone": "dept-kth",
+      "x": 8.85,
+      "z": 12.15,
+      "facing": "w"
+    },
+    {
+      "id": "KTH-05",
+      "dept": "KTH",
+      "zone": "dept-kth",
+      "x": 8.85,
+      "z": 13.75,
+      "facing": "w"
+    },
+    {
+      "id": "KTH-06",
+      "dept": "KTH",
+      "zone": "dept-kth",
+      "x": 8.85,
+      "z": 15.35,
+      "facing": "w"
     },
     {
       "id": "HCNS-01",
       "dept": "HCNS",
       "zone": "dept-hcns",
-      "x": 16.4,
-      "z": 6.75,
+      "x": 35.7,
+      "z": 15.25,
       "facing": "s"
     },
     {
       "id": "HCNS-02",
       "dept": "HCNS",
       "zone": "dept-hcns",
-      "x": 18.0,
-      "z": 6.75,
+      "x": 37.3,
+      "z": 15.25,
       "facing": "s"
     },
     {
       "id": "HCNS-03",
       "dept": "HCNS",
       "zone": "dept-hcns",
-      "x": 16.4,
-      "z": 8.75,
-      "facing": "n"
+      "x": 38.9,
+      "z": 15.25,
+      "facing": "s"
     },
     {
       "id": "HCNS-04",
       "dept": "HCNS",
       "zone": "dept-hcns",
-      "x": 18.0,
-      "z": 8.75,
+      "x": 35.7,
+      "z": 17.25,
       "facing": "n"
     },
     {
-      "id": "KT-01",
-      "dept": "KT",
-      "zone": "dept-kt",
-      "x": 14.9,
-      "z": 1.65,
+      "id": "HCNS-05",
+      "dept": "HCNS",
+      "zone": "dept-hcns",
+      "x": 37.3,
+      "z": 17.25,
+      "facing": "n"
+    },
+    {
+      "id": "HCNS-06",
+      "dept": "HCNS",
+      "zone": "dept-hcns",
+      "x": 38.9,
+      "z": 17.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-01",
+      "dept": "MR",
+      "zone": "work",
+      "x": 11.3,
+      "z": 10.25,
       "facing": "s"
     },
     {
-      "id": "KT-02",
-      "dept": "KT",
-      "zone": "dept-kt",
-      "x": 16.5,
-      "z": 1.65,
+      "id": "MR-02",
+      "dept": "MR",
+      "zone": "work",
+      "x": 12.9,
+      "z": 10.25,
       "facing": "s"
     },
     {
-      "id": "KT-03",
-      "dept": "KT",
-      "zone": "dept-kt",
-      "x": 14.9,
-      "z": 3.65,
+      "id": "MR-03",
+      "dept": "MR",
+      "zone": "work",
+      "x": 14.5,
+      "z": 10.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-04",
+      "dept": "MR",
+      "zone": "work",
+      "x": 11.3,
+      "z": 12.25,
       "facing": "n"
     },
     {
-      "id": "KT-04",
-      "dept": "KT",
-      "zone": "dept-kt",
-      "x": 16.5,
-      "z": 3.65,
+      "id": "MR-05",
+      "dept": "MR",
+      "zone": "work",
+      "x": 12.9,
+      "z": 12.25,
       "facing": "n"
+    },
+    {
+      "id": "MR-06",
+      "dept": "MR",
+      "zone": "work",
+      "x": 14.5,
+      "z": 12.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-07",
+      "dept": "MR",
+      "zone": "work",
+      "x": 11.3,
+      "z": 15.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-08",
+      "dept": "MR",
+      "zone": "work",
+      "x": 12.9,
+      "z": 15.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-09",
+      "dept": "MR",
+      "zone": "work",
+      "x": 14.5,
+      "z": 15.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-10",
+      "dept": "MR",
+      "zone": "work",
+      "x": 11.3,
+      "z": 17.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-11",
+      "dept": "MR",
+      "zone": "work",
+      "x": 12.9,
+      "z": 17.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-12",
+      "dept": "MR",
+      "zone": "work",
+      "x": 14.5,
+      "z": 17.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-13",
+      "dept": "MR",
+      "zone": "work",
+      "x": 17.4,
+      "z": 10.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-14",
+      "dept": "MR",
+      "zone": "work",
+      "x": 19,
+      "z": 10.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-15",
+      "dept": "MR",
+      "zone": "work",
+      "x": 20.6,
+      "z": 10.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-16",
+      "dept": "MR",
+      "zone": "work",
+      "x": 17.4,
+      "z": 12.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-17",
+      "dept": "MR",
+      "zone": "work",
+      "x": 19,
+      "z": 12.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-18",
+      "dept": "MR",
+      "zone": "work",
+      "x": 20.6,
+      "z": 12.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-19",
+      "dept": "MR",
+      "zone": "work",
+      "x": 17.4,
+      "z": 15.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-20",
+      "dept": "MR",
+      "zone": "work",
+      "x": 19,
+      "z": 15.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-21",
+      "dept": "MR",
+      "zone": "work",
+      "x": 20.6,
+      "z": 15.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-22",
+      "dept": "MR",
+      "zone": "work",
+      "x": 17.4,
+      "z": 17.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-23",
+      "dept": "MR",
+      "zone": "work",
+      "x": 19,
+      "z": 17.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-24",
+      "dept": "MR",
+      "zone": "work",
+      "x": 20.6,
+      "z": 17.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-25",
+      "dept": "MR",
+      "zone": "work",
+      "x": 23.5,
+      "z": 10.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-26",
+      "dept": "MR",
+      "zone": "work",
+      "x": 25.1,
+      "z": 10.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-27",
+      "dept": "MR",
+      "zone": "work",
+      "x": 26.7,
+      "z": 10.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-28",
+      "dept": "MR",
+      "zone": "work",
+      "x": 23.5,
+      "z": 12.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-29",
+      "dept": "MR",
+      "zone": "work",
+      "x": 25.1,
+      "z": 12.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-30",
+      "dept": "MR",
+      "zone": "work",
+      "x": 26.7,
+      "z": 12.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-31",
+      "dept": "MR",
+      "zone": "work",
+      "x": 23.5,
+      "z": 15.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-32",
+      "dept": "MR",
+      "zone": "work",
+      "x": 25.1,
+      "z": 15.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-33",
+      "dept": "MR",
+      "zone": "work",
+      "x": 26.7,
+      "z": 15.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-34",
+      "dept": "MR",
+      "zone": "work",
+      "x": 23.5,
+      "z": 17.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-35",
+      "dept": "MR",
+      "zone": "work",
+      "x": 25.1,
+      "z": 17.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-36",
+      "dept": "MR",
+      "zone": "work",
+      "x": 26.7,
+      "z": 17.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-37",
+      "dept": "MR",
+      "zone": "work",
+      "x": 29.6,
+      "z": 10.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-38",
+      "dept": "MR",
+      "zone": "work",
+      "x": 31.2,
+      "z": 10.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-39",
+      "dept": "MR",
+      "zone": "work",
+      "x": 32.8,
+      "z": 10.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-40",
+      "dept": "MR",
+      "zone": "work",
+      "x": 29.6,
+      "z": 12.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-41",
+      "dept": "MR",
+      "zone": "work",
+      "x": 31.2,
+      "z": 12.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-42",
+      "dept": "MR",
+      "zone": "work",
+      "x": 32.8,
+      "z": 12.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-43",
+      "dept": "MR",
+      "zone": "work",
+      "x": 29.6,
+      "z": 15.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-44",
+      "dept": "MR",
+      "zone": "work",
+      "x": 31.2,
+      "z": 15.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-45",
+      "dept": "MR",
+      "zone": "work",
+      "x": 32.8,
+      "z": 15.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-46",
+      "dept": "MR",
+      "zone": "work",
+      "x": 29.6,
+      "z": 17.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-47",
+      "dept": "MR",
+      "zone": "work",
+      "x": 31.2,
+      "z": 17.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-48",
+      "dept": "MR",
+      "zone": "work",
+      "x": 32.8,
+      "z": 17.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-49",
+      "dept": "MR",
+      "zone": "work",
+      "x": 35.7,
+      "z": 10.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-50",
+      "dept": "MR",
+      "zone": "work",
+      "x": 37.3,
+      "z": 10.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-51",
+      "dept": "MR",
+      "zone": "work",
+      "x": 38.9,
+      "z": 10.25,
+      "facing": "s"
+    },
+    {
+      "id": "MR-52",
+      "dept": "MR",
+      "zone": "work",
+      "x": 35.7,
+      "z": 12.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-53",
+      "dept": "MR",
+      "zone": "work",
+      "x": 37.3,
+      "z": 12.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-54",
+      "dept": "MR",
+      "zone": "work",
+      "x": 38.9,
+      "z": 12.25,
+      "facing": "n"
+    },
+    {
+      "id": "MR-55",
+      "dept": "MR",
+      "zone": "work",
+      "x": 41.35,
+      "z": 12.15,
+      "facing": "e"
+    },
+    {
+      "id": "MR-56",
+      "dept": "MR",
+      "zone": "work",
+      "x": 41.35,
+      "z": 13.75,
+      "facing": "e"
+    },
+    {
+      "id": "MR-57",
+      "dept": "MR",
+      "zone": "work",
+      "x": 41.35,
+      "z": 15.35,
+      "facing": "e"
+    },
+    {
+      "id": "MR-58",
+      "dept": "MR",
+      "zone": "work",
+      "x": 43.35,
+      "z": 12.15,
+      "facing": "w"
+    },
+    {
+      "id": "MR-59",
+      "dept": "MR",
+      "zone": "work",
+      "x": 43.35,
+      "z": 13.75,
+      "facing": "w"
+    },
+    {
+      "id": "MR-60",
+      "dept": "MR",
+      "zone": "work",
+      "x": 43.35,
+      "z": 15.35,
+      "facing": "w"
     },
     {
       "id": "BGD-01",
       "dept": "BGD",
       "zone": "dept-bgd",
-      "x": 1.5,
+      "x": 2.5,
       "z": 0.95,
       "facing": "s"
     },
@@ -393,153 +991,129 @@
       "id": "BGD-02",
       "dept": "BGD",
       "zone": "dept-bgd",
-      "x": 4.5,
+      "x": 6.5,
       "z": 0.95,
       "facing": "s"
+    },
+    {
+      "id": "KT-01",
+      "dept": "KT",
+      "zone": "dept-kt",
+      "x": 36.9,
+      "z": 2.05,
+      "facing": "s"
+    },
+    {
+      "id": "KT-02",
+      "dept": "KT",
+      "zone": "dept-kt",
+      "x": 38.5,
+      "z": 2.05,
+      "facing": "s"
+    },
+    {
+      "id": "KT-03",
+      "dept": "KT",
+      "zone": "dept-kt",
+      "x": 40.1,
+      "z": 2.05,
+      "facing": "s"
+    },
+    {
+      "id": "KT-04",
+      "dept": "KT",
+      "zone": "dept-kt",
+      "x": 36.9,
+      "z": 4.05,
+      "facing": "n"
+    },
+    {
+      "id": "KT-05",
+      "dept": "KT",
+      "zone": "dept-kt",
+      "x": 38.5,
+      "z": 4.05,
+      "facing": "n"
+    },
+    {
+      "id": "KT-06",
+      "dept": "KT",
+      "zone": "dept-kt",
+      "x": 40.1,
+      "z": 4.05,
+      "facing": "n"
+    },
+    {
+      "id": "YT-01",
+      "dept": "YT",
+      "zone": "quiet",
+      "x": 44.9,
+      "z": 3.05,
+      "facing": "s"
+    },
+    {
+      "id": "YT-02",
+      "dept": "YT",
+      "zone": "quiet",
+      "x": 46.5,
+      "z": 3.05,
+      "facing": "s"
+    },
+    {
+      "id": "YT-03",
+      "dept": "YT",
+      "zone": "quiet",
+      "x": 48.1,
+      "z": 3.05,
+      "facing": "s"
+    },
+    {
+      "id": "YT-04",
+      "dept": "YT",
+      "zone": "quiet",
+      "x": 44.9,
+      "z": 5.05,
+      "facing": "n"
+    },
+    {
+      "id": "YT-05",
+      "dept": "YT",
+      "zone": "quiet",
+      "x": 46.5,
+      "z": 5.05,
+      "facing": "n"
+    },
+    {
+      "id": "YT-06",
+      "dept": "YT",
+      "zone": "quiet",
+      "x": 48.1,
+      "z": 5.05,
+      "facing": "n"
     },
     {
       "id": "LT-01",
       "dept": "LT",
       "zone": "reception",
-      "x": 10.7,
-      "z": 12.05,
+      "x": 24.2,
+      "z": 23.05,
       "facing": "s"
     },
     {
       "id": "LT-02",
       "dept": "LT",
       "zone": "reception",
-      "x": 12.3,
-      "z": 12.05,
+      "x": 25.8,
+      "z": 23.05,
       "facing": "s"
     }
   ],
   "objects": [
     {
-      "id": "desk-KTH-01",
-      "prefab": "desk",
-      "x": 1.9,
-      "z": 7.4,
-      "w": 1.4,
-      "d": 0.7,
-      "rot": 0,
-      "solid": true
-    },
-    {
-      "id": "pc-KTH-01",
-      "prefab": "computerScreen",
-      "x": 1.9,
-      "z": 7.4,
-      "w": 0.5,
-      "d": 0.2,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "desk-KTH-02",
-      "prefab": "desk",
-      "x": 3.5,
-      "z": 7.4,
-      "w": 1.4,
-      "d": 0.7,
-      "rot": 0,
-      "solid": true
-    },
-    {
-      "id": "pc-KTH-02",
-      "prefab": "computerScreen",
-      "x": 3.5,
-      "z": 7.4,
-      "w": 0.5,
-      "d": 0.2,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "desk-KTH-03",
-      "prefab": "desk",
-      "x": 5.1,
-      "z": 7.4,
-      "w": 1.4,
-      "d": 0.7,
-      "rot": 0,
-      "solid": true
-    },
-    {
-      "id": "pc-KTH-03",
-      "prefab": "computerScreen",
-      "x": 5.1,
-      "z": 7.4,
-      "w": 0.5,
-      "d": 0.2,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "desk-KTH-04",
-      "prefab": "desk",
-      "x": 1.9,
-      "z": 8.1,
-      "w": 1.4,
-      "d": 0.7,
-      "rot": 0,
-      "solid": true
-    },
-    {
-      "id": "pc-KTH-04",
-      "prefab": "computerScreen",
-      "x": 1.9,
-      "z": 8.1,
-      "w": 0.5,
-      "d": 0.2,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "desk-KTH-05",
-      "prefab": "desk",
-      "x": 3.5,
-      "z": 8.1,
-      "w": 1.4,
-      "d": 0.7,
-      "rot": 0,
-      "solid": true
-    },
-    {
-      "id": "pc-KTH-05",
-      "prefab": "computerScreen",
-      "x": 3.5,
-      "z": 8.1,
-      "w": 0.5,
-      "d": 0.2,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "desk-KTH-06",
-      "prefab": "desk",
-      "x": 5.1,
-      "z": 8.1,
-      "w": 1.4,
-      "d": 0.7,
-      "rot": 0,
-      "solid": true
-    },
-    {
-      "id": "pc-KTH-06",
-      "prefab": "computerScreen",
-      "x": 5.1,
-      "z": 8.1,
-      "w": 0.5,
-      "d": 0.2,
-      "rot": 0,
-      "solid": false
-    },
-    {
       "id": "desk-KD-01",
       "prefab": "desk",
-      "x": 9.5,
-      "z": 7.4,
+      "x": 1.2,
+      "z": 10.9,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
@@ -548,8 +1122,8 @@
     {
       "id": "pc-KD-01",
       "prefab": "computerScreen",
-      "x": 9.5,
-      "z": 7.4,
+      "x": 1.2,
+      "z": 10.9,
       "w": 0.5,
       "d": 0.2,
       "rot": 0,
@@ -558,8 +1132,8 @@
     {
       "id": "desk-KD-02",
       "prefab": "desk",
-      "x": 11.1,
-      "z": 7.4,
+      "x": 2.8,
+      "z": 10.9,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
@@ -568,8 +1142,8 @@
     {
       "id": "pc-KD-02",
       "prefab": "computerScreen",
-      "x": 11.1,
-      "z": 7.4,
+      "x": 2.8,
+      "z": 10.9,
       "w": 0.5,
       "d": 0.2,
       "rot": 0,
@@ -578,8 +1152,8 @@
     {
       "id": "desk-KD-03",
       "prefab": "desk",
-      "x": 12.7,
-      "z": 7.4,
+      "x": 4.4,
+      "z": 10.9,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
@@ -588,8 +1162,8 @@
     {
       "id": "pc-KD-03",
       "prefab": "computerScreen",
-      "x": 12.7,
-      "z": 7.4,
+      "x": 4.4,
+      "z": 10.9,
       "w": 0.5,
       "d": 0.2,
       "rot": 0,
@@ -598,8 +1172,8 @@
     {
       "id": "desk-KD-04",
       "prefab": "desk",
-      "x": 9.5,
-      "z": 8.1,
+      "x": 1.2,
+      "z": 11.6,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
@@ -608,8 +1182,8 @@
     {
       "id": "pc-KD-04",
       "prefab": "computerScreen",
-      "x": 9.5,
-      "z": 8.1,
+      "x": 1.2,
+      "z": 11.6,
       "w": 0.5,
       "d": 0.2,
       "rot": 0,
@@ -618,8 +1192,8 @@
     {
       "id": "desk-KD-05",
       "prefab": "desk",
-      "x": 11.1,
-      "z": 8.1,
+      "x": 2.8,
+      "z": 11.6,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
@@ -628,8 +1202,8 @@
     {
       "id": "pc-KD-05",
       "prefab": "computerScreen",
-      "x": 11.1,
-      "z": 8.1,
+      "x": 2.8,
+      "z": 11.6,
       "w": 0.5,
       "d": 0.2,
       "rot": 0,
@@ -638,8 +1212,8 @@
     {
       "id": "desk-KD-06",
       "prefab": "desk",
-      "x": 12.7,
-      "z": 8.1,
+      "x": 4.4,
+      "z": 11.6,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
@@ -648,18 +1222,258 @@
     {
       "id": "pc-KD-06",
       "prefab": "computerScreen",
-      "x": 12.7,
-      "z": 8.1,
+      "x": 4.4,
+      "z": 11.6,
       "w": 0.5,
       "d": 0.2,
       "rot": 0,
       "solid": false
     },
     {
+      "id": "desk-KD-07",
+      "prefab": "desk",
+      "x": 1.2,
+      "z": 15.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KD-07",
+      "prefab": "computerScreen",
+      "x": 1.2,
+      "z": 15.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KD-08",
+      "prefab": "desk",
+      "x": 2.8,
+      "z": 15.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KD-08",
+      "prefab": "computerScreen",
+      "x": 2.8,
+      "z": 15.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KD-09",
+      "prefab": "desk",
+      "x": 4.4,
+      "z": 15.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KD-09",
+      "prefab": "computerScreen",
+      "x": 4.4,
+      "z": 15.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KD-10",
+      "prefab": "desk",
+      "x": 1.2,
+      "z": 16.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KD-10",
+      "prefab": "computerScreen",
+      "x": 1.2,
+      "z": 16.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KD-11",
+      "prefab": "desk",
+      "x": 2.8,
+      "z": 16.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KD-11",
+      "prefab": "computerScreen",
+      "x": 2.8,
+      "z": 16.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KD-12",
+      "prefab": "desk",
+      "x": 4.4,
+      "z": 16.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KD-12",
+      "prefab": "computerScreen",
+      "x": 4.4,
+      "z": 16.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KTH-01",
+      "prefab": "desk",
+      "x": 7.5,
+      "z": 12.15,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 90,
+      "solid": true
+    },
+    {
+      "id": "pc-KTH-01",
+      "prefab": "computerScreen",
+      "x": 7.5,
+      "z": 12.15,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 90,
+      "solid": false
+    },
+    {
+      "id": "desk-KTH-02",
+      "prefab": "desk",
+      "x": 7.5,
+      "z": 13.75,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 90,
+      "solid": true
+    },
+    {
+      "id": "pc-KTH-02",
+      "prefab": "computerScreen",
+      "x": 7.5,
+      "z": 13.75,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 90,
+      "solid": false
+    },
+    {
+      "id": "desk-KTH-03",
+      "prefab": "desk",
+      "x": 7.5,
+      "z": 15.35,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 90,
+      "solid": true
+    },
+    {
+      "id": "pc-KTH-03",
+      "prefab": "computerScreen",
+      "x": 7.5,
+      "z": 15.35,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 90,
+      "solid": false
+    },
+    {
+      "id": "desk-KTH-04",
+      "prefab": "desk",
+      "x": 8.2,
+      "z": 12.15,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 90,
+      "solid": true
+    },
+    {
+      "id": "pc-KTH-04",
+      "prefab": "computerScreen",
+      "x": 8.2,
+      "z": 12.15,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 90,
+      "solid": false
+    },
+    {
+      "id": "desk-KTH-05",
+      "prefab": "desk",
+      "x": 8.2,
+      "z": 13.75,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 90,
+      "solid": true
+    },
+    {
+      "id": "pc-KTH-05",
+      "prefab": "computerScreen",
+      "x": 8.2,
+      "z": 13.75,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 90,
+      "solid": false
+    },
+    {
+      "id": "desk-KTH-06",
+      "prefab": "desk",
+      "x": 8.2,
+      "z": 15.35,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 90,
+      "solid": true
+    },
+    {
+      "id": "pc-KTH-06",
+      "prefab": "computerScreen",
+      "x": 8.2,
+      "z": 15.35,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 90,
+      "solid": false
+    },
+    {
       "id": "desk-HCNS-01",
       "prefab": "desk",
-      "x": 16.4,
-      "z": 7.4,
+      "x": 35.7,
+      "z": 15.9,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
@@ -668,8 +1482,8 @@
     {
       "id": "pc-HCNS-01",
       "prefab": "computerScreen",
-      "x": 16.4,
-      "z": 7.4,
+      "x": 35.7,
+      "z": 15.9,
       "w": 0.5,
       "d": 0.2,
       "rot": 0,
@@ -678,8 +1492,8 @@
     {
       "id": "desk-HCNS-02",
       "prefab": "desk",
-      "x": 18.0,
-      "z": 7.4,
+      "x": 37.3,
+      "z": 15.9,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
@@ -688,8 +1502,8 @@
     {
       "id": "pc-HCNS-02",
       "prefab": "computerScreen",
-      "x": 18.0,
-      "z": 7.4,
+      "x": 37.3,
+      "z": 15.9,
       "w": 0.5,
       "d": 0.2,
       "rot": 0,
@@ -698,8 +1512,8 @@
     {
       "id": "desk-HCNS-03",
       "prefab": "desk",
-      "x": 16.4,
-      "z": 8.1,
+      "x": 38.9,
+      "z": 15.9,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
@@ -708,8 +1522,8 @@
     {
       "id": "pc-HCNS-03",
       "prefab": "computerScreen",
-      "x": 16.4,
-      "z": 8.1,
+      "x": 38.9,
+      "z": 15.9,
       "w": 0.5,
       "d": 0.2,
       "rot": 0,
@@ -718,8 +1532,8 @@
     {
       "id": "desk-HCNS-04",
       "prefab": "desk",
-      "x": 18.0,
-      "z": 8.1,
+      "x": 35.7,
+      "z": 16.6,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
@@ -728,97 +1542,1711 @@
     {
       "id": "pc-HCNS-04",
       "prefab": "computerScreen",
-      "x": 18.0,
-      "z": 8.1,
+      "x": 35.7,
+      "z": 16.6,
       "w": 0.5,
       "d": 0.2,
       "rot": 0,
       "solid": false
     },
     {
-      "id": "desk-KT-01",
+      "id": "desk-HCNS-05",
       "prefab": "desk",
-      "x": 14.9,
-      "z": 2.3,
+      "x": 37.3,
+      "z": 16.6,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
       "solid": true
     },
     {
-      "id": "pc-KT-01",
+      "id": "pc-HCNS-05",
       "prefab": "computerScreen",
-      "x": 14.9,
-      "z": 2.3,
+      "x": 37.3,
+      "z": 16.6,
       "w": 0.5,
       "d": 0.2,
       "rot": 0,
       "solid": false
     },
     {
-      "id": "desk-KT-02",
+      "id": "desk-HCNS-06",
       "prefab": "desk",
-      "x": 16.5,
-      "z": 2.3,
+      "x": 38.9,
+      "z": 16.6,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
       "solid": true
     },
     {
-      "id": "pc-KT-02",
+      "id": "pc-HCNS-06",
       "prefab": "computerScreen",
-      "x": 16.5,
-      "z": 2.3,
+      "x": 38.9,
+      "z": 16.6,
       "w": 0.5,
       "d": 0.2,
       "rot": 0,
       "solid": false
     },
     {
-      "id": "desk-KT-03",
+      "id": "desk-MR-01",
       "prefab": "desk",
-      "x": 14.9,
-      "z": 3.0,
+      "x": 11.3,
+      "z": 10.9,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
       "solid": true
     },
     {
-      "id": "pc-KT-03",
+      "id": "pc-MR-01",
       "prefab": "computerScreen",
-      "x": 14.9,
-      "z": 3.0,
+      "x": 11.3,
+      "z": 10.9,
       "w": 0.5,
       "d": 0.2,
       "rot": 0,
       "solid": false
     },
     {
-      "id": "desk-KT-04",
+      "id": "desk-MR-02",
       "prefab": "desk",
-      "x": 16.5,
-      "z": 3.0,
+      "x": 12.9,
+      "z": 10.9,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
       "solid": true
     },
     {
-      "id": "pc-KT-04",
+      "id": "pc-MR-02",
       "prefab": "computerScreen",
-      "x": 16.5,
-      "z": 3.0,
+      "x": 12.9,
+      "z": 10.9,
       "w": 0.5,
       "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-03",
+      "prefab": "desk",
+      "x": 14.5,
+      "z": 10.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-03",
+      "prefab": "computerScreen",
+      "x": 14.5,
+      "z": 10.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-04",
+      "prefab": "desk",
+      "x": 11.3,
+      "z": 11.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-04",
+      "prefab": "computerScreen",
+      "x": 11.3,
+      "z": 11.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-05",
+      "prefab": "desk",
+      "x": 12.9,
+      "z": 11.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-05",
+      "prefab": "computerScreen",
+      "x": 12.9,
+      "z": 11.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-06",
+      "prefab": "desk",
+      "x": 14.5,
+      "z": 11.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-06",
+      "prefab": "computerScreen",
+      "x": 14.5,
+      "z": 11.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-07",
+      "prefab": "desk",
+      "x": 11.3,
+      "z": 15.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-07",
+      "prefab": "computerScreen",
+      "x": 11.3,
+      "z": 15.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-08",
+      "prefab": "desk",
+      "x": 12.9,
+      "z": 15.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-08",
+      "prefab": "computerScreen",
+      "x": 12.9,
+      "z": 15.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-09",
+      "prefab": "desk",
+      "x": 14.5,
+      "z": 15.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-09",
+      "prefab": "computerScreen",
+      "x": 14.5,
+      "z": 15.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-10",
+      "prefab": "desk",
+      "x": 11.3,
+      "z": 16.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-10",
+      "prefab": "computerScreen",
+      "x": 11.3,
+      "z": 16.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-11",
+      "prefab": "desk",
+      "x": 12.9,
+      "z": 16.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-11",
+      "prefab": "computerScreen",
+      "x": 12.9,
+      "z": 16.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-12",
+      "prefab": "desk",
+      "x": 14.5,
+      "z": 16.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-12",
+      "prefab": "computerScreen",
+      "x": 14.5,
+      "z": 16.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-13",
+      "prefab": "desk",
+      "x": 17.4,
+      "z": 10.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-13",
+      "prefab": "computerScreen",
+      "x": 17.4,
+      "z": 10.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-14",
+      "prefab": "desk",
+      "x": 19,
+      "z": 10.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-14",
+      "prefab": "computerScreen",
+      "x": 19,
+      "z": 10.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-15",
+      "prefab": "desk",
+      "x": 20.6,
+      "z": 10.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-15",
+      "prefab": "computerScreen",
+      "x": 20.6,
+      "z": 10.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-16",
+      "prefab": "desk",
+      "x": 17.4,
+      "z": 11.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-16",
+      "prefab": "computerScreen",
+      "x": 17.4,
+      "z": 11.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-17",
+      "prefab": "desk",
+      "x": 19,
+      "z": 11.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-17",
+      "prefab": "computerScreen",
+      "x": 19,
+      "z": 11.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-18",
+      "prefab": "desk",
+      "x": 20.6,
+      "z": 11.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-18",
+      "prefab": "computerScreen",
+      "x": 20.6,
+      "z": 11.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-19",
+      "prefab": "desk",
+      "x": 17.4,
+      "z": 15.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-19",
+      "prefab": "computerScreen",
+      "x": 17.4,
+      "z": 15.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-20",
+      "prefab": "desk",
+      "x": 19,
+      "z": 15.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-20",
+      "prefab": "computerScreen",
+      "x": 19,
+      "z": 15.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-21",
+      "prefab": "desk",
+      "x": 20.6,
+      "z": 15.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-21",
+      "prefab": "computerScreen",
+      "x": 20.6,
+      "z": 15.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-22",
+      "prefab": "desk",
+      "x": 17.4,
+      "z": 16.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-22",
+      "prefab": "computerScreen",
+      "x": 17.4,
+      "z": 16.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-23",
+      "prefab": "desk",
+      "x": 19,
+      "z": 16.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-23",
+      "prefab": "computerScreen",
+      "x": 19,
+      "z": 16.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-24",
+      "prefab": "desk",
+      "x": 20.6,
+      "z": 16.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-24",
+      "prefab": "computerScreen",
+      "x": 20.6,
+      "z": 16.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-25",
+      "prefab": "desk",
+      "x": 23.5,
+      "z": 10.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-25",
+      "prefab": "computerScreen",
+      "x": 23.5,
+      "z": 10.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-26",
+      "prefab": "desk",
+      "x": 25.1,
+      "z": 10.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-26",
+      "prefab": "computerScreen",
+      "x": 25.1,
+      "z": 10.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-27",
+      "prefab": "desk",
+      "x": 26.7,
+      "z": 10.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-27",
+      "prefab": "computerScreen",
+      "x": 26.7,
+      "z": 10.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-28",
+      "prefab": "desk",
+      "x": 23.5,
+      "z": 11.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-28",
+      "prefab": "computerScreen",
+      "x": 23.5,
+      "z": 11.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-29",
+      "prefab": "desk",
+      "x": 25.1,
+      "z": 11.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-29",
+      "prefab": "computerScreen",
+      "x": 25.1,
+      "z": 11.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-30",
+      "prefab": "desk",
+      "x": 26.7,
+      "z": 11.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-30",
+      "prefab": "computerScreen",
+      "x": 26.7,
+      "z": 11.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-31",
+      "prefab": "desk",
+      "x": 23.5,
+      "z": 15.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-31",
+      "prefab": "computerScreen",
+      "x": 23.5,
+      "z": 15.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-32",
+      "prefab": "desk",
+      "x": 25.1,
+      "z": 15.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-32",
+      "prefab": "computerScreen",
+      "x": 25.1,
+      "z": 15.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-33",
+      "prefab": "desk",
+      "x": 26.7,
+      "z": 15.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-33",
+      "prefab": "computerScreen",
+      "x": 26.7,
+      "z": 15.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-34",
+      "prefab": "desk",
+      "x": 23.5,
+      "z": 16.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-34",
+      "prefab": "computerScreen",
+      "x": 23.5,
+      "z": 16.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-35",
+      "prefab": "desk",
+      "x": 25.1,
+      "z": 16.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-35",
+      "prefab": "computerScreen",
+      "x": 25.1,
+      "z": 16.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-36",
+      "prefab": "desk",
+      "x": 26.7,
+      "z": 16.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-36",
+      "prefab": "computerScreen",
+      "x": 26.7,
+      "z": 16.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-37",
+      "prefab": "desk",
+      "x": 29.6,
+      "z": 10.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-37",
+      "prefab": "computerScreen",
+      "x": 29.6,
+      "z": 10.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-38",
+      "prefab": "desk",
+      "x": 31.2,
+      "z": 10.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-38",
+      "prefab": "computerScreen",
+      "x": 31.2,
+      "z": 10.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-39",
+      "prefab": "desk",
+      "x": 32.8,
+      "z": 10.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-39",
+      "prefab": "computerScreen",
+      "x": 32.8,
+      "z": 10.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-40",
+      "prefab": "desk",
+      "x": 29.6,
+      "z": 11.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-40",
+      "prefab": "computerScreen",
+      "x": 29.6,
+      "z": 11.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-41",
+      "prefab": "desk",
+      "x": 31.2,
+      "z": 11.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-41",
+      "prefab": "computerScreen",
+      "x": 31.2,
+      "z": 11.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-42",
+      "prefab": "desk",
+      "x": 32.8,
+      "z": 11.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-42",
+      "prefab": "computerScreen",
+      "x": 32.8,
+      "z": 11.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-43",
+      "prefab": "desk",
+      "x": 29.6,
+      "z": 15.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-43",
+      "prefab": "computerScreen",
+      "x": 29.6,
+      "z": 15.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-44",
+      "prefab": "desk",
+      "x": 31.2,
+      "z": 15.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-44",
+      "prefab": "computerScreen",
+      "x": 31.2,
+      "z": 15.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-45",
+      "prefab": "desk",
+      "x": 32.8,
+      "z": 15.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-45",
+      "prefab": "computerScreen",
+      "x": 32.8,
+      "z": 15.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-46",
+      "prefab": "desk",
+      "x": 29.6,
+      "z": 16.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-46",
+      "prefab": "computerScreen",
+      "x": 29.6,
+      "z": 16.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-47",
+      "prefab": "desk",
+      "x": 31.2,
+      "z": 16.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-47",
+      "prefab": "computerScreen",
+      "x": 31.2,
+      "z": 16.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-48",
+      "prefab": "desk",
+      "x": 32.8,
+      "z": 16.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-48",
+      "prefab": "computerScreen",
+      "x": 32.8,
+      "z": 16.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-49",
+      "prefab": "desk",
+      "x": 35.7,
+      "z": 10.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-49",
+      "prefab": "computerScreen",
+      "x": 35.7,
+      "z": 10.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-50",
+      "prefab": "desk",
+      "x": 37.3,
+      "z": 10.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-50",
+      "prefab": "computerScreen",
+      "x": 37.3,
+      "z": 10.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-51",
+      "prefab": "desk",
+      "x": 38.9,
+      "z": 10.9,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-51",
+      "prefab": "computerScreen",
+      "x": 38.9,
+      "z": 10.9,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-52",
+      "prefab": "desk",
+      "x": 35.7,
+      "z": 11.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-52",
+      "prefab": "computerScreen",
+      "x": 35.7,
+      "z": 11.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-53",
+      "prefab": "desk",
+      "x": 37.3,
+      "z": 11.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-53",
+      "prefab": "computerScreen",
+      "x": 37.3,
+      "z": 11.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-54",
+      "prefab": "desk",
+      "x": 38.9,
+      "z": 11.6,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-54",
+      "prefab": "computerScreen",
+      "x": 38.9,
+      "z": 11.6,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-55",
+      "prefab": "desk",
+      "x": 42,
+      "z": 12.15,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 90,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-55",
+      "prefab": "computerScreen",
+      "x": 42,
+      "z": 12.15,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 90,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-56",
+      "prefab": "desk",
+      "x": 42,
+      "z": 13.75,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 90,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-56",
+      "prefab": "computerScreen",
+      "x": 42,
+      "z": 13.75,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 90,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-57",
+      "prefab": "desk",
+      "x": 42,
+      "z": 15.35,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 90,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-57",
+      "prefab": "computerScreen",
+      "x": 42,
+      "z": 15.35,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 90,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-58",
+      "prefab": "desk",
+      "x": 42.7,
+      "z": 12.15,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 90,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-58",
+      "prefab": "computerScreen",
+      "x": 42.7,
+      "z": 12.15,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 90,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-59",
+      "prefab": "desk",
+      "x": 42.7,
+      "z": 13.75,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 90,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-59",
+      "prefab": "computerScreen",
+      "x": 42.7,
+      "z": 13.75,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 90,
+      "solid": false
+    },
+    {
+      "id": "desk-MR-60",
+      "prefab": "desk",
+      "x": 42.7,
+      "z": 15.35,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 90,
+      "solid": true
+    },
+    {
+      "id": "pc-MR-60",
+      "prefab": "computerScreen",
+      "x": 42.7,
+      "z": 15.35,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 90,
+      "solid": false
+    },
+    {
+      "id": "kd-board",
+      "prefab": "whiteboard",
+      "x": 0.1,
+      "z": 13.75,
+      "w": 0.1,
+      "d": 1.8,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "kth-board",
+      "prefab": "whiteboard",
+      "x": 9.85,
+      "z": 13.75,
+      "w": 0.1,
+      "d": 1.8,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "plant-open-1",
+      "prefab": "pottedPlant",
+      "x": 0.5,
+      "z": 8.75,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "plant-open-2",
+      "prefab": "pottedPlant",
+      "x": 5.85,
+      "z": 8.75,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "plant-open-3",
+      "prefab": "pottedPlant",
+      "x": 15.95,
+      "z": 8.75,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "plant-open-4",
+      "prefab": "pottedPlant",
+      "x": 28.15,
+      "z": 8.75,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "plant-open-5",
+      "prefab": "pottedPlant",
+      "x": 34.25,
+      "z": 8.75,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "west-counter",
+      "prefab": "kitchenCounter",
+      "x": 3,
+      "z": 21.65,
+      "w": 2.4,
+      "d": 0.6,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "west-coffee",
+      "prefab": "coffeeMachine",
+      "x": 2.4,
+      "z": 21.65,
+      "w": 0.4,
+      "d": 0.4,
+      "rot": 0,
+      "solid": false,
+      "interact": "coffee"
+    },
+    {
+      "id": "west-water",
+      "prefab": "waterDispenser",
+      "x": 3.6,
+      "z": 21.65,
+      "w": 0.4,
+      "d": 0.4,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "west-stool-1",
+      "prefab": "chair",
+      "x": 2.4,
+      "z": 20.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "west-stool-2",
+      "prefab": "chair",
+      "x": 3.6,
+      "z": 20.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "strip-plant-1",
+      "prefab": "pottedPlant",
+      "x": 0.5,
+      "z": 21.6,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "huddle-1-table",
+      "prefab": "tableMeeting",
+      "x": 8.5,
+      "z": 21,
+      "w": 1.8,
+      "d": 1,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "huddle-1-chair-0-s",
+      "prefab": "chair",
+      "x": 8.05,
+      "z": 20,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "huddle-1-chair-0-n",
+      "prefab": "chair",
+      "x": 8.05,
+      "z": 22,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "huddle-1-chair-1-s",
+      "prefab": "chair",
+      "x": 8.95,
+      "z": 20,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "huddle-1-chair-1-n",
+      "prefab": "chair",
+      "x": 8.95,
+      "z": 22,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "huddle-1-board",
+      "prefab": "whiteboard",
+      "x": 10.6,
+      "z": 21,
+      "w": 0.1,
+      "d": 1.8,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "lockers-1",
+      "prefab": "lockers",
+      "x": 12.9,
+      "z": 21.6,
+      "w": 2.4,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "printer-west",
+      "prefab": "printer",
+      "x": 14.6,
+      "z": 21.6,
+      "w": 0.7,
+      "d": 0.6,
+      "rot": 0,
+      "solid": true,
+      "interact": "printer"
+    },
+    {
+      "id": "west-cabinet",
+      "prefab": "cabinetFiles",
+      "x": 15.6,
+      "z": 21.65,
+      "w": 0.9,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "open-notices",
+      "prefab": "televisionWall",
+      "x": 19,
+      "z": 21.85,
+      "w": 2,
+      "d": 0.1,
+      "rot": 0,
+      "solid": true,
+      "interact": "notices"
+    },
+    {
+      "id": "notices-bench",
+      "prefab": "loungeSofa",
+      "x": 19,
+      "z": 20.6,
+      "w": 2.2,
+      "d": 0.9,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "strip-plant-2",
+      "prefab": "pottedPlantLarge",
+      "x": 17.3,
+      "z": 21.6,
+      "w": 0.6,
+      "d": 0.6,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "strip-plant-3",
+      "prefab": "pottedPlantLarge",
+      "x": 20.7,
+      "z": 21.6,
+      "w": 0.6,
+      "d": 0.6,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "strip-plant-4",
+      "prefab": "pottedPlantLarge",
+      "x": 22.3,
+      "z": 21.6,
+      "w": 0.6,
+      "d": 0.6,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "strip-plant-5",
+      "prefab": "pottedPlantLarge",
+      "x": 27.7,
+      "z": 21.6,
+      "w": 0.6,
+      "d": 0.6,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "huddle-2-table",
+      "prefab": "tableMeeting",
+      "x": 30.5,
+      "z": 21,
+      "w": 1.8,
+      "d": 1,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "huddle-2-chair-0-s",
+      "prefab": "chair",
+      "x": 30.05,
+      "z": 20,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "huddle-2-chair-0-n",
+      "prefab": "chair",
+      "x": 30.05,
+      "z": 22,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "huddle-2-chair-1-s",
+      "prefab": "chair",
+      "x": 30.95,
+      "z": 20,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "huddle-2-chair-1-n",
+      "prefab": "chair",
+      "x": 30.95,
+      "z": 22,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "huddle-2-board",
+      "prefab": "whiteboard",
+      "x": 32.6,
+      "z": 21,
+      "w": 0.1,
+      "d": 1.8,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "library-shelf-1",
+      "prefab": "bookcaseOpen",
+      "x": 35,
+      "z": 21.75,
+      "w": 2.4,
+      "d": 0.4,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "library-shelf-2",
+      "prefab": "bookcaseOpen",
+      "x": 38,
+      "z": 21.75,
+      "w": 2.4,
+      "d": 0.4,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "library-beanbag-1",
+      "prefab": "beanbag",
+      "x": 35.6,
+      "z": 20.7,
+      "w": 0.8,
+      "d": 0.8,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "library-beanbag-2",
+      "prefab": "beanbag",
+      "x": 37.4,
+      "z": 20.7,
+      "w": 0.8,
+      "d": 0.8,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "lockers-2",
+      "prefab": "lockers",
+      "x": 41,
+      "z": 21.6,
+      "w": 2.4,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "hcns-cabinet-1",
+      "prefab": "cabinetFiles",
+      "x": 42.9,
+      "z": 21.65,
+      "w": 0.9,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "hcns-cabinet-2",
+      "prefab": "cabinetFiles",
+      "x": 43.9,
+      "z": 21.65,
+      "w": 0.9,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "printer",
+      "prefab": "printer",
+      "x": 44.8,
+      "z": 21,
+      "w": 0.7,
+      "d": 0.6,
+      "rot": 0,
+      "solid": true,
+      "interact": "printer"
+    },
+    {
+      "id": "hcns-guest-table",
+      "prefab": "tableSmall",
+      "x": 43.2,
+      "z": 20.45,
+      "w": 1,
+      "d": 0.6,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "hcns-guest-chair-1",
+      "prefab": "chair",
+      "x": 42.4,
+      "z": 20.45,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hcns-guest-chair-2",
+      "prefab": "chair",
+      "x": 44,
+      "z": 20.45,
+      "w": 0.5,
+      "d": 0.5,
       "rot": 0,
       "solid": false
     },
     {
       "id": "desk-BGD-01",
       "prefab": "deskLarge",
-      "x": 1.5,
+      "x": 2.5,
       "z": 1.6,
       "w": 1.8,
       "d": 0.8,
@@ -828,7 +3256,7 @@
     {
       "id": "pc-BGD-01",
       "prefab": "computerScreen",
-      "x": 1.5,
+      "x": 2.5,
       "z": 1.6,
       "w": 0.5,
       "d": 0.2,
@@ -838,7 +3266,7 @@
     {
       "id": "desk-BGD-02",
       "prefab": "deskLarge",
-      "x": 4.5,
+      "x": 6.5,
       "z": 1.6,
       "w": 1.8,
       "d": 0.8,
@@ -848,7 +3276,7 @@
     {
       "id": "pc-BGD-02",
       "prefab": "computerScreen",
-      "x": 4.5,
+      "x": 6.5,
       "z": 1.6,
       "w": 0.5,
       "d": 0.2,
@@ -859,7 +3287,7 @@
       "id": "bgd-sofa",
       "prefab": "loungeSofa",
       "x": 1.6,
-      "z": 4.4,
+      "z": 6.9,
       "w": 2.2,
       "d": 0.9,
       "rot": 0,
@@ -869,16 +3297,66 @@
       "id": "bgd-table",
       "prefab": "tableCoffee",
       "x": 1.6,
-      "z": 3.5,
+      "z": 5.9,
       "w": 1.2,
       "d": 0.6,
       "rot": 0,
       "solid": true
     },
     {
+      "id": "bgd-meet-table",
+      "prefab": "tableMeeting",
+      "x": 6.5,
+      "z": 5.6,
+      "w": 1.8,
+      "d": 1,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "bgd-meet-chair-0-s",
+      "prefab": "chair",
+      "x": 6.05,
+      "z": 4.6,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "bgd-meet-chair-0-n",
+      "prefab": "chair",
+      "x": 6.05,
+      "z": 6.6,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "bgd-meet-chair-1-s",
+      "prefab": "chair",
+      "x": 6.95,
+      "z": 4.6,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "bgd-meet-chair-1-n",
+      "prefab": "chair",
+      "x": 6.95,
+      "z": 6.6,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
       "id": "bgd-shelf",
       "prefab": "bookcaseOpen",
-      "x": 5.6,
+      "x": 9.6,
       "z": 3.2,
       "w": 0.4,
       "d": 1.6,
@@ -888,17 +3366,590 @@
     {
       "id": "bgd-plant",
       "prefab": "pottedPlant",
-      "x": 5.5,
-      "z": 4.9,
+      "x": 0.5,
+      "z": 7.5,
       "w": 0.5,
       "d": 0.5,
       "rot": 0,
       "solid": true
     },
     {
+      "id": "hall-a-table",
+      "prefab": "tableMeeting",
+      "x": 13.5,
+      "z": 4,
+      "w": 4.2,
+      "d": 1.4,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "hall-a-chair-0-s",
+      "prefab": "chair",
+      "x": 11.93,
+      "z": 2.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-a-chair-0-n",
+      "prefab": "chair",
+      "x": 11.93,
+      "z": 5.2,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-a-chair-1-s",
+      "prefab": "chair",
+      "x": 12.98,
+      "z": 2.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-a-chair-1-n",
+      "prefab": "chair",
+      "x": 12.98,
+      "z": 5.2,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-a-chair-2-s",
+      "prefab": "chair",
+      "x": 14.03,
+      "z": 2.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-a-chair-2-n",
+      "prefab": "chair",
+      "x": 14.03,
+      "z": 5.2,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-a-chair-3-s",
+      "prefab": "chair",
+      "x": 15.08,
+      "z": 2.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-a-chair-3-n",
+      "prefab": "chair",
+      "x": 15.08,
+      "z": 5.2,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-a-chair-w",
+      "prefab": "chair",
+      "x": 10.9,
+      "z": 4,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-a-chair-e",
+      "prefab": "chair",
+      "x": 16.1,
+      "z": 4,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-b-table",
+      "prefab": "tableMeeting",
+      "x": 18.5,
+      "z": 4,
+      "w": 4.2,
+      "d": 1.4,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "hall-b-chair-0-s",
+      "prefab": "chair",
+      "x": 16.92,
+      "z": 2.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-b-chair-0-n",
+      "prefab": "chair",
+      "x": 16.92,
+      "z": 5.2,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-b-chair-1-s",
+      "prefab": "chair",
+      "x": 17.97,
+      "z": 2.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-b-chair-1-n",
+      "prefab": "chair",
+      "x": 17.97,
+      "z": 5.2,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-b-chair-2-s",
+      "prefab": "chair",
+      "x": 19.02,
+      "z": 2.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-b-chair-2-n",
+      "prefab": "chair",
+      "x": 19.02,
+      "z": 5.2,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-b-chair-3-s",
+      "prefab": "chair",
+      "x": 20.08,
+      "z": 2.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-b-chair-3-n",
+      "prefab": "chair",
+      "x": 20.08,
+      "z": 5.2,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-b-chair-w",
+      "prefab": "chair",
+      "x": 15.9,
+      "z": 4,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-b-chair-e",
+      "prefab": "chair",
+      "x": 21.1,
+      "z": 4,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "hall-screen",
+      "prefab": "televisionWall",
+      "x": 16,
+      "z": 0.15,
+      "w": 3,
+      "d": 0.1,
+      "rot": 0,
+      "solid": true,
+      "interact": "screen"
+    },
+    {
+      "id": "hall-board",
+      "prefab": "whiteboard",
+      "x": 21.85,
+      "z": 4,
+      "w": 0.1,
+      "d": 2,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "ml-table",
+      "prefab": "tableMeeting",
+      "x": 26,
+      "z": 4,
+      "w": 4.2,
+      "d": 1.4,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "ml-chair-0-s",
+      "prefab": "chair",
+      "x": 24.42,
+      "z": 2.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-0-n",
+      "prefab": "chair",
+      "x": 24.42,
+      "z": 5.2,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-1-s",
+      "prefab": "chair",
+      "x": 25.48,
+      "z": 2.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-1-n",
+      "prefab": "chair",
+      "x": 25.48,
+      "z": 5.2,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-2-s",
+      "prefab": "chair",
+      "x": 26.53,
+      "z": 2.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-2-n",
+      "prefab": "chair",
+      "x": 26.53,
+      "z": 5.2,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-3-s",
+      "prefab": "chair",
+      "x": 27.58,
+      "z": 2.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-3-n",
+      "prefab": "chair",
+      "x": 27.58,
+      "z": 5.2,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-w",
+      "prefab": "chair",
+      "x": 23.4,
+      "z": 4,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-chair-e",
+      "prefab": "chair",
+      "x": 28.6,
+      "z": 4,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ml-screen",
+      "prefab": "televisionWall",
+      "x": 26,
+      "z": 0.15,
+      "w": 2,
+      "d": 0.1,
+      "rot": 0,
+      "solid": true,
+      "interact": "screen"
+    },
+    {
+      "id": "ml-board",
+      "prefab": "whiteboard",
+      "x": 29.85,
+      "z": 4,
+      "w": 0.1,
+      "d": 1.8,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "ms-table",
+      "prefab": "tableMeeting",
+      "x": 32.5,
+      "z": 4,
+      "w": 2.4,
+      "d": 1.1,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "ms-chair-0-s",
+      "prefab": "chair",
+      "x": 31.7,
+      "z": 2.95,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ms-chair-0-n",
+      "prefab": "chair",
+      "x": 31.7,
+      "z": 5.05,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ms-chair-1-s",
+      "prefab": "chair",
+      "x": 32.5,
+      "z": 2.95,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ms-chair-1-n",
+      "prefab": "chair",
+      "x": 32.5,
+      "z": 5.05,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ms-chair-2-s",
+      "prefab": "chair",
+      "x": 33.3,
+      "z": 2.95,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ms-chair-2-n",
+      "prefab": "chair",
+      "x": 33.3,
+      "z": 5.05,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "ms-screen",
+      "prefab": "televisionWall",
+      "x": 32.5,
+      "z": 0.15,
+      "w": 1.4,
+      "d": 0.1,
+      "rot": 0,
+      "solid": true,
+      "interact": "screen"
+    },
+    {
+      "id": "desk-KT-01",
+      "prefab": "desk",
+      "x": 36.9,
+      "z": 2.7,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KT-01",
+      "prefab": "computerScreen",
+      "x": 36.9,
+      "z": 2.7,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KT-02",
+      "prefab": "desk",
+      "x": 38.5,
+      "z": 2.7,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KT-02",
+      "prefab": "computerScreen",
+      "x": 38.5,
+      "z": 2.7,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KT-03",
+      "prefab": "desk",
+      "x": 40.1,
+      "z": 2.7,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KT-03",
+      "prefab": "computerScreen",
+      "x": 40.1,
+      "z": 2.7,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KT-04",
+      "prefab": "desk",
+      "x": 36.9,
+      "z": 3.4,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KT-04",
+      "prefab": "computerScreen",
+      "x": 36.9,
+      "z": 3.4,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KT-05",
+      "prefab": "desk",
+      "x": 38.5,
+      "z": 3.4,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KT-05",
+      "prefab": "computerScreen",
+      "x": 38.5,
+      "z": 3.4,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-KT-06",
+      "prefab": "desk",
+      "x": 40.1,
+      "z": 3.4,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-KT-06",
+      "prefab": "computerScreen",
+      "x": 40.1,
+      "z": 3.4,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
       "id": "kt-cabinet-1",
       "prefab": "cabinetFiles",
-      "x": 13.6,
+      "x": 35.6,
       "z": 0.35,
       "w": 0.9,
       "d": 0.5,
@@ -908,7 +3959,7 @@
     {
       "id": "kt-cabinet-2",
       "prefab": "cabinetFiles",
-      "x": 14.6,
+      "x": 36.6,
       "z": 0.35,
       "w": 0.9,
       "d": 0.5,
@@ -918,7 +3969,7 @@
     {
       "id": "kt-cabinet-3",
       "prefab": "cabinetFiles",
-      "x": 15.6,
+      "x": 37.6,
       "z": 0.35,
       "w": 0.9,
       "d": 0.5,
@@ -926,9 +3977,29 @@
       "solid": true
     },
     {
+      "id": "kt-cabinet-4",
+      "prefab": "cabinetFiles",
+      "x": 42.65,
+      "z": 3,
+      "w": 0.5,
+      "d": 0.9,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "kt-cabinet-5",
+      "prefab": "cabinetFiles",
+      "x": 42.65,
+      "z": 4,
+      "w": 0.5,
+      "d": 0.9,
+      "rot": 0,
+      "solid": true
+    },
+    {
       "id": "kt-safe",
       "prefab": "safe",
-      "x": 18.0,
+      "x": 42.5,
       "z": 0.4,
       "w": 0.6,
       "d": 0.6,
@@ -936,212 +4007,170 @@
       "solid": true
     },
     {
-      "id": "ml-table",
-      "prefab": "tableMeeting",
-      "x": 9.5,
-      "z": 2.9,
-      "w": 4.2,
-      "d": 1.4,
-      "rot": 0,
-      "solid": true
-    },
-    {
-      "id": "ml-chair-0-s",
-      "prefab": "chair",
-      "x": 8.0,
-      "z": 1.9,
-      "w": 0.5,
-      "d": 0.5,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "ml-chair-0-n",
-      "prefab": "chair",
-      "x": 8.0,
-      "z": 3.9,
-      "w": 0.5,
-      "d": 0.5,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "ml-chair-1-s",
-      "prefab": "chair",
-      "x": 9.0,
-      "z": 1.9,
-      "w": 0.5,
-      "d": 0.5,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "ml-chair-1-n",
-      "prefab": "chair",
-      "x": 9.0,
-      "z": 3.9,
-      "w": 0.5,
-      "d": 0.5,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "ml-chair-2-s",
-      "prefab": "chair",
-      "x": 10.0,
-      "z": 1.9,
-      "w": 0.5,
-      "d": 0.5,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "ml-chair-2-n",
-      "prefab": "chair",
-      "x": 10.0,
-      "z": 3.9,
-      "w": 0.5,
-      "d": 0.5,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "ml-chair-3-s",
-      "prefab": "chair",
-      "x": 11.0,
-      "z": 1.9,
-      "w": 0.5,
-      "d": 0.5,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "ml-chair-3-n",
-      "prefab": "chair",
-      "x": 11.0,
-      "z": 3.9,
-      "w": 0.5,
-      "d": 0.5,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "ml-chair-w",
-      "prefab": "chair",
-      "x": 7.1,
-      "z": 2.9,
-      "w": 0.5,
-      "d": 0.5,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "ml-chair-e",
-      "prefab": "chair",
-      "x": 11.9,
-      "z": 2.9,
-      "w": 0.5,
-      "d": 0.5,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "ml-screen",
-      "prefab": "televisionWall",
-      "x": 9.5,
-      "z": 0.15,
-      "w": 2.0,
-      "d": 0.1,
-      "rot": 0,
-      "solid": true,
-      "interact": "screen"
-    },
-    {
-      "id": "ml-board",
-      "prefab": "whiteboard",
-      "x": 12.85,
-      "z": 2.8,
-      "w": 0.1,
-      "d": 1.8,
-      "rot": 0,
-      "solid": true
-    },
-    {
-      "id": "ms-table",
-      "prefab": "tableMeeting",
-      "x": 21.25,
-      "z": 2.9,
-      "w": 2.2,
-      "d": 1.1,
-      "rot": 0,
-      "solid": true
-    },
-    {
-      "id": "ms-chair-20.7-2.1",
-      "prefab": "chair",
-      "x": 20.7,
-      "z": 2.1,
-      "w": 0.5,
-      "d": 0.5,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "ms-chair-20.7-3.7",
-      "prefab": "chair",
-      "x": 20.7,
+      "id": "desk-YT-01",
+      "prefab": "desk",
+      "x": 44.9,
       "z": 3.7,
-      "w": 0.5,
-      "d": 0.5,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "ms-chair-21.8-2.1",
-      "prefab": "chair",
-      "x": 21.8,
-      "z": 2.1,
-      "w": 0.5,
-      "d": 0.5,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "ms-chair-21.8-3.7",
-      "prefab": "chair",
-      "x": 21.8,
-      "z": 3.7,
-      "w": 0.5,
-      "d": 0.5,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "ms-screen",
-      "prefab": "televisionWall",
-      "x": 21.25,
-      "z": 0.15,
       "w": 1.4,
-      "d": 0.1,
+      "d": 0.7,
       "rot": 0,
-      "solid": true,
-      "interact": "screen"
+      "solid": true
+    },
+    {
+      "id": "pc-YT-01",
+      "prefab": "computerScreen",
+      "x": 44.9,
+      "z": 3.7,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-YT-02",
+      "prefab": "desk",
+      "x": 46.5,
+      "z": 3.7,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-YT-02",
+      "prefab": "computerScreen",
+      "x": 46.5,
+      "z": 3.7,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-YT-03",
+      "prefab": "desk",
+      "x": 48.1,
+      "z": 3.7,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-YT-03",
+      "prefab": "computerScreen",
+      "x": 48.1,
+      "z": 3.7,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-YT-04",
+      "prefab": "desk",
+      "x": 44.9,
+      "z": 4.4,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-YT-04",
+      "prefab": "computerScreen",
+      "x": 44.9,
+      "z": 4.4,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-YT-05",
+      "prefab": "desk",
+      "x": 46.5,
+      "z": 4.4,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-YT-05",
+      "prefab": "computerScreen",
+      "x": 46.5,
+      "z": 4.4,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-YT-06",
+      "prefab": "desk",
+      "x": 48.1,
+      "z": 4.4,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-YT-06",
+      "prefab": "computerScreen",
+      "x": 48.1,
+      "z": 4.4,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "focus-shelf",
+      "prefab": "bookcaseOpen",
+      "x": 46.5,
+      "z": 0.25,
+      "w": 2.4,
+      "d": 0.4,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "focus-plant",
+      "prefab": "pottedPlant",
+      "x": 49.5,
+      "z": 7.5,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": true
     },
     {
       "id": "booth-1-table",
       "prefab": "tableSmall",
-      "x": 22.9,
-      "z": 7.25,
+      "x": 48,
+      "z": 9.75,
       "w": 0.6,
-      "d": 1.0,
+      "d": 1,
       "rot": 0,
       "solid": true
     },
     {
-      "id": "booth-1-chair",
+      "id": "booth-1-chair-w",
       "prefab": "chair",
-      "x": 22.2,
-      "z": 7.25,
+      "x": 47.1,
+      "z": 9.75,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "booth-1-chair-e",
+      "prefab": "chair",
+      "x": 48.9,
+      "z": 9.75,
       "w": 0.5,
       "d": 0.5,
       "rot": 0,
@@ -1150,99 +4179,108 @@
     {
       "id": "booth-2-table",
       "prefab": "tableSmall",
-      "x": 22.9,
-      "z": 9.75,
+      "x": 48,
+      "z": 13.25,
       "w": 0.6,
-      "d": 1.0,
+      "d": 1,
       "rot": 0,
       "solid": true
     },
     {
-      "id": "booth-2-chair",
+      "id": "booth-2-chair-w",
       "prefab": "chair",
-      "x": 22.2,
-      "z": 9.75,
+      "x": 47.1,
+      "z": 13.25,
       "w": 0.5,
       "d": 0.5,
       "rot": 0,
       "solid": false
     },
     {
-      "id": "printer",
-      "prefab": "printer",
-      "x": 19.9,
-      "z": 6.4,
-      "w": 0.7,
-      "d": 0.6,
-      "rot": 0,
-      "solid": true,
-      "interact": "printer"
-    },
-    {
-      "id": "lockers",
-      "prefab": "lockers",
-      "x": 7.4,
-      "z": 8.0,
-      "w": 0.5,
-      "d": 1.8,
-      "rot": 0,
-      "solid": true
-    },
-    {
-      "id": "plant-open-1",
-      "prefab": "pottedPlant",
-      "x": 0.4,
-      "z": 5.9,
+      "id": "booth-2-chair-e",
+      "prefab": "chair",
+      "x": 48.9,
+      "z": 13.25,
       "w": 0.5,
       "d": 0.5,
       "rot": 0,
-      "solid": true
+      "solid": false
     },
     {
-      "id": "plant-open-2",
-      "prefab": "pottedPlant",
-      "x": 7.4,
-      "z": 9.9,
-      "w": 0.5,
-      "d": 0.5,
+      "id": "booth-3-table",
+      "prefab": "tableSmall",
+      "x": 48,
+      "z": 16.75,
+      "w": 0.6,
+      "d": 1,
       "rot": 0,
       "solid": true
     },
     {
-      "id": "plant-open-3",
-      "prefab": "pottedPlant",
-      "x": 14.7,
-      "z": 9.9,
+      "id": "booth-3-chair-w",
+      "prefab": "chair",
+      "x": 47.1,
+      "z": 16.75,
       "w": 0.5,
       "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "booth-3-chair-e",
+      "prefab": "chair",
+      "x": 48.9,
+      "z": 16.75,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "booth-4-table",
+      "prefab": "tableSmall",
+      "x": 48,
+      "z": 20.25,
+      "w": 0.6,
+      "d": 1,
       "rot": 0,
       "solid": true
     },
     {
-      "id": "plant-open-4",
-      "prefab": "pottedPlant",
-      "x": 20.5,
-      "z": 10.6,
+      "id": "booth-4-chair-w",
+      "prefab": "chair",
+      "x": 47.1,
+      "z": 20.25,
       "w": 0.5,
       "d": 0.5,
       "rot": 0,
-      "solid": true
+      "solid": false
+    },
+    {
+      "id": "booth-4-chair-e",
+      "prefab": "chair",
+      "x": 48.9,
+      "z": 20.25,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
     },
     {
       "id": "lounge-sofa-1",
       "prefab": "loungeSofaCorner",
       "x": 1.4,
-      "z": 12.4,
+      "z": 23.4,
       "w": 2.4,
       "d": 1.6,
       "rot": 0,
       "solid": true
     },
     {
-      "id": "lounge-table",
+      "id": "lounge-table-1",
       "prefab": "tableCoffee",
       "x": 2.2,
-      "z": 13.9,
+      "z": 24.9,
       "w": 1.2,
       "d": 0.7,
       "rot": 0,
@@ -1252,7 +4290,7 @@
       "id": "lounge-sofa-2",
       "prefab": "loungeSofa",
       "x": 2.2,
-      "z": 15.3,
+      "z": 26.3,
       "w": 2.2,
       "d": 0.9,
       "rot": 0,
@@ -1262,28 +4300,58 @@
       "id": "lounge-shelf",
       "prefab": "bookcaseOpen",
       "x": 0.25,
-      "z": 14.6,
+      "z": 28.3,
       "w": 0.4,
       "d": 1.8,
       "rot": 0,
       "solid": true
     },
     {
-      "id": "lounge-game",
-      "prefab": "tableGame",
-      "x": 5.2,
-      "z": 12.6,
-      "w": 1.4,
+      "id": "lounge-sofa-3",
+      "prefab": "loungeSofa",
+      "x": 7,
+      "z": 24.2,
+      "w": 2.2,
       "d": 0.9,
       "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "lounge-table-2",
+      "prefab": "tableCoffee",
+      "x": 7,
+      "z": 25.3,
+      "w": 1.2,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "lounge-sofa-4",
+      "prefab": "loungeSofa",
+      "x": 7,
+      "z": 26.4,
+      "w": 2.2,
+      "d": 0.9,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "lounge-tv",
+      "prefab": "televisionWall",
+      "x": 7,
+      "z": 29.85,
+      "w": 2.2,
+      "d": 0.1,
+      "rot": 0,
       "solid": true,
-      "interact": "game"
+      "interact": "screen"
     },
     {
       "id": "lounge-beanbag-1",
       "prefab": "beanbag",
-      "x": 5.0,
-      "z": 14.6,
+      "x": 10.5,
+      "z": 25,
       "w": 0.8,
       "d": 0.8,
       "rot": 0,
@@ -1292,18 +4360,70 @@
     {
       "id": "lounge-beanbag-2",
       "prefab": "beanbag",
-      "x": 6.2,
-      "z": 14.9,
+      "x": 11.7,
+      "z": 25.6,
       "w": 0.8,
       "d": 0.8,
       "rot": 0,
       "solid": false
     },
     {
-      "id": "lounge-plant",
+      "id": "lounge-beanbag-3",
+      "prefab": "beanbag",
+      "x": 10.8,
+      "z": 27.2,
+      "w": 0.8,
+      "d": 0.8,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "lounge-beanbag-4",
+      "prefab": "beanbag",
+      "x": 12.2,
+      "z": 27.4,
+      "w": 0.8,
+      "d": 0.8,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "lounge-game-1",
+      "prefab": "tableGame",
+      "x": 14.8,
+      "z": 24.5,
+      "w": 1.4,
+      "d": 0.9,
+      "rot": 0,
+      "solid": true,
+      "interact": "game"
+    },
+    {
+      "id": "lounge-game-2",
+      "prefab": "tableGame",
+      "x": 14.8,
+      "z": 27.8,
+      "w": 1.4,
+      "d": 0.9,
+      "rot": 0,
+      "solid": true,
+      "interact": "game"
+    },
+    {
+      "id": "lounge-plant-1",
       "prefab": "pottedPlantLarge",
-      "x": 6.5,
-      "z": 11.5,
+      "x": 16.5,
+      "z": 22.6,
+      "w": 0.6,
+      "d": 0.6,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "lounge-plant-2",
+      "prefab": "pottedPlantLarge",
+      "x": 4.5,
+      "z": 29.5,
       "w": 0.6,
       "d": 0.6,
       "rot": 0,
@@ -1312,18 +4432,28 @@
     {
       "id": "reception-desk",
       "prefab": "deskReception",
-      "x": 11.5,
-      "z": 12.7,
-      "w": 4.0,
+      "x": 25,
+      "z": 23.7,
+      "w": 4,
       "d": 0.8,
       "rot": 0,
       "solid": true
     },
     {
-      "id": "timeclock",
+      "id": "lobby-logo",
+      "prefab": "logoWall",
+      "x": 25,
+      "z": 22.15,
+      "w": 3,
+      "d": 0.1,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "timeclock-1",
       "prefab": "timeclock",
-      "x": 14.9,
-      "z": 13.4,
+      "x": 22,
+      "z": 27.5,
       "w": 0.5,
       "d": 0.4,
       "rot": 0,
@@ -1331,30 +4461,52 @@
       "action": "attendance.checkin"
     },
     {
-      "id": "lobby-sofa",
+      "id": "timeclock-2",
+      "prefab": "timeclock",
+      "x": 28,
+      "z": 27.5,
+      "w": 0.5,
+      "d": 0.4,
+      "rot": 0,
+      "solid": true,
+      "action": "attendance.checkin"
+    },
+    {
+      "id": "lobby-sofa-1",
       "prefab": "loungeSofa",
-      "x": 8.4,
-      "z": 14.6,
+      "x": 18.4,
+      "z": 25.5,
       "w": 0.9,
-      "d": 2.0,
+      "d": 2,
       "rot": 90,
       "solid": true
     },
     {
-      "id": "lobby-logo",
-      "prefab": "logoWall",
-      "x": 11.5,
-      "z": 11.15,
-      "w": 3.0,
-      "d": 0.1,
+      "id": "lobby-sofa-2",
+      "prefab": "loungeSofa",
+      "x": 31.6,
+      "z": 27,
+      "w": 0.9,
+      "d": 2,
+      "rot": 90,
+      "solid": true
+    },
+    {
+      "id": "noticeboard",
+      "prefab": "noticeBoard",
+      "x": 32.85,
+      "z": 24,
+      "w": 0.1,
+      "d": 1.4,
       "rot": 0,
-      "solid": false
+      "solid": true,
+      "interact": "notices"
     },
     {
       "id": "lobby-plant-1",
       "prefab": "pottedPlantLarge",
-      "x": 9.6,
-      "z": 15.5,
+      "x": 20,
+      "z": 29.4,
       "w": 0.6,
       "d": 0.6,
       "rot": 0,
@@ -1363,49 +4515,39 @@
     {
       "id": "lobby-plant-2",
       "prefab": "pottedPlantLarge",
-      "x": 13.4,
-      "z": 15.5,
+      "x": 30,
+      "z": 29.4,
       "w": 0.6,
       "d": 0.6,
       "rot": 0,
       "solid": true
     },
     {
-      "id": "noticeboard",
-      "prefab": "noticeBoard",
-      "x": 15.8,
-      "z": 12.2,
-      "w": 0.1,
-      "d": 1.4,
-      "rot": 0,
-      "solid": true,
-      "interact": "notices"
-    },
-    {
       "id": "pantry-counter",
       "prefab": "kitchenCounter",
-      "x": 20.0,
-      "z": 15.6,
-      "w": 7.0,
+      "x": 42.5,
+      "z": 29.6,
+      "w": 10,
       "d": 0.6,
       "rot": 0,
       "solid": true
     },
     {
-      "id": "pantry-fridge",
-      "prefab": "kitchenFridge",
-      "x": 23.6,
-      "z": 13.0,
-      "w": 0.7,
-      "d": 0.7,
+      "id": "pantry-coffee-1",
+      "prefab": "coffeeMachine",
+      "x": 39,
+      "z": 29.6,
+      "w": 0.4,
+      "d": 0.4,
       "rot": 0,
-      "solid": true
+      "solid": false,
+      "interact": "coffee"
     },
     {
-      "id": "pantry-coffee",
+      "id": "pantry-coffee-2",
       "prefab": "coffeeMachine",
-      "x": 18.0,
-      "z": 15.6,
+      "x": 40.5,
+      "z": 29.6,
       "w": 0.4,
       "d": 0.4,
       "rot": 0,
@@ -1415,82 +4557,252 @@
     {
       "id": "pantry-water",
       "prefab": "waterDispenser",
-      "x": 16.4,
-      "z": 15.6,
+      "x": 36,
+      "z": 29.6,
       "w": 0.4,
       "d": 0.4,
       "rot": 0,
       "solid": true
     },
     {
-      "id": "pantry-table",
+      "id": "pantry-fridge-1",
+      "prefab": "kitchenFridge",
+      "x": 49.6,
+      "z": 26.4,
+      "w": 0.7,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pantry-fridge-2",
+      "prefab": "kitchenFridge",
+      "x": 49.6,
+      "z": 27.4,
+      "w": 0.7,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pantry-table-1",
       "prefab": "tableDining",
-      "x": 19.8,
-      "z": 13.0,
+      "x": 36.5,
+      "z": 24.6,
       "w": 2.4,
       "d": 1.1,
       "rot": 0,
       "solid": true
     },
     {
-      "id": "pantry-chair-19.0-12.2",
+      "id": "pantry-table-1-chair-35.7-23.8",
       "prefab": "chair",
-      "x": 19.0,
-      "z": 12.2,
+      "x": 35.7,
+      "z": 23.8,
       "w": 0.5,
       "d": 0.5,
       "rot": 0,
       "solid": false
     },
     {
-      "id": "pantry-chair-19.0-13.8",
+      "id": "pantry-table-1-chair-35.7-25.4",
       "prefab": "chair",
-      "x": 19.0,
-      "z": 13.8,
+      "x": 35.7,
+      "z": 25.4,
       "w": 0.5,
       "d": 0.5,
       "rot": 0,
       "solid": false
     },
     {
-      "id": "pantry-chair-19.8-12.2",
+      "id": "pantry-table-1-chair-36.5-23.8",
       "prefab": "chair",
-      "x": 19.8,
-      "z": 12.2,
+      "x": 36.5,
+      "z": 23.8,
       "w": 0.5,
       "d": 0.5,
       "rot": 0,
       "solid": false
     },
     {
-      "id": "pantry-chair-19.8-13.8",
+      "id": "pantry-table-1-chair-36.5-25.4",
       "prefab": "chair",
-      "x": 19.8,
-      "z": 13.8,
+      "x": 36.5,
+      "z": 25.4,
       "w": 0.5,
       "d": 0.5,
       "rot": 0,
       "solid": false
     },
     {
-      "id": "pantry-chair-20.6-12.2",
+      "id": "pantry-table-1-chair-37.3-23.8",
       "prefab": "chair",
-      "x": 20.6,
-      "z": 12.2,
+      "x": 37.3,
+      "z": 23.8,
       "w": 0.5,
       "d": 0.5,
       "rot": 0,
       "solid": false
     },
     {
-      "id": "pantry-chair-20.6-13.8",
+      "id": "pantry-table-1-chair-37.3-25.4",
       "prefab": "chair",
-      "x": 20.6,
-      "z": 13.8,
+      "x": 37.3,
+      "z": 25.4,
       "w": 0.5,
       "d": 0.5,
       "rot": 0,
       "solid": false
+    },
+    {
+      "id": "pantry-table-2",
+      "prefab": "tableDining",
+      "x": 41.5,
+      "z": 24.6,
+      "w": 2.4,
+      "d": 1.1,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pantry-table-2-chair-40.7-23.8",
+      "prefab": "chair",
+      "x": 40.7,
+      "z": 23.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "pantry-table-2-chair-40.7-25.4",
+      "prefab": "chair",
+      "x": 40.7,
+      "z": 25.4,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "pantry-table-2-chair-41.5-23.8",
+      "prefab": "chair",
+      "x": 41.5,
+      "z": 23.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "pantry-table-2-chair-41.5-25.4",
+      "prefab": "chair",
+      "x": 41.5,
+      "z": 25.4,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "pantry-table-2-chair-42.3-23.8",
+      "prefab": "chair",
+      "x": 42.3,
+      "z": 23.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "pantry-table-2-chair-42.3-25.4",
+      "prefab": "chair",
+      "x": 42.3,
+      "z": 25.4,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "pantry-table-3",
+      "prefab": "tableDining",
+      "x": 46.5,
+      "z": 24.6,
+      "w": 2.4,
+      "d": 1.1,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pantry-table-3-chair-45.7-23.8",
+      "prefab": "chair",
+      "x": 45.7,
+      "z": 23.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "pantry-table-3-chair-45.7-25.4",
+      "prefab": "chair",
+      "x": 45.7,
+      "z": 25.4,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "pantry-table-3-chair-46.5-23.8",
+      "prefab": "chair",
+      "x": 46.5,
+      "z": 23.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "pantry-table-3-chair-46.5-25.4",
+      "prefab": "chair",
+      "x": 46.5,
+      "z": 25.4,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "pantry-table-3-chair-47.3-23.8",
+      "prefab": "chair",
+      "x": 47.3,
+      "z": 23.8,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "pantry-table-3-chair-47.3-25.4",
+      "prefab": "chair",
+      "x": 47.3,
+      "z": 25.4,
+      "w": 0.5,
+      "d": 0.5,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "pantry-plant",
+      "prefab": "pottedPlantLarge",
+      "x": 49.5,
+      "z": 22.6,
+      "w": 0.6,
+      "d": 0.6,
+      "rot": 0,
+      "solid": true
     }
   ]
 }

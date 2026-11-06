@@ -30,7 +30,7 @@ try {
   // 1) Vào văn phòng là tự vào voice để nghe, micro mặc định tắt
   check('A auto-joined voice, mic off', await waitFor(A, `window.__officeVoice.state.status==='on' && !window.__officeVoice.state.micOn`), await voice(A));
   check('no voice toggle button anymore', !(await A.evalJs(`!!document.querySelector('[data-testid=office-voice-toggle]')`)));
-  await Promise.all([walk(A, 10.5, 10), walk(B, 11.5, 10)]);
+  await Promise.all([walk(A, 23, 19), walk(B, 24, 19)]);
   await click(A, 'office-voice-mic'); await click(B, 'office-voice-mic');
   check('mic turns on when clicked', await waitFor(B, `document.querySelector('[data-testid=office-voice-mic]').dataset.on==='true'`, 5000), await voice(B));
   check('A voice on, channel open', await waitFor(A, `document.querySelector('[data-testid=office-voice]')?.dataset.status==='on' && document.querySelector('[data-testid=office-voice]').dataset.channel==='open'`), await voice(A));
@@ -48,12 +48,12 @@ try {
   check('M unmutes mic', await waitFor(A, `document.querySelector('[data-testid=office-voice-mic]').dataset.on==='true'`, 4000));
 
   // 3) B đi xa (> 6 m) → A thôi nhận âm của B
-  await walk(B, 1.5, 10);
+  await walk(B, 5, 19);
   check('A unsubscribes far B', await waitFor(A, `[...window.__officeVoice.room.remoteParticipants.values()].every(p=>[...p.trackPublications.values()].every(t=>t.source!=='microphone' || !t.isSubscribed))`, 6000), await voice(A));
   check('A HUD: chưa có ai nghe', await waitFor(A, `document.querySelector('[data-testid=office-voice-peers]')?.textContent.includes('chưa có ai nghe')`, 3000));
 
   // 4) A vào phòng họp lớn → kênh riêng; B ở ngoài không cùng room
-  await walk(A, 10, 3);
+  await walk(A, 25, 6.5);
   check('A switched to meeting-large', await waitFor(A, `window.__officeVoice.room?.name==='officehub-meeting-large' && window.__officeVoice.state.status==='on'`, 8000), await voice(A));
   check('A alone in meeting room (B not there)', (await voice(A)).remotes.length === 0, await voice(A));
   check('B still in open, A gone from B room', await waitFor(B, `window.__officeVoice.room?.name==='officehub-open' && ![...window.__officeVoice.room.remoteParticipants.values()].some(p=>p.name===${JSON.stringify(NAME_A)})`, 6000), await voice(B));
@@ -63,7 +63,7 @@ try {
   check('screen share button only in meeting room', await A.evalJs(`document.body.innerText.includes('Chia sẻ')`) && !(await B.evalJs(`document.body.innerText.includes('Chia sẻ')`)));
 
   // 5) B vào phòng họp → nghe cả phòng; A chia sẻ màn hình → B thấy
-  await walk(B, 11, 4);
+  await walk(B, 27, 6.5);
   check('B joined meeting-large', await waitFor(B, `window.__officeVoice.room?.name==='officehub-meeting-large' && window.__officeVoice.state.status==='on'`, 8000), await voice(B));
   check('A and B hear each other in meeting', await waitFor(A, `document.querySelector('[data-testid=office-voice-peers]')?.textContent.includes('1 người trong tầm nghe')`, 6000), await voice(A));
   await A.evalJs(`window.__officeVoice.toggleScreen()`);
