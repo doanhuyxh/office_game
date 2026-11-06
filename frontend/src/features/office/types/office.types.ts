@@ -3,5 +3,5 @@
 export interface PlayerDto { id: string; name: string; x: number; z: number; r: number; anim: number }
 export interface PositionDto { id: string; x: number; z: number; r: number; anim: number }
 export interface WelcomeDto { selfId: string; mapName: string; players: PlayerDto[] }
-/** at = ISO 8601 UTC "…Z" (server). */
-export interface ChatDto { id: string; name: string; text: string; at: string }
+/** at = ISO 8601 UTC "…Z" (server). channel: "office" toàn văn phòng | "room" chỉ người trong phòng roomId. */
+export interface ChatDto { id: string; name: string; text: string; at: string; channel?: 'office' | 'room'; roomId?: string | null; roomName?: string | null }

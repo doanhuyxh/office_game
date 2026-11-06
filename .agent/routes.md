@@ -10,7 +10,8 @@
 | `/api/org/*` | Organization | [business/organization.md](business/organization.md) |
 | `/api/attendance/*` | Attendance | [business/attendance.md](business/attendance.md), [business/attendance-corrections.md](business/attendance-corrections.md), [business/attendance-overtime.md](business/attendance-overtime.md) |
 | `/api/notifications/*` | Notification | [business/notifications.md](business/notifications.md) |
-| `/api/contracts/*` | LaborContracts | [business/contracts.md](business/contracts.md) |
+| `/api/contracts/*` | LaborContracts | [business/contracts.md](business/contracts.md), ký điện tử [business/contracts-esign.md](business/contracts-esign.md) |
+| `/api/payroll/*` | Payroll (bảng lương, phiếu lương) | [business/payroll.md](business/payroll.md) |
 | `/api/approval/*` | Approval | [business/approval.md](business/approval.md) |
 | `/api/leave/*` | Leave | [business/leave.md](business/leave.md) |
 | `/mcp`, `/.well-known/oauth-*` | host OfficeHub.Mcp (máy chủ MCP cho AI, gọi lại `/api/*` bằng token; OAuth discovery) | [business/mcp.md](business/mcp.md) |
@@ -29,7 +30,7 @@
 | `/change-password` | `requireSession` | `ChangePasswordForm` |
 | `/office` | `requireAuth`, toàn màn hình | `OfficeView` (`@/features/office`, lazy, kéo Three.js) |
 | `/oauth/authorize` | `requireAuth`, toàn màn hình | `OAuthConsentPage` (`@/features/ai-access`) — trang đồng ý cho ứng dụng AI |
-| `/` `/attendance` `/employees` `/leave` `/approvals` `/meetings` `/contracts` `/reports` `/audit` `/ai-access` | `requireAuth`, trong `MainLayout` | `Dashboard`, `AttendancePage`, `EmployeesPage`, `LeavePage`, `ApprovalsPage`, `MeetingsPage`, `ContractsPage`, `ReportsPage`, `AuditPage`, `AiAccessPage` |
+| `/` `/attendance` `/employees` `/leave` `/approvals` `/meetings` `/contracts` `/payroll` `/payslips` `/reports` `/audit` `/ai-access` | `requireAuth`, trong `MainLayout` | `Dashboard`, `AttendancePage`, `EmployeesPage`, `LeavePage`, `ApprovalsPage`, `MeetingsPage`, `ContractsPage`, `PayrollPage`, `PayslipsPage`, `ReportsPage`, `AuditPage`, `AiAccessPage` |
 
-`requireAuth`: chưa đăng nhập → `/login?returnUrl=…`; `mustChangePassword` → `/change-password`. Quay lại sau đăng nhập dùng `safeReturnPath` (chỉ đường dẫn cùng origin). Mọi trang trong `page(...)` là lazy chunk; Three.js tách chunk `three` (`vite.config.ts` `manualChunks`). Menu sidebar (nhóm → mục, icon lucide) lọc theo `roles` trong `components/layout/navigation.ts` (Hợp đồng, Báo cáo: admin/hr; còn lại ai cũng thấy). Bố cục khung trang: [frontend.md](frontend.md#bố-cục-mainlayout).
+`requireAuth`: chưa đăng nhập → `/login?returnUrl=…`; `mustChangePassword` → `/change-password`. Quay lại sau đăng nhập dùng `safeReturnPath` (chỉ đường dẫn cùng origin). Mọi trang trong `page(...)` là lazy chunk; Three.js tách chunk `three` (`vite.config.ts` `manualChunks`). Menu sidebar (nhóm → mục, icon lucide) lọc theo `roles` trong `components/layout/navigation.ts` (Bảng lương, Báo cáo: admin/hr; còn lại ai cũng thấy — Hợp đồng ai cũng thấy nhưng nhân viên chỉ xem của mình). Bố cục khung trang: [frontend.md](frontend.md#bố-cục-mainlayout).
 

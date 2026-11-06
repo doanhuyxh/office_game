@@ -27,7 +27,7 @@ Quỹ phép **không lưu**: tính khi đọc ([business/leave.md](business/leav
 
 Một dòng cho mỗi người nhận. Chỉ module Notification ghi; `EmailDispatcher` cập nhật cột `Email*`. Chưa có job xoá thông báo cũ ([business/notifications.md](business/notifications.md)).
 
-## Schema `contracts` — `ContractsDbContext` (migration `InitialContracts`, `ContractTemplates`)
+## Schema `contracts` — `ContractsDbContext` (migration `InitialContracts`, `ContractTemplates`, `SignRequests`)
 
 | Bảng | Field chính | Ràng buộc / index |
 |---|---|---|
@@ -35,6 +35,8 @@ Một dòng cho mỗi người nhận. Chỉ module Notification ghi; `EmailDisp
 | `amendments` | `ContractId`, `Number`, `EffectiveDate`, `Content` (≤2000), `SalaryEncrypted`, `AllowanceEncrypted`, `File*` | FK cascade; index (`ContractId`,`EffectiveDate`) |
 
 `templates` (mẫu Word): `Name` ≤200, `ContractType?` (string), `Fields text[]`, file owned `StoredFile` (S3 `contract-templates/{id}.docx`), `CreatedAt`, `CreatedByName`; xoá cứng + xoá file S3.
+
+`sign_requests` [Audited] (ký điện tử, [business/contracts-esign.md](business/contracts-esign.md)): `ContractId`, `EmployeeId`, `SignerUserId`, `OriginalFileKey` + `OriginalSha256`, `Status` (string ≤10), `ExpiresAt`, `OtpHash` (SHA-256, không lưu OTP), `OtpSentAt/ExpiresAt/Attempts/Sends`, `SignedAt`, `SignerIp`, `SignerUserAgent` ≤512, `SignedFileKey` + `SignedSha256`, `SignatureImageKey`; index `ContractId`, (`SignerUserId`,`Status`).
 
 Trạng thái hợp đồng tính lúc đọc. Không trùng thời gian / số phụ lục kiểm tra bằng code ([business/contracts.md](business/contracts.md)). Cột `…Encrypted` cần `Encryption__Key` cũ để đọc.
 
@@ -55,3 +57,7 @@ Reporting **không có schema** (chỉ đọc qua `*.Contracts`).
 | `changes` | `OccurredAt`, `Source` (web/ai/system), `UserId?`, `UserName`, `Module` (schema), `Entity`, `EntityId`, `EntityLabel`, `Action`, `ChangesJson` (jsonb `[{field, old, new, masked}]`) | index `OccurredAt`, (`Entity`,`EntityId`,`OccurredAt`), (`UserId`,`OccurredAt`); không tự xoá ([business/audit.md](business/audit.md)) |
 
 `attendance.reminders` (migration `Reminders`): `EmployeeId`, `WorkDate`, `Kind` (Checkout / MissingCheckout), `SentAt`; unique (`EmployeeId`,`WorkDate`,`Kind`) — chống nhắc lặp.
+
+## Schema `payroll` — `PayrollDbContext` (migration `InitialPayroll`)
+
+Chi tiết nghiệp vụ: [business/payroll.md](business/payroll.md). `settings` (`EffectiveFrom` unique, `RulesJson` jsonb-text, `CreatedByName`) — `PayrollMigrator` seed bản mặc định. `profiles` [Audited] (PK `EmployeeId`, `Dependents`, `Insured?`, `TaxCode` ≤20, `Note` ≤500). `periods` [Audited] (`Month` unique, `Status` Draft/Locked, `SettingsId`, `ComputedAt`, `LockedAt`, `LockedByName`). `payslips` (`PeriodId`+`EmployeeId` unique, `DataEncrypted` = JSON phiếu mã hoá AES-GCM — tính lại thì xoá + ghi trong transaction). `adjustments` [Audited] (`Label` ≤200, `AmountEncrypted`, `Taxable`; index (`PeriodId`,`EmployeeId`)). Không FK chéo schema (nhân viên chỉ lưu `EmployeeId`).

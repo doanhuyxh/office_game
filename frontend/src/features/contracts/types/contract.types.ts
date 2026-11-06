@@ -93,3 +93,11 @@ export interface ITemplateField {
   description: string;
   example: string;
 }
+
+export type SignStatus = 'Pending' | 'Signed' | 'Cancelled' | 'Expired';
+export interface ISignRequest {
+  id: string; contractId: string; contractNumber: string; employeeId: string; employeeName: string; status: SignStatus;
+  createdAt: string; createdByName: string | null; expiresAt: string; otpSentAt: string | null; signedAt: string | null;
+  originalSha256: string; signedSha256: string | null; canSign: boolean;
+}
+export interface IOtpSent { sentTo: string; expiresAt: string }

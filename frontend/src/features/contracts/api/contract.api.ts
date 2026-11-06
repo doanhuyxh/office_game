@@ -1,5 +1,5 @@
 import { http, httpPost, httpUpload } from '@/services/api-client';
-import type { IContract, IContractTemplate, ICreateAmendment, IStoredFile, ITemplateField, IUpsertContract } from '../types/contract.types';
+import type { IOtpSent, ISignRequest, IContract, IContractTemplate, ICreateAmendment, IStoredFile, ITemplateField, IUpsertContract } from '../types/contract.types';
 
 const put = <T>(url: string, body: unknown) => http<T>(url, { method: 'PUT', body: JSON.stringify(body) });
 const del = (url: string) => http<void>(url, { method: 'DELETE' });
@@ -10,6 +10,7 @@ export const contractKeys = {
   my: ['contracts', 'my'] as const,
   templates: ['contracts', 'templates'] as const,
   templateFields: ['contracts', 'templates', 'fields'] as const,
+  signRequests: ['contracts', 'sign-requests'] as const,
 };
 
 const base = '/api/contracts';
@@ -39,5 +40,12 @@ export const contractApi = {
   templateFileUrl: (id: string) => http<{ url: string; name: string }>(`${base}/templates/${id}/file`),
   removeTemplate: (id: string) => del(`${base}/templates/${id}`),
   /** Link tải hợp đồng đã điền từ mẫu (.docx). */
+  // Ký điện tử (ký nội bộ + OTP email)
+  signRequests: () => http<ISignRequest[]>(`${base}/sign-requests`),
+  createSignRequest: (contractId: string) => httpPost<ISignRequest>(`${base}/${contractId}/sign-requests`),
+  cancelSignRequest: (rid: string) => del(`${base}/sign-requests/${rid}`),
+  signDocumentUrl: (rid: string, signed = false) => http<{ url: string; name: string }>(`${base}/sign-requests/${rid}/document?signed=${signed}`),
+  sendOtp: (rid: string) => httpPost<IOtpSent>(`${base}/sign-requests/${rid}/otp`),
+  sign: (rid: string, body: { otp: string; signature: string; agree: boolean }) => httpPost<ISignRequest>(`${base}/sign-requests/${rid}/sign`, body),
   generateUrl: (contractId: string, templateId: string) => `${base}/${contractId}/generate?templateId=${templateId}`,
 };

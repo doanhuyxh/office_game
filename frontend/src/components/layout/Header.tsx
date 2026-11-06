@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { ArrowRight, Building2, Check, KeyRound, Laptop, LogOut, Moon, SearchIcon, Sun } from 'lucide-react';
+import { ArrowRight, Building2, Check, KeyRound, Laptop, LogOut, Moon, SearchIcon, Share, Smartphone, Sun } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/common/avatar';
 import { Button } from '@/components/common/button';
 import {
@@ -17,6 +17,8 @@ import { useSearch } from '@/context/search-provider';
 import { useTheme, type Theme } from '@/context/theme-provider';
 import { PATHS } from '@/config/paths';
 import { cn } from '@/utils/cn';
+import { usePwaInstall } from '@/pwa';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { initials, useNavigation } from './useNavigation';
 
 const THEMES: { value: Theme; label: string; icon: typeof Sun }[] = [
@@ -107,7 +109,10 @@ function ThemeSwitch() {
 function ProfileDropdown() {
   const { data: me } = useMe();
   const logout = useLogout();
+  const pwa = usePwaInstall();
+  const [iosHelp, setIosHelp] = useState(false);
   return (
+    <>
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative size-8 rounded-full">
@@ -131,6 +136,8 @@ function ProfileDropdown() {
           <DropdownMenuItem asChild>
             <Link to={PATHS.changePassword}><KeyRound /> Đổi mật khẩu</Link>
           </DropdownMenuItem>
+          {pwa.state === 'prompt' && <DropdownMenuItem onClick={() => void pwa.install()}><Smartphone /> Cài ứng dụng</DropdownMenuItem>}
+          {pwa.state === 'ios' && <DropdownMenuItem onClick={() => setIosHelp(true)}><Smartphone /> Cài lên iPhone / iPad</DropdownMenuItem>}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onClick={logout}>
@@ -138,6 +145,20 @@ function ProfileDropdown() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    <Dialog open={iosHelp} onOpenChange={setIosHelp}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Cài OfficeHub lên iPhone / iPad</DialogTitle>
+          <DialogDescription>Mở OfficeHub bằng Safari rồi làm theo 3 bước:</DialogDescription>
+        </DialogHeader>
+        <ol className="grid list-decimal gap-2 pl-5 text-sm">
+          <li>Bấm nút <Share className="inline size-4" /> <b>Chia sẻ</b> ở thanh dưới (hoặc trên) Safari.</li>
+          <li>Chọn <b>Thêm vào Màn hình chính</b>.</li>
+          <li>Bấm <b>Thêm</b> — biểu tượng OfficeHub xuất hiện như một ứng dụng.</li>
+        </ol>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

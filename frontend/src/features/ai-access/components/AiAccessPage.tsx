@@ -84,7 +84,7 @@ function MyTab({ onCreate, newToken }: { onCreate: () => void; newToken: string 
   const revoke = useRevoke();
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader><CardTitle className="text-base">Trợ lý AI làm được</CardTitle></CardHeader>
@@ -215,7 +215,7 @@ function CompanyTab() {
   const selected = connections.data?.find((c) => c.userId === userId);
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Kết nối AI đang hoạt động</CardTitle>
@@ -286,7 +286,7 @@ export function AiAccessPage() {
   const [newToken, setNewToken] = useState<string | null>(null);
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <PageHeader
         title="Kết nối AI"
         description="Dùng trợ lý AI (Claude, Cursor, Codex, GitHub Copilot…) để chấm công, xin nghỉ, xem bảng công… bằng lời nói thay vì mở web."

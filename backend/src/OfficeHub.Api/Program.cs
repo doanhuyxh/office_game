@@ -9,6 +9,7 @@ using OfficeHub.Modules.LaborContracts;
 using OfficeHub.Modules.Identity;
 using OfficeHub.Modules.Leave;
 using OfficeHub.Modules.Meetings;
+using OfficeHub.Modules.Payroll;
 using OfficeHub.Modules.Notification;
 using OfficeHub.Modules.Organization;
 using OfficeHub.Modules.Reporting;
@@ -34,6 +35,7 @@ IModule[] modules =
     new ApprovalModule(),
     new NotificationModule(),
     new MeetingsModule(),
+    new PayrollModule(),
     new ReportingModule(),
     new AuditModule(),
 ];

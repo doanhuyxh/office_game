@@ -14,8 +14,11 @@ namespace OfficeHub.Realtime.Hubs;
 public sealed record PlayerDto(string Id, string Name, float X, float Z, float R, byte Anim);
 public sealed record PositionDto(string Id, float X, float Z, float R, byte Anim);
 public sealed record WelcomeDto(string SelfId, string MapName, PlayerDto[] Players);
-/// <summary>At = ISO 8601 UTC 'Z' (Instants.Format) — MessagePack không có kiểu thời điểm chuẩn cho JS.</summary>
-public sealed record ChatDto(string Id, string Name, string Text, string At);
+/// <summary>
+/// At = ISO 8601 UTC 'Z' (Instants.Format) — MessagePack không có kiểu thời điểm chuẩn cho JS.
+/// Channel = "office" (toàn văn phòng) | "room" (chỉ người đang đứng trong phòng có tường RoomId / RoomName).
+/// </summary>
+public sealed record ChatDto(string Id, string Name, string Text, string At, string Channel = "office", string? RoomId = null, string? RoomName = null);
 
 /// <summary>Các hàm server gọi xuống client.</summary>
 public interface IOfficeClient
@@ -116,5 +119,32 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
         p.LastChatAt = now;
         p.LastActiveAt = now;
         await Clients.Group(Room).Chat(new ChatDto(p.UserId, p.Name, text, Instants.Format(now)));
+    }
+
+    /// <summary>
+    /// Chat trong phòng có tường đang đứng (phòng họp, phòng riêng): chỉ người đang ở trong phòng đó nhận.
+    /// Phòng do SERVER xác định theo vị trí (cùng quy tắc kênh voice) — client không chọn phòng được.
+    /// </summary>
+    public async Task SendRoomChat(string text)
+    {
+        if (!presence.TryGet(UserId, out var p)) return;
+        text = (text ?? "").Trim();
+        if (text.Length == 0) return;
+        if (text.Length > 200) text = text[..200];
+        var now = clock.GetUtcNow();
+        if (now - p.LastChatAt < TimeSpan.FromSeconds(1)) throw new HubException("Gửi chậm lại một chút");
+        var room = RoomOf(p);
+        if (room is null) throw new HubException("Bạn đang ở khu mở — vào một phòng có tường để chat riêng trong phòng");
+        p.LastChatAt = now;
+        p.LastActiveAt = now;
+        var targets = presence.All.Where(o => RoomOf(o)?.Id == room.Id).Select(o => o.ConnectionId).ToList();
+        await Clients.Clients(targets).Chat(new ChatDto(p.UserId, p.Name, text, Instants.Format(now), "room", room.Id, room.Name));
+    }
+
+    private Simulation.Room? RoomOf(Player p)
+    {
+        float x, z;
+        lock (p) { x = p.X; z = p.Z; }
+        return map.Rooms.FirstOrDefault(r => r.Walls && r.Contains(x, z));
     }
 }

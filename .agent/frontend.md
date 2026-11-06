@@ -55,3 +55,8 @@ Theo mẫu [shadcn-admin](https://github.com/satnaing/shadcn-admin) (MIT), chỉ
 - Theme sáng / tối / theo hệ thống: `context/theme-provider.tsx`, lưu localStorage `officehub:theme`; script nhỏ trong `index.html` áp class `dark` trước khi React tải (đổi key thì sửa cả hai chỗ). Font Inter (Google Fonts).
 - Màn đăng nhập / đặt mật khẩu: `features/auth/components/AuthShell` (logo + thẻ giữa trang).
 - Văn phòng 3D (`/office`) toàn màn hình, không nằm trong `MainLayout`.
+
+## PWA (cài như ứng dụng, không push)
+
+`public/manifest.webmanifest`, icon `public/icons/*` (sinh bằng `bun scripts/dev/make-icons.ts`), `public/sw.js` (tăng `VERSION` khi đổi chiến lược cache), `public/offline.html`. `src/pwa.ts`: `registerPwa()` chỉ đăng ký ở bản build (toast "Có bản mới" → "Tải lại" = skip-waiting), `usePwaInstall()` → mục "Cài ứng dụng" trong menu người dùng (iOS: hướng dẫn Chia sẻ → Thêm vào MH chính). Service worker **không bao giờ** cache `/api`, `/rt`, `/mcp`, `/livekit`, `/oauth`, `/.well-known`, `/health`; điều hướng khi mất mạng → `offline.html`; `/assets/*` cache-first (tên có hash). Mobile: gốc trang `grid grid-cols-1`, cột lưới dùng `minmax(0,1fr)`, bảng bọc `overflow-x-auto`, `TabsList` cuộn ngang.
+

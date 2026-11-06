@@ -19,11 +19,12 @@ import { useEmployees } from '@/features/employees';
 import { formatDate } from '@/utils/date';
 import { cn } from '@/utils/cn';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { useContracts, useDeleteContract, useMyContracts, useTerminateContract } from '../hooks/useContracts';
+import { useContracts, useCreateSignRequest, useDeleteContract, useMyContracts, useTerminateContract } from '../hooks/useContracts';
 import type { IContract } from '../types/contract.types';
 import { CONTRACT_TYPE, EXPIRING_DAYS, formatMoney } from '../utils/labels';
 import { ContractDetails, ContractStatusBadge } from './ContractDetails';
 import { ContractFormDialog } from './ContractFormDialog';
+import { PendingSignBanner, SignRequestList } from './SignPanel';
 import { GenerateFromTemplateDialog, TemplatesPanel } from './TemplatesPanel';
 
 type Filter = 'all' | 'active' | 'expiring' | 'ended';
@@ -76,6 +77,7 @@ function AllContracts() {
   const { data: rows = [], isLoading } = useContracts();
   const { data: employees = [] } = useEmployees({});
   const remove = useDeleteContract();
+  const sendSign = useCreateSignRequest();
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
   const [viewing, setViewing] = useState<string | null>(null);
@@ -144,6 +146,9 @@ function AllContracts() {
                       <DropdownMenuItem onSelect={() => setViewing(c.id)}>Xem chi tiết</DropdownMenuItem>
                       <DropdownMenuItem onSelect={() => setEditing(c)}>Sửa</DropdownMenuItem>
                       <DropdownMenuItem onSelect={() => setGenerating(c)}>Xuất từ mẫu…</DropdownMenuItem>
+                      <DropdownMenuItem disabled={!c.file?.name.toLowerCase().endsWith('.pdf')} onSelect={() => confirm(`Gửi ${c.employee.fullName} ký điện tử hợp đồng ${c.number}? Nhân viên nhận thông báo, xác thực bằng OTP email.`) &&
+                        sendSign.mutate(c.id, { onSuccess: () => toast.success('Đã gửi yêu cầu ký'), onError: (e) => toast.error(errorMessage(e)) })}>
+                        Gửi ký điện tử{!c.file?.name.toLowerCase().endsWith('.pdf') && ' (cần file PDF)'}</DropdownMenuItem>
                       {!c.terminatedOn && c.status !== 'Expired' && <DropdownMenuItem onSelect={() => setTerminating(c)}>Chấm dứt…</DropdownMenuItem>}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem variant="destructive" onSelect={() => confirm(`Xoá hợp đồng ${c.number}? Chỉ dùng khi nhập nhầm.`) &&
@@ -160,6 +165,7 @@ function AllContracts() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader><DialogTitle>Hợp đồng {current?.number}</DialogTitle></DialogHeader>
           {current && <ContractDetails contract={current} canEdit />}
+          {current && <SignRequestList contractId={current.id} isHr />}
           <DialogFooter>
             {current && <Button variant="outline" onClick={() => { setEditing(current); setViewing(null); }}>Sửa hợp đồng</Button>}
           </DialogFooter>
@@ -188,6 +194,7 @@ function MyContracts() {
             <ContractStatusBadge c={c} />
           </div>
           <ContractDetails contract={c} canEdit={false} />
+          <SignRequestList contractId={c.id} isHr={false} />
         </Card>
       ))}
     </div>
@@ -201,6 +208,7 @@ export function ContractsPage() {
     <div className="space-y-6">
       <PageHeader title="Hợp đồng lao động"
         description={isHr ? 'Hợp đồng, phụ lục và file scan của nhân viên. Hệ thống nhắc HR và quản lý 30 và 7 ngày trước khi hết hạn.' : 'Hợp đồng lao động và phụ lục của bạn.'} />
+      <PendingSignBanner />
       {isHr ? (
         <Tabs defaultValue="all">
           <TabsList><TabsTrigger value="all">Tất cả hợp đồng</TabsTrigger><TabsTrigger value="templates">Mẫu hợp đồng</TabsTrigger><TabsTrigger value="my">Của tôi</TabsTrigger></TabsList>

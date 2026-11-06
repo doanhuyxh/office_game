@@ -105,12 +105,15 @@ internal sealed class WorkCalendar(AttendanceDbContext db) : IWorkCalendar
         return result;
     }
 
-    public async Task<int> StandardDaysAsync(Guid employeeId, DateOnly from, DateOnly to, CancellationToken ct = default)
+    public async Task<int> StandardDaysAsync(Guid employeeId, DateOnly from, DateOnly to, CancellationToken ct = default) =>
+        (await ScheduledDatesAsync(employeeId, from, to, ct)).Count;
+
+    public async Task<IReadOnlyList<DateOnly>> ScheduledDatesAsync(Guid employeeId, DateOnly from, DateOnly to, CancellationToken ct = default)
     {
         var schedules = await db.Schedules.AsNoTracking().Where(s => s.EmployeeId == null || s.EmployeeId == employeeId).ToListAsync(ct);
-        var n = 0;
+        var result = new List<DateOnly>();
         for (var d = from; d <= to; d = d.AddDays(1))
-            if (AttendanceService.ShiftIdForDate(schedules, employeeId, d) is not null) n++;
-        return n;
+            if (AttendanceService.ShiftIdForDate(schedules, employeeId, d) is not null) result.Add(d);
+        return result;
     }
 }

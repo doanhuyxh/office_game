@@ -4,6 +4,7 @@ import { buildPrefab, chair, type Part } from './furniture';
 import type { MapObject, OfficeMapV2, Rect } from './mapTypes';
 import { wallRect, wallSegments } from './navGrid';
 import { FACING_ANGLE } from './officeMap';
+import { placeModel, type FurnitureModels } from './models';
 import { P } from './palette';
 
 /** Tường thấp (cắt ngang) để camera chéo nhìn được vào phòng; vách kính cao hơn vì trong suốt. */
@@ -105,8 +106,11 @@ function chairAngle(o: MapObject, all: MapObject[]) {
   return best ? Math.atan2(best.x - o.x, best.z - o.z) : 0;
 }
 
-/** Dựng phần tĩnh của văn phòng (sàn, tường, đồ đạc, chữ). Trả về group để add vào scene. */
-export function buildWorld(map: OfficeMapV2): THREE.Group {
+/**
+ * Dựng phần tĩnh của văn phòng (sàn, tường, đồ đạc, chữ). Trả về group để add vào scene.
+ * `models` (tuỳ chọn): prefab có model GLB thì dùng model, còn lại khối dựng tay.
+ */
+export function buildWorld(map: OfficeMapV2, models: FurnitureModels = new Map()): THREE.Group {
   const root = new THREE.Group();
   const f = map.floor;
 
@@ -147,9 +151,15 @@ export function buildWorld(map: OfficeMapV2): THREE.Group {
   const furniture = new Batch();
   for (const o of map.objects) {
     const rot = o.prefab === 'chair' ? chairAngle(o, map.objects) : (o.rot * Math.PI) / 180;
-    furniture.add(buildPrefab(o.prefab, o.w, o.d), o.x, o.z, rot);
+    const model = models.get(o.prefab);
+    if (model) root.add(placeModel(model, o.w, o.d, o.x, o.z, rot));
+    else furniture.add(buildPrefab(o.prefab, o.w, o.d), o.x, o.z, rot);
   }
-  for (const s of map.seats) furniture.add(chair(P.dark), s.x, s.z, FACING_ANGLE[s.facing]);
+  const chairModel = models.get('chair');
+  for (const s of map.seats) {
+    if (chairModel) root.add(placeModel(chairModel, 0.5, 0.5, s.x, s.z, FACING_ANGLE[s.facing]));
+    else furniture.add(chair(P.dark), s.x, s.z, FACING_ANGLE[s.facing]);
+  }
   furniture.build(root);
 
   // Logo sảnh (mặt nam tấm vách)

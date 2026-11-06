@@ -61,4 +61,4 @@ File lưu `contracts/{employeeId}/{contractId}[/amendments/{aid}]/{uuid}.{ext}` 
 - Endpoint mẫu (HR): `GET/POST /api/contracts/templates`, `GET /templates/{id}/file` (link tải mẫu gốc), `DELETE /templates/{id}`. FE: tab "Mẫu hợp đồng" + menu ⋯ "Xuất từ mẫu…".
 - `ISalaryLookup` (project `OfficeHub.Modules.LaborContracts.Contracts`): lương hiệu lực tại ngày D cho Reporting ([reports.md](reports.md)).
 
-**Chưa có:** ký điện tử, lịch sử sửa (audit), nhắc hợp đồng thử việc chuyển chính thức.
+**Ký điện tử** (nội bộ + OTP email): [contracts-esign.md](contracts-esign.md). Lịch sử sửa: [audit.md](audit.md). **Chưa có:** nhắc hợp đồng thử việc chuyển chính thức.

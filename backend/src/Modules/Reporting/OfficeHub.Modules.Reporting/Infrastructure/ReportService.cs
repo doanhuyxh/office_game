@@ -7,7 +7,7 @@ using OfficeHub.Modules.Attendance.Contracts;
 using OfficeHub.Modules.LaborContracts.Contracts;
 using OfficeHub.Modules.Leave.Contracts;
 using OfficeHub.Modules.Organization.Contracts;
-using OfficeHub.Modules.Reporting.Domain;
+using OfficeHub.Modules.Payroll.Contracts;
 
 namespace OfficeHub.Modules.Reporting.Infrastructure;
 

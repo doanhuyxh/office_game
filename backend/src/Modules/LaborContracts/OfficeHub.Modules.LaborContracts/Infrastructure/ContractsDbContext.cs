@@ -11,6 +11,7 @@ public sealed class ContractsDbContext(DbContextOptions<ContractsDbContext> opti
     public DbSet<LaborContract> Contracts => Set<LaborContract>();
     public DbSet<ContractAmendment> Amendments => Set<ContractAmendment>();
     public DbSet<ContractTemplate> Templates => Set<ContractTemplate>();
+    public DbSet<SignRequest> SignRequests => Set<SignRequest>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -43,6 +44,22 @@ public sealed class ContractsDbContext(DbContextOptions<ContractsDbContext> opti
             e.OwnsOne(x => x.File, File);
             e.Navigation(x => x.File).IsRequired();
             e.HasIndex(x => new { x.ContractId, x.EffectiveDate });
+        });
+        b.Entity<SignRequest>(e =>
+        {
+            e.ToTable("sign_requests");
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(10);
+            e.Property(x => x.OriginalFileKey).HasMaxLength(300);
+            e.Property(x => x.SignedFileKey).HasMaxLength(300);
+            e.Property(x => x.SignatureImageKey).HasMaxLength(300);
+            e.Property(x => x.OriginalSha256).HasMaxLength(64);
+            e.Property(x => x.SignedSha256).HasMaxLength(64);
+            e.Property(x => x.OtpHash).HasMaxLength(64);
+            e.Property(x => x.CreatedByName).HasMaxLength(200);
+            e.Property(x => x.SignerIp).HasMaxLength(64);
+            e.Property(x => x.SignerUserAgent).HasMaxLength(512);
+            e.HasIndex(x => x.ContractId);
+            e.HasIndex(x => new { x.SignerUserId, x.Status });
         });
         b.Entity<ContractTemplate>(e =>
         {

@@ -1,5 +1,5 @@
 using OfficeHub.Modules.Attendance.Contracts;
-using OfficeHub.Modules.Reporting.Domain;
+using OfficeHub.Modules.Payroll.Contracts;
 using OfficeHub.Modules.Reporting.Infrastructure;
 
 namespace OfficeHub.Modules.Reporting.Tests;

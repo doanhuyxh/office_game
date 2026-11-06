@@ -71,7 +71,7 @@ export function AuditPage() {
   const rows = changes.data?.pages.flat() ?? [];
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <PageHeader title="Lịch sử thay đổi" description="Mọi lần thêm / sửa / xoá hồ sơ nhân viên, phòng ban, hợp đồng, ca làm, ngày lễ, quỹ phép, tài khoản và vai trò." />
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-56"><SelectField id="au-entity" label="Loại dữ liệu" value={entity} onChange={setEntity} options={ENTITY_OPTIONS} allowEmpty emptyLabel="— Tất cả —" /></div>

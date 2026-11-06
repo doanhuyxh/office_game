@@ -14,6 +14,11 @@ import type { Seat } from '../engine/mapTypes';
 import { Minimap } from './Minimap';
 import { VOICE_INITIAL, VoiceClient, type VoiceView } from '../api/voiceClient';
 import { ScreenView, VoicePanel } from './VoicePanel';
+import { Joystick } from './Joystick';
+import type { VoiceChannelInfo } from '../engine/voiceChannel';
+
+/** Màn hình cảm ứng (điện thoại / máy tính bảng): hiện joystick, nút zoom, chat thu gọn. */
+const IS_TOUCH = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 import './office.css';
 
 /** Văn phòng 3D. Route /_protected/office đã kiểm tra đăng nhập trước khi tải trang này. */
@@ -38,6 +43,11 @@ export function OfficeView() {
     }
   }, [scene, roomsNow.data]);
   const [help, setHelp] = useState(true);
+  // Chat: kênh toàn văn phòng + kênh phòng có tường đang đứng (đổi tự động theo vị trí)
+  const [roomCh, setRoomCh] = useState<VoiceChannelInfo | null>(null);
+  const [chatTab, setChatTab] = useState<'office' | 'room'>('office');
+  const [chatOpen, setChatOpen] = useState(!IS_TOUCH);
+  const tab = roomCh ? chatTab : 'office';
   const [voice, setVoice] = useState<VoiceClient | null>(null);
   const [voiceView, setVoiceView] = useState<VoiceView>(VOICE_INITIAL);
   const { data: today, noProfile } = useToday();
@@ -55,7 +65,11 @@ export function OfficeView() {
   const doCheckRef = useRef(doCheck);
   doCheckRef.current = doCheck;
 
-  // Phím E: gần máy chấm công → chấm công; không thì ngồi / đứng ở ghế gần nhất
+  // Phím E (hoặc chạm vào khung gợi ý trên điện thoại): gần máy chấm công → chấm công; không thì ngồi / đứng ở ghế gần nhất
+  const doAction = () => {
+    if (nearAction === 'attendance.checkin' && !seatInfo?.sitting) doCheckRef.current();
+    else scene?.toggleSit();
+  };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() !== 'e' || e.repeat || (e.target as HTMLElement)?.tagName === 'INPUT') return;
@@ -135,7 +149,7 @@ export function OfficeView() {
     scene.onNearAction = setNearAction;
     scene.onSeat = setSeatInfo;
     scene.onHint = (t) => toast.info(t);
-    scene.onVoiceChannel = (ch) => voice.setChannel(ch);
+    scene.onVoiceChannel = (ch) => { voice.setChannel(ch); setRoomCh(ch.id === 'open' ? null : ch); };
     setScene(scene);
     setVoice(voice);
     if (import.meta.env.DEV) Object.assign(window, { __officeScene: scene, __officeVoice: voice }); // chỉ để test e2e khi dev
@@ -158,7 +172,8 @@ export function OfficeView() {
     const t = text.trim();
     if (!t) return;
     setText('');
-    await connRef.current?.chat(t).catch(() => {});
+    const c = connRef.current;
+    await (tab === 'room' ? c?.roomChat(t) : c?.chat(t))?.catch((err: unknown) => toast.error(errorMessage(err)));
   };
 
   return (
@@ -174,35 +189,65 @@ export function OfficeView() {
           <span className={`dot ${conn}`} /> {conn === 'online' ? `${online} người online` : STATUS[conn]}
         </div>
         {zone && <div className="card zone">{zone}</div>}
-        <form className="chat" onSubmit={send}>
-          <div className="log">
-            {chat.map((l, i) => (
-              <div key={i}><b>{l.name}:</b> {l.text}</div>
-            ))}
-          </div>
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Nhập tin nhắn, Enter để gửi" maxLength={200} />
-        </form>
+        {chatOpen ? (
+          <form className="chat" onSubmit={send} data-testid="office-chat">
+            <div className="tabs">
+              <button type="button" className={tab === 'office' ? 'on' : ''} onClick={() => setChatTab('office')}>Toàn văn phòng</button>
+              {roomCh && (
+                <button type="button" className={tab === 'room' ? 'on' : ''} onClick={() => setChatTab('room')} data-testid="office-chat-room-tab">
+                  🔒 {roomCh.name}
+                  {tab !== 'room' && chat.some((l) => l.channel === 'room' && l.roomId === roomCh.id) && <span className="dot-new" />}
+                </button>
+              )}
+              {IS_TOUCH && <button type="button" className="close" onClick={() => setChatOpen(false)} aria-label="Thu gọn chat">✕</button>}
+            </div>
+            <div className="log">
+              {chat.filter((l) => (tab === 'room' ? l.channel === 'room' && l.roomId === roomCh?.id : l.channel !== 'room')).map((l, i) => (
+                <div key={i}><b>{l.name}:</b> {l.text}</div>
+              ))}
+            </div>
+            <input value={text} onChange={(e) => setText(e.target.value)} maxLength={200}
+              placeholder={tab === 'room' ? `Chỉ người trong ${roomCh?.name} thấy…` : 'Nhập tin nhắn, Enter để gửi'} />
+          </form>
+        ) : (
+          <button type="button" className="card chat-toggle" onClick={() => setChatOpen(true)} aria-label="Mở chat">💬</button>
+        )}
+        {IS_TOUCH && <Joystick onChange={(x, y) => scene?.setStick(x, y)} />}
         {nearAction === 'attendance.checkin' && !seatInfo?.sitting ? (
-          <div className="card prompt">Máy chấm công · bấm <kbd>E</kbd> để {today?.checkedIn ? 'chấm công ra' : 'chấm công vào'}</div>
+          <button type="button" className="card prompt" onClick={doAction}>Máy chấm công · {IS_TOUCH ? 'chạm' : <>bấm <kbd>E</kbd></>} để {today?.checkedIn ? 'chấm công ra' : 'chấm công vào'}</button>
         ) : seatInfo && (
-          <div className="card prompt" data-testid="office-seat-prompt">
-            {seatInfo.sitting ? <>Đang ngồi ở bàn <b>{seatInfo.seat.id}</b> · <kbd>E</kbd> hoặc di chuyển để đứng dậy</> : <>Bàn <b>{seatInfo.seat.id}</b> · bấm <kbd>E</kbd> để ngồi</>}
-          </div>
+          <button type="button" className="card prompt" data-testid="office-seat-prompt" onClick={doAction}>
+            {seatInfo.sitting
+              ? <>Đang ngồi ở bàn <b>{seatInfo.seat.id}</b> · {IS_TOUCH ? 'chạm' : <kbd>E</kbd>} hoặc di chuyển để đứng dậy</>
+              : <>Bàn <b>{seatInfo.seat.id}</b> · {IS_TOUCH ? 'chạm' : <>bấm <kbd>E</kbd></>} để ngồi</>}
+          </button>
         )}
         <Minimap scene={scene} />
         <div className="card camera">
           <button type="button" onClick={() => scene?.rotateCamera(-1)} title="Xoay trái (Q)">⟲</button>
           <button type="button" onClick={() => scene?.rotateCamera(1)} title="Xoay phải (R)">⟳</button>
+          {IS_TOUCH && <>
+            <button type="button" onClick={() => scene?.zoom(-1)} title="Phóng to">＋</button>
+            <button type="button" onClick={() => scene?.zoom(1)} title="Thu nhỏ">－</button>
+          </>}
           <button type="button" onClick={() => setHelp((h) => !h)} title="Hướng dẫn">?</button>
         </div>
         {help && (
           <div className="card help" data-testid="office-help">
             <b>Điều khiển</b>
-            <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / mũi tên · đi</span>
-            <span>Bấm chuột lên sàn / bản đồ nhỏ · tự đi tới</span>
-            <span><kbd>E</kbd> · ngồi / đứng, chấm công ở máy</span>
-            <span><kbd>Q</kbd> <kbd>R</kbd> · xoay góc nhìn · cuộn chuột · zoom</span>
-            <span><kbd>M</kbd> · bật / tắt micro (voice tự kết nối, micro mặc định tắt)</span>
+            {IS_TOUCH ? <>
+              <span>Kéo joystick góc dưới trái · đi</span>
+              <span>Chạm lên sàn / bản đồ nhỏ · tự đi tới</span>
+              <span>Chạm khung gợi ý · ngồi / đứng, chấm công ở máy</span>
+              <span>⟲ ⟳ xoay góc nhìn · ＋ － zoom · 💬 chat</span>
+            </> : <>
+              <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / mũi tên · đi</span>
+              <span>Bấm chuột lên sàn / bản đồ nhỏ · tự đi tới</span>
+              <span><kbd>E</kbd> · ngồi / đứng, chấm công ở máy</span>
+              <span><kbd>Q</kbd> <kbd>R</kbd> · xoay góc nhìn · cuộn chuột · zoom</span>
+              <span><kbd>M</kbd> · bật / tắt micro (voice tự kết nối, micro mặc định tắt)</span>
+            </>}
+            <span>Vào phòng có tường (phòng họp…) → chat có thêm tab riêng của phòng</span>
             <button type="button" onClick={() => setHelp(false)}>Đã hiểu</button>
           </div>
         )}

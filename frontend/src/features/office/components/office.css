@@ -50,3 +50,29 @@
 .office-root .screen.big { top: 12px; width: min(1100px, calc(100vw - 24px)); z-index: 5; cursor: zoom-out; }
 .office-root .screen video { width: 100%; border-radius: 8px; background: #000; aspect-ratio: 16 / 9; object-fit: contain; }
 .office-root .screen small { color: #cbd5e1; font-size: 12px; }
+
+/* Chat: tab toàn văn phòng / phòng đang đứng */
+.office-root .chat .tabs { display: flex; gap: 4px; margin-bottom: 6px; }
+.office-root .chat .tabs button { position: relative; border: 0; border-radius: 8px; padding: 4px 10px; font: 600 12px system-ui; color: inherit;
+  background: rgba(15, 23, 42, .6); cursor: pointer; }
+.office-root .chat .tabs button.on { background: #2563eb; color: #fff; }
+.office-root .chat .tabs .close { margin-left: auto; }
+.office-root .chat .dot-new { position: absolute; top: 2px; right: 2px; width: 7px; height: 7px; border-radius: 50%; background: #f97316; }
+.office-root .chat-toggle { left: 12px; bottom: 150px; font-size: 20px; padding: 8px 12px; cursor: pointer; }
+.office-root button.prompt { color: inherit; font: inherit; font-weight: 600; cursor: pointer; }
+
+/* Joystick cảm ứng */
+.office-root .joystick { position: absolute; left: 20px; bottom: 24px; width: 120px; height: 120px; border-radius: 50%; touch-action: none;
+  background: rgba(15, 23, 42, .35); border: 2px solid rgba(148, 163, 184, .35); display: grid; place-items: center; pointer-events: auto; }
+.office-root .joystick .knob { width: 52px; height: 52px; border-radius: 50%; background: rgba(59, 130, 246, .85); box-shadow: 0 2px 10px rgba(0, 0, 0, .35); }
+
+/* Điện thoại: thu gọn HUD để chừa chỗ cho cảnh 3D */
+@media (max-width: 640px) {
+  .office-root .minimap { width: 132px; top: 52px; }
+  .office-root .camera { top: auto; bottom: 156px; right: 12px; }
+  .office-root .chat { bottom: 156px; width: calc(100vw - 24px); }
+  .office-root .chat .log { max-height: 110px; }
+  .office-root .zone { display: none; }
+  .office-root .prompt { bottom: 160px; max-width: calc(100vw - 32px); }
+  .office-root .help { left: 12px; right: 12px; width: auto; }
+}

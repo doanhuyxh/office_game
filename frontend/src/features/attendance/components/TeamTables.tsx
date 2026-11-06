@@ -20,7 +20,7 @@ export function BoardTable() {
       <p className="text-sm text-muted-foreground">
         Đang làm <b>{count('Working')}</b> · Đã xong <b>{count('Present')}</b> · Chưa chấm <b>{count('NotYet')}</b> · Nghỉ phép <b>{count('Leave')}</b> · Vắng <b>{count('Absent')}</b>
       </p>
-      <div className="rounded-xl border bg-card">
+      <div className="overflow-x-auto rounded-xl border bg-card">
         <Table>
           <TableHeader>
             <TableRow><TableHead>Nhân viên</TableHead><TableHead>Phòng ban</TableHead><TableHead>Vào</TableHead><TableHead>Ra</TableHead>
@@ -55,7 +55,7 @@ export function ReportTable({ month }: { month: string }) {
   const detail = useEmployeeMonth(selected?.id ?? null, month);
   return (
     <>
-      <div className="rounded-xl border bg-card">
+      <div className="overflow-x-auto rounded-xl border bg-card">
         <Table>
           <TableHeader>
             <TableRow><TableHead>Nhân viên</TableHead><TableHead className="text-right">Ngày công</TableHead><TableHead className="text-right">Giờ làm</TableHead>

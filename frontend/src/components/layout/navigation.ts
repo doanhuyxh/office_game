@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Bot, Building2, CalendarClock, CheckSquare, Clock, FileText, History, LayoutDashboard, Palmtree, Users } from 'lucide-react';
+import { BarChart3, Bot, Building2, CalendarClock, CheckSquare, Clock, FileText, History, Landmark, LayoutDashboard, Palmtree, Users, Wallet } from 'lucide-react';
 import { PATHS } from '@/config/paths';
 import { ROLE, type Role } from '@/config/roles';
 
@@ -36,6 +36,7 @@ export const NAVIGATION: NavGroup[] = [
       { to: PATHS.leave, label: 'Nghỉ phép', icon: Palmtree },
       { to: PATHS.approvals, label: 'Phê duyệt', icon: CheckSquare },
       { to: PATHS.meetings, label: 'Phòng họp', icon: CalendarClock },
+      { to: PATHS.payslips, label: 'Phiếu lương', icon: Wallet },
     ],
   },
   {
@@ -43,6 +44,7 @@ export const NAVIGATION: NavGroup[] = [
     items: [
       { to: PATHS.employees, label: 'Nhân viên', icon: Users },
       { to: PATHS.contracts, label: 'Hợp đồng', icon: FileText }, // HR: tất cả; nhân viên: của mình (quyền kiểm tra ở back-end)
+      { to: PATHS.payroll, label: 'Bảng lương', icon: Landmark, roles: [ROLE.admin, ROLE.hr] },
       { to: PATHS.reports, label: 'Báo cáo', icon: BarChart3, roles: [ROLE.admin, ROLE.hr] },
       { to: PATHS.audit, label: 'Lịch sử thay đổi', icon: History, roles: [ROLE.admin, ROLE.hr] },
     ],

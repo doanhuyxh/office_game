@@ -68,7 +68,7 @@ export function MeetingsPage() {
   };
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <PageHeader title="Phòng họp" description="Đặt phòng họp, mời đồng nghiệp. Phòng đang có lịch hiện “Đang họp” trong văn phòng 3D."
         actions={<Button onClick={() => setDraft({ date })}><Plus className="size-4" /> Đặt phòng</Button>} />
 

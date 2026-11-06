@@ -29,7 +29,7 @@ function MyTab() {
   const { data: corrections = [] } = useMyCorrections(month);
   const [correcting, setCorrecting] = useState<IDay | null>(null);
   return (
-    <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
       <CheckInCard className="h-fit" />
       {!noProfile && (
         <div className="space-y-3">

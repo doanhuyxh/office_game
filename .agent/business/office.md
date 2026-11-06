@@ -21,11 +21,11 @@ Mặt bằng 24 × 16 m do Claude đề xuất, chủ dự án duyệt 2026-11-0
 | server → client | `Welcome` | `{ selfId, mapName, players[] }` |
 | | `PlayerJoined` / `PlayerLeft` | `PlayerDto { id, name, x, z, r, anim }` / `id` |
 | | `Positions` | `PositionDto[]` — chỉ người đã đổi, phát mỗi 100ms (`Simulation/OfficeLoop.cs`) |
-| | `Chat` | `{ id, name, text, at }` |
+| | `Chat` | `{ id, name, text, at, channel: "office"\|"room", roomId?, roomName? }` |
 | | `Teleport` | `(x, z)` — kéo về vị trí hợp lệ |
 | | `Kicked` | `reason` |
 | client → server | `Move(x, z, r, anim)` | |
-| | `SendChat(text)` | |
+| | `SendChat(text)` / `SendRoomChat(text)` | toàn văn phòng / chỉ phòng có tường đang đứng |
 
 Quy tắc server:
 
@@ -36,6 +36,7 @@ Quy tắc server:
 | Cùng tài khoản kết nối lần 2 | kết nối cũ nhận `Kicked("Tài khoản vừa đăng nhập ở nơi khác")`, bị `Abort` sau 500ms |
 | `Move` tới ô bị chặn (ngoài sàn, tường, đồ vật — `OfficeMap.CanStand`; đúng toạ độ ghế ±0,05 thì cho phép) hoặc quãng đường > `7·dt + 2.5` | không cập nhật, gửi `Teleport` về vị trí cũ |
 | `SendChat` | trim, rỗng → bỏ; cắt 200 ký tự; < 1 giây từ lần trước → `HubException("Gửi chậm lại một chút")` |
+| `SendRoomChat` | cùng giới hạn như `SendChat`; server tự xác định phòng theo vị trí (`RoomOf`), đứng ở khu mở → `HubException`; chỉ gửi cho người đang ở trong phòng đó lúc gửi |
 | Ngắt kết nối | `Presence.Remove(userId, connectionId)` chỉ xoá nếu đúng kết nối hiện tại, rồi gửi `PlayerLeft` |
 
 ### Kiểm tra phiên (`Auth/SessionValidator.cs`, `Auth/SessionWatch.cs`)

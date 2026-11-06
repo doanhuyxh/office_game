@@ -1,4 +1,4 @@
-namespace OfficeHub.Modules.Reporting.Domain;
+namespace OfficeHub.Modules.Payroll.Contracts;
 
 /// <summary>
 /// Quy ra tiền (chủ dự án chốt 2026-11-06) — hàm thuần, test ở tests/OfficeHub.Modules.Reporting.Tests.

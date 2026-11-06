@@ -23,7 +23,7 @@ internal sealed class SalaryLookup(ContractsDbContext db, IFieldEncryptor enc) :
                 c.Amendments.Select(a => (a.EffectiveDate, enc.DecryptDecimal(a.SalaryEncrypted))), date);
             var allowance = ContractRules.EffectiveValue(enc.DecryptDecimal(c.AllowanceEncrypted),
                 c.Amendments.Select(a => (a.EffectiveDate, enc.DecryptDecimal(a.AllowanceEncrypted))), date);
-            result[c.EmployeeId] = new SalaryInfo(c.EmployeeId, c.Id, c.Number, salary, allowance);
+            result[c.EmployeeId] = new SalaryInfo(c.EmployeeId, c.Id, c.Number, salary, allowance, c.Type.ToString());
         }
         return result;
     }

@@ -37,4 +37,9 @@ public static class NotificationCategories
     public const string MeetingCancelled = "meeting_cancelled";
     /// <summary>Nhắc chấm công ra / gửi giải trình khi quên chấm ra (module Attendance).</summary>
     public const string AttendanceReminder = "attendance_reminder";
+    /// <summary>Phiếu lương kỳ mới đã chốt (module Payroll).</summary>
+    public const string PayslipReady = "payslip_ready";
+    /// <summary>Hợp đồng chờ nhân viên ký điện tử / nhân viên đã ký (module LaborContracts).</summary>
+    public const string ContractSignRequested = "contract_sign_requested";
+    public const string ContractSigned = "contract_signed";
 }

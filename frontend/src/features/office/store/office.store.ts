@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { IMe } from '@/features/auth';
 
 export type ConnState = 'connecting' | 'online' | 'reconnecting' | 'offline' | 'kicked';
-export interface ChatLine { id: string; name: string; text: string; at: string }
+export interface ChatLine { id: string; name: string; text: string; at: string; channel?: 'office' | 'room'; roomId?: string | null; roomName?: string | null }
 
 /** Store dùng chung giữa React (HUD) và engine Three.js (đọc/ghi ngoài React bằng useOffice.getState()). */
 interface OfficeState {

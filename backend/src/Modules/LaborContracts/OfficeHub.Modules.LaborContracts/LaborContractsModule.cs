@@ -31,6 +31,7 @@ public sealed class LaborContractsModule : IModule
     {
         var g = api.MapGroup("/contracts").WithTags("LaborContracts").RequireAuthorization();
         TemplateEndpoints.Map(g); // trước ContractEndpoints: /templates không bị hiểu nhầm là /{id}
+        SignEndpoints.Map(g);
         ContractEndpoints.Map(g);
     }
 }

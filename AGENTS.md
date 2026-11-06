@@ -10,6 +10,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 |---|---|
 | **Đầu phiên**: tiến độ, việc tiếp theo, dữ liệu / tài khoản thử, bẫy đã gặp | [.agent/progress.md](.agent/progress.md) |
 | Chạy dev, build, test, migration, CI, deploy · biến `.env` | [.agent/commands.md](.agent/commands.md) · [.agent/env.md](.agent/env.md) |
+| Script e2e, test trên DB tạm (+ Mailpit đọc email) | [.agent/e2e.md](.agent/e2e.md) |
 | Viết code đúng chuẩn: module BE, validation, đặt tên | [.agent/conventions.md](.agent/conventions.md) |
 | Front-end: feature, shadcn/ui, theme sáng/tối, layout sidebar/header | [.agent/frontend.md](.agent/frontend.md) |
 | Luồng request, cookie Api ↔ Realtime, cache | [.agent/architecture.md](.agent/architecture.md) |
@@ -24,6 +25,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Thông báo (chuông in-app, email, hàng đợi gửi) | [.agent/business/notifications.md](.agent/business/notifications.md) |
 | Hợp đồng lao động, phụ lục, lương mã hoá, file S3, nhắc hết hạn, mẫu hợp đồng Word | [.agent/business/contracts.md](.agent/business/contracts.md) |
 | Báo cáo + Excel, quy ra tiền tăng ca / phép năm | [.agent/business/reports.md](.agent/business/reports.md) |
+| Bảng lương (BH, thuế TNCN, kỳ, phiếu) · ký hợp đồng điện tử (OTP email) | [.agent/business/payroll.md](.agent/business/payroll.md) · [.agent/business/contracts-esign.md](.agent/business/contracts-esign.md) |
 | Đặt phòng họp | [.agent/business/meetings.md](.agent/business/meetings.md) |
 | Lịch sử sửa dữ liệu (`[Audited]`) · nhập nhân viên từ Excel | [.agent/business/audit.md](.agent/business/audit.md) · [.agent/business/employee-import.md](.agent/business/employee-import.md) |
 | Luồng duyệt, thêm loại đơn | [.agent/business/approval.md](.agent/business/approval.md) |

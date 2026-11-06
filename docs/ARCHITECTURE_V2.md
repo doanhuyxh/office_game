@@ -227,12 +227,13 @@ Modules/<M>/OfficeHub.Modules.<M>/
 | `Organization` | `/api/org` | `org` | ✅ | Phòng ban, chức vụ, nhân viên, cấp tài khoản cho nhân viên |
 | `Attendance` | `/api/attendance` | `attendance` | ✅ | Chấm công, ca làm, lịch tuần, ngày lễ, bảng công, giải trình, tăng ca · ⏳ webhook máy |
 | `Leave` | `/api/leave` | `leave` | ✅ | Loại phép, quỹ phép năm, đơn nghỉ, điều chỉnh của HR |
-| `LaborContracts` | `/api/contracts` | `contracts` | ✅ | Hợp đồng, phụ lục, lương mã hoá, file S3, nhắc hết hạn · ⏳ mẫu hợp đồng, ký điện tử |
+| `LaborContracts` | `/api/contracts` | `contracts` | ✅ | Hợp đồng, phụ lục, lương mã hoá, file S3, nhắc hết hạn, mẫu Word, ký điện tử (OTP email) |
 | `Approval` | `/api/approval` | `approval` | ✅ | Luồng duyệt dùng chung (nghỉ phép, giải trình, tăng ca) |
 | `Notification` | `/api/notifications` | `notifications` | ✅ | Chuông in-app, email gửi nền (hàng đợi trong DB) |
 | `Reporting` | `/api/reports` | (không có — đọc qua `*.Contracts`) | ✅ | Excel bảng công, tiền tăng ca, tiền phép khi nghỉ việc |
 | `Meetings` | `/api/meetings` | `meetings` | ✅ | Đặt phòng họp |
 | `Audit` | `/api/audit` | `audit` | ✅ | Nhật ký AI, lịch sử thay đổi dữ liệu nhân sự |
+| `Payroll` | `/api/payroll` | `payroll` | ✅ | Bảng lương theo luật VN (BH, thuế TNCN, giảm trừ), kỳ lương, phiếu lương mã hoá |
 
 Module khung hiện chỉ có `GET /api/<route>/_status` (cần đăng nhập).
 
@@ -784,9 +785,9 @@ Trước đó (tới 2026-11-05) dùng bucket chung `finsplit` + IAM user `finsp
 | **Thông báo** ✅ | Chuông in-app + email cho luồng duyệt | Người duyệt biết ngay có đơn |
 | **Kết nối AI** ✅ | MCP (34 tool), token cá nhân + OAuth 2.1, nhật ký AI, HR thu hồi, giới hạn tần suất | Nhân viên làm việc với hệ thống qua trợ lý AI |
 | **Nhân sự hằng ngày** ✅ | Nhắc quên chấm ra; Audit lịch sử sửa; nhập nhân viên từ Excel | Đủ quy trình nhân sự hằng ngày |
-| **Văn phòng 3D** — giai đoạn 1 ✅ · 2 bỏ · 3 ✅ (voice) · 4 ⏳ | Engine mới, mặt bằng v2, va chạm, ngồi, bản đồ nhỏ ✅. Bỏ (chủ dự án): gán chỗ ngồi, trạng thái "Nghỉ phép" / vắng trên avatar. Voice theo khoảng cách / phòng họp ✅. Còn: chat theo phòng, model GLB, mobile | Văn phòng 3D giống thật |
+| **Văn phòng 3D** — giai đoạn 1 ✅ · 2 bỏ · 3 ✅ (voice) · 4 ✅ | Engine mới, mặt bằng v2, va chạm, ngồi, bản đồ nhỏ ✅. Bỏ (chủ dự án): gán chỗ ngồi, trạng thái "Nghỉ phép" / vắng trên avatar. Voice theo khoảng cách / phòng họp ✅. Chat theo phòng, hạ tầng model GLB (chờ bộ Kenney), joystick / zoom cảm ứng ✅ | Văn phòng 3D giống thật |
 | **Hợp đồng lao động** ✅ | Hợp đồng, phụ lục, lương mã hoá, file S3, nhắc 30 / 7 ngày | HR quản lý hợp đồng trên hệ thống |
 | **2. Hoàn thiện** ✅ | Bảng công tháng + Excel, mẫu hợp đồng, quy ra tiền tăng ca + phép (khi nghỉ việc), voice + đặt phòng họp | Bỏ quy trình giấy/Excel |
-| **3. Mở rộng** ⏳ | Webhook máy chấm công, PWA/mobile, ký điện tử, tích hợp lương | Tuỳ nhu cầu |
+| **3. Mở rộng** ✅ (trừ máy chấm công) | PWA/mobile ✅ (không push), ký điện tử nội bộ + OTP ✅, bảng lương ✅ · webhook máy chấm công: chủ dự án chưa làm | Tuỳ nhu cầu |
 
-**Bước tiếp theo** (chủ dự án chọn): deploy thật lên VPS · văn phòng 3D đầy đủ (chat theo phòng, GLB, mobile) · giai đoạn 3.
+**Bước tiếp theo** (chủ dự án chọn): vận hành (giám sát, diễn tập khôi phục backup) · kế toán đối chiếu thông số lương · webhook máy chấm công khi có máy.

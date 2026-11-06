@@ -5,6 +5,7 @@ import { NavGrid } from './navGrid';
 import { FACING_ANGLE, OFFICE_MAP } from './officeMap';
 import { P } from './palette';
 import { buildWorld, textTexture } from './world';
+import { loadFurnitureModels } from './models';
 import { voiceChannelAt, type VoiceChannelInfo } from './voiceChannel';
 
 /**
@@ -29,9 +30,14 @@ export class OfficeScene {
   private camera = new THREE.PerspectiveCamera(40, 1, 0.1, 300);
   private clock = new THREE.Clock();
   private keys = new Set<string>();
+  /** Joystick cảm ứng (điện thoại): x phải +, y xuống + (giống S), độ lớn 0..1. */
+  private stick = { x: 0, y: 0 };
   private others = new Map<string, Other>();
   private me: Avatar | null = null;
   private raf = 0;
+  private disposed = false;
+  /** Số loại đồ đạc đang dùng model GLB (0 = khối dựng tay) — để test / chẩn đoán. */
+  furnitureModels = 0;
   private sendAcc = 0;
   private path: [number, number][] = [];
   private sitOnArrive: Seat | null = null;
@@ -82,7 +88,18 @@ export class OfficeScene {
     Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 12, bottom: -12, near: 1, far: 50 });
     sun.shadow.bias = -0.0008;
     this.scene.add(sun, sun.target);
-    this.scene.add(buildWorld(OFFICE_MAP));
+    // Hiện ngay bằng khối dựng tay; có model GLB (public/models/furniture) thì thay khi tải xong.
+    let world = buildWorld(OFFICE_MAP);
+    this.scene.add(world);
+    void loadFurnitureModels().then((models) => {
+      if (this.disposed || models.size === 0) return;
+      const next = buildWorld(OFFICE_MAP, models);
+      this.scene.remove(world);
+      disposeMeshes(world);
+      world = next;
+      this.scene.add(world);
+      this.furnitureModels = models.size;
+    });
 
     this.marker = new THREE.Mesh(new THREE.RingGeometry(0.18, 0.3, 24), new THREE.MeshBasicMaterial({ color: 0x2563eb, transparent: true, opacity: 0.9, depthWrite: false }));
     this.marker.rotation.x = -Math.PI / 2;
@@ -267,6 +284,12 @@ export class OfficeScene {
   /** Xoay camera 90° (dir = 1 / -1). */
   rotateCamera(dir: 1 | -1) { this.azimuthStep += dir; }
 
+  /** Joystick ảo (OfficeView → Joystick). (0, 0) = thả tay. */
+  setStick(x: number, y: number) { this.stick = { x, y }; }
+
+  /** Phóng to (-1) / thu nhỏ (1) — nút trên màn hình cảm ứng (máy tính dùng cuộn chuột). */
+  zoom(dir: 1 | -1) { this.distance = THREE.MathUtils.clamp(this.distance * (1 + dir * 0.15), 8, 32); }
+
   // ---------- input ----------
 
   private isTyping = (e: Event) => ['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName);
@@ -329,8 +352,11 @@ export class OfficeScene {
 
     if (this.me) {
       const me = this.me, p = me.root.position, k = this.keys;
-      const ix = (k.has('d') || k.has('arrowright') ? 1 : 0) - (k.has('a') || k.has('arrowleft') ? 1 : 0);
-      const iz = (k.has('s') || k.has('arrowdown') ? 1 : 0) - (k.has('w') || k.has('arrowup') ? 1 : 0);
+      const st = this.stick, stickLen = Math.hypot(st.x, st.y);
+      const useStick = stickLen > 0.15; // vùng chết: chạm nhẹ không làm nhân vật trôi
+      const ix = useStick ? st.x : (k.has('d') || k.has('arrowright') ? 1 : 0) - (k.has('a') || k.has('arrowleft') ? 1 : 0);
+      const iz = useStick ? st.y : (k.has('s') || k.has('arrowdown') ? 1 : 0) - (k.has('w') || k.has('arrowup') ? 1 : 0);
+      const speedScale = useStick ? Math.min(1, stickLen) : 1;
       let walking = false;
       if (ix || iz) {
         this.path = [];
@@ -338,7 +364,7 @@ export class OfficeScene {
         this.standUp();
         // Đổi hướng phím theo góc camera: "W" luôn là đi lên màn hình
         const len = Math.hypot(ix, iz), c = Math.cos(this.azimuth), s = Math.sin(this.azimuth);
-        const dx = ((ix * c + iz * s) / len) * SPEED * dt, dz = ((-ix * s + iz * c) / len) * SPEED * dt;
+        const dx = ((ix * c + iz * s) / len) * SPEED * speedScale * dt, dz = ((-ix * s + iz * c) / len) * SPEED * speedScale * dt;
         walking = this.tryMove(dx, dz);
         if (walking) me.root.rotation.y = Math.atan2(dx, dz);
       } else if (this.path.length) {
@@ -396,6 +422,7 @@ export class OfficeScene {
   };
 
   dispose() {
+    this.disposed = true;
     cancelAnimationFrame(this.raf);
     removeEventListener('resize', this.resize);
     removeEventListener('keydown', this.keyDown);
@@ -414,4 +441,16 @@ export class OfficeScene {
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
+}
+
+/** Giải phóng geometry / material của một cây đối tượng (bỏ qua model GLB dùng chung — được giữ trong cache models). */
+function disposeMeshes(root: THREE.Object3D) {
+  root.traverse((o) => {
+    if (o.name === 'glb') return;
+    if (o instanceof THREE.Mesh && !o.parent?.name?.startsWith('glb')) {
+      o.geometry.dispose();
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach((m) => { (m as THREE.MeshBasicMaterial).map?.dispose(); m.dispose(); });
+    }
+  });
 }

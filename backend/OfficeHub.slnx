@@ -42,6 +42,10 @@
     <Project Path="src/Modules/Organization/OfficeHub.Modules.Organization.Contracts/OfficeHub.Modules.Organization.Contracts.csproj" />
     <Project Path="src/Modules/Organization/OfficeHub.Modules.Organization/OfficeHub.Modules.Organization.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Payroll/">
+    <Project Path="src/Modules/Payroll/OfficeHub.Modules.Payroll.Contracts/OfficeHub.Modules.Payroll.Contracts.csproj" />
+    <Project Path="src/Modules/Payroll/OfficeHub.Modules.Payroll/OfficeHub.Modules.Payroll.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Reporting/">
     <Project Path="src/Modules/Reporting/OfficeHub.Modules.Reporting/OfficeHub.Modules.Reporting.csproj" />
   </Folder>
@@ -55,6 +59,7 @@
     <Project Path="tests/OfficeHub.Modules.Meetings.Tests/OfficeHub.Modules.Meetings.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Notification.Tests/OfficeHub.Modules.Notification.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Organization.Tests/OfficeHub.Modules.Organization.Tests.csproj" />
+    <Project Path="tests/OfficeHub.Modules.Payroll.Tests/OfficeHub.Modules.Payroll.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Reporting.Tests/OfficeHub.Modules.Reporting.Tests.csproj" />
     <Project Path="tests/OfficeHub.Realtime.Tests/OfficeHub.Realtime.Tests.csproj" />
   </Folder>

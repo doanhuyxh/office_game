@@ -23,6 +23,8 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Hợp đồng lao động: loại / thời hạn theo BLLĐ, phụ lục, lương mã hoá, file S3, nhắc 30 / 7 ngày, quyền xem, mẫu hợp đồng Word | [contracts.md](contracts.md) |
 | Kết nối AI (MCP): token truy cập cá nhân, route token được gọi, tool cho Claude / Cursor / Codex | [mcp.md](mcp.md) |
 | Kết nối AI: OAuth 2.1 (DCR, PKCE, refresh), nhật ký AI (Audit), HR thu hồi, giới hạn / công tắc tắt | [mcp-oauth.md](mcp-oauth.md) |
+| Ký hợp đồng điện tử: OTP email, chữ ký vẽ tay, PDF có trang chứng nhận + SHA-256 | [contracts-esign.md](contracts-esign.md) |
+| Bảng lương theo luật VN (BH, thuế TNCN, giảm trừ, thử việc 10 %), kỳ lương, phiếu lương | [payroll.md](payroll.md) |
 | Báo cáo + Excel (bảng công, tiền tăng ca, tiền phép khi nghỉ việc), quy tắc lương giờ / ngày công chuẩn | [reports.md](reports.md) |
 | Đặt phòng họp, chặn trùng giờ, mời họp, bảng "Đang họp" trong 3D | [meetings.md](meetings.md) |
 | Lịch sử sửa dữ liệu nhân sự (`[Audited]`, interceptor, che lương), nhật ký | [audit.md](audit.md) |

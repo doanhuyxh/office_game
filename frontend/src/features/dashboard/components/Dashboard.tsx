@@ -14,7 +14,7 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       <PageHeader title={`Xin chào, ${me?.fullName ?? ''} 👋`} description="Tổng quan chấm công, phép năm và đơn cần xử lý của bạn." />
-      <div className="grid gap-4 lg:grid-cols-[380px_1fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[380px_minmax(0,1fr)]">
         <CheckInCard />
         <div className="grid h-fit gap-4 sm:grid-cols-2">
           <Card>

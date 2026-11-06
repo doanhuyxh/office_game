@@ -10,4 +10,5 @@ public interface ISalaryLookup
     Task<IReadOnlyDictionary<Guid, SalaryInfo>> GetAsync(IReadOnlyCollection<Guid> employeeIds, DateOnly date, CancellationToken ct = default);
 }
 
-public sealed record SalaryInfo(Guid EmployeeId, Guid ContractId, string ContractNumber, decimal? Salary, decimal? Allowance);
+/// <param name="ContractType">"Indefinite" | "Fixed" | "Probation" (thử việc: không đóng BH, thuế khấu trừ 10%).</param>
+public sealed record SalaryInfo(Guid EmployeeId, Guid ContractId, string ContractNumber, decimal? Salary, decimal? Allowance, string ContractType = "Indefinite");

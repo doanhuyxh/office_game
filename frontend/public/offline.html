@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OfficeHub — Mất kết nối</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; min-height: 100svh; display: grid; place-items: center; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #f8fafc; color: #0f172a; padding: 24px; box-sizing: border-box; }
+    @media (prefers-color-scheme: dark) { body { background: #020617; color: #e2e8f0; } p { color: #94a3b8 !important; } }
+    .card { max-width: 360px; text-align: center; }
+    img { width: 64px; height: 64px; }
+    h1 { font-size: 20px; margin: 16px 0 8px; }
+    p { color: #475569; line-height: 1.5; margin: 0 0 20px; }
+    button { background: #2563eb; color: #fff; border: 0; border-radius: 8px; padding: 10px 20px; font-size: 15px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img src="/icons/icon-192.png" alt="" />
+    <h1>Không có kết nối mạng</h1>
+    <p>OfficeHub cần mạng để chấm công và tải dữ liệu mới nhất. Kiểm tra Wi-Fi / 4G rồi thử lại.</p>
+    <button onclick="location.reload()">Thử lại</button>
+  </div>
+  <script>addEventListener('online', () => location.reload());</script>
+</body>
+</html>

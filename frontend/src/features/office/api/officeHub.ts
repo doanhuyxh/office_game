@@ -68,6 +68,11 @@ export class OfficeConnection {
     return this.conn.invoke('SendChat', text);
   }
 
+  /** Chat chỉ trong phòng có tường đang đứng (server tự xác định phòng theo vị trí). */
+  roomChat(text: string) {
+    return this.conn.invoke('SendRoomChat', text);
+  }
+
   stop() {
     return this.conn.stop();
   }

@@ -60,3 +60,20 @@ export function useRemoveTemplate() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: contractApi.removeTemplate, onSuccess: () => qc.invalidateQueries({ queryKey: contractKeys.templates }) });
 }
+
+// ---------- Ký điện tử ----------
+/** HR thấy mọi yêu cầu ký; nhân viên chỉ thấy của mình (BE lọc). */
+export const useSignRequests = (enabled = true) => useQuery({ queryKey: contractKeys.signRequests, queryFn: contractApi.signRequests, enabled });
+export function useCreateSignRequest() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: contractApi.createSignRequest, onSuccess: invalidate });
+}
+export function useCancelSignRequest() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: contractApi.cancelSignRequest, onSuccess: invalidate });
+}
+export const useSendOtp = () => useMutation({ mutationFn: contractApi.sendOtp });
+export function useSignContract() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: (v: { rid: string; otp: string; signature: string; agree: boolean }) => contractApi.sign(v.rid, v), onSuccess: invalidate });
+}

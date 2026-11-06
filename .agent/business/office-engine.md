@@ -4,12 +4,14 @@
 
 | File | Vai trò |
 |---|---|
-| `components/OfficeView.tsx` | Trang `/office` (lazy). Dựng `OfficeScene`, mở `OfficeConnection`, HUD: tên, online, khu, chat, nút chấm công, nhắc ghế, hướng dẫn, nút xoay camera |
+| `components/OfficeView.tsx` | Trang `/office` (lazy). Dựng `OfficeScene`, mở `OfficeConnection`, HUD: tên, online, khu, chat 2 tab (Toàn văn phòng / phòng đang đứng — tab phòng chỉ hiện khi trong phòng có tường; thu gọn được), nút chấm công, nhắc ghế (bấm được), hướng dẫn, nút xoay camera. Thiết bị cảm ứng (`pointer: coarse`): joystick + nút zoom ＋/－ |
 | `components/Minimap.tsx` | Bản đồ nhỏ (canvas ~7 fps): mình, người khác, điểm đang tới; bấm → `scene.walkTo` |
 | `engine/OfficeScene.ts` | Điều phối (Three.js thuần, không React): camera chéo (Q / R xoay 90°, cuộn zoom 8–32), WASD theo hướng màn hình + trượt theo tường (`nav.fits`, bán kính 0,22), bấm chuột → A*, bấm sát ghế → đi tới rồi ngồi, `toggleSit()`, gửi `Move` mỗi 100 ms, callback `onZone` / `onNearAction` / `onSeat` / `onHint`, `snapshot()` cho minimap |
 | `engine/navGrid.ts` | Lưới va chạm, A* 8 hướng (không cắt góc) + làm mượt, `nearestFree`, `zoneAt` (khu phòng ban trước, rồi phòng) |
 | `engine/world.ts` | Phần tĩnh: sàn theo loại phòng, thảm khu phòng ban, tường thấp 1,1 m (cắt ngang để nhìn vào phòng), vách kính 2,2 m trong suốt, đồ đạc gộp theo vật liệu (vài draw call), tên phòng trên sàn, logo sảnh |
-| `engine/furniture.ts` | Đồ đạc low-poly dựng bằng khối theo `prefab` (chưa dùng file GLB; prefab lạ → hộp xám) |
+| `engine/furniture.ts` | Đồ đạc low-poly dựng bằng khối theo `prefab` (dự phòng khi không có GLB; prefab lạ → hộp xám) |
+| `engine/models.ts` | `loadFurnitureModels()` đọc `public/models/furniture/manifest.json` (prefab → file `.glb`, `rotY`), `placeModel` co model vừa ô w×d. Có model → `buildWorld(map, models)` thay khối; không có file → giữ khối dựng tay. Nhập bộ Kenney Furniture Kit (CC0, tải tay): `bun scripts/dev/import-furniture.ts <zip\|thư-mục>` |
+| `components/Joystick.tsx` | Joystick cảm ứng → `scene.setStick(x, y)` (vùng chết 0,15) |
 | `engine/avatar.ts` | Nhân vật có khớp tay / chân: đi, đứng, ngồi; màu áo / tóc theo id; nhãn tên (mình: nền xanh + vòng dưới chân) |
 | `engine/officeMap.ts`, `mapTypes.ts`, `palette.ts` | Bản đồ có kiểu, `FACING_ANGLE`, bảng màu cảnh |
 | `api/officeHub.ts`, `store/office.store.ts`, `components/office.css` | Như trước (SignalR + MessagePack, Zustand, CSS bọc `.office-root`) |
@@ -25,4 +27,4 @@ Quy tắc cần giữ khi sửa:
 - Khi dev, `window.__officeScene` / `window.__officeVoice` trỏ tới scene / voice (chỉ để test e2e; không có trong bản build).
 - Voice: identity LiveKit = id người chơi trên hub (userId) → vị trí lấy từ scene. Người đang nói có vòng xanh lá dưới chân (`Avatar.speaking`). Bị `Kicked` → tắt voice. Đổi luật kênh → sửa cả `voiceChannel.ts` và `OfficeMap.VoiceAt` (+ test `Voice_channel_by_position`).
 
-**Lộ trình** (`design/office-3d-proposal.md`): giai đoạn 2 (gán chỗ ngồi, trạng thái trên avatar, tìm đồng nghiệp) **đã bỏ theo quyết định chủ dự án** — không đề xuất lại. Voice (giai đoạn 3) ✅ trừ chat theo phòng. Còn: model GLB thay khối dựng tay, mobile, sửa bản đồ trong app, TURN cho voice khi deploy.
+**Lộ trình** (`design/office-3d-proposal.md`): giai đoạn 2 (gán chỗ ngồi, trạng thái trên avatar, tìm đồng nghiệp) **đã bỏ theo quyết định chủ dự án** — không đề xuất lại. Voice (giai đoạn 3) ✅, chat theo phòng ✅, hạ tầng model GLB ✅ (chờ chủ dự án tải bộ Kenney), mobile (joystick, zoom, HUD gọn) ✅. Còn: sửa bản đồ trong app, TURN cho voice khi deploy.

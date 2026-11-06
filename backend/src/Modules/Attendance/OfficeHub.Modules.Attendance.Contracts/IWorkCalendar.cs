@@ -10,4 +10,6 @@ public interface IWorkCalendar
     /// Dùng tính lương giờ = lương tháng ÷ ngày công chuẩn ÷ 8.
     /// </summary>
     Task<int> StandardDaysAsync(Guid employeeId, DateOnly from, DateOnly to, CancellationToken ct = default);
+    /// <summary>Các ngày có ca theo lịch tuần trong [from, to], KỂ CẢ ngày lễ (StandardDays = số phần tử). Payroll dùng để cộng công ngày lễ.</summary>
+    Task<IReadOnlyList<DateOnly>> ScheduledDatesAsync(Guid employeeId, DateOnly from, DateOnly to, CancellationToken ct = default);
 }

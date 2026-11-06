@@ -29,7 +29,7 @@ const Warn = ({ text }: { text: string | null }) =>
 function TimesheetTab() {
   const [month, setMonth] = useState(currentMonthVn);
   return (
-    <div className="grid gap-3">
+    <div className="grid grid-cols-1 gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">Bấm một dòng để xem bảng công chi tiết. File Excel gồm 3 sheet: tổng hợp, lưới công theo ngày, chi tiết giờ vào / ra (giờ VN).</p>
         <div className="flex gap-2"><MonthPicker value={month} onChange={setMonth} /><ExcelButton url={excelUrl.timesheet(month)} /></div>
@@ -44,7 +44,7 @@ function OvertimePayTab() {
   const { data, isLoading } = useOvertimePay(month);
   const rows = data?.rows.filter((r) => r.totalMinutes > 0) ?? [];
   return (
-    <div className="grid gap-3">
+    <div className="grid grid-cols-1 gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
           Chỉ đơn tăng ca <b>đã duyệt</b>. Lương giờ = lương hợp đồng ÷ ngày công chuẩn của tháng ÷ 8 (không gồm phụ cấp); ngày công chuẩn tính cả ngày lễ.
@@ -107,7 +107,7 @@ function LeavePayoutTab() {
   const { data: rows = [], isLoading } = useLeavePayout();
   const due = rows.filter((r) => r.payoutDue);
   return (
-    <div className="grid gap-3">
+    <div className="grid grid-cols-1 gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
           Phép năm chưa dùng được quy ra tiền <b>khi nghỉ việc</b> (Điều 113 BLLĐ): ngày còn lại × lương ngày (lương HĐ ÷ công chuẩn tháng nghỉ việc).
@@ -176,7 +176,7 @@ function LeavePayoutTab() {
 /** Báo cáo (HR): bảng công tháng, tiền tăng ca, phép năm — xem trên web và xuất Excel. */
 export function ReportsPage() {
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <PageHeader title="Báo cáo" description="Bảng công, tiền tăng ca và phép năm theo tháng — xuất Excel để làm lương." />
       <Tabs defaultValue="timesheet">
         <TabsList>
