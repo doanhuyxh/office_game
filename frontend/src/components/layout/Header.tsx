@@ -172,7 +172,7 @@ export function Header() {
   }, []);
 
   return (
-    <header className={cn('sticky top-0 z-40 h-16 rounded-t-[inherit]', scrolled ? 'shadow-sm' : 'shadow-none')}>
+    <header className={cn('sticky top-0 z-40 h-16 rounded-t-[inherit]', scrolled ? 'shadow-lg' : 'shadow-none')}>
       <div
         className={cn(
           'relative flex h-full items-center gap-3 p-4 sm:gap-4',
