@@ -68,6 +68,9 @@ function SheetContent({
             "inset-x-0 bottom-0 h-auto border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
           className
         )}
+        // Mặc định: click ra ngoài không đóng; ghi đè được qua props.
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
         {...props}
       >
         {children}
