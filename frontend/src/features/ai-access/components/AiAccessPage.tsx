@@ -277,7 +277,7 @@ function CompanyTab() {
   );
 }
 
-/** Trang "Kết nối AI": đăng nhập OAuth / token cho trợ lý AI (Claude, Cursor, Codex), ứng dụng đã kết nối, nhật ký; HR xem toàn công ty. */
+/** Trang "Kết nối AI": đăng nhập OAuth / token cho trợ lý AI (Claude, Cursor, Codex, GitHub Copilot), ứng dụng đã kết nối, nhật ký; HR xem toàn công ty. */
 export function AiAccessPage() {
   const me = useMe();
   const isHr = hasRole(me.data, 'admin', 'hr');
@@ -288,7 +288,7 @@ export function AiAccessPage() {
     <div className="grid gap-6">
       <PageHeader
         title="Kết nối AI"
-        description="Dùng trợ lý AI (Claude, Cursor, Codex…) để chấm công, xin nghỉ, xem bảng công… bằng lời nói thay vì mở web."
+        description="Dùng trợ lý AI (Claude, Cursor, Codex, GitHub Copilot…) để chấm công, xin nghỉ, xem bảng công… bằng lời nói thay vì mở web."
         actions={<Button variant="outline" onClick={() => setCreating(true)}><Plus className="size-4" /> Tạo token</Button>}
       />
       {isHr ? (

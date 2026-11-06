@@ -87,6 +87,23 @@ export const CLIENT_GUIDES: ClientGuide[] = [
       snippet: (url, token) => `# ~/.zshrc\nexport OFFICEHUB_TOKEN="${token}"\n\n# ~/.codex/config.toml\n[mcp_servers.officehub]\nurl = "${url}"\nbearer_token_env_var = "OFFICEHUB_TOKEN"`,
     },
   },
+  {
+    id: 'copilot',
+    label: 'GitHub Copilot',
+    oauth: {
+      where: 'mcp.json (VS Code)',
+      steps: 'VS Code: Ctrl/⌘+Shift+P → "MCP: Open User Configuration", dán nội dung dưới rồi lưu. Bấm "Start" cạnh officehub → VS Code hỏi đăng nhập → trang OfficeHub mở ra, bấm "Cho phép". Dùng trong Copilot Chat ở chế độ Agent (biểu tượng công cụ để bật / tắt tool). Visual Studio và JetBrains dùng cùng cấu hình mcp.json.',
+      snippet: (url) => JSON.stringify({ servers: { officehub: { type: 'http', url } } }, null, 2),
+    },
+    token: {
+      where: 'mcp.json (VS Code)',
+      steps: 'VS Code: Ctrl/⌘+Shift+P → "MCP: Open User Configuration", dán nội dung dưới. Lần đầu khởi động, VS Code hỏi token (nhập token tạo ở trang này, được lưu an toàn, không ghi vào file). Copilot CLI: thêm cùng server vào ~/.copilot/mcp-config.json với header Authorization.',
+      snippet: (url) => JSON.stringify({
+        inputs: [{ type: 'promptString', id: 'officehub-token', description: 'Token OfficeHub (trang Kết nối AI)', password: true }],
+        servers: { officehub: { type: 'http', url, headers: { Authorization: 'Bearer ${input:officehub-token}' } } },
+      }, null, 2),
+    },
+  },
 ];
 
 /** Gợi ý câu hỏi để nhân viên thử ngay sau khi kết nối. */

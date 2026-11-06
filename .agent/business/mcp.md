@@ -2,11 +2,11 @@
 
 > Nguồn sự thật là code: `backend/src/OfficeHub.Mcp/`, `BuildingBlocks/Auth/AccessTokenAuth.cs`, `Modules/Identity/…/AccessToken*`, `frontend/src/features/ai-access/`. Về [README.md](README.md).
 
-Nhân viên dùng trợ lý AI của mình (Claude Code, Cursor, Codex, Claude Desktop qua `mcp-remote`) để thao tác với OfficeHub thay cho web. AI chạy **đúng quyền của người dùng**, không hơn.
+Nhân viên dùng trợ lý AI của mình (Claude web / Desktop / điện thoại, Claude Code, Cursor, Codex, GitHub Copilot — VS Code / Visual Studio / JetBrains / Copilot CLI) để thao tác với OfficeHub thay cho web. AI chạy **đúng quyền của người dùng**, không hơn.
 
 ## Quyết định đã chốt (2026-11-06, đừng đề xuất lại)
 
-- Client: Claude, Cursor, Codex. Hai cách: **Đăng nhập OAuth** (khuyên dùng, bắt buộc với claude.ai / Desktop / điện thoại) và **token cá nhân (PAT)** dán vào header → OAuth, nhật ký, quản trị HR: [mcp-oauth.md](mcp-oauth.md).
+- Client: Claude, Cursor, Codex, GitHub Copilot (thêm 2026-11-06). Hai cách: **Đăng nhập OAuth** (khuyên dùng, bắt buộc với claude.ai / Desktop / điện thoại) và **token cá nhân (PAT)** dán vào header → OAuth, nhật ký, quản trị HR: [mcp-oauth.md](mcp-oauth.md).
 - **Cho ghi**: chấm công, gửi đơn nghỉ / tăng ca / giải trình, huỷ đơn, duyệt / từ chối (quản lý / HR).
 - **Hợp đồng và lương ẩn hoàn toàn**: không tool, và token bị chặn ở Api (`/api/contracts/*` → 403).
 - **Chấm công qua AI được phép, luôn tính là làm từ xa**: `Source = Mcp`, `WorkMode = Remote` (server quyết, bỏ qua `source` client gửi, bỏ qua IP).
@@ -49,7 +49,7 @@ Tham số ngày `yyyy-MM-dd`, tháng `yyyy-MM`, giờ `HH:mm` (kiểm tra trong 
 
 ## FE: trang "Kết nối AI" (`/ai-access`, ai cũng thấy)
 
-Hướng dẫn kết nối (Đăng nhập / Token × Claude, Claude Code, Cursor, Codex — snippet trong `features/ai-access/utils/labels.ts`, URL = `window.location.origin + /mcp`), tạo / thu hồi token (hiện một lần), ứng dụng đã kết nối, nhật ký; HR thêm tab toàn công ty → [mcp-oauth.md](mcp-oauth.md#fe).
+Hướng dẫn kết nối (Đăng nhập / Token × Claude, Claude Code, Cursor, Codex, GitHub Copilot — snippet trong `features/ai-access/utils/labels.ts`, URL = `window.location.origin + /mcp`), tạo / thu hồi token (hiện một lần), ứng dụng đã kết nối, nhật ký; HR thêm tab toàn công ty → [mcp-oauth.md](mcp-oauth.md#fe).
 
 ## Chưa làm
 

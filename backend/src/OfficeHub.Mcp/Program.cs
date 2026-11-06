@@ -4,7 +4,7 @@ using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.BuildingBlocks.Hosting;
 using OfficeHub.Mcp.Infrastructure;
 
-// OfficeHub.Mcp: máy chủ MCP (Streamable HTTP, stateless) cho trợ lý AI của nhân viên (Claude, Cursor, Codex…).
+// OfficeHub.Mcp: máy chủ MCP (Streamable HTTP, stateless) cho trợ lý AI của nhân viên (Claude, Cursor, Codex, GitHub Copilot…).
 // Không đọc DB: mọi tool gọi lại REST /api/* của OfficeHub.Api bằng token của chính người dùng (xem OfficeHubApi).
 EnvLoader.Load();
 var builder = WebApplication.CreateBuilder(args);
