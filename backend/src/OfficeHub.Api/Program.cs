@@ -39,6 +39,7 @@ foreach (var m in modules) m.Register(builder.Services, builder.Configuration);
 
 var app = builder.Build();
 app.UseOfficeHubDefaults();
+app.UseCors();            // chỉ endpoint có RequireCors (OAuth công khai cho ứng dụng AI)
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();

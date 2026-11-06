@@ -35,7 +35,8 @@ public static class AccessTokens
 /// </summary>
 public sealed class AccessTokenHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder,
-    OfficeIdentityDbContext db, UserManager<AppUser> users, IUserClaimsPrincipalFactory<AppUser> principals, TimeProvider clock)
+    OfficeIdentityDbContext db, UserManager<AppUser> users, IUserClaimsPrincipalFactory<AppUser> principals, TimeProvider clock,
+    IOptionsMonitor<AccessTokenSettings> settings)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     /// <summary>Ghi LastUsedAt tối đa mỗi 5 phút để không UPDATE ở mọi request.</summary>
@@ -46,6 +47,7 @@ public sealed class AccessTokenHandler(
     {
         var header = Request.Headers.Authorization.ToString();
         if (!AccessTokenAuth.HasBearerToken(header)) return AuthenticateResult.NoResult();
+        if (!settings.CurrentValue.Enabled) return AuthenticateResult.Fail("Kết nối AI đang tạm tắt cho toàn công ty");
         var raw = header["Bearer ".Length..].Trim();
 
         var hash = AccessTokens.Hash(raw);
@@ -53,10 +55,20 @@ public sealed class AccessTokenHandler(
         var token = await db.AccessTokens.FirstOrDefaultAsync(t => t.TokenHash == hash, Context.RequestAborted);
         if (token is null || !token.IsUsable(now)) return AuthenticateResult.Fail("Token không hợp lệ, đã hết hạn hoặc đã bị thu hồi");
 
+        OAuthGrant? grant = null;
+        if (token.GrantId is { } gid)
+        {
+            grant = await db.OAuthGrants.FirstOrDefaultAsync(g => g.Id == gid, Context.RequestAborted);
+            if (grant is null || grant.RevokedAt is not null) return AuthenticateResult.Fail("Ứng dụng đã bị thu hồi quyền truy cập");
+        }
+
         var user = await users.FindByIdAsync(token.UserId.ToString());
         if (user is not { IsActive: true }) return AuthenticateResult.Fail("Tài khoản đã bị khoá");
         if (user.MustChangePassword) return AuthenticateResult.Fail("Tài khoản cần đổi mật khẩu trên web trước");
         if (await users.IsLockedOutAsync(user)) return AuthenticateResult.Fail("Tài khoản đang tạm khoá");
+
+        // Từ đây biết chắc ai gọi → audit ghi được cả lần bị chặn route.
+        Context.Items[AccessTokenAuth.CallerItemKey] = new AccessTokenCaller(user.Id, token.Id, token.Name, token.GrantId is not null);
 
         if (!AccessTokenAuth.IsAllowed(Request.Method, Request.Path.Value))
         {
@@ -67,6 +79,7 @@ public sealed class AccessTokenHandler(
         if (token.LastUsedAt is null || now - token.LastUsedAt > TouchInterval)
         {
             token.LastUsedAt = now;
+            if (grant is not null) grant.LastUsedAt = now;
             await db.SaveChangesAsync(Context.RequestAborted);
         }
 

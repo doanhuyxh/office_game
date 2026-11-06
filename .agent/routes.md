@@ -13,9 +13,11 @@
 | `/api/contracts/*` | LaborContracts | [business/contracts.md](business/contracts.md) |
 | `/api/approval/*` | Approval | [business/approval.md](business/approval.md) |
 | `/api/leave/*` | Leave | [business/leave.md](business/leave.md) |
-| `/mcp` | host OfficeHub.Mcp (máy chủ MCP cho AI, gọi lại `/api/*` bằng token) | [business/mcp.md](business/mcp.md) |
+| `/mcp`, `/.well-known/oauth-*` | host OfficeHub.Mcp (máy chủ MCP cho AI, gọi lại `/api/*` bằng token; OAuth discovery) | [business/mcp.md](business/mcp.md) |
+| `/api/oauth/*` | Identity (OAuth cho ứng dụng AI) | [business/mcp-oauth.md](business/mcp-oauth.md) |
 | `/rt/hub/office`, `/rt/voice/token` | Realtime | [business/office.md](business/office.md) |
-| `/api/reports`, `/api/audit` | khung | chỉ `GET /_status` |
+| `/api/audit/ai-requests` | Audit (nhật ký AI) | [business/mcp-oauth.md](business/mcp-oauth.md) |
+| `/api/reports` | khung | chỉ `GET /_status` |
 
 ## Trang front-end (`routes/router.tsx`)
 
@@ -25,6 +27,7 @@
 | `/accept-invite`, `/reset-password` | không (link email, search `uid`, `token`) | `AcceptInviteForm`, `ResetPasswordForm` |
 | `/change-password` | `requireSession` | `ChangePasswordForm` |
 | `/office` | `requireAuth`, toàn màn hình | `OfficeView` (`@/features/office`, lazy, kéo Three.js) |
+| `/oauth/authorize` | `requireAuth`, toàn màn hình | `OAuthConsentPage` (`@/features/ai-access`) — trang đồng ý cho ứng dụng AI |
 | `/` `/attendance` `/employees` `/leave` `/approvals` `/contracts` `/reports` `/ai-access` | `requireAuth`, trong `MainLayout` | `Dashboard`, `AttendancePage`, `EmployeesPage`, `LeavePage`, `ApprovalsPage`, `ContractsPage`, `AiAccessPage`; reports là `ComingSoon` |
 
 `requireAuth`: chưa đăng nhập → `/login?returnUrl=…`; `mustChangePassword` → `/change-password`. Quay lại sau đăng nhập dùng `safeReturnPath` (chỉ đường dẫn cùng origin). Mọi trang trong `page(...)` là lazy chunk; Three.js tách chunk `three` (`vite.config.ts` `manualChunks`). Menu sidebar (nhóm → mục, icon lucide) lọc theo `roles` trong `components/layout/navigation.ts` (Hợp đồng, Báo cáo: admin/hr; còn lại ai cũng thấy). Bố cục khung trang: [frontend.md](frontend.md#bố-cục-mainlayout).

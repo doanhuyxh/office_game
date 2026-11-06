@@ -30,13 +30,37 @@ internal static class AccessTokenEndpoints
         g.MapGet("/", ListAsync);
         g.MapPost("/", CreateAsync);
         g.MapDelete("/{id:guid}", RevokeAsync);
+        // HR: mọi token cá nhân + ứng dụng OAuth đang hoạt động của cả công ty (thu hồi bằng DELETE tương ứng).
+        api.MapGet("/auth/ai-connections", ConnectionsAsync).WithTags("Auth").RequireAuthorization(AuthPolicies.Hr);
+    }
+
+    /// <summary>kind = "token" (token cá nhân) | "app" (ứng dụng OAuth).</summary>
+    public sealed record AiConnectionDto(string Kind, Guid Id, Guid UserId, string UserName, string FullName, string Name,
+        DateTimeOffset CreatedAt, DateTimeOffset? LastUsedAt, DateTimeOffset ExpiresAt);
+
+    private static async Task<Results<Ok<List<AiConnectionDto>>, ProblemHttpResult>> ConnectionsAsync(ClaimsPrincipal user,
+        OfficeIdentityDbContext db, TimeProvider clock, CancellationToken ct)
+    {
+        if (user.IsAccessToken()) return TokenNotAllowed();
+        var now = clock.GetUtcNow();
+        var tokens = await db.AccessTokens.AsNoTracking()
+            .Where(t => t.GrantId == null && t.RevokedAt == null && t.ExpiresAt > now)
+            .Join(db.Users, t => t.UserId, u => u.Id, (t, u) => new AiConnectionDto("token", t.Id, u.Id, u.UserName!, u.FullName, t.Name,
+                t.CreatedAt, t.LastUsedAt, t.ExpiresAt))
+            .ToListAsync(ct);
+        var apps = await db.OAuthGrants.AsNoTracking()
+            .Where(g => g.RevokedAt == null && g.RefreshExpiresAt > now)
+            .Join(db.Users, g => g.UserId, u => u.Id, (g, u) => new AiConnectionDto("app", g.Id, u.Id, u.UserName!, u.FullName, g.ClientName,
+                g.CreatedAt, g.LastUsedAt, g.RefreshExpiresAt))
+            .ToListAsync(ct);
+        return TypedResults.Ok(tokens.Concat(apps).OrderByDescending(c => c.LastUsedAt ?? c.CreatedAt).ToList());
     }
 
     private static async Task<Ok<List<AccessTokenDto>>> ListAsync(ClaimsPrincipal user, OfficeIdentityDbContext db, TimeProvider clock, CancellationToken ct)
     {
         var uid = user.GetUserId()!.Value;
         var now = clock.GetUtcNow();
-        var rows = await db.AccessTokens.AsNoTracking().Where(t => t.UserId == uid)
+        var rows = await db.AccessTokens.AsNoTracking().Where(t => t.UserId == uid && t.GrantId == null)
             .OrderByDescending(t => t.CreatedAt).Take(50).ToListAsync(ct);
         return TypedResults.Ok(rows.Select(t => ToDto(t, now)).ToList());
     }
@@ -53,7 +77,7 @@ internal static class AccessTokenEndpoints
             .When(!AllowedLifetimes.Contains(days), "expiresInDays", "Thời hạn chỉ được 30, 90, 180 hoặc 365 ngày");
         if (v.Failed) return v.Problem();
 
-        var active = await db.AccessTokens.CountAsync(t => t.UserId == uid && t.RevokedAt == null && t.ExpiresAt > now, ct);
+        var active = await db.AccessTokens.CountAsync(t => t.UserId == uid && t.GrantId == null && t.RevokedAt == null && t.ExpiresAt > now, ct);
         if (active >= MaxActivePerUser)
             return Problems.Conflict($"Tối đa {MaxActivePerUser} token đang hoạt động. Thu hồi bớt token cũ trước.");
 
@@ -77,8 +101,9 @@ internal static class AccessTokenEndpoints
     {
         if (user.IsAccessToken()) return TokenNotAllowed();
         var uid = user.GetUserId()!.Value;
-        var token = await db.AccessTokens.FirstOrDefaultAsync(t => t.Id == id && t.UserId == uid, ct);
-        if (token is null) return TypedResults.NotFound();
+        // Chủ token hoặc HR (thu hồi hộ khi nhân viên mất máy / nghỉ việc).
+        var token = await db.AccessTokens.FirstOrDefaultAsync(t => t.Id == id && t.GrantId == null, ct);
+        if (token is null || (token.UserId != uid && !user.IsHr())) return TypedResults.NotFound();
         if (token.RevokedAt is null)
         {
             token.RevokedAt = clock.GetUtcNow();

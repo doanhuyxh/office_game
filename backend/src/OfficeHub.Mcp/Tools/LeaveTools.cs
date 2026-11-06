@@ -40,7 +40,7 @@ public sealed class LeaveTools
     [Description("Gửi đơn nghỉ phép (đi qua luồng duyệt quản lý → HR). Nên gọi preview_leave và get_leave_balance trước, " +
                  "rồi XÁC NHẬN loại nghỉ, ngày, buổi và lý do với người dùng trước khi gửi.")]
     public static async Task<string> SubmitLeaveRequest(OfficeHubApi api,
-        [Description("Loại nghỉ: mã (ví dụ ANNUAL), tên hoặc id lấy từ list_leave_types")] string leaveType,
+        [Description("Loại nghỉ: mã (ví dụ annual), tên hoặc id lấy từ list_leave_types")] string leaveType,
         [Description("Ngày bắt đầu yyyy-MM-dd")] string startDate,
         [Description("Ngày kết thúc yyyy-MM-dd")] string endDate,
         [Description("\"FullDay\" (mặc định), \"Morning\" hoặc \"Afternoon\" — nửa ngày chỉ khi bắt đầu = kết thúc")] string? period = null,

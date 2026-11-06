@@ -9,6 +9,8 @@ using OfficeHub.BuildingBlocks.Persistence;
 using OfficeHub.Modules.Identity.Contracts;
 using OfficeHub.Modules.Identity.Domain;
 using OfficeHub.Modules.Identity.Features.Auth;
+using OfficeHub.Modules.Identity.Features.OAuth;
+using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.Modules.Identity.Infrastructure;
 
 namespace OfficeHub.Modules.Identity;
@@ -51,7 +53,10 @@ public sealed class IdentityModule : IModule
         services.Configure<DataProtectionTokenProviderOptions>(o => o.TokenLifespan = TimeSpan.FromHours(72));
         services.AddScoped<AccountService>();
         services.AddScoped<IAccountService>(sp => sp.GetRequiredService<AccountService>());
+        services.AddValidatedOptions<AccessTokenSettings>(config, AccessTokenSettings.Section);
         services.AddAuthRateLimits();
+        // /api/oauth/register, /token, /revoke được gọi từ máy chủ / trình duyệt của ứng dụng AI (không cookie).
+        services.AddCors(o => o.AddPolicy(OAuthEndpoints.CorsPolicy, p => p.AllowAnyOrigin().AllowAnyHeader().WithMethods("POST")));
 
         services.AddHostedService<IdentitySeeder>();
     }
@@ -61,5 +66,6 @@ public sealed class IdentityModule : IModule
         AuthEndpoints.Map(api);
         PasswordEndpoints.Map(api);
         AccessTokenEndpoints.Map(api);
+        OAuthEndpoints.Map(api);
     }
 }

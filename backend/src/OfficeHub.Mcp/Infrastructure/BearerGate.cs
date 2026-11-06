@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using OfficeHub.BuildingBlocks.Auth;
+using OfficeHub.BuildingBlocks.Configuration;
 
 namespace OfficeHub.Mcp.Infrastructure;
 
@@ -12,14 +13,14 @@ namespace OfficeHub.Mcp.Infrastructure;
 /// thay vì kết nối được rồi tool nào cũng lỗi. Token vẫn được Api kiểm tra lại ở MỌI lệnh gọi.
 /// </summary>
 public sealed class BearerGate(RequestDelegate next, IHttpClientFactory http, IMemoryCache cache, IOptions<McpSettings> options,
-    ILogger<BearerGate> log)
+    IOptions<AppSettings> app, ILogger<BearerGate> log)
 {
     public async Task InvokeAsync(HttpContext ctx)
     {
         var header = ctx.Request.Headers.Authorization.ToString();
         if (!AccessTokenAuth.HasBearerToken(header))
         {
-            await Reject(ctx, "Thiếu token. Tạo token ở trang Kết nối AI của OfficeHub rồi gửi qua header Authorization: Bearer <token>.");
+            await Reject(ctx, "Chưa đăng nhập. Kết nối bằng OAuth hoặc gửi token tạo ở trang Kết nối AI qua header Authorization: Bearer <token>.");
             return;
         }
 
@@ -64,10 +65,15 @@ public sealed class BearerGate(RequestDelegate next, IHttpClientFactory http, IM
         }
     }
 
-    private static Task Reject(HttpContext ctx, string detail)
+    /// <summary>
+    /// 401 + <c>WWW-Authenticate: Bearer resource_metadata="…"</c> (RFC 9728): client hỗ trợ OAuth (claude.ai, Cursor, Codex…)
+    /// đọc metadata → tự đăng ký + mở trang đăng nhập OfficeHub; client dùng token cá nhân chỉ thấy lỗi thiếu token.
+    /// </summary>
+    private Task Reject(HttpContext ctx, string detail)
     {
         ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
-        ctx.Response.Headers.WWWAuthenticate = "Bearer";
+        ctx.Response.Headers.WWWAuthenticate =
+            $"Bearer resource_metadata=\"{OAuthMetadata.ResourceMetadataUrl(app.Value.BaseUrl)}\", scope=\"{OAuthMetadata.Scope}\"";
         return ctx.Response.WriteAsJsonAsync(new { status = 401, detail }, options: null, contentType: "application/problem+json");
     }
 }

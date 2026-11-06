@@ -20,7 +20,8 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Thông báo: chuông in-app + email (hàng đợi, thử lại), ai nhận gì khi gửi / duyệt / từ chối / huỷ đơn, `INotifier` | [notifications.md](notifications.md) |
 | Hợp đồng lao động: loại / thời hạn theo BLLĐ, phụ lục, lương mã hoá, file S3, nhắc 30 / 7 ngày, quyền xem | [contracts.md](contracts.md) |
 | Kết nối AI (MCP): token truy cập cá nhân, route token được gọi, tool cho Claude / Cursor / Codex | [mcp.md](mcp.md) |
-| Reporting, Audit | Chưa có nghiệp vụ — chỉ `GET /api/<route>/_status`. FE: `ComingSoon`. Thiết kế dự kiến: `docs/ARCHITECTURE_V2.md` |
+| Kết nối AI: OAuth 2.1 (DCR, PKCE, refresh), nhật ký AI (Audit), HR thu hồi, giới hạn / công tắc tắt | [mcp-oauth.md](mcp-oauth.md) |
+| Reporting; Audit (ngoài nhật ký AI) | Chưa có nghiệp vụ — Reporting chỉ `GET /api/reports/_status`, FE `ComingSoon`. Audit hiện chỉ có nhật ký AI ([mcp-oauth.md](mcp-oauth.md)). Thiết kế dự kiến: `docs/ARCHITECTURE_V2.md` |
 
 ## Nguyên tắc chung
 

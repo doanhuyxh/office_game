@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.BuildingBlocks.Hosting;
 using OfficeHub.Mcp.Infrastructure;
@@ -21,10 +23,27 @@ builder.Services.AddMcpServer(o =>
         o.ServerInstructions = Instructions;
     })
     .WithHttpTransport(o => o.Stateless = true)
-    .WithToolsFromAssembly();
+    .WithToolsFromAssembly()
+    .WithRequestFilters(f => f.AddCallToolFilter(next => async (ctx, ct) =>
+    {
+        // Tên tool → header X-Mcp-Tool khi gọi Api (audit) + log thời gian chạy.
+        var name = ctx.Params?.Name;
+        OfficeHubApi.CurrentTool.Value = name;
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        var result = await next(ctx, ct);
+        ctx.Services?.GetRequiredService<ILogger<OfficeHubApi>>().LogInformation("MCP tool {Tool} {Outcome} trong {Ms} ms",
+            name, result.IsError == true ? "lỗi" : "xong", (int)System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+        return result;
+    }));
 
 var app = builder.Build();
 app.UseOfficeHubDefaults();
+
+// OAuth discovery (MCP Authorization): client đọc 2 tài liệu này để tìm trang đăng nhập / endpoint token của OfficeHub.Api.
+// RFC 9728 cho phép cả /.well-known/oauth-protected-resource và bản có hậu tố đường dẫn tài nguyên (/mcp).
+app.MapGet(OAuthMetadata.ProtectedResourcePath, (IOptions<AppSettings> o) => Results.Json(OAuthMetadata.ProtectedResource(o.Value.BaseUrl)));
+app.MapGet(OAuthMetadata.ProtectedResourcePath + "/mcp", (IOptions<AppSettings> o) => Results.Json(OAuthMetadata.ProtectedResource(o.Value.BaseUrl)));
+app.MapGet(OAuthMetadata.AuthorizationServerPath, (IOptions<AppSettings> o) => Results.Json(OAuthMetadata.AuthorizationServer(o.Value.BaseUrl)));
 
 app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/mcp"), b => b.UseMiddleware<BearerGate>());
 app.MapMcp("/mcp");

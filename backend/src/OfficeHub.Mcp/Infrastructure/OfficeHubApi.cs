@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ModelContextProtocol;
+using OfficeHub.BuildingBlocks.Auth;
 
 namespace OfficeHub.Mcp.Infrastructure;
 
@@ -24,6 +25,8 @@ public sealed class McpSettings
 public sealed class OfficeHubApi(HttpClient http, IHttpContextAccessor ctx)
 {
     public const string HttpClientName = "officehub-api";
+    /// <summary>Tool MCP đang chạy (đặt bởi call-tool filter trong Program.cs) → header X-Mcp-Tool cho audit log của Api.</summary>
+    public static readonly AsyncLocal<string?> CurrentTool = new();
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = false };
 
     public Task<JsonNode?> GetAsync(string path, CancellationToken ct) => SendAsync(HttpMethod.Get, path, null, ct);
@@ -44,6 +47,7 @@ public sealed class OfficeHubApi(HttpClient http, IHttpContextAccessor ctx)
         req.Headers.Authorization = AuthenticationHeaderValue.Parse(http0.Request.Headers.Authorization.ToString());
         // IP của client AI (để Api ghi vào sự kiện chấm công). Chấm công qua MCP luôn tính "từ xa", IP chỉ để tra cứu.
         if (http0.Connection.RemoteIpAddress is { } ip) req.Headers.TryAddWithoutValidation("X-Forwarded-For", ip.ToString());
+        if (CurrentTool.Value is { } tool) req.Headers.TryAddWithoutValidation(AccessTokenAuth.ToolHeader, tool);
         req.Headers.TryAddWithoutValidation("User-Agent", $"OfficeHub.Mcp ({Truncate(http0.Request.Headers.UserAgent.ToString(), 200)})");
         if (body is not null) req.Content = JsonContent.Create(body, options: Json);
 

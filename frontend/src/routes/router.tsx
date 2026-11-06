@@ -71,6 +71,13 @@ const office = createRoute({
   component: lazyRouteComponent(() => import('@/features/office'), 'OfficeView'),
 });
 
+// Trang đồng ý cấp quyền cho ứng dụng AI (OAuth) — toàn màn hình. Tham số OAuth đọc thẳng từ URL.
+const oauthAuthorize = createRoute({
+  getParentRoute: () => protectedRoute,
+  path: PATHS.oauthAuthorize,
+  component: lazyRouteComponent(() => import('@/features/ai-access'), 'OAuthConsentPage'),
+});
+
 // Các màn hình nhân sự: dùng chung sidebar.
 const main = createRoute({ getParentRoute: () => protectedRoute, id: 'main', component: MainLayout });
 
@@ -86,6 +93,7 @@ const routeTree = root.addChildren([
   resetPassword,
   protectedRoute.addChildren([
     office,
+    oauthAuthorize,
     main.addChildren([
       page(PATHS.dashboard, () => import('@/features/dashboard'), 'Dashboard'),
       page(PATHS.attendance, () => import('@/features/attendance'), 'AttendancePage'),

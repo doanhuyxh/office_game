@@ -12,6 +12,9 @@ public sealed class OfficeIdentityDbContext(DbContextOptions<OfficeIdentityDbCon
     public const string Schema = "identity";
 
     public DbSet<AccessToken> AccessTokens => Set<AccessToken>();
+    public DbSet<OAuthClient> OAuthClients => Set<OAuthClient>();
+    public DbSet<OAuthCode> OAuthCodes => Set<OAuthCode>();
+    public DbSet<OAuthGrant> OAuthGrants => Set<OAuthGrant>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -27,6 +30,40 @@ public sealed class OfficeIdentityDbContext(DbContextOptions<OfficeIdentityDbCon
             t.HasIndex(x => x.TokenHash).IsUnique().HasDatabaseName("ux_access_tokens_hash");
             t.HasIndex(x => x.UserId).HasDatabaseName("ix_access_tokens_user");
             t.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            t.HasOne<OAuthGrant>().WithMany().HasForeignKey(x => x.GrantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<OAuthClient>(c =>
+        {
+            c.ToTable("oauth_clients");
+            c.Property(x => x.ClientId).HasMaxLength(64).IsRequired();
+            c.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            c.HasIndex(x => x.ClientId).IsUnique().HasDatabaseName("ux_oauth_clients_client_id");
+        });
+        b.Entity<OAuthCode>(c =>
+        {
+            c.ToTable("oauth_codes");
+            c.Property(x => x.CodeHash).HasMaxLength(64).IsRequired();
+            c.Property(x => x.RedirectUri).HasMaxLength(2000).IsRequired();
+            c.Property(x => x.CodeChallenge).HasMaxLength(128).IsRequired();
+            c.Property(x => x.Scope).HasMaxLength(200);
+            c.Property(x => x.Resource).HasMaxLength(500);
+            c.HasIndex(x => x.CodeHash).IsUnique().HasDatabaseName("ux_oauth_codes_hash");
+            c.HasOne<OAuthClient>().WithMany().HasForeignKey(x => x.ClientId).OnDelete(DeleteBehavior.Cascade);
+            c.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<OAuthGrant>(g =>
+        {
+            g.ToTable("oauth_grants");
+            g.Property(x => x.ClientName).HasMaxLength(100).IsRequired();
+            g.Property(x => x.Scope).HasMaxLength(200);
+            g.Property(x => x.RefreshHash).HasMaxLength(64).IsRequired();
+            g.Property(x => x.PreviousRefreshHash).HasMaxLength(64);
+            g.HasIndex(x => x.RefreshHash).IsUnique().HasDatabaseName("ux_oauth_grants_refresh");
+            g.HasIndex(x => x.PreviousRefreshHash).HasDatabaseName("ix_oauth_grants_prev_refresh");
+            g.HasIndex(x => x.UserId).HasDatabaseName("ix_oauth_grants_user");
+            g.HasOne<OAuthClient>().WithMany().HasForeignKey(x => x.ClientId).OnDelete(DeleteBehavior.Cascade);
+            g.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<AppUser>(u =>

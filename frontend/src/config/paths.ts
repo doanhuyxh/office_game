@@ -9,6 +9,7 @@ export const PATHS = {
   contracts: '/contracts',
   reports: '/reports',
   aiAccess: '/ai-access',
+  oauthAuthorize: '/oauth/authorize',
   login: '/login',
   changePassword: '/change-password',
   forgotPassword: '/forgot-password',

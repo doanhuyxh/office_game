@@ -2,6 +2,18 @@ using System.Security.Claims;
 
 namespace OfficeHub.BuildingBlocks.Auth;
 
+/// <summary>Ai đang gọi bằng token AI. <c>ClientName</c> = tên token cá nhân hoặc tên ứng dụng OAuth.</summary>
+public sealed record AccessTokenCaller(Guid UserId, Guid TokenId, string ClientName, bool ViaOAuth);
+
+/// <summary>Cấu hình token AI. Tắt <c>AccessTokens__Enabled</c> = mọi token / ứng dụng AI bị từ chối ngay (công tắc toàn công ty).</summary>
+public sealed class AccessTokenSettings
+{
+    public const string Section = "AccessTokens";
+    public bool Enabled { get; set; } = true;
+    /// <summary>Giới hạn request / phút cho mỗi token (Api trả 429 khi vượt).</summary>
+    [System.ComponentModel.DataAnnotations.Range(10, 10000)] public int RequestsPerMinute { get; set; } = 120;
+}
+
 /// <summary>
 /// Token truy cập cá nhân (PAT) cho trợ lý AI qua MCP: <c>Authorization: Bearer ohk_…</c>.
 /// Nhân viên tự tạo / thu hồi ở trang "Kết nối AI". Token mang đúng quyền của chủ tài khoản,
@@ -14,6 +26,10 @@ public static class AccessTokenAuth
     public const string SelectorScheme = "OfficeHub";
     public const string TokenPrefix = "ohk_";
     public const string TokenIdClaim = "access_token_id";
+    /// <summary>Header OfficeHub.Mcp gửi kèm: tên tool MCP đang chạy (ghi vào audit log).</summary>
+    public const string ToolHeader = "X-Mcp-Tool";
+    /// <summary>HttpContext.Items: <see cref="AccessTokenCaller"/> của request dùng token (kể cả khi route bị chặn) — module Audit đọc.</summary>
+    public const string CallerItemKey = "officehub.access_token.caller";
 
     /// <summary>Request này được xác thực bằng token AI (không phải cookie trình duyệt).</summary>
     public static bool IsAccessToken(this ClaimsPrincipal user) => user.Identity?.AuthenticationType == Scheme;

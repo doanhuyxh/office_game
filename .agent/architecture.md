@@ -15,8 +15,8 @@ backend/                         ASP.NET Core .NET 10 — solution OfficeHub.sln
     Auth/                        AuthCookie (cookie dùng chung), Roles, ClaimNames, AuthPolicies
     Health/, Http/Validation.cs, Persistence/, Storage/(IFileStorage→S3), Email/(IEmailSender→SMTP), Security/(IFieldEncryptor AES-GCM), Office/OfficeNetwork
   src/Modules/                   Identity · Organization · Attendance · Approval · Leave · Notification (mỗi cái + .Contracts) · LaborContracts ← có nghiệp vụ
-                                 Reporting · Audit ← chỉ khung (/_status)
-  tests/                         OfficeHub.Architecture.Tests, OfficeHub.Modules.{Attendance,Leave,Notification,LaborContracts}.Tests, OfficeHub.{Realtime,Mcp}.Tests
+                                 Audit ← nhật ký AI (IStartupFilter bọc pipeline) · Reporting ← chỉ khung (/_status)
+  tests/                         OfficeHub.Architecture.Tests, OfficeHub.Modules.{Attendance,Leave,Notification,LaborContracts}.Tests, OfficeHub.Modules.Identity.Tests, OfficeHub.{Realtime,Mcp}.Tests
 frontend/                        React 19 + Vite + TS (bun) — chi tiết: conventions.md
 shared/office-map.json           bản đồ văn phòng 3D, dùng chung FE (vẽ) + Realtime (kiểm tra sàn)
 infra/                           docker-compose.dev.yml, docker-compose.yml (prod), backup/, livekit/
@@ -30,6 +30,7 @@ Trình duyệt (SPA :5173)
   ├─ /api/*  ──(Vite proxy dev | nginx VPS → container web prod)──▶ OfficeHub.Api ─▶ <M>Module endpoints ─▶ DbContext (schema riêng) ─▶ PostgreSQL
   │                                                     └─▶ IAccountService / IEmployeeDirectory (Contracts) giữa các module
   ├─ /mcp    ──(AI client, Bearer ohk_…)──▶ OfficeHub.Mcp ─▶ HTTP /api/* của Api bằng chính token đó (business/mcp.md)
+  ├─ /.well-known/oauth-* ─▶ OfficeHub.Mcp (OAuth discovery); /oauth/authorize = trang FE; /api/oauth/* = Identity (business/mcp-oauth.md)
   └─ /rt/*   ──(WebSocket)──────────────────────────▶ OfficeHub.Realtime ─▶ Presence (RAM) — không ghi DB
                                                           └─▶ HTTP GET Api /api/auth/me (kiểm tra phiên, cookie người dùng)
 ```

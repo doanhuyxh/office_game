@@ -11,11 +11,13 @@
 - Enum lưu dạng **chuỗi** (`HasConversion<string>()`).
 - Id: `Guid.CreateVersion7()` (UUID v7, sắp theo thời gian).
 
-## Schema `identity` — `OfficeIdentityDbContext` (migration `InitialIdentity`, `AccessTokens`)
+## Schema `identity` — `OfficeIdentityDbContext` (migration `InitialIdentity`, `AccessTokens`, `OAuth`)
 
 Bảng ASP.NET Identity đổi tên: `users`, `roles`, `user_roles`, `user_claims`, `user_logins`, `user_tokens`, `role_claims`.
 
-`access_tokens` (token AI, [business/mcp.md](business/mcp.md)): `UserId` (FK `users`, cascade, `ix_access_tokens_user`), `Name` ≤100, `TokenHash` SHA-256 hex (unique `ux_access_tokens_hash`), `Prefix` ≤20, `CreatedAt`, `ExpiresAt`, `LastUsedAt?`, `RevokedAt?` (thu hồi = đặt giá trị, không xoá dòng).
+`access_tokens` (token AI, [business/mcp.md](business/mcp.md)): `UserId` (FK `users`, cascade, `ix_access_tokens_user`), `Name` ≤100, `TokenHash` SHA-256 hex (unique `ux_access_tokens_hash`), `Prefix` ≤20, `CreatedAt`, `ExpiresAt`, `LastUsedAt?`, `RevokedAt?` (thu hồi = đặt giá trị, không xoá dòng), `GrantId?` (FK `oauth_grants`, cascade — access token OAuth 1 giờ, xoá khi hết hạn lúc refresh).
+
+OAuth: `oauth_clients`, `oauth_codes`, `oauth_grants` (FK `users` / client, cascade; secret chỉ lưu SHA-256) — cột + quy tắc: [business/mcp-oauth.md](business/mcp-oauth.md).
 
 `users` (`AppUser : IdentityUser<Guid>`) thêm: `FullName` (≤200), `MustChangePassword`, `IsActive` (default true), `CreatedAt`, `LastLoginAt`.
 - `UserName` duy nhất (`UserNameIndex`). Email **không bắt buộc**; nếu có thì duy nhất: index `ux_users_email` trên `NormalizedEmail` lọc `IS NOT NULL` (`User.RequireUniqueEmail = false`).
@@ -78,3 +80,7 @@ Mọi seeder/migrator chỉ chạy migration khi `Database__MigrateOnStartup` kh
 ## Không có
 
 Không transaction trải nhiều module (mỗi request gọi `SaveChangesAsync` riêng từng DbContext). Ví dụ cấp tài khoản: Identity tạo user → Organization ghi `UserId`; nếu bước 2 lỗi sẽ còn user mồ côi (cần xác nhận cách xử lý nếu xảy ra). Không audit log. Hàng đợi email thông báo nằm trong bảng `notifications.notifications` (cột `Email*`), không có outbox sự kiện giữa module.
+
+## Schema `audit` — `AuditDbContext` (migration `InitialAudit`)
+
+`ai_requests`: mọi request bằng token AI; index `(UserId, OccurredAt)`, `OccurredAt`. Chỉ thêm, tự xoá > 180 ngày — chi tiết [business/mcp-oauth.md](business/mcp-oauth.md#nhật-ký-ai-module-audit-schema-audit).

@@ -24,7 +24,7 @@ dotnet run --project src/OfficeHub.Mcp        # http://localhost:5100/mcp (tuỳ
 
 # 3) Front-end (từ frontend/)
 bun install
-bun run dev                                   # http://localhost:5173, proxy /api → 5080, /rt → 5090 (ws), /mcp → 5100
+bun run dev                                   # http://localhost:5173, proxy /api → 5080, /rt → 5090 (ws), /mcp + /.well-known/oauth-* → 5100
 ```
 
 `EnvLoader.Load()` tìm `.env` ngược từ thư mục hiện tại → chạy `dotnet` ở đâu trong repo cũng đọc được `.env` gốc.
@@ -85,6 +85,7 @@ Một file `.env` ở gốc repo cho BE + Docker Compose. Quy ước `Section__K
 | `Seq__Url`, `Seq__ApiKey`, `Sentry__Dsn` | – | Log / lỗi; trống = tắt |
 | `Realtime__MapPath` | – | Mặc định `shared/office-map.json` |
 | `Realtime__ApiBaseUrl` | – (`http://localhost:5080`) | Realtime gọi Api để kiểm tra phiên. Prod compose: `http://api:8080` |
+| `AccessTokens__Enabled`, `AccessTokens__RequestsPerMinute` | – (true, 120) | Công tắc kết nối AI toàn công ty; giới hạn request / phút / token |
 | `Mcp__ApiBaseUrl`, `Mcp__TokenCacheSeconds` | – (`http://localhost:5080`, 30) | OfficeHub.Mcp gọi lại Api bằng token người dùng; prod compose: `http://api:8080` |
 | `Realtime__SessionCheckSeconds` | – (30, tối thiểu 5) | Chu kỳ kiểm tra lại phiên người đang online |
 | `APP_DOMAIN`, `HTTP_PORT`, `POSTGRES_HOST/PORT`, `SEQ_URL`, `SEQ_ADMIN_PASSWORD` | prod | Chỉ cho `infra/docker-compose.yml` |

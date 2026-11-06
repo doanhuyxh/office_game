@@ -18,6 +18,8 @@ public sealed class AccessToken
     public DateTimeOffset ExpiresAt { get; set; }
     public DateTimeOffset? LastUsedAt { get; set; }
     public DateTimeOffset? RevokedAt { get; set; }
+    /// <summary>null = token cá nhân (người dùng tự tạo); có giá trị = access token ngắn hạn cấp qua OAuth cho một ứng dụng.</summary>
+    public Guid? GrantId { get; set; }
 
     public bool IsUsable(DateTimeOffset now) => RevokedAt is null && ExpiresAt > now;
 }

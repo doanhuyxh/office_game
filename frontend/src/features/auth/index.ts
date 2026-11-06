@@ -1,5 +1,6 @@
 // Public API của module auth — nơi khác chỉ import từ '@/features/auth'.
 export { LoginForm } from './components/LoginForm';
+export { AuthShell } from './components/AuthShell';
 export { ChangePasswordForm } from './components/ChangePasswordForm';
 export { ForgotPasswordForm } from './components/ForgotPasswordForm';
 export { AcceptInviteForm, ResetPasswordForm } from './components/SetPasswordForm';
