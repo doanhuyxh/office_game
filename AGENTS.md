@@ -8,7 +8,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 
 | Khi bạn cần... | Đọc |
 |---|---|
-| **Đầu phiên**: tiến độ, việc tiếp theo, dữ liệu / tài khoản thử, bẫy đã gặp | [.agent/progress.md](.agent/progress.md) |
+| **Đầu phiên**: tiến độ, việc tiếp theo, dữ liệu / tài khoản thử · bẫy đã gặp | [.agent/progress.md](.agent/progress.md) · [.agent/pitfalls.md](.agent/pitfalls.md) |
 | Chạy dev, build, test, migration, CI, deploy · biến `.env` | [.agent/commands.md](.agent/commands.md) · [.agent/env.md](.agent/env.md) |
 | Script e2e, test trên DB tạm (+ Mailpit đọc email) | [.agent/e2e.md](.agent/e2e.md) |
 | Viết code đúng chuẩn: module BE, validation, đặt tên | [.agent/conventions.md](.agent/conventions.md) |
