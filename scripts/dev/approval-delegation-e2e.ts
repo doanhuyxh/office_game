@@ -8,6 +8,9 @@
 //        dotnet run --project src/OfficeHub.Api --no-launch-profile
 //   Pha a: E2E_LOCAL_DB=1 API_URL=http://localhost:5183 MAILPIT_URL=http://127.0.0.1:18043 ADMIN_LOGIN=… ADMIN_PASSWORD=… bun scripts/dev/approval-delegation-e2e.ts a
 //   Pha b (nhắc thử việc — job chạy 30 s sau khi Api khởi động): khởi động lại Api, đợi ≥ 40 s → … approval-delegation-e2e.ts b
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { totp } from './totp';
 if (process.env.E2E_LOCAL_DB !== '1') throw new Error('Chỉ chạy với DB tạm: đặt E2E_LOCAL_DB=1');
 const API = process.env.API_URL ?? 'http://localhost:5183';
 const MAILPIT = process.env.MAILPIT_URL ?? 'http://127.0.0.1:18043';
@@ -23,9 +26,34 @@ const ok = (name: string, cond: boolean, extra?: unknown) => {
   console.log(`${cond ? '✔' : '✘'} ${name}${!cond && extra !== undefined ? ' → ' + JSON.stringify(extra).slice(0, 600) : ''}`);
 };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const login = async (login: string, password: string) => {
+// Admin / HR bắt buộc 2FA (auth-2fa.md): bị buộc → tự bật; đã bật → nhập mã. Khoá lưu ra file tạm để pha b (tiến trình khác) dùng lại.
+const KEYS_FILE = `${tmpdir()}/officehub-e2e-2fa-keys-${new URL(API).port}.json`;
+const keys: Record<string, string> = existsSync(KEYS_FILE) ? JSON.parse(readFileSync(KEYS_FILE, 'utf8')) : {};
+const cookieOf = (r: Response, name: string) => (r.headers.getSetCookie?.() ?? []).map((c) => c.split(';')[0]).find((c) => c.startsWith(name + '=')) ?? '';
+const login = async (login: string, password: string): Promise<string> => {
   const r = await fetch(`${API}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login, password }) });
-  return (r.headers.get('set-cookie') ?? '').split(';')[0];
+  const body = await r.json().catch(() => null) as any;
+  if (r.status === 403 && body?.title === '2fa_required') {
+    if (!keys[login]) throw new Error(`${login} đã bật 2FA nhưng không có khoá trong ${KEYS_FILE}`);
+    const r2 = await fetch(`${API}/api/auth/login/2fa`, { method: 'POST', headers: { 'content-type': 'application/json', cookie: cookieOf(r, 'officehub.2fa') },
+      body: JSON.stringify({ code: totp(keys[login]), isRecoveryCode: false, rememberMe: true }) });
+    return cookieOf(r2, 'officehub.auth');
+  }
+  let cookie = cookieOf(r, 'officehub.auth');
+  if (r.ok && body?.mustSetupTwoFactor) {
+    // setup / enable cấp lại cookie (RefreshSignIn đổi claim) → luôn lấy cookie mới nhất
+    const post = async (path: string, b: unknown) => {
+      const x = await fetch(API + path, { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify(b) });
+      cookie = cookieOf(x, 'officehub.auth') || cookie;
+      return { status: x.status, body: await x.json().catch(() => null) as any };
+    };
+    const s = await post('/api/auth/2fa/setup', {});
+    const e = await post('/api/auth/2fa/enable', { code: totp(s.body?.sharedKey ?? '') });
+    if (e.status !== 200) throw new Error(`Không bật được 2FA cho ${login}: ${s.status} ${e.status} ${JSON.stringify(e.body)}`);
+    keys[login] = s.body.sharedKey;
+    writeFileSync(KEYS_FILE, JSON.stringify(keys));
+  }
+  return cookie;
 };
 const json = async (cookie: string, method: string, path: string, body?: unknown) => {
   const r = await fetch(API + path, { method, headers: { cookie, 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
