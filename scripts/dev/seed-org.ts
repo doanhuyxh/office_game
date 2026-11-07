@@ -21,7 +21,7 @@ const DEPTS = [
   { code: 'HCNS', name: 'Hành chính – Nhân sự', mapZone: 'work', sortOrder: 1 },
   { code: 'KT', name: 'Kế toán', mapZone: 'work', sortOrder: 2 },
   { code: 'KD', name: 'Kinh doanh', mapZone: 'work', sortOrder: 3 },
-  { code: 'KTH', name: 'Kỹ thuật', mapZone: 'work', sortOrder: 4 },
+  { code: 'KTH', name: 'Công nghệ', mapZone: 'work', sortOrder: 4 },
   { code: 'LT', name: 'Lễ tân', mapZone: 'reception', sortOrder: 5 },
 ];
 let depts: any[] = await call(admin, 'GET', '/api/org/departments');

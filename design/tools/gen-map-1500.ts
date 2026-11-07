@@ -90,7 +90,7 @@ const rooms = [
   })),
 ];
 
-// ---------- khu mở (chủ dự án chốt 2026-11-06): Kinh doanh sát tường tây, Kỹ thuật xoay dọc kế bên, rồi 5 cột cụm thường + 1 cụm dọc sát phòng gọi ----------
+// ---------- khu mở (chủ dự án chốt 2026-11-06): Kinh doanh sát tường tây, Công nghệ xoay dọc kế bên, rồi 5 cột cụm thường + 1 cụm dọc sát phòng gọi ----------
 // Khoảng hở vật lý giữa các cụm (mép ghế / bàn) = 1,5 m. Cụm thường rộng 4,6 m (bàn ±2,3), cụm dọc rộng 2,5 m (ghế ±1,25), dài 4,8 m.
 const KD_X = 2.8;                                  // cụm thường: bàn 0,5–5,1
 const KTH_X = 7.85;                                // cụm dọc: 6,6–9,1
@@ -100,7 +100,7 @@ const GAPS = [5.85, 9.85, 15.95, 22.05, 28.15, 34.25, 40.35]; // tâm lối đi 
 const ROW_A = 11.25, ROW_B = 16.25, ROW_MID = (ROW_A + ROW_B) / 2; // tâm cụm (bàn ở ±0,35, ghế ở ±1,0)
 const areas = [
   { id: 'dept-kd', name: 'Kinh doanh', dept: 'KD', x0: 0.2, x1: KD_X + 2.9, z0: ROW_A - 1.75, z1: ROW_B + 1.75 },
-  { id: 'dept-kth', name: 'Kỹ thuật', dept: 'KTH', x0: KTH_X - 1.5, x1: KTH_X + 1.5, z0: ROW_MID - 2.75, z1: ROW_MID + 2.75 },
+  { id: 'dept-kth', name: 'Công nghệ', dept: 'KTH', x0: KTH_X - 1.5, x1: KTH_X + 1.5, z0: ROW_MID - 2.75, z1: ROW_MID + 2.75 },
   { id: 'dept-hcns', name: 'Hành chính – Nhân sự', dept: 'HCNS', x0: COLS[4] - 3.0, x1: COLS[4] + 3.0, z0: ROW_B - 1.75, z1: ROW_B + 1.75 },
 ];
 let n = cluster('KD', 'dept-kd', KD_X, ROW_A, 1); cluster('KD', 'dept-kd', KD_X, ROW_B, n);
@@ -110,7 +110,7 @@ n = 1;
 for (const cx of COLS) for (const cz of [ROW_A, ROW_B]) if (!(cx === COLS[4] && cz === ROW_B)) n = cluster('MR', 'work', cx, cz, n);
 clusterRot('MR', 'work', MR_ROT_X, ROW_MID, n);
 
-// đồ chung khu mở: bảng trắng Kinh doanh (tường tây) + Kỹ thuật (lối đi), cây hành lang bắc
+// đồ chung khu mở: bảng trắng Kinh doanh (tường tây) + Công nghệ (lối đi), cây hành lang bắc
 obj('kd-board', 'whiteboard', 0.1, 13.75, 0.1, 1.8);
 obj('kth-board', 'whiteboard', GAPS[1], 13.75, 0.1, 1.8);
 [0.5, GAPS[0], GAPS[2], GAPS[4], GAPS[5]].forEach((x, i) => obj(`plant-open-${i + 1}`, 'pottedPlant', x, 8.75, 0.5, 0.5)); // tránh trước cửa phòng

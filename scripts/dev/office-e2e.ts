@@ -26,10 +26,10 @@ try {
   await A.key('s', 1500);
   let me = (await snap(A)).me;
   check('wall blocks walking (stay inside room)', me.z < 7.95 && me.x < 10, me);
-  // 3) Ra khỏi phòng, tới khu Kỹ thuật (cụm xoay dọc, ghế KTH-02 ở x 6.85 quay mặt đông), bấm "đi tới ghế rồi ngồi"
+  // 3) Ra khỏi phòng, tới khu Công nghệ (cụm xoay dọc, ghế KTH-02 ở x 6.85 quay mặt đông), bấm "đi tới ghế rồi ngồi"
   await A.evalJs(`(()=>{const sc=window.__officeScene;const seat=${JSON.stringify({ id: 'KTH-02', dept: 'KTH', zone: 'dept-kth', x: 6.85, z: 13.75, facing: 'e' })};sc.walkTo(6.7,13.75,seat)})()`);
   check('walk to seat and sit', await waitFor(A, `document.body.innerText.includes('Đang ngồi ở bàn KTH-02')`, 15000), await snap(A));
-  check('zone label = Kỹ thuật', await A.evalJs(`[...document.querySelectorAll('.zone')].some(e=>e.textContent.includes('Kỹ thuật'))`));
+  check('zone label = Công nghệ', await A.evalJs(`[...document.querySelectorAll('.zone')].some(e=>e.textContent.includes('Công nghệ'))`));
   check('B sees A sitting', await waitFor(B, `window.__officeScene.snapshot().others.some(o=>o.anim===2 && Math.hypot(o.x-6.85,o.z-13.75)<0.3)`, 5000), await snap(B));
   await A.sleep(800);
   await A.shot(`${shots}/51-office-sitting.png`);
