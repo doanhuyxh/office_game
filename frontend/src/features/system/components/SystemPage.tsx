@@ -8,6 +8,7 @@ import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
 import { formatDateTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
 import { useSystemInfo } from '../hooks/useSystem';
+import { StorageCard } from './StorageCard';
 import type { IHealthItem, ISystemLink } from '../types/system.types';
 
 const LINK_ICON: Record<string, LucideIcon> = { docs: BookOpen, logs: ScrollText, mail: Mail };
@@ -108,6 +109,7 @@ export function SystemPage() {
                 <Row label="Gửi từ">{data.smtp.fromName} &lt;{data.smtp.fromEmail}&gt;</Row>
               </CardContent>
             </Card>
+            <StorageCard />
           </div>
         </>
       )}

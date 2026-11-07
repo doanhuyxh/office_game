@@ -32,6 +32,9 @@ internal static class SystemEndpoints
             .RequireAuthorization(AuthPolicies.Admin);
 
         app.MapGet("/api/system/info", InfoAsync).RequireAuthorization(AuthPolicies.Admin).WithTags("System");
+        // Báo cáo dung lượng S3 (quét object, giữ 10 phút; refresh=true quét lại)
+        app.MapGet("/api/system/storage", (bool? refresh, StorageReport report, CancellationToken ct) => report.GetAsync(refresh == true, ct))
+            .RequireAuthorization(AuthPolicies.Admin).WithTags("System");
     }
 
     private static async Task<SystemInfoDto> InfoAsync(IConfiguration cfg, IHostEnvironment env, IOptions<SmtpSettings> smtp,
