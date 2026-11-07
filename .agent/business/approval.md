@@ -6,7 +6,7 @@ Luồng duyệt **dùng chung**. Module sở hữu đơn (Leave, Attendance) g�
 
 ## Gửi đơn (`IApprovalService.SubmitAsync`, project `Approval.Contracts`)
 
-`ApprovalSubmission { Type, SubjectId, RequesterEmployeeId, Title, Summary, Steps }`. `Type` ∈ `ApprovalTypes.Leave` (`"leave"`), `ApprovalTypes.AttendanceCorrection` (`"attendance_correction"`), `ApprovalTypes.Overtime` (`"overtime"`). Mỗi (`Type`, `SubjectId`) chỉ một đơn (unique index).
+`ApprovalSubmission { Type, SubjectId, RequesterEmployeeId, Title, Summary, Steps }`. `Type` ∈ `ApprovalTypes.Leave` (`"leave"`), `ApprovalTypes.AttendanceCorrection` (`"attendance_correction"`), `ApprovalTypes.Overtime` (`"overtime"`), `ApprovalTypes.DocumentPublish` (`"document_publish"`, ban hành tài liệu — bước `[Manager]`, [documents.md](documents.md)). Mỗi (`Type`, `SubjectId`) chỉ một đơn (unique index).
 
 Tạo bước (`Infrastructure/ApprovalService.cs`):
 

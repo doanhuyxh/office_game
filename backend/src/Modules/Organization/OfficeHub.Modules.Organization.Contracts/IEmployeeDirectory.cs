@@ -19,7 +19,11 @@ public interface IEmployeeDirectory
     Task<EmployeeProfile?> GetProfileAsync(Guid employeeId, CancellationToken ct = default);
     /// <summary>Tài khoản nhận lương (đã giải mã) — chỉ cho Payroll xuất file chuyển khoản (HR). Người chưa khai thì không có trong kết quả.</summary>
     Task<IReadOnlyDictionary<Guid, BankAccountInfo>> GetBankAccountsAsync(IReadOnlyCollection<Guid> employeeIds, CancellationToken ct = default);
+    /// <summary>Mọi phòng ban (chưa xoá), có cây cha–con và trưởng phòng — vd kho tài liệu phòng ban (module Documents).</summary>
+    Task<IReadOnlyList<DepartmentRef>> ListDepartmentsAsync(CancellationToken ct = default);
 }
+
+public sealed record DepartmentRef(Guid Id, string? Code, string Name, Guid? ParentId, Guid? HeadEmployeeId);
 
 public sealed record BankAccountInfo(string? BankName, string Account, string? Holder);
 

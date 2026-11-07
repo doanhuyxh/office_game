@@ -27,6 +27,9 @@
     <Project Path="src/Modules/LaborContracts/OfficeHub.Modules.LaborContracts.Contracts/OfficeHub.Modules.LaborContracts.Contracts.csproj" />
     <Project Path="src/Modules/LaborContracts/OfficeHub.Modules.LaborContracts/OfficeHub.Modules.LaborContracts.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Documents/">
+    <Project Path="src/Modules/Documents/OfficeHub.Modules.Documents/OfficeHub.Modules.Documents.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Leave/">
     <Project Path="src/Modules/Leave/OfficeHub.Modules.Leave.Contracts/OfficeHub.Modules.Leave.Contracts.csproj" />
     <Project Path="src/Modules/Leave/OfficeHub.Modules.Leave/OfficeHub.Modules.Leave.csproj" />
@@ -53,6 +56,7 @@
     <Project Path="tests/OfficeHub.Architecture.Tests/OfficeHub.Architecture.Tests.csproj" />
     <Project Path="tests/OfficeHub.Mcp.Tests/OfficeHub.Mcp.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Attendance.Tests/OfficeHub.Modules.Attendance.Tests.csproj" />
+    <Project Path="tests/OfficeHub.Modules.Documents.Tests/OfficeHub.Modules.Documents.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Leave.Tests/OfficeHub.Modules.Leave.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Identity.Tests/OfficeHub.Modules.Identity.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.LaborContracts.Tests/OfficeHub.Modules.LaborContracts.Tests.csproj" />

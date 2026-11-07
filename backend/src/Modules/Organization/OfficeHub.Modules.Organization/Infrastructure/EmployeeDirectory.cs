@@ -53,6 +53,10 @@ internal sealed class EmployeeDirectory(OrgDbContext db, IFieldEncryptor enc) : 
             row.IdNumberEncrypted is null ? null : enc.Decrypt(row.IdNumberEncrypted), row.IdIssuedOn, row.IdIssuedPlace, row.PermanentAddress, row.CurrentAddress, row.JobTitle);
     }
 
+    public async Task<IReadOnlyList<DepartmentRef>> ListDepartmentsAsync(CancellationToken ct = default) =>
+        await db.Departments.AsNoTracking().OrderBy(d => d.SortOrder).ThenBy(d => d.Name)
+            .Select(d => new DepartmentRef(d.Id, d.Code, d.Name, d.ParentId, d.HeadEmployeeId)).ToListAsync(ct);
+
     public async Task<IReadOnlyDictionary<Guid, BankAccountInfo>> GetBankAccountsAsync(IReadOnlyCollection<Guid> employeeIds, CancellationToken ct = default)
     {
         var rows = await db.Employees.AsNoTracking().Where(e => employeeIds.Contains(e.Id) && e.BankAccountEncrypted != null)

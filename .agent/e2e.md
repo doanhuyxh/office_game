@@ -17,6 +17,7 @@
 | `payroll-sign-e2e.ts` | Ký điện tử (PDF, OTP qua Mailpit, sai mã, không đồng ý, ký, SHA bản đã ký, huỷ) + bảng lương (thông số, hồ sơ thuế, kỳ, khoản cộng/trừ, Excel, chốt, phiếu của tôi, chặn token AI). **Chỉ DB tạm + Mailpit** (hướng dẫn trong đầu file) |
 | `org-guide-e2e.ts` | Mô tả + hướng dẫn: quyền HR / trưởng phòng / nhân viên / token AI, `me/role`, lịch sử sửa, 5 tool MCP thật. **Chỉ DB tạm**; host MCP chạy `Mcp__ApiBaseUrl=http://localhost:5180 ASPNETCORE_URLS=http://localhost:5200` |
 | `profile-e2e.ts` | Hồ sơ cá nhân: liên hệ, ảnh (S3 thật, tự xoá), yêu cầu CCCD / ngân hàng → từ chối / duyệt / huỷ, HR sửa thẳng, lịch sử che số, chặn token AI, sheet "Chuyển khoản", trường CCCD mẫu hợp đồng. **Chỉ DB tạm** |
+| `documents-e2e.ts` | Kho tài liệu: quyền kho, thư mục, vé + PUT S3, phiên bản, xem / tải (Content-Disposition), tìm, ban hành qua duyệt → số hiệu, từ chối, lưu trữ, thùng rác, dự án, quản trị, bàn giao, huỷ; kiểm tra CORS bucket (⚠ nếu chưa bật). File S3 tự huỷ cuối bài. **Chỉ DB tạm** (`E2E_LOCAL_DB=1 API_URL=http://localhost:5180`) |
 | `avatar-e2e.ts` | Nhân vật 3D: PUT / DELETE `/api/auth/avatar` (danh mục, dáng khác, màu, phiên bản, token AI 403), 2 Chrome: thấy nhân vật của nhau khi vào, editor từ gợi ý → `LookChanged`, ngồi, vào lại vẫn giữ, editor ở `/profile`. **Chỉ DB tạm** (`E2E_LOCAL_DB=1 ADMIN_LOGIN=… ADMIN_PASSWORD=…`, Api + Realtime trỏ DB tạm) |
 
 ## Test trên DB tạm (khi test tạo dữ liệu không xoá được, vd nhân viên)

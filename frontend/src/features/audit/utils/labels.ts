@@ -6,6 +6,7 @@ export const ENTITY_LABEL: Record<string, string> = {
   Employee: 'Nhân viên', Department: 'Phòng ban', Position: 'Chức vụ', AppUser: 'Tài khoản',
   LaborContract: 'Hợp đồng', ContractAmendment: 'Phụ lục HĐ', ContractTemplate: 'Mẫu hợp đồng',
   Shift: 'Ca làm', ScheduleEntry: 'Lịch tuần', Holiday: 'Ngày lễ', LeaveType: 'Loại phép', LeaveAdjustment: 'Điều chỉnh phép',
+  Asset: 'Tài liệu', Project: 'Dự án', DocType: 'Loại tài liệu',
 };
 
 export const ACTION: Record<string, { label: string; tone: StatusTone }> = {

@@ -6,6 +6,8 @@ public static class ApprovalTypes
     public const string Leave = "leave";
     public const string AttendanceCorrection = "attendance_correction";
     public const string Overtime = "overtime";
+    /// <summary>Ban hành tài liệu trong kho tài liệu (module Documents).</summary>
+    public const string DocumentPublish = "document_publish";
 }
 
 /// <summary>Bước duyệt. Manager = quản lý trực tiếp của người gửi (bỏ qua nếu không có); Hr = bất kỳ ai có vai trò hr/admin.</summary>

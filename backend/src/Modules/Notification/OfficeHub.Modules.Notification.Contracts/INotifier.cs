@@ -46,4 +46,10 @@ public static class NotificationCategories
     public const string ProfileChangeRequested = "profile_change_requested";
     public const string ProfileChangeApproved = "profile_change_approved";
     public const string ProfileChangeRejected = "profile_change_rejected";
+    /// <summary>Tài liệu sắp / đã hết hạn lưu trữ — gửi HR + người phụ trách (module Documents).</summary>
+    public const string DocumentRetention = "document_retention";
+    /// <summary>Được bàn giao làm người phụ trách tài liệu (nhân viên cũ nghỉ việc) — module Documents.</summary>
+    public const string DocumentHandover = "document_handover";
+    /// <summary>Được thêm vào dự án (kho tài liệu dự án) — module Documents.</summary>
+    public const string ProjectMemberAdded = "project_member_added";
 }

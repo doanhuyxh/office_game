@@ -14,4 +14,5 @@ export const APPROVAL_TYPE: Record<string, string> = {
   leave: '🌴 Nghỉ phép',
   attendance_correction: '🕘 Giải trình chấm công',
   overtime: '⏱ Tăng ca',
+  document_publish: '📄 Ban hành tài liệu',
 };

@@ -5,6 +5,7 @@ using OfficeHub.BuildingBlocks.Modules;
 using OfficeHub.Modules.Approval;
 using OfficeHub.Modules.Attendance;
 using OfficeHub.Modules.Audit;
+using OfficeHub.Modules.Documents;
 using OfficeHub.Modules.LaborContracts;
 using OfficeHub.Modules.Identity;
 using OfficeHub.Modules.Leave;
@@ -39,6 +40,7 @@ IModule[] modules =
     new PayrollModule(),
     new ReportingModule(),
     new AuditModule(),
+    new DocumentsModule(),
 ];
 foreach (var m in modules) m.Register(builder.Services, builder.Configuration);
 

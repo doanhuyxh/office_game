@@ -15,7 +15,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Front-end: feature, shadcn/ui, theme sáng/tối, layout sidebar/header | [.agent/frontend.md](.agent/frontend.md) |
 | Luồng request, cookie Api ↔ Realtime, cache | [.agent/architecture.md](.agent/architecture.md) |
 | Tiền tố `/api/*` → module, danh sách trang FE + guard | [.agent/routes.md](.agent/routes.md) |
-| Thêm/sửa bảng, index, migration, quy tắc ghi dữ liệu | [.agent/database.md](.agent/database.md) (schema approval / leave / notifications / contracts: [.agent/database-workflow.md](.agent/database-workflow.md)) |
+| Thêm/sửa bảng, index, migration, quy tắc ghi dữ liệu | [.agent/database.md](.agent/database.md) (schema approval / leave / notifications / contracts / documents: [.agent/database-workflow.md](.agent/database-workflow.md)) |
 | Nguyên tắc phân quyền, nợ kỹ thuật đã biết | [.agent/business/README.md](.agent/business/README.md) |
 | Đăng nhập, mật khẩu, link mời, admin seed | [.agent/business/auth.md](.agent/business/auth.md) |
 | Nhân viên, phòng ban · cấp tài khoản, vai trò | [.agent/business/organization.md](.agent/business/organization.md) · [.agent/business/organization-accounts.md](.agent/business/organization-accounts.md) |
@@ -29,6 +29,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Báo cáo + Excel, quy ra tiền tăng ca / phép năm | [.agent/business/reports.md](.agent/business/reports.md) |
 | Bảng lương (BH, thuế TNCN, kỳ, phiếu) · ký hợp đồng điện tử (OTP email) | [.agent/business/payroll.md](.agent/business/payroll.md) · [.agent/business/contracts-esign.md](.agent/business/contracts-esign.md) |
 | Đặt phòng họp | [.agent/business/meetings.md](.agent/business/meetings.md) |
+| Kho tài liệu (tài sản số): kho phòng ban / dự án, tải thẳng S3, phiên bản, ban hành, hạn lưu trữ, bàn giao | [.agent/business/documents.md](.agent/business/documents.md) |
 | Lịch sử sửa dữ liệu (`[Audited]`) · nhập nhân viên từ Excel | [.agent/business/audit.md](.agent/business/audit.md) · [.agent/business/employee-import.md](.agent/business/employee-import.md) |
 | Luồng duyệt, thêm loại đơn | [.agent/business/approval.md](.agent/business/approval.md) |
 | Nghỉ phép, quỹ phép năm | [.agent/business/leave.md](.agent/business/leave.md) |

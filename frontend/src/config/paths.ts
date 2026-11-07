@@ -9,6 +9,7 @@ export const PATHS = {
   contracts: '/contracts',
   reports: '/reports',
   meetings: '/meetings',
+  documents: '/documents',
   audit: '/audit',
   payroll: '/payroll',
   payslips: '/payslips',

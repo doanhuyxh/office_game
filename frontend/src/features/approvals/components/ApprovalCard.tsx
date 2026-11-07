@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { Card, CardContent } from '@/components/common/card';
@@ -6,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Label } from '@/components/common/label';
 import { Textarea } from '@/components/common/textarea';
+import { PATHS } from '@/config/paths';
 import { cn } from '@/utils/cn';
 import { formatDateTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
@@ -41,7 +43,10 @@ export function ApprovalCard({ item, showRequester }: { item: IApproval; showReq
           </div>
           <ApprovalStatusBadge status={item.status} />
         </div>
-        <p className="text-sm">{item.summary}</p>
+        <p className="text-sm whitespace-pre-line">{item.summary}</p>
+        {item.type === 'document_publish' && (
+          <Link to={PATHS.documents} search={{ asset: item.subjectId }} className="justify-self-start text-sm text-primary hover:underline">Xem tài liệu</Link>
+        )}
         <ol className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
           {item.steps.map((s) => (
             <li key={s.order} className={cn(s.status === 'Rejected' && 'text-destructive', s.status === 'Approved' && 'text-success', s.status === 'Pending' && 'font-semibold')}>

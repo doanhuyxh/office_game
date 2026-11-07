@@ -41,3 +41,13 @@ Một file `.env` ở gốc repo cho BE + Docker Compose. Quy ước `Section__K
 FE (`frontend/.env`, không có bí mật): `VITE_API_TARGET`, `VITE_RT_TARGET` (đích proxy khi dev), `VITE_SENTRY_DSN` (khai báo, chưa dùng).
 
 **Kiểm tra key đúng/sai:** `GET http://localhost:5080/health/ready` thử kết nối Postgres, S3 (list `{KeyPrefix}files/`), SMTP. `/health` chỉ báo còn sống.
+
+## S3 CORS (kho tài liệu)
+
+Kho tài liệu ([business/documents.md](business/documents.md)) cho trình duyệt **PUT thẳng** lên bucket `S3__BucketFiles` bằng presigned URL → bucket cần CORS (không có: tải lên báo "Không gửi được file lên kho S3", `documents-e2e.ts` in ⚠). Xem / tải (GET) không cần CORS. Đặt trong AWS Console → S3 → bucket → Permissions → CORS (IAM user `OfficeHub` của app không có quyền `PutBucketCors`):
+
+```json
+[{ "AllowedOrigins": ["https://office.lokid.me", "http://localhost:5173"], "AllowedMethods": ["PUT", "GET", "HEAD"],
+   "AllowedHeaders": ["*"], "ExposeHeaders": ["ETag"], "MaxAgeSeconds": 3600 }]
+```
+
