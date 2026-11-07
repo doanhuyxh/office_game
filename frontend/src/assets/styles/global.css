@@ -149,12 +149,6 @@
   }
   html {
     @apply overflow-x-hidden;
-    /*
-     * Màn hình rất lớn (2K, 4K…): cỡ chữ gốc tăng dần theo bề ngang từ trên 1920px → mọi kích thước rem (chữ, nút, khoảng cách,
-     * độ rộng khung) phóng theo. ≤ 1920px (Full HD, laptop, điện thoại) giữ 100% như cũ; 2560px ≈ 115%; 3840px trở lên tối đa 137,5% (22px).
-     * Dùng % nên vẫn tôn trọng cỡ chữ người dùng đặt trong trình duyệt. Breakpoint media (rem) không đổi theo vì tính trên cỡ chữ mặc định.
-     */
-    font-size: clamp(100%, calc(100% + (100vw - 1920px) * 0.004), 137.5%);
   }
   body {
     @apply min-h-svh w-full bg-background font-sans text-foreground antialiased has-[div[data-variant='inset']]:bg-sidebar;
