@@ -5,7 +5,7 @@ import { Button } from '@/components/common/button';
 import { Checkbox } from '@/components/common/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { FormField } from '@/components/common/FormField';
-import { SelectField } from '@/components/common/SelectField';
+import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { TablePagination, usePageState } from '@/components/common/pagination';
 import { Spinner } from '@/components/feedback/Spinner';
@@ -159,7 +159,7 @@ function HandoverDialog({ from, onClose }: { from: IOrphan | null; onClose: () =
           <DialogTitle>Bàn giao tài liệu của {from.fullName}</DialogTitle>
           <DialogDescription>{from.assetCount} tài liệu chuyển sang người nhận làm người phụ trách; người nhận cũng được thêm vào các dự án người cũ tham gia.</DialogDescription>
         </DialogHeader>
-        <SelectField id="ho-to" label="Người nhận *" value={to} onChange={setTo}
+        <SearchSelectField id="ho-to" label="Người nhận *" value={to} onChange={setTo}
           options={(employees.data ?? []).filter((e) => e.status !== 'Resigned').map((e) => ({ value: e.id, label: `${e.fullName} (${e.code}${e.departmentName ? ` · ${e.departmentName}` : ''})` }))} />
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Huỷ</Button>

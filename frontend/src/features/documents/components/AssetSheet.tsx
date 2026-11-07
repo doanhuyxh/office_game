@@ -6,6 +6,7 @@ import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/common/input';
 import { Label } from '@/components/common/label';
 import { SelectField } from '@/components/common/SelectField';
+import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/common/sheet';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
@@ -179,7 +180,7 @@ function Custodian({ d }: { d: IAssetDetail }) {
   }
   const options = (employees.data ?? []).filter((e) => e.status !== 'Resigned').map((e) => ({ value: e.id, label: `${e.fullName} (${e.code})` }));
   return (
-    <SelectField id="as-custodian" label="" value={d.custodianEmployeeId} options={options}
+    <SearchSelectField id="as-custodian" label="" value={d.custodianEmployeeId} options={options}
       onChange={(v) => v && save.mutate(v, { onSuccess: () => { toast.success('Đã đổi người phụ trách'); setEditing(false); }, onError: (e) => toast.error(errorMessage(e)) })} />
   );
 }

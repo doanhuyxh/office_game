@@ -5,6 +5,7 @@ import { Button } from '@/components/common/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { FormField } from '@/components/common/FormField';
 import { SelectField } from '@/components/common/SelectField';
+import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { TablePagination, usePageState } from '@/components/common/pagination';
 import { useEmployees } from '@/features/employees';
@@ -58,7 +59,7 @@ function ScheduleDialog({ initial, onClose }: { initial: ISchedule | 'new-employ
         </DialogHeader>
         <div className="grid gap-3">
           {initial === 'new-employee' && (
-            <SelectField id="sch-emp" label="Nhân viên" value={employeeId} onChange={setEmployeeId}
+            <SearchSelectField id="sch-emp" label="Nhân viên" value={employeeId} onChange={setEmployeeId}
               options={employees.map((e) => ({ value: e.id, label: `${e.code} · ${e.fullName}` }))} />
           )}
           <FormField id="sch-from" label="Áp dụng từ ngày" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />

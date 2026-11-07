@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { FormField } from '@/components/common/FormField';
 import { Label } from '@/components/common/label';
 import { SelectField } from '@/components/common/SelectField';
+import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { Textarea } from '@/components/common/textarea';
 import { useEmployees } from '@/features/employees';
 import { errorMessage, fieldErrors } from '@/utils/errors';
@@ -60,7 +61,7 @@ export function ContractFormDialog({ open, onClose, contract, employeeId }: {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="grid gap-4">
-          <SelectField id="c-employee" label="Nhân viên *" value={f.employeeId || null} onChange={(v) => set('employeeId', v ?? '')} error={errors.employeeId}
+          <SearchSelectField id="c-employee" label="Nhân viên *" value={f.employeeId || null} onChange={(v) => set('employeeId', v ?? '')} error={errors.employeeId}
             placeholder="Chọn nhân viên" options={employees.map((e) => ({ value: e.id, label: `${e.code} · ${e.fullName}${e.departmentName ? ` (${e.departmentName})` : ''}` }))} />
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField id="c-number" label="Số hợp đồng *" required maxLength={50} value={f.number} onChange={(e) => set('number', e.target.value)}

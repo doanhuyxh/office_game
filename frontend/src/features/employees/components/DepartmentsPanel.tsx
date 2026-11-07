@@ -9,6 +9,7 @@ import { Button } from '@/components/common/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { FormField } from '@/components/common/FormField';
 import { SelectField } from '@/components/common/SelectField';
+import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { useDeleteDepartment, useDepartments, useEmployees, useSaveDepartment } from '../hooks/useOrg';
@@ -46,8 +47,8 @@ function DepartmentDialog({ open, onOpenChange, dept }: { open: boolean; onOpenC
           <SelectField id="d-parent" label="Thuộc phòng ban" allowEmpty emptyLabel="— Cấp cao nhất —" value={form.parentId}
             onChange={(v) => setForm({ ...form, parentId: v })} error={errors.parentId}
             options={departmentOptions(departments, (d) => !!dept && (d.id === dept.id || descendantIds(departments, dept.id).has(d.id)))} />
-          <SelectField id="d-head" label="Trưởng phòng" allowEmpty value={form.headEmployeeId} onChange={(v) => setForm({ ...form, headEmployeeId: v })}
-            error={errors.headEmployeeId} options={employees.map((e) => ({ value: e.id, label: `${e.code} · ${e.fullName}` }))} />
+          <SearchSelectField id="d-head" label="Trưởng phòng" allowEmpty value={form.headEmployeeId} onChange={(v) => setForm({ ...form, headEmployeeId: v })}
+            error={errors.headEmployeeId} options={employees.map((e) => ({ value: e.id, label: `${e.code} · ${e.fullName}`, hint: e.departmentName ?? undefined }))} />
           <SelectField id="d-zone" label="Khu vực trong văn phòng 3D" allowEmpty value={form.mapZone} onChange={(v) => setForm({ ...form, mapZone: v })}
             options={MAP_ZONES.map((z) => ({ value: z.id, label: z.name }))} />
           <DialogFooter>

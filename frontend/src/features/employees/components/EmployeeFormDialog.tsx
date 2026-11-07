@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { FormField } from '@/components/common/FormField';
 import { Label } from '@/components/common/label';
 import { SelectField } from '@/components/common/SelectField';
+import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { Textarea } from '@/components/common/textarea';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { useDepartments, useEmployees, useNextEmployeeCode, usePositions, useSaveEmployee } from '../hooks/useOrg';
@@ -92,8 +93,8 @@ export function EmployeeFormDialog({ open, onOpenChange, employee, note, dateOfB
             options={positions.map((p) => ({ value: p.id, label: positionLabel(p) }))} error={errors.positionId} />
           <FormField id="jobTitle" label="Chức danh" value={form.jobTitle ?? ''} maxLength={150} onChange={(e) => set('jobTitle', e.target.value)}
             placeholder="Vd: Lễ tân, Lập trình viên, Kế toán viên" hint="Công việc cụ thể — khác chức vụ (cấp bậc)" error={errors.jobTitle} />
-          <SelectField id="managerId" label="Quản lý trực tiếp" allowEmpty value={form.managerId} onChange={(v) => set('managerId', v)}
-            options={employees.filter((x) => x.id !== employee?.id).map((x) => ({ value: x.id, label: `${x.code} · ${x.fullName}` }))}
+          <SearchSelectField id="managerId" label="Quản lý trực tiếp" allowEmpty value={form.managerId} onChange={(v) => set('managerId', v)}
+            options={employees.filter((x) => x.id !== employee?.id).map((x) => ({ value: x.id, label: `${x.code} · ${x.fullName}`, hint: x.departmentName ?? undefined }))}
             error={errors.managerId} />
           {suggestion && form.managerId !== suggestion && (
             <button type="button" className="-mt-2 text-left text-xs text-primary hover:underline sm:col-start-2" onClick={() => set('managerId', suggestion)}>
