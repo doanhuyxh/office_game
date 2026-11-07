@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Archive, Download, History, MonitorPlay, RotateCcw, Send, Trash2, Upload } from 'lucide-react';
+import { Archive, Download, History, UserCheck, MonitorPlay, RotateCcw, Send, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { FormField } from '@/components/common/FormField';
@@ -17,8 +17,8 @@ import { useEmployees } from '@/features/employees';
 import { formatDate, formatDateTime } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { documentApi } from '../api/document.api';
-import { useAccessLog, useAsset, useDocMutation, useDocTypes, useFolders } from '../hooks/useDocuments';
-import type { IAssetDetail, IFileUrl, IFolder, IUpdateAsset } from '../types/document.types';
+import { useAccessLog, useApprovers, useAsset, useDocMutation, useDocTypes, useFolders } from '../hooks/useDocuments';
+import type { IApprovers, IAssetDetail, IFileUrl, IFolder, IUpdateAsset } from '../types/document.types';
 import { formatSize, KIND, STATUS } from '../utils/labels';
 import { uploadNewVersion } from '../utils/upload';
 import { PromptDialog, type PromptSpec } from './PromptDialog';
@@ -53,6 +53,8 @@ function Detail({ d, onClose, onPresent }: { d: IAssetDetail; onClose: () => voi
   const a = d.asset;
   const k = KIND[a.kind];
   const [prompt, setPrompt] = useState<PromptSpec | null>(null);
+  const approvers = useApprovers(a.id, a.status, !a.deletedAt && (a.status === 'PendingApproval' || (a.status === 'Draft' && (d.can.submit || d.can.manage))));
+  const selfPublish = approvers.data?.step === 'Self';
   const run = useDocMutation((f: () => Promise<unknown>) => f());
   const act = (f: () => Promise<unknown>, ok: string, close = false) =>
     run.mutate(f, { onSuccess: () => { toast.success(ok); if (close) onClose(); }, onError: (e) => toast.error(errorMessage(e)) });
@@ -84,6 +86,8 @@ function Detail({ d, onClose, onPresent }: { d: IAssetDetail; onClose: () => voi
       )}
       {a.deletedAt && <div className="rounded-md bg-warning/10 p-3 text-sm text-warning">Trong thùng rác (xoá bởi {d.deletedByName}) — tự xoá hẳn sau 30 ngày.</div>}
 
+      {approvers.data && <Approvers data={approvers.data} />}
+
       {a.status !== 'Destroyed' && !a.deletedAt && <Preview assetId={a.id} version={a.currentVersion} />}
 
       <div className="flex flex-wrap gap-2">
@@ -91,9 +95,16 @@ function Detail({ d, onClose, onPresent }: { d: IAssetDetail; onClose: () => voi
           <Button size="sm" onClick={() => { onPresent(a.id); onClose(); }} data-testid="asset-present"><MonitorPlay /> Chiếu lên màn hình phòng</Button>
         )}
         {a.status !== 'Destroyed' && <Button size="sm" variant="outline" onClick={() => download()}><Download /> Tải về</Button>}
-        {d.can.submit && (
+        {d.can.submit && selfPublish && (
+          <Button size="sm" onClick={() => setPrompt({ title: 'Ban hành ngay?', confirm: 'Ban hành',
+            description: 'Chức vụ của bạn được tự ban hành: tài liệu được cấp số hiệu và khoá nội dung ngay, không qua duyệt.',
+            onConfirm: () => run.mutateAsync(() => documentApi.submit(a.id)).then(() => toast.success('Đã ban hành')) })}>
+            <Send /> Ban hành ngay
+          </Button>
+        )}
+        {d.can.submit && !selfPublish && (
           <Button size="sm" onClick={() => setPrompt({ title: 'Gửi duyệt ban hành?', confirm: 'Gửi duyệt',
-            description: 'Quản lý trực tiếp của bạn duyệt (không có thì HR). Duyệt xong tài liệu được cấp số hiệu và khoá nội dung.',
+            description: 'Người duyệt (xem khung "Ai duyệt tài liệu này" ở trên) nhận thông báo trên chuông + email. Duyệt xong tài liệu được cấp số hiệu và khoá nội dung.',
             onConfirm: () => run.mutateAsync(() => documentApi.submit(a.id)).then(() => toast.success('Đã gửi duyệt')) })}>
             <Send /> Gửi duyệt ban hành
           </Button>
@@ -142,6 +153,33 @@ function Detail({ d, onClose, onPresent }: { d: IAssetDetail; onClose: () => voi
       <Versions d={d} onDownload={download} />
       {d.can.manage && <AccessLog assetId={a.id} />}
       <PromptDialog spec={prompt} onClose={() => setPrompt(null)} />
+    </div>
+  );
+}
+
+/** Ai duyệt ban hành: trước khi gửi (theo người đang xem) hoặc đang chờ (theo người đã gửi) — để người tải lên biết cần nhắc ai. */
+function Approvers({ data }: { data: IApprovers }) {
+  if (data.step === 'Self') return <p className="rounded-md border border-success/40 bg-success/5 p-3 text-sm" data-testid="asset-approvers">✅ {data.note}</p>;
+  if (data.step === 'None') return <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">{data.note}</p>;
+  return (
+    <div className={`grid gap-2 rounded-md border p-3 text-sm ${data.pending ? 'border-warning/40 bg-warning/5' : ''}`} data-testid="asset-approvers">
+      <div className="flex items-center gap-2 font-medium">
+        <UserCheck className="size-4 text-primary" />
+        {data.pending ? `Đang chờ duyệt${data.requesterName ? ` (${data.requesterName} gửi)` : ''}` : 'Ai duyệt tài liệu này khi bạn gửi'}
+      </div>
+      <p className="text-xs text-muted-foreground">{data.note}</p>
+      {data.people.length === 0 ? <p className="text-destructive">Chưa có ai đủ quyền duyệt — liên hệ quản trị viên.</p> : (
+        <ul className="grid gap-1">
+          {data.people.slice(0, 6).map((p) => (
+            <li key={`${p.name}-${p.email}`} className="flex flex-wrap items-center gap-x-2">
+              <b>{p.name}</b>
+              <span className="text-xs text-muted-foreground">{p.detail}</span>
+              {p.email && <a href={`mailto:${p.email}`} className="text-xs text-primary hover:underline">{p.email}</a>}
+            </li>
+          ))}
+          {data.people.length > 6 && <li className="text-xs text-muted-foreground">và {data.people.length - 6} người khác</li>}
+        </ul>
+      )}
     </div>
   );
 }

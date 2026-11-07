@@ -107,12 +107,15 @@ export interface IPosition {
   employeeCount: number;
   description: string | null;
   hasGuide: boolean;
+  /** Tự ban hành tài liệu không cần duyệt (chỉ cấp 1–6, Chuyên viên trở lên). */
+  selfPublishDocuments: boolean;
 }
 
 export interface IUpsertPosition {
   name: string;
   level: number;
   sortOrder?: number;
+  selfPublishDocuments?: boolean;
 }
 
 /** Một dòng xem trước khi nhập Excel (ImportRowDto). row = số dòng trong file. */

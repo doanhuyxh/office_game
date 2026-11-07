@@ -132,6 +132,15 @@ export interface IAssetDetail {
   can: IAssetPermissions;
 }
 
+/** Người duyệt ban hành (GET /assets/{id}/approvers). step: Manager | Hr | None (không gửi được — xem note). */
+export interface IApprovers {
+  step: 'Self' | 'Manager' | 'Hr' | 'None';
+  pending: boolean;
+  requesterName: string | null;
+  note: string;
+  people: { name: string; email: string | null; detail: string }[];
+}
+
 export interface IFileUrl {
   url: string;
   fileName: string;

@@ -14,6 +14,8 @@ export const useAssets = (f: IAssetFilter, q: IPageQuery, enabled = true) =>
   useQuery({ queryKey: documentKeys.assets(f, q), queryFn: () => documentApi.assets(f, q), enabled, ...keep });
 export const useAsset = (id: string | null) =>
   useQuery({ queryKey: documentKeys.asset(id ?? ''), queryFn: () => documentApi.asset(id!), enabled: !!id, retry: false });
+export const useApprovers = (id: string, status: string, enabled: boolean) =>
+  useQuery({ queryKey: documentKeys.approvers(id, status), queryFn: () => documentApi.approvers(id), enabled });
 export const useAccessLog = (id: string, q: IPageQuery, enabled: boolean) =>
   useQuery({ queryKey: documentKeys.accessLog(id, q), queryFn: () => documentApi.accessLog(id, q), enabled, ...keep });
 export const useTrash = (q: IPageQuery) => useQuery({ queryKey: documentKeys.trash(q), queryFn: () => documentApi.trash(q), ...keep });

@@ -16,7 +16,7 @@ namespace OfficeHub.Modules.Documents.Infrastructure;
 /// Kết quả duyệt ban hành (idempotent: chỉ đổi khi tài liệu còn PendingApproval). Duyệt → cấp số hiệu {stt}/{năm}/{loại}-{kho},
 /// ngày ban hành, tính lại hạn lưu trữ từ ngày ban hành. Từ chối / huỷ → về Nháp (giữ lý do từ chối).
 /// </summary>
-internal sealed class DocumentPublishHandler(DocumentsDbContext db, DocumentAccess access, DocClock clock) : IApprovalHandler
+internal sealed class DocumentPublishHandler(DocumentsDbContext db, AssetPublisher publisher, DocClock clock) : IApprovalHandler
 {
     public string Type => ApprovalTypes.DocumentPublish;
 
@@ -24,19 +24,7 @@ internal sealed class DocumentPublishHandler(DocumentsDbContext db, DocumentAcce
     {
         var a = await db.Assets.FirstOrDefaultAsync(x => x.Id == subjectId, ct);
         if (a is null || a.Status != AssetStatus.PendingApproval) return;
-        var type = await db.DocTypes.FirstAsync(t => t.Id == a.DocTypeId, ct);
-        var space = await access.SpaceAsync(a.SpaceKind, a.SpaceId, ct);
-        var spaceCode = space?.Code ?? DocumentRules.SpaceCode(a.SpaceKind, null);
-        var today = clock.Today;
-        var seq = await db.NextAsync($"pub:{type.Code}:{spaceCode}:{today.Year}", ct);
-        a.DocumentNumber = DocumentRules.DocumentNumber(seq, today.Year, type.Code, spaceCode);
-        a.Status = AssetStatus.Published;
-        a.PublishedAt = clock.Now;
-        a.RejectReason = null;
-        a.RetentionUntil = DocumentRules.RetentionUntil(today, type.RetentionYears);
-        a.RetentionNotifiedAt = null;
-        a.UpdatedAt = clock.Now;
-        await db.SaveChangesAsync(ct);
+        await publisher.PublishAsync(a, ct);
     }
 
     public Task OnRejectedAsync(Guid subjectId, string? comment, CancellationToken ct) => BackToDraftAsync(subjectId, comment, ct);
@@ -49,6 +37,30 @@ internal sealed class DocumentPublishHandler(DocumentsDbContext db, DocumentAcce
         a.Status = AssetStatus.Draft;
         a.RejectReason = reason;
         a.ApprovalRequestId = null;
+        a.UpdatedAt = clock.Now;
+        await db.SaveChangesAsync(ct);
+    }
+}
+
+/// <summary>
+/// Ban hành: cấp số hiệu {stt}/{năm}/{loại}-{kho} (bộ đếm theo loại + kho + năm), ngày ban hành, hạn lưu trữ tính lại từ hôm nay.
+/// Dùng khi luồng duyệt chấp thuận, hoặc ngay khi gửi nếu chức vụ người gửi được tự ban hành (Position.SelfPublishDocuments).
+/// </summary>
+internal sealed class AssetPublisher(DocumentsDbContext db, DocumentAccess access, DocClock clock)
+{
+    public async Task PublishAsync(Asset a, CancellationToken ct)
+    {
+        var type = await db.DocTypes.FirstAsync(t => t.Id == a.DocTypeId, ct);
+        var space = await access.SpaceAsync(a.SpaceKind, a.SpaceId, ct);
+        var spaceCode = space?.Code ?? DocumentRules.SpaceCode(a.SpaceKind, null);
+        var today = clock.Today;
+        var seq = await db.NextAsync($"pub:{type.Code}:{spaceCode}:{today.Year}", ct);
+        a.DocumentNumber = DocumentRules.DocumentNumber(seq, today.Year, type.Code, spaceCode);
+        a.Status = AssetStatus.Published;
+        a.PublishedAt = clock.Now;
+        a.RejectReason = null;
+        a.RetentionUntil = DocumentRules.RetentionUntil(today, type.RetentionYears);
+        a.RetentionNotifiedAt = null;
         a.UpdatedAt = clock.Now;
         await db.SaveChangesAsync(ct);
     }

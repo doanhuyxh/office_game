@@ -168,6 +168,9 @@ namespace OfficeHub.Modules.Documents.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<Guid?>("SubmittedByEmployeeId")
+                        .HasColumnType("uuid");
+
                     b.PrimitiveCollection<List<string>>("Tags")
                         .IsRequired()
                         .HasColumnType("text[]");

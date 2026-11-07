@@ -1,7 +1,7 @@
 import { http, httpPost, pageQs } from '@/services/api-client';
 import type { IPaged, IPageQuery } from '@/types/api';
 import type {
-  IAccessLog, IAssetDetail, IAssetFilter, IAssetRow, IDocType, IFileUrl, IFolder, IOrphan, IProject, IProjectMember, ISpace, ISpaceRef, IStats,
+  IAccessLog, IApprovers, IAssetDetail, IAssetFilter, IAssetRow, IDocType, IFileUrl, IFolder, IOrphan, IProject, IProjectMember, ISpace, ISpaceRef, IStats,
   IUpdateAsset, IUploadTicket, ProjectRole, ProjectStatus,
 } from '../types/document.types';
 
@@ -17,6 +17,7 @@ export const documentKeys = {
   docTypes: ['documents', 'doc-types'] as const,
   assets: (f: IAssetFilter, q: IPageQuery) => ['documents', 'assets', f, q] as const,
   asset: (id: string) => ['documents', 'asset', id] as const,
+  approvers: (id: string, status: string) => ['documents', 'approvers', id, status] as const,
   accessLog: (id: string, q: IPageQuery) => ['documents', 'access-log', id, q] as const,
   trash: (q: IPageQuery) => ['documents', 'trash', q] as const,
   recent: ['documents', 'recent'] as const,
@@ -60,6 +61,7 @@ export const documentApi = {
     return http<IPaged<IAssetRow>>(`${base}/assets?${qs}&${pageQs(q)}`);
   },
   asset: (id: string) => http<IAssetDetail>(`${base}/assets/${id}`),
+  approvers: (id: string) => http<IApprovers>(`${base}/assets/${id}/approvers`),
   upload: (file: File) => httpPost<IUploadTicket>(`${base}/uploads`, { fileName: file.name, contentType: file.type || null, size: file.size }),
   create: (body: { ticketId: string; spaceKind: string; spaceId: string | null; folderId: string | null; docTypeId: string | null; title: string | null; description: string | null; tags: string[] }) =>
     httpPost<IAssetDetail>(`${base}/assets`, body),

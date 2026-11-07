@@ -29,9 +29,9 @@ if (!admin) throw new Error('Không đăng nhập được admin seed');
 // ---------- Chuẩn bị: 2 phòng, trưởng phòng (manager) + nhân viên cùng phòng + người phòng khác ----------
 const positions = (await json(admin, 'GET', '/api/org/positions')).body;
 const pos = positions[0].id;
-const mkEmp = async (code: string, name: string, departmentId: string, managerId: string | null, user: string, roles: string[]) => {
+const mkEmp = async (code: string, name: string, departmentId: string, managerId: string | null, user: string, roles: string[], positionId = pos) => {
   const e = (await json(admin, 'POST', '/api/org/employees', { code, fullName: name, email: `${user}@e2e.test`, phone: null, dateOfBirth: null,
-    departmentId, positionId: pos, managerId, status: 'Active', joinedAt: '2026-01-05', note: null, jobTitle: null })).body.employee;
+    departmentId, positionId, managerId, status: 'Active', joinedAt: '2026-01-05', note: null, jobTitle: null })).body.employee;
   const acc = (await json(admin, 'POST', `/api/org/employees/${e.id}/account`, { mode: 'password', roles, userName: user })).body;
   const c = await login(user, acc.tempPassword);
   await json(c, 'POST', '/api/auth/change-password', { currentPassword: acc.tempPassword, newPassword: PW });
@@ -136,8 +136,19 @@ ok('sửa tiêu đề / loại / chuyển thư mục khi còn nháp', upd.status
 ok('thư mục khác kho → 400', (await json(staff.cookie, 'PUT', `/api/documents/assets/${A.id}`, { title: 'x', tags: [], docTypeId: typeBC.id, folderId: crypto.randomUUID() })).status === 400);
 
 // ---------- Ban hành ----------
+const apDraft = await json(staff.cookie, 'GET', `/api/documents/assets/${A.id}/approvers`);
+ok('trước khi gửi: người duyệt = quản lý trực tiếp (trưởng phòng)', apDraft.body?.step === 'Manager' && !apDraft.body.pending
+  && apDraft.body.people.length === 1 && apDraft.body.people[0].name === 'Trưởng Công Nghệ' && apDraft.body.people[0].email === 'e2e.doc.head@e2e.test', apDraft.body);
+const outDoc = await createAsset(outsider.cookie, 'out.txt', 'x', { kind: 'Company', id: null });
+const apHr = await json(outsider.cookie, 'GET', `/api/documents/assets/${outDoc.body.asset.id}/approvers`);
+ok('người chưa có quản lý → HR (không có HR → admin), nêu lý do', apHr.body?.step === 'Hr' && apHr.body.people.length >= 1
+  && apHr.body.note.includes('chưa có quản lý trực tiếp'), apHr.body);
+ok('admin (không có hồ sơ) xem → báo chưa gửi được', (await json(admin, 'GET', `/api/documents/assets/${outDoc.body.asset.id}/approvers`)).body?.step === 'None');
 const sub = await json(staff.cookie, 'POST', `/api/documents/assets/${A.id}/submit`);
 ok('gửi duyệt → Chờ duyệt', sub.status === 200 && sub.body.asset.status === 'PendingApproval' && !!sub.body.approvalRequestId, sub);
+const apPending = await json(head.cookie, 'GET', `/api/documents/assets/${A.id}/approvers`);
+ok('đang chờ: hiện người đang phải duyệt + người gửi (kể cả khi người khác xem)', apPending.body?.pending === true && apPending.body.requesterName === 'Nhân Viên Tài Liệu'
+  && apPending.body.people[0]?.name === 'Trưởng Công Nghệ', apPending.body);
 ok('đang chờ duyệt không thay file', (await json(staff.cookie, 'POST', `/api/documents/assets/${A.id}/versions`, { ticketId: crypto.randomUUID() })).status === 409);
 const inbox = (await json(head.cookie, 'GET', '/api/approval/inbox')).body;
 const req = inbox.find((x: any) => x.type === 'document_publish' && x.subjectId === A.id);
@@ -161,6 +172,18 @@ const req2 = (await json(head.cookie, 'GET', '/api/approval/inbox')).body.find((
 await json(head.cookie, 'POST', `/api/approval/${req2.id}/reject`, { comment: 'Thiếu số liệu' });
 const rej = (await json(staff.cookie, 'GET', `/api/documents/assets/${d2.body.asset.id}`)).body;
 ok('từ chối → về Nháp + lý do', rej.asset.status === 'Draft' && rej.rejectReason === 'Thiếu số liệu', rej);
+
+// ---------- Tự ban hành theo chức vụ (cấp Chuyên viên trở lên) ----------
+ok('cấp 7 (Nhân viên) không được bật tự ban hành (400)', (await json(admin, 'POST', '/api/org/positions', { name: 'Nhân viên tự ban hành E2E', level: 7, selfPublishDocuments: true })).status === 400);
+const selfPos = (await json(admin, 'POST', '/api/org/positions', { name: 'Chuyên viên tự ban hành E2E', level: 6, selfPublishDocuments: true })).body;
+ok('cấp 6 (Chuyên viên) bật được tự ban hành', (await json(admin, 'GET', '/api/org/positions')).body.some((p: any) => p.id === selfPos && p.selfPublishDocuments === true));
+const selfer = await mkEmp('NV983', 'Chuyên Viên Tự Ban Hành', tech, head.e.id, 'e2e.doc.self', ['employee'], selfPos);
+const sd = await createAsset(selfer.cookie, 'Quy trinh.txt', 'Quy trình', T);
+const apSelf = await json(selfer.cookie, 'GET', `/api/documents/assets/${sd.body.asset.id}/approvers`);
+ok('khung người duyệt báo "được tự ban hành"', apSelf.body?.step === 'Self' && apSelf.body.note.includes('Chuyên viên tự ban hành E2E'), apSelf.body);
+const sp = await json(selfer.cookie, 'POST', `/api/documents/assets/${sd.body.asset.id}/submit`);
+ok('gửi → ban hành ngay, có số hiệu, không tạo đơn duyệt', sp.status === 200 && sp.body.asset.status === 'Published' && /^\d{3}\//.test(sp.body.asset.documentNumber ?? '')
+  && !sp.body.approvalRequestId && !(await json(head.cookie, 'GET', '/api/approval/inbox')).body.some((x: any) => x.subjectId === sd.body.asset.id), sp.body);
 
 // ---------- Nhật ký truy cập ----------
 const log = await json(staff.cookie, 'GET', `/api/documents/assets/${A.id}/access-log?page=1`);

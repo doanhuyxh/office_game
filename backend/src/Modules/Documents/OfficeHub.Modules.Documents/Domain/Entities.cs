@@ -114,6 +114,8 @@ public sealed class Asset
     public string? DocumentNumber { get; set; }
     public DateTimeOffset? PublishedAt { get; set; }
     public Guid? ApprovalRequestId { get; set; }
+    /// <summary>Người bấm gửi duyệt (có thể là trưởng phòng gửi giúp) — người duyệt tính theo người này.</summary>
+    public Guid? SubmittedByEmployeeId { get; set; }
     public string? RejectReason { get; set; }
 
     /// <summary>Hết hạn lưu trữ (ngày theo lịch VN); null = vĩnh viễn.</summary>

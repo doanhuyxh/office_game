@@ -9,6 +9,8 @@ using OfficeHub.BuildingBlocks.Storage;
 using OfficeHub.Modules.Approval.Contracts;
 using OfficeHub.Modules.Documents.Domain;
 using OfficeHub.Modules.Documents.Infrastructure;
+using OfficeHub.Modules.Identity.Contracts;
+using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.Modules.Organization.Contracts;
 
 namespace OfficeHub.Modules.Documents.Features;
@@ -28,6 +30,7 @@ internal static class AssetEndpoints
         g.MapPut("/assets/{id:guid}", UpdateAsync);
         g.MapPost("/assets/{id:guid}/versions", AddVersionAsync);
         g.MapGet("/assets/{id:guid}/file", FileAsync);
+        g.MapGet("/assets/{id:guid}/approvers", ApproversAsync);
         g.MapGet("/assets/{id:guid}/access-log", AccessLogAsync);
         g.MapDelete("/assets/{id:guid}", TrashAsync);
         g.MapPost("/assets/{id:guid}/restore", RestoreAsync);
@@ -255,7 +258,7 @@ internal static class AssetEndpoints
     {
         if (a.DeletedAt is not null) return DocumentAccess.IsOwner(v, a) || DocumentAccess.CanManage(v, a.SpaceKind, a.SpaceId);
         if (DocumentAccess.CanView(v, a)) return true;
-        return a.Status == AssetStatus.PendingApproval && v.Employee is { } me && a.CreatedByEmployeeId is { } cid
+        return a.Status == AssetStatus.PendingApproval && v.Employee is { } me && (a.SubmittedByEmployeeId ?? a.CreatedByEmployeeId) is { } cid
                && (await dir.GetAsync(cid, ct))?.ManagerId == me.Id;
     }
 
@@ -417,11 +420,55 @@ internal static class AssetEndpoints
         return TypedResults.Ok(rows.Select(a => Row(a, types)).ToList());
     }
 
+    /// <summary>
+    /// Người duyệt ban hành — cùng luật với luồng duyệt (bước [Manager]): đang chờ duyệt → tính theo người đã gửi; còn nháp → tính theo người
+    /// đang xem (nếu họ bấm gửi). Quản lý trực tiếp còn làm việc → người đó (admin cũng duyệt thay được); không có → HR (trừ người gửi;
+    /// không còn HR nào khác → admin). Để người tải lên biết cần nhắc ai.
+    /// </summary>
+    private static async Task<Results<Ok<ApproversDto>, ProblemHttpResult>> ApproversAsync(Guid id, ClaimsPrincipal user, DocumentAccess access,
+        DocumentsDbContext db, IEmployeeDirectory dir, IAccountService accounts, CancellationToken ct)
+    {
+        var v = await access.ViewerAsync(user, ct);
+        var a = await db.Assets.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (a is null || !await CanSeeAsync(v, a, dir, ct)) return Problems.NotFound("tài liệu");
+        var pending = a.Status == AssetStatus.PendingApproval;
+        if (!pending && a.Status != AssetStatus.Draft)
+            return TypedResults.Ok(new ApproversDto("None", false, null, "Tài liệu không ở trạng thái nháp nên không gửi duyệt.", []));
+        var requester = pending
+            ? (a.SubmittedByEmployeeId ?? a.CreatedByEmployeeId) is { } rid ? await dir.GetAsync(rid, ct) : null
+            : v.Employee;
+        if (requester is null)
+            return TypedResults.Ok(new ApproversDto("None", pending, null,
+                pending ? "Không xác định được người gửi." : "Tài khoản của bạn chưa gắn hồ sơ nhân viên nên chưa gửi duyệt được — liên hệ HR.", []));
+
+        if (!pending && await dir.GetPositionAsync(requester.Id, ct) is { SelfPublishDocuments: true } pos)
+            return TypedResults.Ok(new ApproversDto("Self", false, requester.FullName,
+                $"Chức vụ {pos.Name} được tự ban hành — bấm \"Ban hành ngay\" là tài liệu có số hiệu luôn, không cần ai duyệt.", []));
+        if (requester.ManagerId is { } mid && await dir.GetAsync(mid, ct) is { IsActive: true } m && m.Id != requester.Id)
+        {
+            var email = m.UserId is { } mu ? (await accounts.GetAsync(mu, ct))?.Email : null;
+            return TypedResults.Ok(new ApproversDto("Manager", pending, requester.FullName,
+                $"Quản lý trực tiếp của {requester.FullName} duyệt (admin cũng duyệt thay được).",
+                [new ApproverDto(m.FullName, email, $"Quản lý trực tiếp{(m.DepartmentName is { } d ? $" · {d}" : "")}")]));
+        }
+        var hr = (await accounts.ListByRoleAsync(Roles.Hr, ct)).Where(x => x.IsActive && x.Id != requester.UserId).ToList();
+        var role = "HR";
+        if (hr.Count == 0)
+        {
+            hr = (await accounts.ListByRoleAsync(Roles.Admin, ct)).Where(x => x.IsActive && x.Id != requester.UserId).ToList();
+            role = "Quản trị (admin)";
+        }
+        var why = requester.ManagerId is null ? "chưa có quản lý trực tiếp" : "quản lý trực tiếp đã nghỉ việc";
+        return TypedResults.Ok(new ApproversDto("Hr", pending, requester.FullName,
+            $"{requester.FullName} {why} nên một người bất kỳ dưới đây duyệt. Muốn quản lý duyệt: HR gán \"Quản lý trực tiếp\" trong hồ sơ.",
+            [.. hr.OrderBy(x => x.FullName).Select(x => new ApproverDto(x.FullName is { Length: > 0 } n ? n : x.UserName, x.Email, role))]));
+    }
+
     // ---------------- Vòng đời ----------------
 
     /// <summary>Gửi duyệt ban hành: bước Quản lý trực tiếp (không có → HR). Duyệt xong mới có số hiệu (DocumentPublishHandler).</summary>
     private static async Task<Results<Ok<AssetDetailDto>, ProblemHttpResult>> SubmitAsync(Guid id, ClaimsPrincipal user, DocumentAccess access,
-        DocumentsDbContext db, IApprovalService approvals, IEmployeeDirectory dir, DocClock clock, CancellationToken ct)
+        DocumentsDbContext db, IApprovalService approvals, IEmployeeDirectory dir, AssetPublisher publisher, DocClock clock, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var a = await db.Assets.Include(x => x.Versions).FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct);
@@ -429,10 +476,18 @@ internal static class AssetEndpoints
         if (!DocumentRules.CanSubmit(a.Status)) return Problems.Conflict("Chỉ gửi duyệt được tài liệu nháp");
         if (!DocumentAccess.IsOwner(v, a) && !DocumentAccess.CanManage(v, a.SpaceKind, a.SpaceId)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho được gửi duyệt");
         if (v.Employee is not { } me) return Http.NoProfile();
+        // Chức vụ được tự ban hành (cấp Chuyên viên trở lên, HR bật ở tab Chức vụ) → ban hành ngay, không tạo đơn duyệt
+        if ((await dir.GetPositionAsync(me.Id, ct))?.SelfPublishDocuments == true)
+        {
+            a.SubmittedByEmployeeId = me.Id;
+            await publisher.PublishAsync(a, ct);
+            return TypedResults.Ok(await DetailAsync(a, v, access, db, dir, ct));
+        }
         var types = await TypeNamesAsync(db, ct);
         var space = await access.SpaceAsync(a.SpaceKind, a.SpaceId, ct);
         var cur = a.Versions.First(x => x.Number == a.CurrentVersion);
         a.Status = AssetStatus.PendingApproval;
+        a.SubmittedByEmployeeId = me.Id;
         a.RejectReason = null;
         a.UpdatedAt = clock.Now;
         await db.SaveChangesAsync(ct);

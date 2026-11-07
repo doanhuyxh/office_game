@@ -52,6 +52,13 @@ public sealed record AssetDetailDto(AssetRowDto Asset, string? Description, stri
     DateTimeOffset? PublishedAt, Guid? ApprovalRequestId, string? RejectReason, DateTimeOffset? DestroyedAt, string? DestroyReason,
     string? DestroyedByName, string? DeletedByName, IReadOnlyList<VersionDto> Versions, AssetPermissions Can);
 
+/// <summary>
+/// Ai duyệt ban hành: <see cref="Step"/> = "Self" (chức vụ được tự ban hành) | "Manager" (quản lý trực tiếp của người gửi) | "Hr" (HR; không có HR khác người gửi → admin) | "None"
+/// (không gửi được, xem <see cref="Note"/>). <see cref="Pending"/> = đang chờ những người này duyệt.
+/// </summary>
+public sealed record ApproverDto(string Name, string? Email, string Detail);
+public sealed record ApproversDto(string Step, bool Pending, string? RequesterName, string Note, IReadOnlyList<ApproverDto> People);
+
 public sealed record FileUrlDto(string Url, string FileName, string ContentType, AssetKind Kind, int Version, bool Inline);
 public sealed record AccessLogDto(DateTimeOffset At, string? UserName, AccessAction Action, int VersionNumber, string? Ip);
 

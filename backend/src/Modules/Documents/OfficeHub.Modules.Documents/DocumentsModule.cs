@@ -24,6 +24,7 @@ public sealed class DocumentsModule : IModule
         services.AddModuleDbContext<DocumentsDbContext>(config, DocumentsDbContext.Schema);
         services.AddScoped<DocumentAccess>();
         services.AddSingleton<DocClock>();
+        services.AddScoped<AssetPublisher>();
         services.AddScoped<IApprovalHandler, DocumentPublishHandler>();
         services.AddHostedService<DocumentsMigrator>();
         services.AddHostedService<DocumentsMaintenanceJob>();

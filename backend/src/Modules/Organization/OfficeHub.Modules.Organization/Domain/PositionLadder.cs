@@ -10,6 +10,10 @@ public static class PositionLadder
 
     public const int MaxLevel = 99;
     public const int StaffLevel = 7;
+    /// <summary>Cấp Chuyên viên — từ cấp này trở lên (số nhỏ hơn / bằng) mới được cấu hình tự ban hành tài liệu.</summary>
+    public const int SpecialistLevel = 6;
+
+    public static bool CanSelfPublish(int level) => level is >= 1 and <= SpecialistLevel;
 
     public static readonly Rank[] Defaults =
     [

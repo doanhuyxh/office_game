@@ -36,6 +36,8 @@ public sealed class Position : Entity
     /// <summary>Cấp bậc: 1 = cao nhất (Giám đốc). Nhiều chức vụ có thể cùng cấp. 0 = dữ liệu cũ chưa chuyển (xem <see cref="PositionLadder"/>).</summary>
     public int Level { get; set; }
     public int SortOrder { get; set; }
+    /// <summary>Người giữ chức vụ này gửi ban hành tài liệu (kho tài liệu) → ban hành ngay, không qua duyệt. Chỉ cấp ≤ <see cref="PositionLadder.SpecialistLevel"/>.</summary>
+    public bool SelfPublishDocuments { get; set; }
     /// <summary>Mô tả ngắn (≤ 500) — hiện ở danh sách, trả cho trợ lý AI.</summary>
     public string? Description { get; set; }
     /// <summary>Hướng dẫn: trách nhiệm, quyền hạn, quy trình, đầu mối liên hệ (Markdown ≤ 10.000). Mọi nhân viên + trợ lý AI (MCP) đọc được.</summary>

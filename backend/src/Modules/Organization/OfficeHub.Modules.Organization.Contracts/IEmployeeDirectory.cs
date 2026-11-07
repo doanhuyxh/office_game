@@ -21,7 +21,11 @@ public interface IEmployeeDirectory
     Task<IReadOnlyDictionary<Guid, BankAccountInfo>> GetBankAccountsAsync(IReadOnlyCollection<Guid> employeeIds, CancellationToken ct = default);
     /// <summary>Mọi phòng ban (chưa xoá), có cây cha–con và trưởng phòng — vd kho tài liệu phòng ban (module Documents).</summary>
     Task<IReadOnlyList<DepartmentRef>> ListDepartmentsAsync(CancellationToken ct = default);
+    /// <summary>Chức vụ hiện tại của nhân viên (null = chưa có). SelfPublishDocuments đã tính cả điều kiện cấp ≤ Chuyên viên.</summary>
+    Task<PositionRef?> GetPositionAsync(Guid employeeId, CancellationToken ct = default);
 }
+
+public sealed record PositionRef(Guid Id, string Name, int Level, bool SelfPublishDocuments);
 
 public sealed record DepartmentRef(Guid Id, string? Code, string Name, Guid? ParentId, Guid? HeadEmployeeId);
 
