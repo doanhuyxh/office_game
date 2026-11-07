@@ -35,7 +35,9 @@ AI client ──POST /mcp (Bearer ohk_…)──▶ OfficeHub.Mcp (BearerGate �
 - **Danh sách route cho phép** `AccessTokenAuth.IsAllowed` (mặc định chặn; khớp theo đoạn path): route ngoài danh sách → **403** dù token hợp lệ. Cố ý không có: `/api/contracts` (cả mẫu hợp đồng), `/api/reports` (lương / tiền), `/api/payroll`, `/api/org/profile` (hồ sơ cá nhân), `/api/auth/*` trừ `/me`, ghi của `/api/org` (nhân viên, tài khoản, vai trò), ca / lịch / ngày lễ, `/api/leave/balances`, `/api/leave/adjustments`. Thêm endpoint mới cho AI → thêm vào đây + test `tests/OfficeHub.Mcp.Tests/AccessTokenScopeTests.cs`.
 - Code module khác nhận biết request từ AI bằng `ClaimsPrincipal.IsAccessToken()` (BuildingBlocks).
 
-## Tool (34)
+## Tool (38)
+
+> Màn hình quản trị **"Công cụ AI (MCP)"** (`/mcp-tools`, chỉ admin — `features/mcp-tools/`) liệt kê đầy đủ 38 tool kèm chi tiết (tên, tiêu đề, mô tả, tham số, loại read/write/destructive, endpoint). Catalog `features/mcp-tools/utils/catalog.ts` **bảo trì thủ công** — đổi tool trong `OfficeHub.Mcp/Tools/*.cs` phải cập nhật catalog (luật #9 [AGENTS.md](../../AGENTS.md)).
 
 | Nhóm | Tool |
 |---|---|

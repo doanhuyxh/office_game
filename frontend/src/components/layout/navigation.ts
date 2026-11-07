@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Bell, Bot, FolderOpen, Building2, CalendarClock, CheckSquare, Clock, FileText, History, Landmark, Server, LayoutDashboard, Palmtree, UserRound, Users, Wallet } from 'lucide-react';
+import { BarChart3, Bell, Bot, FolderOpen, Building2, CalendarClock, CheckSquare, Clock, FileText, History, Landmark, Server, LayoutDashboard, Palmtree, UserRound, Users, Wallet, Wrench } from 'lucide-react';
 import { PATHS } from '@/config/paths';
 
 export interface NavItem {
@@ -53,6 +53,7 @@ export const NAVIGATION: NavGroup[] = [
   {
     title: 'Quản trị',
     items: [
+      { to: PATHS.mcpTools, label: 'Công cụ AI (MCP)', icon: Wrench }, // chỉ admin: danh mục tool của máy chủ MCP
       { to: PATHS.system, label: 'Hệ thống', icon: Server }, // chỉ admin: tài liệu API, log, mail server, tình trạng dịch vụ
     ],
   },

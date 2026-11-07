@@ -46,6 +46,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 6. **Không commit secret**: cấu hình qua `.env` (gitignore). Thêm biến → Settings có `ErrorMessage = "Thiếu X__Y trong .env"`, cập nhật `.env.example` + `commands.md`.
 7. **FE**: ngoài feature chỉ import qua `@/features/<x>`; màn hình mới = feature + `page(...)` trong `routes/router.tsx`. Component trong feature: **mỗi component một thư mục kebab-case** `components/<ten-component>/index.tsx` (không file phẳng `components/Ten.tsx`) — chi tiết [.agent/frontend.md](.agent/frontend.md). Dùng helper sẵn có trước khi tạo mới. Chỉ dùng bun.
 8. **Xong việc phải pass**: `backend/`: `dotnet build -warnaserror` và `dotnet test`; `frontend/`: `bun run build`.
+9. **Đổi tool MCP phải cập nhật màn hình quản trị**: thêm / sửa / xoá tool trong `backend/src/OfficeHub.Mcp/Tools/*.cs` → cập nhật ngay catalog `frontend/src/features/mcp-tools/utils/catalog.ts` (tên, tiêu đề, mô tả, tham số, loại read/write/destructive, endpoint) cho khớp. Đây là màn hình tham chiếu "Công cụ AI (MCP)" (`/mcp-tools`, chỉ admin), không tự suy ra từ code nên không được để lệch. Cập nhật luôn số lượng tool trong [.agent/business/mcp.md](.agent/business/mcp.md).
 
 ## Giữ tài liệu đúng
 

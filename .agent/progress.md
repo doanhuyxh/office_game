@@ -11,7 +11,7 @@
 | Nhắc quên chấm ra (chuông) · nhập nhân viên từ Excel · lịch sử sửa dữ liệu nhân sự (`[Audited]`, che lương) | `attendance-corrections`, `employee-import`, `audit` |
 | Văn phòng 3D giai đoạn 1 (bản đồ v2, engine low-poly, A*, ngồi, minimap) + voice LiveKit (khoảng cách, phòng riêng, chia sẻ màn hình) | `office`, `office-engine`, `design/` |
 | **Nhân vật 3D tuỳ chỉnh** (2026-11-06, chưa deploy; migration `UserAvatars`): model Quaternius CC0, editor ở HUD + `/profile`, đồng bộ `LookChanged`; sửa lỗi cookie jar của Realtime (kiểm tra phiên nhầm người) | `office-avatar` |
-| Kết nối AI: MCP 34 tool (không hợp đồng / lương, chấm công AI = Remote), token cá nhân + OAuth 2.1, nhật ký AI, HR thu hồi | `mcp`, `mcp-oauth` |
+| Kết nối AI: MCP 38 tool (không hợp đồng / lương, chấm công AI = Remote), token cá nhân + OAuth 2.1, nhật ký AI, HR thu hồi · màn hình quản trị "Công cụ AI (MCP)" `/mcp-tools` (chỉ admin, catalog bảo trì thủ công — luật #9) | `mcp`, `mcp-oauth` |
 | Giao diện shadcn-admin (sidebar, ⌘K, sáng / tối) · PWA cài được (không push) + giao diện mobile | `../frontend.md` |
 | Chat theo phòng, model GLB (chờ bộ Kenney), joystick + zoom cảm ứng | `office`, `office-engine` |
 | **Mặt bằng 3D 50 × 30 m (1 500 m²)** duyệt + áp dụng 2026-11-06: 14 phòng (hội trường 20, họp lớn 10, họp nhỏ 6, 4 phòng gọi, phòng yên tĩnh), 100 chỗ, dải tiện ích (cà phê phụ, bàn trao đổi nhanh, thư viện mini…); JSON sinh từ `design/tools/gen-map-1500.ts`; nắng đi theo người chơi, zoom tới 40 | `office`, `../../design/README.md` |

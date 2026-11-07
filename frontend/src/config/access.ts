@@ -10,6 +10,7 @@ export const PAGE_ROLES: Partial<Record<string, readonly Role[]>> = {
   [PATHS.payroll]: [ROLE.admin, ROLE.hr],
   [PATHS.reports]: [ROLE.admin, ROLE.hr],
   [PATHS.audit]: [ROLE.admin, ROLE.hr],
+  [PATHS.mcpTools]: [ROLE.admin],
   [PATHS.system]: [ROLE.admin],
 };
 
