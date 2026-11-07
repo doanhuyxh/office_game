@@ -5,7 +5,7 @@ import type { OfficeMapV2, Rect } from './mapTypes';
 import { wallRect, wallSegments } from './navGrid';
 import { FACING_ANGLE } from './officeMap';
 import { placeModel, type FurnitureModels } from './models';
-import { chairAngle } from './sitSpots';
+import { chairAngle, faceSeatAngle } from './sitSpots';
 import { P } from './palette';
 
 /** Tường thấp (cắt ngang) để camera chéo nhìn được vào phòng; vách kính cao hơn vì trong suốt. */
@@ -142,8 +142,12 @@ export function buildWorld(map: OfficeMapV2, models: FurnitureModels = new Map()
   // Đồ đạc + ghế ở chỗ ngồi
   const furniture = new Batch();
   for (const o of map.objects) {
-    const rot = o.prefab === 'chair' ? chairAngle(o, map.objects) : (o.rot * Math.PI) / 180;
     const model = models.get(o.prefab);
+    // màn hình dựng tay nhìn ra −z; bàn GLB (Kenney) có ngăn kéo ở +z → cả hai quay về ghế gần nhất. Bàn dựng tay đối xứng.
+    const rot = o.prefab === 'chair' ? chairAngle(o, map.objects)
+      : o.prefab === 'computerScreen' ? faceSeatAngle(o, map.seats, -1)
+      : model && (o.prefab === 'desk' || o.prefab === 'deskLarge') ? faceSeatAngle(o, map.seats, 1)
+      : (o.rot * Math.PI) / 180;
     if (model) root.add(placeModel(model, o.w, o.d, o.x, o.z, rot));
     else furniture.add(buildPrefab(o.prefab, o.w, o.d), o.x, o.z, rot);
   }

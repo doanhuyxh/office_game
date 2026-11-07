@@ -111,27 +111,27 @@ for (const cx of COLS) for (const cz of [ROW_A, ROW_B]) if (!(cx === COLS[4] && 
 clusterRot('MR', 'work', MR_ROT_X, ROW_MID, n);
 
 // đồ chung khu mở: bảng trắng Kinh doanh (tường tây) + Công nghệ (lối đi), cây hành lang bắc
-obj('kd-board', 'whiteboard', 0.1, 13.75, 0.1, 1.8);
-obj('kth-board', 'whiteboard', GAPS[1], 13.75, 0.1, 1.8);
+obj('kd-board', 'whiteboard', 0.1, 13.75, 1.8, 0.1, { rot: 90 });
+obj('kth-board', 'whiteboard', GAPS[1], 13.75, 1.8, 0.1, { rot: 270 });
 [0.5, GAPS[0], GAPS[2], GAPS[4], GAPS[5]].forEach((x, i) => obj(`plant-open-${i + 1}`, 'pottedPlant', x, 8.75, 0.5, 0.5)); // tránh trước cửa phòng
 
 // ---------- dải nam khu mở (z 20–22, chủ dự án chốt 2026-11-06); lối đi chính z 17,5–20 để trống ----------
 // 1. Góc cà phê phụ (x 1–5)
-obj('west-counter', 'kitchenCounter', 3.0, 21.65, 2.4, 0.6);
-obj('west-coffee', 'coffeeMachine', 2.4, 21.65, 0.4, 0.4, { solid: false, interact: 'coffee' });
-obj('west-water', 'waterDispenser', 3.6, 21.65, 0.4, 0.4);
+obj('west-counter', 'kitchenCounter', 3.0, 21.65, 2.4, 0.6, { rot: 180 });
+obj('west-coffee', 'coffeeMachine', 2.4, 21.65, 0.4, 0.4, { rot: 180, solid: false, interact: 'coffee' });
+obj('west-water', 'waterDispenser', 3.6, 21.65, 0.4, 0.4, { rot: 180 });
 obj('west-stool-1', 'chair', 2.4, 20.8, 0.5, 0.5, { solid: false });
 obj('west-stool-2', 'chair', 3.6, 20.8, 0.5, 0.5, { solid: false });
 obj('strip-plant-1', 'pottedPlant', 0.5, 21.6, 0.5, 0.5);
 // 2. Bàn trao đổi nhanh 1 (x 6–11) + bảng trắng di động
 meetingTable('huddle-1', 8.5, 21.0, 1.8, 1.0, 2, false);
-obj('huddle-1-board', 'whiteboard', 10.6, 21.0, 0.1, 1.8);
+obj('huddle-1-board', 'whiteboard', 10.6, 21.0, 1.8, 0.1, { rot: 270 });
 // 3. Góc in ấn tây (x 12–16)
-obj('lockers-1', 'lockers', 12.9, 21.6, 2.4, 0.5);
-obj('printer-west', 'printer', 14.6, 21.6, 0.7, 0.6, { interact: 'printer' });
-obj('west-cabinet', 'cabinetFiles', 15.6, 21.65, 0.9, 0.5, { interact: 'documents' });
+obj('lockers-1', 'lockers', 12.9, 21.6, 2.4, 0.5, { rot: 180 });
+obj('printer-west', 'printer', 14.6, 21.6, 0.7, 0.6, { rot: 180, interact: 'printer' });
+obj('west-cabinet', 'cabinetFiles', 15.6, 21.65, 0.9, 0.5, { rot: 180, interact: 'documents' });
 // 4. Màn hình thông báo + ghế băng (x 17–21)
-obj('open-notices', 'televisionWall', 19.0, 21.85, 2.0, 0.1, { interact: 'notices' });
+obj('open-notices', 'televisionWall', 19.0, 21.85, 2.0, 0.1, { rot: 180, interact: 'notices' });
 obj('notices-bench', 'loungeSofa', 19.0, 20.6, 2.2, 0.9);
 obj('strip-plant-2', 'pottedPlantLarge', 17.3, 21.6, 0.6, 0.6);
 obj('strip-plant-3', 'pottedPlantLarge', 20.7, 21.6, 0.6, 0.6);
@@ -140,16 +140,16 @@ obj('strip-plant-4', 'pottedPlantLarge', 22.3, 21.6, 0.6, 0.6);
 obj('strip-plant-5', 'pottedPlantLarge', 27.7, 21.6, 0.6, 0.6);
 // 6. Bàn trao đổi nhanh 2 (x 29–33)
 meetingTable('huddle-2', 30.5, 21.0, 1.8, 1.0, 2, false);
-obj('huddle-2-board', 'whiteboard', 32.6, 21.0, 0.1, 1.8);
+obj('huddle-2-board', 'whiteboard', 32.6, 21.0, 1.8, 0.1, { rot: 270 });
 // 7. Thư viện mini (x 34–39)
-obj('library-shelf-1', 'bookcaseOpen', 35.0, 21.75, 2.4, 0.4, { interact: 'library' });
-obj('library-shelf-2', 'bookcaseOpen', 38.0, 21.75, 2.4, 0.4, { interact: 'library' });
+obj('library-shelf-1', 'bookcaseOpen', 35.0, 21.75, 2.4, 0.4, { rot: 180, interact: 'library' });
+obj('library-shelf-2', 'bookcaseOpen', 38.0, 21.75, 2.4, 0.4, { rot: 180, interact: 'library' });
 obj('library-beanbag-1', 'beanbag', 35.6, 20.7, 0.8, 0.8, { solid: false });
 obj('library-beanbag-2', 'beanbag', 37.4, 20.7, 0.8, 0.8, { solid: false });
 // 8. Góc HCNS (x 40–45): tủ đồ, hồ sơ, máy in, bàn tiếp ứng viên; ô trước cửa phòng gọi 4 (x 45,5–46, z 19,5–20,5) để trống
-obj('lockers-2', 'lockers', 41.0, 21.6, 2.4, 0.5);
-obj('hcns-cabinet-1', 'cabinetFiles', 42.9, 21.65, 0.9, 0.5, { interact: 'documents' });
-obj('hcns-cabinet-2', 'cabinetFiles', 43.9, 21.65, 0.9, 0.5, { interact: 'documents' });
+obj('lockers-2', 'lockers', 41.0, 21.6, 2.4, 0.5, { rot: 180 });
+obj('hcns-cabinet-1', 'cabinetFiles', 42.9, 21.65, 0.9, 0.5, { rot: 180, interact: 'documents' });
+obj('hcns-cabinet-2', 'cabinetFiles', 43.9, 21.65, 0.9, 0.5, { rot: 180, interact: 'documents' });
 obj('printer', 'printer', 44.8, 21.0, 0.7, 0.6, { interact: 'printer' });
 obj('hcns-guest-table', 'tableSmall', 43.2, 20.45, 1.0, 0.6);
 obj('hcns-guest-chair-1', 'chair', 42.4, 20.45, 0.5, 0.5, { solid: false });
@@ -165,18 +165,18 @@ for (const [i, x] of [2.5, 6.5].entries()) {
 obj('bgd-sofa', 'loungeSofa', 1.6, 6.9, 2.2, 0.9);
 obj('bgd-table', 'tableCoffee', 1.6, 5.9, 1.2, 0.6);
 meetingTable('bgd-meet', 6.5, 5.6, 1.8, 1.0, 2, false);
-obj('bgd-shelf', 'bookcaseOpen', 9.6, 3.2, 0.4, 1.6);
+obj('bgd-shelf', 'bookcaseOpen', 9.6, 3.2, 1.6, 0.4, { rot: 270 });
 obj('bgd-plant', 'pottedPlant', 0.5, 7.5, 0.5, 0.5);
 
 // ---------- Hội trường 20 ----------
 meetingTable('hall-a', 13.5, 4.0, 4.2, 1.4, 4, true);
 meetingTable('hall-b', 18.5, 4.0, 4.2, 1.4, 4, true);
 obj('hall-screen', 'televisionWall', 16, 0.15, 3.0, 0.1, { interact: 'screen' });
-obj('hall-board', 'whiteboard', 21.85, 4.0, 0.1, 2.0);
+obj('hall-board', 'whiteboard', 21.85, 4.0, 2.0, 0.1, { rot: 270 });
 // ---------- Họp lớn 10 ----------
 meetingTable('ml', 26, 4.0, 4.2, 1.4, 4, true);
 obj('ml-screen', 'televisionWall', 26, 0.15, 2.0, 0.1, { interact: 'screen' });
-obj('ml-board', 'whiteboard', 29.85, 4.0, 0.1, 1.8);
+obj('ml-board', 'whiteboard', 29.85, 4.0, 1.8, 0.1, { rot: 270 });
 // ---------- Họp nhỏ 6 ----------
 meetingTable('ms', 32.5, 4.0, 2.4, 1.1, 3, false);
 obj('ms-screen', 'televisionWall', 32.5, 0.15, 1.4, 0.1, { interact: 'screen' });
@@ -184,8 +184,8 @@ obj('ms-screen', 'televisionWall', 32.5, 0.15, 1.4, 0.1, { interact: 'screen' })
 // ---------- Kế toán 6 ----------
 cluster('KT', 'dept-kt', 38.5, 3.05, 1);
 [35.6, 36.6, 37.6].forEach((x, i) => obj(`kt-cabinet-${i + 1}`, 'cabinetFiles', x, 0.35, 0.9, 0.5, { interact: 'documents' }));
-obj('kt-cabinet-4', 'cabinetFiles', 42.65, 3.0, 0.5, 0.9, { interact: 'documents' });
-obj('kt-cabinet-5', 'cabinetFiles', 42.65, 4.0, 0.5, 0.9, { interact: 'documents' });
+obj('kt-cabinet-4', 'cabinetFiles', 42.65, 3.0, 0.9, 0.5, { rot: 270, interact: 'documents' });
+obj('kt-cabinet-5', 'cabinetFiles', 42.65, 4.0, 0.9, 0.5, { rot: 270, interact: 'documents' });
 obj('kt-safe', 'safe', 42.5, 0.4, 0.6, 0.6);
 // ---------- Phòng yên tĩnh 6 ----------
 cluster('YT', 'quiet', 46.5, 4.05, 1);
@@ -203,11 +203,11 @@ for (let i = 1; i <= 4; i++) {
 obj('lounge-sofa-1', 'loungeSofaCorner', 1.4, 23.4, 2.4, 1.6);
 obj('lounge-table-1', 'tableCoffee', 2.2, 24.9, 1.2, 0.7);
 obj('lounge-sofa-2', 'loungeSofa', 2.2, 26.3, 2.2, 0.9);
-obj('lounge-shelf', 'bookcaseOpen', 0.25, 28.3, 0.4, 1.8);
+obj('lounge-shelf', 'bookcaseOpen', 0.25, 28.3, 1.8, 0.4, { rot: 90 });
 obj('lounge-sofa-3', 'loungeSofa', 7.0, 24.2, 2.2, 0.9);
 obj('lounge-table-2', 'tableCoffee', 7.0, 25.3, 1.2, 0.7);
 obj('lounge-sofa-4', 'loungeSofa', 7.0, 26.4, 2.2, 0.9);
-obj('lounge-tv', 'televisionWall', 7.0, 29.85, 2.2, 0.1, { interact: 'screen' });
+obj('lounge-tv', 'televisionWall', 7.0, 29.85, 2.2, 0.1, { rot: 180, interact: 'screen' }); // sát tường nam → mặt trước quay vào phòng (−z)
 [[10.5, 25.0], [11.7, 25.6], [10.8, 27.2], [12.2, 27.4]].forEach(([x, z], i) => obj(`lounge-beanbag-${i + 1}`, 'beanbag', x, z, 0.8, 0.8, { solid: false }));
 obj('lounge-game-1', 'tableGame', 14.8, 24.5, 1.4, 0.9, { interact: 'game' });
 obj('lounge-game-2', 'tableGame', 14.8, 27.8, 1.4, 0.9, { interact: 'game' });
@@ -222,17 +222,17 @@ obj('timeclock-1', 'timeclock', 22.0, 27.5, 0.5, 0.4, { action: 'attendance.chec
 obj('timeclock-2', 'timeclock', 28.0, 27.5, 0.5, 0.4, { action: 'attendance.checkin' });
 obj('lobby-sofa-1', 'loungeSofa', 18.4, 25.5, 0.9, 2.0, { rot: 90 });
 obj('lobby-sofa-2', 'loungeSofa', 31.6, 27.0, 0.9, 2.0, { rot: 90 });
-obj('noticeboard', 'noticeBoard', 32.85, 24.0, 0.1, 1.4, { interact: 'notices' });
+obj('noticeboard', 'noticeBoard', 32.85, 24.0, 1.4, 0.1, { rot: 270, interact: 'notices' });
 obj('lobby-plant-1', 'pottedPlantLarge', 20.0, 29.4, 0.6, 0.6);
 obj('lobby-plant-2', 'pottedPlantLarge', 30.0, 29.4, 0.6, 0.6);
 
 // ---------- Pantry ----------
-obj('pantry-counter', 'kitchenCounter', 42.5, 29.6, 10, 0.6);
-obj('pantry-coffee-1', 'coffeeMachine', 39.0, 29.6, 0.4, 0.4, { solid: false, interact: 'coffee' });
-obj('pantry-coffee-2', 'coffeeMachine', 40.5, 29.6, 0.4, 0.4, { solid: false, interact: 'coffee' });
-obj('pantry-water', 'waterDispenser', 36.0, 29.6, 0.4, 0.4);
-obj('pantry-fridge-1', 'kitchenFridge', 49.6, 26.4, 0.7, 0.7);
-obj('pantry-fridge-2', 'kitchenFridge', 49.6, 27.4, 0.7, 0.7);
+obj('pantry-counter', 'kitchenCounter', 42.5, 29.6, 10, 0.6, { rot: 180 });
+obj('pantry-coffee-1', 'coffeeMachine', 39.0, 29.6, 0.4, 0.4, { rot: 180, solid: false, interact: 'coffee' });
+obj('pantry-coffee-2', 'coffeeMachine', 40.5, 29.6, 0.4, 0.4, { rot: 180, solid: false, interact: 'coffee' });
+obj('pantry-water', 'waterDispenser', 36.0, 29.6, 0.4, 0.4, { rot: 180 });
+obj('pantry-fridge-1', 'kitchenFridge', 49.6, 26.4, 0.7, 0.7, { rot: 270 });
+obj('pantry-fridge-2', 'kitchenFridge', 49.6, 27.4, 0.7, 0.7, { rot: 270 });
 diningTable('pantry-table-1', 36.5, 24.6);
 diningTable('pantry-table-2', 41.5, 24.6);
 diningTable('pantry-table-3', 46.5, 24.6);
@@ -250,7 +250,7 @@ for (const z of [6.6, 9.2]) {
 obj('studio-review-tv', 'televisionWall', 57.5, 0.15, 2.0, 0.1, { interact: 'screen' });
 obj('studio-review-table', 'tableCoffee', 57.5, 2.0, 1.2, 0.6);
 obj('studio-review-sofa', 'loungeSofa', 57.5, 3.1, 2.2, 0.9, { rot: 180 });
-obj('studio-board', 'whiteboard', 50.15, 5.0, 0.1, 1.8);
+obj('studio-board', 'whiteboard', 50.15, 5.0, 1.8, 0.1, { rot: 90 });
 obj('studio-plant-1', 'pottedPlant', 50.5, 11.5, 0.5, 0.5);
 obj('studio-plant-2', 'pottedPlant', 58.5, 11.5, 0.5, 0.5);
 
@@ -267,7 +267,7 @@ obj('film-monitor-1', 'computerScreen', 63.9, 9.6, 0.5, 0.2, { solid: false });
 obj('film-monitor-2', 'computerScreen', 65.1, 9.6, 0.5, 0.2, { solid: false });
 obj('film-chair-1', 'chair', 63.9, 10.35, 0.5, 0.5, { solid: false });
 obj('film-chair-2', 'chair', 65.1, 10.35, 0.5, 0.5, { solid: false });
-obj('film-props', 'bookcaseOpen', 67.75, 9.0, 0.4, 1.8);
+obj('film-props', 'bookcaseOpen', 67.75, 9.0, 1.8, 0.4, { rot: 270 });
 
 // ---------- Livestream 1, 2 + Phòng thu âm (x 62–68, mỗi phòng 6 × 6 m, cửa phía tây) ----------
 for (const [i, id] of ['live-1', 'live-2'].entries()) {
@@ -288,10 +288,10 @@ obj('prep-props', 'bookcaseOpen', 52.4, 12.3, 2.4, 0.4);
 obj('prep-makeup', 'tableSmall', 50.6, 15.0, 0.8, 2.6);
 obj('prep-makeup-chair-1', 'chair', 51.4, 14.3, 0.5, 0.5, { solid: false });
 obj('prep-makeup-chair-2', 'chair', 51.4, 15.7, 0.5, 0.5, { solid: false });
-obj('prep-wardrobe', 'lockers', 50.4, 19.0, 0.6, 2.4);
+obj('prep-wardrobe', 'lockers', 50.4, 19.0, 2.4, 0.6, { rot: 90 });
 meetingTable('prep-plan', 56.0, 17.5, 2.4, 1.1, 3, true); // họp kịch bản
 obj('prep-board', 'whiteboard', 58.6, 17.5, 0.1, 1.8);
-obj('prep-schedule', 'noticeBoard', 61.85, 14.0, 0.1, 1.4, { interact: 'notices' }); // lịch quay
+obj('prep-schedule', 'noticeBoard', 61.85, 14.0, 1.4, 0.1, { rot: 270, interact: 'notices' }); // lịch quay
 obj('prep-sofa', 'loungeSofa', 55.0, 26.5, 2.2, 0.9);
 obj('prep-table', 'tableCoffee', 55.0, 25.4, 1.2, 0.6);
 obj('prep-beanbag-1', 'beanbag', 58.0, 25.0, 0.8, 0.8, { solid: false });

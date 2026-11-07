@@ -1,0 +1,107 @@
+{
+  "source": "Kenney Furniture Kit — CC0 1.0 (https://kenney.nl)",
+  "models": {
+    "desk": {
+      "file": "desk.glb",
+      "rotY": 0,
+      "h": 0.74
+    },
+    "deskLarge": {
+      "file": "deskCorner.glb",
+      "rotY": 0,
+      "h": 0.76
+    },
+    "computerScreen": {
+      "file": "computerScreen.glb",
+      "rotY": 180,
+      "y": 0.74,
+      "dz": 0.12,
+      "h": 0.4
+    },
+    "chair": {
+      "file": "chairDesk.glb",
+      "rotY": 0,
+      "h": 1
+    },
+    "tableMeeting": {
+      "file": "tableCross.glb",
+      "rotY": 0,
+      "h": 0.74
+    },
+    "tableSmall": {
+      "file": "table.glb",
+      "rotY": 0,
+      "h": 0.74
+    },
+    "tableDining": {
+      "file": "tableRound.glb",
+      "rotY": 0,
+      "h": 0.74
+    },
+    "tableCoffee": {
+      "file": "tableCoffee.glb",
+      "rotY": 0,
+      "h": 0.42
+    },
+    "loungeSofa": {
+      "file": "loungeSofa.glb",
+      "rotY": 0,
+      "h": 0.85
+    },
+    "loungeSofaCorner": {
+      "file": "loungeSofaCorner.glb",
+      "rotY": 0,
+      "h": 0.85
+    },
+    "bookcaseOpen": {
+      "file": "bookcaseOpen.glb",
+      "rotY": 0,
+      "h": 1.8
+    },
+    "cabinetFiles": {
+      "file": "bookcaseClosedDoors.glb",
+      "rotY": 0,
+      "h": 1.2
+    },
+    "pottedPlant": {
+      "file": "pottedPlant.glb",
+      "rotY": 0
+    },
+    "pottedPlantLarge": {
+      "file": "pottedPlant.glb",
+      "rotY": 0
+    },
+    "televisionWall": {
+      "file": "televisionModern.glb",
+      "rotY": 0,
+      "y": 1.05,
+      "h": 0.8
+    },
+    "kitchenCounter": {
+      "file": "kitchenCabinet.glb",
+      "rotY": 0,
+      "h": 0.9
+    },
+    "kitchenFridge": {
+      "file": "kitchenFridgeLarge.glb",
+      "rotY": 0,
+      "h": 1.85
+    },
+    "coffeeMachine": {
+      "file": "kitchenCoffeeMachine.glb",
+      "rotY": 0,
+      "y": 0.9,
+      "h": 0.45
+    },
+    "lockers": {
+      "file": "bookcaseClosedWide.glb",
+      "rotY": 0,
+      "h": 1.9
+    },
+    "beanbag": {
+      "file": "loungeChair.glb",
+      "rotY": 0,
+      "h": 0.8
+    }
+  }
+}

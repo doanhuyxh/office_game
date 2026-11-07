@@ -38,15 +38,26 @@ const MAP: Record<string, string[]> = {
   printer: ['printer'], lockers: ['bookcaseClosedWide'], beanbag: ['loungeChair'],
 };
 
+// Cách đặt (đã kiểm tra bằng mắt 2026-11-07): model Kenney nhìn ra +z như đồ dựng tay, trừ màn hình máy tính (đồ dựng tay nhìn ra −z → xoay 180°).
+// y = nâng đáy (m), dz = lệch trục z (m), h = chiều cao cố định (m) — khớp furniture.ts.
+const PLACE: Record<string, { rotY?: number; y?: number; dz?: number; h?: number }> = {
+  desk: { h: 0.74 }, deskLarge: { h: 0.76 }, tableMeeting: { h: 0.74 }, tableSmall: { h: 0.74 }, tableDining: { h: 0.74 }, tableCoffee: { h: 0.42 },
+  chair: { h: 1.0 }, loungeSofa: { h: 0.85 }, loungeSofaCorner: { h: 0.85 }, beanbag: { h: 0.8 },
+  bookcaseOpen: { h: 1.8 }, cabinetFiles: { h: 1.2 }, lockers: { h: 1.9 }, kitchenCounter: { h: 0.9 }, kitchenFridge: { h: 1.85 },
+  computerScreen: { rotY: 180, y: 0.74, dz: 0.12, h: 0.4 },
+  televisionWall: { y: 1.05, h: 0.8 },
+  coffeeMachine: { y: 0.9, h: 0.45 },
+};
+
 mkdirSync(out, { recursive: true });
-const models: Record<string, { file: string; rotY: number }> = {};
+const models: Record<string, { file: string; rotY: number; y?: number; dz?: number; h?: number }> = {};
 const missing: string[] = [];
 for (const [prefab, names] of Object.entries(MAP)) {
   const hit = names.find((n) => glbs.has(n.toLowerCase()));
   if (!hit) { missing.push(prefab); continue; }
   const file = `${hit}.glb`;
   copyFileSync(glbs.get(hit.toLowerCase())!, join(out, file));
-  models[prefab] = { file, rotY: 0 };
+  models[prefab] = { file, rotY: 0, ...PLACE[prefab] };
 }
 writeFileSync(join(out, 'manifest.json'), JSON.stringify({ source: 'Kenney Furniture Kit — CC0 1.0 (https://kenney.nl)', models }, null, 2) + '\n');
 writeFileSync(join(out, 'LICENSE.txt'), 'Models: Kenney Furniture Kit (www.kenney.nl) — Creative Commons Zero (CC0 1.0). Dùng tự do, không bắt buộc ghi nguồn.\n');

@@ -30,6 +30,19 @@ export function chairAngle(o: MapObject, all: MapObject[]) {
   return best ? Math.atan2(best.x - o.x, best.z - o.z) : 0;
 }
 
+/**
+ * Màn hình / bàn làm việc: giữ trục của `rot` trên bản đồ nhưng lật 180° nếu cần để mặt trước hướng về chỗ ngồi gần nhất (≤ 1,3 m).
+ * Bản đồ đặt mọi màn hình rot 0 → dãy bàn quay mặt bắc từng thấy lưng màn hình. `frontZ`: mặt trước ở +z (1) hay −z (−1) khi chưa xoay.
+ */
+export function faceSeatAngle(o: MapObject, seats: OfficeMapV2['seats'], frontZ: 1 | -1) {
+  const rot = (o.rot * Math.PI) / 180;
+  let best: { x: number; z: number } | null = null, bd = 1.3;
+  for (const s of seats) { const d = Math.hypot(s.x - o.x, s.z - o.z); if (d < bd) { bd = d; best = s; } }
+  if (!best) return rot;
+  const dot = frontZ * (Math.sin(rot) * (best.x - o.x) + Math.cos(rot) * (best.z - o.z));
+  return dot < 0 ? rot + Math.PI : rot;
+}
+
 /** Điểm (lx, lz) trong hệ toạ độ đồ vật (chưa xoay) → toạ độ bản đồ, xoay `rot` quanh Y như THREE.rotateY. */
 const local = (o: MapObject, lx: number, lz: number, rot: number) =>
   ({ x: o.x + lx * Math.cos(rot) + lz * Math.sin(rot), z: o.z - lx * Math.sin(rot) + lz * Math.cos(rot) });
