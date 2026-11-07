@@ -91,7 +91,7 @@ export function OfficeView() {
   const openInteract = (o: MapObject) => {
     switch (o.interact) {
       case 'library': return setDocs({ kind: 'browse', space: { kind: 'Company', id: null }, title: '📚 Thư viện · Kho chung công ty' });
-      case 'notices': return setDocs({ kind: 'notices', title: '📌 Bảng tin · Tài liệu mới ban hành' });
+      case 'notices': return setDocs({ kind: 'notices', title: '📌 Bảng tin' });
       case 'screen':
         if (!roomRef.current) return toast.info('Màn hình này chỉ để xem — vào phòng họp để chiếu tài liệu');
         return setDocs({ kind: 'browse', space: null, title: `📺 Chiếu tài liệu · ${roomCh?.name ?? ''}`, present: true });
@@ -376,5 +376,5 @@ export function OfficeView() {
 }
 
 const INTERACT_LABEL: Record<string, string> = { documents: '🗄 Tủ hồ sơ', library: '📚 Thư viện', screen: '📺 Màn hình', notices: '📌 Bảng tin' };
-const INTERACT_VERB: Record<string, string> = { documents: 'mở kho phòng ban', library: 'mở kho chung', screen: 'chiếu tài liệu', notices: 'xem tài liệu mới' };
+const INTERACT_VERB: Record<string, string> = { documents: 'mở kho phòng ban', library: 'mở kho chung', screen: 'chiếu tài liệu', notices: 'xem tin & tài liệu mới' };
 const STATUS = { connecting: 'Đang kết nối…', reconnecting: 'Mất kết nối, đang thử lại…', offline: 'Mất kết nối', kicked: 'Đã đăng nhập nơi khác', online: '' };

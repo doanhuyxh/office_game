@@ -6,6 +6,7 @@ import { useInboxCount } from '@/features/approvals';
 import { CheckInCard } from '@/features/attendance';
 import { useMyBalance } from '@/features/leave';
 import { MyRoleCard } from '@/features/employees';
+import { RecentNews } from '@/features/news';
 import { PATHS } from '@/config/paths';
 
 export function Dashboard() {
@@ -51,6 +52,16 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               <Link to={PATHS.approvals} className="text-sm text-primary hover:underline">Xem đơn →</Link>
+            </CardContent>
+          </Card>
+          <Card className="sm:col-span-2">
+            <CardHeader>
+              <CardDescription>Bảng tin</CardDescription>
+              <CardTitle className="text-lg">Tin mới trong công ty</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              <RecentNews limit={3} />
+              <Link to={PATHS.news} className="text-sm text-primary hover:underline">Xem Bảng tin →</Link>
             </CardContent>
           </Card>
         </div>

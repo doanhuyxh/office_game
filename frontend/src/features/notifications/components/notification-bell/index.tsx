@@ -7,7 +7,7 @@ import { cn } from '@/utils/cn';
 import { useNotificationSound } from '../../hooks/useNotificationSound';
 import { useMarkAllRead, useMarkRead, useNotifications } from '../../hooks/useNotifications';
 import type { INotification } from '../../types/notification.types';
-import { CATEGORY, FALLBACK, timeAgo } from '../../utils/labels';
+import { CATEGORY, FALLBACK, linkTarget, timeAgo } from '../../utils/labels';
 
 /** Chuông thông báo trên header: badge số chưa đọc, danh sách 20 thông báo mới nhất + "Xem tất cả" → /notifications. Bấm một thông báo → đánh dấu đã đọc + mở link. */
 export function NotificationBell() {
@@ -21,7 +21,7 @@ export function NotificationBell() {
 
   const open = (n: INotification) => {
     if (!n.read) markRead.mutate(n.id);
-    if (n.link) void navigate({ to: n.link });
+    if (n.link) void navigate(linkTarget(n.link));
   };
 
   return (

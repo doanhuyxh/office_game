@@ -9,7 +9,7 @@ import { cn } from '@/utils/cn';
 import { formatDateTime } from '@/utils/date';
 import { useMarkAllRead, useMarkRead, useNotificationsPage } from '../../hooks/useNotifications';
 import type { INotification } from '../../types/notification.types';
-import { CATEGORY, FALLBACK, timeAgo } from '../../utils/labels';
+import { CATEGORY, FALLBACK, linkTarget, timeAgo } from '../../utils/labels';
 import { useTabParam } from '@/hooks/useTabParam';
 
 type Filter = 'all' | 'unread';
@@ -28,7 +28,7 @@ export function NotificationsPage() {
 
   const open = (n: INotification) => {
     if (!n.read) markRead.mutate(n.id);
-    if (n.link) void navigate({ to: n.link });
+    if (n.link) void navigate(linkTarget(n.link));
   };
 
   return (

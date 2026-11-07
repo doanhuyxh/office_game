@@ -113,6 +113,14 @@ const page = <const P extends string>(path: P, load: Parameters<typeof lazyRoute
     }),
   });
 
+// Một bài trên Bảng tin (link từ email / chuông): /news/<id>?comment=<id bình luận>
+const newsPost = createRoute({
+  getParentRoute: () => main,
+  path: '/news/$postId',
+  validateSearch: (s: Record<string, unknown>): { comment?: string } => ({ comment: typeof s.comment === 'string' ? s.comment : undefined }),
+  component: lazyRouteComponent(() => import('@/features/news'), 'PostPage'),
+});
+
 const routeTree = root.addChildren([
   login,
   changePassword,
@@ -139,6 +147,8 @@ const routeTree = root.addChildren([
       page(PATHS.profile, () => import('@/features/profile'), 'ProfilePage'),
       page(PATHS.notifications, () => import('@/features/notifications'), 'NotificationsPage'),
       page(PATHS.chat, () => import('@/features/chat'), 'ChatPage'),
+      page(PATHS.news, () => import('@/features/news'), 'NewsPage'),
+      newsPost,
       page(PATHS.aiAccess, () => import('@/features/ai-access'), 'AiAccessPage'),
       page(PATHS.mcpTools, () => import('@/features/mcp-tools'), 'McpToolsPage'),
       page(PATHS.system, () => import('@/features/system'), 'SystemPage'),

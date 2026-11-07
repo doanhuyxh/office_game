@@ -55,6 +55,7 @@ export const MCP_EXCLUDED = [
   'Đổi mật khẩu, tạo / quản lý token, OAuth (trừ /api/auth/me)',
   'Thêm / sửa nhân viên, tài khoản, vai trò, ca, lịch, ngày lễ; điều chỉnh quỹ phép',
   'Tin nhắn (chat) — kênh toàn văn phòng, kênh phòng và tin 1-1 (/api/chat/*)',
+  'Bảng tin: đăng / sửa / xoá bài, bình luận, cảm xúc, kiểm duyệt (chỉ đọc qua list_news_feed / get_news_post)',
 ] as const;
 
 const P = {
@@ -223,6 +224,21 @@ export const MCP_TOOL_GROUPS: McpToolGroup[] = [
       { name: 'cancel_meeting', title: 'Huỷ lịch họp', kind: 'destructive', idempotent: true, endpoint: 'DELETE /api/meetings/bookings/{id}',
         description: 'Huỷ lịch họp (chỉ người đặt hoặc HR). Người được mời nhận thông báo huỷ. Hỏi người dùng xác nhận trước khi gọi.',
         params: [{ name: 'bookingId', type: 'Guid', required: true, description: 'Id lịch họp (từ list_meetings)' }] },
+    ],
+  },
+  {
+    name: 'Bảng tin',
+    tools: [
+      { name: 'list_news_feed', title: 'Bảng tin công ty', kind: 'read', endpoint: 'GET /api/news/feed',
+        description: 'Bài mới nhất trên Bảng tin mà tôi được xem (toàn công ty, phòng ban của tôi, bài gửi riêng cho tôi): tác giả, nội dung chữ thuần, phạm vi, số cảm xúc / bình luận, tên tệp đính kèm. Bài ghim ở mảng pinned (chỉ trang đầu). Còn bài cũ hơn thì nextCursor khác null.',
+        params: [
+          { name: 'take', type: 'int', required: false, description: 'Số bài mỗi trang 1–30', default: '10' },
+          { name: 'cursor', type: 'long', required: false, description: 'nextCursor của trang trước (bỏ trống = trang đầu)' },
+          { name: 'authorId', type: 'Guid', required: false, description: 'Chỉ bài của một người: id tài khoản (author.userId)' },
+        ] },
+      { name: 'get_news_post', title: 'Chi tiết bài trên Bảng tin', kind: 'read', endpoint: 'GET /api/news/posts/{id} + /comments',
+        description: 'Một bài trên Bảng tin kèm bình luận (chữ thuần). Bài ngoài phạm vi của tôi trả 404 như không tồn tại.',
+        params: [{ name: 'postId', type: 'Guid', required: true, description: 'Id bài (từ list_news_feed)' }] },
     ],
   },
   {

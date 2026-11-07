@@ -1,0 +1,12 @@
+/* Nội dung bài viết (HTML đã được BE lọc) + vùng soạn thảo Tiptap dùng chung kiểu chữ */
+.news-rich { line-height: 1.55; overflow-wrap: anywhere; font-size: 0.925rem; }
+.news-rich p { margin: 0 0 0.5rem; min-height: 1.2em; }
+.news-rich p:last-child { margin-bottom: 0; }
+.news-rich h2 { font-size: 1.2rem; font-weight: 700; margin: 0.75rem 0 0.35rem; }
+.news-rich h3 { font-size: 1.05rem; font-weight: 600; margin: 0.6rem 0 0.3rem; }
+.news-rich ul { list-style: disc; padding-left: 1.4rem; margin: 0.25rem 0 0.5rem; }
+.news-rich ol { list-style: decimal; padding-left: 1.4rem; margin: 0.25rem 0 0.5rem; }
+.news-rich blockquote { border-left: 3px solid var(--border); padding-left: 0.75rem; color: var(--muted-foreground); margin: 0.4rem 0; }
+.news-rich a { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
+.news-rich span[data-mention] { color: var(--primary); font-weight: 600; background: color-mix(in oklab, var(--primary) 10%, transparent); border-radius: 0.25rem; padding: 0 0.2rem; }
+.news-editor p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--muted-foreground); float: left; height: 0; pointer-events: none; }

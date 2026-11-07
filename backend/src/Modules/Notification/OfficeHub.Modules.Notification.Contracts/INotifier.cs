@@ -58,4 +58,9 @@ public static class NotificationCategories
     public const string ProjectMemberAdded = "project_member_added";
     /// <summary>Bảo mật tài khoản: HR / admin đặt lại xác thực 2 lớp — module Organization.</summary>
     public const string AccountSecurity = "account_security";
+    /// <summary>Bảng tin: bài mới (tác giả chọn gửi email), bình luận / trả lời, được @nhắc tên, bài bị ẩn — module News.</summary>
+    public const string NewsPublished = "news_published";
+    public const string NewsComment = "news_comment";
+    public const string NewsMention = "news_mention";
+    public const string NewsModerated = "news_moderated";
 }

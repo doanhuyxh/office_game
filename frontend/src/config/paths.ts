@@ -16,6 +16,7 @@ export const PATHS = {
   profile: '/profile',
   notifications: '/notifications',
   chat: '/chat',
+  news: '/news',
   aiAccess: '/ai-access',
   mcpTools: '/mcp-tools',
   system: '/system',

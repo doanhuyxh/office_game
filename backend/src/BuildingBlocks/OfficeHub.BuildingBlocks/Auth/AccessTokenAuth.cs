@@ -69,6 +69,9 @@ public static class AccessTokenAuth
         ("GET", "/api/meetings"),
         ("POST", "/api/meetings/bookings"),
         ("DELETE", "/api/meetings/bookings/"),
+        // Bảng tin: chỉ ĐỌC (feed, bài, bình luận); đăng / bình luận / cảm xúc chỉ làm trên web. Endpoint tự bỏ HTML + link tệp khi gọi bằng token AI.
+        ("GET", "/api/news/feed"),
+        ("GET", "/api/news/posts/"),
         ("GET", "/api/notifications"),
         ("POST", "/api/notifications/"),
     ];

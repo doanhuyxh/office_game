@@ -31,6 +31,9 @@ public class AccessTokenScopeTests
     [InlineData("GET", "/api/approval/delegations")]
     [InlineData("GET", "/api/notifications")]
     [InlineData("POST", "/api/notifications/read-all")]
+    [InlineData("GET", "/api/news/feed")]
+    [InlineData("GET", "/api/news/posts/0193a000-0000-7000-8000-000000000000")]
+    [InlineData("GET", "/api/news/posts/0193a000-0000-7000-8000-000000000000/comments")]
     public void Allows_self_service_routes(string method, string path) =>
         Assert.True(AccessTokenAuth.IsAllowed(method, path));
 
@@ -60,6 +63,13 @@ public class AccessTokenScopeTests
     [InlineData("GET", "/api/reports/_status")]
     [InlineData("POST", "/api/approval/delegations")]       // trao quyền duyệt thay: chỉ trên web
     [InlineData("POST", "/api/approval/delegations/0193a000-0000-7000-8000-000000000000/revoke")]
+    [InlineData("POST", "/api/news/posts")]                  // đăng bài chỉ trên web
+    [InlineData("POST", "/api/news/posts/0193a000-0000-7000-8000-000000000000/comments")]
+    [InlineData("PUT", "/api/news/posts/0193a000-0000-7000-8000-000000000000/reaction")]
+    [InlineData("DELETE", "/api/news/posts/0193a000-0000-7000-8000-000000000000")]
+    [InlineData("POST", "/api/news/admin/posts/0193a000-0000-7000-8000-000000000000/hide")]
+    [InlineData("GET", "/api/news/media/0193a000-0000-7000-8000-000000000000/url")]   // không trao link tệp cho AI
+    [InlineData("POST", "/api/news/uploads")]
     [InlineData("GET", "")]
     public void Blocks_everything_else(string method, string path) =>
         Assert.False(AccessTokenAuth.IsAllowed(method, path));

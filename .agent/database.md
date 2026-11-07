@@ -82,6 +82,10 @@ Mọi seeder/migrator chỉ chạy migration khi `Database__MigrateOnStartup` kh
 
 Không transaction trải nhiều module (mỗi request gọi `SaveChangesAsync` riêng từng DbContext). Ví dụ cấp tài khoản: Identity tạo user → Organization ghi `UserId`; nếu bước 2 lỗi sẽ còn user mồ côi (cần xác nhận cách xử lý nếu xảy ra). Không audit log. Hàng đợi email thông báo nằm trong bảng `notifications.notifications` (cột `Email*`), không có outbox sự kiện giữa module.
 
+## Schema `news` — `NewsDbContext` (migration `InitialNews`)
+
+Bảng tin nội bộ: `posts` (`Seq` identity = con trỏ feed, `ContentHtml` đã lọc + `PlainText`, `Audience`, `PinnedUntil`, `HiddenAt`, xoá mềm, `ReactionCount` / `CommentCount` denormalize), `post_targets` (phạm vi: phòng ban / người), `post_media` (ảnh / video / tệp trên S3 `feed/`), `comments` (trả lời **một cấp**, ảnh tuỳ chọn, xoá mềm), `reactions` (`(TargetType, TargetId, UserId)` — mỗi người một cảm xúc), `mentions`, `feed_states` (badge bài mới), `upload_tickets`. Cột `AuthorUserId` → `identity.users.Id`, `post_targets.TargetId` → `org.departments.Id` / `identity.users.Id` (**không** FK chéo schema). Quy tắc + API: [business/news.md](business/news.md).
+
 ## Schema `audit`, `meetings`, …
 
 Xem [database-workflow.md](database-workflow.md).

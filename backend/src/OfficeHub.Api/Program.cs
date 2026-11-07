@@ -8,6 +8,7 @@ using OfficeHub.Modules.Attendance;
 using OfficeHub.Modules.Audit;
 using OfficeHub.Modules.Documents;
 using OfficeHub.Modules.Chat;
+using OfficeHub.Modules.News;
 using OfficeHub.Modules.LaborContracts;
 using OfficeHub.Modules.Identity;
 using OfficeHub.Modules.Leave;
@@ -45,6 +46,7 @@ IModule[] modules =
     new AuditModule(),
     new DocumentsModule(),
     new ChatModule(),
+    new NewsModule(),
 ];
 foreach (var m in modules) m.Register(builder.Services, builder.Configuration);
 

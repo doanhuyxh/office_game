@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { AssetSheet, AssetTable, DocumentsBrowser, useRecentPublished, type ISpaceRef } from '@/features/documents';
 import { useDepartments } from '@/features/employees';
+import { RecentNews } from '@/features/news';
+import { Button } from '@/components/common/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
 import type { MapObject } from '../../engine/mapTypes';
 import { OFFICE_MAP } from '../../engine/officeMap';
 import type { ScreenDto } from '../../types/office.types';
@@ -18,7 +21,7 @@ export function OfficeDocsDialog({ mode, onClose, onPresent }: { mode: DocsMode 
         <DialogHeader>
           <DialogTitle>{mode?.title}</DialogTitle>
           <DialogDescription>
-            {mode?.kind === 'notices' ? 'Tài liệu ban hành trong 60 ngày gần nhất, trong các kho bạn được xem.'
+            {mode?.kind === 'notices' ? 'Tin mới của công ty và tài liệu ban hành trong 60 ngày gần nhất (trong các kho bạn được xem).'
               : mode?.present ? 'Mở một tài liệu rồi bấm "Chiếu lên màn hình phòng" — người đang ở trong phòng cùng xem.'
                 : 'Kéo thả file / thư mục vào đây hoặc thẳng vào văn phòng để tải lên kho.'}
           </DialogDescription>
@@ -30,7 +33,24 @@ export function OfficeDocsDialog({ mode, onClose, onPresent }: { mode: DocsMode 
   );
 }
 
+/** Bảng tin trong văn phòng: tab Tin tức (bài mới, mở ở tab mới để giữ phiên 3D) + tab Tài liệu ban hành. */
 function Notices({ onPresent }: { onPresent?: (assetId: string) => void }) {
+  return (
+    <Tabs defaultValue="news" className="gap-3">
+      <TabsList>
+        <TabsTrigger value="news" data-testid="notices-tab-news">Tin tức</TabsTrigger>
+        <TabsTrigger value="docs">Tài liệu ban hành</TabsTrigger>
+      </TabsList>
+      <TabsContent value="news" className="grid gap-3">
+        <RecentNews limit={8} newTab />
+        <Button asChild variant="outline" size="sm" className="w-fit"><a href="/news" target="_blank" rel="noreferrer">Mở Bảng tin đầy đủ</a></Button>
+      </TabsContent>
+      <TabsContent value="docs"><PublishedDocs onPresent={onPresent} /></TabsContent>
+    </Tabs>
+  );
+}
+
+function PublishedDocs({ onPresent }: { onPresent?: (assetId: string) => void }) {
   const recent = useRecentPublished();
   const [openId, setOpenId] = useState<string | null>(null);
   return (

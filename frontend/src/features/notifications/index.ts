@@ -5,3 +5,4 @@ export { NotificationSoundCard } from './components/notification-sound-card';
 export { useNotifications } from './hooks/useNotifications';
 export { playNotificationSound } from './utils/sound';
 export type { INotification, INotificationList, INotificationPage } from './types/notification.types';
+export { timeAgo } from './utils/labels';
