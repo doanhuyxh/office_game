@@ -1,6 +1,6 @@
 # Tăng ca (module Attendance)
 
-> Nguồn sự thật là code (`backend/src/Modules/Attendance/OfficeHub.Modules.Attendance/Features/Overtime/OvertimeEndpoints.cs`, `Domain/OvertimeRules.cs`, `frontend/src/features/attendance/components/OvertimeTab.tsx`); nếu code khác tài liệu, tin code và sửa tài liệu. Về [README.md](README.md).
+> Nguồn sự thật là code (`backend/src/Modules/Attendance/OfficeHub.Modules.Attendance/Features/Overtime/OvertimeEndpoints.cs`, `Domain/OvertimeRules.cs`, `frontend/src/features/attendance/components/overtime-tab/`); nếu code khác tài liệu, tin code và sửa tài liệu. Về [README.md](README.md).
 
 Nhân viên đăng ký **một khoảng giờ trong một ngày** → duyệt qua [approval.md](approval.md) (`ApprovalTypes.Overtime = "overtime"`, bước `[Manager, Hr]`) → bảng công cộng **đúng số giờ trên đơn**.
 
@@ -52,6 +52,6 @@ Idempotent: chỉ đổi khi đơn còn `Pending` → `Approved` / `Rejected` (+
 ## UI (`frontend/src/features/attendance/`)
 
 - `AttendancePage` tab **Tăng ca** (ẩn khi `noProfile`) = `OvertimeTab`: chọn tháng, 4 thẻ tổng (tổng / 150% / 200% / 300%), bảng đơn của tôi (huỷ khi `Pending`), nút `data-testid="overtime-new"`.
-- `OvertimeDialog` (trong `OvertimeTab.tsx`): ngày, từ – đến, lý do; xem trước gọi `/overtime/preview` (debounce 300 ms) hiện số giờ, loại ngày, tổng tháng / năm, cảnh báo. Gửi xong cảnh báo hiện thành toast.
+- `OvertimeDialog` (trong `overtime-tab/`): ngày, từ – đến, lý do; xem trước gọi `/overtime/preview` (debounce 300 ms) hiện số giờ, loại ngày, tổng tháng / năm, cảnh báo. Gửi xong cảnh báo hiện thành toast.
 - `MonthTimesheet`: cột "Tăng ca" (giờ + hệ số), thẻ "Tăng ca". `ReportTable`: cột "Tăng ca" (tooltip tách theo loại ngày).
 - `APPROVAL_TYPE.overtime = "⏱ Tăng ca"` trong `features/approvals/utils/labels.ts`.

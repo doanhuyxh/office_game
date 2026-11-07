@@ -1,6 +1,6 @@
 # Tài liệu trong văn phòng 3D
 
-> Nguồn sự thật là code (`frontend/src/features/office/components/OfficeDocs.tsx`, `OfficeView.tsx`, `backend/src/OfficeHub.Realtime/Screens/RoomScreens.cs`, hub `PinScreen`…). Kho tài liệu: [documents.md](documents.md) · văn phòng / hub: [office.md](office.md) · engine: [office-engine.md](office-engine.md). Về [README.md](README.md).
+> Nguồn sự thật là code (`frontend/src/features/office/components/office-docs/`, `office-view/`, `backend/src/OfficeHub.Realtime/Screens/RoomScreens.cs`, hub `PinScreen`…). Kho tài liệu: [documents.md](documents.md) · văn phòng / hub: [office.md](office.md) · engine: [office-engine.md](office-engine.md). Về [README.md](README.md).
 
 Chủ dự án chốt 2026-11-07: làm cả 4 phần — nút HUD, tủ hồ sơ / kệ thư viện, chiếu tài liệu lên màn hình phòng, bảng tin.
 

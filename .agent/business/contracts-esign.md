@@ -31,7 +31,7 @@ Chủ dự án chốt 2026-11-06: **ký nội bộ** (không qua nhà cung cấp
 
 Bảng `contracts.sign_requests` [Audited] (xem [database-workflow.md](../database-workflow.md)). Token AI không gọi được (`/api/contracts` bị chặn trong `AccessTokenAuth`).
 
-## UI (`features/contracts/components/SignPanel.tsx`)
+## UI (`features/contracts/components/sign-panel/`)
 
 `PendingSignBanner` (đầu trang Hợp đồng, cả HR khi chính họ là người ký), `SignDialog` (3 bước + đồng ý), `SignaturePad` (pointer events, `touch-none`, mực xanh trên nền trắng), `SignRequestList` (lịch sử ký trong chi tiết hợp đồng, link "Bản đã ký", HR huỷ).
 

@@ -5,7 +5,7 @@ import { Button } from '@/components/common/button';
 import { Input } from '@/components/common/input';
 import { formatDate } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
-import { useCreateHoliday, useDeleteHoliday, useHolidays } from '../hooks/useAttendance';
+import { useCreateHoliday, useDeleteHoliday, useHolidays } from '../../hooks/useAttendance';
 
 export function HolidaysPanel() {
   const [year, setYear] = useState(new Date().getFullYear());

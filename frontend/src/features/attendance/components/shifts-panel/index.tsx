@@ -8,8 +8,8 @@ import { SelectField } from '@/components/common/SelectField';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { formatMinutes } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { useDeleteShift, useSaveShift, useShifts } from '../hooks/useAttendance';
-import type { IShift, IUpsertShift } from '../types/attendance.types';
+import { useDeleteShift, useSaveShift, useShifts } from '../../hooks/useAttendance';
+import type { IShift, IUpsertShift } from '../../types/attendance.types';
 
 const blank: IUpsertShift = {
   name: '', type: 'Fixed', startTime: '08:30', endTime: '17:30', graceMinutes: 5, requiredMinutes: 480,

@@ -7,9 +7,9 @@ import { Spinner } from '@/components/feedback/Spinner';
 import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
 import { formatDateTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
-import { useSystemInfo } from '../hooks/useSystem';
-import { StorageCard } from './StorageCard';
-import type { IHealthItem, ISystemLink } from '../types/system.types';
+import { useSystemInfo } from '../../hooks/useSystem';
+import { StorageCard } from '../storage-card';
+import type { IHealthItem, ISystemLink } from '../../types/system.types';
 
 const LINK_ICON: Record<string, LucideIcon> = { docs: BookOpen, logs: ScrollText, mail: Mail };
 const HEALTH_NAME: Record<string, string> = { postgres: 'Cơ sở dữ liệu (PostgreSQL)', s3: 'Lưu trữ file (S3)', smtp: 'Máy chủ gửi mail (SMTP)' };

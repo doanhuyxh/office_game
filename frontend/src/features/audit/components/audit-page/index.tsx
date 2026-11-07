@@ -10,9 +10,9 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { useDepartments, useEmployees, usePositions } from '@/features/employees';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDateTime } from '@/utils/date';
-import { useChangesPage } from '../hooks/useAudit';
-import type { IChange } from '../types/audit.types';
-import { ACTION, ENTITY_LABEL, fieldLabel, formatValue, SOURCE_LABEL } from '../utils/labels';
+import { useChangesPage } from '../../hooks/useAudit';
+import type { IChange } from '../../types/audit.types';
+import { ACTION, ENTITY_LABEL, fieldLabel, formatValue, SOURCE_LABEL } from '../../utils/labels';
 
 const ENTITY_OPTIONS = Object.entries(ENTITY_LABEL).map(([value, label]) => ({ value, label }));
 

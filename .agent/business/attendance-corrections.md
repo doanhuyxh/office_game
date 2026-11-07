@@ -1,6 +1,6 @@
 # Giải trình chấm công (module Attendance)
 
-> Nguồn sự thật là code (`backend/src/Modules/Attendance/OfficeHub.Modules.Attendance/Features/Corrections/CorrectionEndpoints.cs`, `frontend/src/features/attendance/components/CorrectionDialog.tsx`); nếu code khác tài liệu, tin code và sửa tài liệu. Về [README.md](README.md).
+> Nguồn sự thật là code (`backend/src/Modules/Attendance/OfficeHub.Modules.Attendance/Features/Corrections/CorrectionEndpoints.cs`, `frontend/src/features/attendance/components/correction-dialog/`); nếu code khác tài liệu, tin code và sửa tài liệu. Về [README.md](README.md).
 
 Nhân viên quên chấm hoặc chấm sai → khai **một** lần chấm (vào hoặc ra) với giờ thực tế → duyệt qua [approval.md](approval.md) (`ApprovalTypes.AttendanceCorrection`, bước `[Manager, Hr]`) → hệ thống **thêm** sự kiện `Manual`. Không sửa / xoá sự kiện cũ (nguyên tắc [attendance.md](attendance.md#nguyên-tắc)).
 

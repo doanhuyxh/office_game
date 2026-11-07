@@ -4,9 +4,9 @@ import { Button } from '@/components/common/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/common/dropdown-menu';
 import { PATHS } from '@/config/paths';
 import { cn } from '@/utils/cn';
-import { useMarkAllRead, useMarkRead, useNotifications } from '../hooks/useNotifications';
-import type { INotification } from '../types/notification.types';
-import { CATEGORY, FALLBACK, timeAgo } from '../utils/labels';
+import { useMarkAllRead, useMarkRead, useNotifications } from '../../hooks/useNotifications';
+import type { INotification } from '../../types/notification.types';
+import { CATEGORY, FALLBACK, timeAgo } from '../../utils/labels';
 
 /** Chuông thông báo trên header: badge số chưa đọc, danh sách 20 thông báo mới nhất + "Xem tất cả" → /notifications. Bấm một thông báo → đánh dấu đã đọc + mở link. */
 export function NotificationBell() {

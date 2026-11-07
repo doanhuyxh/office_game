@@ -1,6 +1,6 @@
 # Kết nối AI — OAuth, nhật ký, quản trị
 
-> Phần tiếp của [mcp.md](mcp.md). Code: `Modules/Identity/…/Features/OAuth/OAuthEndpoints.cs`, `Domain/OAuth*.cs`, `BuildingBlocks/Auth/OAuthMetadata.cs`, `Modules/Audit/`, FE `features/ai-access/components/OAuthConsentPage.tsx`.
+> Phần tiếp của [mcp.md](mcp.md). Code: `Modules/Identity/…/Features/OAuth/OAuthEndpoints.cs`, `Domain/OAuth*.cs`, `BuildingBlocks/Auth/OAuthMetadata.cs`, `Modules/Audit/`, FE `features/ai-access/components/oauth-consent-page/`.
 
 ## OAuth 2.1 (MCP Authorization) — "Đăng nhập" thay cho dán token
 

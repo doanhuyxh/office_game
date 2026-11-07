@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { AssetSheet, AssetTable, DocumentsBrowser, useRecentPublished, type ISpaceRef } from '@/features/documents';
 import { useDepartments } from '@/features/employees';
-import type { MapObject } from '../engine/mapTypes';
-import { OFFICE_MAP } from '../engine/officeMap';
-import type { ScreenDto } from '../types/office.types';
+import type { MapObject } from '../../engine/mapTypes';
+import { OFFICE_MAP } from '../../engine/officeMap';
+import type { ScreenDto } from '../../types/office.types';
 
 /** Hộp thoại tài liệu trong văn phòng: duyệt một kho (tủ hồ sơ, kệ thư viện, nút HUD) hoặc bảng tin (mới ban hành). */
 export type DocsMode =

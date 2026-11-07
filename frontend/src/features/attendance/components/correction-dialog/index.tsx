@@ -8,8 +8,8 @@ import { SelectField } from '@/components/common/SelectField';
 import { Textarea } from '@/components/common/textarea';
 import { formatDate, formatTime } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { useCreateCorrection } from '../hooks/useAttendance';
-import type { IDay, ICreateCorrection } from '../types/attendance.types';
+import { useCreateCorrection } from '../../hooks/useAttendance';
+import type { IDay, ICreateCorrection } from '../../types/attendance.types';
 
 /** Giải trình một ngày: khai giờ vào hoặc giờ ra thực tế. Duyệt xong bảng công tự cập nhật. */
 export function CorrectionDialog({ day, onClose }: { day: IDay | null; onClose: () => void }) {

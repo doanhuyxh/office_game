@@ -3,8 +3,8 @@ import { Bot, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/common/collapsible';
 import { cn } from '@/utils/cn';
-import { useMyRole } from '../hooks/useOrg';
-import { GuideText } from './GuideText';
+import { useMyRole } from '../../hooks/useOrg';
+import { GuideText } from '../guide-text';
 
 function Section({ title, sub, description, guide, defaultOpen }: { title: string; sub?: string; description: string | null; guide: string | null; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(!!defaultOpen);

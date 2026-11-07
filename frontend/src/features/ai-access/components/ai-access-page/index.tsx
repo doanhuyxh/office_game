@@ -18,11 +18,11 @@ import { formatDate, formatDateTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
 import {
   useAccessTokens, useAiConnectionsPage, useGrants, useRevokeAccessToken, useRevokeGrant,
-} from '../hooks/useAccessTokens';
-import { TOKEN_STATUS } from '../utils/labels';
-import { ActivityTable } from './ActivityTable';
-import { ConnectGuide } from './ConnectGuide';
-import { CreateTokenDialog } from './CreateTokenDialog';
+} from '../../hooks/useAccessTokens';
+import { TOKEN_STATUS } from '../../utils/labels';
+import { ActivityTable } from '../activity-table';
+import { ConnectGuide } from '../connect-guide';
+import { CreateTokenDialog } from '../create-token-dialog';
 import { useTabParam } from '@/hooks/useTabParam';
 
 const CAN = [

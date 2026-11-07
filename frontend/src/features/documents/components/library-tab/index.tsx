@@ -10,15 +10,15 @@ import { TablePagination, usePageState } from '@/components/common/pagination';
 import { Spinner } from '@/components/feedback/Spinner';
 import { useDebounce } from '@/hooks/useDebounce';
 import { cn } from '@/utils/cn';
-import { documentApi } from '../api/document.api';
-import { useAssets, useDocMutation, useFolders, useSpaces } from '../hooks/useDocuments';
-import type { AssetKind, AssetStatus, IAssetRow, IFolder, ISpace, ISpaceRef } from '../types/document.types';
-import { findSpace, KIND, parseSpaceKey, SPACE_KIND, spaceKey, STATUS } from '../utils/labels';
-import { filesFromDrop } from '../utils/upload';
-import { AssetTable } from './AssetTable';
-import { FolderTree } from './FolderTree';
-import { PromptDialog, type PromptSpec } from './PromptDialog';
-import { UploadPanel, useUploadQueue } from './UploadQueue';
+import { documentApi } from '../../api/document.api';
+import { useAssets, useDocMutation, useFolders, useSpaces } from '../../hooks/useDocuments';
+import type { AssetKind, AssetStatus, IAssetRow, IFolder, ISpace, ISpaceRef } from '../../types/document.types';
+import { findSpace, KIND, parseSpaceKey, SPACE_KIND, spaceKey, STATUS } from '../../utils/labels';
+import { filesFromDrop } from '../../utils/upload';
+import { AssetTable } from '../asset-table';
+import { FolderTree } from '../folder-tree';
+import { PromptDialog, type PromptSpec } from '../prompt-dialog';
+import { UploadPanel, useUploadQueue } from '../upload-queue';
 
 const spaceLabel = (s: ISpace) => (s.kind === 'Company' ? 'Kho chung công ty' : `${SPACE_KIND[s.kind]} · ${s.name}${s.closed ? ' (đã đóng)' : ''}`);
 

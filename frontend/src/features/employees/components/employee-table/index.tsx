@@ -17,12 +17,12 @@ import { errorMessage } from '@/utils/errors';
 import { formatDate } from '@/utils/date';
 import {
   useDepartments, useEmployeesPage, useReactivateEmployee, useResendInvite, useResetAccountPassword, useResignEmployee,
-} from '../hooks/useOrg';
-import type { IEmployee } from '../types/employee.types';
-import { ROLE_LABEL, STATUS_LABEL, STATUS_VARIANT } from '../utils/labels';
-import { CreateAccountDialog, ResignDialog, RolesDialog, TempPasswordDialog } from './AccountDialogs';
-import { EmployeeFormDialog } from './EmployeeFormDialog';
-import { departmentOptions } from '../utils/orgTree';
+} from '../../hooks/useOrg';
+import type { IEmployee } from '../../types/employee.types';
+import { ROLE_LABEL, STATUS_LABEL, STATUS_VARIANT } from '../../utils/labels';
+import { CreateAccountDialog, ResignDialog, RolesDialog, TempPasswordDialog } from '../account-dialogs';
+import { EmployeeFormDialog } from '../employee-form-dialog';
+import { departmentOptions } from '../../utils/orgTree';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import { EmployeePrivateDialog } from '@/features/profile';
 import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';

@@ -1,1 +1,1 @@
-export { ContractsPage } from './components/ContractsPage';
+export { ContractsPage } from './components/contracts-page';

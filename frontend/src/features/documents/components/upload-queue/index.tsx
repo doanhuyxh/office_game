@@ -3,10 +3,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, Loader2, X, XCircle } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { errorMessage } from '@/utils/errors';
-import { documentApi, documentKeys } from '../api/document.api';
-import type { ISpaceRef } from '../types/document.types';
-import { formatSize } from '../utils/labels';
-import { relativeDir, uploadToStorage } from '../utils/upload';
+import { documentApi, documentKeys } from '../../api/document.api';
+import type { ISpaceRef } from '../../types/document.types';
+import { formatSize } from '../../utils/labels';
+import { relativeDir, uploadToStorage } from '../../utils/upload';
 
 interface Item {
   key: string;

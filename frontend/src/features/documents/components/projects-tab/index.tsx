@@ -14,9 +14,9 @@ import { Spinner } from '@/components/feedback/Spinner';
 import { useMe } from '@/features/auth';
 import { useDepartments, useEmployees } from '@/features/employees';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { documentApi } from '../api/document.api';
-import { useDocMutation, useProjects } from '../hooks/useDocuments';
-import type { IProject, ISpaceRef, ProjectRole, ProjectStatus } from '../types/document.types';
+import { documentApi } from '../../api/document.api';
+import { useDocMutation, useProjects } from '../../hooks/useDocuments';
+import type { IProject, ISpaceRef, ProjectRole, ProjectStatus } from '../../types/document.types';
 
 /** Danh sách dự án (HR: tất cả; người khác: dự án mình tham gia). Quản lý / HR tạo dự án; quản lý dự án sửa + đổi thành viên. */
 /** Quản lý / HR / admin được tạo dự án (nút "Dự án mới" đặt trên hàng tab — DocumentsPage). */

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { VoiceClient, VoiceView } from '../api/voiceClient';
+import type { VoiceClient, VoiceView } from '../../api/voiceClient';
 
 /** Thẻ voice ở góc dưới phải: tự kết nối để nghe; micro (M, mặc định tắt), loa, chia sẻ màn hình (chỉ phòng họp). */
 export function VoicePanel({ voice, view }: { voice: VoiceClient | null; view: VoiceView }) {

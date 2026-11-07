@@ -3,8 +3,8 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { Spinner } from '@/components/feedback/Spinner';
 import { formatDate } from '@/utils/date';
-import type { IAssetRow } from '../types/document.types';
-import { formatSize, KIND, STATUS } from '../utils/labels';
+import type { IAssetRow } from '../../types/document.types';
+import { formatSize, KIND, STATUS } from '../../utils/labels';
 
 /** Bảng tài liệu dùng chung (kho, tìm kiếm, thùng rác, hạn lưu trữ). Bấm dòng → mở chi tiết. `extra` = cột thêm ở cuối. */
 export function AssetTable({ rows, loading, onOpen, empty = 'Chưa có tài liệu.', extra, extraHead, showLocation }: {

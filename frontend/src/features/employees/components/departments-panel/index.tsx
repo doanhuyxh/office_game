@@ -12,11 +12,11 @@ import { SelectField } from '@/components/common/SelectField';
 import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { useDeleteDepartment, useDepartments, useEmployees, useSaveDepartment } from '../hooks/useOrg';
-import type { IDepartment, IUpsertDepartment } from '../types/employee.types';
-import { MAP_ZONES, mapZoneName } from '../utils/mapZones';
-import { departmentOptions, departmentTree, descendantIds } from '../utils/orgTree';
-import { GuideDialog, type GuideTarget } from './GuideDialog';
+import { useDeleteDepartment, useDepartments, useEmployees, useSaveDepartment } from '../../hooks/useOrg';
+import type { IDepartment, IUpsertDepartment } from '../../types/employee.types';
+import { MAP_ZONES, mapZoneName } from '../../utils/mapZones';
+import { departmentOptions, departmentTree, descendantIds } from '../../utils/orgTree';
+import { GuideDialog, type GuideTarget } from '../guide-dialog';
 
 function DepartmentDialog({ open, onOpenChange, dept }: { open: boolean; onOpenChange: (o: boolean) => void; dept: IDepartment | null }) {
   const save = useSaveDepartment();

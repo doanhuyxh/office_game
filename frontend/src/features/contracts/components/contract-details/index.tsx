@@ -9,10 +9,10 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Textarea } from '@/components/common/textarea';
 import { formatDate } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { contractApi } from '../api/contract.api';
-import { useAddAmendment, useDeleteAmendment, useUploadContractFile } from '../hooks/useContracts';
-import type { IContract, ICreateAmendment, IStoredFile } from '../types/contract.types';
-import { ACCEPT_FILES, CONTRACT_STATUS, CONTRACT_TYPE, EXPIRING_DAYS, formatMoney } from '../utils/labels';
+import { contractApi } from '../../api/contract.api';
+import { useAddAmendment, useDeleteAmendment, useUploadContractFile } from '../../hooks/useContracts';
+import type { IContract, ICreateAmendment, IStoredFile } from '../../types/contract.types';
+import { ACCEPT_FILES, CONTRACT_STATUS, CONTRACT_TYPE, EXPIRING_DAYS, formatMoney } from '../../utils/labels';
 
 /** Mở file qua presigned URL (hết hạn sau vài phút) — không lưu link. */
 async function openFile(contractId: string, amendmentId?: string) {

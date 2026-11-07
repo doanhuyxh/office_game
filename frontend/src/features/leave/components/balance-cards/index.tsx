@@ -1,8 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
 import { useMyLeavePayout } from '@/features/reports';
 import { formatMoney } from '@/utils/money';
-import type { IBalance } from '../types/leave.types';
-import { fmtDays } from '../utils/labels';
+import type { IBalance } from '../../types/leave.types';
+import { fmtDays } from '../../utils/labels';
 
 /** Số dư phép năm của tôi. */
 export function BalanceCard({ b }: { b: IBalance }) {

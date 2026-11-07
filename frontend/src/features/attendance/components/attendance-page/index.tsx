@@ -6,17 +6,17 @@ import { useState } from 'react';
 import { Input } from '@/components/common/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
 import { hasRole, useMe } from '@/features/auth';
-import { useMyCorrections, useMyMonth, useToday } from '../hooks/useAttendance';
-import type { IDay } from '../types/attendance.types';
-import { CorrectionDialog } from './CorrectionDialog';
-import { currentMonth } from '../utils/labels';
-import { CheckInCard } from './CheckInCard';
-import { HolidaysPanel } from './HolidaysPanel';
-import { MonthTimesheet } from './MonthTimesheet';
-import { OvertimeTab } from './OvertimeTab';
-import { SchedulesPanel } from './SchedulesPanel';
-import { ShiftsPanel } from './ShiftsPanel';
-import { BoardTable, ReportTable } from './TeamTables';
+import { useMyCorrections, useMyMonth, useToday } from '../../hooks/useAttendance';
+import type { IDay } from '../../types/attendance.types';
+import { CorrectionDialog } from '../correction-dialog';
+import { currentMonth } from '../../utils/labels';
+import { CheckInCard } from '../check-in-card';
+import { HolidaysPanel } from '../holidays-panel';
+import { MonthTimesheet } from '../month-timesheet';
+import { OvertimeTab } from '../overtime-tab';
+import { SchedulesPanel } from '../schedules-panel';
+import { ShiftsPanel } from '../shifts-panel';
+import { BoardTable, ReportTable } from '../team-tables';
 import { useTabParam } from '@/hooks/useTabParam';
 
 function MonthPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {

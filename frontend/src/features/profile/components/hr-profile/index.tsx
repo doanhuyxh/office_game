@@ -8,9 +8,9 @@ import { Label } from '@/components/common/label';
 import { Textarea } from '@/components/common/textarea';
 import { Spinner } from '@/components/feedback/Spinner';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { useDecideProfileRequest, useEmployeePrivate, useProfileRequests, useSaveEmployeePrivate } from '../hooks/useProfile';
-import type { IContact, IProfileRequest, ISensitive } from '../types/profile.types';
-import { RequestSummary } from './ProfilePage';
+import { useDecideProfileRequest, useEmployeePrivate, useProfileRequests, useSaveEmployeePrivate } from '../../hooks/useProfile';
+import type { IContact, IProfileRequest, ISensitive } from '../../types/profile.types';
+import { RequestSummary } from '../profile-page';
 
 /** Số yêu cầu chờ duyệt (badge tab). */
 export const usePendingProfileRequestCount = (enabled: boolean) => useProfileRequests(undefined, enabled).data?.length ?? 0;

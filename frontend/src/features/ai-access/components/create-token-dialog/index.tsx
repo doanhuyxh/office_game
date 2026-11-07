@@ -6,9 +6,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { FormField } from '@/components/common/FormField';
 import { SelectField } from '@/components/common/SelectField';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { useCreateAccessToken } from '../hooks/useAccessTokens';
-import { LIFETIMES } from '../utils/labels';
-import { CopyBlock } from './CopyBlock';
+import { useCreateAccessToken } from '../../hooks/useAccessTokens';
+import { LIFETIMES } from '../../utils/labels';
+import { CopyBlock } from '../copy-block';
 
 /** Tạo token → hiện token MỘT lần. `onCreated` để trang điền sẵn token vào hướng dẫn kết nối. */
 export function CreateTokenDialog({ open, onOpenChange, onCreated }: {

@@ -11,9 +11,9 @@ import { TablePagination, usePageState } from '@/components/common/pagination';
 import { useEmployees } from '@/features/employees';
 import { formatDate } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
-import { useDeleteSchedule, useSaveSchedule, useSchedulesPage, useShifts } from '../hooks/useAttendance';
-import type { ISchedule, IWeekDay } from '../types/attendance.types';
-import { WEEKDAY_LONG, WEEKDAY_SHORT } from '../utils/labels';
+import { useDeleteSchedule, useSaveSchedule, useSchedulesPage, useShifts } from '../../hooks/useAttendance';
+import type { ISchedule, IWeekDay } from '../../types/attendance.types';
+import { WEEKDAY_LONG, WEEKDAY_SHORT } from '../../utils/labels';
 import { todayVn } from '@/utils/date';
 
 const ORDER = [1, 2, 3, 4, 5, 6, 0]; // hiển thị T2 → CN

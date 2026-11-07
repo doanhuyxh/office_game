@@ -8,9 +8,9 @@ import { cn } from '@/utils/cn';
 import {
   AVATAR_CATALOG, DEFAULT_LOOK, paletteOf, partOf, partsOf, randomLook, sameLook, withBody,
   type AvatarLook, type BodyType, type ColorKey, type Slot,
-} from '../engine/avatarLook';
-import { useMyLook, useSaveAvatar } from '../hooks/useAvatar';
-import { AvatarPreview, type PreviewPose } from './AvatarPreview';
+} from '../../engine/avatarLook';
+import { useMyLook, useSaveAvatar } from '../../hooks/useAvatar';
+import { AvatarPreview, type PreviewPose } from '../avatar-preview';
 
 const TABS: { id: string; label: string; slot?: Slot; colors: { key: ColorKey; label: string }[] }[] = [
   { id: 'body', label: 'Dáng & da', colors: [{ key: 'skin', label: 'Màu da' }] },

@@ -43,8 +43,8 @@ Token AI: bị chặn (không có trong allowlist `AccessTokenAuth`); MCP `get_m
 | `engine/avatarLook.ts` | Kiểu `AvatarLook`, `AVATAR_CATALOG`, `DEFAULT_LOOK`, `validLook` (giống BE), `parseLook` (lỗi → mặc định), `withBody`, `randomLook` — không phụ thuộc Three.js |
 | `engine/character.ts` | `loadBody` (cache 1 GLB / giới), `buildCharacter` (SkeletonUtils.clone, giữ 4 phần, tô màu theo tên vật liệu; vật liệu dùng chung theo (vật liệu, màu) → **không dispose**), `applySitPose` (bộ model không có clip ngồi: hạ hông 0,56 m, đùi ra trước, cẳng chân xuống sàn, xương bàn chân IK `FootL/R` dời theo, tay ra trước) |
 | `engine/avatar.ts` | `Avatar(id, name, isMe, look)`: hiện khối low-poly tô theo màu đã chọn ngay, tải GLB xong thì thay; `setLook`; đi = clip `Run` (tốc độ 4,2 m/s), đứng = `Idle`, ngồi = `Idle` + `applySitPose`; `wave()` cho xem trước |
-| `components/AvatarEditorDialog.tsx` | Dialog shadcn: tab Dáng & da · Tóc & mặt · Áo · Quần / váy · Giày; Ngẫu nhiên / Về mặc định / Lưu (`useSaveAvatar` cập nhật cache `/me`) |
-| `components/AvatarPreview.tsx` | Three.js riêng: kéo để xoay, Đứng / Đi / Ngồi (có ghế) / Vẫy tay |
+| `components/avatar-editor-dialog/` | Dialog shadcn: tab Dáng & da · Tóc & mặt · Áo · Quần / váy · Giày; Ngẫu nhiên / Về mặc định / Lưu (`useSaveAvatar` cập nhật cache `/me`) |
+| `components/avatar-preview/` | Three.js riêng: kéo để xoay, Đứng / Đi / Ngồi (có ghế) / Vẫy tay |
 | `hooks/useAvatar.ts`, `api/avatar.api.ts` | `useMyLook`, `useSaveAvatar`; PUT / DELETE |
 
 Mở editor: nút **"👤 Nhân vật"** trên thẻ tên HUD `/office`, gợi ý "Tạo nhân vật" khi chưa có (bấm "Để sau" → nhớ trong `localStorage` của trình duyệt), thẻ **"Nhân vật văn phòng 3D"** ở `/profile` (dialog `lazy` từ `@/features/office` → Three.js chỉ tải khi mở). Nginx container `web`: `location /models/` gzip + `Cache-Control: no-cache` (ETag).

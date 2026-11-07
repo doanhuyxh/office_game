@@ -9,9 +9,9 @@ import { Textarea } from '@/components/common/textarea';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { useCreateLeave, useLeavePreview, useLeaveTypes, useMyBalance } from '../hooks/useLeave';
-import type { LeavePeriod } from '../types/leave.types';
-import { fmtDays, PERIOD_LABEL, todayStr } from '../utils/labels';
+import { useCreateLeave, useLeavePreview, useLeaveTypes, useMyBalance } from '../../hooks/useLeave';
+import type { LeavePeriod } from '../../types/leave.types';
+import { fmtDays, PERIOD_LABEL, todayStr } from '../../utils/labels';
 
 /** Form xin nghỉ: loại, khoảng ngày, buổi (chỉ khi 1 ngày), lý do. Hiện trước số ngày làm việc bị trừ (theo lịch ca). */
 export function LeaveRequestDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {

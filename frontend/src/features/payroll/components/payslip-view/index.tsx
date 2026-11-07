@@ -1,7 +1,7 @@
 import { AlertTriangle } from 'lucide-react';
 import { formatMoney } from '@/utils/money';
 import { cn } from '@/utils/cn';
-import type { IPayslipData } from '../types/payroll.types';
+import type { IPayslipData } from '../../types/payroll.types';
 
 const days = (n: number) => n.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
 

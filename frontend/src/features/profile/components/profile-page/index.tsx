@@ -14,8 +14,8 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { useMe } from '@/features/auth';
 import { formatDate, formatDateTime } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { useCancelProfileRequest, useDeleteAvatar, useMyProfile, useSaveContact, useSubmitProfileRequest, useUploadAvatar } from '../hooks/useProfile';
-import type { IContact, IMyProfile, IProfileRequest, ISensitive, ISensitiveChange } from '../types/profile.types';
+import { useCancelProfileRequest, useDeleteAvatar, useMyProfile, useSaveContact, useSubmitProfileRequest, useUploadAvatar } from '../../hooks/useProfile';
+import type { IContact, IMyProfile, IProfileRequest, ISensitive, ISensitiveChange } from '../../types/profile.types';
 
 const mask = (s: string | null) => (!s ? '—' : s.length <= 4 ? '••••' : `${'•'.repeat(s.length - 4)}${s.slice(-4)}`);
 const fmtDate = (d: string | null) => (d ? formatDate(d) : '—');

@@ -11,9 +11,9 @@ import { PATHS } from '@/config/paths';
 import { cn } from '@/utils/cn';
 import { formatDateTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
-import { useApprove, useCancelApproval, useReject } from '../hooks/useApprovals';
-import type { IApproval } from '../types/approval.types';
-import { APPROVAL_STATUS, APPROVAL_TYPE, STEP_ICON } from '../utils/labels';
+import { useApprove, useCancelApproval, useReject } from '../../hooks/useApprovals';
+import type { IApproval } from '../../types/approval.types';
+import { APPROVAL_STATUS, APPROVAL_TYPE, STEP_ICON } from '../../utils/labels';
 
 export function ApprovalStatusBadge({ status }: { status: IApproval['status'] }) {
   return <StatusBadge tone={APPROVAL_STATUS[status].tone}>{APPROVAL_STATUS[status].label}</StatusBadge>;

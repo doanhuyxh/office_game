@@ -3,9 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { formatTime } from '@/utils/date';
 import { cn } from '@/utils/cn';
-import type { ICorrection, IDay, IMonth } from '../types/attendance.types';
-import { hm, OVERTIME_KIND, WEEKDAY_SHORT, weekdayOf, WORK_MODE } from '../utils/labels';
-import { StatusBadge } from './StatusBadge';
+import type { ICorrection, IDay, IMonth } from '../../types/attendance.types';
+import { hm, OVERTIME_KIND, WEEKDAY_SHORT, weekdayOf, WORK_MODE } from '../../utils/labels';
+import { StatusBadge } from '../status-badge';
 import { todayVn } from '@/utils/date';
 import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';
 

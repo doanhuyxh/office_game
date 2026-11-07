@@ -3,8 +3,8 @@ import { Link } from '@tanstack/react-router';
 import { Button } from '@/components/common/button';
 import { FormField } from '@/components/common/FormField';
 import { PATHS } from '@/config/paths';
-import { useForgotPassword } from '../hooks/useAuth';
-import { AuthShell } from './AuthShell';
+import { useForgotPassword } from '../../hooks/useAuth';
+import { AuthShell } from '../auth-shell';
 
 export function ForgotPasswordForm() {
   const forgot = useForgotPassword();

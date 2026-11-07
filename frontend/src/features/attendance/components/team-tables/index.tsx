@@ -4,11 +4,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { TablePagination, usePageState } from '@/components/common/pagination';
 import { formatTime } from '@/utils/date';
 import { cn } from '@/utils/cn';
-import { useBoardPage, useEmployeeMonth, useReportPage } from '../hooks/useAttendance';
-import type { DayStatus, IEmployeeBrief } from '../types/attendance.types';
-import { hm, WORK_MODE } from '../utils/labels';
-import { MonthTimesheet } from './MonthTimesheet';
-import { StatusBadge } from './StatusBadge';
+import { useBoardPage, useEmployeeMonth, useReportPage } from '../../hooks/useAttendance';
+import type { DayStatus, IEmployeeBrief } from '../../types/attendance.types';
+import { hm, WORK_MODE } from '../../utils/labels';
+import { MonthTimesheet } from '../month-timesheet';
+import { StatusBadge } from '../status-badge';
 import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';
 
 const BOARD_COLUMNS: ColumnDef[] = [

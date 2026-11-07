@@ -6,8 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Spinner } from '@/components/feedback/Spinner';
 import { formatDate, formatDateTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
-import { useStorageReport } from '../hooks/useSystem';
-import type { IStorageReport } from '../types/system.types';
+import { useStorageReport } from '../../hooks/useSystem';
+import type { IStorageReport } from '../../types/system.types';
 
 /** 1 234 567 → "1,2 MB" */
 export function formatBytes(bytes: number) {

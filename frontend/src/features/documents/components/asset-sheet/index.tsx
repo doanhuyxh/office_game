@@ -16,12 +16,12 @@ import { Spinner } from '@/components/feedback/Spinner';
 import { useEmployees } from '@/features/employees';
 import { formatDate, formatDateTime } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { documentApi } from '../api/document.api';
-import { useAccessLog, useApprovers, useAsset, useDocMutation, useDocTypes, useFolders } from '../hooks/useDocuments';
-import type { IApprovers, IAssetDetail, IFileUrl, IFolder, IUpdateAsset } from '../types/document.types';
-import { formatSize, KIND, STATUS } from '../utils/labels';
-import { uploadNewVersion } from '../utils/upload';
-import { PromptDialog, type PromptSpec } from './PromptDialog';
+import { documentApi } from '../../api/document.api';
+import { useAccessLog, useApprovers, useAsset, useDocMutation, useDocTypes, useFolders } from '../../hooks/useDocuments';
+import type { IApprovers, IAssetDetail, IFileUrl, IFolder, IUpdateAsset } from '../../types/document.types';
+import { formatSize, KIND, STATUS } from '../../utils/labels';
+import { uploadNewVersion } from '../../utils/upload';
+import { PromptDialog, type PromptSpec } from '../prompt-dialog';
 
 /** Đường dẫn đầy đủ của thư mục: "Hợp đồng / 2026". */
 export function folderOptions(folders: IFolder[]) {

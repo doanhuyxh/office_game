@@ -44,7 +44,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 4. **`attendance.events` chỉ thêm, không sửa/xoá**; bảng công luôn tính từ sự kiện qua `TimesheetCalculator`. Đổi quy tắc tính → sửa cả `tests/OfficeHub.Modules.Attendance.Tests`.
 5. **Thời gian do server quyết định** (`TimeProvider` + `Office__TimeZone`); lưu `DateTimeOffset` UTC.
 6. **Không commit secret**: cấu hình qua `.env` (gitignore). Thêm biến → Settings có `ErrorMessage = "Thiếu X__Y trong .env"`, cập nhật `.env.example` + `commands.md`.
-7. **FE**: ngoài feature chỉ import qua `@/features/<x>`; màn hình mới = feature + `page(...)` trong `routes/router.tsx`. Dùng helper sẵn có trước khi tạo mới. Chỉ dùng bun.
+7. **FE**: ngoài feature chỉ import qua `@/features/<x>`; màn hình mới = feature + `page(...)` trong `routes/router.tsx`. Component trong feature: **mỗi component một thư mục kebab-case** `components/<ten-component>/index.tsx` (không file phẳng `components/Ten.tsx`) — chi tiết [.agent/frontend.md](.agent/frontend.md). Dùng helper sẵn có trước khi tạo mới. Chỉ dùng bun.
 8. **Xong việc phải pass**: `backend/`: `dotnet build -warnaserror` và `dotnet test`; `frontend/`: `bun run build`.
 
 ## Giữ tài liệu đúng

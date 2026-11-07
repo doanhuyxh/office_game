@@ -4,8 +4,8 @@ import { Button } from '@/components/common/button';
 import { FormField } from '@/components/common/FormField';
 import { PATHS } from '@/config/paths';
 import { ApiError } from '@/services/api-client';
-import { useResetPassword } from '../hooks/useAuth';
-import { AuthShell } from './AuthShell';
+import { useResetPassword } from '../../hooks/useAuth';
+import { AuthShell } from '../auth-shell';
 
 /**
  * Đặt mật khẩu từ link trong email.

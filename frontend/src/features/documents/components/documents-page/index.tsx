@@ -7,14 +7,14 @@ import { TablePagination, usePageState } from '@/components/common/pagination';
 import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
 import { useMe } from '@/features/auth';
 import { PATHS } from '@/config/paths';
-import { useTrash } from '../hooks/useDocuments';
-import type { ISpaceRef } from '../types/document.types';
-import { parseSpaceKey } from '../utils/labels';
-import { AdminTab } from './AdminTab';
-import { AssetSheet } from './AssetSheet';
-import { AssetTable } from './AssetTable';
-import { LibraryTab } from './LibraryTab';
-import { ProjectsTab, useCanCreateProject } from './ProjectsTab';
+import { useTrash } from '../../hooks/useDocuments';
+import type { ISpaceRef } from '../../types/document.types';
+import { parseSpaceKey } from '../../utils/labels';
+import { AdminTab } from '../admin-tab';
+import { AssetSheet } from '../asset-sheet';
+import { AssetTable } from '../asset-table';
+import { LibraryTab } from '../library-tab';
+import { ProjectsTab, useCanCreateProject } from '../projects-tab';
 import { useTabParam } from '@/hooks/useTabParam';
 
 /**

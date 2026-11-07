@@ -1,8 +1,8 @@
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
-import { useInbox, useMyApprovals } from '../hooks/useApprovals';
-import type { IApproval } from '../types/approval.types';
-import { ApprovalCard } from './ApprovalCard';
+import { useInbox, useMyApprovals } from '../../hooks/useApprovals';
+import type { IApproval } from '../../types/approval.types';
+import { ApprovalCard } from '../approval-card';
 import { useTabParam } from '@/hooks/useTabParam';
 
 function List({ items, loading, empty, showRequester }: { items: IApproval[]; loading: boolean; empty: string; showRequester: boolean }) {

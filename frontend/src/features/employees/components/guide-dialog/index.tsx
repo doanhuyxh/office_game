@@ -9,8 +9,8 @@ import { Textarea } from '@/components/common/textarea';
 import { Spinner } from '@/components/feedback/Spinner';
 import { formatDateTime } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { useDepartmentDetail, useGuideTemplates, usePositionDetail, useSaveGuide } from '../hooks/useOrg';
-import { GuideText } from './GuideText';
+import { useDepartmentDetail, useGuideTemplates, usePositionDetail, useSaveGuide } from '../../hooks/useOrg';
+import { GuideText } from '../guide-text';
 
 const DESC_MAX = 500;
 const GUIDE_MAX = 10_000;

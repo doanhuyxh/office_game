@@ -8,9 +8,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { FormField } from '@/components/common/FormField';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { useDeletePosition, usePositions, useSavePosition } from '../hooks/useOrg';
-import type { IPosition } from '../types/employee.types';
-import { GuideDialog, type GuideTarget } from './GuideDialog';
+import { useDeletePosition, usePositions, useSavePosition } from '../../hooks/useOrg';
+import type { IPosition } from '../../types/employee.types';
+import { GuideDialog, type GuideTarget } from '../guide-dialog';
 
 /** Cấp Chuyên viên (PositionLadder.SpecialistLevel ở back-end). */
 const SPECIALIST_LEVEL = 6;

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { wallRect, wallSegments } from '../engine/navGrid';
-import { OFFICE_MAP } from '../engine/officeMap';
-import type { OfficeScene } from '../engine/OfficeScene';
+import { wallRect, wallSegments } from '../../engine/navGrid';
+import { OFFICE_MAP } from '../../engine/officeMap';
+import type { OfficeScene } from '../../engine/OfficeScene';
 
 const SCALE = 9; // px / m
 const FLOOR: Record<string, string> = { office: '#e8dfd0', meeting: '#dbe7f5', booth: '#e0eef8', open: '#f1f5f9', lounge: '#d9efdf', lobby: '#f6ead2', pantry: '#f5efcf', studio: '#e4dcf2' };

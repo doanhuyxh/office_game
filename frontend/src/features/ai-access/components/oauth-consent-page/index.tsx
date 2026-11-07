@@ -6,8 +6,8 @@ import { Spinner } from '@/components/feedback/Spinner';
 import { AuthShell, useMe } from '@/features/auth';
 import { ApiError } from '@/services/api-client';
 import { errorMessage } from '@/utils/errors';
-import { accessTokenApi, type OAuthParams } from '../api/accessToken.api';
-import type { IAuthorizeError } from '../types/accessToken.types';
+import { accessTokenApi, type OAuthParams } from '../../api/accessToken.api';
+import type { IAuthorizeError } from '../../types/accessToken.types';
 
 const PARAM_NAMES = ['response_type', 'client_id', 'redirect_uri', 'code_challenge', 'code_challenge_method', 'scope', 'state', 'resource'];
 

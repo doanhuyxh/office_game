@@ -1,6 +1,6 @@
 # Nhập nhân viên từ Excel
 
-> Nguồn sự thật là code: `Modules/Organization/…/Domain/EmployeeImportSheet.cs`, `Features/Employees/ImportEndpoints.cs`, FE `features/employees/components/ImportDialog.tsx`. Về [organization.md](organization.md).
+> Nguồn sự thật là code: `Modules/Organization/…/Domain/EmployeeImportSheet.cs`, `Features/Employees/ImportEndpoints.cs`, FE `features/employees/components/import-dialog/`. Về [organization.md](organization.md).
 
 Luồng (HR): **Tải file mẫu → chọn file → xem trước (lỗi từng dòng) → Nhập**. Có lỗi ở bất kỳ dòng nào → không nhập dòng nào (transaction). Chỉ tạo **hồ sơ**; cấp tài khoản làm riêng ở từng nhân viên.
 

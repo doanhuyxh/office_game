@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { getRouteApi, Link, useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/common/button';
 import { FormField } from '@/components/common/FormField';
-import { useLogin } from '../hooks/useAuth';
+import { useLogin } from '../../hooks/useAuth';
 import { ApiError } from '@/services/api-client';
 import { PATHS } from '@/config/paths';
-import { safeReturnPath } from '../utils/safeReturnPath';
-import { AuthShell } from './AuthShell';
+import { safeReturnPath } from '../../utils/safeReturnPath';
+import { AuthShell } from '../auth-shell';
 
 const route = getRouteApi('/login');
 

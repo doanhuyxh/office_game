@@ -5,10 +5,10 @@ import { Button } from '@/components/common/button';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/common/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
 import { hasRole, useMe } from '@/features/auth';
-import { useMyBalance } from '../hooks/useLeave';
-import { BalanceCard, YearEndCard } from './BalanceCards';
-import { LeaveRequestDialog } from './LeaveRequestDialog';
-import { BalancesTable, MyLeavesTable, TeamCalendar } from './LeaveTables';
+import { useMyBalance } from '../../hooks/useLeave';
+import { BalanceCard, YearEndCard } from '../balance-cards';
+import { LeaveRequestDialog } from '../leave-request-dialog';
+import { BalancesTable, MyLeavesTable, TeamCalendar } from '../leave-tables';
 import { useTabParam } from '@/hooks/useTabParam';
 
 /** Nghỉ phép: của tôi (mọi người) · lịch nghỉ (quản lý / HR) · quỹ phép (HR). */

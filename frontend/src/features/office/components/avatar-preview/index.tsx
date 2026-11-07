@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { ANIM, Avatar, type AnimCode } from '../engine/avatar';
-import type { AvatarLook } from '../engine/avatarLook';
-import { chair } from '../engine/furniture';
+import { ANIM, Avatar, type AnimCode } from '../../engine/avatar';
+import type { AvatarLook } from '../../engine/avatarLook';
+import { chair } from '../../engine/furniture';
 
 export type PreviewPose = 'idle' | 'walk' | 'sit';
 

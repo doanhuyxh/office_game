@@ -5,8 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/common/ca
 import { Spinner } from '@/components/feedback/Spinner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { formatMoney } from '@/utils/money';
-import { useMyPayslips } from '../hooks/usePayroll';
-import { PayslipView } from './PayslipView';
+import { useMyPayslips } from '../../hooks/usePayroll';
+import { PayslipView } from '../payslip-view';
 
 /** Phiếu lương của tôi — chỉ các kỳ HR đã chốt. */
 export function PayslipsPage() {

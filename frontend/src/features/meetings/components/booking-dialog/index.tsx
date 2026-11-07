@@ -12,7 +12,7 @@ import { useMe } from '@/features/auth';
 import { useEmployees } from '@/features/employees';
 import { vnInstant } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { useCreateBooking, useMeetingRooms } from '../hooks/useMeetings';
+import { useCreateBooking, useMeetingRooms } from '../../hooks/useMeetings';
 
 export interface BookingDraft { roomId?: string; date: string; start?: string; end?: string }
 

@@ -4,8 +4,8 @@ import { TablePagination, usePageState } from '@/components/common/pagination';
 import { Spinner } from '@/components/feedback/Spinner';
 import { formatDateTime } from '@/utils/date';
 import { cn } from '@/utils/cn';
-import { useAiActivityPage } from '../hooks/useAccessTokens';
-import { requestTone, TOOL_LABEL, WRITE_TOOLS } from '../utils/labels';
+import { useAiActivityPage } from '../../hooks/useAccessTokens';
+import { requestTone, TOOL_LABEL, WRITE_TOOLS } from '../../utils/labels';
 
 /** Nhật ký request của trợ lý AI (module Audit), phân trang ở BE. `all` (HR) = mọi người, lọc `userId`; `showUser` = cột nhân viên. */
 export function ActivityTable({ all, userId, showUser }: { all?: boolean; userId?: string | null; showUser?: boolean }) {

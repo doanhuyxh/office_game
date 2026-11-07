@@ -4,11 +4,11 @@ import { Button } from '@/components/common/button';
 import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
 import { hasRole, useMe } from '@/features/auth';
-import { DepartmentsPanel } from './DepartmentsPanel';
-import { EmployeeTable } from './EmployeeTable';
-import { ImportDialog } from './ImportDialog';
-import { OrgChart } from './OrgChart';
-import { PositionsPanel } from './PositionsPanel';
+import { DepartmentsPanel } from '../departments-panel';
+import { EmployeeTable } from '../employee-table';
+import { ImportDialog } from '../import-dialog';
+import { OrgChart } from '../org-chart';
+import { PositionsPanel } from '../positions-panel';
 import { ProfileRequestsPanel, usePendingProfileRequestCount } from '@/features/profile';
 import { useTabParam } from '@/hooks/useTabParam';
 

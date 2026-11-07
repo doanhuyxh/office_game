@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Folder, FolderOpen, HardDrive } from 'lucide-react';
 import { cn } from '@/utils/cn';
-import type { IFolder } from '../types/document.types';
+import type { IFolder } from '../../types/document.types';
 
 /** Cây thư mục của một kho; null = gốc kho. Mở sẵn nhánh chứa thư mục đang chọn. */
 export function FolderTree({ folders, selected, onSelect, rootLabel }: {

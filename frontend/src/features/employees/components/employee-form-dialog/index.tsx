@@ -8,10 +8,10 @@ import { SelectField } from '@/components/common/SelectField';
 import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { Textarea } from '@/components/common/textarea';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { useDepartments, useEmployees, useNextEmployeeCode, usePositions, useSaveEmployee } from '../hooks/useOrg';
-import type { IEmployee, IUpsertEmployee } from '../types/employee.types';
-import { STATUS_LABEL, today } from '../utils/labels';
-import { departmentOptions, positionLabel, suggestedManager } from '../utils/orgTree';
+import { useDepartments, useEmployees, useNextEmployeeCode, usePositions, useSaveEmployee } from '../../hooks/useOrg';
+import type { IEmployee, IUpsertEmployee } from '../../types/employee.types';
+import { STATUS_LABEL, today } from '../../utils/labels';
+import { departmentOptions, positionLabel, suggestedManager } from '../../utils/orgTree';
 
 const empty = (): IUpsertEmployee => ({
   code: '', fullName: '', email: '', phone: '', dateOfBirth: null,

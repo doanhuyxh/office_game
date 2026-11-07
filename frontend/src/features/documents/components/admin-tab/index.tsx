@@ -12,11 +12,11 @@ import { Spinner } from '@/components/feedback/Spinner';
 import { useEmployees } from '@/features/employees';
 import { formatDate } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { documentApi } from '../api/document.api';
-import { useDocMutation, useDocStats, useDocTypes, useOrphans, useRetentionDue } from '../hooks/useDocuments';
-import type { ICountSize, IDocType, IOrphan } from '../types/document.types';
-import { formatSize } from '../utils/labels';
-import { AssetTable } from './AssetTable';
+import { documentApi } from '../../api/document.api';
+import { useDocMutation, useDocStats, useDocTypes, useOrphans, useRetentionDue } from '../../hooks/useDocuments';
+import type { ICountSize, IDocType, IOrphan } from '../../types/document.types';
+import { formatSize } from '../../utils/labels';
+import { AssetTable } from '../asset-table';
 
 /** Quản trị kho (HR / admin): bảng tài sản số, tài liệu đến hạn lưu trữ, bàn giao tài liệu người nghỉ việc, loại tài liệu. */
 export function AdminTab({ onOpen }: { onOpen: (id: string) => void }) {

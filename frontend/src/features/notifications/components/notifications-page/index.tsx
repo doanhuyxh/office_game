@@ -7,9 +7,9 @@ import { Spinner } from '@/components/feedback/Spinner';
 import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
 import { cn } from '@/utils/cn';
 import { formatDateTime } from '@/utils/date';
-import { useMarkAllRead, useMarkRead, useNotificationsPage } from '../hooks/useNotifications';
-import type { INotification } from '../types/notification.types';
-import { CATEGORY, FALLBACK, timeAgo } from '../utils/labels';
+import { useMarkAllRead, useMarkRead, useNotificationsPage } from '../../hooks/useNotifications';
+import type { INotification } from '../../types/notification.types';
+import { CATEGORY, FALLBACK, timeAgo } from '../../utils/labels';
 import { useTabParam } from '@/hooks/useTabParam';
 
 type Filter = 'all' | 'unread';

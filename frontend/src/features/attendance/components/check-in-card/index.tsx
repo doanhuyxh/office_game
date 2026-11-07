@@ -6,9 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { errorMessage } from '@/utils/errors';
 import { formatMinutes, formatTime } from '@/utils/date';
 import { cn } from '@/utils/cn';
-import { useCheck, useToday } from '../hooks/useAttendance';
-import { WORK_MODE } from '../utils/labels';
-import { StatusBadge } from './StatusBadge';
+import { useCheck, useToday } from '../../hooks/useAttendance';
+import { WORK_MODE } from '../../utils/labels';
+import { StatusBadge } from '../status-badge';
 
 /** Đồng hồ theo giờ server (tránh máy người dùng lệch giờ). */
 function useServerClock(serverTime?: string) {

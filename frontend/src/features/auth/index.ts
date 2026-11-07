@@ -1,9 +1,9 @@
 // Public API của module auth — nơi khác chỉ import từ '@/features/auth'.
-export { LoginForm } from './components/LoginForm';
-export { AuthShell } from './components/AuthShell';
-export { ChangePasswordForm } from './components/ChangePasswordForm';
-export { ForgotPasswordForm } from './components/ForgotPasswordForm';
-export { AcceptInviteForm, ResetPasswordForm } from './components/SetPasswordForm';
+export { LoginForm } from './components/login-form';
+export { AuthShell } from './components/auth-shell';
+export { ChangePasswordForm } from './components/change-password-form';
+export { ForgotPasswordForm } from './components/forgot-password-form';
+export { AcceptInviteForm, ResetPasswordForm } from './components/set-password-form';
 export { meQuery, useMe, useLogin, useChangePassword, useForgotPassword, useResetPassword } from './hooks/useAuth';
 export { useLogout } from './hooks/useLogout';
 export { authApi, authKeys } from './api/auth.api';

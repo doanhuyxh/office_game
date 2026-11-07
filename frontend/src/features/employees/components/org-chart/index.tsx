@@ -4,10 +4,10 @@ import { Button } from '@/components/common/button';
 import { Checkbox } from '@/components/common/checkbox';
 import { Spinner } from '@/components/feedback/Spinner';
 import { cn } from '@/utils/cn';
-import { useDepartments, useEmployees } from '../hooks/useOrg';
-import type { IDepartment, IEmployee } from '../types/employee.types';
-import { departmentTree } from '../utils/orgTree';
-import './orgChart.css';
+import { useDepartments, useEmployees } from '../../hooks/useOrg';
+import type { IDepartment, IEmployee } from '../../types/employee.types';
+import { departmentTree } from '../../utils/orgTree';
+import './org-chart.css';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 
 type Mode = 'department' | 'manager';

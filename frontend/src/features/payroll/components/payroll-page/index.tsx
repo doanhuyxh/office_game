@@ -18,12 +18,12 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { currentMonthVn, formatDate, formatDateTime } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { downloadUrl, formatMoney } from '@/utils/money';
-import { payrollApi } from '../api/payroll.api';
+import { payrollApi } from '../../api/payroll.api';
 import {
   useAddAdjustment, useCreatePeriod, useDeleteAdjustment, usePayslips, usePeriod, usePeriodAction, usePeriods, useProfilesPage, useSaveProfile, useSaveSettings, useSettings,
-} from '../hooks/usePayroll';
-import type { IPayProfile, IPayrollRules, IPayslip } from '../types/payroll.types';
-import { EmployerCost, PayslipView } from './PayslipView';
+} from '../../hooks/usePayroll';
+import type { IPayProfile, IPayrollRules, IPayslip } from '../../types/payroll.types';
+import { EmployerCost, PayslipView } from '../payslip-view';
 import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';
 import { useTabParam } from '@/hooks/useTabParam';
 

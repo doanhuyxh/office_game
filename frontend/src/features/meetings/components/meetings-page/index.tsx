@@ -9,9 +9,9 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { addDays, formatDate, formatTime, parseInstant, todayVn, toVnDate } from '@/utils/date';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errors';
-import { useCancelBooking, useDayBookings, useMeetingRooms, useMyBookings } from '../hooks/useMeetings';
-import type { IBooking } from '../types/meeting.types';
-import { BookingDialog, type BookingDraft } from './BookingDialog';
+import { useCancelBooking, useDayBookings, useMeetingRooms, useMyBookings } from '../../hooks/useMeetings';
+import type { IBooking } from '../../types/meeting.types';
+import { BookingDialog, type BookingDraft } from '../booking-dialog';
 
 /** Khung giờ hiển thị trên dòng thời gian (giờ VN). */
 const DAY_START = 7, DAY_END = 21;

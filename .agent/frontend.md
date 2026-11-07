@@ -27,9 +27,16 @@ features/employees/
 ├── hooks/useOrg.ts         # useQuery / useMutation; mutation invalidate theo key gốc
 ├── types/employee.types.ts # interface I* khớp DTO back-end
 ├── utils/labels.ts         # nhãn tiếng Việt, hằng số riêng feature
-├── components/             # EmployeesPage (màn hình) + component con
+├── components/             # MỖI component MỘT thư mục kebab-case:
+│   ├── employees-page/
+│   │   └── index.tsx       #   export function EmployeesPage (tên export PascalCase giữ nguyên)
+│   └── org-chart/
+│       ├── index.tsx
+│       └── org-chart.css   #   file kèm riêng (css, component con chỉ dùng nội bộ) để chung thư mục
 └── index.ts                # public API (barrel)
 ```
+
+- **Component trong feature: mỗi component một thư mục kebab-case** chứa `index.tsx` (chủ dự án chốt 2026-11-07; áp cho mọi feature, đã chuyển hết). Tên thư mục = tên component chuyển kebab (`AiAccessPage` → `ai-access-page`, `OAuthConsentPage` → `oauth-consent-page`). Import theo thư mục: `import { AssetSheet } from '../asset-sheet'` (trong `components/`), `'../components/asset-sheet'` (từ `hooks/`, barrel `index.ts`). **Không** tạo file component phẳng `components/Ten.tsx`. Thư mục dùng chung `src/components/common` (shadcn) giữ nguyên kiểu file như cũ.
 
 - Ngoài feature **chỉ import qua `@/features/<x>`** (barrel). Trong feature dùng đường dẫn tương đối. Feature được có thêm thư mục riêng (vd `office/engine`, `office/store`).
 - Màn hình mới: tạo feature → thêm `page(PATHS.x, () => import('@/features/x'), '<Export>')` trong `routes/router.tsx` → thêm `PATHS.x` vào `config/paths.ts` → thêm menu vào `components/layout/navigation.ts` (chọn nhóm, icon lucide); trang chỉ dành cho một số vai trò → thêm path vào `PAGE_ROLES` (`config/access.ts`) — menu và chặn route tự theo. Đầu trang: `<PageHeader title />` (chỉ `<h1 class="sr-only">` — **không hiện tiêu đề / mô tả**, chủ dự án chốt 2026-11-06) + `<PageToolbar actions={…}>` cùng file `components/layout/PageHeader.tsx`: nút hành động **ngang hàng thanh tab** (đặt `<TabsList>` làm children, bên trong `<Tabs>`), căn phải. Trang không có tab: nút vào hàng điều khiển sẵn có của trang (vd Phòng họp: cạnh ô chọn ngày), không có gì thì `<PageToolbar actions />` đứng một mình bên phải. **Không** tạo file route bọc lại component (không có thư mục `app/`).
@@ -39,7 +46,7 @@ features/employees/
 - Form: `FormField` / `SelectField` (`components/common`). `SelectField` dùng giá trị đặc biệt cho "không chọn" (Radix không nhận value rỗng) và trả `null`. Tab cấp trang → **`useTabParam(mặc định, [tab được phép])`** (`hooks/useTabParam.ts`): lưu `?tab=` trên URL, reload / gửi link giữ đúng tab (tab trong hộp thoại thì không). Danh sách dài (chọn nhân viên…) → **`SearchSelectField`**: ô tìm không dấu + chỉ hiện 5 kết quả (`limit`), `hint` = chữ phụ (phòng ban).
 - Ngày giờ (`utils/date.ts`, múi giờ `Asia/Ho_Chi_Minh`): API trả thời điểm UTC `…Z` → hiển thị bằng `formatDate` / `formatTime` / `formatDateTime` (đổi sang giờ VN); gửi thời điểm lên bằng `toApiInstant(date)` (BE từ chối chuỗi thiếu múi giờ). Ngày / tháng "hôm nay" theo VN: `todayVn()` / `currentMonthVn()` — **không** dùng `toLocaleDateString()` không kèm `timeZone` (lấy theo máy người dùng). Ngày `yyyy-MM-dd`, giờ `HH:mm` gửi nguyên dạng.
 - State: TanStack Query cho dữ liệu server; Zustand chỉ cho văn phòng 3D (`features/office/store`). Không dùng Redux.
-- Style: Tailwind class; ghép class bằng `cn()` (`utils/cn.ts`). CSS thuần chỉ ở văn phòng 3D (`office.css`, mọi selector bọc trong `.office-root`).
+- Style: Tailwind class; ghép class bằng `cn()` (`utils/cn.ts`). CSS thuần chỉ ở văn phòng 3D (`office-view/office.css`, mọi selector bọc trong `.office-root`).
 - UI dùng **shadcn/ui** (style `new-york`, Tailwind v4, `components.json`): button, card, dialog, input, label, select, checkbox, radio-group, tabs, table, badge… trong `components/common`. Không dùng `<input type="checkbox|radio">` / `<select>` thuần — dùng `Checkbox` (`onCheckedChange={(c) => set(c === true)}`), `RadioGroup`, `SelectField`.
 - Modal (`DialogContent`, `SheetContent`) mặc định **không đóng khi click ra ngoài** (đã chặn `onPointerDownOutside`/`onInteractOutside` trong `components/common`); chỉ đóng bằng Esc, nút X, `DialogClose`. Cần đóng khi click ngoài → truyền `onPointerDownOutside={undefined}` tại chỗ dùng. `AlertDialog` (Radix) vốn đã vậy.
 - Thêm component: `bun run ui:add <tên>` (script sửa lỗi registry sinh `from "cn"`). Được chỉnh file trong `components/common` nhưng `--overwrite` sẽ ghi đè.

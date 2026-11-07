@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
-import { CLIENT_GUIDES, type ConnectMode, EXAMPLE_PROMPTS, mcpUrl, tokenOrPlaceholder } from '../utils/labels';
-import { CopyBlock } from './CopyBlock';
+import { CLIENT_GUIDES, type ConnectMode, EXAMPLE_PROMPTS, mcpUrl, tokenOrPlaceholder } from '../../utils/labels';
+import { CopyBlock } from '../copy-block';
 
 /** Hướng dẫn kết nối từng ứng dụng: "Đăng nhập" (OAuth, khuyên dùng) hoặc "Token" (dán token cá nhân). */
 export function ConnectGuide({ newToken }: { newToken: string | null }) {

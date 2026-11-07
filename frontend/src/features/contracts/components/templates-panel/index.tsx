@@ -12,10 +12,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatDate } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { downloadUrl } from '@/utils/money';
-import { contractApi } from '../api/contract.api';
-import { useRemoveTemplate, useTemplateFields, useTemplates, useUploadTemplate } from '../hooks/useContracts';
-import type { IContract } from '../types/contract.types';
-import { CONTRACT_TYPE } from '../utils/labels';
+import { contractApi } from '../../api/contract.api';
+import { useRemoveTemplate, useTemplateFields, useTemplates, useUploadTemplate } from '../../hooks/useContracts';
+import type { IContract } from '../../types/contract.types';
+import { CONTRACT_TYPE } from '../../utils/labels';
 
 const TYPE_OPTIONS = Object.entries(CONTRACT_TYPE).map(([value, label]) => ({ value, label }));
 

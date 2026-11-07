@@ -9,9 +9,9 @@ import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { Textarea } from '@/components/common/textarea';
 import { useEmployees } from '@/features/employees';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { useSaveContract } from '../hooks/useContracts';
-import type { ContractType, IContract, IUpsertContract } from '../types/contract.types';
-import { CONTRACT_TYPE } from '../utils/labels';
+import { useSaveContract } from '../../hooks/useContracts';
+import type { ContractType, IContract, IUpsertContract } from '../../types/contract.types';
+import { CONTRACT_TYPE } from '../../utils/labels';
 
 const empty = (employeeId = ''): IUpsertContract => ({
   employeeId, number: '', type: 'Fixed', signedDate: null, startDate: '', endDate: null, jobTitle: null, salary: null, allowance: null, note: null,

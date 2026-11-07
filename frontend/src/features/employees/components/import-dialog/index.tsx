@@ -11,8 +11,8 @@ import { formatDate } from '@/utils/date';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errors';
 import { downloadUrl } from '@/utils/money';
-import { employeesApi, orgKeys } from '../api/org.api';
-import type { IImportPreview } from '../types/employee.types';
+import { employeesApi, orgKeys } from '../../api/org.api';
+import type { IImportPreview } from '../../types/employee.types';
 
 /** Nhập nhân viên từ Excel: tải mẫu → chọn file → xem trước (lỗi từng dòng) → nhập (có lỗi thì không nhập dòng nào). */
 export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {

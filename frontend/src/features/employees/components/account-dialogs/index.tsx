@@ -10,9 +10,9 @@ import { Input } from '@/components/common/input';
 import { Label } from '@/components/common/label';
 import { hasRole, useMe } from '@/features/auth';
 import { errorMessage } from '@/utils/errors';
-import { useCreateAccount, useSetRoles } from '../hooks/useOrg';
-import type { AccountMode, IEmployee } from '../types/employee.types';
-import { GRANTABLE_ROLES, ROLE_LABEL } from '../utils/labels';
+import { useCreateAccount, useSetRoles } from '../../hooks/useOrg';
+import type { AccountMode, IEmployee } from '../../types/employee.types';
+import { GRANTABLE_ROLES, ROLE_LABEL } from '../../utils/labels';
 import { todayVn } from '@/utils/date';
 
 /** Chọn vai trò (employee luôn có). Chỉ admin thấy lựa chọn "admin". */
