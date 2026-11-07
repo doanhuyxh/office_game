@@ -42,8 +42,12 @@ Kiểm tra ghi lần trước (trước 34 commit sau `6cea7c6`): `dotnet build 
 1. **Deploy** `3f1b310` (migration tự chạy khi Api khởi động, gồm các migration đã có từ `6cea7c6` và migration mới của kho tài liệu, 2FA, uỷ quyền duyệt, nhắc thử việc; image Realtime copy `shared/` nên bản đồ + model mới tự theo) rồi chạy `prod-smoke.ts`. Thêm `api-dev.log` vào `.gitignore` nếu chưa.
 2. **Kế toán đối chiếu thông số lương** tại `/payroll` → Thông số trước khi chốt kỳ thật. **HR / trưởng phòng soạn mô tả + hướng dẫn** phòng ban / chức vụ (AI mới có nội dung). Kiểm tra lại cấp của từng chức vụ ở tab Chức vụ.
 3. Kho tài liệu giai đoạn sau (hỏi trước): OCR / tìm toàn văn, tool MCP, mở mức Mật.
-4. Đề xuất chưa làm (hỏi trước): chốt công tháng, ca qua đêm, API loại phép, tắt email theo người, xuất sơ đồ tổ chức ra ảnh / PDF.
-5. Đã hoãn: vận hành (giám sát, diễn tập khôi phục backup), webhook máy chấm công, push PWA, HR bật / tắt AI theo người.
+4. **Giai đoạn sau — tính năng mới (chưa bắt đầu, hỏi trước)**:
+   - Chat: đưa ra ngoài màn hình chính, đồng bộ với chat phòng trong 3D, thêm chat 1-on-1 giữa 2 người
+   - Thông báo: âm thanh cho chuông
+   - Module tin tức: HR/quản lý đăng, nhân viên xem feed
+5. Đề xuất chưa làm (hỏi trước): chốt công tháng, ca qua đêm, API loại phép, tắt email theo người, xuất sơ đồ tổ chức ra ảnh / PDF.
+6. Đã hoãn: vận hành (giám sát, diễn tập khôi phục backup), webhook máy chấm công, push PWA, HR bật / tắt AI theo người.
 
 ## Chạy & dữ liệu dev
 
