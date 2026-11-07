@@ -1,9 +1,10 @@
 import { useNavigate } from '@tanstack/react-router';
-import { Bell, CheckCheck } from 'lucide-react';
+import { Bell, CheckCheck, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/common/dropdown-menu';
 import { PATHS } from '@/config/paths';
 import { cn } from '@/utils/cn';
+import { useNotificationSound } from '../../hooks/useNotificationSound';
 import { useMarkAllRead, useMarkRead, useNotifications } from '../../hooks/useNotifications';
 import type { INotification } from '../../types/notification.types';
 import { CATEGORY, FALLBACK, timeAgo } from '../../utils/labels';
@@ -13,6 +14,7 @@ export function NotificationBell() {
   const { data } = useNotifications();
   const markRead = useMarkRead();
   const markAll = useMarkAllRead();
+  const [soundOn, setSoundOn] = useNotificationSound();
   const navigate = useNavigate();
   const unread = data?.unreadCount ?? 0;
   const items = data?.items ?? [];
@@ -37,12 +39,19 @@ export function NotificationBell() {
       <DropdownMenuContent align="end" className="w-[22rem] max-w-[calc(100vw-2rem)] p-0">
         <div className="flex items-center justify-between px-3 py-2">
           <DropdownMenuLabel className="p-0 text-sm">Thông báo</DropdownMenuLabel>
-          {unread > 0 && (
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={markAll.isPending}
-              onClick={(e) => { e.preventDefault(); markAll.mutate(); }}>
-              <CheckCheck /> Đánh dấu đã đọc
+          <div className="flex items-center gap-1">
+            {unread > 0 && (
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={markAll.isPending}
+                onClick={(e) => { e.preventDefault(); markAll.mutate(); }}>
+                <CheckCheck /> Đánh dấu đã đọc
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" className="size-7" aria-label={soundOn ? 'Tắt âm thanh thông báo' : 'Bật âm thanh thông báo'}
+              aria-pressed={soundOn} data-testid="notification-sound-toggle"
+              onClick={(e) => { e.preventDefault(); setSoundOn(!soundOn); }}>
+              {soundOn ? <Volume2 className="size-4" /> : <VolumeX className="size-4 text-muted-foreground" />}
             </Button>
-          )}
+          </div>
         </div>
         <DropdownMenuSeparator className="m-0" />
         <div className="max-h-[60vh] overflow-y-auto p-1">

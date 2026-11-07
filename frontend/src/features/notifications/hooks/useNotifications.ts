@@ -2,10 +2,11 @@ import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { IPageQuery } from '@/types/api';
 import { notificationApi, notificationKeys } from '../api/notification.api';
+import { playNotificationSound } from '../utils/sound';
 
 /**
  * Thông báo của tôi (20 mới nhất + số chưa đọc), hỏi lại mỗi 30 giây.
- * Có thông báo mới → làm mới dữ liệu đơn / nghỉ phép / chấm công (người khác vừa duyệt hoặc gửi đơn).
+ * Có thông báo mới → phát âm chuông (nếu bật) + làm mới dữ liệu đơn / nghỉ phép / chấm công.
  */
 export function useNotifications() {
   const qc = useQueryClient();
@@ -14,8 +15,10 @@ export function useNotifications() {
   const unread = q.data?.unreadCount;
   useEffect(() => {
     if (unread === undefined) return;
-    if (last.current !== null && unread > last.current)
+    if (last.current !== null && unread > last.current) {
+      playNotificationSound();
       ['approval', 'leave', 'attendance'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+    }
     last.current = unread;
   }, [unread, qc]);
   return q;

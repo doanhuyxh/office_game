@@ -46,7 +46,8 @@ Người duyệt: bước `Manager` → tài khoản của quản lý (`Employee
 
 - `NotificationBell` trên `Header` (cạnh nút theme): badge số chưa đọc (`data-testid="notification-unread"`), dropdown 20 mục (icon theo `category`, in đậm + chấm nếu chưa đọc, `timeAgo`), "Đánh dấu đã đọc", cuối dropdown "Xem tất cả thông báo" → `/notifications`. Bấm mục → đánh dấu đọc + `navigate(link)`.
 - Trang `/notifications` (`NotificationsPage`, menu Chung → "Thông báo", mọi vai trò): tab Tất cả / Chưa đọc (số chưa đọc), "Đánh dấu tất cả đã đọc", nút ✓ đánh dấu từng mục, phân trang BE (`TablePagination`, id `notifications`), hỏi lại 30 giây.
-- `useNotifications` hỏi lại mỗi **30 giây**; số chưa đọc tăng → invalidate cache `approval`, `leave`, `attendance` (badge "Phê duyệt" cập nhật theo).
+- `useNotifications` hỏi lại mỗi **30 giây**; số chưa đọc tăng → phát âm chuông (nếu bật) + invalidate cache `approval`, `leave`, `attendance` (badge "Phê duyệt" cập nhật theo).
+- **Âm thanh** (chỉ phía trình duyệt, `utils/sound.ts` + `useNotificationSound`): số chưa đọc tăng → phát `public/sounds/notification.mp3`. Bật/tắt lưu ở `localStorage` (`officehub.notification-sound`, **mặc định bật**), chỉnh ở nút loa trong dropdown chuông **và** thẻ "Tùy chọn thông báo" ở `/profile` (dùng chung giá trị, đồng bộ giữa các tab). Trình duyệt chặn phát khi trang chưa được tương tác → nuốt lỗi; không phát khi vừa tải (chỉ khi số tăng trong phiên).
 
 Module khác: `document_retention` (hạn lưu trữ), `document_handover` (bàn giao), `project_member_added` (chỉ app) — [documents.md](documents.md); `contract_expiring` (hợp đồng 30 / 7 ngày), `probation_ending` (thử việc 7 / 3 ngày + quá hạn, chưa có HĐ tiếp theo) — [contracts-reminders.md](contracts-reminders.md); `account_security` (HR đặt lại 2FA, email + app) — [auth-2fa.md](auth-2fa.md).
 

@@ -12,6 +12,7 @@ import { Textarea } from '@/components/common/textarea';
 import { Spinner } from '@/components/feedback/Spinner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TwoFactorCard, useMe } from '@/features/auth';
+import { NotificationSoundCard } from '@/features/notifications';
 import { formatDate, formatDateTime } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { useCancelProfileRequest, useDeleteAvatar, useMyProfile, useSaveContact, useSubmitProfileRequest, useUploadAvatar } from '../../hooks/useProfile';
@@ -261,6 +262,7 @@ export function ProfilePage() {
       )}
       <TwoFactorCard />
       <OfficeCharacterCard />
+      <NotificationSoundCard />
     </div>
   );
 }
