@@ -35,7 +35,7 @@ Một file `.env` ở gốc repo cho BE + Docker Compose. Quy ước `Section__K
 | `AccessTokens__Enabled`, `AccessTokens__RequestsPerMinute` | – (true, 120) | Công tắc kết nối AI toàn công ty; giới hạn request / phút / token |
 | `Mcp__ApiBaseUrl`, `Mcp__TokenCacheSeconds` | – (`http://localhost:5080`, 30) | OfficeHub.Mcp gọi lại Api bằng token người dùng; prod compose: `http://api:8080` |
 | `Realtime__SessionCheckSeconds` | – (30, tối thiểu 5) | Chu kỳ kiểm tra lại phiên người đang online |
-| `APP_DOMAIN`, `HTTP_PORT`, `POSTGRES_HOST/PORT`, `SEQ_URL`, `SEQ_ADMIN_PASSWORD`, `SEQ_BIND` | prod | Chỉ cho `infra/docker-compose.yml`. Seq (`--profile logs`): `SEQ_URL=http://seq:5341` (mạng Docker nội bộ); `SEQ_BIND` = địa chỉ mở giao diện `:5341` (mặc định `127.0.0.1`; proxy ở VPS khác qua Tailscale → IP Tailscale của máy chạy compose) |
+| `APP_DOMAIN`, `HTTP_PORT`, `POSTGRES_HOST/PORT`, `SEQ_URL`, `SEQ_ADMIN_PASSWORD`, `SEQ_BIND` | prod | Chỉ cho `infra/docker-compose.yml`. Seq (`--profile logs`): `SEQ_URL=http://seq:5341` (mạng Docker nội bộ); `COMPOSE_PROFILES=logs` để `scripts/deploy.sh` / mọi lệnh compose đều tạo container Seq (thiếu → không có Seq, proxy logs báo 502); `SEQ_BIND` = địa chỉ mở giao diện `:5341` (mặc định `127.0.0.1`; proxy ở VPS khác qua Tailscale → IP Tailscale của máy chạy compose) |
 | `LiveKit__ApiUrl` | – (suy ra từ `LiveKit__Url`) | URL HTTP nội bộ tới API LiveKit; prod compose đặt `http://livekit:7880` |
 
 FE (`frontend/.env`, không có bí mật): `VITE_API_TARGET`, `VITE_RT_TARGET` (đích proxy khi dev), `VITE_SENTRY_DSN` (khai báo, chưa dùng).
