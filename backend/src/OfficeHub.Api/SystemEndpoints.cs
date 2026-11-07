@@ -8,7 +8,8 @@ using Scalar.AspNetCore;
 
 namespace OfficeHub.Api;
 
-public sealed record SystemLinkDto(string Key, string Name, string? Url, string Note);
+/// <param name="Embeddable">Nhúng được vào trang (iframe) không: true / false / null = chưa kiểm tra được. <param name="EmbedNote">Lý do khi không / chưa biết.</param></param>
+public sealed record SystemLinkDto(string Key, string Name, string? Url, string Note, bool? Embeddable = null, string? EmbedNote = null);
 public sealed record HealthItemDto(string Name, string Status, string? Detail, double DurationMs);
 public sealed record SmtpInfoDto(string Host, int Port, bool UseSsl, string? Username, string FromEmail, string FromName);
 public sealed record SystemInfoDto(string Environment, string Version, DateTimeOffset ServerTime, string TimeZone, DateTimeOffset StartedAt,
@@ -58,6 +59,10 @@ internal static class SystemEndpoints
                     : "Chưa bật gửi log sang Seq (Seq__Url trống) — log chỉ có ở `docker compose logs`."),
             new("mail", "Hộp thư / mail server", mailUrl, mailNote),
         };
+
+        // Kiểm tra song song từng link có nhúng được vào trang không (nút "Xem trong trang")
+        var checks = await Task.WhenAll(links.Select(l => EmbedCheck.CheckAsync(l.Url, cfg["App:BaseUrl"], clock, ct)));
+        links = [.. links.Select((l, i) => l with { Embeddable = checks[i].Embeddable, EmbedNote = checks[i].Note })];
 
         var report = await health.CheckHealthAsync(r => r.Tags.Contains("ready"), ct);
         var items = report.Entries.Select(e => new HealthItemDto(e.Key, e.Value.Status.ToString(),

@@ -1,4 +1,6 @@
-import { BookOpen, ExternalLink, Mail, RefreshCw, ScrollText } from 'lucide-react';
+import { BookOpen, ExternalLink, Mail, PanelsTopLeft, RefreshCw, ScrollText } from 'lucide-react';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
@@ -26,7 +28,7 @@ function Note({ text }: { text: string }) {
   return <>{text.split('`').map((part, i) => (i % 2 ? <code key={i} className="rounded bg-muted px-1 py-0.5 text-xs">{part}</code> : part))}</>;
 }
 
-function LinkCard({ link }: { link: ISystemLink }) {
+function LinkCard({ link, onEmbed }: { link: ISystemLink; onEmbed: (l: ISystemLink) => void }) {
   const Icon = LINK_ICON[link.key] ?? ExternalLink;
   return (
     <Card className="gap-3">
@@ -34,18 +36,47 @@ function LinkCard({ link }: { link: ISystemLink }) {
         <CardTitle className="flex items-center gap-2 text-base"><Icon className="size-4 text-muted-foreground" />{link.name}</CardTitle>
         <CardDescription><Note text={link.note} /></CardDescription>
       </CardHeader>
-      <CardContent className="mt-auto">
+      <CardContent className="mt-auto grid gap-2">
         {link.url ? (
-          <Button asChild variant="outline" size="sm" className="max-w-full">
-            <a href={link.url} target="_blank" rel="noreferrer" data-testid={`system-link-${link.key}`}>
-              <ExternalLink /> <span className="truncate">{link.url}</span>
-            </a>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {link.embeddable !== false && (
+              <Button size="sm" onClick={() => onEmbed(link)} data-testid={`system-embed-${link.key}`}>
+                <PanelsTopLeft /> {link.embeddable ? 'Xem trong trang' : 'Thử xem trong trang'}
+              </Button>
+            )}
+            <Button asChild variant="outline" size="sm" className="max-w-full">
+              <a href={link.url} target="_blank" rel="noreferrer" data-testid={`system-link-${link.key}`}>
+                <ExternalLink /> <span className="truncate">{link.url}</span>
+              </a>
+            </Button>
+          </div>
         ) : (
           <span className="text-sm text-muted-foreground">Chưa cấu hình đường dẫn</span>
         )}
+        {link.url && link.embedNote && <p className="text-xs text-muted-foreground">{link.embedNote}</p>}
       </CardContent>
     </Card>
+  );
+}
+
+/** Xem trang (tài liệu API, log…) ngay trong OfficeHub: hộp thoại gần toàn màn hình + iframe; luôn có "Mở tab mới" phòng khi trang không hiện. */
+function EmbedDialog({ link, onClose }: { link: ISystemLink | null; onClose: () => void }) {
+  return (
+    <Dialog open={!!link} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="flex h-[92vh] w-[96vw] max-w-[96vw] flex-col gap-3 p-4 sm:max-w-[96vw]" data-testid="system-embed">
+        <DialogHeader className="flex-row items-center justify-between gap-3 space-y-0 pr-8">
+          <DialogTitle className="truncate">{link?.name}</DialogTitle>
+          {link?.url && (
+            <Button asChild variant="outline" size="sm"><a href={link.url} target="_blank" rel="noreferrer"><ExternalLink /> Mở tab mới</a></Button>
+          )}
+        </DialogHeader>
+        <DialogDescription className="sr-only">Trang {link?.name} hiển thị trong OfficeHub</DialogDescription>
+        {link?.url && <iframe src={link.url} title={link.name} className="min-h-0 w-full flex-1 rounded-md border bg-white" />}
+        {link?.embeddable === null && (
+          <p className="text-xs text-muted-foreground">Nếu khung trống / báo lỗi kết nối, trang đó không cho nhúng hoặc đang tắt — bấm "Mở tab mới".</p>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -80,6 +111,7 @@ const TABS = [
 /** Trang Hệ thống — chỉ quản trị viên (PAGE_ROLES + back-end AuthPolicies.Admin). Mỗi phần một tab, tab lưu trên URL (?tab=). */
 export function SystemPage() {
   const [tab, setTab] = useTabParam('overview', TABS.map((t) => t.id));
+  const [embed, setEmbed] = useState<ISystemLink | null>(null);
   const { data, isLoading, isFetching, error, refetch } = useSystemInfo();
   const info = isLoading ? <Spinner /> : error || !data ? <p className="text-sm text-destructive">{errorMessage(error)}</p> : null;
   return (
@@ -94,7 +126,7 @@ export function SystemPage() {
         <TabsContent value="overview" className="mt-4 grid gap-4">
           {info ?? (data && (
             <>
-              <div className="grid gap-4 md:grid-cols-3">{data.links.map((l) => <LinkCard key={l.key} link={l} />)}</div>
+              <div className="grid gap-4 md:grid-cols-3">{data.links.map((l) => <LinkCard key={l.key} link={l} onEmbed={setEmbed} />)}</div>
               <div className="grid gap-4 lg:grid-cols-2">
                 <Card>
                   <CardHeader><CardTitle className="text-base">Tình trạng dịch vụ</CardTitle></CardHeader>
@@ -135,6 +167,7 @@ export function SystemPage() {
 
         <TabsContent value="storage" className="mt-4"><StorageCard /></TabsContent>
       </Tabs>
+      <EmbedDialog link={embed} onClose={() => setEmbed(null)} />
     </div>
   );
 }

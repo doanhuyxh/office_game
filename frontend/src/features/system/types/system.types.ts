@@ -1,4 +1,9 @@
-export interface ISystemLink { key: 'docs' | 'logs' | 'mail' | string; name: string; url: string | null; note: string }
+export interface ISystemLink {
+  key: 'docs' | 'logs' | 'mail' | string; name: string; url: string | null; note: string;
+  /** Nhúng được vào trang (iframe): true / false / null = chưa kiểm tra được. */
+  embeddable: boolean | null;
+  embedNote: string | null;
+}
 export interface IHealthItem { name: string; status: 'Healthy' | 'Degraded' | 'Unhealthy' | string; detail: string | null; durationMs: number }
 export interface ISmtpInfo { host: string; port: number; useSsl: boolean; username: string | null; fromEmail: string; fromName: string }
 export interface ISystemInfo {

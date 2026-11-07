@@ -12,5 +12,6 @@ RUN bun run build
 FROM nginx:1.29-alpine
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY frontend/nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
+COPY frontend/nginx-security-headers-sameorigin.conf /etc/nginx/snippets/security-headers-sameorigin.conf
 COPY --chmod=755 frontend/nginx-realip.sh /docker-entrypoint.d/40-realip.sh
 COPY --from=build /src/frontend/dist /usr/share/nginx/html
