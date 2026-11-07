@@ -68,6 +68,11 @@ internal static class AuthEndpoints
     {
         var user = await users.GetUserAsync(ctx.User);
         if (user is null) return TypedResults.Unauthorized();
+        // Thiếu trường → 400 (UserManager ném ArgumentNullException → 500 nếu để lọt)
+        var missing = new Dictionary<string, string[]>();
+        if (string.IsNullOrEmpty(req.CurrentPassword)) missing["currentPassword"] = ["Nhập mật khẩu hiện tại"];
+        if (string.IsNullOrEmpty(req.NewPassword)) missing["newPassword"] = ["Nhập mật khẩu mới"];
+        if (missing.Count > 0) return TypedResults.ValidationProblem(missing);
 
         var result = await users.ChangePasswordAsync(user, req.CurrentPassword, req.NewPassword);
         if (!result.Succeeded)
