@@ -20,7 +20,7 @@ Video, ảnh, văn bản công việc là **tài sản của công ty**: mỗi f
 ## Tải lên (thẳng S3, không qua Api)
 
 1. `POST /uploads { fileName, contentType, size }` → vé `{ ticketId, url, contentType, expiresAt }`. Chặn file thực thi (`.exe .bat .apk .sh .dll…`), tối đa **5 GB** (giới hạn PUT đơn của S3). Key: `documents/{yyyy}/{MM}/{ticketId}/{tên-không-dấu}`.
-2. Trình duyệt `PUT url` với header `Content-Type` đúng như vé (XHR có % tiến độ). **Bucket phải bật CORS** cho PUT từ domain app — xem [env.md](../env.md#s3-cors-kho-tài-liệu).
+2. Trình duyệt `PUT url` với header `Content-Type` đúng như vé (XHR có % tiến độ). Bucket đã bật CORS cho PUT từ domain app (2026-11-07) — xem [env.md](../env.md#s3-cors-kho-tài-liệu).
 3. `POST /assets { ticketId, spaceKind, spaceId, folderId?, docTypeId?, title?, description?, tags? }` → Api HEAD S3 kiểm tra file có thật (chưa có → 409), vé chỉ dùng một lần và chỉ của chính người xin. Loại mặc định theo nhóm file: ảnh → `HA`, video → `VD`, còn lại → `VB`; tiêu đề mặc định = tên file bỏ đuôi.
 - Nhập cả thư mục (chọn / kéo thả): FE gọi `POST /folders/ensure { path: "a/b/c" }` **tuần tự** cho từng thư mục rồi tải 3 file song song (`upload-queue/`).
 - Vé quá 24 giờ chưa dùng → job xoá file rác trên S3.

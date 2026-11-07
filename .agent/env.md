@@ -44,7 +44,7 @@ FE (`frontend/.env`, không có bí mật): `VITE_API_TARGET`, `VITE_RT_TARGET` 
 
 ## S3 CORS (kho tài liệu)
 
-Kho tài liệu ([business/documents.md](business/documents.md)) cho trình duyệt **PUT thẳng** lên bucket `S3__BucketFiles` bằng presigned URL → bucket cần CORS (không có: tải lên báo "Không gửi được file lên kho S3", `documents-e2e.ts` in ⚠). Xem / tải (GET) không cần CORS. Đặt trong AWS Console → S3 → bucket → Permissions → CORS (IAM user `OfficeHub` của app không có quyền `PutBucketCors`):
+Kho tài liệu ([business/documents.md](business/documents.md)) cho trình duyệt **PUT thẳng** lên bucket `S3__BucketFiles` bằng presigned URL → bucket cần CORS (không có: tải lên báo "Không gửi được file lên kho S3", `documents-e2e.ts` in ⚠). Xem / tải (GET) không cần CORS. **Chủ dự án đã bật CORS 2026-11-07.** JSON đã dùng (IAM user `OfficeHub` của app không có quyền `PutBucketCors`; sửa trong AWS Console → S3 → bucket → Permissions → CORS):
 
 ```json
 [{ "AllowedOrigins": ["https://office.lokid.me", "http://localhost:5173"], "AllowedMethods": ["PUT", "GET", "HEAD"],

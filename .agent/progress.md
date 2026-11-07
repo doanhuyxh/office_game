@@ -1,6 +1,6 @@
 # Tiến độ & bàn giao phiên
 
-> Cập nhật **2026-11-06 (tối muộn)**: toàn bộ việc dưới đây **đã commit** (`6cea7c6`, gồm mặt bằng 3D 50 × 30 m); production `https://office.lokid.me` vẫn ở `ab8fac0` → **chưa deploy** (PWA + mobile, 3D mới, bảng lương, ký điện tử, cấp bậc + chức danh, hướng dẫn phòng ban / chức vụ cho AI, sơ đồ tổ chức, phân quyền UI + danh bạ, hồ sơ cá nhân, nút cấu hình cột). Tiến trình dev (Api :5080, Realtime :5090, FE :5173) đã tắt cuối phiên — đầu phiên mới khởi động lại theo [commands.md](commands.md). Chi tiết: bảng định tuyến [AGENTS.md](../AGENTS.md); kế hoạch tổng `docs/ARCHITECTURE_V2.md`.
+> Cập nhật **2026-11-07 (tối)**: `main` = `origin/main` = `3f1b310` (34 commit sau `6cea7c6`). **CORS bucket S3 đã bật** (chủ dự án xác nhận) — trình duyệt PUT tài liệu lên kho được. Production `https://office.lokid.me` lần ghi tối 6/11 vẫn ở `ab8fac0`; phiên này **chưa kiểm tra lại** site. Đầu phiên khởi động lại theo [commands.md](commands.md). Chi tiết: bảng định tuyến [AGENTS.md](../AGENTS.md); kế hoạch tổng `docs/ARCHITECTURE_V2.md`.
 
 ## Đã xong
 
@@ -21,9 +21,10 @@
 | Phân quyền UI: `PAGE_ROLES` (menu + chặn route → "Không có quyền"), 403 → toast · danh bạ theo vai trò (trạng thái / ngày vào làm chỉ HR, chính chủ, quản lý; người đã nghỉ chỉ HR) | `../routes.md`, `organization` |
 | Hồ sơ cá nhân `/profile`: liên hệ + ảnh tự sửa; ngày sinh / CCCD / ngân hàng qua HR duyệt (mã hoá, không ra MCP); sheet "Chuyển khoản" trong Excel lương; trường CCCD cho mẫu hợp đồng | `profile` |
 | UI: bỏ tiêu đề / mô tả trang (nút hành động ngang hàng tab — `PageToolbar`) · nút "Cột" cho bảng nhiều cột · trang 404 tiếng Việt | `../frontend.md` |
-| **Kho tài liệu / tài sản số** (2026-11-07, chưa commit / deploy; migration `InitialDocuments`): kho công ty / phòng ban / dự án, tải thẳng S3, phiên bản, nhật ký xem / tải, ban hành qua duyệt + số hiệu, hạn lưu trữ + huỷ, thùng rác, bàn giao. E2E 65/65 trên DB tạm. Văn phòng 3D: nút HUD, tủ hồ sơ / thư viện / bảng tin (E), kéo thả tải lên, chiếu lên màn hình phòng (`PinScreen`) — E2E 25/25. Còn: OCR / tìm toàn văn, MCP, mức Mật | `documents`, `office-documents` |
+| **Kho tài liệu / tài sản số** (2026-11-07, đã commit `66a7fa4` + `f8a0377`; migration `InitialDocuments`; CORS bucket đã bật): kho công ty / phòng ban / dự án, tải thẳng S3, phiên bản, nhật ký xem / tải, ban hành qua duyệt + số hiệu, tự ban hành (chức danh chuyên viên, `b5a522e`), hạn lưu trữ + huỷ, thùng rác, bàn giao, báo cáo dung lượng S3. E2E 65/65 trên DB tạm. Văn phòng 3D: nút HUD, tủ hồ sơ / thư viện / bảng tin (E), kéo thả tải lên, chiếu lên màn hình phòng (`PinScreen`) — E2E 25/25. Còn: OCR / tìm toàn văn, MCP, mức Mật | `documents`, `office-documents` |
+| **7/11, đã commit**: 2FA TOTP bắt buộc admin / HR · uỷ quyền duyệt · nhắc hết thử việc · chặn CSRF / chiếm WebSocket · model Kenney Furniture Kit · sửa thẻ phép "−0" · phân trang (nhân viên, phép, lương, báo cáo, lịch sử sửa, thông báo) · sơ đồ tổ chức toàn màn hình · bộ chọn ngày tiếng Việt · bố cục màn hình lớn · Seq · nhúng iframe trang Hệ thống · đổi mật khẩu thiếu trường trả 400 · phòng "Kỹ thuật" đổi tên "Công nghệ" | `auth-2fa`, `approval-delegation`, `contracts-reminders`, `../architecture.md` |
 
-Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` ✔ (12 project; Organization 36, Mcp 58, Payroll 15), `bun run build` ✔. E2E trên DB tạm: lương + ký 48/48, quyền tổ chức + hướng dẫn + danh bạ 37/37, hồ sơ cá nhân 34/34; trên bản dev: phân quyền trang 8/8, nút cột 13/13; quét responsive 12 trang × 4 độ rộng sạch.
+Kiểm tra ghi lần trước (trước 34 commit sau `6cea7c6`): `dotnet build -warnaserror` ✔, `dotnet test` ✔ (12 project; Organization 36, Mcp 58, Payroll 15), `bun run build` ✔. E2E trên DB tạm: lương + ký 48/48, quyền tổ chức + hướng dẫn + danh bạ 37/37, hồ sơ cá nhân 34/34; trên bản dev: phân quyền trang 8/8, nút cột 13/13; quét responsive 12 trang × 4 độ rộng sạch. Phiên 7/11 tối **không chạy lại** build / test.
 
 ## Quyết định đã chốt gần đây (đừng hỏi / đề xuất lại)
 
@@ -38,11 +39,10 @@ Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` ✔ (12 projec
 
 ## Việc tiếp theo
 
-0. **Bật CORS bucket S3** cho PUT (JSON trong [env.md](env.md#s3-cors-kho-tài-liệu)) — chưa bật thì trình duyệt không tải được tài liệu lên kho.
-1. **Deploy** `6cea7c6` (migration mới tự chạy khi Api khởi động: `InitialPayroll`, `SignRequests`, `PositionLevelJobTitle`, `OrgGuides`, `PersonalProfile`; image Realtime copy `shared/` nên bản đồ mới tự theo) rồi chạy `prod-smoke.ts`. Thêm `api-dev.log` vào `.gitignore` nếu chưa.
+1. **Deploy** `3f1b310` (migration tự chạy khi Api khởi động, gồm các migration đã có từ `6cea7c6` và migration mới của kho tài liệu, 2FA, uỷ quyền duyệt, nhắc thử việc; image Realtime copy `shared/` nên bản đồ + model mới tự theo) rồi chạy `prod-smoke.ts`. Thêm `api-dev.log` vào `.gitignore` nếu chưa.
 2. **Kế toán đối chiếu thông số lương** tại `/payroll` → Thông số trước khi chốt kỳ thật. **HR / trưởng phòng soạn mô tả + hướng dẫn** phòng ban / chức vụ (AI mới có nội dung). Kiểm tra lại cấp của từng chức vụ ở tab Chức vụ.
-3. Model 3D: chủ dự án tải tay Kenney Furniture Kit (kenney.nl, CC0) → `bun scripts/dev/import-furniture.ts <zip>`.
-4. Đề xuất chưa làm (hỏi trước): 2FA cho admin / HR, chốt công tháng, nhắc hết thử việc, chống CSRF, ca qua đêm, API loại phép, uỷ quyền duyệt, tắt email theo người, xuất sơ đồ tổ chức ra ảnh / PDF. Lỗi nhỏ đã biết: thẻ phép năm hiện "−0" khi bằng 0.
+3. Kho tài liệu giai đoạn sau (hỏi trước): OCR / tìm toàn văn, tool MCP, mở mức Mật.
+4. Đề xuất chưa làm (hỏi trước): chốt công tháng, ca qua đêm, API loại phép, tắt email theo người, xuất sơ đồ tổ chức ra ảnh / PDF.
 5. Đã hoãn: vận hành (giám sát, diễn tập khôi phục backup), webhook máy chấm công, push PWA, HR bật / tắt AI theo người.
 
 ## Chạy & dữ liệu dev
