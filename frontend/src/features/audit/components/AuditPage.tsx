@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { ArrowRight, History } from 'lucide-react';
-import { Button } from '@/components/common/button';
 import { Card, CardContent } from '@/components/common/card';
 import { Input } from '@/components/common/input';
+import { TablePagination, usePageState } from '@/components/common/pagination';
 import { SelectField } from '@/components/common/SelectField';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Spinner } from '@/components/feedback/Spinner';
@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { useDepartments, useEmployees, usePositions } from '@/features/employees';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDateTime } from '@/utils/date';
-import { useChanges } from '../hooks/useAudit';
+import { useChangesPage } from '../hooks/useAudit';
 import type { IChange } from '../types/audit.types';
 import { ACTION, ENTITY_LABEL, fieldLabel, formatValue, SOURCE_LABEL } from '../utils/labels';
 
@@ -57,7 +57,8 @@ export function AuditPage() {
   const [entity, setEntity] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const debounced = useDebounce(search, 300);
-  const changes = useChanges({ entity, search: debounced });
+  const pg = usePageState('audit-changes', `${entity ?? ''}|${debounced}`);
+  const changes = useChangesPage({ entity, search: debounced }, pg.query);
   const employees = useEmployees({ includeResigned: true });
   const departments = useDepartments();
   const positions = usePositions();
@@ -68,7 +69,7 @@ export function AuditPage() {
     positions.data?.forEach((p) => m.set(p.id, p.name));
     return m;
   }, [employees.data, departments.data, positions.data]);
-  const rows = changes.data?.pages.flat() ?? [];
+  const rows = changes.data?.items ?? [];
 
   return (
     <div className="grid grid-cols-1 gap-6">
@@ -82,13 +83,7 @@ export function AuditPage() {
           {changes.isLoading ? <Spinner /> : rows.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-10 text-sm text-muted-foreground"><History className="size-8" />Chưa có thay đổi nào.</div>
           ) : rows.map((c) => <ChangeItem key={c.id} c={c} names={names} />)}
-          {changes.hasNextPage && (
-            <div className="pt-3 text-center">
-              <Button variant="outline" disabled={changes.isFetchingNextPage} onClick={() => changes.fetchNextPage()}>
-                {changes.isFetchingNextPage ? 'Đang tải…' : 'Tải thêm'}
-              </Button>
-            </div>
-          )}
+          <TablePagination state={pg} total={changes.data?.total} unit="thay đổi" className="mt-1 px-0 pb-0" />
         </CardContent>
       </Card>
     </div>

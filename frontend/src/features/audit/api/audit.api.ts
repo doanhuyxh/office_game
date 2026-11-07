@@ -1,18 +1,18 @@
-import { http } from '@/services/api-client';
+import { http, pageQs } from '@/services/api-client';
+import type { IPaged, IPageQuery } from '@/types/api';
 import type { IChange, IChangeFilter } from '../types/audit.types';
 
 export const auditKeys = {
-  changes: (f: IChangeFilter) => ['audit', 'changes', f] as const,
+  all: ['audit'] as const,
+  changesPage: (f: IChangeFilter, q: IPageQuery) => ['audit', 'changes', 'page', f, q] as const,
 };
 
 export const auditApi = {
-  /** before: thời điểm ISO kèm múi giờ (phân trang lùi). */
-  changes: (f: IChangeFilter, before?: string) => {
-    const q = new URLSearchParams({ take: '50' });
-    if (f.entity) q.set('entity', f.entity);
-    if (f.entityId) q.set('entityId', f.entityId);
-    if (f.search?.trim()) q.set('search', f.search.trim());
-    if (before) q.set('before', before);
-    return http<IChange[]>(`/api/audit/changes?${q}`);
+  changesPage: (f: IChangeFilter, q: IPageQuery) => {
+    const qs = new URLSearchParams();
+    if (f.entity) qs.set('entity', f.entity);
+    if (f.entityId) qs.set('entityId', f.entityId);
+    if (f.search?.trim()) qs.set('search', f.search.trim());
+    return http<IPaged<IChange>>(`/api/audit/changes?${qs}${qs.size ? '&' : ''}${pageQs(q)}`);
   },
 };
