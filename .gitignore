@@ -24,3 +24,6 @@ dist/
 
 # Tài khoản thử nghiệm dev (có mật khẩu)
 account.txt
+
+# Worktree tạm của agent
+.claude/worktrees/

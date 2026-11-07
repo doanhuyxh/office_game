@@ -2,6 +2,7 @@ using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.Realtime.Auth;
 using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.BuildingBlocks.Hosting;
+using OfficeHub.BuildingBlocks.Security;
 using OfficeHub.Realtime.Hubs;
 using OfficeHub.Realtime.Simulation;
 using OfficeHub.Realtime.Voice;
@@ -40,6 +41,7 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<VoiceGuard>());
 
 var app = builder.Build();
 app.UseOfficeHubDefaults();
+app.UseCsrfGuard();       // negotiate (POST) + bắt tay WebSocket phải đến từ chính trang (chống Cross-Site WebSocket Hijacking)
 app.UseAuthentication();
 app.UseAuthorization();
 

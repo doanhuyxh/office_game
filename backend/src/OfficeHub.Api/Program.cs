@@ -2,6 +2,7 @@ using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.BuildingBlocks.Hosting;
 using OfficeHub.BuildingBlocks.Modules;
+using OfficeHub.BuildingBlocks.Security;
 using OfficeHub.Modules.Approval;
 using OfficeHub.Modules.Attendance;
 using OfficeHub.Modules.Audit;
@@ -48,6 +49,7 @@ foreach (var m in modules) m.Register(builder.Services, builder.Configuration);
 var app = builder.Build();
 app.UseOfficeHubDefaults();
 app.UseCors();            // chỉ endpoint có RequireCors (OAuth công khai cho ứng dụng AI)
+app.UseCsrfGuard();       // request ghi bằng cookie phải đến từ chính trang (Sec-Fetch-Site / Origin)
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
