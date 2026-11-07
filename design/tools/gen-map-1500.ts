@@ -129,7 +129,7 @@ obj('huddle-1-board', 'whiteboard', 10.6, 21.0, 0.1, 1.8);
 // 3. Góc in ấn tây (x 12–16)
 obj('lockers-1', 'lockers', 12.9, 21.6, 2.4, 0.5);
 obj('printer-west', 'printer', 14.6, 21.6, 0.7, 0.6, { interact: 'printer' });
-obj('west-cabinet', 'cabinetFiles', 15.6, 21.65, 0.9, 0.5);
+obj('west-cabinet', 'cabinetFiles', 15.6, 21.65, 0.9, 0.5, { interact: 'documents' });
 // 4. Màn hình thông báo + ghế băng (x 17–21)
 obj('open-notices', 'televisionWall', 19.0, 21.85, 2.0, 0.1, { interact: 'notices' });
 obj('notices-bench', 'loungeSofa', 19.0, 20.6, 2.2, 0.9);
@@ -142,14 +142,14 @@ obj('strip-plant-5', 'pottedPlantLarge', 27.7, 21.6, 0.6, 0.6);
 meetingTable('huddle-2', 30.5, 21.0, 1.8, 1.0, 2, false);
 obj('huddle-2-board', 'whiteboard', 32.6, 21.0, 0.1, 1.8);
 // 7. Thư viện mini (x 34–39)
-obj('library-shelf-1', 'bookcaseOpen', 35.0, 21.75, 2.4, 0.4);
-obj('library-shelf-2', 'bookcaseOpen', 38.0, 21.75, 2.4, 0.4);
+obj('library-shelf-1', 'bookcaseOpen', 35.0, 21.75, 2.4, 0.4, { interact: 'library' });
+obj('library-shelf-2', 'bookcaseOpen', 38.0, 21.75, 2.4, 0.4, { interact: 'library' });
 obj('library-beanbag-1', 'beanbag', 35.6, 20.7, 0.8, 0.8, { solid: false });
 obj('library-beanbag-2', 'beanbag', 37.4, 20.7, 0.8, 0.8, { solid: false });
 // 8. Góc HCNS (x 40–45): tủ đồ, hồ sơ, máy in, bàn tiếp ứng viên; ô trước cửa phòng gọi 4 (x 45,5–46, z 19,5–20,5) để trống
 obj('lockers-2', 'lockers', 41.0, 21.6, 2.4, 0.5);
-obj('hcns-cabinet-1', 'cabinetFiles', 42.9, 21.65, 0.9, 0.5);
-obj('hcns-cabinet-2', 'cabinetFiles', 43.9, 21.65, 0.9, 0.5);
+obj('hcns-cabinet-1', 'cabinetFiles', 42.9, 21.65, 0.9, 0.5, { interact: 'documents' });
+obj('hcns-cabinet-2', 'cabinetFiles', 43.9, 21.65, 0.9, 0.5, { interact: 'documents' });
 obj('printer', 'printer', 44.8, 21.0, 0.7, 0.6, { interact: 'printer' });
 obj('hcns-guest-table', 'tableSmall', 43.2, 20.45, 1.0, 0.6);
 obj('hcns-guest-chair-1', 'chair', 42.4, 20.45, 0.5, 0.5, { solid: false });
@@ -183,9 +183,9 @@ obj('ms-screen', 'televisionWall', 32.5, 0.15, 1.4, 0.1, { interact: 'screen' })
 
 // ---------- Kế toán 6 ----------
 cluster('KT', 'dept-kt', 38.5, 3.05, 1);
-[35.6, 36.6, 37.6].forEach((x, i) => obj(`kt-cabinet-${i + 1}`, 'cabinetFiles', x, 0.35, 0.9, 0.5));
-obj('kt-cabinet-4', 'cabinetFiles', 42.65, 3.0, 0.5, 0.9);
-obj('kt-cabinet-5', 'cabinetFiles', 42.65, 4.0, 0.5, 0.9);
+[35.6, 36.6, 37.6].forEach((x, i) => obj(`kt-cabinet-${i + 1}`, 'cabinetFiles', x, 0.35, 0.9, 0.5, { interact: 'documents' }));
+obj('kt-cabinet-4', 'cabinetFiles', 42.65, 3.0, 0.5, 0.9, { interact: 'documents' });
+obj('kt-cabinet-5', 'cabinetFiles', 42.65, 4.0, 0.5, 0.9, { interact: 'documents' });
 obj('kt-safe', 'safe', 42.5, 0.4, 0.6, 0.6);
 // ---------- Phòng yên tĩnh 6 ----------
 cluster('YT', 'quiet', 46.5, 4.05, 1);

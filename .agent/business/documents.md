@@ -57,4 +57,6 @@ Nhắc hạn lưu trữ · xoá hẳn thùng rác > 30 ngày · dọn vé tải 
 
 E2E: `scripts/dev/documents-e2e.ts` (65 kiểm tra, DB tạm) — [e2e.md](../e2e.md).
 
-**Chưa làm (giai đoạn 3–4):** trích chữ / OCR, tìm toàn văn tiếng Việt, ảnh thu nhỏ / chuyển mã video, tool MCP cho AI, mức bảo mật Hạn chế / Mật, watermark, gắn kho vào văn phòng 3D, upload multipart > 5 GB.
+Văn phòng 3D (nút HUD, tủ hồ sơ, thư viện, bảng tin `GET /recent`, chiếu lên màn hình phòng `file?present=true`): [office-documents.md](office-documents.md).
+
+**Chưa làm:** trích chữ / OCR, tìm toàn văn tiếng Việt, ảnh thu nhỏ / chuyển mã video, tool MCP cho AI, mức bảo mật Hạn chế / Mật, watermark, upload multipart > 5 GB.

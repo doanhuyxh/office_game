@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Archive, Download, History, RotateCcw, Send, Trash2, Upload } from 'lucide-react';
+import { Archive, Download, History, MonitorPlay, RotateCcw, Send, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { FormField } from '@/components/common/FormField';
@@ -34,20 +34,21 @@ export function folderOptions(folders: IFolder[]) {
 }
 
 /** Chi tiết tài liệu (sheet bên phải): xem trước, tải về, sửa thông tin, phiên bản, vòng đời, nhật ký truy cập. */
-export function AssetSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
+/** `onPresent` (văn phòng 3D, đang ở phòng có màn hình) → thêm nút "Chiếu lên màn hình phòng". */
+export function AssetSheet({ id, onClose, onPresent }: { id: string | null; onClose: () => void; onPresent?: (assetId: string) => void }) {
   const { data, isLoading, error } = useAsset(id);
   return (
     <Sheet open={!!id} onOpenChange={(o) => !o && onClose()}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-2xl" data-testid="asset-sheet">
         {isLoading && <div className="p-6"><Spinner /></div>}
         {error && <div className="p-6 text-sm text-destructive">{errorMessage(error)}</div>}
-        {data && <Detail key={data.asset.id} d={data} onClose={onClose} />}
+        {data && <Detail key={data.asset.id} d={data} onClose={onClose} onPresent={onPresent} />}
       </SheetContent>
     </Sheet>
   );
 }
 
-function Detail({ d, onClose }: { d: IAssetDetail; onClose: () => void }) {
+function Detail({ d, onClose, onPresent }: { d: IAssetDetail; onClose: () => void; onPresent?: (assetId: string) => void }) {
   const a = d.asset;
   const k = KIND[a.kind];
   const [prompt, setPrompt] = useState<PromptSpec | null>(null);
@@ -85,6 +86,9 @@ function Detail({ d, onClose }: { d: IAssetDetail; onClose: () => void }) {
       {a.status !== 'Destroyed' && !a.deletedAt && <Preview assetId={a.id} version={a.currentVersion} />}
 
       <div className="flex flex-wrap gap-2">
+        {onPresent && a.status !== 'Destroyed' && !a.deletedAt && (
+          <Button size="sm" onClick={() => { onPresent(a.id); onClose(); }} data-testid="asset-present"><MonitorPlay /> Chiếu lên màn hình phòng</Button>
+        )}
         {a.status !== 'Destroyed' && <Button size="sm" variant="outline" onClick={() => download()}><Download /> Tải về</Button>}
         {d.can.submit && (
           <Button size="sm" onClick={() => setPrompt({ title: 'Gửi duyệt ban hành?', confirm: 'Gửi duyệt',

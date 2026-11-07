@@ -17,6 +17,7 @@ export const useAsset = (id: string | null) =>
 export const useAccessLog = (id: string, q: IPageQuery, enabled: boolean) =>
   useQuery({ queryKey: documentKeys.accessLog(id, q), queryFn: () => documentApi.accessLog(id, q), enabled, ...keep });
 export const useTrash = (q: IPageQuery) => useQuery({ queryKey: documentKeys.trash(q), queryFn: () => documentApi.trash(q), ...keep });
+export const useRecentPublished = (enabled = true) => useQuery({ queryKey: documentKeys.recent, queryFn: documentApi.recent, enabled });
 export const useDocStats = () => useQuery({ queryKey: documentKeys.stats, queryFn: documentApi.stats });
 export const useRetentionDue = (q: IPageQuery) => useQuery({ queryKey: documentKeys.retention(q), queryFn: () => documentApi.retention(q), ...keep });
 export const useOrphans = () => useQuery({ queryKey: documentKeys.orphans, queryFn: documentApi.orphans });

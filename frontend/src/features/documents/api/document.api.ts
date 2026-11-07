@@ -19,6 +19,7 @@ export const documentKeys = {
   asset: (id: string) => ['documents', 'asset', id] as const,
   accessLog: (id: string, q: IPageQuery) => ['documents', 'access-log', id, q] as const,
   trash: (q: IPageQuery) => ['documents', 'trash', q] as const,
+  recent: ['documents', 'recent'] as const,
   stats: ['documents', 'stats'] as const,
   retention: (q: IPageQuery) => ['documents', 'retention', q] as const,
   orphans: ['documents', 'orphans'] as const,
@@ -74,6 +75,8 @@ export const documentApi = {
   archive: (id: string) => httpPost<IAssetDetail>(`${base}/assets/${id}/archive`),
   custodian: (id: string, employeeId: string) => http<IAssetDetail>(`${base}/assets/${id}/custodian`, json('PUT', { employeeId })),
   trash: (q: IPageQuery) => http<IPaged<IAssetRow>>(`${base}/trash?${pageQs(q)}`),
+  /** Mới ban hành (60 ngày) trong các kho mình vào được — bảng tin văn phòng 3D. */
+  recent: () => http<IAssetRow[]>(`${base}/recent?take=20`),
 
   stats: () => http<IStats>(`${base}/admin/stats`),
   retention: (q: IPageQuery) => http<IPaged<IAssetRow>>(`${base}/admin/retention?${pageQs(q)}`),

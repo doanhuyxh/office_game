@@ -3230,7 +3230,8 @@
       "w": 0.9,
       "d": 0.5,
       "rot": 0,
-      "solid": true
+      "solid": true,
+      "interact": "documents"
     },
     {
       "id": "open-notices",
@@ -3361,7 +3362,8 @@
       "w": 2.4,
       "d": 0.4,
       "rot": 0,
-      "solid": true
+      "solid": true,
+      "interact": "library"
     },
     {
       "id": "library-shelf-2",
@@ -3371,7 +3373,8 @@
       "w": 2.4,
       "d": 0.4,
       "rot": 0,
-      "solid": true
+      "solid": true,
+      "interact": "library"
     },
     {
       "id": "library-beanbag-1",
@@ -3411,7 +3414,8 @@
       "w": 0.9,
       "d": 0.5,
       "rot": 0,
-      "solid": true
+      "solid": true,
+      "interact": "documents"
     },
     {
       "id": "hcns-cabinet-2",
@@ -3421,7 +3425,8 @@
       "w": 0.9,
       "d": 0.5,
       "rot": 0,
-      "solid": true
+      "solid": true,
+      "interact": "documents"
     },
     {
       "id": "printer",
@@ -4175,7 +4180,8 @@
       "w": 0.9,
       "d": 0.5,
       "rot": 0,
-      "solid": true
+      "solid": true,
+      "interact": "documents"
     },
     {
       "id": "kt-cabinet-2",
@@ -4185,7 +4191,8 @@
       "w": 0.9,
       "d": 0.5,
       "rot": 0,
-      "solid": true
+      "solid": true,
+      "interact": "documents"
     },
     {
       "id": "kt-cabinet-3",
@@ -4195,7 +4202,8 @@
       "w": 0.9,
       "d": 0.5,
       "rot": 0,
-      "solid": true
+      "solid": true,
+      "interact": "documents"
     },
     {
       "id": "kt-cabinet-4",
@@ -4205,7 +4213,8 @@
       "w": 0.5,
       "d": 0.9,
       "rot": 0,
-      "solid": true
+      "solid": true,
+      "interact": "documents"
     },
     {
       "id": "kt-cabinet-5",
@@ -4215,7 +4224,8 @@
       "w": 0.5,
       "d": 0.9,
       "rot": 0,
-      "solid": true
+      "solid": true,
+      "interact": "documents"
     },
     {
       "id": "kt-safe",

@@ -20,6 +20,9 @@ const SPEED = 4.2; // m/s — server cho tối đa 7 m/s
 const RADIUS = 0.22; // bán kính va chạm của avatar
 const SEAT_REACH = 1.2;
 const ACTION_REACH = 1.8;
+/** Đồ vật có `interact` mà HUD xử lý (tủ hồ sơ, kệ thư viện, màn hình phòng, bảng tin) → onNearAction(`interact:<id>`). */
+const HANDLED_INTERACTS = new Set(['documents', 'library', 'screen', 'notices']);
+const INTERACTIVE = OFFICE_MAP.objects.filter((o) => o.action || (o.interact && HANDLED_INTERACTS.has(o.interact)));
 
 type Other = { avatar: Avatar; tx: number; tz: number; tr: number; name: string };
 export interface MinimapSnapshot { me: { x: number; z: number; r: number } | null; others: { x: number; z: number; name: string; anim: number }[]; target: [number, number] | null }
@@ -60,7 +63,7 @@ export class OfficeScene {
   onMove?: (x: number, z: number, r: number, anim: number) => void;
   onZone?: (zone: string | null) => void;
   private lastZone: string | null = null;
-  /** Đứng gần đồ vật có hành động (máy chấm công) → action; đi xa → null. */
+  /** Đứng gần đồ vật có hành động: máy chấm công → "attendance.checkin"; đồ vật tương tác (tủ hồ sơ…) → "interact:<id object>"; đi xa → null. */
   onNearAction?: (action: string | null) => void;
   private lastAction: string | null = null;
   /** Ghế gần nhất có thể ngồi (hoặc ghế đang ngồi, kèm `sitting`). */
@@ -308,7 +311,11 @@ export class OfficeScene {
 
   // ---------- input ----------
 
-  private isTyping = (e: Event) => ['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName);
+  /** Đang gõ chữ hoặc thao tác trong hộp thoại / sheet (kho tài liệu…) → không điều khiển nhân vật. */
+  private isTyping = (e: Event) => {
+    const t = e.target as HTMLElement | null;
+    return ['INPUT', 'TEXTAREA', 'SELECT'].includes(t?.tagName ?? '') || !!t?.isContentEditable || !!t?.closest?.('[role="dialog"]');
+  };
 
   private keyDown = (e: KeyboardEvent) => {
     if (this.isTyping(e)) return;
@@ -410,7 +417,9 @@ export class OfficeScene {
       if (zone !== this.lastZone) { this.lastZone = zone; this.onZone?.(zone); }
       const voice = voiceChannelAt(OFFICE_MAP, p.x, p.z);
       if (voice.id !== this.lastVoice) { this.lastVoice = voice.id; this.onVoiceChannel?.(voice); }
-      const near = OFFICE_MAP.objects.find((o) => o.action && Math.hypot(o.x - p.x, o.z - p.z) < ACTION_REACH)?.action ?? null;
+      const nearObj = INTERACTIVE.filter((o) => Math.hypot(o.x - p.x, o.z - p.z) < ACTION_REACH)
+        .sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0];
+      const near = nearObj ? nearObj.action ?? `interact:${nearObj.id}` : null;
       if (near !== this.lastAction) { this.lastAction = near; this.onNearAction?.(near); }
       const seatInfo = this.seat ? { seat: this.seat, sitting: true } : (() => { const s = this.nearestSeat(p.x, p.z, SEAT_REACH); return s ? { seat: s, sitting: false } : null; })();
       const seatKey = seatInfo ? `${seatInfo.seat.id}:${seatInfo.sitting}` : '';

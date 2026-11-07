@@ -36,6 +36,7 @@ internal static class AssetEndpoints
         g.MapPost("/assets/{id:guid}/archive", ArchiveAsync);
         g.MapPut("/assets/{id:guid}/custodian", CustodianAsync);
         g.MapGet("/trash", TrashListAsync);
+        g.MapGet("/recent", RecentAsync);
     }
 
     // ---------------- Tải lên ----------------
@@ -292,9 +293,10 @@ internal static class AssetEndpoints
 
     /// <summary>
     /// Link presigned để xem / tải (ghi nhật ký). Mặc định bản hiện tại; xem trong trình duyệt với ảnh / video / âm thanh / PDF / văn bản thuần,
-    /// còn lại tải về. Link video / âm thanh sống 3 giờ (tua khi đang xem), loại khác 15 phút.
+    /// còn lại tải về. Link video / âm thanh sống 3 giờ (tua khi đang xem), loại khác 15 phút. <c>present</c> = chiếu lên màn hình phòng trong
+    /// văn phòng 3D (Realtime gọi bằng cookie người chiếu rồi phát link cho người trong phòng) → mọi loại 3 giờ.
     /// </summary>
-    private static async Task<Results<Ok<FileUrlDto>, ProblemHttpResult>> FileAsync(Guid id, int? version, bool? download, ClaimsPrincipal user,
+    private static async Task<Results<Ok<FileUrlDto>, ProblemHttpResult>> FileAsync(Guid id, int? version, bool? download, bool? present, ClaimsPrincipal user,
         HttpContext http, DocumentAccess access, DocumentsDbContext db, IFileStorage files, IEmployeeDirectory dir, DocClock clock, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
@@ -306,7 +308,7 @@ internal static class AssetEndpoints
         var kind = DocumentRules.KindOf(ver.ContentType, ver.FileName);
         var previewable = kind is AssetKind.Image or AssetKind.Video or AssetKind.Audio || ver.ContentType is "application/pdf" or "text/plain";
         var inline = download != true && previewable;
-        var ttl = kind is AssetKind.Video or AssetKind.Audio ? TimeSpan.FromHours(3) : TimeSpan.FromMinutes(15);
+        var ttl = present == true || kind is AssetKind.Video or AssetKind.Audio ? TimeSpan.FromHours(3) : TimeSpan.FromMinutes(15);
         var url = await files.GetDownloadUrlAsync(ver.FileKey, ver.FileName, inline, ttl);
         db.AccessLogs.Add(new AccessLog { AssetId = a.Id, VersionNumber = ver.Number, UserId = v.UserId, UserName = v.Name,
             Action = inline ? AccessAction.View : AccessAction.Download, At = clock.Now, Ip = http.Connection.RemoteIpAddress?.ToString() });
@@ -389,6 +391,30 @@ internal static class AssetEndpoints
         var paged = await q.OrderByDescending(a => a.DeletedAt).ThenByDescending(a => a.Id).ToPagedAsync(page ?? 1, pageSize, ct);
         var types = await TypeNamesAsync(db, ct);
         return TypedResults.Ok(paged.Map(a => Row(a, types)));
+    }
+
+    /// <summary>
+    /// Tài liệu mới ban hành trong các kho người gọi vào được (bảng tin trong văn phòng 3D): <paramref name="days"/> ngày gần nhất
+    /// (mặc định 60), mới nhất trước, tối đa <paramref name="take"/> (≤ 50).
+    /// </summary>
+    private static async Task<Ok<List<AssetRowDto>>> RecentAsync(int? days, int? take, ClaimsPrincipal user, DocumentAccess access,
+        DocumentsDbContext db, DocClock clock, CancellationToken ct)
+    {
+        var v = await access.ViewerAsync(user, ct);
+        var since = clock.Now.AddDays(-Math.Clamp(days ?? 60, 1, 365));
+        var q = db.Assets.AsNoTracking().Include(a => a.Versions)
+            .Where(a => a.DeletedAt == null && a.Status == AssetStatus.Published && a.PublishedAt >= since);
+        if (!v.IsHr)
+        {
+            var depts = v.Departments.Select(d => (Guid?)d).ToList();
+            var projects = v.Projects.Keys.Select(p => (Guid?)p).ToList();
+            q = q.Where(a => a.Classification == Classification.Internal && (a.SpaceKind == SpaceKind.Company
+                             || (a.SpaceKind == SpaceKind.Department && depts.Contains(a.SpaceId))
+                             || (a.SpaceKind == SpaceKind.Project && projects.Contains(a.SpaceId))));
+        }
+        var rows = await q.OrderByDescending(a => a.PublishedAt).ThenByDescending(a => a.Id).Take(Math.Clamp(take ?? 20, 1, 50)).ToListAsync(ct);
+        var types = await TypeNamesAsync(db, ct);
+        return TypedResults.Ok(rows.Select(a => Row(a, types)).ToList());
     }
 
     // ---------------- Vòng đời ----------------

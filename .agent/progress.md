@@ -21,7 +21,7 @@
 | Phân quyền UI: `PAGE_ROLES` (menu + chặn route → "Không có quyền"), 403 → toast · danh bạ theo vai trò (trạng thái / ngày vào làm chỉ HR, chính chủ, quản lý; người đã nghỉ chỉ HR) | `../routes.md`, `organization` |
 | Hồ sơ cá nhân `/profile`: liên hệ + ảnh tự sửa; ngày sinh / CCCD / ngân hàng qua HR duyệt (mã hoá, không ra MCP); sheet "Chuyển khoản" trong Excel lương; trường CCCD cho mẫu hợp đồng | `profile` |
 | UI: bỏ tiêu đề / mô tả trang (nút hành động ngang hàng tab — `PageToolbar`) · nút "Cột" cho bảng nhiều cột · trang 404 tiếng Việt | `../frontend.md` |
-| **Kho tài liệu / tài sản số** (2026-11-07, chưa commit / deploy; migration `InitialDocuments`): kho công ty / phòng ban / dự án, tải thẳng S3, phiên bản, nhật ký xem / tải, ban hành qua duyệt + số hiệu, hạn lưu trữ + huỷ, thùng rác, bàn giao. E2E 65/65 trên DB tạm. Còn: giai đoạn 3–4 (OCR / tìm toàn văn, MCP, mức Mật, 3D) | `documents` |
+| **Kho tài liệu / tài sản số** (2026-11-07, chưa commit / deploy; migration `InitialDocuments`): kho công ty / phòng ban / dự án, tải thẳng S3, phiên bản, nhật ký xem / tải, ban hành qua duyệt + số hiệu, hạn lưu trữ + huỷ, thùng rác, bàn giao. E2E 65/65 trên DB tạm. Văn phòng 3D: nút HUD, tủ hồ sơ / thư viện / bảng tin (E), kéo thả tải lên, chiếu lên màn hình phòng (`PinScreen`) — E2E 25/25. Còn: OCR / tìm toàn văn, MCP, mức Mật | `documents`, `office-documents` |
 
 Kiểm tra cuối: `dotnet build -warnaserror` ✔, `dotnet test` ✔ (12 project; Organization 36, Mcp 58, Payroll 15), `bun run build` ✔. E2E trên DB tạm: lương + ký 48/48, quyền tổ chức + hướng dẫn + danh bạ 37/37, hồ sơ cá nhân 34/34; trên bản dev: phân quyền trang 8/8, nút cột 13/13; quét responsive 12 trang × 4 độ rộng sạch.
 

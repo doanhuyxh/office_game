@@ -29,7 +29,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Báo cáo + Excel, quy ra tiền tăng ca / phép năm | [.agent/business/reports.md](.agent/business/reports.md) |
 | Bảng lương (BH, thuế TNCN, kỳ, phiếu) · ký hợp đồng điện tử (OTP email) | [.agent/business/payroll.md](.agent/business/payroll.md) · [.agent/business/contracts-esign.md](.agent/business/contracts-esign.md) |
 | Đặt phòng họp | [.agent/business/meetings.md](.agent/business/meetings.md) |
-| Kho tài liệu (tài sản số): kho phòng ban / dự án, tải thẳng S3, phiên bản, ban hành, hạn lưu trữ, bàn giao | [.agent/business/documents.md](.agent/business/documents.md) |
+| Kho tài liệu (tài sản số): kho phòng ban / dự án, tải thẳng S3, phiên bản, ban hành, hạn lưu trữ, bàn giao · trong văn phòng 3D (tủ hồ sơ, chiếu màn hình) | [.agent/business/documents.md](.agent/business/documents.md) · [.agent/business/office-documents.md](.agent/business/office-documents.md) |
 | Lịch sử sửa dữ liệu (`[Audited]`) · nhập nhân viên từ Excel | [.agent/business/audit.md](.agent/business/audit.md) · [.agent/business/employee-import.md](.agent/business/employee-import.md) |
 | Luồng duyệt, thêm loại đơn | [.agent/business/approval.md](.agent/business/approval.md) |
 | Nghỉ phép, quỹ phép năm | [.agent/business/leave.md](.agent/business/leave.md) |

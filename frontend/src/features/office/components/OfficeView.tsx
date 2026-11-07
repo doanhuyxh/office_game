@@ -18,6 +18,18 @@ import { Joystick } from './Joystick';
 import type { VoiceChannelInfo } from '../engine/voiceChannel';
 import { DEFAULT_LOOK, parseLook, validLook } from '../engine/avatarLook';
 import { AvatarEditorDialog } from './AvatarEditorDialog';
+import { filesFromDrop, UploadPanel, useSpaces, useUploadQueue, type ISpaceRef } from '@/features/documents';
+import { OFFICE_MAP } from '../engine/officeMap';
+import type { MapObject } from '../engine/mapTypes';
+import type { ScreenDto } from '../types/office.types';
+import { OfficeDocsDialog, ScreenDocPanel, useCabinetDepartment, type DocsMode } from './OfficeDocs';
+
+const OBJECT_BY_ID = new Map(OFFICE_MAP.objects.map((o) => [o.id, o]));
+/** Đang gõ / thao tác trong hộp thoại → phím E, M không dành cho văn phòng. */
+const typingTarget = (e: KeyboardEvent) => {
+  const t = e.target as HTMLElement | null;
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(t?.tagName ?? '') || !!t?.isContentEditable || !!t?.closest?.('[role="dialog"]');
+};
 
 /** Màn hình cảm ứng (điện thoại / máy tính bảng): hiện joystick, nút zoom, chat thu gọn. */
 const IS_TOUCH = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
@@ -61,6 +73,58 @@ export function OfficeView() {
   const [voiceView, setVoiceView] = useState<VoiceView>(VOICE_INITIAL);
   const { data: today, noProfile } = useToday();
   const check = useCheck();
+  // Tài liệu: hộp thoại kho / bảng tin, kéo thả tải lên, màn hình phòng đang chiếu
+  const spaces = useSpaces();
+  const uploads = useUploadQueue();
+  const cabinetDept = useCabinetDepartment();
+  const [docs, setDocs] = useState<DocsMode | null>(null);
+  const [screen, setScreen] = useState<ScreenDto | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const roomRef = useRef<string | null>(null);
+  roomRef.current = roomCh?.id ?? null;
+  const interactObj = nearAction?.startsWith('interact:') ? OBJECT_BY_ID.get(nearAction.slice('interact:'.length)) : undefined;
+  /** Kho mặc định để tải lên / mở từ nút HUD: kho phòng ban đầu tiên mình vào được (thường là phòng mình), không có thì kho công ty. */
+  const defaultSpace = (): ISpaceRef => {
+    const d = spaces.data?.find((s) => s.kind === 'Department' && s.canWrite);
+    return d ? { kind: 'Department', id: d.id } : { kind: 'Company', id: null };
+  };
+  const openInteract = (o: MapObject) => {
+    switch (o.interact) {
+      case 'library': return setDocs({ kind: 'browse', space: { kind: 'Company', id: null }, title: '📚 Thư viện · Kho chung công ty' });
+      case 'notices': return setDocs({ kind: 'notices', title: '📌 Bảng tin · Tài liệu mới ban hành' });
+      case 'screen':
+        if (!roomRef.current) return toast.info('Màn hình này chỉ để xem — vào phòng họp để chiếu tài liệu');
+        return setDocs({ kind: 'browse', space: null, title: `📺 Chiếu tài liệu · ${roomCh?.name ?? ''}`, present: true });
+      case 'documents': {
+        const dep = cabinetDept(o);
+        if (dep && !spaces.data?.some((s) => s.kind === 'Department' && s.id === dep.id)) return toast.error(`Bạn không có quyền mở tủ hồ sơ của ${dep.name}`);
+        return setDocs({ kind: 'browse', space: dep ? { kind: 'Department', id: dep.id } : defaultSpace(), title: `🗄 Tủ hồ sơ${dep ? ` · ${dep.name}` : ''}` });
+      }
+    }
+  };
+  const present = (assetId: string) =>
+    connRef.current?.pinScreen(assetId).then(() => { setDocs(null); toast.success('Đã chiếu lên màn hình phòng'); })
+      .catch((err: unknown) => toast.error(errorMessage(err)));
+  const clearScreen = () => void connRef.current?.clearScreen().catch((err: unknown) => toast.error(errorMessage(err)));
+  const onDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const files = await filesFromDrop(e.dataTransfer.items);
+    if (!files.length) return;
+    const space = defaultSpace();
+    const name = spaces.data?.find((s) => s.kind === space.kind && s.id === space.id)?.name ?? 'Công ty';
+    toast.info(`Đang tải ${files.length} file lên kho ${name}…`);
+    void uploads.start(files, space, null);
+  };
+  // Đổi phòng → bỏ khung chiếu cũ. Server tự gửi ScreenChanged khi thấy mình bước vào phòng đang chiếu; hỏi thêm GetScreen (sau khi
+  // vị trí kịp tới server) để chắc chắn sau khi kết nối lại — chỉ nhận kết quả có tài liệu, không ghi đè bằng null.
+  useEffect(() => {
+    setScreen(null);
+    if (!roomCh || conn !== 'online') return;
+    let alive = true;
+    const timer = setTimeout(() => connRef.current?.getScreen().then((s) => { if (alive && s && s.roomId === roomRef.current) setScreen(s); }).catch(() => {}), 600);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [roomCh?.id, conn]);
 
   // Chấm công trong văn phòng 3D (nguồn "office3d")
   const doCheck = () => {
@@ -75,19 +139,22 @@ export function OfficeView() {
   doCheckRef.current = doCheck;
 
   // Phím E (hoặc chạm vào khung gợi ý trên điện thoại): gần máy chấm công → chấm công; không thì ngồi / đứng ở ghế gần nhất
+  // Gần tủ hồ sơ / kệ thư viện / màn hình / bảng tin (đang đứng) → mở tài liệu
   const doAction = () => {
     if (nearAction === 'attendance.checkin' && !seatInfo?.sitting) doCheckRef.current();
+    else if (interactObj && !seatInfo?.sitting) openInteract(interactObj);
     else scene?.toggleSit();
   };
+  const doActionRef = useRef(doAction);
+  doActionRef.current = doAction;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() !== 'e' || e.repeat || (e.target as HTMLElement)?.tagName === 'INPUT') return;
-      if (nearAction === 'attendance.checkin' && !seatInfo?.sitting) doCheckRef.current();
-      else scene?.toggleSit();
+      if (e.key.toLowerCase() !== 'e' || e.repeat || typingTarget(e)) return;
+      doActionRef.current();
     };
     addEventListener('keydown', onKey);
     return () => removeEventListener('keydown', onKey);
-  }, [nearAction, seatInfo, scene]);
+  }, []);
 
   // Trình duyệt chặn phát âm thanh tới khi người dùng thao tác → lần bấm / gõ phím đầu tiên (đi lại, chat…) mở âm thanh luôn
   useEffect(() => {
@@ -101,7 +168,7 @@ export function OfficeView() {
   // Phím M: bật / tắt micro khi đang trong voice
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() !== 'm' || e.repeat || (e.target as HTMLElement)?.tagName === 'INPUT') return;
+      if (e.key.toLowerCase() !== 'm' || e.repeat || typingTarget(e)) return;
       if (voice?.state.status === 'on') void voice.toggleMic();
     };
     addEventListener('keydown', onKey);
@@ -151,6 +218,7 @@ export function OfficeView() {
       chat: (m) => s.pushChat(m),
       teleport: (x, z) => scene.teleportMe(x, z),
       lookChanged: (id, look) => scene.setLook(id, parseLook(look)),
+      screenChanged: (roomId, sc) => { if (roomId === roomRef.current) setScreen(sc); },
       kicked: (reason) => { s.kick(reason); void voice.disable(); },
       state: (st) => s.setConn(st),
     });
@@ -187,7 +255,10 @@ export function OfficeView() {
   };
 
   return (
-    <div className="office-root">
+    <div className={`office-root ${dragOver ? 'drag-over' : ''}`}
+      onDragOver={(e) => { if (e.dataTransfer.types.includes('Files') && !docs) { e.preventDefault(); setDragOver(true); } }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false); }}
+      onDrop={(e) => void onDrop(e)}>
       <div ref={hostRef} className="scene" />
       <div className="hud">
         <div className="card me">
@@ -195,6 +266,7 @@ export function OfficeView() {
           <small>{me?.roles.join(', ')}</small>
           <Link to={PATHS.dashboard}>Cổng nhân sự →</Link>
           <button type="button" className="link" onClick={() => setEditorOpen(true)} data-testid="office-avatar">👤 Nhân vật</button>
+          <button type="button" className="link" onClick={() => setDocs({ kind: 'browse', space: defaultSpace(), title: '📁 Tài liệu', present: !!roomCh })} data-testid="office-docs-open">📁 Tài liệu</button>
         </div>
         {account && !hasLook && avatarPrompt && conn === 'online' && (
           <div className="card avatar-prompt" data-testid="office-avatar-prompt">
@@ -235,6 +307,10 @@ export function OfficeView() {
         {IS_TOUCH && <Joystick onChange={(x, y) => scene?.setStick(x, y)} />}
         {nearAction === 'attendance.checkin' && !seatInfo?.sitting ? (
           <button type="button" className="card prompt" onClick={doAction}>Máy chấm công · {IS_TOUCH ? 'chạm' : <>bấm <kbd>E</kbd></>} để {today?.checkedIn ? 'chấm công ra' : 'chấm công vào'}</button>
+        ) : interactObj && !seatInfo?.sitting ? (
+          <button type="button" className="card prompt" data-testid="office-interact-prompt" onClick={doAction}>
+            {INTERACT_LABEL[interactObj.interact ?? ''] ?? 'Đồ vật'} · {IS_TOUCH ? 'chạm' : <>bấm <kbd>E</kbd></>} để {INTERACT_VERB[interactObj.interact ?? ''] ?? 'xem'}
+          </button>
         ) : seatInfo && (
           <button type="button" className="card prompt" data-testid="office-seat-prompt" onClick={doAction}>
             {seatInfo.sitting
@@ -268,17 +344,22 @@ export function OfficeView() {
               <span><kbd>M</kbd> · bật / tắt micro (voice tự kết nối, micro mặc định tắt)</span>
             </>}
             <span>Vào phòng có tường (phòng họp…) → chat có thêm tab riêng của phòng</span>
+            <span>📁 Tài liệu · tủ hồ sơ / kệ thư viện / bảng tin · <kbd>E</kbd> mở kho; màn hình phòng họp · chiếu tài liệu; kéo thả file vào để tải lên</span>
             <button type="button" onClick={() => setHelp(false)}>Đã hiểu</button>
           </div>
         )}
         <VoicePanel voice={voice} view={voiceView} />
         <ScreenView screen={voiceView.screen} />
+        <ScreenDocPanel screen={screen} onClear={clearScreen} />
+        {uploads.items.length > 0 && <div className="docs-uploads"><UploadPanel items={uploads.items} onClear={uploads.clear} /></div>}
+        {dragOver && <div className="drop-hint">Thả file / thư mục để tải lên kho tài liệu</div>}
         <button className={`card checkin ${today?.checkedIn ? 'on' : ''}`} onClick={doCheck} disabled={check.isPending || noProfile}
           title={noProfile ? 'Tài khoản chưa gắn hồ sơ nhân viên' : undefined} data-testid="office-check">
           🕘 {noProfile ? 'Không chấm công' : today?.checkedIn ? 'Chấm công ra' : 'Chấm công vào'}
           {today?.day.firstIn && <small>Vào {formatTime(today.day.firstIn)}</small>}
         </button>
       </div>
+      <OfficeDocsDialog mode={docs} onClose={() => setDocs(null)} onPresent={roomCh ? present : undefined} />
       <AvatarEditorDialog open={editorOpen} onOpenChange={setEditorOpen}
         onSaved={(look) => {
           if (me) scene?.setLook(me.id, look ?? DEFAULT_LOOK);
@@ -294,4 +375,6 @@ export function OfficeView() {
   );
 }
 
+const INTERACT_LABEL: Record<string, string> = { documents: '🗄 Tủ hồ sơ', library: '📚 Thư viện', screen: '📺 Màn hình', notices: '📌 Bảng tin' };
+const INTERACT_VERB: Record<string, string> = { documents: 'mở kho phòng ban', library: 'mở kho chung', screen: 'chiếu tài liệu', notices: 'xem tài liệu mới' };
 const STATUS = { connecting: 'Đang kết nối…', reconnecting: 'Mất kết nối, đang thử lại…', offline: 'Mất kết nối', kicked: 'Đã đăng nhập nơi khác', online: '' };

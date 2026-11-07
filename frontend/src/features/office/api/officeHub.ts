@@ -2,7 +2,7 @@ import { HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection 
 import { MessagePackHubProtocol } from '@microsoft/signalr-protocol-msgpack';
 import { REALTIME } from '@/config/env';
 
-import type { ChatDto, PlayerDto, PositionDto, WelcomeDto } from '../types/office.types';
+import type { ChatDto, PlayerDto, PositionDto, ScreenDto, WelcomeDto } from '../types/office.types';
 
 export interface OfficeHandlers {
   welcome(w: WelcomeDto): void;
@@ -13,6 +13,8 @@ export interface OfficeHandlers {
   teleport(x: number, z: number): void;
   kicked(reason: string): void;
   lookChanged(id: string, look: string | null): void;
+  /** Màn hình phòng đổi tài liệu đang chiếu (null = tắt) — chỉ nhận khi đang ở trong phòng đó. */
+  screenChanged(roomId: string, screen: ScreenDto | null): void;
   state(s: 'online' | 'reconnecting' | 'offline'): void;
 }
 
@@ -45,6 +47,7 @@ export class OfficeConnection {
     this.conn.on('Chat', (m) => h.chat(camel(m)));
     this.conn.on('Teleport', (x: number, z: number) => h.teleport(x, z));
     this.conn.on('LookChanged', (id: string, look: string | null) => h.lookChanged(id, look ?? null));
+    this.conn.on('ScreenChanged', (roomId: string, s: unknown) => h.screenChanged(roomId, s ? camel<ScreenDto>(s) : null));
     this.conn.on('Kicked', (reason: string) => {
       this.kicked = true;
       h.kicked(reason);
@@ -78,6 +81,22 @@ export class OfficeConnection {
   /** Vừa lưu nhân vật qua REST → server tự đọc lại từ Api rồi phát LookChanged cho cả văn phòng. */
   refreshLook() {
     return this.conn.state === HubConnectionState.Connected ? this.conn.invoke('RefreshLook') : Promise.resolve();
+  }
+
+  /** Tài liệu đang chiếu ở phòng có tường mình đang đứng (server xác định phòng); null = chưa chiếu / khu mở. */
+  async getScreen(): Promise<ScreenDto | null> {
+    if (this.conn.state !== HubConnectionState.Connected) return null;
+    const s = await this.conn.invoke('GetScreen');
+    return s ? camel<ScreenDto>(s) : null;
+  }
+
+  /** Chiếu tài liệu lên màn hình phòng đang đứng (server hỏi Api bằng quyền của mình). */
+  pinScreen(assetId: string) {
+    return this.conn.invoke('PinScreen', assetId);
+  }
+
+  clearScreen() {
+    return this.conn.invoke('ClearScreen');
   }
 
   stop() {

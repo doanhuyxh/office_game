@@ -20,6 +20,8 @@ public sealed class Player
     public long LastMoveTicks;
     public DateTimeOffset LastActiveAt;
     public DateTimeOffset LastChatAt;
+    /// <summary>Lần chiếu tài liệu gần nhất (giới hạn 1 lần / 3 giây).</summary>
+    public DateTimeOffset LastScreenAt;
     /// <summary>Room LiveKit đã cấp token gần nhất (null = chưa vào voice / đã bị đẩy ra). Xem VoiceGuard.</summary>
     public string? VoiceRoom;
     /// <summary>Lúc vị trí bắt đầu lệch khỏi kênh <see cref="VoiceRoom"/> (null = đang đúng kênh).</summary>

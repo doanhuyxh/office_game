@@ -29,6 +29,7 @@ builder.Services.AddSignalR(o => o.MaximumReceiveMessageSize = 16 * 1024).AddMes
 var mapPath = EnvLoader.ResolvePath(builder.Configuration["Realtime:MapPath"] ?? "shared/office-map.json", builder.Environment.ContentRootPath);
 builder.Services.AddSingleton(OfficeMap.Load(mapPath));
 builder.Services.AddSingleton<Presence>();
+builder.Services.AddSingleton<OfficeHub.Realtime.Screens.RoomScreens>();
 builder.Services.AddHostedService<OfficeLoop>();
 builder.Services.AddOptions<LiveKitSettings>()
     .Bind(builder.Configuration.GetSection(LiveKitSettings.Section))

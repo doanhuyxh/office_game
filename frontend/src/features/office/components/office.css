@@ -83,3 +83,26 @@
   .office-root .help { left: 12px; right: 12px; width: auto; }
   .office-root .avatar-prompt { top: 52px; left: 12px; transform: none; width: calc(100vw - 168px); }
 }
+
+/* Tài liệu trong văn phòng: tài liệu chiếu trên màn hình phòng, hàng đợi tải lên, gợi ý thả file */
+.office-root .screen-doc { cursor: default; width: min(560px, calc(100vw - 480px)); }
+.office-root .screen-doc.big { width: min(1200px, calc(100vw - 24px)); height: calc(100vh - 24px); display: flex; flex-direction: column; }
+.office-root .screen-doc-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; align-items: center; font-size: 12px; }
+.office-root .screen-doc-head div { display: flex; gap: 4px; }
+.office-root .screen-doc-head button, .office-root .screen-doc-head a { padding: 3px 8px; border: 0; border-radius: 6px; background: rgba(148, 163, 184, .2);
+  color: inherit; font: 600 12px system-ui; cursor: pointer; text-decoration: none; }
+.office-root .screen-doc-head .danger { background: #b91c1c; color: #fff; }
+.office-root .screen-doc-body { min-height: 0; flex: 1; }
+.office-root .screen-doc-body img, .office-root .screen-doc-body video { width: 100%; max-height: 60vh; object-fit: contain; border-radius: 8px; background: #000; }
+.office-root .screen-doc-body iframe { width: 100%; height: 45vh; border: 0; border-radius: 8px; background: #fff; }
+.office-root .screen-doc.big .screen-doc-body img, .office-root .screen-doc.big .screen-doc-body video { max-height: none; height: 100%; }
+.office-root .screen-doc.big .screen-doc-body iframe { height: 100%; }
+.office-root .screen-doc-body audio { width: 100%; }
+.office-root .screen-doc-open { display: block; padding: 16px; color: #93c5fd; }
+.office-root .docs-uploads { position: absolute; left: 50%; bottom: 130px; transform: translateX(-50%); width: min(420px, calc(100vw - 24px)); }
+.office-root.drag-over .scene { outline: 3px dashed #3b82f6; outline-offset: -8px; }
+.office-root .drop-hint { position: absolute; top: 45%; left: 50%; transform: translateX(-50%); padding: 14px 20px; border-radius: 12px;
+  background: rgba(37, 99, 235, .9); color: #fff; font-weight: 700; pointer-events: none; }
+@media (max-width: 640px) {
+  .office-root .screen-doc { width: calc(100vw - 24px); top: 52px; }
+}

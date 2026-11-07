@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.Realtime.Auth;
+using OfficeHub.Realtime.Screens;
 using OfficeHub.Realtime.Simulation;
 using OfficeHub.Realtime.Voice;
 
@@ -33,10 +34,12 @@ public interface IOfficeClient
     Task Kicked(string reason);
     /// <summary>Người chơi đổi nhân vật (look = JSON, null = mặc định).</summary>
     Task LookChanged(string id, string? look);
+    /// <summary>Màn hình phòng <paramref name="roomId"/> đổi tài liệu đang chiếu (null = tắt) — chỉ gửi người đang ở trong phòng.</summary>
+    Task ScreenChanged(string roomId, ScreenDto? screen);
 }
 
 [Authorize]
-public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValidator sessions, VoiceGuard voice,
+public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValidator sessions, VoiceGuard voice, RoomScreens screens,
     TimeProvider clock, ILogger<OfficeRoomHub> log) : Hub<IOfficeClient>
 {
     public const string Path = "/rt/hub/office";
@@ -104,12 +107,16 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
             await Clients.Caller.Teleport(p.X, p.Z);
             return;
         }
+        var before = RoomOf(p);
         lock (p)
         {
             p.X = x; p.Z = z; p.R = r; p.Anim = anim; p.Dirty = true;
             p.LastMoveTicks = now;
             p.LastActiveAt = clock.GetUtcNow();
         }
+        // Vừa bước vào phòng có tường đang chiếu tài liệu → gửi ngay cho người này (client không phải đoán lúc server đã thấy mình trong phòng)
+        if (RoomOf(p) is { } after && after.Id != before?.Id && screens.Get(after.Id) is { } screen)
+            await Clients.Caller.ScreenChanged(after.Id, screen);
     }
 
     /// <summary>
@@ -162,6 +169,39 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
         var targets = presence.All.Where(o => RoomOf(o)?.Id == room.Id).Select(o => o.ConnectionId).ToList();
         await Clients.Clients(targets).Chat(new ChatDto(p.UserId, p.Name, text, Instants.Format(now), "room", room.Id, room.Name));
     }
+
+    /// <summary>Tài liệu đang chiếu ở phòng có tường mình đang đứng (vào phòng → client hỏi); khu mở / chưa chiếu → null.</summary>
+    public ScreenDto? GetScreen() =>
+        presence.TryGet(UserId, out var p) && RoomOf(p) is { } room ? screens.Get(room.Id) : null;
+
+    /// <summary>
+    /// Chiếu tài liệu lên màn hình phòng có tường đang đứng. Server hỏi Api bằng cookie người chiếu (Api kiểm tra quyền xem + ghi nhật ký),
+    /// rồi phát cho người đang ở trong phòng. Thay tài liệu đang chiếu (nếu có). Tối đa 1 lần / 3 giây.
+    /// </summary>
+    public async Task PinScreen(string assetId)
+    {
+        if (!presence.TryGet(UserId, out var p) || p.ConnectionId != Context.ConnectionId) return;
+        if (!Guid.TryParse(assetId, out var id)) throw new HubException("Tài liệu không hợp lệ");
+        var room = RoomOf(p) ?? throw new HubException("Vào một phòng có tường (phòng họp…) để chiếu tài liệu lên màn hình");
+        var now = clock.GetUtcNow();
+        if (now - p.LastScreenAt < TimeSpan.FromSeconds(3)) throw new HubException("Chiếu chậm lại một chút");
+        p.LastScreenAt = now;
+        var (screen, error) = await screens.FetchAsync(p.AuthCookie, id, room, p.Name, Context.ConnectionAborted);
+        if (screen is null) throw new HubException(error ?? "Chưa chiếu được tài liệu");
+        screens.Set(screen);
+        await Clients.Clients(InRoom(room.Id)).ScreenChanged(room.Id, screen);
+        log.LogInformation("{User} chiếu tài liệu {Asset} ở {Room}", p.Name, id, room.Name);
+    }
+
+    /// <summary>Tắt màn hình phòng đang đứng (ai trong phòng cũng tắt được).</summary>
+    public async Task ClearScreen()
+    {
+        if (!presence.TryGet(UserId, out var p)) return;
+        var room = RoomOf(p) ?? throw new HubException("Bạn không ở trong phòng nào");
+        if (screens.Clear(room.Id)) await Clients.Clients(InRoom(room.Id)).ScreenChanged(room.Id, null);
+    }
+
+    private List<string> InRoom(string roomId) => presence.All.Where(o => RoomOf(o)?.Id == roomId).Select(o => o.ConnectionId).ToList();
 
     private Simulation.Room? RoomOf(Player p)
     {
