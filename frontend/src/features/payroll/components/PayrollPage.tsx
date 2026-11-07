@@ -11,6 +11,7 @@ import { Label } from '@/components/common/label';
 import { SelectField } from '@/components/common/SelectField';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/common/table';
+import { TablePagination, usePageState } from '@/components/common/pagination';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
 import { Spinner } from '@/components/feedback/Spinner';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -19,7 +20,7 @@ import { errorMessage, fieldErrors } from '@/utils/errors';
 import { downloadUrl, formatMoney } from '@/utils/money';
 import { payrollApi } from '../api/payroll.api';
 import {
-  useAddAdjustment, useCreatePeriod, useDeleteAdjustment, usePeriod, usePeriodAction, usePeriods, useProfiles, useSaveProfile, useSaveSettings, useSettings,
+  useAddAdjustment, useCreatePeriod, useDeleteAdjustment, usePayslips, usePeriod, usePeriodAction, usePeriods, useProfilesPage, useSaveProfile, useSaveSettings, useSettings,
 } from '../hooks/usePayroll';
 import type { IPayProfile, IPayrollRules, IPayslip } from '../types/payroll.types';
 import { EmployerCost, PayslipView } from './PayslipView';
@@ -95,6 +96,8 @@ function PeriodsTab() {
   const [open, setOpen] = useState<string | null>(null);
   useEffect(() => { if (!selected && periods.data?.length) setSelected(periods.data[0].id); }, [periods.data, selected]);
   const detail = usePeriod(selected);
+  const pg = usePageState('payroll-period', selected ?? '');
+  const slips = usePayslips(selected, pg.query);
   const cols = useColumns('payroll-period', PERIOD_COLUMNS);
   const v = cols.show;
   const p = detail.data?.period;
@@ -154,7 +157,7 @@ function PeriodsTab() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {detail.data.payslips.map((s) => (
+                  {slips.data?.items.map((s) => (
                     <TableRow key={s.id} className="cursor-pointer" onClick={() => setOpen(s.id)}>
                       <TableCell>
                         <span className="font-mono text-xs text-muted-foreground">{s.data.employeeCode}</span> {s.data.fullName}
@@ -181,11 +184,12 @@ function PeriodsTab() {
                   </TableRow>
                 </TableFooter>
               </Table>
+              <TablePagination state={pg} total={slips.data?.total} unit="phiếu" />
             </div>
           </CardContent>
         </Card>
       )}
-      {p && <PayslipDialog slip={detail.data?.payslips.find((s) => s.id === open) ?? null} periodId={p.id} locked={locked} onClose={() => setOpen(null)} />}
+      {p && <PayslipDialog slip={slips.data?.items.find((s) => s.id === open) ?? null} periodId={p.id} locked={locked} onClose={() => setOpen(null)} />}
     </div>
   );
 }
@@ -216,7 +220,8 @@ function ProfileRow({ p }: { p: IPayProfile }) {
 }
 
 function ProfilesTab() {
-  const profiles = useProfiles();
+  const pg = usePageState('payroll-profiles');
+  const profiles = useProfilesPage(pg.query);
   return (
     <Card>
       <CardHeader>
@@ -228,8 +233,9 @@ function ProfilesTab() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader><TableRow><TableHead>Nhân viên</TableHead><TableHead>Người phụ thuộc</TableHead><TableHead>Bảo hiểm</TableHead><TableHead>MST cá nhân</TableHead><TableHead /></TableRow></TableHeader>
-              <TableBody>{profiles.data?.map((p) => <ProfileRow key={p.employeeId} p={p} />)}</TableBody>
+              <TableBody>{profiles.data?.items.map((p) => <ProfileRow key={p.employeeId} p={p} />)}</TableBody>
             </Table>
+            <TablePagination state={pg} total={profiles.data?.total} unit="nhân viên" />
           </div>
         )}
       </CardContent>

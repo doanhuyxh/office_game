@@ -11,11 +11,12 @@ import {
 import { Input } from '@/components/common/input';
 import { SelectField } from '@/components/common/SelectField';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
+import { TablePagination, usePageState } from '@/components/common/pagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import { errorMessage } from '@/utils/errors';
 import { formatDate } from '@/utils/date';
 import {
-  useDepartments, useEmployees, useReactivateEmployee, useResendInvite, useResetAccountPassword, useResignEmployee,
+  useDepartments, useEmployeesPage, useReactivateEmployee, useResendInvite, useResetAccountPassword, useResignEmployee,
 } from '../hooks/useOrg';
 import type { IEmployee } from '../types/employee.types';
 import { ROLE_LABEL, STATUS_LABEL, STATUS_VARIANT } from '../utils/labels';
@@ -47,7 +48,10 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
   const [departmentId, setDepartmentId] = useState<string | null>(null);
   const [includeResigned, setIncludeResigned] = useState(false);
   const debounced = useDebounce(search, 300);
-  const { data: employees = [], isLoading } = useEmployees({ search: debounced, departmentId: departmentId ?? undefined, includeResigned: canEdit && includeResigned });
+  const filter = { search: debounced, departmentId: departmentId ?? undefined, includeResigned: canEdit && includeResigned };
+  const pg = usePageState('employees', `${debounced}|${departmentId ?? ''}|${filter.includeResigned}`);
+  const { data, isLoading } = useEmployeesPage(filter, pg.query);
+  const employees = data?.items ?? [];
   // Trạng thái / ngày vào làm: BE chỉ trả cho HR, chính chủ và quản lý của người đó → không có dòng nào thì bỏ cả cột
   const showStatus = canEdit || employees.some((e) => e.status);
   const columnDefs = useMemo<ColumnDef[]>(() => [
@@ -203,8 +207,8 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
             ))}
           </TableBody>
         </Table>
+        <TablePagination state={pg} total={data?.total} unit="nhân viên" />
       </div>
-      <p className="text-xs text-muted-foreground">{employees.length} nhân viên</p>
 
       <EmployeeFormDialog open={dialog?.kind === 'form'} onOpenChange={close} employee={dialog?.kind === 'form' ? dialog.employee : null} />
       <CreateAccountDialog open={dialog?.kind === 'account'} onOpenChange={close} employee={dialog?.kind === 'account' ? dialog.employee : null}

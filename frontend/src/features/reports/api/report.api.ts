@@ -1,16 +1,17 @@
-import { http } from '@/services/api-client';
-import type { ILeavePayoutRow, IOvertimePayReport } from '../types/report.types';
+import { http, pageQs } from '@/services/api-client';
+import type { IPageQuery } from '@/types/api';
+import type { ILeavePayoutPage, ILeavePayoutRow, IOvertimePayPage } from '../types/report.types';
 
 export const reportKeys = {
   all: ['reports'] as const,
-  overtimePay: (month: string) => ['reports', 'overtime-pay', month] as const,
-  leavePayout: ['reports', 'leave-payout'] as const,
+  overtimePayPage: (month: string, q: IPageQuery) => ['reports', 'overtime-pay', month, q] as const,
+  leavePayoutPage: (q: IPageQuery) => ['reports', 'leave-payout', 'page', q] as const,
   myLeavePayout: ['reports', 'leave-payout', 'me'] as const,
 };
 
 export const reportApi = {
-  overtimePay: (month: string) => http<IOvertimePayReport>(`/api/reports/overtime-pay?month=${month}`),
-  leavePayout: () => http<ILeavePayoutRow[]>('/api/reports/leave-payout'),
+  overtimePayPage: (month: string, q: IPageQuery) => http<IOvertimePayPage>(`/api/reports/overtime-pay?month=${month}&${pageQs(q)}`),
+  leavePayoutPage: (q: IPageQuery) => http<ILeavePayoutPage>(`/api/reports/leave-payout?${pageQs(q)}`),
   myLeavePayout: () => http<ILeavePayoutRow>('/api/reports/leave-payout/me'),
 };
 

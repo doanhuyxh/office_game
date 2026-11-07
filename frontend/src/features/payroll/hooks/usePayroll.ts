@@ -1,11 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { IPageQuery } from '@/types/api';
 import { payrollApi, payrollKeys } from '../api/payroll.api';
 import type { IPayrollRules } from '../types/payroll.types';
 
 export const useSettings = () => useQuery({ queryKey: payrollKeys.settings, queryFn: payrollApi.settings });
-export const useProfiles = () => useQuery({ queryKey: payrollKeys.profiles, queryFn: payrollApi.profiles });
+export const useProfilesPage = (q: IPageQuery) =>
+  useQuery({ queryKey: payrollKeys.profilesPage(q), queryFn: () => payrollApi.profilesPage(q), placeholderData: (prev) => prev });
 export const usePeriods = () => useQuery({ queryKey: payrollKeys.periods, queryFn: payrollApi.periods });
 export const usePeriod = (id: string | null) => useQuery({ queryKey: payrollKeys.period(id ?? ''), queryFn: () => payrollApi.period(id!), enabled: !!id });
+export const usePayslips = (id: string | null, q: IPageQuery) =>
+  useQuery({ queryKey: payrollKeys.payslips(id ?? '', q), queryFn: () => payrollApi.payslips(id!, q), enabled: !!id, placeholderData: (prev) => prev });
 export const useMyPayslips = () => useQuery({ queryKey: payrollKeys.my, queryFn: payrollApi.my, retry: false });
 
 function useInvalidate() {

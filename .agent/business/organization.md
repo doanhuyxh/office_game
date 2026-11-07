@@ -8,7 +8,7 @@ Mọi route dưới `/api/org` yêu cầu đăng nhập. Ghi = policy `AuthPolic
 
 | Method | Path | Quyền | Ghi chú |
 |---|---|---|---|
-| GET | `/employees?search=&departmentId=&status=&includeResigned=` | đăng nhập | Danh bạ liên lạc cho mọi người. `search` ILIKE `FullName`/`Code`/`Email`. **Chỉ HR**: `includeResigned`, lọc `status`, `account`. `status` / `joinedAt` / `leftAt` = null trừ khi người xem là HR, chính chủ hoặc quản lý (trực tiếp / gián tiếp) — `HrFieldsVisibilityAsync` (chủ dự án chốt 2026-11-06) |
+| GET | `/employees?search=&departmentId=&status=&includeResigned=&page=&pageSize=` | đăng nhập | Danh bạ liên lạc cho mọi người (có `page` → trang, theo mã NV; không → cả danh sách cho MCP / form). `search` ILIKE `FullName`/`Code`/`Email`. **Chỉ HR**: `includeResigned`, lọc `status`, `account`. `status` / `joinedAt` / `leftAt` = null trừ khi người xem là HR, chính chủ hoặc quản lý (trực tiếp / gián tiếp) — `HrFieldsVisibilityAsync` (chủ dự án chốt 2026-11-06) |
 | GET | `/employees/me` | đăng nhập | 404 nếu tài khoản chưa gắn hồ sơ |
 | GET | `/employees/next-code` | HR | `NV` + số lớn nhất + 1, 3 chữ số (`NV001`) |
 | GET | `/employees/{id}` | đăng nhập | `account`, `dateOfBirth`, `note` chỉ HR / chính chủ; `status` / `joinedAt` như danh sách; người đã nghỉ → 404 với người không phải HR |

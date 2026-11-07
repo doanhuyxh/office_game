@@ -61,9 +61,17 @@ internal static class LeaveEndpoints
         return TypedResults.Ok((await balances.ComputeAsync([me], ct))[me.Id]);
     }
 
-    private static async Task<Ok<List<EmployeeBalanceDto>>> AllBalancesAsync(IEmployeeDirectory dir, LeaveBalanceService balances, CancellationToken ct)
+    /// <summary>HR: số dư mọi người đang làm. Có <c>page</c> → cắt trang danh sách nhân viên (theo mã) rồi chỉ tính số dư cho trang đó.</summary>
+    private static async Task<Results<Ok<List<EmployeeBalanceDto>>, Ok<PagedResult<EmployeeBalanceDto>>>> AllBalancesAsync(int? page, int? pageSize,
+        IEmployeeDirectory dir, LeaveBalanceService balances, CancellationToken ct)
     {
         var emps = await dir.ListActiveAsync(ct);
+        if (page is { } pg)
+        {
+            var paged = Paging.Of(emps, pg, pageSize);
+            var pb = await balances.ComputeAsync(paged.Items, ct);
+            return TypedResults.Ok(paged.Map(e => new EmployeeBalanceDto(Brief(e), pb[e.Id])));
+        }
         var b = await balances.ComputeAsync(emps, ct);
         return TypedResults.Ok(emps.Select(e => new EmployeeBalanceDto(Brief(e), b[e.Id])).ToList());
     }
@@ -138,32 +146,39 @@ internal static class LeaveEndpoints
         return TypedResults.Ok(ToDto(entity, type.Name, me));
     }
 
-    private static async Task<Results<Ok<List<LeaveRequestDto>>, ProblemHttpResult>> MyRequestsAsync(int? year, ClaimsPrincipal user, IEmployeeDirectory dir,
-        LeaveDbContext db, CancellationToken ct)
+    /// <summary>Đơn của tôi. Có <c>page</c> → trang (COUNT + OFFSET/LIMIT); không → 200 đơn mới nhất.</summary>
+    private static async Task<Results<Ok<List<LeaveRequestDto>>, Ok<PagedResult<LeaveRequestDto>>, ProblemHttpResult>> MyRequestsAsync(int? year, int? page,
+        int? pageSize, ClaimsPrincipal user, IEmployeeDirectory dir, LeaveDbContext db, CancellationToken ct)
     {
         if (await MeAsync(user, dir, ct) is not { } me) return NoProfile();
         var types = await db.Types.ToDictionaryAsync(t => t.Id, t => t.Name, ct);
         var q = db.Requests.AsNoTracking().Where(r => r.EmployeeId == me.Id);
         if (year is { } y) q = q.Where(r => r.StartDate.Year == y || r.EndDate.Year == y);
-        var rows = await q.OrderByDescending(r => r.StartDate).Take(200).ToListAsync(ct);
-        return TypedResults.Ok(rows.Select(r => ToDto(r, types.GetValueOrDefault(r.LeaveTypeId, "?"), me)).ToList());
+        var ordered = q.OrderByDescending(r => r.StartDate).ThenByDescending(r => r.CreatedAt);
+        LeaveRequestDto ToRow(LeaveRequest r) => ToDto(r, types.GetValueOrDefault(r.LeaveTypeId, "?"), me);
+        if (page is { } pg) return TypedResults.Ok((await ordered.ToPagedAsync(pg, pageSize, ct)).Map(ToRow));
+        return TypedResults.Ok((await ordered.Take(200).ToListAsync(ct)).Select(ToRow).ToList());
     }
 
     /// <summary>Lịch nghỉ (đã duyệt + chờ duyệt) trong khoảng ngày: HR thấy cả công ty, quản lý thấy bản thân + cấp dưới.</summary>
-    private static async Task<Ok<List<LeaveRequestDto>>> TeamRequestsAsync(DateOnly from, DateOnly to, ClaimsPrincipal user, IEmployeeDirectory dir,
-        LeaveDbContext db, CancellationToken ct)
+    /// <summary>Lịch nghỉ của team trong [from, to] (đơn chờ duyệt + đã duyệt). Có <c>page</c> → trang.</summary>
+    private static async Task<Results<Ok<List<LeaveRequestDto>>, Ok<PagedResult<LeaveRequestDto>>>> TeamRequestsAsync(DateOnly from, DateOnly to, int? page,
+        int? pageSize, ClaimsPrincipal user, IEmployeeDirectory dir, LeaveDbContext db, CancellationToken ct)
     {
         var all = (await dir.ListActiveAsync(ct)).ToDictionary(e => e.Id);
         HashSet<Guid> visible;
         if (user.IsHr()) visible = [.. all.Keys];
         else if (await MeAsync(user, dir, ct) is { } me) visible = [me.Id, .. await dir.GetSubordinateIdsAsync(me.Id, ct)];
         else visible = [];
+        var ids = visible.Where(all.ContainsKey).ToList(); // chỉ người còn làm trong phạm vi được xem
         var types = await db.Types.ToDictionaryAsync(t => t.Id, t => t.Name, ct);
-        var rows = await db.Requests.AsNoTracking()
-            .Where(r => (r.Status == LeaveStatus.Approved || r.Status == LeaveStatus.Pending) && r.StartDate <= to && r.EndDate >= from)
-            .OrderBy(r => r.StartDate).ToListAsync(ct);
-        return TypedResults.Ok(rows.Where(r => visible.Contains(r.EmployeeId) && all.ContainsKey(r.EmployeeId))
-            .Select(r => ToDto(r, types.GetValueOrDefault(r.LeaveTypeId, "?"), all[r.EmployeeId])).ToList());
+        var ordered = db.Requests.AsNoTracking()
+            .Where(r => (r.Status == LeaveStatus.Approved || r.Status == LeaveStatus.Pending) && r.StartDate <= to && r.EndDate >= from
+                && ids.Contains(r.EmployeeId))
+            .OrderBy(r => r.StartDate).ThenBy(r => r.CreatedAt);
+        LeaveRequestDto ToRow(LeaveRequest r) => ToDto(r, types.GetValueOrDefault(r.LeaveTypeId, "?"), all[r.EmployeeId]);
+        if (page is { } pg) return TypedResults.Ok((await ordered.ToPagedAsync(pg, pageSize, ct)).Map(ToRow));
+        return TypedResults.Ok((await ordered.ToListAsync(ct)).Select(ToRow).ToList());
     }
 
     private static async Task<Ok<List<AdjustmentDto>>> AdjustmentsAsync(Guid? employeeId, LeaveDbContext db, CancellationToken ct)

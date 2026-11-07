@@ -139,8 +139,9 @@ internal static class ShiftEndpoints
     // ---------------- Lịch tuần ----------------
 
     /// <summary>Lịch đang áp dụng (và sắp áp dụng) của công ty + từng nhân viên có lịch riêng.</summary>
-    private static async Task<Ok<List<ScheduleDto>>> ListSchedulesAsync(AttendanceDbContext db, IEmployeeDirectory dir,
-        AttendanceService svc, CancellationToken ct)
+    /// <summary>Bộ đang hiệu lực + tương lai của công ty rồi từng nhân viên còn làm. Có <c>page</c> → trang.</summary>
+    private static async Task<Results<Ok<List<ScheduleDto>>, Ok<PagedResult<ScheduleDto>>>> ListSchedulesAsync(int? page, int? pageSize, AttendanceDbContext db,
+        IEmployeeDirectory dir, AttendanceService svc, CancellationToken ct)
     {
         var all = await db.Schedules.AsNoTracking().ToListAsync(ct);
         var names = (await dir.ListActiveAsync(ct)).ToDictionary(e => e.Id, e => $"{e.Code} · {e.FullName}");
@@ -156,6 +157,7 @@ internal static class ShiftEndpoints
                     [.. set.OrderBy(x => x.DayOfWeek).Select(x => new WeekDay((int)x.DayOfWeek, x.ShiftId))]));
             }
         }
+        if (page is { } pg) return TypedResults.Ok(Paging.Of(result, pg, pageSize));
         return TypedResults.Ok(result);
     }
 

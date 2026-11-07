@@ -124,21 +124,29 @@ internal static class OvertimeEndpoints
     }
 
     /// <summary>Đơn tăng ca của tôi (theo tháng nếu có), kèm loại ngày tính theo lịch / ngày lễ hiện tại.</summary>
-    private static async Task<Results<Ok<List<OvertimeDto>>, ProblemHttpResult>> MyAsync(string? month, ClaimsPrincipal user, IEmployeeDirectory dir,
-        AttendanceDbContext db, AttendanceService svc, CancellationToken ct)
+    /// <summary>Đơn tăng ca của tôi. Có <c>page</c> → trang (COUNT + OFFSET/LIMIT); không → 200 đơn mới nhất.</summary>
+    private static async Task<Results<Ok<List<OvertimeDto>>, Ok<PagedResult<OvertimeDto>>, ProblemHttpResult>> MyAsync(string? month, int? page, int? pageSize,
+        ClaimsPrincipal user, IEmployeeDirectory dir, AttendanceDbContext db, AttendanceService svc, CancellationToken ct)
     {
         if (await CheckEndpoints.CurrentEmployeeAsync(user, dir, ct) is not { } me) return CheckEndpoints.NoProfile();
         var q = db.Overtime.AsNoTracking().Where(o => o.EmployeeId == me.Id);
         if (DateOnly.TryParseExact((month ?? "") + "-01", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var m))
             q = q.Where(o => o.WorkDate >= m && o.WorkDate < m.AddMonths(1));
-        var rows = await q.OrderByDescending(o => o.WorkDate).ThenByDescending(o => o.StartTime).Take(200).ToListAsync(ct);
-        if (rows.Count == 0) return TypedResults.Ok(new List<OvertimeDto>());
+        var ordered = q.OrderByDescending(o => o.WorkDate).ThenByDescending(o => o.StartTime);
+        var paged = page is { } pg ? await ordered.ToPagedAsync(pg, pageSize, ct) : null;
+        var rows = paged?.Items.ToList() ?? await ordered.Take(200).ToListAsync(ct);
 
-        var (from, to) = (rows.Min(r => r.WorkDate), rows.Max(r => r.WorkDate));
-        var holidays = (await db.Holidays.AsNoTracking().Where(h => h.Date >= from && h.Date <= to).Select(h => h.Date).ToListAsync(ct)).ToHashSet();
-        var schedules = await db.Schedules.AsNoTracking().Where(s => s.EmployeeId == null || s.EmployeeId == me.Id).ToListAsync(ct);
-        return TypedResults.Ok(rows.Select(o => ToDto(o, OvertimeRules.Classify(holidays.Contains(o.WorkDate),
-            AttendanceService.ShiftIdForDate(schedules, me.Id, o.WorkDate) is not null))).ToList());
+        List<OvertimeDto> dtos = [];
+        if (rows.Count > 0)
+        {
+            var (from, to) = (rows.Min(r => r.WorkDate), rows.Max(r => r.WorkDate));
+            var holidays = (await db.Holidays.AsNoTracking().Where(h => h.Date >= from && h.Date <= to).Select(h => h.Date).ToListAsync(ct)).ToHashSet();
+            var schedules = await db.Schedules.AsNoTracking().Where(s => s.EmployeeId == null || s.EmployeeId == me.Id).ToListAsync(ct);
+            dtos = rows.Select(o => ToDto(o, OvertimeRules.Classify(holidays.Contains(o.WorkDate),
+                AttendanceService.ShiftIdForDate(schedules, me.Id, o.WorkDate) is not null))).ToList();
+        }
+        if (paged is null) return TypedResults.Ok(dtos);
+        return TypedResults.Ok(paged.With(dtos));
     }
 
     private static bool TryTime(string? s, out TimeOnly t) =>

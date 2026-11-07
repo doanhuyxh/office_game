@@ -101,3 +101,15 @@ export interface ISignRequest {
   originalSha256: string; signedSha256: string | null; canSign: boolean;
 }
 export interface IOtpSent { sentTo: string; expiresAt: string }
+
+/** Nút lọc danh sách hợp đồng (BE `?filter=`): active = Active + Upcoming; expiring = Active còn ≤ 30 ngày; ended = Expired + Terminated. */
+export type ContractFilter = 'all' | 'active' | 'expiring' | 'ended';
+
+/** `GET /api/contracts/summary`: số hợp đồng theo nút lọc + nhân viên đang làm chưa có hợp đồng hiệu lực. */
+export interface IContractSummary {
+  all: number;
+  active: number;
+  expiring: number;
+  ended: number;
+  withoutContract: IContractEmployee[];
+}

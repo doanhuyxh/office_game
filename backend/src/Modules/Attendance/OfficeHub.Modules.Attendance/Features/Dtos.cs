@@ -1,6 +1,7 @@
 using OfficeHub.Modules.Attendance.Domain;
 using OfficeHub.Modules.Attendance.Infrastructure;
 using OfficeHub.Modules.Organization.Contracts;
+using OfficeHub.BuildingBlocks.Http;
 
 namespace OfficeHub.Modules.Attendance.Features;
 
@@ -25,6 +26,9 @@ public sealed record TodayDto(EmployeeBrief Employee, bool CheckedIn, string Nex
 public sealed record MonthDto(EmployeeBrief Employee, string Month, IReadOnlyList<DayDto> Days, SummaryDto Summary);
 
 public sealed record BoardRow(EmployeeBrief Employee, DayDto Day);
+/// <summary>Trang bảng hôm nay + số người theo từng trạng thái (tính trên toàn bộ, không chỉ trang).</summary>
+public sealed record BoardPage(IReadOnlyList<BoardRow> Items, int Total, int Page, int PageSize, IReadOnlyDictionary<string, int> Counts)
+    : PagedResult<BoardRow>(Items, Total, Page, PageSize);
 
 public sealed record ReportRow(EmployeeBrief Employee, SummaryDto Summary);
 

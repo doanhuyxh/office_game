@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using OfficeHub.BuildingBlocks.Auth;
+using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.Modules.Attendance.Features.Check;
 using OfficeHub.Modules.Attendance.Infrastructure;
 using OfficeHub.Modules.Organization.Contracts;
@@ -40,22 +41,41 @@ internal static class TimesheetEndpoints
     }
 
     /// <summary>Tình trạng chấm công của mọi người trong một ngày (mặc định hôm nay).</summary>
-    private static async Task<Ok<List<BoardRow>>> BoardAsync(DateOnly? date, ClaimsPrincipal user, IEmployeeDirectory dir,
-        AttendanceService svc, CancellationToken ct)
+    /// <summary>Thứ tự hiển thị bảng hôm nay: đang làm → đã xong → thiếu giờ ra → chưa chấm → nghỉ phép → vắng → lễ / nghỉ.</summary>
+    private static readonly Dictionary<string, int> BoardOrder = new()
+    {
+        ["Working"] = 0, ["Present"] = 1, ["MissingCheckout"] = 2, ["NotYet"] = 3, ["Leave"] = 4, ["Absent"] = 5, ["Holiday"] = 6, ["DayOff"] = 7, ["NotEmployed"] = 8,
+    };
+
+    /// <summary>Có <c>page</c> → tính cả công ty (cần để sắp theo trạng thái + đếm), trả một trang kèm số người theo trạng thái.</summary>
+    private static async Task<Results<Ok<List<BoardRow>>, Ok<BoardPage>>> BoardAsync(DateOnly? date, int? page, int? pageSize, ClaimsPrincipal user,
+        IEmployeeDirectory dir, AttendanceService svc, CancellationToken ct)
     {
         var d = date ?? svc.Today;
         var emps = await VisibleEmployeesAsync(user, dir, ct);
         var computed = await svc.ComputeAsync(emps, d, d, ct);
-        return TypedResults.Ok(emps.Select(e => new BoardRow(DtoMap.Brief(e), DtoMap.Day(computed[e.Id][0]))).ToList());
+        var rows = emps.Select(e => new BoardRow(DtoMap.Brief(e), DtoMap.Day(computed[e.Id][0]))).ToList();
+        if (page is not { } pg) return TypedResults.Ok(rows);
+        var sorted = rows.OrderBy(r => BoardOrder.GetValueOrDefault(r.Day.Status, 99)).ToList(); // OrderBy ổn định → cùng trạng thái giữ thứ tự mã NV
+        var counts = rows.GroupBy(r => r.Day.Status).ToDictionary(g => g.Key, g => g.Count());
+        var paged = Paging.Of(sorted, pg, pageSize);
+        return TypedResults.Ok(new BoardPage(paged.Items, paged.Total, paged.Page, paged.PageSize, counts));
     }
 
     /// <summary>Tổng hợp tháng cho từng nhân viên (đến hôm nay nếu là tháng hiện tại).</summary>
-    private static async Task<Results<Ok<List<ReportRow>>, ProblemHttpResult>> ReportAsync(string? month, ClaimsPrincipal user,
-        IEmployeeDirectory dir, AttendanceService svc, CancellationToken ct)
+    /// <summary>Có <c>page</c> → cắt trang danh sách nhân viên (theo mã) rồi chỉ tính bảng công cho trang đó.</summary>
+    private static async Task<Results<Ok<List<ReportRow>>, Ok<PagedResult<ReportRow>>, ProblemHttpResult>> ReportAsync(string? month, int? page, int? pageSize,
+        ClaimsPrincipal user, IEmployeeDirectory dir, AttendanceService svc, CancellationToken ct)
     {
         if (ParseMonth(month, svc) is not { } m) return BadMonth();
         var (from, to) = Range(m, svc);
         var emps = await VisibleEmployeesAsync(user, dir, ct);
+        if (page is { } pg)
+        {
+            var paged = Paging.Of(emps, pg, pageSize);
+            var pc = await svc.ComputeAsync(paged.Items, from, to, ct);
+            return TypedResults.Ok(paged.Map(e => new ReportRow(DtoMap.Brief(e), DtoMap.Summary(pc[e.Id]))));
+        }
         var computed = await svc.ComputeAsync(emps, from, to, ct);
         return TypedResults.Ok(emps.Select(e => new ReportRow(DtoMap.Brief(e), DtoMap.Summary(computed[e.Id]))).ToList());
     }

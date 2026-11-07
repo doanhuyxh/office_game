@@ -38,8 +38,9 @@ internal static class AccessTokenEndpoints
     public sealed record AiConnectionDto(string Kind, Guid Id, Guid UserId, string UserName, string FullName, string Name,
         DateTimeOffset CreatedAt, DateTimeOffset? LastUsedAt, DateTimeOffset ExpiresAt);
 
-    private static async Task<Results<Ok<List<AiConnectionDto>>, ProblemHttpResult>> ConnectionsAsync(ClaimsPrincipal user,
-        OfficeIdentityDbContext db, TimeProvider clock, CancellationToken ct)
+    /// <summary>HR: token + ứng dụng đang hoạt động của cả công ty (mới dùng gần nhất trước). Có <c>page</c> → trang.</summary>
+    private static async Task<Results<Ok<List<AiConnectionDto>>, Ok<PagedResult<AiConnectionDto>>, ProblemHttpResult>> ConnectionsAsync(int? page, int? pageSize,
+        ClaimsPrincipal user, OfficeIdentityDbContext db, TimeProvider clock, CancellationToken ct)
     {
         if (user.IsAccessToken()) return TokenNotAllowed();
         var now = clock.GetUtcNow();
@@ -53,7 +54,9 @@ internal static class AccessTokenEndpoints
             .Join(db.Users, g => g.UserId, u => u.Id, (g, u) => new AiConnectionDto("app", g.Id, u.Id, u.UserName!, u.FullName, g.ClientName,
                 g.CreatedAt, g.LastUsedAt, g.RefreshExpiresAt))
             .ToListAsync(ct);
-        return TypedResults.Ok(tokens.Concat(apps).OrderByDescending(c => c.LastUsedAt ?? c.CreatedAt).ToList());
+        var all = tokens.Concat(apps).OrderByDescending(c => c.LastUsedAt ?? c.CreatedAt).ToList();
+        if (page is { } pg) return TypedResults.Ok(Paging.Of(all, pg, pageSize));
+        return TypedResults.Ok(all);
     }
 
     private static async Task<Ok<List<AccessTokenDto>>> ListAsync(ClaimsPrincipal user, OfficeIdentityDbContext db, TimeProvider clock, CancellationToken ct)

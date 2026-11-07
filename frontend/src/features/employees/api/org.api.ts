@@ -1,4 +1,5 @@
-import { http, httpPost } from '@/services/api-client';
+import { http, httpPost, pageQs } from '@/services/api-client';
+import type { IPaged, IPageQuery } from '@/types/api';
 import type {
   AccountMode, IAccountCreated, IDepartment, IEmployee, IEmployeeDetail, IEmployeeFilter, IPosition,
   IImportPreview, IImportResult, IUpsertDepartment, IUpsertEmployee, IUpsertPosition,
@@ -11,6 +12,7 @@ const del = (url: string) => http<void>(url, { method: 'DELETE' });
 export const orgKeys = {
   all: ['org'] as const,
   employees: (f: IEmployeeFilter = {}) => ['org', 'employees', f] as const,
+  employeesPage: (f: IEmployeeFilter, q: IPageQuery) => ['org', 'employees', 'page', f, q] as const,
   employee: (id: string) => ['org', 'employee', id] as const,
   myProfile: ['org', 'employee', 'me'] as const,
   departments: ['org', 'departments'] as const,
@@ -21,14 +23,19 @@ export const orgKeys = {
   guideTemplates: ['org', 'guide-templates'] as const,
 };
 
+const employeeParams = (f: IEmployeeFilter) => {
+  const q = new URLSearchParams();
+  if (f.search) q.set('search', f.search);
+  if (f.departmentId) q.set('departmentId', f.departmentId);
+  if (f.includeResigned) q.set('includeResigned', 'true');
+  return q;
+};
+
 export const employeesApi = {
-  list: (f: IEmployeeFilter = {}) => {
-    const q = new URLSearchParams();
-    if (f.search) q.set('search', f.search);
-    if (f.departmentId) q.set('departmentId', f.departmentId);
-    if (f.includeResigned) q.set('includeResigned', 'true');
-    return http<IEmployee[]>(`/api/org/employees?${q}`);
-  },
+  /** Cả danh sách (chọn nhân viên trong form, sơ đồ tổ chức). */
+  list: (f: IEmployeeFilter = {}) => http<IEmployee[]>(`/api/org/employees?${employeeParams(f)}`),
+  /** Một trang (danh bạ) — BE lọc + cắt trang. */
+  listPage: (f: IEmployeeFilter, q: IPageQuery) => http<IPaged<IEmployee>>(`/api/org/employees?${employeeParams(f)}&${pageQs(q)}`),
   get: (id: string) => http<IEmployeeDetail>(`/api/org/employees/${id}`),
   me: () => http<IEmployeeDetail>('/api/org/employees/me'),
   nextCode: () => http<{ code: string }>('/api/org/employees/next-code'),

@@ -109,11 +109,14 @@ internal sealed class ReportService(IEmployeeDirectory dir, IAttendanceReports a
     // ---------------- Phép năm → tiền khi nghỉ việc ----------------
 
     /// <summary>Người đang làm + người đã nghỉ trong năm nay.</summary>
-    public async Task<IReadOnlyList<LeavePayoutRow>> LeavePayoutAsync(CancellationToken ct)
+    public async Task<IReadOnlyList<LeavePayoutRow>> LeavePayoutAsync(CancellationToken ct) =>
+        await LeavePayoutForAsync(await LeavePayoutEmployeesAsync(ct), ct);
+
+    /// <summary>Người đang làm + người đã nghỉ trong năm nay, sắp theo mã NV (để cắt trang trước khi tính).</summary>
+    public async Task<IReadOnlyList<EmployeeRef>> LeavePayoutEmployeesAsync(CancellationToken ct)
     {
         var today = Today;
-        var employees = await dir.ListEmployedAsync(new DateOnly(today.Year, 1, 1), today, ct);
-        return await LeavePayoutForAsync(employees, ct);
+        return await dir.ListEmployedAsync(new DateOnly(today.Year, 1, 1), today, ct);
     }
 
     public async Task<IReadOnlyList<LeavePayoutRow>> LeavePayoutForAsync(IReadOnlyList<EmployeeRef> employees, CancellationToken ct)

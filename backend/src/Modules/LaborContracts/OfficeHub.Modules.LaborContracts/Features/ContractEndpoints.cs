@@ -31,6 +31,8 @@ public sealed record UpsertContractRequest(Guid EmployeeId, string Number, strin
 public sealed record TerminateRequest(DateOnly TerminatedOn, string Reason);
 public sealed record CreateAmendmentRequest(string Number, DateOnly EffectiveDate, string Content, decimal? Salary, decimal? Allowance);
 public sealed record FileUrlDto(string Url, string Name);
+/// <summary>Số hợp đồng theo từng nút lọc của FE + nhân viên đang làm chưa có hợp đồng hiệu lực.</summary>
+public sealed record ContractSummaryDto(int All, int Active, int Expiring, int Ended, IReadOnlyList<EmployeeBrief> WithoutContract);
 
 /// <summary>
 /// Hợp đồng lao động. Quyền (chủ dự án chốt): HR/admin quản lý mọi hợp đồng; nhân viên chỉ XEM hợp đồng của chính mình (kể cả lương, file).
@@ -43,6 +45,7 @@ internal static class ContractEndpoints
     public static void Map(RouteGroupBuilder g)
     {
         g.MapGet("/", ListAsync).RequireAuthorization(AuthPolicies.Hr);
+        g.MapGet("/summary", SummaryAsync).RequireAuthorization(AuthPolicies.Hr);
         g.MapGet("/my", MyAsync);
         g.MapGet("/{id:guid}", GetAsync);
         g.MapPost("/", CreateAsync).RequireAuthorization(AuthPolicies.Hr);
@@ -66,15 +69,71 @@ internal static class ContractEndpoints
     // ---------- Đọc ----------
 
     /// <summary>HR: mọi hợp đồng (lọc theo nhân viên / trạng thái), mới nhất trước.</summary>
-    private static async Task<Ok<List<ContractDto>>> ListAsync(Guid? employeeId, string? status, ContractsDbContext db, IEmployeeDirectory dir,
-        IFieldEncryptor enc, IOptions<OfficeSettings> office, TimeProvider clock, CancellationToken ct)
+    /// <summary>
+    /// HR: mọi hợp đồng. <c>status</c> = Upcoming | Active | Expired | Terminated; <c>filter</c> = all | active (đang + sắp hiệu lực) | expiring (Active, còn ≤ 30 ngày)
+    /// | ended (hết hạn / chấm dứt); <c>search</c> = tên / mã nhân viên / số HĐ. Có <c>page</c> → trang (lọc + cắt ở DB, chỉ giải mã lương của trang); không → cả danh sách.
+    /// </summary>
+    private static async Task<Results<Ok<List<ContractDto>>, Ok<PagedResult<ContractDto>>>> ListAsync(Guid? employeeId, string? status, string? filter, string? search,
+        int? page, int? pageSize, ContractsDbContext db, IEmployeeDirectory dir, IFieldEncryptor enc, IOptions<OfficeSettings> office, TimeProvider clock,
+        CancellationToken ct)
     {
+        var today = Today(office, clock);
         var q = WithAmendments(db).AsNoTracking();
         if (employeeId is { } eid) q = q.Where(c => c.EmployeeId == eid);
-        var rows = await q.OrderByDescending(c => c.StartDate).ToListAsync(ct);
-        var dtos = await ToDtosAsync(rows, dir, enc, Today(office, clock), ct);
-        if (!string.IsNullOrWhiteSpace(status)) dtos = [.. dtos.Where(d => d.Status.Equals(status, StringComparison.OrdinalIgnoreCase))];
-        return TypedResults.Ok(dtos);
+        q = ByStatus(ByFilter(q, filter, today), status, today);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.Trim();
+            var like = $"%{s}%";
+            // Tên / mã nhân viên nằm ở module Organization (không JOIN chéo schema) → lọc id qua directory rồi đưa vào truy vấn.
+            var ids = (await dir.ListEmployedAsync(DateOnly.MinValue, DateOnly.MaxValue, ct))
+                .Where(e => e.FullName.Contains(s, StringComparison.OrdinalIgnoreCase) || e.Code.Contains(s, StringComparison.OrdinalIgnoreCase))
+                .Select(e => e.Id).ToList();
+            q = q.Where(c => EF.Functions.ILike(c.Number, like) || ids.Contains(c.EmployeeId));
+        }
+        var ordered = q.OrderByDescending(c => c.StartDate).ThenBy(c => c.Number);
+        if (page is { } pg)
+        {
+            var paged = await ordered.ToPagedAsync(pg, pageSize, ct);
+            return TypedResults.Ok(paged.With(await ToDtosAsync([.. paged.Items], dir, enc, today, ct)));
+        }
+        return TypedResults.Ok(await ToDtosAsync(await ordered.ToListAsync(ct), dir, enc, today, ct));
+    }
+
+    /// <summary>Cùng quy tắc với <see cref="ContractRules.Status"/> nhưng viết dạng truy vấn để lọc / đếm ở DB.</summary>
+    private static IQueryable<LaborContract> ByStatus(IQueryable<LaborContract> q, string? status, DateOnly today) =>
+        status?.ToLowerInvariant() switch
+        {
+            "active" => q.Where(c => c.TerminatedOn == null && c.StartDate <= today && (c.EndDate == null || c.EndDate >= today)),
+            "upcoming" => q.Where(c => c.TerminatedOn == null && c.StartDate > today),
+            "expired" => q.Where(c => c.TerminatedOn == null && c.EndDate != null && c.EndDate < today),
+            "terminated" => q.Where(c => c.TerminatedOn != null),
+            _ => q,
+        };
+
+    /// <summary>Nút lọc trên FE: active = Active + Upcoming; expiring = Active còn ≤ <see cref="ContractRules.RemindDays"/> ngày; ended = Expired + Terminated.</summary>
+    private static IQueryable<LaborContract> ByFilter(IQueryable<LaborContract> q, string? filter, DateOnly today)
+    {
+        var soon = today.AddDays(ContractRules.RemindDays);
+        return filter?.ToLowerInvariant() switch
+        {
+            "active" => q.Where(c => c.TerminatedOn == null && (c.EndDate == null || c.EndDate >= today)),
+            "expiring" => q.Where(c => c.TerminatedOn == null && c.StartDate <= today && c.EndDate != null && c.EndDate >= today && c.EndDate <= soon),
+            "ended" => q.Where(c => c.TerminatedOn != null || (c.EndDate != null && c.EndDate < today)),
+            _ => q,
+        };
+    }
+
+    private static async Task<Ok<ContractSummaryDto>> SummaryAsync(ContractsDbContext db, IEmployeeDirectory dir, IOptions<OfficeSettings> office,
+        TimeProvider clock, CancellationToken ct)
+    {
+        var today = Today(office, clock);
+        var q = db.Contracts.AsNoTracking();
+        var covered = (await ByStatus(q, "active", today).Select(c => c.EmployeeId).Distinct().ToListAsync(ct)).ToHashSet();
+        var without = (await dir.ListActiveAsync(ct)).Where(e => !covered.Contains(e.Id))
+            .Select(e => new EmployeeBrief(e.Id, e.Code, e.FullName, e.DepartmentName, e.IsActive)).ToList();
+        return TypedResults.Ok(new ContractSummaryDto(await q.CountAsync(ct), await ByFilter(q, "active", today).CountAsync(ct),
+            await ByFilter(q, "expiring", today).CountAsync(ct), await ByFilter(q, "ended", today).CountAsync(ct), without));
     }
 
     private static async Task<Results<Ok<List<ContractDto>>, ProblemHttpResult>> MyAsync(ClaimsPrincipal user, ContractsDbContext db, IEmployeeDirectory dir,

@@ -9,6 +9,7 @@ import { Button } from '@/components/common/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
+import { TablePagination, usePageState } from '@/components/common/pagination';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
 import { Spinner } from '@/components/feedback/Spinner';
 import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
@@ -16,7 +17,7 @@ import { hasRole, useMe } from '@/features/auth';
 import { formatDate, formatDateTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
 import {
-  useAccessTokens, useAiActivity, useAiConnections, useGrants, useRevokeAccessToken, useRevokeGrant,
+  useAccessTokens, useAiConnectionsPage, useGrants, useRevokeAccessToken, useRevokeGrant,
 } from '../hooks/useAccessTokens';
 import { TOKEN_STATUS } from '../utils/labels';
 import { ActivityTable } from './ActivityTable';
@@ -80,7 +81,6 @@ const RevokeButton = ({ onClick }: { onClick: () => void }) => (
 function MyTab({ onCreate, newToken }: { onCreate: () => void; newToken: string | null }) {
   const tokens = useAccessTokens();
   const grants = useGrants();
-  const activity = useAiActivity();
   const revoke = useRevoke();
 
   return (
@@ -200,7 +200,7 @@ function MyTab({ onCreate, newToken }: { onCreate: () => void; newToken: string 
           <CardTitle className="text-base">Hoạt động gần đây</CardTitle>
           <CardDescription>Mọi thao tác trợ lý AI đã làm thay bạn (lưu 180 ngày).</CardDescription>
         </CardHeader>
-        <CardContent><ActivityTable rows={activity.data} loading={activity.isLoading} /></CardContent>
+        <CardContent><ActivityTable /></CardContent>
       </Card>
       {revoke.dialog}
     </div>
@@ -208,11 +208,10 @@ function MyTab({ onCreate, newToken }: { onCreate: () => void; newToken: string 
 }
 
 function CompanyTab() {
-  const connections = useAiConnections(true);
-  const [userId, setUserId] = useState<string | null>(null);
-  const activity = useAiActivity({ all: true, userId });
+  const pg = usePageState('ai-connections');
+  const connections = useAiConnectionsPage(pg.query, true);
+  const [selected, setSelected] = useState<{ userId: string; fullName: string } | null>(null); // giữ tên dù đổi trang
   const revoke = useRevoke();
-  const selected = connections.data?.find((c) => c.userId === userId);
 
   return (
     <div className="grid grid-cols-1 gap-6">
@@ -225,7 +224,7 @@ function CompanyTab() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {connections.isLoading ? <Spinner /> : !connections.data?.length ? (
+          {connections.isLoading ? <Spinner /> : !connections.data?.items.length ? (
             <p className="py-6 text-center text-sm text-muted-foreground">Chưa ai kết nối trợ lý AI.</p>
           ) : (
             <div className="overflow-x-auto">
@@ -241,10 +240,10 @@ function CompanyTab() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {connections.data.map((c) => (
+                  {connections.data.items.map((c) => (
                     <TableRow key={`${c.kind}-${c.id}`}>
                       <TableCell>
-                        <button type="button" className="text-left hover:underline" onClick={() => setUserId(c.userId)}>
+                        <button type="button" className="text-left hover:underline" onClick={() => setSelected({ userId: c.userId, fullName: c.fullName })}>
                           <div className="font-medium">{c.fullName}</div>
                           <div className="text-xs text-muted-foreground">{c.userName}</div>
                         </button>
@@ -258,6 +257,7 @@ function CompanyTab() {
                   ))}
                 </TableBody>
               </Table>
+              <TablePagination state={pg} total={connections.data.total} unit="kết nối" />
             </div>
           )}
         </CardContent>
@@ -268,10 +268,10 @@ function CompanyTab() {
           <CardTitle className="text-base">Nhật ký AI {selected ? `— ${selected.fullName}` : 'toàn công ty'}</CardTitle>
           <CardDescription className="flex flex-wrap items-center gap-2">
             Bấm tên nhân viên ở bảng trên để lọc.
-            {userId && <Button size="sm" variant="link" className="h-auto p-0" onClick={() => setUserId(null)}>Xem tất cả</Button>}
+            {selected && <Button size="sm" variant="link" className="h-auto p-0" onClick={() => setSelected(null)}>Xem tất cả</Button>}
           </CardDescription>
         </CardHeader>
-        <CardContent><ActivityTable rows={activity.data} loading={activity.isLoading} showUser /></CardContent>
+        <CardContent><ActivityTable all userId={selected?.userId ?? null} showUser /></CardContent>
       </Card>
       {revoke.dialog}
     </div>

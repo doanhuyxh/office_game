@@ -35,7 +35,8 @@
 
 | Method | Path | Quyền |
 |---|---|---|
-| GET | `/` (`?employeeId=&status=`) | HR |
+| GET | `/` (`?employeeId=&status=&filter=&search=&page=&pageSize=`) | HR — `filter` all \| active (Active + Upcoming) \| expiring (Active, còn ≤ 30 ngày) \| ended (Expired + Terminated); `search` = tên / mã NV / số HĐ; có `page` → trang, chỉ giải mã lương của trang |
+| GET | `/summary` | HR — `{ all, active, expiring, ended, withoutContract[] }` (số theo nút lọc + nhân viên đang làm chưa có HĐ hiệu lực) |
 | GET | `/my` | nhân viên (không có hồ sơ → 409 `no_employee_profile`) |
 | GET | `/{id}` | HR hoặc chủ hợp đồng; khác → 403 `"Bạn không có quyền xem hợp đồng này"` |
 | POST / PUT | `/`, `/{id}` | HR — `{ employeeId, number, type, signedDate?, startDate, endDate?, jobTitle?, salary?, allowance?, note? }` |

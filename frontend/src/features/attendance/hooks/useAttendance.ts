@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/services/api-client';
+import type { IPageQuery } from '@/types/api';
 import { attendanceApi, attendanceKeys } from '../api/attendance.api';
 import type { CheckSource, ICreateCorrection, ICreateOvertime, IUpsertShift, IWeekDay } from '../types/attendance.types';
 
@@ -30,10 +31,13 @@ export function useCheck() {
 export const useMyMonth = (month: string) => useQuery({ queryKey: attendanceKeys.my(month), queryFn: () => attendanceApi.my(month) });
 export const useEmployeeMonth = (id: string | null, month: string) =>
   useQuery({ queryKey: attendanceKeys.employee(id ?? '', month), queryFn: () => attendanceApi.employeeMonth(id!, month), enabled: !!id });
-export const useBoard = (date?: string) => useQuery({ queryKey: attendanceKeys.board(date), queryFn: () => attendanceApi.board(date), refetchInterval: 60_000 });
-export const useReport = (month: string) => useQuery({ queryKey: attendanceKeys.report(month), queryFn: () => attendanceApi.report(month) });
+export const useBoardPage = (q: IPageQuery) =>
+  useQuery({ queryKey: attendanceKeys.boardPage(q), queryFn: () => attendanceApi.boardPage(q), refetchInterval: 60_000, placeholderData: (prev) => prev });
+export const useReportPage = (month: string, q: IPageQuery) =>
+  useQuery({ queryKey: attendanceKeys.reportPage(month, q), queryFn: () => attendanceApi.reportPage(month, q), placeholderData: (prev) => prev });
 export const useShifts = () => useQuery({ queryKey: attendanceKeys.shifts, queryFn: attendanceApi.shifts });
-export const useSchedules = () => useQuery({ queryKey: attendanceKeys.schedules, queryFn: attendanceApi.schedules });
+export const useSchedulesPage = (q: IPageQuery) =>
+  useQuery({ queryKey: attendanceKeys.schedulesPage(q), queryFn: () => attendanceApi.schedulesPage(q), placeholderData: (prev) => prev });
 export const useHolidays = (year: number) => useQuery({ queryKey: attendanceKeys.holidays(year), queryFn: () => attendanceApi.holidays(year) });
 
 function useInvalidate() {
@@ -83,8 +87,8 @@ export function useCreateCorrection() {
   });
 }
 
-export const useMyOvertime = (month: string) =>
-  useQuery({ queryKey: attendanceKeys.overtime(month), queryFn: () => attendanceApi.myOvertime(month), retry: false });
+export const useMyOvertimePage = (month: string, q: IPageQuery) =>
+  useQuery({ queryKey: attendanceKeys.overtimePage(month, q), queryFn: () => attendanceApi.myOvertimePage(month, q), retry: false, placeholderData: (prev) => prev });
 
 /** Xem trước đơn tăng ca (số giờ, loại ngày, cảnh báo vượt giới hạn). Chỉ gọi khi đủ ngày + giờ. Lỗi 400 trả theo field. */
 export const useOvertimePreview = (v: Omit<ICreateOvertime, 'reason'>, enabled: boolean) =>

@@ -45,6 +45,7 @@ internal static class PayrollEndpoints
         hr.MapGet("/periods", PeriodsAsync);
         hr.MapPost("/periods", CreatePeriodAsync);
         hr.MapGet("/periods/{id:guid}", PeriodAsync);
+        hr.MapGet("/periods/{id:guid}/payslips", PayslipsAsync);
         hr.MapPost("/periods/{id:guid}/compute", ComputeAsync);
         hr.MapPost("/periods/{id:guid}/lock", LockAsync);
         hr.MapPost("/periods/{id:guid}/unlock", UnlockAsync);
@@ -88,13 +89,20 @@ internal static class PayrollEndpoints
 
     // ---------------- Hồ sơ thuế ----------------
 
-    private static async Task<Ok<List<ProfileDto>>> ProfilesAsync(PayrollDbContext db, IEmployeeDirectory dir, CancellationToken ct)
+    /// <summary>Hồ sơ thuế của mọi người đang làm (theo mã NV). Có <c>page</c> → cắt trang danh sách nhân viên rồi chỉ đọc hồ sơ của trang.</summary>
+    private static async Task<Results<Ok<List<ProfileDto>>, Ok<PagedResult<ProfileDto>>>> ProfilesAsync(int? page, int? pageSize, PayrollDbContext db,
+        IEmployeeDirectory dir, CancellationToken ct)
     {
         var emps = await dir.ListActiveAsync(ct);
-        var profiles = await db.Profiles.AsNoTracking().ToDictionaryAsync(p => p.EmployeeId, ct);
-        return TypedResults.Ok(emps.Select(e => profiles.GetValueOrDefault(e.Id) is { } p
+        var paged = page is { } pg ? Paging.Of(emps, pg, pageSize) : null;
+        var shown = paged?.Items ?? emps;
+        var ids = shown.Select(e => e.Id).ToList();
+        var profiles = await db.Profiles.AsNoTracking().Where(p => ids.Contains(p.EmployeeId)).ToDictionaryAsync(p => p.EmployeeId, ct);
+        var dtos = shown.Select(e => profiles.GetValueOrDefault(e.Id) is { } p
             ? new ProfileDto(e.Id, e.Code, e.FullName, e.DepartmentName, p.Dependents, p.Insured, p.TaxCode, p.Note)
-            : new ProfileDto(e.Id, e.Code, e.FullName, e.DepartmentName, 0, null, null, null)).ToList());
+            : new ProfileDto(e.Id, e.Code, e.FullName, e.DepartmentName, 0, null, null, null)).ToList();
+        if (paged is null) return TypedResults.Ok(dtos);
+        return TypedResults.Ok(paged.With(dtos));
     }
 
     private static async Task<Results<NoContent, NotFound, ValidationProblem>> SaveProfileAsync(Guid employeeId, SaveProfileRequest req,
@@ -143,6 +151,22 @@ internal static class PayrollEndpoints
         await db.SaveChangesAsync(ct);
         await svc.ComputeAsync(period, ct);
         return TypedResults.Ok(ToDto(period, (await db.Payslips.AsNoTracking().Where(s => s.PeriodId == period.Id).ToListAsync(ct)).Select(svc.Read).ToList()));
+    }
+
+    /// <summary>Phiếu lương của một kỳ theo trang (sắp theo mã NV); chỉ giải mã các phiếu trong trang. Tổng của kỳ lấy ở <c>GET /periods/{id}</c>.</summary>
+    private static async Task<Results<Ok<PagedResult<PayslipDto>>, NotFound>> PayslipsAsync(Guid id, int? page, int? pageSize, PayrollDbContext db,
+        PayrollService svc, IEmployeeDirectory dir, CancellationToken ct)
+    {
+        var p = await db.Periods.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (p is null) return TypedResults.NotFound();
+        var codes = (await dir.ListEmployedAsync(p.Month, p.Month.AddMonths(1).AddDays(-1), ct)).ToDictionary(e => e.Id, e => e.Code);
+        var rows = (await db.Payslips.AsNoTracking().Where(s => s.PeriodId == id).ToListAsync(ct))
+            .OrderBy(s => codes.GetValueOrDefault(s.EmployeeId, "~"), StringComparer.Ordinal).ThenBy(s => s.EmployeeId).ToList();
+        var paged = Paging.Of(rows, page ?? 1, pageSize);
+        var ids = paged.Items.Select(s => s.EmployeeId).ToList();
+        var adj = (await db.Adjustments.AsNoTracking().Where(a => a.PeriodId == id && ids.Contains(a.EmployeeId)).ToListAsync(ct)).ToLookup(a => a.EmployeeId);
+        return TypedResults.Ok(paged.Map(r => new PayslipDto(r.Id, r.EmployeeId, svc.Read(r),
+            adj[r.EmployeeId].Select(a => new AdjustmentDto(a.Id, a.EmployeeId, a.Label, svc.Amount(a), a.Taxable, a.CreatedByName)).ToList())));
     }
 
     private static async Task<Results<Ok<PeriodDetailDto>, NotFound>> PeriodAsync(Guid id, PayrollDbContext db, PayrollService svc, CancellationToken ct)

@@ -1,11 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/services/api-client';
+import type { IPageQuery } from '@/types/api';
 import { departmentsApi, employeesApi, guidesApi, orgKeys, positionsApi } from '../api/org.api';
 import type { AccountMode, IEmployeeFilter, IUpsertDepartment, IUpsertEmployee, IUpsertPosition } from '../types/employee.types';
 
 // ---------- Đọc ----------
 export const useEmployees = (f: IEmployeeFilter = {}) =>
   useQuery({ queryKey: orgKeys.employees(f), queryFn: () => employeesApi.list(f), placeholderData: (prev) => prev });
+/** Danh bạ theo trang (giữ trang cũ khi đang tải trang mới). */
+export const useEmployeesPage = (f: IEmployeeFilter, q: IPageQuery) =>
+  useQuery({ queryKey: orgKeys.employeesPage(f, q), queryFn: () => employeesApi.listPage(f, q), placeholderData: (prev) => prev });
 export const useDepartments = () => useQuery({ queryKey: orgKeys.departments, queryFn: departmentsApi.list });
 export const usePositions = () => useQuery({ queryKey: orgKeys.positions, queryFn: positionsApi.list });
 export const useNextEmployeeCode = (enabled: boolean) =>

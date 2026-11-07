@@ -1,18 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { IPageQuery } from '@/types/api';
 import { accessTokenApi, accessTokenKeys } from '../api/accessToken.api';
 
 export const useAccessTokens = () => useQuery({ queryKey: accessTokenKeys.tokens, queryFn: accessTokenApi.list });
 export const useGrants = () => useQuery({ queryKey: accessTokenKeys.grants, queryFn: accessTokenApi.grants });
-/** HR. */
-export const useAiConnections = (enabled: boolean) =>
-  useQuery({ queryKey: accessTokenKeys.connections, queryFn: accessTokenApi.connections, enabled });
-/** `all` (HR) = mọi người, lọc theo `userId` nếu có; không thì của tôi. */
-export const useAiActivity = (opts: { all?: boolean; userId?: string | null; enabled?: boolean } = {}) =>
+/** HR: kết nối AI của cả công ty theo trang. */
+export const useAiConnectionsPage = (q: IPageQuery, enabled = true) =>
+  useQuery({ queryKey: accessTokenKeys.connectionsPage(q), queryFn: () => accessTokenApi.connectionsPage(q), enabled, placeholderData: (prev) => prev });
+/** Nhật ký AI theo trang (BE cắt trang). `all` (HR) = mọi người, lọc theo `userId` nếu có; không thì của tôi. */
+export const useAiActivityPage = (opts: { all?: boolean; userId?: string | null; query: IPageQuery }) =>
   useQuery({
-    queryKey: accessTokenKeys.activity(opts.userId, opts.all),
-    queryFn: () => accessTokenApi.activity(opts.all ? opts.userId : null),
-    enabled: opts.enabled ?? true,
+    queryKey: accessTokenKeys.activityPage(opts.all ? opts.userId : null, opts.all, opts.query),
+    queryFn: () => accessTokenApi.activityPage(opts.all ? opts.userId : null, opts.query),
     refetchInterval: 30_000,
+    placeholderData: (prev) => prev,
   });
 
 function useInvalidate() {

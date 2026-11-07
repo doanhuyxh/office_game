@@ -25,8 +25,8 @@ Module **không có DB**: đọc dữ liệu các module khác qua `*.Contracts`
 | Method | Path | Quyền | Kết quả |
 |---|---|---|---|
 | GET | `/timesheet.xlsx?month=yyyy-MM` | Manager (HR: tất cả; quản lý: bản thân + cấp dưới) | 3 sheet: Tổng hợp · Lưới công (số giờ / P / ½P / L / V / Q / –) · Chi tiết (giờ vào / ra **đã đổi giờ VN**) |
-| GET | `/overtime-pay?month=` · `.xlsx` | HR | Theo nhân viên + từng đơn: lương, công chuẩn, lương giờ, giờ theo hệ số, thành tiền |
-| GET | `/leave-payout` · `.xlsx` | HR | Người đang làm + đã nghỉ trong năm: quỹ phép, lương ngày, tiền phép (`payoutDue` = đã nghỉ → phải trả) |
+| GET | `/overtime-pay?month=` · `.xlsx` | HR | Theo nhân viên + từng đơn: lương, công chuẩn, lương giờ, giờ theo hệ số, thành tiền. Có `page` → `OvertimePayPage` (chỉ người có tăng ca, kèm tổng tháng) |
+| GET | `/leave-payout` · `.xlsx` | HR | Người đang làm + đã nghỉ trong năm: quỹ phép, lương ngày, tiền phép (`payoutDue` = đã nghỉ → phải trả). Có `page` → `LeavePayoutPage` (tính cho trang + `due` toàn bộ) |
 | GET | `/leave-payout/me` | đăng nhập (web) | Tiền phép ước tính của chính mình (trang Nghỉ phép); 404 nếu chưa có hồ sơ |
 
 Tháng sai định dạng → 400 `month`. Excel tạo bằng ClosedXML (`Infrastructure/ExcelExport.cs`).

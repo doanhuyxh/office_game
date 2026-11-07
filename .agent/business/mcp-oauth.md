@@ -29,11 +29,11 @@ API ứng dụng đã kết nối: `GET /api/oauth/grants` (của tôi), `DELETE
 
 - `AiAuditStartupFilter` (IStartupFilter → bọc cả pipeline Api, không sửa Program.cs): request có `HttpContext.Items[AccessTokenAuth.CallerItemKey]` (Identity đặt khi biết token thuộc ai — **kể cả khi route bị chặn 403**) → đưa vào hàng đợi RAM (10 000, đầy thì bỏ cũ nhất) → `AiAuditWriter` ghi theo lô vào `audit.ai_requests`; xoá bản ghi > 180 ngày mỗi ngày một lần.
 - Cột: thời điểm, user, token, tên token / ứng dụng, `ViaOAuth`, `Tool` (header `X-Mcp-Tool` do Mcp gửi qua call-tool filter; chỉ nhận snake_case ≤ 64), method, path, status, thời gian xử lý, IP.
-- `GET /api/audit/ai-requests?userId=&before=&take=` (≤ 200): nhân viên luôn chỉ thấy của mình; HR lọc theo người hoặc xem tất cả. Token AI → 403.
+- `GET /api/audit/ai-requests?userId=&before=&take=` (≤ 200; có `page=&pageSize=` → trang, FE dùng): nhân viên luôn chỉ thấy của mình; HR lọc theo người hoặc xem tất cả. Token AI → 403.
 
 ## Quản trị (HR) & giới hạn
 
-- `GET /api/auth/ai-connections` (HR): token cá nhân + ứng dụng đang hoạt động của cả công ty. HR thu hồi hộ bằng `DELETE /api/auth/access-tokens/{id}` / `DELETE /api/oauth/grants/{id}`.
+- `GET /api/auth/ai-connections` (HR; `?page=&pageSize=` → trang): token cá nhân + ứng dụng đang hoạt động của cả công ty. HR thu hồi hộ bằng `DELETE /api/auth/access-tokens/{id}` / `DELETE /api/oauth/grants/{id}`.
 - `AccessTokens__Enabled=false` → mọi token / ứng dụng AI bị 401, `/api/oauth/token` trả `access_denied` (công tắc toàn công ty, cần khởi động lại Api).
 - `AccessTokens__RequestsPerMinute` (mặc định 120): `GlobalLimiter` theo `access_token_id` → 429 (MCP báo "Gọi quá nhiều lần"). Cookie web không bị giới hạn này.
 

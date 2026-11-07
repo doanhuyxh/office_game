@@ -9,12 +9,13 @@ import { Input } from '@/components/common/input';
 import { Label } from '@/components/common/label';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
+import { TablePagination, usePageState } from '@/components/common/pagination';
 import { Textarea } from '@/components/common/textarea';
 import { useCancelApproval } from '@/features/approvals';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { useCreateOvertime, useMyMonth, useMyOvertime, useOvertimePreview } from '../hooks/useAttendance';
+import { useCreateOvertime, useMyMonth, useMyOvertimePage, useOvertimePreview } from '../hooks/useAttendance';
 import type { ICreateOvertime } from '../types/attendance.types';
 import { currentMonth, hm, OVERTIME_KIND, OVERTIME_STATUS } from '../utils/labels';
 import { todayVn } from '@/utils/date';
@@ -108,7 +109,9 @@ function Stat({ label, value }: { label: string; value: string }) {
 export function OvertimeTab() {
   const [month, setMonth] = useState(currentMonth());
   const [open, setOpen] = useState(false);
-  const { data: rows = [], isLoading } = useMyOvertime(month);
+  const pg = usePageState('my-overtime', month);
+  const { data, isLoading } = useMyOvertimePage(month, pg.query);
+  const rows = data?.items ?? [];
   const { data: monthData } = useMyMonth(month);
   const cancel = useCancelApproval();
   const s = monthData?.summary;
@@ -156,6 +159,7 @@ export function OvertimeTab() {
             ))}
           </TableBody>
         </Table>
+        <TablePagination state={pg} total={data?.total} unit="đơn" />
       </div>
       <OvertimeDialog open={open} onClose={() => setOpen(false)} />
     </div>

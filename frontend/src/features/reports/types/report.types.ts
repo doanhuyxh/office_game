@@ -1,3 +1,5 @@
+import type { IPaged } from '@/types/api';
+
 export interface IReportEmployee {
   id: string;
   code: string;
@@ -65,4 +67,16 @@ export interface ILeavePayoutRow {
   payoutAmount: number | null;
   payoutDue: boolean;
   warning: string | null;
+}
+
+/** Trang tiền tăng ca: chỉ người có tăng ca trong tháng; `totalMinutes` / `totalAmount` là tổng cả tháng (không chỉ trang). */
+export interface IOvertimePayPage extends IPaged<IOvertimePayRow> {
+  month: string;
+  totalMinutes: number;
+  totalAmount: number;
+}
+
+/** Trang phép năm → tiền; `due` = người đã nghỉ việc trong năm còn phép phải trả (toàn bộ, không theo trang). */
+export interface ILeavePayoutPage extends IPaged<ILeavePayoutRow> {
+  due: ILeavePayoutRow[];
 }

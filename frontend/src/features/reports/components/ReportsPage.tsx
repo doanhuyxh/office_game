@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/common/input';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/common/table';
+import { TablePagination, usePageState } from '@/components/common/pagination';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
 import { Spinner } from '@/components/feedback/Spinner';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -12,7 +13,7 @@ import { ReportTable } from '@/features/attendance';
 import { currentMonthVn, formatDate } from '@/utils/date';
 import { downloadUrl, formatMoney } from '@/utils/money';
 import { excelUrl } from '../api/report.api';
-import { useLeavePayout, useOvertimePay } from '../hooks/useReports';
+import { useLeavePayoutPage, useOvertimePayPage } from '../hooks/useReports';
 import { days, hours } from '../utils/labels';
 import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';
 
@@ -53,8 +54,9 @@ const PAYOUT_COLUMNS: ColumnDef[] = [
 
 function OvertimePayTab() {
   const [month, setMonth] = useState(currentMonthVn);
-  const { data, isLoading } = useOvertimePay(month);
-  const rows = data?.rows.filter((r) => r.totalMinutes > 0) ?? [];
+  const pg = usePageState('report-overtime', month);
+  const { data, isLoading } = useOvertimePayPage(month, pg.query); // chỉ người có tăng ca; tổng tháng tính trên toàn bộ
+  const rows = data?.items ?? [];
   const cols = useColumns('report-overtime', OVERTIME_COLUMNS);
   const v = cols.show;
   const before = ['employee', 'salary', 'std', 'hourly', 'w150', 'w200', 'w300'].filter(v).length;
@@ -113,14 +115,17 @@ function OvertimePayTab() {
             </TableFooter>
           )}
         </Table>
+        <TablePagination state={pg} total={data?.total} unit="nhân viên" />
       </div>
     </div>
   );
 }
 
 function LeavePayoutTab() {
-  const { data: rows = [], isLoading } = useLeavePayout();
-  const due = rows.filter((r) => r.payoutDue);
+  const pg = usePageState('report-leave-payout');
+  const { data, isLoading } = useLeavePayoutPage(pg.query);
+  const rows = data?.items ?? [];
+  const due = data?.due ?? [];
   const cols = useColumns('report-leave-payout', PAYOUT_COLUMNS);
   const v = cols.show;
   return (
@@ -187,6 +192,7 @@ function LeavePayoutTab() {
             ))}
           </TableBody>
         </Table>
+        <TablePagination state={pg} total={data?.total} unit="nhân viên" />
       </div>
     </div>
   );

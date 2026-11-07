@@ -1,3 +1,5 @@
+import type { IPaged } from '@/types/api';
+
 // Khớp với DTO ở backend/src/Modules/Attendance/.../Features/Dtos.cs
 
 export type DayStatus = 'DayOff' | 'Holiday' | 'NotYet' | 'Working' | 'Present' | 'MissingCheckout' | 'Absent' | 'NotEmployed' | 'Leave';
@@ -91,6 +93,11 @@ export interface IMonth {
   month: string; // yyyy-MM
   days: IDay[];
   summary: ISummary;
+}
+
+/** Trang bảng hôm nay; `counts` = số người theo trạng thái trên toàn bộ phạm vi (không chỉ trang). */
+export interface IBoardPage extends IPaged<IBoardRow> {
+  counts: Partial<Record<DayStatus, number>>;
 }
 
 export interface IBoardRow {

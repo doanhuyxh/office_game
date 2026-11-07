@@ -1,4 +1,4 @@
-import type { IProblemDetails } from '@/types/api';
+import type { IPageQuery, IProblemDetails } from '@/types/api';
 
 export class ApiError extends Error {
   constructor(
@@ -37,3 +37,6 @@ export const httpUpload = <T>(url: string, file: File) => {
   form.append('file', file);
   return http<T>(url, { method: 'POST', body: form });
 };
+
+/** Chuỗi query phân trang: `page=2&pageSize=20`. */
+export const pageQs = (q: IPageQuery) => `page=${q.page}&pageSize=${q.pageSize}`;

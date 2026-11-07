@@ -35,8 +35,9 @@ Chủ dự án chốt 2026-11-06: **tính đầy đủ theo luật VN**, mọi t
 | | Đường dẫn | Ghi chú |
 |---|---|---|
 | HR | `GET/POST /settings` | POST `{ effectiveFrom, rules }`; validate: tỉ lệ 0–50 %, bậc thuế tăng dần, bậc cuối không giới hạn |
-| HR | `GET /profiles`, `PUT /profiles/{employeeId}` | |
+| HR | `GET /profiles`, `PUT /profiles/{employeeId}` | GET có `?page=&pageSize=` → trang (chỉ đọc hồ sơ của trang) |
 | HR | `GET/POST /periods`, `GET /periods/{id}` | POST `{ month: "yyyy-MM" }` tạo + tính ngay; trùng → 409; tháng tương lai → 400 |
+| HR | `GET /periods/{id}/payslips?page=&pageSize=` | Phiếu theo trang, sắp theo mã NV, chỉ giải mã phiếu trong trang (FE bảng kỳ lương dùng cái này; tổng kỳ lấy ở `/periods/{id}`) |
 | HR | `POST /periods/{id}/compute \| lock \| unlock` | Lock: tính lại lần cuối, **chỉ khi tháng đã kết thúc**, gửi chuông `payslip_ready` (không email) |
 | HR | `GET /periods/{id}/export.xlsx` | ClosedXML; sheet 2 "Chuyển khoản" (tài khoản nhân viên đã khai + HR duyệt, qua `IEmployeeDirectory.GetBankAccountsAsync`) |
 | HR | `POST /periods/{id}/adjustments`, `DELETE /adjustments/{id}` | Tự tính lại; kỳ đã chốt → 409 |

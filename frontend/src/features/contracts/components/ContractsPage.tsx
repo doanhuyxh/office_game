@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { AlertTriangle, MoreHorizontal, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
@@ -11,16 +11,17 @@ import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/common/input';
 import { Label } from '@/components/common/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
+import { TablePagination, usePageState } from '@/components/common/pagination';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
 import { Textarea } from '@/components/common/textarea';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { hasRole, useMe } from '@/features/auth';
-import { useEmployees } from '@/features/employees';
+import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/date';
 import { cn } from '@/utils/cn';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { useContracts, useCreateSignRequest, useDeleteContract, useMyContracts, useTerminateContract } from '../hooks/useContracts';
-import type { IContract } from '../types/contract.types';
+import { useContractsPage, useContractSummary, useCreateSignRequest, useDeleteContract, useMyContracts, useTerminateContract } from '../hooks/useContracts';
+import type { ContractFilter, IContract, IContractSummary } from '../types/contract.types';
 import { CONTRACT_TYPE, EXPIRING_DAYS, formatMoney } from '../utils/labels';
 import { ContractDetails, ContractStatusBadge } from './ContractDetails';
 import { ContractFormDialog } from './ContractFormDialog';
@@ -28,16 +29,16 @@ import { PendingSignBanner, SignRequestList } from './SignPanel';
 import { GenerateFromTemplateDialog, TemplatesPanel } from './TemplatesPanel';
 import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';
 
-type Filter = 'all' | 'active' | 'expiring' | 'ended';
 const CONTRACT_COLUMNS: ColumnDef[] = [
   { id: 'employee', label: 'Nhân viên', required: true }, { id: 'number', label: 'Số HĐ' }, { id: 'type', label: 'Loại' },
   { id: 'term', label: 'Thời hạn' }, { id: 'salary', label: 'Lương hiện tại' }, { id: 'status', label: 'Trạng thái' },
 ];
-const FILTERS: { value: Filter; label: string; match: (c: IContract) => boolean }[] = [
-  { value: 'all', label: 'Tất cả', match: () => true },
-  { value: 'active', label: 'Đang hiệu lực', match: (c) => c.status === 'Active' || c.status === 'Upcoming' },
-  { value: 'expiring', label: `Sắp hết hạn (≤ ${EXPIRING_DAYS} ngày)`, match: (c) => c.daysLeft != null && c.daysLeft <= EXPIRING_DAYS },
-  { value: 'ended', label: 'Hết hạn / chấm dứt', match: (c) => c.status === 'Expired' || c.status === 'Terminated' },
+/** Lọc + đếm do BE làm (`?filter=`, `/summary`). */
+const FILTERS: { value: ContractFilter; label: string; count: (s: IContractSummary) => number }[] = [
+  { value: 'all', label: 'Tất cả', count: (s) => s.all },
+  { value: 'active', label: 'Đang hiệu lực', count: (s) => s.active },
+  { value: 'expiring', label: `Sắp hết hạn (≤ ${EXPIRING_DAYS} ngày)`, count: (s) => s.expiring },
+  { value: 'ended', label: 'Hết hạn / chấm dứt', count: (s) => s.ended },
 ];
 
 function TerminateDialog({ contract, onClose }: { contract: IContract | null; onClose: () => void }) {
@@ -79,26 +80,22 @@ function TerminateDialog({ contract, onClose }: { contract: IContract | null; on
 
 /** HR: mọi hợp đồng, lọc theo trạng thái, tìm theo nhân viên; cảnh báo nhân viên chưa có hợp đồng hiệu lực. */
 function AllContracts() {
-  const { data: rows = [], isLoading } = useContracts();
-  const { data: employees = [] } = useEmployees({});
+  const [filter, setFilter] = useState<ContractFilter>('all');
+  const [search, setSearch] = useState('');
+  const q = useDebounce(search.trim(), 300);
+  const pg = usePageState('contracts', `${filter}|${q}`);
+  const { data, isLoading } = useContractsPage(filter, q, pg.query);
+  const rows = data?.items ?? [];
+  const { data: summary } = useContractSummary();
+  const withoutContract = summary?.withoutContract ?? [];
   const remove = useDeleteContract();
   const sendSign = useCreateSignRequest();
   const cols = useColumns('contracts', CONTRACT_COLUMNS);
   const v = cols.show;
-  const [filter, setFilter] = useState<Filter>('all');
-  const [search, setSearch] = useState('');
   const [viewing, setViewing] = useState<string | null>(null);
   const [editing, setEditing] = useState<IContract | null | undefined>(undefined); // undefined = đóng, null = thêm mới
   const [terminating, setTerminating] = useState<IContract | null>(null);
   const [generating, setGenerating] = useState<IContract | null>(null);
-
-  const q = search.trim().toLowerCase();
-  const shown = rows.filter((c) => FILTERS.find((f) => f.value === filter)!.match(c)
-    && (!q || c.employee.fullName.toLowerCase().includes(q) || c.employee.code.toLowerCase().includes(q) || c.number.toLowerCase().includes(q)));
-  const withoutContract = useMemo(() => {
-    const covered = new Set(rows.filter((c) => c.status === 'Active').map((c) => c.employee.id));
-    return employees.filter((e) => e.status !== 'Resigned' && !covered.has(e.id));
-  }, [rows, employees]);
   const current = rows.find((c) => c.id === viewing) ?? null;
 
   return (
@@ -120,7 +117,7 @@ function AllContracts() {
         <div className="flex flex-wrap gap-1">
           {FILTERS.map((f) => (
             <Button key={f.value} size="sm" variant={filter === f.value ? 'default' : 'outline'} onClick={() => setFilter(f.value)}>
-              {f.label} <span className="opacity-70">{rows.filter(f.match).length}</span>
+              {f.label} <span className="opacity-70">{summary ? f.count(summary) : ''}</span>
             </Button>
           ))}
         </div>
@@ -137,8 +134,8 @@ function AllContracts() {
           </TableHeader>
           <TableBody>
             {isLoading && <TableRow><TableCell colSpan={cols.span(1)} className="text-center text-muted-foreground">Đang tải…</TableCell></TableRow>}
-            {!isLoading && shown.length === 0 && <TableRow><TableCell colSpan={cols.span(1)} className="py-8 text-center text-muted-foreground">Không có hợp đồng nào</TableCell></TableRow>}
-            {shown.map((c) => (
+            {!isLoading && rows.length === 0 && <TableRow><TableCell colSpan={cols.span(1)} className="py-8 text-center text-muted-foreground">Không có hợp đồng nào</TableCell></TableRow>}
+            {rows.map((c) => (
               <TableRow key={c.id} className="cursor-pointer" onClick={() => setViewing(c.id)}>
                 <TableCell>
                   <span className="font-mono text-xs text-muted-foreground">{c.employee.code}</span> {c.employee.fullName}
@@ -170,6 +167,7 @@ function AllContracts() {
             ))}
           </TableBody>
         </Table>
+        <TablePagination state={pg} total={data?.total} unit="hợp đồng" />
       </div>
       <Dialog open={!!current} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">

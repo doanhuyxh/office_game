@@ -55,9 +55,9 @@ Ngày quá khứ được phép (nghỉ ốm khai sau). Được xin phép năm 
 | GET | `/types` | đăng nhập | loại đang dùng |
 | GET | `/balance` | nhân viên | số dư của tôi |
 | GET | `/preview?startDate&endDate&period` | nhân viên | `{ days, workingDays[] }` — FE hiện trước khi gửi |
-| GET | `/requests/my?year=` | nhân viên | 200 đơn mới nhất |
-| GET | `/requests?from&to` | Manager policy | đơn `Pending` + `Approved` trong khoảng; HR: tất cả, manager: bản thân + cấp dưới |
-| GET | `/balances` | HR | số dư mọi người đang làm |
+| GET | `/requests/my?year=` | nhân viên | 200 đơn mới nhất · `?page=&pageSize=` → trang ([conventions](../conventions.md)) |
+| GET | `/requests?from&to` | Manager policy | đơn `Pending` + `Approved` trong khoảng; HR: tất cả, manager: bản thân + cấp dưới · `?page=&pageSize=` → trang ([conventions](../conventions.md)) |
+| GET | `/balances` | HR | số dư mọi người đang làm; có `page` → chỉ tính cho nhân viên của trang |
 | GET / POST | `/adjustments` | HR | `{ employeeId, days, reason }`: ≠ 0, \|days\| ≤ 365, bội số 0.5, lý do bắt buộc. **Không sửa / xoá** — sai thì thêm điều chỉnh ngược |
 
 `ILeaveCalendar.GetApprovedAsync` trả từng ngày (kể cả ngày nghỉ cuối tuần trong khoảng) của đơn `Approved`: `Fraction` 1 hoặc 0.5, `Half` Morning/Afternoon.

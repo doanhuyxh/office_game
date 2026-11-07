@@ -1,12 +1,16 @@
-import { http, httpPost, httpUpload } from '@/services/api-client';
-import type { IOtpSent, ISignRequest, IContract, IContractTemplate, ICreateAmendment, IStoredFile, ITemplateField, IUpsertContract } from '../types/contract.types';
+import { http, httpPost, httpUpload, pageQs } from '@/services/api-client';
+import type { IPaged, IPageQuery } from '@/types/api';
+import type {
+  ContractFilter, IContractSummary, IOtpSent, ISignRequest, IContract, IContractTemplate, ICreateAmendment, IStoredFile, ITemplateField, IUpsertContract,
+} from '../types/contract.types';
 
 const put = <T>(url: string, body: unknown) => http<T>(url, { method: 'PUT', body: JSON.stringify(body) });
 const del = (url: string) => http<void>(url, { method: 'DELETE' });
 
 export const contractKeys = {
   all: ['contracts'] as const,
-  list: ['contracts', 'list'] as const,
+  listPage: (filter: ContractFilter, search: string, q: IPageQuery) => ['contracts', 'list', 'page', filter, search, q] as const,
+  summary: ['contracts', 'summary'] as const,
   my: ['contracts', 'my'] as const,
   templates: ['contracts', 'templates'] as const,
   templateFields: ['contracts', 'templates', 'fields'] as const,
@@ -15,7 +19,10 @@ export const contractKeys = {
 
 const base = '/api/contracts';
 export const contractApi = {
-  list: () => http<IContract[]>(base),
+  /** Một trang — BE lọc (filter, search) + cắt trang, chỉ giải mã lương của trang. */
+  listPage: (filter: ContractFilter, search: string, q: IPageQuery) =>
+    http<IPaged<IContract>>(`${base}?filter=${filter}&search=${encodeURIComponent(search)}&${pageQs(q)}`),
+  summary: () => http<IContractSummary>(`${base}/summary`),
   my: () => http<IContract[]>(`${base}/my`),
   create: (body: IUpsertContract) => httpPost<IContract>(base, body),
   update: (id: string, body: IUpsertContract) => put<IContract>(`${base}/${id}`, body),

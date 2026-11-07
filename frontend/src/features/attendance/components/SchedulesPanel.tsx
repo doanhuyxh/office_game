@@ -6,10 +6,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { FormField } from '@/components/common/FormField';
 import { SelectField } from '@/components/common/SelectField';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
+import { TablePagination, usePageState } from '@/components/common/pagination';
 import { useEmployees } from '@/features/employees';
 import { formatDate } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
-import { useDeleteSchedule, useSaveSchedule, useSchedules, useShifts } from '../hooks/useAttendance';
+import { useDeleteSchedule, useSaveSchedule, useSchedulesPage, useShifts } from '../hooks/useAttendance';
 import type { ISchedule, IWeekDay } from '../types/attendance.types';
 import { WEEKDAY_LONG, WEEKDAY_SHORT } from '../utils/labels';
 import { todayVn } from '@/utils/date';
@@ -80,7 +81,9 @@ function ScheduleDialog({ initial, onClose }: { initial: ISchedule | 'new-employ
 }
 
 export function SchedulesPanel() {
-  const { data: schedules = [] } = useSchedules();
+  const pg = usePageState('schedules');
+  const { data } = useSchedulesPage(pg.query);
+  const schedules = data?.items ?? [];
   const { data: shifts = [] } = useShifts();
   const remove = useDeleteSchedule();
   const [editing, setEditing] = useState<ISchedule | 'new-employee' | null>(null);
@@ -122,6 +125,7 @@ export function SchedulesPanel() {
             ))}
           </TableBody>
         </Table>
+        <TablePagination state={pg} total={data?.total} unit="lịch" />
       </div>
       <ScheduleDialog initial={editing} onClose={() => setEditing(null)} />
     </div>

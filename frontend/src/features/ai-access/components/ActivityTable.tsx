@@ -1,15 +1,18 @@
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
+import { TablePagination, usePageState } from '@/components/common/pagination';
 import { Spinner } from '@/components/feedback/Spinner';
 import { formatDateTime } from '@/utils/date';
 import { cn } from '@/utils/cn';
-import type { IAiRequest } from '../types/accessToken.types';
+import { useAiActivityPage } from '../hooks/useAccessTokens';
 import { requestTone, TOOL_LABEL, WRITE_TOOLS } from '../utils/labels';
 
-/** Nhật ký request của trợ lý AI (module Audit). `showUser` = cột nhân viên (HR xem toàn công ty). */
-export function ActivityTable({ rows, loading, showUser }: { rows: IAiRequest[] | undefined; loading: boolean; showUser?: boolean }) {
-  if (loading) return <Spinner />;
-  if (!rows?.length) return <p className="py-6 text-center text-sm text-muted-foreground">Chưa có hoạt động nào.</p>;
+/** Nhật ký request của trợ lý AI (module Audit), phân trang ở BE. `all` (HR) = mọi người, lọc `userId`; `showUser` = cột nhân viên. */
+export function ActivityTable({ all, userId, showUser }: { all?: boolean; userId?: string | null; showUser?: boolean }) {
+  const pg = usePageState(all ? 'ai-activity-all' : 'ai-activity', userId ?? '');
+  const { data, isLoading } = useAiActivityPage({ all, userId, query: pg.query });
+  if (isLoading) return <Spinner />;
+  if (!data?.items.length) return <p className="py-6 text-center text-sm text-muted-foreground">Chưa có hoạt động nào.</p>;
   return (
     <div className="overflow-x-auto">
       <Table>
@@ -23,7 +26,7 @@ export function ActivityTable({ rows, loading, showUser }: { rows: IAiRequest[] 
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((r) => (
+          {data.items.map((r) => (
             <TableRow key={r.id}>
               <TableCell className="whitespace-nowrap">{formatDateTime(r.occurredAt)}</TableCell>
               {showUser && <TableCell>{r.fullName ?? r.userName ?? '—'}</TableCell>}
@@ -43,6 +46,7 @@ export function ActivityTable({ rows, loading, showUser }: { rows: IAiRequest[] 
           ))}
         </TableBody>
       </Table>
+      <TablePagination state={pg} total={data.total} unit="request" />
     </div>
   );
 }

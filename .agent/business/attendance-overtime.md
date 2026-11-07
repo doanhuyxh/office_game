@@ -21,7 +21,7 @@ Loại ngày (`OvertimeRules.Classify`) xác định **lúc đọc** (lịch + n
 |---|---|---|
 | GET | `/overtime/preview?workDate=&startTime=&endTime=` | `{ minutes, kind, percent, monthMinutes, yearMinutes, warnings[] }` — cùng validate như tạo (trừ lý do) |
 | POST | `/overtime` | `{ workDate, startTime: "HH:mm", endTime, reason }` → `{ overtime: OvertimeDto, warnings[] }` |
-| GET | `/overtime/my?month=yyyy-MM` | 200 dòng mới nhất, kèm `kind` / `percent` tính theo lịch hiện tại |
+| GET | `/overtime/my?month=yyyy-MM` | 200 dòng mới nhất (`?page=&pageSize=` → trang), kèm `kind` / `percent` tính theo lịch hiện tại |
 
 `kind` ∈ `Weekday` / `RestDay` / `Holiday`. Không có API sửa / xoá; huỷ qua `/api/approval/{id}/cancel`. Tài khoản không có hồ sơ → 409 `no_employee_profile`; đã nghỉ việc → 403.
 

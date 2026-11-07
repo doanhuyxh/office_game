@@ -34,8 +34,9 @@ internal static class EmployeeEndpoints
     /// Danh bạ nhân viên. Ai đăng nhập cũng xem được thông tin liên lạc (tên, email, điện thoại, phòng ban, chức vụ, quản lý).
     /// Chỉ HR: người đã nghỉ việc, lọc theo trạng thái, thông tin tài khoản. Trạng thái / ngày vào làm: HR, chính chủ, quản lý của người đó.
     /// </summary>
-    private static async Task<Ok<List<EmployeeListItem>>> ListAsync(
-        string? search, Guid? departmentId, string? status, bool? includeResigned,
+    /// <summary>Danh bạ. Có <c>page</c> → trang (COUNT + OFFSET/LIMIT theo mã NV); không có → cả danh sách (MCP, chọn nhân viên trong form).</summary>
+    private static async Task<Results<Ok<List<EmployeeListItem>>, Ok<PagedResult<EmployeeListItem>>>> ListAsync(
+        string? search, Guid? departmentId, string? status, bool? includeResigned, int? page, int? pageSize,
         ClaimsPrincipal user, OrgDbContext db, IAccountService accounts, IEmployeeDirectory dir, CancellationToken ct)
     {
         var hr = user.IsHr();
@@ -49,8 +50,14 @@ internal static class EmployeeEndpoints
             var s = $"%{search.Trim()}%";
             q = q.Where(e => EF.Functions.ILike(e.FullName, s) || EF.Functions.ILike(e.Code, s) || (e.Email != null && EF.Functions.ILike(e.Email, s)));
         }
-        var rows = await q.OrderBy(e => e.Code).ToListAsync(ct);
-        return TypedResults.Ok(await ToItemsAsync(rows, hr, db, accounts, ct, await HrFieldsVisibilityAsync(user, db, dir, ct)));
+        var ordered = q.OrderBy(e => e.Code);
+        var hrFields = await HrFieldsVisibilityAsync(user, db, dir, ct);
+        if (page is { } pg)
+        {
+            var paged = await ordered.ToPagedAsync(pg, pageSize, ct);
+            return TypedResults.Ok(paged.With(await ToItemsAsync([.. paged.Items], hr, db, accounts, ct, hrFields)));
+        }
+        return TypedResults.Ok(await ToItemsAsync(await ordered.ToListAsync(ct), hr, db, accounts, ct, hrFields));
     }
 
     private static async Task<Results<Ok<EmployeeDetail>, NotFound, ForbidHttpResult>> GetAsync(

@@ -6,10 +6,11 @@ import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/common/input';
 import { StatusBadge as Badge } from '@/components/common/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
+import { TablePagination, usePageState } from '@/components/common/pagination';
 import { useCancelApproval } from '@/features/approvals';
 import { formatDate } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { useAdjustLeave, useAllBalances, useMyLeaves, useTeamLeaves } from '../hooks/useLeave';
+import { useAdjustLeave, useAllBalancesPage, useMyLeavesPage, useTeamLeavesPage } from '../hooks/useLeave';
 import type { IEmployeeBalance, ILeaveRequest } from '../types/leave.types';
 import { fmtDays, LEAVE_STATUS, PERIOD_LABEL } from '../utils/labels';
 import { currentMonthVn } from '@/utils/date';
@@ -22,7 +23,9 @@ const StatusBadge = ({ s }: { s: ILeaveRequest['status'] }) => <Badge tone={LEAV
 
 /** Đơn nghỉ của tôi; đơn chờ duyệt có nút huỷ (huỷ qua luồng phê duyệt). */
 export function MyLeavesTable() {
-  const { data: rows = [], isLoading } = useMyLeaves();
+  const pg = usePageState('my-leaves');
+  const { data, isLoading } = useMyLeavesPage(pg.query);
+  const rows = data?.items ?? [];
   const cancel = useCancelApproval();
   return (
     <div className="rounded-xl border bg-card">
@@ -53,6 +56,7 @@ export function MyLeavesTable() {
           ))}
         </TableBody>
       </Table>
+      <TablePagination state={pg} total={data?.total} unit="đơn" />
     </div>
   );
 }
@@ -62,7 +66,9 @@ export function TeamCalendar() {
   const [month, setMonth] = useState(currentMonthVn);
   const from = `${month}-01`;
   const to = useMemo(() => { const [y, m] = month.split('-').map(Number); return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); }, [month]);
-  const { data: rows = [], isLoading } = useTeamLeaves(from, to);
+  const pg = usePageState('team-leaves', month);
+  const { data, isLoading } = useTeamLeavesPage(from, to, pg.query);
+  const rows = data?.items ?? [];
   return (
     <div className="space-y-3">
       <div className="flex justify-end"><Input type="month" className="w-44" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} aria-label="Tháng" /></div>
@@ -83,6 +89,7 @@ export function TeamCalendar() {
             ))}
           </TableBody>
         </Table>
+        <TablePagination state={pg} total={data?.total} unit="đơn" />
       </div>
     </div>
   );
@@ -95,7 +102,9 @@ const BALANCE_COLUMNS: ColumnDef[] = [
 ];
 
 export function BalancesTable() {
-  const { data: rows = [], isLoading } = useAllBalances(true);
+  const pg = usePageState('leave-balances');
+  const { data, isLoading } = useAllBalancesPage(pg.query);
+  const rows = data?.items ?? [];
   const cols = useColumns('leave-balances', BALANCE_COLUMNS);
   const v = cols.show;
   const adjust = useAdjustLeave();
@@ -138,6 +147,7 @@ export function BalancesTable() {
             ))}
           </TableBody>
         </Table>
+        <TablePagination state={pg} total={data?.total} unit="nhân viên" />
       </div>
       <Dialog open={!!target} onOpenChange={(o) => !o && setTarget(null)}>
         <DialogContent>

@@ -19,7 +19,7 @@ Validate ca (giờ `"HH:mm"`): `"Ca cố định cần giờ vào"`, `"Ca cố �
 | Xoá bộ lịch công ty duy nhất | 409 `"Không thể xoá lịch công ty duy nhất"` |
 | Trùng ngày lễ | 400 `"Ngày này đã là ngày lễ"` |
 
-`GET /schedules` trả bộ đang hiệu lực + bộ tương lai cho công ty và từng nhân viên còn làm. Không có API sửa sự kiện chấm công.
+`GET /schedules` trả bộ đang hiệu lực + bộ tương lai cho công ty và từng nhân viên còn làm (`?page=&pageSize=` → trang). Không có API sửa sự kiện chấm công.
 
 **`IWorkCalendar`** (Attendance.Contracts → `WorkCalendar` trong `AttendanceService.cs`): ngày có ca và không phải ngày lễ — Leave dùng để đếm số ngày nghỉ.
 

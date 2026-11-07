@@ -35,6 +35,14 @@ src/Modules/<M>/
 - DTO: `public sealed record` đặt cạnh endpoint. Ngày dùng `DateOnly`, giờ trong ngày `TimeOnly` (API trả chuỗi `"HH:mm"`), thời điểm `DateTimeOffset` (UTC).
 - **Thời điểm trong API = ISO 8601 kèm múi giờ** (`BuildingBlocks/Http/Instants.cs`, đăng ký ở `AddOfficeHubDefaults` cho mọi host): BE luôn trả UTC `2026-11-06T02:14:39Z`; JSON nhận vào thiếu `Z`/`±HH:mm` → 400 (không đoán theo giờ máy chủ). Query string không qua converter → nhận `string` rồi `Instants.TryParse` (mẫu: `before` ở `AiRequestEndpoints`). SignalR / MessagePack: gửi chuỗi `Instants.Format(...)`. Ngày `yyyy-MM-dd` và giờ `HH:mm` là lịch / giờ tại văn phòng, không kèm múi giờ. Test: `InstantContractTests`.
 
+### Phân trang danh sách
+
+- Endpoint danh sách nhận `?page=&pageSize=` (page 1-based; pageSize mặc định 20, kẹp 1–200): **có `page`** → `PagedResult<T> { items, total, page, pageSize }`; **không có** → mảng như cũ (MCP tools, script seed / e2e, chọn nhân viên trong form vẫn đọc mảng). Kiểu trả `Results<Ok<List<T>>, Ok<PagedResult<T>>>`.
+- Helper `BuildingBlocks/Http/Paging.cs`: `query.ToPagedAsync(page, pageSize, ct)` (COUNT + OFFSET/LIMIT; ORDER BY phải ổn định, thêm `ThenBy` khoá), `Paging.Of(list, …)` khi phải có cả danh sách trong bộ nhớ, `.Map(...)` / `.With(items)` để đổi entity → DTO. Test: `PagingTests`.
+- Danh sách tính toán theo người (bảng công, số dư phép, tiền phép, hồ sơ thuế): cắt trang **danh sách nhân viên** (theo mã) trước, rồi chỉ tính / giải mã cho trang đó. Số liệu toàn cục (tổng tháng, đếm theo trạng thái…) → record kế thừa `PagedResult<T>` (mẫu: `BoardPage`, `OvertimePayPage`, `LeavePayoutPage`).
+- Lọc / tìm theo tên nhân viên ở module khác: lấy id qua `IEmployeeDirectory` rồi `ids.Contains(...)` trong truy vấn (không JOIN chéo schema) — mẫu `ContractEndpoints.ListAsync`.
+- FE: `usePageState(tableId, resetKey)` (`components/common/pagination`; nhớ số dòng / trang ở localStorage `officehub.pageSize.<tableId>`, đổi `resetKey` = về trang 1) → hook `use…Page(…, pg.query)` (`placeholderData: (prev) => prev`) → API `…Page` dùng `pageQs(q)` (`services/api-client.ts`), kiểu `IPaged<T>` (`types/api.ts`) → `<TablePagination state={pg} total={data?.total} unit="…" />` ngay dưới `<Table>`. Không cắt trang ở FE. Query key trang đặt dưới key gốc của feature (vd `['leave', 'my', 'page', q]`) để `invalidateQueries(all)` vẫn làm mới.
+
 ### Validation & lỗi
 
 - Lỗi theo field: `OfficeHub.BuildingBlocks.Http.Validation` → `v.Required(...)/.MaxLength/.Email/.When/.Add` rồi `v.Problem()` (400 `ValidationProblem`, key camelCase khớp tên field FE).

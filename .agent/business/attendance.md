@@ -72,8 +72,8 @@ Ca của nhân viên ngày D: bộ lịch **riêng** của nhân viên có `Effe
 |---|---|---|---|
 | GET | `/my?month=yyyy-MM` | nhân viên | cả tháng; `summary` chỉ tính tới hôm nay |
 | GET | `/employees/{id}?month=` | `AuthPolicies.Manager` + `CanViewAsync` | HR: mọi người; manager: bản thân + cấp dưới; khác → 403 `"Bạn không có quyền xem bảng công của nhân viên này"` |
-| GET | `/board?date=` | Manager | 1 ngày (mặc định hôm nay), nhân viên đang làm trong phạm vi |
-| GET | `/report?month=` | Manager | tổng hợp tháng, tới hôm nay |
+| GET | `/board?date=&page=&pageSize=` | Manager | 1 ngày (mặc định hôm nay), nhân viên đang làm trong phạm vi. Có `page` → `BoardPage`: sắp theo trạng thái (đang làm → đã xong → thiếu giờ ra → chưa chấm → phép → vắng → lễ / nghỉ) rồi mã, kèm `counts` theo trạng thái trên toàn bộ |
+| GET | `/report?month=&page=&pageSize=` | Manager | tổng hợp tháng, tới hôm nay. Có `page` → chỉ tính bảng công cho nhân viên của trang |
 
 Tháng sai → 400 `"Tháng không hợp lệ (định dạng yyyy-MM)"`. `SummaryDto` (`DtoMap.Summary`): `WorkDays` = số ngày `Scheduled`; `PresentDays` = Present + Working + MissingCheckout; `LeaveDays` = tổng `LeaveFraction` ngày `Scheduled`; `RequiredMinutes` bỏ ngày `NotYet`.
 

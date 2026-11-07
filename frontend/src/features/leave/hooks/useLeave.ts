@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/services/api-client';
+import type { IPageQuery } from '@/types/api';
 import { leaveApi, leaveKeys } from '../api/leave.api';
 import type { ICreateLeave, LeavePeriod } from '../types/leave.types';
 
@@ -10,9 +11,13 @@ export function useMyBalance() {
   const q = useQuery({ queryKey: leaveKeys.balance, queryFn: leaveApi.balance, retry: false });
   return { ...q, noProfile: q.error instanceof ApiError && q.error.problem.title === 'no_employee_profile' };
 }
-export const useMyLeaves = () => useQuery({ queryKey: leaveKeys.my, queryFn: leaveApi.my, retry: false });
-export const useTeamLeaves = (from: string, to: string) => useQuery({ queryKey: leaveKeys.team(from, to), queryFn: () => leaveApi.team(from, to) });
-export const useAllBalances = (enabled: boolean) => useQuery({ queryKey: leaveKeys.balances, queryFn: leaveApi.balances, enabled });
+export const useMyLeavesPage = (q: IPageQuery) =>
+  useQuery({ queryKey: leaveKeys.myPage(q), queryFn: () => leaveApi.myPage(q), retry: false, placeholderData: (prev) => prev });
+export const useTeamLeavesPage = (from: string, to: string, q: IPageQuery) =>
+  useQuery({ queryKey: leaveKeys.teamPage(from, to, q), queryFn: () => leaveApi.teamPage(from, to, q), placeholderData: (prev) => prev });
+/** HR: số dư phép theo trang (BE chỉ tính cho nhân viên trong trang). */
+export const useAllBalancesPage = (q: IPageQuery, enabled = true) =>
+  useQuery({ queryKey: leaveKeys.balancesPage(q), queryFn: () => leaveApi.balancesPage(q), enabled, placeholderData: (prev) => prev });
 export const useLeavePreview = (start: string, end: string, period: LeavePeriod) =>
   useQuery({
     queryKey: leaveKeys.preview(start, end, period),

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
+import { TablePagination, usePageState } from '@/components/common/pagination';
 import { formatTime } from '@/utils/date';
 import { cn } from '@/utils/cn';
-import { useBoard, useEmployeeMonth, useReport } from '../hooks/useAttendance';
+import { useBoardPage, useEmployeeMonth, useReportPage } from '../hooks/useAttendance';
 import type { DayStatus, IEmployeeBrief } from '../types/attendance.types';
 import { hm, WORK_MODE } from '../utils/labels';
 import { MonthTimesheet } from './MonthTimesheet';
@@ -22,10 +23,10 @@ const REPORT_COLUMNS: ColumnDef[] = [
 
 /** Tình trạng chấm công hôm nay của cả công ty (HR) / cấp dưới (quản lý). */
 export function BoardTable() {
-  const { data: rows = [], isLoading } = useBoard();
-  const order: Record<DayStatus, number> = { Working: 0, Present: 1, MissingCheckout: 2, NotYet: 3, Leave: 4, Absent: 5, Holiday: 6, DayOff: 7, NotEmployed: 8 };
-  const sorted = [...rows].sort((a, b) => order[a.day.status] - order[b.day.status] || a.employee.code.localeCompare(b.employee.code));
-  const count = (s: string) => rows.filter((r) => r.day.status === s).length;
+  const pg = usePageState('attendance-board');
+  const { data, isLoading } = useBoardPage(pg.query); // BE sắp: đang làm → đã xong → thiếu giờ ra → chưa chấm → … rồi mã NV; đếm trên toàn bộ
+  const rows = data?.items ?? [];
+  const count = (s: DayStatus) => data?.counts[s] ?? 0;
   const cols = useColumns('attendance-board', BOARD_COLUMNS);
   const v = cols.show;
   return (
@@ -45,7 +46,7 @@ export function BoardTable() {
           <TableBody>
             {isLoading && <TableRow><TableCell colSpan={cols.span()} className="text-center text-muted-foreground">Đang tải…</TableCell></TableRow>}
             {!isLoading && rows.length === 0 && <TableRow><TableCell colSpan={cols.span()} className="py-8 text-center text-muted-foreground">Chưa có nhân viên</TableCell></TableRow>}
-            {sorted.map(({ employee: e, day: d }) => (
+            {rows.map(({ employee: e, day: d }) => (
               <TableRow key={e.id}>
                 <TableCell><span className="font-mono text-xs text-muted-foreground">{e.code}</span> {e.fullName}</TableCell>
                 {v('department') && <TableCell>{e.departmentName ?? '—'}</TableCell>}
@@ -59,6 +60,7 @@ export function BoardTable() {
             ))}
           </TableBody>
         </Table>
+        <TablePagination state={pg} total={data?.total} unit="nhân viên" />
       </div>
     </div>
   );
@@ -66,7 +68,9 @@ export function BoardTable() {
 
 /** Tổng hợp tháng từng nhân viên; bấm một dòng để xem bảng công chi tiết. */
 export function ReportTable({ month }: { month: string }) {
-  const { data: rows = [], isLoading } = useReport(month);
+  const pg = usePageState('attendance-report', month);
+  const { data, isLoading } = useReportPage(month, pg.query);
+  const rows = data?.items ?? [];
   const [selected, setSelected] = useState<IEmployeeBrief | null>(null);
   const detail = useEmployeeMonth(selected?.id ?? null, month);
   const cols = useColumns('attendance-report', REPORT_COLUMNS);
@@ -101,6 +105,7 @@ export function ReportTable({ month }: { month: string }) {
             ))}
           </TableBody>
         </Table>
+        <TablePagination state={pg} total={data?.total} unit="nhân viên" />
       </div>
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
