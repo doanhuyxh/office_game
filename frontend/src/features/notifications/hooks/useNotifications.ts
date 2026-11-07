@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { IPageQuery } from '@/types/api';
 import { notificationApi, notificationKeys } from '../api/notification.api';
 
 /**
@@ -19,6 +20,10 @@ export function useNotifications() {
   }, [unread, qc]);
   return q;
 }
+
+/** Trang /notifications (BE cắt trang); hỏi lại mỗi 30 giây như chuông. */
+export const useNotificationsPage = (unread: boolean, q: IPageQuery) =>
+  useQuery({ queryKey: notificationKeys.page(unread, q), queryFn: () => notificationApi.page(unread, q), refetchInterval: 30_000, placeholderData: (prev) => prev });
 
 export function useMarkRead() {
   const qc = useQueryClient();

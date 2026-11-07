@@ -1,3 +1,5 @@
+import type { IPaged } from '@/types/api';
+
 // Khớp DTO ở backend/src/Modules/Notification/.../Features/NotificationEndpoints.cs
 
 /** NotificationCategories ở Notification.Contracts */
@@ -12,6 +14,11 @@ export interface INotification {
   link: string | null;
   createdAt: string;
   read: boolean;
+}
+
+/** Một trang thông báo (BE `NotificationPage`); unreadCount = tổng chưa đọc, không phụ thuộc bộ lọc. */
+export interface INotificationPage extends IPaged<INotification> {
+  unreadCount: number;
 }
 
 export interface INotificationList {

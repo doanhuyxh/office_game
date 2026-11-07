@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using OfficeHub.BuildingBlocks.Auth;
+using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.Modules.Notification.Infrastructure;
 
 namespace OfficeHub.Modules.Notification.Features;
@@ -12,6 +13,10 @@ namespace OfficeHub.Modules.Notification.Features;
 public sealed record NotificationDto(Guid Id, string Category, string Title, string Body, string? Link, DateTimeOffset CreatedAt, bool Read);
 public sealed record NotificationListDto(int UnreadCount, IReadOnlyList<NotificationDto> Items);
 public sealed record UnreadCountDto(int Count);
+
+/// <summary>Một trang thông báo (trang /notifications) + số chưa đọc toàn bộ (không phụ thuộc bộ lọc).</summary>
+public sealed record NotificationPage(IReadOnlyList<NotificationDto> Items, int Total, int Page, int PageSize, int UnreadCount)
+    : PagedResult<NotificationDto>(Items, Total, Page, PageSize);
 
 /// <summary>Thông báo in-app của tài khoản đang đăng nhập (mọi truy vấn lọc theo UserId của chính người gọi).</summary>
 internal static class NotificationEndpoints
@@ -24,14 +29,26 @@ internal static class NotificationEndpoints
         g.MapPost("/read-all", ReadAllAsync);
     }
 
-    private static async Task<Ok<NotificationListDto>> ListAsync(int? take, ClaimsPrincipal user, NotificationDbContext db, CancellationToken ct)
+    /// <summary>
+    /// Thông báo của tôi, mới nhất trước. Có <c>page</c> → <see cref="NotificationPage"/> (trang /notifications, <c>unread=true</c> chỉ lấy chưa đọc);
+    /// không có → <c>{ unreadCount, items }</c> với <c>take</c> mục mới nhất (chuông trên header).
+    /// </summary>
+    private static async Task<Results<Ok<NotificationListDto>, Ok<NotificationPage>>> ListAsync(int? take, int? page, int? pageSize, bool? unread,
+        ClaimsPrincipal user, NotificationDbContext db, CancellationToken ct)
     {
         var uid = user.GetUserId()!.Value;
-        var n = Math.Clamp(take ?? 20, 1, 100);
-        var items = await db.Notifications.AsNoTracking().Where(x => x.UserId == uid).OrderByDescending(x => x.CreatedAt).Take(n)
-            .Select(x => new NotificationDto(x.Id, x.Category, x.Title, x.Body, x.Link, x.CreatedAt, x.ReadAt != null)).ToListAsync(ct);
-        var unread = await db.Notifications.CountAsync(x => x.UserId == uid && x.ReadAt == null, ct);
-        return TypedResults.Ok(new NotificationListDto(unread, items));
+        var mine = db.Notifications.AsNoTracking().Where(x => x.UserId == uid);
+        var unreadCount = await mine.CountAsync(x => x.ReadAt == null, ct);
+        var q = unread == true ? mine.Where(x => x.ReadAt == null) : mine;
+        var rows = q.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
+            .Select(x => new NotificationDto(x.Id, x.Category, x.Title, x.Body, x.Link, x.CreatedAt, x.ReadAt != null));
+        if (page is { } pg)
+        {
+            var p = await rows.ToPagedAsync(pg, pageSize, ct);
+            return TypedResults.Ok(new NotificationPage(p.Items, p.Total, p.Page, p.PageSize, unreadCount));
+        }
+        var items = await rows.Take(Math.Clamp(take ?? 20, 1, 100)).ToListAsync(ct);
+        return TypedResults.Ok(new NotificationListDto(unreadCount, items));
     }
 
     private static async Task<Ok<UnreadCountDto>> UnreadCountAsync(ClaimsPrincipal user, NotificationDbContext db, CancellationToken ct)

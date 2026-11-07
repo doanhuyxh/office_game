@@ -2,12 +2,13 @@ import { useNavigate } from '@tanstack/react-router';
 import { Bell, CheckCheck } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/common/dropdown-menu';
+import { PATHS } from '@/config/paths';
 import { cn } from '@/utils/cn';
 import { useMarkAllRead, useMarkRead, useNotifications } from '../hooks/useNotifications';
 import type { INotification } from '../types/notification.types';
 import { CATEGORY, FALLBACK, timeAgo } from '../utils/labels';
 
-/** Chuông thông báo trên header: badge số chưa đọc, danh sách 20 thông báo mới nhất. Bấm một thông báo → đánh dấu đã đọc + mở link. */
+/** Chuông thông báo trên header: badge số chưa đọc, danh sách 20 thông báo mới nhất + "Xem tất cả" → /notifications. Bấm một thông báo → đánh dấu đã đọc + mở link. */
 export function NotificationBell() {
   const { data } = useNotifications();
   const markRead = useMarkRead();
@@ -61,6 +62,10 @@ export function NotificationBell() {
             );
           })}
         </div>
+        <DropdownMenuSeparator className="m-0" />
+        <DropdownMenuItem onSelect={() => void navigate({ to: PATHS.notifications })} className="justify-center rounded-none py-2 text-sm text-primary" data-testid="notification-all">
+          Xem tất cả thông báo
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

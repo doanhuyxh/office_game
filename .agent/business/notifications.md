@@ -35,14 +35,16 @@ Người duyệt: bước `Manager` → tài khoản của quản lý (`Employee
 
 | Method | Path | Kết quả |
 |---|---|---|
-| GET | `/?take=20` (1–100) | `{ unreadCount, items: [{ id, category, title, body, link, createdAt, read }] }` mới nhất trước |
+| GET | `/?take=20` (1–100) | Chuông: `{ unreadCount, items: [{ id, category, title, body, link, createdAt, read }] }` mới nhất trước |
+| GET | `/?page=&pageSize=&unread=true` | Trang `/notifications`: `NotificationPage` = `PagedResult` + `unreadCount` (tổng chưa đọc, không theo bộ lọc); `unread=true` chỉ lấy chưa đọc |
 | GET | `/unread-count` | `{ count }` |
 | POST | `/{id}/read` | 204; thông báo của người khác → **404** |
 | POST | `/read-all` | 204 |
 
 ## UI (`frontend/src/features/notifications/`)
 
-- `NotificationBell` trên `Header` (cạnh nút theme): badge số chưa đọc (`data-testid="notification-unread"`), dropdown 20 mục (icon theo `category`, in đậm + chấm nếu chưa đọc, `timeAgo`), "Đánh dấu đã đọc". Bấm mục → đánh dấu đọc + `navigate(link)`.
+- `NotificationBell` trên `Header` (cạnh nút theme): badge số chưa đọc (`data-testid="notification-unread"`), dropdown 20 mục (icon theo `category`, in đậm + chấm nếu chưa đọc, `timeAgo`), "Đánh dấu đã đọc", cuối dropdown "Xem tất cả thông báo" → `/notifications`. Bấm mục → đánh dấu đọc + `navigate(link)`.
+- Trang `/notifications` (`NotificationsPage`, menu Chung → "Thông báo", mọi vai trò): tab Tất cả / Chưa đọc (số chưa đọc), "Đánh dấu tất cả đã đọc", nút ✓ đánh dấu từng mục, phân trang BE (`TablePagination`, id `notifications`), hỏi lại 30 giây.
 - `useNotifications` hỏi lại mỗi **30 giây**; số chưa đọc tăng → invalidate cache `approval`, `leave`, `attendance` (badge "Phê duyệt" cập nhật theo).
 
 **Chưa có:** tuỳ chọn tắt email theo người dùng, đẩy realtime (SignalR), gom email (digest), nhắc quên chấm ra, nhắc hợp đồng sắp hết hạn, xoá thông báo cũ.
