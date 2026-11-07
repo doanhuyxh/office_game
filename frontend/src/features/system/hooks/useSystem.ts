@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { systemApi, systemKeys } from '../api/system.api';
 
 export const useSystemInfo = () => useQuery({ queryKey: systemKeys.info, queryFn: systemApi.info, staleTime: 30_000 });
@@ -14,5 +14,6 @@ export function useStorageReport() {
     setRescanning(true);
     try { qc.setQueryData(systemKeys.storage, await systemApi.storage(true)); } finally { setRescanning(false); }
   };
-  return { ...q, load: () => setEnabled(true), started: enabled, rescan, rescanning };
+  const load = useCallback(() => setEnabled(true), []);
+  return { ...q, load, started: enabled, rescan, rescanning };
 }

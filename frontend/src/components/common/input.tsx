@@ -1,7 +1,21 @@
 import * as React from "react"
 import { cn } from "@/utils/cn"
+import { PickerInput } from "@/components/common/date-picker"
 
+/**
+ * Ô nhập (shadcn). `type="date"` / `type="month"` → bộ chọn tiếng Việt (date-picker.tsx) thay lịch của trình duyệt (hiện tiếng Anh);
+ * value / onChange giữ dạng như input gốc (e.target.value = "yyyy-MM-dd" / "yyyy-MM").
+ */
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+  if (type === "date" || type === "month") {
+    const { id, value, onChange, min, max, required, disabled, name } = props
+    return (
+      <PickerInput kind={type === "month" ? "month" : "date"} id={id} value={typeof value === "string" ? value : ""} onChange={onChange}
+        min={typeof min === "string" ? min : undefined} max={typeof max === "string" ? max : undefined}
+        required={required} disabled={disabled} name={name} className={className}
+        aria-label={props["aria-label"]} aria-invalid={props["aria-invalid"] as boolean | undefined} />
+    )
+  }
   return (
     <input
       type={type}

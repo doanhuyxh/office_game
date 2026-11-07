@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Download, HardDrive, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
@@ -52,14 +53,16 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
   );
 }
 
-/** Dung lượng S3 đang dùng (chỉ admin): bấm "Quét" mới gọi (liệt kê object có thể mất vài giây). */
+/** Dung lượng S3 đang dùng (chỉ admin, tab "Lưu trữ S3" của trang Hệ thống): mở tab là quét; "Quét lại" bỏ qua kết quả giữ 10 phút. */
 export function StorageCard() {
   const r = useStorageReport();
+  const { load } = r;
+  useEffect(() => { load(); }, [load]); // tab riêng → mở tab là quét (server giữ kết quả 10 phút)
   const data = r.data;
   const max = Math.max(1, ...(data?.groups.map((g) => g.bytes) ?? []));
   const maxMonth = Math.max(1, ...(data?.monthly.map((m) => m.bytes) ?? []));
   return (
-    <Card className="lg:col-span-2" data-testid="system-storage">
+    <Card data-testid="system-storage">
       <CardHeader className="flex flex-wrap items-start justify-between gap-2">
         <div className="grid gap-1.5">
           <CardTitle className="flex items-center gap-2 text-base"><HardDrive className="size-4 text-muted-foreground" />Dung lượng lưu trữ S3</CardTitle>
