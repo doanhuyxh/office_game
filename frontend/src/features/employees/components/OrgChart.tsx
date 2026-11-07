@@ -83,21 +83,44 @@ function DeptBranch({ node, byDept, empById, showMembers, full }: { node: DeptNo
 
 // ---------------- Theo quản lý trực tiếp ----------------
 
+function PersonCard({ e, lead, dashed }: { e: IEmployee; lead?: boolean; dashed?: boolean }) {
+  return (
+    <div className={cn('w-52 rounded-lg border bg-card p-2.5 shadow-sm', dashed && 'border-dashed')} data-testid="org-person">
+      <Person e={e} highlight={lead} />
+      <div className="mt-1 truncate text-left text-[11px] text-muted-foreground">{e.departmentName ?? 'Chưa thuộc phòng ban'}</div>
+    </div>
+  );
+}
+
+/**
+ * Một người + cấp dưới. Cấp dưới có người dưới quyền → nhánh ngang như cây; cấp dưới không quản lý ai → xếp thành cột dọc
+ * (> 8 người thì 2 cột) dưới quản lý, để sơ đồ không trải thành một hàng ngang dài hàng chục thẻ.
+ */
 function ManagerBranch({ e, reports, depth }: { e: IEmployee; reports: Map<string, IEmployee[]>; depth: number }) {
   const kids = (reports.get(e.id) ?? []).slice().sort(byRank);
+  const leads = kids.filter((k) => reports.get(k.id)?.length);
+  const leaves = kids.filter((k) => !reports.get(k.id)?.length);
   const [open, setOpen] = useState(depth < 3);
   return (
     <li>
-      <div className={cn('w-52 rounded-lg border bg-card p-2.5 shadow-sm', depth === 0 && !kids.length && 'border-dashed')} data-testid="org-person">
-        <Person e={e} highlight={kids.length > 0} />
-        <div className="mt-1 truncate text-left text-[11px] text-muted-foreground">{e.departmentName ?? 'Chưa thuộc phòng ban'}</div>
-      </div>
+      <PersonCard e={e} lead={kids.length > 0} dashed={depth === 0 && !kids.length} />
       {kids.length > 0 && (
         <>
           <button type="button" onClick={() => setOpen(!open)} className="relative z-10 -mt-px flex items-center gap-0.5 rounded-b-md border border-t-0 bg-card px-2 text-[11px] text-muted-foreground hover:text-foreground">
             {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}{kids.length} cấp dưới
           </button>
-          {open && <ul>{kids.map((k) => <ManagerBranch key={k.id} e={k} reports={reports} depth={depth + 1} />)}</ul>}
+          {open && (
+            <ul>
+              {leads.map((k) => <ManagerBranch key={k.id} e={k} reports={reports} depth={depth + 1} />)}
+              {leaves.length > 0 && (
+                <li>
+                  <div className={cn('org-stack grid gap-1.5', leaves.length > 8 && 'grid-cols-2')}>
+                    {leaves.map((k) => <PersonCard key={k.id} e={k} />)}
+                  </div>
+                </li>
+              )}
+            </ul>
+          )}
         </>
       )}
     </li>
@@ -117,12 +140,18 @@ export function OrgChart() {
   const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const inner = useRef<HTMLDivElement>(null);
-  /** Thu nhỏ cho vừa chiều ngang khung (không phóng to quá 100%). */
+  /**
+   * Vừa khung. Thường: vừa chiều ngang (≤ 100%, cuộn dọc). Toàn màn hình: vừa cả ngang lẫn dọc, được phóng tới 150% để lấp màn hình;
+   * sơ đồ quá cao (vd hiện đủ nhân viên mọi phòng) → không thu dưới 60% chiều ngang cho vừa, phần còn lại cuộn / kéo.
+   */
   const fit = () => {
     if (!box.current || !inner.current) return;
     const current = Number(inner.current.style.zoom) || 1;
-    const natural = inner.current.getBoundingClientRect().width / current;
-    setZoom(Math.max(0.3, Math.min(1, +((box.current.clientWidth - 48) / natural).toFixed(2))));
+    const rect = inner.current.getBoundingClientRect();
+    const byWidth = (box.current.clientWidth - 48) / (rect.width / current);
+    const byHeight = (box.current.clientHeight - 48) / (rect.height / current);
+    const z = full ? Math.min(1.5, byWidth, Math.max(byHeight, Math.min(byWidth, 0.6))) : Math.min(1, byWidth);
+    setZoom(Math.max(0.3, +z.toFixed(2)));
   };
 
   /** Toàn màn hình: phủ cả cửa sổ + Fullscreen API của trình duyệt (không hỗ trợ / bị chặn → vẫn phủ cửa sổ). Esc để thoát. */
@@ -137,11 +166,19 @@ export function OrgChart() {
   }, [full]);
   useEffect(() => {
     if (!full) return;
-    const onFs = () => { if (!document.fullscreenElement) setFull(false); };
+    // Trình duyệt đổi kích thước sau khi vào fullscreen (bất đồng bộ) → vừa khung lại theo kích thước mới
+    const refit = () => requestAnimationFrame(fit);
+    const onFs = () => { if (!document.fullscreenElement) setFull(false); else refit(); };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFull(false); };
     document.addEventListener('fullscreenchange', onFs);
     document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('fullscreenchange', onFs); document.removeEventListener('keydown', onKey); };
+    window.addEventListener('resize', refit);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFs);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', refit);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [full]);
   useEffect(() => () => { if (document.fullscreenElement) void document.exitFullscreen().catch(() => {}); }, []);
 
@@ -149,6 +186,8 @@ export function OrgChart() {
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 || e.pointerType === 'touch' || !box.current || (e.target as HTMLElement).closest('button, input, label, a')) return;
     drag.current = { x: e.clientX, y: e.clientY, left: box.current.scrollLeft, top: box.current.scrollTop };
+    e.preventDefault(); // không bôi đen chữ khi kéo
+    window.getSelection()?.removeAllRanges();
     box.current.setPointerCapture(e.pointerId);
     setDragging(true);
   };
@@ -218,9 +257,9 @@ export function OrgChart() {
           <label className="flex items-center gap-2 text-sm"><Checkbox checked={showMembers} onCheckedChange={(c) => setShowMembers(c === true)} /> Hiện nhân viên</label>
         )}
         <div className="ms-auto flex items-center gap-1">
-          <Button size="icon" variant="outline" className="size-8" aria-label="Thu nhỏ" onClick={() => setZoom((z) => Math.max(0.4, +(z - 0.1).toFixed(1)))}><Minus className="size-4" /></Button>
+          <Button size="icon" variant="outline" className="size-8" aria-label="Thu nhỏ" onClick={() => setZoom((z) => Math.max(0.3, +(z - 0.1).toFixed(1)))}><Minus className="size-4" /></Button>
           <button type="button" className="w-12 text-center text-xs tabular-nums text-muted-foreground" onClick={() => setZoom(1)} title="Về 100%">{Math.round(zoom * 100)}%</button>
-          <Button size="icon" variant="outline" className="size-8" aria-label="Phóng to" onClick={() => setZoom((z) => Math.min(1.5, +(z + 0.1).toFixed(1)))}><Plus className="size-4" /></Button>
+          <Button size="icon" variant="outline" className="size-8" aria-label="Phóng to" onClick={() => setZoom((z) => Math.min(2, +(z + 0.1).toFixed(1)))}><Plus className="size-4" /></Button>
           <Button size="sm" variant="outline" onClick={fit}><Maximize2 className="size-4" /> Vừa khung</Button>
           <Button size="sm" variant={full ? 'default' : 'outline'} onClick={toggleFull} title={full ? 'Thoát toàn màn hình (Esc)' : 'Xem toàn màn hình'} data-testid="org-fullscreen">
             {full ? <><Minimize className="size-4" /> Thoát</> : <><Expand className="size-4" /> Toàn màn hình</>}
@@ -230,7 +269,7 @@ export function OrgChart() {
       {warnings.map((w) => (
         <div key={w} className="flex gap-2 rounded-md bg-warning/10 p-2.5 text-sm text-warning"><AlertTriangle className="mt-0.5 size-4 shrink-0" />{w}</div>
       ))}
-      <div ref={box} className={cn('overflow-auto rounded-xl border bg-muted/20 p-6', full ? 'min-h-0 flex-1' : 'max-h-[75vh]', dragging ? 'cursor-grabbing select-none' : 'cursor-grab')}
+      <div ref={box} className={cn('overflow-auto rounded-xl border bg-muted/20 p-6', full ? 'min-h-0 flex-1' : 'max-h-[75vh]', 'select-none', dragging ? 'cursor-grabbing' : 'cursor-grab')}
         onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag} data-testid="org-chart">
         {/* CSS zoom (khác transform) đổi cả kích thước bố cục → thanh cuộn đúng khi phóng / thu */}
         <div ref={inner} className="org-tree mx-auto w-max" style={{ zoom }}>
