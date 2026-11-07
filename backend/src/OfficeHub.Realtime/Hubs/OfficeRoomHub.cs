@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.Realtime.Auth;
+using OfficeHub.Realtime.Chat;
 using OfficeHub.Realtime.Screens;
 using OfficeHub.Realtime.Simulation;
 using OfficeHub.Realtime.Voice;
@@ -40,10 +41,12 @@ public interface IOfficeClient
 
 [Authorize]
 public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValidator sessions, VoiceGuard voice, RoomScreens screens,
-    TimeProvider clock, ILogger<OfficeRoomHub> log) : Hub<IOfficeClient>
+    ChatApi chatApi, ChatFanout chatFanout, TimeProvider clock, ILogger<OfficeRoomHub> log) : Hub<IOfficeClient>
 {
     public const string Path = "/rt/hub/office";
-    private const string Room = "office";
+    /// <summary>Group SignalR của mọi người trong văn phòng 3D (chat kênh Office phát vào đây).</summary>
+    public const string OfficeGroup = "office";
+    private const string Room = OfficeGroup;
     private const float MaxSpeed = 7f, Slack = 2.5f;
 
     private string UserId => Context.UserIdentifier ?? throw new HubException("unauthorized");
@@ -115,9 +118,33 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
             p.LastMoveTicks = now;
             p.LastActiveAt = clock.GetUtcNow();
         }
-        // Vừa bước vào phòng có tường đang chiếu tài liệu → gửi ngay cho người này (client không phải đoán lúc server đã thấy mình trong phòng)
-        if (RoomOf(p) is { } after && after.Id != before?.Id && screens.Get(after.Id) is { } screen)
-            await Clients.Caller.ScreenChanged(after.Id, screen);
+        if (RoomOf(p) is { } after && after.Id != before?.Id)
+        {
+            JoinRoomChannelInBackground(p, after.Id);
+            // Vừa bước vào phòng có tường đang chiếu tài liệu → gửi ngay cho người này (client không phải đoán lúc server đã thấy mình trong phòng)
+            if (screens.Get(after.Id) is { } screen) await Clients.Caller.ScreenChanged(after.Id, screen);
+        }
+    }
+
+    /// <summary>
+    /// Báo Api "người này vừa vào phòng" để được xem kênh chat của phòng (chỉ Realtime biết vị trí thật). Không chặn Move; lỗi chỉ ghi log,
+    /// lần vào / gửi tin sau sẽ thử lại.
+    /// </summary>
+    private void JoinRoomChannelInBackground(Player p, string roomId)
+    {
+        lock (p.JoinedRooms) { if (p.JoinedRooms.Contains(roomId)) return; }
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await chatApi.JoinRoomAsync(p.UserId, roomId);
+                lock (p.JoinedRooms) p.JoinedRooms.Add(roomId);
+            }
+            catch (Exception ex)
+            {
+                log.LogWarning("Chưa cấp được quyền kênh chat phòng {Room} cho {User}: {Message}", roomId, p.Name, ex.Message);
+            }
+        });
     }
 
     /// <summary>
@@ -148,7 +175,9 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
         if (now - p.LastChatAt < TimeSpan.FromSeconds(1)) throw new HubException("Gửi chậm lại một chút");
         p.LastChatAt = now;
         p.LastActiveAt = now;
-        await Clients.Group(Room).Chat(new ChatDto(p.UserId, p.Name, text, Instants.Format(now)));
+        // Api lưu tin rồi ChatFanout phát lại (kể cả cho người gửi trong 3D) — không tự phát ở đây
+        var result = await chatApi.SendAsync(p.AuthCookie, ChatApi.OfficeId, text, null, null, Context.ConnectionAborted);
+        await chatFanout.PublishMessageAsync(result);
     }
 
     /// <summary>
@@ -167,8 +196,25 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
         if (room is null) throw new HubException("Bạn đang ở khu mở — vào một phòng có tường để chat riêng trong phòng");
         p.LastChatAt = now;
         p.LastActiveAt = now;
-        var targets = presence.All.Where(o => RoomOf(o)?.Id == room.Id).Select(o => o.ConnectionId).ToList();
-        await Clients.Clients(targets).Chat(new ChatDto(p.UserId, p.Name, text, Instants.Format(now), "room", room.Id, room.Name));
+        await EnsureRoomChannelAsync(p, room.Id);
+        var result = await chatApi.SendAsync(p.AuthCookie, ChatApi.RoomConversation(room.Id), text, null, null, Context.ConnectionAborted);
+        await chatFanout.PublishMessageAsync(result);
+    }
+
+    /// <summary>Đảm bảo người gửi đã là thành viên kênh chat của phòng (Move có thể chưa kịp báo Api) trước khi gửi tin.</summary>
+    private async Task EnsureRoomChannelAsync(Player p, string roomId)
+    {
+        lock (p.JoinedRooms) { if (p.JoinedRooms.Contains(roomId)) return; }
+        try
+        {
+            await chatApi.JoinRoomAsync(p.UserId, roomId, Context.ConnectionAborted);
+        }
+        catch (Exception ex) when (ex is HubException or HttpRequestException)
+        {
+            log.LogWarning("Chưa cấp được quyền kênh chat phòng {Room} cho {User}: {Message}", roomId, p.Name, ex.Message);
+            throw new HubException("Chưa vào được kênh chat của phòng, thử lại sau");
+        }
+        lock (p.JoinedRooms) p.JoinedRooms.Add(roomId);
     }
 
     /// <summary>Tài liệu đang chiếu ở phòng có tường mình đang đứng (vào phòng → client hỏi); khu mở / chưa chiếu → null.</summary>
@@ -204,10 +250,5 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
 
     private List<string> InRoom(string roomId) => presence.All.Where(o => RoomOf(o)?.Id == roomId).Select(o => o.ConnectionId).ToList();
 
-    private Simulation.Room? RoomOf(Player p)
-    {
-        float x, z;
-        lock (p) { x = p.X; z = p.Z; }
-        return map.Rooms.FirstOrDefault(r => r.Walls && r.Contains(x, z));
-    }
+    private Simulation.Room? RoomOf(Player p) => map.WallRoomOf(p);
 }

@@ -138,6 +138,7 @@ const routeTree = root.addChildren([
       page(PATHS.payslips, () => import('@/features/payroll'), 'PayslipsPage'),
       page(PATHS.profile, () => import('@/features/profile'), 'ProfilePage'),
       page(PATHS.notifications, () => import('@/features/notifications'), 'NotificationsPage'),
+      page(PATHS.chat, () => import('@/features/chat'), 'ChatPage'),
       page(PATHS.aiAccess, () => import('@/features/ai-access'), 'AiAccessPage'),
       page(PATHS.mcpTools, () => import('@/features/mcp-tools'), 'McpToolsPage'),
       page(PATHS.system, () => import('@/features/system'), 'SystemPage'),

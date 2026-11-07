@@ -51,4 +51,6 @@ Người duyệt: bước `Manager` → tài khoản của quản lý (`Employee
 
 Module khác: `document_retention` (hạn lưu trữ), `document_handover` (bàn giao), `project_member_added` (chỉ app) — [documents.md](documents.md); `contract_expiring` (hợp đồng 30 / 7 ngày), `probation_ending` (thử việc 7 / 3 ngày + quá hạn, chưa có HĐ tiếp theo) — [contracts-reminders.md](contracts-reminders.md); `account_security` (HR đặt lại 2FA, email + app) — [auth-2fa.md](auth-2fa.md).
 
+Chat dùng lại `playNotificationSound` + công tắc âm này cho tin nhắn mới ([chat.md](chat.md)); tin nhắn không tạo thông báo chuông / email.
+
 **Chưa có:** tuỳ chọn tắt email theo người dùng, đẩy realtime (SignalR), gom email (digest), xoá thông báo cũ.

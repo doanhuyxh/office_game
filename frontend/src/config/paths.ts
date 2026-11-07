@@ -15,6 +15,7 @@ export const PATHS = {
   payslips: '/payslips',
   profile: '/profile',
   notifications: '/notifications',
+  chat: '/chat',
   aiAccess: '/ai-access',
   mcpTools: '/mcp-tools',
   system: '/system',

@@ -50,6 +50,17 @@ public sealed class EncryptionSettings
     [Required(ErrorMessage = "Thiếu Encryption__Key trong .env")] public string Key { get; set; } = "";
 }
 
+/// <summary>
+/// Khoá nội bộ giữa OfficeHub.Realtime và OfficeHub.Api cho module Chat (Realtime báo "người này vừa vào phòng X" để cấp quyền xem kênh phòng;
+/// chỉ Realtime biết vị trí thật trong văn phòng 3D). Gửi qua header <c>X-Chat-Key</c>; tối thiểu 32 ký tự (<c>openssl rand -base64 32</c>).
+/// </summary>
+public sealed class ChatSettings
+{
+    public const string Section = "Chat";
+    [Required(ErrorMessage = "Thiếu Chat__InternalKey trong .env"), MinLength(32, ErrorMessage = "Chat__InternalKey phải dài tối thiểu 32 ký tự (openssl rand -base64 32)")]
+    public string InternalKey { get; set; } = "";
+}
+
 public sealed class SmtpSettings
 {
     public const string Section = "Smtp";

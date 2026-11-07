@@ -1,5 +1,6 @@
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.Realtime.Auth;
+using OfficeHub.Realtime.Chat;
 using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.BuildingBlocks.Hosting;
 using OfficeHub.BuildingBlocks.Security;
@@ -25,6 +26,13 @@ builder.Services.AddHttpClient(SessionValidator.HttpClientName, c => { c.BaseAdd
 builder.Services.AddSingleton<SessionValidator>();
 builder.Services.AddHostedService<SessionWatch>();
 
+// Chat (tin nhắn): Api lưu, Realtime chỉ chuyển tiếp + phát. Khoá nội bộ để báo "ai vừa vào phòng nào".
+builder.Services.AddOptions<ChatSettings>().Bind(builder.Configuration.GetSection(ChatSettings.Section)).ValidateDataAnnotations().ValidateOnStart();
+builder.Services.AddSingleton<ChatConnections>();
+builder.Services.AddSingleton<ChatApi>();
+builder.Services.AddSingleton<ChatFanout>();
+builder.Services.AddHostedService<ChatSessionWatch>();
+
 builder.Services.AddSignalR(o => o.MaximumReceiveMessageSize = 16 * 1024).AddMessagePackProtocol();
 
 var mapPath = EnvLoader.ResolvePath(builder.Configuration["Realtime:MapPath"] ?? "shared/office-map.json", builder.Environment.ContentRootPath);
@@ -46,6 +54,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapHub<OfficeRoomHub>(OfficeRoomHub.Path);
+app.MapHub<ChatHub>(ChatHub.Path);
 app.MapVoice();
 
 app.Run();

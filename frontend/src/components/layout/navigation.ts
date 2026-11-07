@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Bell, Bot, FolderOpen, Building2, CalendarClock, CheckSquare, Clock, FileText, History, Landmark, Server, LayoutDashboard, Palmtree, UserRound, Users, Wallet, Wrench } from 'lucide-react';
+import { BarChart3, Bell, Bot, MessageSquare, FolderOpen, Building2, CalendarClock, CheckSquare, Clock, FileText, History, Landmark, Server, LayoutDashboard, Palmtree, UserRound, Users, Wallet, Wrench } from 'lucide-react';
 import { PATHS } from '@/config/paths';
 
 export interface NavItem {
@@ -26,6 +26,7 @@ export const NAVIGATION: NavGroup[] = [
       { to: PATHS.office, label: 'Văn phòng 3D', icon: Building2 },
       { to: PATHS.profile, label: 'Hồ sơ cá nhân', icon: UserRound }, // ẩn khi tài khoản không gắn hồ sơ nhân viên (useNavigation)
       { to: PATHS.notifications, label: 'Thông báo', icon: Bell },
+      { to: PATHS.chat, label: 'Tin nhắn', icon: MessageSquare },
       { to: PATHS.aiAccess, label: 'Kết nối AI', icon: Bot },
     ],
   },

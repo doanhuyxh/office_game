@@ -57,11 +57,11 @@ dotnet ef migrations add <TenMigration> \
   --context <DbContext> -o Infrastructure/Migrations
 ```
 
-DbContext hiện có: `OfficeIdentityDbContext`, `OrgDbContext`, `AttendanceDbContext`, `ApprovalDbContext`, `LeaveDbContext`, `NotificationDbContext`, `ContractsDbContext`, `DocumentsDbContext` (… và các module khác). Migration tự chạy khi Api khởi động nếu `Database__MigrateOnStartup=true`. Chi tiết: [database.md](database.md).
+DbContext hiện có: `OfficeIdentityDbContext`, `OrgDbContext`, `AttendanceDbContext`, `ApprovalDbContext`, `LeaveDbContext`, `NotificationDbContext`, `ContractsDbContext`, `DocumentsDbContext`, `ChatDbContext` (… và các module khác). Migration tự chạy khi Api khởi động nếu `Database__MigrateOnStartup=true`. Chi tiết: [database.md](database.md).
 
 ## Biến môi trường
 
-Bảng đầy đủ: [env.md](env.md).
+Bảng đầy đủ: [env.md](env.md). Dev cần `Chat__InternalKey` trong `.env` (Api và Realtime cùng giá trị; `openssl rand -base64 32`).
 
 ## Địa chỉ dev
 

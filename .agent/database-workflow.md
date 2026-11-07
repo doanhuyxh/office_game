@@ -63,6 +63,10 @@ Reporting **không có schema** (chỉ đọc qua `*.Contracts`).
 
 Chi tiết: [business/documents.md](business/documents.md). Enum lưu chuỗi; JSON trả chuỗi (`JsonStringEnumConverter` gắn trên enum của module). `projects` [Audited] (`Code` ≤30 unique lọc chưa xoá, `Name` ≤200, `Status` Active/Closed, `DepartmentId?`, xoá mềm `DeletedAt` + query filter). `project_members` (PK `ProjectId`+`EmployeeId`, `Role` Member/Manager, cascade). `folders` (`SpaceKind`, `SpaceId?` — null = kho công ty, `ParentId` FK Restrict, `Name` ≤200; unique (`SpaceKind`,`SpaceId`,`ParentId`,`Name`) **NULLS NOT DISTINCT**). `doc_types` [Audited] (`Code` ≤10 unique, `RetentionYears?`, `IsActive`; `DocumentsMigrator` seed 10 loại khi trống). `assets` [Audited] (`Code` unique, `Title` ≤300, `Tags` text[], `SpaceKind`/`SpaceId`/`FolderId` (FK Restrict), `DocTypeId` (FK Restrict), `Kind`, `Classification`, `Status`, `CurrentVersion`, `TotalSize`, `Custodian*`, `CreatedBy*`, `DocumentNumber`, `PublishedAt`, `ApprovalRequestId`, `SubmittedByEmployeeId` (migration `AssetSubmittedBy`), `RetentionUntil` date, `RetentionNotifiedAt`, `Destroyed*`, `DeletedAt` = thùng rác). `asset_versions` (unique `AssetId`+`Number`, `FileKey?` — null khi đã huỷ, cascade). `access_logs` (chỉ thêm; index `AssetId`+`At`). `upload_tickets` (vé tải lên, xoá khi dùng / quá 24 giờ). `sequences` (PK `Scope`: `asset:{năm}`, `pub:{loại}:{kho}:{năm}`; tăng bằng `INSERT … ON CONFLICT … RETURNING`).
 
+## Schema `chat` — `ChatDbContext` (migration `InitialChat`)
+
+Bảng `conversations`, `room_members`, `messages` (`Seq` identity), `attachments`, `read_states`, `upload_tickets`: [business/chat.md](business/chat.md#schema-chat). Enum `ConversationType` trả chuỗi (`JsonStringEnumConverter`).
+
 ## Schema `payroll` — `PayrollDbContext` (migration `InitialPayroll`)
 
 Bảng `settings`, `profiles`, `periods`, `payslips` (phiếu mã hoá), `adjustments`: [business/payroll.md](business/payroll.md#schema-payroll).

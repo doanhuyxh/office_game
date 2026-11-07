@@ -1,6 +1,6 @@
 # Tiến độ & bàn giao phiên
 
-> Cập nhật **2026-11-07 (tối)**: `main` = `origin/main` = `3f1b310` (34 commit sau `6cea7c6`). **CORS bucket S3 đã bật** (chủ dự án xác nhận) — trình duyệt PUT tài liệu lên kho được. Production `https://office.lokid.me` lần ghi tối 6/11 vẫn ở `ab8fac0`; phiên này **chưa kiểm tra lại** site. Đầu phiên khởi động lại theo [commands.md](commands.md). Chi tiết: bảng định tuyến [AGENTS.md](../AGENTS.md); kế hoạch tổng `docs/ARCHITECTURE_V2.md`.
+> Cập nhật **2026-11-07 (đêm)**: thêm **module Chat** + âm báo thông báo + màn hình quản trị "Công cụ AI (MCP)" (xem bảng dưới). Trước đó: `main` = `origin/main` = `3f1b310` (34 commit sau `6cea7c6`). **CORS bucket S3 đã bật** (chủ dự án xác nhận) — trình duyệt PUT tài liệu lên kho được. Production `https://office.lokid.me` lần ghi tối 6/11 vẫn ở `ab8fac0`; phiên này **chưa kiểm tra lại** site. Đầu phiên khởi động lại theo [commands.md](commands.md). Chi tiết: bảng định tuyến [AGENTS.md](../AGENTS.md); kế hoạch tổng `docs/ARCHITECTURE_V2.md`.
 
 ## Đã xong
 
@@ -11,6 +11,8 @@
 | Nhắc quên chấm ra (chuông) · nhập nhân viên từ Excel · lịch sử sửa dữ liệu nhân sự (`[Audited]`, che lương) | `attendance-corrections`, `employee-import`, `audit` |
 | Văn phòng 3D giai đoạn 1 (bản đồ v2, engine low-poly, A*, ngồi, minimap) + voice LiveKit (khoảng cách, phòng riêng, chia sẻ màn hình) | `office`, `office-engine`, `design/` |
 | **Nhân vật 3D tuỳ chỉnh** (2026-11-06, chưa deploy; migration `UserAvatars`): model Quaternius CC0, editor ở HUD + `/profile`, đồng bộ `LookChanged`; sửa lỗi cookie jar của Realtime (kiểm tra phiên nhầm người) | `office-avatar` |
+| **Tin nhắn (module Chat)** (2026-11-07, migration `InitialChat`, biến mới `Chat__InternalKey` — **phải đặt trước khi deploy**): kênh Office / kênh nhóm theo phòng có tường / chat 1-1, ảnh + tệp (S3 `chat/`), thu hồi = xoá mềm, lưu vĩnh viễn, chưa đọc + badge + âm báo; `/chat` + nút ở header; **đồng bộ với chat HUD 3D** (3D giờ lưu qua Api, giao diện 3D không đổi); admin / HR không đọc tin 1-1; không mở cho AI. E2E: REST 60/60, trình duyệt 32/32 (DB tạm). `office-chat-e2e.ts` cũ chưa chạy lại | `chat` |
+| Âm báo thông báo (chuông): `public/sounds/notification.mp3`, bật / tắt ở dropdown chuông + `/profile`, mặc định bật, lưu localStorage | `notifications` |
 | Kết nối AI: MCP 38 tool (không hợp đồng / lương, chấm công AI = Remote), token cá nhân + OAuth 2.1, nhật ký AI, HR thu hồi · màn hình quản trị "Công cụ AI (MCP)" `/mcp-tools` (chỉ admin, catalog bảo trì thủ công — luật #9) | `mcp`, `mcp-oauth` |
 | Giao diện shadcn-admin (sidebar, ⌘K, sáng / tối) · PWA cài được (không push) + giao diện mobile | `../frontend.md` |
 | Chat theo phòng, model GLB (chờ bộ Kenney), joystick + zoom cảm ứng | `office`, `office-engine` |
@@ -43,9 +45,8 @@ Kiểm tra ghi lần trước (trước 34 commit sau `6cea7c6`): `dotnet build 
 2. **Kế toán đối chiếu thông số lương** tại `/payroll` → Thông số trước khi chốt kỳ thật. **HR / trưởng phòng soạn mô tả + hướng dẫn** phòng ban / chức vụ (AI mới có nội dung). Kiểm tra lại cấp của từng chức vụ ở tab Chức vụ.
 3. Kho tài liệu giai đoạn sau (hỏi trước): OCR / tìm toàn văn, tool MCP, mở mức Mật.
 4. **Giai đoạn sau — tính năng mới (chưa bắt đầu, hỏi trước)**:
-   - Chat: đưa ra ngoài màn hình chính, đồng bộ với chat phòng trong 3D, thêm chat 1-on-1 giữa 2 người
-   - Thông báo: âm thanh cho chuông
-   - Module tin tức: HR/quản lý đăng, nhân viên xem feed
+   - Module tin tức: HR/quản lý đăng, nhân viên xem feed (chưa chốt: bình luận? email? chuyên mục?)
+   - Chat: sửa tin, tìm trong tin nhắn, dọn tệp S3 mồ côi (xem "Chưa làm" ở [chat.md](business/chat.md))
 5. Đề xuất chưa làm (hỏi trước): chốt công tháng, ca qua đêm, API loại phép, tắt email theo người, xuất sơ đồ tổ chức ra ảnh / PDF.
 6. Đã hoãn: vận hành (giám sát, diễn tập khôi phục backup), webhook máy chấm công, push PWA, HR bật / tắt AI theo người.
 

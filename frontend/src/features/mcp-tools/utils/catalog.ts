@@ -54,6 +54,7 @@ export const MCP_EXCLUDED = [
   'Thông tin cá nhân nhạy cảm: CCCD, ngân hàng, địa chỉ (/api/org/profile/*)',
   'Đổi mật khẩu, tạo / quản lý token, OAuth (trừ /api/auth/me)',
   'Thêm / sửa nhân viên, tài khoản, vai trò, ca, lịch, ngày lễ; điều chỉnh quỹ phép',
+  'Tin nhắn (chat) — kênh toàn văn phòng, kênh phòng và tin 1-1 (/api/chat/*)',
 ] as const;
 
 const P = {

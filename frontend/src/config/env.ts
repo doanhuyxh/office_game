@@ -7,6 +7,7 @@ export const ENV = {
 /** Endpoint realtime (SignalR). Traefik / Vite proxy /rt sang OfficeHub.Realtime. */
 export const REALTIME = {
   officeHub: '/rt/hub/office',
+  chatHub: '/rt/hub/chat',
   voiceToken: '/rt/voice/token',
 } as const;
 

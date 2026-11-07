@@ -26,6 +26,8 @@ public sealed class Player
     public string? VoiceRoom;
     /// <summary>Lúc vị trí bắt đầu lệch khỏi kênh <see cref="VoiceRoom"/> (null = đang đúng kênh).</summary>
     public DateTimeOffset? VoiceMismatchSince;
+    /// <summary>Id phòng có tường đã báo Api cấp quyền xem kênh chat phòng (khoá bằng lock khi đọc / ghi).</summary>
+    public readonly HashSet<string> JoinedRooms = [];
 }
 
 /// <summary>Ai đang ở trong văn phòng ảo. Một tài khoản chỉ một kết nối: mở tab mới thì tab cũ bị đóng.</summary>

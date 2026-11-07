@@ -8,6 +8,7 @@ import {
   SidebarMenuButton, SidebarMenuItem, SidebarRail, useSidebar,
 } from '@/components/common/sidebar';
 import { useInboxCount } from '@/features/approvals';
+import { useChatUnread } from '@/features/chat';
 import { useLogout, useMe } from '@/features/auth';
 import { PATHS } from '@/config/paths';
 import type { NavItem } from './navigation';
@@ -109,6 +110,7 @@ export function AppSidebar() {
   const groups = useNavigation();
   const pathname = useLocation({ select: (l) => l.pathname });
   const { data: inboxCount = 0 } = useInboxCount();
+  const chatUnread = useChatUnread();
   return (
     <Sidebar collapsible="icon" variant="inset">
       <SidebarHeader>
@@ -120,7 +122,7 @@ export function AppSidebar() {
             <SidebarGroupLabel>{g.title}</SidebarGroupLabel>
             <SidebarMenu>
               {g.items.map((item) => (
-                <NavLink key={item.to} item={item} pathname={pathname} badge={item.to === PATHS.approvals ? inboxCount : undefined} />
+                <NavLink key={item.to} item={item} pathname={pathname} badge={item.to === PATHS.approvals ? inboxCount : item.to === PATHS.chat ? chatUnread : undefined} />
               ))}
             </SidebarMenu>
           </SidebarGroup>

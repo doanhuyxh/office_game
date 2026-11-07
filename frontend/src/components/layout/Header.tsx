@@ -11,6 +11,7 @@ import {
 import { Separator } from '@/components/common/separator';
 import { SidebarTrigger } from '@/components/common/sidebar';
 import { useLogout, useMe } from '@/features/auth';
+import { ChatButton } from '@/features/chat';
 import { NotificationBell } from '@/features/notifications';
 import { useSearch } from '@/context/search-provider';
 import { useTheme, type Theme } from '@/context/theme-provider';
@@ -186,6 +187,7 @@ export function Header() {
         <Separator orientation="vertical" className="h-6!" />
         <SearchButton />
         <div className="ms-auto flex items-center gap-2">
+          <ChatButton />
           <NotificationBell />
           <ThemeSwitch />
           <ProfileDropdown />
