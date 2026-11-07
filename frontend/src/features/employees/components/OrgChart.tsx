@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ChevronDown, ChevronRight, Crown, Maximize2, Minus, Network, Plus, Users } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
+import { AlertTriangle, ChevronDown, ChevronRight, Crown, Expand, Maximize2, Minimize, Minus, Network, Plus, Users } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { Checkbox } from '@/components/common/checkbox';
 import { Spinner } from '@/components/feedback/Spinner';
@@ -34,7 +34,7 @@ function Person({ e, compact, highlight }: { e: IEmployee; compact?: boolean; hi
 
 interface DeptNode { dept: IDepartment | null; children: DeptNode[] }
 
-function DeptCard({ node, members, head, showMembers }: { node: DeptNode; members: IEmployee[]; head?: IEmployee; showMembers: boolean }) {
+function DeptCard({ node, members, head, showMembers, full }: { node: DeptNode; members: IEmployee[]; head?: IEmployee; showMembers: boolean; full: boolean }) {
   const d = node.dept;
   const others = members.filter((m) => m.id !== head?.id).sort(byRank);
   return (
@@ -53,7 +53,7 @@ function DeptCard({ node, members, head, showMembers }: { node: DeptNode; member
         </div>
       )}
       {showMembers && others.length > 0 && (
-        <div className="mt-2 max-h-60 space-y-0.5 overflow-y-auto border-t pt-2">
+        <div className={cn('mt-2 space-y-0.5 border-t pt-2', !full && 'max-h-60 overflow-y-auto')}>
           {others.map((m) => <Person key={m.id} e={m} compact />)}
         </div>
       )}
@@ -62,19 +62,19 @@ function DeptCard({ node, members, head, showMembers }: { node: DeptNode; member
   );
 }
 
-function DeptBranch({ node, byDept, empById, showMembers }: { node: DeptNode; byDept: Map<string, IEmployee[]>; empById: Map<string, IEmployee>; showMembers: boolean }) {
+function DeptBranch({ node, byDept, empById, showMembers, full }: { node: DeptNode; byDept: Map<string, IEmployee[]>; empById: Map<string, IEmployee>; showMembers: boolean; full: boolean }) {
   const [open, setOpen] = useState(true);
   const key = node.dept?.id ?? NO_DEPT;
   const head = node.dept?.headEmployeeId ? empById.get(node.dept.headEmployeeId) : undefined;
   return (
     <li>
-      <DeptCard node={node} members={byDept.get(key) ?? []} head={head} showMembers={showMembers} />
+      <DeptCard node={node} members={byDept.get(key) ?? []} head={head} showMembers={showMembers} full={full} />
       {node.children.length > 0 && (
         <>
           <button type="button" onClick={() => setOpen(!open)} className="relative z-10 -mt-px flex items-center gap-0.5 rounded-b-md border border-t-0 bg-card px-2 text-[11px] text-muted-foreground hover:text-foreground">
             {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}{node.children.length} phòng con
           </button>
-          {open && <ul>{node.children.map((c) => <DeptBranch key={c.dept?.id ?? NO_DEPT} node={c} byDept={byDept} empById={empById} showMembers={showMembers} />)}</ul>}
+          {open && <ul>{node.children.map((c) => <DeptBranch key={c.dept?.id ?? NO_DEPT} node={c} byDept={byDept} empById={empById} showMembers={showMembers} full={full} />)}</ul>}
         </>
       )}
     </li>
@@ -111,7 +111,11 @@ export function OrgChart() {
   const [mode, setMode] = useState<Mode>('department');
   const [showMembers, setShowMembers] = useState(true);
   const [zoom, setZoom] = useState(1);
+  const [full, setFull] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
   const inner = useRef<HTMLDivElement>(null);
   /** Thu nhỏ cho vừa chiều ngang khung (không phóng to quá 100%). */
   const fit = () => {
@@ -120,6 +124,41 @@ export function OrgChart() {
     const natural = inner.current.getBoundingClientRect().width / current;
     setZoom(Math.max(0.3, Math.min(1, +((box.current.clientWidth - 48) / natural).toFixed(2))));
   };
+
+  /** Toàn màn hình: phủ cả cửa sổ + Fullscreen API của trình duyệt (không hỗ trợ / bị chặn → vẫn phủ cửa sổ). Esc để thoát. */
+  const toggleFull = useCallback(() => {
+    if (full) {
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+      setFull(false);
+    } else {
+      setFull(true);
+      root.current?.requestFullscreen?.().catch(() => {});
+    }
+  }, [full]);
+  useEffect(() => {
+    if (!full) return;
+    const onFs = () => { if (!document.fullscreenElement) setFull(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFull(false); };
+    document.addEventListener('fullscreenchange', onFs);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('fullscreenchange', onFs); document.removeEventListener('keydown', onKey); };
+  }, [full]);
+  useEffect(() => () => { if (document.fullscreenElement) void document.exitFullscreen().catch(() => {}); }, []);
+
+  /** Kéo nền để di chuyển sơ đồ (bỏ qua nút / ô chọn). */
+  const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || e.pointerType === 'touch' || !box.current || (e.target as HTMLElement).closest('button, input, label, a')) return;
+    drag.current = { x: e.clientX, y: e.clientY, left: box.current.scrollLeft, top: box.current.scrollTop };
+    box.current.setPointerCapture(e.pointerId);
+    setDragging(true);
+  };
+  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d || !box.current) return;
+    box.current.scrollLeft = d.left - (e.clientX - d.x);
+    box.current.scrollTop = d.top - (e.clientY - d.y);
+  };
+  const endDrag = () => { drag.current = null; setDragging(false); };
 
   const { deptRoots, byDept, empById, managerRoots, reports, noManager, noHead } = useMemo(() => {
     const active = employees.filter((e) => e.status !== 'Resigned');
@@ -161,7 +200,7 @@ export function OrgChart() {
     const id = requestAnimationFrame(fit);
     return () => cancelAnimationFrame(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, mode, showMembers]);
+  }, [loaded, mode, showMembers, full]);
 
   if (l1 || l2) return <Spinner />;
   const warnings = mode === 'department'
@@ -169,7 +208,7 @@ export function OrgChart() {
     : (noManager.length ? [`${noManager.length} người chưa có quản lý trực tiếp: ${noManager.map((e) => `${e.code} ${e.fullName}`).join(', ')}`] : []);
 
   return (
-    <div className="grid grid-cols-1 gap-3">
+    <div ref={root} className={cn(full ? 'fixed inset-0 z-50 flex flex-col gap-3 bg-background p-4' : 'grid grid-cols-1 gap-3')}>
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex rounded-md border p-0.5">
           <Button size="sm" variant={mode === 'department' ? 'default' : 'ghost'} onClick={() => setMode('department')}><Network className="size-4" /> Theo phòng ban</Button>
@@ -183,17 +222,21 @@ export function OrgChart() {
           <button type="button" className="w-12 text-center text-xs tabular-nums text-muted-foreground" onClick={() => setZoom(1)} title="Về 100%">{Math.round(zoom * 100)}%</button>
           <Button size="icon" variant="outline" className="size-8" aria-label="Phóng to" onClick={() => setZoom((z) => Math.min(1.5, +(z + 0.1).toFixed(1)))}><Plus className="size-4" /></Button>
           <Button size="sm" variant="outline" onClick={fit}><Maximize2 className="size-4" /> Vừa khung</Button>
+          <Button size="sm" variant={full ? 'default' : 'outline'} onClick={toggleFull} title={full ? 'Thoát toàn màn hình (Esc)' : 'Xem toàn màn hình'} data-testid="org-fullscreen">
+            {full ? <><Minimize className="size-4" /> Thoát</> : <><Expand className="size-4" /> Toàn màn hình</>}
+          </Button>
         </div>
       </div>
       {warnings.map((w) => (
         <div key={w} className="flex gap-2 rounded-md bg-warning/10 p-2.5 text-sm text-warning"><AlertTriangle className="mt-0.5 size-4 shrink-0" />{w}</div>
       ))}
-      <div ref={box} className="max-h-[75vh] overflow-auto rounded-xl border bg-muted/20 p-6" data-testid="org-chart">
+      <div ref={box} className={cn('overflow-auto rounded-xl border bg-muted/20 p-6', full ? 'min-h-0 flex-1' : 'max-h-[75vh]', dragging ? 'cursor-grabbing select-none' : 'cursor-grab')}
+        onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag} data-testid="org-chart">
         {/* CSS zoom (khác transform) đổi cả kích thước bố cục → thanh cuộn đúng khi phóng / thu */}
         <div ref={inner} className="org-tree mx-auto w-max" style={{ zoom }}>
           {mode === 'department' ? (
             deptRoots.length === 0 ? <p className="text-sm text-muted-foreground">Chưa có phòng ban.</p> : (
-              <ul>{deptRoots.map((n) => <DeptBranch key={n.dept?.id ?? NO_DEPT} node={n} byDept={byDept} empById={empById} showMembers={showMembers} />)}</ul>
+              <ul>{deptRoots.map((n) => <DeptBranch key={n.dept?.id ?? NO_DEPT} node={n} byDept={byDept} empById={empById} showMembers={showMembers} full={full} />)}</ul>
             )
           ) : (
             managerRoots.length === 0 ? <p className="text-sm text-muted-foreground">Chưa có nhân viên.</p> : (
@@ -208,9 +251,9 @@ export function OrgChart() {
           )}
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className={cn('text-xs text-muted-foreground', full && 'shrink-0')}>
         {mode === 'department' ? 'Cây phòng ban theo "Thuộc phòng ban"; trưởng phòng đặt ở tab Phòng ban. Nhân viên sắp theo cấp bậc.' : 'Đường nối theo "Quản lý trực tiếp" trong hồ sơ — đây cũng là người duyệt đơn của nhân viên.'}
-        {' '}Không tính người đã nghỉ việc.
+        {' '}Không tính người đã nghỉ việc. Kéo nền để di chuyển sơ đồ{full ? ', Esc để thoát toàn màn hình' : ''}.
       </p>
     </div>
   );
