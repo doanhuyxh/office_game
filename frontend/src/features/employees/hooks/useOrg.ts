@@ -57,6 +57,11 @@ export function useResetAccountPassword() {
   return useMutation({ mutationFn: (id: string) => employeesApi.resetPassword(id), onSuccess: invalidate });
 }
 
+export function useResetTwoFactor() {
+  const invalidate = useInvalidateOrg();
+  return useMutation({ mutationFn: (id: string) => employeesApi.resetTwoFactor(id), onSuccess: invalidate });
+}
+
 export function useSetRoles() {
   const invalidate = useInvalidateOrg();
   return useMutation({ mutationFn: ({ id, roles }: { id: string; roles: string[] }) => employeesApi.setRoles(id, roles), onSuccess: invalidate });

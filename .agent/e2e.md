@@ -21,6 +21,10 @@
 | `office-docs-e2e.ts` | Tài liệu trong 3D (2 Chrome): tủ hồ sơ → kho phòng ban theo khu (người phòng khác bị chặn), phím không điều khiển nhân vật khi ở hộp thoại, chiếu ảnh lên màn hình phòng họp lớn → người cùng phòng (không có quyền kho) thấy, ra / vào lại phòng, tắt chiếu, bảng tin, kệ thư viện, nút HUD. **Chỉ DB tạm**; Api :5180, Realtime :5190 (`Realtime__ApiBaseUrl=http://localhost:5180`), Vite :5174 (`VITE_API_TARGET`, `VITE_RT_TARGET`) → `E2E_LOCAL_DB=1 API_URL=… BASE_URL=http://localhost:5174` |
 | `avatar-e2e.ts` | Nhân vật 3D: PUT / DELETE `/api/auth/avatar` (danh mục, dáng khác, màu, phiên bản, token AI 403), 2 Chrome: thấy nhân vật của nhau khi vào, editor từ gợi ý → `LookChanged`, ngồi, vào lại vẫn giữ, editor ở `/profile`. **Chỉ DB tạm** (`E2E_LOCAL_DB=1 ADMIN_LOGIN=… ADMIN_PASSWORD=…`, Api + Realtime trỏ DB tạm) |
 
+| `twofa-e2e.ts` (+ `totp.ts`) | Xác thực 2 lớp: admin seed bị buộc bật (API 403, không tạo token AI), setup / enable / mã sai, đăng nhập 2 bước, mã dự phòng 1 lần, tạo lại mã, tự tắt, HR bị buộc, token AI bị chặn khi chưa bật, HR / admin đặt lại (email Mailpit + chuông, bảo vệ admin, không tự đặt lại), khoá sau 5 lần sai mã, đổi vai trò → bị buộc, lịch sử sửa không lộ khoá. **Chỉ DB tạm + Mailpit** (lệnh trong đầu file) |
+
+**Admin / HR bắt buộc 2FA**: script đăng nhập bằng admin / HR trên DB mới sẽ nhận `mustSetupTwoFactor` (API 403) → bật 2FA qua API rồi tính mã bằng `totp(sharedKey)` của `scripts/dev/totp.ts` (mẫu: hàm `enroll` trong `twofa-e2e.ts`). Đã bật → `/login` trả 403 `2fa_required`, gửi tiếp `POST /api/auth/login/2fa` (giữ cookie `officehub.2fa`).
+
 ## Test trên DB tạm (khi test tạo dữ liệu không xoá được, vd nhân viên)
 
 `docker run -d --name officehub-e2e-pg -e POSTGRES_DB=officehub_e2e -e POSTGRES_USER=e2e -e POSTGRES_PASSWORD=<tuỳ ý> -p 127.0.0.1:55432:5432 postgres:18-alpine` → chạy Api với `ConnectionStrings__Default=Host=127.0.0.1;Port=55432;…` (tự migrate + tạo admin từ `Seed__*`) → test → `docker rm -f officehub-e2e-pg`. S3 / SMTP vẫn là dịch vụ thật trong `.env`.

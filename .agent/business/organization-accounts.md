@@ -10,6 +10,7 @@
 | POST | `/employees/{id}/account/resend-invite` | 204 |
 | POST | `/employees/{id}/account/reset-password` | 200 `{ tempPassword }` |
 | PUT | `/employees/{id}/account/roles` | `{ roles[] }` → 204 |
+| POST | `/employees/{id}/account/reset-2fa` | 204 — đặt lại xác thực 2 lớp (mất điện thoại); chưa bật → 409 `"Tài khoản chưa bật xác thực 2 lớp"` |
 
 - `userName` trống → dùng `Code`. Email tài khoản lấy từ `employee.Email`.
 - `roles` luôn được thêm `employee` và bỏ trùng (`NormalizeRoles`).
@@ -34,5 +35,9 @@
 | Đổi vai trò của một admin | người gọi không phải admin | `"Chỉ admin được đổi vai trò của admin"` |
 | Đặt lại mật khẩu của một admin | người gọi không phải admin | `"Chỉ admin được đặt lại mật khẩu của admin"` |
 | Admin tự gỡ vai trò admin | luôn | `"Không thể tự gỡ vai trò admin của chính mình"` |
+| Đặt lại 2FA của một admin | người gọi không phải admin | `"Chỉ admin được đặt lại xác thực 2 lớp của admin"` |
+| Tự đặt lại 2FA của chính mình | luôn (phiên bị chiếm không được tự gắn điện thoại khác) | `"Không thể tự đặt lại xác thực 2 lớp của chính mình — nhờ admin / HR khác"` |
 
-Đổi vai trò có hiệu lực khi người đó đăng nhập lại (security stamp đổi).
+Đổi vai trò có hiệu lực khi người đó đăng nhập lại (security stamp đổi); được cấp admin / hr mà chưa bật 2FA → bị buộc bật ([auth-2fa.md](auth-2fa.md)).
+
+Đặt lại 2FA (`IAccountService.ResetTwoFactorAsync`): tắt 2FA, xoá khoá + mã dự phòng, mở khoá đăng nhập, đăng xuất mọi phiên; gửi người đó thông báo `account_security` (chuông + email, `INotifier`). Admin / hr bị buộc bật lại ở lần đăng nhập sau, token AI của họ ngừng tới khi bật. `AccountSummary.twoFactorEnabled` cho cột Tài khoản ("· 2FA") và menu "Đặt lại 2FA".

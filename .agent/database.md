@@ -13,7 +13,7 @@
 
 ## Schema `identity` — `OfficeIdentityDbContext` (migration `InitialIdentity`, `AccessTokens`, `OAuth`, `UserAvatars`)
 
-Bảng ASP.NET Identity đổi tên: `users`, `roles`, `user_roles`, `user_claims`, `user_logins`, `user_tokens`, `role_claims`.
+Bảng ASP.NET Identity đổi tên: `users`, `roles`, `user_roles`, `user_claims`, `user_logins`, `user_tokens`, `role_claims`. 2FA dùng sẵn `users.TwoFactorEnabled` + `user_tokens` (`[AspNetUserStore]` / `AuthenticatorKey`, `RecoveryCodes`) — không thêm bảng ([business/auth-2fa.md](business/auth-2fa.md)).
 
 `access_tokens` (token AI, [business/mcp.md](business/mcp.md)): `UserId` (FK `users`, cascade, `ix_access_tokens_user`), `Name` ≤100, `TokenHash` SHA-256 hex (unique `ux_access_tokens_hash`), `Prefix` ≤20, `CreatedAt`, `ExpiresAt`, `LastUsedAt?`, `RevokedAt?` (thu hồi = đặt giá trị, không xoá dòng), `GrantId?` (FK `oauth_grants`, cascade — access token OAuth 1 giờ, xoá khi hết hạn lúc refresh).
 

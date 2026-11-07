@@ -66,6 +66,9 @@ public sealed class AccessTokenHandler(
         if (user is not { IsActive: true }) return AuthenticateResult.Fail("Tài khoản đã bị khoá");
         if (user.MustChangePassword) return AuthenticateResult.Fail("Tài khoản cần đổi mật khẩu trên web trước");
         if (await users.IsLockedOutAsync(user)) return AuthenticateResult.Fail("Tài khoản đang tạm khoá");
+        // Admin / HR chưa bật 2FA: token cũ ngừng hoạt động tới khi bật trên web (tạo token mới cũng bị chặn ở TwoFactorGate).
+        if (!user.TwoFactorEnabled && TwoFactorPolicy.IsRequiredFor(await users.GetRolesAsync(user)))
+            return AuthenticateResult.Fail(TwoFactorPolicy.TokenBlockedMessage);
 
         // Từ đây biết chắc ai gọi → audit ghi được cả lần bị chặn route.
         Context.Items[AccessTokenAuth.CallerItemKey] = new AccessTokenCaller(user.Id, token.Id, token.Name, token.GrantId is not null);

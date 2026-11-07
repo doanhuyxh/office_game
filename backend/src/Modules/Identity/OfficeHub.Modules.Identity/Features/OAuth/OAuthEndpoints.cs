@@ -326,6 +326,8 @@ internal static class OAuthEndpoints
         var user = await users.FindByIdAsync(userId.ToString());
         if (user is not { IsActive: true } || await users.IsLockedOutAsync(user)) return Error("invalid_grant", "Tài khoản đã bị khoá");
         if (user.MustChangePassword) return Error("invalid_grant", "Tài khoản cần đổi mật khẩu trên web trước");
+        if (!user.TwoFactorEnabled && TwoFactorPolicy.IsRequiredFor(await users.GetRolesAsync(user)))
+            return Error("invalid_grant", TwoFactorPolicy.TokenBlockedMessage);
         return null;
     }
 

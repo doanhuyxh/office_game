@@ -24,7 +24,7 @@ const FIELD_LABEL: Record<string, string> = {
   SortOrder: 'Thứ tự', Level: 'Cấp bậc', Number: 'Số', Type: 'Loại', SignedDate: 'Ngày ký', StartDate: 'Bắt đầu', EndDate: 'Kết thúc', JobTitle: 'Chức danh',
   SalaryEncrypted: 'Lương', AllowanceEncrypted: 'Phụ cấp', TerminatedOn: 'Ngày chấm dứt', TerminationReason: 'Lý do chấm dứt',
   EffectiveDate: 'Hiệu lực', Content: 'Nội dung', ContractType: 'Loại HĐ', Fields: 'Trường mẫu', IsActive: 'Đang hoạt động',
-  MustChangePassword: 'Buộc đổi mật khẩu', PasswordHash: 'Mật khẩu', UserName: 'Tên đăng nhập', Roles: 'Vai trò', EmailConfirmed: 'Đã xác nhận email',
+  MustChangePassword: 'Buộc đổi mật khẩu', PasswordHash: 'Mật khẩu', UserName: 'Tên đăng nhập', Roles: 'Vai trò', EmailConfirmed: 'Đã xác nhận email', TwoFactorEnabled: 'Xác thực 2 lớp',
   StartTime: 'Giờ vào', EndTime: 'Giờ ra', GraceMinutes: 'Phút cho phép trễ', RequiredMinutes: 'Phút phải đủ', EarliestIn: 'Vào sớm nhất',
   LatestIn: 'Vào muộn nhất', BreakStart: 'Nghỉ trưa từ', BreakEnd: 'Nghỉ trưa đến', DayOfWeek: 'Thứ', ShiftId: 'Ca', EmployeeId: 'Nhân viên',
   EffectiveFrom: 'Áp dụng từ', Date: 'Ngày', Days: 'Số ngày', Reason: 'Lý do', CreatedByName: 'Người tạo', IsPaid: 'Có lương',

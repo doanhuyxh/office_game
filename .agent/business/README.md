@@ -9,6 +9,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Khi sửa | Đọc |
 |---|---|
 | Đăng nhập, cookie, mật khẩu, quên mật khẩu, link mời, admin seed, `IAccountService` (+ `ListByRoleAsync`) | [auth.md](auth.md) |
+| Xác thực 2 lớp (TOTP): bật / tắt, mã dự phòng, đăng nhập 2 bước, bắt buộc admin / HR (cổng 403, token AI), HR đặt lại | [auth-2fa.md](auth-2fa.md) |
 | Hồ sơ nhân viên, phòng ban, chức vụ, nghỉ việc, `IEmployeeDirectory` | [organization.md](organization.md) |
 | Cấp / mời tài khoản, vai trò, bảo vệ admin | [organization-accounts.md](organization-accounts.md) |
 | Nút chấm công, cách tính đi muộn / thiếu giờ, bảng công | [attendance.md](attendance.md) |
@@ -50,7 +51,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 1. **SMTP Gmail trên macOS**: MailKit kiểm tra thu hồi chứng chỉ (CRL/OCSP); trên macOS dev báo "incomplete certificate revocation check". Có tuỳ chọn `Smtp__CheckCertificateRevocation` (mặc định `true`); chỉ chủ dự án tự đặt `false` trong `.env` dev. Agent **không** tự đổi giá trị này.
 2. Realtime phụ thuộc Api để kiểm tra phiên; Api không phản hồi thì **cho qua** (fail-open) — người bị khoá có thể vào văn phòng 3D trong lúc Api sập. Người đang online bị đẩy ra trễ tối đa `Realtime__SessionCheckSeconds`.
 3. Không có transaction trải nhiều module (xem [database.md](../database.md#không-có)).
-4. 2FA: `LoginAsync` có nhánh `RequiresTwoFactor` nhưng chưa có API bật 2FA.
+4. 2FA (TOTP, bắt buộc admin / HR — [auth-2fa.md](auth-2fa.md)): không có "ghi nhớ thiết bị", không chống dùng lại mã TOTP trong cùng cửa sổ ±60 giây (giới hạn của Identity); admin seed không có hồ sơ nhân viên → mất điện thoại + hết mã dự phòng thì chưa có màn đặt lại (phải sửa DB). Script e2e cũ đăng nhập bằng admin / HR phải bật 2FA trước (dùng `scripts/dev/totp.ts`).
 5. Không có chống CSRF (antiforgery); đang dựa vào `SameSite=Lax` + body JSON (cần xác nhận khi lên production).
 6. Khai báo nhưng chưa dùng: `Office__InactiveMinutes`, FE `ENV`, `REALTIME.voiceToken`, `VITE_SENTRY_DSN`, `src/assets/icons|images` trống.
 7. Registry shadcn `new-york-v4` viết sẵn `import { cn } from "cn"` và CLI cài gói npm rác `cn` → luôn thêm component bằng `bun run ui:add` (`frontend/scripts/ui-add.ts` tự sửa import + gỡ gói). CLI hỏi ghi đè file đã có (vd. `button.tsx` khi thêm `sidebar`) → trả lời `n` trừ khi muốn cập nhật.

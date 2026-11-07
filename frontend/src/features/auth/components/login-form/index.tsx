@@ -6,7 +6,9 @@ import { useLogin } from '../../hooks/useAuth';
 import { ApiError } from '@/services/api-client';
 import { PATHS } from '@/config/paths';
 import { safeReturnPath } from '../../utils/safeReturnPath';
+import type { IMe } from '../../types/auth.types';
 import { AuthShell } from '../auth-shell';
+import { TwoFactorLoginStep } from '../two-factor-login-step';
 
 const route = getRouteApi('/login');
 
@@ -15,21 +17,38 @@ export function LoginForm() {
   const navigate = useNavigate();
   const login = useLogin();
   const [form, setForm] = useState({ login: '', password: '' });
+  // Tài khoản đã bật 2FA: /login trả 403 "2fa_required" + cookie tạm → hỏi mã ở bước 2.
+  const [step, setStep] = useState<'password' | 'code'>('password');
+  const [notice, setNotice] = useState('');
+
+  const done = (me: IMe) =>
+    me.mustChangePassword
+      ? navigate({ to: PATHS.changePassword, search: { returnUrl } })
+      : me.mustSetupTwoFactor
+        ? navigate({ to: PATHS.setupTwoFactor, search: { returnUrl } })
+        : navigate({ to: safeReturnPath(returnUrl) ?? PATHS.dashboard });
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    setNotice('');
     login.mutate(
       { login: form.login.trim(), password: form.password },
       {
-        onSuccess: (me) =>
-          me.mustChangePassword
-            ? navigate({ to: PATHS.changePassword, search: { returnUrl } })
-            : navigate({ to: safeReturnPath(returnUrl) ?? PATHS.dashboard }),
+        onSuccess: done,
+        onError: (err) => { if (err instanceof ApiError && err.problem.title === '2fa_required') setStep('code'); },
       },
     );
   };
 
-  const error = login.error instanceof ApiError ? login.error.message : login.error ? 'Không kết nối được máy chủ' : '';
+  if (step === 'code')
+    return (
+      <AuthShell title="Xác thực 2 lớp" description="Nhập mã để hoàn tất đăng nhập">
+        <TwoFactorLoginStep onSuccess={done} onBack={(msg) => { setStep('password'); login.reset(); setNotice(msg ?? ''); setForm({ ...form, password: '' }); }} />
+      </AuthShell>
+    );
+
+  const error = notice
+    || (login.error instanceof ApiError ? login.error.message : login.error ? 'Không kết nối được máy chủ' : '');
 
   return (
     <AuthShell title="Đăng nhập" description="Đăng nhập bằng email hoặc mã nhân viên">

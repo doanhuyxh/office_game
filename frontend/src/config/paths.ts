@@ -20,6 +20,7 @@ export const PATHS = {
   oauthAuthorize: '/oauth/authorize',
   login: '/login',
   changePassword: '/change-password',
+  setupTwoFactor: '/setup-2fa',
   forgotPassword: '/forgot-password',
   acceptInvite: '/accept-invite',
   resetPassword: '/reset-password',

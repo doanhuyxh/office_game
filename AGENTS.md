@@ -17,7 +17,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Tiền tố `/api/*` → module, danh sách trang FE + guard | [.agent/routes.md](.agent/routes.md) |
 | Thêm/sửa bảng, index, migration, quy tắc ghi dữ liệu | [.agent/database.md](.agent/database.md) (schema approval / leave / notifications / contracts / documents: [.agent/database-workflow.md](.agent/database-workflow.md)) |
 | Nguyên tắc phân quyền, nợ kỹ thuật đã biết | [.agent/business/README.md](.agent/business/README.md) |
-| Đăng nhập, mật khẩu, link mời, admin seed | [.agent/business/auth.md](.agent/business/auth.md) |
+| Đăng nhập, mật khẩu, link mời, admin seed · xác thực 2 lớp (TOTP, bắt buộc admin / HR) | [.agent/business/auth.md](.agent/business/auth.md) · [.agent/business/auth-2fa.md](.agent/business/auth-2fa.md) |
 | Nhân viên, phòng ban · cấp tài khoản, vai trò | [.agent/business/organization.md](.agent/business/organization.md) · [.agent/business/organization-accounts.md](.agent/business/organization-accounts.md) |
 | Mô tả + hướng dẫn phòng ban / chức vụ cho trợ lý AI | [.agent/business/org-guides.md](.agent/business/org-guides.md) |
 | Hồ sơ cá nhân: liên hệ, ảnh, CCCD, ngân hàng, yêu cầu HR duyệt | [.agent/business/profile.md](.agent/business/profile.md) |

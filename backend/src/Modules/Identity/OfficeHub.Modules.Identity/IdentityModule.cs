@@ -28,7 +28,11 @@ public sealed class IdentityModule : IModule
             .AddPolicyScheme(AccessTokenAuth.SelectorScheme, "Cookie hoặc token AI", o => o.ForwardDefaultSelector = ctx =>
                 AccessTokenAuth.HasBearerToken(ctx.Request.Headers.Authorization.ToString()) ? AccessTokenAuth.Scheme : AuthCookie.Scheme)
             .AddScheme<AuthenticationSchemeOptions, AccessTokenHandler>(AccessTokenAuth.Scheme, null)
-            .AddIdentityCookies(c => c.ApplicationCookie!.Configure(AuthCookie.Configure));
+            .AddIdentityCookies(c =>
+            {
+                c.ApplicationCookie!.Configure(AuthCookie.Configure);
+                c.TwoFactorUserIdCookie!.Configure(AuthCookie.ConfigureTwoFactor); // bước mã 2FA sau mật khẩu
+            });
 
         services.AddIdentityCore<AppUser>(o =>
             {
@@ -67,6 +71,7 @@ public sealed class IdentityModule : IModule
         PasswordEndpoints.Map(api);
         AccessTokenEndpoints.Map(api);
         AvatarEndpoints.Map(api);
+        TwoFactorEndpoints.Map(api);
         OAuthEndpoints.Map(api);
     }
 }

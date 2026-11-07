@@ -49,6 +49,7 @@ var app = builder.Build();
 app.UseOfficeHubDefaults();
 app.UseCors();            // chỉ endpoint có RequireCors (OAuth công khai cho ứng dụng AI)
 app.UseAuthentication();
+app.UseTwoFactorEnrollmentGate(); // admin / HR chưa bật 2FA → 403 trừ route bật 2FA (BuildingBlocks/Auth/TwoFactorGate.cs)
 app.UseAuthorization();
 app.UseRateLimiter();
 

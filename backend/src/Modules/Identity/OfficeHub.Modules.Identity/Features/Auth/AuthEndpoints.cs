@@ -14,9 +14,12 @@ namespace OfficeHub.Modules.Identity.Features.Auth;
 
 public sealed record LoginRequest([Required] string Login, [Required] string Password, bool RememberMe = true);
 public sealed record ChangePasswordRequest([Required] string CurrentPassword, [Required] string NewPassword);
-/// <summary>Avatar = ngoại hình nhân vật 3D (JSON, xem AvatarRules); null = nhân vật mặc định. Realtime đọc trường này khi vào văn phòng.</summary>
+/// <summary>
+/// Avatar = ngoại hình nhân vật 3D (JSON, xem AvatarRules); null = nhân vật mặc định. Realtime đọc trường này khi vào văn phòng.
+/// MustSetupTwoFactor = admin / hr chưa bật xác thực 2 lớp → FE chuyển sang trang bật 2FA, API khác trả 403 (TwoFactorPolicy).
+/// </summary>
 public sealed record MeResponse(Guid Id, string UserName, string? Email, string FullName, string[] Roles, bool MustChangePassword,
-    JsonElement? Avatar = null);
+    JsonElement? Avatar = null, bool TwoFactorEnabled = false, bool MustSetupTwoFactor = false);
 
 internal static class AuthEndpoints
 {
@@ -42,6 +45,7 @@ internal static class AuthEndpoints
         var result = await signIn.PasswordSignInAsync(user, req.Password, req.RememberMe, lockoutOnFailure: true);
         if (result.IsLockedOut)
             return TypedResults.Problem("Tài khoản tạm khoá do đăng nhập sai nhiều lần, thử lại sau 15 phút", statusCode: StatusCodes.Status423Locked);
+        // Đã bật 2FA: Identity cấp cookie tạm officehub.2fa (5 phút) → FE gửi mã qua POST /auth/login/2fa.
         if (result.RequiresTwoFactor)
             return TypedResults.Problem("Cần mã xác thực 2 lớp", statusCode: StatusCodes.Status403Forbidden, title: "2fa_required");
         if (!result.Succeeded)
@@ -75,10 +79,12 @@ internal static class AuthEndpoints
         return TypedResults.NoContent();
     }
 
-    private static async Task<MeResponse> ToMe(AppUser u, UserManager<AppUser> users, OfficeIdentityDbContext db)
+    internal static async Task<MeResponse> ToMe(AppUser u, UserManager<AppUser> users, OfficeIdentityDbContext db)
     {
         var look = await db.UserAvatars.AsNoTracking().Where(a => a.UserId == u.Id).Select(a => a.Look).FirstOrDefaultAsync();
-        return new(u.Id, u.UserName!, u.Email, u.FullName, [.. await users.GetRolesAsync(u)], u.MustChangePassword,
-            look is null ? null : JsonDocument.Parse(look).RootElement.Clone());
+        var roles = await users.GetRolesAsync(u);
+        return new(u.Id, u.UserName!, u.Email, u.FullName, [.. roles], u.MustChangePassword,
+            look is null ? null : JsonDocument.Parse(look).RootElement.Clone(),
+            u.TwoFactorEnabled, !u.TwoFactorEnabled && TwoFactorPolicy.IsRequiredFor(roles));
     }
 }

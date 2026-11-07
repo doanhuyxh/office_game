@@ -14,10 +14,10 @@ public sealed record EmployeeListItem(
 
 /// <summary>Tóm tắt tài khoản đăng nhập (chỉ HR / chính chủ thấy).</summary>
 public sealed record AccountSummary(string UserName, IReadOnlyList<string> Roles, bool IsActive, bool MustChangePassword,
-    bool InvitePending, DateTimeOffset? LastLoginAt)
+    bool InvitePending, DateTimeOffset? LastLoginAt, bool TwoFactorEnabled = false)
 {
     public static AccountSummary From(AccountInfo a) =>
-        new(a.UserName, a.Roles, a.IsActive, a.MustChangePassword, a.InvitePending, a.LastLoginAt);
+        new(a.UserName, a.Roles, a.IsActive, a.MustChangePassword, a.InvitePending, a.LastLoginAt, a.TwoFactorEnabled);
 }
 
 public sealed record EmployeeDetail(EmployeeListItem Employee, DateOnly? DateOfBirth, string? Note, int SubordinateCount);

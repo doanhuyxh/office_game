@@ -102,6 +102,19 @@ internal sealed class AccountService(
         return AccountResult.Ok(user.Id);
     }
 
+    public async Task<AccountResult> ResetTwoFactorAsync(Guid userId, CancellationToken ct = default)
+    {
+        var user = await users.FindByIdAsync(userId.ToString());
+        if (user is null) return AccountResult.Fail("Không tìm thấy tài khoản");
+        if (!user.TwoFactorEnabled && string.IsNullOrEmpty(await users.GetAuthenticatorKeyAsync(user)))
+            return AccountResult.Fail("Tài khoản chưa bật xác thực 2 lớp");
+        await users.ClearTwoFactorAsync(user); // TwoFactorEnabled → false được ghi lịch sử (AppUser [Audited])
+        await users.SetLockoutEndDateAsync(user, null);
+        await users.ResetAccessFailedCountAsync(user);
+        await users.UpdateSecurityStampAsync(user); // đăng xuất mọi phiên cũ
+        return AccountResult.Ok(user.Id);
+    }
+
     public async Task SetActiveAsync(Guid userId, bool active, CancellationToken ct = default)
     {
         var user = await users.FindByIdAsync(userId.ToString());
@@ -123,7 +136,7 @@ internal sealed class AccountService(
         {
             var roles = await users.GetRolesAsync(u);
             result[u.Id] = new AccountInfo(u.Id, u.UserName!, u.Email, [.. roles], u.IsActive, u.MustChangePassword,
-                InvitePending: u.PasswordHash is null, u.LastLoginAt, u.FullName);
+                InvitePending: u.PasswordHash is null, u.LastLoginAt, u.FullName, u.TwoFactorEnabled);
         }
         return result;
     }
