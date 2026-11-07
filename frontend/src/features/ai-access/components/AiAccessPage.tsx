@@ -23,6 +23,7 @@ import { TOKEN_STATUS } from '../utils/labels';
 import { ActivityTable } from './ActivityTable';
 import { ConnectGuide } from './ConnectGuide';
 import { CreateTokenDialog } from './CreateTokenDialog';
+import { useTabParam } from '@/hooks/useTabParam';
 
 const CAN = [
   'Xem chấm công hôm nay, bảng công tháng, ngày lễ, ca làm',
@@ -286,11 +287,12 @@ export function AiAccessPage() {
   const [newToken, setNewToken] = useState<string | null>(null);
   const createButton = <Button variant="outline" onClick={() => setCreating(true)}><Plus className="size-4" /> Tạo token</Button>;
 
+  const [tab, setTab] = useTabParam('me', ['me', 'company']);
   return (
     <div className="grid grid-cols-1 gap-6">
       <PageHeader title="Kết nối AI" />
       {isHr ? (
-        <Tabs defaultValue="me">
+        <Tabs value={tab} onValueChange={setTab}>
           <PageToolbar actions={createButton}>
             <TabsList>
               <TabsTrigger value="me">Của tôi</TabsTrigger>

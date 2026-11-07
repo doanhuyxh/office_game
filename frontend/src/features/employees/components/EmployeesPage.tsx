@@ -10,6 +10,7 @@ import { ImportDialog } from './ImportDialog';
 import { OrgChart } from './OrgChart';
 import { PositionsPanel } from './PositionsPanel';
 import { ProfileRequestsPanel, usePendingProfileRequestCount } from '@/features/profile';
+import { useTabParam } from '@/hooks/useTabParam';
 
 /** Màn hình Nhân sự: danh sách nhân viên, phòng ban, chức vụ. Chỉ admin/HR được sửa. */
 export function EmployeesPage() {
@@ -17,10 +18,11 @@ export function EmployeesPage() {
   const canEdit = hasRole(me, 'admin', 'hr');
   const [importing, setImporting] = useState(false);
   const pending = usePendingProfileRequestCount(canEdit);
+  const [tab, setTab] = useTabParam('employees', ['employees', 'departments', 'positions', ...(canEdit ? ['chart', 'requests'] : [])]);
   return (
     <div className="space-y-6">
       <PageHeader title="Nhân viên" />
-      <Tabs defaultValue="employees">
+      <Tabs value={tab} onValueChange={setTab}>
         <PageToolbar actions={canEdit && <Button variant="outline" onClick={() => setImporting(true)}><FileSpreadsheet className="size-4" /> Nhập từ Excel</Button>}>
         <TabsList>
           <TabsTrigger value="employees">Nhân viên</TabsTrigger>

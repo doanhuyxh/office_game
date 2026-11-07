@@ -1,9 +1,9 @@
 import { PageHeader } from '@/components/layout/PageHeader';
-import { useEffect, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
 import { useInbox, useMyApprovals } from '../hooks/useApprovals';
 import type { IApproval } from '../types/approval.types';
 import { ApprovalCard } from './ApprovalCard';
+import { useTabParam } from '@/hooks/useTabParam';
 
 function List({ items, loading, empty, showRequester }: { items: IApproval[]; loading: boolean; empty: string; showRequester: boolean }) {
   if (loading) return <p className="text-sm text-muted-foreground">Đang tải…</p>;
@@ -16,13 +16,13 @@ export function ApprovalsPage() {
   const inbox = useInbox();
   const mine = useMyApprovals();
   const count = inbox.data?.length ?? 0;
-  // Chọn tab mặc định SAU khi hộp duyệt tải xong (có đơn chờ → mở "Chờ tôi duyệt"), sau đó để người dùng tự chuyển.
-  const [tab, setTab] = useState<string | null>(null);
-  useEffect(() => { if (tab === null && inbox.isSuccess) setTab(count > 0 ? 'inbox' : 'mine'); }, [tab, inbox.isSuccess, count]);
+  // Tab trên URL (?tab=…) giữ khi reload. Chưa chọn: đợi hộp duyệt tải xong — có đơn chờ → "Chờ tôi duyệt", không → "Đơn của tôi".
+  const [urlTab, setTab] = useTabParam('', ['inbox', 'mine']);
+  const tab = urlTab || (inbox.isSuccess && count === 0 ? 'mine' : 'inbox');
   return (
     <div className="space-y-6">
       <PageHeader title="Phê duyệt" />
-      <Tabs value={tab ?? 'inbox'} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="inbox">Chờ tôi duyệt{count > 0 && ` (${count})`}</TabsTrigger>
           <TabsTrigger value="mine">Đơn của tôi</TabsTrigger>

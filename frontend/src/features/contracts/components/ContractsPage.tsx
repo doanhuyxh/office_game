@@ -28,6 +28,7 @@ import { ContractFormDialog } from './ContractFormDialog';
 import { PendingSignBanner, SignRequestList } from './SignPanel';
 import { GenerateFromTemplateDialog, TemplatesPanel } from './TemplatesPanel';
 import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';
+import { useTabParam } from '@/hooks/useTabParam';
 
 const CONTRACT_COLUMNS: ColumnDef[] = [
   { id: 'employee', label: 'Nhân viên', required: true }, { id: 'number', label: 'Số HĐ' }, { id: 'type', label: 'Loại' },
@@ -212,12 +213,13 @@ function MyContracts() {
 export function ContractsPage() {
   const { data: me } = useMe();
   const isHr = hasRole(me, 'admin', 'hr');
+  const [tab, setTab] = useTabParam('all', ['all', 'templates', 'my']);
   return (
     <div className="space-y-6">
       <PageHeader title="Hợp đồng lao động" />
       <PendingSignBanner />
       {isHr ? (
-        <Tabs defaultValue="all">
+        <Tabs value={tab} onValueChange={setTab}>
           <TabsList><TabsTrigger value="all">Tất cả hợp đồng</TabsTrigger><TabsTrigger value="templates">Mẫu hợp đồng</TabsTrigger><TabsTrigger value="my">Của tôi</TabsTrigger></TabsList>
           <TabsContent value="all" className="mt-4"><AllContracts /></TabsContent>
           <TabsContent value="templates" className="mt-4"><TemplatesPanel /></TabsContent>

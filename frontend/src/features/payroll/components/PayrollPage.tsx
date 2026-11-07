@@ -25,6 +25,7 @@ import {
 import type { IPayProfile, IPayrollRules, IPayslip } from '../types/payroll.types';
 import { EmployerCost, PayslipView } from './PayslipView';
 import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';
+import { useTabParam } from '@/hooks/useTabParam';
 
 const monthLabel = (m: string) => `${m.slice(5)}/${m.slice(0, 4)}`;
 const prevMonth = () => { const [y, m] = currentMonthVn().split('-').map(Number); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`; };
@@ -321,10 +322,11 @@ function SettingsTab() {
 
 /** Bảng lương (HR): kỳ lương, hồ sơ thuế, thông số luật. */
 export function PayrollPage() {
+  const [tab, setTab] = useTabParam('periods', ['periods', 'profiles', 'settings']);
   return (
     <div className="grid grid-cols-1 gap-6">
       <PageHeader title="Bảng lương" />
-      <Tabs defaultValue="periods">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="periods">Kỳ lương</TabsTrigger>
           <TabsTrigger value="profiles">Hồ sơ thuế</TabsTrigger>

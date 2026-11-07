@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { BellOff, Check, CheckCheck } from 'lucide-react';
 import { Button } from '@/components/common/button';
@@ -11,12 +10,14 @@ import { formatDateTime } from '@/utils/date';
 import { useMarkAllRead, useMarkRead, useNotificationsPage } from '../hooks/useNotifications';
 import type { INotification } from '../types/notification.types';
 import { CATEGORY, FALLBACK, timeAgo } from '../utils/labels';
+import { useTabParam } from '@/hooks/useTabParam';
 
 type Filter = 'all' | 'unread';
 
 /** Toàn bộ thông báo của tôi (chuông chỉ hiện 20 mới nhất): lọc Tất cả / Chưa đọc, phân trang ở BE. Bấm mục → đánh dấu đọc + mở link. */
 export function NotificationsPage() {
-  const [filter, setFilter] = useState<Filter>('all');
+  const [tabParam, setFilter] = useTabParam('all', ['all', 'unread']);
+  const filter = tabParam as Filter;
   const pg = usePageState('notifications', filter);
   const { data, isLoading } = useNotificationsPage(filter === 'unread', pg.query);
   const markRead = useMarkRead();
@@ -33,7 +34,7 @@ export function NotificationsPage() {
   return (
     <div className="grid grid-cols-1 gap-4">
       <PageHeader title="Thông báo" />
-      <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+      <Tabs value={filter} onValueChange={setFilter}>
         <PageToolbar
           actions={unread > 0 && (
             <Button variant="outline" size="sm" disabled={markAll.isPending} onClick={() => markAll.mutate()}>

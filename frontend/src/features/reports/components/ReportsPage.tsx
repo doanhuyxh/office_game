@@ -16,6 +16,7 @@ import { excelUrl } from '../api/report.api';
 import { useLeavePayoutPage, useOvertimePayPage } from '../hooks/useReports';
 import { days, hours } from '../utils/labels';
 import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';
+import { useTabParam } from '@/hooks/useTabParam';
 
 function MonthPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return <Input type="month" value={value} onChange={(e) => e.target.value && onChange(e.target.value)} className="w-44" aria-label="Chọn tháng" />;
@@ -200,10 +201,11 @@ function LeavePayoutTab() {
 
 /** Báo cáo (HR): bảng công tháng, tiền tăng ca, phép năm — xem trên web và xuất Excel. */
 export function ReportsPage() {
+  const [tab, setTab] = useTabParam('timesheet', ['timesheet', 'overtime', 'leave']);
   return (
     <div className="grid grid-cols-1 gap-6">
       <PageHeader title="Báo cáo" />
-      <Tabs defaultValue="timesheet">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="timesheet">Bảng công</TabsTrigger>
           <TabsTrigger value="overtime">Tiền tăng ca</TabsTrigger>

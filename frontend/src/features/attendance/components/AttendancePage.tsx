@@ -17,6 +17,7 @@ import { OvertimeTab } from './OvertimeTab';
 import { SchedulesPanel } from './SchedulesPanel';
 import { ShiftsPanel } from './ShiftsPanel';
 import { BoardTable, ReportTable } from './TeamTables';
+import { useTabParam } from '@/hooks/useTabParam';
 
 function MonthPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return <Input type="month" value={value} onChange={(e) => e.target.value && onChange(e.target.value)} className="w-44" aria-label="Chọn tháng" />;
@@ -52,10 +53,11 @@ export function AttendancePage() {
   const isHr = hasRole(me, 'admin', 'hr');
   const { noProfile } = useToday();
   const [month, setMonth] = useState(currentMonth());
+  const [tab, setTab] = useTabParam('my', ['my', ...(noProfile ? [] : ['overtime']), ...(isManager ? ['board', 'report'] : []), ...(isHr ? ['settings'] : [])]);
   return (
     <div className="space-y-6">
       <PageHeader title="Chấm công" />
-      <Tabs defaultValue="my">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="my">Của tôi</TabsTrigger>
           {!noProfile && <TabsTrigger value="overtime">Tăng ca</TabsTrigger>}

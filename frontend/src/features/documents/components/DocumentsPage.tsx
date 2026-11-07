@@ -15,6 +15,7 @@ import { AssetSheet } from './AssetSheet';
 import { AssetTable } from './AssetTable';
 import { LibraryTab } from './LibraryTab';
 import { ProjectsTab, useCanCreateProject } from './ProjectsTab';
+import { useTabParam } from '@/hooks/useTabParam';
 
 /**
  * Kho tài sản số. URL: `?asset=<id>` mở chi tiết (link từ thông báo / phê duyệt), `?space=Project:<id>` mở thẳng một kho.
@@ -25,7 +26,7 @@ export function DocumentsPage() {
   const navigate = useNavigate();
   const me = useMe();
   const isHr = !!me.data?.roles.some((r) => r === 'admin' || r === 'hr');
-  const [tab, setTab] = useState('library');
+  const [tab, setTab] = useTabParam('library', ['library', 'projects', 'trash', ...(isHr ? ['admin'] : [])]);
   const [openId, setOpenId] = useState<string | null>(search.asset ?? null);
   const [space, setSpace] = useState<ISpaceRef | null>(search.space ? parseSpaceKey(search.space) : null);
   const canCreateProject = useCanCreateProject();
@@ -33,10 +34,10 @@ export function DocumentsPage() {
   const onCreated = useCallback(() => setCreatingProject(false), []);
 
   useEffect(() => { if (search.asset) setOpenId(search.asset); }, [search.asset]);
-  useEffect(() => { if (search.space) { setSpace(parseSpaceKey(search.space)); setTab('library'); } }, [search.space]);
+  useEffect(() => { if (search.space) { setSpace(parseSpaceKey(search.space)); setTab('library'); } }, [search.space, setTab]);
   const close = () => {
     setOpenId(null);
-    if (search.asset) void navigate({ to: PATHS.documents, search: {}, replace: true });
+    if (search.asset) void navigate({ to: PATHS.documents, search: ((prev: Record<string, unknown>) => ({ ...prev, asset: undefined })) as never, replace: true });
   };
 
   return (

@@ -9,6 +9,7 @@ import { useMyBalance } from '../hooks/useLeave';
 import { BalanceCard, YearEndCard } from './BalanceCards';
 import { LeaveRequestDialog } from './LeaveRequestDialog';
 import { BalancesTable, MyLeavesTable, TeamCalendar } from './LeaveTables';
+import { useTabParam } from '@/hooks/useTabParam';
 
 /** Nghỉ phép: của tôi (mọi người) · lịch nghỉ (quản lý / HR) · quỹ phép (HR). */
 export function LeavePage() {
@@ -18,10 +19,11 @@ export function LeavePage() {
   const { data: balance, noProfile } = useMyBalance();
   const [open, setOpen] = useState(false);
 
+  const [tab, setTab] = useTabParam(noProfile && isManager ? 'team' : 'my', ['my', ...(isManager ? ['team'] : []), ...(isHr ? ['balances'] : [])]);
   return (
     <div className="space-y-6">
       <PageHeader title="Nghỉ phép" />
-      <Tabs defaultValue={noProfile && isManager ? 'team' : 'my'}>
+      <Tabs value={tab} onValueChange={setTab}>
         <PageToolbar actions={!noProfile && <Button onClick={() => setOpen(true)}><Plus /> Xin nghỉ</Button>}>
         <TabsList>
           <TabsTrigger value="my">Của tôi</TabsTrigger>
