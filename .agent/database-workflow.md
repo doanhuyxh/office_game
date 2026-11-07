@@ -70,3 +70,7 @@ Bảng `conversations`, `room_members`, `messages` (`Seq` identity), `attachment
 ## Schema `payroll` — `PayrollDbContext` (migration `InitialPayroll`)
 
 Bảng `settings`, `profiles`, `periods`, `payslips` (phiếu mã hoá), `adjustments`: [business/payroll.md](business/payroll.md#schema-payroll).
+
+## Schema `assets` — `AssetsDbContext` (migration `InitialAssets`)
+
+Chi tiết: [business/assets.md](business/assets.md), [business/assets-review.md](business/assets-review.md). Enum lưu chuỗi. `categories` [Audited] (`Code` ≤10 unique, `AssetsMigrator` seed MT/MH/DT/PK/KH khi trống). `devices` [Audited] (`Code` unique `TB-{loại}-{00000}`, `CategoryId` FK Restrict, `SerialNumber?` unique lọc chưa xoá, `PurchasePrice` decimal(18,0), `WarrantyUntil`, `Status`, `HolderEmployeeId?`, `DeletedAt` + query filter, cờ `WarrantyReminded30At/7At`). `device_assignments` (lịch sử, FK Restrict, index `DeviceId`+`AssignedAt`, `EmployeeId`). `services` [Audited] (`SeatLimit?`, `BillingCycle`, `Cost`, `RenewalDate`, `Status`, cờ nhắc). `service_seats` [Audited] (FK Restrict; unique (`ServiceId`,`AccountLogin`) khi `RevokedAt` null; **không lưu mật khẩu**). `access_reviews` + `access_review_items` (cascade; chụp tên dịch vụ / tài khoản; `ReviewerEmployeeId` null = HR). `stocktakes` + `stocktake_items` (cascade; chụp mã / tên / serial / người giữ). `sequences` (PK `Scope`: `device:{mã loại}`). `offboarding_notices` (PK `EmployeeId`). `EmployeeId` chỉ là Guid tham chiếu, không FK chéo schema.

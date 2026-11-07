@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { AlarmClock, AtSign, Ban, Bell, MessageCircle, Megaphone, BadgeCheck, UserRoundCog, CalendarClock, CalendarX, CheckCircle2, FileClock, FileInput, FilePen, FileSignature, FolderKanban, Inbox, ShieldAlert, UserCheck, UserPen, UserX, Wallet, XCircle } from 'lucide-react';
+import { AlarmClock, Boxes, ClipboardCheck, Laptop, Undo2, AtSign, Ban, Bell, MessageCircle, Megaphone, BadgeCheck, UserRoundCog, CalendarClock, CalendarX, CheckCircle2, FileClock, FileInput, FilePen, FileSignature, FolderKanban, Inbox, ShieldAlert, UserCheck, UserPen, UserX, Wallet, XCircle } from 'lucide-react';
 import { formatDate } from '@/utils/date';
 
 /** Icon + màu (token theme) theo loại thông báo. */
@@ -28,6 +28,11 @@ export const CATEGORY: Record<string, { icon: LucideIcon; className: string }> =
   news_comment: { icon: MessageCircle, className: 'text-info' },
   news_mention: { icon: AtSign, className: 'text-primary' },
   news_moderated: { icon: ShieldAlert, className: 'text-warning' },
+  asset_assigned: { icon: Laptop, className: 'text-primary' },
+  asset_returned: { icon: Undo2, className: 'text-muted-foreground' },
+  asset_expiring: { icon: Boxes, className: 'text-warning' },
+  asset_offboarding: { icon: UserX, className: 'text-warning' },
+  asset_review: { icon: ClipboardCheck, className: 'text-info' },
 };
 export const FALLBACK = { icon: Bell, className: 'text-muted-foreground' };
 

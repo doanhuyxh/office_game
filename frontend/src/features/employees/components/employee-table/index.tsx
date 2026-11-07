@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Suspense, lazy, useMemo, useState } from 'react';
 import { MoreHorizontal, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -32,9 +32,12 @@ import { PersonAvatar } from '@/components/common/PersonAvatar';
 import { EmployeePrivateDialog } from '@/features/profile';
 import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';
 
+// Nạp lười để tránh vòng import employees ↔ assets và giữ trang Tài sản ở chunk riêng.
+const EmployeeHoldingsDialog = lazy(() => import('@/features/assets').then((m) => ({ default: m.EmployeeHoldingsDialog })));
+
 type DialogState =
   | { kind: 'form'; employee: IEmployee | null }
-  | { kind: 'account' | 'roles' | 'resign' | 'private' | 'reset2fa'; employee: IEmployee }
+  | { kind: 'account' | 'roles' | 'resign' | 'private' | 'reset2fa' | 'holdings'; employee: IEmployee }
   | { kind: 'temp'; userName: string; password: string }
   | null;
 
@@ -187,6 +190,7 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
                         <DropdownMenuLabel>{e.code}</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => setDialog({ kind: 'form', employee: e })}>Sửa hồ sơ</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setDialog({ kind: 'private', employee: e })}>Thông tin cá nhân (CCCD, ngân hàng…)</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setDialog({ kind: 'holdings', employee: e })}>Tài sản đang giữ</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         {!e.userId && e.status !== 'Resigned' && (
                           <DropdownMenuItem onClick={() => setDialog({ kind: 'account', employee: e })}>Cấp tài khoản</DropdownMenuItem>
@@ -232,6 +236,11 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
       <CreateAccountDialog open={dialog?.kind === 'account'} onOpenChange={close} employee={dialog?.kind === 'account' ? dialog.employee : null}
         onTempPassword={(userName, password) => setDialog({ kind: 'temp', userName, password })} />
       <EmployeePrivateDialog employeeId={dialog?.kind === 'private' ? dialog.employee.id : null} name={dialog?.kind === 'private' ? dialog.employee.fullName : ''} onClose={close} />
+      {dialog?.kind === 'holdings' && (
+        <Suspense fallback={null}>
+          <EmployeeHoldingsDialog employeeId={dialog.employee.id} name={dialog.employee.fullName} onClose={close} />
+        </Suspense>
+      )}
       <RolesDialog open={dialog?.kind === 'roles'} onOpenChange={close} employee={dialog?.kind === 'roles' ? dialog.employee : null} />
       <ResignDialog open={dialog?.kind === 'resign'} onOpenChange={close} employee={dialog?.kind === 'resign' ? dialog.employee : null}
         pending={resign.isPending}

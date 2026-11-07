@@ -32,6 +32,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Tin nhắn (chat web ↔ 3D, kênh phòng, 1-1, tệp đính kèm) | [.agent/business/chat.md](.agent/business/chat.md) |
 | Bảng tin nội bộ (bài viết kiểu Facebook, bình luận, cảm xúc, @nhắc, phạm vi người xem) | [.agent/business/news.md](.agent/business/news.md) |
 | Kho tài liệu (tài sản số): kho phòng ban / dự án, tải thẳng S3, phiên bản, ban hành, hạn lưu trữ, bàn giao · trong văn phòng 3D (tủ hồ sơ, chiếu màn hình) | [.agent/business/documents.md](.agent/business/documents.md) · [.agent/business/office-documents.md](.agent/business/office-documents.md) |
+| Tài sản công ty: thiết bị (máy tính…), dịch vụ / tài khoản phần mềm (Figma…), cấp phát / thu hồi, nhắc bảo hành / gia hạn, nghỉ việc còn giữ · rà soát quyền, kiểm kê, Excel, MCP | [.agent/business/assets.md](.agent/business/assets.md) · [.agent/business/assets-review.md](.agent/business/assets-review.md) |
 | Lịch sử sửa dữ liệu (`[Audited]`) · nhập nhân viên từ Excel | [.agent/business/audit.md](.agent/business/audit.md) · [.agent/business/employee-import.md](.agent/business/employee-import.md) |
 | Luồng duyệt, thêm loại đơn · uỷ quyền duyệt (duyệt thay) | [.agent/business/approval.md](.agent/business/approval.md) · [.agent/business/approval-delegation.md](.agent/business/approval-delegation.md) |
 | Nghỉ phép, quỹ phép năm | [.agent/business/leave.md](.agent/business/leave.md) |

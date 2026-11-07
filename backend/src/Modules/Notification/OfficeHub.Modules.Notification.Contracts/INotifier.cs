@@ -63,4 +63,13 @@ public static class NotificationCategories
     public const string NewsComment = "news_comment";
     public const string NewsMention = "news_mention";
     public const string NewsModerated = "news_moderated";
+    /// <summary>Được cấp thiết bị / tài khoản dịch vụ (chuông + email) · bị thu hồi (chỉ chuông) — module Assets.</summary>
+    public const string AssetAssigned = "asset_assigned";
+    public const string AssetReturned = "asset_returned";
+    /// <summary>Thiết bị sắp hết bảo hành / dịch vụ sắp tới hạn gia hạn (30 / 7 ngày) — gửi HR + người quản trị dịch vụ.</summary>
+    public const string AssetExpiring = "asset_expiring";
+    /// <summary>Nhân viên nghỉ việc còn giữ thiết bị / tài khoản dịch vụ — gửi HR + quản lý cũ.</summary>
+    public const string AssetOffboarding = "asset_offboarding";
+    /// <summary>Có mục cần rà soát quyền truy cập dịch vụ — gửi người rà soát.</summary>
+    public const string AssetReview = "asset_review";
 }

@@ -72,6 +72,9 @@ public static class AccessTokenAuth
         // Bảng tin: chỉ ĐỌC (feed, bài, bình luận); đăng / bình luận / cảm xúc chỉ làm trên web. Endpoint tự bỏ HTML + link tệp khi gọi bằng token AI.
         ("GET", "/api/news/feed"),
         ("GET", "/api/news/posts/"),
+        // Tài sản: chỉ ĐỌC (tài sản của mình; của cấp dưới nếu là quản lý — API tự kiểm quyền). Cấp / thu hồi chỉ làm trên web.
+        ("GET", "/api/assets/my"),
+        ("GET", "/api/assets/employees/"),
         ("GET", "/api/notifications"),
         ("POST", "/api/notifications/"),
     ];

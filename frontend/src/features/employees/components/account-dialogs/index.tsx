@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { Checkbox } from '@/components/common/checkbox';
@@ -14,6 +14,9 @@ import { useCreateAccount, useSetRoles } from '../../hooks/useOrg';
 import type { AccountMode, IEmployee } from '../../types/employee.types';
 import { GRANTABLE_ROLES, ROLE_LABEL } from '../../utils/labels';
 import { todayVn } from '@/utils/date';
+
+// Nạp lười để tránh vòng import employees ↔ assets (assets dùng danh sách nhân viên) và giữ trang Tài sản ở chunk riêng.
+const EmployeeHoldings = lazy(() => import('@/features/assets').then((m) => ({ default: m.EmployeeHoldings })));
 
 /** Chọn vai trò (employee luôn có). Chỉ admin thấy lựa chọn "admin". */
 function RolePicker({ value, onChange }: { value: string[]; onChange: (r: string[]) => void }) {
@@ -188,6 +191,7 @@ export function ResignDialog({ open, onOpenChange, employee, onConfirm, pending 
           <Label htmlFor="leftAt">Ngày nghỉ việc</Label>
           <Input id="leftAt" type="date" value={leftAt} onChange={(e) => setLeftAt(e.target.value)} />
         </div>
+        <Suspense fallback={null}><EmployeeHoldings employeeId={open ? employee.id : null} warn /></Suspense>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
           <Button variant="destructive" disabled={!leftAt || pending} onClick={() => onConfirm(leftAt)}>Xác nhận nghỉ việc</Button>

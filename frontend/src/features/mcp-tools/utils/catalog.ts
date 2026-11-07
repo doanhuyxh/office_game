@@ -56,6 +56,7 @@ export const MCP_EXCLUDED = [
   'Thêm / sửa nhân viên, tài khoản, vai trò, ca, lịch, ngày lễ; điều chỉnh quỹ phép',
   'Tin nhắn (chat) — kênh toàn văn phòng, kênh phòng và tin 1-1 (/api/chat/*)',
   'Bảng tin: đăng / sửa / xoá bài, bình luận, cảm xúc, kiểm duyệt (chỉ đọc qua list_news_feed / get_news_post)',
+  'Tài sản: đăng ký / sửa thiết bị và dịch vụ, cấp phát, thu hồi, rà soát quyền, kiểm kê, xuất Excel (chỉ đọc qua get_my_assets / get_employee_assets)',
 ] as const;
 
 const P = {
@@ -239,6 +240,17 @@ export const MCP_TOOL_GROUPS: McpToolGroup[] = [
       { name: 'get_news_post', title: 'Chi tiết bài trên Bảng tin', kind: 'read', endpoint: 'GET /api/news/posts/{id} + /comments',
         description: 'Một bài trên Bảng tin kèm bình luận (chữ thuần). Bài ngoài phạm vi của tôi trả 404 như không tồn tại.',
         params: [{ name: 'postId', type: 'Guid', required: true, description: 'Id bài (từ list_news_feed)' }] },
+    ],
+  },
+  {
+    name: 'Tài sản',
+    tools: [
+      { name: 'get_my_assets', title: 'Tài sản của tôi', kind: 'read', endpoint: 'GET /api/assets/my',
+        description: 'Tài sản công ty đang giao cho tôi: thiết bị (mã, tên, loại, serial, ngày nhận) và tài khoản dịch vụ như Figma, Google Workspace… (dịch vụ, tên đăng nhập, vai trò, ngày cấp). Không có giá và không có mật khẩu.',
+        params: [] },
+      { name: 'get_employee_assets', title: 'Tài sản của một nhân viên', kind: 'read', endpoint: 'GET /api/assets/employees/{id}/holdings',
+        description: '(Quản lý / HR) Thiết bị và tài khoản dịch vụ một nhân viên đang giữ. Quản lý chỉ xem được bản thân và cấp dưới; không đủ quyền trả 404.',
+        params: [{ name: 'employeeId', type: 'Guid', required: true, description: 'Id nhân viên (từ search_colleagues)' }] },
     ],
   },
   {

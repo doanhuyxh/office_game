@@ -7,6 +7,7 @@ export const ENTITY_LABEL: Record<string, string> = {
   LaborContract: 'Hợp đồng', ContractAmendment: 'Phụ lục HĐ', ContractTemplate: 'Mẫu hợp đồng',
   Shift: 'Ca làm', ScheduleEntry: 'Lịch tuần', Holiday: 'Ngày lễ', LeaveType: 'Loại phép', LeaveAdjustment: 'Điều chỉnh phép',
   Asset: 'Tài liệu', Project: 'Dự án', DocType: 'Loại tài liệu',
+  Category: 'Loại thiết bị', Device: 'Thiết bị', Service: 'Dịch vụ', ServiceSeat: 'Tài khoản dịch vụ',
 };
 
 export const ACTION: Record<string, { label: string; tone: StatusTone }> = {
@@ -29,12 +30,18 @@ const FIELD_LABEL: Record<string, string> = {
   LatestIn: 'Vào muộn nhất', BreakStart: 'Nghỉ trưa từ', BreakEnd: 'Nghỉ trưa đến', DayOfWeek: 'Thứ', ShiftId: 'Ca', EmployeeId: 'Nhân viên',
   EffectiveFrom: 'Áp dụng từ', Date: 'Ngày', Days: 'Số ngày', Reason: 'Lý do', CreatedByName: 'Người tạo', IsPaid: 'Có lương',
   UsesAnnualBalance: 'Trừ phép năm',
+  CategoryId: 'Loại', Brand: 'Hãng', Model: 'Model', SerialNumber: 'Số serial', PurchaseDate: 'Ngày mua', PurchasePrice: 'Giá mua',
+  WarrantyUntil: 'Bảo hành đến', HolderEmployeeId: 'Người giữ', StatusReason: 'Lý do trạng thái', Vendor: 'Nhà cung cấp', Plan: 'Gói',
+  Url: 'Đường dẫn', SeatLimit: 'Số ghế tối đa', BillingCycle: 'Chu kỳ thanh toán', Cost: 'Chi phí mỗi kỳ', RenewalDate: 'Ngày gia hạn',
+  OwnerDepartmentId: 'Phòng ban sở hữu', AdminEmployeeId: 'Người quản trị', ServiceId: 'Dịch vụ', AccountLogin: 'Tên đăng nhập',
+  GrantedAt: 'Ngày cấp', RevokedAt: 'Ngày thu hồi',
 };
 export const fieldLabel = (f: string) => FIELD_LABEL[f] ?? f;
 
 const VALUE_LABEL: Record<string, string> = {
   Probation: 'Thử việc', Active: 'Chính thức', Resigned: 'Đã nghỉ việc', Indefinite: 'Không xác định thời hạn', Fixed: 'Có thời hạn / cố định',
-  Flexible: 'Linh hoạt', true: 'Có', false: 'Không',
+  Flexible: 'Linh hoạt', InStock: 'Trong kho', InUse: 'Đang dùng', Repair: 'Bảo trì', Retired: 'Thanh lý', Lost: 'Mất',
+  Monthly: 'Hàng tháng', Yearly: 'Hàng năm', Cancelled: 'Đã huỷ', true: 'Có', false: 'Không',
   Sunday: 'Chủ nhật', Monday: 'Thứ 2', Tuesday: 'Thứ 3', Wednesday: 'Thứ 4', Thursday: 'Thứ 5', Friday: 'Thứ 6', Saturday: 'Thứ 7',
 };
 const DATE = /^\d{4}-\d{2}-\d{2}$/;

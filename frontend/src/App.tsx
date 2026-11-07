@@ -34,9 +34,10 @@ function onTwoFactorRequired(err: unknown) {
 }
 
 /** Đọc dữ liệu bị 403 (không có quyền) → báo rõ một lần, tránh để trang hiện "chưa có dữ liệu" gây hiểu nhầm. Mutation đã có errorMessage. */
-function onQueryError(err: unknown) {
+function onQueryError(err: unknown, query?: { meta?: Record<string, unknown> }) {
   onUnauthorized(err);
   if (onTwoFactorRequired(err)) return;
+  if (query?.meta?.quiet) return; // khối phụ (vd tài sản đang giữ trong hộp thoại nhân viên): 403 thì im lặng
   if (err instanceof ApiError && err.status === 403)
     toast.error(err.problem.detail ?? 'Bạn không có quyền xem dữ liệu này', { id: 'forbidden' });
 }
@@ -44,7 +45,7 @@ function onQueryError(err: unknown) {
 const queryClient = new QueryClient({
   // 401 / 403 không thử lại (kết quả không đổi)
   defaultOptions: { queries: { retry: (n, err) => !(err instanceof ApiError && (err.status === 401 || err.status === 403)) && n < 1, refetchOnWindowFocus: false } },
-  queryCache: new QueryCache({ onError: onQueryError }),
+  queryCache: new QueryCache({ onError: (err, query) => onQueryError(err, query) }),
   mutationCache: new MutationCache({ onError: (err) => { onUnauthorized(err); onTwoFactorRequired(err); } }),
 });
 const router = createAppRouter(queryClient);

@@ -35,9 +35,9 @@ AI client ──POST /mcp (Bearer ohk_…)──▶ OfficeHub.Mcp (BearerGate �
 - **Danh sách route cho phép** `AccessTokenAuth.IsAllowed` (mặc định chặn; khớp theo đoạn path): route ngoài danh sách → **403** dù token hợp lệ. Cố ý không có: `/api/contracts` (cả mẫu hợp đồng), `/api/reports` (lương / tiền), `/api/payroll`, `/api/org/profile` (hồ sơ cá nhân), `/api/auth/*` trừ `/me`, ghi của `/api/org` (nhân viên, tài khoản, vai trò), ca / lịch / ngày lễ, `/api/leave/balances`, `/api/leave/adjustments`. Thêm endpoint mới cho AI → thêm vào đây + test `tests/OfficeHub.Mcp.Tests/AccessTokenScopeTests.cs`.
 - Code module khác nhận biết request từ AI bằng `ClaimsPrincipal.IsAccessToken()` (BuildingBlocks).
 
-## Tool (40)
+## Tool (42)
 
-> Màn hình quản trị **"Công cụ AI (MCP)"** (`/mcp-tools`, chỉ admin — `features/mcp-tools/`) liệt kê đầy đủ 40 tool kèm chi tiết (tên, tiêu đề, mô tả, tham số, loại read/write/destructive, endpoint). Catalog `features/mcp-tools/utils/catalog.ts` **bảo trì thủ công** — đổi tool trong `OfficeHub.Mcp/Tools/*.cs` phải cập nhật catalog (luật #9 [AGENTS.md](../../AGENTS.md)).
+> Màn hình quản trị **"Công cụ AI (MCP)"** (`/mcp-tools`, chỉ admin — `features/mcp-tools/`) liệt kê đầy đủ 42 tool kèm chi tiết (tên, tiêu đề, mô tả, tham số, loại read/write/destructive, endpoint). Catalog `features/mcp-tools/utils/catalog.ts` **bảo trì thủ công** — đổi tool trong `OfficeHub.Mcp/Tools/*.cs` phải cập nhật catalog (luật #9 [AGENTS.md](../../AGENTS.md)).
 
 | Nhóm | Tool |
 |---|---|
@@ -47,6 +47,7 @@ AI client ──POST /mcp (Bearer ohk_…)──▶ OfficeHub.Mcp (BearerGate �
 | Duyệt | `list_approval_inbox` (gồm đơn duyệt thay theo uỷ quyền), `list_my_approval_requests`, `get_approval_request`, `approve_request`, `reject_request` (bắt buộc lý do), `cancel_my_request`. Tạo / thu hồi uỷ quyền duyệt **không** qua token AI (chỉ GET `/api/approval/delegations`) |
 | Phòng họp | `list_meeting_rooms`, `list_meetings`, `book_meeting_room` (ngày + giờ VN → `+07:00`, mời bằng mã / email / tên), `cancel_meeting` ([meetings.md](meetings.md)) |
 | Bảng tin | `list_news_feed`, `get_news_post` — chỉ đọc; Api tự áp phạm vi người xem và (token AI) chỉ trả chữ thuần, không HTML / link tệp ([news.md](news.md)). Đăng bài / bình luận / cảm xúc **không** qua AI |
+| Tài sản | `get_my_assets`, `get_employee_assets` — chỉ đọc (thiết bị + tài khoản dịch vụ, không giá, không mật khẩu); Api tự kiểm quyền ([assets.md](assets.md)). Cấp / thu hồi / rà soát **không** qua AI |
 | Quản lý / HR | `get_team_attendance`, `get_team_attendance_report`, `get_employee_timesheet`, `list_team_leave` (Api trả 403 nếu không đủ quyền) |
 
 Tham số ngày `yyyy-MM-dd`, tháng `yyyy-MM`, giờ `HH:mm` (kiểm tra trong `Tools/ToolHelpers.cs`). Tool ghi có annotation `destructiveHint` (duyệt / từ chối / huỷ) hoặc `readOnlyHint=false`.
