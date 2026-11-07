@@ -28,6 +28,7 @@ public class AccessTokenScopeTests
     [InlineData("POST", "/api/leave/requests")]
     [InlineData("GET", "/api/approval/inbox")]
     [InlineData("POST", "/api/approval/0193a000-0000-7000-8000-000000000000/approve")]
+    [InlineData("GET", "/api/approval/delegations")]
     [InlineData("GET", "/api/notifications")]
     [InlineData("POST", "/api/notifications/read-all")]
     public void Allows_self_service_routes(string method, string path) =>
@@ -57,6 +58,8 @@ public class AccessTokenScopeTests
     [InlineData("DELETE", "/api/attendance/shifts/0193a000-0000-7000-8000-000000000000")]
     [InlineData("GET", "/api/attendance/../contracts")]
     [InlineData("GET", "/api/reports/_status")]
+    [InlineData("POST", "/api/approval/delegations")]       // trao quyền duyệt thay: chỉ trên web
+    [InlineData("POST", "/api/approval/delegations/0193a000-0000-7000-8000-000000000000/revoke")]
     [InlineData("GET", "")]
     public void Blocks_everything_else(string method, string path) =>
         Assert.False(AccessTokenAuth.IsAllowed(method, path));

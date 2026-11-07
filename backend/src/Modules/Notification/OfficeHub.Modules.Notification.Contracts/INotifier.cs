@@ -30,8 +30,12 @@ public static class NotificationCategories
     public const string ApprovalRejected = "approval_rejected";
     /// <summary>Đơn người nhận đang phải duyệt đã bị người gửi huỷ.</summary>
     public const string ApprovalCancelled = "approval_cancelled";
+    /// <summary>Được uỷ quyền duyệt thay / uỷ quyền bị thu hồi (module Approval).</summary>
+    public const string ApprovalDelegation = "approval_delegation";
     /// <summary>Hợp đồng lao động sắp hết hạn (30 / 7 ngày) — gửi HR và quản lý trực tiếp.</summary>
     public const string ContractExpiring = "contract_expiring";
+    /// <summary>Hợp đồng thử việc sắp hết (7 / 3 ngày) hoặc đã hết mà chưa có hợp đồng tiếp theo — gửi HR và quản lý trực tiếp.</summary>
+    public const string ProbationEnding = "probation_ending";
     /// <summary>Được mời họp (module Meetings).</summary>
     public const string MeetingInvited = "meeting_invited";
     public const string MeetingCancelled = "meeting_cancelled";

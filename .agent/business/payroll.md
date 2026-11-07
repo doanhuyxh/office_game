@@ -49,3 +49,9 @@ Chủ dự án chốt 2026-11-06: **tính đầy đủ theo luật VN**, mọi t
 
 - `/payroll` (HR, menu Tổ chức → "Bảng lương"): tab **Kỳ lương** (tạo & tính, bảng tổng, bấm dòng → phiếu + khoản cộng/trừ, tính lại, Excel, chốt / mở lại), **Hồ sơ thuế**, **Thông số** (sửa + biểu thuế, lưu với ngày hiệu lực).
 - `/payslips` (mọi người, menu Công việc → "Phiếu lương"): phiếu các tháng đã chốt (`PayslipView`).
+
+## Schema payroll
+
+`PayrollDbContext` (migration `InitialPayroll`). Phần chung: [database.md](../database.md).
+
+`settings` (`EffectiveFrom` unique, `RulesJson` jsonb-text, `CreatedByName`) — `PayrollMigrator` seed bản mặc định. `profiles` [Audited] (PK `EmployeeId`, `Dependents`, `Insured?`, `TaxCode` ≤20, `Note` ≤500). `periods` [Audited] (`Month` unique, `Status` Draft/Locked, `SettingsId`, `ComputedAt`, `LockedAt`, `LockedByName`). `payslips` (`PeriodId`+`EmployeeId` unique, `DataEncrypted` = JSON phiếu mã hoá AES-GCM — tính lại thì xoá + ghi trong transaction). `adjustments` [Audited] (`Label` ≤200, `AmountEncrypted`, `Taxable`; index (`PeriodId`,`EmployeeId`)). Không FK chéo schema (nhân viên chỉ lưu `EmployeeId`).

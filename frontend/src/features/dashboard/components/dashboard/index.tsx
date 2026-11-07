@@ -1,3 +1,4 @@
+import { formatNumber } from '@/utils/number';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Link } from '@tanstack/react-router';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
@@ -37,7 +38,7 @@ export function Dashboard() {
           <Card>
             <CardHeader>
               <CardDescription>Phép năm còn lại</CardDescription>
-              <CardTitle className="text-lg">{balance ? `${balance.available.toLocaleString('vi-VN')} ngày` : '—'}</CardTitle>
+              <CardTitle className="text-lg">{balance ? `${formatNumber(balance.available)} ngày` : '—'}</CardTitle>
             </CardHeader>
             <CardContent>
               <Link to={PATHS.leave} className="text-sm text-primary hover:underline">Xin nghỉ →</Link>

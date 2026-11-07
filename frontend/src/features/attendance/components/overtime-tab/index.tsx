@@ -1,3 +1,4 @@
+import { formatNumber } from '@/utils/number';
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Plus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -22,7 +23,7 @@ import { todayVn } from '@/utils/date';
 
 const today = todayVn;
 /** 150 → "2,5 giờ" */
-const hours = (min: number) => `${(Math.round((min / 60) * 100) / 100).toLocaleString('vi-VN')} giờ`;
+const hours = (min: number) => `${formatNumber(min / 60)} giờ`;
 
 /** Đăng ký trước hoặc khai bù (≤ 7 ngày) một khoảng tăng ca. Server xem trước số giờ, loại ngày và cảnh báo vượt giới hạn. */
 function OvertimeDialog({ open, onClose }: { open: boolean; onClose: () => void }) {

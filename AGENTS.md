@@ -25,13 +25,13 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Giải trình chấm công, nhắc quên chấm ra | [.agent/business/attendance-corrections.md](.agent/business/attendance-corrections.md) |
 | Tăng ca | [.agent/business/attendance-overtime.md](.agent/business/attendance-overtime.md) |
 | Thông báo (chuông in-app, email, hàng đợi gửi) | [.agent/business/notifications.md](.agent/business/notifications.md) |
-| Hợp đồng lao động, phụ lục, lương mã hoá, file S3, nhắc hết hạn, mẫu hợp đồng Word | [.agent/business/contracts.md](.agent/business/contracts.md) |
+| Hợp đồng lao động, phụ lục, lương mã hoá, file S3, mẫu hợp đồng Word · nhắc hết hạn / hết thử việc | [.agent/business/contracts.md](.agent/business/contracts.md) · [.agent/business/contracts-reminders.md](.agent/business/contracts-reminders.md) |
 | Báo cáo + Excel, quy ra tiền tăng ca / phép năm | [.agent/business/reports.md](.agent/business/reports.md) |
 | Bảng lương (BH, thuế TNCN, kỳ, phiếu) · ký hợp đồng điện tử (OTP email) | [.agent/business/payroll.md](.agent/business/payroll.md) · [.agent/business/contracts-esign.md](.agent/business/contracts-esign.md) |
 | Đặt phòng họp | [.agent/business/meetings.md](.agent/business/meetings.md) |
 | Kho tài liệu (tài sản số): kho phòng ban / dự án, tải thẳng S3, phiên bản, ban hành, hạn lưu trữ, bàn giao · trong văn phòng 3D (tủ hồ sơ, chiếu màn hình) | [.agent/business/documents.md](.agent/business/documents.md) · [.agent/business/office-documents.md](.agent/business/office-documents.md) |
 | Lịch sử sửa dữ liệu (`[Audited]`) · nhập nhân viên từ Excel | [.agent/business/audit.md](.agent/business/audit.md) · [.agent/business/employee-import.md](.agent/business/employee-import.md) |
-| Luồng duyệt, thêm loại đơn | [.agent/business/approval.md](.agent/business/approval.md) |
+| Luồng duyệt, thêm loại đơn · uỷ quyền duyệt (duyệt thay) | [.agent/business/approval.md](.agent/business/approval.md) · [.agent/business/approval-delegation.md](.agent/business/approval-delegation.md) |
 | Nghỉ phép, quỹ phép năm | [.agent/business/leave.md](.agent/business/leave.md) |
 | Kết nối AI (MCP): token cá nhân, host `OfficeHub.Mcp`, danh sách tool · OAuth, nhật ký AI, quản trị HR | [.agent/business/mcp.md](.agent/business/mcp.md) · [.agent/business/mcp-oauth.md](.agent/business/mcp-oauth.md) |
 | Văn phòng 3D: bản đồ v2, lưới va chạm, SignalR, voice | [.agent/business/office.md](.agent/business/office.md) · engine 3D / HUD: [.agent/business/office-engine.md](.agent/business/office-engine.md) · nhân vật tuỳ chỉnh: [.agent/business/office-avatar.md](.agent/business/office-avatar.md) · mặt bằng + lộ trình: [design/README.md](design/README.md) |

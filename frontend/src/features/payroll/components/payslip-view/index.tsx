@@ -1,9 +1,10 @@
+import { formatNumber } from '@/utils/number';
 import { AlertTriangle } from 'lucide-react';
 import { formatMoney } from '@/utils/money';
 import { cn } from '@/utils/cn';
 import type { IPayslipData } from '../../types/payroll.types';
 
-const days = (n: number) => n.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+const days = (n: number) => formatNumber(n);
 
 function Row({ label, value, strong, sub, negative }: { label: string; value: string; strong?: boolean; sub?: string; negative?: boolean }) {
   return (

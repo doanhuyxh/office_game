@@ -51,17 +51,22 @@ export function ApprovalCard({ item, showRequester }: { item: IApproval; showReq
           {item.steps.map((s) => (
             <li key={s.order} className={cn(s.status === 'Rejected' && 'text-destructive', s.status === 'Approved' && 'text-success', s.status === 'Pending' && 'font-semibold')}>
               {STEP_ICON[s.status]} {s.kind === 'Manager' ? `Quản lý: ${s.approverName}` : 'HR'}
-              {s.decidedByName && ` (${s.decidedByName})`}
+              {s.decidedByName && ` (${s.decidedByName}${s.onBehalfOfName ? `, duyệt thay ${s.onBehalfOfName}` : ''})`}
               {s.comment && <span className="text-muted-foreground"> — “{s.comment}”</span>}
             </li>
           ))}
         </ol>
+        {item.canDecide && item.decideOnBehalfOfName && (
+          <p className="text-xs text-info" data-testid="on-behalf-note">Bạn duyệt thay {item.decideOnBehalfOfName} (được uỷ quyền).</p>
+        )}
         {(item.canDecide || item.canCancel) && (
           <div className="flex flex-wrap gap-2">
             {item.canDecide && (
               <>
                 <Button size="sm" disabled={approve.isPending}
-                  onClick={() => approve.mutate({ id: item.id }, { onSuccess: () => toast.success('Đã duyệt'), onError })}>Duyệt</Button>
+                  onClick={() => approve.mutate({ id: item.id }, { onSuccess: () => toast.success('Đã duyệt'), onError })}>
+                  {item.decideOnBehalfOfName ? 'Duyệt thay' : 'Duyệt'}
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => { setComment(''); setRejecting(true); }}>Từ chối</Button>
               </>
             )}

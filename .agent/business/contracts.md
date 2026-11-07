@@ -8,7 +8,7 @@
 |---|---|
 | Ai xem | **HR / admin**: mọi hợp đồng, thêm / sửa / chấm dứt / xoá, phụ lục, file. **Nhân viên**: chỉ xem (kể cả lương, file) hợp đồng của chính mình. **Quản lý không** xem hợp đồng cấp dưới |
 | Lương | Lưu lương cơ bản + phụ cấp, **mã hoá AES-256-GCM** (`IFieldEncryptor`, khoá `Encryption__Key`). Mất / đổi khoá = mất lương đã lưu |
-| Nhắc hết hạn | **30 và 7 ngày** trước ngày kết thúc, gửi **HR** (không có HR → admin) + **quản lý trực tiếp** (email + chuông). Hợp đồng thử việc cũng nhắc |
+| Nhắc hết hạn | **30 và 7 ngày** trước ngày kết thúc, gửi **HR** (không có HR → admin) + **quản lý trực tiếp** (email + chuông). Thử việc: nhắc riêng 7 / 3 ngày + quá hạn ([contracts-reminders.md](contracts-reminders.md)) |
 
 ## Quy tắc (`Domain/ContractRules.cs`, test `tests/OfficeHub.Modules.LaborContracts.Tests`)
 
@@ -24,12 +24,12 @@
 - **Phụ lục** (BLLĐ 2019 Điều 22): **không** đổi thời hạn; có số (duy nhất trong hợp đồng), ngày hiệu lực **trong thời hạn** hợp đồng, nội dung, lương / phụ cấp mới (trống = không đổi). Lương hiện tại = phụ lục mới nhất có đổi giá trị và hiệu lực ≤ hôm nay, không có thì lương trên hợp đồng (`EffectiveValue`).
 - **Chấm dứt** (`/terminate`): ngày làm việc cuối trong `[StartDate, EndDate]`, lý do bắt buộc; đã chấm dứt → 409. Hết hạn tự nhiên thì không cần chấm dứt.
 - **Xoá** = xoá mềm (`DeletedAt`), chỉ dùng khi nhập nhầm; file S3 giữ lại. Xoá phụ lục = xoá cứng.
-- Sửa hợp đồng đổi `EndDate` → xoá cờ đã nhắc để nhắc lại theo hạn mới.
+- Sửa hợp đồng đổi `EndDate` → xoá mọi cờ đã nhắc (`Reminded30At/7At/3At`, `OverdueRemindedAt`) để nhắc lại theo hạn mới.
 - Không tự đổi trạng thái nhân viên (thử việc → chính thức) khi thêm hợp đồng.
 
-## Nhắc sắp hết hạn (`Infrastructure/ContractReminderJob.cs`)
+## Nhắc sắp hết hạn / hết thử việc
 
-`BackgroundService` trong Api: chạy 30 giây sau khởi động rồi **mỗi giờ**. Hợp đồng chưa chấm dứt có `EndDate` trong `[hôm nay, hôm nay + 30]`, nhân viên còn làm → `DueReminder`: còn ≤ 7 ngày & chưa nhắc 7 → nhắc 7 (đặt cả cờ 30); còn 8–30 ngày & chưa nhắc 30 → nhắc 30. Người nhận bỏ chính nhân viên đó. `Category = contract_expiring`, link `/contracts`. Giả định một instance Api.
+Job `ContractReminderJob` (mỗi giờ): hợp đồng thường 30 / 7 ngày (`contract_expiring`); thử việc chưa có hợp đồng tiếp theo 7 / 3 ngày + "quá hạn" (`probation_ending`, BLLĐ 2019 Điều 27) — chi tiết [contracts-reminders.md](contracts-reminders.md).
 
 ## Endpoint (`/api/contracts`, đăng nhập)
 
@@ -62,4 +62,4 @@ File lưu `contracts/{employeeId}/{contractId}[/amendments/{aid}]/{uuid}.{ext}` 
 - Endpoint mẫu (HR): `GET/POST /api/contracts/templates`, `GET /templates/{id}/file` (link tải mẫu gốc), `DELETE /templates/{id}`. FE: tab "Mẫu hợp đồng" + menu ⋯ "Xuất từ mẫu…".
 - `ISalaryLookup` (project `OfficeHub.Modules.LaborContracts.Contracts`): lương hiệu lực tại ngày D cho Reporting ([reports.md](reports.md)).
 
-**Ký điện tử** (nội bộ + OTP email): [contracts-esign.md](contracts-esign.md). Lịch sử sửa: [audit.md](audit.md). **Chưa có:** nhắc hợp đồng thử việc chuyển chính thức.
+**Ký điện tử** (nội bộ + OTP email): [contracts-esign.md](contracts-esign.md). Lịch sử sửa: [audit.md](audit.md). **Chưa có:** tự đổi trạng thái nhân viên thử việc → chính thức.

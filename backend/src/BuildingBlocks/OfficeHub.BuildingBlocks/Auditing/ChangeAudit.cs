@@ -57,7 +57,7 @@ public sealed class AuditSaveChangesInterceptor(IServiceProvider sp, TimeProvide
 {
     private static readonly HashSet<string> Ignored =
     [
-        "CreatedAt", "UpdatedAt", "LastUsedAt", "LastLoginAt", "Reminded30At", "Reminded7At", "AccessFailedCount", "LockoutEnd",
+        "CreatedAt", "UpdatedAt", "LastUsedAt", "LastLoginAt", "Reminded30At", "Reminded7At", "Reminded3At", "OverdueRemindedAt", "AccessFailedCount", "LockoutEnd",
         "ConcurrencyStamp", "SecurityStamp", "NormalizedEmail", "NormalizedUserName",
     ];
     private static readonly string[] LabelProps = ["FullName", "Name", "Number", "Title", "Code", "UserName"];

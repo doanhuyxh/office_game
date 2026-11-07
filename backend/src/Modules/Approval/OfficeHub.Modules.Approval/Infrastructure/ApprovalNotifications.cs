@@ -15,28 +15,33 @@ namespace OfficeHub.Modules.Approval.Infrastructure;
 /// <item>Duyệt bước trung gian → người gửi (chỉ app).</item>
 /// <item>Duyệt cuối / từ chối → người gửi (email + app).</item>
 /// <item>Huỷ → người đang phải duyệt (chỉ app).</item>
+/// <item>Tạo / thu hồi uỷ quyền duyệt → người được uỷ quyền (email + app), người uỷ quyền nếu HR làm thay (chỉ app).</item>
 /// </list>
 /// </summary>
-internal sealed class ApprovalNotifications(INotifier notifier, IEmployeeDirectory dir, IAccountService accounts, ILogger<ApprovalNotifications> log)
+internal sealed class ApprovalNotifications(INotifier notifier, IEmployeeDirectory dir, IAccountService accounts, DelegationLookup delegations,
+    ILogger<ApprovalNotifications> log)
 {
     private const string Link = "/approvals";
 
-    public static ApprovalStep? CurrentStep(ApprovalRequest r) =>
-        r.Status == RequestStatus.Pending ? r.Steps.OrderBy(s => s.Order).FirstOrDefault(s => s.Status == StepStatus.Pending) : null;
-
     /// <summary>
-    /// Tài khoản đang phải duyệt: bước Manager → tài khoản của quản lý; bước Hr → mọi tài khoản vai trò hr (không có HR → admin).
+    /// Tài khoản đang phải duyệt: bước Manager → tài khoản của quản lý + người được quản lý đó uỷ quyền hôm nay;
+    /// bước Hr → mọi tài khoản vai trò hr (không có HR → admin).
     /// Luôn bỏ người gửi (không tự duyệt). Gọi TRƯỚC khi huỷ đơn (sau khi huỷ không còn bước hiện tại).
     /// </summary>
     public async Task<List<Guid>> CurrentApproversAsync(ApprovalRequest r, CancellationToken ct)
     {
         try
         {
-            if (CurrentStep(r) is not { } step) return [];
+            if (ApprovalRules.CurrentStep(r) is not { } step) return [];
             var requesterUser = (await dir.GetAsync(r.RequesterEmployeeId, ct))?.UserId;
             List<Guid> ids;
             if (step.Kind == ApprovalStepKind.Manager)
+            {
                 ids = step.ApproverEmployeeId is { } m && (await dir.GetAsync(m, ct))?.UserId is { } uid ? [uid] : [];
+                if (step.ApproverEmployeeId is { } mgr && await delegations.ActiveOfAsync(mgr, ct) is { } d
+                    && await dir.GetAsync(d.DelegateEmployeeId, ct) is { IsActive: true, UserId: { } delegateUser })
+                    ids.Add(delegateUser);
+            }
             else
             {
                 var hr = await accounts.ListByRoleAsync(Roles.Hr, ct);
@@ -86,6 +91,45 @@ internal sealed class ApprovalNotifications(INotifier notifier, IEmployeeDirecto
         await notifier.NotifyAsync(new NotificationRequest(approversBeforeCancel, NotificationCategories.ApprovalCancelled,
             $"Đơn đã bị huỷ: {r.Title}", $"{who} đã huỷ đơn, bạn không cần duyệt nữa.", Link, SendEmail: false), ct);
     });
+
+    /// <summary>Uỷ quyền mới: báo người được uỷ quyền (email + app); HR tạo thay → báo cả người uỷ quyền (chỉ app).</summary>
+    public async Task DelegationCreatedAsync(ApprovalDelegation d, Guid actorUserId, int pendingNow, CancellationToken ct)
+    {
+        try
+        {
+            var (from, to) = (await dir.GetAsync(d.DelegatorEmployeeId, ct), await dir.GetAsync(d.DelegateEmployeeId, ct));
+            var range = $"{d.FromDate:dd/MM/yyyy} – {d.ToDate:dd/MM/yyyy}";
+            if (to?.UserId is { } delegateUser && delegateUser != actorUserId)
+            {
+                var body = $"Bạn được duyệt thay bước quản lý cho các đơn gửi tới {from?.FullName} trong {range}." +
+                           (d.Note is { Length: > 0 } n ? $"\nGhi chú: {n}" : "") +
+                           (pendingNow > 0 ? $"\nHiện có {pendingNow} đơn đang chờ." : "");
+                await notifier.NotifyAsync(new NotificationRequest([delegateUser], NotificationCategories.ApprovalDelegation,
+                    $"{from?.FullName} uỷ quyền duyệt cho bạn ({range})", body, Link), ct);
+            }
+            if (from?.UserId is { } delegatorUser && delegatorUser != actorUserId)
+                await notifier.NotifyAsync(new NotificationRequest([delegatorUser], NotificationCategories.ApprovalDelegation,
+                    $"HR đã đặt uỷ quyền duyệt của bạn cho {to?.FullName} ({range})", $"{d.CreatedByName} tạo uỷ quyền.", Link, SendEmail: false), ct);
+        }
+        catch (Exception ex) { log.LogWarning(ex, "Gửi thông báo uỷ quyền {Id} lỗi", d.Id); }
+    }
+
+    /// <summary>Thu hồi: báo người được uỷ quyền (email + app); người khác người uỷ quyền thu hồi → báo cả người uỷ quyền (chỉ app).</summary>
+    public async Task DelegationRevokedAsync(ApprovalDelegation d, Guid actorUserId, CancellationToken ct)
+    {
+        try
+        {
+            var (from, to) = (await dir.GetAsync(d.DelegatorEmployeeId, ct), await dir.GetAsync(d.DelegateEmployeeId, ct));
+            var range = $"{d.FromDate:dd/MM/yyyy} – {d.ToDate:dd/MM/yyyy}";
+            if (to?.UserId is { } delegateUser && delegateUser != actorUserId)
+                await notifier.NotifyAsync(new NotificationRequest([delegateUser], NotificationCategories.ApprovalDelegation,
+                    $"Đã thu hồi uỷ quyền duyệt của {from?.FullName} ({range})", $"{d.RevokedByName} đã thu hồi. Bạn không còn duyệt thay {from?.FullName}.", Link), ct);
+            if (from?.UserId is { } delegatorUser && delegatorUser != actorUserId)
+                await notifier.NotifyAsync(new NotificationRequest([delegatorUser], NotificationCategories.ApprovalDelegation,
+                    $"Đã thu hồi uỷ quyền duyệt cho {to?.FullName} ({range})", $"{d.RevokedByName} đã thu hồi.", Link, SendEmail: false), ct);
+        }
+        catch (Exception ex) { log.LogWarning(ex, "Gửi thông báo thu hồi uỷ quyền {Id} lỗi", d.Id); }
+    }
 
     private async Task<string> RequesterAsync(ApprovalRequest r, CancellationToken ct) =>
         await dir.GetAsync(r.RequesterEmployeeId, ct) is { } e ? (e.DepartmentName is { } d ? $"{e.FullName} ({d})" : e.FullName) : "Nhân viên";

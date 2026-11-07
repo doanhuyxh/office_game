@@ -14,9 +14,12 @@ using OfficeHub.Modules.Organization.Contracts;
 namespace OfficeHub.Modules.Approval.Features;
 
 public sealed record PersonBrief(Guid Id, string Code, string FullName, string? DepartmentName);
-public sealed record StepDto(int Order, string Kind, string? ApproverName, string Status, string? DecidedByName, DateTimeOffset? DecidedAt, string? Comment);
+/// <param name="OnBehalfOfName">Có = người quyết định đã duyệt thay người quản lý này (uỷ quyền).</param>
+public sealed record StepDto(int Order, string Kind, string? ApproverName, string Status, string? DecidedByName, DateTimeOffset? DecidedAt, string? Comment,
+    string? OnBehalfOfName = null);
+/// <param name="DecideOnBehalfOfName">Có = người gọi chỉ được quyết định với tư cách người được uỷ quyền của người quản lý này ("duyệt thay").</param>
 public sealed record ApprovalDto(Guid Id, string Type, Guid SubjectId, string Title, string Summary, string Status, PersonBrief Requester,
-    DateTimeOffset CreatedAt, DateTimeOffset? DecidedAt, IReadOnlyList<StepDto> Steps, bool CanDecide, bool CanCancel);
+    DateTimeOffset CreatedAt, DateTimeOffset? DecidedAt, IReadOnlyList<StepDto> Steps, bool CanDecide, bool CanCancel, string? DecideOnBehalfOfName = null);
 public sealed record DecisionRequest(string? Comment);
 public sealed record CountDto(int Count);
 
@@ -32,48 +35,44 @@ internal static class ApprovalEndpoints
         g.MapPost("/{id:guid}/approve", ApproveAsync);
         g.MapPost("/{id:guid}/reject", RejectAsync);
         g.MapPost("/{id:guid}/cancel", CancelAsync);
+        DelegationEndpoints.Map(g.MapGroup("/delegations"));
     }
 
-    /// <summary>Người đang thao tác: tài khoản + hồ sơ nhân viên (có thể null với admin hệ thống).</summary>
-    private sealed record Actor(Guid UserId, string Name, Guid? EmployeeId, bool IsHr, bool IsAdmin);
+    /// <summary>Người đang thao tác: tài khoản + hồ sơ nhân viên (có thể null với admin hệ thống) + người quản lý đang uỷ quyền cho họ hôm nay.</summary>
+    internal sealed record Actor(Guid UserId, string Name, Guid? EmployeeId, bool IsHr, bool IsAdmin, IReadOnlySet<Guid> DelegatedBy)
+    {
+        public DeciderContext Decider => new(EmployeeId, IsHr, IsAdmin, DelegatedBy);
+    }
 
-    private static async Task<Actor> ActorAsync(ClaimsPrincipal user, IEmployeeDirectory dir, CancellationToken ct)
+    internal static async Task<Actor> ActorAsync(ClaimsPrincipal user, IEmployeeDirectory dir, DelegationLookup delegations, CancellationToken ct)
     {
         var uid = user.GetUserId()!.Value;
         var emp = await dir.GetByUserIdAsync(uid, ct);
-        return new Actor(uid, user.FindFirstValue(ClaimNames.FullName) ?? user.Identity?.Name ?? "?", emp?.Id, user.IsHr(), user.IsInRole(Roles.Admin));
+        return new Actor(uid, user.FindFirstValue(ClaimNames.FullName) ?? user.Identity?.Name ?? "?", emp?.Id, user.IsHr(), user.IsInRole(Roles.Admin),
+            await delegations.DelegatorsOfAsync(emp?.Id, ct));
     }
 
-    private static ApprovalStep? CurrentStep(ApprovalRequest r) =>
-        r.Status == RequestStatus.Pending ? r.Steps.OrderBy(s => s.Order).FirstOrDefault(s => s.Status == StepStatus.Pending) : null;
-
-    /// <summary>Không ai tự duyệt đơn của mình. Bước quản lý: đúng người quản lý (hoặc admin). Bước HR: hr/admin.</summary>
-    private static bool CanDecide(ApprovalRequest r, Actor a)
-    {
-        if (CurrentStep(r) is not { } step) return false;
-        if (a.EmployeeId == r.RequesterEmployeeId) return false;
-        return step.Kind == ApprovalStepKind.Manager ? a.EmployeeId == step.ApproverEmployeeId || a.IsAdmin : a.IsHr;
-    }
+    private static bool CanDecide(ApprovalRequest r, Actor a) => ApprovalRules.CanDecide(r, a.Decider);
 
     private static IQueryable<ApprovalRequest> WithSteps(ApprovalDbContext db) => db.Requests.Include(r => r.Steps);
 
-    private static async Task<Ok<List<ApprovalDto>>> InboxAsync(ClaimsPrincipal user, ApprovalDbContext db, IEmployeeDirectory dir, CancellationToken ct)
+    private static async Task<Ok<List<ApprovalDto>>> InboxAsync(ClaimsPrincipal user, ApprovalDbContext db, IEmployeeDirectory dir, DelegationLookup delegations, CancellationToken ct)
     {
-        var a = await ActorAsync(user, dir, ct);
+        var a = await ActorAsync(user, dir, delegations, ct);
         var pending = await WithSteps(db).AsNoTracking().Where(r => r.Status == RequestStatus.Pending).OrderBy(r => r.CreatedAt).ToListAsync(ct);
         return TypedResults.Ok(await ToDtosAsync([.. pending.Where(r => CanDecide(r, a))], a, dir, ct));
     }
 
-    private static async Task<Ok<CountDto>> InboxCountAsync(ClaimsPrincipal user, ApprovalDbContext db, IEmployeeDirectory dir, CancellationToken ct)
+    private static async Task<Ok<CountDto>> InboxCountAsync(ClaimsPrincipal user, ApprovalDbContext db, IEmployeeDirectory dir, DelegationLookup delegations, CancellationToken ct)
     {
-        var a = await ActorAsync(user, dir, ct);
+        var a = await ActorAsync(user, dir, delegations, ct);
         var pending = await WithSteps(db).AsNoTracking().Where(r => r.Status == RequestStatus.Pending).ToListAsync(ct);
         return TypedResults.Ok(new CountDto(pending.Count(r => CanDecide(r, a))));
     }
 
-    private static async Task<Ok<List<ApprovalDto>>> MineAsync(ClaimsPrincipal user, ApprovalDbContext db, IEmployeeDirectory dir, CancellationToken ct)
+    private static async Task<Ok<List<ApprovalDto>>> MineAsync(ClaimsPrincipal user, ApprovalDbContext db, IEmployeeDirectory dir, DelegationLookup delegations, CancellationToken ct)
     {
-        var a = await ActorAsync(user, dir, ct);
+        var a = await ActorAsync(user, dir, delegations, ct);
         if (a.EmployeeId is null) return TypedResults.Ok(new List<ApprovalDto>());
         var mine = await WithSteps(db).AsNoTracking().Where(r => r.RequesterEmployeeId == a.EmployeeId)
             .OrderByDescending(r => r.CreatedAt).Take(200).ToListAsync(ct);
@@ -81,28 +80,30 @@ internal static class ApprovalEndpoints
     }
 
     private static async Task<Results<Ok<ApprovalDto>, NotFound, ProblemHttpResult>> GetAsync(Guid id, ClaimsPrincipal user, ApprovalDbContext db,
-        IEmployeeDirectory dir, CancellationToken ct)
+        IEmployeeDirectory dir, DelegationLookup delegations, CancellationToken ct)
     {
-        var a = await ActorAsync(user, dir, ct);
+        var a = await ActorAsync(user, dir, delegations, ct);
         var r = await WithSteps(db).AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (r is null) return TypedResults.NotFound();
-        var related = a.EmployeeId == r.RequesterEmployeeId || a.IsHr || r.Steps.Any(s => s.ApproverEmployeeId == a.EmployeeId);
+        // Người gửi, HR, người duyệt của một bước, người đã quyết định một bước (vd duyệt thay), người đang được uỷ quyền của người duyệt.
+        var related = a.EmployeeId == r.RequesterEmployeeId || a.IsHr || r.Steps.Any(s => s.ApproverEmployeeId == a.EmployeeId
+            || s.DecidedByUserId == a.UserId || s.ApproverEmployeeId is { } m && a.DelegatedBy.Contains(m));
         if (!related) return TypedResults.Problem("Bạn không có quyền xem đơn này", statusCode: StatusCodes.Status403Forbidden);
         return TypedResults.Ok((await ToDtosAsync([r], a, dir, ct))[0]);
     }
 
     private static async Task<Results<Ok<ApprovalDto>, NotFound, ProblemHttpResult>> ApproveAsync(Guid id, DecisionRequest req, ClaimsPrincipal user,
-        ApprovalDbContext db, IEmployeeDirectory dir, IEnumerable<IApprovalHandler> handlers, TimeProvider clock, ApprovalNotifications notify,
+        ApprovalDbContext db, IEmployeeDirectory dir, DelegationLookup delegations, IEnumerable<IApprovalHandler> handlers, TimeProvider clock, ApprovalNotifications notify,
         CancellationToken ct)
-        => await DecideAsync(id, approve: true, req.Comment, user, db, dir, handlers, clock, notify, ct);
+        => await DecideAsync(id, approve: true, req.Comment, user, db, dir, delegations, handlers, clock, notify, ct);
 
     private static async Task<Results<Ok<ApprovalDto>, NotFound, ProblemHttpResult>> RejectAsync(Guid id, DecisionRequest req, ClaimsPrincipal user,
-        ApprovalDbContext db, IEmployeeDirectory dir, IEnumerable<IApprovalHandler> handlers, TimeProvider clock, ApprovalNotifications notify,
+        ApprovalDbContext db, IEmployeeDirectory dir, DelegationLookup delegations, IEnumerable<IApprovalHandler> handlers, TimeProvider clock, ApprovalNotifications notify,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.Comment))
             return TypedResults.Problem("Nhập lý do từ chối", statusCode: StatusCodes.Status400BadRequest);
-        return await DecideAsync(id, approve: false, req.Comment, user, db, dir, handlers, clock, notify, ct);
+        return await DecideAsync(id, approve: false, req.Comment, user, db, dir, delegations, handlers, clock, notify, ct);
     }
 
     /// <summary>
@@ -110,22 +111,31 @@ internal static class ApprovalEndpoints
     /// Handler idempotent nên nếu lưu lỗi, duyệt lại sẽ không áp dụng hai lần. Thông báo gửi SAU khi lưu (không ném lỗi).
     /// </summary>
     private static async Task<Results<Ok<ApprovalDto>, NotFound, ProblemHttpResult>> DecideAsync(Guid id, bool approve, string? comment,
-        ClaimsPrincipal user, ApprovalDbContext db, IEmployeeDirectory dir, IEnumerable<IApprovalHandler> handlers, TimeProvider clock,
+        ClaimsPrincipal user, ApprovalDbContext db, IEmployeeDirectory dir, DelegationLookup delegations, IEnumerable<IApprovalHandler> handlers, TimeProvider clock,
         ApprovalNotifications notify, CancellationToken ct)
     {
-        var a = await ActorAsync(user, dir, ct);
+        var a = await ActorAsync(user, dir, delegations, ct);
         var r = await WithSteps(db).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (r is null) return TypedResults.NotFound();
         if (r.Status != RequestStatus.Pending) return Problems.Conflict("Đơn đã được xử lý");
-        if (!CanDecide(r, a)) return TypedResults.Problem("Bạn không phải người duyệt bước hiện tại của đơn này", statusCode: StatusCodes.Status403Forbidden);
+        var right = ApprovalRules.Right(r, a.Decider);
+        if (right == DecisionRight.None) return TypedResults.Problem("Bạn không phải người duyệt bước hiện tại của đơn này", statusCode: StatusCodes.Status403Forbidden);
 
         var now = clock.GetUtcNow();
-        var step = CurrentStep(r)!;
+        var step = ApprovalRules.CurrentStep(r)!;
         step.Status = approve ? StepStatus.Approved : StepStatus.Rejected;
         step.DecidedByUserId = a.UserId;
         step.DecidedByName = a.Name;
         step.DecidedAt = now;
         step.Comment = string.IsNullOrWhiteSpace(comment) ? null : comment.Trim();
+        var decidedBy = a.Name;
+        if (right == DecisionRight.Delegate)
+        {
+            // Duyệt thay theo uỷ quyền: lưu người quản lý được thay để hiện "duyệt thay X" (UI + thông báo).
+            step.OnBehalfOfEmployeeId = step.ApproverEmployeeId;
+            step.OnBehalfOfName = (await dir.GetAsync(step.ApproverEmployeeId!.Value, ct))?.FullName ?? "?";
+            decidedBy = $"{a.Name} (duyệt thay {step.OnBehalfOfName})";
+        }
 
         var handler = handlers.FirstOrDefault(h => h.Type == r.Type)
                       ?? throw new InvalidOperationException($"Chưa đăng ký IApprovalHandler cho loại đơn '{r.Type}'");
@@ -146,16 +156,16 @@ internal static class ApprovalEndpoints
             r.DecidedAt = now;
         }
         await db.SaveChangesAsync(ct);
-        if (r.Status == RequestStatus.Pending) await notify.AdvancedAsync(r, a.Name, ct);
-        else await notify.DecidedAsync(r, approve, a.Name, step.Comment, ct);
+        if (r.Status == RequestStatus.Pending) await notify.AdvancedAsync(r, decidedBy, ct);
+        else await notify.DecidedAsync(r, approve, decidedBy, step.Comment, ct);
         return TypedResults.Ok((await ToDtosAsync([r], a, dir, ct))[0]);
     }
 
     /// <summary>Người gửi huỷ đơn khi còn chờ duyệt.</summary>
     private static async Task<Results<Ok<ApprovalDto>, NotFound, ProblemHttpResult>> CancelAsync(Guid id, ClaimsPrincipal user, ApprovalDbContext db,
-        IEmployeeDirectory dir, IEnumerable<IApprovalHandler> handlers, TimeProvider clock, ApprovalNotifications notify, CancellationToken ct)
+        IEmployeeDirectory dir, DelegationLookup delegations, IEnumerable<IApprovalHandler> handlers, TimeProvider clock, ApprovalNotifications notify, CancellationToken ct)
     {
-        var a = await ActorAsync(user, dir, ct);
+        var a = await ActorAsync(user, dir, delegations, ct);
         var r = await WithSteps(db).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (r is null) return TypedResults.NotFound();
         if (r.RequesterEmployeeId != a.EmployeeId) return TypedResults.Problem("Chỉ người gửi được huỷ đơn", statusCode: StatusCodes.Status403Forbidden);
@@ -182,7 +192,8 @@ internal static class ApprovalEndpoints
             r.CreatedAt, r.DecidedAt,
             [.. r.Steps.OrderBy(s => s.Order).Select(s => new StepDto(s.Order, s.Kind.ToString(),
                 s.Kind == ApprovalStepKind.Manager && s.ApproverEmployeeId is { } m ? Brief(m).FullName : "HR",
-                s.Status.ToString(), s.DecidedByName, s.DecidedAt, s.Comment))],
-            CanDecide(r, a), r.Status == RequestStatus.Pending && r.RequesterEmployeeId == a.EmployeeId)).ToList();
+                s.Status.ToString(), s.DecidedByName, s.DecidedAt, s.Comment, s.OnBehalfOfName))],
+            CanDecide(r, a), r.Status == RequestStatus.Pending && r.RequesterEmployeeId == a.EmployeeId,
+            ApprovalRules.Right(r, a.Decider) == DecisionRight.Delegate && ApprovalRules.CurrentStep(r)?.ApproverEmployeeId is { } m ? Brief(m).FullName : null)).ToList();
     }
 }

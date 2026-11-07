@@ -28,8 +28,9 @@ Mỗi tài khoản nhận một dòng `notifications` (bỏ trùng, bỏ tài kh
 | Duyệt bước cuối | Người gửi (+ ghi chú nếu có) | email + app | `approval_approved` |
 | Từ chối | Người gửi (+ lý do) | email + app | `approval_rejected` |
 | Người gửi huỷ | Người đang phải duyệt (tính **trước** khi huỷ) | chỉ app | `approval_cancelled` |
+| Tạo / thu hồi uỷ quyền duyệt | Người được uỷ quyền (email + app); người uỷ quyền khi HR làm thay (chỉ app) | | `approval_delegation` |
 
-Người duyệt: bước `Manager` → tài khoản của quản lý (`EmployeeRef.UserId`); bước `Hr` → mọi tài khoản vai trò `hr` đang hoạt động (`IAccountService.ListByRoleAsync`), **không có HR thì gửi admin**. Luôn bỏ chính người gửi. `Link` luôn là `/approvals`. Áp dụng cho mọi loại đơn (nghỉ phép, giải trình, tăng ca) — thêm loại đơn mới tự có thông báo.
+Người duyệt: bước `Manager` → tài khoản của quản lý (`EmployeeRef.UserId`) **+ người được quản lý đó uỷ quyền hôm nay** ([approval-delegation.md](approval-delegation.md)); duyệt thay → tên người quyết định ghi `"X (duyệt thay Y)"`; bước `Hr` → mọi tài khoản vai trò `hr` đang hoạt động (`IAccountService.ListByRoleAsync`), **không có HR thì gửi admin**. Luôn bỏ chính người gửi. `Link` luôn là `/approvals`. Áp dụng cho mọi loại đơn (nghỉ phép, giải trình, tăng ca) — thêm loại đơn mới tự có thông báo.
 
 ## Endpoint (`/api/notifications`, đăng nhập, chỉ thấy của chính mình)
 
@@ -47,6 +48,6 @@ Người duyệt: bước `Manager` → tài khoản của quản lý (`Employee
 - Trang `/notifications` (`NotificationsPage`, menu Chung → "Thông báo", mọi vai trò): tab Tất cả / Chưa đọc (số chưa đọc), "Đánh dấu tất cả đã đọc", nút ✓ đánh dấu từng mục, phân trang BE (`TablePagination`, id `notifications`), hỏi lại 30 giây.
 - `useNotifications` hỏi lại mỗi **30 giây**; số chưa đọc tăng → invalidate cache `approval`, `leave`, `attendance` (badge "Phê duyệt" cập nhật theo).
 
-Module khác: `document_retention` (hạn lưu trữ), `document_handover` (bàn giao), `project_member_added` (chỉ app) — [documents.md](documents.md).
+Module khác: `document_retention` (hạn lưu trữ), `document_handover` (bàn giao), `project_member_added` (chỉ app) — [documents.md](documents.md); `contract_expiring` (hợp đồng 30 / 7 ngày), `probation_ending` (thử việc 7 / 3 ngày + quá hạn, chưa có HĐ tiếp theo) — [contracts-reminders.md](contracts-reminders.md).
 
-**Chưa có:** tuỳ chọn tắt email theo người dùng, đẩy realtime (SignalR), gom email (digest), nhắc quên chấm ra, nhắc hợp đồng sắp hết hạn, xoá thông báo cũ.
+**Chưa có:** tuỳ chọn tắt email theo người dùng, đẩy realtime (SignalR), gom email (digest), xoá thông báo cũ.

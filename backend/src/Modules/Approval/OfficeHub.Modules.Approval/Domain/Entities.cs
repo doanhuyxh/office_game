@@ -34,4 +34,27 @@ public sealed class ApprovalStep
     public string? DecidedByName { get; set; }
     public DateTimeOffset? DecidedAt { get; set; }
     public string? Comment { get; set; }
+    /// <summary>Quyết định do người được uỷ quyền thực hiện thay người quản lý này (Id nhân viên + tên lúc quyết định). Null = tự quyết.</summary>
+    public Guid? OnBehalfOfEmployeeId { get; set; }
+    public string? OnBehalfOfName { get; set; }
+}
+
+/// <summary>
+/// Uỷ quyền duyệt: người quản lý (Delegator) cho một nhân viên khác (Delegate) duyệt thay bước Manager của mình trong [FromDate, ToDate]
+/// (ngày địa phương, tính cả hai đầu). Không bắc cầu. Thu hồi = đặt RevokedAt (không xoá dòng). Quy tắc: <see cref="DelegationRules"/>.
+/// </summary>
+public sealed class ApprovalDelegation
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid DelegatorEmployeeId { get; set; }
+    public Guid DelegateEmployeeId { get; set; }
+    public DateOnly FromDate { get; set; }
+    public DateOnly ToDate { get; set; }
+    public string? Note { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public Guid CreatedByUserId { get; set; }
+    public required string CreatedByName { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+    public Guid? RevokedByUserId { get; set; }
+    public string? RevokedByName { get; set; }
 }

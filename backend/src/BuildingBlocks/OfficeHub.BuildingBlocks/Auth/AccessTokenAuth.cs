@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 
 namespace OfficeHub.BuildingBlocks.Auth;
 
@@ -81,6 +82,8 @@ public static class AccessTokenAuth
     {
         if (string.IsNullOrEmpty(path)) return false;
         if (path.Contains("..", StringComparison.Ordinal)) return false;
+        // Trao quyền duyệt thay (tạo / thu hồi uỷ quyền) chỉ làm trên web, không qua token AI; xem danh sách thì được.
+        if (!HttpMethods.IsGet(method) && path.StartsWith("/api/approval/delegations", StringComparison.OrdinalIgnoreCase)) return false;
         foreach (var (m, p) in Allowed)
         {
             if (!string.Equals(m, method, StringComparison.OrdinalIgnoreCase)) continue;

@@ -11,7 +11,7 @@ namespace OfficeHub.Mcp.Tools;
 public sealed class ApprovalTools
 {
     [McpServerTool(Name = "list_approval_inbox", Title = "Đơn chờ tôi duyệt", ReadOnly = true, OpenWorld = false)]
-    [Description("Các đơn đang chờ TÔI duyệt (quản lý: đơn của cấp dưới; HR: bước HR). Mỗi đơn có id, loại, tiêu đề, tóm tắt, người gửi, các bước.")]
+    [Description("Các đơn đang chờ TÔI duyệt (quản lý: đơn của cấp dưới; người được uỷ quyền: đơn duyệt thay — decideOnBehalfOfName; HR: bước HR). Mỗi đơn có id, loại, tiêu đề, tóm tắt, người gửi, các bước.")]
     public static async Task<string> ListApprovalInbox(OfficeHubApi api, CancellationToken ct) =>
         Out(await api.GetAsync("/api/approval/inbox", ct));
 
