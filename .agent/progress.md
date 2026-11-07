@@ -39,6 +39,7 @@ Kiểm tra ghi lần trước (trước 34 commit sau `6cea7c6`): `dotnet build 
 - Tổ chức: phòng ban mở rộng tự do, chức vụ = cấp bậc bắt buộc có cấp (HR thêm / sửa / xoá); "Lễ tân" là chức danh. Danh bạ: nhân viên thấy liên lạc, không thấy trạng thái / ngày vào làm / người đã nghỉ.
 - Hồ sơ cá nhân: liên hệ + ảnh hiệu lực ngay; ngày sinh / CCCD / ngân hàng cần HR duyệt; **email chỉ HR đổi**.
 - Giao diện: **không** hiện tiêu đề / mô tả đầu trang; nút hành động ngang hàng thanh tab.
+- Thông báo realtime: dùng **FCM** thay thế (chủ dự án chốt 2026-11-08); xem mục "Việc tiếp theo".
 
 ## Việc tiếp theo
 
@@ -48,7 +49,8 @@ Kiểm tra ghi lần trước (trước 34 commit sau `6cea7c6`): `dotnet build 
 4. **Giai đoạn sau — tính năng mới (chưa bắt đầu, hỏi trước)**:
    - Chat: sửa tin, tìm trong tin nhắn, dọn tệp S3 mồ côi (xem "Chưa làm" ở [chat.md](business/chat.md))
    - Bảng tin: tìm toàn văn, thống kê đã đọc, bài hẹn giờ, realtime (xem "Chưa làm" ở [news.md](business/news.md))
-5. Đề xuất chưa làm (hỏi trước): chốt công tháng, ca qua đêm, API loại phép, tắt email theo người, xuất sơ đồ tổ chức ra ảnh / PDF.
+5. **Thông báo realtime qua FCM** (quyết định của chủ dự án 2026-11-08): thay cho kênh realtime hiện tại để đẩy thông báo tới người dùng (chuông, chat, bảng tin) bằng Firebase Cloud Messaging. Cần chốt phạm vi và thiết kế trước khi làm (token thiết bị, web push / PWA, fallback khi người dùng từ chối quyền).
+6. Đề xuất chưa làm (hỏi trước): chốt công tháng, ca qua đêm, API loại phép, tắt email theo người, xuất sơ đồ tổ chức ra ảnh / PDF.
 6. Đã hoãn: vận hành (giám sát, diễn tập khôi phục backup), webhook máy chấm công, push PWA, HR bật / tắt AI theo người.
 
 ## Chạy & dữ liệu dev
