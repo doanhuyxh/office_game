@@ -9,6 +9,8 @@ export interface IAccountSummary {
   mustChangePassword: boolean;
   invitePending: boolean;
   lastLoginAt: string | null;
+  /** Đã bật xác thực 2 lớp. */
+  twoFactorEnabled: boolean;
 }
 
 export interface IEmployee {

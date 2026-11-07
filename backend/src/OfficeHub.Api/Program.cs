@@ -51,6 +51,7 @@ app.UseOfficeHubDefaults();
 app.UseCors();            // chỉ endpoint có RequireCors (OAuth công khai cho ứng dụng AI)
 app.UseCsrfGuard();       // request ghi bằng cookie phải đến từ chính trang (Sec-Fetch-Site / Origin)
 app.UseAuthentication();
+app.UseTwoFactorEnrollmentGate(); // admin / HR chưa bật 2FA → 403 trừ route bật 2FA (BuildingBlocks/Auth/TwoFactorGate.cs)
 app.UseAuthorization();
 app.UseRateLimiter();
 

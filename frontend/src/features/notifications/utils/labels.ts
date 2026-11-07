@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { AlarmClock, Ban, Bell, CalendarClock, CalendarX, CheckCircle2, FileClock, FileInput, FilePen, FileSignature, FolderKanban, Inbox, UserCheck, UserPen, UserX, Wallet, XCircle } from 'lucide-react';
+import { AlarmClock, Ban, Bell, CalendarClock, CalendarX, CheckCircle2, FileClock, FileInput, FilePen, FileSignature, FolderKanban, Inbox, ShieldAlert, UserCheck, UserPen, UserX, Wallet, XCircle } from 'lucide-react';
 import { formatDate } from '@/utils/date';
 
 /** Icon + màu (token theme) theo loại thông báo. */
@@ -21,6 +21,7 @@ export const CATEGORY: Record<string, { icon: LucideIcon; className: string }> =
   document_retention: { icon: FileClock, className: 'text-warning' },
   document_handover: { icon: FileInput, className: 'text-primary' },
   project_member_added: { icon: FolderKanban, className: 'text-info' },
+  account_security: { icon: ShieldAlert, className: 'text-warning' },
 };
 export const FALLBACK = { icon: Bell, className: 'text-muted-foreground' };
 

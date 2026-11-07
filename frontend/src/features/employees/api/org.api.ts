@@ -48,6 +48,8 @@ export const employeesApi = {
     httpPost<IAccountCreated>(`/api/org/employees/${id}/account`, { mode, roles, userName: userName || null }),
   resendInvite: (id: string) => httpPost<void>(`/api/org/employees/${id}/account/resend-invite`),
   resetPassword: (id: string) => httpPost<{ tempPassword: string }>(`/api/org/employees/${id}/account/reset-password`),
+  /** Nhân viên mất điện thoại: tắt 2FA + đăng xuất mọi phiên (admin / HR sẽ bị buộc bật lại). */
+  resetTwoFactor: (id: string) => httpPost<void>(`/api/org/employees/${id}/account/reset-2fa`),
   setRoles: (id: string, roles: string[]) => put<void>(`/api/org/employees/${id}/account/roles`, { roles }),
   // Nhập từ Excel (HR)
   importTemplateUrl: '/api/org/employees/import-template',

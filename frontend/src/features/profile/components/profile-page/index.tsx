@@ -11,7 +11,7 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Textarea } from '@/components/common/textarea';
 import { Spinner } from '@/components/feedback/Spinner';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { useMe } from '@/features/auth';
+import { TwoFactorCard, useMe } from '@/features/auth';
 import { formatDate, formatDateTime } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { useCancelProfileRequest, useDeleteAvatar, useMyProfile, useSaveContact, useSubmitProfileRequest, useUploadAvatar } from '../../hooks/useProfile';
@@ -259,6 +259,7 @@ export function ProfilePage() {
           <SensitiveCard p={p} />
         </>
       )}
+      <TwoFactorCard />
       <OfficeCharacterCard />
     </div>
   );

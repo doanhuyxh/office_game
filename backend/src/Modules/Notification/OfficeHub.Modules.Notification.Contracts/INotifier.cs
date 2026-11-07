@@ -52,4 +52,6 @@ public static class NotificationCategories
     public const string DocumentHandover = "document_handover";
     /// <summary>Được thêm vào dự án (kho tài liệu dự án) — module Documents.</summary>
     public const string ProjectMemberAdded = "project_member_added";
+    /// <summary>Bảo mật tài khoản: HR / admin đặt lại xác thực 2 lớp — module Organization.</summary>
+    public const string AccountSecurity = "account_security";
 }

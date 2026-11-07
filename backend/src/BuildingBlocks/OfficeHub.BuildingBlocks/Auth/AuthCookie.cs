@@ -12,6 +12,8 @@ public static class AuthCookie
     /// <summary>Trùng với IdentityConstants.ApplicationScheme để Realtime giải mã được cookie do Identity cấp.</summary>
     public const string Scheme = "Identity.Application";
     public const string CookieName = "officehub.auth";
+    /// <summary>Cookie tạm (5 phút) giữa bước mật khẩu và bước mã 2FA (scheme Identity.TwoFactorUserId).</summary>
+    public const string TwoFactorCookieName = "officehub.2fa";
 
     public static void Configure(CookieAuthenticationOptions o)
     {
@@ -24,6 +26,18 @@ public static class AuthCookie
         // API trả 401/403 thay vì redirect sang trang login.
         o.Events.OnRedirectToLogin = ctx => { ctx.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
         o.Events.OnRedirectToAccessDenied = ctx => { ctx.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
+    }
+
+    /// <summary>Cookie tạm sau bước mật khẩu, trước khi nhập mã 2FA: HttpOnly, 5 phút, không redirect.</summary>
+    public static void ConfigureTwoFactor(CookieAuthenticationOptions o)
+    {
+        o.Cookie.Name = TwoFactorCookieName;
+        o.Cookie.HttpOnly = true;
+        o.Cookie.SameSite = SameSiteMode.Lax;
+        o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        o.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+        o.SlidingExpiration = false;
+        o.Events.OnRedirectToLogin = ctx => { ctx.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
     }
 }
 
@@ -40,4 +54,6 @@ public static class ClaimNames
 {
     public const string FullName = "full_name";
     public const string MustChangePassword = "must_change_password";
+    /// <summary>"true" khi tài khoản admin / hr chưa bật xác thực 2 lớp — xem <see cref="TwoFactorPolicy"/>.</summary>
+    public const string MustSetupTwoFactor = "must_setup_2fa";
 }

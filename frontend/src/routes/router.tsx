@@ -7,10 +7,10 @@ import {
   Outlet,
 } from '@tanstack/react-router';
 import type { QueryClient } from '@tanstack/react-query';
-import { guestOnly, requireAuth, requireSession } from '@/routes/guards';
+import { guestOnly, requireAuth, requireSession, requireTwoFactorSetup } from '@/routes/guards';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Spinner } from '@/components/feedback/Spinner';
-import { AcceptInviteForm, ChangePasswordForm, ForgotPasswordForm, LoginForm, ResetPasswordForm } from '@/features/auth';
+import { AcceptInviteForm, ChangePasswordForm, ForgotPasswordForm, LoginForm, ResetPasswordForm, TwoFactorSetupPage } from '@/features/auth';
 import { PATHS } from '@/config/paths';
 import { Forbidden } from '@/components/feedback/Forbidden';
 import { NotFoundPage } from '@/components/feedback/NotFoundPage';
@@ -43,6 +43,15 @@ const changePassword = createRoute({
   validateSearch: returnUrlSearch,
   beforeLoad: ({ context }) => requireSession(context.queryClient),
   component: ChangePasswordForm,
+});
+
+// Bật xác thực 2 lớp: admin / HR chưa bật bị requireAuth đưa tới đây; người khác vào từ thẻ ở Hồ sơ.
+const setupTwoFactor = createRoute({
+  getParentRoute: () => root,
+  path: PATHS.setupTwoFactor,
+  validateSearch: returnUrlSearch,
+  beforeLoad: ({ context, location }) => requireTwoFactorSetup(context.queryClient, location.href),
+  component: TwoFactorSetupPage,
 });
 
 const forgotPassword = createRoute({
@@ -107,6 +116,7 @@ const page = <const P extends string>(path: P, load: Parameters<typeof lazyRoute
 const routeTree = root.addChildren([
   login,
   changePassword,
+  setupTwoFactor,
   forgotPassword,
   acceptInvite,
   resetPassword,

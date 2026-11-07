@@ -26,6 +26,12 @@ public interface IAccountService
 
     Task<AccountResult> SetRolesAsync(Guid userId, IReadOnlyCollection<string> roles, CancellationToken ct = default);
 
+    /// <summary>
+    /// Đặt lại xác thực 2 lớp (mất điện thoại): tắt 2FA, xoá khoá + mã dự phòng, mở khoá đăng nhập, đổi security stamp
+    /// (đăng xuất mọi phiên + token AI của admin / hr ngừng tới khi bật lại). Admin / hr sẽ bị buộc bật lại ở lần đăng nhập sau.
+    /// </summary>
+    Task<AccountResult> ResetTwoFactorAsync(Guid userId, CancellationToken ct = default);
+
     /// <summary>Khoá / mở khoá đăng nhập (nhân viên nghỉ việc).</summary>
     Task SetActiveAsync(Guid userId, bool active, CancellationToken ct = default);
 
@@ -61,4 +67,5 @@ public sealed record AccountInfo(
     bool MustChangePassword,
     bool InvitePending,
     DateTimeOffset? LastLoginAt,
-    string FullName = "");
+    string FullName = "",
+    bool TwoFactorEnabled = false);

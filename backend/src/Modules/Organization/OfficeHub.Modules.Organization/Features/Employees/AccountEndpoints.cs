@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Routing;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.Modules.Identity.Contracts;
+using OfficeHub.Modules.Notification.Contracts;
 using OfficeHub.Modules.Organization.Domain;
 using OfficeHub.Modules.Organization.Infrastructure;
 
@@ -22,6 +23,7 @@ internal static class AccountEndpoints
         g.MapPost("/resend-invite", ResendInviteAsync);
         g.MapPost("/reset-password", ResetPasswordAsync);
         g.MapPut("/roles", SetRolesAsync);
+        g.MapPost("/reset-2fa", ResetTwoFactorAsync);
     }
 
     private static async Task<Results<Ok<AccountCreatedResponse>, NotFound, ValidationProblem, ProblemHttpResult>> CreateAsync(
@@ -104,6 +106,26 @@ internal static class AccountEndpoints
             return Forbidden("Không thể tự gỡ vai trò admin của chính mình");
         var r = await accounts.SetRolesAsync(uid, roles, ct);
         return r.Succeeded ? TypedResults.NoContent() : Problems.Conflict(string.Join(" ", r.Errors));
+    }
+
+    /// <summary>
+    /// Nhân viên mất điện thoại: tắt 2FA + xoá khoá, đăng xuất mọi phiên. Admin / HR bị buộc bật lại khi đăng nhập.
+    /// Không tự đặt lại cho chính mình (tránh phiên bị chiếm tự gắn điện thoại khác); chỉ admin đặt lại cho admin.
+    /// </summary>
+    private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> ResetTwoFactorAsync(
+        Guid id, ClaimsPrincipal user, OrgDbContext db, IAccountService accounts, INotifier notifier, CancellationToken ct)
+    {
+        var e = await db.Employees.FindAsync([id], ct);
+        if (e?.UserId is not { } uid) return TypedResults.NotFound();
+        if (uid == user.GetUserId()) return Forbidden("Không thể tự đặt lại xác thực 2 lớp của chính mình — nhờ admin / HR khác");
+        if (await IsAdminTargetByNonAdminAsync(user, uid, accounts, ct)) return Forbidden("Chỉ admin được đặt lại xác thực 2 lớp của admin");
+        var r = await accounts.ResetTwoFactorAsync(uid, ct);
+        if (!r.Succeeded) return Problems.Conflict(string.Join(" ", r.Errors));
+        await notifier.NotifyAsync(new NotificationRequest([uid], NotificationCategories.AccountSecurity, "Xác thực 2 lớp đã được đặt lại",
+            $"{user.FindFirstValue(ClaimNames.FullName) ?? "Bộ phận Nhân sự"} vừa đặt lại xác thực 2 lớp cho tài khoản của bạn. " +
+            "Đăng nhập lại và quét mã QR mới trong ứng dụng xác thực. Nếu bạn không yêu cầu, hãy báo ngay cho bộ phận Nhân sự.",
+            "/profile"), ct);
+        return TypedResults.NoContent();
     }
 
     /// <summary>Luôn có "employee"; bỏ trùng.</summary>

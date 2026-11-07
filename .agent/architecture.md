@@ -12,7 +12,7 @@ backend/                         ASP.NET Core .NET 10 — solution OfficeHub.sln
   src/BuildingBlocks/OfficeHub.BuildingBlocks/
     Configuration/               EnvLoader (.env), Settings.cs, AddValidatedOptions
     Hosting/HostingExtensions.cs AddOfficeHubDefaults (Serilog→Seq, Sentry, DataProtection, ForwardedHeaders), S3, Email
-    Auth/                        AuthCookie (cookie dùng chung), Roles, ClaimNames, AuthPolicies
+    Auth/                        AuthCookie (cookie dùng chung), Roles, ClaimNames, AuthPolicies, TwoFactorGate (admin / HR chưa bật 2FA → 403)
     Health/, Http/Validation.cs, Persistence/, Storage/(IFileStorage→S3), Email/(IEmailSender→SMTP), Security/(IFieldEncryptor AES-GCM), Office/OfficeNetwork
   src/Modules/                   Identity · Organization · Attendance · Approval · Leave · Notification (mỗi cái + .Contracts) · LaborContracts ← có nghiệp vụ
                                  Meetings ← đặt phòng họp · Reporting ← báo cáo / Excel / quy ra tiền (không DB, chỉ đọc qua *.Contracts)
@@ -46,7 +46,7 @@ Trình duyệt (SPA :5173)
 
 ## Host Api
 
-`Program.cs` thứ tự: `EnvLoader.Load()` → `AddOfficeHubDefaults` → `AddOfficeHubFileStorage` → `AddOfficeHubEmail` → `AddOfficeHubAuthorization` → module `Register` → `UseOfficeHubDefaults` (ForwardedHeaders, ExceptionHandler, `/health`, `/health/ready`) → `UseAuthentication` → `UseAuthorization` → `UseRateLimiter` → `/api` group → module `MapEndpoints`.
+`Program.cs` thứ tự: `EnvLoader.Load()` → `AddOfficeHubDefaults` → `AddOfficeHubFileStorage` → `AddOfficeHubEmail` → `AddOfficeHubAuthorization` → module `Register` → `UseOfficeHubDefaults` (ForwardedHeaders, ExceptionHandler, `/health`, `/health/ready`) → `UseAuthentication` → `UseTwoFactorEnrollmentGate` → `UseAuthorization` → `UseRateLimiter` → `/api` group → module `MapEndpoints`.
 
 Hosted service khởi động: `IdentitySeeder` (migrate + roles + admin), `OrgMigrator`, `AttendanceSeeder` (migrate + ca mặc định).
 

@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react';
 import { MoreHorizontal, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from '@/components/common/alert-dialog';
 import { Badge } from '@/components/common/badge';
 import { Button } from '@/components/common/button';
 import { Checkbox } from '@/components/common/checkbox';
@@ -16,8 +20,9 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { errorMessage } from '@/utils/errors';
 import { formatDate } from '@/utils/date';
 import {
-  useDepartments, useEmployeesPage, useReactivateEmployee, useResendInvite, useResetAccountPassword, useResignEmployee,
+  useDepartments, useEmployeesPage, useReactivateEmployee, useResendInvite, useResetAccountPassword, useResetTwoFactor, useResignEmployee,
 } from '../../hooks/useOrg';
+import { hasRole, useMe } from '@/features/auth';
 import type { IEmployee } from '../../types/employee.types';
 import { ROLE_LABEL, STATUS_LABEL, STATUS_VARIANT } from '../../utils/labels';
 import { CreateAccountDialog, ResignDialog, RolesDialog, TempPasswordDialog } from '../account-dialogs';
@@ -29,7 +34,7 @@ import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/col
 
 type DialogState =
   | { kind: 'form'; employee: IEmployee | null }
-  | { kind: 'account' | 'roles' | 'resign' | 'private'; employee: IEmployee }
+  | { kind: 'account' | 'roles' | 'resign' | 'private' | 'reset2fa'; employee: IEmployee }
   | { kind: 'temp'; userName: string; password: string }
   | null;
 
@@ -41,6 +46,12 @@ function AccountBadge({ e }: { e: IEmployee }) {
   if (a.invitePending) return <Badge variant="secondary">Chờ nhận lời mời</Badge>;
   if (a.mustChangePassword) return <Badge variant="secondary">Mật khẩu tạm</Badge>;
   return <Badge>Hoạt động</Badge>;
+}
+
+/** Nút "Đặt lại 2FA": chỉ khi người đó đã bật; không cho chính mình; HR không thấy với tài khoản admin (BE vẫn chặn). */
+function canResetTwoFactor(e: IEmployee, meId: string | undefined, isAdmin: boolean) {
+  const a = e.account;
+  return !!a?.twoFactorEnabled && e.userId !== meId && (isAdmin || !a.roles.includes('admin'));
 }
 
 export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
@@ -69,6 +80,9 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
   const reactivate = useReactivateEmployee();
   const resend = useResendInvite();
   const resetPw = useResetAccountPassword();
+  const reset2fa = useResetTwoFactor();
+  const { data: me } = useMe();
+  const isAdmin = hasRole(me, 'admin');
 
   const onError = (err: unknown) => toast.error(errorMessage(err));
 
@@ -158,6 +172,7 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
                     {e.account && (
                       <div className="mt-1 text-xs text-muted-foreground">
                         {e.account.userName} · {e.account.roles.filter((r) => r !== 'employee').map((r) => ROLE_LABEL[r] ?? r).join(', ') || 'Nhân viên'}
+                        {e.account.twoFactorEnabled && ' · 2FA'}
                       </div>
                     )}
                   </TableCell>
@@ -189,6 +204,9 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
                             })}>
                               Cấp lại mật khẩu tạm
                             </DropdownMenuItem>
+                            {canResetTwoFactor(e, me?.id, isAdmin) && (
+                              <DropdownMenuItem onClick={() => setDialog({ kind: 'reset2fa', employee: e })}>Đặt lại 2FA</DropdownMenuItem>
+                            )}
                           </>
                         )}
                         <DropdownMenuSeparator />
@@ -220,6 +238,23 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
         onConfirm={(leftAt) => dialog?.kind === 'resign' && resign.mutate({ id: dialog.employee.id, leftAt }, {
           onSuccess: () => { toast.success('Đã cho nghỉ việc và khoá tài khoản'); close(); }, onError,
         })} />
+      <AlertDialog open={dialog?.kind === 'reset2fa'} onOpenChange={(o) => !o && close()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Đặt lại xác thực 2 lớp của {dialog?.kind === 'reset2fa' ? dialog.employee.fullName : ''}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Dùng khi nhân viên mất điện thoại. 2FA bị tắt, mọi phiên đăng nhập bị đăng xuất; nhân viên nhận email thông báo.
+              Tài khoản admin / HR sẽ phải bật lại ở lần đăng nhập tới.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Huỷ</AlertDialogCancel>
+            <AlertDialogAction disabled={reset2fa.isPending} onClick={() => dialog?.kind === 'reset2fa' && reset2fa.mutate(dialog.employee.id, {
+              onSuccess: () => { toast.success('Đã đặt lại xác thực 2 lớp'); close(); }, onError,
+            })}>Đặt lại</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {dialog?.kind === 'temp' && <TempPasswordDialog open onOpenChange={close} userName={dialog.userName} password={dialog.password} />}
     </div>
   );

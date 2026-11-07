@@ -50,7 +50,8 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
 
     public override async Task OnConnectedAsync()
     {
-        if (Context.User?.HasClaim(ClaimNames.MustChangePassword, "true") == true)
+        // Mật khẩu tạm / admin, HR chưa bật 2FA: phải xử lý trên web trước khi vào văn phòng.
+        if (Context.User?.HasClaim(ClaimNames.MustChangePassword, "true") == true || Context.User?.MustSetup() == true)
         {
             Context.Abort();
             return;
