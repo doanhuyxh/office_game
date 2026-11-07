@@ -128,7 +128,9 @@ services:
       ACCEPT_EULA: "Y"
       SEQ_FIRSTADMIN_PASSWORD: ${SEQ_ADMIN_PASSWORD}
     volumes: [seqdata:/data]
-    ports: ["127.0.0.1:5341:80"]
+    # Giao diện Seq. Mặc định chỉ localhost (xem bằng ssh -L). Proxy ở máy khác (vd Nginx Proxy Manager trên VPS, qua Tailscale)
+    # → SEQ_BIND = IP Tailscale của máy này (tailscale ip -4); KHÔNG đặt 0.0.0.0 nếu máy có IP public.
+    ports: ["${SEQ_BIND:-127.0.0.1}:5341:80"]
     restart: unless-stopped
 
 volumes:
