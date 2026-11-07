@@ -12,7 +12,7 @@
 | `/api/notifications/*` | Notification | [business/notifications.md](business/notifications.md) |
 | `/api/contracts/*` | LaborContracts | [business/contracts.md](business/contracts.md), ký điện tử [business/contracts-esign.md](business/contracts-esign.md) |
 | `/api/payroll/*` | Payroll (bảng lương, phiếu lương) | [business/payroll.md](business/payroll.md) |
-| `/api/approval/*` | Approval | [business/approval.md](business/approval.md) |
+| `/api/approval/*` | Approval (`/delegations` = uỷ quyền duyệt) | [business/approval.md](business/approval.md), [business/approval-delegation.md](business/approval-delegation.md) |
 | `/api/leave/*` | Leave | [business/leave.md](business/leave.md) |
 | `/mcp`, `/.well-known/oauth-*` | host OfficeHub.Mcp (máy chủ MCP cho AI, gọi lại `/api/*` bằng token; OAuth discovery) | [business/mcp.md](business/mcp.md) |
 | `/api/oauth/*` | Identity (OAuth cho ứng dụng AI) | [business/mcp-oauth.md](business/mcp-oauth.md) |

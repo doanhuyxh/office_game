@@ -172,7 +172,7 @@ internal static class ContractEndpoints
         var c = await WithAmendments(db).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (c is null) return TypedResults.NotFound();
         if (await ValidateAsync(req, c, db, dir, ct) is { } problem) return problem;
-        if (c.EndDate != req.EndDate) (c.Reminded30At, c.Reminded7At) = (null, null); // đổi hạn → nhắc lại theo hạn mới
+        if (c.EndDate != req.EndDate) (c.Reminded30At, c.Reminded7At, c.Reminded3At, c.OverdueRemindedAt) = (null, null, null, null); // đổi hạn → nhắc lại theo hạn mới
         Apply(c, req, enc);
         c.UpdatedAt = clock.GetUtcNow();
         await db.SaveChangesAsync(ct);

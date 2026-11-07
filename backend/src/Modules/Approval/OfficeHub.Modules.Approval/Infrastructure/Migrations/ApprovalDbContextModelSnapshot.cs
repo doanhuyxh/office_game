@@ -23,6 +23,58 @@ namespace OfficeHub.Modules.Approval.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("OfficeHub.Modules.Approval.Domain.ApprovalDelegation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DelegateEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DelegatorEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("FromDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RevokedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("RevokedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("ToDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DelegateEmployeeId", "ToDate");
+
+                    b.HasIndex("DelegatorEmployeeId", "ToDate");
+
+                    b.ToTable("delegations", "approval");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Approval.Domain.ApprovalRequest", b =>
                 {
                     b.Property<Guid>("Id")
@@ -98,6 +150,13 @@ namespace OfficeHub.Modules.Approval.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("OnBehalfOfEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OnBehalfOfName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<int>("Order")
                         .HasColumnType("integer");

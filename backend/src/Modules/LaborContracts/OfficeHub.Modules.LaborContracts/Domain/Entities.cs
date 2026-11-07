@@ -55,6 +55,9 @@ public sealed class LaborContract
     /// <summary>Đã nhắc sắp hết hạn (30 / 7 ngày). Sửa ngày kết thúc → xoá cờ để nhắc lại.</summary>
     public DateTimeOffset? Reminded30At { get; set; }
     public DateTimeOffset? Reminded7At { get; set; }
+    /// <summary>Chỉ hợp đồng thử việc: đã nhắc mốc 3 ngày / đã cảnh báo quá hạn (mốc 7 ngày dùng chung Reminded7At).</summary>
+    public DateTimeOffset? Reminded3At { get; set; }
+    public DateTimeOffset? OverdueRemindedAt { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }

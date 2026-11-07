@@ -18,11 +18,13 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Engine 3D (Three.js): camera, đi / tìm đường, ngồi, minimap, đồ đạc, avatar | [office-engine.md](office-engine.md) |
 | Tuỳ chỉnh nhân vật 3D: model, danh mục, `identity.user_avatars`, editor, `LookChanged` | [office-avatar.md](office-avatar.md) |
 | Luồng duyệt (quản lý → HR), không tự duyệt, `IApprovalHandler`, thêm loại đơn | [approval.md](approval.md) |
+| Uỷ quyền duyệt (quản lý giao người duyệt thay theo khoảng ngày), "duyệt thay" | [approval-delegation.md](approval-delegation.md) |
 | Loại phép, quỹ phép năm (cộng dồn, không hết hạn), đơn nghỉ, điều chỉnh của HR | [leave.md](leave.md) |
 | Giải trình chấm công (bổ sung giờ vào / ra), nhắc quên chấm ra | [attendance-corrections.md](attendance-corrections.md) |
 | Tăng ca (đơn, hệ số theo loại ngày, giới hạn) | [attendance-overtime.md](attendance-overtime.md) |
 | Thông báo: chuông in-app + email (hàng đợi, thử lại), ai nhận gì khi gửi / duyệt / từ chối / huỷ đơn, `INotifier` | [notifications.md](notifications.md) |
-| Hợp đồng lao động: loại / thời hạn theo BLLĐ, phụ lục, lương mã hoá, file S3, nhắc 30 / 7 ngày, quyền xem, mẫu hợp đồng Word | [contracts.md](contracts.md) |
+| Hợp đồng lao động: loại / thời hạn theo BLLĐ, phụ lục, lương mã hoá, file S3, quyền xem, mẫu hợp đồng Word | [contracts.md](contracts.md) |
+| Nhắc hợp đồng sắp hết hạn (30 / 7 ngày), nhắc hết thử việc (7 / 3 ngày, quá hạn) | [contracts-reminders.md](contracts-reminders.md) |
 | Kết nối AI (MCP): token truy cập cá nhân, route token được gọi, tool cho Claude / Cursor / Codex | [mcp.md](mcp.md) |
 | Kết nối AI: OAuth 2.1 (DCR, PKCE, refresh), nhật ký AI (Audit), HR thu hồi, giới hạn / công tắc tắt | [mcp-oauth.md](mcp-oauth.md) |
 | Hồ sơ cá nhân (tự sửa liên hệ / ảnh; CCCD, ngân hàng, ngày sinh qua HR duyệt; mã hoá; không ra MCP) | [profile.md](profile.md) |
@@ -59,5 +61,5 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 9. Bảng công và quỹ phép tính lại mỗi lần đọc (đủ nhanh cho ~12 người). Chưa có "chốt công", quy ra tiền tăng ca / giờ làm đêm, giờ lõi ca linh hoạt, ca qua đêm, quy ra tiền phép năm, tuỳ chọn tắt email thông báo.
 10. `reactivate` không khôi phục `ManagerId` / `HeadEmployeeId` đã bị gỡ khi nghỉ việc. `departments.HeadEmployeeId` không có FK.
 11. Văn phòng 3D là bản tối giản (sàn, vùng, avatar capsule); code game MVP cũ đã được xoá có chủ ý, engine đầy đủ sẽ viết mới trong `features/office/engine`.
-12. FE không có lint và test tự động; BE chỉ có test kiến trúc + test `TimesheetCalculator`.
+12. FE không có lint và test tự động; BE chỉ có test kiến trúc + test hàm thuần theo module (`tests/OfficeHub.Modules.*.Tests`).
 13. DB dev là Postgres dùng chung của công ty; admin seed đang dùng giá trị mẫu của `.env.example` (đã biết, chủ dự án chấp nhận khi dev).

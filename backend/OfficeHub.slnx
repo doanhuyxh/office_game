@@ -55,6 +55,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/OfficeHub.Architecture.Tests/OfficeHub.Architecture.Tests.csproj" />
     <Project Path="tests/OfficeHub.Mcp.Tests/OfficeHub.Mcp.Tests.csproj" />
+    <Project Path="tests/OfficeHub.Modules.Approval.Tests/OfficeHub.Modules.Approval.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Attendance.Tests/OfficeHub.Modules.Attendance.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Documents.Tests/OfficeHub.Modules.Documents.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Leave.Tests/OfficeHub.Modules.Leave.Tests.csproj" />

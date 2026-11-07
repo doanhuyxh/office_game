@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { AlarmClock, Ban, Bell, CalendarClock, CalendarX, CheckCircle2, FileClock, FileInput, FilePen, FileSignature, FolderKanban, Inbox, ShieldAlert, UserCheck, UserPen, UserX, Wallet, XCircle } from 'lucide-react';
+import { AlarmClock, Ban, Bell, BadgeCheck, UserRoundCog, CalendarClock, CalendarX, CheckCircle2, FileClock, FileInput, FilePen, FileSignature, FolderKanban, Inbox, ShieldAlert, UserCheck, UserPen, UserX, Wallet, XCircle } from 'lucide-react';
 import { formatDate } from '@/utils/date';
 
 /** Icon + màu (token theme) theo loại thông báo. */
@@ -8,7 +8,9 @@ export const CATEGORY: Record<string, { icon: LucideIcon; className: string }> =
   approval_approved: { icon: CheckCircle2, className: 'text-success' },
   approval_rejected: { icon: XCircle, className: 'text-destructive' },
   approval_cancelled: { icon: Ban, className: 'text-muted-foreground' },
+  approval_delegation: { icon: UserRoundCog, className: 'text-info' },
   contract_expiring: { icon: FileClock, className: 'text-warning' },
+  probation_ending: { icon: BadgeCheck, className: 'text-warning' },
   meeting_invited: { icon: CalendarClock, className: 'text-info' },
   meeting_cancelled: { icon: CalendarX, className: 'text-muted-foreground' },
   attendance_reminder: { icon: AlarmClock, className: 'text-warning' },

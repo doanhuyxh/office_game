@@ -12,6 +12,7 @@ public sealed class ApprovalDbContext(DbContextOptions<ApprovalDbContext> option
     public const string Schema = "approval";
     public DbSet<ApprovalRequest> Requests => Set<ApprovalRequest>();
     public DbSet<ApprovalStep> Steps => Set<ApprovalStep>();
+    public DbSet<ApprovalDelegation> Delegations => Set<ApprovalDelegation>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -34,8 +35,18 @@ public sealed class ApprovalDbContext(DbContextOptions<ApprovalDbContext> option
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.DecidedByName).HasMaxLength(200);
             e.Property(x => x.Comment).HasMaxLength(1000);
+            e.Property(x => x.OnBehalfOfName).HasMaxLength(200);
             e.HasIndex(x => new { x.RequestId, x.Order }).IsUnique();
             e.HasIndex(x => new { x.Status, x.Kind, x.ApproverEmployeeId });
+        });
+        b.Entity<ApprovalDelegation>(e =>
+        {
+            e.ToTable("delegations");
+            e.Property(x => x.Note).HasMaxLength(DelegationRules.NoteMaxLength);
+            e.Property(x => x.CreatedByName).HasMaxLength(200);
+            e.Property(x => x.RevokedByName).HasMaxLength(200);
+            e.HasIndex(x => new { x.DelegatorEmployeeId, x.ToDate });
+            e.HasIndex(x => new { x.DelegateEmployeeId, x.ToDate });
         });
     }
 }

@@ -19,6 +19,7 @@ public sealed class ApprovalModule : IModule
     public void Register(IServiceCollection services, IConfiguration config)
     {
         services.AddModuleDbContext<ApprovalDbContext>(config, ApprovalDbContext.Schema);
+        services.AddScoped<DelegationLookup>();
         services.AddScoped<ApprovalNotifications>();
         services.AddScoped<IApprovalService, ApprovalService>();
         services.AddHostedService<ApprovalMigrator>();

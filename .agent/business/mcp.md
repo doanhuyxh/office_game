@@ -42,7 +42,7 @@ AI client ──POST /mcp (Bearer ohk_…)──▶ OfficeHub.Mcp (BearerGate �
 | Chung | `get_my_profile` (tài khoản, hồ sơ, `now` giờ VN), `list_notifications`, `mark_notifications_read`, `search_colleagues` (bỏ thông tin tài khoản; có `jobTitle`, `positionLevel`), `list_departments`, `list_positions`, `get_my_role`, `get_department`, `get_position` (vai trò + hướng dẫn: [org-guides.md](org-guides.md)) |
 | Chấm công | `get_today_attendance`, `check_in_out`, `get_my_timesheet`, `list_holidays`, `list_shifts`, `list_my_corrections`, `submit_attendance_correction`, `list_my_overtime`, `preview_overtime`, `register_overtime` |
 | Nghỉ phép | `list_leave_types`, `get_leave_balance`, `list_my_leave_requests`, `preview_leave`, `submit_leave_request` (`leaveType` = mã / tên / id) |
-| Duyệt | `list_approval_inbox`, `list_my_approval_requests`, `get_approval_request`, `approve_request`, `reject_request` (bắt buộc lý do), `cancel_my_request` |
+| Duyệt | `list_approval_inbox` (gồm đơn duyệt thay theo uỷ quyền), `list_my_approval_requests`, `get_approval_request`, `approve_request`, `reject_request` (bắt buộc lý do), `cancel_my_request`. Tạo / thu hồi uỷ quyền duyệt **không** qua token AI (chỉ GET `/api/approval/delegations`) |
 | Phòng họp | `list_meeting_rooms`, `list_meetings`, `book_meeting_room` (ngày + giờ VN → `+07:00`, mời bằng mã / email / tên), `cancel_meeting` ([meetings.md](meetings.md)) |
 | Quản lý / HR | `get_team_attendance`, `get_team_attendance_report`, `get_employee_timesheet`, `list_team_leave` (Api trả 403 nếu không đủ quyền) |
 

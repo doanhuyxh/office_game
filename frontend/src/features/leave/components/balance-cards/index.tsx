@@ -24,7 +24,7 @@ export function BalanceCard({ b }: { b: IBalance }) {
           {rows.map(([label, v]) => (
             <div key={label} className="flex justify-between">
               <dt className="text-muted-foreground">{label}</dt>
-              <dd className="font-mono tabular-nums">{v > 0 ? '+' : ''}{fmtDays(v)}</dd>
+              <dd className="font-mono tabular-nums">{Math.round(v * 100) > 0 ? '+' : ''}{fmtDays(v)}</dd>
             </div>
           ))}
         </dl>

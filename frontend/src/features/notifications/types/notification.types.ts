@@ -3,7 +3,7 @@ import type { IPaged } from '@/types/api';
 // Khớp DTO ở backend/src/Modules/Notification/.../Features/NotificationEndpoints.cs
 
 /** NotificationCategories ở Notification.Contracts */
-export type NotificationCategory = 'approval_requested' | 'approval_approved' | 'approval_rejected' | 'approval_cancelled' | 'contract_expiring' | 'meeting_invited' | 'meeting_cancelled' | 'attendance_reminder' | 'payslip_ready' | 'contract_sign_requested' | 'contract_signed' | 'profile_change_requested' | 'profile_change_approved' | 'profile_change_rejected' | 'document_retention' | 'document_handover' | 'project_member_added' | 'account_security';
+export type NotificationCategory = 'approval_requested' | 'approval_approved' | 'approval_rejected' | 'approval_cancelled' | 'approval_delegation' | 'contract_expiring' | 'probation_ending' | 'meeting_invited' | 'meeting_cancelled' | 'attendance_reminder' | 'payslip_ready' | 'contract_sign_requested' | 'contract_signed' | 'profile_change_requested' | 'profile_change_approved' | 'profile_change_rejected' | 'document_retention' | 'document_handover' | 'project_member_added' | 'account_security';
 
 export interface INotification {
   id: string;

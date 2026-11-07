@@ -1,3 +1,4 @@
+import { formatNumber } from '@/utils/number';
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Calculator, FileSpreadsheet, Lock, Plus, Trash2, Unlock } from 'lucide-react';
 import { toast } from 'sonner';
@@ -165,7 +166,7 @@ function PeriodsTab() {
                         {s.data.warnings.length > 0 && <AlertTriangle className="ml-1 inline size-3.5 text-warning" aria-label={s.data.warnings.join('; ')} />}
                         {s.adjustments.length > 0 && <span className="ml-1 text-xs text-muted-foreground">+{s.adjustments.length} khoản</span>}
                       </TableCell>
-                      {v('days') && <TableCell className="text-right tabular-nums">{s.data.paidDays.toLocaleString('vi-VN')}/{s.data.standardDays}</TableCell>}
+                      {v('days') && <TableCell className="text-right tabular-nums">{formatNumber(s.data.paidDays)}/{s.data.standardDays}</TableCell>}
                       {v('gross') && <TableCell className="text-right tabular-nums">{formatMoney(s.data.gross)}</TableCell>}
                       {v('insurance') && <TableCell className="text-right tabular-nums">{formatMoney(s.data.employeeInsurance)}</TableCell>}
                       {v('tax') && <TableCell className="text-right tabular-nums">{formatMoney(s.data.tax)}</TableCell>}

@@ -130,7 +130,13 @@ namespace OfficeHub.Modules.LaborContracts.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<DateTimeOffset?>("OverdueRemindedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset?>("Reminded30At")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("Reminded3At")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset?>("Reminded7At")

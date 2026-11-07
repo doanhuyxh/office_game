@@ -2,12 +2,13 @@
 
 > Phần chung (quy ước, seed, viết migration): [database.md](database.md). Nguồn sự thật là code: `*DbContext.cs` + `Infrastructure/Migrations/`. Về [AGENTS.md](../AGENTS.md).
 
-## Schema `approval` — `ApprovalDbContext` (migration `InitialApproval`)
+## Schema `approval` — `ApprovalDbContext` (migration `InitialApproval`, `ApprovalDelegation`)
 
 | Bảng | Field chính | Ràng buộc / index |
 |---|---|---|
 | `requests` | `Type`, `SubjectId`, `RequesterEmployeeId`, `Title`, `Summary`, `Status`, `CreatedAt`, `DecidedAt` | unique (`Type`,`SubjectId`); index (`RequesterEmployeeId`,`Status`) |
-| `steps` | `RequestId`, `Order`, `Kind` (`Manager`/`Hr`), `ApproverEmployeeId`, `Status` (`Waiting`/`Pending`/`Approved`/`Rejected`), `DecidedByUserId`, `DecidedByName`, `Comment` | FK cascade; unique (`RequestId`,`Order`) |
+| `steps` | `RequestId`, `Order`, `Kind` (`Manager`/`Hr`), `ApproverEmployeeId`, `Status` (`Waiting`/`Pending`/`Approved`/`Rejected`), `DecidedByUserId`, `DecidedByName`, `Comment`, `OnBehalfOfEmployeeId?`/`OnBehalfOfName?` (duyệt thay) | FK cascade; unique (`RequestId`,`Order`) |
+| `delegations` | `DelegatorEmployeeId`, `DelegateEmployeeId`, `FromDate`/`ToDate` (date, cả hai đầu), `Note` ≤500, `CreatedAt/ByUserId/ByName`, `RevokedAt/ByUserId/ByName` (thu hồi, không xoá) | index (`DelegatorEmployeeId`,`ToDate`), (`DelegateEmployeeId`,`ToDate`); chống trùng bằng code + advisory lock ([business/approval-delegation.md](business/approval-delegation.md)) |
 
 ## Schema `leave` — `LeaveDbContext` (migration `InitialLeave`)
 
@@ -27,11 +28,11 @@ Quỹ phép **không lưu**: tính khi đọc ([business/leave.md](business/leav
 
 Một dòng cho mỗi người nhận. Chỉ module Notification ghi; `EmailDispatcher` cập nhật cột `Email*`. Chưa có job xoá thông báo cũ ([business/notifications.md](business/notifications.md)).
 
-## Schema `contracts` — `ContractsDbContext` (migration `InitialContracts`, `ContractTemplates`, `SignRequests`)
+## Schema `contracts` — `ContractsDbContext` (migration `InitialContracts`, `ContractTemplates`, `SignRequests`, `ProbationReminders`)
 
 | Bảng | Field chính | Ràng buộc / index |
 |---|---|---|
-| `contracts` | `EmployeeId`, `Number` (≤50), `Type` (`Indefinite`/`Fixed`/`Probation`), `SignedDate`, `StartDate`, `EndDate` (null = vô thời hạn), `JobTitle`, `SalaryEncrypted` / `AllowanceEncrypted` (≤200, `v1:…` AES-GCM), `Note`, `TerminatedOn`, `TerminationReason`, `FileKey`/`FileName`/`FileContentType`/`FileSize` (owned `StoredFile`), `Reminded30At`, `Reminded7At`, `CreatedAt`, `UpdatedAt`, `DeletedAt` | `Number` unique lọc `DeletedAt IS NULL`; index (`EmployeeId`,`StartDate`); index `EndDate` lọc chưa xoá + chưa chấm dứt; query filter xoá mềm |
+| `contracts` | `EmployeeId`, `Number` (≤50), `Type` (`Indefinite`/`Fixed`/`Probation`), `SignedDate`, `StartDate`, `EndDate` (null = vô thời hạn), `JobTitle`, `SalaryEncrypted` / `AllowanceEncrypted` (≤200, `v1:…` AES-GCM), `Note`, `TerminatedOn`, `TerminationReason`, `FileKey`/`FileName`/`FileContentType`/`FileSize` (owned `StoredFile`), `Reminded30At`, `Reminded7At`, `Reminded3At`, `OverdueRemindedAt` (nhắc thử việc, [business/contracts-reminders.md](business/contracts-reminders.md)), `CreatedAt`, `UpdatedAt`, `DeletedAt` | `Number` unique lọc `DeletedAt IS NULL`; index (`EmployeeId`,`StartDate`); index `EndDate` lọc chưa xoá + chưa chấm dứt; query filter xoá mềm |
 | `amendments` | `ContractId`, `Number`, `EffectiveDate`, `Content` (≤2000), `SalaryEncrypted`, `AllowanceEncrypted`, `File*` | FK cascade; index (`ContractId`,`EffectiveDate`) |
 
 `templates` (mẫu Word): `Name` ≤200, `ContractType?` (string), `Fields text[]`, file owned `StoredFile` (S3 `contract-templates/{id}.docx`), `CreatedAt`, `CreatedByName`; xoá cứng + xoá file S3.
@@ -64,4 +65,4 @@ Chi tiết: [business/documents.md](business/documents.md). Enum lưu chuỗi; J
 
 ## Schema `payroll` — `PayrollDbContext` (migration `InitialPayroll`)
 
-Chi tiết nghiệp vụ: [business/payroll.md](business/payroll.md). `settings` (`EffectiveFrom` unique, `RulesJson` jsonb-text, `CreatedByName`) — `PayrollMigrator` seed bản mặc định. `profiles` [Audited] (PK `EmployeeId`, `Dependents`, `Insured?`, `TaxCode` ≤20, `Note` ≤500). `periods` [Audited] (`Month` unique, `Status` Draft/Locked, `SettingsId`, `ComputedAt`, `LockedAt`, `LockedByName`). `payslips` (`PeriodId`+`EmployeeId` unique, `DataEncrypted` = JSON phiếu mã hoá AES-GCM — tính lại thì xoá + ghi trong transaction). `adjustments` [Audited] (`Label` ≤200, `AmountEncrypted`, `Taxable`; index (`PeriodId`,`EmployeeId`)). Không FK chéo schema (nhân viên chỉ lưu `EmployeeId`).
+Bảng `settings`, `profiles`, `periods`, `payslips` (phiếu mã hoá), `adjustments`: [business/payroll.md](business/payroll.md#schema-payroll).

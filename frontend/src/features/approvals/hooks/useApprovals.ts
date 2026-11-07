@@ -28,3 +28,19 @@ export function useCancelApproval() {
   const invalidate = useInvalidateAfterDecision();
   return useMutation({ mutationFn: (id: string) => approvalApi.cancel(id), onSuccess: invalidate });
 }
+
+/** Uỷ quyền duyệt của tôi (đã giao / được nhận). */
+export const useMyDelegations = () => useQuery({ queryKey: approvalKeys.myDelegations, queryFn: approvalApi.myDelegations });
+/** HR: mọi uỷ quyền. */
+export const useAllDelegations = (status: 'current' | 'all', enabled: boolean) =>
+  useQuery({ queryKey: approvalKeys.allDelegations(status), queryFn: () => approvalApi.allDelegations(status), enabled });
+
+/** Tạo / thu hồi uỷ quyền đổi luôn hộp duyệt của người được uỷ quyền → làm mới cả nhánh 'approval'. */
+export function useCreateDelegation() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: approvalApi.createDelegation, onSuccess: () => qc.invalidateQueries({ queryKey: approvalKeys.all }) });
+}
+export function useRevokeDelegation() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: approvalApi.revokeDelegation, onSuccess: () => qc.invalidateQueries({ queryKey: approvalKeys.all }) });
+}
