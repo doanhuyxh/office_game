@@ -45,7 +45,7 @@ export function ProjectFormDialog({ open, project, onClose, onCreated }: { open:
   const pick = (next: ISalesContractRef[]) => { setPicked(next); set('salesContractIds', next.map((c) => c.id)); };
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{project ? `Sửa dự án ${project.code}` : 'Dự án mới'}</DialogTitle>
           <DialogDescription>Mỗi dự án có kho tài liệu riêng cho thành viên. Người tạo là quản lý dự án.</DialogDescription>
