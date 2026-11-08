@@ -51,6 +51,11 @@ internal static class AuthEndpoints
         if (!result.Succeeded)
             return TypedResults.Problem("Sai tài khoản hoặc mật khẩu", statusCode: StatusCodes.Status401Unauthorized);
 
+        // Mỗi lúc chỉ 1 thiết bị: đổi security stamp → cookie ở thiết bị khác (nếu có) bị từ chối ở request kế tiếp
+        // (giống cơ chế khoá tài khoản / đổi mật khẩu); cấp lại cookie cho CHÍNH thiết bị này theo stamp mới.
+        await users.UpdateSecurityStampAsync(user);
+        await signIn.RefreshSignInAsync(user);
+
         user.LastLoginAt = clock.GetUtcNow();
         await users.UpdateAsync(user);
         return TypedResults.Ok(await ToMe(user, users, db));

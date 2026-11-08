@@ -24,6 +24,7 @@ Việc **cấp tài khoản cho nhân viên** do HR làm ở module Organization
 - Bị khoá → **423** `"Tài khoản tạm khoá do đăng nhập sai nhiều lần, thử lại sau 15 phút"`.
 - Đã bật 2FA → 403 `title: "2fa_required"` + cookie tạm → bước 2 `POST /auth/login/2fa`. Admin / hr chưa bật → vào được nhưng bị buộc bật ([auth-2fa.md](auth-2fa.md)).
 - Thành công → cập nhật `LastLoginAt`.
+- **Mỗi lúc chỉ 1 thiết bị** (chốt 2026-11-08): đăng nhập thành công (bước mật khẩu nếu không 2FA, hoặc sau khi xác thực 2FA xong) → `UserManager.UpdateSecurityStampAsync` đổi security stamp rồi `RefreshSignInAsync` cấp lại cookie cho **chính thiết bị vừa đăng nhập**. Thiết bị khác (nếu đang mở) có cookie mang stamp cũ → bị 401 ở request kế tiếp (cùng cơ chế "Kiểm tra security stamp ở mọi request" bên dưới) → FE tự chuyển về `/login` (`App.tsx`, `onUnauthorized`). Áp dụng cho web; **không** ảnh hưởng token AI (`ohk_…`, scheme Bearer riêng, không qua stamp cookie). Mở nhiều tab **cùng** trình duyệt vẫn bình thường (không đăng nhập lại = không đổi stamp).
 
 | Quy tắc | Giá trị (`IdentityModule.cs`) |
 |---|---|

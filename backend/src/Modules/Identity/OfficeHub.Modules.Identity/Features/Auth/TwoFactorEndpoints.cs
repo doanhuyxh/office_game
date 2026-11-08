@@ -160,6 +160,11 @@ internal static class TwoFactorEndpoints
         if (result.IsLockedOut) return LockedOut();
         if (!result.Succeeded) return TypedResults.Problem(InvalidCode, statusCode: StatusCodes.Status401Unauthorized, title: "2fa_invalid");
 
+        // Mỗi lúc chỉ 1 thiết bị — xem AuthEndpoints.LoginAsync. Đặt sau khi xác thực 2FA xong (không đổi stamp ở bước mật khẩu,
+        // tránh đá thiết bị khác khi người này còn chưa hoàn tất nhập mã).
+        await users.UpdateSecurityStampAsync(user);
+        await signIn.RefreshSignInAsync(user);
+
         user.LastLoginAt = clock.GetUtcNow();
         await users.UpdateAsync(user);
         return TypedResults.Ok(await AuthEndpoints.ToMe(user, users, db));
