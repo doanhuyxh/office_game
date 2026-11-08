@@ -87,8 +87,8 @@ export function LibraryTab({ initialSpace, onOpen }: { initialSpace: ISpaceRef |
   const spaceOptions = (spaces.data ?? []).map((s) => ({ value: spaceKey(s), label: spaceLabel(s) }));
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[16rem_1fr]">
-      <aside className="grid content-start gap-3">
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
+      <aside className="grid min-w-0 content-start gap-3">
         <SelectField id="doc-space" label="Kho" value={space ? spaceKey(space) : null} options={spaceOptions}
           onChange={(v) => { if (v) { setSpace(parseSpaceKey(v)); setFolderId(null); setSearch(''); } }} />
         <div className="rounded-xl border bg-card p-2">
@@ -104,7 +104,7 @@ export function LibraryTab({ initialSpace, onOpen }: { initialSpace: ISpaceRef |
         onDragLeave={(e) => { if (e.currentTarget === e.target) setDragOver(false); }}
         onDrop={onDrop}>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-48 flex-1">
+          <div className="relative w-full min-w-0 sm:w-auto sm:min-w-48 sm:flex-1">
             <Search className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
             <Input className="pl-8" placeholder="Tìm tiêu đề, mã, số hiệu, thẻ, tên file…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Tìm tài liệu" />
           </div>

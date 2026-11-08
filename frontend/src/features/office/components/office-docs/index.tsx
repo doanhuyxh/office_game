@@ -17,7 +17,7 @@ export type DocsMode =
 export function OfficeDocsDialog({ mode, onClose, onPresent }: { mode: DocsMode | null; onClose: () => void; onPresent?: (assetId: string) => void }) {
   return (
     <Dialog open={!!mode} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="h-[90vh] content-start w-[96vw] max-w-[min(1200px,96vw)] overflow-y-auto sm:max-w-[min(1200px,96vw)]" data-testid="office-docs">
+      <DialogContent className="h-[90dvh] w-[96vw] max-w-[min(1200px,96vw)] grid-cols-[minmax(0,1fr)] content-start overflow-x-hidden overflow-y-auto p-4 sm:max-w-[min(1200px,96vw)] sm:p-6" data-testid="office-docs">
         <DialogHeader>
           <DialogTitle>{mode?.title}</DialogTitle>
           <DialogDescription>
