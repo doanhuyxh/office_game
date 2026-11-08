@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/common/input';
 import { SelectField } from '@/components/common/SelectField';
-import { useDepartments, useEmployees } from '@/features/employees';
+import { departmentOptions, useDepartments, useEmployees } from '@/features/employees';
 import { todayVn, useLines } from '@/features/finance';
 import { useDebounce } from '@/hooks/useDebounce';
 import { errorMessage, fieldErrors } from '@/utils/errors';
@@ -89,7 +89,7 @@ export function ProjectFormDialog({ open, project, onClose, onCreated }: { open:
             <FormField id="pj-budget" label="Ngân sách (ngày công)" type="number" min={0} step="0.5" value={f.budgetManDays ?? ''}
               onChange={(e) => set('budgetManDays', e.target.value === '' ? null : Number(e.target.value))} error={errors.budgetManDays} />
           </div>
-          <SelectField id="pj-dept" label="Phòng ban chủ trì" allowEmpty value={f.departmentId ?? null} onChange={(v) => set('departmentId', v)} options={departments.map((d) => ({ value: d.id, label: d.name }))} />
+          <SelectField id="pj-dept" label="Phòng ban chủ trì" allowEmpty value={f.departmentId ?? null} onChange={(v) => set('departmentId', v)} options={departmentOptions(departments)} />
           <FormField id="pj-desc" label="Mô tả" maxLength={2000} value={f.description ?? ''} onChange={(e) => set('description', e.target.value)} />
           {!project && (
             <div className="grid gap-2">

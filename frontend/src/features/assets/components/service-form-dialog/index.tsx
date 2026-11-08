@@ -7,7 +7,7 @@ import { Label } from '@/components/common/label';
 import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { SelectField } from '@/components/common/SelectField';
 import { Textarea } from '@/components/common/textarea';
-import { useDepartments, useEmployees } from '@/features/employees';
+import { departmentOptions, useDepartments, useEmployees } from '@/features/employees';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { assetApi } from '../../api/asset.api';
 import { useAssetMutation } from '../../hooks/useAssets';
@@ -65,7 +65,7 @@ export function ServiceFormDialog({ open, onOpenChange, service }: { open: boole
           <FormField id="sv-cost" label="Chi phí mỗi kỳ (₫)" inputMode="numeric" value={cost} error={errors.cost} onChange={(e) => setCost(e.target.value.replace(/[^\d]/g, ''))} />
           <FormField id="sv-renewal" label="Ngày gia hạn" type="date" value={form.renewalDate ?? ''} error={errors.renewalDate} onChange={(e) => set('renewalDate', e.target.value || null)} />
           <SelectField id="sv-dept" label="Phòng ban sở hữu" value={form.ownerDepartmentId} onChange={(v) => set('ownerDepartmentId', v)} allowEmpty
-            options={departments.map((d) => ({ value: d.id, label: d.name }))} />
+            options={departmentOptions(departments)} />
           <SearchSelectField id="sv-admin" label="Người quản trị" value={form.adminEmployeeId} onChange={(v) => set('adminEmployeeId', v)} allowEmpty options={employeeOptions(employees.data)} />
           <div className="grid gap-2 sm:col-span-2">
             <Label htmlFor="sv-note">Ghi chú</Label>
