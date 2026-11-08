@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { Checkbox } from '@/components/common/checkbox';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { useEffect, useState } from 'react';
@@ -58,8 +59,8 @@ export function PositionsPanel({ canEdit }: { canEdit: boolean }) {
       onError: (err) => !Object.keys(fieldErrors(err)).length && toast.error(errorMessage(err)),
     });
   };
-  const onDelete = (p: IPosition) => {
-    if (!confirm(`Xoá chức vụ "${p.name}"?`)) return;
+  const onDelete = async (p: IPosition) => {
+    if (!(await confirmDialog({ title: `Xoá chức vụ "${p.name}"?`, confirmText: 'Xoá', destructive: true }))) return;
     remove.mutate(p.id, { onSuccess: () => toast.success('Đã xoá'), onError: (err) => toast.error(errorMessage(err)) });
   };
 

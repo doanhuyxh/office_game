@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { CheckCircle2, Pencil, Plus, Trash2 } from 'lucide-react';
@@ -40,7 +41,7 @@ export function MilestonesPanel({ d }: { d: IProjectDetail }) {
           {canEdit && m.status === 'Open' && <div className="flex gap-1">
             <Button size="sm" onClick={() => setAccepting(m)}><CheckCircle2 /> Nghiệm thu</Button>
             <Button size="icon" variant="ghost" aria-label="Sửa mốc" onClick={() => setEdit(m)}><Pencil /></Button>
-            <Button size="icon" variant="ghost" aria-label="Xoá mốc" onClick={() => confirm(`Xoá mốc "${m.title}"?`) && remove.mutate(m.id, { onError: onErr })}><Trash2 /></Button>
+            <Button size="icon" variant="ghost" aria-label="Xoá mốc" onClick={async () => await confirmDialog({ title: `Xoá mốc "${m.title}"?`, confirmText: 'Xoá', destructive: true }) && remove.mutate(m.id, { onError: onErr })}><Trash2 /></Button>
           </div>}
         </div>
       ))}

@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
@@ -48,7 +49,7 @@ export function MyLeavesTable() {
               <TableCell><StatusBadge s={r.status} /></TableCell>
               <TableCell>
                 {r.status === 'Pending' && r.approvalRequestId && (
-                  <Button size="sm" variant="ghost" disabled={cancel.isPending} onClick={() => confirm('Huỷ đơn nghỉ này?') &&
+                  <Button size="sm" variant="ghost" disabled={cancel.isPending} onClick={async () => await confirmDialog({ title: 'Huỷ đơn nghỉ này?', confirmText: 'Huỷ đơn', cancelText: 'Không', destructive: true }) &&
                     cancel.mutate(r.approvalRequestId!, { onSuccess: () => toast.success('Đã huỷ đơn'), onError: (e) => toast.error(errorMessage(e)) })}>Huỷ</Button>
                 )}
               </TableCell>

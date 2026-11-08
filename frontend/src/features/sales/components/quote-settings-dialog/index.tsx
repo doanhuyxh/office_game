@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { FileDown, Trash2, Upload } from 'lucide-react';
@@ -43,7 +44,7 @@ export function QuoteSettingsDialog({ open, onClose }: { open: boolean; onClose:
                 <input ref={input} type="file" accept=".docx" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload.mutate(f, {
                   onSuccess: () => toast.success('Đã dùng mẫu mới'), onError: (er) => !Object.keys(fieldErrors(er)).length && toast.error(errorMessage(er)) }); e.target.value = ''; }} />
                 <Button size="sm" disabled={upload.isPending} onClick={() => input.current?.click()}><Upload /> Tải mẫu riêng (.docx)</Button>
-                {s.quoteTemplateName && <Button size="sm" variant="ghost" onClick={() => confirm('Quay về mẫu mặc định?') && remove.mutate(undefined, { onError: (er) => toast.error(errorMessage(er)) })}><Trash2 /> Bỏ mẫu riêng</Button>}
+                {s.quoteTemplateName && <Button size="sm" variant="ghost" onClick={async () => await confirmDialog({ title: 'Quay về mẫu mặc định?', description: 'Mẫu báo giá riêng sẽ bị bỏ.', confirmText: 'Bỏ mẫu riêng', destructive: true }) && remove.mutate(undefined, { onError: (er) => toast.error(errorMessage(er)) })}><Trash2 /> Bỏ mẫu riêng</Button>}
               </>}
             </div>
             {errs.file && <p className="text-xs text-destructive">{errs.file}</p>}

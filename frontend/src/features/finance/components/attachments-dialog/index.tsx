@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Download, Eye, Trash2, Upload } from 'lucide-react';
@@ -56,7 +57,7 @@ export function AttachmentsDialog({ owner, title, canUpload, onClose }: {
                 <div className="flex shrink-0 gap-1">
                   <Button variant="ghost" size="icon" aria-label="Xem" onClick={() => void open(a.id, false)}><Eye /></Button>
                   <Button variant="ghost" size="icon" aria-label="Tải về" onClick={() => void open(a.id, true)}><Download /></Button>
-                  {a.canDelete && <Button variant="ghost" size="icon" aria-label="Xoá chứng từ" onClick={() => confirm(`Xoá chứng từ "${a.fileName}"?`)
+                  {a.canDelete && <Button variant="ghost" size="icon" aria-label="Xoá chứng từ" onClick={async () => await confirmDialog({ title: `Xoá chứng từ "${a.fileName}"?`, confirmText: 'Xoá', destructive: true })
                     && remove.mutate(a.id, { onSuccess: () => toast.success('Đã xoá'), onError: (e) => toast.error(errorMessage(e)) })}><Trash2 /></Button>}
                 </div>
               </div>

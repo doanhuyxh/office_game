@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useState } from 'react';
 import { AlertTriangle, MoreHorizontal, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
@@ -154,12 +155,12 @@ function AllContracts() {
                       <DropdownMenuItem onSelect={() => setViewing(c.id)}>Xem chi tiết</DropdownMenuItem>
                       <DropdownMenuItem onSelect={() => setEditing(c)}>Sửa</DropdownMenuItem>
                       <DropdownMenuItem onSelect={() => setGenerating(c)}>Xuất từ mẫu…</DropdownMenuItem>
-                      <DropdownMenuItem disabled={!c.file?.name.toLowerCase().endsWith('.pdf')} onSelect={() => confirm(`Gửi ${c.employee.fullName} ký điện tử hợp đồng ${c.number}? Nhân viên nhận thông báo, xác thực bằng OTP email.`) &&
+                      <DropdownMenuItem disabled={!c.file?.name.toLowerCase().endsWith('.pdf')} onSelect={async () => await confirmDialog({ title: `Gửi ${c.employee.fullName} ký điện tử hợp đồng ${c.number}?`, description: 'Nhân viên nhận thông báo, xác thực bằng OTP email.', confirmText: 'Gửi ký' }) &&
                         sendSign.mutate(c.id, { onSuccess: () => toast.success('Đã gửi yêu cầu ký'), onError: (e) => toast.error(errorMessage(e)) })}>
                         Gửi ký điện tử{!c.file?.name.toLowerCase().endsWith('.pdf') && ' (cần file PDF)'}</DropdownMenuItem>
                       {!c.terminatedOn && c.status !== 'Expired' && <DropdownMenuItem onSelect={() => setTerminating(c)}>Chấm dứt…</DropdownMenuItem>}
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem variant="destructive" onSelect={() => confirm(`Xoá hợp đồng ${c.number}? Chỉ dùng khi nhập nhầm.`) &&
+                      <DropdownMenuItem variant="destructive" onSelect={async () => await confirmDialog({ title: `Xoá hợp đồng ${c.number}?`, description: 'Chỉ dùng khi nhập nhầm.', confirmText: 'Xoá', destructive: true }) &&
                         remove.mutate(c.id, { onSuccess: () => toast.success('Đã xoá'), onError: (e) => toast.error(errorMessage(e)) })}>Xoá (nhập nhầm)</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

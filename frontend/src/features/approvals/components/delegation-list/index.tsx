@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { StatusBadge } from '@/components/common/StatusBadge';
@@ -18,8 +19,8 @@ export function DelegationList({ items, loading, empty, show }: {
   show: 'delegate' | 'delegator' | 'both';
 }) {
   const revoke = useRevokeDelegation();
-  const onRevoke = (d: IDelegation) => {
-    if (!confirm(`Thu hồi uỷ quyền cho ${d.delegate.fullName} (${formatDate(d.fromDate)} – ${formatDate(d.toDate)})?`)) return;
+  const onRevoke = async (d: IDelegation) => {
+    if (!(await confirmDialog({ title: `Thu hồi uỷ quyền cho ${d.delegate.fullName}?`, description: `Uỷ quyền ${formatDate(d.fromDate)} – ${formatDate(d.toDate)} sẽ hết hiệu lực ngay.`, confirmText: 'Thu hồi', destructive: true }))) return;
     revoke.mutate(d.id, { onSuccess: () => toast.success('Đã thu hồi uỷ quyền'), onError: (e) => toast.error(errorMessage(e)) });
   };
   if (loading) return <p className="text-sm text-muted-foreground">Đang tải…</p>;

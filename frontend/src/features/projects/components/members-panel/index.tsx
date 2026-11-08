@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
@@ -41,7 +42,7 @@ export function MembersPanel({ d }: { d: IProjectDetail }) {
                   onChange={(e) => change.mutate({ id: m.employeeId, role: e.target.value as MemberRole }, { onError: onErr })}>
                   <option value="Member">Thành viên</option><option value="Manager">Quản lý dự án</option>
                 </select>
-                <Button size="icon" variant="ghost" aria-label={`Bỏ ${m.fullName}`} onClick={() => confirm(`Bỏ ${m.fullName} khỏi dự án?`) && remove.mutate(m.employeeId, { onError: onErr })}><Trash2 /></Button>
+                <Button size="icon" variant="ghost" aria-label={`Bỏ ${m.fullName}`} onClick={async () => await confirmDialog({ title: `Bỏ ${m.fullName} khỏi dự án?`, confirmText: 'Bỏ khỏi dự án', destructive: true }) && remove.mutate(m.employeeId, { onError: onErr })}><Trash2 /></Button>
               </span>
             ) : <StatusBadge tone={m.role === 'Manager' ? 'primary' : 'muted'}>{m.role === 'Manager' ? 'Quản lý dự án' : 'Thành viên'}</StatusBadge>}
           </div>

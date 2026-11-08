@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Lock, Pencil, Plus } from 'lucide-react';
@@ -101,7 +102,7 @@ function LockCard({ canEdit }: { canEdit: boolean }) {
       {canEdit && <>
         <div className="w-44"><FormField id="lock-date" label="Khoá đến hết ngày" type="date" max={todayVn()} value={date} onChange={(e) => setDate(e.target.value)} error={errors.lockedThrough} /></div>
         <Button disabled={save.isPending || !date || date === lock?.lockedThrough} onClick={() => save.mutate(date, { onSuccess: () => toast.success('Đã khoá sổ'), onError: onErr })}>Lưu</Button>
-        {lock?.lockedThrough && <Button variant="outline" disabled={save.isPending} onClick={() => confirm('Mở khoá sổ? Giao dịch các kỳ trước sẽ sửa / huỷ được.') && save.mutate(null, { onSuccess: () => toast.success('Đã mở khoá sổ'), onError: onErr })}>Mở khoá</Button>}
+        {lock?.lockedThrough && <Button variant="outline" disabled={save.isPending} onClick={async () => await confirmDialog({ title: 'Mở khoá sổ?', description: 'Giao dịch các kỳ trước sẽ sửa / huỷ được.', confirmText: 'Mở khoá' }) && save.mutate(null, { onSuccess: () => toast.success('Đã mở khoá sổ'), onError: onErr })}>Mở khoá</Button>}
       </>}
     </div>
   );

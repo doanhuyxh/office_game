@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Camera, Clock, Eye, EyeOff, Lock, Send, Shirt, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -195,7 +196,7 @@ function SensitiveCard({ p }: { p: IMyProfile }) {
           <div className="grid gap-1">
             <div className="flex items-center gap-1 text-sm font-medium"><Clock className="size-4 text-warning" /> Yêu cầu đang chờ</div>
             <RequestSummary r={p.pending} cancelling={cancel.isPending}
-              onCancel={() => confirm('Huỷ yêu cầu cập nhật này?') && cancel.mutate(p.pending!.id, { onSuccess: () => toast.success('Đã huỷ yêu cầu'), onError: (x) => toast.error(errorMessage(x)) })} />
+              onCancel={async () => await confirmDialog({ title: 'Huỷ yêu cầu cập nhật này?', confirmText: 'Huỷ yêu cầu', cancelText: 'Không', destructive: true }) && cancel.mutate(p.pending!.id, { onSuccess: () => toast.success('Đã huỷ yêu cầu'), onError: (x) => toast.error(errorMessage(x)) })} />
           </div>
         )}
         {!p.pending && p.lastDecided && <RequestSummary r={p.lastDecided} />}

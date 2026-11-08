@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { formatNumber } from '@/utils/number';
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Calculator, FileSpreadsheet, Lock, Plus, Trash2, Unlock } from 'lucide-react';
@@ -144,8 +145,8 @@ function PeriodsTab() {
               {!locked && <Button variant="outline" disabled={action.isPending} onClick={() => run('compute', 'Đã tính lại')}><Calculator className="size-4" /> Tính lại</Button>}
               <Button variant="outline" onClick={() => downloadUrl(payrollApi.exportUrl(p.id))}><FileSpreadsheet className="size-4" /> Excel</Button>
               {locked
-                ? <Button variant="outline" disabled={action.isPending} onClick={() => confirm('Mở lại kỳ lương để sửa? Nhân viên sẽ tạm không thấy phiếu kỳ này.') && run('unlock', 'Đã mở lại')}><Unlock className="size-4" /> Mở lại</Button>
-                : <Button disabled={action.isPending} onClick={() => confirm(`Chốt kỳ lương ${monthLabel(p.month)}? Hệ thống tính lại lần cuối rồi gửi phiếu lương cho nhân viên.`) && run('lock', 'Đã chốt và gửi phiếu lương')}><Lock className="size-4" /> Chốt kỳ</Button>}
+                ? <Button variant="outline" disabled={action.isPending} onClick={async () => await confirmDialog({ title: 'Mở lại kỳ lương để sửa?', description: 'Nhân viên sẽ tạm không thấy phiếu kỳ này.', confirmText: 'Mở lại' }) && run('unlock', 'Đã mở lại')}><Unlock className="size-4" /> Mở lại</Button>
+                : <Button disabled={action.isPending} onClick={async () => await confirmDialog({ title: `Chốt kỳ lương ${monthLabel(p.month)}?`, description: 'Hệ thống tính lại lần cuối rồi gửi phiếu lương cho nhân viên.', confirmText: 'Chốt kỳ' }) && run('lock', 'Đã chốt và gửi phiếu lương')}><Lock className="size-4" /> Chốt kỳ</Button>}
             </div>
           </CardHeader>
           <CardContent>

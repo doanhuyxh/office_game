@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { promptDialog } from '@/components/common/confirm-dialog';
 import { toast } from 'sonner';
 import { Ban, FilePlus2, Plus } from 'lucide-react';
 import { Button } from '@/components/common/button';
@@ -86,9 +87,10 @@ function Detail({ d, onOpenCustomer }: { d: IContractDetail; onOpenCustomer: (id
                   <span className={`tabular-nums font-medium ${a.totalDelta < 0 ? 'text-rose-600' : 'text-emerald-600'} ${a.cancelled ? 'line-through' : ''}`}>
                     {a.totalDelta > 0 ? '+' : '−'}{formatMoney(Math.abs(a.totalDelta))}</span>
                   {d.canEdit && !a.cancelled && k.status === 'Active' && (
-                    <Button variant="ghost" size="icon" aria-label="Huỷ phụ lục" title="Huỷ phụ lục" onClick={() => {
-                      const reason = prompt(`Lý do huỷ phụ lục ${a.code}? (các đợt thu của phụ lục cũng bị huỷ)`);
-                      if (reason?.trim()) cancelAppendix.mutate({ id: a.id, reason }, { onSuccess: () => toast.success('Đã huỷ phụ lục'), onError: onErr });
+                    <Button variant="ghost" size="icon" aria-label="Huỷ phụ lục" title="Huỷ phụ lục" onClick={async () => {
+                      const reason = await promptDialog({ title: `Huỷ phụ lục ${a.code}?`, description: 'Các đợt thu của phụ lục cũng bị huỷ.',
+                        label: 'Lý do huỷ', multiline: true, required: true, confirmText: 'Huỷ phụ lục', cancelText: 'Không', destructive: true });
+                      if (reason) cancelAppendix.mutate({ id: a.id, reason }, { onSuccess: () => toast.success('Đã huỷ phụ lục'), onError: onErr });
                     }}><Ban /></Button>
                   )}
                 </div>
@@ -117,9 +119,10 @@ function Detail({ d, onOpenCustomer }: { d: IContractDetail; onOpenCustomer: (id
                     <TableCell className="whitespace-nowrap text-right">
                       {d.canCollect && i.remaining > 0 && i.state !== 'Cancelled' && <Button size="sm" onClick={() => setCollecting(i)}>Thu tiền</Button>}
                       {d.canEdit && i.state !== 'Cancelled' && !hasMoney && (
-                        <Button variant="ghost" size="icon" aria-label="Huỷ đợt" title="Huỷ đợt" onClick={() => {
-                          const reason = prompt(`Lý do huỷ đợt "${i.title}"?`);
-                          if (reason?.trim()) cancel.mutate({ id: i.id, reason }, { onSuccess: () => toast.success('Đã huỷ đợt'), onError: onErr });
+                        <Button variant="ghost" size="icon" aria-label="Huỷ đợt" title="Huỷ đợt" onClick={async () => {
+                          const reason = await promptDialog({ title: `Huỷ đợt "${i.title}"?`, label: 'Lý do huỷ', multiline: true, required: true,
+                            confirmText: 'Huỷ đợt', cancelText: 'Không', destructive: true });
+                          if (reason) cancel.mutate({ id: i.id, reason }, { onSuccess: () => toast.success('Đã huỷ đợt'), onError: onErr });
                         }}><Ban /></Button>
                       )}
                     </TableCell>

@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useEffect, useState } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -95,7 +96,7 @@ export function ShiftsPanel() {
                 <TableCell>{formatMinutes(s.plannedMinutes)}</TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon" aria-label="Sửa" onClick={() => setEditing(s)}><Pencil /></Button>
-                  <Button variant="ghost" size="icon" aria-label="Xoá" onClick={() => confirm(`Xoá ca "${s.name}"?`) &&
+                  <Button variant="ghost" size="icon" aria-label="Xoá" onClick={async () => await confirmDialog({ title: `Xoá ca "${s.name}"?`, confirmText: 'Xoá', destructive: true }) &&
                     remove.mutate(s.id, { onSuccess: () => toast.success('Đã xoá ca'), onError: (e) => toast.error(errorMessage(e)) })}><Trash2 /></Button>
                 </TableCell>
               </TableRow>

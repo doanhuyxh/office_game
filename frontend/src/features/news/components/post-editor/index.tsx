@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { promptDialog } from '@/components/common/confirm-dialog';
 import { EditorContent, Node as TiptapNode, useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -131,9 +132,10 @@ function Toolbar({ editor }: { editor: Editor }) {
       {icon}
     </Button>
   );
-  function setLink() {
+  async function setLink() {
     const prev = editor.getAttributes('link').href as string | undefined;
-    const url = window.prompt('Địa chỉ liên kết (https://…)', prev ?? 'https://');
+    const url = await promptDialog({ title: 'Chèn liên kết', label: 'Địa chỉ liên kết', placeholder: 'https://…', initial: prev ?? 'https://',
+      description: 'Để trống để bỏ liên kết.', confirmText: 'Lưu' });
     if (url === null) return;
     if (url.trim() === '' || url.trim() === 'https://') { editor.chain().focus().unsetLink().run(); return; }
     editor.chain().focus().extendMarkRange('link').setLink({ href: /^(https?:|mailto:|tel:)/i.test(url.trim()) ? url.trim() : `https://${url.trim()}` }).run();

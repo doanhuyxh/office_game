@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useEffect, useRef, useState } from 'react';
 import { Eraser, FileSignature, Mail, ShieldCheck, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -204,7 +205,7 @@ export function SignRequestList({ contractId, isHr }: { contractId: string; isHr
           {r.status === 'Signed' && <Button size="sm" variant="link" className="h-auto p-0" onClick={() => openDocument(r.id, true)}>Bản đã ký</Button>}
           {isHr && r.status === 'Pending' && (
             <Button size="sm" variant="ghost" className="h-7 text-destructive" disabled={cancel.isPending}
-              onClick={() => confirm('Huỷ yêu cầu ký này?') && cancel.mutate(r.id, { onSuccess: () => toast.success('Đã huỷ yêu cầu ký'), onError: (e) => toast.error(errorMessage(e)) })}>
+              onClick={async () => await confirmDialog({ title: 'Huỷ yêu cầu ký này?', confirmText: 'Huỷ yêu cầu', cancelText: 'Không', destructive: true }) && cancel.mutate(r.id, { onSuccess: () => toast.success('Đã huỷ yêu cầu ký'), onError: (e) => toast.error(errorMessage(e)) })}>
               <X className="size-3.5" /> Huỷ
             </Button>
           )}

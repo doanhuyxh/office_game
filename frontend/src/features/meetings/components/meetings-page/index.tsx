@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useState } from 'react';
 import { CalendarClock, ChevronLeft, ChevronRight, Plus, Users } from 'lucide-react';
 import { toast } from 'sonner';
@@ -54,8 +55,8 @@ export function MeetingsPage() {
   const now = Date.now();
   const hours = Array.from({ length: DAY_END - DAY_START + 1 }, (_, i) => DAY_START + i);
 
-  const askCancel = (b: IBooking) => {
-    if (!confirm(`Huỷ lịch "${b.title}" (${formatTime(b.startAt)}–${formatTime(b.endAt)})? Người được mời sẽ nhận thông báo.`)) return;
+  const askCancel = async (b: IBooking) => {
+    if (!(await confirmDialog({ title: `Huỷ lịch "${b.title}" (${formatTime(b.startAt)}–${formatTime(b.endAt)})?`, description: 'Người được mời sẽ nhận thông báo.', confirmText: 'Huỷ lịch', cancelText: 'Không', destructive: true }))) return;
     cancel.mutate(b.id, { onSuccess: () => toast.success('Đã huỷ lịch'), onError: (e) => toast.error(errorMessage(e)) });
   };
 

@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { formatNumber } from '@/utils/number';
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Plus } from 'lucide-react';
@@ -152,7 +153,7 @@ export function OvertimeTab() {
                 <TableCell><StatusBadge tone={OVERTIME_STATUS[r.status].tone}>{OVERTIME_STATUS[r.status].label}</StatusBadge></TableCell>
                 <TableCell>
                   {r.status === 'Pending' && r.approvalRequestId && (
-                    <Button size="sm" variant="ghost" disabled={cancel.isPending} onClick={() => confirm('Huỷ đơn tăng ca này?') &&
+                    <Button size="sm" variant="ghost" disabled={cancel.isPending} onClick={async () => await confirmDialog({ title: 'Huỷ đơn tăng ca này?', confirmText: 'Huỷ đơn', cancelText: 'Không', destructive: true }) &&
                       cancel.mutate(r.approvalRequestId!, { onSuccess: () => toast.success('Đã huỷ đơn'), onError: (e) => toast.error(errorMessage(e)) })}>Huỷ</Button>
                   )}
                 </TableCell>

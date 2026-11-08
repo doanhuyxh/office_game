@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Pencil, Plus, Star, Trash2 } from 'lucide-react';
@@ -115,7 +116,7 @@ function Contacts({ d }: { d: ICustomerDetail }) {
             {x.title && <span className="text-muted-foreground"> · {x.title}</span>}<span className="block text-xs text-muted-foreground">{[x.phone, x.email].filter(Boolean).join(' · ') || '—'}</span></span>
           {d.canEdit && <span className="flex">
             <Button variant="ghost" size="icon" aria-label="Sửa" onClick={() => { save.reset(); setForm({ ...x, title: x.title ?? '', phone: x.phone ?? '', email: x.email ?? '' }); }}><Pencil /></Button>
-            <Button variant="ghost" size="icon" aria-label="Xoá" onClick={() => confirm(`Xoá liên hệ ${x.name}?`) && remove.mutate(x.id, { onError: onErr })}><Trash2 /></Button>
+            <Button variant="ghost" size="icon" aria-label="Xoá" onClick={async () => await confirmDialog({ title: `Xoá liên hệ ${x.name}?`, confirmText: 'Xoá', destructive: true }) && remove.mutate(x.id, { onError: onErr })}><Trash2 /></Button>
           </span>}
         </div>
       ))}

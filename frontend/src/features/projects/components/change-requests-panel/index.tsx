@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Pencil, Plus } from 'lucide-react';
@@ -60,7 +61,7 @@ export function ChangeRequestsPanel({ d }: { d: IProjectDetail }) {
                 {c.status === 'Draft' && <Button size="sm" variant="outline" onClick={() => move.mutate({ id: c.id, status: 'Sent' }, { onSuccess: () => toast.success('Đã đánh dấu gửi khách'), onError: onErr })}>Đã gửi khách</Button>}
                 <Button size="sm" onClick={() => setDeciding({ cr: c, status: 'Approved' })}>Khách đồng ý</Button>
                 <Button size="sm" variant="outline" onClick={() => setDeciding({ cr: c, status: 'Rejected' })}>Từ chối</Button>
-                <Button size="sm" variant="ghost" onClick={() => confirm(`Huỷ yêu cầu ${c.code}?`) && move.mutate({ id: c.id, status: 'Cancelled' }, { onError: onErr })}>Huỷ</Button>
+                <Button size="sm" variant="ghost" onClick={async () => await confirmDialog({ title: `Huỷ yêu cầu ${c.code}?`, confirmText: 'Huỷ yêu cầu', cancelText: 'Không', destructive: true }) && move.mutate({ id: c.id, status: 'Cancelled' }, { onError: onErr })}>Huỷ</Button>
                 <Button size="icon" variant="ghost" aria-label="Sửa" onClick={() => setEdit(c)}><Pencil /></Button>
               </div>
             )}

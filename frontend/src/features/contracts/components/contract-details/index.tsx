@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useRef, useState } from 'react';
 import { FileText, Paperclip, Plus, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
@@ -146,7 +147,7 @@ export function ContractDetails({ contract: c, canEdit }: { contract: IContract;
               <b>{a.number} · hiệu lực {formatDate(a.effectiveDate)}</b>
               {canEdit && (
                 <Button size="icon" variant="ghost" className="size-7" aria-label="Xoá phụ lục" disabled={removeAmendment.isPending}
-                  onClick={() => confirm(`Xoá phụ lục ${a.number}?`) && removeAmendment.mutate({ id: c.id, amendmentId: a.id }, { onError: (e) => toast.error(errorMessage(e)) })}>
+                  onClick={async () => await confirmDialog({ title: `Xoá phụ lục ${a.number}?`, confirmText: 'Xoá', destructive: true }) && removeAmendment.mutate({ id: c.id, amendmentId: a.id }, { onError: (e) => toast.error(errorMessage(e)) })}>
                   <Trash2 />
                 </Button>
               )}

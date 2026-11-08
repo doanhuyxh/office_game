@@ -1,3 +1,4 @@
+import { confirmDialog, promptDialog } from '@/components/common/confirm-dialog';
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { toast } from 'sonner';
@@ -70,12 +71,12 @@ function Detail({ d, onOpen, onOpenContract }: { d: IQuoteDetail; onOpen: (id: s
           {can && s === 'Ready' && <Button size="sm" onClick={() => sent.mutate(undefined, { onSuccess: () => toast.success('Đã đánh dấu gửi khách'), onError: onErr })}><Send /> Đã gửi khách</Button>}
           {can && (s === 'Ready' || s === 'Sent') && <>
             <Button size="sm" variant="outline" onClick={() => result.mutate({ accepted: true, note: null }, { onSuccess: () => toast.success('Khách đồng ý — lập hợp đồng'), onError: onErr })}><CheckCircle2 /> Khách đồng ý</Button>
-            <Button size="sm" variant="outline" onClick={() => { const note = prompt('Lý do khách từ chối (không bắt buộc)?'); if (note !== null) result.mutate({ accepted: false, note }, { onError: onErr }); }}><XCircle /> Khách từ chối</Button>
+            <Button size="sm" variant="outline" onClick={async () => { const note = await promptDialog({ title: 'Khách từ chối báo giá', label: 'Lý do (không bắt buộc)', multiline: true, confirmText: 'Ghi nhận từ chối' }); if (note !== null) result.mutate({ accepted: false, note }, { onError: onErr }); }}><XCircle /> Khách từ chối</Button>
           </>}
           {can && s === 'Accepted' && !q.contractId && <Button size="sm" onClick={() => setContracting(true)}><FileSignature /> Lập hợp đồng</Button>}
           {can && ['Draft', 'Ready', 'Sent', 'Rejected'].includes(s) && <Button size="sm" variant="outline" onClick={() => revise.mutate(undefined, {
             onSuccess: (id) => { toast.success('Đã tạo phiên bản mới'); onOpen(id); }, onError: onErr })}><CopyPlus /> Phiên bản mới</Button>}
-          {can && ['Draft', 'Ready', 'Sent'].includes(s) && <Button size="sm" variant="ghost" onClick={() => confirm(`Huỷ báo giá ${q.code}?`) && cancel.mutate(undefined, { onError: onErr })}><Ban /> Huỷ</Button>}
+          {can && ['Draft', 'Ready', 'Sent'].includes(s) && <Button size="sm" variant="ghost" onClick={async () => await confirmDialog({ title: `Huỷ báo giá ${q.code}?`, confirmText: 'Huỷ báo giá', cancelText: 'Không', destructive: true }) && cancel.mutate(undefined, { onError: onErr })}><Ban /> Huỷ</Button>}
           {q.contractId && <Button size="sm" variant="link" onClick={() => onOpenContract(q.contractId!)}>Xem hợp đồng</Button>}
         </div>
         <div className="rounded-xl border">

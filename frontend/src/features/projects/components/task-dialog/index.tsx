@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Trash2 } from 'lucide-react';
@@ -62,7 +63,7 @@ export function TaskDialog({ projectId, task, initialState = 'Todo', members, mi
             </div>
           </fieldset>
           <DialogFooter className="items-center">
-            {task && canDelete && <Button type="button" variant="ghost" className="mr-auto text-destructive" onClick={() => confirm(`Xoá việc ${task.code}?`) && remove.mutate(task.id, {
+            {task && canDelete && <Button type="button" variant="ghost" className="mr-auto text-destructive" onClick={async () => await confirmDialog({ title: `Xoá việc ${task.code}?`, confirmText: 'Xoá', destructive: true }) && remove.mutate(task.id, {
               onSuccess: () => { toast.success('Đã xoá'); onClose(); }, onError: (err) => toast.error(errorMessage(err)) })}><Trash2 /> Xoá</Button>}
             <Button type="button" variant="outline" onClick={onClose}>Đóng</Button>
             {canWork && <Button type="submit" disabled={save.isPending}>Lưu</Button>}

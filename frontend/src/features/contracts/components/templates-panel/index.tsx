@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useRef, useState } from 'react';
 import { AlertTriangle, Download, FileText, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
@@ -107,7 +108,7 @@ export function TemplatesPanel() {
                         <TableCell className="whitespace-nowrap">
                           <Button size="icon" variant="ghost" className="size-8" aria-label="Tải file mẫu gốc" onClick={() => openOriginal(t.id)}><Download className="size-4" /></Button>
                           <Button size="icon" variant="ghost" className="size-8 text-destructive" aria-label="Xoá mẫu"
-                            onClick={() => confirm(`Xoá mẫu "${t.name}"?`) && remove.mutate(t.id, { onSuccess: () => toast.success('Đã xoá mẫu'), onError: (e) => toast.error(errorMessage(e)) })}>
+                            onClick={async () => await confirmDialog({ title: `Xoá mẫu "${t.name}"?`, confirmText: 'Xoá', destructive: true }) && remove.mutate(t.id, { onSuccess: () => toast.success('Đã xoá mẫu'), onError: (e) => toast.error(errorMessage(e)) })}>
                             <Trash2 className="size-4" />
                           </Button>
                         </TableCell>

@@ -2,6 +2,7 @@ import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@ta
 import { RouterProvider } from '@tanstack/react-router';
 import { ThemeProvider } from '@/context/theme-provider';
 import { toast } from 'sonner';
+import { ConfirmHost } from '@/components/common/confirm-dialog';
 import { Toaster } from '@/components/common/sonner';
 import { authKeys } from '@/features/auth';
 import { PATHS } from '@/config/paths';
@@ -57,6 +58,7 @@ export function App() {
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
         <Toaster position="top-right" richColors closeButton />
+        <ConfirmHost />
       </QueryClientProvider>
     </ThemeProvider>
   );

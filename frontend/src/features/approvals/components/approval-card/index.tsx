@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { toast } from 'sonner';
@@ -72,7 +73,7 @@ export function ApprovalCard({ item, showRequester }: { item: IApproval; showReq
             )}
             {item.canCancel && (
               <Button size="sm" variant="ghost" disabled={cancel.isPending}
-                onClick={() => confirm('Huỷ đơn này?') && cancel.mutate(item.id, { onSuccess: () => toast.success('Đã huỷ đơn'), onError })}>Huỷ đơn</Button>
+                onClick={async () => await confirmDialog({ title: 'Huỷ đơn này?', confirmText: 'Huỷ đơn', cancelText: 'Không', destructive: true }) && cancel.mutate(item.id, { onSuccess: () => toast.success('Đã huỷ đơn'), onError })}>Huỷ đơn</Button>
             )}
           </div>
         )}

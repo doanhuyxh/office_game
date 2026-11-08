@@ -1,3 +1,4 @@
+import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useEffect, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -118,7 +119,7 @@ export function SchedulesPanel() {
                 <TableCell className="text-right">
                   <Button variant="ghost" size="sm" onClick={() => setEditing(s)}>Sửa</Button>
                   {s.employeeId && (
-                    <Button variant="ghost" size="icon" aria-label="Bỏ lịch riêng" onClick={() => confirm('Bỏ lịch riêng, quay về lịch công ty?') &&
+                    <Button variant="ghost" size="icon" aria-label="Bỏ lịch riêng" onClick={async () => await confirmDialog({ title: 'Bỏ lịch riêng?', description: 'Nhân viên quay về lịch làm việc chung của công ty.', confirmText: 'Bỏ lịch riêng', destructive: true }) &&
                       remove.mutate({ employeeId: s.employeeId, effectiveFrom: s.effectiveFrom }, { onError: (e) => toast.error(errorMessage(e)) })}><Trash2 /></Button>
                   )}
                 </TableCell>
