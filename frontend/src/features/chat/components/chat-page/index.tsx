@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { MessageSquare } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -9,20 +10,33 @@ import { ConversationList } from '../conversation-list';
 import { MessagePane } from '../message-pane';
 import { NewChatDialog } from '../new-chat-dialog';
 
-/** Trang /chat: trái danh sách hội thoại (kênh văn phòng, kênh phòng, tin 1-1), phải khung chat. Điện thoại: hai màn hình có nút quay lại. */
+/**
+ * Trang /chat: trái danh sách hội thoại (kênh văn phòng, kênh phòng, tin 1-1), phải khung chat. Điện thoại: hai màn hình có nút quay lại.
+ * Hội thoại đang mở lưu trên URL (`?c=<id>`) → reload / gửi link vẫn mở đúng cuộc trò chuyện.
+ */
 export function ChatPage() {
   const isMobile = useIsMobile();
   const { data: conversations, isLoading } = useConversations();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const search = useSearch({ strict: false }) as { c?: unknown };
+  const navigate = useNavigate();
+  const selectedId = typeof search.c === 'string' && search.c ? search.c : null;
+  const setSelectedId = useCallback((id: string | null) => {
+    void navigate({ to: '.', search: ((prev: Record<string, unknown>) => ({ ...prev, c: id ?? undefined })) as never, replace: true });
+  }, [navigate]);
   const [opened, setOpened] = useState<IConversation | null>(null); // hội thoại vừa mở từ "Tin nhắn mới" khi danh sách chưa kịp tải lại
   const [newOpen, setNewOpen] = useState(false);
 
-  // Màn hình rộng: tự mở hội thoại đầu tiên (kênh toàn văn phòng).
-  useEffect(() => {
-    if (!isMobile && !selectedId && conversations?.length) setSelectedId(conversations[0].id);
-  }, [isMobile, selectedId, conversations]);
-
   const selected = conversations?.find((c) => c.id === selectedId) ?? (opened?.id === selectedId ? opened : null);
+
+  // Màn hình rộng: chưa chọn (hoặc id trên URL không còn trong danh sách) → mở hội thoại đầu tiên (kênh toàn văn phòng).
+  useEffect(() => {
+    if (isMobile || !conversations?.length || selected) return;
+    setSelectedId(conversations[0].id);
+  }, [isMobile, conversations, selected, setSelectedId]);
+  // Điện thoại: id trên URL không còn (bị xoá khỏi kênh…) → về danh sách.
+  useEffect(() => {
+    if (isMobile && selectedId && conversations && !selected) setSelectedId(null);
+  }, [isMobile, selectedId, conversations, selected, setSelectedId]);
 
   return (
     <div className="grid grid-cols-1 gap-4">

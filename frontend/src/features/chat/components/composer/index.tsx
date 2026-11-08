@@ -6,13 +6,22 @@ import { cn } from '@/utils/cn';
 import { MAX_FILES, MAX_TEXT, formatBytes, isImageFile } from '../../utils/labels';
 
 /** Ô soạn tin: Enter gửi, Shift+Enter xuống dòng, đính kèm bằng nút / dán ảnh (kéo-thả xử lý ở khung chat). */
-export function Composer({ files, onAddFiles, onRemoveFile, onSubmit }: {
+/** Bản nháp chưa gửi theo hội thoại, giữ qua reload trong tab (sessionStorage; bị chặn thì bỏ qua). */
+const readDraft = (key?: string) => { try { return (key && sessionStorage.getItem(key)) || ''; } catch { return ''; } };
+const writeDraft = (key: string | undefined, text: string) => {
+  if (!key) return;
+  try { if (text) sessionStorage.setItem(key, text); else sessionStorage.removeItem(key); } catch { /* bộ nhớ trình duyệt bị chặn */ }
+};
+
+export function Composer({ draftKey, files, onAddFiles, onRemoveFile, onSubmit }: {
+  draftKey?: string;
   files: File[];
   onAddFiles: (list: File[]) => void;
   onRemoveFile: (index: number) => void;
   onSubmit: (text: string) => void;
 }) {
-  const [text, setText] = useState('');
+  const [text, setText] = useState(() => readDraft(draftKey));
+  useEffect(() => writeDraft(draftKey, text), [draftKey, text]);
   const input = useRef<HTMLInputElement>(null);
   const area = useRef<HTMLTextAreaElement>(null);
   const previews = useMemo(() => files.map((f) => (isImageFile(f) ? URL.createObjectURL(f) : null)), [files]);

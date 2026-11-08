@@ -60,7 +60,7 @@ Thành viên phòng: Realtime báo khi người chơi **bước vào** phòng c�
 
 ## Front-end (`features/chat/`)
 
-`ChatProvider` (trong `MainLayout`, không ở `/office`) giữ một kết nối, tự nối lại và bù tin lỡ; gửi lạc quan bằng `clientId`; hub chưa nối thì gửi qua REST. Trang `/chat`: danh sách + khung chat, "Tin nhắn mới", kéo-thả / dán ảnh, xem ảnh lớn, "Thu hồi", mobile hai màn hình; nút có badge ở `Header` + mục "Tin nhắn" ở sidebar. **Âm báo** dùng lại `playNotificationSound` ([notifications.md](notifications.md)): tin người khác khi hội thoại không đang mở / hiển thị → phát; mở app mà còn chưa đọc → phát **một lần** mỗi phiên trình duyệt.
+`ChatProvider` (trong `MainLayout`, không ở `/office`) giữ một kết nối, tự nối lại và bù tin lỡ; gửi lạc quan bằng `clientId`; hub chưa nối thì gửi qua REST. Trang `/chat`: danh sách + khung chat, "Tin nhắn mới", kéo-thả / dán ảnh, xem ảnh lớn, "Thu hồi", mobile hai màn hình; hội thoại đang mở nằm trên URL `?c=<id>` (reload / gửi link giữ nguyên), bản nháp chưa gửi giữ theo hội thoại trong `sessionStorage` (`chat-draft:<id>`); nút có badge ở `Header` + mục "Tin nhắn" ở sidebar. **Âm báo** dùng lại `playNotificationSound` ([notifications.md](notifications.md)): tin người khác khi hội thoại không đang mở / hiển thị → phát; mở app mà còn chưa đọc → phát **một lần** mỗi phiên trình duyệt.
 
 ## Test
 

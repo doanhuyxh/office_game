@@ -188,7 +188,7 @@ export function MessagePane({ conversation, onBack }: { conversation: IConversat
         )}
       </div>
 
-      <Composer files={files} onAddFiles={addFiles} onRemoveFile={(i) => setFiles((cur) => cur.filter((_, j) => j !== i))} onSubmit={submit} />
+      <Composer draftKey={`chat-draft:${conversation.id}`} files={files} onAddFiles={addFiles} onRemoveFile={(i) => setFiles((cur) => cur.filter((_, j) => j !== i))} onSubmit={submit} />
 
       <div className={cn('pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] border-2 border-dashed border-primary bg-background/80 transition-opacity', dragging ? 'opacity-100' : 'opacity-0')}>
         <div className="flex items-center gap-2 text-sm font-medium text-primary"><Upload className="size-5" /> Thả tệp / ảnh để đính kèm</div>
