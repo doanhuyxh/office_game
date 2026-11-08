@@ -94,4 +94,34 @@ public static class SalesRules
         if (dueOn == today) return remindedDue ? Reminder.None : Reminder.DueToday;
         return dueOn.DayNumber - today.DayNumber <= DueSoonDays && !remindedSoon ? Reminder.DueSoon : Reminder.None;
     }
+
+    /// <summary>
+    /// Kiểm tra phụ lục (hàm thuần). <paramref name="totalDelta"/> = <see cref="Total"/>(delta, VAT của hợp đồng).
+    /// Tăng: đợt thu mới (nếu có) cộng lại ≤ phần tăng. Giảm: không kèm đợt thu; giá trị mới ≥ tổng đợt đang lên lịch (huỷ / bớt đợt trước).
+    /// </summary>
+    public static List<(string Field, string Message)> ValidateAppendix(long valueBeforeTaxDelta, long totalDelta, long currentBeforeTax, long currentTotal,
+        long scheduled, DateOnly signedOn, DateOnly contractSignedOn, DateOnly today, IReadOnlyList<(string Title, DateOnly DueOn, long Amount)> items)
+    {
+        var e = new List<(string, string)>();
+        if (valueBeforeTaxDelta == 0 || Math.Abs(valueBeforeTaxDelta) > MaxAmount) e.Add(("valueBeforeTaxDelta", "Giá trị tăng / giảm không hợp lệ"));
+        else if (currentBeforeTax + valueBeforeTaxDelta < 1) e.Add(("valueBeforeTaxDelta", "Giảm vượt giá trị hợp đồng"));
+        if (signedOn < contractSignedOn) e.Add(("signedOn", "Ngày ký phụ lục trước ngày ký hợp đồng"));
+        else if (signedOn > today) e.Add(("signedOn", "Ngày ký không ở tương lai"));
+        if (valueBeforeTaxDelta < 0)
+        {
+            if (items.Count > 0) e.Add(("installments", "Phụ lục giảm giá trị không kèm đợt thu mới"));
+            if (currentTotal + totalDelta < scheduled)
+                e.Add(("valueBeforeTaxDelta", $"Đợt thu đang lên lịch {scheduled:N0} đ vượt giá trị mới {currentTotal + totalDelta:N0} đ — huỷ bớt đợt trước"));
+        }
+        else if (valueBeforeTaxDelta > 0)
+        {
+            if (items.Count > 120) e.Add(("installments", "Tối đa 120 đợt"));
+            if (items.Any(i => string.IsNullOrWhiteSpace(i.Title) || i.Title.Length > 200)) e.Add(("installments", "Mỗi đợt cần tên (≤ 200 ký tự)"));
+            if (items.Any(i => i.Amount < 1)) e.Add(("installments", "Số tiền mỗi đợt phải lớn hơn 0"));
+            if (items.Any(i => i.DueOn < signedOn)) e.Add(("installments", "Hạn thu trước ngày ký phụ lục"));
+            var sum = items.Sum(i => i.Amount);
+            if (sum > totalDelta) e.Add(("installments", $"Tổng đợt mới {sum:N0} đ vượt phần tăng {totalDelta:N0} đ"));
+        }
+        return e;
+    }
 }

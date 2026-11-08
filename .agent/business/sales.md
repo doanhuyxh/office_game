@@ -2,7 +2,7 @@
 
 > Nguồn sự thật là code (`backend/src/Modules/Sales/`, `frontend/src/features/sales/`); nếu code khác tài liệu, tin code và sửa tài liệu. Kế hoạch: [docs/BUSINESS_PLAN.md](../../docs/BUSINESS_PLAN.md) giai đoạn 1. Sổ thu chi: [finance.md](finance.md). Về [README.md](README.md).
 
-Dùng cho mảng **Outsource** và **Xây kênh MXH thuê** (có khách, hợp đồng, đợt thu). Chỉ VND. Chưa có: báo giá (mẫu Word) + duyệt giảm giá, phụ lục tăng / giảm giá trị, gắn file hợp đồng đã ký, tool MCP.
+Dùng cho mảng **Outsource** và **Xây kênh MXH thuê** (có khách, hợp đồng, đợt thu). Chỉ VND. Chưa có: báo giá (mẫu Word) + duyệt giảm giá, gắn file hợp đồng đã ký, tool MCP. **Phụ lục** tăng / giảm giá trị (từ yêu cầu thay đổi của dự án): [projects-changes.md](projects-changes.md).
 
 ## Ai thấy gì (`Infrastructure/SalesServices.cs` → `SalesAccess` / `SalesViewer`)
 
@@ -34,7 +34,7 @@ Không thấy → **404** (không lộ sự tồn tại). Thấy nhưng không s
 | GET | `/contracts?customerId&status&search&page` | Kèm `scheduled` / `collected` / `outstanding` / `overdue` |
 | GET | `/contracts/{id}` | Đợt thu + lịch sử thu (`active` = dòng sổ còn hiệu lực) + `canEdit`, `canCollect` |
 | POST | `/contracts` | `{ code (duy nhất), customerId, title, valueBeforeTax, vatRate ∈ 0/5/8/10, signedOn (≤ hôm nay), billing: Milestone/Monthly/OneTime, installments[{title, dueOn, amount}], endOn?, opportunityId?, businessLineId?, note? }`. Từ cơ hội → cơ hội **Thắng** |
-| PUT | `/contracts/{id}` | `{ title, status: Active/Completed/Cancelled, endOn?, note? }` — **không** đổi giá trị (cần phụ lục, chưa làm) |
+| PUT | `/contracts/{id}` | `{ title, status: Active/Completed/Cancelled, endOn?, note? }` — **không** đổi giá trị (dùng phụ lục) |
 | POST | `/contracts/{id}/installments` | Chỉ HĐ Active; tổng đợt (không huỷ) ≤ giá trị sau thuế |
 | POST | `/installments/{id}/cancel` | `{ reason }` bắt buộc; đợt đã có tiền thu (dòng sổ hiệu lực) → 409 |
 | POST | `/installments/{id}/collect` | **Ghi sổ**. `{ amount (≤ còn lại), date, accountId, categoryId?, invoiceNumber? }` → dòng THU ở Finance |

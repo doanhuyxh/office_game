@@ -36,5 +36,6 @@ public sealed class SalesModule : IModule
         CustomerEndpoints.Map(g);
         OpportunityEndpoints.Map(g);
         ContractEndpoints.Map(g);
+        AppendixEndpoints.Map(g);
     }
 }

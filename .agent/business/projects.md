@@ -2,7 +2,7 @@
 
 > Nguồn sự thật là code (`backend/src/Modules/Projects/`, `frontend/src/features/projects/`); nếu code khác tài liệu, tin code và sửa tài liệu. Kế hoạch: [docs/BUSINESS_PLAN.md](../../docs/BUSINESS_PLAN.md) giai đoạn 2. Về [README.md](README.md).
 
-Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsource là nhân viên → **ngày công tính theo chấm công** (không ghi giờ theo việc), chia theo % phân bổ; **quản lý dự án chỉ thấy ngày công, không thấy tiền**. **Nhiều hợp đồng / dự án, chốt phân bổ hằng tháng, chi phí nhân công + lãi / lỗ (giai đoạn 2b)**: [projects-finance.md](projects-finance.md).
+Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsource là nhân viên → **ngày công tính theo chấm công** (không ghi giờ theo việc), chia theo % phân bổ; **quản lý dự án chỉ thấy ngày công, không thấy tiền**. **Nhiều hợp đồng / dự án, chốt phân bổ hằng tháng, chi phí nhân công + lãi / lỗ (giai đoạn 2b)**: [projects-finance.md](projects-finance.md). **Yêu cầu thay đổi (CR) + phụ lục HĐ**: [projects-changes.md](projects-changes.md).
 
 ## Tách khỏi module Documents (2026-11-08)
 

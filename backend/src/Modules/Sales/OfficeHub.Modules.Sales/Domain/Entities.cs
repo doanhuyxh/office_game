@@ -91,7 +91,10 @@ public sealed class Opportunity
     public DateTimeOffset? ClosedAt { get; set; }
 }
 
-/// <summary>Hợp đồng bán (với khách). Giá trị = trước thuế + VAT. File đã ký để ở kho tài liệu (chưa gắn trực tiếp).</summary>
+/// <summary>
+/// Hợp đồng bán (với khách). Giá trị = trước thuế + VAT. File đã ký để ở kho tài liệu (chưa gắn trực tiếp).
+/// <see cref="ValueBeforeTax"/> / <see cref="TotalValue"/> là giá trị HIỆN TẠI (đã cộng phụ lục còn hiệu lực); giá trị gốc = hiện tại − tổng phụ lục.
+/// </summary>
 public sealed class SalesContract
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
@@ -113,6 +116,31 @@ public sealed class SalesContract
     public Guid OwnerEmployeeId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public List<Installment> Installments { get; set; } = [];
+    public List<ContractAppendix> Appendices { get; set; } = [];
+}
+
+/// <summary>
+/// Phụ lục hợp đồng: tăng / giảm giá trị trước thuế (VAT theo thuế suất của hợp đồng), có thể kèm đợt thu mới, có thể lập từ yêu cầu thay đổi (CR) của dự án.
+/// Lập → cộng <see cref="TotalDelta"/> vào giá trị hợp đồng; huỷ (khi các đợt của nó chưa thu tiền) → trừ lại + huỷ các đợt đó.
+/// </summary>
+public sealed class ContractAppendix
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid ContractId { get; set; }
+    /// <summary>Số phụ lục (theo giấy), duy nhất trong hợp đồng.</summary>
+    public required string Code { get; set; }
+    public required string Title { get; set; }
+    public DateOnly SignedOn { get; set; }
+    /// <summary>Âm = giảm giá trị.</summary>
+    public long ValueBeforeTaxDelta { get; set; }
+    public long TotalDelta { get; set; }
+    /// <summary>Yêu cầu thay đổi (module Projects) — không FK chéo schema.</summary>
+    public Guid? ChangeRequestId { get; set; }
+    public string? Note { get; set; }
+    public bool Cancelled { get; set; }
+    public string? CancelReason { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public string CreatedByName { get; set; } = "";
 }
 
 /// <summary>Đợt thu (công nợ phải thu). Số đã thu = tổng các lần thu còn dòng sổ hiệu lực ở Finance.</summary>
@@ -126,6 +154,8 @@ public sealed class Installment
     public long Amount { get; set; }
     public bool Cancelled { get; set; }
     public string? CancelReason { get; set; }
+    /// <summary>Đợt sinh từ phụ lục (huỷ phụ lục → huỷ đợt).</summary>
+    public Guid? AppendixId { get; set; }
     // Mốc đã nhắc (để job không nhắc lặp).
     public DateTimeOffset? RemindedSoonAt { get; set; }
     public DateTimeOffset? RemindedDueAt { get; set; }

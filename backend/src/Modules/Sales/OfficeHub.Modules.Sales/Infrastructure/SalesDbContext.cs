@@ -16,6 +16,7 @@ public sealed class SalesDbContext(DbContextOptions<SalesDbContext> options) : D
     public DbSet<Opportunity> Opportunities => Set<Opportunity>();
     public DbSet<SalesContract> Contracts => Set<SalesContract>();
     public DbSet<Installment> Installments => Set<Installment>();
+    public DbSet<ContractAppendix> Appendices => Set<ContractAppendix>();
     public DbSet<Collection> Collections => Set<Collection>();
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -81,6 +82,19 @@ public sealed class SalesDbContext(DbContextOptions<SalesDbContext> options) : D
             e.HasOne<Customer>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<Opportunity>().WithMany().HasForeignKey(x => x.OpportunityId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Installments).WithOne().HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Appendices).WithOne().HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<ContractAppendix>(e =>
+        {
+            e.ToTable("contract_appendices");
+            e.Property(x => x.Code).HasMaxLength(50);
+            e.Property(x => x.Title).HasMaxLength(300);
+            e.Property(x => x.Note).HasMaxLength(2000);
+            e.Property(x => x.CancelReason).HasMaxLength(500);
+            e.Property(x => x.CreatedByName).HasMaxLength(200);
+            e.HasIndex(x => new { x.ContractId, x.Code }).IsUnique().HasDatabaseName("ux_contract_appendices_code");
+            // Một CR chỉ một phụ lục còn hiệu lực.
+            e.HasIndex(x => x.ChangeRequestId).IsUnique().HasDatabaseName("ux_contract_appendices_cr").HasFilter("\"ChangeRequestId\" IS NOT NULL AND NOT \"Cancelled\"");
         });
         b.Entity<Installment>(e =>
         {
@@ -88,6 +102,7 @@ public sealed class SalesDbContext(DbContextOptions<SalesDbContext> options) : D
             e.Property(x => x.Title).HasMaxLength(200);
             e.Property(x => x.CancelReason).HasMaxLength(500);
             e.HasIndex(x => x.DueOn).HasDatabaseName("ix_installments_due");
+            e.HasOne<ContractAppendix>().WithMany().HasForeignKey(x => x.AppendixId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Collections).WithOne().HasForeignKey(x => x.InstallmentId).OnDelete(DeleteBehavior.Restrict);
         });
         b.Entity<Collection>(e =>

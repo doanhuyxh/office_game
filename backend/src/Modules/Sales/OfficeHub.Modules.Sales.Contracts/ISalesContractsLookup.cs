@@ -16,7 +16,16 @@ public interface ISalesContractsLookup
     /// hợp đồng + kế toán. Đợt đã huỷ / không tồn tại → false.
     /// </summary>
     Task<bool> MarkAcceptedAsync(Guid installmentId, DateOnly acceptedOn, string milestoneTitle, string projectName, CancellationToken ct = default);
+
+    /// <summary>Phụ lục (chưa huỷ) lập từ các yêu cầu thay đổi này — không có số tiền.</summary>
+    Task<IReadOnlyList<AppendixRef>> AppendicesOfChangeRequestsAsync(IReadOnlyCollection<Guid> changeRequestIds, CancellationToken ct = default);
+
+    /// <summary>CR có tính tiền được khách đồng ý → báo người phụ trách các hợp đồng (đang hiệu lực) + người có quyền Ghi sổ để lập phụ lục.</summary>
+    Task NotifyChangeRequestApprovedAsync(IReadOnlyCollection<Guid> contractIds, string changeRequestCode, string changeRequestTitle, string projectName,
+        CancellationToken ct = default);
 }
+
+public sealed record AppendixRef(Guid Id, Guid ChangeRequestId, string Code, Guid ContractId, string ContractCode, DateOnly SignedOn);
 
 public sealed record SalesContractRef(Guid Id, string Code, string Title, string CustomerName, string Status, Guid? BusinessLineId);
 

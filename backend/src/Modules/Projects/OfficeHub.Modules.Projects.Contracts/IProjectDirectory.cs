@@ -18,4 +18,10 @@ public interface IProjectDirectory
     Task<ProjectRef?> GetAsync(Guid projectId, CancellationToken ct = default);
     /// <summary>Bàn giao khi nghỉ việc: thêm người nhận vào mọi dự án người giao tham gia (giữ vai trò, bỏ qua nơi đã là thành viên). Trả số dự án.</summary>
     Task<int> TransferMembershipsAsync(Guid fromEmployeeId, Guid toEmployeeId, CancellationToken ct = default);
+    /// <summary>Mọi yêu cầu thay đổi (CR) của dự án sở hữu hợp đồng bán này (module Sales lập phụ lục từ CR). Hợp đồng chưa gắn dự án → rỗng.</summary>
+    Task<IReadOnlyList<ChangeRequestRef>> ChangeRequestsForContractAsync(Guid salesContractId, CancellationToken ct = default);
 }
+
+/// <param name="Status">"Draft" | "Sent" | "Approved" | "Rejected" | "Cancelled".</param>
+/// <param name="Code">{Mã dự án}-CR{n}.</param>
+public sealed record ChangeRequestRef(Guid Id, Guid ProjectId, string Code, string Title, string Status, bool Billable, decimal? EstimateManDays);

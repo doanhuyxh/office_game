@@ -1,7 +1,7 @@
 import { http, httpPost, pageQs } from '@/services/api-client';
 import type { IPaged, IPageQuery } from '@/types/api';
 import type {
-  ContractStatus, IActivity, IActivityRequest, ICollectRequest, IContactRequest, IContract, IContractDetail, IContractRequest, IContractUpdate, ICustomer,
+  ContractStatus, IActivity, IAppendixRequest, IActivityRequest, ICollectRequest, IContactRequest, IContract, IContractDetail, IContractRequest, IContractUpdate, ICustomer,
   ICustomerDetail, ICustomerRequest, IInstallmentInput, IOpportunity, IOpportunityRequest, InstallmentState, IReceivables,
 } from '../types/sales.types';
 
@@ -39,6 +39,8 @@ export const salesApi = {
   updateContract: (id: string, b: IContractUpdate) => send<void>('PUT', `${base}/contracts/${id}`, b),
   addInstallment: (contractId: string, b: IInstallmentInput) => httpPost<string>(`${base}/contracts/${contractId}/installments`, b),
   cancelInstallment: (id: string, reason: string) => httpPost<void>(`${base}/installments/${id}/cancel`, { reason }),
+  createAppendix: (contractId: string, b: IAppendixRequest) => httpPost<string>(`${base}/contracts/${contractId}/appendices`, b),
+  cancelAppendix: (id: string, reason: string) => httpPost<void>(`${base}/appendices/${id}/cancel`, { reason }),
   collect: (id: string, b: ICollectRequest) => httpPost<string>(`${base}/installments/${id}/collect`, b),
   receivables: (state: InstallmentState | undefined) => http<IReceivables>(`${base}/receivables?${qs({ state })}`),
 };

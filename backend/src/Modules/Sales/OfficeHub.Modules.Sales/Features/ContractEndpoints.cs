@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.Modules.Finance.Contracts;
+using OfficeHub.Modules.Projects.Contracts;
 using OfficeHub.Modules.Sales.Domain;
 using OfficeHub.Modules.Sales.Infrastructure;
 
@@ -15,9 +16,11 @@ public sealed record ContractDto(Guid Id, string Code, Guid CustomerId, string C
     ContractStatus Status, DateOnly SignedOn, DateOnly? EndOn, Guid OwnerEmployeeId, string OwnerName, long Scheduled, long Collected, long Outstanding, long Overdue);
 public sealed record CollectionDto(Guid Id, DateOnly Date, long Amount, bool Active, string CreatedByName, DateTimeOffset CreatedAt);
 public sealed record InstallmentDto(Guid Id, int Order, string Title, DateOnly DueOn, long Amount, long Collected, long Remaining, InstallmentState State, string? AgingBucket,
-    string? CancelReason, List<CollectionDto> Collections);
+    string? CancelReason, List<CollectionDto> Collections, Guid? AppendixId);
+/// <param name="ValueBeforeTax">Hiện tại (đã gồm phụ lục). Gốc: <paramref name="OriginalValueBeforeTax"/> / <paramref name="OriginalTotalValue"/>.</param>
+/// <param name="PendingChangeRequests">CR có tính tiền đã được khách đồng ý, chưa lập phụ lục (dự án sở hữu hợp đồng).</param>
 public sealed record ContractDetail(ContractDto Contract, long ValueBeforeTax, int VatRate, string? Note, Guid? OpportunityId, List<InstallmentDto> Installments,
-    bool CanEdit, bool CanCollect);
+    bool CanEdit, bool CanCollect, long OriginalValueBeforeTax, long OriginalTotalValue, List<AppendixDto> Appendices, List<ChangeRequestRef> PendingChangeRequests);
 public sealed record InstallmentInput(string Title, DateOnly DueOn, long Amount);
 public sealed record CreateContract(string Code, Guid CustomerId, string Title, long ValueBeforeTax, int VatRate, DateOnly SignedOn, BillingKind Billing,
     List<InstallmentInput> Installments, DateOnly? EndOn = null, Guid? OpportunityId = null, Guid? BusinessLineId = null, string? Note = null);
@@ -46,7 +49,8 @@ internal static class ContractEndpoints
         g.MapGet("/receivables", ReceivablesAsync);
     }
 
-    private static IQueryable<SalesContract> Full(SalesDbContext db) => db.Contracts.Include(x => x.Installments).ThenInclude(i => i.Collections).AsSplitQuery();
+    private static IQueryable<SalesContract> Full(SalesDbContext db) =>
+        db.Contracts.Include(x => x.Installments).ThenInclude(i => i.Collections).Include(x => x.Appendices).AsSplitQuery();
 
     internal static async Task<List<ContractDto>> ToDtosAsync(IReadOnlyList<SalesContract> rows, SalesDbContext db, SalesAccess access, CollectedCalculator calc,
         DateOnly today, CancellationToken ct)
@@ -84,16 +88,16 @@ internal static class ContractEndpoints
     }
 
     private static async Task<Results<Ok<ContractDetail>, NotFound>> GetAsync(Guid id, ClaimsPrincipal user, SalesDbContext db, SalesAccess access, CollectedCalculator calc,
-        SalesClock clock, CancellationToken ct)
+        SalesClock clock, IProjectDirectory projects, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var c = await Full(db).AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (c is null || !v.CanSee(c.OwnerEmployeeId)) return TypedResults.NotFound();
-        return TypedResults.Ok(await DetailAsync(c, v, db, access, calc, clock.Today, ct));
+        return TypedResults.Ok(await DetailAsync(c, v, db, access, calc, projects, clock.Today, ct));
     }
 
-    private static async Task<ContractDetail> DetailAsync(SalesContract c, SalesViewer v, SalesDbContext db, SalesAccess access, CollectedCalculator calc, DateOnly today,
-        CancellationToken ct)
+    private static async Task<ContractDetail> DetailAsync(SalesContract c, SalesViewer v, SalesDbContext db, SalesAccess access, CollectedCalculator calc,
+        IProjectDirectory projects, DateOnly today, CancellationToken ct)
     {
         var dto = (await ToDtosAsync([c], db, access, calc, today, ct))[0];
         var cols = c.Installments.SelectMany(i => i.Collections).ToList();
@@ -104,9 +108,13 @@ internal static class ContractEndpoints
             var state = SalesRules.InstallmentStatus(i.Cancelled, i.Amount, got, i.DueOn, today);
             return new InstallmentDto(i.Id, i.Order, i.Title, i.DueOn, i.Amount, got, i.Cancelled ? 0 : Math.Max(0, i.Amount - got), state,
                 state == InstallmentState.Overdue ? SalesRules.AgingBucket(i.DueOn, today) : null, i.CancelReason,
-                [.. i.Collections.OrderBy(x => x.CreatedAt).Select(x => new CollectionDto(x.Id, x.Date, x.Amount, active.Contains(x.Id), x.CreatedByName, x.CreatedAt))]);
+                [.. i.Collections.OrderBy(x => x.CreatedAt).Select(x => new CollectionDto(x.Id, x.Date, x.Amount, active.Contains(x.Id), x.CreatedByName, x.CreatedAt))], i.AppendixId);
         }).ToList();
-        return new ContractDetail(dto, c.ValueBeforeTax, c.VatRate, c.Note, c.OpportunityId, items, v.CanEdit(c.OwnerEmployeeId), v.CanCollect);
+        var live = c.Appendices.Where(a => !a.Cancelled).ToList();
+        var canEdit = v.CanEdit(c.OwnerEmployeeId);
+        return new ContractDetail(dto, c.ValueBeforeTax, c.VatRate, c.Note, c.OpportunityId, items, canEdit, v.CanCollect,
+            c.ValueBeforeTax - live.Sum(a => a.ValueBeforeTaxDelta), c.TotalValue - live.Sum(a => a.TotalDelta), await AppendixEndpoints.ListForAsync(c, projects, ct),
+            canEdit && c.Status == ContractStatus.Active ? await AppendixEndpoints.PendingChangeRequestsAsync(c.Id, db, projects, ct) : []);
     }
 
     private static async Task<Results<Created<Guid>, NotFound, ValidationProblem, ProblemHttpResult>> CreateAsync(CreateContract r, ClaimsPrincipal user, SalesDbContext db,
@@ -179,7 +187,7 @@ internal static class ContractEndpoints
             .When(r.DueOn < c.SignedOn, "dueOn", "Hạn thu trước ngày ký");
         var scheduled = c.Installments.Where(i => !i.Cancelled).Sum(i => i.Amount);
         if (scheduled + r.Amount > c.TotalValue)
-            val.Add("amount", $"Vượt giá trị hợp đồng: đã lên lịch {scheduled:N0} / {c.TotalValue:N0} đ (tăng giá trị cần phụ lục)");
+            val.Add("amount", $"Vượt giá trị hợp đồng: đã lên lịch {scheduled:N0} / {c.TotalValue:N0} đ (tăng giá trị: lập phụ lục)");
         if (val.Failed) return val.Problem();
         var i = new Installment { ContractId = id, Title = r.Title.Trim(), DueOn = r.DueOn, Amount = r.Amount, Order = c.Installments.Count + 1 };
         db.Installments.Add(i);

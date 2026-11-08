@@ -52,3 +52,12 @@ export interface ITaskRequest {
   title: string; description?: string | null; state: TaskState; assigneeEmployeeId?: string | null; milestoneId?: string | null; dueOn?: string | null; estimateDays?: number | null;
 }
 export interface IMilestoneRequest { title: string; dueOn?: string | null; installmentId?: string | null; note?: string | null }
+
+export type ChangeRequestStatus = 'Draft' | 'Sent' | 'Approved' | 'Rejected' | 'Cancelled';
+/** Yêu cầu thay đổi (CR) — không có tiền; appendix = phụ lục hợp đồng bán đã lập từ CR. */
+export interface IChangeRequest {
+  id: string; number: number; code: string; title: string; description: string | null; estimateManDays: number | null; billable: boolean; status: ChangeRequestStatus;
+  sentOn: string | null; decidedOn: string | null; decidedByName: string | null; decisionNote: string | null; budgetAddedManDays: number | null; createdAt: string; createdByName: string;
+  appendix: { id: string; code: string; contractId: string; contractCode: string; signedOn: string } | null;
+}
+export interface IChangeRequestRequest { title: string; description?: string | null; estimateManDays?: number | null; billable: boolean }

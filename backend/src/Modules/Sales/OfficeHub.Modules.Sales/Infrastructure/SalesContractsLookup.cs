@@ -53,4 +53,27 @@ internal sealed class SalesContractsLookup(SalesDbContext db, IEmployeeDirectory
             $"Dự án {projectName} nghiệm thu ngày {acceptedOn:dd/MM/yyyy}. Đợt thu \"{i.Title}\" đến hạn {i.DueOn:dd/MM/yyyy}.", "/sales?tab=receivables"), ct);
         return true;
     }
+
+    public async Task<IReadOnlyList<AppendixRef>> AppendicesOfChangeRequestsAsync(IReadOnlyCollection<Guid> changeRequestIds, CancellationToken ct = default)
+    {
+        if (changeRequestIds.Count == 0) return [];
+        var rows = await db.Appendices.AsNoTracking().Where(a => a.ChangeRequestId != null && changeRequestIds.Contains(a.ChangeRequestId.Value) && !a.Cancelled)
+            .Join(db.Contracts, a => a.ContractId, c => c.Id, (a, c) => new { a.Id, Cr = a.ChangeRequestId!.Value, a.Code, a.ContractId, ContractCode = c.Code, a.SignedOn })
+            .ToListAsync(ct);
+        return rows.Select(r => new AppendixRef(r.Id, r.Cr, r.Code, r.ContractId, r.ContractCode, r.SignedOn)).ToList();
+    }
+
+    public async Task NotifyChangeRequestApprovedAsync(IReadOnlyCollection<Guid> contractIds, string changeRequestCode, string changeRequestTitle, string projectName,
+        CancellationToken ct = default)
+    {
+        var contracts = await db.Contracts.AsNoTracking().Where(c => contractIds.Contains(c.Id) && c.Status == ContractStatus.Active).ToListAsync(ct);
+        if (contracts.Count == 0) return;
+        var owners = new List<Guid>();
+        foreach (var o in contracts.Select(c => c.OwnerEmployeeId).Distinct())
+            if ((await dir.GetAsync(o, ct))?.UserId is { } u) owners.Add(u);
+        var to = (await finance.ListUserIdsAsync(FinancePermission.Record, ct)).Concat(owners).Distinct().ToList();
+        await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.ChangeRequestApproved,
+            $"Khách đồng ý thay đổi {changeRequestCode} — lập phụ lục", $"Dự án {projectName}: \"{changeRequestTitle}\". Lập phụ lục ở HĐ {string.Join(", ", contracts.Select(c => c.Code))}.",
+            $"/sales?customer={contracts[0].CustomerId}"), ct);
+    }
 }

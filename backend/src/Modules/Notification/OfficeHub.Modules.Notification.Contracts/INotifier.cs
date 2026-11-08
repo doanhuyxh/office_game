@@ -80,4 +80,6 @@ public static class NotificationCategories
     public const string CustomerFollowUp = "customer_follow_up";
     /// <summary>Được giao việc / việc đến hạn, quá hạn — module Projects.</summary>
     public const string ProjectTask = "project_task";
+    /// <summary>Yêu cầu thay đổi (CR) của dự án được khách đồng ý, có tính tiền → người phụ trách hợp đồng + kế toán lập phụ lục.</summary>
+    public const string ChangeRequestApproved = "change_request_approved";
 }

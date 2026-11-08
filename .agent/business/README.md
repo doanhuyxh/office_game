@@ -41,6 +41,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Tài sản: rà soát quyền định kỳ, kiểm kê, xuất Excel, tool MCP | [assets-review.md](assets-review.md) |
 | Dự án: thành viên, phân bổ, mốc nghiệm thu, công việc, ngày công, `IProjectDirectory` (kho tài liệu dự án), chép dự án cũ từ Documents | [projects.md](projects.md) |
 | Dự án — hợp đồng (nhiều HĐ / dự án), chốt phân bổ tháng, chi phí nhân công từ lương, thu / chi gắn dự án, lãi / lỗ | [projects-finance.md](projects-finance.md) |
+| Yêu cầu thay đổi (CR) của dự án → phụ lục hợp đồng bán (tăng / giảm giá trị, đợt thu mới) | [projects-changes.md](projects-changes.md) |
 | Kinh doanh: khách hàng, cơ hội, hợp đồng bán, lịch thu, công nợ, ghi nhận thu (→ `IFinanceLedger`), nhắc hạn thu | [sales.md](sales.md) |
 | Tài chính: quyền theo chức vụ (`IFinanceAccess`), quỹ, sổ thu chi, khoá sổ, đề nghị chi qua bước duyệt `Finance` | [finance.md](finance.md) |
 | Lịch sử sửa dữ liệu nhân sự (`[Audited]`, interceptor, che lương), nhật ký | [audit.md](audit.md) |

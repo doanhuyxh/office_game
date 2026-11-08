@@ -1,7 +1,7 @@
 import { http, httpPost } from '@/services/api-client';
 import type {
   IComment, IEffort, IInstallmentRef, IMilestoneRequest, IProject, IProjectDetail, IProjectFinancials, IProjectRequest, ISalesContractRef, ITask, ITaskRequest, MemberRole,
-  ProjectStatus, TaskState,
+  ProjectStatus, TaskState, ChangeRequestStatus, IChangeRequest, IChangeRequestRequest,
 } from '../types/project.types';
 
 const base = '/api/projects';
@@ -18,6 +18,7 @@ export const projectKeys = {
   contracts: (search: string) => ['projects', 'sales-contracts', search] as const,
   installments: (projectId: string) => ['projects', 'installments', projectId] as const,
   financials: (id: string) => ['projects', 'financials', id] as const,
+  changeRequests: (id: string) => ['projects', 'change-requests', id] as const,
   allFinancials: (status: ProjectStatus | undefined) => ['projects', 'financials', 'all', status] as const,
 };
 
@@ -33,6 +34,11 @@ export const projectApi = {
   salesContracts: (search: string) => http<ISalesContractRef[]>(`${base}/sales-contracts?search=${encodeURIComponent(search)}`),
   installments: (projectId: string) => http<IInstallmentRef[]>(`${base}/${projectId}/installments`),
   financials: (id: string) => http<IProjectFinancials>(`${base}/${id}/financials`),
+  changeRequests: (id: string) => http<IChangeRequest[]>(`${base}/${id}/change-requests`),
+  saveChangeRequest: (projectId: string, cid: string | undefined, b: IChangeRequestRequest): Promise<unknown> =>
+    (cid ? send('PUT', `${base}/change-requests/${cid}`, b) : httpPost<string>(`${base}/${projectId}/change-requests`, b)),
+  moveChangeRequest: (cid: string, status: ChangeRequestStatus, decidedOn?: string | null, note?: string | null) =>
+    httpPost<void>(`${base}/change-requests/${cid}/status`, { status, decidedOn: decidedOn || null, note: note || null }),
   allFinancials: (status?: ProjectStatus) => http<IProjectFinancials[]>(`${base}/financials${status ? `?status=${status}` : ''}`),
   addMilestone: (id: string, b: IMilestoneRequest) => httpPost<string>(`${base}/${id}/milestones`, b),
   updateMilestone: (mid: string, b: IMilestoneRequest) => send<void>('PUT', `${base}/milestones/${mid}`, b),

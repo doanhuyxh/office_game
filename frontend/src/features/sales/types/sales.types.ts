@@ -29,10 +29,21 @@ export interface ICustomerDetail {
 export interface ICollection { id: string; date: string; amount: number; active: boolean; createdByName: string; createdAt: string }
 export interface IInstallment {
   id: string; order: number; title: string; dueOn: string; amount: number; collected: number; remaining: number; state: InstallmentState; agingBucket: string | null;
-  cancelReason: string | null; collections: ICollection[];
+  cancelReason: string | null; collections: ICollection[]; appendixId: string | null;
 }
+/** Yêu cầu thay đổi (CR) của dự án — không có tiền. */
+export interface IChangeRequestRef { id: string; projectId: string; code: string; title: string; status: string; billable: boolean; estimateManDays: number | null }
+export interface IAppendix {
+  id: string; code: string; title: string; signedOn: string; valueBeforeTaxDelta: number; totalDelta: number; changeRequestId: string | null; changeRequestCode: string | null;
+  note: string | null; cancelled: boolean; cancelReason: string | null; createdByName: string; createdAt: string;
+}
+export interface IAppendixRequest {
+  code: string; title: string; signedOn: string; valueBeforeTaxDelta: number; installments: IInstallmentInput[]; changeRequestId?: string | null; note?: string | null;
+}
+/** valueBeforeTax / contract.totalValue = hiện tại (đã gồm phụ lục); original* = gốc. */
 export interface IContractDetail {
   contract: IContract; valueBeforeTax: number; vatRate: number; note: string | null; opportunityId: string | null; installments: IInstallment[]; canEdit: boolean; canCollect: boolean;
+  originalValueBeforeTax: number; originalTotalValue: number; appendices: IAppendix[]; pendingChangeRequests: IChangeRequestRef[];
 }
 export interface IReceivableItem {
   installmentId: string; contractId: string; contractCode: string; customerId: string; customerName: string; ownerName: string; title: string; dueOn: string;

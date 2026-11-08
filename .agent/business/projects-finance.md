@@ -65,6 +65,6 @@ Tính khi đọc (24 tháng gần nhất như ngày công), không lưu số ti�
 
 E2E: `scripts/dev/projects-cost-e2e.ts a|b` ([e2e.md](../e2e.md)).
 
-## Chưa làm (giai đoạn 2b-2)
+## Thay đổi + phụ lục (2b-2)
 
-Yêu cầu thay đổi (CR) → phụ lục hợp đồng bán (Sales chưa có phụ lục) → đợt thu mới, tăng ngân sách ngày công.
+CR → phụ lục hợp đồng bán → giá trị HĐ (đã gồm phụ lục) → doanh thu dự án: [projects-changes.md](projects-changes.md).

@@ -17,6 +17,10 @@ public enum MilestoneStatus { Open = 0, Accepted = 1 }
 [JsonConverter(typeof(JsonStringEnumConverter<TaskState>))]
 public enum TaskState { Todo = 0, Doing = 1, Review = 2, Done = 3 }
 
+/// <summary>Nháp → Đã gửi khách → Khách đồng ý / Từ chối; huỷ khi chưa quyết. Xem <see cref="ChangeRequestRules.CanMove"/>.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<ChangeRequestStatus>))]
+public enum ChangeRequestStatus { Draft = 0, Sent = 1, Approved = 2, Rejected = 3, Cancelled = 4 }
+
 /// <summary>
 /// Dự án (module Projects sở hữu từ 2026-11-08; trước đó nằm ở module Documents — Id giữ nguyên nên kho tài liệu dự án không đổi).
 /// Không xoá — chỉ đóng. Không lưu số tiền (quản lý dự án chỉ xem ngày công).
@@ -122,6 +126,33 @@ public sealed class TaskItem
     public string CreatedByName { get; set; } = "";
     public DateTimeOffset? CompletedAt { get; set; }
     public DateTimeOffset? DueRemindedAt { get; set; }
+}
+
+/// <summary>
+/// Yêu cầu thay đổi (CR, giai đoạn 2b-2): phát sinh ngoài phạm vi. Quản lý dự án ghi ngày công ước tính (không nhập tiền).
+/// Khách đồng ý → cộng ngày công vào ngân sách (nếu dự án có ngân sách); có tính tiền → báo người phụ trách hợp đồng + kế toán lập phụ lục (module Sales).
+/// </summary>
+[Audited]
+public sealed class ChangeRequest
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid ProjectId { get; set; }
+    /// <summary>Số thứ tự trong dự án → mã {Mã dự án}-CR{n}.</summary>
+    public int Number { get; set; }
+    public required string Title { get; set; }
+    public string? Description { get; set; }
+    public decimal? EstimateManDays { get; set; }
+    public bool Billable { get; set; }
+    public ChangeRequestStatus Status { get; set; }
+    public DateOnly? SentOn { get; set; }
+    public DateOnly? DecidedOn { get; set; }
+    public string? DecidedByName { get; set; }
+    public string? DecisionNote { get; set; }
+    /// <summary>Số ngày công đã cộng vào ngân sách khi khách đồng ý (null = không cộng — dự án không có ngân sách / CR không ước tính).</summary>
+    public decimal? BudgetAddedManDays { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public string CreatedByName { get; set; } = "";
+    public DateTimeOffset? UpdatedAt { get; set; }
 }
 
 public sealed class TaskComment

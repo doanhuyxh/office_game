@@ -18,6 +18,7 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
     public DbSet<Allocation> Allocations => Set<Allocation>();
     public DbSet<ProjectContract> ProjectContracts => Set<ProjectContract>();
     public DbSet<AllocationFreeze> Freezes => Set<AllocationFreeze>();
+    public DbSet<ChangeRequest> ChangeRequests => Set<ChangeRequest>();
     public DbSet<Milestone> Milestones => Set<Milestone>();
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
     public DbSet<TaskComment> Comments => Set<TaskComment>();
@@ -64,6 +65,20 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
         {
             e.ToTable("allocation_freezes");
             e.HasKey(x => x.Month);
+        });
+        b.Entity<ChangeRequest>(e =>
+        {
+            e.ToTable("change_requests");
+            e.Property(x => x.Title).HasMaxLength(300);
+            e.Property(x => x.Description).HasMaxLength(5000);
+            e.Property(x => x.DecisionNote).HasMaxLength(1000);
+            e.Property(x => x.DecidedByName).HasMaxLength(200);
+            e.Property(x => x.CreatedByName).HasMaxLength(200);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(10);
+            e.Property(x => x.EstimateManDays).HasPrecision(8, 2);
+            e.Property(x => x.BudgetAddedManDays).HasPrecision(8, 2);
+            e.HasIndex(x => new { x.ProjectId, x.Number }).IsUnique().HasDatabaseName("ux_change_requests_number");
+            e.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
         });
         b.Entity<Milestone>(e =>
         {

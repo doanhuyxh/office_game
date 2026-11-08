@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Ban, Plus } from 'lucide-react';
+import { Ban, FilePlus2, Plus } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { Input } from '@/components/common/input';
 import { SelectField } from '@/components/common/SelectField';
@@ -15,11 +15,12 @@ import { salesApi } from '../../api/sales.api';
 import { useContract, useSalesMutation } from '../../hooks/useSales';
 import type { ContractStatus, IContractDetail, IInstallment, IInstallmentInput } from '../../types/sales.types';
 import { BILLING, CONTRACT_STATUS, INSTALLMENT_STATE } from '../../utils/labels';
+import { AppendixDialog } from '../appendix-dialog';
 import { CollectDialog } from '../collect-dialog';
 
 const onErr = (err: unknown) => !Object.keys(fieldErrors(err)).length && toast.error(errorMessage(err));
 
-/** Chi tiết hợp đồng bán: tổng giá trị / đã thu / còn nợ, lịch thu + lịch sử thu; kế toán ghi nhận thu, người phụ trách quản lý đợt. */
+/** Chi tiết hợp đồng bán: tổng giá trị / đã thu / còn nợ, phụ lục (tăng / giảm giá trị, từ yêu cầu thay đổi của dự án), lịch thu + lịch sử thu; kế toán ghi nhận thu, người phụ trách quản lý đợt + phụ lục. */
 export function ContractSheet({ id, onClose, onOpenCustomer }: { id: string | null; onClose: () => void; onOpenCustomer: (id: string) => void }) {
   const { data, isLoading, error } = useContract(id);
   return (
@@ -37,6 +38,9 @@ function Detail({ d, onOpenCustomer }: { d: IContractDetail; onOpenCustomer: (id
   const k = d.contract;
   const [collecting, setCollecting] = useState<IInstallment | null>(null);
   const [adding, setAdding] = useState<IInstallmentInput | null>(null);
+  const [appendixOpen, setAppendixOpen] = useState(false);
+  const cancelAppendix = useSalesMutation((a: { id: string; reason: string }) => salesApi.cancelAppendix(a.id, a.reason));
+  const liveAppendices = d.appendices.filter((a) => !a.cancelled);
   const status = useSalesMutation((s: ContractStatus) => salesApi.updateContract(k.id, { title: k.title, status: s, endOn: k.endOn, note: d.note }));
   const cancel = useSalesMutation((a: { id: string; reason: string }) => salesApi.cancelInstallment(a.id, a.reason));
   const add = useSalesMutation((b: IInstallmentInput) => salesApi.addInstallment(k.id, b));
@@ -51,7 +55,7 @@ function Detail({ d, onOpenCustomer }: { d: IContractDetail; onOpenCustomer: (id
       <div className="grid gap-5 px-4 pb-6">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[
-            ['Giá trị (sau thuế)', formatMoney(k.totalValue), `${formatMoney(d.valueBeforeTax)} + VAT ${d.vatRate}%`],
+            ['Giá trị (sau thuế)', formatMoney(k.totalValue), liveAppendices.length ? `Gốc ${formatMoney(d.originalTotalValue)} · ${liveAppendices.length} phụ lục` : `${formatMoney(d.valueBeforeTax)} + VAT ${d.vatRate}%`],
             ['Đã thu', formatMoney(k.collected), `${k.totalValue ? Math.round((k.collected / k.totalValue) * 100) : 0}%`],
             ['Còn phải thu', formatMoney(k.outstanding), k.overdue ? `Quá hạn ${formatMoney(k.overdue)}` : 'Không quá hạn'],
             ['Thời hạn', fmtDate(k.signedOn), k.endOn ? `đến ${fmtDate(k.endOn)}` : BILLING[k.billing]],
@@ -61,6 +65,37 @@ function Detail({ d, onOpenCustomer }: { d: IContractDetail; onOpenCustomer: (id
           ))}
         </div>
         {d.note && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{d.note}</p>}
+        {d.canEdit && d.pendingChangeRequests.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm" data-testid="pending-cr">
+            <span>Khách đã đồng ý {d.pendingChangeRequests.length} thay đổi có tính tiền, chưa lập phụ lục: <b>{d.pendingChangeRequests.map((c) => c.code).join(', ')}</b></span>
+            <Button size="sm" onClick={() => setAppendixOpen(true)}><FilePlus2 /> Lập phụ lục</Button>
+          </div>
+        )}
+        {(d.appendices.length > 0 || (d.canEdit && k.status === 'Active')) && (
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between"><div className="text-sm font-medium">Phụ lục</div>
+              {d.canEdit && k.status === 'Active' && <Button size="sm" variant="outline" onClick={() => setAppendixOpen(true)}><FilePlus2 /> Lập phụ lục</Button>}</div>
+            {d.appendices.length === 0 && <p className="text-xs text-muted-foreground">Chưa có phụ lục. Tăng / giảm giá trị hợp đồng bằng phụ lục.</p>}
+            {d.appendices.map((a) => (
+              <div key={a.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border p-2 text-sm ${a.cancelled ? 'opacity-60' : ''}`} data-testid="appendix-row">
+                <div className="grid gap-0.5">
+                  <div><b>{a.code}</b> · {a.title}{a.changeRequestCode && <span className="text-xs text-primary"> · từ {a.changeRequestCode}</span>}</div>
+                  <div className="text-xs text-muted-foreground">Ký {fmtDate(a.signedOn)} · {a.createdByName}{a.cancelled && ` · Đã huỷ: ${a.cancelReason}`}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`tabular-nums font-medium ${a.totalDelta < 0 ? 'text-rose-600' : 'text-emerald-600'} ${a.cancelled ? 'line-through' : ''}`}>
+                    {a.totalDelta > 0 ? '+' : '−'}{formatMoney(Math.abs(a.totalDelta))}</span>
+                  {d.canEdit && !a.cancelled && k.status === 'Active' && (
+                    <Button variant="ghost" size="icon" aria-label="Huỷ phụ lục" title="Huỷ phụ lục" onClick={() => {
+                      const reason = prompt(`Lý do huỷ phụ lục ${a.code}? (các đợt thu của phụ lục cũng bị huỷ)`);
+                      if (reason?.trim()) cancelAppendix.mutate({ id: a.id, reason }, { onSuccess: () => toast.success('Đã huỷ phụ lục'), onError: onErr });
+                    }}><Ban /></Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="rounded-xl border">
           <Table>
             <TableHeader><TableRow><TableHead>Đợt</TableHead><TableHead>Hạn</TableHead><TableHead className="text-right">Số tiền</TableHead><TableHead className="text-right">Đã thu</TableHead>
@@ -96,7 +131,7 @@ function Detail({ d, onOpenCustomer }: { d: IContractDetail; onOpenCustomer: (id
         </div>
         {d.canEdit && k.status === 'Active' && (adding ? (
           <form className="grid gap-2 rounded-lg border p-3" onSubmit={(e) => { e.preventDefault(); add.mutate(adding, { onSuccess: () => { toast.success('Đã thêm đợt'); setAdding(null); }, onError: onErr }); }}>
-            <div className="text-xs text-muted-foreground">Còn trống trong giá trị hợp đồng: {formatMoney(free)} (tăng giá trị cần phụ lục — chưa hỗ trợ)</div>
+            <div className="text-xs text-muted-foreground">Còn trống trong giá trị hợp đồng: {formatMoney(free)} (tăng giá trị: lập phụ lục)</div>
             <div className="grid grid-cols-[1fr_9.5rem_9rem] gap-2">
               <Input aria-label="Tên đợt" required value={adding.title} onChange={(e) => setAdding({ ...adding, title: e.target.value })} />
               <Input aria-label="Hạn" type="date" required value={adding.dueOn} onChange={(e) => setAdding({ ...adding, dueOn: e.target.value })} />
@@ -118,6 +153,7 @@ function Detail({ d, onOpenCustomer }: { d: IContractDetail; onOpenCustomer: (id
         <p className="text-xs text-muted-foreground">File hợp đồng đã ký lưu ở Tài liệu. Tiền thu ghi vào sổ thu chi; kế toán huỷ dòng thu ở sổ thì số đã thu ở đây tự trừ.</p>
       </div>
       <CollectDialog installment={collecting} contractCode={k.code} onClose={() => setCollecting(null)} />
+      <AppendixDialog d={d} open={appendixOpen} onClose={() => setAppendixOpen(false)} />
     </>
   );
 }

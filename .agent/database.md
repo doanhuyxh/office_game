@@ -82,13 +82,13 @@ Mọi seeder/migrator chỉ chạy migration khi `Database__MigrateOnStartup` kh
 
 Không transaction trải nhiều module (mỗi request gọi `SaveChangesAsync` riêng từng DbContext). Ví dụ cấp tài khoản: Identity tạo user → Organization ghi `UserId`; nếu bước 2 lỗi sẽ còn user mồ côi (cần xác nhận cách xử lý nếu xảy ra). Không audit log. Hàng đợi email thông báo nằm trong bảng `notifications.notifications` (cột `Email*`), không có outbox sự kiện giữa module.
 
-## Schema `projects` — `ProjectsDbContext` (migration `InitialProjects`, `ProjectContractsAndFreeze`)
+## Schema `projects` — `ProjectsDbContext` (migration `InitialProjects`, `ProjectContractsAndFreeze`, `AddChangeRequests`)
 
-Bảng + index: [business/projects.md](business/projects.md#schema-projects-projectsdbcontext-migration-initialprojects). Dự án chép từ `documents.projects` (giữ Id) khi khởi động — bảng cũ giữ nguyên. `ProjectContractsAndFreeze`: bảng `contracts` (thay cột `projects.SalesContractId`, chép dữ liệu trước khi xoá cột), `allocation_freezes`, `allocations.Percent` → `numeric(5,2)` — [business/projects-finance.md](business/projects-finance.md).
+Bảng + index: [business/projects.md](business/projects.md#schema-projects-projectsdbcontext-migration-initialprojects). Dự án chép từ `documents.projects` (giữ Id) khi khởi động — bảng cũ giữ nguyên. `ProjectContractsAndFreeze`: bảng `contracts` (thay cột `projects.SalesContractId`, chép dữ liệu trước khi xoá cột), `allocation_freezes`, `allocations.Percent` → `numeric(5,2)` — [business/projects-finance.md](business/projects-finance.md). `AddChangeRequests`: `change_requests` (unique dự án + số) — [business/projects-changes.md](business/projects-changes.md).
 
 ## Schema `sales` — `SalesDbContext` (migration `InitialSales`)
 
-Bảng + index: [business/sales.md](business/sales.md#schema-sales-salesdbcontext-migration-initialsales). `collections.LedgerEntryId` trỏ sang `finance.entries` **không** FK (ranh giới module).
+Bảng + index: [business/sales.md](business/sales.md#schema-sales-salesdbcontext-migration-initialsales). `collections.LedgerEntryId` trỏ sang `finance.entries` **không** FK (ranh giới module). `AddContractAppendices`: `contract_appendices` (unique HĐ + số; `ChangeRequestId` unique khi chưa huỷ, không FK sang `projects`) + `installments.AppendixId` — [business/projects-changes.md](business/projects-changes.md).
 
 ## Schema `finance` — `FinanceDbContext` (migration `InitialFinance`, `AddProjectToEntries`)
 

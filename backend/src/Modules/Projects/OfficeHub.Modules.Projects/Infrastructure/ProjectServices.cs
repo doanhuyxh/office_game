@@ -72,6 +72,15 @@ internal sealed class ProjectDirectory(ProjectsDbContext db, ProjectClock clock)
     public async Task<ProjectRef?> GetAsync(Guid projectId, CancellationToken ct = default) =>
         await db.Projects.AsNoTracking().Where(p => p.Id == projectId).Select(p => Ref(p)).FirstOrDefaultAsync(ct);
 
+    public async Task<IReadOnlyList<ChangeRequestRef>> ChangeRequestsForContractAsync(Guid salesContractId, CancellationToken ct = default)
+    {
+        var projectId = await db.ProjectContracts.AsNoTracking().Where(x => x.ContractId == salesContractId).Select(x => (Guid?)x.ProjectId).FirstOrDefaultAsync(ct);
+        if (projectId is not { } pid) return [];
+        var code = await db.Projects.AsNoTracking().Where(p => p.Id == pid).Select(p => p.Code).FirstAsync(ct);
+        return (await db.ChangeRequests.AsNoTracking().Where(c => c.ProjectId == pid).OrderBy(c => c.Number).ToListAsync(ct))
+            .Select(c => new ChangeRequestRef(c.Id, pid, ChangeRequestRules.Code(code, c.Number), c.Title, c.Status.ToString(), c.Billable, c.EstimateManDays)).ToList();
+    }
+
     public async Task<int> TransferMembershipsAsync(Guid fromEmployeeId, Guid toEmployeeId, CancellationToken ct = default)
     {
         var mine = await db.Members.AsNoTracking().Where(m => m.EmployeeId == fromEmployeeId).ToListAsync(ct);

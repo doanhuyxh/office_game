@@ -146,6 +146,70 @@ namespace OfficeHub.Modules.Sales.Infrastructure.Migrations
                     b.ToTable("contacts", "sales");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Sales.Domain.ContractAppendix", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CancelReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("Cancelled")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("ChangeRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("ContractId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateOnly>("SignedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<long>("TotalDelta")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ValueBeforeTaxDelta")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangeRequestId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_contract_appendices_cr")
+                        .HasFilter("\"ChangeRequestId\" IS NOT NULL AND NOT \"Cancelled\"");
+
+                    b.HasIndex("ContractId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_contract_appendices_code");
+
+                    b.ToTable("contract_appendices", "sales");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Sales.Domain.Customer", b =>
                 {
                     b.Property<Guid>("Id")
@@ -227,6 +291,9 @@ namespace OfficeHub.Modules.Sales.Infrastructure.Migrations
                     b.Property<long>("Amount")
                         .HasColumnType("bigint");
 
+                    b.Property<Guid?>("AppendixId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("CancelReason")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -258,6 +325,8 @@ namespace OfficeHub.Modules.Sales.Infrastructure.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AppendixId");
 
                     b.HasIndex("ContractId");
 
@@ -426,8 +495,22 @@ namespace OfficeHub.Modules.Sales.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Sales.Domain.ContractAppendix", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Sales.Domain.SalesContract", null)
+                        .WithMany("Appendices")
+                        .HasForeignKey("ContractId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Sales.Domain.Installment", b =>
                 {
+                    b.HasOne("OfficeHub.Modules.Sales.Domain.ContractAppendix", null)
+                        .WithMany()
+                        .HasForeignKey("AppendixId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("OfficeHub.Modules.Sales.Domain.SalesContract", null)
                         .WithMany("Installments")
                         .HasForeignKey("ContractId")
@@ -470,6 +553,8 @@ namespace OfficeHub.Modules.Sales.Infrastructure.Migrations
 
             modelBuilder.Entity("OfficeHub.Modules.Sales.Domain.SalesContract", b =>
                 {
+                    b.Navigation("Appendices");
+
                     b.Navigation("Installments");
                 });
 #pragma warning restore 612, 618
