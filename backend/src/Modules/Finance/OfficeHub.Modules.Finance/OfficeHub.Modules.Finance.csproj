@@ -4,6 +4,7 @@
     <ProjectReference Include="..\..\..\BuildingBlocks\OfficeHub.BuildingBlocks\OfficeHub.BuildingBlocks.csproj" />
     <ProjectReference Include="..\..\Organization\OfficeHub.Modules.Organization.Contracts\OfficeHub.Modules.Organization.Contracts.csproj" />
     <ProjectReference Include="..\..\Notification\OfficeHub.Modules.Notification.Contracts\OfficeHub.Modules.Notification.Contracts.csproj" />
+    <ProjectReference Include="..\OfficeHub.Modules.Finance.Contracts\OfficeHub.Modules.Finance.Contracts.csproj" />
     <ProjectReference Include="..\..\Approval\OfficeHub.Modules.Approval.Contracts\OfficeHub.Modules.Approval.Contracts.csproj" />
   </ItemGroup>
 

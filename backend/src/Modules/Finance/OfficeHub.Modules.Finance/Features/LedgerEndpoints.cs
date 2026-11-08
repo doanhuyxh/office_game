@@ -84,12 +84,15 @@ internal static class LedgerEndpoints
         return TypedResults.Created($"/api/finance/entries/{e.Id}", e.Id);
     }
 
-    internal static LedgerEntry Build(CreateEntry r, ClaimsPrincipal user, DateTimeOffset now) => new()
+    internal static LedgerEntry Build(CreateEntry r, ClaimsPrincipal user, DateTimeOffset now) =>
+        Build(r, user.GetUserId() ?? Guid.Empty, user.FindFirstValue(ClaimNames.FullName) ?? user.Identity?.Name ?? "?", now);
+
+    internal static LedgerEntry Build(CreateEntry r, Guid userId, string userName, DateTimeOffset now) => new()
     {
         Kind = r.Kind, Date = r.Date, Amount = r.Amount, AccountId = r.AccountId, ToAccountId = r.Kind == TxKind.Transfer ? r.ToAccountId : null,
         CategoryId = r.Kind == TxKind.Transfer ? null : r.CategoryId, BusinessLineId = r.BusinessLineId,
         Counterparty = Clean(r.Counterparty), Description = Clean(r.Description), InvoiceNumber = Clean(r.InvoiceNumber),
-        CreatedAt = now, CreatedByUserId = user.GetUserId() ?? Guid.Empty, CreatedByName = user.FindFirstValue(ClaimNames.FullName) ?? user.Identity?.Name ?? "?",
+        CreatedAt = now, CreatedByUserId = userId, CreatedByName = userName,
     };
 
     /// <summary>Quy tắc thuần (<see cref="LedgerRules.Validate"/>) + kiểm tra dữ liệu tham chiếu (quỹ / danh mục / mảng còn dùng, ngày không trước ngày đầu kỳ).</summary>

@@ -16,6 +16,4 @@ export const EXPENSE_STATUS: Record<ExpenseStatus, { label: string; tone: Status
 export const todayVn = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
 /** "2026-11-08" → "08/11/2026". */
 export const fmtDate = (d: string | null | undefined) => (d ? d.split('-').reverse().join('/') : '—');
-/** Ô nhập tiền: bỏ mọi ký tự không phải số ("1.500.000" → 1500000). */
-export const parseMoney = (s: string) => Number(s.replace(/\D/g, '')) || 0;
-export const groupDigits = (n: number) => (n ? n.toLocaleString('vi-VN') : '');
+export { groupDigits, parseMoney } from '@/utils/money';

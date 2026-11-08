@@ -12,6 +12,7 @@ export const PATHS = {
   documents: '/documents',
   assets: '/assets',
   finance: '/finance',
+  sales: '/sales',
   audit: '/audit',
   payroll: '/payroll',
   payslips: '/payslips',

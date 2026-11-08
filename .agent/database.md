@@ -82,6 +82,10 @@ Mọi seeder/migrator chỉ chạy migration khi `Database__MigrateOnStartup` kh
 
 Không transaction trải nhiều module (mỗi request gọi `SaveChangesAsync` riêng từng DbContext). Ví dụ cấp tài khoản: Identity tạo user → Organization ghi `UserId`; nếu bước 2 lỗi sẽ còn user mồ côi (cần xác nhận cách xử lý nếu xảy ra). Không audit log. Hàng đợi email thông báo nằm trong bảng `notifications.notifications` (cột `Email*`), không có outbox sự kiện giữa module.
 
+## Schema `sales` — `SalesDbContext` (migration `InitialSales`)
+
+Bảng + index: [business/sales.md](business/sales.md#schema-sales-salesdbcontext-migration-initialsales). `collections.LedgerEntryId` trỏ sang `finance.entries` **không** FK (ranh giới module).
+
 ## Schema `finance` — `FinanceDbContext` (migration `InitialFinance`)
 
 Bảng + index + seed: [business/finance.md](business/finance.md#schema-finance-financedbcontext-migration-initialfinance). Tiền `bigint` VND; dòng sổ không xoá (huỷ = `Status`).

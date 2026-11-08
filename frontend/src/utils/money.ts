@@ -11,3 +11,8 @@ export function downloadUrl(url: string) {
   a.click();
   a.remove();
 }
+
+/** Ô nhập tiền: bỏ mọi ký tự không phải số ("1.500.000" → 1500000). */
+export const parseMoney = (s: string) => Number(s.replace(/\D/g, '')) || 0;
+/** Hiển thị số trong ô nhập tiền có dấu chấm nghìn (0 → rỗng). */
+export const groupDigits = (n: number) => (n ? n.toLocaleString('vi-VN') : '');

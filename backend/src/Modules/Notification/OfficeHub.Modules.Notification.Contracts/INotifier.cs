@@ -75,4 +75,7 @@ public static class NotificationCategories
     /// <summary>Đề nghị chi đã duyệt, chờ kế toán chi (gửi người có quyền Ghi sổ) · đã chi tiền (gửi người đề nghị) — module Finance.</summary>
     public const string ExpenseReady = "expense_ready";
     public const string ExpensePaid = "expense_paid";
+    /// <summary>Đợt thu sắp đến hạn / đến hạn / quá hạn (gửi người phụ trách hợp đồng + người có quyền Ghi sổ) · việc chăm sóc khách đến hẹn — module Sales.</summary>
+    public const string ReceivableDue = "receivable_due";
+    public const string CustomerFollowUp = "customer_follow_up";
 }

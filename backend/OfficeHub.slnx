@@ -30,8 +30,12 @@
   <Folder Name="/src/Modules/Chat/">
     <Project Path="src/Modules/Chat/OfficeHub.Modules.Chat/OfficeHub.Modules.Chat.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Sales/">
+    <Project Path="src/Modules/Sales/OfficeHub.Modules.Sales/OfficeHub.Modules.Sales.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Finance/">
     <Project Path="src/Modules/Finance/OfficeHub.Modules.Finance/OfficeHub.Modules.Finance.csproj" />
+    <Project Path="src/Modules/Finance/OfficeHub.Modules.Finance.Contracts/OfficeHub.Modules.Finance.Contracts.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Assets/">
     <Project Path="src/Modules/Assets/OfficeHub.Modules.Assets/OfficeHub.Modules.Assets.csproj" />
@@ -72,6 +76,7 @@
     <Project Path="tests/OfficeHub.Modules.Chat.Tests/OfficeHub.Modules.Chat.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Assets.Tests/OfficeHub.Modules.Assets.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Finance.Tests/OfficeHub.Modules.Finance.Tests.csproj" />
+    <Project Path="tests/OfficeHub.Modules.Sales.Tests/OfficeHub.Modules.Sales.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Documents.Tests/OfficeHub.Modules.Documents.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Leave.Tests/OfficeHub.Modules.Leave.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Identity.Tests/OfficeHub.Modules.Identity.Tests.csproj" />

@@ -24,6 +24,7 @@ public sealed class FinanceModule : IModule
         services.AddModuleDbContext<FinanceDbContext>(config, FinanceDbContext.Schema);
         services.AddSingleton<FinanceClock>();
         services.AddScoped<IApprovalHandler, ExpenseApprovalHandler>();
+        services.AddScoped<OfficeHub.Modules.Finance.Contracts.IFinanceLedger, FinanceLedger>();
         services.AddHostedService<FinanceMigrator>();
     }
 

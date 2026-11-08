@@ -24,6 +24,7 @@
     <ProjectReference Include="..\Modules\Meetings\OfficeHub.Modules.Meetings\OfficeHub.Modules.Meetings.csproj" />
     <ProjectReference Include="..\Modules\Assets\OfficeHub.Modules.Assets\OfficeHub.Modules.Assets.csproj" />
     <ProjectReference Include="..\Modules\Finance\OfficeHub.Modules.Finance\OfficeHub.Modules.Finance.csproj" />
+    <ProjectReference Include="..\Modules\Sales\OfficeHub.Modules.Sales\OfficeHub.Modules.Sales.csproj" />
     <ProjectReference Include="..\Modules\Documents\OfficeHub.Modules.Documents\OfficeHub.Modules.Documents.csproj" />
     <ProjectReference Include="..\Modules\Chat\OfficeHub.Modules.Chat\OfficeHub.Modules.Chat.csproj" />
     <ProjectReference Include="..\Modules\News\OfficeHub.Modules.News\OfficeHub.Modules.News.csproj" />

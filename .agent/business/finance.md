@@ -34,6 +34,8 @@ Ghi / Duyệt / Quản trị **bao hàm Xem**. Mọi người đăng nhập đ�
 
 Token AI **không** gọi được `/api/finance/*` (ngoài allowlist `AccessTokenAuth`).
 
+**Cho module khác** (`OfficeHub.Modules.Finance.Contracts`): `IFinanceLedger.RecordIncomeAsync(LedgerIncome)` ghi một dòng THU (cùng `ValidateAsync` với màn ghi sổ; lỗi trả theo field, không ném; một nguồn chỉ một dòng hiệu lực) và `ActiveSourcesAsync(sourceType, ids)` cho biết dòng nào còn hiệu lực. Đang dùng: Sales ghi nhận thu (`sales_collection`) — [sales.md](sales.md).
+
 ## Quy tắc (`Domain/LedgerRules.cs`, test `tests/OfficeHub.Modules.Finance.Tests`)
 
 - Tiền `long` VND, 1 … 10 nghìn tỷ. Ngày giao dịch ≤ hôm nay (giờ VN), > ngày khoá sổ, ≥ ngày đầu kỳ của quỹ (gửi và nhận).
@@ -61,4 +63,4 @@ Token AI **không** gọi được `/api/finance/*` (ngoài allowlist `AccessTok
 
 ## Chưa làm
 
-Chứng từ đính kèm (S3), xuất Excel sổ, đối soát sao kê, sinh đề nghị chi từ kỳ lương, bắt buộc 2FA cho người có quyền tài chính, thông báo khi đổi quyền. Tiếp theo theo kế hoạch: khách hàng + hợp đồng bán + công nợ (module Sales).
+Chứng từ đính kèm (S3), xuất Excel sổ, đối soát sao kê, sinh đề nghị chi từ kỳ lương, bắt buộc 2FA cho người có quyền tài chính, thông báo khi đổi quyền. Khách hàng + hợp đồng bán + công nợ: [sales.md](sales.md).
