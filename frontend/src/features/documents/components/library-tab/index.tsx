@@ -87,7 +87,7 @@ export function LibraryTab({ initialSpace, onOpen }: { initialSpace: ISpaceRef |
   const spaceOptions = (spaces.data ?? []).map((s) => ({ value: spaceKey(s), label: spaceLabel(s) }));
 
   return (
-    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
       <aside className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-3">
         <SelectField id="doc-space" label="Kho" value={space ? spaceKey(space) : null} options={spaceOptions}
           onChange={(v) => { if (v) { setSpace(parseSpaceKey(v)); setFolderId(null); setSearch(''); } }} />

@@ -24,9 +24,9 @@ export function FolderTree({ folders, selected, onSelect, rootLabel }: {
   }, [folders, selected]);
 
   return (
-    <div className="grid gap-0.5 text-sm" role="tree">
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-0.5 text-sm" role="tree">
       <button type="button" onClick={() => onSelect(null)}
-        className={cn('flex items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-muted', selected === null && 'bg-muted font-medium')}>
+        className={cn('flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-muted', selected === null && 'bg-muted font-medium')}>
         <HardDrive className="size-4 shrink-0 text-muted-foreground" /><span className="truncate">{rootLabel}</span>
       </button>
       {(children.get(null) ?? []).map((f) => (
@@ -45,7 +45,7 @@ function Node({ f, depth, children, selected, ancestors, onSelect }: {
   const active = selected === f.id;
   return (
     <>
-      <div className={cn('flex items-center rounded-md hover:bg-muted', active && 'bg-muted font-medium')} style={{ paddingLeft: depth * 12 }}>
+      <div className={cn('flex min-w-0 items-center rounded-md hover:bg-muted', active && 'bg-muted font-medium')} style={{ paddingLeft: depth * 12 }}>
         <button type="button" className="flex size-6 shrink-0 items-center justify-center text-muted-foreground" aria-label={expanded ? 'Thu gọn' : 'Mở rộng'}
           onClick={() => setOpen(!expanded)} disabled={!kids.length}>
           {kids.length ? (expanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />) : null}
