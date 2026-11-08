@@ -8,10 +8,13 @@ public static class ApprovalTypes
     public const string Overtime = "overtime";
     /// <summary>Ban hành tài liệu trong kho tài liệu (module Documents).</summary>
     public const string DocumentPublish = "document_publish";
+    /// <summary>Đề nghị chi tiền (module Finance): [Manager, Finance].</summary>
+    public const string ExpenseRequest = "expense_request";
 }
 
-/// <summary>Bước duyệt. Manager = quản lý trực tiếp của người gửi (bỏ qua nếu không có); Hr = bất kỳ ai có vai trò hr/admin.</summary>
-public enum ApprovalStepKind { Manager = 0, Hr = 1 }
+/// <summary>Bước duyệt. Manager = quản lý trực tiếp của người gửi (bỏ qua nếu không có); Hr = bất kỳ ai có vai trò hr/admin;
+/// Finance = bất kỳ ai có quyền tài chính "Duyệt chi" trên chức vụ (không cần vai trò hr/admin).</summary>
+public enum ApprovalStepKind { Manager = 0, Hr = 1, Finance = 2 }
 
 public sealed record ApprovalSubmission(
     string Type,

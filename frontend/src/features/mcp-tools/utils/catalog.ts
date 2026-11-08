@@ -56,6 +56,7 @@ export const MCP_EXCLUDED = [
   'Thêm / sửa nhân viên, tài khoản, vai trò, ca, lịch, ngày lễ; điều chỉnh quỹ phép',
   'Tin nhắn (chat) — kênh toàn văn phòng, kênh phòng và tin 1-1 (/api/chat/*)',
   'Bảng tin: đăng / sửa / xoá bài, bình luận, cảm xúc, kiểm duyệt (chỉ đọc qua list_news_feed / get_news_post)',
+  'Tài chính: sổ thu chi, quỹ, đề nghị chi (/api/finance/*); đơn duyệt có bước Tài chính bị ẩn và không duyệt / huỷ được qua AI',
   'Tài sản: đăng ký / sửa thiết bị và dịch vụ, cấp phát, thu hồi, rà soát quyền, kiểm kê, xuất Excel (chỉ đọc qua get_my_assets / get_employee_assets)',
 ] as const;
 

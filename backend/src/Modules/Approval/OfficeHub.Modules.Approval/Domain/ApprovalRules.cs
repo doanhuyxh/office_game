@@ -3,10 +3,11 @@ using OfficeHub.Modules.Approval.Contracts;
 namespace OfficeHub.Modules.Approval.Domain;
 
 /// <summary>Tư cách quyết định bước hiện tại. Delegate = duyệt thay người quản lý (uỷ quyền đang hiệu lực hôm nay).</summary>
-public enum DecisionRight { None, Approver, Delegate, Admin, Hr }
+public enum DecisionRight { None, Approver, Delegate, Admin, Hr, Finance }
 
 /// <summary>Người đang thao tác. <paramref name="DelegatedBy"/> = Id người quản lý đang uỷ quyền cho người này hôm nay (không bắc cầu).</summary>
-public sealed record DeciderContext(Guid? EmployeeId, bool IsHr, bool IsAdmin, IReadOnlySet<Guid> DelegatedBy);
+/// <param name="IsFinanceApprover">Chức vụ của người này có quyền tài chính "Duyệt chi".</param>
+public sealed record DeciderContext(Guid? EmployeeId, bool IsHr, bool IsAdmin, IReadOnlySet<Guid> DelegatedBy, bool IsFinanceApprover = false);
 
 /// <summary>Ai được quyết định đơn — hàm thuần (test: tests/OfficeHub.Modules.Approval.Tests).</summary>
 public static class ApprovalRules
@@ -23,6 +24,8 @@ public static class ApprovalRules
         if (CurrentStep(r) is not { } step) return DecisionRight.None;
         if (a.EmployeeId is { } me && me == r.RequesterEmployeeId) return DecisionRight.None;
         if (step.Kind == ApprovalStepKind.Hr) return a.IsHr ? DecisionRight.Hr : DecisionRight.None;
+        // Bước Tài chính chỉ người có quyền Duyệt chi (admin / HR không tự có quyền xem hay duyệt tiền).
+        if (step.Kind == ApprovalStepKind.Finance) return a.IsFinanceApprover ? DecisionRight.Finance : DecisionRight.None;
         if (step.ApproverEmployeeId is { } approver)
         {
             if (a.EmployeeId == approver) return DecisionRight.Approver;

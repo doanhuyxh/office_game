@@ -53,8 +53,11 @@ internal static class AuthEndpoints
 
         // Mỗi lúc chỉ 1 thiết bị: đổi security stamp → cookie ở thiết bị khác (nếu có) bị từ chối ở request kế tiếp
         // (giống cơ chế khoá tài khoản / đổi mật khẩu); cấp lại cookie cho CHÍNH thiết bị này theo stamp mới.
+        // KHÔNG dùng RefreshSignInAsync: nó chỉ cấp lại khi request đã có cookie đăng nhập — request /login thì chưa có, nên cookie
+        // vừa cấp (stamp cũ) bị chính lệnh đổi stamp vô hiệu → 401 ngay request sau. Đăng nhập lại: phản hồi có 2 Set-Cookie
+        // officehub.auth, trình duyệt giữ cái sau (stamp mới).
         await users.UpdateSecurityStampAsync(user);
-        await signIn.RefreshSignInAsync(user);
+        await signIn.SignInAsync(user, req.RememberMe);
 
         user.LastLoginAt = clock.GetUtcNow();
         await users.UpdateAsync(user);

@@ -7,6 +7,8 @@
 
 - SMTP dev là Gmail thật → email tới địa chỉ thật sẽ gửi thật; tên miền dành riêng bị bỏ qua (`EmailPolicy`).
 - S3: bucket riêng `officehubdoanhuyxh` + IAM user `OfficeHub` (chỉ quyền trên `officehub/*`), không public. File upload trước khi đổi vẫn ở bucket cũ `finsplit/officehub/` (chưa chuyển).
+- Đăng nhập trả **2 `Set-Cookie: officehub.auth`** (cookie stamp cũ rồi cookie stamp mới — xem "Mỗi lúc chỉ 1 thiết bị" ở [business/auth.md](business/auth.md)). Script e2e tự đọc cookie phải lấy **cái cuối** (`.filter(...).at(-1)`, mẫu `finance-e2e.ts`); script cũ dùng `.find(...)` sẽ lấy cookie chết → 401.
+- `dotnet run` dùng `launchSettings.json` (cổng 5080) và **bỏ qua `ASPNETCORE_URLS`** → chạy Api e2e ở cổng khác cần `--no-launch-profile`.
 - Lần migrate đầu của schema mới, EF log `ERR … __ef_migrations` — bình thường.
 - `dotnet ef migrations remove` cần DB → với migration đầu của context, xoá tay 3 file (migration, Designer, Snapshot).
 - Sửa `shared/office-map.json` → phải chạy `bun design/tools/render-plan.ts` (ghi lại `office-map.grid.txt`), nếu không test Realtime fail.

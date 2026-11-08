@@ -50,7 +50,7 @@ export function ApprovalCard({ item, showRequester }: { item: IApproval; showReq
         <ol className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
           {item.steps.map((s) => (
             <li key={s.order} className={cn(s.status === 'Rejected' && 'text-destructive', s.status === 'Approved' && 'text-success', s.status === 'Pending' && 'font-semibold')}>
-              {STEP_ICON[s.status]} {s.kind === 'Manager' ? `Quản lý: ${s.approverName}` : 'HR'}
+              {STEP_ICON[s.status]} {s.kind === 'Manager' ? `Quản lý: ${s.approverName}` : s.kind === 'Finance' ? 'Tài chính' : 'HR'}
               {s.decidedByName && ` (${s.decidedByName}${s.onBehalfOfName ? `, duyệt thay ${s.onBehalfOfName}` : ''})`}
               {s.comment && <span className="text-muted-foreground"> — “{s.comment}”</span>}
             </li>

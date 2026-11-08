@@ -18,7 +18,7 @@ namespace OfficeHub.Modules.Approval.Infrastructure;
 /// <item>Tạo / thu hồi uỷ quyền duyệt → người được uỷ quyền (email + app), người uỷ quyền nếu HR làm thay (chỉ app).</item>
 /// </list>
 /// </summary>
-internal sealed class ApprovalNotifications(INotifier notifier, IEmployeeDirectory dir, IAccountService accounts, DelegationLookup delegations,
+internal sealed class ApprovalNotifications(INotifier notifier, IEmployeeDirectory dir, IAccountService accounts, DelegationLookup delegations, IFinanceAccess finance,
     ILogger<ApprovalNotifications> log)
 {
     private const string Link = "/approvals";
@@ -41,6 +41,10 @@ internal sealed class ApprovalNotifications(INotifier notifier, IEmployeeDirecto
                 if (step.ApproverEmployeeId is { } mgr && await delegations.ActiveOfAsync(mgr, ct) is { } d
                     && await dir.GetAsync(d.DelegateEmployeeId, ct) is { IsActive: true, UserId: { } delegateUser })
                     ids.Add(delegateUser);
+            }
+            else if (step.Kind == ApprovalStepKind.Finance)
+            {
+                ids = [.. await finance.ListUserIdsAsync(FinancePermission.Approve, ct)];
             }
             else
             {

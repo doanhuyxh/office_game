@@ -7,6 +7,7 @@ using OfficeHub.Modules.Approval;
 using OfficeHub.Modules.Attendance;
 using OfficeHub.Modules.Audit;
 using OfficeHub.Modules.Assets;
+using OfficeHub.Modules.Finance;
 using OfficeHub.Modules.Documents;
 using OfficeHub.Modules.Chat;
 using OfficeHub.Modules.News;
@@ -47,6 +48,7 @@ IModule[] modules =
     new AuditModule(),
     new DocumentsModule(),
     new AssetsModule(),
+    new FinanceModule(),
     new ChatModule(),
     new NewsModule(),
 ];

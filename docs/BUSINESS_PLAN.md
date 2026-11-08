@@ -1,6 +1,6 @@
 # Kế hoạch: Kinh doanh, Dự án, Tài chính (dòng tiền)
 
-> **Trạng thái: ĐÃ DUYỆT 2026-11-08** (chủ dự án trả lời mục 10). Chưa có code — bắt đầu từ giai đoạn 1. Sau khi chủ dự án duyệt, mỗi module khi làm xong sẽ có tài liệu thật trong `.agent/business/` và dòng trong bảng định tuyến `AGENTS.md`; file này chỉ là kế hoạch.
+> **Trạng thái: ĐÃ DUYỆT 2026-11-08** (chủ dự án trả lời mục 10). Giai đoạn 1 đang làm: **xong** quyền tài chính theo chức vụ + Finance lõi (quỹ, sổ thu chi, khoá sổ, đề nghị chi — [.agent/business/finance.md](../.agent/business/finance.md)); **còn** Sales (khách hàng, cơ hội, báo giá, hợp đồng bán) + công nợ, chứng từ, Excel. Sau khi chủ dự án duyệt, mỗi module khi làm xong sẽ có tài liệu thật trong `.agent/business/` và dòng trong bảng định tuyến `AGENTS.md`; file này chỉ là kế hoạch.
 
 ## 0. Bối cảnh và các điều chủ dự án đã chốt (2026-11-08)
 

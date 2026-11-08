@@ -6,7 +6,7 @@ Luồng duyệt **dùng chung**. Module sở hữu đơn (Leave, Attendance) g�
 
 ## Gửi đơn (`IApprovalService.SubmitAsync`, project `Approval.Contracts`)
 
-`ApprovalSubmission { Type, SubjectId, RequesterEmployeeId, Title, Summary, Steps }`. `Type` ∈ `ApprovalTypes.Leave` (`"leave"`), `ApprovalTypes.AttendanceCorrection` (`"attendance_correction"`), `ApprovalTypes.Overtime` (`"overtime"`), `ApprovalTypes.DocumentPublish` (`"document_publish"`, ban hành tài liệu — bước `[Manager]`, [documents.md](documents.md)). Mỗi (`Type`, `SubjectId`) chỉ một đơn (unique index).
+`ApprovalSubmission { Type, SubjectId, RequesterEmployeeId, Title, Summary, Steps }`. `Type` ∈ `ApprovalTypes.Leave` (`"leave"`), `ApprovalTypes.AttendanceCorrection` (`"attendance_correction"`), `ApprovalTypes.Overtime` (`"overtime"`), `ApprovalTypes.DocumentPublish` (`"document_publish"`, ban hành tài liệu — bước `[Manager]`, [documents.md](documents.md)), `ApprovalTypes.ExpenseRequest` (`"expense_request"`, đề nghị chi — bước `[Manager, Finance]`, [finance.md](finance.md)). Mỗi (`Type`, `SubjectId`) chỉ một đơn (unique index).
 
 Tạo bước (`Infrastructure/ApprovalService.cs`):
 
@@ -14,8 +14,11 @@ Tạo bước (`Infrastructure/ApprovalService.cs`):
 |---|---|---|
 | `Manager` | `ManagerId` của người gửi (lưu `ApproverEmployeeId`) | Không có quản lý, hoặc quản lý đã nghỉ việc |
 | `Hr` | Bất kỳ ai có vai trò `hr` / `admin` | — |
+| `Finance` | Bất kỳ ai có quyền tài chính **Duyệt chi** trên chức vụ (`IFinanceAccess`; vai trò hr / admin **không** đủ). Thông báo gửi những người này | — |
 
 Nếu mọi bước bị bỏ qua thì luôn còn 1 bước `Hr`. Bước đầu `Pending`, các bước sau `Waiting`. Leave, giải trình và tăng ca đều gửi `[Manager, Hr]`.
+
+**Token AI** (`IsAccessToken`): đơn có bước `Finance` bị ẩn khỏi inbox / đơn của tôi / đếm, chi tiết → 404, duyệt / từ chối / huỷ → 403 (tiền chỉ thao tác trên web).
 
 ## Ai được quyết định (`CanDecide`)
 

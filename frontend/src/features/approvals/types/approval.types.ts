@@ -13,7 +13,7 @@ export interface IPersonBrief {
 
 export interface IApprovalStep {
   order: number;
-  kind: 'Manager' | 'Hr';
+  kind: 'Manager' | 'Hr' | 'Finance';
   approverName: string | null;
   status: StepStatus;
   decidedByName: string | null;

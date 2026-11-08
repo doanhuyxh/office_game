@@ -139,6 +139,7 @@ const routeTree = root.addChildren([
       page(PATHS.meetings, () => import('@/features/meetings'), 'MeetingsPage'),
       page(PATHS.documents, () => import('@/features/documents'), 'DocumentsPage'),
       page(PATHS.assets, () => import('@/features/assets'), 'AssetsPage'),
+      page(PATHS.finance, () => import('@/features/finance'), 'FinancePage'),
       page(PATHS.employees, () => import('@/features/employees'), 'EmployeesPage'),
       page(PATHS.contracts, () => import('@/features/contracts'), 'ContractsPage'),
       page(PATHS.reports, () => import('@/features/reports'), 'ReportsPage'),

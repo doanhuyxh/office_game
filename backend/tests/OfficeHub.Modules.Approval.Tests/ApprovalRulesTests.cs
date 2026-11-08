@@ -51,6 +51,21 @@ public class ApprovalRulesTests
     }
 
     [Fact]
+    public void Finance_step_needs_finance_approve_permission_not_hr_or_admin()
+    {
+        var r = new ApprovalRequest
+        {
+            Type = ApprovalTypes.ExpenseRequest, Title = "t", Summary = "s", RequesterEmployeeId = Requester, Status = RequestStatus.Pending,
+            Steps = [new() { Order = 0, Kind = ApprovalStepKind.Finance, Status = StepStatus.Pending }],
+        };
+        Assert.Equal(DecisionRight.Finance, ApprovalRules.Right(r, new DeciderContext(Other, false, false, None, IsFinanceApprover: true)));
+        Assert.Equal(DecisionRight.None, ApprovalRules.Right(r, Ctx(Other, hr: true, admin: true)));   // HR / admin không tự duyệt tiền
+        Assert.Equal(DecisionRight.None, ApprovalRules.Right(r, new DeciderContext(Manager, false, false, None)));
+        // Kế toán trưởng vừa có Ghi sổ vừa có Duyệt chi vẫn không tự duyệt khoản chi của chính mình.
+        Assert.Equal(DecisionRight.None, ApprovalRules.Right(r, new DeciderContext(Requester, false, false, None, IsFinanceApprover: true)));
+    }
+
+    [Fact]
     public void Hr_step_unaffected_by_delegation()
     {
         var r = Request(managerStepDone: true);
