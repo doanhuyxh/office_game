@@ -73,19 +73,20 @@ export function SearchSelectField({ id, label, value, onChange, options, allowEm
         </PopoverPrimitive.Trigger>
         <PopoverPrimitive.Portal>
           <PopoverPrimitive.Content align="start" sideOffset={4} onOpenAutoFocus={(e) => { e.preventDefault(); inputRef.current?.focus(); }}
-            className="z-50 w-(--radix-popover-trigger-width) min-w-64 rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
+            collisionPadding={8}
+            className="z-50 w-(--radix-popover-trigger-width) min-w-[min(16rem,var(--radix-popover-content-available-width))] max-w-(--radix-popover-content-available-width) rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
             <div className="flex items-center gap-2 border-b px-2 pb-1">
               <Search className="size-4 shrink-0 text-muted-foreground" />
               <input ref={inputRef} value={q} onChange={(e) => { setQ(e.target.value); setActive(0); }} onKeyDown={onKey}
                 placeholder={searchPlaceholder} aria-label="Tìm" className="h-8 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
             </div>
-            <ul role="listbox" className="mt-1 grid gap-0.5">
+            <ul role="listbox" className="mt-1 grid max-h-72 grid-cols-[minmax(0,1fr)] gap-0.5 overflow-y-auto">
               {shown.map((o, i) => {
                 const isSel = o ? o.value === value : value == null;
                 return (
-                  <li key={o?.value ?? '__none__'} role="option" aria-selected={isSel}>
+                  <li key={o?.value ?? '__none__'} role="option" aria-selected={isSel} className="min-w-0">
                     <button type="button" onClick={() => pick(o)} onMouseEnter={() => setActive(i)}
-                      className={cn('flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm', i === active && 'bg-accent text-accent-foreground')}>
+                      className={cn('flex w-full min-w-0 items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm', i === active && 'bg-accent text-accent-foreground')}>
                       <span className="min-w-0 flex-1 truncate">
                         {o ? o.label : emptyLabel}
                         {o?.hint && <span className="ml-1 text-xs text-muted-foreground">{o.hint}</span>}

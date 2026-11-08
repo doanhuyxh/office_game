@@ -43,7 +43,7 @@ export function ServiceFormDialog({ open, onOpenChange, service }: { open: boole
   const errors = fieldErrors(save.error);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{service ? `Sửa dịch vụ ${service.name}` : 'Thêm dịch vụ'}</DialogTitle>
           <DialogDescription>Phần mềm / dịch vụ trả phí của công ty. Chỉ ghi tên đăng nhập của từng ghế, không lưu mật khẩu.</DialogDescription>
