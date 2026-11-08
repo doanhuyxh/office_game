@@ -39,7 +39,7 @@ export function NotificationBell() {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[22rem] max-w-[calc(100vw-2rem)] p-0">
+      <DropdownMenuContent align="end" className="w-88 max-w-[calc(100vw-2rem)] p-0">
         <div className="flex items-center justify-between px-3 py-2">
           <DropdownMenuLabel className="p-0 text-sm">Thông báo</DropdownMenuLabel>
           <div className="flex items-center gap-1">

@@ -5,7 +5,7 @@ import { OFFICE_MAP } from '../engine/officeMap';
 import { VOICE_FAR, voiceChannelAt, voiceVolume, type VoiceChannelInfo } from '../engine/voiceChannel';
 
 /** Khớp VoiceTokenResponse (backend/src/OfficeHub.Realtime/Voice/VoiceEndpoints.cs). */
-interface VoiceToken { url: string; token: string; room: string; channel: string; meeting: boolean }
+interface VoiceToken { url: string; token: string; room: string; channel: string; meeting: boolean; screen: boolean }
 
 export type VoiceStatus = 'off' | 'connecting' | 'on';
 export interface VoiceView {
@@ -20,14 +20,16 @@ export interface VoiceView {
   peers: number;
   /** Trình duyệt chặn phát âm thanh → cần người dùng bấm một lần. */
   needsAudioClick: boolean;
-  /** Màn hình đang được chia sẻ trong phòng họp (của người khác). */
+  /** Màn hình người khác đang chia sẻ trong phòng (mới nhất nếu nhiều người cùng chia sẻ). */
   screen: { track: RemoteTrack; name: string } | null;
+  /** Số màn hình đang được chia sẻ trong phòng (của người khác). */
+  screenCount: number;
   /** Lý do không vào được voice (hiện trên thẻ voice, kèm nút thử lại). */
   error: string | null;
 }
 
 export const VOICE_INITIAL: VoiceView = {
-  status: 'off', channel: null, micOn: false, speakerOn: true, sharing: false, peers: 0, needsAudioClick: false, screen: null, error: null,
+  status: 'off', channel: null, micOn: false, speakerOn: true, sharing: false, peers: 0, needsAudioClick: false, screen: null, screenCount: 0, error: null,
 };
 
 /** Vị trí lấy từ OfficeScene (identity LiveKit = userId = id người chơi trên hub). */
@@ -50,7 +52,8 @@ const HYSTERESIS = 1; // m — tránh bật / tắt nhận âm liên tục khi �
  * (chỉ xin quyền micro khi người dùng bật). "Tắt loa" chỉ ngừng phát âm thanh, vẫn giữ kết nối.
  * - Server quyết định room theo vị trí (`POST /rt/voice/token`); client chỉ báo đổi kênh khi đi qua cửa phòng.
  * - Kênh không phải phòng họp: chỉ nhận âm người trong ~6 m, âm lượng giảm theo khoảng cách (`voiceVolume`).
- * - Phòng họp (`voice: "room"`): nghe cả phòng, được chia sẻ màn hình.
+ * - Phòng họp (`voice: "room"`): nghe cả phòng.
+ * - Mọi phòng có tường: chia sẻ màn hình — chỉ người đang ở trong phòng (cùng room LiveKit, server bảo vệ) xem được.
  */
 export class VoiceClient {
   private room: Room | null = null;
@@ -63,6 +66,8 @@ export class VoiceClient {
   private switchTimer = 0;
   private tick = 0;
   private audioHost = document.createElement('div');
+  /** Màn hình người khác đang chia sẻ, theo thứ tự nhận (cuối = mới nhất). */
+  private screens: { track: RemoteTrack; name: string }[] = [];
   private view: VoiceView = VOICE_INITIAL;
 
   onChange?: (v: VoiceView) => void;
@@ -100,7 +105,7 @@ export class VoiceClient {
     this.gen++;
     clearTimeout(this.switchTimer);
     await this.leave();
-    this.set({ status: 'off', channel: null, micOn: false, sharing: false, peers: 0, screen: null, needsAudioClick: false });
+    this.set({ status: 'off', channel: null, micOn: false, sharing: false, peers: 0, needsAudioClick: false });
   }
 
   /** Bật / tắt nghe (loa) — vẫn ở trong kênh, người khác vẫn nghe mình nếu micro bật. */
@@ -119,7 +124,7 @@ export class VoiceClient {
 
   async toggleScreen() {
     const lp = this.room?.localParticipant;
-    if (!lp || !this.joined?.meeting) return;
+    if (!lp || !this.joined?.screen) return;
     try {
       await lp.setScreenShareEnabled(!lp.isScreenShareEnabled, { audio: true });
     } catch (e) {
@@ -161,6 +166,7 @@ export class VoiceClient {
     this.room = null;
     this.joined = null;
     this.onSpeaking?.(new Set());
+    this.clearScreens();
     if (r) await r.disconnect().catch(() => {});
     this.audioHost.replaceChildren();
   }
@@ -173,7 +179,7 @@ export class VoiceClient {
     if (this.room && this.joined?.id === target.id) return;
     await this.leave();
     if (g !== this.gen) return;
-    this.set({ status: 'connecting', channel: target, sharing: false, screen: null, peers: 0 });
+    this.set({ status: 'connecting', channel: target, sharing: false, peers: 0 });
 
     // Server cấp token cho kênh tại vị trí nó đang biết; vừa qua cửa thì có thể chưa kịp cập nhật → hỏi lại vài lần.
     let tk: VoiceToken | null = null;
@@ -191,7 +197,7 @@ export class VoiceClient {
       if (g !== this.gen) return;
     }
     if (!tk) return;
-    const channel = tk.channel === target.id ? target : { ...voiceChannelFromId(tk.channel), meeting: tk.meeting };
+    const channel = tk.channel === target.id ? target : { ...voiceChannelFromId(tk.channel), meeting: tk.meeting, screen: tk.screen };
 
     let lk: LiveKit;
     try {
@@ -249,12 +255,15 @@ export class VoiceClient {
           const el = track.attach();
           this.audioHost.appendChild(el);
         } else if (track.source === Track.Source.ScreenShare) {
-          this.set({ screen: { track, name: p.name || p.identity } });
+          this.screens = [...this.screens.filter((s) => s.track !== track), { track, name: p.name || p.identity }];
+          this.publishScreens();
         }
       })
       .on(RoomEvent.TrackUnsubscribed, (track) => {
         track.detach().forEach((el) => el.remove());
-        if (mine() && this.view.screen?.track === track) this.set({ screen: null });
+        if (!mine() || !this.screens.some((s) => s.track === track)) return;
+        this.screens = this.screens.filter((s) => s.track !== track);
+        this.publishScreens(); // còn người khác đang chia sẻ → hiện màn hình của họ
       })
       .on(RoomEvent.TrackPublished, () => mine() && this.updateHearing())
       .on(RoomEvent.ParticipantConnected, () => mine() && this.updateHearing())
@@ -277,11 +286,21 @@ export class VoiceClient {
         this.joined = null;
         this.audioHost.replaceChildren();
         this.onSpeaking?.(new Set());
+        this.clearScreens();
         if (!this.enabled) return;
-        this.set({ status: 'connecting', screen: null, sharing: false });
+        this.set({ status: 'connecting', sharing: false });
         clearTimeout(this.switchTimer);
         this.switchTimer = window.setTimeout(() => void this.join(), 1500);
       });
+  }
+
+  private publishScreens() {
+    this.set({ screen: this.screens.at(-1) ?? null, screenCount: this.screens.length });
+  }
+
+  private clearScreens() {
+    this.screens = [];
+    if (this.view.screen || this.view.screenCount) this.publishScreens();
   }
 
   /** Bật / tắt nhận âm + chỉnh âm lượng theo khoảng cách (4 lần / giây). */
@@ -293,20 +312,22 @@ export class VoiceClient {
     for (const p of room.remoteParticipants.values()) {
       const o = this.pos.of(p.identity);
       const dist = me && o ? Math.hypot(o.x - me.x, o.z - me.z) : Infinity;
-      for (const pub of p.trackPublications.values()) this.subscribe(p, pub as RemoteTrackPublication, ch.meeting, dist);
+      for (const pub of p.trackPublications.values()) this.subscribe(p, pub as RemoteTrackPublication, ch, dist);
       if (ch.meeting || dist < VOICE_FAR) peers++;
     }
     if (peers !== this.view.peers) this.set({ peers });
   }
 
-  private subscribe(p: RemoteParticipant, pub: RemoteTrackPublication, meeting: boolean, dist: number) {
+  private subscribe(p: RemoteParticipant, pub: RemoteTrackPublication, ch: VoiceChannelInfo, dist: number) {
     const { Track } = LK!; // có room thì module đã tải
+    const { meeting } = ch;
     let want: boolean;
     if (pub.source === Track.Source.Microphone) {
       want = meeting || dist < VOICE_FAR + (pub.isSubscribed ? HYSTERESIS : 0);
       p.setVolume(!this.speakerOn ? 0 : meeting ? 1 : voiceVolume(dist), Track.Source.Microphone);
     } else {
-      want = meeting && isScreen(pub); // màn hình chỉ có ở phòng họp
+      // Màn hình: cả phòng xem (không theo khoảng cách) — chỉ phòng có tường mới có, khu mở không.
+      want = ch.screen && isScreen(pub);
       if (pub.source === Track.Source.ScreenShareAudio) p.setVolume(this.speakerOn ? 1 : 0, Track.Source.ScreenShareAudio);
     }
     if (pub.isSubscribed !== want) pub.setSubscribed(want);
@@ -317,5 +338,5 @@ const isScreen = (pub: TrackPublication) => pub.source === 'screen_share' || pub
 
 function voiceChannelFromId(id: string): VoiceChannelInfo {
   const r = OFFICE_MAP.rooms.find((x) => x.id === id);
-  return r ? { id, name: r.name, meeting: r.voice === 'room' } : { id, name: 'Khu mở', meeting: false };
+  return r ? { id, name: r.name, meeting: r.voice === 'room', screen: !!r.walls } : { id, name: 'Khu mở', meeting: false, screen: false };
 }

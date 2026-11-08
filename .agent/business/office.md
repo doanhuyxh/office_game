@@ -56,16 +56,16 @@ Tên hiển thị = claim `full_name`. `anim` (byte) chỉ chuyển tiếp: 0 đ
 
 ## Voice (`Voice/VoiceEndpoints.cs`, `Voice/VoiceGuard.cs`) — giai đoạn 3
 
-**Kênh theo vị trí** (`OfficeMap.VoiceAt`, giống `engine/voiceChannel.ts`): đứng trong phòng có `walls` → kênh riêng của phòng đó (room LiveKit `officehub-<rooms[].id>`); còn lại (khu mở, sảnh, pantry, khu nghỉ) → `officehub-open`. Phòng có `voice: "room"` (hội trường, họp lớn / nhỏ, 4 phòng gọi) = **phòng họp**: cả phòng nghe rõ như nhau + được chia sẻ màn hình. Phòng có tường khác (Giám đốc, Kế toán) vẫn là kênh riêng nhưng nghe theo khoảng cách.
+**Kênh theo vị trí** (`OfficeMap.VoiceAt`, giống `engine/voiceChannel.ts`): đứng trong phòng có `walls` → kênh riêng của phòng đó (room LiveKit `officehub-<rooms[].id>`); còn lại (khu mở, sảnh, pantry, khu nghỉ) → `officehub-open`. Phòng có `voice: "room"` (hội trường, họp lớn / nhỏ, 4 phòng gọi) = **phòng họp**: cả phòng nghe rõ như nhau. Phòng có tường khác (Giám đốc, Kế toán, Studio) vẫn là kênh riêng nhưng nghe theo khoảng cách. **Chia sẻ màn hình: mọi phòng có tường** (`VoiceChannel.ScreenShare`, 2026-11-08) — ai đang đứng trong phòng đều xem được (không theo khoảng cách), khu mở thì không.
 
-`POST /rt/voice/token` (đăng nhập) → `{ url, token, room, channel, meeting }`:
+`POST /rt/voice/token` (đăng nhập) → `{ url, token, room, channel, meeting, screen }`:
 
 | Quy tắc | Xử lý |
 |---|---|
 | Room | **Server quyết định** theo vị trí hiện tại trong `Presence` (bỏ qua mọi tham số client) → đứng ngoài không xin được token phòng họp |
 | Chưa vào hub văn phòng | 409 `"Hãy vào văn phòng 3D trước khi bật voice"` |
 | Phiên hết hiệu lực | 401 · thiếu `LiveKit__*` → 503 · secret < 32 ký tự → Realtime không khởi động |
-| Grant | identity = userId, TTL 10 phút (chỉ để vào room; LiveKit tự gia hạn). Nguồn được publish: `microphone`; phòng họp thêm `screen_share`, `screen_share_audio`. Không có data channel |
+| Grant | identity = userId, TTL 10 phút (chỉ để vào room; LiveKit tự gia hạn). Nguồn được publish: `microphone`; phòng có tường thêm `screen_share`, `screen_share_audio` (khu mở không → không chia sẻ cho cả văn phòng). Không có data channel |
 | Đổi kênh | Cấp token room mới → đẩy khỏi room cũ (`RemoveParticipant`) |
 
 `VoiceGuard` (mỗi giây): người có `Player.VoiceRoom` mà kênh tại vị trí khác room đó quá **3 giây** → bị đẩy khỏi room LiveKit (client chuẩn tự đổi kênh sau ~0,5 s; guard chặn client bị sửa ở lại nghe lén). Rời hub (đóng tab, bị khoá tài khoản, `Kicked`) → cũng bị đẩy khỏi voice; mở tab mới thì không (LiveKit tự thay kết nối cùng identity). API LiveKit gọi qua URL suy ra từ `LiveKit__Url` (ws → http, wss → https).

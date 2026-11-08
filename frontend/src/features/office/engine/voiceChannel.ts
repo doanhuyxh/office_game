@@ -1,7 +1,10 @@
 import type { OfficeMapV2 } from './mapTypes';
 
-/** Kênh voice: id phòng có tường (kênh riêng) hoặc "open" (khu mở, nghe theo khoảng cách). */
-export interface VoiceChannelInfo { id: string; name: string; meeting: boolean }
+/**
+ * Kênh voice: id phòng có tường (kênh riêng) hoặc "open" (khu mở, nghe theo khoảng cách).
+ * `meeting` = phòng họp (cả phòng nghe rõ); `screen` = được chia sẻ màn hình (mọi phòng có tường, người cùng phòng xem).
+ */
+export interface VoiceChannelInfo { id: string; name: string; meeting: boolean; screen: boolean }
 
 export const OPEN_CHANNEL = 'open';
 
@@ -11,7 +14,8 @@ export const OPEN_CHANNEL = 'open';
  */
 export function voiceChannelAt(map: OfficeMapV2, x: number, z: number): VoiceChannelInfo {
   const room = map.rooms.find((r) => r.walls && x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1);
-  return room ? { id: room.id, name: room.name, meeting: room.voice === 'room' } : { id: OPEN_CHANNEL, name: 'Khu mở', meeting: false };
+  return room ? { id: room.id, name: room.name, meeting: room.voice === 'room', screen: true }
+    : { id: OPEN_CHANNEL, name: 'Khu mở', meeting: false, screen: false };
 }
 
 /** Âm lượng theo khoảng cách ở kênh không phải phòng họp: ≤ 2 m nghe rõ, giảm dần, ≥ 6 m tắt. */

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { VoiceClient, VoiceView } from '../../api/voiceClient';
 
-/** Thẻ voice ở góc dưới phải: tự kết nối để nghe; micro (M, mặc định tắt), loa, chia sẻ màn hình (chỉ phòng họp). */
+/** Thẻ voice ở góc dưới phải: tự kết nối để nghe; micro (M, mặc định tắt), loa, chia sẻ màn hình (phòng có tường). */
 export function VoicePanel({ voice, view }: { voice: VoiceClient | null; view: VoiceView }) {
   if (!voice) return null;
   const { status, channel, micOn, speakerOn, sharing, peers, needsAudioClick, error } = view;
@@ -42,18 +42,22 @@ export function VoicePanel({ voice, view }: { voice: VoiceClient | null; view: V
           title="Bật / tắt nghe — vẫn ở trong kênh" data-testid="office-voice-speaker" data-on={speakerOn}>
           {speakerOn ? '🔊 Loa' : '🔈 Loa tắt'}
         </button>
-        {channel?.meeting && (
-          <button type="button" className={sharing ? 'on' : ''} onClick={() => void voice.toggleScreen()} disabled={status !== 'on'} title="Chia sẻ màn hình">
+        {channel?.screen && (
+          <button type="button" className={sharing ? 'on' : ''} onClick={() => void voice.toggleScreen()} disabled={status !== 'on'}
+            title="Chia sẻ màn hình cho mọi người đang ở trong phòng" data-testid="office-voice-share" data-on={sharing}>
             🖥 {sharing ? 'Dừng chia sẻ' : 'Chia sẻ'}
           </button>
         )}
       </div>
+      {sharing && (
+        <small data-testid="office-voice-sharing">Đang chia sẻ màn hình · người trong {channel?.name ?? 'phòng'} xem được</small>
+      )}
     </div>
   );
 }
 
-/** Màn hình người khác đang chia sẻ trong phòng họp. Bấm để phóng to / thu nhỏ. */
-export function ScreenView({ screen }: { screen: VoiceView['screen'] }) {
+/** Màn hình người khác đang chia sẻ trong phòng (mới nhất nếu nhiều người). Bấm để phóng to / thu nhỏ. */
+export function ScreenView({ screen, count = 1 }: { screen: VoiceView['screen']; count?: number }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [big, setBig] = useState(false);
   useEffect(() => {
@@ -66,7 +70,7 @@ export function ScreenView({ screen }: { screen: VoiceView['screen'] }) {
   return (
     <div className={`card screen ${big ? 'big' : ''}`} onClick={() => setBig((b) => !b)} title={big ? 'Thu nhỏ' : 'Phóng to'}>
       <video ref={ref} autoPlay playsInline muted />
-      <small>🖥 {screen.name} đang chia sẻ màn hình</small>
+      <small>🖥 {screen.name} đang chia sẻ màn hình{count > 1 ? ` · ${count - 1} người khác cũng đang chia sẻ` : ''}</small>
     </div>
   );
 }

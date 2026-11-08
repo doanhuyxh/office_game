@@ -358,7 +358,7 @@ export function OfficeView() {
           </div>
         )}
         <VoicePanel voice={voice} view={voiceView} />
-        <ScreenView screen={voiceView.screen} />
+        <ScreenView screen={voiceView.screen} count={voiceView.screenCount} />
         <ScreenDocPanel screen={screen} onClear={clearScreen} />
         {uploads.items.length > 0 && <div className="docs-uploads"><UploadPanel items={uploads.items} onClear={uploads.clear} /></div>}
         {dragOver && <div className="drop-hint">Thả file / thư mục để tải lên kho tài liệu</div>}

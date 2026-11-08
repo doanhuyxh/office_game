@@ -27,8 +27,9 @@ public sealed class LiveKitSettings
 
 /// <param name="Room">Tên room LiveKit.</param>
 /// <param name="Channel">Id phòng trên bản đồ (rooms[].id) hoặc "open".</param>
-/// <param name="Meeting">Phòng có voice: "room" — cả phòng nghe rõ, được chia sẻ màn hình.</param>
-public sealed record VoiceTokenResponse(string Url, string Token, string Room, string Channel, bool Meeting);
+/// <param name="Meeting">Phòng có voice: "room" — cả phòng nghe rõ như nhau.</param>
+/// <param name="Screen">Được chia sẻ màn hình: mọi phòng có tường (người cùng phòng xem), khu mở thì không.</param>
+public sealed record VoiceTokenResponse(string Url, string Token, string Room, string Channel, bool Meeting, bool Screen);
 
 public static class VoiceEndpoints
 {
@@ -61,7 +62,7 @@ public static class VoiceEndpoints
             // Đổi kênh: chủ động đẩy khỏi room cũ (client tử tế đã tự rời; client sửa code thì vẫn bị cắt)
             if (previous is not null && previous != ch.LiveKitRoom) guard.Kick(previous, userId);
 
-            var sources = ch.Meeting ? new[] { "microphone", "screen_share", "screen_share_audio" } : new[] { "microphone" };
+            var sources = ch.ScreenShare ? new[] { "microphone", "screen_share", "screen_share_audio" } : new[] { "microphone" };
             var grants = new VideoGrants { RoomJoin = true, Room = ch.LiveKitRoom, CanSubscribe = true, CanPublish = true, CanPublishData = false };
             grants.CanPublishSources.AddRange(sources);
             var token = new AccessToken(cfg.ApiKey!, cfg.ApiSecret!)
@@ -70,7 +71,7 @@ public static class VoiceEndpoints
                 .WithGrants(grants)
                 .WithTtl(TimeSpan.FromMinutes(10)) // chỉ dùng để vào room; LiveKit tự gia hạn trong phiên
                 .ToJwt();
-            return Results.Ok(new VoiceTokenResponse(cfg.Url!, token, ch.LiveKitRoom, ch.Id, ch.Meeting));
+            return Results.Ok(new VoiceTokenResponse(cfg.Url!, token, ch.LiveKitRoom, ch.Id, ch.Meeting, ch.ScreenShare));
         }).RequireAuthorization();
     }
 }

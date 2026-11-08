@@ -56,10 +56,12 @@ public sealed record OfficeMap(int Version, string Name, double Grid, Rect Floor
             : new VoiceChannel(VoiceChannel.Open, false);
 }
 
-/// <summary>Kênh voice. <c>Meeting</c> = phòng có <c>voice: "room"</c>: cả phòng nghe rõ như nhau + được chia sẻ màn hình.</summary>
+/// <summary>Kênh voice. <c>Meeting</c> = phòng có <c>voice: "room"</c>: cả phòng nghe rõ như nhau.</summary>
 public sealed record VoiceChannel(string Id, bool Meeting)
 {
     public const string Open = "open";
+    /// <summary>Mọi phòng có tường (kênh riêng, server bảo vệ) được chia sẻ màn hình — chỉ người trong phòng xem được. Khu mở thì không.</summary>
+    public bool ScreenShare => Id != Open;
     /// <summary>Tên room LiveKit (có tiền tố để không đụng project khác dùng chung server LiveKit).</summary>
     public string LiveKitRoom => $"officehub-{Id}";
 }

@@ -60,7 +60,7 @@ try {
   // Server không cho xin token phòng họp khi đang đứng ngoài
   const tokB = await B.evalJs(`fetch('/rt/voice/token?room=officehub-meeting-large',{method:'POST'}).then(r=>r.json())`);
   check('server issues token for position, not requested room', tokB.channel === 'open' && tokB.room === 'officehub-open', tokB);
-  check('screen share button only in meeting room', await A.evalJs(`document.body.innerText.includes('Chia sẻ')`) && !(await B.evalJs(`document.body.innerText.includes('Chia sẻ')`)));
+  check('screen share button in walled room, not in open area', await A.evalJs(`document.body.innerText.includes('Chia sẻ')`) && !(await B.evalJs(`document.body.innerText.includes('Chia sẻ')`)));
 
   // 5) B vào phòng họp → nghe cả phòng; A chia sẻ màn hình → B thấy
   await walk(B, 27, 6.5);

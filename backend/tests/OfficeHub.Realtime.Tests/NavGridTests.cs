@@ -78,10 +78,10 @@ public class NavGridTests
     public void Zone_lookup(double x, double z, string zone) => Assert.Equal(zone, Map.ZoneAt(x, z));
 
     [Theory]
-    [InlineData(26.0, 3.0, "meeting-large", true)] // phòng họp: kênh riêng, chia sẻ màn hình
+    [InlineData(26.0, 3.0, "meeting-large", true)] // phòng họp: kênh riêng, cả phòng nghe rõ
     [InlineData(16.0, 6.5, "meeting-hall", true)]
     [InlineData(48.0, 9.5, "booth-1", true)]
-    [InlineData(3.0, 3.0, "bgd", false)] // phòng có tường nhưng không phải phòng họp: vẫn kênh riêng
+    [InlineData(3.0, 3.0, "bgd", false)] // phòng có tường nhưng không phải phòng họp: vẫn kênh riêng + chia sẻ màn hình
     [InlineData(55.0, 5.0, "studio", false)] // Studio Nội dung: kênh riêng của đội, nghe theo khoảng cách
     [InlineData(63.5, 5.0, "film-main", true)] // phòng quay / livestream / thu âm: như phòng họp
     [InlineData(65.0, 15.0, "live-1", true)]
@@ -94,6 +94,7 @@ public class NavGridTests
         var ch = Map.VoiceAt(x, z);
         Assert.Equal(channel, ch.Id);
         Assert.Equal(meeting, ch.Meeting);
+        Assert.Equal(channel != "open", ch.ScreenShare); // mọi phòng có tường được chia sẻ màn hình
         Assert.Equal($"officehub-{channel}", ch.LiveKitRoom);
     }
 }
