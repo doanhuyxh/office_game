@@ -4,6 +4,7 @@ import { Button } from '@/components/common/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/common/input';
+import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { SelectField } from '@/components/common/SelectField';
 import { departmentOptions, useDepartments, useEmployees } from '@/features/employees';
 import { todayVn, useLines } from '@/features/finance';
@@ -93,8 +94,9 @@ export function ProjectFormDialog({ open, project, onClose, onCreated }: { open:
           <FormField id="pj-desc" label="Mô tả" maxLength={2000} value={f.description ?? ''} onChange={(e) => set('description', e.target.value)} />
           {!project && (
             <div className="grid gap-2">
-              <SelectField id="pj-mem" label="Thành viên ban đầu" allowEmpty emptyLabel="— Chọn để thêm —" value={null}
-                onChange={(v) => v && !members.includes(v) && setMembers([...members, v])} options={employees.filter((e) => !members.includes(e.id)).map((e) => ({ value: e.id, label: `${e.fullName} (${e.code})` }))} />
+              <SearchSelectField id="pj-mem" label="Thành viên ban đầu" allowEmpty emptyLabel="— Chọn để thêm —" value={null}
+                onChange={(v) => v && !members.includes(v) && setMembers([...members, v])}
+                options={employees.filter((e) => !members.includes(e.id)).map((e) => ({ value: e.id, label: `${e.fullName} (${e.code})`, hint: e.departmentName ?? undefined }))} />
               {members.length > 0 && <div className="flex flex-wrap gap-1">{members.map((id) => (
                 <button key={id} type="button" className="rounded-full bg-muted px-2 py-0.5 text-xs" onClick={() => setMembers(members.filter((x) => x !== id))}>
                   {employees.find((e) => e.id === id)?.fullName} ✕</button>))}</div>}
