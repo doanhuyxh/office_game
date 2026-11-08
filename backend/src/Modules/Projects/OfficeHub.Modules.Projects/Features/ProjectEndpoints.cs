@@ -18,18 +18,20 @@ namespace OfficeHub.Modules.Projects.Features;
 public sealed record MemberDto(Guid EmployeeId, string? Code, string FullName, string? JobTitle, ProjectMemberRole Role, bool IsActive);
 public sealed record TaskCounts(int Open, int Done, int Overdue);
 public sealed record ProjectDto(Guid Id, string Code, string Name, string? Description, ProjectKind Kind, ProjectStatus Status, Guid? DepartmentId, string? DepartmentName,
-    Guid? BusinessLineId, SalesContractRef? Contract, DateOnly? StartOn, DateOnly? EndOn, decimal? BudgetManDays, ProjectMemberRole? MyRole, bool CanManage, bool CanWork,
+    Guid? BusinessLineId, List<SalesContractRef> Contracts, DateOnly? StartOn, DateOnly? EndOn, decimal? BudgetManDays, ProjectMemberRole? MyRole, bool CanManage, bool CanWork,
     int MemberCount, TaskCounts Tasks, int MilestonesOpen, int MilestonesAccepted, DateTimeOffset CreatedAt);
 public sealed record ProjectDetail(ProjectDto Project, List<MemberDto> Members, List<MilestoneDto> Milestones);
 public sealed record UpsertProject(string Code, string Name, ProjectKind Kind = ProjectKind.Internal, string? Description = null, Guid? DepartmentId = null,
-    Guid? BusinessLineId = null, Guid? SalesContractId = null, DateOnly? StartOn = null, DateOnly? EndOn = null, decimal? BudgetManDays = null,
+    Guid? BusinessLineId = null, List<Guid>? SalesContractIds = null, DateOnly? StartOn = null, DateOnly? EndOn = null, decimal? BudgetManDays = null,
     ProjectStatus Status = ProjectStatus.Active, List<Guid>? MemberIds = null);
 public sealed record AddMembers(List<Guid> EmployeeIds, ProjectMemberRole Role = ProjectMemberRole.Member);
 public sealed record ChangeRole(ProjectMemberRole Role);
-public sealed record AllocationItem(Guid EmployeeId, int? Percent);
+public sealed record AllocationItem(Guid EmployeeId, decimal? Percent);
 public sealed record SetAllocations(DateOnly Month, List<AllocationItem> Items);
 public sealed record EffortCell(Guid EmployeeId, DateOnly Month, decimal PresentDays, decimal Percent, bool Explicit, decimal ManDays);
-public sealed record EffortDto(List<DateOnly> Months, List<MemberDto> Members, List<EffortCell> Cells, decimal TotalManDays, decimal? BudgetManDays);
+/// <param name="FrozenMonths">Tháng đã chốt phân bổ (chỉ HR / Quản trị tài chính sửa — <paramref name="CanEditFrozen"/>).</param>
+public sealed record EffortDto(List<DateOnly> Months, List<MemberDto> Members, List<EffortCell> Cells, decimal TotalManDays, decimal? BudgetManDays,
+    List<DateOnly> FrozenMonths, bool CanEditFrozen);
 
 /// <summary>Dự án, thành viên, phân bổ %, ngày công (theo chấm công), chọn hợp đồng bán để gắn. Không có số tiền.</summary>
 internal static class ProjectEndpoints
@@ -47,6 +49,51 @@ internal static class ProjectEndpoints
         g.MapGet("/{id:guid}/effort", EffortAsync);
         g.MapGet("/sales-contracts", SalesContractsAsync);
         g.MapGet("/sales-contracts/{contractId:guid}/installments", InstallmentsAsync);
+        g.MapGet("/{id:guid}/installments", ProjectInstallmentsAsync);
+        g.MapGet("/{id:guid}/financials", FinancialsAsync);
+        g.MapGet("/financials", AllFinancialsAsync);
+    }
+
+    internal static async Task<List<Guid>> ContractIdsAsync(ProjectsDbContext db, Guid projectId, CancellationToken ct) =>
+        await db.ProjectContracts.AsNoTracking().Where(x => x.ProjectId == projectId).OrderBy(x => x.LinkedAt).Select(x => x.ContractId).ToListAsync(ct);
+
+    /// <summary>Đợt thu của mọi hợp đồng gắn dự án (chọn khi gắn mốc). Không có số tiền.</summary>
+    internal static async Task<List<InstallmentRef>> InstallmentsOfAsync(ProjectsDbContext db, ISalesContractsLookup sales, Guid projectId, CancellationToken ct)
+    {
+        var list = new List<InstallmentRef>();
+        foreach (var cid in await ContractIdsAsync(db, projectId, ct)) list.AddRange(await sales.InstallmentsAsync(cid, ct));
+        return list;
+    }
+
+    private static async Task<Results<Ok<List<InstallmentRef>>, NotFound>> ProjectInstallmentsAsync(Guid id, ClaimsPrincipal user, ProjectAccess access, ProjectsDbContext db,
+        ISalesContractsLookup sales, CancellationToken ct)
+    {
+        var v = await access.ViewerAsync(user, ct);
+        if (!v.CanSee(id) || !await db.Projects.AnyAsync(p => p.Id == id, ct)) return TypedResults.NotFound();
+        return TypedResults.Ok(await InstallmentsOfAsync(db, sales, id, ct));
+    }
+
+    /// <summary>Lãi / lỗ một dự án — chỉ quyền Xem tài chính (quản lý dự án KHÔNG xem tiền). Chi tiết theo người: chỉ Quản trị tài chính.</summary>
+    private static async Task<Results<Ok<ProjectFinancialsDto>, NotFound, ProblemHttpResult>> FinancialsAsync(Guid id, ClaimsPrincipal user, ProjectsDbContext db,
+        ProjectAccess access, ProjectFinance finance, CancellationToken ct)
+    {
+        var v = await access.ViewerAsync(user, ct);
+        var p = await db.Projects.AsNoTracking().Include(x => x.Members).FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (p is null || !v.CanSee(id)) return TypedResults.NotFound();
+        if (!v.FinanceView) return Forbidden("Chỉ người có quyền Xem tài chính xem lãi / lỗ dự án");
+        return TypedResults.Ok((await finance.ComputeAsync([p], v.FinanceAdmin, ct))[0]);
+    }
+
+    /// <summary>Lãi / lỗ mọi dự án (không chi tiết theo tháng / người) — chỉ quyền Xem tài chính.</summary>
+    private static async Task<Results<Ok<List<ProjectFinancialsDto>>, ProblemHttpResult>> AllFinancialsAsync(ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
+        ProjectFinance finance, ProjectStatus? status, CancellationToken ct)
+    {
+        var v = await access.ViewerAsync(user, ct);
+        if (!v.FinanceView) return Forbidden("Chỉ người có quyền Xem tài chính xem lãi / lỗ dự án");
+        var q = db.Projects.AsNoTracking().Include(x => x.Members).AsQueryable();
+        if (status is { } s) q = q.Where(p => p.Status == s);
+        var rows = await finance.ComputeAsync(await q.OrderBy(p => p.Status).ThenBy(p => p.Name).ToListAsync(ct), false, ct);
+        return TypedResults.Ok(rows.Select(r => r with { Months = [], Categories = [] }).ToList());
     }
 
     internal static ProblemHttpResult Forbidden(string msg) => TypedResults.Problem(msg, statusCode: StatusCodes.Status403Forbidden);
@@ -69,12 +116,13 @@ internal static class ProjectEndpoints
         var tasks = await db.Tasks.AsNoTracking().Where(t => ids.Contains(t.ProjectId)).Select(t => new { t.ProjectId, t.State, t.DueOn }).ToListAsync(ct);
         var ms = await db.Milestones.AsNoTracking().Where(m => ids.Contains(m.ProjectId)).Select(m => new { m.ProjectId, m.Status }).ToListAsync(ct);
         var depts = (await dir.ListDepartmentsAsync(ct)).ToDictionary(d => d.Id, d => d.Name);
-        var contracts = (await sales.GetManyAsync(rows.Where(p => p.SalesContractId != null).Select(p => p.SalesContractId!.Value).Distinct().ToList(), ct)).ToDictionary(c => c.Id);
+        var links = await db.ProjectContracts.AsNoTracking().Where(x => ids.Contains(x.ProjectId)).OrderBy(x => x.LinkedAt).ToListAsync(ct);
+        var contracts = (await sales.GetManyAsync(links.Select(l => l.ContractId).Distinct().ToList(), ct)).ToDictionary(c => c.Id);
         return rows.Select(p =>
         {
             var t = tasks.Where(x => x.ProjectId == p.Id).ToList();
             return new ProjectDto(p.Id, p.Code, p.Name, p.Description, p.Kind, p.Status, p.DepartmentId, p.DepartmentId is { } d ? depts.GetValueOrDefault(d) : null, p.BusinessLineId,
-                p.SalesContractId is { } c ? contracts.GetValueOrDefault(c) : null, p.StartOn, p.EndOn, p.BudgetManDays,
+                links.Where(l => l.ProjectId == p.Id).Select(l => contracts.GetValueOrDefault(l.ContractId)).OfType<SalesContractRef>().ToList(), p.StartOn, p.EndOn, p.BudgetManDays,
                 v.Roles.TryGetValue(p.Id, out var r) ? r : null, v.CanManage(p.Id), v.CanWork(p.Id) && p.Status == ProjectStatus.Active, p.Members.Count,
                 new TaskCounts(t.Count(x => x.State != TaskState.Done), t.Count(x => x.State == TaskState.Done), t.Count(x => EffortRules.IsOverdue(x.DueOn, x.State, today))),
                 ms.Count(x => x.ProjectId == p.Id && x.Status == MilestoneStatus.Open), ms.Count(x => x.ProjectId == p.Id && x.Status == MilestoneStatus.Accepted), p.CreatedAt);
@@ -107,11 +155,26 @@ internal static class ProjectEndpoints
             .Required(r.Name, "name", "Tên dự án").MaxLength(r.Name, 200, "name", "Tên dự án").MaxLength(r.Description, 2000, "description", "Mô tả")
             .When(r.EndOn is { } e && r.StartOn is { } s && e < s, "endOn", "Ngày kết thúc trước ngày bắt đầu")
             .When(r.BudgetManDays is < 0 or > 100_000, "budgetManDays", "Ngân sách ngày công không hợp lệ")
-            .When(r.Kind == ProjectKind.Client && r.SalesContractId is null, "salesContractId", "Dự án làm cho khách cần gắn hợp đồng bán");
+            .When(r.Kind == ProjectKind.Client && ContractIdsOf(r).Count == 0, "salesContractIds", "Dự án làm cho khách cần gắn ít nhất một hợp đồng bán");
         if (!v.Has("code") && await db.Projects.AnyAsync(p => p.Code == code && p.Id != selfId, ct)) v.Add("code", "Mã dự án đã tồn tại");
-        if (r.SalesContractId is { } cid && await sales.GetAsync(cid, ct) is null) v.Add("salesContractId", "Hợp đồng bán không tồn tại");
+        var ids = ContractIdsOf(r);
+        if (ids.Count > 0)
+        {
+            var found = (await sales.GetManyAsync(ids, ct)).ToDictionary(c => c.Id);
+            if (ids.Any(x => !found.ContainsKey(x))) v.Add("salesContractIds", "Có hợp đồng bán không tồn tại");
+            // Một hợp đồng chỉ thuộc một dự án (chủ dự án chốt 2026-11-08).
+            var taken = await db.ProjectContracts.AsNoTracking().Where(x => ids.Contains(x.ContractId) && x.ProjectId != selfId).Select(x => x.ContractId).ToListAsync(ct);
+            if (taken.Count > 0)
+            {
+                var codes = string.Join(", ", taken.Select(t => found.TryGetValue(t, out var c) ? c.Code : "?"));
+                v.Add("salesContractIds", $"Hợp đồng {codes} đã gắn với dự án khác");
+            }
+        }
         return v;
     }
+
+    /// <summary>Hợp đồng gửi lên (dự án nội bộ → không có hợp đồng).</summary>
+    private static List<Guid> ContractIdsOf(UpsertProject r) => r.Kind == ProjectKind.Client ? (r.SalesContractIds ?? []).Distinct().ToList() : [];
 
     private static async Task<Results<Created<Guid>, ValidationProblem, ProblemHttpResult>> CreateAsync(UpsertProject r, ClaimsPrincipal user, ProjectsDbContext db,
         ProjectAccess access, IEmployeeDirectory dir, ISalesContractsLookup sales, INotifier notifier, ProjectClock clock, CancellationToken ct)
@@ -127,7 +190,7 @@ internal static class ProjectEndpoints
         var p = new Project
         {
             Code = r.Code.Trim().ToUpperInvariant(), Name = r.Name.Trim(), Description = Clean(r.Description), Kind = r.Kind, Status = ProjectStatus.Active,
-            DepartmentId = r.DepartmentId, BusinessLineId = r.BusinessLineId, SalesContractId = r.SalesContractId, StartOn = r.StartOn ?? clock.Today, EndOn = r.EndOn,
+            DepartmentId = r.DepartmentId, BusinessLineId = r.BusinessLineId, StartOn = r.StartOn ?? clock.Today, EndOn = r.EndOn,
             BudgetManDays = r.BudgetManDays, CreatedAt = now, CreatedByName = v.Name,
         };
         if (v.Employee is { } me) p.Members.Add(new ProjectMember { EmployeeId = me.Id, Role = ProjectMemberRole.Manager, AddedAt = now });
@@ -135,8 +198,9 @@ internal static class ProjectEndpoints
         if (p.Members.Count == 0) return new Validation().Add("memberIds", "Tài khoản không có hồ sơ: chọn ít nhất một thành viên (sẽ là quản lý dự án)").Problem();
         if (v.Employee is null) p.Members[0].Role = ProjectMemberRole.Manager;
         db.Projects.Add(p);
+        foreach (var cid in ContractIdsOf(r)) db.ProjectContracts.Add(new ProjectContract { ProjectId = p.Id, ContractId = cid, LinkedAt = now });
         try { await db.SaveChangesAsync(ct); }
-        catch (DbUpdateException) { return new Validation().Add("code", "Mã dự án đã tồn tại").Problem(); }
+        catch (DbUpdateException) { return new Validation().Add("code", "Mã dự án đã tồn tại hoặc hợp đồng vừa được gắn với dự án khác").Problem(); }
         await NotifyAddedAsync(notifier, dir, p, memberIds, v, ct);
         return TypedResults.Created($"/api/projects/{p.Id}", p.Id);
     }
@@ -150,12 +214,30 @@ internal static class ProjectEndpoints
         if (!v.CanManage(id)) return Forbidden("Chỉ quản lý dự án hoặc HR được sửa dự án");
         var val = await ValidateAsync(r, id, db, sales, ct);
         if (r.Code.Trim().ToUpperInvariant() != p.Code) val.Add("code", "Không đổi mã dự án (mã đã dùng trong số hiệu tài liệu)");
+        // Bỏ hợp đồng mà mốc của dự án đang gắn đợt thu của nó → chặn (đổi / bỏ đợt thu ở mốc trước).
+        var newIds = ContractIdsOf(r);
+        var links = await db.ProjectContracts.Where(x => x.ProjectId == id).ToListAsync(ct);
+        var removed = links.Where(l => !newIds.Contains(l.ContractId)).ToList();
+        if (removed.Count > 0)
+        {
+            var used = (await db.Milestones.AsNoTracking().Where(m => m.ProjectId == id && m.InstallmentId != null).Select(m => m.InstallmentId!.Value).ToListAsync(ct)).ToHashSet();
+            foreach (var l in removed)
+                if ((await sales.InstallmentsAsync(l.ContractId, ct)).Any(i => used.Contains(i.Id)))
+                {
+                    val.Add("salesContractIds", $"Hợp đồng {(await sales.GetAsync(l.ContractId, ct))?.Code} đang gắn với mốc nghiệm thu — bỏ đợt thu ở mốc trước");
+                    break;
+                }
+        }
         if (val.Failed) return val.Problem();
+        db.ProjectContracts.RemoveRange(removed);
+        foreach (var cid in newIds.Where(c => links.All(l => l.ContractId != c)))
+            db.ProjectContracts.Add(new ProjectContract { ProjectId = id, ContractId = cid, LinkedAt = clock.Now });
         p.Name = r.Name.Trim(); p.Description = Clean(r.Description); p.Kind = r.Kind; p.DepartmentId = r.DepartmentId; p.BusinessLineId = r.BusinessLineId;
-        p.SalesContractId = r.SalesContractId; p.StartOn = r.StartOn ?? p.StartOn; p.EndOn = r.EndOn; p.BudgetManDays = r.BudgetManDays; p.UpdatedAt = clock.Now;
+        p.StartOn = r.StartOn ?? p.StartOn; p.EndOn = r.EndOn; p.BudgetManDays = r.BudgetManDays; p.UpdatedAt = clock.Now;
         if (r.Status != p.Status) p.ClosedOn = r.Status == ProjectStatus.Closed ? clock.Today : null;
         p.Status = r.Status;
-        await db.SaveChangesAsync(ct);
+        try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateException) { return new Validation().Add("salesContractIds", "Hợp đồng vừa được gắn với dự án khác").Problem(); }
         return TypedResults.NoContent();
     }
 
@@ -227,13 +309,21 @@ internal static class ProjectEndpoints
         var v = await access.ViewerAsync(user, ct);
         var p = await db.Projects.AsNoTracking().Include(x => x.Members).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (p is null || !v.CanSee(id)) return TypedResults.NotFound();
-        if (!v.CanManage(id)) return Forbidden("Chỉ quản lý dự án hoặc HR được phân bổ");
         var month = EffortRules.MonthStart(r.Month);
+        // Tháng đã chốt: chỉ HR / Quản trị tài chính (kể cả khi không quản lý dự án). Tháng chưa chốt: quản lý dự án / HR.
+        if (await db.Freezes.AnyAsync(f => f.Month == month && f.FrozenAt >= p.CreatedAt, ct))
+        {
+            if (!v.IsHr && !v.FinanceAdmin) return Forbidden($"Phân bổ tháng {month:MM/yyyy} đã chốt — chỉ HR hoặc Quản trị tài chính sửa được");
+        }
+        else if (!v.CanManage(id)) return Forbidden("Chỉ quản lý dự án hoặc HR được phân bổ");
         var val = new Validation();
         var emps = await access.EmployeesAsync(ct);
         foreach (var it in r.Items ?? [])
         {
-            if (!p.Members.Any(m => m.EmployeeId == it.EmployeeId)) { val.Add("items", "Có người không phải thành viên dự án"); continue; }
+            // Người đã rời dự án nhưng còn dòng % của tháng này (tháng đã chốt) vẫn sửa được.
+            if (!p.Members.Any(m => m.EmployeeId == it.EmployeeId)
+                && !await db.Allocations.AnyAsync(a => a.ProjectId == id && a.EmployeeId == it.EmployeeId && a.Month == month, ct))
+            { val.Add("items", "Có người không phải thành viên dự án"); continue; }
             if (it.Percent is not { } pct) continue;
             var others = await db.Allocations.Where(a => a.EmployeeId == it.EmployeeId && a.Month == month && a.ProjectId != id).SumAsync(a => a.Percent, ct);
             if (EffortRules.CheckTotal(pct, others) is { } err) val.Add("items", $"{(emps.TryGetValue(it.EmployeeId, out var e) ? e.FullName : "?")}: {err}");
@@ -255,36 +345,24 @@ internal static class ProjectEndpoints
     /// Từ ngày bắt đầu dự án đến tháng hiện tại (hoặc ngày kết thúc / đóng), tối đa 24 tháng gần nhất.
     /// </summary>
     private static async Task<Results<Ok<EffortDto>, NotFound, ProblemHttpResult>> EffortAsync(Guid id, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
-        IAttendanceReports attendance, ProjectClock clock, CancellationToken ct)
+        EffortCalculator calc, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var p = await db.Projects.AsNoTracking().Include(x => x.Members).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (p is null || !v.CanSee(id)) return TypedResults.NotFound();
         if (!v.CanManage(id) && !v.FinanceView) return Forbidden("Chỉ quản lý dự án, HR hoặc Ban giám đốc xem ngày công");
-        var start = p.StartOn ?? clock.DateOf(p.CreatedAt);
-        var end = new[] { clock.Today, p.EndOn ?? DateOnly.MaxValue, p.ClosedOn ?? DateOnly.MaxValue }.Min();
-        var months = end < start ? [] : EffortRules.Months(start, end);
-        var memberIds = p.Members.Select(m => m.EmployeeId).ToList();
-        var explicitRows = await db.Allocations.AsNoTracking().Where(a => memberIds.Contains(a.EmployeeId) && months.Contains(a.Month)).ToListAsync(ct);
-        // Dự án đang chạy mà mỗi thành viên tham gia (để chia đều khi chưa đặt tay).
-        var memberships = await db.Members.AsNoTracking().Where(m => memberIds.Contains(m.EmployeeId)).Select(m => new { m.EmployeeId, m.ProjectId }).ToListAsync(ct);
-        var projIds = memberships.Select(m => m.ProjectId).Distinct().ToList();
-        var spans = await db.Projects.AsNoTracking().Where(x => projIds.Contains(x.Id)).Select(x => new { x.Id, x.StartOn, x.EndOn, x.ClosedOn, x.CreatedAt }).ToListAsync(ct);
-        var cells = new List<EffortCell>();
-        foreach (var month in months)
-        {
-            var sheets = await attendance.MonthAsync(memberIds, month, ct);
-            foreach (var eid in memberIds)
-            {
-                var present = sheets.TryGetValue(eid, out var s) ? s.Totals.PresentDays : 0;
-                var activeCount = memberships.Where(m => m.EmployeeId == eid).Select(m => spans.First(x => x.Id == m.ProjectId))
-                    .Count(x => EffortRules.ActiveIn(month, x.StartOn ?? clock.DateOf(x.CreatedAt), x.EndOn, x.ClosedOn));
-                var ex = explicitRows.FirstOrDefault(a => a.ProjectId == id && a.EmployeeId == eid && a.Month == month);
-                var pct = EffortRules.Percent(ex?.Percent, activeCount);
-                cells.Add(new EffortCell(eid, month, present, pct, ex is not null, EffortRules.ManDays(present, pct)));
-            }
-        }
-        return TypedResults.Ok(new EffortDto(months, await MembersAsync(p, access, ct), cells, cells.Sum(c => c.ManDays), p.BudgetManDays));
+        var rows = await calc.ComputeAsync([p], ct);
+        var cells = rows.Select(r => new EffortCell(r.EmployeeId, r.Month, r.PresentDays, r.Percent, r.Explicit, r.ManDays)).ToList();
+        var months = calc.MonthsOf(p);
+        var frozen = await db.Freezes.AsNoTracking().Where(f => months.Contains(f.Month) && f.FrozenAt >= p.CreatedAt).Select(f => f.Month).ToListAsync(ct);
+        // Thành viên hiện tại + người đã rời nhưng còn ngày công ở tháng đã chốt.
+        var members = await MembersAsync(p, access, ct);
+        var emps = await access.EmployeesAsync(ct);
+        foreach (var eid in cells.Select(c => c.EmployeeId).Distinct().Where(e => members.All(m => m.EmployeeId != e)))
+            members.Add(emps.TryGetValue(eid, out var e) ? new MemberDto(eid, e.Code, $"{e.FullName} (đã rời dự án)", null, ProjectMemberRole.Member, e.IsActive)
+                : new MemberDto(eid, null, "(không rõ)", null, ProjectMemberRole.Member, false));
+        return TypedResults.Ok(new EffortDto(months, members, cells, cells.Sum(c => c.ManDays), p.BudgetManDays, frozen, v.IsHr || v.FinanceAdmin));
+
     }
 
     private static async Task<Results<Ok<IReadOnlyList<SalesContractRef>>, ProblemHttpResult>> SalesContractsAsync(ClaimsPrincipal user, ProjectAccess access,
@@ -299,7 +377,7 @@ internal static class ProjectEndpoints
         ProjectsDbContext db, ISalesContractsLookup sales, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
-        var projectIds = await db.Projects.Where(p => p.SalesContractId == contractId).Select(p => p.Id).ToListAsync(ct);
+        var projectIds = await db.ProjectContracts.Where(x => x.ContractId == contractId).Select(x => x.ProjectId).ToListAsync(ct);
         if (!projectIds.Any(v.CanSee)) return Forbidden("Hợp đồng này không gắn với dự án bạn tham gia");
         return TypedResults.Ok(await sales.InstallmentsAsync(contractId, ct));
     }

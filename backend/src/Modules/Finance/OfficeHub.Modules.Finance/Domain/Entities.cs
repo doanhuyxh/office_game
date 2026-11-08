@@ -69,6 +69,8 @@ public sealed class LedgerEntry
     public Guid? ToAccountId { get; set; }
     public Guid? CategoryId { get; set; }
     public Guid? BusinessLineId { get; set; }
+    /// <summary>Dự án (module Projects) — thu / chi trực tiếp của dự án, vào báo cáo lãi / lỗ dự án. Không FK chéo schema. Chuyển quỹ: luôn null.</summary>
+    public Guid? ProjectId { get; set; }
     public string? Counterparty { get; set; }
     public string? Description { get; set; }
     /// <summary>Số hoá đơn VAT (chỉ ghi lại, hệ thống không phát hành hoá đơn).</summary>
@@ -96,6 +98,8 @@ public sealed class ExpenseRequest
     public string? Payee { get; set; }
     public Guid? CategoryId { get; set; }
     public Guid? BusinessLineId { get; set; }
+    /// <summary>Chi cho dự án (module Projects) → dòng chi khi "Đã chi" mang theo dự án.</summary>
+    public Guid? ProjectId { get; set; }
     public DateOnly? NeededBy { get; set; }
     public ExpenseStatus Status { get; set; }
     public Guid? ApprovalRequestId { get; set; }

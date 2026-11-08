@@ -57,6 +57,7 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
             e.Property(x => x.CreatedByName).HasMaxLength(200);
             e.HasIndex(x => new { x.Date, x.CreatedAt }).HasDatabaseName("ix_entries_date");
             e.HasIndex(x => x.AccountId).HasDatabaseName("ix_entries_account");
+            e.HasIndex(x => x.ProjectId).HasDatabaseName("ix_entries_project").HasFilter("\"ProjectId\" IS NOT NULL");
             // Một nguồn (vd đề nghị chi) chỉ có một dòng sổ còn hiệu lực → bấm "Đã chi" hai lần không ghi trùng.
             e.HasIndex(x => new { x.SourceType, x.SourceId }).IsUnique().HasDatabaseName("ux_entries_source")
                 .HasFilter("\"SourceId\" IS NOT NULL AND \"Status\" = 'Active'");

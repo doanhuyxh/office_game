@@ -12,10 +12,13 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { projectApi } from '../../api/project.api';
 import { useProjectMutation, useSalesContractSearch } from '../../hooks/useProjects';
-import type { IProject, IProjectRequest, ProjectKind, ProjectStatus } from '../../types/project.types';
+import type { IProject, IProjectRequest, ISalesContractRef, ProjectKind, ProjectStatus } from '../../types/project.types';
 import { PROJECT_KIND, PROJECT_STATUS } from '../../utils/labels';
 
-/** Tạo / sửa dự án. Làm cho khách → gắn hợp đồng bán (tìm theo số / tên / khách). Mã không đổi sau khi tạo (dùng trong mã việc + số hiệu tài liệu). */
+/**
+ * Tạo / sửa dự án. Làm cho khách → gắn một hoặc nhiều hợp đồng bán (tìm theo số / tên / khách); một hợp đồng chỉ thuộc một dự án.
+ * Mã không đổi sau khi tạo (dùng trong mã việc + số hiệu tài liệu).
+ */
 export function ProjectFormDialog({ open, project, onClose, onCreated }: { open: boolean; project?: IProject | null; onClose: () => void; onCreated?: (id: string) => void }) {
   const employees = useEmployees().data ?? [];
   const departments = useDepartments().data ?? [];
@@ -23,6 +26,7 @@ export function ProjectFormDialog({ open, project, onClose, onCreated }: { open:
   const [f, setF] = useState<IProjectRequest>({ code: '', name: '', kind: 'Internal' });
   const [members, setMembers] = useState<string[]>([]);
   const [q, setQ] = useState('');
+  const [picked, setPicked] = useState<ISalesContractRef[]>([]);
   const search = useDebounce(q, 300);
   const contracts = useSalesContractSearch(search, open && f.kind === 'Client').data ?? [];
   const save = useProjectMutation((b: IProjectRequest) => projectApi.save(project?.id, b));
@@ -30,15 +34,15 @@ export function ProjectFormDialog({ open, project, onClose, onCreated }: { open:
     if (!open) return;
     save.reset();
     const p = project;
-    setF(p ? { code: p.code, name: p.name, kind: p.kind, description: p.description ?? '', departmentId: p.departmentId, businessLineId: p.businessLineId, salesContractId: p.contract?.id ?? null,
+    setF(p ? { code: p.code, name: p.name, kind: p.kind, description: p.description ?? '', departmentId: p.departmentId, businessLineId: p.businessLineId, salesContractIds: p.contracts.map((c) => c.id),
       startOn: p.startOn ?? '', endOn: p.endOn ?? '', budgetManDays: p.budgetManDays, status: p.status }
-      : { code: '', name: '', kind: 'Internal', description: '', departmentId: null, businessLineId: null, salesContractId: null, startOn: todayVn(), endOn: '', budgetManDays: null, status: 'Active' });
-    setMembers([]); setQ('');
+      : { code: '', name: '', kind: 'Internal', description: '', departmentId: null, businessLineId: null, salesContractIds: [], startOn: todayVn(), endOn: '', budgetManDays: null, status: 'Active' });
+    setMembers([]); setQ(''); setPicked(p?.contracts ?? []);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [open, project?.id]);
   const errors = fieldErrors(save.error);
   const set = <K extends keyof IProjectRequest>(k: K, v: IProjectRequest[K]) => setF((x) => ({ ...x, [k]: v }));
-  const picked = project?.contract && f.salesContractId === project.contract.id ? project.contract : contracts.find((c) => c.id === f.salesContractId);
+  const pick = (next: ISalesContractRef[]) => { setPicked(next); set('salesContractIds', next.map((c) => c.id)); };
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
@@ -48,7 +52,7 @@ export function ProjectFormDialog({ open, project, onClose, onCreated }: { open:
         </DialogHeader>
         <form className="grid gap-3" onSubmit={(e) => {
           e.preventDefault();
-          save.mutate({ ...f, startOn: f.startOn || null, endOn: f.endOn || null, description: f.description || null, salesContractId: f.kind === 'Client' ? f.salesContractId : null,
+          save.mutate({ ...f, startOn: f.startOn || null, endOn: f.endOn || null, description: f.description || null, salesContractIds: f.kind === 'Client' ? f.salesContractIds : [],
             memberIds: project ? undefined : members }, {
             onSuccess: (id) => { toast.success('Đã lưu dự án'); onClose(); if (!project && typeof id === 'string') onCreated?.(id); },
             onError: (err) => !Object.keys(fieldErrors(err)).length && toast.error(errorMessage(err)),
@@ -67,21 +71,19 @@ export function ProjectFormDialog({ open, project, onClose, onCreated }: { open:
           </div>
           {f.kind === 'Client' && (
             <div className="grid gap-2 rounded-lg border p-3">
-              <div className="text-sm font-medium">Hợp đồng bán *</div>
-              {picked ? (
-                <div className="flex items-center justify-between gap-2 text-sm"><span><b>{picked.code}</b> · {picked.title} · {picked.customerName}</span>
-                  <Button type="button" size="sm" variant="ghost" onClick={() => set('salesContractId', null)}>Đổi</Button></div>
-              ) : (
-                <>
-                  <Input placeholder="Tìm số hợp đồng, tên, khách…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Tìm hợp đồng" />
-                  <div className="grid max-h-40 gap-1 overflow-y-auto">
-                    {contracts.map((c) => <button key={c.id} type="button" className="rounded-md px-2 py-1 text-left text-sm hover:bg-muted" onClick={() => set('salesContractId', c.id)}>
-                      <b>{c.code}</b> · {c.title} <span className="text-muted-foreground">— {c.customerName}</span></button>)}
-                    {contracts.length === 0 && <p className="text-xs text-muted-foreground">Không có hợp đồng đang hiệu lực khớp</p>}
-                  </div>
-                </>
-              )}
-              {errors.salesContractId && <p className="text-xs text-destructive">{errors.salesContractId}</p>}
+              <div className="text-sm font-medium">Hợp đồng bán * <span className="font-normal text-muted-foreground">— một dự án có thể có nhiều hợp đồng</span></div>
+              {picked.map((c) => (
+                <div key={c.id} className="flex items-center justify-between gap-2 text-sm" data-testid="picked-contract"><span><b>{c.code}</b> · {c.title} · {c.customerName}</span>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => pick(picked.filter((x) => x.id !== c.id))}>Bỏ</Button></div>
+              ))}
+              <Input placeholder="Tìm số hợp đồng, tên, khách để thêm…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Tìm hợp đồng" />
+              <div className="grid max-h-40 gap-1 overflow-y-auto">
+                {contracts.filter((c) => !picked.some((x) => x.id === c.id)).map((c) => (
+                  <button key={c.id} type="button" className="rounded-md px-2 py-1 text-left text-sm hover:bg-muted" onClick={() => pick([...picked, c])}>
+                    <b>{c.code}</b> · {c.title} <span className="text-muted-foreground">— {c.customerName}</span></button>))}
+                {contracts.length === 0 && <p className="text-xs text-muted-foreground">Không có hợp đồng đang hiệu lực khớp</p>}
+              </div>
+              {errors.salesContractIds && <p className="text-xs text-destructive">{errors.salesContractIds}</p>}
             </div>
           )}
           <div className="grid grid-cols-3 gap-3">

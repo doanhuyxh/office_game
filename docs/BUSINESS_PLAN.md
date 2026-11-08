@@ -1,6 +1,6 @@
 # Kế hoạch: Kinh doanh, Dự án, Tài chính (dòng tiền)
 
-> **Trạng thái: ĐÃ DUYỆT 2026-11-08** (chủ dự án trả lời mục 10). Giai đoạn 1 đang làm: **xong** quyền tài chính theo chức vụ + Finance lõi (quỹ, sổ thu chi, khoá sổ, đề nghị chi — [.agent/business/finance.md](../.agent/business/finance.md)); **xong** Sales (khách hàng, cơ hội, hợp đồng bán, lịch thu, công nợ, ghi nhận thu → sổ — [.agent/business/sales.md](../.agent/business/sales.md)); **còn** báo giá (mẫu Word + duyệt giảm giá), phụ lục hợp đồng, chứng từ / Excel tài chính. **Giai đoạn 2a xong** (module Projects — [.agent/business/projects.md](../.agent/business/projects.md)): dự án tách khỏi Documents, thành viên + phân bổ, mốc ↔ đợt thu, công việc, ngày công. **Còn 2b**: chi phí nhân công từ lương + lãi / lỗ dự án; yêu cầu thay đổi (CR). Sau khi chủ dự án duyệt, mỗi module khi làm xong sẽ có tài liệu thật trong `.agent/business/` và dòng trong bảng định tuyến `AGENTS.md`; file này chỉ là kế hoạch.
+> **Trạng thái: ĐÃ DUYỆT 2026-11-08** (chủ dự án trả lời mục 10). Giai đoạn 1 đang làm: **xong** quyền tài chính theo chức vụ + Finance lõi (quỹ, sổ thu chi, khoá sổ, đề nghị chi — [.agent/business/finance.md](../.agent/business/finance.md)); **xong** Sales (khách hàng, cơ hội, hợp đồng bán, lịch thu, công nợ, ghi nhận thu → sổ — [.agent/business/sales.md](../.agent/business/sales.md)); **còn** báo giá (mẫu Word + duyệt giảm giá), phụ lục hợp đồng, chứng từ / Excel tài chính. **Giai đoạn 2a xong** (module Projects — [.agent/business/projects.md](../.agent/business/projects.md)): dự án tách khỏi Documents, thành viên + phân bổ, mốc ↔ đợt thu, công việc, ngày công. **2b-1 xong** (2026-11-08 — [.agent/business/projects-finance.md](../.agent/business/projects-finance.md)): nhiều hợp đồng / dự án (một hợp đồng chỉ một dự án), chốt phân bổ hằng tháng, chi phí nhân công từ lương, thu / chi gắn dự án, lãi / lỗ (doanh thu sau thuế, VAT là chi phí, không phân bổ chi phí chung). **Còn 2b-2**: yêu cầu thay đổi (CR) + phụ lục hợp đồng bán. Sau khi chủ dự án duyệt, mỗi module khi làm xong sẽ có tài liệu thật trong `.agent/business/` và dòng trong bảng định tuyến `AGENTS.md`; file này chỉ là kế hoạch.
 
 ## 0. Bối cảnh và các điều chủ dự án đã chốt (2026-11-08)
 
@@ -102,7 +102,7 @@ Quyền ở Sales: ai thuộc phòng gắn mảng Outsource / Kênh MXH (hoặc 
 ## 4. Giai đoạn 2 — Dự án outsource (module `Projects`)
 
 - **Chuyển quyền sở hữu dự án** từ module Documents sang `Projects` (giữ nguyên Id). Documents đọc dự án qua `Projects.Contracts` (`IProjectDirectory`), kho tài liệu dự án giữ như cũ. Migration chép dữ liệu một lần + kiểm tra ranh giới module.
-- Dự án gắn **hợp đồng bán** (1 hợp đồng → 1 hoặc nhiều dự án), mảng, quản lý dự án, ngày bắt đầu / kết thúc dự kiến, **ngân sách ngày công**.
+- Dự án gắn **hợp đồng bán** (chủ dự án chốt 2026-11-08: **1 dự án → nhiều hợp đồng, 1 hợp đồng → 1 dự án**), mảng, quản lý dự án, ngày bắt đầu / kết thúc dự kiến, **ngân sách ngày công**.
 - **Mốc nghiệm thu** gắn đợt thu: quản lý dự án bấm "Đã nghiệm thu" (kèm biên bản) → đợt thu tương ứng chuyển **Đến hạn** + báo kế toán.
 - **Công việc**: kanban (Cần làm / Đang làm / Chờ review / Xong), người làm, hạn, ước lượng ngày, bình luận, đính kèm, nhắc quá hạn.
 - **Yêu cầu thay đổi (CR)**: ghi phát sinh → nếu tính tiền thì tạo phụ lục hợp đồng + đợt thu mới.

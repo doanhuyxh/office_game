@@ -24,9 +24,12 @@ public sealed class ProjectsModule : IModule
         services.AddModuleDbContext<ProjectsDbContext>(config, ProjectsDbContext.Schema);
         services.AddSingleton<ProjectClock>();
         services.AddScoped<ProjectAccess>();
+        services.AddScoped<EffortCalculator>();
+        services.AddScoped<ProjectFinance>();
         services.AddScoped<IProjectDirectory, ProjectDirectory>();
         services.AddHostedService<ProjectsMigrator>();
         services.AddHostedService<TaskReminderJob>();
+        services.AddHostedService<AllocationFreezeJob>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder api)

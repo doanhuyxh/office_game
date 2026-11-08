@@ -15,7 +15,7 @@ public static class EffortRules
     /// <summary>% mặc định khi quản lý dự án chưa đặt: chỉ ở 1 dự án đang chạy trong tháng → 100; ở n dự án → chia đều (làm tròn 2 số).</summary>
     public static decimal DefaultPercent(int activeProjectsInMonth) => activeProjectsInMonth <= 1 ? 100 : Math.Round(100m / activeProjectsInMonth, 2);
 
-    public static decimal Percent(int? explicitPercent, int activeProjectsInMonth) => explicitPercent ?? DefaultPercent(activeProjectsInMonth);
+    public static decimal Percent(decimal? explicitPercent, int activeProjectsInMonth) => explicitPercent ?? DefaultPercent(activeProjectsInMonth);
 
     public static decimal ManDays(decimal presentDays, decimal percent) => Math.Round(presentDays * percent / 100m, 2);
 
@@ -35,9 +35,12 @@ public static class EffortRules
     }
 
     /// <summary>Tổng % một người ở mọi dự án trong một tháng không được vượt 100 (chỉ tính % đã đặt tay).</summary>
-    public static string? CheckTotal(int newPercent, int otherProjectsExplicitSum) =>
+    public static string? CheckTotal(decimal newPercent, decimal otherProjectsExplicitSum) =>
         newPercent is < 0 or > 100 ? "Phân bổ từ 0 đến 100 %"
-        : newPercent + otherProjectsExplicitSum > 100 ? $"Tổng phân bổ tháng này vượt 100 % (dự án khác đã {otherProjectsExplicitSum} %)" : null;
+        : newPercent + otherProjectsExplicitSum > 100 ? $"Tổng phân bổ tháng này vượt 100 % (dự án khác đã {otherProjectsExplicitSum:0.##} %)" : null;
+
+    /// <summary>Tháng đã chốt phân bổ (đầu tháng sau): tháng trước tháng hiện tại.</summary>
+    public static DateOnly MonthToFreeze(DateOnly today) => MonthStart(today).AddMonths(-1);
 
     public static string TaskCode(string projectCode, int number) => $"{projectCode}-{number}";
 

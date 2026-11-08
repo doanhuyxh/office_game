@@ -15,12 +15,13 @@ import { errorMessage } from '@/utils/errors';
 import { useProject } from '../../hooks/useProjects';
 import { PROJECT_KIND, PROJECT_STATUS } from '../../utils/labels';
 import { EffortPanel } from '../effort-panel';
+import { FinancialsPanel } from '../financials-panel';
 import { MembersPanel } from '../members-panel';
 import { MilestonesPanel } from '../milestones-panel';
 import { ProjectFormDialog } from '../project-form-dialog';
 import { TaskBoard } from '../task-board';
 
-/** /projects/$projectId: Công việc · Mốc nghiệm thu · Thành viên · Ngày công (quản lý dự án / HR / Ban giám đốc). */
+/** /projects/$projectId: Công việc · Mốc nghiệm thu · Thành viên · Ngày công (quản lý dự án / HR / Ban giám đốc) · Tài chính (chỉ quyền Xem tài chính). */
 export function ProjectDetailPage() {
   const { projectId } = useParams({ strict: false }) as { projectId: string };
   const { data: d, isLoading, error } = useProject(projectId);
@@ -28,7 +29,7 @@ export function ProjectDetailPage() {
   const me = useMe();
   const myEmployeeId = (useEmployees().data ?? []).find((e) => e.userId === me.data?.id)?.id ?? null;
   const canEffort = !!d && (d.project.canManage || finance.view);
-  const [tab, setTab] = useTabParam('tasks', ['tasks', 'milestones', 'members', ...(canEffort ? ['effort'] : [])]);
+  const [tab, setTab] = useTabParam('tasks', ['tasks', 'milestones', 'members', ...(canEffort ? ['effort'] : []), ...(finance.view ? ['finance'] : [])]);
   const [editing, setEditing] = useState(false);
   if (isLoading) return <Spinner />;
   if (error || !d) return <div className="grid gap-2"><p className="text-sm text-destructive">{errorMessage(error, 'Không tìm thấy dự án')}</p><Link to={PATHS.projects} className="text-sm underline">← Danh sách dự án</Link></div>;
@@ -41,7 +42,7 @@ export function ProjectDetailPage() {
           <Link to={PATHS.projects} className="flex items-center gap-1 text-xs text-muted-foreground hover:underline"><ArrowLeft className="size-3" /> Dự án</Link>
           <div className="flex flex-wrap items-center gap-2 text-lg font-semibold">{p.name} <span className="text-sm font-normal text-muted-foreground">{p.code}</span>
             <StatusBadge tone={PROJECT_STATUS[p.status].tone}>{PROJECT_STATUS[p.status].label}</StatusBadge></div>
-          <div className="text-sm text-muted-foreground">{PROJECT_KIND[p.kind]}{p.contract && ` · HĐ ${p.contract.code} · ${p.contract.customerName}`}{p.departmentName && ` · ${p.departmentName}`}
+          <div className="text-sm text-muted-foreground">{PROJECT_KIND[p.kind]}{p.contracts.length > 0 && ` · HĐ ${p.contracts.map((c) => c.code).join(', ')} · ${[...new Set(p.contracts.map((c) => c.customerName))].join(', ')}`}{p.departmentName && ` · ${p.departmentName}`}
             {p.startOn && ` · ${fmtDate(p.startOn)}${p.endOn ? ` → ${fmtDate(p.endOn)}` : ''}`}</div>
           {p.description && <p className="max-w-3xl whitespace-pre-wrap text-sm">{p.description}</p>}
         </div>
@@ -57,12 +58,14 @@ export function ProjectDetailPage() {
             <TabsTrigger value="milestones">Mốc ({p.milestonesAccepted}/{p.milestonesOpen + p.milestonesAccepted})</TabsTrigger>
             <TabsTrigger value="members">Thành viên ({p.memberCount})</TabsTrigger>
             {canEffort && <TabsTrigger value="effort">Ngày công</TabsTrigger>}
+            {finance.view && <TabsTrigger value="finance">Tài chính</TabsTrigger>}
           </TabsList>
         </PageToolbar>
         <TabsContent value="tasks" className="mt-4"><TaskBoard d={d} myEmployeeId={myEmployeeId} /></TabsContent>
         <TabsContent value="milestones" className="mt-4"><MilestonesPanel d={d} /></TabsContent>
         <TabsContent value="members" className="mt-4"><MembersPanel d={d} /></TabsContent>
         {canEffort && <TabsContent value="effort" className="mt-4"><EffortPanel d={d} /></TabsContent>}
+        {finance.view && <TabsContent value="finance" className="mt-4"><FinancialsPanel d={d} /></TabsContent>}
       </Tabs>
       <ProjectFormDialog open={editing} project={p} onClose={() => setEditing(false)} />
     </div>

@@ -2,7 +2,7 @@ import { http, httpPost, pageQs } from '@/services/api-client';
 import type { IPaged, IPageQuery } from '@/types/api';
 import type {
   ExpenseStatus, IAccount, IAccountRequest, ICategory, ICategoryRequest, IEntry, IEntryFilter, IEntryRequest, IExpense, IExpenseRequest, ILine, ILineRequest,
-  IOverview, IPayExpense,
+  IOverview, IPayExpense, IProjectOption,
 } from '../types/finance.types';
 
 const base = '/api/finance';
@@ -16,6 +16,7 @@ export const financeKeys = {
   accounts: ['finance', 'accounts'] as const,
   lines: ['finance', 'lines'] as const,
   categories: ['finance', 'categories'] as const,
+  projects: ['finance', 'projects'] as const,
   lock: ['finance', 'lock'] as const,
   entries: (f: IEntryFilter, q: IPageQuery) => ['finance', 'entries', f, q] as const,
   expenses: (scope: 'mine' | 'all', status: ExpenseStatus | undefined, q: IPageQuery) => ['finance', 'expenses', scope, status, q] as const,
@@ -28,6 +29,7 @@ export const financeApi = {
   lines: () => http<ILine[]>(`${base}/lines`),
   saveLine: (id: string | undefined, b: ILineRequest): Promise<unknown> => (id ? send<void>('PUT', `${base}/lines/${id}`, b) : httpPost<string>(`${base}/lines`, b)),
   categories: () => http<ICategory[]>(`${base}/categories`),
+  projects: () => http<IProjectOption[]>(`${base}/projects`),
   saveCategory: (id: string | undefined, b: ICategoryRequest): Promise<unknown> => (id ? send<void>('PUT', `${base}/categories/${id}`, b) : httpPost<string>(`${base}/categories`, b)),
   lock: () => http<{ lockedThrough: string | null }>(`${base}/lock`),
   setLock: (lockedThrough: string | null) => send<void>('PUT', `${base}/lock`, { lockedThrough }),

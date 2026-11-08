@@ -94,6 +94,9 @@ namespace OfficeHub.Modules.Finance.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Reason")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -192,6 +195,9 @@ namespace OfficeHub.Modules.Finance.Infrastructure.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
 
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid?>("SourceId")
                         .HasColumnType("uuid");
 
@@ -226,6 +232,10 @@ namespace OfficeHub.Modules.Finance.Infrastructure.Migrations
                     b.HasIndex("BusinessLineId");
 
                     b.HasIndex("CategoryId");
+
+                    b.HasIndex("ProjectId")
+                        .HasDatabaseName("ix_entries_project")
+                        .HasFilter("\"ProjectId\" IS NOT NULL");
 
                     b.HasIndex("ToAccountId");
 

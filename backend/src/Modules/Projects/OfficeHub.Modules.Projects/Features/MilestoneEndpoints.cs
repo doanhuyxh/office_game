@@ -16,7 +16,7 @@ public sealed record MilestoneDto(Guid Id, int Order, string Title, DateOnly? Du
 public sealed record UpsertMilestone(string Title, DateOnly? DueOn = null, Guid? InstallmentId = null, string? Note = null);
 public sealed record AcceptMilestone(DateOnly AcceptedOn, string? Note = null);
 
-/// <summary>Mốc nghiệm thu. Gắn đợt thu của hợp đồng bán của dự án; nghiệm thu → đợt thu đến hạn (module Sales báo kế toán + người phụ trách HĐ).</summary>
+/// <summary>Mốc nghiệm thu. Gắn đợt thu của một trong các hợp đồng bán của dự án; nghiệm thu → đợt thu đến hạn (module Sales báo kế toán + người phụ trách HĐ).</summary>
 internal static class MilestoneEndpoints
 {
     public static void Map(RouteGroupBuilder g)
@@ -30,7 +30,7 @@ internal static class MilestoneEndpoints
     internal static async Task<List<MilestoneDto>> ListForAsync(Project p, ProjectsDbContext db, ISalesContractsLookup sales, CancellationToken ct)
     {
         var rows = await db.Milestones.AsNoTracking().Where(m => m.ProjectId == p.Id).OrderBy(m => m.Order).ToListAsync(ct);
-        var inst = p.SalesContractId is { } cid ? (await sales.InstallmentsAsync(cid, ct)).ToDictionary(i => i.Id) : [];
+        var inst = (await ProjectEndpoints.InstallmentsOfAsync(db, sales, p.Id, ct)).ToDictionary(i => i.Id);
         var tasks = await db.Tasks.AsNoTracking().Where(t => t.ProjectId == p.Id && t.MilestoneId != null).Select(t => new { t.MilestoneId, t.State }).ToListAsync(ct);
         return rows.Select(m =>
         {
@@ -45,10 +45,11 @@ internal static class MilestoneEndpoints
         var v = new Validation().Required(r.Title, "title", "Tên mốc").MaxLength(r.Title, 200, "title", "Tên mốc").MaxLength(r.Note, 1000, "note", "Ghi chú");
         if (r.InstallmentId is { } iid)
         {
-            if (p.SalesContractId is not { } cid) v.Add("installmentId", "Dự án chưa gắn hợp đồng bán");
+            var all = await ProjectEndpoints.InstallmentsOfAsync(db, sales, p.Id, ct);
+            if (all.Count == 0 && !await db.ProjectContracts.AnyAsync(x => x.ProjectId == p.Id, ct)) v.Add("installmentId", "Dự án chưa gắn hợp đồng bán");
             else
             {
-                var inst = (await sales.InstallmentsAsync(cid, ct)).FirstOrDefault(i => i.Id == iid);
+                var inst = all.FirstOrDefault(i => i.Id == iid);
                 if (inst is null) v.Add("installmentId", "Đợt thu không thuộc hợp đồng của dự án");
                 else if (inst.Cancelled) v.Add("installmentId", "Đợt thu đã huỷ");
                 else if (await db.Milestones.AnyAsync(m => m.InstallmentId == iid && m.Id != selfId, ct)) v.Add("installmentId", "Đợt thu đã gắn với mốc khác");

@@ -21,6 +21,7 @@ export const useOverview = (enabled: boolean) => useQuery({ queryKey: financeKey
 export const useAccounts = (enabled = true) => useQuery({ queryKey: financeKeys.accounts, queryFn: financeApi.accounts, enabled });
 export const useLines = () => useQuery({ queryKey: financeKeys.lines, queryFn: financeApi.lines, staleTime: 5 * 60_000 });
 export const useCategories = () => useQuery({ queryKey: financeKeys.categories, queryFn: financeApi.categories, staleTime: 5 * 60_000 });
+export const useFinanceProjects = (enabled = true) => useQuery({ queryKey: financeKeys.projects, queryFn: financeApi.projects, enabled, staleTime: 60_000 });
 export const useLock = (enabled: boolean) => useQuery({ queryKey: financeKeys.lock, queryFn: financeApi.lock, enabled });
 export const useEntries = (f: IEntryFilter, q: IPageQuery) =>
   useQuery({ queryKey: financeKeys.entries(f, q), queryFn: () => financeApi.entries(f, q), placeholderData: (prev) => prev });

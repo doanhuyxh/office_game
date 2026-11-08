@@ -7,6 +7,8 @@
     <ProjectReference Include="..\..\Notification\OfficeHub.Modules.Notification.Contracts\OfficeHub.Modules.Notification.Contracts.csproj" />
     <ProjectReference Include="..\..\Attendance\OfficeHub.Modules.Attendance.Contracts\OfficeHub.Modules.Attendance.Contracts.csproj" />
     <ProjectReference Include="..\..\Sales\OfficeHub.Modules.Sales.Contracts\OfficeHub.Modules.Sales.Contracts.csproj" />
+    <ProjectReference Include="..\..\Finance\OfficeHub.Modules.Finance.Contracts\OfficeHub.Modules.Finance.Contracts.csproj" />
+    <ProjectReference Include="..\..\Payroll\OfficeHub.Modules.Payroll.Contracts\OfficeHub.Modules.Payroll.Contracts.csproj" />
     <ProjectReference Include="..\..\Documents\OfficeHub.Modules.Documents.Contracts\OfficeHub.Modules.Documents.Contracts.csproj" />
   </ItemGroup>
 

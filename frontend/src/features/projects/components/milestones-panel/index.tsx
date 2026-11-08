@@ -10,7 +10,7 @@ import { fmtDate, todayVn } from '@/features/finance';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { projectApi } from '../../api/project.api';
 import { useInstallments, useProjectMutation } from '../../hooks/useProjects';
-import type { IMilestone, IMilestoneRequest, IProjectDetail } from '../../types/project.types';
+import type { IMilestone, IMilestoneRequest, IProjectDetail, ISalesContractRef } from '../../types/project.types';
 
 const onErr = (err: unknown) => !Object.keys(fieldErrors(err)).length && toast.error(errorMessage(err));
 
@@ -24,7 +24,7 @@ export function MilestonesPanel({ d }: { d: IProjectDetail }) {
   return (
     <div className="grid gap-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{p.contract ? `Gắn đợt thu của HĐ ${p.contract.code}: nghiệm thu mốc → đợt thu đến hạn, kế toán được báo.` : 'Dự án nội bộ — mốc chỉ để theo dõi tiến độ.'}</p>
+        <p className="text-sm text-muted-foreground">{p.contracts.length ? `Gắn đợt thu của HĐ ${p.contracts.map((c) => c.code).join(', ')}: nghiệm thu mốc → đợt thu đến hạn, kế toán được báo.` : 'Dự án nội bộ — mốc chỉ để theo dõi tiến độ.'}</p>
         {canEdit && <Button size="sm" variant="outline" onClick={() => setEdit(null)}><Plus /> Thêm mốc</Button>}
       </div>
       {d.milestones.length === 0 && <p className="text-sm text-muted-foreground">Chưa có mốc.</p>}
@@ -44,15 +44,16 @@ export function MilestonesPanel({ d }: { d: IProjectDetail }) {
           </div>}
         </div>
       ))}
-      <MilestoneDialog projectId={p.id} contractId={p.contract?.id} milestone={edit} used={d.milestones.filter((m) => m.installmentId).map((m) => m.installmentId!)} onClose={() => setEdit(undefined)} />
+      <MilestoneDialog projectId={p.id} contracts={p.contracts} milestone={edit} used={d.milestones.filter((m) => m.installmentId).map((m) => m.installmentId!)} onClose={() => setEdit(undefined)} />
       <AcceptDialog milestone={accepting} onClose={() => setAccepting(null)} />
     </div>
   );
 }
 
-function MilestoneDialog({ projectId, contractId, milestone, used, onClose }: { projectId: string; contractId?: string; milestone: IMilestone | null | undefined; used: string[]; onClose: () => void }) {
+function MilestoneDialog({ projectId, contracts, milestone, used, onClose }: { projectId: string; contracts: ISalesContractRef[]; milestone: IMilestone | null | undefined; used: string[]; onClose: () => void }) {
   const open = milestone !== undefined;
-  const installments = (useInstallments(open ? contractId : null).data ?? []).filter((i) => !i.cancelled && (!used.includes(i.id) || i.id === milestone?.installmentId));
+  const code = (id: string) => contracts.find((c) => c.id === id)?.code;
+  const installments = (useInstallments(open && contracts.length ? projectId : null).data ?? []).filter((i) => !i.cancelled && (!used.includes(i.id) || i.id === milestone?.installmentId));
   const [f, setF] = useState<IMilestoneRequest>({ title: '' });
   const save = useProjectMutation((b: IMilestoneRequest): Promise<unknown> => (milestone ? projectApi.updateMilestone(milestone.id, b) : projectApi.addMilestone(projectId, b)));
   useEffect(() => { if (open) { save.reset(); setF(milestone ? { title: milestone.title, dueOn: milestone.dueOn ?? '', installmentId: milestone.installmentId, note: milestone.note ?? '' } : { title: '', dueOn: '', installmentId: null, note: '' }); }
@@ -65,8 +66,8 @@ function MilestoneDialog({ projectId, contractId, milestone, used, onClose }: { 
         <form className="grid gap-3" onSubmit={(e) => { e.preventDefault(); save.mutate({ ...f, dueOn: f.dueOn || null, note: f.note || null }, { onSuccess: () => { toast.success('Đã lưu mốc'); onClose(); }, onError: onErr }); }}>
           <FormField id="ms-title" label="Tên mốc *" required autoFocus maxLength={200} placeholder="Bàn giao MVP" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} error={errors.title} />
           <FormField id="ms-due" label="Ngày dự kiến" type="date" value={f.dueOn ?? ''} onChange={(e) => setF({ ...f, dueOn: e.target.value })} />
-          {contractId && <SelectField id="ms-inst" label="Đợt thu gắn với mốc" allowEmpty emptyLabel="— Không gắn —" value={f.installmentId ?? null} onChange={(v) => setF({ ...f, installmentId: v })}
-            options={installments.map((i) => ({ value: i.id, label: `${i.title} (hạn ${fmtDate(i.dueOn)})` }))} error={errors.installmentId} />}
+          {contracts.length > 0 && <SelectField id="ms-inst" label="Đợt thu gắn với mốc" allowEmpty emptyLabel="— Không gắn —" value={f.installmentId ?? null} onChange={(v) => setF({ ...f, installmentId: v })}
+            options={installments.map((i) => ({ value: i.id, label: `${contracts.length > 1 ? `HĐ ${code(i.contractId)} · ` : ''}${i.title} (hạn ${fmtDate(i.dueOn)})` }))} error={errors.installmentId} />}
           <FormField id="ms-note" label="Ghi chú" maxLength={1000} value={f.note ?? ''} onChange={(e) => setF({ ...f, note: e.target.value })} />
           <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" disabled={save.isPending}>Lưu</Button></DialogFooter>
         </form>

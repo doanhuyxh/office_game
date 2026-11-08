@@ -33,8 +33,6 @@ public sealed class Project
     public Guid? DepartmentId { get; set; }
     /// <summary>Mảng kinh doanh (module Finance) — để báo cáo lãi / lỗ theo mảng.</summary>
     public Guid? BusinessLineId { get; set; }
-    /// <summary>Hợp đồng bán (module Sales). Mốc nghiệm thu chỉ gắn được đợt thu của hợp đồng này.</summary>
-    public Guid? SalesContractId { get; set; }
     public DateOnly? StartOn { get; set; }
     public DateOnly? EndOn { get; set; }
     public DateOnly? ClosedOn { get; set; }
@@ -54,14 +52,40 @@ public sealed class ProjectMember
     public DateTimeOffset AddedAt { get; set; }
 }
 
-/// <summary>% thời gian một thành viên dành cho dự án trong một tháng (quản lý dự án đặt). Không có → mặc định (<see cref="EffortRules.DefaultPercent"/>).</summary>
+/// <summary>
+/// Hợp đồng bán (module Sales) của dự án. Chủ dự án chốt 2026-11-08: một dự án có nhiều hợp đồng, một hợp đồng chỉ thuộc một dự án (unique ContractId).
+/// Mốc nghiệm thu chỉ gắn được đợt thu của các hợp đồng này.
+/// </summary>
+public sealed class ProjectContract
+{
+    public Guid ProjectId { get; set; }
+    public Guid ContractId { get; set; }
+    public DateTimeOffset LinkedAt { get; set; }
+}
+
+/// <summary>
+/// % thời gian một thành viên dành cho dự án trong một tháng (quản lý dự án đặt). Không có → mặc định (<see cref="EffortRules.DefaultPercent"/>).
+/// Tháng đã chốt (<see cref="AllocationFreeze"/>) → chỉ dòng ở đây được tính (job ghi % mặc định thành dòng thật khi chốt).
+/// </summary>
 public sealed class Allocation
 {
     public Guid ProjectId { get; set; }
     public Guid EmployeeId { get; set; }
     /// <summary>Ngày 1 của tháng.</summary>
     public DateOnly Month { get; set; }
-    public int Percent { get; set; }
+    /// <summary>0–100, 2 chữ số thập phân (mặc định chia đều có thể lẻ, vd 33,33).</summary>
+    public decimal Percent { get; set; }
+}
+
+/// <summary>
+/// Tháng đã chốt phân bổ (<c>AllocationFreezeJob</c>, đầu tháng sau): % mặc định đã ghi thành dòng <see cref="Allocation"/> → thêm / bỏ thành viên về sau
+/// không làm đổi ngày công / chi phí của tháng này. Sửa % tháng đã chốt: chỉ HR hoặc quyền Quản trị tài chính.
+/// </summary>
+public sealed class AllocationFreeze
+{
+    /// <summary>Ngày 1 của tháng.</summary>
+    public DateOnly Month { get; set; }
+    public DateTimeOffset FrozenAt { get; set; }
 }
 
 /// <summary>Mốc nghiệm thu. Gắn đợt thu (module Sales) → nghiệm thu xong thì đợt thu đến hạn.</summary>

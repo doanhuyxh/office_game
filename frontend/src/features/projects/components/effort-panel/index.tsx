@@ -15,6 +15,7 @@ const n = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 2 })
 /**
  * Ngày công = ngày có mặt (chấm công) × % phân bổ. % chưa đặt → mặc định (1 dự án 100 %, n dự án chia đều).
  * Quản lý dự án sửa % của tháng đang chọn; tổng % đặt tay của một người ở mọi dự án ≤ 100. Không có tiền ở đây.
+ * Tháng đã chốt (đầu tháng sau, 🔒): % mặc định đã ghi cố định — chỉ HR / Quản trị tài chính sửa.
  */
 export function EffortPanel({ d }: { d: IProjectDetail }) {
   const p = d.project;
@@ -29,6 +30,8 @@ export function EffortPanel({ d }: { d: IProjectDetail }) {
   const cell = (eid: string, m: string) => data.cells.find((c) => c.employeeId === eid && c.month === m);
   const used = data.totalManDays, budget = data.budgetManDays;
   const errs = fieldErrors(save.error);
+  const frozen = (m: string) => data.frozenMonths.includes(m);
+  const canEditMonth = !!month && (frozen(month) ? data.canEditFrozen : p.canManage && p.status === 'Active');
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-4 text-sm">
@@ -39,7 +42,7 @@ export function EffortPanel({ d }: { d: IProjectDetail }) {
       <div className="overflow-x-auto rounded-xl border bg-card">
         <Table>
           <TableHeader><TableRow><TableHead>Thành viên</TableHead>
-            {data.months.map((m) => <TableHead key={m} className={`cursor-pointer text-right ${m === month ? 'text-primary underline' : ''}`} onClick={() => setMonth(m)}>{fmtMonth(m)}</TableHead>)}
+            {data.months.map((m) => <TableHead key={m} className={`cursor-pointer text-right ${m === month ? 'text-primary underline' : ''}`} onClick={() => setMonth(m)} title={frozen(m) ? 'Đã chốt phân bổ' : undefined}>{frozen(m) && '🔒 '}{fmtMonth(m)}</TableHead>)}
             <TableHead className="text-right">Tổng</TableHead></TableRow></TableHeader>
           <TableBody>
             {data.members.map((mb) => (
@@ -55,13 +58,16 @@ export function EffortPanel({ d }: { d: IProjectDetail }) {
           </TableBody>
         </Table>
       </div>
-      {p.canManage && p.status === 'Active' && month && (
+      {p.canManage && month && frozen(month) && !canEditMonth && (
+        <p className="text-sm text-muted-foreground">Tháng {fmtMonth(month)} đã chốt phân bổ — muốn sửa, nhờ HR hoặc người có quyền Quản trị tài chính.</p>
+      )}
+      {month && canEditMonth && (
         <div className="grid gap-2 rounded-xl border bg-card p-3">
-          <div className="text-sm font-medium">Phân bổ tháng {fmtMonth(month)} <span className="font-normal text-muted-foreground">— để trống = mặc định</span></div>
+          <div className="text-sm font-medium">Phân bổ tháng {fmtMonth(month)} <span className="font-normal text-muted-foreground">{frozen(month) ? '— tháng đã chốt, để trống = không tính' : '— để trống = mặc định'}</span></div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {data.members.map((mb) => { const c = cell(mb.employeeId, month); return (
               <label key={mb.employeeId} className="flex items-center justify-between gap-2 text-sm">{mb.fullName}
-                <span className="flex items-center gap-1"><Input className="w-20 text-right" type="number" min={0} max={100} aria-label={`% ${mb.fullName}`}
+                <span className="flex items-center gap-1"><Input className="w-20 text-right" type="number" min={0} max={100} step="0.01" aria-label={`% ${mb.fullName}`}
                   placeholder={c && !c.explicit ? String(c.percent) : ''} value={draft[mb.employeeId] ?? (c?.explicit ? String(c.percent) : '')}
                   onChange={(e) => setDraft({ ...draft, [mb.employeeId]: e.target.value })} />%</span>
               </label>); })}

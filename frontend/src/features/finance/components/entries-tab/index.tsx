@@ -63,7 +63,8 @@ export function EntriesTab({ creating, onCreatedClose }: { creating: boolean; on
                   {e.kind === 'Income' ? '+' : e.kind === 'Expense' ? '−' : ''}{formatMoney(e.amount)}
                 </TableCell>
                 <TableCell className="whitespace-nowrap">{e.accountName}{e.toAccountName && ` → ${e.toAccountName}`}</TableCell>
-                <TableCell className="text-sm">{e.categoryName ?? '—'}{e.businessLineName && <div className="text-xs text-muted-foreground">{e.businessLineName}</div>}</TableCell>
+                <TableCell className="text-sm">{e.categoryName ?? '—'}{e.businessLineName && <div className="text-xs text-muted-foreground">{e.businessLineName}</div>}
+                  {e.projectName && <div className="text-xs text-primary">Dự án {e.projectName}</div>}</TableCell>
                 <TableCell className="max-w-xs text-sm">
                   <div className="truncate" title={e.description ?? undefined}>{e.description ?? '—'}</div>
                   {(e.counterparty || e.invoiceNumber) && <div className="truncate text-xs text-muted-foreground">{[e.counterparty, e.invoiceNumber && `HĐ ${e.invoiceNumber}`].filter(Boolean).join(' · ')}</div>}

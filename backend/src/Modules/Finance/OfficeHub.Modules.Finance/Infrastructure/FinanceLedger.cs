@@ -2,16 +2,17 @@ using Microsoft.EntityFrameworkCore;
 using OfficeHub.Modules.Finance.Contracts;
 using OfficeHub.Modules.Finance.Domain;
 using OfficeHub.Modules.Finance.Features;
+using OfficeHub.Modules.Projects.Contracts;
 
 namespace OfficeHub.Modules.Finance.Infrastructure;
 
 /// <summary>Cài đặt <see cref="IFinanceLedger"/>: cùng quy tắc kiểm tra với màn ghi sổ (<see cref="LedgerEndpoints.ValidateAsync"/>).</summary>
-internal sealed class FinanceLedger(FinanceDbContext db, FinanceClock clock) : IFinanceLedger
+internal sealed class FinanceLedger(FinanceDbContext db, FinanceClock clock, IProjectDirectory projects) : IFinanceLedger
 {
     public async Task<LedgerWriteResult> RecordIncomeAsync(LedgerIncome x, CancellationToken ct = default)
     {
         var create = new CreateEntry(TxKind.Income, x.Date, x.Amount, x.AccountId, null, x.CategoryId, x.BusinessLineId, x.Counterparty, x.Description, x.InvoiceNumber);
-        var v = await LedgerEndpoints.ValidateAsync(create, db, clock, ct);
+        var v = await LedgerEndpoints.ValidateAsync(create, db, clock, projects, ct);
         if (v.Failed) return new LedgerWriteResult(null, v.Errors.ToDictionary(e => e.Key, e => e.Value[0]));
         if (await db.Entries.AnyAsync(e => e.SourceType == x.SourceType && e.SourceId == x.SourceId && e.Status == TxStatus.Active, ct))
             return new LedgerWriteResult(null, new Dictionary<string, string> { ["sourceId"] = "Khoản này đã được ghi sổ" });
@@ -34,5 +35,18 @@ internal sealed class FinanceLedger(FinanceDbContext db, FinanceClock clock) : I
         return await db.Entries.AsNoTracking()
             .Where(e => e.SourceType == sourceType && e.SourceId != null && sourceIds.Contains(e.SourceId.Value) && e.Status == TxStatus.Active)
             .ToDictionaryAsync(e => e.SourceId!.Value, e => e.Amount, ct);
+    }
+
+    public async Task<IReadOnlyList<ProjectLedgerRow>> ProjectTotalsAsync(IReadOnlyCollection<Guid> projectIds, CancellationToken ct = default)
+    {
+        if (projectIds.Count == 0) return [];
+        var rows = await db.Entries.AsNoTracking()
+            .Where(e => e.ProjectId != null && projectIds.Contains(e.ProjectId.Value) && e.Status == TxStatus.Active && e.Kind != TxKind.Transfer)
+            .Select(e => new { ProjectId = e.ProjectId!.Value, e.Date, e.Kind, e.CategoryId, e.Amount }).ToListAsync(ct);
+        var cats = await db.Categories.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Name, ct);
+        return rows.GroupBy(r => (r.ProjectId, Month: new DateOnly(r.Date.Year, r.Date.Month, 1), r.Kind, r.CategoryId))
+            .Select(g => new ProjectLedgerRow(g.Key.ProjectId, g.Key.Month, g.Key.Kind == TxKind.Income,
+                g.Key.CategoryId is { } c && cats.TryGetValue(c, out var n) ? n : null, g.Sum(x => x.Amount)))
+            .OrderBy(r => r.Month).ToList();
     }
 }

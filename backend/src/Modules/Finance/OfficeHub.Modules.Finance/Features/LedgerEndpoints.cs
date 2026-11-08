@@ -9,14 +9,15 @@ using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.Modules.Finance.Domain;
 using OfficeHub.Modules.Finance.Infrastructure;
 using OfficeHub.Modules.Organization.Contracts;
+using OfficeHub.Modules.Projects.Contracts;
 
 namespace OfficeHub.Modules.Finance.Features;
 
 public sealed record EntryDto(Guid Id, TxKind Kind, DateOnly Date, long Amount, Guid AccountId, string AccountName, Guid? ToAccountId, string? ToAccountName,
     Guid? CategoryId, string? CategoryName, Guid? BusinessLineId, string? BusinessLineName, string? Counterparty, string? Description, string? InvoiceNumber,
-    string? SourceType, Guid? SourceId, TxStatus Status, string? VoidReason, DateTimeOffset CreatedAt, string CreatedByName);
+    string? SourceType, Guid? SourceId, TxStatus Status, string? VoidReason, DateTimeOffset CreatedAt, string CreatedByName, Guid? ProjectId, string? ProjectName);
 public sealed record CreateEntry(TxKind Kind, DateOnly Date, long Amount, Guid AccountId, Guid? ToAccountId = null, Guid? CategoryId = null, Guid? BusinessLineId = null,
-    string? Counterparty = null, string? Description = null, string? InvoiceNumber = null);
+    string? Counterparty = null, string? Description = null, string? InvoiceNumber = null, Guid? ProjectId = null);
 public sealed record VoidEntry(string? Reason);
 public sealed record LineSummary(Guid? BusinessLineId, string Name, long Income, long Expense);
 public sealed record OverviewDto(long TotalBalance, List<AccountDto> Accounts, DateOnly MonthStart, long MonthIncome, long MonthExpense, List<LineSummary> ByLine,
@@ -31,6 +32,25 @@ internal static class LedgerEndpoints
         g.MapGet("/entries", ListAsync).RequireFinance(FinancePermission.View);
         g.MapPost("/entries", CreateAsync).RequireFinance(FinancePermission.Record);
         g.MapPost("/entries/{id:guid}/void", VoidAsync).RequireFinance(FinancePermission.Record);
+        g.MapGet("/projects", ProjectsAsync);
+    }
+
+    public sealed record ProjectOption(Guid Id, string Code, string Name);
+
+    /// <summary>
+    /// Dự án để gắn vào giao dịch / đề nghị chi: người có quyền Xem tài chính thấy mọi dự án đang chạy; người khác chỉ dự án mình là thành viên.
+    /// </summary>
+    private static async Task<Ok<List<ProjectOption>>> ProjectsAsync(ClaimsPrincipal user, IProjectDirectory projects, IFinanceAccess access, IEmployeeDirectory dir, CancellationToken ct)
+    {
+        var all = (await projects.ListAsync(ct)).Where(p => p.IsActive).ToList();
+        if (user.GetUserId() is not { } uid) return TypedResults.Ok(new List<ProjectOption>());
+        if (!(await access.GetAsync(uid, ct)).Has(FinancePermission.View))
+        {
+            var me = await dir.GetByUserIdAsync(uid, ct);
+            var mine = me is null ? new HashSet<Guid>() : (await projects.RolesOfAsync(me.Id, ct)).Keys.ToHashSet();
+            all = all.Where(p => mine.Contains(p.Id)).ToList();
+        }
+        return TypedResults.Ok(all.Select(p => new ProjectOption(p.Id, p.Code, p.Name)).ToList());
     }
 
     private static async Task<Ok<OverviewDto>> OverviewAsync(FinanceDbContext db, FinanceClock clock, CancellationToken ct)
@@ -49,8 +69,8 @@ internal static class LedgerEndpoints
             pending?.N ?? 0, pending?.S ?? 0, ready?.N ?? 0, ready?.S ?? 0, locked));
     }
 
-    private static async Task<Ok<PagedResult<EntryDto>>> ListAsync(FinanceDbContext db, DateOnly? from, DateOnly? to, TxKind? kind, Guid? accountId, Guid? lineId, Guid? categoryId,
-        bool? voided, string? search, int page, int? pageSize, CancellationToken ct)
+    private static async Task<Ok<PagedResult<EntryDto>>> ListAsync(FinanceDbContext db, IProjectDirectory projects, DateOnly? from, DateOnly? to, TxKind? kind, Guid? accountId,
+        Guid? lineId, Guid? categoryId, Guid? projectId, bool? voided, string? search, int page, int? pageSize, CancellationToken ct)
     {
         var q = db.Entries.AsNoTracking().AsQueryable();
         if (from is { } f) q = q.Where(e => e.Date >= f);
@@ -59,6 +79,7 @@ internal static class LedgerEndpoints
         if (accountId is { } a) q = q.Where(e => e.AccountId == a || e.ToAccountId == a);
         if (lineId is { } l) q = q.Where(e => e.BusinessLineId == l);
         if (categoryId is { } c) q = q.Where(e => e.CategoryId == c);
+        if (projectId is { } pj) q = q.Where(e => e.ProjectId == pj);
         q = voided == true ? q.Where(e => e.Status == TxStatus.Voided) : q.Where(e => e.Status == TxStatus.Active);
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -66,17 +87,18 @@ internal static class LedgerEndpoints
             q = q.Where(e => EF.Functions.ILike(e.Description ?? "", s) || EF.Functions.ILike(e.Counterparty ?? "", s) || EF.Functions.ILike(e.InvoiceNumber ?? "", s));
         }
         var paged = await q.OrderByDescending(e => e.Date).ThenByDescending(e => e.CreatedAt).ThenBy(e => e.Id).ToPagedAsync(page < 1 ? 1 : page, pageSize, ct);
-        var names = await FinanceQueries.NamesAsync(db, ct);
+        var names = await FinanceQueries.NamesAsync(db, projects, ct);
         return TypedResults.Ok(paged.Map(e => ToDto(e, names)));
     }
 
     internal static EntryDto ToDto(LedgerEntry e, FinanceQueries.Names n) => new(e.Id, e.Kind, e.Date, e.Amount, e.AccountId, n.Account(e.AccountId)!, e.ToAccountId, n.Account(e.ToAccountId),
         e.CategoryId, n.Category(e.CategoryId), e.BusinessLineId, n.Line(e.BusinessLineId), e.Counterparty, e.Description, e.InvoiceNumber, e.SourceType, e.SourceId,
-        e.Status, e.VoidReason, e.CreatedAt, e.CreatedByName);
+        e.Status, e.VoidReason, e.CreatedAt, e.CreatedByName, e.ProjectId, n.Project(e.ProjectId));
 
-    private static async Task<Results<Created<Guid>, ValidationProblem>> CreateAsync(CreateEntry r, ClaimsPrincipal user, FinanceDbContext db, FinanceClock clock, CancellationToken ct)
+    private static async Task<Results<Created<Guid>, ValidationProblem>> CreateAsync(CreateEntry r, ClaimsPrincipal user, FinanceDbContext db, FinanceClock clock,
+        IProjectDirectory projects, CancellationToken ct)
     {
-        var v = await ValidateAsync(r, db, clock, ct);
+        var v = await ValidateAsync(r, db, clock, projects, ct);
         if (v.Failed) return v.Problem();
         var e = Build(r, user, clock.Now);
         db.Entries.Add(e);
@@ -90,13 +112,13 @@ internal static class LedgerEndpoints
     internal static LedgerEntry Build(CreateEntry r, Guid userId, string userName, DateTimeOffset now) => new()
     {
         Kind = r.Kind, Date = r.Date, Amount = r.Amount, AccountId = r.AccountId, ToAccountId = r.Kind == TxKind.Transfer ? r.ToAccountId : null,
-        CategoryId = r.Kind == TxKind.Transfer ? null : r.CategoryId, BusinessLineId = r.BusinessLineId,
+        CategoryId = r.Kind == TxKind.Transfer ? null : r.CategoryId, BusinessLineId = r.BusinessLineId, ProjectId = r.Kind == TxKind.Transfer ? null : r.ProjectId,
         Counterparty = Clean(r.Counterparty), Description = Clean(r.Description), InvoiceNumber = Clean(r.InvoiceNumber),
         CreatedAt = now, CreatedByUserId = userId, CreatedByName = userName,
     };
 
     /// <summary>Quy tắc thuần (<see cref="LedgerRules.Validate"/>) + kiểm tra dữ liệu tham chiếu (quỹ / danh mục / mảng còn dùng, ngày không trước ngày đầu kỳ).</summary>
-    internal static async Task<Validation> ValidateAsync(CreateEntry r, FinanceDbContext db, FinanceClock clock, CancellationToken ct)
+    internal static async Task<Validation> ValidateAsync(CreateEntry r, FinanceDbContext db, FinanceClock clock, IProjectDirectory projects, CancellationToken ct)
     {
         var v = new Validation()
             .MaxLength(r.Counterparty, 200, "counterparty", "Đối tác").MaxLength(r.Description, 1000, "description", "Diễn giải").MaxLength(r.InvoiceNumber, 50, "invoiceNumber", "Số hoá đơn");
@@ -121,6 +143,11 @@ internal static class LedgerEndpoints
             else if (!LedgerRules.CategoryMatches(r.Kind, cat.Kind)) v.Add("categoryId", "Danh mục không cùng loại thu / chi");
         }
         if (r.BusinessLineId is { } lid && !await db.Lines.AnyAsync(x => x.Id == lid && x.IsActive, ct)) v.Add("businessLineId", "Mảng kinh doanh không tồn tại hoặc đã ngừng");
+        if (r.ProjectId is { } pid)
+        {
+            if (r.Kind == TxKind.Transfer) v.Add("projectId", "Chuyển quỹ không gắn dự án");
+            else if (await projects.GetAsync(pid, ct) is null) v.Add("projectId", "Dự án không tồn tại"); // dự án đã đóng vẫn ghi được (chi phí phát sinh muộn)
+        }
         return v;
     }
 
@@ -167,15 +194,17 @@ internal static class FinanceQueries
         }).ToList();
     }
 
-    public sealed class Names(Dictionary<Guid, string> accounts, Dictionary<Guid, string> categories, Dictionary<Guid, string> lines)
+    public sealed class Names(Dictionary<Guid, string> accounts, Dictionary<Guid, string> categories, Dictionary<Guid, string> lines, Dictionary<Guid, string> projects)
     {
+        public string? Project(Guid? id) => id is { } i && projects.TryGetValue(i, out var n) ? n : null;
         public string? Account(Guid? id) => id is { } i && accounts.TryGetValue(i, out var n) ? n : null;
         public string? Category(Guid? id) => id is { } i && categories.TryGetValue(i, out var n) ? n : null;
         public string? Line(Guid? id) => id is { } i && lines.TryGetValue(i, out var n) ? n : null;
     }
 
-    public static async Task<Names> NamesAsync(FinanceDbContext db, CancellationToken ct) => new(
+    public static async Task<Names> NamesAsync(FinanceDbContext db, IProjectDirectory projects, CancellationToken ct) => new(
         await db.Accounts.AsNoTracking().ToDictionaryAsync(x => x.Id, x => x.Name, ct),
         await db.Categories.AsNoTracking().ToDictionaryAsync(x => x.Id, x => x.Name, ct),
-        await db.Lines.AsNoTracking().ToDictionaryAsync(x => x.Id, x => x.Name, ct));
+        await db.Lines.AsNoTracking().ToDictionaryAsync(x => x.Id, x => x.Name, ct),
+        (await projects.ListAsync(ct)).ToDictionary(p => p.Id, p => $"{p.Code} · {p.Name}"));
 }

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectApi, projectKeys } from '../api/project.api';
+import type { ProjectStatus } from '../types/project.types';
 
 export const useProjectList = (mine: boolean) => useQuery({ queryKey: projectKeys.list(mine), queryFn: () => projectApi.list(mine) });
 export const useProject = (id: string) => useQuery({ queryKey: projectKeys.detail(id), queryFn: () => projectApi.get(id) });
@@ -9,8 +10,13 @@ export const useComments = (taskId: string | null) => useQuery({ queryKey: proje
 export const useEffort = (id: string, enabled: boolean) => useQuery({ queryKey: projectKeys.effort(id), queryFn: () => projectApi.effort(id), enabled });
 export const useSalesContractSearch = (search: string, enabled: boolean) =>
   useQuery({ queryKey: projectKeys.contracts(search), queryFn: () => projectApi.salesContracts(search), enabled });
-export const useInstallments = (contractId: string | null | undefined) =>
-  useQuery({ queryKey: projectKeys.installments(contractId ?? ''), queryFn: () => projectApi.installments(contractId!), enabled: !!contractId });
+/** Đợt thu của mọi hợp đồng gắn dự án (không có tiền). */
+export const useInstallments = (projectId: string | null | undefined) =>
+  useQuery({ queryKey: projectKeys.installments(projectId ?? ''), queryFn: () => projectApi.installments(projectId!), enabled: !!projectId });
+/** Lãi / lỗ — chỉ bật khi có quyền Xem tài chính (back-end trả 403 nếu không). */
+export const useFinancials = (id: string, enabled: boolean) => useQuery({ queryKey: projectKeys.financials(id), queryFn: () => projectApi.financials(id), enabled });
+export const useAllFinancials = (status: ProjectStatus | undefined, enabled: boolean) =>
+  useQuery({ queryKey: projectKeys.allFinancials(status), queryFn: () => projectApi.allFinancials(status), enabled });
 
 /** Ghi dữ liệu dự án → làm mới ['projects'] (+ ['documents'] vì kho dự án / thành viên, + ['sales'] vì nghiệm thu đổi hạn đợt thu). */
 export function useProjectMutation<A, R>(fn: (a: A) => Promise<R>) {

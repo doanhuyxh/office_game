@@ -9,17 +9,18 @@ import { Textarea } from '@/components/common/textarea';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { formatMoney } from '@/utils/money';
 import { financeApi } from '../../api/finance.api';
-import { useCategories, useFinanceMutation, useLines } from '../../hooks/useFinance';
+import { useCategories, useFinanceMutation, useFinanceProjects, useLines } from '../../hooks/useFinance';
 import type { IExpenseRequest } from '../../types/finance.types';
 import { groupDigits, parseMoney, todayVn } from '../../utils/labels';
 
-const empty = (): IExpenseRequest => ({ amount: 0, reason: '', payee: '', categoryId: null, businessLineId: null, neededBy: null });
+const empty = (): IExpenseRequest => ({ amount: 0, reason: '', payee: '', categoryId: null, businessLineId: null, neededBy: null, projectId: null });
 
 /** Gửi đề nghị chi (mọi nhân viên). Duyệt: quản lý trực tiếp → người có quyền Duyệt chi; kế toán chi sau khi duyệt. */
 export function ExpenseFormDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [f, setF] = useState<IExpenseRequest>(empty);
   const categories = (useCategories().data ?? []).filter((c) => c.isActive && c.kind === 'Expense');
   const lines = (useLines().data ?? []).filter((l) => l.isActive);
+  const projects = useFinanceProjects(open).data ?? [];
   const save = useFinanceMutation(financeApi.createExpense);
   useEffect(() => { if (open) { save.reset(); setF(empty()); } /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [open]);
   const errors = fieldErrors(save.error);
@@ -51,6 +52,8 @@ export function ExpenseFormDialog({ open, onClose }: { open: boolean; onClose: (
             <SelectField id="x-cat" label="Danh mục" allowEmpty value={f.categoryId ?? null} onChange={(v) => set('categoryId', v)} options={categories.map((c) => ({ value: c.id, label: c.name }))} error={errors.categoryId} />
             <SelectField id="x-line" label="Mảng kinh doanh" allowEmpty value={f.businessLineId ?? null} onChange={(v) => set('businessLineId', v)} options={lines.map((l) => ({ value: l.id, label: l.name }))} error={errors.businessLineId} />
           </div>
+          {projects.length > 0 && <SelectField id="x-project" label="Chi cho dự án" allowEmpty value={f.projectId ?? null} onChange={(v) => set('projectId', v)}
+            options={projects.map((p) => ({ value: p.id, label: `${p.code} · ${p.name}` }))} error={errors.projectId} />}
           <FormField id="x-needed" label="Cần chi trước ngày" type="date" min={todayVn()} value={f.neededBy ?? ''} onChange={(e) => set('neededBy', e.target.value)} error={errors.neededBy} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>

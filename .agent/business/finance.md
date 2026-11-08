@@ -34,7 +34,7 @@ Ghi / Duyệt / Quản trị **bao hàm Xem**. Mọi người đăng nhập đ�
 
 Token AI **không** gọi được `/api/finance/*` (ngoài allowlist `AccessTokenAuth`).
 
-**Cho module khác** (`OfficeHub.Modules.Finance.Contracts`): `IFinanceLedger.RecordIncomeAsync(LedgerIncome)` ghi một dòng THU (cùng `ValidateAsync` với màn ghi sổ; lỗi trả theo field, không ném; một nguồn chỉ một dòng hiệu lực) và `ActiveSourcesAsync(sourceType, ids)` cho biết dòng nào còn hiệu lực. Đang dùng: Sales ghi nhận thu (`sales_collection`) — [sales.md](sales.md).
+**Cho module khác** (`OfficeHub.Modules.Finance.Contracts`): `IFinanceLedger.RecordIncomeAsync(LedgerIncome)` ghi một dòng THU (cùng `ValidateAsync` với màn ghi sổ; lỗi trả theo field, không ném; một nguồn chỉ một dòng hiệu lực) và `ActiveSourcesAsync(sourceType, ids)` cho biết dòng nào còn hiệu lực. Đang dùng: Sales ghi nhận thu (`sales_collection`) — [sales.md](sales.md). `ProjectTotalsAsync` (thu / chi gắn dự án theo tháng × danh mục) cho lãi / lỗ dự án. **Gắn dự án** (`ProjectId` trên dòng sổ + đề nghị chi, `GET /projects`, `/entries?projectId=`): [projects-finance.md](projects-finance.md).
 
 ## Quy tắc (`Domain/LedgerRules.cs`, test `tests/OfficeHub.Modules.Finance.Tests`)
 

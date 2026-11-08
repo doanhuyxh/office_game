@@ -82,17 +82,17 @@ Mọi seeder/migrator chỉ chạy migration khi `Database__MigrateOnStartup` kh
 
 Không transaction trải nhiều module (mỗi request gọi `SaveChangesAsync` riêng từng DbContext). Ví dụ cấp tài khoản: Identity tạo user → Organization ghi `UserId`; nếu bước 2 lỗi sẽ còn user mồ côi (cần xác nhận cách xử lý nếu xảy ra). Không audit log. Hàng đợi email thông báo nằm trong bảng `notifications.notifications` (cột `Email*`), không có outbox sự kiện giữa module.
 
-## Schema `projects` — `ProjectsDbContext` (migration `InitialProjects`)
+## Schema `projects` — `ProjectsDbContext` (migration `InitialProjects`, `ProjectContractsAndFreeze`)
 
-Bảng + index: [business/projects.md](business/projects.md#schema-projects-projectsdbcontext-migration-initialprojects). Dự án chép từ `documents.projects` (giữ Id) khi khởi động — bảng cũ giữ nguyên.
+Bảng + index: [business/projects.md](business/projects.md#schema-projects-projectsdbcontext-migration-initialprojects). Dự án chép từ `documents.projects` (giữ Id) khi khởi động — bảng cũ giữ nguyên. `ProjectContractsAndFreeze`: bảng `contracts` (thay cột `projects.SalesContractId`, chép dữ liệu trước khi xoá cột), `allocation_freezes`, `allocations.Percent` → `numeric(5,2)` — [business/projects-finance.md](business/projects-finance.md).
 
 ## Schema `sales` — `SalesDbContext` (migration `InitialSales`)
 
 Bảng + index: [business/sales.md](business/sales.md#schema-sales-salesdbcontext-migration-initialsales). `collections.LedgerEntryId` trỏ sang `finance.entries` **không** FK (ranh giới module).
 
-## Schema `finance` — `FinanceDbContext` (migration `InitialFinance`)
+## Schema `finance` — `FinanceDbContext` (migration `InitialFinance`, `AddProjectToEntries`)
 
-Bảng + index + seed: [business/finance.md](business/finance.md#schema-finance-financedbcontext-migration-initialfinance). Tiền `bigint` VND; dòng sổ không xoá (huỷ = `Status`).
+Bảng + index + seed: [business/finance.md](business/finance.md#schema-finance-financedbcontext-migration-initialfinance). Tiền `bigint` VND; dòng sổ không xoá (huỷ = `Status`). `AddProjectToEntries`: `entries.ProjectId` (index lọc khác null) + `expense_requests.ProjectId`, không FK sang schema `projects`.
 
 ## Schema `news` — `NewsDbContext` (migration `InitialNews`)
 

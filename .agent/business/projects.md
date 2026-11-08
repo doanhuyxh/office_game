@@ -2,7 +2,7 @@
 
 > Nguồn sự thật là code (`backend/src/Modules/Projects/`, `frontend/src/features/projects/`); nếu code khác tài liệu, tin code và sửa tài liệu. Kế hoạch: [docs/BUSINESS_PLAN.md](../../docs/BUSINESS_PLAN.md) giai đoạn 2. Về [README.md](README.md).
 
-Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsource là nhân viên → **ngày công tính theo chấm công** (không ghi giờ theo việc), chia theo % phân bổ; **quản lý dự án chỉ thấy ngày công, không thấy tiền**. Giai đoạn 2b (chưa làm): chi phí nhân công từ lương + lãi / lỗ dự án (chỉ quyền Xem tài chính).
+Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsource là nhân viên → **ngày công tính theo chấm công** (không ghi giờ theo việc), chia theo % phân bổ; **quản lý dự án chỉ thấy ngày công, không thấy tiền**. **Nhiều hợp đồng / dự án, chốt phân bổ hằng tháng, chi phí nhân công + lãi / lỗ (giai đoạn 2b)**: [projects-finance.md](projects-finance.md).
 
 ## Tách khỏi module Documents (2026-11-08)
 
@@ -28,12 +28,13 @@ Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsourc
 |---|---|---|
 | GET | `?mine&status` | HR / Xem tài chính thấy tất cả trừ khi `mine=true`. Kèm đếm việc (mở / xong / quá hạn), mốc, hợp đồng (số, tên, khách — **không tiền**) |
 | GET | `/{id}` | Dự án + thành viên + mốc |
-| POST / PUT | `/`, `/{id}` | `{ code (≤ 30, chữ không dấu / số / - _, viết hoa, duy nhất; **không đổi sau khi tạo**), name, kind: Internal/Client (Client bắt buộc `salesContractId`), description?, departmentId?, businessLineId?, startOn? (mặc định hôm nay), endOn?, budgetManDays?, status (PUT), memberIds (POST) }`. Đóng → `ClosedOn` |
+| POST / PUT | `/`, `/{id}` | `{ code (≤ 30, chữ không dấu / số / - _, viết hoa, duy nhất; **không đổi sau khi tạo**), name, kind: Internal/Client (Client bắt buộc ≥ 1 `salesContractIds` — một HĐ chỉ một dự án), description?, departmentId?, businessLineId?, startOn? (mặc định hôm nay), endOn?, budgetManDays?, status (PUT), memberIds (POST) }`. Đóng → `ClosedOn` |
 | POST / PUT / DELETE | `/{id}/members`, `/{id}/members/{employeeId}` | Thêm (chuông `project_member_added`, link `/projects/{id}`), đổi vai trò, bỏ |
-| PUT | `/{id}/allocations` | `{ month, items[{ employeeId, percent \| null }] }` — null = về mặc định; tổng % **đặt tay** của một người ở mọi dự án trong tháng ≤ 100 |
+| PUT | `/{id}/allocations` | `{ month, items[{ employeeId, percent \| null }] }` — null = về mặc định; tổng % **đặt tay** của một người ở mọi dự án trong tháng ≤ 100. Tháng đã chốt: chỉ HR / Quản trị tài chính |
 | GET | `/{id}/effort` | Từ tháng bắt đầu đến tháng hiện tại / kết thúc / đóng (≤ 24 tháng): mỗi người × tháng = ngày có mặt × % |
-| GET | `/sales-contracts?search` · `/sales-contracts/{id}/installments` | Chọn HĐ bán (manager / HR) · đợt thu của HĐ gắn với dự án mình thấy (không tiền) |
-| POST / PUT / DELETE | `/{id}/milestones`, `/milestones/{mid}` | Đợt thu phải thuộc HĐ của dự án, chưa huỷ, chưa gắn mốc khác. Mốc đã nghiệm thu: không xoá, không đổi đợt |
+| GET | `/sales-contracts?search` · `/sales-contracts/{id}/installments` · `/{id}/installments` | Chọn HĐ bán (manager / HR) · đợt thu của một HĐ / mọi HĐ của dự án mình thấy (không tiền) |
+| GET | `/{id}/financials`, `/financials` | Lãi / lỗ — chỉ Xem tài chính ([projects-finance.md](projects-finance.md)) |
+| POST / PUT / DELETE | `/{id}/milestones`, `/milestones/{mid}` | Đợt thu phải thuộc một HĐ của dự án, chưa huỷ, chưa gắn mốc khác. Mốc đã nghiệm thu: không xoá, không đổi đợt |
 | POST | `/milestones/{mid}/accept` | `{ acceptedOn (≤ hôm nay), note? }` → `ISalesContractsLookup.MarkAcceptedAsync`: hạn đợt thu sau ngày nghiệm thu thì **kéo về ngày nghiệm thu** (đặt lại mốc nhắc), báo kế toán + người phụ trách HĐ (`receivable_due`) |
 | GET / POST | `/{id}/tasks` | Mã `{MÃ DỰ ÁN}-{n}` (n tăng trong dự án, unique; trùng khi tạo đồng thời → thử lại). Người được giao phải là thành viên; mốc thuộc dự án |
 | GET | `/tasks/mine` | Việc chưa xong giao cho tôi, mọi dự án |
@@ -44,7 +45,7 @@ Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsourc
 
 - **Ngày công** = `TimesheetTotals.PresentDays` (module Attendance, `IAttendanceReports.MonthAsync`) × % phân bổ.
 - % mặc định khi chưa đặt tay: số dự án **đang chạy trong tháng** mà người đó là thành viên (theo bắt đầu / kết thúc / ngày đóng) — 1 → 100 %, n → 100 / n. Đặt 0 % = không tính.
-- Thành viên tính theo danh sách **hiện tại** (chưa lưu lịch sử vào / ra dự án).
+- Thành viên tính theo danh sách **hiện tại** ở tháng chưa chốt; tháng đã chốt chỉ tính dòng % đã lưu (job `AllocationFreezeJob` — [projects-finance.md](projects-finance.md)).
 - Việc quá hạn: hạn < hôm nay và chưa Xong.
 
 ## Nhắc (`TaskReminderJob`, mỗi giờ, sau 50 s)
@@ -53,8 +54,8 @@ Việc chưa xong có người làm, hạn ≤ hôm nay → chuông `project_tas
 
 ## Schema `projects` (`ProjectsDbContext`, migration `InitialProjects`)
 
-`projects` (`Code` unique ≤ 30, index HĐ bán), `members` (PK dự án + nhân viên, `Role` chuỗi), `allocations` (PK dự án + nhân viên + tháng), `milestones` (`InstallmentId` unique khi có), `tasks` (unique dự án + số; index người làm + trạng thái; FK mốc SetNull), `task_comments`. Không lưu tiền. `Project` có `[Audited]`.
+`projects` (`Code` unique ≤ 30), `contracts` (PK dự án + HĐ bán, `ContractId` unique — migration `ProjectContractsAndFreeze`), `members` (PK dự án + nhân viên, `Role` chuỗi), `allocations` (PK dự án + nhân viên + tháng, `Percent numeric(5,2)`), `allocation_freezes` (PK tháng), `milestones` (`InstallmentId` unique khi có), `tasks` (unique dự án + số; index người làm + trạng thái; FK mốc SetNull), `task_comments`. Không lưu tiền. `Project` có `[Audited]`.
 
 ## UI
 
-`/projects` (`ProjectsPage`): Việc của tôi, thẻ dự án (Của tôi / Tất cả tôi xem được, ẩn dự án đóng), "Dự án mới" (manager / HR / admin). `/projects/$projectId` (`ProjectDetailPage`, `?tab=`): Công việc (kanban 4 cột kéo thả, lọc việc của tôi, hộp thoại việc + bình luận) · Mốc (thêm / sửa / nghiệm thu) · Thành viên · Ngày công (bảng tháng × người, sửa % tháng đang chọn, thanh ngân sách). Nút "Tài liệu dự án" → `/documents?space=Project:{id}`.
+`/projects` (`ProjectsPage`): Việc của tôi, thẻ dự án (Của tôi / Tất cả tôi xem được, ẩn dự án đóng), "Dự án mới" (manager / HR / admin). `/projects/$projectId` (`ProjectDetailPage`, `?tab=`): Công việc (kanban 4 cột kéo thả, lọc việc của tôi, hộp thoại việc + bình luận) · Mốc (thêm / sửa / nghiệm thu) · Thành viên · Ngày công (bảng tháng × người, sửa % tháng đang chọn, 🔒 tháng đã chốt, thanh ngân sách) · Tài chính (chỉ Xem tài chính). Nút "Tài liệu dự án" → `/documents?space=Project:{id}`.

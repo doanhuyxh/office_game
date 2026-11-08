@@ -11,7 +11,17 @@ public interface IFinanceLedger
 
     /// <summary>Trong các SourceId đưa vào, những cái còn dòng sổ hiệu lực (chưa huỷ) → số tiền của dòng đó.</summary>
     Task<IReadOnlyDictionary<Guid, long>> ActiveSourcesAsync(string sourceType, IReadOnlyCollection<Guid> sourceIds, CancellationToken ct = default);
+
+    /// <summary>
+    /// Thu / chi trực tiếp gắn dự án (dòng còn hiệu lực, không tính chuyển quỹ), gộp theo dự án × tháng × thu/chi × danh mục — cho lãi / lỗ dự án.
+    /// CÓ SỐ TIỀN: chỉ gọi sau khi đã kiểm tra quyền Xem tài chính.
+    /// </summary>
+    Task<IReadOnlyList<ProjectLedgerRow>> ProjectTotalsAsync(IReadOnlyCollection<Guid> projectIds, CancellationToken ct = default);
 }
+
+/// <param name="Month">Ngày 1 của tháng.</param>
+/// <param name="CategoryName">null = chưa chọn danh mục.</param>
+public sealed record ProjectLedgerRow(Guid ProjectId, DateOnly Month, bool IsIncome, string? CategoryName, long Amount);
 
 public sealed record LedgerIncome(string SourceType, Guid SourceId, DateOnly Date, long Amount, Guid AccountId, Guid? CategoryId, Guid? BusinessLineId,
     string? Counterparty, string? Description, string? InvoiceNumber, Guid CreatedByUserId, string CreatedByName);

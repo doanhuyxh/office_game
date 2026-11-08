@@ -34,8 +34,9 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.Property<DateOnly>("Month")
                         .HasColumnType("date");
 
-                    b.Property<int>("Percent")
-                        .HasColumnType("integer");
+                    b.Property<decimal>("Percent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
 
                     b.HasKey("ProjectId", "EmployeeId", "Month");
 
@@ -43,6 +44,19 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .HasDatabaseName("ix_allocations_employee_month");
 
                     b.ToTable("allocations", "projects");
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.AllocationFreeze", b =>
+                {
+                    b.Property<DateOnly>("Month")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("FrozenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Month");
+
+                    b.ToTable("allocation_freezes", "projects");
                 });
 
             modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.Milestone", b =>
@@ -145,9 +159,6 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<Guid?>("SalesContractId")
-                        .HasColumnType("uuid");
-
                     b.Property<DateOnly?>("StartOn")
                         .HasColumnType("date");
 
@@ -165,10 +176,27 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("ux_projects_code");
 
-                    b.HasIndex("SalesContractId")
-                        .HasDatabaseName("ix_projects_contract");
-
                     b.ToTable("projects", "projects");
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.ProjectContract", b =>
+                {
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ContractId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("LinkedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ProjectId", "ContractId");
+
+                    b.HasIndex("ContractId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_contracts_contract");
+
+                    b.ToTable("contracts", "projects");
                 });
 
             modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.ProjectMember", b =>
@@ -313,6 +341,15 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.ProjectContract", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Projects.Domain.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

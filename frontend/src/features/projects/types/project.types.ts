@@ -1,4 +1,4 @@
-/** Khớp DTO module Projects. Không có số tiền (quản lý dự án chỉ xem ngày công). */
+/** Khớp DTO module Projects. Số tiền chỉ có ở IProjectFinancials (quyền Xem tài chính) — quản lý dự án chỉ xem ngày công. */
 export type ProjectKind = 'Internal' | 'Client';
 export type ProjectStatus = 'Active' | 'Closed';
 export type MemberRole = 'Member' | 'Manager';
@@ -10,7 +10,7 @@ export interface IInstallmentRef { id: string; contractId: string; title: string
 export interface IMember { employeeId: string; code: string | null; fullName: string; jobTitle: string | null; role: MemberRole; isActive: boolean }
 export interface IProject {
   id: string; code: string; name: string; description: string | null; kind: ProjectKind; status: ProjectStatus; departmentId: string | null; departmentName: string | null;
-  businessLineId: string | null; contract: ISalesContractRef | null; startOn: string | null; endOn: string | null; budgetManDays: number | null; myRole: MemberRole | null;
+  businessLineId: string | null; contracts: ISalesContractRef[]; startOn: string | null; endOn: string | null; budgetManDays: number | null; myRole: MemberRole | null;
   canManage: boolean; canWork: boolean; memberCount: number; tasks: { open: number; done: number; overdue: number }; milestonesOpen: number; milestonesAccepted: number; createdAt: string;
 }
 export interface IMilestone {
@@ -25,10 +25,27 @@ export interface ITask {
 }
 export interface IComment { id: string; content: string; authorName: string; createdAt: string }
 export interface IEffortCell { employeeId: string; month: string; presentDays: number; percent: number; explicit: boolean; manDays: number }
-export interface IEffort { months: string[]; members: IMember[]; cells: IEffortCell[]; totalManDays: number; budgetManDays: number | null }
+export interface IEffort {
+  months: string[]; members: IMember[]; cells: IEffortCell[]; totalManDays: number; budgetManDays: number | null;
+  /** Tháng đã chốt phân bổ — chỉ HR / Quản trị tài chính sửa (canEditFrozen). */
+  frozenMonths: string[]; canEditFrozen: boolean;
+}
+
+export interface IContractMoney {
+  id: string; code: string; title: string; customerName: string; status: string; valueBeforeTax: number; vatRate: number; totalValue: number; collected: number; outstanding: number;
+}
+export interface IMonthMoney { month: string; manDays: number; labor: number; laborEstimated: boolean; directExpense: number; otherIncome: number; collected: number }
+export interface ICategoryMoney { name: string; isIncome: boolean; amount: number }
+export interface IPersonMoney { employeeId: string; fullName: string; manDays: number; labor: number }
+/** Lãi / lỗ dự án (chỉ quyền Xem tài chính). Doanh thu = giá trị HĐ sau thuế, VAT là chi phí. people: chỉ Quản trị tài chính. */
+export interface IProjectFinancials {
+  projectId: string; code: string; name: string; status: ProjectStatus; kind: ProjectKind; revenue: number; vat: number; otherIncome: number; labor: number;
+  directExpense: number; profit: number; marginPercent: number | null; collected: number; outstanding: number; manDays: number; budgetManDays: number | null;
+  hasEstimate: boolean; contracts: IContractMoney[]; months: IMonthMoney[]; categories: ICategoryMoney[]; people: IPersonMoney[] | null;
+}
 
 export interface IProjectRequest {
-  code: string; name: string; kind: ProjectKind; description?: string | null; departmentId?: string | null; businessLineId?: string | null; salesContractId?: string | null;
+  code: string; name: string; kind: ProjectKind; description?: string | null; departmentId?: string | null; businessLineId?: string | null; salesContractIds?: string[];
   startOn?: string | null; endOn?: string | null; budgetManDays?: number | null; status?: ProjectStatus; memberIds?: string[];
 }
 export interface ITaskRequest {

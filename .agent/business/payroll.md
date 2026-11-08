@@ -45,6 +45,8 @@ Chủ dự án chốt 2026-11-06: **tính đầy đủ theo luật VN**, mọi t
 
 `/api/payroll` bị chặn với token AI (`AccessTokenAuth`) — lương không bao giờ ra MCP.
 
+**Cho module khác**: `Payroll.Contracts.IPayrollCosts.MonthCostsAsync` = Gross + BH phần công ty theo người × tháng (kỳ đã chốt → phiếu đã lưu; tháng đang chạy → `BuildAsync(assumeFullAttendance: true)` = lương hợp đồng đủ công; tháng đã qua chưa chốt → tính như bảng lương; hai trường hợp sau `Estimated`). Dùng cho chi phí nhân công dự án — [projects-finance.md](projects-finance.md).
+
 ## UI (`frontend/src/features/payroll/`)
 
 - `/payroll` (HR, menu Tổ chức → "Bảng lương"): tab **Kỳ lương** (tạo & tính, bảng tổng, bấm dòng → phiếu + khoản cộng/trừ, tính lại, Excel, chốt / mở lại), **Hồ sơ thuế**, **Thông số** (sửa + biểu thuế, lưu với ngày hiệu lực).

@@ -7,19 +7,21 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/common/tabs';
 import { Spinner } from '@/components/feedback/Spinner';
 import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
 import { useMe } from '@/features/auth';
-import { fmtDate } from '@/features/finance';
+import { fmtDate, useFinancePerms } from '@/features/finance';
 import { useMyTasks, useProjectList } from '../../hooks/useProjects';
 import { PROJECT_KIND, PROJECT_STATUS, TASK_STATE } from '../../utils/labels';
+import { ProfitTable } from '../profit-table';
 import { ProjectFormDialog } from '../project-form-dialog';
 
-/** Danh sách dự án (của tôi / tất cả với HR, Ban giám đốc) + việc được giao cho tôi ở mọi dự án. */
+/** Danh sách dự án (của tôi / tất cả với HR, Ban giám đốc) + việc được giao cho tôi ở mọi dự án · Lãi / lỗ (chỉ quyền Xem tài chính). */
 export function ProjectsPage() {
   const me = useMe();
   const roles = me.data?.roles ?? [];
   const canCreate = roles.some((r) => r === 'admin' || r === 'hr' || r === 'manager');
-  const [scope, setScope] = useState<'mine' | 'all'>('mine');
+  const finance = useFinancePerms();
+  const [scope, setScope] = useState<'mine' | 'all' | 'profit'>('mine');
   const [showClosed, setShowClosed] = useState(false);
-  const { data = [], isLoading } = useProjectList(scope === 'mine');
+  const { data = [], isLoading } = useProjectList(scope !== 'all');
   const myTasks = useMyTasks().data ?? [];
   const [creating, setCreating] = useState(false);
   const navigate = useNavigate();
@@ -28,10 +30,12 @@ export function ProjectsPage() {
     <div className="grid grid-cols-1 gap-4">
       <PageHeader title="Dự án" />
       <PageToolbar actions={canCreate && <Button size="sm" onClick={() => setCreating(true)}><Plus /> Dự án mới</Button>}>
-        <Tabs value={scope} onValueChange={(v) => setScope(v as 'mine' | 'all')}>
-          <TabsList><TabsTrigger value="mine">Của tôi</TabsTrigger><TabsTrigger value="all">Tất cả tôi xem được</TabsTrigger></TabsList>
+        <Tabs value={scope} onValueChange={(v) => setScope(v as 'mine' | 'all' | 'profit')}>
+          <TabsList><TabsTrigger value="mine">Của tôi</TabsTrigger><TabsTrigger value="all">Tất cả tôi xem được</TabsTrigger>
+            {finance.view && <TabsTrigger value="profit">Lãi / lỗ</TabsTrigger>}</TabsList>
         </Tabs>
       </PageToolbar>
+      {scope === 'profit' && finance.view ? <ProfitTable /> : <>
       {myTasks.length > 0 && (
         <div className="rounded-xl border bg-card p-3">
           <div className="mb-2 text-sm font-medium">Việc của tôi ({myTasks.length}) {myTasks.some((t) => t.overdue) && <StatusBadge tone="danger">{myTasks.filter((t) => t.overdue).length} quá hạn</StatusBadge>}</div>
@@ -56,7 +60,7 @@ export function ProjectsPage() {
                 <div><div className="text-xs text-muted-foreground">{p.code} · {PROJECT_KIND[p.kind]}</div><div className="font-semibold">{p.name}</div></div>
                 <StatusBadge tone={PROJECT_STATUS[p.status].tone}>{PROJECT_STATUS[p.status].label}</StatusBadge>
               </div>
-              {p.contract && <div className="text-xs text-muted-foreground">HĐ {p.contract.code} · {p.contract.customerName}</div>}
+              {p.contracts.length > 0 && <div className="text-xs text-muted-foreground">HĐ {p.contracts.map((c) => c.code).join(', ')} · {[...new Set(p.contracts.map((c) => c.customerName))].join(', ')}</div>}
               <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                 <span>{p.memberCount} thành viên</span>
                 <span>{p.tasks.open} việc mở · {p.tasks.done} xong</span>
@@ -68,6 +72,7 @@ export function ProjectsPage() {
           ))}
         </div>
       )}
+      </>}
       <ProjectFormDialog open={creating} onClose={() => setCreating(false)} onCreated={(id) => void navigate({ to: '/projects/$projectId', params: { projectId: id } })} />
     </div>
   );

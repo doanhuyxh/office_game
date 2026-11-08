@@ -21,6 +21,7 @@ public sealed class PayrollModule : IModule
         services.AddModuleDbContext<PayrollDbContext>(config, PayrollDbContext.Schema);
         services.AddFieldEncryption(config);
         services.AddScoped<PayrollService>();
+        services.AddScoped<OfficeHub.Modules.Payroll.Contracts.IPayrollCosts, PayrollCosts>();
         services.AddHostedService<PayrollMigrator>();
     }
 

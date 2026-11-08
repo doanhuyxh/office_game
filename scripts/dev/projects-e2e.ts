@@ -83,9 +83,9 @@ ok('Chuẩn bị hợp đồng bán 2 đợt', kc.status === 201, kc);
 const K = kc.body;
 
 // ---------- Tạo dự án ----------
-const base = { code: `app-${stamp}`, name: 'App đặt lịch', kind: 'Client', salesContractId: K, startOn: addDays(-40), budgetManDays: 60, memberIds: [Dev1.e.id] };
+const base = { code: `app-${stamp}`, name: 'App đặt lịch', kind: 'Client', salesContractIds: [K], startOn: addDays(-40), budgetManDays: 60, memberIds: [Dev1.e.id] };
 ok('Nhân viên thường không tạo được dự án → 403', (await json(Dev1.cookie, 'POST', '/api/projects', base)).status === 403);
-ok('Dự án cho khách mà không gắn hợp đồng → 400', (await json(PM.cookie, 'POST', '/api/projects', { ...base, salesContractId: null })).status === 400);
+ok('Dự án cho khách mà không gắn hợp đồng → 400', (await json(PM.cookie, 'POST', '/api/projects', { ...base, salesContractIds: [] })).status === 400);
 ok('Mã có dấu cách → 400', (await json(PM.cookie, 'POST', '/api/projects', { ...base, code: 'A B' })).status === 400);
 const pr = await json(PM.cookie, 'POST', '/api/projects', base);
 ok('Quản lý tạo dự án (201); mã viết hoa', pr.status === 201, pr);
@@ -95,7 +95,7 @@ const P2 = (await json(PM.cookie, 'POST', '/api/projects', { code: `NB-${stamp}`
 const get = async (c: string, id = P1) => json(c, 'GET', `/api/projects/${id}`);
 let d = (await get(PM.cookie)).body;
 ok('Chi tiết: người tạo là quản lý, Dev1 thành viên, có HĐ (không có số tiền)', d.project.code === CODE && d.members.length === 2
-  && d.members.find((m: any) => m.employeeId === PM.e.id).role === 'Manager' && d.project.contract?.code === kcode && !('totalValue' in (d.project.contract ?? {})), d.project);
+  && d.members.find((m: any) => m.employeeId === PM.e.id).role === 'Manager' && d.project.contracts?.[0]?.code === kcode && !('totalValue' in (d.project.contracts?.[0] ?? {})), d.project);
 ok('Người ngoài xem → 404; danh sách không có', (await get(O.cookie)).status === 404 && !((await json(O.cookie, 'GET', '/api/projects')).body as any[]).some((p) => p.id === P1));
 ok('Thành viên xem được, không quản lý', (await get(Dev1.cookie)).body.project.canManage === false && (await get(Dev1.cookie)).body.project.canWork === true);
 ok('Kế toán (Xem tài chính) xem được (chỉ đọc)', (await get(A.cookie)).status === 200 && (await get(A.cookie)).body.project.canWork === false);

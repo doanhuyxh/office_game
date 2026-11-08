@@ -22,9 +22,10 @@ internal sealed class ProjectClock(TimeProvider clock, IOptions<OfficeSettings> 
 }
 
 /// <param name="IsHr">admin / hr: thấy + quản lý mọi dự án (như kho tài liệu dự án trước đây).</param>
-/// <param name="FinanceView">quyền Xem tài chính (chức vụ): thấy mọi dự án (chỉ đọc) — để theo dõi tiến độ / ngày công.</param>
+/// <param name="FinanceView">quyền Xem tài chính (chức vụ): thấy mọi dự án (chỉ đọc) — để theo dõi tiến độ / ngày công + lãi / lỗ.</param>
+/// <param name="FinanceAdmin">quyền Quản trị tài chính: thêm chi phí nhân công theo từng người, sửa % phân bổ tháng đã chốt.</param>
 internal sealed record ProjectViewer(Guid UserId, string Name, bool IsHr, bool CanCreate, bool FinanceView, EmployeeRef? Employee,
-    IReadOnlyDictionary<Guid, ProjectMemberRole> Roles)
+    IReadOnlyDictionary<Guid, ProjectMemberRole> Roles, bool FinanceAdmin = false)
 {
     public bool CanSee(Guid projectId) => IsHr || FinanceView || Roles.ContainsKey(projectId);
     public bool IsMember(Guid projectId) => Roles.ContainsKey(projectId);
@@ -48,8 +49,9 @@ internal sealed class ProjectAccess(ProjectsDbContext db, IEmployeeDirectory dir
         var roles = emp is null ? new Dictionary<Guid, ProjectMemberRole>()
             : await db.Members.AsNoTracking().Where(m => m.EmployeeId == emp.Id).ToDictionaryAsync(m => m.ProjectId, m => m.Role, ct);
         var isHr = user.IsHr();
+        var fin = await finance.GetAsync(uid, ct);
         return _viewer = new ProjectViewer(uid, user.FindFirstValue(ClaimNames.FullName) ?? user.Identity?.Name ?? "?", isHr,
-            isHr || user.IsInRole(Roles.Manager), (await finance.GetAsync(uid, ct)).Has(FinancePermission.View), emp, roles);
+            isHr || user.IsInRole(Roles.Manager), fin.Has(FinancePermission.View), emp, roles, fin.Has(FinancePermission.Admin));
     }
 
     public async Task<IReadOnlyDictionary<Guid, EmployeeRef>> EmployeesAsync(CancellationToken ct) =>

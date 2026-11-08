@@ -16,6 +16,8 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProjectMember> Members => Set<ProjectMember>();
     public DbSet<Allocation> Allocations => Set<Allocation>();
+    public DbSet<ProjectContract> ProjectContracts => Set<ProjectContract>();
+    public DbSet<AllocationFreeze> Freezes => Set<AllocationFreeze>();
     public DbSet<Milestone> Milestones => Set<Milestone>();
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
     public DbSet<TaskComment> Comments => Set<TaskComment>();
@@ -34,7 +36,6 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(10);
             e.Property(x => x.BudgetManDays).HasPrecision(10, 2);
             e.HasIndex(x => x.Code).IsUnique().HasDatabaseName("ux_projects_code");
-            e.HasIndex(x => x.SalesContractId).HasDatabaseName("ix_projects_contract");
             e.HasMany(x => x.Members).WithOne().HasForeignKey(m => m.ProjectId).OnDelete(DeleteBehavior.Cascade);
         });
         b.Entity<ProjectMember>(e =>
@@ -48,8 +49,21 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
         {
             e.ToTable("allocations");
             e.HasKey(x => new { x.ProjectId, x.EmployeeId, x.Month });
+            e.Property(x => x.Percent).HasPrecision(5, 2);
             e.HasIndex(x => new { x.EmployeeId, x.Month }).HasDatabaseName("ix_allocations_employee_month");
             e.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<ProjectContract>(e =>
+        {
+            e.ToTable("contracts");
+            e.HasKey(x => new { x.ProjectId, x.ContractId });
+            e.HasIndex(x => x.ContractId).IsUnique().HasDatabaseName("ux_project_contracts_contract"); // một hợp đồng chỉ thuộc một dự án
+            e.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<AllocationFreeze>(e =>
+        {
+            e.ToTable("allocation_freezes");
+            e.HasKey(x => x.Month);
         });
         b.Entity<Milestone>(e =>
         {
