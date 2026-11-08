@@ -18,7 +18,7 @@ import { useTabParam } from '@/hooks/useTabParam';
 
 /**
  * Kho tài sản số. URL: `?asset=<id>` mở chi tiết (link từ thông báo / phê duyệt), `?space=Project:<id>` mở thẳng một kho.
- * Tab: Kho tài liệu · Thùng rác · Quản trị (HR / admin). Dự án + thành viên quản lý ở /projects (module Projects, 2026-11-08); kho dự án vẫn hiện ở Kho tài liệu.
+ * Tab: Quản trị (HR / admin) · Kho tài liệu · Thùng rác. Dự án + thành viên quản lý ở /projects (module Projects, 2026-11-08); kho dự án vẫn hiện ở Kho tài liệu.
  */
 export function DocumentsPage() {
   const search = useSearch({ strict: false }) as { asset?: string; space?: string };
@@ -42,9 +42,9 @@ export function DocumentsPage() {
       <Tabs value={tab} onValueChange={setTab}>
         <PageToolbar actions={<Button size="sm" variant="outline" asChild><Link to={PATHS.projects}><FolderKanban /> Dự án</Link></Button>}>
           <TabsList>
+            {isHr && <TabsTrigger value="admin">Quản trị</TabsTrigger>}
             <TabsTrigger value="library">Kho tài liệu</TabsTrigger>
             <TabsTrigger value="trash">Thùng rác</TabsTrigger>
-            {isHr && <TabsTrigger value="admin">Quản trị</TabsTrigger>}
           </TabsList>
         </PageToolbar>
         <TabsContent value="library" className="mt-4"><LibraryTab initialSpace={space} onOpen={setOpenId} /></TabsContent>

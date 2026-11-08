@@ -72,7 +72,7 @@ Tham chiếu nhân viên bằng `EmployeeId` thuần (không FK chéo schema); t
 ## Front-end (`features/assets`, route `/assets`, mọi vai trò)
 
 - Không tiêu đề trang; nút hành động trên hàng tab (`PageToolbar`).
-- HR: tab **Thiết bị** (bảng + sheet chi tiết: cấp, thu hồi, đổi trạng thái, lịch sử), **Dịch vụ** (ghế theo dịch vụ), **Danh mục**, **Tổng quan**. Người khác: chỉ **Của tôi**. Có thêm tab **Rà soát** và **Kiểm kê** ([assets-review.md](assets-review.md)); quản lý thấy thêm khung "Việc cần rà soát" ở tab Của tôi.
+- HR: tab **Tổng quan** (đầu tiên, mở mặc định), **Thiết bị** (bảng + sheet chi tiết: cấp, thu hồi, đổi trạng thái, lịch sử), **Dịch vụ** (ghế theo dịch vụ), **Danh mục**. Người khác: chỉ **Của tôi**. Có thêm tab **Rà soát** và **Kiểm kê** ([assets-review.md](assets-review.md)); quản lý thấy thêm khung "Việc cần rà soát" ở tab Của tôi.
 - Export `EmployeeHoldings` qua `@/features/assets` để hiện trong chi tiết nhân viên; `ResignDialog` cảnh báo "còn giữ N thiết bị, M ghế" (không chặn nghỉ việc).
 - Hộp thoại nhân viên nạp lười `EmployeeHoldings` (tránh vòng import employees ↔ assets). Menu "Tài sản" (nhóm Công việc, sau Tài liệu).
 

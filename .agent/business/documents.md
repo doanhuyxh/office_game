@@ -54,7 +54,7 @@ Nhắc hạn lưu trữ · xoá hẳn thùng rác > 30 ngày · dọn vé tải 
 
 - Tab **Kho tài liệu**: chọn kho, cây thư mục, đường dẫn, thư mục con (đổi tên / xoá thư mục trống), bảng tài liệu phân trang, tìm (tiêu đề, mã, số hiệu, thẻ, tên file) trong kho hoặc **mọi kho**, lọc nhóm file / trạng thái, nút "Tải file" / "Tải thư mục", kéo thả file hoặc thư mục.
 - Sheet chi tiết (`?asset=<id>`, link từ thông báo / thẻ phê duyệt "Xem tài liệu"): xem trước, tải về, gửi duyệt, lưu trữ, xoá / khôi phục / xoá hẳn, sửa thông tin, đổi người phụ trách, phiên bản (+ tải bản mới), nhật ký xem / tải; HR: đổi hạn lưu trữ, huỷ.
-- Nút **Dự án** (sang `/projects`) trên hàng tab, **Thùng rác**, **Quản trị** (HR: thống kê, đến hạn lưu trữ, bàn giao, loại tài liệu).
+- Nút **Dự án** (sang `/projects`) trên hàng tab, **Thùng rác**, **Quản trị** (tab đầu tiên, chỉ HR; mặc định vẫn mở Kho tài liệu — HR: thống kê, đến hạn lưu trữ, bàn giao, loại tài liệu).
 
 E2E: `scripts/dev/documents-e2e.ts` (65 kiểm tra, DB tạm) — [e2e.md](../e2e.md).
 

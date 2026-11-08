@@ -15,16 +15,16 @@ import { ReviewsTab } from '../reviews-tab';
 import { ServicesTab } from '../services-tab';
 import { StocktakesTab } from '../stocktakes-tab';
 
-const HR_TABS = ['devices', 'services', 'reviews', 'stocktakes', 'categories', 'overview'] as const;
+const HR_TABS = ['overview', 'devices', 'services', 'reviews', 'stocktakes', 'categories'] as const;
 
 /**
- * Tài sản công ty. HR / admin: Thiết bị · Dịch vụ · Rà soát · Kiểm kê · Danh mục · Tổng quan · Của tôi.
+ * Tài sản công ty. HR / admin: Tổng quan · Thiết bị · Dịch vụ · Rà soát · Kiểm kê · Danh mục · Của tôi.
  * Mọi người khác: chỉ "Của tôi" (thiết bị + tài khoản đang giữ, và việc rà soát quyền nếu là người rà soát).
  */
 export function AssetsPage() {
   const me = useMe();
   const isHr = !!me.data?.roles.some((r) => r === 'admin' || r === 'hr');
-  const [tab, setTab] = useTabParam(isHr ? 'devices' : 'mine', isHr ? [...HR_TABS, 'mine'] : ['mine']);
+  const [tab, setTab] = useTabParam(isHr ? 'overview' : 'mine', isHr ? [...HR_TABS, 'mine'] : ['mine']);
   const [creating, setCreating] = useState<string | null>(null);
   const done = () => setCreating(null);
   const add = (key: string, label: string) => <Button size="sm" onClick={() => setCreating(key)}><Plus /> {label}</Button>;
@@ -43,12 +43,12 @@ export function AssetsPage() {
       <Tabs value={tab} onValueChange={(t) => { setCreating(null); setTab(t); }}>
         <PageToolbar actions={actions}>
           <TabsList>
+            {isHr && <TabsTrigger value="overview">Tổng quan</TabsTrigger>}
             {isHr && <TabsTrigger value="devices">Thiết bị</TabsTrigger>}
             {isHr && <TabsTrigger value="services">Dịch vụ</TabsTrigger>}
             {isHr && <TabsTrigger value="reviews">Rà soát</TabsTrigger>}
             {isHr && <TabsTrigger value="stocktakes">Kiểm kê</TabsTrigger>}
             {isHr && <TabsTrigger value="categories">Danh mục</TabsTrigger>}
-            {isHr && <TabsTrigger value="overview">Tổng quan</TabsTrigger>}
             <TabsTrigger value="mine">Của tôi</TabsTrigger>
           </TabsList>
         </PageToolbar>
