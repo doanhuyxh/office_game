@@ -58,7 +58,7 @@ export function SearchSelectField({ id, label, value, onChange, options, allowEm
   };
 
   return (
-    <div className="grid gap-2">
+    <div className="grid min-w-0 gap-2">
       {label && <Label htmlFor={id}>{label}</Label>}
       <PopoverPrimitive.Root open={open} onOpenChange={(o) => { setOpen(o); if (o) { setQ(''); setActive(0); } }}>
         <PopoverPrimitive.Trigger asChild>

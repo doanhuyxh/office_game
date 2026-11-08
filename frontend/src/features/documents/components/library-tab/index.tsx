@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/common/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/common/dropdown-menu';
 import { Input } from '@/components/common/input';
 import { SelectField } from '@/components/common/SelectField';
+import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { TablePagination, usePageState } from '@/components/common/pagination';
 import { Spinner } from '@/components/feedback/Spinner';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -89,7 +90,7 @@ export function LibraryTab({ initialSpace, onOpen }: { initialSpace: ISpaceRef |
   return (
     <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
       <aside className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-3">
-        <SelectField id="doc-space" label="Kho" value={space ? spaceKey(space) : null} options={spaceOptions}
+        <SearchSelectField id="doc-space" label="Kho" value={space ? spaceKey(space) : null} options={spaceOptions} searchPlaceholder="Tìm kho…"
           onChange={(v) => { if (v) { setSpace(parseSpaceKey(v)); setFolderId(null); setSearch(''); } }} />
         <div className="rounded-xl border bg-card p-2">
           {folders.isLoading ? <Spinner /> : (
