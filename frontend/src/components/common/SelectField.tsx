@@ -22,11 +22,11 @@ export function SelectField({ id, label, value, onChange, options, allowEmpty, e
   placeholder?: string;
 }) {
   return (
-    <div className="grid gap-2">
+    <div className="grid min-w-0 gap-2">
       <Label htmlFor={id}>{label}</Label>
       <Select value={value ?? (allowEmpty ? NONE : undefined)} onValueChange={(v) => onChange(v === NONE ? null : v)}>
-        <SelectTrigger id={id} className="w-full" aria-invalid={!!error}>
-          <SelectValue placeholder={placeholder ?? 'Chọn…'} />
+        <SelectTrigger id={id} className="w-full min-w-0" aria-invalid={!!error}>
+          <SelectValue className="min-w-0 truncate block!" placeholder={placeholder ?? 'Chọn…'} />
         </SelectTrigger>
         <SelectContent>
           {allowEmpty && <SelectItem value={NONE}>{emptyLabel}</SelectItem>}

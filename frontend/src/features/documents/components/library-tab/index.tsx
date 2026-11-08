@@ -88,7 +88,7 @@ export function LibraryTab({ initialSpace, onOpen }: { initialSpace: ISpaceRef |
 
   return (
     <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
-      <aside className="grid min-w-0 content-start gap-3">
+      <aside className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-3">
         <SelectField id="doc-space" label="Kho" value={space ? spaceKey(space) : null} options={spaceOptions}
           onChange={(v) => { if (v) { setSpace(parseSpaceKey(v)); setFolderId(null); setSearch(''); } }} />
         <div className="rounded-xl border bg-card p-2">
