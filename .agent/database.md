@@ -90,9 +90,9 @@ Bảng + index: [business/projects.md](business/projects.md#schema-projects-proj
 
 Bảng + index: [business/sales.md](business/sales.md#schema-sales-salesdbcontext-migration-initialsales). `collections.LedgerEntryId` trỏ sang `finance.entries` **không** FK (ranh giới module). `AddContractAppendices`: `contract_appendices` (unique HĐ + số; `ChangeRequestId` unique khi chưa huỷ, không FK sang `projects`) + `installments.AppendixId` — [business/projects-changes.md](business/projects-changes.md).
 
-## Schema `finance` — `FinanceDbContext` (migration `InitialFinance`, `AddProjectToEntries`)
+## Schema `finance` — `FinanceDbContext` (migration `InitialFinance`, `AddProjectToEntries`, `AddFinanceAttachments`)
 
-Bảng + index + seed: [business/finance.md](business/finance.md#schema-finance-financedbcontext-migration-initialfinance). Tiền `bigint` VND; dòng sổ không xoá (huỷ = `Status`). `AddProjectToEntries`: `entries.ProjectId` (index lọc khác null) + `expense_requests.ProjectId`, không FK sang schema `projects`.
+Bảng + index + seed: [business/finance.md](business/finance.md#schema-finance-financedbcontext-migration-initialfinance). Tiền `bigint` VND; dòng sổ không xoá (huỷ = `Status`). `AddProjectToEntries`: `entries.ProjectId` (index lọc khác null) + `expense_requests.ProjectId`, không FK sang schema `projects`. `AddFinanceAttachments`: `attachments` (chủ = dòng sổ / đề nghị chi, index chủ, xoá mềm) — [business/finance-docs.md](business/finance-docs.md).
 
 ## Schema `news` — `NewsDbContext` (migration `InitialNews`)
 

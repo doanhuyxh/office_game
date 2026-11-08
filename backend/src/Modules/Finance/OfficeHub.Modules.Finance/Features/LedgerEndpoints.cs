@@ -15,7 +15,7 @@ namespace OfficeHub.Modules.Finance.Features;
 
 public sealed record EntryDto(Guid Id, TxKind Kind, DateOnly Date, long Amount, Guid AccountId, string AccountName, Guid? ToAccountId, string? ToAccountName,
     Guid? CategoryId, string? CategoryName, Guid? BusinessLineId, string? BusinessLineName, string? Counterparty, string? Description, string? InvoiceNumber,
-    string? SourceType, Guid? SourceId, TxStatus Status, string? VoidReason, DateTimeOffset CreatedAt, string CreatedByName, Guid? ProjectId, string? ProjectName);
+    string? SourceType, Guid? SourceId, TxStatus Status, string? VoidReason, DateTimeOffset CreatedAt, string CreatedByName, Guid? ProjectId, string? ProjectName, int AttachmentCount = 0);
 public sealed record CreateEntry(TxKind Kind, DateOnly Date, long Amount, Guid AccountId, Guid? ToAccountId = null, Guid? CategoryId = null, Guid? BusinessLineId = null,
     string? Counterparty = null, string? Description = null, string? InvoiceNumber = null, Guid? ProjectId = null);
 public sealed record VoidEntry(string? Reason);
@@ -32,6 +32,7 @@ internal static class LedgerEndpoints
         g.MapGet("/entries", ListAsync).RequireFinance(FinancePermission.View);
         g.MapPost("/entries", CreateAsync).RequireFinance(FinancePermission.Record);
         g.MapPost("/entries/{id:guid}/void", VoidAsync).RequireFinance(FinancePermission.Record);
+        g.MapGet("/entries/export.xlsx", LedgerExport.ExportAsync).RequireFinance(FinancePermission.View);
         g.MapGet("/projects", ProjectsAsync);
     }
 
@@ -88,7 +89,13 @@ internal static class LedgerEndpoints
         }
         var paged = await q.OrderByDescending(e => e.Date).ThenByDescending(e => e.CreatedAt).ThenBy(e => e.Id).ToPagedAsync(page < 1 ? 1 : page, pageSize, ct);
         var names = await FinanceQueries.NamesAsync(db, projects, ct);
-        return TypedResults.Ok(paged.Map(e => ToDto(e, names)));
+        // Số chứng từ: của dòng + của đề nghị chi sinh ra dòng (nếu có).
+        var expIds = paged.Items.Where(e => e.SourceType == ExpenseEndpoints.SourceType && e.SourceId != null).Select(e => e.SourceId!.Value);
+        var counts = await AttachmentEndpoints.CountsAsync(db, [.. paged.Items.Select(e => e.Id), .. expIds], ct);
+        return TypedResults.Ok(paged.Map(e => ToDto(e, names) with
+        {
+            AttachmentCount = counts.GetValueOrDefault(e.Id) + (e.SourceType == ExpenseEndpoints.SourceType && e.SourceId is { } sid ? counts.GetValueOrDefault(sid) : 0),
+        }));
     }
 
     internal static EntryDto ToDto(LedgerEntry e, FinanceQueries.Names n) => new(e.Id, e.Kind, e.Date, e.Amount, e.AccountId, n.Account(e.AccountId)!, e.ToAccountId, n.Account(e.ToAccountId),

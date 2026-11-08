@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FINANCE_PERMISSION, useMyFinanceAccess } from '@/features/employees';
 import type { IPageQuery } from '@/types/api';
 import { financeApi, financeKeys } from '../api/finance.api';
-import type { ExpenseStatus, IEntryFilter } from '../types/finance.types';
+import type { AttachmentOwner, ExpenseStatus, IEntryFilter } from '../types/finance.types';
 
 /** Quyền tài chính của tôi (theo chức vụ). Chỉ để ẩn / hiện giao diện — back-end kiểm tra lại mọi request. */
 export function useFinancePerms() {
@@ -22,6 +22,8 @@ export const useAccounts = (enabled = true) => useQuery({ queryKey: financeKeys.
 export const useLines = () => useQuery({ queryKey: financeKeys.lines, queryFn: financeApi.lines, staleTime: 5 * 60_000 });
 export const useCategories = () => useQuery({ queryKey: financeKeys.categories, queryFn: financeApi.categories, staleTime: 5 * 60_000 });
 export const useFinanceProjects = (enabled = true) => useQuery({ queryKey: financeKeys.projects, queryFn: financeApi.projects, enabled, staleTime: 60_000 });
+export const useAttachments = (type: AttachmentOwner, id: string | null) =>
+  useQuery({ queryKey: financeKeys.attachments(type, id ?? ''), queryFn: () => financeApi.attachments(type, id!), enabled: !!id });
 export const useLock = (enabled: boolean) => useQuery({ queryKey: financeKeys.lock, queryFn: financeApi.lock, enabled });
 export const useEntries = (f: IEntryFilter, q: IPageQuery) =>
   useQuery({ queryKey: financeKeys.entries(f, q), queryFn: () => financeApi.entries(f, q), placeholderData: (prev) => prev });

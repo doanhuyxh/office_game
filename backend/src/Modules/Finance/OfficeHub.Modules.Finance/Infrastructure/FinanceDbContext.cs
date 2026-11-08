@@ -15,6 +15,7 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
     public DbSet<TxCategory> Categories => Set<TxCategory>();
     public DbSet<LedgerEntry> Entries => Set<LedgerEntry>();
     public DbSet<ExpenseRequest> Expenses => Set<ExpenseRequest>();
+    public DbSet<FinanceAttachment> Attachments => Set<FinanceAttachment>();
     public DbSet<FinanceSettings> Settings => Set<FinanceSettings>();
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -79,6 +80,17 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
             e.HasIndex(x => x.Status).HasDatabaseName("ix_expense_requests_status");
             e.HasOne<TxCategory>().WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<BusinessLine>().WithMany().HasForeignKey(x => x.BusinessLineId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<FinanceAttachment>(e =>
+        {
+            e.ToTable("attachments");
+            e.Property(x => x.OwnerType).HasConversion<string>().HasMaxLength(10);
+            e.Property(x => x.FileKey).HasMaxLength(400);
+            e.Property(x => x.FileName).HasMaxLength(200);
+            e.Property(x => x.ContentType).HasMaxLength(150);
+            e.Property(x => x.CreatedByName).HasMaxLength(200);
+            e.Property(x => x.DeletedByName).HasMaxLength(200);
+            e.HasIndex(x => new { x.OwnerType, x.OwnerId }).HasDatabaseName("ix_attachments_owner");
         });
         b.Entity<FinanceSettings>(e =>
         {

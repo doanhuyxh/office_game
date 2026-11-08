@@ -11,12 +11,15 @@ import { formatMoney } from '@/utils/money';
 import { useExpenses, useFinancePerms } from '../../hooks/useFinance';
 import type { ExpenseStatus, IExpense } from '../../types/finance.types';
 import { EXPENSE_STATUS, fmtDate } from '../../utils/labels';
+import { AttachmentButton } from '../attachment-button';
+import { AttachmentsDialog } from '../attachments-dialog';
 import { ExpenseFormDialog } from '../expense-form-dialog';
 import { PayExpenseDialog } from '../pay-expense-dialog';
 
 /** Đề nghị chi: "Của tôi" cho mọi người; "Tất cả" cho người có quyền Xem tài chính (kế toán chi từ đây). */
 export function ExpensesTab({ creating, onCreatedClose }: { creating: boolean; onCreatedClose: () => void }) {
   const perms = useFinancePerms();
+  const [docs, setDocs] = useState<{ id: string; title: string; canUpload: boolean } | null>(null);
   const [scope, setScope] = useState<'mine' | 'all'>('mine');
   const effective = perms.view ? scope : 'mine';
   const [status, setStatus] = useState<ExpenseStatus | null>(null);
@@ -62,6 +65,7 @@ export function ExpensesTab({ creating, onCreatedClose }: { creating: boolean; o
                 <TableCell className="whitespace-nowrap">{fmtDate(x.neededBy)}</TableCell>
                 <TableCell><StatusBadge tone={EXPENSE_STATUS[x.status].tone}>{EXPENSE_STATUS[x.status].label}</StatusBadge></TableCell>
                 <TableCell className="text-right whitespace-nowrap">
+                  <AttachmentButton count={x.attachmentCount} onClick={() => setDocs({ id: x.id, title: `${x.code} · ${formatMoney(x.amount)}`, canUpload: perms.record || (scope === 'mine' && (x.status === 'Pending' || x.status === 'Approved')) })} />
                   {perms.record && x.status === 'Approved' && <Button size="sm" onClick={() => setPaying(x)}>Chi tiền</Button>}
                   {x.status === 'Pending' && <Button size="sm" variant="ghost" asChild><Link to={PATHS.approvals}>Xem luồng duyệt</Link></Button>}
                 </TableCell>
@@ -71,7 +75,8 @@ export function ExpensesTab({ creating, onCreatedClose }: { creating: boolean; o
         </Table>
         <TablePagination state={pg} total={data?.total} unit="đề nghị" />
       </div>
-      <ExpenseFormDialog open={creating} onClose={onCreatedClose} />
+      <ExpenseFormDialog open={creating} onClose={onCreatedClose} onCreated={(id) => setDocs({ id, title: 'đề nghị vừa gửi', canUpload: true })} />
+      <AttachmentsDialog owner={docs ? { type: 'Expense', id: docs.id } : null} title={docs?.title ?? ''} canUpload={!!docs?.canUpload} onClose={() => setDocs(null)} />
       <PayExpenseDialog expense={paying} onClose={() => setPaying(null)} />
     </div>
   );

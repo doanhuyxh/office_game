@@ -16,7 +16,7 @@ import { groupDigits, parseMoney, todayVn } from '../../utils/labels';
 const empty = (): IExpenseRequest => ({ amount: 0, reason: '', payee: '', categoryId: null, businessLineId: null, neededBy: null, projectId: null });
 
 /** Gửi đề nghị chi (mọi nhân viên). Duyệt: quản lý trực tiếp → người có quyền Duyệt chi; kế toán chi sau khi duyệt. */
-export function ExpenseFormDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function ExpenseFormDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated?: (id: string) => void }) {
   const [f, setF] = useState<IExpenseRequest>(empty);
   const categories = (useCategories().data ?? []).filter((c) => c.isActive && c.kind === 'Expense');
   const lines = (useLines().data ?? []).filter((l) => l.isActive);
@@ -28,7 +28,7 @@ export function ExpenseFormDialog({ open, onClose }: { open: boolean; onClose: (
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     save.mutate({ ...f, neededBy: f.neededBy || null }, {
-      onSuccess: () => { toast.success('Đã gửi đề nghị chi — chờ duyệt'); onClose(); },
+      onSuccess: (id) => { toast.success('Đã gửi đề nghị chi — đính kèm hoá đơn / chứng từ nếu có'); onClose(); onCreated?.(id); },
       onError: (err) => !Object.keys(fieldErrors(err)).length && toast.error(errorMessage(err)),
     });
   };

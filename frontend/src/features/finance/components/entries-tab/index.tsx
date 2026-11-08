@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Ban } from 'lucide-react';
+import { Ban, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { Checkbox } from '@/components/common/checkbox';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
@@ -12,14 +12,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { TablePagination, usePageState } from '@/components/common/pagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { formatMoney } from '@/utils/money';
+import { downloadUrl, formatMoney } from '@/utils/money';
 import { financeApi } from '../../api/finance.api';
 import { useAccounts, useEntries, useFinanceMutation, useFinancePerms } from '../../hooks/useFinance';
 import type { IEntry, IEntryFilter, TxKind } from '../../types/finance.types';
 import { fmtDate, TX_KIND_LABEL, TX_KIND_TONE } from '../../utils/labels';
+import { AttachmentButton } from '../attachment-button';
+import { AttachmentsDialog } from '../attachments-dialog';
 import { EntryFormDialog } from '../entry-form-dialog';
 
-/** Sổ thu chi (quyền Xem). Người có quyền Ghi sổ: ghi mới + huỷ (kèm lý do; kỳ đã khoá thì không huỷ được). */
+/** Sổ thu chi (quyền Xem). Người có quyền Ghi sổ: ghi mới + huỷ (kèm lý do; kỳ đã khoá thì không huỷ được) + chứng từ. Xuất Excel theo khoảng ngày / quỹ đang lọc. */
 export function EntriesTab({ creating, onCreatedClose }: { creating: boolean; onCreatedClose: () => void }) {
   const perms = useFinancePerms();
   const accounts = useAccounts().data ?? [];
@@ -34,6 +36,7 @@ export function EntriesTab({ creating, onCreatedClose }: { creating: boolean; on
   const pg = usePageState('finance-entries', JSON.stringify(filter));
   const { data, isLoading } = useEntries(filter, pg.query);
   const [voiding, setVoiding] = useState<IEntry | null>(null);
+  const [docs, setDocs] = useState<IEntry | null>(null);
   return (
     <div className="grid grid-cols-1 gap-3">
       <div className="flex flex-wrap items-end gap-2">
@@ -43,6 +46,8 @@ export function EntriesTab({ creating, onCreatedClose }: { creating: boolean; on
         <div className="w-48"><SelectField id="f-acc" label="Quỹ" allowEmpty emptyLabel="Tất cả" value={accountId} onChange={setAccountId} options={accounts.map((a) => ({ value: a.id, label: a.name }))} /></div>
         <div className="w-40"><FormField id="f-from" label="Từ ngày" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
         <div className="w-40"><FormField id="f-to" label="Đến ngày" type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+        <Button size="sm" variant="outline" className="mb-1" title="Sổ thu chi + sổ quỹ + tổng hợp (mặc định tháng này)"
+          onClick={() => downloadUrl(financeApi.exportUrl({ from: from || undefined, to: to || undefined, accountId: accountId ?? undefined }))}><FileSpreadsheet /> Excel</Button>
         <label className="flex items-center gap-2 pb-2 text-sm"><Checkbox checked={voided} onCheckedChange={(c) => setVoided(c === true)} /> Xem giao dịch đã huỷ</label>
       </div>
       <div className="rounded-xl border bg-card">
@@ -50,7 +55,7 @@ export function EntriesTab({ creating, onCreatedClose }: { creating: boolean; on
           <TableHeader>
             <TableRow>
               <TableHead>Ngày</TableHead><TableHead>Loại</TableHead><TableHead className="text-right">Số tiền</TableHead><TableHead>Quỹ</TableHead>
-              <TableHead>Danh mục · Mảng</TableHead><TableHead>Diễn giải</TableHead><TableHead>Người ghi</TableHead><TableHead className="w-12" />
+              <TableHead>Danh mục · Mảng</TableHead><TableHead>Diễn giải</TableHead><TableHead>Người ghi</TableHead><TableHead className="w-24" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -72,6 +77,7 @@ export function EntriesTab({ creating, onCreatedClose }: { creating: boolean; on
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">{e.createdByName}</TableCell>
                 <TableCell>
+                  {e.status === 'Active' && <AttachmentButton count={e.attachmentCount} onClick={() => setDocs(e)} />}
                   {perms.record && e.status === 'Active' && (
                     <Button variant="ghost" size="icon" aria-label="Huỷ giao dịch" title="Huỷ giao dịch" onClick={() => setVoiding(e)}><Ban /></Button>
                   )}
@@ -82,6 +88,8 @@ export function EntriesTab({ creating, onCreatedClose }: { creating: boolean; on
         </Table>
         <TablePagination state={pg} total={data?.total} unit="giao dịch" />
       </div>
+      <AttachmentsDialog owner={docs ? { type: 'Entry', id: docs.id } : null} title={docs ? `${fmtDate(docs.date)} · ${formatMoney(docs.amount)}` : ''}
+        canUpload={perms.record && docs?.status === 'Active'} onClose={() => setDocs(null)} />
       <EntryFormDialog open={creating} onClose={onCreatedClose} />
       <VoidDialog entry={voiding} onClose={() => setVoiding(null)} />
     </div>

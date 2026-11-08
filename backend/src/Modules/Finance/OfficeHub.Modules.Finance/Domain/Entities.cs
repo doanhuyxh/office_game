@@ -116,3 +116,27 @@ public sealed class FinanceSettings
     public int Id { get; set; } = 1;
     public DateOnly? LockedThrough { get; set; }
 }
+
+[JsonConverter(typeof(JsonStringEnumConverter<AttachmentOwner>))]
+public enum AttachmentOwner { Entry = 0, Expense = 1 }
+
+/// <summary>
+/// Chứng từ (hoá đơn, biên nhận, sao kê…) gắn dòng sổ hoặc đề nghị chi. File ở S3 <c>finance/…</c>, trình duyệt tải thẳng (presigned PUT) rồi xác nhận
+/// (<see cref="Ready"/>). Không xoá hẳn: xoá = ẩn (<see cref="DeletedAt"/>), file giữ lại để đối chiếu.
+/// </summary>
+public sealed class FinanceAttachment
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public AttachmentOwner OwnerType { get; set; }
+    public Guid OwnerId { get; set; }
+    public required string FileKey { get; set; }
+    public required string FileName { get; set; }
+    public required string ContentType { get; set; }
+    public long Size { get; set; }
+    public bool Ready { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public Guid CreatedByUserId { get; set; }
+    public string CreatedByName { get; set; } = "";
+    public DateTimeOffset? DeletedAt { get; set; }
+    public string? DeletedByName { get; set; }
+}

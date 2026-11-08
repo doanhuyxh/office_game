@@ -17,7 +17,7 @@ namespace OfficeHub.Modules.Finance.Features;
 
 public sealed record ExpenseDto(Guid Id, string Code, Guid RequesterEmployeeId, string RequesterName, long Amount, string Reason, string? Payee, Guid? CategoryId, string? CategoryName,
     Guid? BusinessLineId, string? BusinessLineName, DateOnly? NeededBy, ExpenseStatus Status, Guid? ApprovalRequestId, string? RejectReason, Guid? PaidEntryId, DateTimeOffset? PaidAt,
-    DateTimeOffset CreatedAt, Guid? ProjectId, string? ProjectName);
+    DateTimeOffset CreatedAt, Guid? ProjectId, string? ProjectName, int AttachmentCount = 0);
 public sealed record CreateExpense(long Amount, string Reason, string? Payee = null, Guid? CategoryId = null, Guid? BusinessLineId = null, DateOnly? NeededBy = null,
     Guid? ProjectId = null);
 public sealed record PayExpense(Guid AccountId, DateOnly Date, string? InvoiceNumber = null);
@@ -56,10 +56,11 @@ internal static class ExpenseEndpoints
         if (status is { } s) q = q.Where(x => x.Status == s);
         var paged = await q.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id).ToPagedAsync(page < 1 ? 1 : page, pageSize, ct);
         var names = await FinanceQueries.NamesAsync(db, projects, ct);
+        var counts = await AttachmentEndpoints.CountsAsync(db, paged.Items.Select(x => x.Id).ToList(), ct);
         var people = new Dictionary<Guid, string>();
         foreach (var id in paged.Items.Select(x => x.RequesterEmployeeId).Distinct())
             people[id] = (await dir.GetAsync(id, ct))?.FullName ?? "(không rõ)";
-        return TypedResults.Ok(paged.Map(x => ToDto(x, people, names)));
+        return TypedResults.Ok(paged.Map(x => ToDto(x, people, names) with { AttachmentCount = counts.GetValueOrDefault(x.Id) }));
     }
 
     private static ExpenseDto ToDto(ExpenseRequest x, Dictionary<Guid, string> people, FinanceQueries.Names n) => new(x.Id, LedgerRules.ExpenseCode(x.Number), x.RequesterEmployeeId,

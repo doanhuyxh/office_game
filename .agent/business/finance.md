@@ -2,7 +2,7 @@
 
 > Nguồn sự thật là code (`backend/src/Modules/Finance/`, `frontend/src/features/finance/`); nếu code khác tài liệu, tin code và sửa tài liệu. Kế hoạch tổng (Kinh doanh / Dự án / Affiliate…): [docs/BUSINESS_PLAN.md](../../docs/BUSINESS_PLAN.md). Về [README.md](README.md).
 
-Chủ dự án chốt 2026-11-08: **chỉ giám đốc + kế toán xem tiền, cấu hình theo chức vụ**; công ty **không dùng phần mềm kế toán** → có sổ thu chi nội bộ; **mọi khoản chi đều phải duyệt**; **chỉ VND** (USD tự quy đổi). Đây là **sổ quản trị** — không phát hành hoá đơn điện tử, không thay sổ sách / báo cáo thuế theo luật.
+Chủ dự án chốt 2026-11-08: **chỉ giám đốc + kế toán xem tiền, cấu hình theo chức vụ**; công ty **không dùng phần mềm kế toán** → có sổ thu chi nội bộ; **mọi khoản chi đều phải duyệt**; **chỉ VND** (USD tự quy đổi). Đây là **sổ quản trị** — không phát hành hoá đơn điện tử, không thay sổ sách / báo cáo thuế theo luật. **Chứng từ đính kèm + Excel** (sổ thu chi, sổ quỹ, tổng hợp): [finance-docs.md](finance-docs.md).
 
 ## Quyền (theo chức vụ, không theo vai trò)
 

@@ -34,5 +34,6 @@ public sealed class FinanceModule : IModule
         SetupEndpoints.Map(g);
         LedgerEndpoints.Map(g);
         ExpenseEndpoints.Map(g);
+        AttachmentEndpoints.Map(g);
     }
 }
