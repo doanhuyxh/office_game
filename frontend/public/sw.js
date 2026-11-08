@@ -1,9 +1,9 @@
-// Service worker OfficeHub (PWA, không push). Chỉ đăng ký ở bản build production (src/pwa.ts).
+// Service worker OfficeHub (PWA + push FCM). Chỉ đăng ký ở bản build production (src/pwa.ts).
 // - KHÔNG bao giờ cache API / realtime / MCP / LiveKit: dữ liệu nhân sự luôn lấy mới, đăng xuất không để lại dữ liệu.
 // - Trang (navigation): luôn lấy mạng; mất mạng → offline.html (không mở app khi không gọi được API — tránh trạng thái nửa vời).
 // - /assets/* (tên có hash, không đổi nội dung): cache trước. Font Google: cache rồi làm mới nền.
 // Đổi VERSION khi sửa file này → cache cũ bị xoá ở bước activate.
-const VERSION = 'v1';
+const VERSION = 'v2';
 const SHELL = `officehub-shell-${VERSION}`;
 const ASSETS = `officehub-assets-${VERSION}`;
 const FONTS = `officehub-fonts-${VERSION}`;
@@ -58,4 +58,21 @@ self.addEventListener('fetch', (e) => {
       return hit ?? net;
     })());
   }
+});
+
+// Push FCM lúc tab đóng / nền: trình duyệt tự giao sự kiện "push" cho SW đang đăng ký (getToken() ở trang đã gắn SW này).
+// Tab đang mở thì FCM gọi onMessage() trong trang thay vì event này (xem services/firebase.ts) — tránh hiện 2 lần.
+self.addEventListener('push', (e) => {
+  const payload = e.data?.json() ?? {};
+  const { notification, data } = payload;
+  e.waitUntil(self.registration.showNotification(notification?.title ?? 'OfficeHub', {
+    body: notification?.body,
+    icon: '/icons/icon-192.png',
+    data,
+  }));
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(self.clients.openWindow(e.notification.data?.link ?? '/'));
 });

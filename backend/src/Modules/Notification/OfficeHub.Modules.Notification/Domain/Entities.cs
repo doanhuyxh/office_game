@@ -33,3 +33,13 @@ public sealed class Notification
     public DateTimeOffset? EmailSentAt { get; set; }
     public string? EmailError { get; set; }
 }
+
+/// <summary>Token thiết bị (trình duyệt) đăng ký nhận push FCM của một tài khoản. Một tài khoản có thể có nhiều thiết bị.</summary>
+public sealed class PushToken
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid UserId { get; set; }
+    public required string Token { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset LastSeenAt { get; set; }
+}

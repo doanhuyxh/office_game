@@ -1,16 +1,21 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { IPageQuery } from '@/types/api';
 import { notificationApi, notificationKeys } from '../api/notification.api';
+import { getPushSnapshot, subscribePush } from '../utils/push';
 import { playNotificationSound } from '../utils/sound';
 
+/** Có push rồi thì chuông không còn là kênh báo nhanh chính → hỏi lại thưa hơn. */
+const POLL_MS = { withPush: 120_000, fallback: 30_000 };
+
 /**
- * Thông báo của tôi (20 mới nhất + số chưa đọc), hỏi lại mỗi 30 giây.
+ * Thông báo của tôi (20 mới nhất + số chưa đọc), hỏi lại mỗi 30 giây — hoặc 2 phút nếu đã bật thông báo đẩy.
  * Có thông báo mới → phát âm chuông (nếu bật) + làm mới dữ liệu đơn / nghỉ phép / chấm công.
  */
 export function useNotifications() {
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: notificationKeys.list, queryFn: () => notificationApi.list(), refetchInterval: 30_000 });
+  const pushEnabled = useSyncExternalStore(subscribePush, getPushSnapshot, getPushSnapshot);
+  const q = useQuery({ queryKey: notificationKeys.list, queryFn: () => notificationApi.list(), refetchInterval: pushEnabled ? POLL_MS.withPush : POLL_MS.fallback });
   const last = useRef<number | null>(null);
   const unread = q.data?.unreadCount;
   useEffect(() => {

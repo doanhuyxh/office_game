@@ -19,6 +19,8 @@ public sealed class NotificationModule : IModule
     public void Register(IServiceCollection services, IConfiguration config)
     {
         services.AddModuleDbContext<NotificationDbContext>(config, NotificationDbContext.Schema);
+        services.AddOptions<FirebaseSettings>().Bind(config.GetSection(FirebaseSettings.Section));
+        services.AddScoped<IPushSender, PushSender>();
         services.AddScoped<INotifier, Notifier>();
         services.AddHostedService<NotificationMigrator>(); // trước EmailDispatcher: bảng phải có trước khi worker quét
         services.AddHostedService<EmailDispatcher>();

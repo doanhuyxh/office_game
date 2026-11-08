@@ -2,7 +2,17 @@
 
 > Nguồn sự thật là code (`backend/src/Modules/Notification/`, `backend/src/Modules/Approval/.../Infrastructure/ApprovalNotifications.cs`, `frontend/src/features/notifications/`); nếu code khác tài liệu, tin code và sửa tài liệu. Về [README.md](README.md).
 
-Hai kênh (chủ dự án chốt 2026-11-05): **chuông trong app** + **email**. Module khác gửi qua `INotifier.NotifyAsync(NotificationRequest)` (project `Notification.Contracts`) với **Id tài khoản** nhận (admin không có hồ sơ nhân viên vẫn nhận được). Schema `notifications`: [database.md](../database.md).
+Ba kênh: **chuông trong app** + **email** (chốt 2026-11-05) + **push FCM** (chốt 2026-11-08, Firebase Cloud Messaging). Module khác gửi qua `INotifier.NotifyAsync(NotificationRequest)` (project `Notification.Contracts`) với **Id tài khoản** nhận (admin không có hồ sơ nhân viên vẫn nhận được). Schema `notifications`: [database.md](../database.md).
+
+## Push (FCM)
+
+`IPushSender.PushAsync` (project `Notification.Contracts`) — best-effort, không ghi bảng `notifications`, không bao giờ ném lỗi; tắt hoàn toàn nếu thiếu `Firebase__CredentialsPath` ([env.md](../env.md)). `Notifier.NotifyAsync` tự gọi sau khi lưu chuông/email, nên **mọi** category hiện có (phê duyệt, nghỉ phép, tài sản, hợp đồng, 2FA, Bảng tin…) tự có push — không cần sửa module gọi `INotifier`. Chat gọi `IPushSender` trực tiếp (không qua `INotifier`, vì chủ động không tạo chuông/email — [chat.md](chat.md)).
+
+Bảng `push_tokens` (migration `AddPushTokens`): `UserId`, `Token` (duy nhất), `CreatedAt`, `LastSeenAt`. Đăng ký / huỷ: `PUT` / `DELETE /api/notifications/push-tokens` `{ token }`. Gửi theo lô ≤ 500 token/lần (`SendEachForMulticastAsync`); token bị FCM báo không tồn tại (`Unregistered` / `InvalidArgument`) → xoá luôn khỏi `push_tokens`.
+
+FE: `frontend/src/lib/firebase.ts` (`initializeApp` + `getMessaging`, cấu hình `VITE_FIREBASE_*`), service worker gộp vào `public/sw.js` (lắng `push` + `notificationclick`, không cần Firebase SDK trong SW). Công tắc "Bật thông báo đẩy" ở `/profile` + dropdown chuông gọi `Notification.requestPermission()` → `getToken()` → đăng ký token. Tab đang mở: `onMessage()` chỉ phát âm + toast (không gọi `showNotification`, tránh trùng UI). Có push đăng ký thành công → giảm chu kỳ poll chuông (xem mục UI dưới).
+
+**Không push**: kênh Chat `Office` (toàn công ty, quá ồn); Bảng tin loại bài mới không chọn gửi email (giữ nguyên quy tắc chống spam đã chốt).
 
 ## Gửi (`Infrastructure/Notifier.cs`)
 
@@ -46,11 +56,12 @@ Người duyệt: bước `Manager` → tài khoản của quản lý (`Employee
 
 - `NotificationBell` trên `Header` (cạnh nút theme): badge số chưa đọc (`data-testid="notification-unread"`), dropdown 20 mục (icon theo `category`, in đậm + chấm nếu chưa đọc, `timeAgo`), "Đánh dấu đã đọc", cuối dropdown "Xem tất cả thông báo" → `/notifications`. Bấm mục → đánh dấu đọc + `navigate(link)`.
 - Trang `/notifications` (`NotificationsPage`, menu Chung → "Thông báo", mọi vai trò): tab Tất cả / Chưa đọc (số chưa đọc), "Đánh dấu tất cả đã đọc", nút ✓ đánh dấu từng mục, phân trang BE (`TablePagination`, id `notifications`), hỏi lại 30 giây.
-- `useNotifications` hỏi lại mỗi **30 giây**; số chưa đọc tăng → phát âm chuông (nếu bật) + invalidate cache `approval`, `leave`, `attendance` (badge "Phê duyệt" cập nhật theo).
+- `useNotifications` hỏi lại mỗi **30 giây** (fallback), hoặc **2 phút** nếu đã đăng ký push FCM thành công (push là kênh báo nhanh chính lúc đó); số chưa đọc tăng → phát âm chuông (nếu bật) + invalidate cache `approval`, `leave`, `attendance` (badge "Phê duyệt" cập nhật theo).
 - **Âm thanh** (chỉ phía trình duyệt, `utils/sound.ts` + `useNotificationSound`): số chưa đọc tăng → phát `public/sounds/notification.mp3`. Bật/tắt lưu ở `localStorage` (`officehub.notification-sound`, **mặc định bật**), chỉnh ở nút loa trong dropdown chuông **và** thẻ "Tùy chọn thông báo" ở `/profile` (dùng chung giá trị, đồng bộ giữa các tab). Trình duyệt chặn phát khi trang chưa được tương tác → nuốt lỗi; không phát khi vừa tải (chỉ khi số tăng trong phiên).
+- **Thông báo đẩy** (công tắc cạnh âm thanh, cùng 2 chỗ): `Notification.requestPermission()` → `getToken()` → `PUT /push-tokens`; tắt → `DELETE /push-tokens`. Lưu `officehub.push-enabled` ở `localStorage`.
 
 Module khác: `document_retention` (hạn lưu trữ), `document_handover` (bàn giao), `project_member_added` (chỉ app) — [documents.md](documents.md); `contract_expiring` (hợp đồng 30 / 7 ngày), `probation_ending` (thử việc 7 / 3 ngày + quá hạn, chưa có HĐ tiếp theo) — [contracts-reminders.md](contracts-reminders.md); `asset_assigned` / `asset_returned` / `asset_expiring` / `asset_offboarding` / `asset_review` (tài sản công ty) — [assets.md](assets.md); `account_security` (HR đặt lại 2FA, email + app) — [auth-2fa.md](auth-2fa.md).
 
-Chat dùng lại `playNotificationSound` + công tắc âm này cho tin nhắn mới ([chat.md](chat.md)); tin nhắn không tạo thông báo chuông / email.
+Chat dùng lại `playNotificationSound` + công tắc âm này cho tin nhắn mới ([chat.md](chat.md)); tin nhắn không tạo thông báo chuông / email, nhưng **có push** cho Direct / Room (xem mục Push ở trên).
 
 **Chưa có:** tuỳ chọn tắt email theo người dùng, đẩy realtime (SignalR), gom email (digest), xoá thông báo cũ.

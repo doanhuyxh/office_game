@@ -27,3 +27,5 @@ account.txt
 
 # Worktree tạm của agent
 .claude/worktrees/
+server.txt
+/sdks/*

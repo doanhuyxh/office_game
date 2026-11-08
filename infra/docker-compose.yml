@@ -43,6 +43,10 @@ services:
     environment:
       <<: *backend-env
       SERVICE: OfficeHub.Api
+    volumes:
+      - keys:/keys   # ghi đè volumes của *backend (merge key "<<" không gộp danh sách) — phải khai lại dòng này
+      - ../sdks:/app/sdks:ro   # service-account Firebase (push FCM) — chép tay lên VPS, không qua git; Firebase__CredentialsPath trong .env.pro
+                                # phải là đường dẫn TUYỆT ĐỐI trong container, ví dụ /app/sdks/<tên-file>.json
     depends_on:
       postgres: { condition: service_healthy, required: false }
 

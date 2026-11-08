@@ -2,7 +2,7 @@
 
 > Nguồn sự thật là code: `backend/src/Modules/Chat/`, `backend/src/OfficeHub.Realtime/Chat/` + `Hubs/ChatHub.cs`, `frontend/src/features/chat/`. Về [README.md](README.md). Chat HUD trong 3D: [office.md](office.md).
 
-Chủ dự án chốt 2026-11-07 (đừng hỏi lại): chat ra ngoài 3D, **đồng bộ** với chat 3D, thêm chat 1-1; lưu **vĩnh viễn**, thu hồi = **xoá mềm**; admin / HR **không** đọc tin 1-1; tệp ở thư mục S3 riêng; chỉ badge + âm báo (không chuông / email); **không** mở cho AI.
+Chủ dự án chốt 2026-11-07 (đừng hỏi lại): chat ra ngoài 3D, **đồng bộ** với chat 3D, thêm chat 1-1; lưu **vĩnh viễn**, thu hồi = **xoá mềm**; admin / HR **không** đọc tin 1-1; tệp ở thư mục S3 riêng; chỉ badge + âm báo, **không chuông / email** (quyết định chống spam, vẫn giữ); **không** mở cho AI. Có **push FCM** (chốt 2026-11-08) cho Direct / Room, không cho Office — [notifications.md](notifications.md#push-fcm).
 
 ## Kiến trúc
 

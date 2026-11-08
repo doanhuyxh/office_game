@@ -1,6 +1,7 @@
 import { Outlet } from '@tanstack/react-router';
 import { SidebarInset, SidebarProvider } from '@/components/common/sidebar';
 import { ChatProvider } from '@/features/chat';
+import { usePushForeground } from '@/features/notifications';
 import { SearchProvider } from '@/context/search-provider';
 import { AppSidebar } from './AppSidebar';
 import { Header } from './Header';
@@ -14,6 +15,7 @@ const sidebarOpen = () => !document.cookie.split('; ').includes('sidebar_state=f
  * gần hết bề ngang (tối đa 200rem) + lề 8 để hiển thị nhiều nội dung hơn. Cỡ chữ giữ nguyên ở mọi màn hình.
  */
 export function MainLayout() {
+  usePushForeground();
   return (
     <SearchProvider>
       <ChatProvider>

@@ -13,6 +13,7 @@ namespace OfficeHub.Modules.Notification.Features;
 public sealed record NotificationDto(Guid Id, string Category, string Title, string Body, string? Link, DateTimeOffset CreatedAt, bool Read);
 public sealed record NotificationListDto(int UnreadCount, IReadOnlyList<NotificationDto> Items);
 public sealed record UnreadCountDto(int Count);
+public sealed record PushTokenRequest(string Token);
 
 /// <summary>Một trang thông báo (trang /notifications) + số chưa đọc toàn bộ (không phụ thuộc bộ lọc).</summary>
 public sealed record NotificationPage(IReadOnlyList<NotificationDto> Items, int Total, int Page, int PageSize, int UnreadCount)
@@ -27,6 +28,8 @@ internal static class NotificationEndpoints
         g.MapGet("/unread-count", UnreadCountAsync);
         g.MapPost("/{id:guid}/read", ReadAsync);
         g.MapPost("/read-all", ReadAllAsync);
+        g.MapPut("/push-tokens", RegisterPushTokenAsync);
+        g.MapDelete("/push-tokens", UnregisterPushTokenAsync);
     }
 
     /// <summary>
@@ -73,6 +76,29 @@ internal static class NotificationEndpoints
         var uid = user.GetUserId()!.Value;
         var now = clock.GetUtcNow();
         await db.Notifications.Where(x => x.UserId == uid && x.ReadAt == null).ExecuteUpdateAsync(s => s.SetProperty(x => x.ReadAt, now), ct);
+        return TypedResults.NoContent();
+    }
+
+    /// <summary>Đăng ký / cập nhật token thiết bị (FCM) của tài khoản đang đăng nhập. Idempotent.</summary>
+    private static async Task<Results<NoContent, ValidationProblem>> RegisterPushTokenAsync(PushTokenRequest req, ClaimsPrincipal user,
+        NotificationDbContext db, TimeProvider clock, CancellationToken ct)
+    {
+        var v = new Validation();
+        v.Required(req.Token, "token", "Token").MaxLength(req.Token, 400, "token", "Token");
+        if (v.Failed) return v.Problem();
+
+        var uid = user.GetUserId()!.Value;
+        var now = clock.GetUtcNow();
+        var existing = await db.PushTokens.FirstOrDefaultAsync(t => t.Token == req.Token, ct);
+        if (existing is null) db.PushTokens.Add(new Domain.PushToken { UserId = uid, Token = req.Token, CreatedAt = now, LastSeenAt = now });
+        else { existing.UserId = uid; existing.LastSeenAt = now; } // token có thể đổi chủ (đăng nhập tài khoản khác cùng máy)
+        await db.SaveChangesAsync(ct);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<NoContent> UnregisterPushTokenAsync(PushTokenRequest req, NotificationDbContext db, CancellationToken ct)
+    {
+        await db.PushTokens.Where(t => t.Token == req.Token).ExecuteDeleteAsync(ct);
         return TypedResults.NoContent();
     }
 }

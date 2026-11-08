@@ -14,4 +14,6 @@ export const notificationApi = {
   page: (unread: boolean, q: IPageQuery) => http<INotificationPage>(`/api/notifications?${unread ? 'unread=true&' : ''}${pageQs(q)}`),
   read: (id: string) => httpPost<void>(`/api/notifications/${id}/read`),
   readAll: () => httpPost<void>('/api/notifications/read-all'),
+  registerPushToken: (token: string) => http<void>('/api/notifications/push-tokens', { method: 'PUT', body: JSON.stringify({ token }) }),
+  unregisterPushToken: (token: string) => http<void>('/api/notifications/push-tokens', { method: 'DELETE', body: JSON.stringify({ token }) }),
 };

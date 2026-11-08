@@ -5,7 +5,7 @@ using OfficeHub.Modules.Notification.Domain;
 namespace OfficeHub.Modules.Notification.Infrastructure;
 
 /// <summary>Lưu một dòng thông báo cho mỗi tài khoản nhận; email (nếu có) để <see cref="EmailDispatcher"/> gửi nền.</summary>
-internal sealed class Notifier(NotificationDbContext db, IAccountService accounts, TimeProvider clock) : INotifier
+internal sealed class Notifier(NotificationDbContext db, IAccountService accounts, IPushSender push, TimeProvider clock) : INotifier
 {
     public async Task NotifyAsync(NotificationRequest r, CancellationToken ct = default)
     {
@@ -13,6 +13,7 @@ internal sealed class Notifier(NotificationDbContext db, IAccountService account
         if (ids.Count == 0) return;
         var people = await accounts.GetManyAsync(ids, ct);
         var now = clock.GetUtcNow();
+        var notified = new List<Guid>();
         foreach (var id in ids)
         {
             if (!people.TryGetValue(id, out var acc) || !acc.IsActive) continue; // tài khoản đã khoá: không thông báo
@@ -24,8 +25,10 @@ internal sealed class Notifier(NotificationDbContext db, IAccountService account
                 EmailTo = wantsEmail ? acc.Email : null, EmailToName = wantsEmail ? (string.IsNullOrWhiteSpace(acc.FullName) ? acc.UserName : acc.FullName) : null,
                 EmailStatus = status, EmailNextAttemptAt = status == EmailStatus.Pending ? now : null,
             });
+            notified.Add(id);
         }
         await db.SaveChangesAsync(ct);
+        await push.PushAsync(notified, r.Title, r.Body, r.Link, ct);
     }
 
     private static string Cut(string s, int max) => s.Length <= max ? s : s[..(max - 1)] + "…";

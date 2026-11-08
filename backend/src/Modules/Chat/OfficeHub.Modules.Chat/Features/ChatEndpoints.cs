@@ -10,6 +10,7 @@ using OfficeHub.BuildingBlocks.Storage;
 using OfficeHub.Modules.Chat.Domain;
 using OfficeHub.Modules.Chat.Infrastructure;
 using OfficeHub.Modules.Identity.Contracts;
+using OfficeHub.Modules.Notification.Contracts;
 using OfficeHub.Modules.Organization.Contracts;
 
 namespace OfficeHub.Modules.Chat.Features;
@@ -142,7 +143,7 @@ public static class ChatEndpoints
     }
 
     private static async Task<Results<Ok<SendResultDto>, ProblemHttpResult, ValidationProblem>> SendAsync(string id, SendRequest req,
-        ClaimsPrincipal user, ChatDbContext db, ChatStore store, ChatThrottle throttle, IFileStorage files, TimeProvider clock, CancellationToken ct)
+        ClaimsPrincipal user, ChatDbContext db, ChatStore store, ChatThrottle throttle, IFileStorage files, IPushSender push, TimeProvider clock, CancellationToken ct)
     {
         var me = Me(user);
         var conv = await store.ResolveAsync(id, ct);
@@ -199,7 +200,13 @@ public static class ChatEndpoints
         await db.Conversations.Where(c => c.Id == conv.Id && c.LastSeq < msg.Seq).ExecuteUpdateAsync(s => s
             .SetProperty(c => c.LastSeq, msg.Seq).SetProperty(c => c.LastMessageAt, now).SetProperty(c => c.LastPreview, preview), ct);
         await store.MarkReadAsync(conv.Id, me, msg.Seq, ct);
-        return TypedResults.Ok(await ResultAsync(conv, msg, store, ct));
+
+        var recipients = await store.RecipientsAsync(conv, ct);
+        // recipients == null ↔ kênh Office (toàn công ty) — không push, quá ồn; Direct/Room thì push cho người nhận (trừ người gửi).
+        if (recipients is not null)
+            await push.PushAsync(recipients.Where(r => r != me), msg.SenderName, preview, $"/chat?c={conv.Id}", ct);
+
+        return TypedResults.Ok(new SendResultDto(await store.ToDtoAsync(msg), conv.Type, conv.RoomId, store.RoomNameOf(conv), recipients));
     }
 
     private static async Task<SendResultDto> ResultAsync(Conversation conv, Message msg, ChatStore store, CancellationToken ct) =>

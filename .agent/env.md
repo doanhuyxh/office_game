@@ -30,6 +30,7 @@ Một file `.env` ở gốc repo cho BE + Docker Compose. Quy ước `Section__K
 | `Seq__Url`, `Seq__ApiKey`, `Sentry__Dsn` | – | Log / lỗi; trống = tắt |
 | `SystemTools__LogsUrl`, `SystemTools__MailUrl` | – | Link trên trang **Hệ thống** (admin). Trống: log = `http://localhost:5341` (chỉ Development), mail suy từ `Smtp__Host` (localhost/mailpit → Mailpit :8025, Gmail → mail.google.com) |
 | `Chat__InternalKey` | ✔ | Khoá nội bộ Realtime ↔ Api cho module Chat (header `X-Chat-Key`, dùng để cấp quyền xem kênh chat phòng). Tối thiểu 32 ký tự (`openssl rand -base64 32`); **cả Api và Realtime phải cùng giá trị** (compose dùng chung `.env`). Thiếu / ngắn → Api và Realtime không khởi động ([business/chat.md](business/chat.md)) |
+| `Firebase__CredentialsPath` | – | Đường dẫn file service-account JSON (Firebase Console → Project settings → Service accounts → Generate new private key) để gửi push FCM (chuông/Thông báo, Chat 1-1/phòng, Bảng tin). Đường dẫn tương đối tính từ thư mục chứa `.env`. Trống → **chỉ tắt push**, chuông/email vẫn chạy bình thường. Không commit file key (gitignore) |
 | `Realtime__MapPath` | – | Mặc định `shared/office-map.json` |
 | `Realtime__ApiBaseUrl` | – (`http://localhost:5080`) | Realtime gọi Api để kiểm tra phiên. Prod compose: `http://api:8080` |
 | `Attendance__Reminders__Enabled`, `__Email`, `__GraceMinutes`, `__FlexibleAt`, `__NextMorningAt` | – (true, false, 30, 21:00, 08:00) | Nhắc quên chấm ra ([business/attendance-corrections.md](business/attendance-corrections.md)) |

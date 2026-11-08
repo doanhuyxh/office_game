@@ -3,7 +3,8 @@ import { toast } from 'sonner';
 
 /**
  * PWA: đăng ký service worker (public/sw.js — chỉ bản build production), báo khi có bản mới, và nút "Cài ứng dụng".
- * Không có push notification (chủ dự án chốt) — thông báo vẫn qua chuông / email.
+ * public/sw.js cũng xử lý push FCM (chuông / Chat / Bảng tin) — xem features/notifications, services/firebase.ts.
+ * iOS Safari: push chỉ hoạt động khi đã "Thêm vào màn hình chính" (giới hạn của Apple), không phải trong tab Safari thường.
  */
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;

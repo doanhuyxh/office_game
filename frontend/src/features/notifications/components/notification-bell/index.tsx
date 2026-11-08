@@ -1,11 +1,13 @@
 import { useNavigate } from '@tanstack/react-router';
-import { Bell, CheckCheck, Volume2, VolumeX } from 'lucide-react';
+import { Bell, BellOff, BellRing, CheckCheck, Volume2, VolumeX } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/common/dropdown-menu';
 import { PATHS } from '@/config/paths';
 import { cn } from '@/utils/cn';
 import { useNotificationSound } from '../../hooks/useNotificationSound';
 import { useMarkAllRead, useMarkRead, useNotifications } from '../../hooks/useNotifications';
+import { usePush } from '../../hooks/usePush';
 import type { INotification } from '../../types/notification.types';
 import { CATEGORY, FALLBACK, linkTarget, timeAgo } from '../../utils/labels';
 
@@ -15,6 +17,7 @@ export function NotificationBell() {
   const markRead = useMarkRead();
   const markAll = useMarkAllRead();
   const [soundOn, setSoundOn] = useNotificationSound();
+  const push = usePush();
   const navigate = useNavigate();
   const unread = data?.unreadCount ?? 0;
   const items = data?.items ?? [];
@@ -51,6 +54,17 @@ export function NotificationBell() {
               onClick={(e) => { e.preventDefault(); setSoundOn(!soundOn); }}>
               {soundOn ? <Volume2 className="size-4" /> : <VolumeX className="size-4 text-muted-foreground" />}
             </Button>
+            {push.supported && (
+              <Button variant="ghost" size="icon" className="size-7" aria-label={push.enabled ? 'Tắt thông báo đẩy' : 'Bật thông báo đẩy'}
+                aria-pressed={push.enabled} data-testid="notification-push-toggle"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  if (push.enabled) await push.disable();
+                  else if (!(await push.enable())) toast.error('Trình duyệt chặn quyền thông báo — vào cài đặt trình duyệt để cho phép');
+                }}>
+                {push.enabled ? <BellRing className="size-4" /> : <BellOff className="size-4 text-muted-foreground" />}
+              </Button>
+            )}
           </div>
         </div>
         <DropdownMenuSeparator className="m-0" />
