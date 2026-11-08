@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using OfficeHub.BuildingBlocks.Auth;
@@ -96,7 +97,8 @@ internal static class NotificationEndpoints
         return TypedResults.NoContent();
     }
 
-    private static async Task<NoContent> UnregisterPushTokenAsync(PushTokenRequest req, NotificationDbContext db, CancellationToken ct)
+    // DELETE không tự suy ra body (chỉ POST/PUT/PATCH) — phải đánh dấu [FromBody] rõ ràng, thiếu thì app không khởi động được.
+    private static async Task<NoContent> UnregisterPushTokenAsync([FromBody] PushTokenRequest req, NotificationDbContext db, CancellationToken ct)
     {
         await db.PushTokens.Where(t => t.Token == req.Token).ExecuteDeleteAsync(ct);
         return TypedResults.NoContent();
