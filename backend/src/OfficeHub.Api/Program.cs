@@ -9,6 +9,7 @@ using OfficeHub.Modules.Audit;
 using OfficeHub.Modules.Assets;
 using OfficeHub.Modules.Finance;
 using OfficeHub.Modules.Sales;
+using OfficeHub.Modules.Projects;
 using OfficeHub.Modules.Documents;
 using OfficeHub.Modules.Chat;
 using OfficeHub.Modules.News;
@@ -51,6 +52,7 @@ IModule[] modules =
     new AssetsModule(),
     new FinanceModule(),
     new SalesModule(),
+    new ProjectsModule(), // sau DocumentsModule: chép dự án cũ của kho tài liệu
     new ChatModule(),
     new NewsModule(),
 ];

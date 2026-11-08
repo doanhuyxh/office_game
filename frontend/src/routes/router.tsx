@@ -121,6 +121,13 @@ const newsPost = createRoute({
   component: lazyRouteComponent(() => import('@/features/news'), 'PostPage'),
 });
 
+// Chi tiết dự án (link từ chuông giao việc / thêm thành viên): /projects/<id>?tab=tasks|milestones|members|effort
+const projectDetail = createRoute({
+  getParentRoute: () => main,
+  path: '/projects/$projectId',
+  component: lazyRouteComponent(() => import('@/features/projects'), 'ProjectDetailPage'),
+});
+
 const routeTree = root.addChildren([
   login,
   changePassword,
@@ -141,6 +148,7 @@ const routeTree = root.addChildren([
       page(PATHS.assets, () => import('@/features/assets'), 'AssetsPage'),
       page(PATHS.finance, () => import('@/features/finance'), 'FinancePage'),
       page(PATHS.sales, () => import('@/features/sales'), 'SalesPage'),
+      page(PATHS.projects, () => import('@/features/projects'), 'ProjectsPage'),
       page(PATHS.employees, () => import('@/features/employees'), 'EmployeesPage'),
       page(PATHS.contracts, () => import('@/features/contracts'), 'ContractsPage'),
       page(PATHS.reports, () => import('@/features/reports'), 'ReportsPage'),
@@ -152,6 +160,7 @@ const routeTree = root.addChildren([
       page(PATHS.chat, () => import('@/features/chat'), 'ChatPage'),
       page(PATHS.news, () => import('@/features/news'), 'NewsPage'),
       newsPost,
+      projectDetail,
       page(PATHS.aiAccess, () => import('@/features/ai-access'), 'AiAccessPage'),
       page(PATHS.mcpTools, () => import('@/features/mcp-tools'), 'McpToolsPage'),
       page(PATHS.system, () => import('@/features/system'), 'SystemPage'),

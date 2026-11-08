@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\OfficeHub.BuildingBlocks\OfficeHub.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\OfficeHub.Modules.Projects.Contracts\OfficeHub.Modules.Projects.Contracts.csproj" />
+    <ProjectReference Include="..\..\Organization\OfficeHub.Modules.Organization.Contracts\OfficeHub.Modules.Organization.Contracts.csproj" />
+    <ProjectReference Include="..\..\Notification\OfficeHub.Modules.Notification.Contracts\OfficeHub.Modules.Notification.Contracts.csproj" />
+    <ProjectReference Include="..\..\Attendance\OfficeHub.Modules.Attendance.Contracts\OfficeHub.Modules.Attendance.Contracts.csproj" />
+    <ProjectReference Include="..\..\Sales\OfficeHub.Modules.Sales.Contracts\OfficeHub.Modules.Sales.Contracts.csproj" />
+    <ProjectReference Include="..\..\Documents\OfficeHub.Modules.Documents.Contracts\OfficeHub.Modules.Documents.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="OfficeHub.Modules.Projects.Tests" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

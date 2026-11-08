@@ -30,8 +30,13 @@
   <Folder Name="/src/Modules/Chat/">
     <Project Path="src/Modules/Chat/OfficeHub.Modules.Chat/OfficeHub.Modules.Chat.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Projects/">
+    <Project Path="src/Modules/Projects/OfficeHub.Modules.Projects/OfficeHub.Modules.Projects.csproj" />
+    <Project Path="src/Modules/Projects/OfficeHub.Modules.Projects.Contracts/OfficeHub.Modules.Projects.Contracts.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Sales/">
     <Project Path="src/Modules/Sales/OfficeHub.Modules.Sales/OfficeHub.Modules.Sales.csproj" />
+    <Project Path="src/Modules/Sales/OfficeHub.Modules.Sales.Contracts/OfficeHub.Modules.Sales.Contracts.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Finance/">
     <Project Path="src/Modules/Finance/OfficeHub.Modules.Finance/OfficeHub.Modules.Finance.csproj" />
@@ -42,6 +47,7 @@
   </Folder>
   <Folder Name="/src/Modules/Documents/">
     <Project Path="src/Modules/Documents/OfficeHub.Modules.Documents/OfficeHub.Modules.Documents.csproj" />
+    <Project Path="src/Modules/Documents/OfficeHub.Modules.Documents.Contracts/OfficeHub.Modules.Documents.Contracts.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Leave/">
     <Project Path="src/Modules/Leave/OfficeHub.Modules.Leave.Contracts/OfficeHub.Modules.Leave.Contracts.csproj" />
@@ -77,6 +83,7 @@
     <Project Path="tests/OfficeHub.Modules.Assets.Tests/OfficeHub.Modules.Assets.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Finance.Tests/OfficeHub.Modules.Finance.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Sales.Tests/OfficeHub.Modules.Sales.Tests.csproj" />
+    <Project Path="tests/OfficeHub.Modules.Projects.Tests/OfficeHub.Modules.Projects.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Documents.Tests/OfficeHub.Modules.Documents.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Leave.Tests/OfficeHub.Modules.Leave.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Identity.Tests/OfficeHub.Modules.Identity.Tests.csproj" />

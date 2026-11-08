@@ -7,7 +7,7 @@ const B = 'http://localhost:5080';
 type Jar = { cookie: string };
 const call = async (jar: Jar, m: string, p: string, b?: unknown) => {
   const r = await fetch(B + p, { method: m, headers: { 'Content-Type': 'application/json', Cookie: jar.cookie }, body: b ? JSON.stringify(b) : undefined });
-  const sc = r.headers.getSetCookie(); if (sc.length) jar.cookie = sc.map((s) => s.split(';')[0]).join('; ');
+  const sc = r.headers.getSetCookie(); if (sc.length) jar.cookie = [...new Map(sc.map((s) => s.split(';')[0]).map((kv) => [kv.slice(0, kv.indexOf('=')), kv] as const)).values()].join('; ') /* cookie cùng tên: giữ cái sau */;
   const t = await r.text(); let j: any = t; try { j = JSON.parse(t); } catch {}
   if (r.status >= 400) throw new Error(`${m} ${p} → ${r.status} ${t}`);
   return j;

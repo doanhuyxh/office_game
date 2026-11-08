@@ -1,0 +1,111 @@
+using System.Text.Json.Serialization;
+using OfficeHub.BuildingBlocks.Auditing;
+using OfficeHub.Modules.Projects.Contracts;
+
+namespace OfficeHub.Modules.Projects.Domain;
+
+[JsonConverter(typeof(JsonStringEnumConverter<ProjectStatus>))]
+public enum ProjectStatus { Active = 0, Closed = 1 }
+
+/// <summary>Nội bộ (không có khách) / làm cho khách (gắn hợp đồng bán).</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<ProjectKind>))]
+public enum ProjectKind { Internal = 0, Client = 1 }
+
+[JsonConverter(typeof(JsonStringEnumConverter<MilestoneStatus>))]
+public enum MilestoneStatus { Open = 0, Accepted = 1 }
+
+[JsonConverter(typeof(JsonStringEnumConverter<TaskState>))]
+public enum TaskState { Todo = 0, Doing = 1, Review = 2, Done = 3 }
+
+/// <summary>
+/// Dự án (module Projects sở hữu từ 2026-11-08; trước đó nằm ở module Documents — Id giữ nguyên nên kho tài liệu dự án không đổi).
+/// Không xoá — chỉ đóng. Không lưu số tiền (quản lý dự án chỉ xem ngày công).
+/// </summary>
+[Audited]
+public sealed class Project
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public required string Code { get; set; }
+    public required string Name { get; set; }
+    public string? Description { get; set; }
+    public ProjectKind Kind { get; set; }
+    public ProjectStatus Status { get; set; }
+    public Guid? DepartmentId { get; set; }
+    /// <summary>Mảng kinh doanh (module Finance) — để báo cáo lãi / lỗ theo mảng.</summary>
+    public Guid? BusinessLineId { get; set; }
+    /// <summary>Hợp đồng bán (module Sales). Mốc nghiệm thu chỉ gắn được đợt thu của hợp đồng này.</summary>
+    public Guid? SalesContractId { get; set; }
+    public DateOnly? StartOn { get; set; }
+    public DateOnly? EndOn { get; set; }
+    public DateOnly? ClosedOn { get; set; }
+    /// <summary>Ngân sách ngày công (người × ngày).</summary>
+    public decimal? BudgetManDays { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public string? CreatedByName { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
+    public List<ProjectMember> Members { get; set; } = [];
+}
+
+public sealed class ProjectMember
+{
+    public Guid ProjectId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public ProjectMemberRole Role { get; set; }
+    public DateTimeOffset AddedAt { get; set; }
+}
+
+/// <summary>% thời gian một thành viên dành cho dự án trong một tháng (quản lý dự án đặt). Không có → mặc định (<see cref="EffortRules.DefaultPercent"/>).</summary>
+public sealed class Allocation
+{
+    public Guid ProjectId { get; set; }
+    public Guid EmployeeId { get; set; }
+    /// <summary>Ngày 1 của tháng.</summary>
+    public DateOnly Month { get; set; }
+    public int Percent { get; set; }
+}
+
+/// <summary>Mốc nghiệm thu. Gắn đợt thu (module Sales) → nghiệm thu xong thì đợt thu đến hạn.</summary>
+public sealed class Milestone
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid ProjectId { get; set; }
+    public int Order { get; set; }
+    public required string Title { get; set; }
+    public DateOnly? DueOn { get; set; }
+    public MilestoneStatus Status { get; set; }
+    public Guid? InstallmentId { get; set; }
+    public DateOnly? AcceptedOn { get; set; }
+    public string? AcceptedByName { get; set; }
+    public string? Note { get; set; }
+}
+
+public sealed class TaskItem
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid ProjectId { get; set; }
+    /// <summary>Số thứ tự trong dự án → mã {Mã dự án}-{n}.</summary>
+    public int Number { get; set; }
+    public required string Title { get; set; }
+    public string? Description { get; set; }
+    public TaskState State { get; set; }
+    /// <summary>Thứ tự trong cột (số thực để chèn giữa không phải đánh lại).</summary>
+    public double Rank { get; set; }
+    public Guid? AssigneeEmployeeId { get; set; }
+    public Guid? MilestoneId { get; set; }
+    public DateOnly? DueOn { get; set; }
+    public decimal? EstimateDays { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public string CreatedByName { get; set; } = "";
+    public DateTimeOffset? CompletedAt { get; set; }
+    public DateTimeOffset? DueRemindedAt { get; set; }
+}
+
+public sealed class TaskComment
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid TaskId { get; set; }
+    public required string Content { get; set; }
+    public Guid? AuthorEmployeeId { get; set; }
+    public string AuthorName { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+}

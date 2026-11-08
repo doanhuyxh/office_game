@@ -13,7 +13,7 @@ const ok = (name: string, cond: boolean, extra?: unknown) => {
 };
 
 const login = await fetch(`${API}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: USER, password: PASS }) });
-const cookie = (login.headers.get('set-cookie') ?? '').split(';')[0];
+const cookie = (login.headers.getSetCookie().map((c) => c.split(';')[0]).filter((c) => c.startsWith('officehub.auth=')).at(-1) ?? '');
 ok('đăng nhập web', login.ok);
 
 const created = await fetch(`${API}/api/auth/access-tokens`, { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ name: 'mcp-e2e', expiresInDays: 30 }) });

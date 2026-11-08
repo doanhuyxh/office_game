@@ -1,7 +1,11 @@
 // E2E: kho tài liệu (module Documents) — kho / quyền, thư mục, tải lên thẳng S3 (vé + presigned PUT), phiên bản, xem / tải (presigned GET,
 // nhật ký), tìm kiếm, thùng rác, gửi duyệt ban hành → số hiệu, lưu trữ, huỷ, hạn lưu trữ, dự án + thành viên, bàn giao, thống kê, CORS S3.
 // TẠO NHÂN VIÊN THẬT → CHỈ chạy trên DB tạm (Api :5180 trỏ DB tạm). File S3 thật: cuối bài huỷ / xoá hết.
-//   E2E_LOCAL_DB=1 API_URL=http://localhost:5180 bun scripts/dev/documents-e2e.ts
+//   E2E_LOCAL_DB=1 API_URL=http://localhost:5180 ADMIN_LOGIN=… ADMIN_PASSWORD=… bun scripts/dev/documents-e2e.ts
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { totp } from './totp';
+
 if (process.env.E2E_LOCAL_DB !== '1') throw new Error('Chỉ chạy với DB tạm: đặt E2E_LOCAL_DB=1');
 const API = process.env.API_URL ?? 'http://localhost:5180';
 const ORIGIN = process.env.APP_ORIGIN ?? 'http://localhost:5173';
@@ -12,9 +16,33 @@ const ok = (name: string, cond: boolean, extra?: unknown) => {
   cond ? pass++ : fail++;
   console.log(`${cond ? '✔' : '✘'} ${name}${!cond && extra !== undefined ? ' → ' + JSON.stringify(extra).slice(0, 600) : ''}`);
 };
-const login = async (login: string, password: string) => {
+// Đăng nhập (admin bắt buộc 2FA từ 2026-11-07: tự bật lần đầu, khoá lưu theo cổng Api ở thư mục tạm). Lấy cookie officehub.auth CUỐI (đăng nhập trả 2 Set-Cookie).
+const KEYS_FILE = `${tmpdir()}/officehub-e2e-2fa-keys-${new URL(API).port}.json`;
+const keys: Record<string, string> = existsSync(KEYS_FILE) ? JSON.parse(readFileSync(KEYS_FILE, 'utf8')) : {};
+const cookieOf = (r: Response, name: string) => r.headers.getSetCookie().map((c) => c.split(';')[0]).filter((c) => c.startsWith(name + '=')).at(-1) ?? '';
+const login = async (login: string, password: string): Promise<string> => {
   const r = await fetch(`${API}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login, password }) });
-  return (r.headers.get('set-cookie') ?? '').split(';')[0];
+  const body = await r.json().catch(() => null) as any;
+  if (r.status === 403 && body?.title === '2fa_required') {
+    if (!keys[login]) throw new Error(`${login} đã bật 2FA nhưng không có khoá trong ${KEYS_FILE}`);
+    const r2 = await fetch(`${API}/api/auth/login/2fa`, { method: 'POST', headers: { 'content-type': 'application/json', cookie: cookieOf(r, 'officehub.2fa') },
+      body: JSON.stringify({ code: totp(keys[login]), isRecoveryCode: false, rememberMe: true }) });
+    return cookieOf(r2, 'officehub.auth');
+  }
+  let cookie = cookieOf(r, 'officehub.auth');
+  if (r.ok && body?.mustSetupTwoFactor) {
+    const post = async (path: string, b: unknown) => {
+      const x = await fetch(API + path, { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify(b) });
+      cookie = cookieOf(x, 'officehub.auth') || cookie;
+      return { status: x.status, body: await x.json().catch(() => null) as any };
+    };
+    const st = await post('/api/auth/2fa/setup', {});
+    const en = await post('/api/auth/2fa/enable', { code: totp(st.body?.sharedKey ?? '') });
+    if (en.status !== 200) throw new Error(`Không bật được 2FA cho ${login}`);
+    keys[login] = st.body.sharedKey;
+    writeFileSync(KEYS_FILE, JSON.stringify(keys));
+  }
+  return cookie;
 };
 const json = async (cookie: string, method: string, path: string, body?: unknown) => {
   const r = await fetch(API + path, { method, headers: { cookie, 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -23,7 +51,7 @@ const json = async (cookie: string, method: string, path: string, body?: unknown
 const PW = 'E2e-Local-2026';
 const year = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 4);
 
-const admin = await login(env.Seed__AdminEmail, env.Seed__AdminPassword);
+const admin = await login(process.env.ADMIN_LOGIN ?? env.Seed__AdminEmail, process.env.ADMIN_PASSWORD ?? env.Seed__AdminPassword);
 if (!admin) throw new Error('Không đăng nhập được admin seed');
 
 // ---------- Chuẩn bị: 2 phòng, trưởng phòng (manager) + nhân viên cùng phòng + người phòng khác ----------
@@ -203,21 +231,24 @@ ok('xoá hẳn → hồ sơ + file S3 biến mất', (await json(staff.cookie, '
   && (await json(staff.cookie, 'GET', `/api/documents/assets/${d3id}`)).status === 404 && [403, 404].includes((await fetch(d3url)).status));
 
 // ---------- Dự án ----------
-ok('nhân viên thường không tạo dự án (403)', (await json(staff.cookie, 'POST', '/api/documents/projects', { code: 'X', name: 'X' })).status === 403);
-const pj = await json(head.cookie, 'POST', '/api/documents/projects', { code: 'appe2e', name: 'Ứng dụng E2E', description: null, departmentId: tech, memberIds: [staff.e.id] });
-ok('quản lý tạo dự án: mã viết hoa, người tạo = quản lý dự án, có thành viên', pj.status === 200 && pj.body.code === 'APPE2E' && pj.body.myRole === 'Manager'
-  && pj.body.members.length === 2, pj);
-ok('trùng mã dự án → 400', (await json(head.cookie, 'POST', '/api/documents/projects', { code: 'APPE2E', name: 'Y' })).status === 400);
+// Dự án thuộc module Projects từ 2026-11-08 (/api/projects); kho tài liệu dự án đọc qua IProjectDirectory. Kiểm tra đầy đủ: projects-e2e.ts.
+ok('nhân viên thường không tạo dự án (403)', (await json(staff.cookie, 'POST', '/api/projects', { code: 'X', name: 'X' })).status === 403);
+const pjNew = await json(head.cookie, 'POST', '/api/projects', { code: 'appe2e', name: 'Ứng dụng E2E', description: null, departmentId: tech, memberIds: [staff.e.id] });
+const pj = { status: pjNew.status, body: (await json(head.cookie, 'GET', `/api/projects/${pjNew.body}`)).body?.project as any };
+const pjMembers = (await json(head.cookie, 'GET', `/api/projects/${pjNew.body}`)).body?.members as any[];
+ok('quản lý tạo dự án: mã viết hoa, người tạo = quản lý dự án, có thành viên', pj.status === 201 && pj.body.code === 'APPE2E' && pj.body.myRole === 'Manager'
+  && pjMembers.length === 2, pj);
+ok('trùng mã dự án → 400', (await json(head.cookie, 'POST', '/api/projects', { code: 'APPE2E', name: 'Y' })).status === 400);
 const P = { kind: 'Project', id: pj.body.id };
 const pa = await createAsset(staff.cookie, 'spec.txt', 'Đặc tả', P);
 ok('thành viên tải vào kho dự án, mã TL-APPE2E-…', pa.status === 200 && pa.body.asset.code.startsWith('TL-APPE2E-'), pa);
 ok('người ngoài dự án không thấy kho dự án', !(await spaces(outsider.cookie)).some((s) => s.id === pj.body.id)
   && (await json(outsider.cookie, 'GET', `/api/documents/assets/${pa.body.asset.id}`)).status === 404);
-ok('thành viên thường không sửa dự án (403)', (await json(staff.cookie, 'PUT', `/api/documents/projects/${pj.body.id}`, { name: 'x', status: 'Active' })).status === 403);
-ok('không bỏ được quản lý cuối cùng (409)', (await json(head.cookie, 'DELETE', `/api/documents/projects/${pj.body.id}/members/${head.e.id}`)).status === 409);
-await json(head.cookie, 'PUT', `/api/documents/projects/${pj.body.id}`, { name: 'Ứng dụng E2E', description: null, departmentId: tech, status: 'Closed' });
+ok('thành viên thường không sửa dự án (403)', (await json(staff.cookie, 'PUT', `/api/projects/${pj.body.id}`, { code: 'APPE2E', name: 'x', status: 'Active' })).status === 403);
+ok('không bỏ được quản lý cuối cùng (409)', (await json(head.cookie, 'DELETE', `/api/projects/${pj.body.id}/members/${head.e.id}`)).status === 409);
+await json(head.cookie, 'PUT', `/api/projects/${pj.body.id}`, { code: 'APPE2E', name: 'Ứng dụng E2E', description: null, departmentId: tech, status: 'Closed' });
 ok('dự án đã đóng: kho chỉ đọc (403 khi tải lên)', (await createAsset(staff.cookie, 'late.txt', 'x', P)).status === 403);
-ok('HR không xoá được dự án đã có tài liệu (409)', (await json(admin, 'DELETE', `/api/documents/projects/${pj.body.id}`)).status === 409);
+ok('không còn API xoá dự án (chỉ đóng)', [404, 405].includes((await json(admin, 'DELETE', `/api/projects/${pj.body.id}`)).status));
 
 // ---------- Quản trị (HR) ----------
 ok('nhân viên không vào trang quản trị (403)', (await json(staff.cookie, 'GET', '/api/documents/admin/stats')).status === 403);
@@ -229,7 +260,7 @@ ok('HR đổi hạn lưu trữ → vào danh sách sắp hết hạn', (await js
 ok('hạn trong quá khứ → 400', (await json(admin, 'PUT', `/api/documents/admin/assets/${d2.body.asset.id}/retention`, { until: '2020-01-01' })).status === 400);
 const ho = await json(admin, 'POST', '/api/documents/admin/handover', { fromEmployeeId: staff.e.id, toEmployeeId: outsider.e.id });
 ok('bàn giao: chuyển người phụ trách + thêm vào dự án', ho.status === 200 && ho.body >= 3
-  && (await json(outsider.cookie, 'GET', '/api/documents/projects')).body.some((p: any) => p.id === pj.body.id), ho);
+  && (await json(outsider.cookie, 'GET', '/api/projects')).body.some((p: any) => p.id === pj.body.id), ho);
 ok('HR huỷ phải có lý do (400)', (await json(admin, 'POST', `/api/documents/admin/assets/${A.id}/destroy`, { reason: ' ' })).status === 400);
 const des = await json(admin, 'POST', `/api/documents/admin/assets/${A.id}/destroy`, { reason: 'Hết hạn lưu trữ (E2E)' });
 const desD = (await json(admin, 'GET', `/api/documents/assets/${A.id}`)).body;

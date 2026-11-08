@@ -23,6 +23,7 @@ public sealed class DocumentsModule : IModule
     {
         services.AddModuleDbContext<DocumentsDbContext>(config, DocumentsDbContext.Schema);
         services.AddScoped<DocumentAccess>();
+        services.AddScoped<OfficeHub.Modules.Documents.Contracts.ILegacyDocumentProjects, LegacyDocumentProjects>();
         services.AddSingleton<DocClock>();
         services.AddScoped<AssetPublisher>();
         services.AddScoped<IApprovalHandler, DocumentPublishHandler>();

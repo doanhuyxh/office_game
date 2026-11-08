@@ -18,7 +18,7 @@ const pkce = () => { const verifier = b64url(randomBytes(32)); return { verifier
 const form = (o: Record<string, string>) => ({ method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(o) });
 const login = async (user: string) => {
   const r = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: user, password: PASS }) });
-  return (r.headers.get('set-cookie') ?? '').split(';')[0];
+  return (r.headers.getSetCookie().map((c) => c.split(';')[0]).filter((c) => c.startsWith('officehub.auth=')).at(-1) ?? '');
 };
 async function mcp(token: string | null, method: string, params: unknown = {}) {
   const res = await fetch(`${BASE}/mcp`, {

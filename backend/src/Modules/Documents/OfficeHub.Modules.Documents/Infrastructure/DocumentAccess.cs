@@ -5,6 +5,7 @@ using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.Modules.Documents.Domain;
 using OfficeHub.Modules.Organization.Contracts;
+using OfficeHub.Modules.Projects.Contracts;
 
 namespace OfficeHub.Modules.Documents.Infrastructure;
 
@@ -26,10 +27,15 @@ internal sealed record Viewer(
 /// Kho dự án: thành viên, quản lý dự án quản lý; dự án đã đóng chỉ đọc. HR / admin: toàn quyền mọi kho.
 /// Mức bảo mật: hiện chỉ "Nội bộ"; Restricted / Confidential (để sẵn) → chỉ HR xem.
 /// </summary>
-internal sealed class DocumentAccess(DocumentsDbContext db, IEmployeeDirectory dir)
+/// Dự án + thành viên thuộc module Projects (đọc qua <see cref="IProjectDirectory"/>, từ 2026-11-08).
+internal sealed class DocumentAccess(IEmployeeDirectory dir, IProjectDirectory projectDir)
 {
     private Viewer? _viewer;
     private IReadOnlyList<DepartmentRef>? _departments;
+    private IReadOnlyList<ProjectRef>? _projects;
+
+    /// <summary>Mọi dự án (module Projects) — một lần mỗi request.</summary>
+    public async Task<IReadOnlyList<ProjectRef>> ProjectsAsync(CancellationToken ct) => _projects ??= await projectDir.ListAsync(ct);
 
     public async Task<IReadOnlyList<DepartmentRef>> DepartmentsAsync(CancellationToken ct) =>
         _departments ??= await dir.ListDepartmentsAsync(ct);
@@ -52,7 +58,7 @@ internal sealed class DocumentAccess(DocumentsDbContext db, IEmployeeDirectory d
             foreach (var head in depts.Where(d => d.HeadEmployeeId == emp.Id))
                 foreach (var id in Descendants(depts, head.Id)) { managed.Add(id); read.Add(id); }
         var projects = emp is null ? new Dictionary<Guid, ProjectRole>()
-            : await db.ProjectMembers.AsNoTracking().Where(m => m.EmployeeId == emp.Id).ToDictionaryAsync(m => m.ProjectId, m => m.Role, ct);
+            : (await projectDir.RolesOfAsync(emp.Id, ct)).ToDictionary(x => x.Key, x => (ProjectRole)(int)x.Value);
         return _viewer = new Viewer(uid, user.FindFirstValue(ClaimNames.FullName) ?? user.Identity?.Name ?? "", user.IsHr(), emp, read, managed, projects);
     }
 
@@ -83,7 +89,7 @@ internal sealed class DocumentAccess(DocumentsDbContext db, IEmployeeDirectory d
     {
         if (!CanRead(v, kind, spaceId)) return false;
         if (kind != SpaceKind.Project) return true;
-        return await db.Projects.AnyAsync(p => p.Id == spaceId && p.Status == ProjectStatus.Active, ct);
+        return spaceId is { } id && (await projectDir.GetAsync(id, ct))?.IsActive == true;
     }
 
     /// <summary>Quản lý kho: xoá / sửa thư mục và tài liệu của người khác, đổi người phụ trách, lưu trữ, xem nhật ký truy cập.</summary>
@@ -112,7 +118,7 @@ internal sealed class DocumentAccess(DocumentsDbContext db, IEmployeeDirectory d
                 var d = (await DepartmentsAsync(ct)).FirstOrDefault(x => x.Id == spaceId);
                 return d is null ? null : (d.Name, DocumentRules.SpaceCode(kind, d.Code));
             case SpaceKind.Project:
-                var p = await db.Projects.AsNoTracking().Where(x => x.Id == spaceId).Select(x => new { x.Name, x.Code }).FirstOrDefaultAsync(ct);
+                var p = spaceId is { } pid ? await projectDir.GetAsync(pid, ct) : null;
                 return p is null ? null : (p.Name, DocumentRules.SpaceCode(kind, p.Code));
             default:
                 return null;

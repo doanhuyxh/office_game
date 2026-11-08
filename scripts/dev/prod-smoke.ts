@@ -60,7 +60,7 @@ console.log('  (7882/udp không kiểm tra được bằng script — thử voic
 if (process.env.SMOKE_USER && process.env.SMOKE_PASSWORD) {
   const l = await get('/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ login: process.env.SMOKE_USER, password: process.env.SMOKE_PASSWORD }) });
-  const cookie = (l.headers.get('set-cookie') ?? '').split(';')[0];
+  const cookie = (l.headers.getSetCookie().map((c) => c.split(';')[0]).filter((c) => c.startsWith('officehub.auth=')).at(-1) ?? '');
   ok('đăng nhập', l.status === 200);
   for (const [name, path] of [['chấm công hôm nay', '/api/attendance/today'], ['quỹ phép', '/api/leave/balance'], ['thông báo', '/api/notifications?take=1'],
     ['phòng họp', '/api/meetings/rooms'], ['token AI của tôi', '/api/auth/access-tokens'], ['tiền phép ước tính', '/api/reports/leave-payout/me']] as const) {

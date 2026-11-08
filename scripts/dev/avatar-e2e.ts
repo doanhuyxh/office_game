@@ -18,7 +18,7 @@ const ok = (name: string, cond: boolean, extra?: unknown) => {
   console.log(`${cond ? '✔' : '✘'} ${name}${!cond && extra !== undefined ? ' → ' + JSON.stringify(extra).slice(0, 400) : ''}`);
 };
 const login = async (l: string, p: string) =>
-  ((await fetch(`${API}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: l, password: p }) })).headers.get('set-cookie') ?? '').split(';')[0];
+  ((await fetch(`${API}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: l, password: p }) })).headers.getSetCookie().map((c) => c.split(';')[0]).filter((c) => c.startsWith('officehub.auth=')).at(-1) ?? '');
 const json = async (auth: string, method: string, path: string, body?: unknown) => {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (auth.startsWith('ohk_')) headers.authorization = `Bearer ${auth}`; else headers.cookie = auth;

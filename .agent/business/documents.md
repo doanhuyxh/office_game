@@ -38,12 +38,12 @@ Video, ảnh, văn bản công việc là **tài sản của công ty**: mỗi f
 
 ## Dự án
 
-Tạo: vai trò manager / hr / admin (người tạo có hồ sơ → quản lý dự án). Mã viết hoa, duy nhất. Quản lý dự án / HR: sửa, đóng / mở lại, thêm thành viên (chuông `project_member_added`), bỏ thành viên (phải còn ≥ 1 quản lý). HR xoá dự án chưa có tài liệu (kể cả thùng rác), có rồi thì đóng.
+Từ 2026-11-08 dự án + thành viên thuộc **module Projects** ([projects.md](projects.md)); Documents đọc qua `IProjectDirectory` (quyền kho dự án như bảng trên). Bảng `documents.projects` / `project_members` chỉ còn là dữ liệu cũ đã chép sang (không ghi nữa). Không còn API `/api/documents/projects*`.
 
 ## Quản trị (HR, `/admin/*`)
 
 - `stats`: số lượng / dung lượng theo kho, nhóm file, loại, 12 tháng; đếm sắp hết hạn, thùng rác, "chưa bàn giao" (người phụ trách đã nghỉ việc).
-- `orphans` + `handover { fromEmployeeId, toEmployeeId }`: chuyển mọi tài liệu người cũ phụ trách sang người mới + thêm người mới vào các dự án người cũ tham gia (giữ vai trò); báo người nhận (`document_handover`).
+- `orphans` + `handover { fromEmployeeId, toEmployeeId }`: chuyển mọi tài liệu người cũ phụ trách sang người mới + thêm người mới vào các dự án người cũ tham (qua `IProjectDirectory.TransferMembershipsAsync`) gia (giữ vai trò); báo người nhận (`document_handover`).
 - Loại tài liệu (`/doc-types`, HR thêm / sửa): mặc định VB 5 năm, QĐ / QC vĩnh viễn, HĐ / KT / TK 10 năm, BC / HA / VD 5 năm, K 2 năm — **tham khảo**, kế toán nên xác nhận. Đổi số năm chỉ áp dụng tài liệu mới.
 
 ## Job (`DocumentsMaintenanceJob`, mỗi giờ, host Api)
@@ -54,7 +54,7 @@ Nhắc hạn lưu trữ · xoá hẳn thùng rác > 30 ngày · dọn vé tải 
 
 - Tab **Kho tài liệu**: chọn kho, cây thư mục, đường dẫn, thư mục con (đổi tên / xoá thư mục trống), bảng tài liệu phân trang, tìm (tiêu đề, mã, số hiệu, thẻ, tên file) trong kho hoặc **mọi kho**, lọc nhóm file / trạng thái, nút "Tải file" / "Tải thư mục", kéo thả file hoặc thư mục.
 - Sheet chi tiết (`?asset=<id>`, link từ thông báo / thẻ phê duyệt "Xem tài liệu"): xem trước, tải về, gửi duyệt, lưu trữ, xoá / khôi phục / xoá hẳn, sửa thông tin, đổi người phụ trách, phiên bản (+ tải bản mới), nhật ký xem / tải; HR: đổi hạn lưu trữ, huỷ.
-- Tab **Dự án** (nút "Dự án mới" trên hàng tab), **Thùng rác**, **Quản trị** (HR: thống kê, đến hạn lưu trữ, bàn giao, loại tài liệu).
+- Nút **Dự án** (sang `/projects`) trên hàng tab, **Thùng rác**, **Quản trị** (HR: thống kê, đến hạn lưu trữ, bàn giao, loại tài liệu).
 
 E2E: `scripts/dev/documents-e2e.ts` (65 kiểm tra, DB tạm) — [e2e.md](../e2e.md).
 

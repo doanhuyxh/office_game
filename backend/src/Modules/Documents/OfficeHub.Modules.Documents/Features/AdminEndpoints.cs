@@ -89,7 +89,7 @@ internal static class AdminEndpoints
         var rows = await live.Select(a => new { a.SpaceKind, a.SpaceId, a.Kind, a.DocTypeId, a.Status, a.TotalSize, a.CreatedAt, a.CustodianEmployeeId })
             .ToListAsync(ct);
         var depts = (await access.DepartmentsAsync(ct)).ToDictionary(d => d.Id, d => d.Name);
-        var projects = await db.Projects.AsNoTracking().IgnoreQueryFilters().ToDictionaryAsync(p => p.Id, p => p.Name, ct);
+        var projects = (await access.ProjectsAsync(ct)).ToDictionary(p => p.Id, p => p.Name);
         var types = await AssetEndpoints.TypeNamesAsync(db, ct);
         string SpaceName(SpaceKind k, Guid? id) => k switch
         {
@@ -196,7 +196,7 @@ internal static class AdminEndpoints
     /// Chuyển mọi tài liệu người A phụ trách sang người B (đang làm việc); B cũng được thêm vào các dự án A tham gia (giữ vai trò).
     /// Báo B qua chuông + email.
     /// </summary>
-    private static async Task<Results<Ok<int>, ValidationProblem>> HandoverAsync(HandoverRequest req, ClaimsPrincipal user, DocumentAccess access,
+    private static async Task<Results<Ok<int>, ValidationProblem>> HandoverAsync(HandoverRequest req, ClaimsPrincipal user, DocumentAccess access, OfficeHub.Modules.Projects.Contracts.IProjectDirectory projectDir,
         DocumentsDbContext db, IEmployeeDirectory dir, INotifier notifier, DocClock clock, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
@@ -211,15 +211,11 @@ internal static class AdminEndpoints
         var n = await db.Assets.Where(a => a.CustodianEmployeeId == req.FromEmployeeId && a.DeletedAt == null && a.Status != AssetStatus.Destroyed)
             .ExecuteUpdateAsync(s => s.SetProperty(a => a.CustodianEmployeeId, to!.Id).SetProperty(a => a.CustodianName, to.FullName)
                 .SetProperty(a => a.UpdatedAt, now), ct);
-        var memberships = await db.ProjectMembers.Where(m => m.EmployeeId == req.FromEmployeeId).ToListAsync(ct);
-        foreach (var m in memberships)
-            if (!await db.ProjectMembers.AnyAsync(x => x.ProjectId == m.ProjectId && x.EmployeeId == to!.Id, ct))
-                db.ProjectMembers.Add(new ProjectMember { ProjectId = m.ProjectId, EmployeeId = to!.Id, Role = m.Role, AddedAt = now });
-        await db.SaveChangesAsync(ct);
-        if (to!.UserId is { } uid && (n > 0 || memberships.Count > 0))
+        var projectCount = await projectDir.TransferMembershipsAsync(req.FromEmployeeId, to!.Id, ct); // module Projects
+        if (to!.UserId is { } uid && (n > 0 || projectCount > 0))
             await notifier.NotifyAsync(new NotificationRequest([uid], NotificationCategories.DocumentHandover,
                 $"Bạn được bàn giao {n} tài liệu của {from!.FullName}",
-                $"{v.Name} đã chuyển cho bạn phụ trách {n} tài liệu{(memberships.Count > 0 ? $" và {memberships.Count} dự án" : "")} của {from.Code} · {from.FullName}.",
+                $"{v.Name} đã chuyển cho bạn phụ trách {n} tài liệu{(projectCount > 0 ? $" và {projectCount} dự án" : "")} của {from.Code} · {from.FullName}.",
                 "/documents"), ct);
         return TypedResults.Ok(n);
     }

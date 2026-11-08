@@ -78,4 +78,6 @@ public static class NotificationCategories
     /// <summary>Đợt thu sắp đến hạn / đến hạn / quá hạn (gửi người phụ trách hợp đồng + người có quyền Ghi sổ) · việc chăm sóc khách đến hẹn — module Sales.</summary>
     public const string ReceivableDue = "receivable_due";
     public const string CustomerFollowUp = "customer_follow_up";
+    /// <summary>Được giao việc / việc đến hạn, quá hạn — module Projects.</summary>
+    public const string ProjectTask = "project_task";
 }

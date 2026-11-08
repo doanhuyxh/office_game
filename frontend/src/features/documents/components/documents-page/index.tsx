@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { FolderKanban } from 'lucide-react';
 import { Button } from '@/components/common/button';
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
 import { TablePagination, usePageState } from '@/components/common/pagination';
 import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
@@ -14,24 +14,20 @@ import { AdminTab } from '../admin-tab';
 import { AssetSheet } from '../asset-sheet';
 import { AssetTable } from '../asset-table';
 import { LibraryTab } from '../library-tab';
-import { ProjectsTab, useCanCreateProject } from '../projects-tab';
 import { useTabParam } from '@/hooks/useTabParam';
 
 /**
  * Kho tài sản số. URL: `?asset=<id>` mở chi tiết (link từ thông báo / phê duyệt), `?space=Project:<id>` mở thẳng một kho.
- * Tab: Kho tài liệu · Dự án · Thùng rác · Quản trị (HR / admin).
+ * Tab: Kho tài liệu · Thùng rác · Quản trị (HR / admin). Dự án + thành viên quản lý ở /projects (module Projects, 2026-11-08); kho dự án vẫn hiện ở Kho tài liệu.
  */
 export function DocumentsPage() {
   const search = useSearch({ strict: false }) as { asset?: string; space?: string };
   const navigate = useNavigate();
   const me = useMe();
   const isHr = !!me.data?.roles.some((r) => r === 'admin' || r === 'hr');
-  const [tab, setTab] = useTabParam('library', ['library', 'projects', 'trash', ...(isHr ? ['admin'] : [])]);
+  const [tab, setTab] = useTabParam('library', ['library', 'trash', ...(isHr ? ['admin'] : [])]);
   const [openId, setOpenId] = useState<string | null>(search.asset ?? null);
   const [space, setSpace] = useState<ISpaceRef | null>(search.space ? parseSpaceKey(search.space) : null);
-  const canCreateProject = useCanCreateProject();
-  const [creatingProject, setCreatingProject] = useState(false);
-  const onCreated = useCallback(() => setCreatingProject(false), []);
 
   useEffect(() => { if (search.asset) setOpenId(search.asset); }, [search.asset]);
   useEffect(() => { if (search.space) { setSpace(parseSpaceKey(search.space)); setTab('library'); } }, [search.space, setTab]);
@@ -44,16 +40,14 @@ export function DocumentsPage() {
     <div className="grid grid-cols-1 gap-4">
       <PageHeader title="Tài liệu" />
       <Tabs value={tab} onValueChange={setTab}>
-        <PageToolbar actions={tab === 'projects' && canCreateProject && <Button size="sm" onClick={() => setCreatingProject(true)}><Plus /> Dự án mới</Button>}>
+        <PageToolbar actions={<Button size="sm" variant="outline" asChild><Link to={PATHS.projects}><FolderKanban /> Dự án</Link></Button>}>
           <TabsList>
             <TabsTrigger value="library">Kho tài liệu</TabsTrigger>
-            <TabsTrigger value="projects">Dự án</TabsTrigger>
             <TabsTrigger value="trash">Thùng rác</TabsTrigger>
             {isHr && <TabsTrigger value="admin">Quản trị</TabsTrigger>}
           </TabsList>
         </PageToolbar>
         <TabsContent value="library" className="mt-4"><LibraryTab initialSpace={space} onOpen={setOpenId} /></TabsContent>
-        <TabsContent value="projects" className="mt-4"><ProjectsTab creating={creatingProject} onCreated={onCreated} onOpenSpace={(s) => { setSpace({ ...s }); setTab('library'); }} /></TabsContent>
         <TabsContent value="trash" className="mt-4"><TrashTab onOpen={setOpenId} /></TabsContent>
         {isHr && <TabsContent value="admin" className="mt-4"><AdminTab onOpen={setOpenId} /></TabsContent>}
       </Tabs>

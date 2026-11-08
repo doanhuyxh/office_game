@@ -14,7 +14,7 @@ const ok = (name: string, cond: boolean, extra?: unknown) => {
 };
 const login = async (login: string, password: string) => {
   const r = await fetch(`${API}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login, password }) });
-  return (r.headers.get('set-cookie') ?? '').split(';')[0];
+  return (r.headers.getSetCookie().map((c) => c.split(';')[0]).filter((c) => c.startsWith('officehub.auth=')).at(-1) ?? '');
 };
 const json = async (cookie: string, method: string, path: string, body?: unknown) => {
   const r = await fetch(API + path, { method, headers: { cookie, 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });

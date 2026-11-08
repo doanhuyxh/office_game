@@ -1,8 +1,8 @@
 import { http, httpPost, pageQs } from '@/services/api-client';
 import type { IPaged, IPageQuery } from '@/types/api';
 import type {
-  IAccessLog, IApprovers, IAssetDetail, IAssetFilter, IAssetRow, IDocType, IFileUrl, IFolder, IOrphan, IProject, IProjectMember, ISpace, ISpaceRef, IStats,
-  IUpdateAsset, IUploadTicket, ProjectRole, ProjectStatus,
+  IAccessLog, IApprovers, IAssetDetail, IAssetFilter, IAssetRow, IDocType, IFileUrl, IFolder, IOrphan, ISpace, ISpaceRef, IStats,
+  IUpdateAsset, IUploadTicket,
 } from '../types/document.types';
 
 const base = '/api/documents';
@@ -12,7 +12,6 @@ const spaceQs = (s: ISpaceRef) => `spaceKind=${s.kind}${s.id ? `&spaceId=${s.id}
 export const documentKeys = {
   all: ['documents'] as const,
   spaces: ['documents', 'spaces'] as const,
-  projects: ['documents', 'projects'] as const,
   folders: (s: ISpaceRef) => ['documents', 'folders', s.kind, s.id] as const,
   docTypes: ['documents', 'doc-types'] as const,
   assets: (f: IAssetFilter, q: IPageQuery) => ['documents', 'assets', f, q] as const,
@@ -29,14 +28,6 @@ export const documentKeys = {
 export const documentApi = {
   spaces: () => http<ISpace[]>(`${base}/spaces`),
 
-  projects: () => http<IProject[]>(`${base}/projects`),
-  createProject: (body: { code: string; name: string; description: string | null; departmentId: string | null; memberIds: string[] }) =>
-    httpPost<IProject>(`${base}/projects`, body),
-  updateProject: (id: string, body: { name: string; description: string | null; departmentId: string | null; status: ProjectStatus }) =>
-    http<void>(`${base}/projects/${id}`, json('PUT', body)),
-  deleteProject: (id: string) => http<void>(`${base}/projects/${id}`, { method: 'DELETE' }),
-  addMembers: (id: string, employeeIds: string[], role: ProjectRole) => httpPost<void>(`${base}/projects/${id}/members`, { employeeIds, role }),
-  removeMember: (id: string, m: IProjectMember) => http<void>(`${base}/projects/${id}/members/${m.employeeId}`, { method: 'DELETE' }),
 
   folders: (s: ISpaceRef) => http<IFolder[]>(`${base}/folders?${spaceQs(s)}`),
   createFolder: (s: ISpaceRef, parentId: string | null, name: string) =>

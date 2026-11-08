@@ -6,12 +6,6 @@ namespace OfficeHub.Modules.Documents.Features;
 
 public sealed record SpaceDto(SpaceKind Kind, Guid? Id, string Name, string Code, Guid? ParentId, bool CanWrite, bool CanManage, bool Closed);
 
-public sealed record ProjectMemberDto(Guid EmployeeId, string? Code, string FullName, ProjectRole Role, bool IsActive);
-public sealed record ProjectDto(Guid Id, string Code, string Name, string? Description, ProjectStatus Status, Guid? DepartmentId, string? DepartmentName,
-    IReadOnlyList<ProjectMemberDto> Members, ProjectRole? MyRole, bool CanManage, int AssetCount, DateTimeOffset CreatedAt);
-public sealed record CreateProjectRequest(string? Code, string? Name, string? Description, Guid? DepartmentId, List<Guid>? MemberIds);
-public sealed record UpdateProjectRequest(string? Name, string? Description, Guid? DepartmentId, ProjectStatus Status);
-public sealed record AddMembersRequest(List<Guid>? EmployeeIds, ProjectRole Role);
 
 public sealed record FolderDto(Guid Id, Guid? ParentId, string Name, int AssetCount);
 public sealed record CreateFolderRequest(SpaceKind SpaceKind, Guid? SpaceId, Guid? ParentId, string? Name);

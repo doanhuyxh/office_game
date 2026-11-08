@@ -16,6 +16,8 @@ Theo **người phụ trách** (`OwnerEmployeeId`) — không theo vai trò admi
 | Quyền **Quản trị** tài chính | tất cả | tất cả |
 | Tài khoản không có hồ sơ (admin seed) | không gì (không tạo được khách → 403) | — |
 
+Nghiệm thu mốc dự án gắn đợt thu → `ISalesContractsLookup.MarkAcceptedAsync` (Sales.Contracts) kéo hạn đợt về ngày nghiệm thu + báo — [projects.md](projects.md).
+
 Không thấy → **404** (không lộ sự tồn tại). Thấy nhưng không sửa → 403. **Ghi nhận thu** chỉ người có quyền **Ghi sổ**. Giao người phụ trách: chỉ cho chính mình / cấp dưới (hoặc Quản trị tài chính) — sai → 400 `ownerEmployeeId`. Token AI: `/api/sales/*` ngoài allowlist → 403.
 
 ## API (`/api/sales`, đăng nhập)

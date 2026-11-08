@@ -3,7 +3,7 @@
 const PW = process.env.TEST_PASSWORD ?? (() => { throw new Error('Đặt TEST_PASSWORD (mật khẩu chung trong account.txt)'); })();
 const B = 'http://localhost:5080';
 const r0 = await fetch(B + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login: 'hr.truongphong', password: PW }) });
-const cookie = r0.headers.getSetCookie().map((s) => s.split(';')[0]).join('; ');
+const cookie = [...new Map(r0.headers.getSetCookie().map((s) => s.split(';')[0]).map((kv) => [kv.slice(0, kv.indexOf('=')), kv] as const)).values()].join('; ') /* cookie cùng tên: giữ cái sau */;
 const call = async (m: string, p: string, b?: unknown) => {
   const x = await fetch(B + p, { method: m, headers: { 'Content-Type': 'application/json', Cookie: cookie }, body: b ? JSON.stringify(b) : undefined });
   const t = await x.text(); if (x.status >= 400) throw new Error(`${m} ${p} → ${x.status} ${t}`); return t ? JSON.parse(t) : null;

@@ -24,6 +24,7 @@ public sealed class SalesModule : IModule
         services.AddSingleton<SalesClock>();
         services.AddScoped<SalesAccess>();
         services.AddScoped<CollectedCalculator>();
+        services.AddScoped<OfficeHub.Modules.Sales.Contracts.ISalesContractsLookup, SalesContractsLookup>();
         services.AddHostedService<SalesMigrator>();
         services.AddHostedService<SalesReminderJob>();
     }

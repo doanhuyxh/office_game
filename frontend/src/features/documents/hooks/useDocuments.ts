@@ -6,7 +6,6 @@ import type { IAssetFilter, ISpaceRef } from '../types/document.types';
 const keep = { placeholderData: <T,>(prev: T) => prev };
 
 export const useSpaces = () => useQuery({ queryKey: documentKeys.spaces, queryFn: documentApi.spaces });
-export const useProjects = () => useQuery({ queryKey: documentKeys.projects, queryFn: documentApi.projects });
 export const useFolders = (s: ISpaceRef | null) =>
   useQuery({ queryKey: documentKeys.folders(s ?? { kind: 'Company', id: null }), queryFn: () => documentApi.folders(s!), enabled: !!s });
 export const useDocTypes = () => useQuery({ queryKey: documentKeys.docTypes, queryFn: documentApi.docTypes, staleTime: 5 * 60_000 });
