@@ -1,4 +1,5 @@
 using System.Globalization;
+using OfficeHub.BuildingBlocks.Documents;
 
 namespace OfficeHub.Modules.LaborContracts.Domain;
 

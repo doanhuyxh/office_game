@@ -43,6 +43,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Dự án — hợp đồng (nhiều HĐ / dự án), chốt phân bổ tháng, chi phí nhân công từ lương, thu / chi gắn dự án, lãi / lỗ | [projects-finance.md](projects-finance.md) |
 | Yêu cầu thay đổi (CR) của dự án → phụ lục hợp đồng bán (tăng / giảm giá trị, đợt thu mới) | [projects-changes.md](projects-changes.md) |
 | Tài chính — chứng từ đính kèm dòng sổ / đề nghị chi (S3 `finance/`), Excel sổ thu chi + sổ quỹ + tổng hợp | [finance-docs.md](finance-docs.md) |
+| Báo giá: hạng mục, chiết khấu (vượt ngưỡng → duyệt `quote_discount`), phiên bản, Word theo mẫu, lập hợp đồng từ báo giá | [sales-quotes.md](sales-quotes.md) |
 | Kinh doanh: khách hàng, cơ hội, hợp đồng bán, lịch thu, công nợ, ghi nhận thu (→ `IFinanceLedger`), nhắc hạn thu | [sales.md](sales.md) |
 | Tài chính: quyền theo chức vụ (`IFinanceAccess`), quỹ, sổ thu chi, khoá sổ, đề nghị chi qua bước duyệt `Finance` | [finance.md](finance.md) |
 | Lịch sử sửa dữ liệu nhân sự (`[Audited]`, interceptor, che lương), nhật ký | [audit.md](audit.md) |

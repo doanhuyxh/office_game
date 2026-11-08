@@ -4,12 +4,14 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using W = DocumentFormat.OpenXml.Wordprocessing;
 
-namespace OfficeHub.Modules.LaborContracts.Domain;
+namespace OfficeHub.BuildingBlocks.Documents;
 
 /// <summary>
 /// Điền mẫu Word (.docx): thay <c>{{TenTruong}}</c> (không phân biệt hoa thường, cho phép khoảng trắng: <c>{{ HoTen }}</c>)
 /// ở thân văn bản, header, footer. Word hay tách một trường thành nhiều run (do sửa lỗi chính tả, đổi định dạng giữa chừng) →
 /// ghép theo vị trí ký tự trong cả đoạn: chữ ngoài trường giữ nguyên định dạng, giá trị lấy định dạng của ký tự đầu trường.
+/// Bảng lặp: dòng bảng chứa trường bắt đầu bằng tiền tố (vd <c>{{HM_NoiDung}}</c>) được nhân lên cho mỗi phần tử của danh sách.
+/// Dùng chung: mẫu hợp đồng lao động (LaborContracts), báo giá (Sales).
 /// </summary>
 public static partial class DocxTemplate
 {
@@ -28,12 +30,33 @@ public static partial class DocxTemplate
     }
 
     /// <summary>Trả về file .docx đã điền. Trường không có trong <paramref name="values"/> được giữ nguyên để HR thấy và sửa tay.</summary>
-    public static byte[] Fill(Stream template, IReadOnlyDictionary<string, string> values)
+    public static byte[] Fill(Stream template, IReadOnlyDictionary<string, string> values) => Fill(template, values, null, null);
+
+    /// <summary>
+    /// Như <see cref="Fill(Stream, IReadOnlyDictionary{string, string})"/> + bảng lặp: MỌI dòng bảng (thân văn bản) chứa trường bắt đầu bằng
+    /// <paramref name="rowPrefix"/> được nhân lên theo <paramref name="rows"/> (mỗi phần tử = giá trị các trường của một dòng), rồi dòng mẫu bị bỏ.
+    /// Danh sách rỗng → bỏ dòng mẫu.
+    /// </summary>
+    public static byte[] Fill(Stream template, IReadOnlyDictionary<string, string> values, IReadOnlyList<IReadOnlyDictionary<string, string>>? rows, string? rowPrefix)
     {
         using var ms = new MemoryStream();
         template.CopyTo(ms);
         using (var doc = WordprocessingDocument.Open(ms, true))
         {
+            if (rows is not null && !string.IsNullOrEmpty(rowPrefix) && doc.MainDocumentPart?.Document is { } body)
+                foreach (var row in body.Descendants<W.TableRow>().ToList())
+                {
+                    var text = string.Concat(row.Descendants<W.Text>().Select(t => t.Text));
+                    if (!Field().Matches(text).Any(m => m.Groups[1].Value.StartsWith(rowPrefix, StringComparison.OrdinalIgnoreCase))) continue;
+                    foreach (var item in rows)
+                    {
+                        var clone = (W.TableRow)row.CloneNode(true);
+                        var map = new Dictionary<string, string>(item, StringComparer.OrdinalIgnoreCase);
+                        foreach (var p in clone.Descendants<W.Paragraph>().ToList()) FillParagraph(p, map);
+                        row.InsertBeforeSelf(clone);
+                    }
+                    row.Remove();
+                }
             var lookup = new Dictionary<string, string>(values, StringComparer.OrdinalIgnoreCase);
             foreach (var p in Paragraphs(doc).ToList()) FillParagraph(p, lookup);
             doc.MainDocumentPart?.Document?.Save();

@@ -57,7 +57,7 @@ File lưu `contracts/{employeeId}/{contractId}[/amendments/{aid}]/{uuid}.{ext}` 
 
 - HR tải mẫu `.docx` (≤ 5 MB) có trường `{{TenTruong}}` (không phân biệt hoa thường, cho phép `{{ HoTen }}`) → lưu S3 `contract-templates/{id}.docx`, bảng `contracts.templates` (tên, loại HĐ gợi ý, danh sách trường tìm thấy). Trường lạ báo `unknownFields`, khi xuất giữ nguyên.
 - Trường hỗ trợ: `Domain/ContractFields.cs` (`GET /api/contracts/templates/fields`): họ tên, mã, ngày sinh, email, SĐT, phòng ban, chức vụ, chức danh HĐ, số / loại / thời hạn / ngày ký / bắt đầu / kết thúc, `Luong`, `LuongBangChu` (`VietnameseNumber`), `PhuCap`, `PhuCapBangChu`, `NgayHienTai`, `Ngay` / `Thang` / `Nam`. Thông tin cố định của công ty gõ thẳng vào mẫu. Lương lấy theo **hợp đồng** (không phải phụ lục).
-- `Domain/DocxTemplate.cs` (OpenXML): thay ở thân, header, footer; trường bị Word tách nhiều run vẫn thay đúng, chữ xung quanh giữ định dạng.
+- `Domain/DocxTemplate (BuildingBlocks/Documents, dùng chung với báo giá).cs` (OpenXML): thay ở thân, header, footer; trường bị Word tách nhiều run vẫn thay đúng, chữ xung quanh giữ định dạng.
 - `GET /api/contracts/{id}/generate?templateId=` (HR) → tải `.docx` đã điền, **không lưu** — HR in, ký rồi tải bản ký lên mục file của hợp đồng. Hồ sơ đầy đủ lấy qua `IEmployeeDirectory.GetProfileAsync`.
 - Endpoint mẫu (HR): `GET/POST /api/contracts/templates`, `GET /templates/{id}/file` (link tải mẫu gốc), `DELETE /templates/{id}`. FE: tab "Mẫu hợp đồng" + menu ⋯ "Xuất từ mẫu…".
 - `ISalaryLookup` (project `OfficeHub.Modules.LaborContracts.Contracts`): lương hiệu lực tại ngày D cho Reporting ([reports.md](reports.md)).

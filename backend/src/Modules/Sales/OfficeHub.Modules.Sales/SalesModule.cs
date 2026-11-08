@@ -24,6 +24,7 @@ public sealed class SalesModule : IModule
         services.AddSingleton<SalesClock>();
         services.AddScoped<SalesAccess>();
         services.AddScoped<CollectedCalculator>();
+        services.AddScoped<OfficeHub.Modules.Approval.Contracts.IApprovalHandler, QuoteApprovalHandler>();
         services.AddScoped<OfficeHub.Modules.Sales.Contracts.ISalesContractsLookup, SalesContractsLookup>();
         services.AddScoped<OfficeHub.Modules.Sales.Contracts.ISalesRevenueLookup, SalesRevenueLookup>();
         services.AddHostedService<SalesMigrator>();
@@ -37,5 +38,6 @@ public sealed class SalesModule : IModule
         OpportunityEndpoints.Map(g);
         ContractEndpoints.Map(g);
         AppendixEndpoints.Map(g);
+        QuoteEndpoints.Map(g);
     }
 }

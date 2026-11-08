@@ -11,7 +11,7 @@ import { errorMessage, fieldErrors } from '@/utils/errors';
 import { formatMoney, groupDigits, parseMoney } from '@/utils/money';
 import { salesApi } from '../../api/sales.api';
 import { useCustomers, useSalesMutation } from '../../hooks/useSales';
-import type { BillingKind, IContractRequest, IInstallmentInput, IOpportunity } from '../../types/sales.types';
+import type { BillingKind, IContractRequest, IInstallmentInput, IOpportunity, IQuoteDetail } from '../../types/sales.types';
 import { BILLING, totalWithVat, VAT_RATES } from '../../utils/labels';
 
 /** Lịch thu hằng tháng — khớp SalesRules.MonthlySchedule (tháng ngắn → ngày cuối tháng). */
@@ -25,8 +25,8 @@ function monthly(first: string, count: number, amount: number): IInstallmentInpu
 }
 
 /** Tạo hợp đồng bán + lịch thu. Theo mốc / một lần: tổng các đợt phải bằng giá trị sau thuế; hằng tháng: không vượt. */
-export function ContractFormDialog({ open, customerId, opportunities = [], onClose, onCreated }: {
-  open: boolean; customerId?: string; opportunities?: IOpportunity[]; onClose: () => void; onCreated?: (id: string) => void;
+export function ContractFormDialog({ open, customerId, opportunities = [], fromQuote, onClose, onCreated }: {
+  open: boolean; customerId?: string; opportunities?: IOpportunity[]; fromQuote?: IQuoteDetail; onClose: () => void; onCreated?: (id: string) => void;
 }) {
   const lines = (useLines().data ?? []).filter((l) => l.isActive);
   const customers = useCustomers('', false, { page: 1, pageSize: 200 }).data?.items ?? [];
@@ -35,7 +35,15 @@ export function ContractFormDialog({ open, customerId, opportunities = [], onClo
   const [f, setF] = useState<IContractRequest>(blank);
   const [months, setMonths] = useState({ first: todayVn(), count: 12, amount: 0 });
   const save = useSalesMutation(salesApi.createContract);
-  useEffect(() => { if (open) { save.reset(); setF(blank()); } /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    save.reset();
+    const q = fromQuote?.quote;
+    // Lập từ báo giá: điền giá trị trước thuế / VAT / tên / cơ hội; một đợt thu trọn giá trị (sửa lại theo mốc).
+    setF(q ? { ...blank(), customerId: q.customerId, title: q.title, valueBeforeTax: q.beforeTax, vatRate: q.vatRate, opportunityId: q.opportunityId,
+      businessLineId: fromQuote?.businessLineId ?? null, quoteId: q.id, note: fromQuote?.terms ?? '', installments: [{ title: 'Đợt 1', dueOn: todayVn(), amount: q.total }] } : blank());
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [open]);
   const errors = fieldErrors(save.error);
   const set = <K extends keyof IContractRequest>(k: K, v: IContractRequest[K]) => setF((x) => ({ ...x, [k]: v }));
   const total = totalWithVat(f.valueBeforeTax, f.vatRate);

@@ -10,6 +10,8 @@ public static class ApprovalTypes
     public const string DocumentPublish = "document_publish";
     /// <summary>Đề nghị chi tiền (module Finance): [Manager, Finance].</summary>
     public const string ExpenseRequest = "expense_request";
+    /// <summary>Báo giá chiết khấu vượt ngưỡng (module Sales): [Finance].</summary>
+    public const string QuoteDiscount = "quote_discount";
 }
 
 /// <summary>Bước duyệt. Manager = quản lý trực tiếp của người gửi (bỏ qua nếu không có); Hr = bất kỳ ai có vai trò hr/admin;

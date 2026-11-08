@@ -2,7 +2,7 @@
 
 > Nguồn sự thật là code (`backend/src/Modules/Sales/`, `frontend/src/features/sales/`); nếu code khác tài liệu, tin code và sửa tài liệu. Kế hoạch: [docs/BUSINESS_PLAN.md](../../docs/BUSINESS_PLAN.md) giai đoạn 1. Sổ thu chi: [finance.md](finance.md). Về [README.md](README.md).
 
-Dùng cho mảng **Outsource** và **Xây kênh MXH thuê** (có khách, hợp đồng, đợt thu). Chỉ VND. Chưa có: báo giá (mẫu Word) + duyệt giảm giá, gắn file hợp đồng đã ký, tool MCP. **Phụ lục** tăng / giảm giá trị (từ yêu cầu thay đổi của dự án): [projects-changes.md](projects-changes.md).
+Dùng cho mảng **Outsource** và **Xây kênh MXH thuê** (có khách, hợp đồng, đợt thu). Chỉ VND. **Báo giá** (mẫu Word, duyệt chiết khấu): [sales-quotes.md](sales-quotes.md). Chưa có: gắn file hợp đồng đã ký, tool MCP. **Phụ lục** tăng / giảm giá trị (từ yêu cầu thay đổi của dự án): [projects-changes.md](projects-changes.md).
 
 ## Ai thấy gì (`Infrastructure/SalesServices.cs` → `SalesAccess` / `SalesViewer`)
 

@@ -14,6 +14,7 @@ using OfficeHub.BuildingBlocks.Storage;
 using OfficeHub.Modules.LaborContracts.Domain;
 using OfficeHub.Modules.LaborContracts.Infrastructure;
 using OfficeHub.Modules.Organization.Contracts;
+using OfficeHub.BuildingBlocks.Documents;
 
 namespace OfficeHub.Modules.LaborContracts.Features;
 

@@ -88,7 +88,7 @@ Bảng + index: [business/projects.md](business/projects.md#schema-projects-proj
 
 ## Schema `sales` — `SalesDbContext` (migration `InitialSales`)
 
-Bảng + index: [business/sales.md](business/sales.md#schema-sales-salesdbcontext-migration-initialsales). `collections.LedgerEntryId` trỏ sang `finance.entries` **không** FK (ranh giới module). `AddContractAppendices`: `contract_appendices` (unique HĐ + số; `ChangeRequestId` unique khi chưa huỷ, không FK sang `projects`) + `installments.AppendixId` — [business/projects-changes.md](business/projects-changes.md).
+Bảng + index: [business/sales.md](business/sales.md#schema-sales-salesdbcontext-migration-initialsales). `collections.LedgerEntryId` trỏ sang `finance.entries` **không** FK (ranh giới module). `AddQuotes`: `quotes`, `quote_lines`, `settings` — [business/sales-quotes.md](business/sales-quotes.md). `AddContractAppendices`: `contract_appendices` (unique HĐ + số; `ChangeRequestId` unique khi chưa huỷ, không FK sang `projects`) + `installments.AppendixId` — [business/projects-changes.md](business/projects-changes.md).
 
 ## Schema `finance` — `FinanceDbContext` (migration `InitialFinance`, `AddProjectToEntries`, `AddFinanceAttachments`)
 

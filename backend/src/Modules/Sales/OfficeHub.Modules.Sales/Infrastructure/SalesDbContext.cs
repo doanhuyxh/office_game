@@ -18,6 +18,9 @@ public sealed class SalesDbContext(DbContextOptions<SalesDbContext> options) : D
     public DbSet<Installment> Installments => Set<Installment>();
     public DbSet<ContractAppendix> Appendices => Set<ContractAppendix>();
     public DbSet<Collection> Collections => Set<Collection>();
+    public DbSet<Quote> Quotes => Set<Quote>();
+    public DbSet<QuoteLine> QuoteLines => Set<QuoteLine>();
+    public DbSet<SalesSettings> Settings => Set<SalesSettings>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -83,6 +86,42 @@ public sealed class SalesDbContext(DbContextOptions<SalesDbContext> options) : D
             e.HasOne<Opportunity>().WithMany().HasForeignKey(x => x.OpportunityId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Installments).WithOne().HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Appendices).WithOne().HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<Quote>(e =>
+        {
+            e.ToTable("quotes");
+            e.Property(x => x.Title).HasMaxLength(300);
+            e.Property(x => x.Terms).HasMaxLength(4000);
+            e.Property(x => x.Note).HasMaxLength(2000);
+            e.Property(x => x.ApprovalComment).HasMaxLength(500);
+            e.Property(x => x.DecisionNote).HasMaxLength(500);
+            e.Property(x => x.CreatedByName).HasMaxLength(200);
+            e.Property(x => x.DiscountPercent).HasPrecision(5, 2);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
+            e.HasIndex(x => new { x.Number, x.Version }).IsUnique().HasDatabaseName("ux_quotes_number");
+            e.HasIndex(x => x.CustomerId).HasDatabaseName("ix_quotes_customer");
+            e.HasIndex(x => x.OwnerEmployeeId).HasDatabaseName("ix_quotes_owner");
+            e.HasIndex(x => x.ApprovalSubjectId).HasDatabaseName("ix_quotes_approval_subject");
+            e.HasOne<Customer>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<Opportunity>().WithMany().HasForeignKey(x => x.OpportunityId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<SalesContract>().WithMany().HasForeignKey(x => x.ContractId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.QuoteId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<QuoteLine>(e =>
+        {
+            e.ToTable("quote_lines");
+            e.Property(x => x.Description).HasMaxLength(500);
+            e.Property(x => x.Unit).HasMaxLength(30);
+            e.Property(x => x.Quantity).HasPrecision(12, 2);
+        });
+        b.Entity<SalesSettings>(e =>
+        {
+            e.ToTable("settings");
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.QuoteDiscountLimitPercent).HasPrecision(5, 2);
+            e.Property(x => x.QuoteTemplateKey).HasMaxLength(400);
+            e.Property(x => x.QuoteTemplateName).HasMaxLength(200);
+            e.Property(x => x.UpdatedByName).HasMaxLength(200);
         });
         b.Entity<ContractAppendix>(e =>
         {

@@ -1,8 +1,9 @@
-import { http, httpPost, pageQs } from '@/services/api-client';
+import { http, httpPost, httpUpload, pageQs } from '@/services/api-client';
 import type { IPaged, IPageQuery } from '@/types/api';
 import type {
   ContractStatus, IActivity, IAppendixRequest, IActivityRequest, ICollectRequest, IContactRequest, IContract, IContractDetail, IContractRequest, IContractUpdate, ICustomer,
-  ICustomerDetail, ICustomerRequest, IInstallmentInput, IOpportunity, IOpportunityRequest, InstallmentState, IReceivables,
+  ICustomerDetail, ICustomerRequest, IInstallmentInput, IOpportunity, IOpportunityRequest, InstallmentState, IQuote, IQuoteDetail, IQuoteRequest, IReceivables, ISalesSettings,
+  QuoteStatus,
 } from '../types/sales.types';
 
 const base = '/api/sales';
@@ -19,6 +20,9 @@ export const salesKeys = {
   contract: (id: string) => ['sales', 'contract', id] as const,
   receivables: (state: InstallmentState | undefined) => ['sales', 'receivables', state] as const,
   upcoming: ['sales', 'upcoming'] as const,
+  quotes: (search: string, status: QuoteStatus | undefined, customerId: string | undefined, q: IPageQuery) => ['sales', 'quotes', search, status, customerId, q] as const,
+  quote: (id: string) => ['sales', 'quote', id] as const,
+  settings: ['sales', 'settings'] as const,
 };
 
 export const salesApi = {
@@ -43,4 +47,20 @@ export const salesApi = {
   cancelAppendix: (id: string, reason: string) => httpPost<void>(`${base}/appendices/${id}/cancel`, { reason }),
   collect: (id: string, b: ICollectRequest) => httpPost<string>(`${base}/installments/${id}/collect`, b),
   receivables: (state: InstallmentState | undefined) => http<IReceivables>(`${base}/receivables?${qs({ state })}`),
+  quotes: (search: string, status: QuoteStatus | undefined, customerId: string | undefined, q: IPageQuery) =>
+    http<IPaged<IQuote>>(`${base}/quotes?${pageQs(q)}&${qs({ search, status, customerId })}`),
+  quote: (id: string) => http<IQuoteDetail>(`${base}/quotes/${id}`),
+  saveQuote: (id: string | undefined, b: IQuoteRequest): Promise<unknown> => (id ? send('PUT', `${base}/quotes/${id}`, b) : httpPost<string>(`${base}/quotes`, b)),
+  submitQuote: (id: string) => httpPost<IQuote>(`${base}/quotes/${id}/submit`, {}),
+  quoteSent: (id: string) => httpPost<void>(`${base}/quotes/${id}/sent`, {}),
+  quoteResult: (id: string, accepted: boolean, note?: string | null) => httpPost<void>(`${base}/quotes/${id}/result`, { accepted, note: note || null }),
+  reviseQuote: (id: string) => httpPost<string>(`${base}/quotes/${id}/revise`, {}),
+  cancelQuote: (id: string) => httpPost<void>(`${base}/quotes/${id}/cancel`, {}),
+  quoteDocxUrl: (id: string) => `${base}/quotes/${id}/export.docx`,
+  settings: () => http<ISalesSettings>(`${base}/settings`),
+  saveSettings: (quoteDiscountLimitPercent: number) => send<void>('PUT', `${base}/settings`, { quoteDiscountLimitPercent }),
+  uploadQuoteTemplate: (file: File) => httpUpload<void>(`${base}/settings/quote-template`, file),
+  deleteQuoteTemplate: () => send<void>('DELETE', `${base}/settings/quote-template`),
+  quoteFields: () => http<{ name: string; description: string; example: string }[]>(`${base}/settings/quote-template/fields`),
+  defaultQuoteTemplateUrl: `${base}/settings/quote-template/default`,
 };

@@ -7,6 +7,7 @@ Luồng duyệt **dùng chung**. Module sở hữu đơn (Leave, Attendance) g�
 ## Gửi đơn (`IApprovalService.SubmitAsync`, project `Approval.Contracts`)
 
 `ApprovalSubmission { Type, SubjectId, RequesterEmployeeId, Title, Summary, Steps }`. `Type` ∈ `ApprovalTypes.Leave` (`"leave"`), `ApprovalTypes.AttendanceCorrection` (`"attendance_correction"`), `ApprovalTypes.Overtime` (`"overtime"`), `ApprovalTypes.DocumentPublish` (`"document_publish"`, ban hành tài liệu — bước `[Manager]`, [documents.md](documents.md)), `ApprovalTypes.ExpenseRequest` (`"expense_request"`, đề nghị chi — bước `[Manager, Finance]`, [finance.md](finance.md)). Mỗi (`Type`, `SubjectId`) chỉ một đơn (unique index).
+- `quote_discount` (module Sales, [sales-quotes.md](sales-quotes.md)): `[Finance]` — báo giá chiết khấu vượt ngưỡng; SubjectId = mã vòng duyệt (mới mỗi lần gửi).
 
 Tạo bước (`Infrastructure/ApprovalService.cs`):
 

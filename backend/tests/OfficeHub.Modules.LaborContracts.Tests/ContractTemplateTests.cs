@@ -2,6 +2,7 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using OfficeHub.Modules.LaborContracts.Domain;
+using OfficeHub.BuildingBlocks.Documents;
 
 namespace OfficeHub.Modules.LaborContracts.Tests;
 

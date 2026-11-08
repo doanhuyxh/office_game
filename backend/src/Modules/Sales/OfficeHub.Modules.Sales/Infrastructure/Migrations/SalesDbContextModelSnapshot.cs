@@ -391,6 +391,170 @@ namespace OfficeHub.Modules.Sales.Infrastructure.Migrations
                     b.ToTable("opportunities", "sales");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Sales.Domain.Quote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ApprovalComment")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid?>("ApprovalRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ApprovalSubjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("BeforeTax")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("BusinessLineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ContractId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("DecidedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("DecisionNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<long>("Discount")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("DiscountPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<DateOnly>("IssuedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<long>("Number")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("OpportunityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OwnerEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<long>("Subtotal")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Terms")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<long>("Total")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("ValidUntil")
+                        .HasColumnType("date");
+
+                    b.Property<long>("Vat")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("VatRate")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovalSubjectId")
+                        .HasDatabaseName("ix_quotes_approval_subject");
+
+                    b.HasIndex("ContractId");
+
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("ix_quotes_customer");
+
+                    b.HasIndex("OpportunityId");
+
+                    b.HasIndex("OwnerEmployeeId")
+                        .HasDatabaseName("ix_quotes_owner");
+
+                    b.HasIndex("Number", "Version")
+                        .IsUnique()
+                        .HasDatabaseName("ux_quotes_number");
+
+                    b.ToTable("quotes", "sales");
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Sales.Domain.QuoteLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<Guid>("QuoteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<long>("UnitPrice")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuoteId");
+
+                    b.ToTable("quote_lines", "sales");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Sales.Domain.SalesContract", b =>
                 {
                     b.Property<Guid>("Id")
@@ -468,6 +632,35 @@ namespace OfficeHub.Modules.Sales.Infrastructure.Migrations
                     b.ToTable("contracts", "sales");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Sales.Domain.SalesSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("QuoteDiscountLimitPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<string>("QuoteTemplateKey")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)");
+
+                    b.Property<string>("QuoteTemplateName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("settings", "sales");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Sales.Domain.Activity", b =>
                 {
                     b.HasOne("OfficeHub.Modules.Sales.Domain.Customer", null)
@@ -527,6 +720,34 @@ namespace OfficeHub.Modules.Sales.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Sales.Domain.Quote", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Sales.Domain.SalesContract", null)
+                        .WithMany()
+                        .HasForeignKey("ContractId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("OfficeHub.Modules.Sales.Domain.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("OfficeHub.Modules.Sales.Domain.Opportunity", null)
+                        .WithMany()
+                        .HasForeignKey("OpportunityId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Sales.Domain.QuoteLine", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Sales.Domain.Quote", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("QuoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Sales.Domain.SalesContract", b =>
                 {
                     b.HasOne("OfficeHub.Modules.Sales.Domain.Customer", null)
@@ -549,6 +770,11 @@ namespace OfficeHub.Modules.Sales.Infrastructure.Migrations
             modelBuilder.Entity("OfficeHub.Modules.Sales.Domain.Installment", b =>
                 {
                     b.Navigation("Collections");
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Sales.Domain.Quote", b =>
+                {
+                    b.Navigation("Lines");
                 });
 
             modelBuilder.Entity("OfficeHub.Modules.Sales.Domain.SalesContract", b =>

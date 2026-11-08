@@ -23,7 +23,7 @@ public sealed record ContractDetail(ContractDto Contract, long ValueBeforeTax, i
     bool CanEdit, bool CanCollect, long OriginalValueBeforeTax, long OriginalTotalValue, List<AppendixDto> Appendices, List<ChangeRequestRef> PendingChangeRequests);
 public sealed record InstallmentInput(string Title, DateOnly DueOn, long Amount);
 public sealed record CreateContract(string Code, Guid CustomerId, string Title, long ValueBeforeTax, int VatRate, DateOnly SignedOn, BillingKind Billing,
-    List<InstallmentInput> Installments, DateOnly? EndOn = null, Guid? OpportunityId = null, Guid? BusinessLineId = null, string? Note = null);
+    List<InstallmentInput> Installments, DateOnly? EndOn = null, Guid? OpportunityId = null, Guid? BusinessLineId = null, string? Note = null, Guid? QuoteId = null);
 public sealed record UpdateContract(string Title, ContractStatus Status, DateOnly? EndOn = null, string? Note = null);
 public sealed record CancelInstallment(string? Reason);
 public sealed record CollectRequest(long Amount, DateOnly Date, Guid AccountId, Guid? CategoryId = null, string? InvoiceNumber = null);
@@ -138,6 +138,15 @@ internal static class ContractEndpoints
             if (opp is null || opp.CustomerId != r.CustomerId) val.Add("opportunityId", "Cơ hội không thuộc khách này");
             else if (opp.Stage == OpportunityStage.Lost) val.Add("opportunityId", "Cơ hội đã thua");
         }
+        // Lập từ báo giá: cùng khách, báo giá đã chốt / đã gửi / khách đồng ý, chưa có hợp đồng → báo giá thành "Khách đồng ý".
+        Quote? quote = null;
+        if (r.QuoteId is { } qid)
+        {
+            quote = await db.Quotes.FirstOrDefaultAsync(x => x.Id == qid, ct);
+            if (quote is null || quote.CustomerId != r.CustomerId) val.Add("quoteId", "Báo giá không thuộc khách này");
+            else if (quote.ContractId is not null) val.Add("quoteId", "Báo giá đã có hợp đồng");
+            else if (quote.Status is not (QuoteStatus.Ready or QuoteStatus.Sent or QuoteStatus.Accepted)) val.Add("quoteId", "Báo giá chưa chốt / đã bị thay / đã huỷ");
+        }
         var total = SalesRules.Total(r.ValueBeforeTax, r.VatRate);
         var items = (r.Installments ?? []).Select(i => (i.Title?.Trim() ?? "", i.DueOn, i.Amount)).ToList();
         foreach (var err in SalesRules.ValidateSchedule(r.Billing, total, r.SignedOn, items)) val.Add("installments", err);
@@ -154,6 +163,11 @@ internal static class ContractEndpoints
         db.Contracts.Add(c);
         // Ký hợp đồng từ cơ hội → cơ hội Thắng.
         if (opp is { } o && o.Stage != OpportunityStage.Won) { o.Stage = OpportunityStage.Won; o.Probability = 100; o.ClosedAt = clock.Now; }
+        if (quote is not null)
+        {
+            quote.ContractId = c.Id;
+            if (quote.Status != QuoteStatus.Accepted) { quote.Status = QuoteStatus.Accepted; quote.DecidedOn = r.SignedOn; }
+        }
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { return new Validation().Add("code", "Số hợp đồng đã tồn tại").Problem(); }
         return TypedResults.Created($"/api/sales/contracts/{c.Id}", c.Id);

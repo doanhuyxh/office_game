@@ -1,4 +1,4 @@
-namespace OfficeHub.Modules.LaborContracts.Domain;
+namespace OfficeHub.BuildingBlocks.Documents;
 
 /// <summary>Đọc số tiền thành chữ tiếng Việt cho hợp đồng: 15.500.000 → "Mười lăm triệu năm trăm nghìn đồng".</summary>
 public static class VietnameseNumber

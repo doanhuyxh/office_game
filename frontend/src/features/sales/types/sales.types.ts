@@ -64,7 +64,28 @@ export interface IOpportunityRequest {
 export interface IInstallmentInput { title: string; dueOn: string; amount: number }
 export interface IContractRequest {
   code: string; customerId: string; title: string; valueBeforeTax: number; vatRate: number; signedOn: string; billing: BillingKind; installments: IInstallmentInput[];
-  endOn?: string | null; opportunityId?: string | null; businessLineId?: string | null; note?: string | null;
+  endOn?: string | null; opportunityId?: string | null; businessLineId?: string | null; note?: string | null; quoteId?: string | null;
 }
 export interface IContractUpdate { title: string; status: ContractStatus; endOn?: string | null; note?: string | null }
 export interface ICollectRequest { amount: number; date: string; accountId: string; categoryId?: string | null; invoiceNumber?: string | null }
+
+export type QuoteStatus = 'Draft' | 'PendingApproval' | 'Ready' | 'Sent' | 'Accepted' | 'Rejected' | 'Superseded' | 'Cancelled';
+export interface IQuoteLineInput { description: string; unit: string | null; quantity: number; unitPrice: number }
+export interface IQuoteLine extends IQuoteLineInput { id: string; order: number; amount: number }
+export interface IQuote {
+  id: string; code: string; number: number; version: number; customerId: string; customerName: string; opportunityId: string | null; title: string; issuedOn: string;
+  validUntil: string; vatRate: number; discountPercent: number; subtotal: number; discount: number; beforeTax: number; vat: number; total: number; status: QuoteStatus;
+  expired: boolean; ownerEmployeeId: string; ownerName: string; contractId: string | null; createdAt: string;
+}
+export interface IQuoteDetail {
+  quote: IQuote; lines: IQuoteLine[]; terms: string | null; note: string | null; businessLineId: string | null; approvalRequestId: string | null; approvalComment: string | null;
+  sentAt: string | null; decidedOn: string | null; decisionNote: string | null; canEdit: boolean; needsApproval: boolean; discountLimitPercent: number;
+  versions: { id: string; version: number; status: QuoteStatus; total: number; createdAt: string }[];
+}
+export interface IQuoteRequest {
+  customerId: string; title: string; validUntil: string; vatRate: number; lines: IQuoteLineInput[]; discountPercent: number; issuedOn?: string | null;
+  opportunityId?: string | null; businessLineId?: string | null; terms?: string | null; note?: string | null;
+}
+export interface ISalesSettings {
+  quoteDiscountLimitPercent: number; quoteTemplateName: string | null; canEditLimit: boolean; canEditTemplate: boolean; updatedAt: string | null; updatedByName: string | null;
+}
