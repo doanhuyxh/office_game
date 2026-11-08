@@ -262,11 +262,20 @@ export function OfficeView() {
       <div ref={hostRef} className="scene" />
       <div className="hud">
         <div className="card me">
-          <b>{me?.fullName ?? '…'}</b>
-          <small>{me?.roles.join(', ')}</small>
-          <Link to={PATHS.dashboard}>Cổng nhân sự →</Link>
-          <button type="button" className="link" onClick={() => setEditorOpen(true)} data-testid="office-avatar">👤 Nhân vật</button>
-          <button type="button" className="link" onClick={() => setDocs({ kind: 'browse', space: defaultSpace(), title: '📁 Tài liệu', present: !!roomCh })} data-testid="office-docs-open">📁 Tài liệu</button>
+          <div className="me-head">
+            <span className="me-avatar" aria-hidden>{(me?.fullName ?? '?').trim().split(/\s+/).slice(-1)[0]?.charAt(0).toUpperCase()}</span>
+            <div className="me-info">
+              <b>{me?.fullName ?? '…'}</b>
+              <div className="me-roles">
+                {me?.roles.map((r) => <span key={r} className="chip">{r}</span>)}
+              </div>
+            </div>
+          </div>
+          <div className="me-actions">
+            <Link to={PATHS.dashboard} className="act">🏢 Cổng nhân sự</Link>
+            <button type="button" className="act" onClick={() => setEditorOpen(true)} data-testid="office-avatar">👤 Nhân vật</button>
+            <button type="button" className="act" onClick={() => setDocs({ kind: 'browse', space: defaultSpace(), title: '📁 Tài liệu', present: !!roomCh })} data-testid="office-docs-open">📁 Tài liệu</button>
+          </div>
         </div>
         {account && !hasLook && avatarPrompt && conn === 'online' && (
           <div className="card avatar-prompt" data-testid="office-avatar-prompt">

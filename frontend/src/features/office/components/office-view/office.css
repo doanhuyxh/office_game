@@ -6,10 +6,16 @@
 .office-root .hud { position: absolute; inset: 0; pointer-events: none; }
 .office-root .hud > * { pointer-events: auto; }
 .office-root .card { position: absolute; background: rgba(15, 23, 42, .85); border: 1px solid rgba(148, 163, 184, .25); border-radius: 12px; padding: 8px 12px; backdrop-filter: blur(8px); }
-.office-root .me { top: 12px; left: 12px; display: grid; gap: 2px; }
-.office-root .me small { color: #fbbf24; }
-.office-root .me a { color: #93c5fd; font-size: 12px; text-decoration: underline; }
-.office-root .me .link { justify-self: start; padding: 0; border: 0; background: none; color: #93c5fd; font: 12px system-ui; text-decoration: underline; cursor: pointer; }
+.office-root .me { top: 12px; left: 12px; display: grid; gap: 10px; padding: 10px; width: 232px; border-radius: 14px; box-shadow: 0 8px 24px rgba(2, 6, 23, .35); }
+.office-root .me-head { display: flex; align-items: center; gap: 10px; }
+.office-root .me-avatar { flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font: 700 16px system-ui; color: #fff; background: linear-gradient(135deg, #3b82f6, #7c3aed); }
+.office-root .me-info { min-width: 0; display: grid; gap: 3px; }
+.office-root .me-info b { font-size: 14px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.office-root .me-roles { display: flex; flex-wrap: wrap; gap: 4px; }
+.office-root .me-roles .chip { padding: 0 7px; border-radius: 999px; font-size: 11px; line-height: 18px; color: #fcd34d; background: rgba(251, 191, 36, .14); border: 1px solid rgba(251, 191, 36, .3); }
+.office-root .me-actions { display: grid; gap: 4px; padding-top: 8px; border-top: 1px solid rgba(148, 163, 184, .2); }
+.office-root .me-actions .act { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; color: #e2e8f0; font: 500 13px system-ui; text-align: left; text-decoration: none; cursor: pointer; transition: background .15s; }
+.office-root .me-actions .act:hover { background: rgba(148, 163, 184, .2); }
 /* Gợi ý tạo nhân vật (chưa có nhân vật riêng) */
 .office-root .avatar-prompt { top: 60px; left: 50%; transform: translateX(-50%); width: min(420px, calc(100vw - 24px)); display: grid; gap: 8px; font-size: 13px; }
 .office-root .avatar-prompt div { display: flex; gap: 6px; justify-content: flex-end; }
