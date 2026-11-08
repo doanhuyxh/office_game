@@ -8,6 +8,7 @@
 .office-root .card { position: absolute; background: rgba(15, 23, 42, .85); border: 1px solid rgba(148, 163, 184, .25); border-radius: 12px; padding: 8px 12px; backdrop-filter: blur(8px); }
 .office-root .me { top: 12px; left: 12px; display: grid; gap: 10px; padding: 10px; width: 232px; border-radius: 14px; box-shadow: 0 8px 24px rgba(2, 6, 23, .35); }
 .office-root .me-head { display: flex; align-items: center; gap: 10px; }
+@media (min-width: 641px) { .office-root .me-head { cursor: default; } }
 .office-root .me-avatar { flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font: 700 16px system-ui; color: #fff; background: linear-gradient(135deg, #3b82f6, #7c3aed); }
 .office-root .me-info { min-width: 0; display: grid; gap: 3px; }
 .office-root .me-info b { font-size: 14px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -87,7 +88,25 @@
   .office-root .zone { display: none; }
   .office-root .prompt { bottom: 160px; max-width: calc(100vw - 32px); }
   .office-root .help { left: 12px; right: 12px; width: auto; }
-  .office-root .avatar-prompt { top: 52px; left: 12px; transform: none; width: calc(100vw - 168px); }
+  .office-root .avatar-prompt { top: 80px; left: 12px; transform: none; width: calc(100vw - 168px); }
+  /* Thẻ tài khoản thu gọn: avatar + tên, chạm để mở menu */
+  .office-root .me { width: auto; max-width: calc(100vw - 180px); padding: 6px 10px 6px 6px; gap: 6px; }
+  .office-root .me-head { cursor: pointer; gap: 8px; }
+  .office-root .me-avatar { width: 32px; height: 32px; font-size: 14px; }
+  .office-root .me-roles { display: none; }
+  .office-root .me:not(.open) .me-actions { display: none; }
+  .office-root .me.open { z-index: 6; }
+  /* Thẻ voice gọn: nút chỉ còn biểu tượng, bỏ dòng mô tả */
+  .office-root .voice { width: auto; max-width: calc(100vw - 168px); padding: 6px 8px; gap: 4px; }
+  .office-root .voice .title b { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .office-root .voice .peers, .office-root .voice .sharing, .office-root .voice .lbl { display: none; }
+  .office-root .voice .row { flex-wrap: nowrap; }
+  .office-root .voice .row button { padding: 6px 9px; font-size: 15px; }
+  .office-root .voice button.on[data-testid=office-voice-share] .lbl { display: inline; font-size: 12px; }
+  /* Màn hình chia sẻ / tài liệu chiếu: rộng hết màn hình, nằm dưới hàng thẻ trên cùng (thẻ tài khoản + bản đồ nhỏ) */
+  .office-root .screen:not(.big) { top: 120px; left: 12px; transform: none; width: calc(100vw - 24px); }
+  .office-root .screen.big { inset: 0; top: 0; left: 0; transform: none; width: 100vw; height: 100dvh; border-radius: 0; place-content: center; background: #000; }
+  .office-root .screen.big video { aspect-ratio: auto; max-height: calc(100dvh - 40px); }
 }
 
 /* Tài liệu trong văn phòng: tài liệu chiếu trên màn hình phòng, hàng đợi tải lên, gợi ý thả file */
@@ -110,5 +129,8 @@
 .office-root .drop-hint { position: absolute; top: 45%; left: 50%; transform: translateX(-50%); padding: 14px 20px; border-radius: 12px;
   background: rgba(37, 99, 235, .9); color: #fff; font-weight: 700; pointer-events: none; }
 @media (max-width: 640px) {
-  .office-root .screen-doc { width: calc(100vw - 24px); top: 52px; }
+  .office-root .screen-doc:not(.big) { width: calc(100vw - 24px); top: 120px; }
+  .office-root .screen-doc.big { display: flex; }
+  .office-root .screen-doc-body img, .office-root .screen-doc-body video { max-height: 40vh; }
+  .office-root .screen-doc-body iframe { height: 40vh; }
 }

@@ -71,6 +71,7 @@ export function OfficeView() {
   const tab = roomCh ? chatTab : 'office';
   const [voice, setVoice] = useState<VoiceClient | null>(null);
   const [voiceView, setVoiceView] = useState<VoiceView>(VOICE_INITIAL);
+  const [meOpen, setMeOpen] = useState(false);
   const { data: today, noProfile } = useToday();
   const check = useCheck();
   // Tài liệu: hộp thoại kho / bảng tin, kéo thả tải lên, màn hình phòng đang chiếu
@@ -261,8 +262,10 @@ export function OfficeView() {
       onDrop={(e) => void onDrop(e)}>
       <div ref={hostRef} className="scene" />
       <div className="hud">
-        <div className="card me">
-          <div className="me-head">
+        <div className={`card me ${meOpen ? 'open' : ''}`}>
+          {/* Điện thoại: thẻ thu gọn chỉ còn avatar + tên, chạm để mở các nút (CSS ẩn .me-actions khi chưa .open) */}
+          <div className="me-head" role="button" tabIndex={0} aria-expanded={meOpen} onClick={() => setMeOpen((o) => !o)}
+            onKeyDown={(e) => { if (e.key === 'Enter') setMeOpen((o) => !o); }}>
             <span className="me-avatar" aria-hidden>{(me?.fullName ?? '?').trim().split(/\s+/).slice(-1)[0]?.charAt(0).toUpperCase()}</span>
             <div className="me-info">
               <b>{me?.fullName ?? '…'}</b>

@@ -25,7 +25,7 @@ export function VoicePanel({ voice, view }: { voice: VoiceClient | null; view: V
         {status === 'connecting' && <small>đang kết nối…</small>}
       </div>
       {status === 'on' && (
-        <small data-testid="office-voice-peers">
+        <small className="peers" data-testid="office-voice-peers">
           {channel?.meeting ? 'Kênh riêng của phòng' : channel?.id === 'open' ? 'Nghe người trong ~6 m' : 'Kênh riêng · nghe theo khoảng cách'}
           {' · '}{peers === 0 ? 'chưa có ai nghe' : `${peers} người trong tầm nghe`}
         </small>
@@ -36,21 +36,21 @@ export function VoicePanel({ voice, view }: { voice: VoiceClient | null; view: V
       <div className="row">
         <button type="button" className={micOn ? 'on' : 'off'} onClick={() => void voice.toggleMic()} disabled={status !== 'on'}
           title="Bật / tắt micro (M)" data-testid="office-voice-mic" data-on={micOn}>
-          {micOn ? '🎙 Micro bật' : '🔇 Micro tắt'}
+          {micOn ? '🎙' : '🔇'}<span className="lbl"> {micOn ? 'Micro bật' : 'Micro tắt'}</span>
         </button>
         <button type="button" className={speakerOn ? '' : 'off'} onClick={() => voice.toggleSpeaker()}
           title="Bật / tắt nghe — vẫn ở trong kênh" data-testid="office-voice-speaker" data-on={speakerOn}>
-          {speakerOn ? '🔊 Loa' : '🔈 Loa tắt'}
+          {speakerOn ? '🔊' : '🔈'}<span className="lbl"> {speakerOn ? 'Loa' : 'Loa tắt'}</span>
         </button>
         {channel?.screen && (
           <button type="button" className={sharing ? 'on' : ''} onClick={() => void voice.toggleScreen()} disabled={status !== 'on'}
             title="Chia sẻ màn hình cho mọi người đang ở trong phòng" data-testid="office-voice-share" data-on={sharing}>
-            🖥 {sharing ? 'Dừng chia sẻ' : 'Chia sẻ'}
+            🖥<span className="lbl"> {sharing ? 'Dừng chia sẻ' : 'Chia sẻ'}</span>
           </button>
         )}
       </div>
       {sharing && (
-        <small data-testid="office-voice-sharing">Đang chia sẻ màn hình · người trong {channel?.name ?? 'phòng'} xem được</small>
+        <small className="sharing" data-testid="office-voice-sharing">Đang chia sẻ màn hình · người trong {channel?.name ?? 'phòng'} xem được</small>
       )}
     </div>
   );
@@ -70,7 +70,7 @@ export function ScreenView({ screen, count = 1 }: { screen: VoiceView['screen'];
   return (
     <div className={`card screen ${big ? 'big' : ''}`} onClick={() => setBig((b) => !b)} title={big ? 'Thu nhỏ' : 'Phóng to'}>
       <video ref={ref} autoPlay playsInline muted />
-      <small>🖥 {screen.name} đang chia sẻ màn hình{count > 1 ? ` · ${count - 1} người khác cũng đang chia sẻ` : ''}</small>
+      <small>🖥 <b>{screen.name}</b> đang chia sẻ màn hình{count > 1 ? ` · ${count - 1} người khác cũng đang chia sẻ` : ''}</small>
     </div>
   );
 }
