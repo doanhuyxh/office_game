@@ -111,6 +111,10 @@ export interface IPosition {
   hasGuide: boolean;
   /** Tự ban hành tài liệu không cần duyệt (chỉ cấp 1–6, Chuyên viên trở lên). */
   selfPublishDocuments: boolean;
+  /** Bit quyền tài chính (xem `FINANCE_PERMISSION`). */
+  financePermissions: number;
+  /** Số phòng ban khác nhau của người đang giữ chức vụ (cảnh báo khi bật quyền tiền cho chức vụ dùng chung). */
+  departmentCount: number;
 }
 
 export interface IUpsertPosition {
@@ -118,7 +122,15 @@ export interface IUpsertPosition {
   level: number;
   sortOrder?: number;
   selfPublishDocuments?: boolean;
+  /** Bỏ trống = giữ nguyên. Chỉ admin / người có quyền Quản trị tài chính mới đổi được. */
+  financePermissions?: number;
 }
+
+/** Quyền tài chính của tài khoản đang đăng nhập. `canManage` = được sửa quyền tài chính trên chức vụ. */
+export interface IMyFinanceAccess { permissions: number; canManage: boolean }
+
+/** Khớp `FinancePermission` ở back-end (Organization.Contracts). Record / Approve / Admin bao hàm View. */
+export const FINANCE_PERMISSION = { view: 1, record: 2, approve: 4, admin: 8 } as const;
 
 /** Một dòng xem trước khi nhập Excel (ImportRowDto). row = số dòng trong file. */
 export interface IImportRow {

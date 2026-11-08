@@ -1,6 +1,7 @@
 import { http, httpPost, pageQs } from '@/services/api-client';
 import type { IPaged, IPageQuery } from '@/types/api';
 import type {
+  IMyFinanceAccess,
   AccountMode, IAccountCreated, IDepartment, IEmployee, IEmployeeDetail, IEmployeeFilter, IPosition,
   IImportPreview, IImportResult, IUpsertDepartment, IUpsertEmployee, IUpsertPosition,
   IDepartmentDetail, IGuide, IMyRole, IPositionDetail,
@@ -75,6 +76,7 @@ export const positionsApi = {
   create: (body: IUpsertPosition) => httpPost<string>('/api/org/positions', body),
   update: (id: string, body: IUpsertPosition) => put<void>(`/api/org/positions/${id}`, body),
   remove: (id: string) => del(`/api/org/positions/${id}`),
+  myFinance: () => http<IMyFinanceAccess>('/api/org/positions/my-finance'),
 };
 
 /** Mô tả + hướng dẫn (đọc: mọi người; sửa phòng ban: HR / trưởng phòng đó; sửa chức vụ: HR). */

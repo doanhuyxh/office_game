@@ -53,8 +53,9 @@ Kiểm tra ghi lần trước (trước 34 commit sau `6cea7c6`): `dotnet build 
    - Chat: sửa tin, tìm trong tin nhắn, dọn tệp S3 mồ côi (xem "Chưa làm" ở [chat.md](business/chat.md))
    - Bảng tin: tìm toàn văn, thống kê đã đọc, bài hẹn giờ, realtime (xem "Chưa làm" ở [news.md](business/news.md))
 5. **Push FCM đã code xong** (xem dòng "Push FCM" ở bảng trên) nhưng **chưa dùng được**: cần chủ dự án tạo VAPID key (Firebase Console → Project settings → Cloud Messaging → Web configuration → Web Push certificates → Generate key pair) rồi điền `VITE_FIREBASE_VAPID_KEY` vào `frontend/.env`. Sau đó thử tay (bật công tắc ở `/profile`, gửi đơn / tin nhắn 1-1 từ tài khoản khác, đóng tab xem có báo không) rồi mới commit + deploy (nhớ chép `sdks/*.json` lên VPS + set `Firebase__CredentialsPath` trong `.env.pro` — xem [env.md](env.md)).
-6. Đề xuất chưa làm (hỏi trước): chốt công tháng, ca qua đêm, API loại phép, tắt email theo người, xuất sơ đồ tổ chức ra ảnh / PDF.
-7. Đã hoãn: vận hành (giám sát, diễn tập khôi phục backup), webhook máy chấm công, HR bật / tắt AI theo người.
+6. **Kinh doanh / dự án / tài chính (dòng tiền)** — *2026-11-08: xong bước 1 giai đoạn 1 = quyền tài chính trên chức vụ (BE + FE, **chưa commit**, chưa chạy e2e / thử tay; migration `PositionFinancePermissions` thêm cột mặc định 0, tự chạy khi Api khởi động — DB dev = production)*; còn: module Finance (sổ thu chi, đề nghị chi) → Sales → công nợ. Kế hoạch: kế hoạch [docs/BUSINESS_PLAN.md](../docs/BUSINESS_PLAN.md) (2026-11-08) **đã được duyệt** (mục 10 đã trả lời) — chưa code, bắt đầu giai đoạn 1.
+7. Đề xuất chưa làm (hỏi trước): chốt công tháng, ca qua đêm, API loại phép, tắt email theo người, xuất sơ đồ tổ chức ra ảnh / PDF.
+8. Đã hoãn: vận hành (giám sát, diễn tập khôi phục backup), webhook máy chấm công, HR bật / tắt AI theo người.
 
 ## Chạy & dữ liệu dev
 

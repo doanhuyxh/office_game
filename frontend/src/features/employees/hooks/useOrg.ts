@@ -12,6 +12,8 @@ export const useEmployeesPage = (f: IEmployeeFilter, q: IPageQuery) =>
   useQuery({ queryKey: orgKeys.employeesPage(f, q), queryFn: () => employeesApi.listPage(f, q), placeholderData: (prev) => prev });
 export const useDepartments = () => useQuery({ queryKey: orgKeys.departments, queryFn: departmentsApi.list });
 export const usePositions = () => useQuery({ queryKey: orgKeys.positions, queryFn: positionsApi.list });
+/** Quyền tài chính của tôi (theo chức vụ) — dùng ẩn / hiện menu và ô cấu hình; back-end vẫn kiểm tra lại. */
+export const useMyFinanceAccess = () => useQuery({ queryKey: [...orgKeys.all, 'my-finance'], queryFn: positionsApi.myFinance, staleTime: 60_000 });
 export const useNextEmployeeCode = (enabled: boolean) =>
   useQuery({ queryKey: ['org', 'next-code'], queryFn: employeesApi.nextCode, enabled, staleTime: 0 });
 

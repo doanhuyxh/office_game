@@ -235,6 +235,9 @@ namespace OfficeHub.Modules.Organization.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<int>("FinancePermissions")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Guide")
                         .HasMaxLength(10000)
                         .HasColumnType("character varying(10000)");
