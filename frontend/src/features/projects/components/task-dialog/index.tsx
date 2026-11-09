@@ -8,6 +8,7 @@ import { FormField } from '@/components/common/FormField';
 import { Label } from '@/components/common/label';
 import { SelectField } from '@/components/common/SelectField';
 import { Textarea } from '@/components/common/textarea';
+import { todayVn } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { projectApi } from '../../api/project.api';
 import { useComments, useProjectMutation } from '../../hooks/useProjects';
@@ -57,7 +58,8 @@ export function TaskDialog({ projectId, task, initialState = 'Todo', members, mi
                 options={members.filter((m) => m.isActive).map((m) => ({ value: m.employeeId, label: m.fullName }))} error={errors.assigneeEmployeeId} />
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <FormField id="tk-due" label="Hạn" type="date" value={f.dueOn ?? ''} onChange={(e) => set('dueOn', e.target.value)} />
+              {/* Không chọn ngày đã qua (back-end cũng chặn; giữ nguyên hạn cũ đã qua khi sửa vẫn được) */}
+              <FormField id="tk-due" label="Hạn" type="date" min={todayVn()} value={f.dueOn ?? ''} onChange={(e) => set('dueOn', e.target.value)} error={errors.dueOn} />
               <FormField id="tk-est" label="Ước lượng (ngày)" type="number" min={0} step="0.5" value={f.estimateDays ?? ''} onChange={(e) => set('estimateDays', e.target.value === '' ? null : Number(e.target.value))} error={errors.estimateDays} />
               <SelectField id="tk-ms" label="Mốc" allowEmpty value={f.milestoneId ?? null} onChange={(v) => set('milestoneId', v)} options={milestones.map((m) => ({ value: m.id, label: m.title }))} />
             </div>

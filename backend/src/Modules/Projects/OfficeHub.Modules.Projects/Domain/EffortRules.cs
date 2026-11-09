@@ -9,6 +9,13 @@ public static class EffortRules
 {
     public const int MaxMonths = 24;
 
+    /// <summary>
+    /// Hạn việc không được trước hôm nay (giờ văn phòng). Sửa việc mà giữ nguyên hạn cũ đã qua vẫn được (việc quá hạn vẫn sửa được trường khác).
+    /// Lỗi tiếng Việt hoặc null.
+    /// </summary>
+    public static string? DueDateError(DateOnly? due, DateOnly? previousDue, DateOnly today) =>
+        due is { } d && d < today && d != previousDue ? "Hạn không được trước hôm nay" : null;
+
     public static DateOnly MonthStart(DateOnly d) => new(d.Year, d.Month, 1);
     public static DateOnly MonthEnd(DateOnly m) => MonthStart(m).AddMonths(1).AddDays(-1);
 

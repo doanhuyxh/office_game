@@ -70,10 +70,11 @@ internal static class TaskEndpoints
         return TypedResults.Ok(await ToDtosAsync(rows, db, access, clock, ct, withProject: true));
     }
 
-    private static async Task<Validation> ValidateAsync(UpsertTask r, Project p, ProjectsDbContext db, CancellationToken ct)
+    private static async Task<Validation> ValidateAsync(UpsertTask r, Project p, ProjectsDbContext db, DateOnly today, DateOnly? previousDue, CancellationToken ct)
     {
         var v = new Validation().Required(r.Title, "title", "Tên việc").MaxLength(r.Title, 300, "title", "Tên việc").MaxLength(r.Description, 5000, "description", "Mô tả")
             .When(r.EstimateDays is < 0 or > 1000, "estimateDays", "Ước lượng không hợp lệ");
+        if (EffortRules.DueDateError(r.DueOn, previousDue, today) is { } dueErr) v.Add("dueOn", dueErr);
         if (r.AssigneeEmployeeId is { } a && !p.Members.Any(m => m.EmployeeId == a)) v.Add("assigneeEmployeeId", "Người được giao phải là thành viên dự án");
         if (r.MilestoneId is { } mid && !await db.Milestones.AnyAsync(m => m.Id == mid && m.ProjectId == p.Id, ct)) v.Add("milestoneId", "Mốc không thuộc dự án");
         return v;
@@ -95,7 +96,7 @@ internal static class TaskEndpoints
         if (p is null || !v.CanSee(id)) return TypedResults.NotFound();
         if (!v.CanWork(id)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được tạo việc");
         if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
-        var val = await ValidateAsync(r, p, db, ct);
+        var val = await ValidateAsync(r, p, db, clock.Today, null, ct);
         if (val.Failed) return val.Problem();
         for (var attempt = 0; ; attempt++)
         {
@@ -136,7 +137,7 @@ internal static class TaskEndpoints
         if (t is null || p is null || !v.CanSee(p.Id)) return TypedResults.NotFound();
         if (!v.CanWork(p.Id)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được sửa việc");
         if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
-        var val = await ValidateAsync(r, p, db, ct);
+        var val = await ValidateAsync(r, p, db, clock.Today, t.DueOn, ct);
         if (val.Failed) return val.Problem();
         var reassigned = r.AssigneeEmployeeId != t.AssigneeEmployeeId;
         if (r.DueOn != t.DueOn || reassigned) t.DueRemindedAt = null; // đổi hạn / người → nhắc lại theo hạn mới

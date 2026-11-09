@@ -47,6 +47,7 @@ Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsourc
 - % mặc định khi chưa đặt tay: số dự án **đang chạy trong tháng** mà người đó là thành viên (theo bắt đầu / kết thúc / ngày đóng) — 1 → 100 %, n → 100 / n. Đặt 0 % = không tính.
 - Thành viên tính theo danh sách **hiện tại** ở tháng chưa chốt; tháng đã chốt chỉ tính dòng % đã lưu (job `AllocationFreezeJob` — [projects-finance.md](projects-finance.md)).
 - Việc quá hạn: hạn < hôm nay và chưa Xong.
+- Hạn việc (tạo / sửa) **không được trước hôm nay** (`EffortRules.DueDateError` → 400 `dueOn`; lịch FE khoá ngày đã qua). Sửa việc mà giữ nguyên hạn cũ đã qua vẫn lưu được.
 
 ## Nhắc (`TaskReminderJob`, mỗi giờ, sau 50 s)
 
