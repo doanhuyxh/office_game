@@ -115,6 +115,70 @@ public class ApiErrorTests
     }
 }
 
+public class ProjectDocumentScopeTests
+{
+    private const string G = "0193a000-0000-7000-8000-000000000000";
+
+    [Theory]
+    [InlineData("GET", "/api/projects")]
+    [InlineData("GET", "/api/projects/")]
+    [InlineData("GET", "/api/projects/" + G)]
+    [InlineData("GET", "/api/projects/" + G + "/tasks")]
+    [InlineData("GET", "/api/projects/" + G + "/effort")]
+    [InlineData("GET", "/api/projects/tasks/mine")]
+    [InlineData("GET", "/api/projects/tasks/" + G + "/comments")]
+    [InlineData("POST", "/api/projects/" + G + "/tasks")]
+    [InlineData("POST", "/api/projects/tasks/" + G + "/move")]
+    [InlineData("POST", "/api/projects/tasks/" + G + "/comments")]
+    [InlineData("GET", "/api/documents/spaces")]
+    [InlineData("GET", "/api/documents/folders")]
+    [InlineData("GET", "/api/documents/assets")]
+    [InlineData("GET", "/api/documents/recent")]
+    [InlineData("GET", "/api/documents/assets/" + G)]
+    [InlineData("GET", "/api/documents/assets/" + G + "/file")]
+    public void Allows_project_tasks_and_document_reads(string method, string path) => Assert.True(AccessTokenAuth.IsAllowed(method, path));
+
+    [Theory]
+    [InlineData("GET", "/api/projects/financials")]                       // lãi / lỗ: không bao giờ ra MCP
+    [InlineData("GET", "/api/projects/" + G + "/financials")]
+    [InlineData("GET", "/api/projects/" + G + "/installments")]
+    [InlineData("GET", "/api/projects/sales-contracts")]
+    [InlineData("GET", "/api/projects/sales-contracts/" + G + "/installments")]
+    [InlineData("GET", "/api/projects/" + G + "/change-requests")]
+    [InlineData("POST", "/api/projects")]                                 // tạo / sửa dự án, thành viên, phân bổ, mốc: chỉ web
+    [InlineData("PUT", "/api/projects/" + G)]
+    [InlineData("POST", "/api/projects/" + G + "/members")]
+    [InlineData("PUT", "/api/projects/" + G + "/allocations")]
+    [InlineData("POST", "/api/projects/" + G + "/milestones")]
+    [InlineData("POST", "/api/projects/milestones/" + G + "/accept")]
+    [InlineData("PUT", "/api/projects/tasks/" + G)]
+    [InlineData("DELETE", "/api/projects/tasks/" + G)]
+    [InlineData("GET", "/api/projects/" + G + "/tasks/extra")]
+    [InlineData("GET", "/api/projects/" + G + "/tasks\n")]
+    [InlineData("GET", "/api/projects/not-a-guid/tasks")]
+    [InlineData("POST", "/api/documents/uploads")]                        // tài liệu: chỉ đọc
+    [InlineData("POST", "/api/documents/assets")]
+    [InlineData("PUT", "/api/documents/assets/" + G)]
+    [InlineData("DELETE", "/api/documents/assets/" + G)]
+    [InlineData("POST", "/api/documents/assets/" + G + "/submit")]
+    [InlineData("GET", "/api/documents/assets/" + G + "/access-log")]
+    [InlineData("GET", "/api/documents/trash")]
+    [InlineData("GET", "/api/documents/admin/stats")]
+    [InlineData("POST", "/api/documents/folders")]
+    [InlineData("GET", "/api/documents/doc-types")]
+    public void Blocks_finance_admin_and_document_writes(string method, string path) => Assert.False(AccessTokenAuth.IsAllowed(method, path));
+
+    [Theory]
+    [InlineData("todo", "Todo")]
+    [InlineData("Đang làm", "Doing")]
+    [InlineData(" REVIEW ", "Review")]
+    [InlineData("xong", "Done")]
+    public void Task_states_accept_vietnamese(string input, string expected) => Assert.Equal(expected, ProjectTools.ParseState(input));
+
+    [Fact]
+    public void Unknown_task_state_is_rejected() => Assert.Throws<McpException>(() => ProjectTools.ParseState("blocked"));
+}
+
 public class MeetingToolTests
 {
     [Fact]

@@ -94,7 +94,8 @@ public sealed class MeetingTools
             $"Không có phòng '{key}'. Phòng hiện có: {string.Join(", ", rooms.OfType<JsonObject>().Select(r => $"{r["id"]} ({r["name"]})"))}");
     }
 
-    private static async Task<Guid> ResolveEmployeeAsync(OfficeHubApi api, string who, CancellationToken ct)
+    /// <summary>Mã nhân viên / email / họ tên → Id nhân viên (dùng chung với ProjectTools).</summary>
+    internal static async Task<Guid> ResolveEmployeeAsync(OfficeHubApi api, string who, CancellationToken ct)
     {
         var rows = ((await api.GetAsync($"/api/org/employees?search={Q(who)}", ct)) as JsonArray ?? []).OfType<JsonObject>().ToList();
         var exact = rows.Where(r => string.Equals((string?)r["code"], who, StringComparison.OrdinalIgnoreCase)

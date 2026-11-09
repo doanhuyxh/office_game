@@ -20,7 +20,7 @@ Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsourc
 | Quyền **Xem tài chính** (chức vụ) | mọi dự án (chỉ đọc) | — | — | ✓ |
 | Người khác | 404 | | | |
 
-**Tạo dự án**: vai trò manager / hr / admin; người tạo (có hồ sơ) = quản lý. Luôn còn ≥ 1 quản lý (bỏ / hạ vai trò người cuối → 409). Xoá việc: người tạo hoặc quản lý. Token AI: `/api/projects` ngoài allowlist → 403.
+**Tạo dự án**: vai trò manager / hr / admin; người tạo (có hồ sơ) = quản lý. Luôn còn ≥ 1 quản lý (bỏ / hạ vai trò người cuối → 409). Xoá việc: người tạo hoặc quản lý. Token AI: đọc dự án / việc / bình luận / ngày công + tạo việc, chuyển trạng thái, bình luận (tool MCP — [mcp.md](mcp.md)); mọi route khác của `/api/projects` → 403.
 
 ## API (`/api/projects`, đăng nhập)
 

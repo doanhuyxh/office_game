@@ -15,7 +15,7 @@ Video, ảnh, văn bản công việc là **tài sản của công ty**: mỗi f
 - HR / admin: toàn quyền mọi kho. "Quản lý kho" = xoá / sửa thư mục và tài liệu của người khác, đổi người phụ trách, lưu trữ, xem nhật ký truy cập. Người tạo / người phụ trách (`IsOwner`) có các quyền này trên tài liệu của mình.
 - `Classification`: chỉ dùng `Internal`; `Restricted` / `Confidential` → hiện chỉ HR xem (`CanView`), API chưa cho đặt. Mở rộng sau: sửa `CanView` + thêm danh sách người được xem.
 - Người duyệt ban hành (quản lý trực tiếp của người gửi) xem được tài liệu khi đang `PendingApproval` dù không thuộc kho. Tài liệu trong thùng rác: chỉ chủ / người quản lý kho.
-- Token AI bị chặn (không có trong `AccessTokenAuth.IsAllowed`) — chưa có tool MCP (giai đoạn 3).
+- Token AI: chỉ ĐỌC (`spaces`, `folders`, `assets`, `assets/{id}`, `assets/{id}/file`, `recent`) — tool MCP ở [mcp.md](mcp.md); ghi / quản trị bị chặn.
 
 ## Tải lên (thẳng S3, không qua Api)
 
@@ -60,4 +60,4 @@ E2E: `scripts/dev/documents-e2e.ts` (65 kiểm tra, DB tạm) — [e2e.md](../e2
 
 Văn phòng 3D (nút HUD, tủ hồ sơ, thư viện, bảng tin `GET /recent`, chiếu lên màn hình phòng `file?present=true`): [office-documents.md](office-documents.md).
 
-**Chưa làm:** trích chữ / OCR, tìm toàn văn tiếng Việt, ảnh thu nhỏ / chuyển mã video, tool MCP cho AI, mức bảo mật Hạn chế / Mật, watermark, upload multipart > 5 GB.
+**Chưa làm:** trích chữ / OCR, tìm toàn văn tiếng Việt, ảnh thu nhỏ / chuyển mã video, tool MCP ghi (tải lên / ban hành), mức bảo mật Hạn chế / Mật, watermark, upload multipart > 5 GB.

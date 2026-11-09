@@ -79,6 +79,29 @@ public static class AccessTokenAuth
         ("POST", "/api/notifications/"),
     ];
 
+    // Route có Id ở giữa (không diễn tả được bằng tiền tố) → khớp NGUYÊN path bằng mẫu. {id} = Guid.
+    // Dự án: đọc dự án / việc / bình luận / ngày công (không tiền), ghi CHỈ tạo việc, chuyển trạng thái việc, bình luận.
+    //   Cố ý không có: tài chính (/financials), đợt thu / HĐ bán (/installments, /sales-contracts), CR (/change-requests),
+    //   thành viên, phân bổ %, mốc nghiệm thu, tạo / sửa dự án, sửa / xoá việc.
+    // Tài liệu: chỉ ĐỌC (kho, thư mục, tìm, chi tiết, link xem / tải — ghi nhật ký truy cập). Không tải lên, ban hành, xoá, quản trị.
+    private const string Id = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
+    private static readonly (string Method, System.Text.RegularExpressions.Regex Path)[] AllowedExact =
+    [
+        ("GET", Exact("/api/projects/?")),
+        ("GET", Exact($"/api/projects/{Id}")),
+        ("GET", Exact($"/api/projects/{Id}/(tasks|effort)")),
+        ("GET", Exact("/api/projects/tasks/mine")),
+        ("GET", Exact($"/api/projects/tasks/{Id}/comments")),
+        ("POST", Exact($"/api/projects/{Id}/tasks")),
+        ("POST", Exact($"/api/projects/tasks/{Id}/(move|comments)")),
+        ("GET", Exact("/api/documents/(spaces|folders|assets|recent)")),
+        ("GET", Exact($"/api/documents/assets/{Id}(/file)?")),
+    ];
+
+    private static System.Text.RegularExpressions.Regex Exact(string pattern) =>
+        new($@"\A{pattern}\z",System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant
+                            | System.Text.RegularExpressions.RegexOptions.Compiled);
+
     /// <summary>
     /// Khớp theo đoạn path: "/api/leave/requests" cho phép chính nó và "/api/leave/requests/my",
     /// nhưng "/api/leave/balance" KHÔNG mở "/api/leave/balances" (danh sách quỹ phép mọi người — HR).
@@ -96,6 +119,8 @@ public static class AccessTokenAuth
             if (!path.StartsWith(p, StringComparison.OrdinalIgnoreCase)) continue;
             if (p.EndsWith('/') || path.Length == p.Length || path[p.Length] == '/') return true;
         }
+        foreach (var (m, re) in AllowedExact)
+            if (string.Equals(m, method, StringComparison.OrdinalIgnoreCase) && re.IsMatch(path)) return true;
         return false;
     }
 }
