@@ -14,8 +14,8 @@ namespace OfficeHub.Mcp.Tools;
 public sealed class AssetTools
 {
     [McpServerTool(Name = "get_my_assets", Title = "Tài sản của tôi", ReadOnly = true, OpenWorld = false)]
-    [Description("Tài sản công ty đang giao cho tôi: thiết bị (mã, tên, loại, serial, ngày nhận) và tài khoản dịch vụ như Figma, Google Workspace… " +
-                 "(dịch vụ, tên đăng nhập, vai trò, ngày cấp). Không có giá và không có mật khẩu.")]
+    [Description("Tài sản công ty đang giao cho tôi: thiết bị (mã, tên, loại, serial, ngày nhận), tài khoản dịch vụ như Figma, Google Workspace… " +
+                 "(dịch vụ, tên đăng nhập, vai trò, ngày cấp) và Business Manager Facebook (tên, số trang). Không có giá, không có mật khẩu / token.")]
     public static async Task<string> GetMyAssets(OfficeHubApi api, CancellationToken ct) =>
         Out(await api.GetAsync("/api/assets/my", ct));
 

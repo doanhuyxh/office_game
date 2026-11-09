@@ -2,6 +2,8 @@
 
 > Nguồn sự thật là code (`backend/src/Modules/Assets/`, `frontend/src/features/assets/`); nếu code khác tài liệu, tin code và sửa tài liệu. Về [README.md](README.md). Schema: [database-workflow.md](../database-workflow.md#schema-assets--assetsdbcontext-migration-initialassets).
 
+Tài khoản mạng xã hội (Facebook Business Manager) + đăng bài: [assets-social.md](assets-social.md).
+
 Không nhầm với [documents.md](documents.md) ("tài sản số" = file do công việc sinh ra, **không** tính là tài sản ở module này).
 
 ## Phạm vi (chủ dự án chốt 2026-11-08)

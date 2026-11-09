@@ -24,6 +24,12 @@ public sealed class AssetsDbContext(DbContextOptions<AssetsDbContext> options) :
     public DbSet<DeviceAttachment> Attachments => Set<DeviceAttachment>();
     public DbSet<HandoverRecord> Handovers => Set<HandoverRecord>();
     public DbSet<AssetSettings> Settings => Set<AssetSettings>();
+    public DbSet<SocialAccount> SocialAccounts => Set<SocialAccount>();
+    public DbSet<SocialAccountAssignment> SocialAssignments => Set<SocialAccountAssignment>();
+    public DbSet<SocialPage> SocialPages => Set<SocialPage>();
+    public DbSet<SocialPost> SocialPosts => Set<SocialPost>();
+    public DbSet<SocialPostTarget> SocialTargets => Set<SocialPostTarget>();
+    public DbSet<SocialMedia> SocialMedia => Set<SocialMedia>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -182,6 +188,79 @@ public sealed class AssetsDbContext(DbContextOptions<AssetsDbContext> options) :
             e.Property(x => x.HandoverTemplateKey).HasMaxLength(400);
             e.Property(x => x.HandoverTemplateName).HasMaxLength(200);
             e.Property(x => x.UpdatedByName).HasMaxLength(200);
+        });
+        ConfigureSocial(b);
+    }
+
+    private static void ConfigureSocial(ModelBuilder b)
+    {
+        b.Entity<SocialAccount>(e =>
+        {
+            e.ToTable("social_accounts");
+            e.Property(x => x.Platform).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.TokenStatus).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Name).HasMaxLength(200);
+            e.Property(x => x.ExternalId).HasMaxLength(50);
+            e.Property(x => x.LoginHint).HasMaxLength(200);
+            e.Property(x => x.Note).HasMaxLength(2000);
+            e.Property(x => x.TokenError).HasMaxLength(1000);
+            e.Property(x => x.TokenOwnerName).HasMaxLength(200);
+            e.HasIndex(x => x.HolderEmployeeId).HasDatabaseName("ix_social_accounts_holder");
+            e.HasIndex(x => new { x.Platform, x.ExternalId }).IsUnique().HasFilter("\"ExternalId\" IS NOT NULL").HasDatabaseName("ux_social_accounts_external");
+        });
+        b.Entity<SocialAccountAssignment>(e =>
+        {
+            e.ToTable("social_account_assignments");
+            e.Property(x => x.AssignedByName).HasMaxLength(200);
+            e.Property(x => x.ReturnedByName).HasMaxLength(200);
+            e.Property(x => x.AssignNote).HasMaxLength(1000);
+            e.Property(x => x.ReturnNote).HasMaxLength(1000);
+            e.HasIndex(x => new { x.AccountId, x.AssignedAt }).HasDatabaseName("ix_social_assignments_account");
+            e.HasIndex(x => x.EmployeeId).HasDatabaseName("ix_social_assignments_employee");
+            e.HasOne<SocialAccount>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Restrict).IsRequired();
+        });
+        b.Entity<SocialPage>(e =>
+        {
+            e.ToTable("social_pages");
+            e.Property(x => x.ExternalId).HasMaxLength(50);
+            e.Property(x => x.Name).HasMaxLength(300);
+            e.Property(x => x.Category).HasMaxLength(200);
+            e.Property(x => x.Link).HasMaxLength(500);
+            e.Property(x => x.PictureUrl).HasMaxLength(2000);
+            e.HasIndex(x => new { x.AccountId, x.ExternalId }).IsUnique().HasDatabaseName("ux_social_pages_account_external");
+            e.HasOne<SocialAccount>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Restrict).IsRequired();
+        });
+        b.Entity<SocialPost>(e =>
+        {
+            e.ToTable("social_posts");
+            e.Property(x => x.Link).HasMaxLength(2000);
+            e.Property(x => x.AuthorName).HasMaxLength(200);
+            e.HasIndex(x => new { x.CreatedAt, x.Id }).HasDatabaseName("ix_social_posts_created");
+            e.HasIndex(x => x.AuthorUserId).HasDatabaseName("ix_social_posts_author");
+            e.HasMany(x => x.Targets).WithOne().HasForeignKey(t => t.PostId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<SocialPostTarget>(e =>
+        {
+            e.ToTable("social_post_targets");
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.ExternalPostId).HasMaxLength(100);
+            e.Property(x => x.Permalink).HasMaxLength(1000);
+            e.Property(x => x.Error).HasMaxLength(1000);
+            e.Property(x => x.CancelledByName).HasMaxLength(200);
+            e.HasIndex(x => new { x.Status, x.DueAt }).HasDatabaseName("ix_social_targets_due");
+            e.HasIndex(x => x.PageId).HasDatabaseName("ix_social_targets_page");
+            e.HasOne<SocialPage>().WithMany().HasForeignKey(x => x.PageId).OnDelete(DeleteBehavior.Restrict).IsRequired();
+        });
+        b.Entity<SocialMedia>(e =>
+        {
+            e.ToTable("social_media");
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.FileName).HasMaxLength(200);
+            e.Property(x => x.ContentType).HasMaxLength(150);
+            e.Property(x => x.FileKey).HasMaxLength(400);
+            e.HasIndex(x => x.PostId).HasDatabaseName("ix_social_media_post");
+            e.HasOne<SocialPost>().WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 

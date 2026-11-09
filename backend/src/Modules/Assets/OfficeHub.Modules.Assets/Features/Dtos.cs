@@ -37,11 +37,11 @@ public sealed record GrantSeatRequest(Guid? EmployeeId, string? AccountLogin, st
 
 public sealed record HeldDeviceDto(Guid Id, string Code, string Name, string CategoryName, string? SerialNumber, DateTimeOffset AssignedAt);
 public sealed record HeldSeatDto(Guid Id, Guid ServiceId, string ServiceName, string AccountLogin, string? Role, string? Url, DateTimeOffset GrantedAt);
-public sealed record HoldingsDto(IReadOnlyList<HeldDeviceDto> Devices, IReadOnlyList<HeldSeatDto> Seats);
+public sealed record HoldingsDto(IReadOnlyList<HeldDeviceDto> Devices, IReadOnlyList<HeldSeatDto> Seats, IReadOnlyList<HeldSocialDto> Socials);
 
 public sealed record WarrantyDueDto(Guid Id, string Code, string Name, DateOnly WarrantyUntil, string? HolderName);
 public sealed record RenewalDueDto(Guid Id, string Name, DateOnly RenewalDate);
-public sealed record ResignedHoldingDto(Guid EmployeeId, string Code, string FullName, DateOnly? LeftAt, int Devices, int Seats);
+public sealed record ResignedHoldingDto(Guid EmployeeId, string Code, string FullName, DateOnly? LeftAt, int Devices, int Seats, int Socials);
 public sealed record OverviewDto(IReadOnlyDictionary<string, int> DeviceCounts, int DeviceTotal, decimal TotalPurchaseValue, int ActiveServices,
     decimal MonthlyServiceCost, int SeatsInUse, IReadOnlyList<WarrantyDueDto> WarrantiesDue, IReadOnlyList<RenewalDueDto> RenewalsDue,
     IReadOnlyList<ResignedHoldingDto> ResignedHolding, decimal TotalBookValue, int UnconfirmedHandovers);

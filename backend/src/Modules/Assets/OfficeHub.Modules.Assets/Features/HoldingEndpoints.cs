@@ -34,14 +34,22 @@ internal static class HoldingEndpoints
                            where s.EmployeeId == employeeId && s.RevokedAt == null
                            orderby sv.Name, s.AccountLogin
                            select new HeldSeatDto(s.Id, sv.Id, sv.Name, s.AccountLogin, s.Role, sv.Url, s.GrantedAt)).ToListAsync(ct);
+        var socials = await db.SocialAccounts.AsNoTracking().Where(a => a.HolderEmployeeId == employeeId).OrderBy(a => a.Name).ToListAsync(ct);
+        var socialIds = socials.Select(a => a.Id).ToList();
+        var socialSince = await db.SocialAssignments.AsNoTracking().Where(x => socialIds.Contains(x.AccountId) && x.ReturnedAt == null)
+            .GroupBy(x => x.AccountId).Select(g => new { g.Key, At = g.Max(x => x.AssignedAt) }).ToDictionaryAsync(x => x.Key, x => x.At, ct);
+        var pageCounts = await db.SocialPages.AsNoTracking().Where(p => socialIds.Contains(p.AccountId) && p.IsActive).GroupBy(p => p.AccountId)
+            .Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
         return new([.. devices.Select(d => new HeldDeviceDto(d.Id, d.Code, d.Name, cats.GetValueOrDefault(d.CategoryId, ""), d.SerialNumber,
-            since.GetValueOrDefault(d.Id)))], seats);
+            since.GetValueOrDefault(d.Id)))], seats,
+            [.. socials.Select(a => new HeldSocialDto(a.Id, a.Platform, a.Name, a.ExternalId, a.LoginHint, pageCounts.GetValueOrDefault(a.Id),
+                socialSince.GetValueOrDefault(a.Id)))]);
     }
 
     private static async Task<Ok<HoldingsDto>> MyAsync(ClaimsPrincipal user, AssetsDbContext db, AssetAccess access, CancellationToken ct)
     {
         var me = await access.ViewerAsync(user, ct);
-        return TypedResults.Ok(me.Employee is null ? new HoldingsDto([], []) : await LoadAsync(db, me.Employee.Id, ct));
+        return TypedResults.Ok(me.Employee is null ? new HoldingsDto([], [], []) : await LoadAsync(db, me.Employee.Id, ct));
     }
 
     private static async Task<Results<Ok<HoldingsDto>, ProblemHttpResult>> HoldingsAsync(Guid id, ClaimsPrincipal user, AssetsDbContext db,
@@ -53,17 +61,20 @@ internal static class HoldingEndpoints
         return TypedResults.Ok(await LoadAsync(db, id, ct));
     }
 
-    /// <summary>Nhân viên đã nghỉ mà còn giữ thiết bị / ghế (dùng cho tổng quan và job nhắc).</summary>
+    /// <summary>Nhân viên đã nghỉ mà còn giữ thiết bị / ghế / BM mạng xã hội (dùng cho tổng quan và job nhắc).</summary>
     internal static async Task<List<ResignedHoldingDto>> ResignedHoldingAsync(AssetsDbContext db, IReadOnlyDictionary<Guid, EmployeeRef> emps, CancellationToken ct)
     {
         var dev = await db.Devices.AsNoTracking().Where(d => d.Status == DeviceStatus.InUse && d.HolderEmployeeId != null)
             .GroupBy(d => d.HolderEmployeeId!.Value).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
         var seats = await db.Seats.AsNoTracking().Where(s => s.RevokedAt == null)
             .GroupBy(s => s.EmployeeId).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
-        return [.. dev.Keys.Union(seats.Keys)
+        var socials = await db.SocialAccounts.AsNoTracking().Where(a => a.HolderEmployeeId != null)
+            .GroupBy(a => a.HolderEmployeeId!.Value).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
+        return [.. dev.Keys.Union(seats.Keys).Union(socials.Keys)
             .Select(id => emps.GetValueOrDefault(id))
             .Where(e => e is { IsActive: false })
-            .Select(e => new ResignedHoldingDto(e!.Id, e.Code, e.FullName, e.LeftAt, dev.GetValueOrDefault(e.Id), seats.GetValueOrDefault(e.Id)))
+            .Select(e => new ResignedHoldingDto(e!.Id, e.Code, e.FullName, e.LeftAt, dev.GetValueOrDefault(e.Id), seats.GetValueOrDefault(e.Id),
+                socials.GetValueOrDefault(e.Id)))
             .OrderBy(r => r.Code)];
     }
 

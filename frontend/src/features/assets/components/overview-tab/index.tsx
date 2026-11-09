@@ -64,7 +64,7 @@ export function OverviewTab() {
         {o.resignedHolding.map((r) => (
           <li key={r.employeeId} className="flex items-center justify-between gap-2">
             <span className="min-w-0 truncate"><b>{r.fullName}</b> ({r.code}){r.leftAt ? ` · nghỉ ${formatDate(r.leftAt)}` : ''}</span>
-            <span className="shrink-0 text-xs text-muted-foreground">{r.devices} thiết bị · {r.seats} tài khoản</span>
+            <span className="shrink-0 text-xs text-muted-foreground">{r.devices} thiết bị · {r.seats} tài khoản{r.socials > 0 ? ` · ${r.socials} BM` : ''}</span>
           </li>
         ))}
       </Block>

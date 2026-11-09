@@ -72,6 +72,8 @@ public static class NotificationCategories
     public const string AssetOffboarding = "asset_offboarding";
     /// <summary>Có mục cần rà soát quyền truy cập dịch vụ — gửi người rà soát.</summary>
     public const string AssetReview = "asset_review";
+    /// <summary>Đăng bài mạng xã hội thất bại (gửi người đăng, chỉ app) · token BM bị Facebook từ chối (HR + người giữ BM, email) — module Assets.</summary>
+    public const string SocialPost = "social_post";
     /// <summary>Đề nghị chi đã duyệt, chờ kế toán chi (gửi người có quyền Ghi sổ) · đã chi tiền (gửi người đề nghị) — module Finance.</summary>
     public const string ExpenseReady = "expense_ready";
     public const string ExpensePaid = "expense_paid";

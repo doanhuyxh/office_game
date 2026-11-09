@@ -13,12 +13,13 @@ import { MyAssetsTab } from '../my-assets-tab';
 import { OverviewTab } from '../overview-tab';
 import { ReviewsTab } from '../reviews-tab';
 import { ServicesTab } from '../services-tab';
+import { SocialAccountsTab } from '../social-accounts-tab';
 import { StocktakesTab } from '../stocktakes-tab';
 
-const HR_TABS = ['overview', 'devices', 'services', 'reviews', 'stocktakes', 'categories'] as const;
+const HR_TABS = ['overview', 'devices', 'services', 'social', 'reviews', 'stocktakes', 'categories'] as const;
 
 /**
- * Tài sản công ty. HR / admin: Tổng quan · Thiết bị · Dịch vụ · Rà soát · Kiểm kê · Danh mục · Của tôi.
+ * Tài sản công ty. HR / admin: Tổng quan · Thiết bị · Dịch vụ · MXH (Business Manager Facebook) · Rà soát · Kiểm kê · Danh mục · Của tôi.
  * Mọi người khác: chỉ "Của tôi" (thiết bị + tài khoản đang giữ, và việc rà soát quyền nếu là người rà soát).
  */
 export function AssetsPage() {
@@ -32,6 +33,7 @@ export function AssetsPage() {
 
   const actions = !isHr ? null : tab === 'devices' ? <>{excel(assetExcelUrl.devices)}{add('device', 'Thêm thiết bị')}</>
     : tab === 'services' ? <>{excel(assetExcelUrl.services)}{add('service', 'Thêm dịch vụ')}</>
+    : tab === 'social' ? add('social', 'Thêm BM')
     : tab === 'reviews' ? add('review', 'Bắt đầu rà soát')
     : tab === 'stocktakes' ? add('stocktake', 'Bắt đầu kiểm kê')
     : tab === 'categories' ? add('category', 'Thêm loại')
@@ -46,6 +48,7 @@ export function AssetsPage() {
             {isHr && <TabsTrigger value="overview">Tổng quan</TabsTrigger>}
             {isHr && <TabsTrigger value="devices">Thiết bị</TabsTrigger>}
             {isHr && <TabsTrigger value="services">Dịch vụ</TabsTrigger>}
+            {isHr && <TabsTrigger value="social">MXH</TabsTrigger>}
             {isHr && <TabsTrigger value="reviews">Rà soát</TabsTrigger>}
             {isHr && <TabsTrigger value="stocktakes">Kiểm kê</TabsTrigger>}
             {isHr && <TabsTrigger value="categories">Danh mục</TabsTrigger>}
@@ -54,6 +57,7 @@ export function AssetsPage() {
         </PageToolbar>
         {isHr && <TabsContent value="devices" className="mt-4"><DevicesTab creating={creating === 'device'} onCreatedClose={done} /></TabsContent>}
         {isHr && <TabsContent value="services" className="mt-4"><ServicesTab creating={creating === 'service'} onCreatedClose={done} /></TabsContent>}
+        {isHr && <TabsContent value="social" className="mt-4"><SocialAccountsTab creating={creating === 'social'} onCreatedClose={done} /></TabsContent>}
         {isHr && <TabsContent value="reviews" className="mt-4"><ReviewsTab creating={creating === 'review'} onCreatedClose={done} /></TabsContent>}
         {isHr && <TabsContent value="stocktakes" className="mt-4"><StocktakesTab creating={creating === 'stocktake'} onCreatedClose={done} /></TabsContent>}
         {isHr && <TabsContent value="categories" className="mt-4"><CategoriesTab creating={creating === 'category'} onCreatedClose={done} /></TabsContent>}

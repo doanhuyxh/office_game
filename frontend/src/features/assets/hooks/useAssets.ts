@@ -32,6 +32,10 @@ export const useHandovers = (unconfirmed: boolean, enabled = true) =>
 export const useAssetSettings = () => useQuery({ queryKey: assetKeys.settings, queryFn: assetApi.settings });
 export const useTemplateFields = () => useQuery({ queryKey: assetKeys.templateFields, queryFn: assetApi.templateFields, staleTime: Infinity });
 
+export const useSocialAccounts = (enabled = true) => useQuery({ queryKey: assetKeys.socialAccounts, queryFn: assetApi.socialAccounts, enabled });
+export const useSocialAccount = (id: string | null) =>
+  useQuery({ queryKey: assetKeys.socialAccount(id ?? ''), queryFn: () => assetApi.socialAccount(id!), enabled: !!id });
+
 /** Mọi thao tác ghi làm mới toàn bộ cache tài sản (dữ liệu nhỏ, đơn giản hơn chọn từng key). */
 export function useAssetMutation<A, R>(fn: (a: A) => Promise<R>) {
   const qc = useQueryClient();

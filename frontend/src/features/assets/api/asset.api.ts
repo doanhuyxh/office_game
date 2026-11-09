@@ -3,6 +3,7 @@ import type { IPaged, IPageQuery } from '@/types/api';
 import type {
   AttachmentKind, DeviceStatus, IAssetSettings, ICategory, IDeviceAttachment, IHandover, ITemplateField, ICategoryRequest, IDevice, IDeviceDetail, IDeviceFilter, IDeviceRequest, IGrantSeatRequest, IHoldings, IOverview,
   IReview, IReviewDetail, IReviewItem, ISeat, IService, IServiceRequest, IStocktake, IStocktakeDetail, IStocktakeItem, ReviewDecision, StocktakeResult,
+  ISocialAccount, ISocialAccountDetail, ISocialAccountRequest, SocialAccountStatus,
 } from '../types/asset.types';
 
 const base = '/api/assets';
@@ -28,6 +29,8 @@ export const assetKeys = {
   handovers: (unconfirmed: boolean) => ['assets', 'handovers', unconfirmed] as const,
   settings: ['assets', 'settings'] as const,
   templateFields: ['assets', 'template-fields'] as const,
+  socialAccounts: ['assets', 'social-accounts'] as const,
+  socialAccount: (id: string) => ['assets', 'social-account', id] as const,
 };
 
 /** Link tải Excel (GET, cookie cùng origin) — dùng với `downloadUrl` (@/utils/money). */
@@ -102,4 +105,15 @@ export const assetApi = {
   defaultTemplateUrl: `${base}/settings/handover-template/default`,
   uploadTemplate: (file: File) => httpUpload<void>(`${base}/settings/handover-template`, file),
   deleteTemplate: () => http<void>(`${base}/settings/handover-template`, { method: 'DELETE' }),
+
+  socialAccounts: () => http<ISocialAccount[]>(`${base}/social/accounts`),
+  socialAccount: (id: string) => http<ISocialAccountDetail>(`${base}/social/accounts/${id}`),
+  saveSocialAccount: (id: string | undefined, body: ISocialAccountRequest) =>
+    id ? http<ISocialAccountDetail>(`${base}/social/accounts/${id}`, json('PUT', body)) : httpPost<ISocialAccountDetail>(`${base}/social/accounts`, body),
+  /** Token chỉ ghi: gửi lên → back-end kiểm tra với Facebook + đồng bộ trang. */
+  setSocialToken: (id: string, token: string) => http<ISocialAccountDetail>(`${base}/social/accounts/${id}/token`, json('PUT', { token })),
+  syncSocial: (id: string) => httpPost<ISocialAccountDetail>(`${base}/social/accounts/${id}/sync`),
+  assignSocial: (id: string, employeeId: string, note: string | null) => httpPost<ISocialAccountDetail>(`${base}/social/accounts/${id}/assign`, { employeeId, note }),
+  returnSocial: (id: string, note: string | null) => httpPost<ISocialAccountDetail>(`${base}/social/accounts/${id}/return`, { note }),
+  setSocialStatus: (id: string, status: SocialAccountStatus) => httpPost<ISocialAccountDetail>(`${base}/social/accounts/${id}/status`, { status }),
 };

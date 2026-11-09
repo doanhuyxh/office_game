@@ -33,6 +33,7 @@ export const CATEGORY: Record<string, { icon: LucideIcon; className: string }> =
   asset_expiring: { icon: Boxes, className: 'text-warning' },
   asset_offboarding: { icon: UserX, className: 'text-warning' },
   asset_review: { icon: ClipboardCheck, className: 'text-info' },
+  social_post: { icon: Megaphone, className: 'text-destructive' },
 };
 export const FALLBACK = { icon: Bell, className: 'text-muted-foreground' };
 

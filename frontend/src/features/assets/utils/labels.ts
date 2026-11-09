@@ -2,7 +2,8 @@ import type { StatusTone } from '@/components/common/StatusBadge';
 import type { SearchOption } from '@/components/common/SearchSelectField';
 import type { IEmployee } from '@/features/employees';
 import type {
-  AttachmentKind, BillingCycle, DeviceStatus, HandoverKind, IHandover, ReviewDecision, ReviewStatus, ServiceStatus, StocktakeResult,
+  AttachmentKind, BillingCycle, DeviceStatus, HandoverKind, IHandover, ReviewDecision, ReviewStatus, ServiceStatus, SocialAccountStatus, SocialTokenStatus,
+  StocktakeResult,
 } from '../types/asset.types';
 
 export const DEVICE_STATUS: Record<DeviceStatus, { label: string; tone: StatusTone }> = {
@@ -31,6 +32,16 @@ export const CHECK_RESULT: Record<StocktakeResult, { label: string; tone: Status
   Pending: { label: 'Chưa kiểm', tone: 'muted' },
   Found: { label: 'Có', tone: 'success' },
   Missing: { label: 'Không thấy', tone: 'danger' },
+};
+
+export const SOCIAL_STATUS: Record<SocialAccountStatus, { label: string; tone: StatusTone }> = {
+  Active: { label: 'Đang dùng', tone: 'success' },
+  Disabled: { label: 'Ngừng dùng', tone: 'muted' },
+};
+export const TOKEN_STATUS: Record<SocialTokenStatus, { label: string; tone: StatusTone }> = {
+  None: { label: 'Chưa có token', tone: 'muted' },
+  Valid: { label: 'Token hợp lệ', tone: 'success' },
+  Invalid: { label: 'Token lỗi', tone: 'danger' },
 };
 
 export const DEVICE_STATUS_OPTIONS = (Object.keys(DEVICE_STATUS) as DeviceStatus[]).map((v) => ({ value: v, label: DEVICE_STATUS[v].label }));

@@ -1,4 +1,7 @@
-import { ExternalLink } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
+import { ExternalLink, Megaphone } from 'lucide-react';
+import { Button } from '@/components/common/button';
+import { PATHS } from '@/config/paths';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { Spinner } from '@/components/feedback/Spinner';
 import { formatDate } from '@/utils/date';
@@ -6,7 +9,7 @@ import { useMyAssets, useMyHandovers } from '../../hooks/useAssets';
 import { HandoverList } from '../handover-list';
 import { PendingReviewsCard } from '../pending-reviews-card';
 
-/** Tab "Của tôi": biên bản chờ xác nhận, thiết bị + tài khoản dịch vụ mình đang giữ, các ghế cần mình rà soát (nếu có), biên bản đã có. */
+/** Tab "Của tôi": biên bản chờ xác nhận, thiết bị + tài khoản dịch vụ + Business Manager mình đang giữ, các ghế cần mình rà soát (nếu có), biên bản đã có. */
 export function MyAssetsTab() {
   const { data, isLoading } = useMyAssets();
   const handovers = useMyHandovers().data ?? [];
@@ -15,6 +18,7 @@ export function MyAssetsTab() {
   if (isLoading) return <Spinner />;
   const devices = data?.devices ?? [];
   const seats = data?.seats ?? [];
+  const socials = data?.socials ?? [];
   return (
     <div className="grid grid-cols-1 gap-4">
       {pending.length > 0 && (
@@ -72,6 +76,31 @@ export function MyAssetsTab() {
         </div>
         <p className="text-xs text-muted-foreground">Mật khẩu không lưu trong hệ thống — liên hệ người quản trị dịch vụ nếu cần cấp lại.</p>
       </section>
+      {socials.length > 0 && (
+        <section className="grid gap-2" data-testid="my-socials">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold">Tài khoản mạng xã hội</h3>
+            <Button size="sm" variant="outline" asChild><Link to={PATHS.social}><Megaphone /> Đăng bài</Link></Button>
+          </div>
+          <div className="rounded-xl border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow><TableHead>Business Manager</TableHead><TableHead className="hidden sm:table-cell">Đăng nhập quản trị</TableHead><TableHead>Trang</TableHead><TableHead>Nhận từ</TableHead></TableRow>
+              </TableHeader>
+              <TableBody>
+                {socials.map((a) => (
+                  <TableRow key={a.id} data-testid="my-social">
+                    <TableCell className="font-medium">{a.name}{a.externalId ? <div className="text-xs font-normal text-muted-foreground">ID {a.externalId}</div> : null}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{a.loginHint ?? '—'}</TableCell>
+                    <TableCell className="tabular-nums">{a.pageCount}</TableCell>
+                    <TableCell>{formatDate(a.assignedAt)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </section>
+      )}
       {done.length > 0 && (
         <section className="grid gap-2">
           <h3 className="text-sm font-semibold">Biên bản giao nhận</h3>

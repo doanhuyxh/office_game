@@ -40,6 +40,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Tài sản công ty: thiết bị + dịch vụ / ghế, cấp phát / thu hồi, nhắc hạn, nghỉ việc còn giữ, quyền xem | [assets.md](assets.md) |
 | Tài sản: rà soát quyền định kỳ, kiểm kê, xuất Excel, tool MCP | [assets-review.md](assets-review.md) |
 | Tài sản: khấu hao, biên bản giao nhận (xác nhận trong app, Word theo mẫu), ảnh / hoá đơn thiết bị (S3) | [assets-handover.md](assets-handover.md) |
+| Tài sản: tài khoản mạng xã hội (Facebook BM, token System User mã hoá, bàn giao), đăng bài lên Fanpage (`/social`, job đăng, hẹn giờ) | [assets-social.md](assets-social.md) |
 | Dự án: thành viên, phân bổ, mốc nghiệm thu, công việc, ngày công, `IProjectDirectory` (kho tài liệu dự án), chép dự án cũ từ Documents | [projects.md](projects.md) |
 | Dự án — hợp đồng (nhiều HĐ / dự án), chốt phân bổ tháng, chi phí nhân công từ lương, thu / chi gắn dự án, lãi / lỗ | [projects-finance.md](projects-finance.md) |
 | Dự án — tổng quan tiến độ: % hoàn thành, % thời gian, mốc tiếp, tình trạng Đúng tiến độ / Có rủi ro / Trễ | [projects-progress.md](projects-progress.md) |

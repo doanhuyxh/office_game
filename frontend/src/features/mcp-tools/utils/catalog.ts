@@ -259,7 +259,7 @@ export const MCP_TOOL_GROUPS: McpToolGroup[] = [
     name: 'Tài sản',
     tools: [
       { name: 'get_my_assets', title: 'Tài sản của tôi', kind: 'read', endpoint: 'GET /api/assets/my',
-        description: 'Tài sản công ty đang giao cho tôi: thiết bị (mã, tên, loại, serial, ngày nhận) và tài khoản dịch vụ như Figma, Google Workspace… (dịch vụ, tên đăng nhập, vai trò, ngày cấp). Không có giá và không có mật khẩu.',
+        description: 'Tài sản công ty đang giao cho tôi: thiết bị (mã, tên, loại, serial, ngày nhận), tài khoản dịch vụ như Figma, Google Workspace… (dịch vụ, tên đăng nhập, vai trò, ngày cấp) và Business Manager Facebook (tên, số trang). Không có giá, không có mật khẩu / token.',
         params: [] },
       { name: 'get_employee_assets', title: 'Tài sản của một nhân viên', kind: 'read', endpoint: 'GET /api/assets/employees/{id}/holdings',
         description: '(Quản lý / HR) Thiết bị và tài khoản dịch vụ một nhân viên đang giữ. Quản lý chỉ xem được bản thân và cấp dưới; không đủ quyền trả 404.',

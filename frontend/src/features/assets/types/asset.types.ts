@@ -60,11 +60,14 @@ export interface IGrantSeatRequest { employeeId: string; accountLogin: string; r
 
 export interface IHeldDevice { id: string; code: string; name: string; categoryName: string; serialNumber: string | null; assignedAt: string }
 export interface IHeldSeat { id: string; serviceId: string; serviceName: string; accountLogin: string; role: string | null; url: string | null; grantedAt: string }
-export interface IHoldings { devices: IHeldDevice[]; seats: IHeldSeat[] }
+export interface IHeldSocial {
+  id: string; platform: SocialPlatform; name: string; externalId: string | null; loginHint: string | null; pageCount: number; assignedAt: string;
+}
+export interface IHoldings { devices: IHeldDevice[]; seats: IHeldSeat[]; socials: IHeldSocial[] }
 
 export interface IWarrantyDue { id: string; code: string; name: string; warrantyUntil: string; holderName: string | null }
 export interface IRenewalDue { id: string; name: string; renewalDate: string }
-export interface IResignedHolding { employeeId: string; code: string; fullName: string; leftAt: string | null; devices: number; seats: number }
+export interface IResignedHolding { employeeId: string; code: string; fullName: string; leftAt: string | null; devices: number; seats: number; socials: number }
 export interface IOverview {
   deviceCounts: Record<string, number>; deviceTotal: number; totalPurchaseValue: number; activeServices: number; monthlyServiceCost: number;
   seatsInUse: number; warrantiesDue: IWarrantyDue[]; renewalsDue: IRenewalDue[]; resignedHolding: IResignedHolding[];
@@ -92,3 +95,29 @@ export interface IStocktakeItem {
   result: StocktakeResult; note: string | null; checkedAt: string | null; checkedByName: string | null;
 }
 export interface IStocktakeDetail { stocktake: IStocktake; items: IStocktakeItem[] }
+
+// ---------------- Tài khoản mạng xã hội (Facebook Business Manager) ----------------
+export type SocialPlatform = 'Facebook';
+export type SocialAccountStatus = 'Active' | 'Disabled';
+/** None: chưa nhập token · Valid: dùng được · Invalid: Facebook từ chối (xem `tokenError`). */
+export type SocialTokenStatus = 'None' | 'Valid' | 'Invalid';
+
+/** Token không bao giờ trả về trình duyệt — chỉ `hasToken` + trạng thái. */
+export interface ISocialAccount {
+  id: string; platform: SocialPlatform; name: string; externalId: string | null; loginHint: string | null; ownerDepartmentId: string | null;
+  ownerDepartmentName: string | null; status: SocialAccountStatus; holderEmployeeId: string | null; holderName: string | null; holderCode: string | null;
+  note: string | null; hasToken: boolean; tokenStatus: SocialTokenStatus; tokenError: string | null; tokenCheckedAt: string | null;
+  tokenOwnerName: string | null; pagesSyncedAt: string | null; pageCount: number; createdAt: string;
+}
+export interface ISocialPage {
+  id: string; accountId: string; accountName: string; externalId: string; name: string; category: string | null; link: string | null;
+  pictureUrl: string | null; isActive: boolean; canPost: boolean; syncedAt: string;
+}
+export interface ISocialAssignment {
+  id: string; employeeId: string; employeeName: string; employeeCode: string; assignedAt: string; assignedByName: string | null;
+  assignNote: string | null; returnedAt: string | null; returnedByName: string | null; returnNote: string | null;
+}
+export interface ISocialAccountDetail { account: ISocialAccount; pages: ISocialPage[]; history: ISocialAssignment[] }
+export interface ISocialAccountRequest {
+  name: string; externalId: string | null; loginHint: string | null; ownerDepartmentId: string | null; note: string | null; token?: string | null;
+}

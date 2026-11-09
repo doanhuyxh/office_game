@@ -90,7 +90,8 @@ internal sealed class AssetsMaintenanceJob(IServiceScopeFactory scopes, ILogger<
             var e = emps[r.EmployeeId];
             if (e.ManagerId is { } m && emps.GetValueOrDefault(m) is { IsActive: true, UserId: { } mu }) to.Add(mu);
             await ops.NotifyUsersAsync(to, NotificationCategories.AssetOffboarding, $"{e.FullName} đã nghỉ việc nhưng còn giữ tài sản",
-                $"{e.Code} · {e.FullName}: {r.Devices} thiết bị, {r.Seats} tài khoản dịch vụ cần thu hồi (Tài sản → Tổng quan).");
+                $"{e.Code} · {e.FullName}: {r.Devices} thiết bị, {r.Seats} tài khoản dịch vụ"
+                + (r.Socials > 0 ? $", {r.Socials} Business Manager" : "") + " cần thu hồi (Tài sản → Tổng quan).");
             db.OffboardingNotices.Add(new OffboardingNotice { EmployeeId = r.EmployeeId, NotifiedAt = clock.Now });
             await db.SaveChangesAsync(ct);
         }

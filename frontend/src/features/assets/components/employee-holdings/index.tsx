@@ -1,4 +1,4 @@
-import { Laptop, KeyRound } from 'lucide-react';
+import { Laptop, KeyRound, Megaphone } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { Spinner } from '@/components/feedback/Spinner';
 import { formatDate } from '@/utils/date';
@@ -13,13 +13,14 @@ export function EmployeeHoldings({ employeeId, warn }: { employeeId: string | nu
   if (!employeeId || isError) return null;
   if (isLoading) return warn ? null : <Spinner />;
   if (!data) return null;
-  const empty = data.devices.length === 0 && data.seats.length === 0;
+  const socials = data.socials ?? [];
+  const empty = data.devices.length === 0 && data.seats.length === 0 && socials.length === 0;
   if (warn && empty) return null;
   return (
     <div className={warn ? 'grid gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm' : 'grid gap-3 text-sm'} data-testid="employee-holdings">
       {warn && (
         <p className="font-medium text-warning">
-          Còn giữ {data.devices.length} thiết bị và {data.seats.length} tài khoản dịch vụ — nhớ thu hồi (HR sẽ nhận thông báo sau khi nghỉ việc).
+          Còn giữ {data.devices.length} thiết bị, {data.seats.length} tài khoản dịch vụ{socials.length > 0 ? `, ${socials.length} Business Manager` : ''} — nhớ thu hồi (HR sẽ nhận thông báo sau khi nghỉ việc).
         </p>
       )}
       {empty && <p className="text-muted-foreground">Không giữ thiết bị hay tài khoản dịch vụ nào.</p>}
@@ -45,6 +46,17 @@ export function EmployeeHoldings({ employeeId, warn }: { employeeId: string | nu
           ))}
         </ul>
       )}
+      {socials.length > 0 && (
+        <ul className="grid gap-1">
+          {socials.map((a) => (
+            <li key={a.id} className="flex items-center gap-2">
+              <Megaphone className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate"><b>{a.name}</b> · Business Manager · {a.pageCount} trang</span>
+              <span className="shrink-0 text-xs text-muted-foreground">từ {formatDate(a.assignedAt)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -56,7 +68,7 @@ export function EmployeeHoldingsDialog({ employeeId, name, onClose }: { employee
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Tài sản đang giữ · {name}</DialogTitle>
-          <DialogDescription>Thiết bị và tài khoản dịch vụ của công ty đang cấp cho người này. Cấp / thu hồi ở menu Tài sản.</DialogDescription>
+          <DialogDescription>Thiết bị, tài khoản dịch vụ và Business Manager của công ty đang giao cho người này. Cấp / thu hồi ở menu Tài sản.</DialogDescription>
         </DialogHeader>
         <EmployeeHoldings employeeId={employeeId} />
       </DialogContent>
