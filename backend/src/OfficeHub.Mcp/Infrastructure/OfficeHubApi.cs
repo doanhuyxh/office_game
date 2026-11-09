@@ -33,6 +33,8 @@ public sealed class OfficeHubApi(HttpClient http, IHttpContextAccessor ctx)
 
     public Task<JsonNode?> PostAsync(string path, object? body, CancellationToken ct) => SendAsync(HttpMethod.Post, path, body ?? new { }, ct);
 
+    public Task<JsonNode?> PutAsync(string path, object? body, CancellationToken ct) => SendAsync(HttpMethod.Put, path, body ?? new { }, ct);
+
     public Task<JsonNode?> DeleteAsync(string path, CancellationToken ct) => SendAsync(HttpMethod.Delete, path, null, ct);
 
     /// <summary>GET nhưng 404 → null (ví dụ admin không có hồ sơ nhân viên).</summary>

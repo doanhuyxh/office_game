@@ -179,6 +179,42 @@ public class ProjectDocumentScopeTests
     public void Unknown_task_state_is_rejected() => Assert.Throws<McpException>(() => ProjectTools.ParseState("blocked"));
 }
 
+public class DepartmentAdminScopeTests
+{
+    private const string G = "0193a000-0000-7000-8000-000000000000";
+
+    [Theory]
+    [InlineData("POST", "/api/org/departments")]
+    [InlineData("PUT", "/api/org/departments/" + G)]
+    [InlineData("DELETE", "/api/org/departments/" + G)]
+    public void Hr_department_writes_allowed(string method, string path) => Assert.True(AccessTokenAuth.IsAllowed(method, path));
+
+    [Theory]
+    [InlineData("PUT", "/api/org/departments/" + G + "/guide")]    // hướng dẫn phòng ban: chỉ web
+    [InlineData("DELETE", "/api/org/departments")]
+    [InlineData("POST", "/api/org/departments/" + G)]
+    [InlineData("POST", "/api/org/employees/bulk/update")]           // chuyển nhân viên: chỉ web
+    [InlineData("POST", "/api/org/positions")]
+    public void Other_org_writes_still_blocked(string method, string path) => Assert.False(AccessTokenAuth.IsAllowed(method, path));
+
+    private static List<System.Text.Json.Nodes.JsonObject> Depts() =>
+    [
+        new() { ["id"] = "0193a000-0000-7000-8000-000000000001", ["name"] = "Kế toán", ["code"] = "KT" },
+        new() { ["id"] = "0193a000-0000-7000-8000-000000000002", ["name"] = "Kế toán quản trị", ["code"] = "KTQT" },
+        new() { ["id"] = "0193a000-0000-7000-8000-000000000003", ["name"] = "Kỹ thuật", ["code"] = "IT" },
+    ];
+
+    [Fact]
+    public void Department_resolves_by_name_code_and_partial()
+    {
+        Assert.Equal(Guid.Parse("0193a000-0000-7000-8000-000000000001"), DepartmentAdminTools.Resolve(Depts(), "kế toán"));
+        Assert.Equal(Guid.Parse("0193a000-0000-7000-8000-000000000003"), DepartmentAdminTools.Resolve(Depts(), "it"));
+        Assert.Equal(Guid.Parse("0193a000-0000-7000-8000-000000000003"), DepartmentAdminTools.Resolve(Depts(), "thuật"));
+        Assert.Throws<McpException>(() => DepartmentAdminTools.Resolve(Depts(), "toán"));                   // nhiều phòng
+        Assert.Throws<McpException>(() => DepartmentAdminTools.Resolve(Depts(), "thuật", partial: false));  // sửa / xoá: phải khớp đúng
+    }
+}
+
 public class MeetingToolTests
 {
     [Fact]

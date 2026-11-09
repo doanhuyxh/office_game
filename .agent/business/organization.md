@@ -74,3 +74,5 @@ Chủ dự án chốt 2026-11-06: **phòng ban mở rộng tự do** (cây nhi�
 - `EmployeeTable`: tìm kiếm (debounce 300ms), lọc phòng ban, "Hiện người đã nghỉ", menu từng dòng: Sửa hồ sơ, Cấp tài khoản, Gửi lại lời mời (khi `invitePending`), Đổi vai trò, Cấp lại mật khẩu tạm, Nghỉ việc / Khôi phục.
 - `EmployeeFormDialog` (lỗi field từ server qua `fieldErrors`), `account-dialogs/` (`CreateAccountDialog`, `RolesDialog`, `TempPasswordDialog`, `ResignDialog`), `DepartmentsPanel`, `PositionsPanel`.
 - `CreateAccountDialog` trả mật khẩu tạm lên cha qua `onTempPassword` (dialog đóng ngay khi tạo xong; **đừng** hiển thị mật khẩu bên trong dialog này). Lựa chọn vai trò `admin` chỉ hiện với admin.
+
+Trợ lý AI (MCP, chỉ HR): `create_department` / `update_department` / `delete_department` gọi đúng các endpoint HR ở trên — [mcp.md](mcp.md).
