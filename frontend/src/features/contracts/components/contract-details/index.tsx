@@ -6,6 +6,7 @@ import { Button } from '@/components/common/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { FormField } from '@/components/common/FormField';
 import { Label } from '@/components/common/label';
+import { MoneyField } from '@/components/common/money-input';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Textarea } from '@/components/common/textarea';
 import { formatDate } from '@/utils/date';
@@ -71,7 +72,6 @@ function AmendmentDialog({ contract, open, onClose }: { contract: IContract; ope
   const add = useAddAmendment();
   const [f, setF] = useState<ICreateAmendment>({ number: '', effectiveDate: '', content: '', salary: null, allowance: null });
   const errors = fieldErrors(add.error);
-  const num = (s: string) => (s.trim() === '' ? null : Number(s));
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     add.mutate({ id: contract.id, body: f }, {
@@ -95,8 +95,8 @@ function AmendmentDialog({ contract, open, onClose }: { contract: IContract; ope
             {errors.content && <p className="text-xs text-destructive">{errors.content}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <FormField id="a-salary" label="Lương mới (VNĐ)" type="number" min={0} step={1000} value={f.salary ?? ''} onChange={(e) => setF({ ...f, salary: num(e.target.value) })} error={errors.salary} />
-            <FormField id="a-allowance" label="Phụ cấp mới (VNĐ)" type="number" min={0} step={1000} value={f.allowance ?? ''} onChange={(e) => setF({ ...f, allowance: num(e.target.value) })} error={errors.allowance} />
+            <MoneyField id="a-salary" label="Lương mới (VNĐ)" value={f.salary} onValueChange={(v) => setF({ ...f, salary: v })} error={errors.salary} />
+            <MoneyField id="a-allowance" label="Phụ cấp mới (VNĐ)" value={f.allowance} onValueChange={(v) => setF({ ...f, allowance: v })} error={errors.allowance} />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>

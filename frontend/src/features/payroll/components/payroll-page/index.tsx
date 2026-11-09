@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/c
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/common/input';
 import { Label } from '@/components/common/label';
+import { MoneyField, MoneyInput } from '@/components/common/money-input';
 import { SelectField } from '@/components/common/SelectField';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/common/table';
@@ -43,14 +44,14 @@ function PayslipDialog({ slip, periodId, locked, onClose }: { slip: IPayslip | n
   const add = useAddAdjustment();
   const del = useDeleteAdjustment();
   const [label, setLabel] = useState('');
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState<number | null>(null);
   const [taxable, setTaxable] = useState(true);
   const errors = fieldErrors(add.error);
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!slip) return;
-    add.mutate({ periodId, employeeId: slip.employeeId, label: label.trim(), amount: Number(amount.replace(/[.,\s]/g, '')), taxable }, {
-      onSuccess: () => { toast.success('Đã thêm và tính lại phiếu lương'); setLabel(''); setAmount(''); },
+    add.mutate({ periodId, employeeId: slip.employeeId, label: label.trim(), amount: amount ?? 0, taxable }, {
+      onSuccess: () => { toast.success('Đã thêm và tính lại phiếu lương'); setLabel(''); setAmount(null); },
       onError: (err) => !Object.keys(fieldErrors(err)).length && toast.error(errorMessage(err)),
     });
   };
@@ -76,7 +77,7 @@ function PayslipDialog({ slip, periodId, locked, onClose }: { slip: IPayslip | n
             {!locked && (
               <form onSubmit={submit} className="grid gap-3 rounded-md border p-3 sm:grid-cols-[1fr_160px_auto] sm:items-end">
                 <FormField id="adj-label" label="Nội dung" required value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Vd: Thưởng dự án / Trừ tạm ứng" error={errors.label} />
-                <FormField id="adj-amount" label="Số tiền (âm = trừ)" required inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="2000000" error={errors.amount} />
+                <MoneyField id="adj-amount" label="Số tiền (âm = trừ)" required allowNegative value={amount} onValueChange={setAmount} placeholder="2.000.000" error={errors.amount} />
                 <Button type="submit" disabled={add.isPending}><Plus className="size-4" /> Thêm</Button>
                 <label className="flex items-center gap-2 text-sm sm:col-span-3">
                   <Checkbox checked={taxable} onCheckedChange={(c) => setTaxable(c === true)} /> Tính vào thu nhập chịu thuế (thưởng: có; tạm ứng / hoàn ứng: không)
@@ -284,10 +285,11 @@ function SettingsTab() {
         </CardHeader>
         <CardContent className="grid gap-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {NUM_FIELDS.map((f) => (
-              <FormField key={f.key} id={`r-${f.key}`} label={`${f.label} (${f.unit})`} type="number" step="any"
-                value={String(rules[f.key] as number)} onChange={(e) => set(f.key, Number(e.target.value) as never)} />
-            ))}
+            {NUM_FIELDS.map((f) => f.unit === 'đ'
+              ? <MoneyField key={f.key} id={`r-${f.key}`} label={`${f.label} (${f.unit})`}
+                  value={rules[f.key] as number} onValueChange={(v) => set(f.key, (v ?? 0) as never)} />
+              : <FormField key={f.key} id={`r-${f.key}`} label={`${f.label} (${f.unit})`} type="number" step="any"
+                  value={String(rules[f.key] as number)} onChange={(e) => set(f.key, Number(e.target.value) as never)} />)}
           </div>
           <div className="grid gap-2">
             <label className="flex items-center gap-2 text-sm"><Checkbox checked={rules.insuranceIncludesAllowance} onCheckedChange={(c) => set('insuranceIncludesAllowance', c === true)} /> Lương đóng bảo hiểm gồm phụ cấp trên hợp đồng</label>
@@ -299,8 +301,8 @@ function SettingsTab() {
               <div key={i} className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="w-14 text-muted-foreground">Bậc {i + 1}</span>
                 {b.upTo === null ? <span className="w-44">trên mức trước</span>
-                  : <Input type="number" className="w-44" value={b.upTo} aria-label={`Đến (bậc ${i + 1})`}
-                      onChange={(e) => set('brackets', rules.brackets.map((x, j) => (j === i ? { ...x, upTo: Number(e.target.value) } : x)))} />}
+                  : <MoneyInput className="w-44" value={b.upTo} aria-label={`Đến (bậc ${i + 1})`}
+                      onValueChange={(v) => set('brackets', rules.brackets.map((x, j) => (j === i ? { ...x, upTo: v ?? 0 } : x)))} />}
                 <Input type="number" step="any" className="w-24" value={b.rate} aria-label={`Thuế suất (bậc ${i + 1})`}
                   onChange={(e) => set('brackets', rules.brackets.map((x, j) => (j === i ? { ...x, rate: Number(e.target.value) } : x)))} />%
               </div>

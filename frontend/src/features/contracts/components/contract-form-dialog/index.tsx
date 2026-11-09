@@ -4,6 +4,7 @@ import { Button } from '@/components/common/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { FormField } from '@/components/common/FormField';
 import { Label } from '@/components/common/label';
+import { MoneyField } from '@/components/common/money-input';
 import { SelectField } from '@/components/common/SelectField';
 import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { Textarea } from '@/components/common/textarea';
@@ -17,7 +18,6 @@ const empty = (employeeId = ''): IUpsertContract => ({
   employeeId, number: '', type: 'Fixed', signedDate: null, startDate: '', endDate: null, jobTitle: null, salary: null, allowance: null, note: null,
 });
 
-const toNumber = (s: string) => (s.trim() === '' ? null : Number(s));
 
 /** Thêm / sửa hợp đồng (HR). Quy tắc thời hạn kiểm tra ở back-end; lỗi hiện theo field. */
 export function ContractFormDialog({ open, onClose, contract, employeeId }: {
@@ -84,10 +84,8 @@ export function ContractFormDialog({ open, onClose, contract, employeeId }: {
           </div>
           <FormField id="c-title" label="Chức danh trên hợp đồng" maxLength={200} value={f.jobTitle ?? ''} onChange={(e) => set('jobTitle', e.target.value || null)} error={errors.jobTitle} />
           <div className="grid gap-3 sm:grid-cols-2">
-            <FormField id="c-salary" label="Lương cơ bản (VNĐ/tháng)" type="number" min={0} step={1000} inputMode="numeric"
-              value={f.salary ?? ''} onChange={(e) => set('salary', toNumber(e.target.value))} error={errors.salary} />
-            <FormField id="c-allowance" label="Phụ cấp (VNĐ/tháng)" type="number" min={0} step={1000} inputMode="numeric"
-              value={f.allowance ?? ''} onChange={(e) => set('allowance', toNumber(e.target.value))} error={errors.allowance} />
+            <MoneyField id="c-salary" label="Lương cơ bản (VNĐ/tháng)" value={f.salary} onValueChange={(v) => set('salary', v)} error={errors.salary} />
+            <MoneyField id="c-allowance" label="Phụ cấp (VNĐ/tháng)" value={f.allowance} onValueChange={(v) => set('allowance', v)} error={errors.allowance} />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="c-note">Ghi chú</Label>

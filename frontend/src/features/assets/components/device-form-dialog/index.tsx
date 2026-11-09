@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { FormField } from '@/components/common/FormField';
+import { MoneyField } from '@/components/common/money-input';
 import { Label } from '@/components/common/label';
 import { SelectField } from '@/components/common/SelectField';
 import { Textarea } from '@/components/common/textarea';
@@ -10,7 +11,6 @@ import { errorMessage, fieldErrors } from '@/utils/errors';
 import { assetApi } from '../../api/asset.api';
 import { useAssetMutation, useCategories } from '../../hooks/useAssets';
 import type { IDevice, IDeviceRequest } from '../../types/asset.types';
-import { parseMoney } from '../../utils/labels';
 
 const empty = (): IDeviceRequest => ({
   categoryId: null, name: '', brand: null, model: null, serialNumber: null, purchaseDate: null, purchasePrice: null, warrantyUntil: null, note: null,
@@ -21,7 +21,7 @@ const empty = (): IDeviceRequest => ({
 export function DeviceFormDialog({ open, onOpenChange, device }: { open: boolean; onOpenChange: (o: boolean) => void; device?: IDevice | null }) {
   const { data: categories = [] } = useCategories();
   const [form, setForm] = useState<IDeviceRequest>(empty);
-  const [price, setPrice] = useState('');
+  const [price, setPrice] = useState<number | null>(null);
   const [months, setMonths] = useState('');
   const save = useAssetMutation((b: IDeviceRequest) => assetApi.saveDevice(device?.id, b));
   useEffect(() => {
@@ -32,7 +32,7 @@ export function DeviceFormDialog({ open, onOpenChange, device }: { open: boolean
       purchaseDate: device.purchaseDate, purchasePrice: device.purchasePrice, warrantyUntil: device.warrantyUntil, note: device.note,
       depreciationMonths: device.depreciationMonths,
     } : empty());
-    setPrice(device?.purchasePrice != null ? String(device.purchasePrice) : '');
+    setPrice(device?.purchasePrice ?? null);
     setMonths(device?.depreciationMonths != null ? String(device.depreciationMonths) : '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, device?.id]);
@@ -49,7 +49,7 @@ export function DeviceFormDialog({ open, onOpenChange, device }: { open: boolean
         </DialogHeader>
         <form className="grid gap-4 sm:grid-cols-2" onSubmit={(e) => {
           e.preventDefault();
-          save.mutate({ ...form, name: form.name.trim(), purchasePrice: parseMoney(price), depreciationMonths: months === '' ? null : Number(months) }, {
+          save.mutate({ ...form, name: form.name.trim(), purchasePrice: price, depreciationMonths: months === '' ? null : Number(months) }, {
             onSuccess: () => { toast.success(device ? 'Đã lưu thiết bị' : 'Đã thêm thiết bị'); onOpenChange(false); },
             onError: (x) => !Object.keys(fieldErrors(x)).length && toast.error(errorMessage(x)),
           });
@@ -60,8 +60,7 @@ export function DeviceFormDialog({ open, onOpenChange, device }: { open: boolean
           <FormField id="dv-brand" label="Hãng" value={form.brand ?? ''} error={errors.brand} onChange={text('brand')} />
           <FormField id="dv-model" label="Model" value={form.model ?? ''} error={errors.model} onChange={text('model')} />
           <FormField id="dv-serial" label="Số serial" value={form.serialNumber ?? ''} error={errors.serialNumber} onChange={text('serialNumber')} />
-          <FormField id="dv-price" label="Giá mua (₫)" inputMode="numeric" value={price} error={errors.purchasePrice}
-            onChange={(e) => setPrice(e.target.value.replace(/[^\d]/g, ''))} />
+          <MoneyField id="dv-price" label="Giá mua (₫)" value={price} error={errors.purchasePrice} onValueChange={setPrice} />
           <FormField id="dv-purchase" label="Ngày mua" type="date" value={form.purchaseDate ?? ''} error={errors.purchaseDate} onChange={(e) => set('purchaseDate', e.target.value || null)} />
           <FormField id="dv-warranty" label="Bảo hành đến" type="date" value={form.warrantyUntil ?? ''} error={errors.warrantyUntil} onChange={(e) => set('warrantyUntil', e.target.value || null)} />
           <FormField id="dv-months" label="Số tháng khấu hao" inputMode="numeric" value={months} error={errors.depreciationMonths}

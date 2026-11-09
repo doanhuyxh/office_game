@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { FormField } from '@/components/common/FormField';
+import { MoneyField } from '@/components/common/money-input';
 import { Label } from '@/components/common/label';
 import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { SelectField } from '@/components/common/SelectField';
@@ -12,7 +13,7 @@ import { errorMessage, fieldErrors } from '@/utils/errors';
 import { assetApi } from '../../api/asset.api';
 import { useAssetMutation } from '../../hooks/useAssets';
 import type { BillingCycle, IService, IServiceRequest } from '../../types/asset.types';
-import { BILLING_OPTIONS, employeeOptions, parseMoney } from '../../utils/labels';
+import { BILLING_OPTIONS, employeeOptions } from '../../utils/labels';
 
 const empty = (): IServiceRequest => ({
   name: '', vendor: null, plan: null, url: null, seatLimit: null, billingCycle: 'Monthly', cost: null, renewalDate: null,
@@ -24,7 +25,7 @@ export function ServiceFormDialog({ open, onOpenChange, service }: { open: boole
   const employees = useEmployees();
   const { data: departments = [] } = useDepartments();
   const [form, setForm] = useState<IServiceRequest>(empty);
-  const [cost, setCost] = useState('');
+  const [cost, setCost] = useState<number | null>(null);
   const [limit, setLimit] = useState('');
   const save = useAssetMutation((b: IServiceRequest) => assetApi.saveService(service?.id, b));
   useEffect(() => {
@@ -34,7 +35,7 @@ export function ServiceFormDialog({ open, onOpenChange, service }: { open: boole
       name: service.name, vendor: service.vendor, plan: service.plan, url: service.url, seatLimit: service.seatLimit, billingCycle: service.billingCycle,
       cost: service.cost, renewalDate: service.renewalDate, ownerDepartmentId: service.ownerDepartmentId, adminEmployeeId: service.adminEmployeeId, note: service.note,
     } : empty());
-    setCost(service?.cost != null ? String(service.cost) : '');
+    setCost(service?.cost ?? null);
     setLimit(service?.seatLimit != null ? String(service.seatLimit) : '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, service?.id]);
@@ -50,7 +51,7 @@ export function ServiceFormDialog({ open, onOpenChange, service }: { open: boole
         </DialogHeader>
         <form className="grid gap-4 sm:grid-cols-2" onSubmit={(e) => {
           e.preventDefault();
-          save.mutate({ ...form, name: form.name.trim(), cost: parseMoney(cost), seatLimit: limit.trim() ? Number(limit) : null }, {
+          save.mutate({ ...form, name: form.name.trim(), cost, seatLimit: limit.trim() ? Number(limit) : null }, {
             onSuccess: () => { toast.success(service ? 'Đã lưu dịch vụ' : 'Đã thêm dịch vụ'); onOpenChange(false); },
             onError: (x) => !Object.keys(fieldErrors(x)).length && toast.error(errorMessage(x)),
           });
@@ -62,7 +63,7 @@ export function ServiceFormDialog({ open, onOpenChange, service }: { open: boole
           <FormField id="sv-limit" label="Số ghế tối đa" inputMode="numeric" value={limit} error={errors.seatLimit} hint="Bỏ trống = không giới hạn"
             onChange={(e) => setLimit(e.target.value.replace(/[^\d]/g, ''))} />
           <SelectField id="sv-billing" label="Chu kỳ thanh toán" value={form.billingCycle} onChange={(v) => set('billingCycle', (v ?? 'None') as BillingCycle)} options={BILLING_OPTIONS} />
-          <FormField id="sv-cost" label="Chi phí mỗi kỳ (₫)" inputMode="numeric" value={cost} error={errors.cost} onChange={(e) => setCost(e.target.value.replace(/[^\d]/g, ''))} />
+          <MoneyField id="sv-cost" label="Chi phí mỗi kỳ (₫)" value={cost} error={errors.cost} onValueChange={setCost} />
           <FormField id="sv-renewal" label="Ngày gia hạn" type="date" value={form.renewalDate ?? ''} error={errors.renewalDate} onChange={(e) => set('renewalDate', e.target.value || null)} />
           <SelectField id="sv-dept" label="Phòng ban sở hữu" value={form.ownerDepartmentId} onChange={(v) => set('ownerDepartmentId', v)} allowEmpty
             options={departmentOptions(departments)} />

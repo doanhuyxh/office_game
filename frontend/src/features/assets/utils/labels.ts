@@ -48,12 +48,6 @@ export function daysLeft(date: string, today: string) {
   return `còn ${d} ngày`;
 }
 
-/** Ô nhập số tiền → số | null. */
-export const parseMoney = (s: string): number | null => {
-  const t = s.replace(/[^\d]/g, '');
-  return t ? Number(t) : null;
-};
-
 export const ATTACHMENT_KIND: Record<AttachmentKind, { label: string; accept: string }> = {
   Photo: { label: 'Ảnh', accept: '.png,.jpg,.jpeg,.webp,.heic' },
   Invoice: { label: 'Hoá đơn', accept: '.pdf,.png,.jpg,.jpeg,.webp,.heic,.xml,.zip' },
