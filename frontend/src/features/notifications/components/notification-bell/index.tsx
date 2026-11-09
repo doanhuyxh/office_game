@@ -1,5 +1,6 @@
 import { useNavigate } from '@tanstack/react-router';
 import { Bell, BellOff, BellRing, CheckCheck, Volume2, VolumeX } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/common/dropdown-menu';
@@ -21,6 +22,15 @@ export function NotificationBell() {
   const navigate = useNavigate();
   const unread = data?.unreadCount ?? 0;
   const items = data?.items ?? [];
+  // Mobile: chuông không nằm sát mép phải (còn nút theme, avatar) → menu căn theo chuông bị lệch trái.
+  // Đo lúc mở, đẩy menu sang phải cho sát mép phải màn hình (cách 8px).
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [alignOffset, setAlignOffset] = useState(0);
+  const onOpenChange = (o: boolean) => {
+    if (!o) return;
+    const r = triggerRef.current?.getBoundingClientRect();
+    setAlignOffset(r && window.innerWidth < 640 ? Math.min(0, r.right - window.innerWidth + 8) : 0);
+  };
 
   const open = (n: INotification) => {
     if (!n.read) markRead.mutate(n.id);
@@ -28,9 +38,9 @@ export function NotificationBell() {
   };
 
   return (
-    <DropdownMenu modal={false}>
+    <DropdownMenu modal={false} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative rounded-full" aria-label={`Thông báo${unread ? ` (${unread} chưa đọc)` : ''}`} data-testid="notification-bell">
+        <Button ref={triggerRef} variant="ghost" size="icon" className="relative rounded-full" aria-label={`Thông báo${unread ? ` (${unread} chưa đọc)` : ''}`} data-testid="notification-bell">
           <Bell className="size-[1.2rem]" />
           {unread > 0 && (
             <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-white" data-testid="notification-unread">
@@ -39,7 +49,7 @@ export function NotificationBell() {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-88 max-w-[calc(100vw-2rem)] p-0">
+      <DropdownMenuContent align="end" alignOffset={alignOffset} collisionPadding={8} className="w-88 max-w-[calc(100vw-1rem)] p-0">
         <div className="flex items-center justify-between px-3 py-2">
           <DropdownMenuLabel className="p-0 text-sm">Thông báo</DropdownMenuLabel>
           <div className="flex items-center gap-1">
