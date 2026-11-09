@@ -15,6 +15,7 @@ public sealed record NotificationDto(Guid Id, string Category, string Title, str
 public sealed record NotificationListDto(int UnreadCount, IReadOnlyList<NotificationDto> Items);
 public sealed record UnreadCountDto(int Count);
 public sealed record PushTokenRequest(string Token);
+public sealed record NotificationPreferencesDto(bool EmailEnabled);
 
 /// <summary>Một trang thông báo (trang /notifications) + số chưa đọc toàn bộ (không phụ thuộc bộ lọc).</summary>
 public sealed record NotificationPage(IReadOnlyList<NotificationDto> Items, int Total, int Page, int PageSize, int UnreadCount)
@@ -31,6 +32,8 @@ internal static class NotificationEndpoints
         g.MapPost("/read-all", ReadAllAsync);
         g.MapPut("/push-tokens", RegisterPushTokenAsync);
         g.MapDelete("/push-tokens", UnregisterPushTokenAsync);
+        g.MapGet("/preferences", GetPreferencesAsync);
+        g.MapPut("/preferences", SavePreferencesAsync);
     }
 
     /// <summary>
@@ -78,6 +81,27 @@ internal static class NotificationEndpoints
         var now = clock.GetUtcNow();
         await db.Notifications.Where(x => x.UserId == uid && x.ReadAt == null).ExecuteUpdateAsync(s => s.SetProperty(x => x.ReadAt, now), ct);
         return TypedResults.NoContent();
+    }
+
+    /// <summary>Tuỳ chọn nhận thông báo của tôi (chưa lưu lần nào → mặc định nhận email).</summary>
+    private static async Task<Ok<NotificationPreferencesDto>> GetPreferencesAsync(ClaimsPrincipal user, NotificationDbContext db, CancellationToken ct)
+    {
+        var uid = user.GetUserId()!.Value;
+        var p = await db.Preferences.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == uid, ct);
+        return TypedResults.Ok(new NotificationPreferencesDto(p?.EmailEnabled ?? true));
+    }
+
+    /// <summary>Bật / tắt email thông báo. Chỉ áp dụng cho thông báo tạo sau đó (thư đang chờ trong hàng đợi vẫn gửi).</summary>
+    private static async Task<Ok<NotificationPreferencesDto>> SavePreferencesAsync(NotificationPreferencesDto req, ClaimsPrincipal user,
+        NotificationDbContext db, TimeProvider clock, CancellationToken ct)
+    {
+        var uid = user.GetUserId()!.Value;
+        var p = await db.Preferences.FirstOrDefaultAsync(x => x.UserId == uid, ct);
+        if (p is null) db.Preferences.Add(p = new Domain.NotificationPreference { UserId = uid });
+        p.EmailEnabled = req.EmailEnabled;
+        p.UpdatedAt = clock.GetUtcNow();
+        await db.SaveChangesAsync(ct);
+        return TypedResults.Ok(new NotificationPreferencesDto(p.EmailEnabled));
     }
 
     /// <summary>Đăng ký / cập nhật token thiết bị (FCM) của tài khoản đang đăng nhập. Idempotent.</summary>

@@ -9,6 +9,7 @@ public sealed class NotificationDbContext(DbContextOptions<NotificationDbContext
 
     public DbSet<Domain.Notification> Notifications => Set<Domain.Notification>();
     public DbSet<Domain.PushToken> PushTokens => Set<Domain.PushToken>();
+    public DbSet<Domain.NotificationPreference> Preferences => Set<Domain.NotificationPreference>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -27,6 +28,12 @@ public sealed class NotificationDbContext(DbContextOptions<NotificationDbContext
             e.HasIndex(x => new { x.UserId, x.CreatedAt });
             // Worker chỉ quét hàng đợi email đang chờ.
             e.HasIndex(x => x.EmailNextAttemptAt).HasFilter("\"EmailStatus\" = 'Pending'");
+        });
+        b.Entity<Domain.NotificationPreference>(e =>
+        {
+            e.ToTable("preferences");
+            e.HasKey(x => x.UserId);
+            e.Property(x => x.UserId).ValueGeneratedNever();
         });
         b.Entity<Domain.PushToken>(e =>
         {

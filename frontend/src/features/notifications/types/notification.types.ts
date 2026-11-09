@@ -25,3 +25,8 @@ export interface INotificationList {
   unreadCount: number;
   items: INotification[];
 }
+
+/** Tuỳ chọn nhận thông báo lưu ở server (theo tài khoản, mọi thiết bị). */
+export interface INotificationPreferences {
+  emailEnabled: boolean;
+}

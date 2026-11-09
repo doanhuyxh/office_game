@@ -20,7 +20,7 @@ Mỗi tài khoản nhận một dòng `notifications` (bỏ trùng, bỏ tài kh
 
 | `EmailStatus` | Khi |
 |---|---|
-| `None` | `SendEmail = false` (thông báo phụ, chỉ app) hoặc tài khoản không có email |
+| `None` | `SendEmail = false` (thông báo phụ, chỉ app), tài khoản không có email, hoặc người nhận **đã tắt email** (`EmailPolicy.ShouldEmail`; riêng `account_security` vẫn gửi) |
 | `Skipped` | Tên miền dành riêng (`EmailPolicy.IsDeliverable`): `.test`, `.example`, `.invalid`, `.localhost`, `.local`, `example.com/net/org` — vd tài khoản thử `@officehub.test`, admin seed `admin@example.com`. Không bao giờ gửi (tránh thư dội lại) |
 | `Pending` → `Sent` / `Failed` | Còn lại: worker gửi |
 
@@ -51,6 +51,7 @@ Người duyệt: bước `Manager` → tài khoản của quản lý (`Employee
 | GET | `/unread-count` | `{ count }` |
 | POST | `/{id}/read` | 204; thông báo của người khác → **404** |
 | POST | `/read-all` | 204 |
+| GET / PUT | `/preferences` | `{ emailEnabled }` — tuỳ chọn email của chính mình (bảng `preferences`, chưa có dòng = bật). Chỉ áp cho thông báo tạo sau đó |
 
 ## UI (`frontend/src/features/notifications/`)
 
@@ -58,10 +59,11 @@ Người duyệt: bước `Manager` → tài khoản của quản lý (`Employee
 - Trang `/notifications` (`NotificationsPage`, menu Chung → "Thông báo", mọi vai trò): tab Tất cả / Chưa đọc (số chưa đọc), "Đánh dấu tất cả đã đọc", nút ✓ đánh dấu từng mục, phân trang BE (`TablePagination`, id `notifications`), hỏi lại 30 giây.
 - `useNotifications` hỏi lại mỗi **30 giây** (fallback), hoặc **2 phút** nếu đã đăng ký push FCM thành công (push là kênh báo nhanh chính lúc đó); số chưa đọc tăng → phát âm chuông (nếu bật) + invalidate cache `approval`, `leave`, `attendance` (badge "Phê duyệt" cập nhật theo).
 - **Âm thanh** (chỉ phía trình duyệt, `utils/sound.ts` + `useNotificationSound`): số chưa đọc tăng → phát `public/sounds/notification.mp3`. Bật/tắt lưu ở `localStorage` (`officehub.notification-sound`, **mặc định bật**), chỉnh ở nút loa trong dropdown chuông **và** thẻ "Tùy chọn thông báo" ở `/profile` (dùng chung giá trị, đồng bộ giữa các tab). Trình duyệt chặn phát khi trang chưa được tương tác → nuốt lỗi; không phát khi vừa tải (chỉ khi số tăng trong phiên).
+- **Email** (ô thứ 3 trong thẻ "Tùy chọn thông báo" ở `/profile`): lưu ở server theo tài khoản (`GET/PUT /api/notifications/preferences`); tắt → chuông + push vẫn có. Email đăng nhập / link mời / OTP ký hợp đồng gửi thẳng, không qua tuỳ chọn này.
 - **Thông báo đẩy** (công tắc cạnh âm thanh, cùng 2 chỗ): `Notification.requestPermission()` → `getToken()` → `PUT /push-tokens`; tắt → `DELETE /push-tokens`. Lưu `officehub.push-enabled` ở `localStorage`.
 
 Module khác: `document_retention` (hạn lưu trữ), `document_handover` (bàn giao), `project_member_added` (chỉ app) — [documents.md](documents.md); `contract_expiring` (hợp đồng 30 / 7 ngày), `probation_ending` (thử việc 7 / 3 ngày + quá hạn, chưa có HĐ tiếp theo) — [contracts-reminders.md](contracts-reminders.md); `asset_assigned` / `asset_returned` / `asset_expiring` / `asset_offboarding` / `asset_review` (tài sản công ty) — [assets.md](assets.md); `account_security` (HR đặt lại 2FA, email + app) — [auth-2fa.md](auth-2fa.md); `expense_ready` (đề nghị chi đã duyệt → người có quyền Ghi sổ) / `expense_paid` (đã chi → người gửi), chỉ app — [finance.md](finance.md); `receivable_due` (đợt thu sắp / đến / quá hạn) / `customer_follow_up` (việc chăm sóc đến hẹn) — [sales.md](sales.md); `project_task` (giao việc, bình luận, việc đến hạn / quá hạn) + `project_member_added` (link `/projects/{id}`) — [projects.md](projects.md).
 
 Chat dùng lại `playNotificationSound` + công tắc âm này cho tin nhắn mới ([chat.md](chat.md)); tin nhắn không tạo thông báo chuông / email, nhưng **có push** cho Direct / Room (xem mục Push ở trên).
 
-**Chưa có:** tuỳ chọn tắt email theo người dùng, đẩy realtime (SignalR), gom email (digest), xoá thông báo cũ.
+**Chưa có:** tắt email theo từng nhóm (category), đẩy realtime (SignalR), gom email (digest), xoá thông báo cũ.

@@ -93,6 +93,22 @@ namespace OfficeHub.Modules.Notification.Infrastructure.Migrations
                     b.ToTable("notifications", "notifications");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Notification.Domain.NotificationPreference", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("EmailEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("preferences", "notifications");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Notification.Domain.PushToken", b =>
                 {
                     b.Property<Guid>("Id")

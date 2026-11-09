@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using OfficeHub.Modules.Identity.Contracts;
 using OfficeHub.Modules.Notification.Contracts;
 using OfficeHub.Modules.Notification.Domain;
@@ -13,11 +14,15 @@ internal sealed class Notifier(NotificationDbContext db, IAccountService account
         if (ids.Count == 0) return;
         var people = await accounts.GetManyAsync(ids, ct);
         var now = clock.GetUtcNow();
+        // Người đã tắt email ở /profile (không có dòng = vẫn nhận).
+        var emailOff = r.SendEmail
+            ? (await db.Preferences.AsNoTracking().Where(p => ids.Contains(p.UserId) && !p.EmailEnabled).Select(p => p.UserId).ToListAsync(ct)).ToHashSet()
+            : [];
         var notified = new List<Guid>();
         foreach (var id in ids)
         {
             if (!people.TryGetValue(id, out var acc) || !acc.IsActive) continue; // tài khoản đã khoá: không thông báo
-            var wantsEmail = r.SendEmail && !string.IsNullOrWhiteSpace(acc.Email);
+            var wantsEmail = EmailPolicy.ShouldEmail(r.SendEmail, !emailOff.Contains(id), r.Category) && !string.IsNullOrWhiteSpace(acc.Email);
             var status = !wantsEmail ? EmailStatus.None : EmailPolicy.IsDeliverable(acc.Email) ? EmailStatus.Pending : EmailStatus.Skipped;
             db.Notifications.Add(new Domain.Notification
             {

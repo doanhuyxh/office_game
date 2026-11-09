@@ -34,6 +34,15 @@ public sealed class Notification
     public string? EmailError { get; set; }
 }
 
+/// <summary>Tuỳ chọn nhận thông báo của một tài khoản (khoá = UserId). Không có dòng = mặc định (nhận email).</summary>
+public sealed class NotificationPreference
+{
+    public Guid UserId { get; set; }
+    /// <summary>false = không gửi email thông báo (trừ nhóm bắt buộc — <see cref="EmailPolicy.IsMandatory"/>); chuông + push vẫn nhận.</summary>
+    public bool EmailEnabled { get; set; } = true;
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
 /// <summary>Token thiết bị (trình duyệt) đăng ký nhận push FCM của một tài khoản. Một tài khoản có thể có nhiều thiết bị.</summary>
 public sealed class PushToken
 {

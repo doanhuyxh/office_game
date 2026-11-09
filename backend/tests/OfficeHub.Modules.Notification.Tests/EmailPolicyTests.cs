@@ -29,4 +29,13 @@ public class EmailPolicyTests
         Assert.Equal(now.AddMinutes(60), EmailPolicy.NextAttempt(4, now));
         Assert.Null(EmailPolicy.NextAttempt(EmailPolicy.MaxAttempts, now));
     }
+
+    [Theory]
+    [InlineData(true, true, "approval_requested", true)]
+    [InlineData(true, false, "approval_requested", false)]  // người dùng tắt email
+    [InlineData(false, true, "approval_requested", false)]  // module chỉ gửi in-app
+    [InlineData(true, false, "account_security", true)]     // bảo mật: luôn gửi
+    [InlineData(false, false, "account_security", false)]
+    public void Email_respects_user_preference_except_mandatory(bool requested, bool userEnabled, string category, bool expected) =>
+        Assert.Equal(expected, EmailPolicy.ShouldEmail(requested, userEnabled, category));
 }

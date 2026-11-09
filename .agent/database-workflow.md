@@ -26,6 +26,8 @@ Quỹ phép **không lưu**: tính khi đọc ([business/leave.md](business/leav
 |---|---|---|
 | `notifications` | `UserId` (tài khoản nhận, `identity.users.Id`), `Category` (≤50), `Title` (≤300), `Body` (≤2000), `Link` (≤300), `CreatedAt`, `ReadAt`; hàng đợi email: `EmailTo`, `EmailToName`, `EmailStatus` (`None`/`Pending`/`Sent`/`Failed`/`Skipped`), `EmailAttempts`, `EmailNextAttemptAt`, `EmailSentAt`, `EmailError` (≤1000) | index (`UserId`,`CreatedAt`); index `EmailNextAttemptAt` lọc `"EmailStatus" = 'Pending'` |
 
+`preferences` (migration `AddNotificationPreferences`): PK `UserId`, `EmailEnabled`, `UpdatedAt` — tuỳ chọn tắt email thông báo; không có dòng = nhận email.
+
 Một dòng cho mỗi người nhận. Chỉ module Notification ghi; `EmailDispatcher` cập nhật cột `Email*`. Chưa có job xoá thông báo cũ ([business/notifications.md](business/notifications.md)).
 
 ## Schema `contracts` — `ContractsDbContext` (migration `InitialContracts`, `ContractTemplates`, `SignRequests`, `ProbationReminders`)

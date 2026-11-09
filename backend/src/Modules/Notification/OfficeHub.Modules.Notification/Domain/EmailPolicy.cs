@@ -23,6 +23,15 @@ public static class EmailPolicy
         return !ReservedTlds.Any(t => domain.EndsWith(t)) && domain.Contains('.');
     }
 
+    /// <summary>Nhóm thông báo luôn gửi email dù người dùng đã tắt email (bảo mật tài khoản).</summary>
+    private static readonly string[] MandatoryCategories = [Contracts.NotificationCategories.AccountSecurity];
+
+    public static bool IsMandatory(string category) => MandatoryCategories.Contains(category);
+
+    /// <summary>Có gửi email cho thông báo này không: module gửi muốn email, và người nhận chưa tắt email (hoặc nhóm bắt buộc).</summary>
+    public static bool ShouldEmail(bool requested, bool userEmailEnabled, string category) =>
+        requested && (userEmailEnabled || IsMandatory(category));
+
     /// <summary>Sau lần thử thất bại thứ <paramref name="attempts"/>: thời điểm thử lại, hoặc null nếu hết lượt.</summary>
     public static DateTimeOffset? NextAttempt(int attempts, DateTimeOffset now) =>
         attempts >= MaxAttempts ? null : now + Backoff[Math.Min(attempts - 1, Backoff.Length - 1)];

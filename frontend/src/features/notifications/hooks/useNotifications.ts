@@ -42,3 +42,15 @@ export function useMarkAllRead() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: notificationApi.readAll, onSuccess: () => qc.invalidateQueries({ queryKey: notificationKeys.all }) });
 }
+
+/** Tuỳ chọn email thông báo của tôi (server). */
+export const useNotificationPreferences = () =>
+  useQuery({ queryKey: notificationKeys.preferences, queryFn: notificationApi.preferences, staleTime: 5 * 60_000 });
+
+export function useSaveNotificationPreferences() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: notificationApi.savePreferences,
+    onSuccess: (data) => qc.setQueryData(notificationKeys.preferences, data),
+  });
+}
