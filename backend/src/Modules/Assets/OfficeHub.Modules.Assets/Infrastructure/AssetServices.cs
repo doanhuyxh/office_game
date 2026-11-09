@@ -14,6 +14,7 @@ internal sealed class AssetClock(TimeProvider clock, IOptions<OfficeSettings> of
 {
     private readonly TimeZoneInfo _tz = TimeZoneInfo.FindSystemTimeZoneById(office.Value.TimeZone);
     public DateTimeOffset Now => clock.GetUtcNow();
+    public TimeZoneInfo TimeZone => _tz;
     public DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), _tz).DateTime);
 }
 
@@ -56,25 +57,47 @@ internal sealed class AssetOps(AssetsDbContext db, AssetClock clock, IEmployeeDi
     // ---------------- Thiết bị ----------------
 
     /// <summary>Đã kiểm tra quyền + điều kiện ở caller (<see cref="AssetRules.CannotAssign"/>). Chưa SaveChanges.</summary>
-    public void Assign(Device d, EmployeeRef emp, string? note, string byName)
+    public DeviceAssignment Assign(Device d, EmployeeRef emp, string? note, string byName)
     {
-        db.Assignments.Add(new DeviceAssignment
-        {
-            DeviceId = d.Id, EmployeeId = emp.Id, AssignedAt = clock.Now, AssignedByName = byName, AssignNote = note,
-        });
+        var a = new DeviceAssignment { DeviceId = d.Id, EmployeeId = emp.Id, AssignedAt = clock.Now, AssignedByName = byName, AssignNote = note };
+        db.Assignments.Add(a);
         d.Status = DeviceStatus.InUse;
         d.HolderEmployeeId = emp.Id;
         d.UpdatedAt = clock.Now;
+        return a;
     }
 
     /// <summary>Đóng bản ghi giao nhận đang mở của thiết bị, đặt trạng thái mới. Chưa SaveChanges.</summary>
-    public async Task CloseAssignmentAsync(Device d, DeviceStatus newStatus, string? note, string byName, CancellationToken ct)
+    public async Task<List<DeviceAssignment>> CloseAssignmentAsync(Device d, DeviceStatus newStatus, string? note, string byName, CancellationToken ct)
     {
         var open = await db.Assignments.Where(a => a.DeviceId == d.Id && a.ReturnedAt == null).ToListAsync(ct);
         foreach (var a in open) { a.ReturnedAt = clock.Now; a.ReturnedByName = byName; a.ReturnNote = note; }
         d.Status = newStatus;
         d.HolderEmployeeId = null;
         d.UpdatedAt = clock.Now;
+        return open;
+    }
+
+    /// <summary>
+    /// Lập biên bản giao nhận (cấp / thu hồi) — chụp thông tin thiết bị + nhân viên lúc lập. Chờ xác nhận khi nhân viên còn làm và có tài khoản.
+    /// Chưa SaveChanges.
+    /// </summary>
+    public async Task<HandoverRecord> CreateHandoverAsync(HandoverKind kind, Device d, DeviceAssignment a, EmployeeRef emp, string? note, string byName,
+        CancellationToken ct)
+    {
+        var now = clock.Now;
+        var year = TimeZoneInfo.ConvertTime(now, clock.TimeZone).Year;
+        var seq = await db.NextAsync($"handover:{year}", ct);
+        var cat = await db.Categories.AsNoTracking().Where(c => c.Id == d.CategoryId).Select(c => c.Name).FirstOrDefaultAsync(ct);
+        var h = new HandoverRecord
+        {
+            Number = AssetRules.HandoverNumber(year, seq), Kind = kind, DeviceId = d.Id, AssignmentId = a.Id, EmployeeId = emp.Id,
+            EmployeeCode = emp.Code, EmployeeName = emp.FullName, DepartmentName = emp.DepartmentName, DeviceCode = d.Code, DeviceName = d.Name,
+            CategoryName = cat, Brand = d.Brand, Model = d.Model, SerialNumber = d.SerialNumber, Note = note, CreatedAt = now, CreatedByName = byName,
+            RequiresConfirmation = emp is { IsActive: true, UserId: not null },
+        };
+        db.Handovers.Add(h);
+        return h;
     }
 
     // ---------------- Ghế dịch vụ ----------------

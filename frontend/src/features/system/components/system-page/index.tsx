@@ -1,5 +1,7 @@
 import { BookOpen, ExternalLink, Mail, PanelsTopLeft, RefreshCw, ScrollText } from 'lucide-react';
 import { useState } from 'react';
+import { useIsFetching, useQueryClient } from '@tanstack/react-query';
+import { systemKeys } from '../../api/system.api';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/common/button';
@@ -12,6 +14,7 @@ import { useTabParam } from '@/hooks/useTabParam';
 import { formatDateTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
 import { useSystemInfo } from '../../hooks/useSystem';
+import { OpsTab } from '../ops-tab';
 import { StorageCard } from '../storage-card';
 import type { IHealthItem, ISystemLink } from '../../types/system.types';
 
@@ -106,6 +109,7 @@ const TABS = [
   { id: 'overview', label: 'Tổng quan' },
   { id: 'smtp', label: 'Email (SMTP)' },
   { id: 'storage', label: 'Lưu trữ S3' },
+  { id: 'ops', label: 'Vận hành' },
 ] as const;
 
 /** Trang Hệ thống — chỉ quản trị viên (PAGE_ROLES + back-end AuthPolicies.Admin). Mỗi phần một tab, tab lưu trên URL (?tab=). */
@@ -113,13 +117,17 @@ export function SystemPage() {
   const [tab, setTab] = useTabParam('overview', TABS.map((t) => t.id));
   const [embed, setEmbed] = useState<ISystemLink | null>(null);
   const { data, isLoading, isFetching, error, refetch } = useSystemInfo();
+  const qc = useQueryClient();
+  const opsFetching = useIsFetching({ queryKey: systemKeys.ops }) > 0;
   const info = isLoading ? <Spinner /> : error || !data ? <p className="text-sm text-destructive">{errorMessage(error)}</p> : null;
   return (
     <div className="grid grid-cols-1 gap-6">
       <PageHeader title="Hệ thống" />
       <Tabs value={tab} onValueChange={setTab}>
         <PageToolbar
-          actions={tab !== 'storage' && <Button variant="outline" size="sm" onClick={() => void refetch()} disabled={isFetching}><RefreshCw className={isFetching ? 'animate-spin' : ''} /> Kiểm tra lại</Button>}>
+          actions={tab === 'ops'
+            ? <Button variant="outline" size="sm" onClick={() => void qc.invalidateQueries({ queryKey: systemKeys.ops })} disabled={opsFetching}><RefreshCw className={opsFetching ? 'animate-spin' : ''} /> Làm mới</Button>
+            : tab !== 'storage' && <Button variant="outline" size="sm" onClick={() => void refetch()} disabled={isFetching}><RefreshCw className={isFetching ? 'animate-spin' : ''} /> Kiểm tra lại</Button>}>
           <TabsList>{TABS.map((t) => <TabsTrigger key={t.id} value={t.id}>{t.label}</TabsTrigger>)}</TabsList>
         </PageToolbar>
 
@@ -166,6 +174,7 @@ export function SystemPage() {
         </TabsContent>
 
         <TabsContent value="storage" className="mt-4"><StorageCard /></TabsContent>
+        <TabsContent value="ops" className="mt-4"><OpsTab active={tab === 'ops'} /></TabsContent>
       </Tabs>
       <EmbedDialog link={embed} onClose={() => setEmbed(null)} />
     </div>

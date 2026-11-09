@@ -30,6 +30,7 @@ builder.AddOfficeHubDefaults("officehub-api");
 
 builder.Services.AddOfficeHubFileStorage(builder.Configuration);
 builder.Services.AddSingleton<StorageReport>();
+builder.Services.AddSingleton<OpsReport>();
 builder.Services.AddOfficeHubEmail(builder.Configuration);
 builder.Services.AddOfficeHubAuthorization();
 builder.Services.AddOpenApi();

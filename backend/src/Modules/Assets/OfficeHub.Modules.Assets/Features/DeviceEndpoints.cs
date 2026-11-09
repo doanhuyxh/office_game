@@ -34,14 +34,16 @@ internal static class DeviceEndpoints
 
     // ---------------- Loại ----------------
 
-    private static CategoryDto ToDto(Category c) => new(c.Id, c.Code, c.Name, c.SortOrder, c.IsActive);
+    private static CategoryDto ToDto(Category c) => new(c.Id, c.Code, c.Name, c.SortOrder, c.IsActive, c.DepreciationMonths);
 
     private static async Task<Ok<List<CategoryDto>>> CategoriesAsync(AssetsDbContext db, CancellationToken ct) =>
         TypedResults.Ok(await db.Categories.AsNoTracking().OrderBy(c => c.SortOrder).ThenBy(c => c.Name).Select(c => ToDto(c)).ToListAsync(ct));
 
     private static Validation ValidateCategory(CategoryRequest r) => new Validation()
         .Required(r.Code, "code", "Mã loại").MaxLength(r.Code?.Trim(), 10, "code", "Mã loại")
-        .Required(r.Name, "name", "Tên loại").MaxLength(r.Name?.Trim(), 100, "name", "Tên loại");
+        .Required(r.Name, "name", "Tên loại").MaxLength(r.Name?.Trim(), 100, "name", "Tên loại")
+        .When(r.DepreciationMonths is < 0 or > AssetRules.MaxDepreciationMonths, "depreciationMonths",
+            $"Số tháng khấu hao từ 0 đến {AssetRules.MaxDepreciationMonths}");
 
     private static async Task<Results<Ok<CategoryDto>, ValidationProblem>> CreateCategoryAsync(CategoryRequest req, AssetsDbContext db, CancellationToken ct)
     {
@@ -49,7 +51,10 @@ internal static class DeviceEndpoints
         var code = req.Code?.Trim().ToUpperInvariant();
         if (!v.Has("code") && await db.Categories.AnyAsync(c => c.Code == code, ct)) v.Add("code", "Mã loại đã tồn tại");
         if (v.Failed) return v.Problem();
-        var c = new Category { Code = code!, Name = req.Name!.Trim(), SortOrder = req.SortOrder, IsActive = req.IsActive };
+        var c = new Category
+        {
+            Code = code!, Name = req.Name!.Trim(), SortOrder = req.SortOrder, IsActive = req.IsActive, DepreciationMonths = NullIfZero(req.DepreciationMonths),
+        };
         db.Categories.Add(c);
         await db.SaveChangesAsync(ct);
         return TypedResults.Ok(ToDto(c));
@@ -69,20 +74,29 @@ internal static class DeviceEndpoints
         c.Name = req.Name!.Trim();
         c.SortOrder = req.SortOrder;
         c.IsActive = req.IsActive;
+        c.DepreciationMonths = NullIfZero(req.DepreciationMonths);
         await db.SaveChangesAsync(ct);
         return TypedResults.Ok(ToDto(c));
     }
 
     // ---------------- Thiết bị ----------------
 
-    internal static DeviceDto ToDto(Device d, string categoryName, IReadOnlyDictionary<Guid, EmployeeRef> emps)
+    private static int? NullIfZero(int? n) => n is null or 0 ? null : n;
+
+    internal static DeviceDto ToDto(Device d, Category? cat, IReadOnlyDictionary<Guid, EmployeeRef> emps, DateOnly today)
     {
         var h = d.HolderEmployeeId is { } hid ? emps.GetValueOrDefault(hid) : null;
-        return new(d.Id, d.Code, d.CategoryId, categoryName, d.Name, d.Brand, d.Model, d.SerialNumber, d.PurchaseDate, d.PurchasePrice, d.WarrantyUntil,
-            d.Status, d.StatusReason, d.HolderEmployeeId, h?.FullName, h?.Code, d.Note, d.CreatedAt);
+        var months = AssetRules.EffectiveMonths(d.DepreciationMonths, cat?.DepreciationMonths);
+        var dep = AssetRules.Depreciate(d.PurchasePrice, d.PurchaseDate, months, today, d.Status);
+        return new(d.Id, d.Code, d.CategoryId, cat?.Name ?? "", d.Name, d.Brand, d.Model, d.SerialNumber, d.PurchaseDate, d.PurchasePrice, d.WarrantyUntil,
+            d.Status, d.StatusReason, d.HolderEmployeeId, h?.FullName, h?.Code, d.Note, d.CreatedAt,
+            d.DepreciationMonths, months, dep?.MonthsUsed, dep?.Accumulated, dep?.BookValue);
     }
 
-    private static async Task<Results<Ok<List<DeviceDto>>, Ok<PagedResult<DeviceDto>>>> ListAsync(AssetsDbContext db, AssetAccess access,
+    internal static HandoverDto ToDto(HandoverRecord h) => new(h.Id, h.Number, h.Kind, h.DeviceId, h.DeviceCode, h.DeviceName, h.SerialNumber, h.EmployeeId,
+        h.EmployeeCode, h.EmployeeName, h.Note, h.CreatedAt, h.CreatedByName, h.RequiresConfirmation, h.ConfirmedAt, h.ConfirmedIp);
+
+    private static async Task<Results<Ok<List<DeviceDto>>, Ok<PagedResult<DeviceDto>>>> ListAsync(AssetsDbContext db, AssetAccess access, AssetClock clock,
         string? search, Guid? categoryId, DeviceStatus? status, Guid? holderId, int? page, int? pageSize, CancellationToken ct)
     {
         var emps = await access.EmployeesAsync(ct);
@@ -101,17 +115,18 @@ internal static class DeviceEndpoints
                              || (d.HolderEmployeeId != null && holderIds.Contains(d.HolderEmployeeId.Value)));
         }
         q = q.OrderBy(d => d.Code);
-        var cats = await db.Categories.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Name, ct);
+        var cats = await db.Categories.AsNoTracking().ToDictionaryAsync(c => c.Id, ct);
+        var today = clock.Today;
         if (page is null)
-            return TypedResults.Ok((await q.ToListAsync(ct)).Select(d => ToDto(d, cats.GetValueOrDefault(d.CategoryId, ""), emps)).ToList());
+            return TypedResults.Ok((await q.ToListAsync(ct)).Select(d => ToDto(d, cats.GetValueOrDefault(d.CategoryId), emps, today)).ToList());
         var p = await q.ToPagedAsync(page.Value, pageSize, ct);
-        return TypedResults.Ok(p.Map(d => ToDto(d, cats.GetValueOrDefault(d.CategoryId, ""), emps)));
+        return TypedResults.Ok(p.Map(d => ToDto(d, cats.GetValueOrDefault(d.CategoryId), emps, today)));
     }
 
-    private static async Task<DeviceDetailDto> DetailAsync(Device d, AssetsDbContext db, AssetAccess access, CancellationToken ct)
+    internal static async Task<DeviceDetailDto> DetailAsync(Device d, AssetsDbContext db, AssetAccess access, AssetClock clock, CancellationToken ct)
     {
         var emps = await access.EmployeesAsync(ct);
-        var cat = await db.Categories.AsNoTracking().Where(c => c.Id == d.CategoryId).Select(c => c.Name).FirstOrDefaultAsync(ct) ?? "";
+        var cat = await db.Categories.AsNoTracking().FirstOrDefaultAsync(c => c.Id == d.CategoryId, ct);
         var rows = await db.Assignments.AsNoTracking().Where(a => a.DeviceId == d.Id).OrderByDescending(a => a.AssignedAt).ToListAsync(ct);
         var history = rows.Select(a =>
         {
@@ -119,13 +134,16 @@ internal static class DeviceEndpoints
             return new AssignmentDto(a.Id, a.EmployeeId, e?.FullName ?? "(không rõ)", e?.Code ?? "", a.AssignedAt, a.AssignedByName, a.AssignNote,
                 a.ReturnedAt, a.ReturnedByName, a.ReturnNote);
         }).ToList();
-        return new(ToDto(d, cat, emps), history);
+        var handovers = await db.Handovers.AsNoTracking().Where(h => h.DeviceId == d.Id).OrderByDescending(h => h.CreatedAt).ToListAsync(ct);
+        var files = await db.Attachments.CountAsync(a => a.DeviceId == d.Id && a.Ready && a.DeletedAt == null, ct);
+        return new(ToDto(d, cat, emps, clock.Today), history, [.. handovers.Select(ToDto)], files);
     }
 
-    private static async Task<Results<Ok<DeviceDetailDto>, ProblemHttpResult>> GetAsync(Guid id, AssetsDbContext db, AssetAccess access, CancellationToken ct)
+    private static async Task<Results<Ok<DeviceDetailDto>, ProblemHttpResult>> GetAsync(Guid id, AssetsDbContext db, AssetAccess access, AssetClock clock,
+        CancellationToken ct)
     {
         var d = await db.Devices.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
-        return d is null ? Problems.NotFound("thiết bị") : TypedResults.Ok(await DetailAsync(d, db, access, ct));
+        return d is null ? Problems.NotFound("thiết bị") : TypedResults.Ok(await DetailAsync(d, db, access, clock, ct));
     }
 
     private static Validation ValidateDevice(DeviceRequest r) => new Validation()
@@ -134,7 +152,9 @@ internal static class DeviceEndpoints
         .MaxLength(r.SerialNumber?.Trim(), 100, "serialNumber", "Số serial").MaxLength(r.Note?.Trim(), 2000, "note", "Ghi chú")
         .When(r.PurchasePrice is < 0, "purchasePrice", "Giá mua không được âm")
         .When(r.PurchasePrice is > 1_000_000_000_000m, "purchasePrice", "Giá mua quá lớn")
-        .When(r.PurchaseDate is { } pd && r.WarrantyUntil is { } wu && wu < pd, "warrantyUntil", "Hạn bảo hành phải sau ngày mua");
+        .When(r.PurchaseDate is { } pd && r.WarrantyUntil is { } wu && wu < pd, "warrantyUntil", "Hạn bảo hành phải sau ngày mua")
+        .When(r.DepreciationMonths is < 0 or > AssetRules.MaxDepreciationMonths, "depreciationMonths",
+            $"Số tháng khấu hao từ 0 đến {AssetRules.MaxDepreciationMonths}");
 
     private static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
@@ -153,11 +173,11 @@ internal static class DeviceEndpoints
         {
             Code = AssetRules.DeviceCode(cat.Code, seq), CategoryId = cat.Id, Name = req.Name!.Trim(), Brand = Clean(req.Brand), Model = Clean(req.Model),
             SerialNumber = serial, PurchaseDate = req.PurchaseDate, PurchasePrice = req.PurchasePrice, WarrantyUntil = req.WarrantyUntil,
-            Note = Clean(req.Note), Status = DeviceStatus.InStock, CreatedAt = clock.Now,
+            Note = Clean(req.Note), Status = DeviceStatus.InStock, CreatedAt = clock.Now, DepreciationMonths = req.DepreciationMonths,
         };
         db.Devices.Add(d);
         await db.SaveChangesAsync(ct);
-        return TypedResults.Ok(ToDto(d, cat.Name, await access.EmployeesAsync(ct)));
+        return TypedResults.Ok(ToDto(d, cat, await access.EmployeesAsync(ct), clock.Today));
     }
 
     private static async Task<Results<Ok<DeviceDto>, ValidationProblem, ProblemHttpResult>> UpdateAsync(Guid id, DeviceRequest req, AssetsDbContext db,
@@ -182,10 +202,11 @@ internal static class DeviceEndpoints
         if (d.WarrantyUntil != req.WarrantyUntil) { d.WarrantyReminded30At = null; d.WarrantyReminded7At = null; }
         d.WarrantyUntil = req.WarrantyUntil;
         d.Note = Clean(req.Note);
+        d.DepreciationMonths = req.DepreciationMonths; // null = theo loại, 0 = không khấu hao
         d.UpdatedAt = clock.Now;
         await db.SaveChangesAsync(ct);
-        var cat = await db.Categories.AsNoTracking().Where(x => x.Id == d.CategoryId).Select(x => x.Name).FirstOrDefaultAsync(ct) ?? "";
-        return TypedResults.Ok(ToDto(d, cat, await access.EmployeesAsync(ct)));
+        var cat = await db.Categories.AsNoTracking().FirstOrDefaultAsync(x => x.Id == d.CategoryId, ct);
+        return TypedResults.Ok(ToDto(d, cat, await access.EmployeesAsync(ct), clock.Today));
     }
 
     /// <summary>Xoá mềm — chỉ khi chưa từng cấp phát (còn lại dùng "Thanh lý" để giữ lịch sử).</summary>
@@ -200,7 +221,7 @@ internal static class DeviceEndpoints
     }
 
     private static async Task<Results<Ok<DeviceDetailDto>, ValidationProblem, ProblemHttpResult>> AssignAsync(Guid id, AssignRequest req, ClaimsPrincipal user,
-        AssetsDbContext db, AssetAccess access, AssetOps ops, IEmployeeDirectory dir, CancellationToken ct)
+        AssetsDbContext db, AssetAccess access, AssetOps ops, IEmployeeDirectory dir, AssetClock clock, CancellationToken ct)
     {
         var d = await db.Devices.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (d is null) return Problems.NotFound("thiết bị");
@@ -210,24 +231,33 @@ internal static class DeviceEndpoints
         if (AssetRules.CannotAssign(d.Status, emp is { IsActive: true }) is { } err)
             return Problems.Conflict(err);
         var me = await access.ViewerAsync(user, ct);
-        ops.Assign(d, emp!, Clean(req.Note), me.Name);
+        var note = Clean(req.Note);
+        var a = ops.Assign(d, emp!, note, me.Name);
+        var h = await ops.CreateHandoverAsync(HandoverKind.Assign, d, a, emp!, note, me.Name, ct);
         await db.SaveChangesAsync(ct);
         await ops.NotifyEmployeeAsync(emp!.Id, NotificationCategories.AssetAssigned, $"Bạn được cấp thiết bị {d.Code}",
-            $"{d.Name}{(d.SerialNumber is { } s ? $" · serial {s}" : "")}. Xem tại Tài sản → Của tôi.", email: true);
-        return TypedResults.Ok(await DetailAsync(d, db, access, ct));
+            $"{d.Name}{(d.SerialNumber is { } s ? $" · serial {s}" : "")}. Vui lòng xác nhận biên bản {h.Number} tại Tài sản → Của tôi.", email: true);
+        return TypedResults.Ok(await DetailAsync(d, db, access, clock, ct));
     }
 
     private static async Task<Results<Ok<DeviceDetailDto>, ProblemHttpResult>> ReturnAsync(Guid id, ReturnRequest req, ClaimsPrincipal user,
-        AssetsDbContext db, AssetAccess access, AssetOps ops, CancellationToken ct)
+        AssetsDbContext db, AssetAccess access, AssetOps ops, AssetClock clock, CancellationToken ct)
     {
         var d = await db.Devices.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (d is null) return Problems.NotFound("thiết bị");
         if (d.Status != DeviceStatus.InUse || d.HolderEmployeeId is not { } holder) return Problems.Conflict("Thiết bị không có người đang dùng");
         var me = await access.ViewerAsync(user, ct);
-        await ops.CloseAssignmentAsync(d, DeviceStatus.InStock, Clean(req.Note), me.Name, ct);
+        var note = Clean(req.Note);
+        var closed = await ops.CloseAssignmentAsync(d, DeviceStatus.InStock, note, me.Name, ct);
+        var emp = (await access.EmployeesAsync(ct)).GetValueOrDefault(holder);
+        HandoverRecord? h = null;
+        if (emp is not null && closed.FirstOrDefault(x => x.EmployeeId == holder) is { } a)
+            h = await ops.CreateHandoverAsync(HandoverKind.Return, d, a, emp, note, me.Name, ct);
         await db.SaveChangesAsync(ct);
-        await ops.NotifyEmployeeAsync(holder, NotificationCategories.AssetReturned, $"Đã thu hồi thiết bị {d.Code}", $"{d.Name} đã được thu hồi về kho.", email: false);
-        return TypedResults.Ok(await DetailAsync(d, db, access, ct));
+        await ops.NotifyEmployeeAsync(holder, NotificationCategories.AssetReturned, $"Đã thu hồi thiết bị {d.Code}",
+            $"{d.Name} đã được thu hồi về kho.{(h is { RequiresConfirmation: true } ? $" Vui lòng xác nhận biên bản {h.Number} tại Tài sản → Của tôi." : "")}",
+            email: false);
+        return TypedResults.Ok(await DetailAsync(d, db, access, clock, ct));
     }
 
     private static async Task<Results<Ok<DeviceDetailDto>, ValidationProblem, ProblemHttpResult>> StatusAsync(Guid id, StatusRequest req, ClaimsPrincipal user,
@@ -249,6 +279,6 @@ internal static class DeviceEndpoints
         await db.SaveChangesAsync(ct);
         if (holder is { } h)
             await ops.NotifyEmployeeAsync(h, NotificationCategories.AssetReturned, $"Thiết bị {d.Code} không còn ghi nhận ở bạn", $"{d.Name}: {reason}", email: false);
-        return TypedResults.Ok(await DetailAsync(d, db, access, ct));
+        return TypedResults.Ok(await DetailAsync(d, db, access, clock, ct));
     }
 }

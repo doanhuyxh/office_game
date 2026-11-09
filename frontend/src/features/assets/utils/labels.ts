@@ -1,7 +1,9 @@
 import type { StatusTone } from '@/components/common/StatusBadge';
 import type { SearchOption } from '@/components/common/SearchSelectField';
 import type { IEmployee } from '@/features/employees';
-import type { BillingCycle, DeviceStatus, ReviewDecision, ReviewStatus, ServiceStatus, StocktakeResult } from '../types/asset.types';
+import type {
+  AttachmentKind, BillingCycle, DeviceStatus, HandoverKind, IHandover, ReviewDecision, ReviewStatus, ServiceStatus, StocktakeResult,
+} from '../types/asset.types';
 
 export const DEVICE_STATUS: Record<DeviceStatus, { label: string; tone: StatusTone }> = {
   InStock: { label: 'Trong kho', tone: 'info' },
@@ -51,3 +53,21 @@ export const parseMoney = (s: string): number | null => {
   const t = s.replace(/[^\d]/g, '');
   return t ? Number(t) : null;
 };
+
+export const ATTACHMENT_KIND: Record<AttachmentKind, { label: string; accept: string }> = {
+  Photo: { label: 'Ảnh', accept: '.png,.jpg,.jpeg,.webp,.heic' },
+  Invoice: { label: 'Hoá đơn', accept: '.pdf,.png,.jpg,.jpeg,.webp,.heic,.xml,.zip' },
+  Other: { label: 'Tệp khác', accept: '.pdf,.png,.jpg,.jpeg,.webp,.heic,.xml,.zip,.docx,.doc,.xlsx,.xls,.txt' },
+};
+
+export const HANDOVER_KIND: Record<HandoverKind, string> = { Assign: 'Bàn giao', Return: 'Thu hồi' };
+
+/** Trạng thái xác nhận biên bản của nhân viên. */
+export function handoverState(h: IHandover): { label: string; tone: StatusTone } {
+  if (h.confirmedAt) return { label: 'Đã xác nhận', tone: 'success' };
+  if (!h.requiresConfirmation) return { label: 'Không cần xác nhận', tone: 'muted' };
+  return { label: 'Chờ xác nhận', tone: 'warning' };
+}
+
+/** 1 234 567 → "1,2 MB". */
+export const fileSize = (n: number) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`);

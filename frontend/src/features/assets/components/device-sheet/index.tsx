@@ -21,9 +21,11 @@ import { assetApi } from '../../api/asset.api';
 import { useAssetMutation, useDevice } from '../../hooks/useAssets';
 import type { DeviceStatus, IDeviceDetail } from '../../types/asset.types';
 import { DEVICE_STATUS, employeeOptions } from '../../utils/labels';
+import { DeviceAttachments } from '../device-attachments';
 import { DeviceFormDialog } from '../device-form-dialog';
+import { HandoverList } from '../handover-list';
 
-/** Chi tiết thiết bị (sheet): thông tin, cấp phát / thu hồi, đổi trạng thái, sửa, xoá, lịch sử giao nhận. */
+/** Chi tiết thiết bị (sheet): thông tin + khấu hao, cấp phát / thu hồi (kèm biên bản), đổi trạng thái, sửa, xoá, ảnh & hoá đơn, biên bản, lịch sử giao nhận. */
 export function DeviceSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
   const { data, isLoading, error } = useDevice(id);
   return (
@@ -69,6 +71,8 @@ function Detail({ d, onClose }: { d: IDeviceDetail; onClose: () => void }) {
           <Info label="Giá mua" value={formatMoney(v.purchasePrice)} />
           <Info label="Bảo hành đến" value={v.warrantyUntil ? formatDate(v.warrantyUntil) : '—'} />
           <Info label="Người đang giữ" value={v.holderName ? `${v.holderName} (${v.holderCode})` : '—'} />
+          <Info label="Khấu hao" value={depreciationText(v.depreciationMonths, v.effectiveDepreciationMonths, v.monthsUsed)} />
+          <Info label="Giá trị còn lại" value={v.bookValue == null ? '—' : `${formatMoney(v.bookValue)}${v.accumulatedDepreciation ? ` (đã KH ${formatMoney(v.accumulatedDepreciation)})` : ''}`} />
           {v.note && <div className="col-span-2"><dt className="text-xs text-muted-foreground">Ghi chú</dt><dd className="whitespace-pre-wrap">{v.note}</dd></div>}
         </dl>
 
@@ -81,7 +85,8 @@ function Detail({ d, onClose }: { d: IDeviceDetail; onClose: () => void }) {
           <section className="grid gap-3 rounded-lg border p-3">
             <h4 className="text-sm font-semibold">Cấp phát</h4>
             <SearchSelectField id="dv-assign-emp" label="Nhân viên nhận *" value={employeeId} onChange={setEmployeeId} options={employeeOptions(employees.data)} />
-            <div className="grid gap-2"><Label htmlFor="dv-assign-note">Ghi chú</Label><Textarea id="dv-assign-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></div>
+            <div className="grid gap-2"><Label htmlFor="dv-assign-note">Tình trạng, phụ kiện kèm theo (ghi vào biên bản)</Label><Textarea id="dv-assign-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></div>
+            <p className="text-xs text-muted-foreground">Hệ thống lập biên bản bàn giao, nhân viên nhận thông báo và bấm xác nhận trong app.</p>
             <Button className="justify-self-start" disabled={!employeeId || run.isPending}
               onClick={() => act(() => assetApi.assign(v.id, employeeId!, note.trim() || null), 'Đã cấp thiết bị', () => { setEmployeeId(null); setNote(''); })}>
               <UserPlus /> Cấp phát
@@ -91,7 +96,7 @@ function Detail({ d, onClose }: { d: IDeviceDetail; onClose: () => void }) {
         {v.status === 'InUse' && (
           <section className="grid gap-3 rounded-lg border p-3">
             <h4 className="text-sm font-semibold">Thu hồi</h4>
-            <div className="grid gap-2"><Label htmlFor="dv-return-note">Tình trạng khi trả</Label><Textarea id="dv-return-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></div>
+            <div className="grid gap-2"><Label htmlFor="dv-return-note">Tình trạng khi trả (ghi vào biên bản thu hồi)</Label><Textarea id="dv-return-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></div>
             <Button className="justify-self-start" variant="outline" disabled={run.isPending}
               onClick={() => act(() => assetApi.returnDevice(v.id, note.trim() || null), 'Đã thu hồi thiết bị', () => setNote(''))}>
               <RotateCcw /> Thu hồi về kho
@@ -111,6 +116,13 @@ function Detail({ d, onClose }: { d: IDeviceDetail; onClose: () => void }) {
             </Button>
           </section>
         )}
+
+        <DeviceAttachments deviceId={v.id} />
+
+        <section className="grid gap-2">
+          <h4 className="text-sm font-semibold">Biên bản giao nhận</h4>
+          <HandoverList items={d.handovers} show="device" empty="Chưa có biên bản (biên bản tự lập khi cấp phát / thu hồi)." />
+        </section>
 
         <section className="grid gap-2">
           <h4 className="text-sm font-semibold">Lịch sử giao nhận</h4>
@@ -147,6 +159,12 @@ function Detail({ d, onClose }: { d: IDeviceDetail; onClose: () => void }) {
       </AlertDialog>
     </>
   );
+}
+
+function depreciationText(own: number | null, effective: number | null, used: number | null) {
+  if (!effective) return own === 0 ? 'Không khấu hao (riêng thiết bị)' : 'Không khấu hao';
+  const src = own != null ? 'riêng thiết bị' : 'theo loại';
+  return `${effective} tháng (${src})${used != null ? ` · đã dùng ${used} tháng` : ''}`;
 }
 
 const Info = ({ label, value }: { label: string; value: string }) => (

@@ -19,3 +19,21 @@ export interface IStorageReport {
   generatedAt: string; keyPrefix: string; buckets: string[]; totalObjects: number; totalBytes: number; truncated: boolean;
   estimatedUsdPerMonth: number; groups: IStorageGroup[]; byClass: IStorageCount[]; monthly: IStorageCount[]; largest: IStorageObject[];
 }
+
+/** Tab Vận hành (GET /api/system/ops). */
+export interface IBuildInfo { commit: string | null; builtAt: string | null; assemblyVersion: string; startedAt: string; environment: string }
+export interface IBackupItem { kind: 'db' | 'keys' | string; latestKey: string | null; latestAt: string | null; latestBytes: number | null; count: number; totalBytes: number }
+export interface IBackupStatus {
+  status: 'ok' | 'stale' | 'missing' | 'unconfigured' | 'error' | string; bucket: string | null; prefix: string | null; message: string | null; items: IBackupItem[];
+}
+export interface IEmailFailure { id: string; to: string | null; title: string; category: string; attempts: number; error: string | null; createdAt: string; gaveUp: boolean }
+export interface IEmailQueue {
+  pending: number; oldestPendingAt: string | null; retrying: number; sent24h: number; failed: number; skipped30d: number; lastSentAt: string | null;
+  recentFailures: IEmailFailure[];
+}
+export interface IJobStatus {
+  key: string; name: string; intervalMinutes: number; lastStartedAt: string | null; lastFinishedAt: string | null; lastDurationMs: number | null;
+  lastSucceeded: boolean | null; lastError: string | null; lastErrorAt: string | null; runs: number; failures: number; running: boolean;
+  status: 'ok' | 'late' | 'failing' | 'waiting' | string;
+}
+export interface IOpsReport { generatedAt: string; build: IBuildInfo; backup: IBackupStatus; email: IEmailQueue; jobs: IJobStatus[] }

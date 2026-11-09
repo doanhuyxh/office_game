@@ -68,17 +68,22 @@ internal static class ExportEndpoints
     private static async Task<FileContentHttpResult> DevicesAsync(AssetsDbContext db, AssetAccess access, AssetClock clock, CancellationToken ct)
     {
         var emps = await access.EmployeesAsync(ct);
-        var cats = await db.Categories.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Name, ct);
+        var cats = await db.Categories.AsNoTracking().ToDictionaryAsync(c => c.Id, ct);
         var rows = await db.Devices.AsNoTracking().OrderBy(d => d.Code).ToListAsync(ct);
+        var today = clock.Today;
         using var wb = new XLWorkbook();
         var s = wb.AddWorksheet("Thiết bị");
-        Header(s, 1, ["Mã", "Loại", "Tên", "Hãng", "Model", "Số serial", "Ngày mua", "Giá mua (VND)", "Hết bảo hành", "Trạng thái", "Mã NV giữ", "Người giữ", "Ghi chú"]);
+        Header(s, 1, ["Mã", "Loại", "Tên", "Hãng", "Model", "Số serial", "Ngày mua", "Giá mua (VND)", "Số tháng khấu hao", "Đã khấu hao (VND)",
+            $"Giá trị còn lại {today:dd/MM/yyyy} (VND)", "Hết bảo hành", "Trạng thái", "Mã NV giữ", "Người giữ", "Ghi chú"]);
         var r = 2;
         foreach (var d in rows)
         {
             var h = d.HolderEmployeeId is { } hid ? emps.GetValueOrDefault(hid) : null;
-            Row(s, r++, [d.Code, cats.GetValueOrDefault(d.CategoryId), d.Name, d.Brand, d.Model, d.SerialNumber, d.PurchaseDate, d.PurchasePrice, d.WarrantyUntil,
-                StatusLabel[d.Status], h?.Code, h?.FullName, d.Note]);
+            var cat = cats.GetValueOrDefault(d.CategoryId);
+            var months = AssetRules.EffectiveMonths(d.DepreciationMonths, cat?.DepreciationMonths);
+            var dep = AssetRules.Depreciate(d.PurchasePrice, d.PurchaseDate, months, today, d.Status);
+            Row(s, r++, [d.Code, cat?.Name, d.Name, d.Brand, d.Model, d.SerialNumber, d.PurchaseDate, d.PurchasePrice, months is > 0 ? months : null,
+                dep?.Accumulated, dep?.BookValue, d.WarrantyUntil, StatusLabel[d.Status], h?.Code, h?.FullName, d.Note]);
         }
         return TypedResults.File(Save(wb), ContentType, $"thiet-bi-{clock.Today:yyyy-MM-dd}.xlsx");
     }

@@ -1,3 +1,4 @@
+using OfficeHub.BuildingBlocks.Hosting;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -81,15 +82,16 @@ internal sealed class CollectedCalculator(IFinanceLedger ledger)
 /// Mỗi giờ (host Api, một instance): nhắc đợt thu sắp đến hạn (≤ 7 ngày, một lần) / đến hạn hôm nay (một lần) / quá hạn (mỗi thứ Hai)
 /// → người phụ trách hợp đồng + người có quyền Ghi sổ; nhắc việc chăm sóc khách đến hẹn hôm nay → người tạo.
 /// </summary>
-internal sealed class SalesReminderJob(IServiceScopeFactory scopes, ILogger<SalesReminderJob> log) : BackgroundService
+internal sealed class SalesReminderJob(IServiceScopeFactory scopes, ILogger<SalesReminderJob> log, JobMonitor monitor) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
+        var job = monitor.Register("sales.reminders", "Kinh doanh: nhắc công nợ / chăm sóc khách", TimeSpan.FromHours(1));
         await Task.Delay(TimeSpan.FromSeconds(40), stop);
         using var timer = new PeriodicTimer(TimeSpan.FromHours(1));
         do
         {
-            try { await RunOnceAsync(stop); }
+            try { await job.RunAsync(() => RunOnceAsync(stop)); }
             catch (Exception ex) when (!stop.IsCancellationRequested) { log.LogError(ex, "Lỗi khi chạy nhắc công nợ / chăm sóc khách"); }
         } while (await timer.WaitForNextTickAsync(stop));
     }

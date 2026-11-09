@@ -39,6 +39,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Tài liệu trong văn phòng 3D: tủ hồ sơ / thư viện / bảng tin (E), kéo thả tải lên, chiếu lên màn hình phòng (`PinScreen`) | [office-documents.md](office-documents.md) |
 | Tài sản công ty: thiết bị + dịch vụ / ghế, cấp phát / thu hồi, nhắc hạn, nghỉ việc còn giữ, quyền xem | [assets.md](assets.md) |
 | Tài sản: rà soát quyền định kỳ, kiểm kê, xuất Excel, tool MCP | [assets-review.md](assets-review.md) |
+| Tài sản: khấu hao, biên bản giao nhận (xác nhận trong app, Word theo mẫu), ảnh / hoá đơn thiết bị (S3) | [assets-handover.md](assets-handover.md) |
 | Dự án: thành viên, phân bổ, mốc nghiệm thu, công việc, ngày công, `IProjectDirectory` (kho tài liệu dự án), chép dự án cũ từ Documents | [projects.md](projects.md) |
 | Dự án — hợp đồng (nhiều HĐ / dự án), chốt phân bổ tháng, chi phí nhân công từ lương, thu / chi gắn dự án, lãi / lỗ | [projects-finance.md](projects-finance.md) |
 | Yêu cầu thay đổi (CR) của dự án → phụ lục hợp đồng bán (tăng / giảm giá trị, đợt thu mới) | [projects-changes.md](projects-changes.md) |

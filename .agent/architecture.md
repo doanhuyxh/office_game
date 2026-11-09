@@ -73,7 +73,12 @@ Bảng tiền tố `/api/*` → module và danh sách trang / guard: [routes.md]
 ## Hạ tầng & tích hợp
 
 - **PostgreSQL**: mỗi module một schema ([database.md](database.md)).
-- **S3** (`IFileStorage`, AWSSDK.S3): key = `{S3__KeyPrefix}files/<key>`, đọc qua presigned URL. **Chưa module nào gọi upload** (cần xác nhận khi làm hợp đồng/avatar).
-- **SMTP** (`IEmailSender`, MailKit): chỉ Identity dùng (mời, quên mật khẩu).
-- **LiveKit**: chỉ cấp token (`/rt/voice/token`); FE chưa có UI voice.
+- **S3** (`IFileStorage`, AWSSDK.S3): key dưới `{S3__KeyPrefix}`; tải lên thẳng từ trình duyệt (presigned PUT) hoặc qua Api, đọc qua presigned GET. Thư mục theo module (tài liệu, chat, feed, finance, assets…).
+- **SMTP** (`IEmailSender`, MailKit): Identity gửi thẳng; thông báo đi qua hàng đợi trong DB (`EmailDispatcher`, [business/notifications.md](business/notifications.md)).
+- **LiveKit**: voice theo khoảng cách / phòng riêng ([business/office.md](business/office.md)).
 - **Log**: Serilog → console + Seq; Sentry bật khi có DSN.
+
+
+## Vận hành
+
+Trang Hệ thống → tab Vận hành (phiên bản, sao lưu, hàng đợi email, job nền `JobMonitor`): [ops.md](ops.md).

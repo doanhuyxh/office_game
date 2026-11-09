@@ -1,3 +1,4 @@
+using OfficeHub.BuildingBlocks.Hosting;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -93,15 +94,16 @@ internal sealed class ProjectDirectory(ProjectsDbContext db, ProjectClock clock)
 }
 
 /// <summary>Mỗi giờ (sau 50 s): nhắc người được giao khi việc đến hạn hôm nay / đã quá hạn mà chưa xong — một lần mỗi việc (đổi hạn → nhắc lại).</summary>
-internal sealed class TaskReminderJob(IServiceScopeFactory scopes, ILogger<TaskReminderJob> log) : BackgroundService
+internal sealed class TaskReminderJob(IServiceScopeFactory scopes, ILogger<TaskReminderJob> log, JobMonitor monitor) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
+        var job = monitor.Register("projects.task-reminder", "Dự án: nhắc việc", TimeSpan.FromHours(1));
         await Task.Delay(TimeSpan.FromSeconds(50), stop);
         using var timer = new PeriodicTimer(TimeSpan.FromHours(1));
         do
         {
-            try { await RunOnceAsync(stop); }
+            try { await job.RunAsync(() => RunOnceAsync(stop)); }
             catch (Exception ex) when (!stop.IsCancellationRequested) { log.LogError(ex, "Lỗi khi nhắc việc dự án"); }
         } while (await timer.WaitForNextTickAsync(stop));
     }

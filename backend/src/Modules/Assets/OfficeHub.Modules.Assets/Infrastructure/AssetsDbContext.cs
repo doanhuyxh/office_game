@@ -21,6 +21,9 @@ public sealed class AssetsDbContext(DbContextOptions<AssetsDbContext> options) :
     public DbSet<StocktakeItem> StocktakeItems => Set<StocktakeItem>();
     public DbSet<Sequence> Sequences => Set<Sequence>();
     public DbSet<OffboardingNotice> OffboardingNotices => Set<OffboardingNotice>();
+    public DbSet<DeviceAttachment> Attachments => Set<DeviceAttachment>();
+    public DbSet<HandoverRecord> Handovers => Set<HandoverRecord>();
+    public DbSet<AssetSettings> Settings => Set<AssetSettings>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -137,6 +140,49 @@ public sealed class AssetsDbContext(DbContextOptions<AssetsDbContext> options) :
             e.ToTable("offboarding_notices");
             e.HasKey(x => x.EmployeeId);
         });
+        b.Entity<DeviceAttachment>(e =>
+        {
+            e.ToTable("device_attachments");
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.FileName).HasMaxLength(200);
+            e.Property(x => x.ContentType).HasMaxLength(150);
+            e.Property(x => x.FileKey).HasMaxLength(400);
+            e.Property(x => x.CreatedByName).HasMaxLength(200);
+            e.Property(x => x.DeletedByName).HasMaxLength(200);
+            e.HasIndex(x => x.DeviceId).HasDatabaseName("ix_device_attachments_device");
+            e.HasOne<Device>().WithMany().HasForeignKey(x => x.DeviceId).OnDelete(DeleteBehavior.Restrict).IsRequired();
+        });
+        b.Entity<HandoverRecord>(e =>
+        {
+            e.ToTable("handover_records");
+            e.Property(x => x.Number).HasMaxLength(30);
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.EmployeeCode).HasMaxLength(50);
+            e.Property(x => x.EmployeeName).HasMaxLength(200);
+            e.Property(x => x.DepartmentName).HasMaxLength(200);
+            e.Property(x => x.DeviceCode).HasMaxLength(40);
+            e.Property(x => x.DeviceName).HasMaxLength(200);
+            e.Property(x => x.CategoryName).HasMaxLength(100);
+            e.Property(x => x.Brand).HasMaxLength(100);
+            e.Property(x => x.Model).HasMaxLength(100);
+            e.Property(x => x.SerialNumber).HasMaxLength(100);
+            e.Property(x => x.Note).HasMaxLength(1000);
+            e.Property(x => x.CreatedByName).HasMaxLength(200);
+            e.Property(x => x.ConfirmedIp).HasMaxLength(64);
+            e.HasIndex(x => x.Number).IsUnique().HasDatabaseName("ux_handover_records_number");
+            e.HasIndex(x => x.DeviceId).HasDatabaseName("ix_handover_records_device");
+            e.HasIndex(x => new { x.EmployeeId, x.ConfirmedAt }).HasDatabaseName("ix_handover_records_employee");
+            e.HasOne<Device>().WithMany().HasForeignKey(x => x.DeviceId).OnDelete(DeleteBehavior.Restrict).IsRequired();
+            e.HasOne<DeviceAssignment>().WithMany().HasForeignKey(x => x.AssignmentId).OnDelete(DeleteBehavior.Restrict).IsRequired();
+        });
+        b.Entity<AssetSettings>(e =>
+        {
+            e.ToTable("settings");
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.HandoverTemplateKey).HasMaxLength(400);
+            e.Property(x => x.HandoverTemplateName).HasMaxLength(200);
+            e.Property(x => x.UpdatedByName).HasMaxLength(200);
+        });
     }
 
     /// <summary>Số kế tiếp của bộ đếm (nguyên tử: INSERT … ON CONFLICT … RETURNING).</summary>
@@ -170,7 +216,8 @@ internal sealed class AssetsMigrator(IServiceProvider sp, IConfiguration config)
         await db.Database.MigrateAsync(ct);
         if (await db.Categories.AnyAsync(ct)) return;
         var i = 0;
-        foreach (var (code, name) in DefaultCategories) db.Categories.Add(new Category { Code = code, Name = name, SortOrder = ++i });
+        foreach (var (code, name) in DefaultCategories)
+            db.Categories.Add(new Category { Code = code, Name = name, SortOrder = ++i, DepreciationMonths = AssetRules.DefaultDepreciationMonths(code) });
         await db.SaveChangesAsync(ct);
     }
 

@@ -39,7 +39,10 @@ x-backend: &backend
 services:
   api:
     <<: *backend
-    build: { context: .., dockerfile: backend/Dockerfile }
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args: { GIT_SHA: "${GIT_SHA:-unknown}", BUILD_TIME: "${BUILD_TIME:-}" }   # scripts/deploy.sh đặt — trang Hệ thống → Vận hành
     environment:
       <<: *backend-env
       SERVICE: OfficeHub.Api
@@ -71,7 +74,10 @@ services:
   web:
     <<: *logging
     image: officehub/web:latest
-    build: { context: .., dockerfile: frontend/Dockerfile }
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+      args: { GIT_SHA: "${GIT_SHA:-unknown}", BUILD_TIME: "${BUILD_TIME:-}" }
     # Mặc định mở 0.0.0.0 để nginx ở VPS khác proxy vào. Docker BỎ QUA ufw → chặn cổng này bằng firewall nhà cung cấp
     # (chỉ cho IP VPS proxy). Nginx cùng máy: HTTP_BIND=127.0.0.1
     ports: ["${HTTP_BIND:-0.0.0.0}:${HTTP_PORT:-7080}:80"]

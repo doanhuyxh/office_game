@@ -37,5 +37,7 @@ public sealed class AssetsModule : IModule
         ReviewEndpoints.Map(g);
         StocktakeEndpoints.Map(g);
         ExportEndpoints.Map(g);
+        HandoverEndpoints.Map(g);
+        AttachmentEndpoints.Map(g);
     }
 }

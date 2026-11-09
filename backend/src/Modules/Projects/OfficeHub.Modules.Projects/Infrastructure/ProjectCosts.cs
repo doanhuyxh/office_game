@@ -1,3 +1,4 @@
+using OfficeHub.BuildingBlocks.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -157,15 +158,16 @@ internal sealed class ProjectFinance(ProjectsDbContext db, EffortCalculator effo
 /// Mỗi giờ (sau 70 s): chốt phân bổ của tháng trước nếu chưa chốt — ghi % mặc định (chia đều) thành dòng <see cref="Allocation"/> cho mọi thành viên
 /// của dự án chạy trong tháng đó, rồi đánh dấu <see cref="AllocationFreeze"/>. Một lần mỗi tháng.
 /// </summary>
-internal sealed class AllocationFreezeJob(IServiceScopeFactory scopes, ILogger<AllocationFreezeJob> log) : BackgroundService
+internal sealed class AllocationFreezeJob(IServiceScopeFactory scopes, ILogger<AllocationFreezeJob> log, JobMonitor monitor) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
+        var job = monitor.Register("projects.allocation-freeze", "Dự án: chốt phân bổ đầu tháng", TimeSpan.FromHours(1));
         await Task.Delay(TimeSpan.FromSeconds(70), stop);
         using var timer = new PeriodicTimer(TimeSpan.FromHours(1));
         do
         {
-            try { await RunOnceAsync(stop); }
+            try { await job.RunAsync(() => RunOnceAsync(stop)); }
             catch (Exception ex) when (!stop.IsCancellationRequested) { log.LogError(ex, "Lỗi khi chốt phân bổ dự án"); }
         } while (await timer.WaitForNextTickAsync(stop));
     }

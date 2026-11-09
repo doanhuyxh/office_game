@@ -9,11 +9,12 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { Spinner } from '@/components/feedback/Spinner';
 import { errorMessage, fieldErrors } from '@/utils/errors';
+import { HandoverTemplateCard } from '../handover-template-card';
 import { assetApi } from '../../api/asset.api';
 import { useAssetMutation, useCategories } from '../../hooks/useAssets';
 import type { ICategory, ICategoryRequest } from '../../types/asset.types';
 
-/** Tab Danh mục (HR): loại thiết bị — mã loại là tiền tố của mã thiết bị (TB-MT-00001). */
+/** Tab Danh mục (HR): loại thiết bị — mã loại là tiền tố của mã thiết bị (TB-MT-00001), số tháng khấu hao mặc định — và mẫu Word biên bản giao nhận. */
 export function CategoriesTab({ creating, onCreatedClose }: { creating: boolean; onCreatedClose: () => void }) {
   const { data = [], isLoading } = useCategories();
   const [edit, setEdit] = useState<ICategory | null>(null);
@@ -22,13 +23,14 @@ export function CategoriesTab({ creating, onCreatedClose }: { creating: boolean;
       <p className="text-sm text-muted-foreground">Mã loại dùng làm tiền tố mã thiết bị. Loại ngừng dùng vẫn giữ trên thiết bị cũ nhưng không chọn cho thiết bị mới.</p>
       <div className="rounded-xl border bg-card">
         <Table>
-          <TableHeader><TableRow><TableHead>Mã</TableHead><TableHead>Tên loại</TableHead><TableHead>Thứ tự</TableHead><TableHead>Trạng thái</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Mã</TableHead><TableHead>Tên loại</TableHead><TableHead>Khấu hao</TableHead><TableHead>Thứ tự</TableHead><TableHead>Trạng thái</TableHead></TableRow></TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={4}><Spinner /></TableCell></TableRow>}
+            {isLoading && <TableRow><TableCell colSpan={5}><Spinner /></TableCell></TableRow>}
             {data.map((c) => (
               <TableRow key={c.id} className="cursor-pointer" onClick={() => setEdit(c)} data-testid="category-row">
                 <TableCell className="font-medium">{c.code}</TableCell>
                 <TableCell>{c.name}</TableCell>
+                <TableCell className="tabular-nums">{c.depreciationMonths ? `${c.depreciationMonths} tháng` : 'Không'}</TableCell>
                 <TableCell className="tabular-nums">{c.sortOrder}</TableCell>
                 <TableCell><StatusBadge tone={c.isActive ? 'success' : 'muted'}>{c.isActive ? 'Đang dùng' : 'Ngừng dùng'}</StatusBadge></TableCell>
               </TableRow>
@@ -36,18 +38,22 @@ export function CategoriesTab({ creating, onCreatedClose }: { creating: boolean;
           </TableBody>
         </Table>
       </div>
+      <HandoverTemplateCard />
       <CategoryDialog open={creating || !!edit} category={creating ? null : edit} onClose={() => { setEdit(null); onCreatedClose(); }} />
     </div>
   );
 }
 
 function CategoryDialog({ open, category, onClose }: { open: boolean; category: ICategory | null; onClose: () => void }) {
-  const [form, setForm] = useState<ICategoryRequest>({ code: '', name: '', sortOrder: 0, isActive: true });
+  const blank: ICategoryRequest = { code: '', name: '', sortOrder: 0, isActive: true, depreciationMonths: 36 };
+  const [form, setForm] = useState<ICategoryRequest>(blank);
   const save = useAssetMutation((b: ICategoryRequest) => assetApi.saveCategory(category?.id, b));
   useEffect(() => {
     if (!open) return;
     save.reset();
-    setForm(category ? { code: category.code, name: category.name, sortOrder: category.sortOrder, isActive: category.isActive } : { code: '', name: '', sortOrder: 0, isActive: true });
+    setForm(category ? {
+      code: category.code, name: category.name, sortOrder: category.sortOrder, isActive: category.isActive, depreciationMonths: category.depreciationMonths,
+    } : blank);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, category?.id]);
   const errors = fieldErrors(save.error);
@@ -67,6 +73,9 @@ function CategoryDialog({ open, category, onClose }: { open: boolean; category: 
         }}>
           <FormField id="ct-code" label="Mã loại *" value={form.code} error={errors.code} maxLength={10} onChange={(e) => setForm({ ...form, code: e.target.value })} />
           <FormField id="ct-name" label="Tên loại *" value={form.name} error={errors.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <FormField id="ct-months" label="Số tháng khấu hao" inputMode="numeric" value={form.depreciationMonths ?? ''} error={errors.depreciationMonths}
+            hint="Đường thẳng theo tháng từ ngày mua; để trống hoặc 0 = không khấu hao. Thiết bị có thể đặt số tháng riêng."
+            onChange={(e) => { const v = e.target.value.replace(/[^\d]/g, '').slice(0, 3); setForm({ ...form, depreciationMonths: v === '' ? null : Number(v) }); }} />
           <FormField id="ct-order" label="Thứ tự" type="number" value={form.sortOrder} error={errors.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) || 0 })} />
           <div className="flex items-center gap-2">
             <Checkbox id="ct-active" checked={form.isActive} onCheckedChange={(c) => setForm({ ...form, isActive: c === true })} />

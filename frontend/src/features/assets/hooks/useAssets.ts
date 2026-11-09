@@ -24,6 +24,14 @@ export const useStocktakes = (enabled = true) => useQuery({ queryKey: assetKeys.
 export const useStocktake = (id: string | null) =>
   useQuery({ queryKey: assetKeys.stocktake(id ?? ''), queryFn: () => assetApi.stocktake(id!), enabled: !!id });
 
+export const useDeviceAttachments = (deviceId: string | null) =>
+  useQuery({ queryKey: assetKeys.attachments(deviceId ?? ''), queryFn: () => assetApi.attachments(deviceId!), enabled: !!deviceId });
+export const useMyHandovers = () => useQuery({ queryKey: assetKeys.myHandovers, queryFn: assetApi.myHandovers });
+export const useHandovers = (unconfirmed: boolean, enabled = true) =>
+  useQuery({ queryKey: assetKeys.handovers(unconfirmed), queryFn: () => assetApi.handovers(unconfirmed), enabled });
+export const useAssetSettings = () => useQuery({ queryKey: assetKeys.settings, queryFn: assetApi.settings });
+export const useTemplateFields = () => useQuery({ queryKey: assetKeys.templateFields, queryFn: assetApi.templateFields, staleTime: Infinity });
+
 /** Mọi thao tác ghi làm mới toàn bộ cache tài sản (dữ liệu nhỏ, đơn giản hơn chọn từng key). */
 export function useAssetMutation<A, R>(fn: (a: A) => Promise<R>) {
   const qc = useQueryClient();

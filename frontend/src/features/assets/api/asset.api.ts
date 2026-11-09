@@ -1,7 +1,7 @@
-import { http, httpPost, pageQs } from '@/services/api-client';
+import { http, httpPost, httpUpload, pageQs } from '@/services/api-client';
 import type { IPaged, IPageQuery } from '@/types/api';
 import type {
-  DeviceStatus, ICategory, ICategoryRequest, IDevice, IDeviceDetail, IDeviceFilter, IDeviceRequest, IGrantSeatRequest, IHoldings, IOverview,
+  AttachmentKind, DeviceStatus, IAssetSettings, ICategory, IDeviceAttachment, IHandover, ITemplateField, ICategoryRequest, IDevice, IDeviceDetail, IDeviceFilter, IDeviceRequest, IGrantSeatRequest, IHoldings, IOverview,
   IReview, IReviewDetail, IReviewItem, ISeat, IService, IServiceRequest, IStocktake, IStocktakeDetail, IStocktakeItem, ReviewDecision, StocktakeResult,
 } from '../types/asset.types';
 
@@ -23,6 +23,11 @@ export const assetKeys = {
   pending: ['assets', 'reviews', 'pending'] as const,
   stocktakes: ['assets', 'stocktakes'] as const,
   stocktake: (id: string) => ['assets', 'stocktake', id] as const,
+  attachments: (deviceId: string) => ['assets', 'attachments', deviceId] as const,
+  myHandovers: ['assets', 'handovers', 'my'] as const,
+  handovers: (unconfirmed: boolean) => ['assets', 'handovers', unconfirmed] as const,
+  settings: ['assets', 'settings'] as const,
+  templateFields: ['assets', 'template-fields'] as const,
 };
 
 /** Link tải Excel (GET, cookie cùng origin) — dùng với `downloadUrl` (@/utils/money). */
@@ -73,4 +78,28 @@ export const assetApi = {
   startStocktake: (title: string) => httpPost<IStocktake>(`${base}/stocktakes`, { title }),
   checkItem: (itemId: string, result: StocktakeResult, note: string | null) => httpPost<IStocktakeItem>(`${base}/stocktakes/items/${itemId}/check`, { result, note }),
   closeStocktake: (id: string, markMissingAsLost: boolean) => httpPost<IStocktake>(`${base}/stocktakes/${id}/close`, { markMissingAsLost }),
+
+  attachments: (deviceId: string) => http<IDeviceAttachment[]>(`${base}/devices/${deviceId}/attachments`),
+  attachmentUrl: (id: string, download: boolean) => http<{ url: string }>(`${base}/attachments/${id}/url${download ? '?download=true' : ''}`),
+  deleteAttachment: (id: string) => http<void>(`${base}/attachments/${id}`, { method: 'DELETE' }),
+  /** Xin link → trình duyệt PUT thẳng lên S3 (đúng Content-Type) → xác nhận. */
+  uploadAttachment: async (deviceId: string, kind: AttachmentKind, file: File) => {
+    const t = await httpPost<{ id: string; uploadUrl: string; contentType: string }>(`${base}/devices/${deviceId}/attachments`,
+      { kind, fileName: file.name, contentType: file.type || null, size: file.size });
+    const put = await fetch(t.uploadUrl, { method: 'PUT', headers: { 'Content-Type': t.contentType }, body: file });
+    if (!put.ok) throw new Error(`Tải "${file.name}" lên kho thất bại (${put.status})`);
+    return httpPost<IDeviceAttachment>(`${base}/attachments/${t.id}/confirm`, {});
+  },
+
+  myHandovers: () => http<IHandover[]>(`${base}/handovers/my`),
+  handovers: (unconfirmed: boolean) => http<IHandover[]>(`${base}/handovers${unconfirmed ? '?unconfirmed=true' : ''}`),
+  confirmHandover: (id: string) => httpPost<IHandover>(`${base}/handovers/${id}/confirm`),
+  /** File Word biên bản (GET, cookie cùng origin) — dùng với `downloadUrl`. */
+  handoverDocxUrl: (id: string) => `${base}/handovers/${id}/docx`,
+
+  settings: () => http<IAssetSettings>(`${base}/settings`),
+  templateFields: () => http<ITemplateField[]>(`${base}/settings/handover-template/fields`),
+  defaultTemplateUrl: `${base}/settings/handover-template/default`,
+  uploadTemplate: (file: File) => httpUpload<void>(`${base}/settings/handover-template`, file),
+  deleteTemplate: () => http<void>(`${base}/settings/handover-template`, { method: 'DELETE' }),
 };

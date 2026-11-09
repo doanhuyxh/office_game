@@ -1,3 +1,4 @@
+using OfficeHub.BuildingBlocks.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -19,17 +20,18 @@ namespace OfficeHub.Modules.LaborContracts.Infrastructure;
 /// Bỏ qua nhân viên đã nghỉ việc. Chỉ chạy trong host Api, giả định một instance.
 /// </summary>
 internal sealed class ContractReminderJob(IServiceScopeFactory scopes, IOptions<OfficeSettings> office, TimeProvider clock,
-    ILogger<ContractReminderJob> log) : BackgroundService
+    ILogger<ContractReminderJob> log, JobMonitor monitor) : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromHours(1);
 
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
+        var job = monitor.Register("contracts.reminders", "Hợp đồng: nhắc hết hạn / hết thử việc", Interval);
         await Task.Delay(TimeSpan.FromSeconds(30), stop); // đợi migration / seed xong
         using var timer = new PeriodicTimer(Interval);
         do
         {
-            try { await RunOnceAsync(stop); }
+            try { await job.RunAsync(() => RunOnceAsync(stop)); }
             catch (Exception ex) when (!stop.IsCancellationRequested) { log.LogError(ex, "Lỗi khi nhắc hợp đồng sắp hết hạn"); }
         } while (await timer.WaitForNextTickAsync(stop));
     }

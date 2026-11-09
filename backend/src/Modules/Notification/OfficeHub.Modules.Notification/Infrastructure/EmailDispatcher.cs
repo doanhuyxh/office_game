@@ -1,3 +1,4 @@
+using OfficeHub.BuildingBlocks.Hosting;
 using System.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,17 +16,18 @@ namespace OfficeHub.Modules.Notification.Infrastructure;
 /// Lỗi SMTP → thử lại theo <see cref="EmailPolicy.NextAttempt"/>, hết lượt → Failed. Hàng đợi nằm trong DB nên khởi động lại không mất thư.
 /// Chỉ chạy trong host Api (Realtime không nạp module) và giả định một instance Api (VPS đơn).
 /// </summary>
-internal sealed class EmailDispatcher(IServiceScopeFactory scopes, IOptions<AppSettings> app, TimeProvider clock, ILogger<EmailDispatcher> log)
+internal sealed class EmailDispatcher(IServiceScopeFactory scopes, IOptions<AppSettings> app, TimeProvider clock, ILogger<EmailDispatcher> log, JobMonitor monitor)
     : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(5);
 
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
+        var job = monitor.Register("notification.email", "Gửi email thông báo (hàng đợi)", Interval);
         using var timer = new PeriodicTimer(Interval);
         do
         {
-            try { await SendDueAsync(stop); }
+            try { await job.RunAsync(() => SendDueAsync(stop)); }
             catch (Exception ex) when (!stop.IsCancellationRequested) { log.LogError(ex, "Lỗi khi quét hàng đợi email thông báo"); }
         } while (await timer.WaitForNextTickAsync(stop));
     }

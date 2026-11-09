@@ -1,3 +1,4 @@
+using OfficeHub.BuildingBlocks.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -14,19 +15,20 @@ namespace OfficeHub.Modules.Attendance.Infrastructure;
 /// Mỗi (nhân viên, ngày, loại) nhắc tối đa 1 lần (bảng attendance.reminders). Mặc định chỉ chuông; email bật bằng Attendance__Reminders__Email.
 /// Chỉ chạy trong host Api, giả định một instance.
 /// </summary>
-internal sealed class CheckoutReminderJob(IServiceScopeFactory scopes, IOptionsMonitor<ReminderSettings> settings, ILogger<CheckoutReminderJob> log)
+internal sealed class CheckoutReminderJob(IServiceScopeFactory scopes, IOptionsMonitor<ReminderSettings> settings, ILogger<CheckoutReminderJob> log, JobMonitor monitor)
     : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(10);
 
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
+        var job = monitor.Register("attendance.checkout-reminder", "Nhắc quên chấm ra", Interval);
         await Task.Delay(TimeSpan.FromSeconds(45), stop); // đợi migration / seed xong
         using var timer = new PeriodicTimer(Interval);
         do
         {
             if (!settings.CurrentValue.Enabled) continue;
-            try { await RunOnceAsync(stop); }
+            try { await job.RunAsync(() => RunOnceAsync(stop)); }
             catch (Exception ex) when (!stop.IsCancellationRequested) { log.LogError(ex, "Lỗi khi nhắc chấm công"); }
         } while (await timer.WaitForNextTickAsync(stop));
     }

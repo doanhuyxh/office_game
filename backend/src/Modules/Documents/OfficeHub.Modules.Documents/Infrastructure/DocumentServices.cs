@@ -1,3 +1,4 @@
+using OfficeHub.BuildingBlocks.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -70,15 +71,16 @@ internal sealed class AssetPublisher(DocumentsDbContext db, DocumentAccess acces
 /// Mỗi giờ: (1) nhắc HR + người phụ trách tài liệu sắp hết hạn lưu trữ (≤ 30 ngày, một lần); (2) xoá hẳn tài liệu nằm thùng rác quá 30 ngày
 /// (file S3 + hồ sơ); (3) dọn vé tải lên quá 24 giờ chưa đăng ký (xoá file rác trên S3). Chỉ chạy ở host Api, giả định một instance.
 /// </summary>
-internal sealed class DocumentsMaintenanceJob(IServiceScopeFactory scopes, ILogger<DocumentsMaintenanceJob> log) : BackgroundService
+internal sealed class DocumentsMaintenanceJob(IServiceScopeFactory scopes, ILogger<DocumentsMaintenanceJob> log, JobMonitor monitor) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
+        var job = monitor.Register("documents.maintenance", "Kho tài liệu: hạn lưu trữ, dọn dẹp", TimeSpan.FromHours(1));
         await Task.Delay(TimeSpan.FromSeconds(45), stop);
         using var timer = new PeriodicTimer(TimeSpan.FromHours(1));
         do
         {
-            try { await RunOnceAsync(stop); }
+            try { await job.RunAsync(() => RunOnceAsync(stop)); }
             catch (Exception ex) when (!stop.IsCancellationRequested) { log.LogError(ex, "Lỗi khi bảo trì kho tài liệu"); }
         } while (await timer.WaitForNextTickAsync(stop));
     }

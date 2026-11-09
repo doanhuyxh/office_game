@@ -1,3 +1,4 @@
+using OfficeHub.BuildingBlocks.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -14,17 +15,19 @@ namespace OfficeHub.Modules.Assets.Infrastructure;
 /// <summary>
 /// Mỗi giờ (host Api, giả định một instance): (1) nhắc HR + người quản trị dịch vụ khi thiết bị sắp hết bảo hành / dịch vụ sắp gia hạn (30 / 7 ngày);
 /// (2) báo HR + quản lý cũ khi nhân viên đã nghỉ mà còn giữ thiết bị / tài khoản (một lần mỗi người);
-/// (3) nhắc người rà soát một lần khi đợt rà soát tới hạn mà còn mục chưa quyết.
+/// (3) nhắc người rà soát một lần khi đợt rà soát tới hạn mà còn mục chưa quyết;
+/// (4) nhắc nhân viên một lần khi biên bản giao nhận chưa xác nhận sau 3 ngày.
 /// </summary>
-internal sealed class AssetsMaintenanceJob(IServiceScopeFactory scopes, ILogger<AssetsMaintenanceJob> log) : BackgroundService
+internal sealed class AssetsMaintenanceJob(IServiceScopeFactory scopes, ILogger<AssetsMaintenanceJob> log, JobMonitor monitor) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
+        var job = monitor.Register("assets.maintenance", "Tài sản: nhắc hạn, nghỉ việc, rà soát, biên bản", TimeSpan.FromHours(1));
         await Task.Delay(TimeSpan.FromSeconds(30), stop);
         using var timer = new PeriodicTimer(TimeSpan.FromHours(1));
         do
         {
-            try { await RunOnceAsync(stop); }
+            try { await job.RunAsync(() => RunOnceAsync(stop)); }
             catch (Exception ex) when (!stop.IsCancellationRequested) { log.LogError(ex, "Lỗi khi bảo trì module tài sản"); }
         } while (await timer.WaitForNextTickAsync(stop));
     }
@@ -105,5 +108,19 @@ internal sealed class AssetsMaintenanceJob(IServiceScopeFactory scopes, ILogger<
             r.RemindedAt = clock.Now;
         }
         if (reviews.Count > 0) await db.SaveChangesAsync(ct);
+
+        // (4) Biên bản giao nhận chưa xác nhận
+        var cutoff = clock.Now.AddDays(-AssetRules.HandoverRemindAfterDays);
+        var handovers = await db.Handovers.Where(h => h.RequiresConfirmation && h.ConfirmedAt == null && h.RemindedAt == null && h.CreatedAt <= cutoff)
+            .ToListAsync(ct);
+        foreach (var h in handovers.Where(h => AssetRules.HandoverReminderDue(h.RequiresConfirmation, h.ConfirmedAt, h.RemindedAt, h.CreatedAt, clock.Now)))
+        {
+            if (emps.GetValueOrDefault(h.EmployeeId) is { IsActive: true })
+                await ops.NotifyEmployeeAsync(h.EmployeeId, NotificationCategories.AssetAssigned, $"Nhắc xác nhận biên bản {h.Number}",
+                    $"Biên bản {(h.Kind == HandoverKind.Assign ? "bàn giao" : "thu hồi")} thiết bị {h.DeviceCode} · {h.DeviceName} chưa được xác nhận. "
+                    + "Vào Tài sản → Của tôi để xác nhận.", email: true);
+            h.RemindedAt = clock.Now;
+        }
+        if (handovers.Count > 0) await db.SaveChangesAsync(ct);
     }
 }

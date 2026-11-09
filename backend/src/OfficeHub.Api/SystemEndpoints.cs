@@ -4,6 +4,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Configuration;
+using OfficeHub.Modules.Notification.Contracts;
 using Scalar.AspNetCore;
 
 namespace OfficeHub.Api;
@@ -35,6 +36,11 @@ internal static class SystemEndpoints
         app.MapGet("/api/system/info", InfoAsync).RequireAuthorization(AuthPolicies.Admin).WithTags("System");
         // Báo cáo dung lượng S3 (quét object, giữ 10 phút; refresh=true quét lại)
         app.MapGet("/api/system/storage", (bool? refresh, StorageReport report, CancellationToken ct) => report.GetAsync(refresh == true, ct))
+            .RequireAuthorization(AuthPolicies.Admin).WithTags("System");
+        // Vận hành: phiên bản, sao lưu, hàng đợi email, job nền (OpsReport.cs)
+        app.MapGet("/api/system/ops", (OpsReport report, IEmailOutbox outbox, CancellationToken ct) => report.GetAsync(outbox, ct))
+            .RequireAuthorization(AuthPolicies.Admin).WithTags("System");
+        app.MapPost("/api/system/ops/email/retry", async (IEmailOutbox outbox, CancellationToken ct) => TypedResults.Ok(new { count = await outbox.RetryFailedAsync(ct) }))
             .RequireAuthorization(AuthPolicies.Admin).WithTags("System");
     }
 

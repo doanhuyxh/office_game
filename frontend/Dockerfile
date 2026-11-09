@@ -7,6 +7,11 @@ COPY frontend/package.json frontend/bun.lock ./frontend/
 WORKDIR /src/frontend
 RUN bun install --frozen-lockfile
 COPY frontend/ ./
+# Phiên bản giao diện (trang Hệ thống → Vận hành) — scripts/deploy.sh truyền vào; Vite đọc VITE_* từ biến môi trường lúc build
+ARG GIT_SHA=unknown
+ARG BUILD_TIME=
+ENV VITE_APP_COMMIT=$GIT_SHA \
+    VITE_APP_BUILD_TIME=$BUILD_TIME
 RUN bun run build
 
 FROM nginx:1.29-alpine

@@ -2,17 +2,28 @@ import { ExternalLink } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { Spinner } from '@/components/feedback/Spinner';
 import { formatDate } from '@/utils/date';
-import { useMyAssets } from '../../hooks/useAssets';
+import { useMyAssets, useMyHandovers } from '../../hooks/useAssets';
+import { HandoverList } from '../handover-list';
 import { PendingReviewsCard } from '../pending-reviews-card';
 
-/** Tab "Của tôi": thiết bị + tài khoản dịch vụ mình đang giữ, và các ghế cần mình rà soát (nếu có). */
+/** Tab "Của tôi": biên bản chờ xác nhận, thiết bị + tài khoản dịch vụ mình đang giữ, các ghế cần mình rà soát (nếu có), biên bản đã có. */
 export function MyAssetsTab() {
   const { data, isLoading } = useMyAssets();
+  const handovers = useMyHandovers().data ?? [];
+  const pending = handovers.filter((h) => h.requiresConfirmation && !h.confirmedAt);
+  const done = handovers.filter((h) => !(h.requiresConfirmation && !h.confirmedAt));
   if (isLoading) return <Spinner />;
   const devices = data?.devices ?? [];
   const seats = data?.seats ?? [];
   return (
     <div className="grid grid-cols-1 gap-4">
+      {pending.length > 0 && (
+        <section className="grid gap-2 rounded-xl border border-warning/40 bg-warning/5 p-4" data-testid="pending-handovers">
+          <h3 className="text-sm font-semibold">Biên bản cần bạn xác nhận ({pending.length})</h3>
+          <p className="text-xs text-muted-foreground">Kiểm tra đúng thiết bị, số serial rồi bấm "Xác nhận". Hệ thống ghi thời điểm và địa chỉ IP vào biên bản.</p>
+          <HandoverList items={pending} show="employee" canConfirm />
+        </section>
+      )}
       <PendingReviewsCard />
       <section className="grid gap-2">
         <h3 className="text-sm font-semibold">Thiết bị đang giữ</h3>
@@ -61,6 +72,12 @@ export function MyAssetsTab() {
         </div>
         <p className="text-xs text-muted-foreground">Mật khẩu không lưu trong hệ thống — liên hệ người quản trị dịch vụ nếu cần cấp lại.</p>
       </section>
+      {done.length > 0 && (
+        <section className="grid gap-2">
+          <h3 className="text-sm font-semibold">Biên bản giao nhận</h3>
+          <HandoverList items={done} show="employee" />
+        </section>
+      )}
     </div>
   );
 }

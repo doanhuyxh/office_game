@@ -75,6 +75,11 @@ internal static class HoldingEndpoints
         var devices = await db.Devices.AsNoTracking().ToListAsync(ct);
         var counts = Enum.GetValues<DeviceStatus>().ToDictionary(s => s.ToString(), s => devices.Count(d => d.Status == s));
         var value = devices.Where(d => d.Status is not (DeviceStatus.Retired or DeviceStatus.Lost)).Sum(d => d.PurchasePrice ?? 0);
+        var catMonths = await db.Categories.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.DepreciationMonths, ct);
+        var book = devices.Where(d => d.Status is not (DeviceStatus.Retired or DeviceStatus.Lost))
+            .Sum(d => AssetRules.Depreciate(d.PurchasePrice, d.PurchaseDate, AssetRules.EffectiveMonths(d.DepreciationMonths, catMonths.GetValueOrDefault(d.CategoryId)),
+                today, d.Status)?.BookValue ?? 0);
+        var unconfirmed = await db.Handovers.CountAsync(h => h.RequiresConfirmation && h.ConfirmedAt == null, ct);
         var warranties = devices.Where(d => d.Status is not (DeviceStatus.Retired or DeviceStatus.Lost) && d.WarrantyUntil is { } w && w >= today && w <= horizon)
             .OrderBy(d => d.WarrantyUntil).Select(d => new WarrantyDueDto(d.Id, d.Code, d.Name, d.WarrantyUntil!.Value,
                 d.HolderEmployeeId is { } h ? emps.GetValueOrDefault(h)?.FullName : null)).ToList();
@@ -83,6 +88,7 @@ internal static class HoldingEndpoints
             .Select(s => new RenewalDueDto(s.Id, s.Name, s.RenewalDate!.Value)).ToList();
         var seatsInUse = await db.Seats.CountAsync(s => s.RevokedAt == null, ct);
         return TypedResults.Ok(new OverviewDto(counts, devices.Count, value, services.Count,
-            services.Sum(s => AssetRules.MonthlyCost(s.BillingCycle, s.Cost)), seatsInUse, warranties, renewals, await ResignedHoldingAsync(db, emps, ct)));
+            services.Sum(s => AssetRules.MonthlyCost(s.BillingCycle, s.Cost)), seatsInUse, warranties, renewals, await ResignedHoldingAsync(db, emps, ct),
+            book, unconfirmed));
     }
 }

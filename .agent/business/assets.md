@@ -8,7 +8,7 @@ Không nhầm với [documents.md](documents.md) ("tài sản số" = file do c�
 
 - Chỉ tài sản **của công ty** (không BYOD). Hai nhóm: **thiết bị** (máy tính, màn hình, điện thoại, phụ kiện) và **dịch vụ / tài khoản phần mềm** (Figma, Google Workspace, Slack, GitHub…).
 - **Không lưu mật khẩu** (chưa có trình quản lý mật khẩu). Chỉ ghi tên đăng nhập / email của tài khoản.
-- Chỉ nhập **giá mua** (không khấu hao). Không biên bản ký — **chỉ thông báo** (chuông + email).
+- 2026-11-09 chủ dự án mở lại: **khấu hao** đường thẳng, **biên bản giao nhận** (nhân viên bấm xác nhận trong app), **ảnh / hoá đơn** thiết bị → [assets-handover.md](assets-handover.md).
 - Một giai đoạn gồm: đăng ký, cấp phát / thu hồi, thu hồi khi nghỉ việc, nhắc hạn, tổng quan, **và** rà soát quyền định kỳ + kiểm kê + xuất Excel + tool MCP (chủ dự án thêm 2026-11-08) — phần sau ở [assets-review.md](assets-review.md).
 
 ## Dữ liệu (schema `assets`, `AssetsDbContext`, migration `InitialAssets`)
@@ -18,7 +18,7 @@ Tham chiếu nhân viên bằng `EmployeeId` thuần (không FK chéo schema); t
 | Bảng | Cột chính |
 |---|---|
 | `categories` | `Code` (tiền tố mã: MT, MH, DT, PK, KH), `Name`, `SortOrder`, `IsActive`. Seed 5 loại; HR thêm / sửa |
-| `devices` `[Audited]` | `Code` `TB-{loại}-{00001}` (bộ đếm theo loại, `code_counters`), `CategoryId`, `Name`, `Brand`, `Model`, `SerialNumber` (duy nhất khi có), `PurchaseDate`, `PurchasePrice` (VND), `WarrantyUntil`, `Status`, `HolderEmployeeId`, `Note`, `DeletedAt`, `WarrantyReminded30At/7At` |
+| `devices` `[Audited]` | `Code` `TB-{loại}-{00001}` (bộ đếm theo loại, bảng `sequences`), `CategoryId`, `Name`, `Brand`, `Model`, `SerialNumber` (duy nhất khi có), `PurchaseDate`, `PurchasePrice` (VND), `WarrantyUntil`, `DepreciationMonths?` (riêng, null = theo loại), `Status`, `HolderEmployeeId`, `Note`, `DeletedAt`, `WarrantyReminded30At/7At` |
 | `device_assignments` | `DeviceId`, `EmployeeId`, `AssignedAt/By`, `ReturnedAt/By`, `ReturnNote` — chỉ thêm / đóng, không xoá (lịch sử giao nhận) |
 | `services` `[Audited]` | `Name`, `Vendor`, `Plan`, `Url`, `SeatLimit` (null = không giới hạn), `BillingCycle` (None / Monthly / Yearly), `Cost` (VND/kỳ), `RenewalDate`, `OwnerDepartmentId`, `AdminEmployeeId`, `Status` (Active / Cancelled), `RenewalReminded30At/7At` |
 | `service_seats` `[Audited]` | `ServiceId`, `EmployeeId`, `AccountLogin`, `Role`, `GrantedAt/By`, `RevokedAt/By`, `Note`. Duy nhất `(ServiceId, AccountLogin)` khi chưa thu hồi |

@@ -18,6 +18,11 @@ ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false \
 WORKDIR /app
 COPY --from=build /out ./
 COPY shared/ ./shared/
+# Phiên bản (trang Hệ thống → Vận hành): scripts/deploy.sh truyền commit + giờ build. Đặt cuối để không phá cache các lớp trên.
+ARG GIT_SHA=unknown
+ARG BUILD_TIME=
+ENV OFFICEHUB_COMMIT=$GIT_SHA \
+    OFFICEHUB_BUILD_TIME=$BUILD_TIME
 # Thư mục khoá DataProtection (volume "keys"): tạo sẵn với quyền user app — volume mới sẽ chép quyền này, không thì Permission denied
 RUN mkdir -p /keys && chown $APP_UID:$APP_UID /keys
 USER $APP_UID

@@ -14,6 +14,7 @@ import { parseMoney } from '../../utils/labels';
 
 const empty = (): IDeviceRequest => ({
   categoryId: null, name: '', brand: null, model: null, serialNumber: null, purchaseDate: null, purchasePrice: null, warrantyUntil: null, note: null,
+  depreciationMonths: null,
 });
 
 /** Thêm / sửa thiết bị (HR). Mã thiết bị do hệ thống cấp theo loại. */
@@ -21,6 +22,7 @@ export function DeviceFormDialog({ open, onOpenChange, device }: { open: boolean
   const { data: categories = [] } = useCategories();
   const [form, setForm] = useState<IDeviceRequest>(empty);
   const [price, setPrice] = useState('');
+  const [months, setMonths] = useState('');
   const save = useAssetMutation((b: IDeviceRequest) => assetApi.saveDevice(device?.id, b));
   useEffect(() => {
     if (!open) return;
@@ -28,13 +30,16 @@ export function DeviceFormDialog({ open, onOpenChange, device }: { open: boolean
     setForm(device ? {
       categoryId: device.categoryId, name: device.name, brand: device.brand, model: device.model, serialNumber: device.serialNumber,
       purchaseDate: device.purchaseDate, purchasePrice: device.purchasePrice, warrantyUntil: device.warrantyUntil, note: device.note,
+      depreciationMonths: device.depreciationMonths,
     } : empty());
     setPrice(device?.purchasePrice != null ? String(device.purchasePrice) : '');
+    setMonths(device?.depreciationMonths != null ? String(device.depreciationMonths) : '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, device?.id]);
   const set = <K extends keyof IDeviceRequest>(k: K, v: IDeviceRequest[K]) => setForm((f) => ({ ...f, [k]: v }));
   const text = (k: 'brand' | 'model' | 'serialNumber' | 'note') => (e: { target: { value: string } }) => set(k, e.target.value || null);
   const errors = fieldErrors(save.error);
+  const categoryMonths = categories.find((c) => c.id === form.categoryId)?.depreciationMonths;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
@@ -44,7 +49,7 @@ export function DeviceFormDialog({ open, onOpenChange, device }: { open: boolean
         </DialogHeader>
         <form className="grid gap-4 sm:grid-cols-2" onSubmit={(e) => {
           e.preventDefault();
-          save.mutate({ ...form, name: form.name.trim(), purchasePrice: parseMoney(price) }, {
+          save.mutate({ ...form, name: form.name.trim(), purchasePrice: parseMoney(price), depreciationMonths: months === '' ? null : Number(months) }, {
             onSuccess: () => { toast.success(device ? 'Đã lưu thiết bị' : 'Đã thêm thiết bị'); onOpenChange(false); },
             onError: (x) => !Object.keys(fieldErrors(x)).length && toast.error(errorMessage(x)),
           });
@@ -59,6 +64,9 @@ export function DeviceFormDialog({ open, onOpenChange, device }: { open: boolean
             onChange={(e) => setPrice(e.target.value.replace(/[^\d]/g, ''))} />
           <FormField id="dv-purchase" label="Ngày mua" type="date" value={form.purchaseDate ?? ''} error={errors.purchaseDate} onChange={(e) => set('purchaseDate', e.target.value || null)} />
           <FormField id="dv-warranty" label="Bảo hành đến" type="date" value={form.warrantyUntil ?? ''} error={errors.warrantyUntil} onChange={(e) => set('warrantyUntil', e.target.value || null)} />
+          <FormField id="dv-months" label="Số tháng khấu hao" inputMode="numeric" value={months} error={errors.depreciationMonths}
+            placeholder={categoryMonths ? `Theo loại: ${categoryMonths}` : 'Theo loại'}
+            hint="Để trống = theo loại; 0 = không khấu hao" onChange={(e) => setMonths(e.target.value.replace(/[^\d]/g, '').slice(0, 3))} />
           <div className="grid gap-2 sm:col-span-2">
             <Label htmlFor="dv-note">Ghi chú</Label>
             <Textarea id="dv-note" rows={3} value={form.note ?? ''} onChange={text('note')} />

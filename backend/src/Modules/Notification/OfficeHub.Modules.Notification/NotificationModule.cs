@@ -22,6 +22,7 @@ public sealed class NotificationModule : IModule
         services.AddOptions<FirebaseSettings>().Bind(config.GetSection(FirebaseSettings.Section));
         services.AddScoped<IPushSender, PushSender>();
         services.AddScoped<INotifier, Notifier>();
+        services.AddScoped<IEmailOutbox, EmailOutbox>(); // trang Hệ thống → Vận hành
         services.AddHostedService<NotificationMigrator>(); // trước EmailDispatcher: bảng phải có trước khi worker quét
         services.AddHostedService<EmailDispatcher>();
     }

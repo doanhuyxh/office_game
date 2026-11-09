@@ -2,20 +2,25 @@ using OfficeHub.Modules.Assets.Domain;
 
 namespace OfficeHub.Modules.Assets.Features;
 
-public sealed record CategoryDto(Guid Id, string Code, string Name, int SortOrder, bool IsActive);
-public sealed record CategoryRequest(string? Code, string? Name, int SortOrder, bool IsActive);
+public sealed record CategoryDto(Guid Id, string Code, string Name, int SortOrder, bool IsActive, int? DepreciationMonths);
+public sealed record CategoryRequest(string? Code, string? Name, int SortOrder, bool IsActive, int? DepreciationMonths);
 
 public sealed record DeviceDto(Guid Id, string Code, Guid CategoryId, string CategoryName, string Name, string? Brand, string? Model,
     string? SerialNumber, DateOnly? PurchaseDate, decimal? PurchasePrice, DateOnly? WarrantyUntil, DeviceStatus Status, string? StatusReason,
-    Guid? HolderEmployeeId, string? HolderName, string? HolderCode, string? Note, DateTimeOffset CreatedAt);
+    Guid? HolderEmployeeId, string? HolderName, string? HolderCode, string? Note, DateTimeOffset CreatedAt,
+    int? DepreciationMonths, int? EffectiveDepreciationMonths, int? MonthsUsed, decimal? AccumulatedDepreciation, decimal? BookValue);
 
 public sealed record AssignmentDto(Guid Id, Guid EmployeeId, string EmployeeName, string EmployeeCode, DateTimeOffset AssignedAt,
     string? AssignedByName, string? AssignNote, DateTimeOffset? ReturnedAt, string? ReturnedByName, string? ReturnNote);
 
-public sealed record DeviceDetailDto(DeviceDto Device, IReadOnlyList<AssignmentDto> History);
+public sealed record HandoverDto(Guid Id, string Number, HandoverKind Kind, Guid DeviceId, string DeviceCode, string DeviceName, string? SerialNumber,
+    Guid EmployeeId, string EmployeeCode, string EmployeeName, string? Note, DateTimeOffset CreatedAt, string CreatedByName, bool RequiresConfirmation,
+    DateTimeOffset? ConfirmedAt, string? ConfirmedIp);
+
+public sealed record DeviceDetailDto(DeviceDto Device, IReadOnlyList<AssignmentDto> History, IReadOnlyList<HandoverDto> Handovers, int AttachmentCount);
 
 public sealed record DeviceRequest(Guid? CategoryId, string? Name, string? Brand, string? Model, string? SerialNumber, DateOnly? PurchaseDate,
-    decimal? PurchasePrice, DateOnly? WarrantyUntil, string? Note);
+    decimal? PurchasePrice, DateOnly? WarrantyUntil, string? Note, int? DepreciationMonths = null);
 public sealed record AssignRequest(Guid? EmployeeId, string? Note);
 public sealed record ReturnRequest(string? Note);
 public sealed record StatusRequest(DeviceStatus Status, string? Reason);
@@ -39,7 +44,7 @@ public sealed record RenewalDueDto(Guid Id, string Name, DateOnly RenewalDate);
 public sealed record ResignedHoldingDto(Guid EmployeeId, string Code, string FullName, DateOnly? LeftAt, int Devices, int Seats);
 public sealed record OverviewDto(IReadOnlyDictionary<string, int> DeviceCounts, int DeviceTotal, decimal TotalPurchaseValue, int ActiveServices,
     decimal MonthlyServiceCost, int SeatsInUse, IReadOnlyList<WarrantyDueDto> WarrantiesDue, IReadOnlyList<RenewalDueDto> RenewalsDue,
-    IReadOnlyList<ResignedHoldingDto> ResignedHolding);
+    IReadOnlyList<ResignedHoldingDto> ResignedHolding, decimal TotalBookValue, int UnconfirmedHandovers);
 
 public sealed record ReviewDto(Guid Id, string Title, ReviewStatus Status, DateOnly DueDate, DateTimeOffset StartedAt, string? StartedByName,
     DateTimeOffset? ClosedAt, int Total, int Decided, int ToRevoke);
@@ -58,3 +63,12 @@ public sealed record StocktakeDetailDto(StocktakeDto Stocktake, IReadOnlyList<St
 public sealed record StocktakeStartRequest(string? Title);
 public sealed record StocktakeCheckRequest(StocktakeResult Result, string? Note);
 public sealed record StocktakeCloseRequest(bool MarkMissingAsLost);
+
+public sealed record AttachmentDto(Guid Id, Guid DeviceId, AttachmentKind Kind, string FileName, string ContentType, long Size, DateTimeOffset CreatedAt,
+    string CreatedByName);
+public sealed record AttachmentUploadRequest(AttachmentKind Kind, string? FileName, string? ContentType, long Size);
+public sealed record AttachmentUploadDto(Guid Id, string UploadUrl, string ContentType, DateTimeOffset ExpiresAt);
+public sealed record FileUrlDto(string Url);
+
+public sealed record AssetSettingsDto(string? HandoverTemplateName, DateTimeOffset? UpdatedAt, string? UpdatedByName);
+public sealed record TemplateFieldDto(string Name, string Description, string Example);

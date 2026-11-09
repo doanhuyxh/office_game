@@ -19,6 +19,12 @@ public enum ReviewStatus { Open = 0, Closed = 1 }
 [JsonConverter(typeof(JsonStringEnumConverter<ReviewDecision>))]
 public enum ReviewDecision { Pending = 0, Keep = 1, Revoke = 2 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<AttachmentKind>))]
+public enum AttachmentKind { Photo = 0, Invoice = 1, Other = 2 }
+
+[JsonConverter(typeof(JsonStringEnumConverter<HandoverKind>))]
+public enum HandoverKind { Assign = 0, Return = 1 }
+
 [JsonConverter(typeof(JsonStringEnumConverter<StocktakeResult>))]
 public enum StocktakeResult { Pending = 0, Found = 1, Missing = 2 }
 
@@ -31,6 +37,8 @@ public sealed class Category
     public required string Name { get; set; }
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
+    /// <summary>Số tháng khấu hao đường thẳng mặc định của loại (null / 0 = không khấu hao).</summary>
+    public int? DepreciationMonths { get; set; }
 }
 
 /// <summary>Thiết bị của công ty (máy tính, màn hình, điện thoại, phụ kiện).</summary>
@@ -48,6 +56,8 @@ public sealed class Device
     /// <summary>Giá mua (VND). Chỉ HR thấy.</summary>
     public decimal? PurchasePrice { get; set; }
     public DateOnly? WarrantyUntil { get; set; }
+    /// <summary>Số tháng khấu hao riêng của thiết bị (null = theo loại).</summary>
+    public int? DepreciationMonths { get; set; }
     public DeviceStatus Status { get; set; }
     public Guid? HolderEmployeeId { get; set; }
     public string? Note { get; set; }
@@ -187,4 +197,65 @@ public sealed class OffboardingNotice
 {
     public Guid EmployeeId { get; set; }
     public DateTimeOffset NotifiedAt { get; set; }
+}
+
+/// <summary>Ảnh / hoá đơn / tệp khác của thiết bị (S3 <c>assets/devices/</c>). Xoá = ẩn, file giữ lại.</summary>
+public sealed class DeviceAttachment
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid DeviceId { get; set; }
+    public AttachmentKind Kind { get; set; }
+    public required string FileName { get; set; }
+    public required string ContentType { get; set; }
+    public long Size { get; set; }
+    public required string FileKey { get; set; }
+    /// <summary>false = đã cấp link tải lên nhưng trình duyệt chưa xác nhận.</summary>
+    public bool Ready { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public Guid CreatedByUserId { get; set; }
+    public required string CreatedByName { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
+    public string? DeletedByName { get; set; }
+}
+
+/// <summary>
+/// Biên bản giao nhận (cấp / thu hồi) thiết bị: chụp thông tin lúc lập; nhân viên bấm xác nhận trong app (ghi thời điểm + IP).
+/// Chỉ thêm, không xoá.
+/// </summary>
+public sealed class HandoverRecord
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    /// <summary>BB-{năm}-{00001}.</summary>
+    public required string Number { get; set; }
+    public HandoverKind Kind { get; set; }
+    public Guid DeviceId { get; set; }
+    public Guid AssignmentId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public required string EmployeeCode { get; set; }
+    public required string EmployeeName { get; set; }
+    public string? DepartmentName { get; set; }
+    public required string DeviceCode { get; set; }
+    public required string DeviceName { get; set; }
+    public string? CategoryName { get; set; }
+    public string? Brand { get; set; }
+    public string? Model { get; set; }
+    public string? SerialNumber { get; set; }
+    public string? Note { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public required string CreatedByName { get; set; }
+    /// <summary>false = nhân viên không còn tài khoản / đã nghỉ lúc lập → không chờ xác nhận.</summary>
+    public bool RequiresConfirmation { get; set; }
+    public DateTimeOffset? ConfirmedAt { get; set; }
+    public string? ConfirmedIp { get; set; }
+    public DateTimeOffset? RemindedAt { get; set; }
+}
+
+/// <summary>Cấu hình module (một dòng): mẫu Word biên bản giao nhận riêng của công ty.</summary>
+public sealed class AssetSettings
+{
+    public int Id { get; set; } = 1;
+    public string? HandoverTemplateKey { get; set; }
+    public string? HandoverTemplateName { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
+    public string? UpdatedByName { get; set; }
 }

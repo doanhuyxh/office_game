@@ -49,6 +49,7 @@ public static class HostingExtensions
             .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
 
         builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton<JobMonitor>(); // trạng thái job nền cho trang Hệ thống → Vận hành
         builder.Services.AddSingleton<OfficeNetwork>();
         // Body JSON sai (kiểu dữ liệu, thời điểm thiếu múi giờ…) → 400 ở MỌI môi trường (mặc định Development ném ra thành 500,
         // Production trả 400 không nội dung). Thông điệp tiếng Việt của Instants được giữ để FE / AI hiển thị.
