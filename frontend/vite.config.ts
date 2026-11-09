@@ -31,6 +31,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
+      // Mặc định Vite 8 = Safari 16.4+ → iPhone đời cũ (iOS 15, vd. 6s/7) lỗi cú pháp `static {}` → màn hình trống.
+      // Hạ target để Oxc/Lightning CSS chuyển cú pháp JS + màu CSS (color-mix, oklch) về dạng Safari 15 hiểu.
+      target: ['es2020', 'safari15', 'chrome100', 'firefox100', 'edge100'],
       chunkSizeWarningLimit: 600, // three.js ~540KB, đã tách chunk riêng
       rollupOptions: {
         output: { manualChunks: (id) => (id.includes('node_modules/three/') ? 'three' : undefined) },
