@@ -9,7 +9,6 @@ import {
 import { Badge } from '@/components/common/badge';
 import { Button } from '@/components/common/button';
 import { Checkbox } from '@/components/common/checkbox';
-import { Label } from '@/components/common/label';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/common/dropdown-menu';
@@ -66,14 +65,14 @@ function canResetTwoFactor(e: IEmployee, meId: string | undefined, isAdmin: bool
   return !!a?.twoFactorEnabled && e.userId !== meId && (isAdmin || !a.roles.includes('admin'));
 }
 
-export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
+/** Danh sách nhân viên. <c>resigned</c> = tab "Đã nghỉ việc" (HR): chỉ người đã nghỉ, không thêm mới / cho nghỉ hàng loạt. */
+export function EmployeeTable({ canEdit, resigned = false }: { canEdit: boolean; resigned?: boolean }) {
   const [search, setSearch] = useState('');
   const [departmentId, setDepartmentId] = useState<string | null>(null);
-  const [includeResigned, setIncludeResigned] = useState(false);
   const debounced = useDebounce(search, 300);
-  const filter = { search: debounced, departmentId: departmentId ?? undefined, includeResigned: canEdit && includeResigned };
-  const filterKey = `${debounced}|${departmentId ?? ''}|${filter.includeResigned}`;
-  const pg = usePageState('employees', filterKey);
+  const filter = { search: debounced, departmentId: departmentId ?? undefined, onlyResigned: canEdit && resigned };
+  const filterKey = `${debounced}|${departmentId ?? ''}|${filter.onlyResigned}`;
+  const pg = usePageState(resigned ? 'employees-resigned' : 'employees', filterKey);
   const { data, isLoading } = useEmployeesPage(filter, pg.query);
   const employees = data?.items ?? [];
   // Trạng thái / ngày vào làm: BE chỉ trả cho HR, chính chủ và quản lý của người đó → không có dòng nào thì bỏ cả cột
@@ -139,15 +138,9 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
           <SelectField id="filter-dept" label="Phòng ban" allowEmpty emptyLabel="Tất cả phòng ban" value={departmentId} onChange={setDepartmentId}
             options={departmentOptions(departments)} />
         </div>
-        {canEdit && (
-          <Label className="h-9 font-normal">
-            <Checkbox checked={includeResigned} onCheckedChange={(c) => setIncludeResigned(c === true)} />
-            Hiện người đã nghỉ
-          </Label>
-        )}
         <div className="ms-auto flex items-center gap-2">
           <ColumnsMenu state={cols} />
-          {canEdit && (
+          {canEdit && !resigned && (
             <Button onClick={() => setDialog({ kind: 'form', employee: null })}>
               <Plus /> Thêm nhân viên
             </Button>
@@ -158,7 +151,7 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
       {canEdit && (
         <BulkActionBar count={selected.size} pageAllSelected={pageAllSelected} total={data?.total ?? 0} allMatching={allMatching}
           loadingAll={loadingAll} onSelectAll={selectAllMatching} onClear={clearSelection} onExport={exportSelected}
-          onEdit={() => setDialog({ kind: 'bulk-update' })} onResign={() => setDialog({ kind: 'bulk-resign' })} />
+          onEdit={() => setDialog({ kind: 'bulk-update' })} onResign={resigned ? undefined : () => setDialog({ kind: 'bulk-resign' })} />
       )}
 
       <div className="rounded-xl border bg-card">
@@ -188,11 +181,11 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
             )}
             {!isLoading && employees.length === 0 && (
               <TableRow><TableCell colSpan={cols.span(canEdit ? 2 : 1)} className="py-8 text-center text-muted-foreground">
-                {search || departmentId ? 'Không tìm thấy nhân viên phù hợp' : 'Chưa có nhân viên nào'}
+                {search || departmentId ? 'Không tìm thấy nhân viên phù hợp' : resigned ? 'Chưa có ai nghỉ việc' : 'Chưa có nhân viên nào'}
               </TableCell></TableRow>
             )}
             {employees.map((e) => (
-              <TableRow key={e.id} className={e.status === 'Resigned' ? 'opacity-60' : undefined} data-state={selected.has(e.id) ? 'selected' : undefined}>
+              <TableRow key={e.id} className={e.status === 'Resigned' && !resigned ? 'opacity-60' : undefined} data-state={selected.has(e.id) ? 'selected' : undefined}>
                 {canEdit && (
                   <TableCell>
                     <Checkbox aria-label={`Chọn ${e.code}`} checked={selected.has(e.id)} onCheckedChange={(c) => toggle(e, c === true)} />

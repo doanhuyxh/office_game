@@ -107,10 +107,10 @@ internal static class BulkEndpoints
 
     /// <summary>
     /// Excel danh sách nhân viên. <c>ids</c> (phân cách bằng dấu phẩy) → chỉ những người đó; không có → mọi người khớp bộ lọc
-    /// (cùng tham số với danh bạ: search, departmentId, includeResigned).
+    /// (cùng tham số với danh bạ: search, departmentId, includeResigned, status — vd status=Resigned cho tab Đã nghỉ việc).
     /// </summary>
     private static async Task<Results<FileContentHttpResult, ValidationProblem>> ExportAsync(string? ids, string? search, Guid? departmentId,
-        bool? includeResigned, OrgDbContext db, IAccountService accounts, CancellationToken ct)
+        bool? includeResigned, string? status, OrgDbContext db, IAccountService accounts, CancellationToken ct)
     {
         var q = db.Employees.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(ids))
@@ -125,7 +125,8 @@ internal static class BulkEndpoints
         }
         else
         {
-            if (includeResigned != true) q = q.Where(e => e.Status != EmployeeStatus.Resigned);
+            if (includeResigned != true && status is null) q = q.Where(e => e.Status != EmployeeStatus.Resigned);
+            if (Enum.TryParse<EmployeeStatus>(status, true, out var st)) q = q.Where(e => e.Status == st);
             if (departmentId is { } did) q = q.Where(e => e.DepartmentId == did);
             if (!string.IsNullOrWhiteSpace(search))
             {

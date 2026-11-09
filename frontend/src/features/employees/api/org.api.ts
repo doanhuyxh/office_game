@@ -30,6 +30,7 @@ const employeeParams = (f: IEmployeeFilter) => {
   if (f.search) q.set('search', f.search);
   if (f.departmentId) q.set('departmentId', f.departmentId);
   if (f.includeResigned) q.set('includeResigned', 'true');
+  if (f.onlyResigned) q.set('status', 'Resigned');
   return q;
 };
 

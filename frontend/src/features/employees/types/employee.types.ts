@@ -66,6 +66,8 @@ export interface IEmployeeFilter {
   search?: string;
   departmentId?: string;
   includeResigned?: boolean;
+  /** Chỉ người đã nghỉ việc (tab "Đã nghỉ việc", HR) → status=Resigned. */
+  onlyResigned?: boolean;
 }
 
 /** Đổi hàng loạt: set* = true mới đổi trường đó (giá trị null = bỏ trống). */

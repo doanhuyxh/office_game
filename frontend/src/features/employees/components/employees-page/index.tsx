@@ -18,7 +18,7 @@ export function EmployeesPage() {
   const canEdit = hasRole(me, 'admin', 'hr');
   const [importing, setImporting] = useState(false);
   const pending = usePendingProfileRequestCount(canEdit);
-  const [tab, setTab] = useTabParam('employees', ['employees', 'departments', 'positions', ...(canEdit ? ['chart', 'requests'] : [])]);
+  const [tab, setTab] = useTabParam('employees', ['employees', ...(canEdit ? ['resigned'] : []), 'departments', 'positions', ...(canEdit ? ['chart', 'requests'] : [])]);
   return (
     <div className="space-y-6">
       <PageHeader title="Nhân viên" />
@@ -26,6 +26,7 @@ export function EmployeesPage() {
         <PageToolbar actions={canEdit && <Button variant="outline" onClick={() => setImporting(true)}><FileSpreadsheet className="size-4" /> Nhập từ Excel</Button>}>
         <TabsList>
           <TabsTrigger value="employees">Nhân viên</TabsTrigger>
+          {canEdit && <TabsTrigger value="resigned">Đã nghỉ việc</TabsTrigger>}
           <TabsTrigger value="departments">Phòng ban</TabsTrigger>
           <TabsTrigger value="positions">Chức vụ</TabsTrigger>
           {canEdit && <TabsTrigger value="chart">Sơ đồ tổ chức</TabsTrigger>}
@@ -33,6 +34,7 @@ export function EmployeesPage() {
         </TabsList>
         </PageToolbar>
         <TabsContent value="employees" className="mt-4"><EmployeeTable canEdit={canEdit} /></TabsContent>
+        {canEdit && <TabsContent value="resigned" className="mt-4"><EmployeeTable canEdit resigned /></TabsContent>}
         <TabsContent value="departments" className="mt-4"><DepartmentsPanel canEdit={canEdit} /></TabsContent>
         <TabsContent value="positions" className="mt-4"><PositionsPanel canEdit={canEdit} /></TabsContent>
         {canEdit && <TabsContent value="chart" className="mt-4"><OrgChart /></TabsContent>}

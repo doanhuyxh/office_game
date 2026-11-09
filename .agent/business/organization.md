@@ -17,6 +17,8 @@ Mọi route dưới `/api/org` yêu cầu đăng nhập. Ghi = policy `AuthPolic
 | POST | `/employees/{id}/resign` | HR | `{ leftAt }` → 204 |
 | POST | `/employees/{id}/reactivate` | HR | 204 |
 
+UI `/employees`: tab **Nhân viên** chỉ người đang làm; tab **Đã nghỉ việc** (chỉ HR, `?tab=resigned`, gọi `status=Resigned`) liệt kê người đã nghỉ — khôi phục, sửa, xuất Excel; không có "Thêm nhân viên" / nghỉ việc hàng loạt.
+
 ### Validate khi tạo / sửa (`ValidateAsync`, 400 theo field)
 
 | Field | Lỗi |

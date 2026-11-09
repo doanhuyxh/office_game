@@ -17,7 +17,8 @@ export function BulkActionBar({ count, pageAllSelected, total, allMatching, load
   onClear: () => void;
   onEdit: () => void;
   onExport: () => void;
-  onResign: () => void;
+  /** Không truyền = ẩn nút (tab Đã nghỉ việc). */
+  onResign?: () => void;
 }) {
   if (count === 0) return null;
   return (
@@ -33,7 +34,7 @@ export function BulkActionBar({ count, pageAllSelected, total, allMatching, load
       <div className="ms-auto flex flex-wrap items-center gap-2">
         <Button size="sm" variant="outline" onClick={onEdit}><PencilLine /> Đổi phòng ban / quản lý / chức vụ</Button>
         <Button size="sm" variant="outline" onClick={onExport}><FileSpreadsheet /> Xuất Excel</Button>
-        <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={onResign}><UserX /> Nghỉ việc</Button>
+        {onResign && <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={onResign}><UserX /> Nghỉ việc</Button>}
         <Button size="sm" variant="ghost" onClick={onClear} aria-label="Bỏ chọn"><X /> Bỏ chọn</Button>
       </div>
     </div>
