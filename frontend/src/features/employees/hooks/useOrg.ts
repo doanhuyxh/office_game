@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/services/api-client';
 import type { IPageQuery } from '@/types/api';
 import { departmentsApi, employeesApi, guidesApi, orgKeys, positionsApi } from '../api/org.api';
-import type { AccountMode, IEmployeeFilter, IUpsertDepartment, IUpsertEmployee, IUpsertPosition } from '../types/employee.types';
+import type { AccountMode, IBulkUpdateEmployees, IEmployeeFilter, IUpsertDepartment, IUpsertEmployee, IUpsertPosition } from '../types/employee.types';
 
 // ---------- Đọc ----------
 export const useEmployees = (f: IEmployeeFilter = {}) =>
@@ -35,6 +35,16 @@ export function useSaveEmployee() {
 export function useResignEmployee() {
   const invalidate = useInvalidateOrg();
   return useMutation({ mutationFn: ({ id, leftAt }: { id: string; leftAt: string }) => employeesApi.resign(id, leftAt), onSuccess: invalidate });
+}
+
+export function useBulkUpdateEmployees() {
+  const invalidate = useInvalidateOrg();
+  return useMutation({ mutationFn: (body: IBulkUpdateEmployees) => employeesApi.bulkUpdate(body), onSuccess: invalidate });
+}
+
+export function useBulkResignEmployees() {
+  const invalidate = useInvalidateOrg();
+  return useMutation({ mutationFn: ({ ids, leftAt }: { ids: string[]; leftAt: string }) => employeesApi.bulkResign(ids, leftAt), onSuccess: invalidate });
 }
 
 export function useReactivateEmployee() {

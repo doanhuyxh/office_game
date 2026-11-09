@@ -48,6 +48,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Tài chính: quyền theo chức vụ (`IFinanceAccess`), quỹ, sổ thu chi, khoá sổ, đề nghị chi qua bước duyệt `Finance` | [finance.md](finance.md) |
 | Lịch sử sửa dữ liệu nhân sự (`[Audited]`, interceptor, che lương), nhật ký | [audit.md](audit.md) |
 | Nhập nhân viên từ Excel (mẫu, xem trước, nhập hết hoặc không) | [employee-import.md](employee-import.md) |
+| Thao tác hàng loạt trên danh sách nhân viên (tích chọn, đổi phòng ban / quản lý / chức vụ, nghỉ việc, xuất Excel) | [employee-bulk.md](employee-bulk.md) |
 
 ## Nguyên tắc chung
 

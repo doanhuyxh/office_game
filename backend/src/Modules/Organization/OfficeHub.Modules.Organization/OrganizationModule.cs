@@ -38,6 +38,7 @@ public sealed class OrganizationModule : IModule
         ProfileEndpoints.Map(org);
         EmployeeEndpoints.Map(org);
         ImportEndpoints.Map(org);
+        BulkEndpoints.Map(org);
         AccountEndpoints.Map(org);
     }
 }

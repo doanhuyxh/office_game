@@ -1,6 +1,7 @@
 import { http, httpPost, pageQs } from '@/services/api-client';
 import type { IPaged, IPageQuery } from '@/types/api';
 import type {
+  IBulkUpdateEmployees,
   IMyFinanceAccess,
   AccountMode, IAccountCreated, IDepartment, IEmployee, IEmployeeDetail, IEmployeeFilter, IPosition,
   IImportPreview, IImportResult, IUpsertDepartment, IUpsertEmployee, IUpsertPosition,
@@ -44,6 +45,12 @@ export const employeesApi = {
   update: (id: string, body: IUpsertEmployee) => put<IEmployeeDetail>(`/api/org/employees/${id}`, body),
   resign: (id: string, leftAt: string) => httpPost<void>(`/api/org/employees/${id}/resign`, { leftAt }),
   reactivate: (id: string) => httpPost<void>(`/api/org/employees/${id}/reactivate`),
+  // Thao tác hàng loạt (HR)
+  bulkUpdate: (body: IBulkUpdateEmployees) => httpPost<{ affected: number }>('/api/org/employees/bulk/update', body),
+  bulkResign: (ids: string[], leftAt: string) => httpPost<{ affected: number }>('/api/org/employees/bulk/resign', { ids, leftAt }),
+  /** Excel: theo danh sách id đã chọn, hoặc (không truyền ids) mọi người khớp bộ lọc. */
+  exportUrl: (sel: { ids: string[] } | { filter: IEmployeeFilter }) =>
+    `/api/org/employees/export?${'ids' in sel ? `ids=${sel.ids.join(',')}` : employeeParams(sel.filter)}`,
   // Tài khoản đăng nhập
   createAccount: (id: string, mode: AccountMode, roles: string[], userName?: string) =>
     httpPost<IAccountCreated>(`/api/org/employees/${id}/account`, { mode, roles, userName: userName || null }),

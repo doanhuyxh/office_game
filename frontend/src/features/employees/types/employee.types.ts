@@ -68,6 +68,17 @@ export interface IEmployeeFilter {
   includeResigned?: boolean;
 }
 
+/** Đổi hàng loạt: set* = true mới đổi trường đó (giá trị null = bỏ trống). */
+export interface IBulkUpdateEmployees {
+  ids: string[];
+  setDepartment: boolean;
+  departmentId: string | null;
+  setPosition: boolean;
+  positionId: string | null;
+  setManager: boolean;
+  managerId: string | null;
+}
+
 export type AccountMode = 'invite' | 'password';
 
 export interface IAccountCreated {

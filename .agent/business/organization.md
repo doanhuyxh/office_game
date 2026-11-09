@@ -40,7 +40,7 @@ Không có API xoá nhân viên (giữ dữ liệu chấm công).
 
 ## Cấp tài khoản
 
-Mời qua email / mật khẩu tạm, đổi vai trò, bảo vệ vai trò admin → [organization-accounts.md](organization-accounts.md). Nhập hồ sơ hàng loạt từ Excel → [employee-import.md](employee-import.md).
+Mời qua email / mật khẩu tạm, đổi vai trò, bảo vệ vai trò admin → [organization-accounts.md](organization-accounts.md). Nhập hồ sơ hàng loạt từ Excel → [employee-import.md](employee-import.md). Tích chọn + thao tác hàng loạt (đổi phòng ban / quản lý / chức vụ, nghỉ việc, xuất Excel) → [employee-bulk.md](employee-bulk.md).
 
 ## Phòng ban & chức vụ
 

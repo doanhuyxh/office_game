@@ -1,4 +1,5 @@
 import { Suspense, lazy, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { MoreHorizontal, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -19,6 +20,8 @@ import { TablePagination, usePageState } from '@/components/common/pagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import { errorMessage } from '@/utils/errors';
 import { formatDate } from '@/utils/date';
+import { downloadUrl } from '@/utils/money';
+import { employeesApi, orgKeys } from '../../api/org.api';
 import {
   useDepartments, useEmployeesPage, useReactivateEmployee, useResendInvite, useResetAccountPassword, useResetTwoFactor, useResignEmployee,
 } from '../../hooks/useOrg';
@@ -27,6 +30,9 @@ import type { IEmployee } from '../../types/employee.types';
 import { ROLE_LABEL, STATUS_LABEL, STATUS_VARIANT } from '../../utils/labels';
 import { CreateAccountDialog, ResignDialog, RolesDialog, TempPasswordDialog } from '../account-dialogs';
 import { EmployeeFormDialog } from '../employee-form-dialog';
+import { BulkActionBar } from '../bulk-action-bar';
+import { BulkResignDialog } from '../bulk-resign-dialog';
+import { BulkUpdateDialog } from '../bulk-update-dialog';
 import { departmentOptions } from '../../utils/orgTree';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import { EmployeePrivateDialog } from '@/features/profile';
@@ -39,7 +45,10 @@ type DialogState =
   | { kind: 'form'; employee: IEmployee | null }
   | { kind: 'account' | 'roles' | 'resign' | 'private' | 'reset2fa' | 'holdings'; employee: IEmployee }
   | { kind: 'temp'; userName: string; password: string }
+  | { kind: 'bulk-update' | 'bulk-resign' }
   | null;
+
+const NO_SELECTION = new Map<string, IEmployee>();
 
 function AccountBadge({ e }: { e: IEmployee }) {
   if (!e.userId) return <Badge variant="outline" className="text-muted-foreground">Chưa có</Badge>;
@@ -63,7 +72,8 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
   const [includeResigned, setIncludeResigned] = useState(false);
   const debounced = useDebounce(search, 300);
   const filter = { search: debounced, departmentId: departmentId ?? undefined, includeResigned: canEdit && includeResigned };
-  const pg = usePageState('employees', `${debounced}|${departmentId ?? ''}|${filter.includeResigned}`);
+  const filterKey = `${debounced}|${departmentId ?? ''}|${filter.includeResigned}`;
+  const pg = usePageState('employees', filterKey);
   const { data, isLoading } = useEmployeesPage(filter, pg.query);
   const employees = data?.items ?? [];
   // Trạng thái / ngày vào làm: BE chỉ trả cho HR, chính chủ và quản lý của người đó → không có dòng nào thì bỏ cả cột
@@ -88,6 +98,35 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
   const isAdmin = hasRole(me, 'admin');
 
   const onError = (err: unknown) => toast.error(errorMessage(err));
+
+  // Chọn hàng loạt (HR): gắn với bộ lọc — đổi bộ lọc là bỏ chọn. allMatching = đã chọn toàn bộ người khớp bộ lọc (mọi trang).
+  const qc = useQueryClient();
+  const [sel, setSel] = useState({ key: filterKey, items: NO_SELECTION, allMatching: false });
+  const selected = sel.key === filterKey ? sel.items : NO_SELECTION;
+  const allMatching = sel.key === filterKey && sel.allMatching;
+  const [loadingAll, setLoadingAll] = useState(false);
+  const pageSelected = employees.filter((e) => selected.has(e.id)).length;
+  const pageAllSelected = employees.length > 0 && pageSelected === employees.length;
+  const setSelected = (items: Map<string, IEmployee>, all = false) => setSel({ key: filterKey, items, allMatching: all });
+  const toggle = (e: IEmployee, on: boolean) => {
+    const next = new Map(selected);
+    if (on) next.set(e.id, e); else next.delete(e.id);
+    setSelected(next);
+  };
+  const togglePage = (on: boolean) => {
+    const next = new Map(selected);
+    employees.forEach((e) => (on ? next.set(e.id, e) : next.delete(e.id)));
+    setSelected(next);
+  };
+  const clearSelection = () => setSelected(new Map());
+  const selectAllMatching = async () => {
+    setLoadingAll(true);
+    try {
+      const all = await qc.fetchQuery({ queryKey: orgKeys.employees(filter), queryFn: () => employeesApi.list(filter) });
+      setSelected(new Map(all.map((e) => [e.id, e])), true);
+    } catch (err) { onError(err); } finally { setLoadingAll(false); }
+  };
+  const exportSelected = () => downloadUrl(employeesApi.exportUrl(allMatching ? { filter } : { ids: [...selected.keys()] }));
 
   return (
     <div className="space-y-4">
@@ -116,10 +155,23 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
         </div>
       </div>
 
+      {canEdit && (
+        <BulkActionBar count={selected.size} pageAllSelected={pageAllSelected} total={data?.total ?? 0} allMatching={allMatching}
+          loadingAll={loadingAll} onSelectAll={selectAllMatching} onClear={clearSelection} onExport={exportSelected}
+          onEdit={() => setDialog({ kind: 'bulk-update' })} onResign={() => setDialog({ kind: 'bulk-resign' })} />
+      )}
+
       <div className="rounded-xl border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
+              {canEdit && (
+                <TableHead className="w-10">
+                  <Checkbox aria-label="Chọn cả trang" disabled={employees.length === 0}
+                    checked={pageAllSelected ? true : pageSelected > 0 ? 'indeterminate' : false}
+                    onCheckedChange={() => togglePage(!pageAllSelected)} />
+                </TableHead>
+              )}
               {v('code') && <TableHead>Mã</TableHead>}
               <TableHead>Họ tên</TableHead>
               {v('department') && <TableHead>Phòng ban</TableHead>}
@@ -132,15 +184,20 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
           </TableHeader>
           <TableBody>
             {isLoading && (
-              <TableRow><TableCell colSpan={cols.span(1)} className="text-center text-muted-foreground">Đang tải…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={cols.span(canEdit ? 2 : 1)} className="text-center text-muted-foreground">Đang tải…</TableCell></TableRow>
             )}
             {!isLoading && employees.length === 0 && (
-              <TableRow><TableCell colSpan={cols.span(1)} className="py-8 text-center text-muted-foreground">
+              <TableRow><TableCell colSpan={cols.span(canEdit ? 2 : 1)} className="py-8 text-center text-muted-foreground">
                 {search || departmentId ? 'Không tìm thấy nhân viên phù hợp' : 'Chưa có nhân viên nào'}
               </TableCell></TableRow>
             )}
             {employees.map((e) => (
-              <TableRow key={e.id} className={e.status === 'Resigned' ? 'opacity-60' : undefined}>
+              <TableRow key={e.id} className={e.status === 'Resigned' ? 'opacity-60' : undefined} data-state={selected.has(e.id) ? 'selected' : undefined}>
+                {canEdit && (
+                  <TableCell>
+                    <Checkbox aria-label={`Chọn ${e.code}`} checked={selected.has(e.id)} onCheckedChange={(c) => toggle(e, c === true)} />
+                  </TableCell>
+                )}
                 {v('code') && <TableCell className="font-mono text-xs">{e.code}</TableCell>}
                 <TableCell>
                   <div className="flex items-center gap-2">
@@ -264,6 +321,8 @@ export function EmployeeTable({ canEdit }: { canEdit: boolean }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <BulkUpdateDialog ids={[...selected.keys()]} open={dialog?.kind === 'bulk-update'} onOpenChange={close} onDone={clearSelection} />
+      <BulkResignDialog employees={[...selected.values()]} open={dialog?.kind === 'bulk-resign'} onOpenChange={close} onDone={clearSelection} />
       {dialog?.kind === 'temp' && <TempPasswordDialog open onOpenChange={close} userName={dialog.userName} password={dialog.password} />}
     </div>
   );
