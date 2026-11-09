@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
+import { legacyColorFallback } from './scripts/legacy-color-fallback';
 
 const shared = fileURLToPath(new URL('../shared', import.meta.url));
 
@@ -11,6 +12,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tailwindcss(),
+      legacyColorFallback(fileURLToPath(new URL('./src/assets/styles/global.css', import.meta.url))),
     ],
     resolve: {
       alias: {
