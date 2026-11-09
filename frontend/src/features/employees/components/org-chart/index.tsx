@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
-import { AlertTriangle, ChevronDown, ChevronRight, Crown, Expand, Maximize2, Minimize, Minus, Network, Plus, Users } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, ChevronUp, Expand, Maximize2, Minimize, Minus, Network, Plus, Users } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { Checkbox } from '@/components/common/checkbox';
 import { Spinner } from '@/components/feedback/Spinner';
@@ -31,52 +31,117 @@ function Person({ e, compact, highlight }: { e: IEmployee; compact?: boolean; hi
 }
 
 // ---------------- Theo phòng ban ----------------
+// Cấp 1 xếp ngang dưới "Công ty", phòng con xếp DỌC dưới phòng cha (thụt lề + đường kẻ trái)
+// → sơ đồ chỉ rộng bằng số phòng cấp 1, đọc được ở 100% thay vì một hàng ngang hàng chục thẻ.
 
 interface DeptNode { dept: IDepartment | null; children: DeptNode[] }
+interface DeptCtx { byDept: Map<string, IEmployee[]>; empById: Map<string, IEmployee>; showMembers: boolean; full: boolean }
 
-function DeptCard({ node, members, head, showMembers, full }: { node: DeptNode; members: IEmployee[]; head?: IEmployee; showMembers: boolean; full: boolean }) {
-  const d = node.dept;
-  const others = members.filter((m) => m.id !== head?.id).sort(byRank);
+const ownMembers = (n: DeptNode, c: DeptCtx) => c.byDept.get(n.dept?.id ?? NO_DEPT) ?? [];
+/** Số người của phòng, tính cả các phòng con. */
+const totalMembers = (n: DeptNode, c: DeptCtx): number => ownMembers(n, c).length + n.children.reduce((s, x) => s + totalMembers(x, c), 0);
+const headOf = (n: DeptNode, c: DeptCtx) => (n.dept?.headEmployeeId ? c.empById.get(n.dept.headEmployeeId) : undefined);
+
+function CountBadge({ n }: { n: number }) {
+  return <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] whitespace-nowrap text-muted-foreground">{n} người</span>;
+}
+
+function HeadLine({ e }: { e: IEmployee }) {
   return (
-    <div className={cn('w-60 rounded-lg border bg-card p-3 shadow-sm', !d && 'border-dashed')} data-testid="org-dept">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 text-left">
-          <div className="truncate text-sm font-semibold">{d?.name ?? 'Chưa thuộc phòng ban'}</div>
-          {d?.code && <div className="text-[11px] text-muted-foreground">{d.code}</div>}
-        </div>
-        <span className="flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"><Users className="size-3" />{members.length}</span>
-      </div>
-      {d && (
-        <div className="mt-2 rounded-md bg-primary/5 p-2">
-          {head ? <><div className="mb-1 flex items-center gap-1 text-[10px] font-medium uppercase text-primary"><Crown className="size-3" /> Trưởng phòng</div><Person e={head} highlight /></>
-            : <div className="flex items-center gap-1 text-xs text-warning"><AlertTriangle className="size-3.5" /> Chưa có trưởng phòng</div>}
-        </div>
-      )}
-      {showMembers && others.length > 0 && (
-        <div className={cn('mt-2 space-y-0.5 border-t pt-2', !full && 'max-h-60 overflow-y-auto')}>
-          {others.map((m) => <Person key={m.id} e={m} compact />)}
-        </div>
-      )}
-      {!showMembers && others.length > 0 && <div className="mt-2 text-left text-[11px] text-muted-foreground">+ {others.length} nhân viên</div>}
+    <div className="flex items-center gap-2 text-left">
+      <PersonAvatar name={e.fullName} url={e.avatarUrl} className="size-7 shrink-0" fallbackClassName="bg-primary text-[10px] font-semibold text-primary-foreground" />
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-medium">{e.fullName}</span>
+        <span className="block text-[11px] text-muted-foreground">Trưởng phòng</span>
+      </span>
     </div>
   );
 }
 
-function DeptBranch({ node, byDept, empById, showMembers, full }: { node: DeptNode; byDept: Map<string, IEmployee[]>; empById: Map<string, IEmployee>; showMembers: boolean; full: boolean }) {
+/** Nhân viên (trừ trưởng phòng): danh sách gọn, hoặc "+ N nhân viên" khi tắt "Hiện nhân viên". */
+function MemberList({ members, head, ctx }: { members: IEmployee[]; head?: IEmployee; ctx: DeptCtx }) {
+  const others = members.filter((m) => m.id !== head?.id).sort(byRank);
+  if (!others.length) return null;
+  if (!ctx.showMembers) return <div className="text-left text-[11px] text-muted-foreground">+ {others.length} nhân viên</div>;
+  return (
+    <div className={cn('space-y-1', !ctx.full && 'max-h-48 overflow-y-auto')}>
+      {others.map((m) => (
+        <div key={m.id} className="flex items-center gap-1.5 text-left" title={roleLine(m)}>
+          <PersonAvatar name={m.fullName} url={m.avatarUrl} className="size-5 shrink-0" fallbackClassName="bg-muted-foreground text-[9px] font-semibold text-background" />
+          <span className="truncate text-xs">{m.fullName}{m.status === 'Probation' ? <span className="text-muted-foreground"> · thử việc</span> : null}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ToggleChildren({ count, open, onClick, className }: { count: number; open: boolean; onClick: () => void; className?: string }) {
+  return (
+    <button type="button" onClick={onClick} className={cn('flex items-center justify-center gap-1 rounded-md bg-muted text-xs text-muted-foreground hover:text-foreground', className)}>
+      {count} phòng con {open ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+    </button>
+  );
+}
+
+/** Phòng con (cấp ≥ 2): thẻ viền trái, các phòng con của nó lại xếp dọc thụt vào trong. */
+function SubDept({ node, ctx }: { node: DeptNode; ctx: DeptCtx }) {
   const [open, setOpen] = useState(true);
-  const key = node.dept?.id ?? NO_DEPT;
-  const head = node.dept?.headEmployeeId ? empById.get(node.dept.headEmployeeId) : undefined;
+  const head = headOf(node, ctx);
+  const d = node.dept!;
+  return (
+    <div>
+      <div className={cn('rounded-lg border border-l-4 bg-card p-2.5 shadow-xs', head ? 'border-l-primary' : 'border-l-warning')} data-testid="org-dept">
+        <div className="text-left text-sm leading-snug font-semibold">{d.name}</div>
+        <div className="mt-0.5 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+          <span className="truncate">{d.code}</span><span className="shrink-0">{totalMembers(node, ctx)} người</span>
+        </div>
+        {(head || ownMembers(node, ctx).length > 0) && (
+          <div className="mt-2 space-y-1.5">
+            {head && <HeadLine e={head} />}
+            <MemberList members={ownMembers(node, ctx)} head={head} ctx={ctx} />
+          </div>
+        )}
+        {node.children.length > 0 && <ToggleChildren count={node.children.length} open={open} onClick={() => setOpen(!open)} className="mt-2 w-full py-1" />}
+      </div>
+      {open && <SubStack nodes={node.children} ctx={ctx} />}
+    </div>
+  );
+}
+
+function SubStack({ nodes, ctx }: { nodes: DeptNode[]; ctx: DeptCtx }) {
+  if (!nodes.length) return null;
+  return (
+    <div className="mt-2 ml-3 flex flex-col gap-2 border-l-2 pl-2.5">
+      {nodes.map((c) => <SubDept key={c.dept!.id} node={c} ctx={ctx} />)}
+    </div>
+  );
+}
+
+/** Phòng cấp 1: thẻ có viền trên (đậm = có trưởng phòng, cam = chưa có), phòng con xếp dọc bên dưới. */
+function TopDept({ node, ctx }: { node: DeptNode; ctx: DeptCtx }) {
+  const [open, setOpen] = useState(true);
+  const d = node.dept;
+  const head = headOf(node, ctx);
+  const members = ownMembers(node, ctx);
   return (
     <li>
-      <DeptCard node={node} members={byDept.get(key) ?? []} head={head} showMembers={showMembers} full={full} />
-      {node.children.length > 0 && (
-        <>
-          <button type="button" onClick={() => setOpen(!open)} className="relative z-10 -mt-px flex items-center gap-0.5 rounded-b-md border border-t-0 bg-card px-2 text-[11px] text-muted-foreground hover:text-foreground">
-            {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}{node.children.length} phòng con
-          </button>
-          {open && <ul>{node.children.map((c) => <DeptBranch key={c.dept?.id ?? NO_DEPT} node={c} byDept={byDept} empById={empById} showMembers={showMembers} full={full} />)}</ul>}
-        </>
-      )}
+      <div className="w-48">
+        <div className={cn('rounded-lg border bg-card p-3 shadow-sm', !d ? 'border-dashed' : cn('border-t-4', head ? 'border-t-primary' : 'border-t-warning'))} data-testid="org-dept">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 text-left">
+              <div className="text-sm leading-snug font-semibold">{d?.name ?? 'Chưa thuộc phòng ban'}</div>
+              {d?.code && <div className="text-[11px] text-muted-foreground">{d.code}</div>}
+            </div>
+            <CountBadge n={totalMembers(node, ctx)} />
+          </div>
+          <div className="mt-2 space-y-2 empty:hidden">
+            {d && (head ? <HeadLine e={head} /> : <div className="flex items-center gap-1 text-left text-xs text-warning"><AlertTriangle className="size-3.5 shrink-0" /> Chưa có trưởng phòng</div>)}
+            <MemberList members={members} head={head} ctx={ctx} />
+            {node.children.length > 0 && <ToggleChildren count={node.children.length} open={open} onClick={() => setOpen(!open)} className="w-full py-1.5" />}
+          </div>
+        </div>
+        {open && <SubStack nodes={node.children} ctx={ctx} />}
+      </div>
     </li>
   );
 }
@@ -275,7 +340,12 @@ export function OrgChart() {
         <div ref={inner} className="org-tree mx-auto w-max" style={{ zoom }}>
           {mode === 'department' ? (
             deptRoots.length === 0 ? <p className="text-sm text-muted-foreground">Chưa có phòng ban.</p> : (
-              <ul>{deptRoots.map((n) => <DeptBranch key={n.dept?.id ?? NO_DEPT} node={n} byDept={byDept} empById={empById} showMembers={showMembers} full={full} />)}</ul>
+              <ul className="org-dept-tree">
+                <li>
+                  <div className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-sm">Công ty</div>
+                  <ul className="items-start">{deptRoots.map((n) => <TopDept key={n.dept?.id ?? NO_DEPT} node={n} ctx={{ byDept, empById, showMembers, full }} />)}</ul>
+                </li>
+              </ul>
             )
           ) : (
             managerRoots.length === 0 ? <p className="text-sm text-muted-foreground">Chưa có nhân viên.</p> : (
@@ -291,7 +361,7 @@ export function OrgChart() {
         </div>
       </div>
       <p className={cn('text-xs text-muted-foreground', full && 'shrink-0')}>
-        {mode === 'department' ? 'Cây phòng ban theo "Thuộc phòng ban"; trưởng phòng đặt ở tab Phòng ban. Nhân viên sắp theo cấp bậc.' : 'Đường nối theo "Quản lý trực tiếp" trong hồ sơ — đây cũng là người duyệt đơn của nhân viên.'}
+        {mode === 'department' ? 'Cấp 1 xếp ngang, phòng con xếp dọc dưới phòng cha. Số người tính cả phòng con; trưởng phòng đặt ở tab Phòng ban.' : 'Đường nối theo "Quản lý trực tiếp" trong hồ sơ — đây cũng là người duyệt đơn của nhân viên.'}
         {' '}Không tính người đã nghỉ việc. Kéo nền để di chuyển sơ đồ{full ? ', Esc để thoát toàn màn hình' : ''}.
       </p>
     </div>
