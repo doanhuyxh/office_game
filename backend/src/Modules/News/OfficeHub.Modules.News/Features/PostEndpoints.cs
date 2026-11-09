@@ -82,6 +82,10 @@ public static class PostEndpoints
         IOptions<OfficeSettings> office, TimeProvider clock, CancellationToken ct)
     {
         var me = Me(user);
+        // Qua trợ lý AI (MCP) chỉ admin / HR được đăng (thông báo chung); nhân viên đăng trên web. Token AI không tải tệp được → không đính kèm.
+        var forAi = user.IsAccessToken();
+        if (forAi && !user.IsHr())
+            return TypedResults.Problem("Chỉ quản trị viên / HR được đăng bài qua trợ lý AI — hãy đăng trên web", statusCode: StatusCodes.Status403Forbidden);
         var html = cleaner.Clean(req.ContentHtml);
         var plain = NewsRules.ToPlainText(html);
         var uploadIds = (req.UploadIds ?? []).Where(u => u != Guid.Empty).Distinct().ToList();
@@ -89,6 +93,7 @@ public static class PostEndpoints
         if (req.Audience != PostAudience.Departments && req.Audience != PostAudience.Custom) targets = [];
 
         var val = new Validation();
+        if (forAi && uploadIds.Count > 0) val.Add("uploadIds", "Đăng qua trợ lý AI không đính kèm tệp được — thêm tệp bằng cách sửa bài trên web");
         foreach (var (f, m) in NewsRules.ValidatePost(plain, html.Length, uploadIds.Count, req.Audience, targets.Count)) val.Add(f, m);
         if (req.SendEmail && req.Audience == PostAudience.Private) val.Add("sendEmail", "Bài chỉ mình bạn xem thì không gửi email được");
         await ValidateTargetsAsync(req.Audience, targets, val, accounts, dir, ct);
@@ -121,7 +126,7 @@ public static class PostEndpoints
 
         await NotifyNewPostAsync(post, mentions, me, db, store, ct);
         var v = await store.ViewerAsync(me, user.IsHr(), ct);
-        return TypedResults.Ok((await store.ToDtosAsync([post], v, false, ct))[0]);
+        return TypedResults.Ok((await store.ToDtosAsync([post], v, forAi, ct))[0]);
     }
 
     private static async Task<Results<Ok<PostDto>, ProblemHttpResult, ValidationProblem>> EditAsync(Guid id, EditPostRequest req, ClaimsPrincipal user,

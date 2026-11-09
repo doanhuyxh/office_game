@@ -69,7 +69,8 @@ public static class AccessTokenAuth
         ("GET", "/api/meetings"),
         ("POST", "/api/meetings/bookings"),
         ("DELETE", "/api/meetings/bookings/"),
-        // Bảng tin: chỉ ĐỌC (feed, bài, bình luận); đăng / bình luận / cảm xúc chỉ làm trên web. Endpoint tự bỏ HTML + link tệp khi gọi bằng token AI.
+        // Bảng tin: ĐỌC (feed, bài, bình luận) — endpoint tự bỏ HTML + link tệp khi gọi bằng token AI. Đăng bài: xem AllowedExact (chỉ admin / HR).
+        // Bình luận / cảm xúc / sửa / xoá / tải tệp chỉ làm trên web.
         ("GET", "/api/news/feed"),
         ("GET", "/api/news/posts/"),
         // Tài sản: chỉ ĐỌC (tài sản của mình; của cấp dưới nếu là quản lý — API tự kiểm quyền). Cấp / thu hồi chỉ làm trên web.
@@ -98,6 +99,8 @@ public static class AccessTokenAuth
         ("POST", Exact("/api/org/departments/?")),
         ("PUT", Exact($"/api/org/departments/{Id}")),
         ("DELETE", Exact($"/api/org/departments/{Id}")),
+        // Bảng tin: đăng bài (Api trả 403 nếu không phải admin / HR, không đính kèm tệp). Sửa / xoá / bình luận / kiểm duyệt vẫn chỉ trên web.
+        ("POST", Exact("/api/news/posts/?")),
         ("GET", Exact("/api/documents/(spaces|folders|assets|recent)")),
         ("GET", Exact($"/api/documents/assets/{Id}(/file)?")),
     ];

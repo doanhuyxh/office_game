@@ -35,9 +35,9 @@ AI client ──POST /mcp (Bearer ohk_…)──▶ OfficeHub.Mcp (BearerGate �
 - **Danh sách route cho phép** `AccessTokenAuth.IsAllowed` (mặc định chặn; khớp theo đoạn path): route ngoài danh sách → **403** dù token hợp lệ. Cố ý không có: `/api/contracts` (cả mẫu hợp đồng), `/api/reports` (lương / tiền), `/api/payroll`, `/api/org/profile` (hồ sơ cá nhân), `/api/auth/*` trừ `/me`, ghi của `/api/org` (nhân viên, tài khoản, vai trò, hướng dẫn — **trừ** tạo / sửa / xoá phòng ban cho HR), ca / lịch / ngày lễ, `/api/leave/balances`, `/api/leave/adjustments`. Route có Id ở giữa (Dự án, Tài liệu) khớp **nguyên path** bằng mẫu `AllowedExact` (Guid) thay vì tiền tố — để `/api/projects/{id}/financials`, `/allocations`, `/milestones/*`, `/api/documents/assets/{id}/submit`… vẫn bị chặn. Thêm endpoint mới cho AI → thêm vào đây + test `tests/OfficeHub.Mcp.Tests/AccessTokenScopeTests.cs`.
 - Code module khác nhận biết request từ AI bằng `ClaimsPrincipal.IsAccessToken()` (BuildingBlocks).
 
-## Tool (60)
+## Tool (61)
 
-> Màn hình quản trị **"Công cụ AI (MCP)"** (`/mcp-tools`, chỉ admin — `features/mcp-tools/`) liệt kê đầy đủ 60 tool kèm chi tiết (tên, tiêu đề, mô tả, tham số, loại read/write/destructive, endpoint). Catalog `features/mcp-tools/utils/catalog.ts` **bảo trì thủ công** — đổi tool trong `OfficeHub.Mcp/Tools/*.cs` phải cập nhật catalog (luật #9 [AGENTS.md](../../AGENTS.md)).
+> Màn hình quản trị **"Công cụ AI (MCP)"** (`/mcp-tools`, chỉ admin — `features/mcp-tools/`) liệt kê đầy đủ 61 tool kèm chi tiết (tên, tiêu đề, mô tả, tham số, loại read/write/destructive, endpoint). Catalog `features/mcp-tools/utils/catalog.ts` **bảo trì thủ công** — đổi tool trong `OfficeHub.Mcp/Tools/*.cs` phải cập nhật catalog (luật #9 [AGENTS.md](../../AGENTS.md)).
 
 | Nhóm | Tool |
 |---|---|
@@ -46,7 +46,7 @@ AI client ──POST /mcp (Bearer ohk_…)──▶ OfficeHub.Mcp (BearerGate �
 | Nghỉ phép | `list_leave_types`, `get_leave_balance`, `list_my_leave_requests`, `preview_leave`, `submit_leave_request` (`leaveType` = mã / tên / id) |
 | Duyệt | `list_approval_inbox` (gồm đơn duyệt thay theo uỷ quyền), `list_my_approval_requests`, `get_approval_request`, `approve_request`, `reject_request` (bắt buộc lý do), `cancel_my_request`. Tạo / thu hồi uỷ quyền duyệt **không** qua token AI (chỉ GET `/api/approval/delegations`) |
 | Phòng họp | `list_meeting_rooms`, `list_meetings`, `book_meeting_room` (ngày + giờ VN → `+07:00`, mời bằng mã / email / tên), `cancel_meeting` ([meetings.md](meetings.md)) |
-| Bảng tin | `list_news_feed`, `get_news_post` — chỉ đọc; Api tự áp phạm vi người xem và (token AI) chỉ trả chữ thuần, không HTML / link tệp ([news.md](news.md)). Đăng bài / bình luận / cảm xúc **không** qua AI |
+| Bảng tin | `list_news_feed`, `get_news_post` — đọc; Api tự áp phạm vi người xem và (token AI) chỉ trả chữ thuần, không HTML / link tệp. **Admin / HR**: `create_news_post` (Markdown đơn giản → HTML, phạm vi toàn công ty / phòng ban, tuỳ chọn email, không tệp) — thêm 2026-11-09 ([news.md](news.md#mcp)). Sửa / xoá bài, bình luận, cảm xúc, kiểm duyệt **không** qua AI |
 | Tài sản | `get_my_assets`, `get_employee_assets` — chỉ đọc (thiết bị + tài khoản dịch vụ, không giá, không mật khẩu); Api tự kiểm quyền ([assets.md](assets.md)). Cấp / thu hồi / rà soát **không** qua AI |
 | Dự án | `list_projects`, `get_project`, `list_project_tasks`, `list_my_tasks`, `list_task_comments`, `get_project_effort` (quản lý dự án / HR / BGĐ — ngày công, không tiền); **ghi**: `create_task` (mô tả Markdown + `mediaLinks` link ảnh / video), `update_task_status`, `comment_task`. Dự án / việc nhận id hoặc mã (`WEB-2026`, `WEB-12`). Thành viên, phân bổ %, mốc, tài chính, HĐ bán / đợt thu, CR, sửa / xoá việc **không** qua AI ([projects.md](projects.md)) |
 | Tài liệu | `list_document_spaces`, `list_document_folders`, `search_documents`, `list_recent_documents`, `get_document`, `get_document_link` — chỉ đọc; tài liệu nhận id / mã `TL-…` / số hiệu. `get_document_link` trả link presigned (15 phút, media 3 giờ) và **ghi nhật ký xem / tải** như trên web (chủ dự án chốt 2026-11-09). Tải lên, ban hành, xoá, nhật ký truy cập, quản trị **không** qua AI ([documents.md](documents.md)) |

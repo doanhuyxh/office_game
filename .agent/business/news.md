@@ -76,9 +76,11 @@ Xoá bài / bình luận là **xoá mềm**; bình luận gốc đã xoá mà c�
 - `PostCard`: thu gọn bài dài, lưới ảnh / video kiểu FB + xem ảnh lớn, hover ra 6 emoji, bình luận một cấp; menu sửa / xoá / ghim / ẩn theo cờ `canEdit` / `canDelete` / `canHide` **do BE trả** (không suy từ vai trò).
 - `RecentNews`: thẻ "Bảng tin" ở `/` và tab **Tin tức** của 📌 Bảng tin trong 3D (mở bài ở tab mới để giữ phiên 3D) — [office-documents.md](office-documents.md).
 
-## MCP (chỉ đọc)
+## MCP
 
-`list_news_feed`, `get_news_post` ([mcp.md](mcp.md)). Token AI chỉ được `GET /api/news/feed` và `GET /api/news/posts/*` (`AccessTokenAuth`); endpoint tự trả `contentHtml = null` + media / ảnh bình luận **không có url** khi gọi bằng token AI (`ClaimsPrincipal.IsAccessToken()`). Đăng / bình luận / cảm xúc / tải tệp chỉ làm trên web.
+- **Đọc** (ai cũng được): `list_news_feed`, `get_news_post` ([mcp.md](mcp.md)). Token AI được `GET /api/news/feed` và `GET /api/news/posts/*` (`AccessTokenAuth`); endpoint tự trả `contentHtml = null` + media / ảnh bình luận **không có url** khi gọi bằng token AI (`ClaimsPrincipal.IsAccessToken()`).
+- **Đăng bài — chỉ admin / HR** (thêm 2026-11-09): `create_news_post`. Token được `POST /api/news/posts` (khớp đúng path), nhưng `CreateAsync` trả **403** nếu gọi bằng token mà không phải `IsHr()` (nhân viên vẫn đăng trên web), và **400** nếu có `uploadIds` (AI không tải tệp được). Tool đổi Markdown đơn giản → HTML (`NewsTools.MarkdownToHtml`, test `NewsMarkdownTests`), Api vẫn lọc bằng `HtmlCleaner`; phạm vi `Company` / `Departments` (phòng ban nhận id / tên / mã); email + hạn mức như trên web (admin / HR không giới hạn).
+- Sửa / xoá bài, bình luận, cảm xúc, tải tệp, ẩn / ghim **chỉ trên web**.
 
 ## Test
 
