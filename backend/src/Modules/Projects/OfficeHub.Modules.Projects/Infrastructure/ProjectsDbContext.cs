@@ -95,7 +95,8 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
         {
             e.ToTable("tasks");
             e.Property(x => x.Title).HasMaxLength(300);
-            e.Property(x => x.Description).HasMaxLength(5000);
+            e.Property(x => x.Description).HasMaxLength(TaskRules.MaxDescription);
+            e.Property(x => x.MediaLinks).HasColumnType("text[]").HasDefaultValueSql("'{}'");
             e.Property(x => x.CreatedByName).HasMaxLength(200);
             e.Property(x => x.State).HasConversion<string>().HasMaxLength(10);
             e.Property(x => x.EstimateDays).HasPrecision(6, 2);

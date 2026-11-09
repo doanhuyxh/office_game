@@ -114,7 +114,10 @@ public sealed class TaskItem
     /// <summary>Số thứ tự trong dự án → mã {Mã dự án}-{n}.</summary>
     public int Number { get; set; }
     public required string Title { get; set; }
+    /// <summary>Nội dung Markdown (hiển thị ở FE bằng react-markdown, không render HTML thô).</summary>
     public string? Description { get; set; }
+    /// <summary>Link ảnh / video minh hoạ (http/https, tối đa <see cref="TaskRules.MaxMediaLinks"/>) — FE tự nhận dạng ảnh, video, YouTube.</summary>
+    public List<string> MediaLinks { get; set; } = [];
     public TaskState State { get; set; }
     /// <summary>Thứ tự trong cột (số thực để chèn giữa không phải đánh lại).</summary>
     public double Rank { get; set; }

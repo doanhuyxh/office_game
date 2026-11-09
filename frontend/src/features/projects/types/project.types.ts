@@ -22,6 +22,8 @@ export interface ITask {
   id: string; projectId: string; code: string; title: string; description: string | null; state: TaskState; rank: number; assigneeEmployeeId: string | null;
   assigneeName: string | null; milestoneId: string | null; dueOn: string | null; estimateDays: number | null; overdue: boolean; commentCount: number; createdAt: string;
   createdByName: string; completedAt: string | null; projectName: string | null;
+  /** Link ảnh / video (http/https). */
+  mediaLinks: string[];
 }
 export interface IComment { id: string; content: string; authorName: string; createdAt: string }
 export interface IEffortCell { employeeId: string; month: string; presentDays: number; percent: number; explicit: boolean; manDays: number }
@@ -50,6 +52,7 @@ export interface IProjectRequest {
 }
 export interface ITaskRequest {
   title: string; description?: string | null; state: TaskState; assigneeEmployeeId?: string | null; milestoneId?: string | null; dueOn?: string | null; estimateDays?: number | null;
+  mediaLinks?: string[];
 }
 export interface IMilestoneRequest { title: string; dueOn?: string | null; installmentId?: string | null; note?: string | null }
 

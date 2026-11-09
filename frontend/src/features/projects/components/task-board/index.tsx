@@ -81,6 +81,7 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
                     {t.dueOn && <span className={t.overdue ? 'text-rose-600' : ''}>hạn {fmtDate(t.dueOn)}</span>}
                     {t.estimateDays != null && <span>{t.estimateDays}d</span>}
                     {t.commentCount > 0 && <span>💬 {t.commentCount}</span>}
+                    {t.mediaLinks.length > 0 && <span title="Ảnh / video">🖼 {t.mediaLinks.length}</span>}
                   </span>
                 </button>
               ))}

@@ -36,7 +36,7 @@ Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsourc
 | GET | `/{id}/financials`, `/financials` | Lãi / lỗ — chỉ Xem tài chính ([projects-finance.md](projects-finance.md)) |
 | POST / PUT / DELETE | `/{id}/milestones`, `/milestones/{mid}` | Đợt thu phải thuộc một HĐ của dự án, chưa huỷ, chưa gắn mốc khác. Mốc đã nghiệm thu: không xoá, không đổi đợt |
 | POST | `/milestones/{mid}/accept` | `{ acceptedOn (≤ hôm nay), note? }` → `ISalesContractsLookup.MarkAcceptedAsync`: hạn đợt thu sau ngày nghiệm thu thì **kéo về ngày nghiệm thu** (đặt lại mốc nhắc), báo kế toán + người phụ trách HĐ (`receivable_due`) |
-| GET / POST | `/{id}/tasks` | Mã `{MÃ DỰ ÁN}-{n}` (n tăng trong dự án, unique; trùng khi tạo đồng thời → thử lại). Người được giao phải là thành viên; mốc thuộc dự án |
+| GET / POST | `/{id}/tasks` | Mã `{MÃ DỰ ÁN}-{n}` (n tăng trong dự án, unique; trùng khi tạo đồng thời → thử lại). Người được giao phải là thành viên; mốc thuộc dự án. `description` = Markdown ≤ 20 000; `mediaLinks` ≤ 20 link http/https ≤ 1000 ký tự (`TaskRules`, bỏ trống / trùng; PUT gửi `null` → giữ nguyên) |
 | GET | `/tasks/mine` | Việc chưa xong giao cho tôi, mọi dự án |
 | PUT / POST / DELETE | `/tasks/{tid}`, `/tasks/{tid}/move` | `move { state, rank? }` (kéo thả). Xong → `CompletedAt`. Đổi hạn / người → nhắc lại |
 | GET / POST | `/tasks/{tid}/comments` | Bình luận → chuông người được giao |
@@ -55,8 +55,8 @@ Việc chưa xong có người làm, hạn ≤ hôm nay → chuông `project_tas
 
 ## Schema `projects` (`ProjectsDbContext`, migration `InitialProjects`)
 
-`projects` (`Code` unique ≤ 30), `contracts` (PK dự án + HĐ bán, `ContractId` unique — migration `ProjectContractsAndFreeze`), `members` (PK dự án + nhân viên, `Role` chuỗi), `allocations` (PK dự án + nhân viên + tháng, `Percent numeric(5,2)`), `allocation_freezes` (PK tháng), `milestones` (`InstallmentId` unique khi có), `tasks` (unique dự án + số; index người làm + trạng thái; FK mốc SetNull), `task_comments`. Không lưu tiền. `Project` có `[Audited]`.
+`projects` (`Code` unique ≤ 30), `contracts` (PK dự án + HĐ bán, `ContractId` unique — migration `ProjectContractsAndFreeze`), `members` (PK dự án + nhân viên, `Role` chuỗi), `allocations` (PK dự án + nhân viên + tháng, `Percent numeric(5,2)`), `allocation_freezes` (PK tháng), `milestones` (`InstallmentId` unique khi có), `tasks` (unique dự án + số; `MediaLinks text[]` mặc định `{}` — migration `TaskMediaLinks`; index người làm + trạng thái; FK mốc SetNull), `task_comments`. Không lưu tiền. `Project` có `[Audited]`.
 
 ## UI
 
-`/projects` (`ProjectsPage`): Việc của tôi, thẻ dự án (Của tôi / Tất cả tôi xem được, ẩn dự án đóng), "Dự án mới" (manager / HR / admin). `/projects/$projectId` (`ProjectDetailPage`, `?tab=`): Công việc (kanban 4 cột kéo thả, lọc việc của tôi, hộp thoại việc + bình luận) · Mốc (thêm / sửa / nghiệm thu) · Thành viên · Ngày công (bảng tháng × người, sửa % tháng đang chọn, 🔒 tháng đã chốt, thanh ngân sách) · Tài chính (chỉ Xem tài chính). Nút "Tài liệu dự án" → `/documents?space=Project:{id}`.
+`/projects` (`ProjectsPage`): Việc của tôi, thẻ dự án (Của tôi / Tất cả tôi xem được, ẩn dự án đóng), "Dự án mới" (manager / HR / admin). `/projects/$projectId` (`ProjectDetailPage`, `?tab=`): Công việc (kanban 4 cột kéo thả, lọc việc của tôi, hộp thoại việc + bình luận: nội dung Markdown GFM có Viết / Xem trước (`components/common/markdown.tsx`, react-markdown, không render HTML thô), link ảnh / video tự xem trước — ảnh, .mp4/.webm, YouTube, Vimeo, Google Drive (`utils/media.ts`); bình luận cũng hiển thị Markdown) · Mốc (thêm / sửa / nghiệm thu) · Thành viên · Ngày công (bảng tháng × người, sửa % tháng đang chọn, 🔒 tháng đã chốt, thanh ngân sách) · Tài chính (chỉ Xem tài chính). Nút "Tài liệu dự án" → `/documents?space=Project:{id}`.

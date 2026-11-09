@@ -270,7 +270,7 @@ export const MCP_TOOL_GROUPS: McpToolGroup[] = [
         description: 'Một dự án: thông tin chung, thành viên (mã, họ tên, vai trò Manager / Member), mốc nghiệm thu (tên, hạn, trạng thái).',
         params: [{ name: 'project', type: 'string', required: true, description: 'Id hoặc mã dự án (vd WEB-2026)' }] },
       { name: 'list_project_tasks', title: 'Công việc của dự án', kind: 'read', endpoint: 'GET /api/projects/{id}/tasks',
-        description: 'Việc trên kanban của dự án: mã việc, tên, mô tả, trạng thái (Todo / Doing / Review / Done), người làm, hạn, ước lượng, overdue, số bình luận. Mặc định bỏ việc đã Xong.',
+        description: 'Việc trên kanban của dự án: mã việc, tên, mô tả, trạng thái (Todo / Doing / Review / Done), người làm, hạn, ước lượng, overdue, số bình luận, link ảnh / video (mediaLinks). Mô tả là Markdown. Mặc định bỏ việc đã Xong.',
         params: [
           { name: 'project', type: 'string', required: true, description: 'Id hoặc mã dự án' },
           { name: 'state', type: 'string', required: false, description: 'Todo / Doing / Review / Done (hoặc Cần làm / Đang làm / Chờ review / Xong)', default: 'mọi việc chưa xong' },
@@ -283,11 +283,12 @@ export const MCP_TOOL_GROUPS: McpToolGroup[] = [
         params: [
           { name: 'project', type: 'string', required: true, description: 'Id hoặc mã dự án' },
           { name: 'title', type: 'string', required: true, description: 'Tên việc (≤ 300 ký tự)' },
-          { name: 'description', type: 'string', required: false, description: 'Mô tả (≤ 5000 ký tự)' },
+          { name: 'description', type: 'string', required: false, description: 'Nội dung Markdown (≤ 20000 ký tự): tiêu đề, danh sách, checklist, bảng, link' },
           { name: 'assignee', type: 'string', required: false, description: 'Người làm: mã nhân viên, email hoặc họ tên — phải là thành viên dự án' },
           { name: 'dueDate', type: 'string', required: false, description: 'Hạn yyyy-MM-dd (không trước hôm nay)' },
           { name: 'estimateDays', type: 'decimal', required: false, description: 'Ước lượng số ngày công' },
           { name: 'state', type: 'string', required: false, description: 'Todo / Doing / Review / Done', default: 'Todo' },
+          { name: 'mediaLinks', type: 'string[]', required: false, description: 'Link ảnh / video (≤ 20, http/https): ảnh, .mp4, YouTube, Vimeo, Google Drive' },
         ] },
       { name: 'update_task_status', title: 'Chuyển trạng thái việc', kind: 'write', idempotent: true, endpoint: 'POST /api/projects/tasks/{id}/move',
         description: 'Chuyển việc sang Todo / Doing / Review / Done (như kéo thả trên kanban). Chỉ thành viên dự án đang chạy. AI hỏi xác nhận trước khi gọi.',

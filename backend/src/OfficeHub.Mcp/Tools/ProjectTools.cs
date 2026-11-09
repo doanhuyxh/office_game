@@ -42,7 +42,7 @@ public sealed class ProjectTools
 
     [McpServerTool(Name = "list_project_tasks", Title = "Công việc của dự án", ReadOnly = true, OpenWorld = false)]
     [Description("Việc trên bảng kanban của một dự án: id, mã việc (vd WEB-12), tên, mô tả, trạng thái (Todo / Doing / Review / Done), người làm, hạn (dueOn), " +
-                 "ước lượng ngày, overdue, số bình luận. Mặc định bỏ việc đã Xong.")]
+                 "ước lượng ngày, overdue, số bình luận, mediaLinks (link ảnh / video). Mô tả là Markdown. Mặc định bỏ việc đã Xong.")]
     public static async Task<string> ListProjectTasks(OfficeHubApi api,
         [Description("Dự án: id hoặc mã dự án")] string project,
         [Description("Lọc trạng thái: Todo / Doing / Review / Done (hoặc Cần làm / Đang làm / Chờ review / Xong); bỏ trống = mọi việc chưa xong")] string? state = null,
@@ -72,11 +72,12 @@ public sealed class ProjectTools
     public static async Task<string> CreateTask(OfficeHubApi api,
         [Description("Dự án: id hoặc mã dự án")] string project,
         [Description("Tên việc (≤ 300 ký tự)")] string title,
-        [Description("Mô tả (tuỳ chọn, ≤ 5000 ký tự)")] string? description = null,
+        [Description("Nội dung Markdown (tuỳ chọn, ≤ 20000 ký tự): tiêu đề, danh sách, checklist - [ ], bảng, link")] string? description = null,
         [Description("Người làm: mã nhân viên, email hoặc họ tên — phải là thành viên dự án (tuỳ chọn)")] string? assignee = null,
         [Description("Hạn yyyy-MM-dd (tuỳ chọn, không trước hôm nay)")] string? dueDate = null,
         [Description("Ước lượng số ngày công (tuỳ chọn)")] decimal? estimateDays = null,
         [Description("Trạng thái ban đầu: Todo (mặc định) / Doing / Review / Done")] string? state = null,
+        [Description("Link ảnh / video minh hoạ (tuỳ chọn, ≤ 20 link http/https): ảnh .png/.jpg…, video .mp4, YouTube, Vimeo, Google Drive")] string[]? mediaLinks = null,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(title)) throw new McpException("Thiếu tên việc");
@@ -91,6 +92,7 @@ public sealed class ProjectTools
             assigneeEmployeeId = assigneeId,
             dueOn = string.IsNullOrWhiteSpace(dueDate) ? null : Date(dueDate, "Hạn"),
             estimateDays,
+            mediaLinks = mediaLinks?.Select(l => l?.Trim() ?? "").Where(l => l.Length > 0).ToList(),
         }, ct);
         var created = (await api.GetAsync($"/api/projects/{id}/tasks", ct) as JsonArray ?? []).OfType<JsonObject>()
             .FirstOrDefault(t => taskId is not null && (string?)t["id"] == taskId.GetValue<string>());
