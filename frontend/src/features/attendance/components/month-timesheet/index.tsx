@@ -1,5 +1,5 @@
 import { Button } from '@/components/common/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/common/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { formatTime } from '@/utils/date';
 import { cn } from '@/utils/cn';
@@ -9,11 +9,14 @@ import { StatusBadge } from '../status-badge';
 import { todayVn } from '@/utils/date';
 import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';
 
-function Stat({ label, value, tone }: { label: string; value: string | number; tone?: string }) {
+/** Một ô trong khối tổng hợp: nhãn nhỏ, giá trị chính, dòng phụ (đơn vị / chi tiết). */
+function Stat({ label, value, sub, tone }: { label: string; value: string | number; sub?: string; tone?: string }) {
   return (
-    <Card className="gap-0 py-3">
-      <CardHeader className="gap-1 px-4"><CardDescription>{label}</CardDescription><CardTitle className={cn('text-xl', tone)}>{value}</CardTitle></CardHeader>
-    </Card>
+    <div className="min-w-0 bg-card px-4 py-3">
+      <div className="truncate text-xs text-muted-foreground" title={label}>{label}</div>
+      <div className={cn('mt-1 truncate text-lg font-semibold tabular-nums leading-tight', tone)}>{value}</div>
+      {sub && <div className="mt-0.5 truncate text-xs text-muted-foreground" title={sub}>{sub}</div>}
+    </div>
   );
 }
 
@@ -43,15 +46,18 @@ export function MonthTimesheet({ data, onCorrect, corrections = [] }: { data: IM
   const v = cols.show;
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
-        <Stat label="Ngày công" value={`${s.presentDays}/${s.workDays}`} />
-        <Stat label="Giờ làm" value={`${hm(s.workedMinutes)} / ${hm(s.requiredMinutes)}`} />
-        <Stat label="Đi muộn" value={s.lateCount ? `${s.lateCount} lần · ${s.lateMinutes}′` : 0} tone={s.lateCount ? 'text-destructive' : undefined} />
-        <Stat label="Vắng" value={s.absentDays} tone={s.absentDays ? 'text-destructive' : undefined} />
-        <Stat label="Thiếu giờ ra" value={s.missingCheckoutDays} tone={s.missingCheckoutDays ? 'text-warning' : undefined} />
-        <Stat label="VP / Từ xa / KH" value={`${s.onsiteDays} / ${s.remoteDays} / ${s.mixedDays}`} />
-        <Stat label="Nghỉ phép" value={s.leaveDays} />
-        <Stat label="Tăng ca" value={hm(s.overtimeMinutes)} />
+      {/* gap-px trên nền border = đường kẻ giữa các ô; số cột theo bề rộng khung chứa (dùng được cả trong dialog hẹp) */}
+      <div className="@container">
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border @md:grid-cols-4 @4xl:grid-cols-8">
+          <Stat label="Ngày công" value={`${s.presentDays} / ${s.workDays}`} sub="có mặt / phải làm" />
+          <Stat label="Giờ làm" value={hm(s.workedMinutes)} sub={`trên ${hm(s.requiredMinutes)} yêu cầu`} />
+          <Stat label="Đi muộn" value={`${s.lateCount} lần`} sub={s.lateMinutes ? `tổng ${s.lateMinutes} phút` : undefined} tone={s.lateCount ? 'text-destructive' : undefined} />
+          <Stat label="Vắng" value={`${s.absentDays} ngày`} tone={s.absentDays ? 'text-destructive' : undefined} />
+          <Stat label="Thiếu giờ ra" value={`${s.missingCheckoutDays} ngày`} tone={s.missingCheckoutDays ? 'text-warning' : undefined} />
+          <Stat label="Hình thức" value={`${s.onsiteDays} · ${s.remoteDays} · ${s.mixedDays}`} sub="VP · Từ xa · KH" />
+          <Stat label="Nghỉ phép" value={`${s.leaveDays} ngày`} />
+          <Stat label="Tăng ca" value={hm(s.overtimeMinutes)} />
+        </div>
       </div>
       <div className="flex justify-end"><ColumnsMenu state={cols} /></div>
       <div className="rounded-xl border bg-card">
