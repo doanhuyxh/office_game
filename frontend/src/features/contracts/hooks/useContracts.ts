@@ -2,13 +2,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/services/api-client';
 import { contractApi, contractKeys } from '../api/contract.api';
 import type { IPageQuery } from '@/types/api';
-import type { ContractFilter, ICreateAmendment, IUpsertContract } from '../types/contract.types';
+import type { ContractFilter, ContractType, ICreateAmendment, IUpsertContract } from '../types/contract.types';
 
 /** HR: một trang hợp đồng theo nút lọc + tìm kiếm (BE xử lý). */
 export const useContractsPage = (filter: ContractFilter, search: string, q: IPageQuery) =>
   useQuery({ queryKey: contractKeys.listPage(filter, search, q), queryFn: () => contractApi.listPage(filter, search, q), placeholderData: (prev) => prev });
 /** HR: số hợp đồng theo nút lọc + người chưa có hợp đồng. */
 export const useContractSummary = () => useQuery({ queryKey: contractKeys.summary, queryFn: contractApi.summary });
+
+/** HR: số hợp đồng kế tiếp để điền sẵn khi thêm (không cache — người khác có thể vừa thêm). */
+export const useNextContractNumber = (type: ContractType, enabled: boolean) =>
+  useQuery({ queryKey: contractKeys.nextNumber(type), queryFn: () => contractApi.nextNumber(type), enabled, staleTime: 0, gcTime: 0 });
 
 /** Hợp đồng của tôi. `noProfile` = tài khoản chưa gắn hồ sơ nhân viên (admin hệ thống). */
 export function useMyContracts() {

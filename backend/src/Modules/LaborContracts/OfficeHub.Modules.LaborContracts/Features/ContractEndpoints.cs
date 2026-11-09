@@ -31,6 +31,7 @@ public sealed record UpsertContractRequest(Guid EmployeeId, string Number, strin
 public sealed record TerminateRequest(DateOnly TerminatedOn, string Reason);
 public sealed record CreateAmendmentRequest(string Number, DateOnly EffectiveDate, string Content, decimal? Salary, decimal? Allowance);
 public sealed record FileUrlDto(string Url, string Name);
+public sealed record NextNumberDto(string Number);
 /// <summary>Số hợp đồng theo từng nút lọc của FE + nhân viên đang làm chưa có hợp đồng hiệu lực.</summary>
 public sealed record ContractSummaryDto(int All, int Active, int Expiring, int Ended, IReadOnlyList<EmployeeBrief> WithoutContract);
 
@@ -46,6 +47,7 @@ internal static class ContractEndpoints
     {
         g.MapGet("/", ListAsync).RequireAuthorization(AuthPolicies.Hr);
         g.MapGet("/summary", SummaryAsync).RequireAuthorization(AuthPolicies.Hr);
+        g.MapGet("/next-number", NextNumberEndpointAsync).RequireAuthorization(AuthPolicies.Hr);
         g.MapGet("/my", MyAsync);
         g.MapGet("/{id:guid}", GetAsync);
         g.MapPost("/", CreateAsync).RequireAuthorization(AuthPolicies.Hr);
@@ -158,6 +160,8 @@ internal static class ContractEndpoints
     private static async Task<Results<Ok<ContractDto>, ValidationProblem>> CreateAsync(UpsertContractRequest req, ContractsDbContext db,
         IEmployeeDirectory dir, IFieldEncryptor enc, IOptions<OfficeSettings> office, TimeProvider clock, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(req.Number) && Enum.TryParse<ContractType>(req.Type, true, out var t) && Enum.IsDefined(t))
+            req = req with { Number = await NextNumberAsync(db, t, Today(office, clock).Year, ct) }; // để trống = tự sinh
         if (await ValidateAsync(req, null, db, dir, ct) is { } problem) return problem;
         var c = new LaborContract { Number = req.Number.Trim(), CreatedAt = clock.GetUtcNow() };
         Apply(c, req, enc);
@@ -177,6 +181,23 @@ internal static class ContractEndpoints
         c.UpdatedAt = clock.GetUtcNow();
         await db.SaveChangesAsync(ct);
         return TypedResults.Ok((await ToDtosAsync([c], dir, enc, Today(office, clock), ct))[0]);
+    }
+
+    /// <summary>Gợi ý số hợp đồng kế tiếp (form "Thêm hợp đồng" điền sẵn, HR sửa được).</summary>
+    private static async Task<Results<Ok<NextNumberDto>, ValidationProblem>> NextNumberEndpointAsync(string? type, ContractsDbContext db,
+        IOptions<OfficeSettings> office, TimeProvider clock, CancellationToken ct)
+    {
+        if (!Enum.TryParse<ContractType>(type ?? nameof(ContractType.Fixed), true, out var t) || !Enum.IsDefined(t))
+            return new Validation().Add("type", "Chọn loại hợp đồng").Problem();
+        return TypedResults.Ok(new NextNumberDto(await NextNumberAsync(db, t, Today(office, clock).Year, ct)));
+    }
+
+    /// <summary>Tính cả hợp đồng đã xoá mềm để không cấp lại số cũ.</summary>
+    private static async Task<string> NextNumberAsync(ContractsDbContext db, ContractType type, int year, CancellationToken ct)
+    {
+        var marker = $"/{year}/";
+        var numbers = await db.Contracts.IgnoreQueryFilters().Where(c => c.Number.Contains(marker)).Select(c => c.Number).ToListAsync(ct);
+        return ContractRules.FormatNumber(ContractRules.NextSeq(numbers, year), year, type);
     }
 
     private static void Apply(LaborContract c, UpsertContractRequest r, IFieldEncryptor enc)

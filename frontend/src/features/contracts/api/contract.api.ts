@@ -1,7 +1,7 @@
 import { http, httpPost, httpUpload, pageQs } from '@/services/api-client';
 import type { IPaged, IPageQuery } from '@/types/api';
 import type {
-  ContractFilter, IContractSummary, IOtpSent, ISignRequest, IContract, IContractTemplate, ICreateAmendment, IStoredFile, ITemplateField, IUpsertContract,
+  ContractFilter, ContractType, IContractSummary, IOtpSent, ISignRequest, IContract, IContractTemplate, ICreateAmendment, IStoredFile, ITemplateField, IUpsertContract,
 } from '../types/contract.types';
 
 const put = <T>(url: string, body: unknown) => http<T>(url, { method: 'PUT', body: JSON.stringify(body) });
@@ -11,6 +11,7 @@ export const contractKeys = {
   all: ['contracts'] as const,
   listPage: (filter: ContractFilter, search: string, q: IPageQuery) => ['contracts', 'list', 'page', filter, search, q] as const,
   summary: ['contracts', 'summary'] as const,
+  nextNumber: (type: string) => ['contracts', 'next-number', type] as const,
   my: ['contracts', 'my'] as const,
   templates: ['contracts', 'templates'] as const,
   templateFields: ['contracts', 'templates', 'fields'] as const,
@@ -23,6 +24,8 @@ export const contractApi = {
   listPage: (filter: ContractFilter, search: string, q: IPageQuery) =>
     http<IPaged<IContract>>(`${base}?filter=${filter}&search=${encodeURIComponent(search)}&${pageQs(q)}`),
   summary: () => http<IContractSummary>(`${base}/summary`),
+  /** Số hợp đồng kế tiếp gợi ý (vd. 013/2026/HĐLĐ; thử việc …/HĐTV). */
+  nextNumber: (type: ContractType) => http<{ number: string }>(`${base}/next-number?type=${type}`),
   my: () => http<IContract[]>(`${base}/my`),
   create: (body: IUpsertContract) => httpPost<IContract>(base, body),
   update: (id: string, body: IUpsertContract) => put<IContract>(`${base}/${id}`, body),

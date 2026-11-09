@@ -23,6 +23,22 @@ public class ContractRulesTests
     }
 
     [Fact]
+    public void Number_format_by_type()
+    {
+        Assert.Equal("001/2026/HĐLĐ", ContractRules.FormatNumber(1, 2026, ContractType.Fixed));
+        Assert.Equal("012/2026/HĐLĐ", ContractRules.FormatNumber(12, 2026, ContractType.Indefinite));
+        Assert.Equal("1234/2026/HĐTV", ContractRules.FormatNumber(1234, 2026, ContractType.Probation));
+    }
+
+    [Fact]
+    public void Next_seq_per_year_ignores_other_formats()
+    {
+        Assert.Equal(1, ContractRules.NextSeq([], 2026));
+        Assert.Equal(13, ContractRules.NextSeq(["012/2026/HĐLĐ", "003/2026/HĐTV", "099/2025/HĐLĐ", "E2E-TV-01", "HD/2026/7"], 2026)); // STT chung mọi loại, năm khác / dạng khác bỏ qua
+        Assert.Equal(100, ContractRules.NextSeq(["99/2026/HĐLĐ"], 2026));
+    }
+
+    [Fact]
     public void Probation_max_180_days()
     {
         Assert.Empty(ContractRules.ValidateTerm(ContractType.Probation, Start, Start.AddDays(179)));   // 180 ngày tính cả ngày đầu

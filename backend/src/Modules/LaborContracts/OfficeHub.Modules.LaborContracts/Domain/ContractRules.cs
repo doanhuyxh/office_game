@@ -22,6 +22,17 @@ public static class ContractRules
         ["application/pdf"] = ".pdf", ["image/jpeg"] = ".jpg", ["image/png"] = ".png",
     };
 
+    /// <summary>Số hợp đồng tự sinh: "{STT:000}/{năm}/HĐLĐ" (thử việc: "HĐTV"). STT tăng dần theo năm, dùng chung mọi loại.</summary>
+    public static string FormatNumber(int seq, int year, ContractType type) =>
+        $"{seq:000}/{year}/{(type == ContractType.Probation ? "HĐTV" : "HĐLĐ")}";
+
+    /// <summary>STT kế tiếp của năm: lớn nhất trong các số dạng "{STT}/{năm}/…" + 1 (số gõ tay khác dạng bị bỏ qua).</summary>
+    public static int NextSeq(IEnumerable<string> numbers, int year)
+    {
+        var prefix = new System.Text.RegularExpressions.Regex($@"^\s*(\d{{1,6}})/{year}/");
+        return numbers.Select(n => prefix.Match(n)).Where(m => m.Success).Select(m => int.Parse(m.Groups[1].Value)).DefaultIfEmpty(0).Max() + 1;
+    }
+
     /// <summary>Lỗi theo field ("endDate") cho loại hợp đồng + thời hạn.</summary>
     public static List<(string Field, string Message)> ValidateTerm(ContractType type, DateOnly start, DateOnly? end)
     {

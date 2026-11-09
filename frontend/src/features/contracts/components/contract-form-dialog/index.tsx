@@ -9,7 +9,7 @@ import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { Textarea } from '@/components/common/textarea';
 import { useEmployees } from '@/features/employees';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { useSaveContract } from '../../hooks/useContracts';
+import { useNextContractNumber, useSaveContract } from '../../hooks/useContracts';
 import type { ContractType, IContract, IUpsertContract } from '../../types/contract.types';
 import { CONTRACT_TYPE } from '../../utils/labels';
 
@@ -31,9 +31,16 @@ export function ContractFormDialog({ open, onClose, contract, employeeId }: {
   const save = useSaveContract();
   const { data: employees = [] } = useEmployees({});
   const [f, setF] = useState<IUpsertContract>(empty());
+  // Thêm mới: điền sẵn số tự sinh theo loại; HR gõ tay rồi thì không ghi đè.
+  const [numberEdited, setNumberEdited] = useState(false);
+  const { data: next } = useNextContractNumber(f.type, open && !contract);
+  useEffect(() => {
+    if (next && !contract && !numberEdited) setF((x) => ({ ...x, number: next.number }));
+  }, [next, contract, numberEdited]);
   useEffect(() => {
     if (!open) return;
     save.reset();
+    setNumberEdited(false);
     setF(contract ? {
       employeeId: contract.employee.id, number: contract.number, type: contract.type, signedDate: contract.signedDate, startDate: contract.startDate,
       endDate: contract.endDate, jobTitle: contract.jobTitle, salary: contract.salary, allowance: contract.allowance, note: contract.note,
@@ -64,8 +71,8 @@ export function ContractFormDialog({ open, onClose, contract, employeeId }: {
           <SearchSelectField id="c-employee" label="Nhân viên *" value={f.employeeId || null} onChange={(v) => set('employeeId', v ?? '')} error={errors.employeeId}
             placeholder="Chọn nhân viên" options={employees.map((e) => ({ value: e.id, label: `${e.code} · ${e.fullName}${e.departmentName ? ` (${e.departmentName})` : ''}` }))} />
           <div className="grid gap-3 sm:grid-cols-2">
-            <FormField id="c-number" label="Số hợp đồng *" required maxLength={50} value={f.number} onChange={(e) => set('number', e.target.value)}
-              error={errors.number} placeholder="Vd: 012/2026/HĐLĐ" />
+            <FormField id="c-number" label={contract ? 'Số hợp đồng *' : 'Số hợp đồng'} required={!!contract} maxLength={50} value={f.number} onChange={(e) => { setNumberEdited(true); set('number', e.target.value); }}
+              error={errors.number} placeholder={contract ? 'Vd: 012/2026/HĐLĐ' : 'Để trống = tự sinh'} />
             <SelectField id="c-type" label="Loại hợp đồng *" value={f.type} onChange={(v) => set('type', (v ?? 'Fixed') as ContractType)} error={errors.type}
               options={(Object.keys(CONTRACT_TYPE) as ContractType[]).map((t) => ({ value: t, label: CONTRACT_TYPE[t] }))} />
           </div>

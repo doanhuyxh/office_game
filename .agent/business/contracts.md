@@ -19,7 +19,7 @@
 | `Probation` (thử việc) | bắt buộc, ≤ **180 ngày** tính cả ngày đầu → `"Thời gian thử việc tối đa 180 ngày"` |
 
 - **Trạng thái** (tính lúc đọc): có `TerminatedOn` → `Terminated`; `StartDate > hôm nay` → `Upcoming`; `EndDate < hôm nay` → `Expired`; còn lại `Active`. `daysLeft` chỉ có khi `Active` và có ngày kết thúc. Ngày cuối tính theo `EffectiveEnd` = min(ngày kết thúc, ngày chấm dứt).
-- **Số hợp đồng** duy nhất trong các hợp đồng chưa xoá → `"Số hợp đồng đã tồn tại"`.
+- **Số hợp đồng** duy nhất trong các hợp đồng chưa xoá → `"Số hợp đồng đã tồn tại"`. Tự sinh `{STT:000}/{năm}/HĐLĐ` (thử việc `HĐTV`), STT chung mọi loại theo năm hiện tại, tính cả HĐ đã xoá (`ContractRules.NextSeq`); form thêm điền sẵn (`GET /next-number?type=`), HR sửa được, POST để trống = tự sinh.
 - **Không trùng thời gian** giữa các hợp đồng (chưa xoá) của cùng nhân viên (theo `EffectiveEnd`) → `"Trùng thời gian với hợp đồng X (…)"`. Ký hợp đồng mới ngay hôm sau ngày kết thúc là hợp lệ.
 - **Phụ lục** (BLLĐ 2019 Điều 22): **không** đổi thời hạn; có số (duy nhất trong hợp đồng), ngày hiệu lực **trong thời hạn** hợp đồng, nội dung, lương / phụ cấp mới (trống = không đổi). Lương hiện tại = phụ lục mới nhất có đổi giá trị và hiệu lực ≤ hôm nay, không có thì lương trên hợp đồng (`EffectiveValue`).
 - **Chấm dứt** (`/terminate`): ngày làm việc cuối trong `[StartDate, EndDate]`, lý do bắt buộc; đã chấm dứt → 409. Hết hạn tự nhiên thì không cần chấm dứt.
