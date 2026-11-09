@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react';
 import { File as FileIcon, Paperclip, SendHorizontal, X } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { Textarea } from '@/components/common/textarea';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/utils/cn';
 import { MAX_FILES, MAX_TEXT, formatBytes, isImageFile } from '../../utils/labels';
 
@@ -27,6 +28,14 @@ export function Composer({ draftKey, files, onAddFiles, onRemoveFile, onSubmit }
   const previews = useMemo(() => files.map((f) => (isImageFile(f) ? URL.createObjectURL(f) : null)), [files]);
   useEffect(() => () => previews.forEach((u) => u && URL.revokeObjectURL(u)), [previews]);
   useEffect(() => area.current?.focus(), []);
+  const isMobile = useIsMobile();
+  // Safari chưa hỗ trợ `field-sizing: content` (Textarea tự giãn) → ô kẹt 1 dòng. Tự giãn theo nội dung bằng JS, tối đa 160px (= max-h-40).
+  useLayoutEffect(() => {
+    const el = area.current;
+    if (!el || CSS.supports?.('field-sizing', 'content')) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight + el.offsetHeight - el.clientHeight, 160)}px`;
+  }, [text]);
 
   const canSend = text.trim().length > 0 || files.length > 0;
   const submit = () => {
@@ -80,7 +89,7 @@ export function Composer({ draftKey, files, onAddFiles, onRemoveFile, onSubmit }
             value={text}
             maxLength={MAX_TEXT}
             rows={1}
-            placeholder="Nhập tin nhắn… (Enter để gửi, Shift+Enter xuống dòng)"
+            placeholder={isMobile ? 'Nhập tin nhắn…' : 'Nhập tin nhắn… (Enter để gửi, Shift+Enter xuống dòng)'}
             className="max-h-40 min-h-10 resize-none py-2"
             onChange={(e) => setText(e.target.value)}
             onKeyDown={onKeyDown}
