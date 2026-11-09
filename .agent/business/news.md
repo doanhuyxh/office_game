@@ -74,7 +74,7 @@ Xoá bài / bình luận là **xoá mềm**; bình luận gốc đã xoá mà c�
 - **`/news/{id}`** (`?comment=<id>` cuộn tới bình luận) cho link từ email / chuông; `linkTarget` (`features/notifications/utils/labels.ts`) tách query cho `navigate`.
 - Hộp soạn bài: **Tiptap** (`@tiptap/react` + `starter-kit` + `extension-placeholder`), **lazy load** → chunk `post-editor` riêng (~400 KB không vào gói chính); thanh công cụ đậm / nghiêng / gạch chân / H2 / danh sách / trích dẫn / link / emoji / @nhắc + `AudiencePicker` + đính kèm (tiến độ tải S3) + ☑ email + ☑ tắt bình luận.
 - `PostCard`: thu gọn bài dài, lưới ảnh / video kiểu FB + xem ảnh lớn, hover ra 6 emoji, bình luận một cấp; menu sửa / xoá / ghim / ẩn theo cờ `canEdit` / `canDelete` / `canHide` **do BE trả** (không suy từ vai trò).
-- `RecentNews`: thẻ "Bảng tin" ở `/` và tab **Tin tức** của 📌 Bảng tin trong 3D (mở bài ở tab mới để giữ phiên 3D) — [office-documents.md](office-documents.md).
+- `RecentNews`: thẻ "Bảng tin" ở `/` (gọn, 2 dòng) và tab **Tin tức** của 📌 Bảng tin trong 3D (`full`: nội dung đầy đủ + ảnh/tệp, không rút gọn; bấm tên tác giả mở bài ở tab mới để giữ phiên 3D) — [office-documents.md](office-documents.md).
 
 ## MCP
 

@@ -42,7 +42,7 @@ function Notices({ onPresent }: { onPresent?: (assetId: string) => void }) {
         <TabsTrigger value="docs">Tài liệu ban hành</TabsTrigger>
       </TabsList>
       <TabsContent value="news" className="grid gap-3">
-        <RecentNews limit={8} newTab />
+        <RecentNews limit={8} newTab full />
         <Button asChild variant="outline" size="sm" className="w-fit"><a href="/news" target="_blank" rel="noreferrer">Mở Bảng tin đầy đủ</a></Button>
       </TabsContent>
       <TabsContent value="docs"><PublishedDocs onPresent={onPresent} /></TabsContent>
