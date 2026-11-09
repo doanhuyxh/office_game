@@ -12,6 +12,13 @@ export interface IProject {
   id: string; code: string; name: string; description: string | null; kind: ProjectKind; status: ProjectStatus; departmentId: string | null; departmentName: string | null;
   businessLineId: string | null; contracts: ISalesContractRef[]; startOn: string | null; endOn: string | null; budgetManDays: number | null; myRole: MemberRole | null;
   canManage: boolean; canWork: boolean; memberCount: number; tasks: { open: number; done: number; overdue: number }; milestonesOpen: number; milestonesAccepted: number; createdAt: string;
+  progress: IProjectProgress;
+}
+export type ProjectHealth = 'OnTrack' | 'AtRisk' | 'Late';
+/** Tiến độ do back-end tính (ProgressRules); health = null khi dự án đã đóng. */
+export interface IProjectProgress {
+  todo: number; doing: number; review: number; done: number; overdue: number; percentDone: number | null; timeElapsedPercent: number | null;
+  nextMilestone: { title: string; dueOn: string | null; overdue: boolean } | null; milestonesOverdue: number; health: ProjectHealth | null; healthReasons: string[];
 }
 export interface IMilestone {
   id: string; order: number; title: string; dueOn: string | null; status: MilestoneStatus; installmentId: string | null; installmentTitle: string | null;

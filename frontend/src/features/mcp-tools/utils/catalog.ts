@@ -261,7 +261,7 @@ export const MCP_TOOL_GROUPS: McpToolGroup[] = [
     name: 'Dự án',
     tools: [
       { name: 'list_projects', title: 'Dự án', kind: 'read', endpoint: 'GET /api/projects',
-        description: 'Dự án tôi xem được (thành viên; HR / Ban giám đốc thấy tất cả trừ khi mine=true): mã, tên, loại, trạng thái, phòng ban, hợp đồng bán gắn kèm (không tiền), ngày bắt đầu / kết thúc, ngân sách ngày công, vai trò của tôi, canWork, số thành viên, đếm việc, mốc.',
+        description: 'Dự án tôi xem được (thành viên; HR / Ban giám đốc thấy tất cả trừ khi mine=true): mã, tên, loại, trạng thái, phòng ban, hợp đồng bán gắn kèm (không tiền), ngày bắt đầu / kết thúc, ngân sách ngày công, vai trò của tôi, canWork, số thành viên, đếm việc, mốc, tiến độ (progress: % hoàn thành, % thời gian, mốc tiếp theo, Đúng tiến độ / Có rủi ro / Trễ kèm lý do).',
         params: [
           { name: 'mine', type: 'bool', required: false, description: 'Chỉ dự án tôi là thành viên', default: 'false' },
           { name: 'includeClosed', type: 'bool', required: false, description: 'Gồm cả dự án đã đóng', default: 'false' },

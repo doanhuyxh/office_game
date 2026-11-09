@@ -1,5 +1,5 @@
 import type { StatusTone } from '@/components/common/StatusBadge';
-import type { ChangeRequestStatus, ProjectKind, ProjectStatus, TaskState } from '../types/project.types';
+import type { ChangeRequestStatus, ProjectHealth, ProjectKind, ProjectStatus, TaskState } from '../types/project.types';
 
 export const TASK_STATES: TaskState[] = ['Todo', 'Doing', 'Review', 'Done'];
 export const TASK_STATE: Record<TaskState, { label: string; tone: StatusTone }> = {
@@ -7,6 +7,11 @@ export const TASK_STATE: Record<TaskState, { label: string; tone: StatusTone }> 
   Doing: { label: 'Đang làm', tone: 'info' },
   Review: { label: 'Chờ review', tone: 'warning' },
   Done: { label: 'Xong', tone: 'success' },
+};
+export const PROJECT_HEALTH: Record<ProjectHealth, { label: string; tone: StatusTone; rank: number }> = {
+  Late: { label: 'Trễ', tone: 'danger', rank: 0 },
+  AtRisk: { label: 'Có rủi ro', tone: 'warning', rank: 1 },
+  OnTrack: { label: 'Đúng tiến độ', tone: 'success', rank: 2 },
 };
 export const PROJECT_KIND: Record<ProjectKind, string> = { Internal: 'Nội bộ', Client: 'Làm cho khách' };
 export const PROJECT_STATUS: Record<ProjectStatus, { label: string; tone: StatusTone }> = {

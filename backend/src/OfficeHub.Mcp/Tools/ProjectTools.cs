@@ -19,7 +19,8 @@ public sealed class ProjectTools
     [McpServerTool(Name = "list_projects", Title = "Dự án", ReadOnly = true, OpenWorld = false)]
     [Description("Dự án tôi xem được (thành viên; HR / Ban giám đốc thấy tất cả trừ khi mine=true): id, mã, tên, loại (Internal / Client), trạng thái, phòng ban, " +
                  "hợp đồng bán gắn kèm (số, tên, khách — không tiền), ngày bắt đầu / kết thúc, ngân sách ngày công, vai trò của tôi (myRole), " +
-                 "canWork (được tạo / chuyển việc), số thành viên, đếm việc (mở / xong / quá hạn), mốc.")]
+                 "canWork (được tạo / chuyển việc), số thành viên, đếm việc (mở / xong / quá hạn), mốc, progress (tiến độ: việc theo trạng thái, % hoàn thành, " +
+                 "% thời gian đã trôi, mốc tiếp theo, health = OnTrack / AtRisk / Late kèm healthReasons). Dùng để trả lời \"tổng quan tiến độ các dự án\".")]
     public static async Task<string> ListProjects(OfficeHubApi api,
         [Description("true = chỉ dự án tôi là thành viên")] bool mine = false,
         [Description("true = gồm cả dự án đã đóng")] bool includeClosed = false,

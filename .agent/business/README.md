@@ -42,6 +42,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Tài sản: khấu hao, biên bản giao nhận (xác nhận trong app, Word theo mẫu), ảnh / hoá đơn thiết bị (S3) | [assets-handover.md](assets-handover.md) |
 | Dự án: thành viên, phân bổ, mốc nghiệm thu, công việc, ngày công, `IProjectDirectory` (kho tài liệu dự án), chép dự án cũ từ Documents | [projects.md](projects.md) |
 | Dự án — hợp đồng (nhiều HĐ / dự án), chốt phân bổ tháng, chi phí nhân công từ lương, thu / chi gắn dự án, lãi / lỗ | [projects-finance.md](projects-finance.md) |
+| Dự án — tổng quan tiến độ: % hoàn thành, % thời gian, mốc tiếp, tình trạng Đúng tiến độ / Có rủi ro / Trễ | [projects-progress.md](projects-progress.md) |
 | Yêu cầu thay đổi (CR) của dự án → phụ lục hợp đồng bán (tăng / giảm giá trị, đợt thu mới) | [projects-changes.md](projects-changes.md) |
 | Tài chính — chứng từ đính kèm dòng sổ / đề nghị chi (S3 `finance/`), Excel sổ thu chi + sổ quỹ + tổng hợp | [finance-docs.md](finance-docs.md) |
 | Báo giá: hạng mục, chiết khấu (vượt ngưỡng → duyệt `quote_discount`), phiên bản, Word theo mẫu, lập hợp đồng từ báo giá | [sales-quotes.md](sales-quotes.md) |

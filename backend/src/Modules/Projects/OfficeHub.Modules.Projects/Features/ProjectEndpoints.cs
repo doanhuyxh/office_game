@@ -19,7 +19,7 @@ public sealed record MemberDto(Guid EmployeeId, string? Code, string FullName, s
 public sealed record TaskCounts(int Open, int Done, int Overdue);
 public sealed record ProjectDto(Guid Id, string Code, string Name, string? Description, ProjectKind Kind, ProjectStatus Status, Guid? DepartmentId, string? DepartmentName,
     Guid? BusinessLineId, List<SalesContractRef> Contracts, DateOnly? StartOn, DateOnly? EndOn, decimal? BudgetManDays, ProjectMemberRole? MyRole, bool CanManage, bool CanWork,
-    int MemberCount, TaskCounts Tasks, int MilestonesOpen, int MilestonesAccepted, DateTimeOffset CreatedAt);
+    int MemberCount, TaskCounts Tasks, int MilestonesOpen, int MilestonesAccepted, DateTimeOffset CreatedAt, ProjectProgress Progress);
 public sealed record ProjectDetail(ProjectDto Project, List<MemberDto> Members, List<MilestoneDto> Milestones);
 public sealed record UpsertProject(string Code, string Name, ProjectKind Kind = ProjectKind.Internal, string? Description = null, Guid? DepartmentId = null,
     Guid? BusinessLineId = null, List<Guid>? SalesContractIds = null, DateOnly? StartOn = null, DateOnly? EndOn = null, decimal? BudgetManDays = null,
@@ -114,18 +114,21 @@ internal static class ProjectEndpoints
     {
         var ids = rows.Select(p => p.Id).ToList();
         var tasks = await db.Tasks.AsNoTracking().Where(t => ids.Contains(t.ProjectId)).Select(t => new { t.ProjectId, t.State, t.DueOn }).ToListAsync(ct);
-        var ms = await db.Milestones.AsNoTracking().Where(m => ids.Contains(m.ProjectId)).Select(m => new { m.ProjectId, m.Status }).ToListAsync(ct);
+        var ms = await db.Milestones.AsNoTracking().Where(m => ids.Contains(m.ProjectId)).Select(m => new { m.ProjectId, m.Status, m.Order, m.Title, m.DueOn }).ToListAsync(ct);
         var depts = (await dir.ListDepartmentsAsync(ct)).ToDictionary(d => d.Id, d => d.Name);
         var links = await db.ProjectContracts.AsNoTracking().Where(x => ids.Contains(x.ProjectId)).OrderBy(x => x.LinkedAt).ToListAsync(ct);
         var contracts = (await sales.GetManyAsync(links.Select(l => l.ContractId).Distinct().ToList(), ct)).ToDictionary(c => c.Id);
         return rows.Select(p =>
         {
             var t = tasks.Where(x => x.ProjectId == p.Id).ToList();
+            var progress = ProgressRules.Compute(t.Select(x => new ProgressTask(x.State, x.DueOn)).ToList(),
+                ms.Where(x => x.ProjectId == p.Id).Select(x => new ProgressMilestone(x.Order, x.Title, x.DueOn, x.Status)).ToList(), p.StartOn, p.EndOn,
+                p.Status == ProjectStatus.Active, today);
             return new ProjectDto(p.Id, p.Code, p.Name, p.Description, p.Kind, p.Status, p.DepartmentId, p.DepartmentId is { } d ? depts.GetValueOrDefault(d) : null, p.BusinessLineId,
                 links.Where(l => l.ProjectId == p.Id).Select(l => contracts.GetValueOrDefault(l.ContractId)).OfType<SalesContractRef>().ToList(), p.StartOn, p.EndOn, p.BudgetManDays,
                 v.Roles.TryGetValue(p.Id, out var r) ? r : null, v.CanManage(p.Id), v.CanWork(p.Id) && p.Status == ProjectStatus.Active, p.Members.Count,
                 new TaskCounts(t.Count(x => x.State != TaskState.Done), t.Count(x => x.State == TaskState.Done), t.Count(x => EffortRules.IsOverdue(x.DueOn, x.State, today))),
-                ms.Count(x => x.ProjectId == p.Id && x.Status == MilestoneStatus.Open), ms.Count(x => x.ProjectId == p.Id && x.Status == MilestoneStatus.Accepted), p.CreatedAt);
+                ms.Count(x => x.ProjectId == p.Id && x.Status == MilestoneStatus.Open), ms.Count(x => x.ProjectId == p.Id && x.Status == MilestoneStatus.Accepted), p.CreatedAt, progress);
         }).ToList();
     }
 
