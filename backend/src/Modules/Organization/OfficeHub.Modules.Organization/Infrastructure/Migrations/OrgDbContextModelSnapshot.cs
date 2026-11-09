@@ -40,12 +40,12 @@ namespace OfficeHub.Modules.Organization.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<string>("Guide")
-                        .HasMaxLength(10000)
-                        .HasColumnType("character varying(10000)");
+                        .HasMaxLength(40000)
+                        .HasColumnType("character varying(40000)");
 
                     b.Property<DateTimeOffset?>("GuideUpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -232,15 +232,15 @@ namespace OfficeHub.Modules.Organization.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<int>("FinancePermissions")
                         .HasColumnType("integer");
 
                     b.Property<string>("Guide")
-                        .HasMaxLength(10000)
-                        .HasColumnType("character varying(10000)");
+                        .HasMaxLength(40000)
+                        .HasColumnType("character varying(40000)");
 
                     b.Property<DateTimeOffset?>("GuideUpdatedAt")
                         .HasColumnType("timestamp with time zone");

@@ -21,9 +21,9 @@ public sealed class Department : Entity
     /// <summary>Id khu vực trên bản đồ văn phòng 3D (shared/office-map.json → zones[].id).</summary>
     public string? MapZone { get; set; }
     public int SortOrder { get; set; }
-    /// <summary>Mô tả ngắn (≤ 500) — hiện ở danh sách, trả cho trợ lý AI.</summary>
+    /// <summary>Mô tả ngắn (≤ 2.000) — hiện ở danh sách, trả cho trợ lý AI.</summary>
     public string? Description { get; set; }
-    /// <summary>Hướng dẫn: trách nhiệm, quyền hạn, quy trình, đầu mối liên hệ (Markdown ≤ 10.000). Mọi nhân viên + trợ lý AI (MCP) đọc được.</summary>
+    /// <summary>Hướng dẫn: trách nhiệm, quyền hạn, quy trình, đầu mối liên hệ (Markdown ≤ 40.000). Mọi nhân viên + trợ lý AI (MCP) đọc được.</summary>
     public string? Guide { get; set; }
     public DateTimeOffset? GuideUpdatedAt { get; set; }
     public string? GuideUpdatedByName { get; set; }
@@ -40,9 +40,9 @@ public sealed class Position : Entity
     public bool SelfPublishDocuments { get; set; }
     /// <summary>Quyền tài chính của người giữ chức vụ (bit của <c>FinancePermission</c>, đã chuẩn hoá). Chỉ admin / người có quyền Quản trị tài chính sửa được.</summary>
     public int FinancePermissions { get; set; }
-    /// <summary>Mô tả ngắn (≤ 500) — hiện ở danh sách, trả cho trợ lý AI.</summary>
+    /// <summary>Mô tả ngắn (≤ 2.000) — hiện ở danh sách, trả cho trợ lý AI.</summary>
     public string? Description { get; set; }
-    /// <summary>Hướng dẫn: trách nhiệm, quyền hạn, quy trình, đầu mối liên hệ (Markdown ≤ 10.000). Mọi nhân viên + trợ lý AI (MCP) đọc được.</summary>
+    /// <summary>Hướng dẫn: trách nhiệm, quyền hạn, quy trình, đầu mối liên hệ (Markdown ≤ 40.000). Mọi nhân viên + trợ lý AI (MCP) đọc được.</summary>
     public string? Guide { get; set; }
     public DateTimeOffset? GuideUpdatedAt { get; set; }
     public string? GuideUpdatedByName { get; set; }

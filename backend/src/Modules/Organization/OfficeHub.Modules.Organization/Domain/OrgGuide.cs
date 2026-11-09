@@ -3,8 +3,8 @@ namespace OfficeHub.Modules.Organization.Domain;
 /// <summary>Mô tả + hướng dẫn của phòng ban / chức vụ (cho nhân viên và trợ lý AI). Hàm thuần — test ở tests/OfficeHub.Modules.Organization.Tests.</summary>
 public static class OrgGuide
 {
-    public const int DescriptionMax = 500;
-    public const int GuideMax = 10_000;
+    public const int DescriptionMax = 2_000;
+    public const int GuideMax = 40_000;
 
     /// <summary>Khung gợi ý khi soạn hướng dẫn phòng ban.</summary>
     public const string DepartmentTemplate = """

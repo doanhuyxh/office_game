@@ -56,7 +56,7 @@ ok('trưởng phòng KHÔNG sửa phòng khác (403)', (await json(head.cookie, 
 ok('trưởng phòng KHÔNG sửa phòng cha (403)', (await json(head.cookie, 'PUT', `/api/org/departments/${root}/guide`, G('x'))).status === 403);
 ok('trưởng phòng KHÔNG sửa chức vụ (403)', (await json(head.cookie, 'PUT', `/api/org/positions/${posHead.id}/guide`, G('x'))).status === 403);
 ok('nhân viên KHÔNG sửa phòng mình (403)', (await json(staff.cookie, 'PUT', `/api/org/departments/${tech}/guide`, G('x'))).status === 403);
-const tooLong = await json(admin, 'PUT', `/api/org/departments/${other}/guide`, { description: 'x'.repeat(501), guide: 'y'.repeat(10_001) });
+const tooLong = await json(admin, 'PUT', `/api/org/departments/${other}/guide`, { description: 'x'.repeat(2_001), guide: 'y'.repeat(40_001) });
 ok('quá dài → 400 theo trường', tooLong.status === 400 && tooLong.body.errors?.description && tooLong.body.errors?.guide, tooLong);
 
 // ---------- Đọc ----------
@@ -106,12 +106,12 @@ ok('quản lý: chi tiết cấp dưới có ngày vào làm', (await json(head.
 const tok = (await json(staff.cookie, 'POST', '/api/auth/access-tokens', { name: 'e2e-guide', expiresInDays: 30 })).body.token;
 const bearer = { authorization: `Bearer ${tok}` };
 ok('token AI đọc me/role', (await fetch(`${API}/api/org/employees/me/role`, { headers: bearer })).status === 200);
-ok('token AI KHÔNG sửa hướng dẫn (403)', [401, 403].includes((await fetch(`${API}/api/org/departments/${tech}/guide`, { method: 'PUT',
+ok('token AI của nhân viên KHÔNG sửa hướng dẫn (route mở cho MCP, Api vẫn 403)', [401, 403].includes((await fetch(`${API}/api/org/departments/${tech}/guide`, { method: 'PUT',
   headers: { ...bearer, 'content-type': 'application/json' }, body: JSON.stringify(G('ai')) })).status));
 
 let rid = 0;
-const rpc = async (method: string, params: unknown = {}) => {
-  const res = await fetch(MCP, { method: 'POST', headers: { ...bearer, 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+const rpc = async (method: string, params: unknown = {}, auth: Record<string, string> = bearer) => {
+  const res = await fetch(MCP, { method: 'POST', headers: { ...auth, 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
     body: JSON.stringify({ jsonrpc: '2.0', id: ++rid, method, params }) });
   const text = await res.text();
   const data = text.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5)).pop() ?? text;
@@ -121,8 +121,8 @@ const init = await rpc('initialize', { protocolVersion: '2025-06-18', capabiliti
 ok('MCP instructions nhắc get_my_role', String(init?.result?.instructions ?? '').includes('get_my_role'), init);
 const names: string[] = ((await rpc('tools/list'))?.result?.tools ?? []).map((t: any) => t.name);
 ok('tools/list có 4 tool vai trò', ['get_my_role', 'list_positions', 'get_department', 'get_position'].every((n) => names.includes(n)), names);
-const call = async (name: string, args: Record<string, unknown> = {}) => {
-  const r = await rpc('tools/call', { name, arguments: args });
+const call = async (name: string, args: Record<string, unknown> = {}, auth: Record<string, string> = bearer) => {
+  const r = await rpc('tools/call', { name, arguments: args }, auth);
   const text = r?.result?.content?.[0]?.text ?? '';
   try { return { err: !!r?.result?.isError, j: JSON.parse(text) as any }; } catch { return { err: true, j: text as any }; }
 };
@@ -141,6 +141,20 @@ const scOther = await call('search_colleagues', { search: 'NV962' });
 ok('MCP search_colleagues: trạng thái người khác = null', !scOther.err && scOther.j[0]?.status === null && scOther.j[0]?.email === 'e2e.ketoan@e2e.test', scOther.j);
 const sc = await call('search_colleagues', { search: 'NV961' });
 ok('MCP search_colleagues có jobTitle + positionLevel', !sc.err && sc.j[0]?.jobTitle === 'Lập trình viên' && sc.j[0]?.positionLevel === 6, sc.j);
+
+// ---------- Sửa mô tả / hướng dẫn qua MCP (2026-11-09) ----------
+ok('tools/list có update_department_guide + update_position_guide', ['update_department_guide', 'update_position_guide'].every((n) => names.includes(n)), names);
+const staffEdit = await call('update_department_guide', { department: tech, description: 'AI sửa' });
+ok('MCP nhân viên KHÔNG sửa hướng dẫn phòng mình (lỗi từ Api)', staffEdit.err, staffEdit.j);
+const headTok = (await json(head.cookie, 'POST', '/api/auth/access-tokens', { name: 'e2e-guide-head', expiresInDays: 30 })).body.token;
+const headAuth = { authorization: `Bearer ${headTok}` };
+const headEdit = await call('update_department_guide', { department: tech, description: 'Mô tả qua AI' }, headAuth);
+ok('MCP trưởng phòng sửa mô tả phòng mình, hướng dẫn giữ nguyên', !headEdit.err && headEdit.j.after?.description === 'Mô tả qua AI'
+  && headEdit.j.after?.guide === headEdit.j.before?.guide && !!headEdit.j.before?.guide, headEdit.j);
+const headPos = await call('update_position_guide', { position: posStaff.id, description: 'x' }, headAuth);
+ok('MCP trưởng phòng KHÔNG sửa chức vụ (chỉ HR)', headPos.err, headPos.j);
+const tooLongMcp = await call('update_department_guide', { department: tech, guide: 'y'.repeat(40_001) }, headAuth);
+ok('MCP hướng dẫn > 40.000 ký tự bị từ chối', tooLongMcp.err && String(tooLongMcp.j).includes('40'), tooLongMcp.j);
 
 console.log(`\n${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

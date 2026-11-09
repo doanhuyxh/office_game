@@ -37,4 +37,8 @@ public class OrgGuideTests
     [Fact]
     public void Templates_fit_limits() =>
         Assert.True(OrgGuide.DepartmentTemplate.Length < OrgGuide.GuideMax && OrgGuide.PositionTemplate.Contains("## Quyền hạn"));
+
+    /// <summary>Chủ dự án nâng 2026-11-09. Cùng giá trị ở OrgGuideTools (MCP, OrgGuideToolsTests) và guide-dialog (FE) — đổi thì đổi cả 3 + migration.</summary>
+    [Fact]
+    public void Limits() => Assert.Equal((2_000, 40_000), (OrgGuide.DescriptionMax, OrgGuide.GuideMax));
 }

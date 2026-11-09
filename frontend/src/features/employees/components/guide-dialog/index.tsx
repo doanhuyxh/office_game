@@ -12,8 +12,8 @@ import { errorMessage, fieldErrors } from '@/utils/errors';
 import { useDepartmentDetail, useGuideTemplates, usePositionDetail, useSaveGuide } from '../../hooks/useOrg';
 import { GuideText } from '../guide-text';
 
-const DESC_MAX = 500;
-const GUIDE_MAX = 10_000;
+const DESC_MAX = 2_000; // khớp OrgGuide.DescriptionMax (BE)
+const GUIDE_MAX = 40_000; // khớp OrgGuide.GuideMax
 
 export type GuideTarget = { kind: 'department' | 'position'; id: string; name: string } | null;
 
@@ -65,7 +65,7 @@ export function GuideDialog({ target, onClose }: { target: GuideTarget; onClose:
                   <Label htmlFor="g-desc">Mô tả ngắn</Label>
                   <Textarea id="g-desc" rows={2} maxLength={DESC_MAX} value={description} onChange={(e) => setDescription(e.target.value)}
                     placeholder={target?.kind === 'department' ? 'Vd: Phụ trách tuyển dụng, chấm công, chính sách nhân sự' : 'Vd: Quản lý một phòng, chịu trách nhiệm kết quả của phòng'} />
-                  <p className="text-xs text-muted-foreground">{description.length}/{DESC_MAX} · hiện ở danh sách và trợ lý AI dùng để tìm đúng phòng / cấp</p>
+                  <p className="text-xs text-muted-foreground">{description.length.toLocaleString('vi-VN')}/{DESC_MAX.toLocaleString('vi-VN')} · hiện ở danh sách và trợ lý AI dùng để tìm đúng phòng / cấp</p>
                   {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
                 </div>
                 <div className="grid gap-2">

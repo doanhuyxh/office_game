@@ -50,11 +50,10 @@ public class AccessTokenScopeTests
     [InlineData("POST", "/api/org/employees")]
     [InlineData("PUT", "/api/org/employees/0193a000-0000-7000-8000-000000000000")]
     [InlineData("POST", "/api/org/employees/0193a000-0000-7000-8000-000000000000/account/reset-password")]
-    [InlineData("PUT", "/api/org/departments/0193a000-0000-7000-8000-000000000000/guide")] // AI không sửa hướng dẫn
     [InlineData("GET", "/api/org/profile/me")]                 // CCCD, tài khoản ngân hàng: không bao giờ ra MCP
     [InlineData("GET", "/api/org/profile/employees/0193a000-0000-7000-8000-000000000000")]
     [InlineData("POST", "/api/org/profile/me/requests")]
-    [InlineData("PUT", "/api/org/positions/0193a000-0000-7000-8000-000000000000/guide")]
+    [InlineData("POST", "/api/org/positions/0193a000-0000-7000-8000-000000000000/guide")] // hướng dẫn chỉ mở PUT
     [InlineData("GET", "/api/leave/balances")]          // quỹ phép mọi người (HR) — không bị mở bởi tiền tố /balance
     [InlineData("POST", "/api/leave/adjustments")]
     [InlineData("POST", "/api/attendance/holidays")]
@@ -188,10 +187,14 @@ public class DepartmentAdminScopeTests
     [InlineData("POST", "/api/org/departments")]
     [InlineData("PUT", "/api/org/departments/" + G)]
     [InlineData("DELETE", "/api/org/departments/" + G)]
+    [InlineData("PUT", "/api/org/departments/" + G + "/guide")]      // mô tả + hướng dẫn: HR / trưởng phòng (Api kiểm tra)
+    [InlineData("PUT", "/api/org/positions/" + G + "/guide")]        // chức vụ: chỉ HR (Api kiểm tra)
     public void Hr_department_writes_allowed(string method, string path) => Assert.True(AccessTokenAuth.IsAllowed(method, path));
 
     [Theory]
-    [InlineData("PUT", "/api/org/departments/" + G + "/guide")]    // hướng dẫn phòng ban: chỉ web
+    [InlineData("DELETE", "/api/org/departments/" + G + "/guide")]
+    [InlineData("PUT", "/api/org/departments/" + G + "/guide/x")]
+    [InlineData("PUT", "/api/org/positions/" + G)]                    // sửa chức vụ (tên, cấp, quyền tài chính): chỉ web
     [InlineData("DELETE", "/api/org/departments")]
     [InlineData("POST", "/api/org/departments/" + G)]
     [InlineData("POST", "/api/org/employees/bulk/update")]           // chuyển nhân viên: chỉ web

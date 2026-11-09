@@ -9,7 +9,7 @@ namespace OfficeHub.Mcp.Tools;
 
 /// <summary>
 /// Quản lý phòng ban — CHỈ HR / admin (Api trả 403 với người khác). Tạo, sửa (tên, mã, phòng cha, trưởng phòng, thứ tự), xoá mềm.
-/// Sửa hướng dẫn phòng ban, chuyển nhân viên giữa phòng ban vẫn làm trên web. Mọi thay đổi ghi vào "Lịch sử thay đổi" (Department có [Audited]).
+/// Mô tả + hướng dẫn: OrgGuideTools. Chuyển nhân viên giữa phòng ban vẫn làm trên web. Mọi thay đổi ghi vào "Lịch sử thay đổi" (Department có [Audited]).
 /// </summary>
 [McpServerToolType]
 public sealed class DepartmentAdminTools

@@ -95,10 +95,12 @@ public static class AccessTokenAuth
         ("GET", Exact($"/api/projects/tasks/{Id}/comments")),
         ("POST", Exact($"/api/projects/{Id}/tasks")),
         ("POST", Exact($"/api/projects/tasks/{Id}/(move|comments)")),
-        // Phòng ban (HR — Api tự yêu cầu AuthPolicies.Hr): tạo / sửa / xoá mềm. Hướng dẫn phòng ban (/guide) vẫn chỉ sửa trên web.
+        // Phòng ban (HR — Api tự yêu cầu AuthPolicies.Hr): tạo / sửa / xoá mềm.
         ("POST", Exact("/api/org/departments/?")),
         ("PUT", Exact($"/api/org/departments/{Id}")),
         ("DELETE", Exact($"/api/org/departments/{Id}")),
+        // Mô tả + hướng dẫn (2026-11-09): phòng ban = HR hoặc trưởng phòng đó, chức vụ = chỉ HR — Api (GuideEndpoints) tự kiểm tra.
+        ("PUT", Exact($"/api/org/(departments|positions)/{Id}/guide")),
         // Bảng tin: đăng bài (Api trả 403 nếu không phải admin / HR, không đính kèm tệp). Sửa / xoá / bình luận / kiểm duyệt vẫn chỉ trên web.
         ("POST", Exact("/api/news/posts/?")),
         ("GET", Exact("/api/documents/(spaces|folders|assets|recent)")),
