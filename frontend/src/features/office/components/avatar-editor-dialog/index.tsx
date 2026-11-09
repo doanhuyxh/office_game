@@ -75,7 +75,7 @@ export function AvatarEditorDialog({ open, onOpenChange, onSaved }: {
           </div>
 
           <Tabs defaultValue="body" className="min-w-0">
-            <TabsList className="flex h-auto w-full flex-wrap justify-start">
+            <TabsList className="flex w-full flex-wrap justify-start group-data-[orientation=horizontal]/tabs:h-auto">
               {TABS.map((t) => <TabsTrigger key={t.id} value={t.id} className="flex-none">{t.label}</TabsTrigger>)}
             </TabsList>
             {TABS.map((t) => (

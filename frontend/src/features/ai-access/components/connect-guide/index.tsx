@@ -34,7 +34,7 @@ export function ConnectGuide({ newToken }: { newToken: string | null }) {
           const guides = CLIENT_GUIDES.filter((g) => g[mode]);
           return (
             <Tabs key={mode} defaultValue={guides[0].id}>
-              <TabsList className="h-auto flex-wrap">
+              <TabsList className="flex-wrap group-data-[orientation=horizontal]/tabs:h-auto">
                 {guides.map((g) => <TabsTrigger key={g.id} value={g.id}>{g.label}</TabsTrigger>)}
               </TabsList>
               {guides.map((g) => {
