@@ -20,11 +20,12 @@ const seats: Seat[] = [];
 const obj = (id: string, prefab: string, x: number, z: number, w: number, d: number, extra: Partial<Obj> = {}) =>
   objects.push({ id, prefab, x: r2(x), z: r2(z), w, d, rot: 0, solid: true, ...extra });
 
-/** Cụm 6 bàn (3 đối diện 3, như bản 24 × 16): tâm (cx, cz); bàn ở cz ± 0,35; ghế ở cz ± 1,0. */
-function cluster(dept: string, zone: string, cx: number, cz: number, from: number, large = false) {
+/** Cụm 6 bàn (3 đối diện 3, như bản 24 × 16): tâm (cx, cz); bàn ở cz ± 0,35; ghế ở cz ± 1,0. `dxs` = vị trí bàn theo x (mặc định 3 bàn / hàng). */
+const DX4 = [-0.8, 0.8]; // cụm 4 bàn (2 đối diện 2), rộng 3 m
+function cluster(dept: string, zone: string, cx: number, cz: number, from: number, large = false, dxs = [-1.6, 0, 1.6]) {
   let n = from;
   for (const [dz, facing] of [[-0.35, 's'], [0.35, 'n']] as [number, Facing][])
-    for (const dx of [-1.6, 0, 1.6]) {
+    for (const dx of dxs) {
       const id = `${dept}-${String(n++).padStart(2, '0')}`;
       const x = cx + dx, zDesk = cz + dz, zSeat = cz + (facing === 's' ? -1.0 : 1.0);
       obj(`desk-${id}`, large ? 'deskLarge' : 'desk', x, zDesk, 1.4, 0.7);
@@ -71,8 +72,9 @@ const rooms = [
   { id: 'meeting-hall', name: 'Hội trường', kind: 'meeting', zone: 'meeting', x0: 10, x1: 22, z0: 0, z1: 8, walls: true, glass: true, capacity: 20, voice: 'room', doors: [{ side: 's', at: 0.5, w: 1.5 }, { side: 's', at: 10.0, w: 1.5 }] },
   { id: 'meeting-large', name: 'Phòng họp lớn', kind: 'meeting', zone: 'meeting', x0: 22, x1: 30, z0: 0, z1: 8, walls: true, glass: true, capacity: 10, voice: 'room', doors: [{ side: 's', at: 0.5, w: 1.0 }] },
   { id: 'meeting-small', name: 'Phòng họp nhỏ', kind: 'meeting', zone: 'meeting', x0: 30, x1: 35, z0: 0, z1: 8, walls: true, glass: true, capacity: 6, voice: 'room', doors: [{ side: 's', at: 0.5, w: 1.0 }] },
-  { id: 'kt', name: 'Phòng Kế toán', kind: 'office', zone: 'dept-kt', x0: 35, x1: 43, z0: 0, z1: 8, walls: true, doors: [{ side: 's', at: 6.5, w: 1.0 }] },
-  { id: 'focus', name: 'Phòng yên tĩnh', kind: 'office', zone: 'quiet', x0: 43, x1: 50, z0: 0, z1: 8, walls: true, doors: [{ side: 's', at: 1.0, w: 1.0 }] },
+  // Kế toán thu còn 4 chỗ (x 35–40), nhường 2 chỗ cho Phòng yên tĩnh (x 40–50, 8 chỗ) — chủ dự án chốt 2026-11-09
+  { id: 'kt', name: 'Phòng Kế toán', kind: 'office', zone: 'dept-kt', x0: 35, x1: 40, z0: 0, z1: 8, walls: true, doors: [{ side: 's', at: 3.5, w: 1.0 }] },
+  { id: 'focus', name: 'Phòng yên tĩnh', kind: 'office', zone: 'quiet', x0: 40, x1: 50, z0: 0, z1: 8, walls: true, doors: [{ side: 's', at: 3.0, w: 1.0 }] },
   ...[1, 2, 3, 4].map((i) => ({ id: `booth-${i}`, name: `Phòng gọi ${i}`, kind: 'booth', zone: 'booth', x0: 46, x1: 50, z0: 8 + (i - 1) * 3.5, z1: 8 + i * 3.5, walls: true, glass: true, capacity: 2, voice: 'room', doors: [{ side: 'w', at: 1.0, w: 1.0 }] })),
   { id: 'open', name: 'Khu làm việc chung', kind: 'open', zone: 'work', x0: 0, x1: 46, z0: 8, z1: 22, walls: false },
   { id: 'lounge', name: 'Khu nghỉ', kind: 'lounge', zone: 'lounge', x0: 0, x1: 17, z0: 22, z1: 30, walls: false },
@@ -181,15 +183,16 @@ obj('ml-board', 'whiteboard', 29.85, 4.0, 1.8, 0.1, { rot: 270 });
 meetingTable('ms', 32.5, 4.0, 2.4, 1.1, 3, false);
 obj('ms-screen', 'televisionWall', 32.5, 0.15, 1.4, 0.1, { interact: 'screen' });
 
-// ---------- Kế toán 6 ----------
-cluster('KT', 'dept-kt', 38.5, 3.05, 1);
+// ---------- Kế toán 4 (x 35–40) ----------
+cluster('KT', 'dept-kt', 37.5, 3.05, 1, false, DX4);
 [35.6, 36.6, 37.6].forEach((x, i) => obj(`kt-cabinet-${i + 1}`, 'cabinetFiles', x, 0.35, 0.9, 0.5, { interact: 'documents' }));
-obj('kt-cabinet-4', 'cabinetFiles', 42.65, 3.0, 0.9, 0.5, { rot: 270, interact: 'documents' });
-obj('kt-cabinet-5', 'cabinetFiles', 42.65, 4.0, 0.9, 0.5, { rot: 270, interact: 'documents' });
-obj('kt-safe', 'safe', 42.5, 0.4, 0.6, 0.6);
-// ---------- Phòng yên tĩnh 6 ----------
-cluster('YT', 'quiet', 46.5, 4.05, 1);
-obj('focus-shelf', 'bookcaseOpen', 46.5, 0.25, 2.4, 0.4);
+obj('kt-cabinet-4', 'cabinetFiles', 35.35, 5.6, 0.9, 0.5, { rot: 90, interact: 'documents' });
+obj('kt-cabinet-5', 'cabinetFiles', 35.35, 6.6, 0.9, 0.5, { rot: 90, interact: 'documents' });
+obj('kt-safe', 'safe', 39.4, 0.4, 0.6, 0.6);
+// ---------- Phòng yên tĩnh 8 (x 40–50): 2 cụm 4 bàn ----------
+n = cluster('YT', 'quiet', 42.6, 4.05, 1, false, DX4);
+cluster('YT', 'quiet', 47.4, 4.05, n, false, DX4);
+obj('focus-shelf', 'bookcaseOpen', 45.0, 0.25, 2.4, 0.4);
 obj('focus-plant', 'pottedPlant', 49.5, 7.5, 0.5, 0.5);
 // ---------- Phòng gọi ----------
 for (let i = 1; i <= 4; i++) {

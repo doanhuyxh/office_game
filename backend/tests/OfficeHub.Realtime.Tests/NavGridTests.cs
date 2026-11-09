@@ -73,6 +73,8 @@ public class NavGridTests
     [InlineData(25.0, 28.0, "reception")]
     [InlineData(23.0, 19.0, "work")]
     [InlineData(46.5, 6.0, "quiet")]
+    [InlineData(37.5, 6.0, "dept-kt")] // Kế toán thu còn x 35–40
+    [InlineData(41.0, 6.0, "quiet")]   // Phòng yên tĩnh mở rộng sang x 40–50
     [InlineData(55.0, 5.0, "dept-studio")] // cánh đông Nội dung số
     [InlineData(56.0, 22.0, "studio-prep")]
     public void Zone_lookup(double x, double z, string zone) => Assert.Equal(zone, Map.ZoneAt(x, z));

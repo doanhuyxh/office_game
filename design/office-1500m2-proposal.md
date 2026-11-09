@@ -40,8 +40,8 @@ z=30 └────────────────────┴───
 | `meeting-hall` *(mới)* | Hội trường | 10–22 | 96 m² · kính | 20 chỗ, 2 màn hình, bục; `voice: "room"`, đặt được qua Meetings |
 | `meeting-large` | Phòng họp lớn | 22–30 | 64 m² · kính | **giữ id** (lịch đặt phòng đã có `RoomId`), 10 chỗ |
 | `meeting-small` | Phòng họp nhỏ | 30–35 | 40 m² · kính | **giữ id**, nâng 4 → 6 chỗ |
-| `kt` | Phòng Kế toán | 35–43 | 64 m² | 6 bàn (`KT-01..06`), tủ hồ sơ, két |
-| `focus` *(mới)* | Phòng yên tĩnh | 43–50 | 56 m² | 6 chỗ không gán phòng ban (`YT-01..06`, zone `work`), không voice |
+| `kt` | Phòng Kế toán | 35–40 | 40 m² | 4 bàn (`KT-01..04`), tủ hồ sơ, két *(2026-11-09: thu từ 6 → 4 chỗ)* |
+| `focus` *(mới)* | Phòng yên tĩnh | 40–50 | 80 m² | 8 chỗ không gán phòng ban (`YT-01..08`, zone `quiet`), không voice *(2026-11-09: mở rộng, nhận 2 chỗ từ Kế toán)* |
 | `booth-1..4` | Phòng gọi 1–4 | 46–50, mỗi phòng 3,5 m sâu | 14 m² · kính | cột đông khu mở (z 8–22), cửa hướng tây, bàn nhỏ + 2 ghế đối diện, `voice: "room"` |
 
 ### Khu mở (`open`, x 0–46, z 8–22, 644 m²)

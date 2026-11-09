@@ -118,14 +118,14 @@
       "kind": "office",
       "zone": "dept-kt",
       "x0": 35,
-      "x1": 43,
+      "x1": 40,
       "z0": 0,
       "z1": 8,
       "walls": true,
       "doors": [
         {
           "side": "s",
-          "at": 6.5,
+          "at": 3.5,
           "w": 1
         }
       ]
@@ -135,7 +135,7 @@
       "name": "Phòng yên tĩnh",
       "kind": "office",
       "zone": "quiet",
-      "x0": 43,
+      "x0": 40,
       "x1": 50,
       "z0": 0,
       "z1": 8,
@@ -143,7 +143,7 @@
       "doors": [
         {
           "side": "s",
-          "at": 1,
+          "at": 3,
           "w": 1
         }
       ]
@@ -1108,7 +1108,7 @@
       "id": "KT-01",
       "dept": "KT",
       "zone": "dept-kt",
-      "x": 36.9,
+      "x": 36.7,
       "z": 2.05,
       "facing": "s"
     },
@@ -1116,7 +1116,7 @@
       "id": "KT-02",
       "dept": "KT",
       "zone": "dept-kt",
-      "x": 38.5,
+      "x": 38.3,
       "z": 2.05,
       "facing": "s"
     },
@@ -1124,31 +1124,15 @@
       "id": "KT-03",
       "dept": "KT",
       "zone": "dept-kt",
-      "x": 40.1,
-      "z": 2.05,
-      "facing": "s"
+      "x": 36.7,
+      "z": 4.05,
+      "facing": "n"
     },
     {
       "id": "KT-04",
       "dept": "KT",
       "zone": "dept-kt",
-      "x": 36.9,
-      "z": 4.05,
-      "facing": "n"
-    },
-    {
-      "id": "KT-05",
-      "dept": "KT",
-      "zone": "dept-kt",
-      "x": 38.5,
-      "z": 4.05,
-      "facing": "n"
-    },
-    {
-      "id": "KT-06",
-      "dept": "KT",
-      "zone": "dept-kt",
-      "x": 40.1,
+      "x": 38.3,
       "z": 4.05,
       "facing": "n"
     },
@@ -1156,7 +1140,7 @@
       "id": "YT-01",
       "dept": "YT",
       "zone": "quiet",
-      "x": 44.9,
+      "x": 41.8,
       "z": 3.05,
       "facing": "s"
     },
@@ -1164,7 +1148,7 @@
       "id": "YT-02",
       "dept": "YT",
       "zone": "quiet",
-      "x": 46.5,
+      "x": 43.4,
       "z": 3.05,
       "facing": "s"
     },
@@ -1172,15 +1156,15 @@
       "id": "YT-03",
       "dept": "YT",
       "zone": "quiet",
-      "x": 48.1,
-      "z": 3.05,
-      "facing": "s"
+      "x": 41.8,
+      "z": 5.05,
+      "facing": "n"
     },
     {
       "id": "YT-04",
       "dept": "YT",
       "zone": "quiet",
-      "x": 44.9,
+      "x": 43.4,
       "z": 5.05,
       "facing": "n"
     },
@@ -1188,15 +1172,31 @@
       "id": "YT-05",
       "dept": "YT",
       "zone": "quiet",
-      "x": 46.5,
-      "z": 5.05,
-      "facing": "n"
+      "x": 46.6,
+      "z": 3.05,
+      "facing": "s"
     },
     {
       "id": "YT-06",
       "dept": "YT",
       "zone": "quiet",
-      "x": 48.1,
+      "x": 48.2,
+      "z": 3.05,
+      "facing": "s"
+    },
+    {
+      "id": "YT-07",
+      "dept": "YT",
+      "zone": "quiet",
+      "x": 46.6,
+      "z": 5.05,
+      "facing": "n"
+    },
+    {
+      "id": "YT-08",
+      "dept": "YT",
+      "zone": "quiet",
+      "x": 48.2,
       "z": 5.05,
       "facing": "n"
     },
@@ -4055,7 +4055,7 @@
     {
       "id": "desk-KT-01",
       "prefab": "desk",
-      "x": 36.9,
+      "x": 36.7,
       "z": 2.7,
       "w": 1.4,
       "d": 0.7,
@@ -4065,7 +4065,7 @@
     {
       "id": "pc-KT-01",
       "prefab": "computerScreen",
-      "x": 36.9,
+      "x": 36.7,
       "z": 2.7,
       "w": 0.5,
       "d": 0.2,
@@ -4075,7 +4075,7 @@
     {
       "id": "desk-KT-02",
       "prefab": "desk",
-      "x": 38.5,
+      "x": 38.3,
       "z": 2.7,
       "w": 1.4,
       "d": 0.7,
@@ -4085,7 +4085,7 @@
     {
       "id": "pc-KT-02",
       "prefab": "computerScreen",
-      "x": 38.5,
+      "x": 38.3,
       "z": 2.7,
       "w": 0.5,
       "d": 0.2,
@@ -4095,8 +4095,8 @@
     {
       "id": "desk-KT-03",
       "prefab": "desk",
-      "x": 40.1,
-      "z": 2.7,
+      "x": 36.7,
+      "z": 3.4,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
@@ -4105,8 +4105,8 @@
     {
       "id": "pc-KT-03",
       "prefab": "computerScreen",
-      "x": 40.1,
-      "z": 2.7,
+      "x": 36.7,
+      "z": 3.4,
       "w": 0.5,
       "d": 0.2,
       "rot": 0,
@@ -4115,7 +4115,7 @@
     {
       "id": "desk-KT-04",
       "prefab": "desk",
-      "x": 36.9,
+      "x": 38.3,
       "z": 3.4,
       "w": 1.4,
       "d": 0.7,
@@ -4125,47 +4125,7 @@
     {
       "id": "pc-KT-04",
       "prefab": "computerScreen",
-      "x": 36.9,
-      "z": 3.4,
-      "w": 0.5,
-      "d": 0.2,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "desk-KT-05",
-      "prefab": "desk",
-      "x": 38.5,
-      "z": 3.4,
-      "w": 1.4,
-      "d": 0.7,
-      "rot": 0,
-      "solid": true
-    },
-    {
-      "id": "pc-KT-05",
-      "prefab": "computerScreen",
-      "x": 38.5,
-      "z": 3.4,
-      "w": 0.5,
-      "d": 0.2,
-      "rot": 0,
-      "solid": false
-    },
-    {
-      "id": "desk-KT-06",
-      "prefab": "desk",
-      "x": 40.1,
-      "z": 3.4,
-      "w": 1.4,
-      "d": 0.7,
-      "rot": 0,
-      "solid": true
-    },
-    {
-      "id": "pc-KT-06",
-      "prefab": "computerScreen",
-      "x": 40.1,
+      "x": 38.3,
       "z": 3.4,
       "w": 0.5,
       "d": 0.2,
@@ -4208,29 +4168,29 @@
     {
       "id": "kt-cabinet-4",
       "prefab": "cabinetFiles",
-      "x": 42.65,
-      "z": 3,
+      "x": 35.35,
+      "z": 5.6,
       "w": 0.9,
       "d": 0.5,
-      "rot": 270,
+      "rot": 90,
       "solid": true,
       "interact": "documents"
     },
     {
       "id": "kt-cabinet-5",
       "prefab": "cabinetFiles",
-      "x": 42.65,
-      "z": 4,
+      "x": 35.35,
+      "z": 6.6,
       "w": 0.9,
       "d": 0.5,
-      "rot": 270,
+      "rot": 90,
       "solid": true,
       "interact": "documents"
     },
     {
       "id": "kt-safe",
       "prefab": "safe",
-      "x": 42.5,
+      "x": 39.4,
       "z": 0.4,
       "w": 0.6,
       "d": 0.6,
@@ -4240,7 +4200,7 @@
     {
       "id": "desk-YT-01",
       "prefab": "desk",
-      "x": 44.9,
+      "x": 41.8,
       "z": 3.7,
       "w": 1.4,
       "d": 0.7,
@@ -4250,7 +4210,7 @@
     {
       "id": "pc-YT-01",
       "prefab": "computerScreen",
-      "x": 44.9,
+      "x": 41.8,
       "z": 3.7,
       "w": 0.5,
       "d": 0.2,
@@ -4260,7 +4220,7 @@
     {
       "id": "desk-YT-02",
       "prefab": "desk",
-      "x": 46.5,
+      "x": 43.4,
       "z": 3.7,
       "w": 1.4,
       "d": 0.7,
@@ -4270,7 +4230,7 @@
     {
       "id": "pc-YT-02",
       "prefab": "computerScreen",
-      "x": 46.5,
+      "x": 43.4,
       "z": 3.7,
       "w": 0.5,
       "d": 0.2,
@@ -4280,8 +4240,8 @@
     {
       "id": "desk-YT-03",
       "prefab": "desk",
-      "x": 48.1,
-      "z": 3.7,
+      "x": 41.8,
+      "z": 4.4,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
@@ -4290,8 +4250,8 @@
     {
       "id": "pc-YT-03",
       "prefab": "computerScreen",
-      "x": 48.1,
-      "z": 3.7,
+      "x": 41.8,
+      "z": 4.4,
       "w": 0.5,
       "d": 0.2,
       "rot": 0,
@@ -4300,7 +4260,7 @@
     {
       "id": "desk-YT-04",
       "prefab": "desk",
-      "x": 44.9,
+      "x": 43.4,
       "z": 4.4,
       "w": 1.4,
       "d": 0.7,
@@ -4310,7 +4270,7 @@
     {
       "id": "pc-YT-04",
       "prefab": "computerScreen",
-      "x": 44.9,
+      "x": 43.4,
       "z": 4.4,
       "w": 0.5,
       "d": 0.2,
@@ -4320,8 +4280,8 @@
     {
       "id": "desk-YT-05",
       "prefab": "desk",
-      "x": 46.5,
-      "z": 4.4,
+      "x": 46.6,
+      "z": 3.7,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
@@ -4330,8 +4290,8 @@
     {
       "id": "pc-YT-05",
       "prefab": "computerScreen",
-      "x": 46.5,
-      "z": 4.4,
+      "x": 46.6,
+      "z": 3.7,
       "w": 0.5,
       "d": 0.2,
       "rot": 0,
@@ -4340,8 +4300,8 @@
     {
       "id": "desk-YT-06",
       "prefab": "desk",
-      "x": 48.1,
-      "z": 4.4,
+      "x": 48.2,
+      "z": 3.7,
       "w": 1.4,
       "d": 0.7,
       "rot": 0,
@@ -4350,7 +4310,47 @@
     {
       "id": "pc-YT-06",
       "prefab": "computerScreen",
-      "x": 48.1,
+      "x": 48.2,
+      "z": 3.7,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-YT-07",
+      "prefab": "desk",
+      "x": 46.6,
+      "z": 4.4,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-YT-07",
+      "prefab": "computerScreen",
+      "x": 46.6,
+      "z": 4.4,
+      "w": 0.5,
+      "d": 0.2,
+      "rot": 0,
+      "solid": false
+    },
+    {
+      "id": "desk-YT-08",
+      "prefab": "desk",
+      "x": 48.2,
+      "z": 4.4,
+      "w": 1.4,
+      "d": 0.7,
+      "rot": 0,
+      "solid": true
+    },
+    {
+      "id": "pc-YT-08",
+      "prefab": "computerScreen",
+      "x": 48.2,
       "z": 4.4,
       "w": 0.5,
       "d": 0.2,
@@ -4360,7 +4360,7 @@
     {
       "id": "focus-shelf",
       "prefab": "bookcaseOpen",
-      "x": 46.5,
+      "x": 45,
       "z": 0.25,
       "w": 2.4,
       "d": 0.4,
