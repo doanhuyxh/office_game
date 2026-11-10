@@ -12,6 +12,8 @@ export interface IMe {
   mustSetupTwoFactor: boolean;
   /** Ngoại hình nhân vật văn phòng 3D (xem features/office/engine/avatarLook.ts); null = nhân vật mặc định. */
   avatar?: unknown;
+  /** Tài khoản do bot / agent AI vận hành (HR đánh dấu). */
+  isBot?: boolean;
 }
 
 export interface ILoginRequest {

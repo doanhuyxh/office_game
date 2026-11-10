@@ -11,6 +11,7 @@
 | POST | `/employees/{id}/account/reset-password` | 200 `{ tempPassword }` |
 | PUT | `/employees/{id}/account/roles` | `{ roles[] }` → 204 |
 | POST | `/employees/{id}/account/reset-2fa` | 204 — đặt lại xác thực 2 lớp (mất điện thoại); chưa bật → 409 `"Tài khoản chưa bật xác thực 2 lớp"` |
+| PUT | `/employees/{id}/account/bot` | `{ isBot }` → 204 — đánh dấu tài khoản bot (hiện trong văn phòng 3D khi gọi MCP, không đổi quyền): [office-bots.md](office-bots.md) |
 
 - `userName` trống → dùng `Code`. Email tài khoản lấy từ `employee.Email`.
 - `roles` luôn được thêm `employee` và bỏ trùng (`NormalizeRoles`).

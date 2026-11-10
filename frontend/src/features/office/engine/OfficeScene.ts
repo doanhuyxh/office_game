@@ -144,16 +144,26 @@ export class OfficeScene {
     if (this.me) this.me.anim = ANIM.idle;
   }
 
-  upsertOther(id: string, name: string, x: number, z: number, r: number, anim = 0, look?: AvatarLook) {
+  /** `bot` = avatar bot (ngồi yên ở bàn, nhãn AI); `status` = đang làm gì (bot) — undefined = giữ nguyên. */
+  upsertOther(id: string, name: string, x: number, z: number, r: number, anim = 0, look?: AvatarLook, bot = false, status?: string | null) {
     let o = this.others.get(id);
+    if (o && o.avatar.bot !== bot) { this.removeOther(id); o = undefined; }
     if (!o) {
-      o = { avatar: new Avatar(id, name, false, look), tx: x, tz: z, tr: r, name };
+      o = { avatar: new Avatar(id, name, false, look, true, bot), tx: x, tz: z, tr: r, name };
+      o.avatar.root.rotation.y = r;
       o.avatar.root.position.set(x, 0, z);
       this.scene.add(o.avatar.root);
       this.others.set(id, o);
     } else if (look) o.avatar.setLook(look);
     Object.assign(o, { tx: x, tz: z, tr: r });
     o.avatar.anim = anim as AnimCode;
+    if (status !== undefined) o.avatar.setStatus(status);
+  }
+
+  /** Bot của tài khoản `id` đang làm gì (BotStatus) — gắn lên avatar bot hoặc avatar người thật (kể cả mình). */
+  setStatus(id: string, text: string | null) {
+    if (this.me?.id === id) this.me.setStatus(text);
+    else this.others.get(id)?.avatar.setStatus(text);
   }
 
   moveOther(id: string, x: number, z: number, r: number, anim = 0) {

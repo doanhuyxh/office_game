@@ -38,6 +38,8 @@ builder.Services.AddSignalR(o => o.MaximumReceiveMessageSize = 16 * 1024).AddMes
 var mapPath = EnvLoader.ResolvePath(builder.Configuration["Realtime:MapPath"] ?? "shared/office-map.json", builder.Environment.ContentRootPath);
 builder.Services.AddSingleton(OfficeMap.Load(mapPath));
 builder.Services.AddSingleton<Presence>();
+builder.Services.AddSingleton<BotPresence>();
+builder.Services.AddHostedService<BotSweeper>();
 builder.Services.AddSingleton<OfficeHub.Realtime.Screens.RoomScreens>();
 builder.Services.AddHostedService<OfficeLoop>();
 builder.Services.AddOptions<LiveKitSettings>()
@@ -56,5 +58,6 @@ app.UseAuthorization();
 app.MapHub<OfficeRoomHub>(OfficeRoomHub.Path);
 app.MapHub<ChatHub>(ChatHub.Path);
 app.MapVoice();
+app.MapBots();   // OfficeHub.Mcp báo bot đang làm việc (khoá nội bộ)
 
 app.Run();

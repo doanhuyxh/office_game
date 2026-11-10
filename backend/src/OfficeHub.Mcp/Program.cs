@@ -16,6 +16,11 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient(OfficeHubApi.HttpClientName, c => { c.BaseAddress = new Uri(apiBase); c.Timeout = TimeSpan.FromSeconds(30); });
 builder.Services.AddHttpClient<OfficeHubApi>(c => { c.BaseAddress = new Uri(apiBase); c.Timeout = TimeSpan.FromSeconds(30); });
+// Bot (tài khoản HR đánh dấu) gọi tool → báo Realtime hiện bot trong văn phòng 3D. Dùng chung khoá nội bộ Chat__InternalKey (thiếu → tắt).
+builder.Services.AddOptions<ChatSettings>().Bind(builder.Configuration.GetSection(ChatSettings.Section));
+var realtimeBase = builder.Configuration.GetSection(McpSettings.Section).Get<McpSettings>()?.RealtimeBaseUrl ?? new McpSettings().RealtimeBaseUrl;
+builder.Services.AddHttpClient(BotPresenceReporter.RealtimeClientName, c => { c.BaseAddress = new Uri(realtimeBase); c.Timeout = TimeSpan.FromSeconds(5); });
+builder.Services.AddSingleton<BotPresenceReporter>();
 
 builder.Services.AddMcpServer(o =>
     {
@@ -31,6 +36,8 @@ builder.Services.AddMcpServer(o =>
         OfficeHubApi.CurrentTool.Value = name;
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
         var result = await next(ctx, ct);
+        if (result.IsError != true && ctx.Services?.GetService<IHttpContextAccessor>()?.HttpContext is { } http)
+            ctx.Services.GetRequiredService<BotPresenceReporter>().Report(http.Request.Headers.Authorization.ToString(), name, ctx.Params?.Arguments);
         ctx.Services?.GetRequiredService<ILogger<OfficeHubApi>>().LogInformation("MCP tool {Tool} {Outcome} trong {Ms} ms",
             name, result.IsError == true ? "lỗi" : "xong", (int)System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds);
         return result;

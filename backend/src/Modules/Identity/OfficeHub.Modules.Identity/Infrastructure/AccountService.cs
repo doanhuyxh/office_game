@@ -124,6 +124,16 @@ internal sealed class AccountService(
         if (!active) await users.UpdateSecurityStampAsync(user); // vô hiệu cookie đang dùng
     }
 
+    public async Task<bool> SetBotAsync(Guid userId, bool isBot, CancellationToken ct = default)
+    {
+        var user = await users.FindByIdAsync(userId.ToString());
+        if (user is null) return false;
+        if (user.IsBot == isBot) return true;
+        user.IsBot = isBot;
+        await users.UpdateAsync(user);
+        return true;
+    }
+
     public async Task<AccountInfo?> GetAsync(Guid userId, CancellationToken ct = default) =>
         (await GetManyAsync([userId], ct)).GetValueOrDefault(userId);
 
@@ -136,7 +146,7 @@ internal sealed class AccountService(
         {
             var roles = await users.GetRolesAsync(u);
             result[u.Id] = new AccountInfo(u.Id, u.UserName!, u.Email, [.. roles], u.IsActive, u.MustChangePassword,
-                InvitePending: u.PasswordHash is null, u.LastLoginAt, u.FullName, u.TwoFactorEnabled);
+                InvitePending: u.PasswordHash is null, u.LastLoginAt, u.FullName, u.TwoFactorEnabled, u.IsBot);
         }
         return result;
     }

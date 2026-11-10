@@ -17,9 +17,10 @@ public sealed record ChangePasswordRequest([Required] string CurrentPassword, [R
 /// <summary>
 /// Avatar = ngoại hình nhân vật 3D (JSON, xem AvatarRules); null = nhân vật mặc định. Realtime đọc trường này khi vào văn phòng.
 /// MustSetupTwoFactor = admin / hr chưa bật xác thực 2 lớp → FE chuyển sang trang bật 2FA, API khác trả 403 (TwoFactorPolicy).
+/// IsBot = tài khoản do bot vận hành (HR đánh dấu) — OfficeHub.Mcp dựa vào đây để hiện bot trong văn phòng 3D.
 /// </summary>
 public sealed record MeResponse(Guid Id, string UserName, string? Email, string FullName, string[] Roles, bool MustChangePassword,
-    JsonElement? Avatar = null, bool TwoFactorEnabled = false, bool MustSetupTwoFactor = false);
+    JsonElement? Avatar = null, bool TwoFactorEnabled = false, bool MustSetupTwoFactor = false, bool IsBot = false);
 
 internal static class AuthEndpoints
 {
@@ -98,6 +99,6 @@ internal static class AuthEndpoints
         var roles = await users.GetRolesAsync(u);
         return new(u.Id, u.UserName!, u.Email, u.FullName, [.. roles], u.MustChangePassword,
             look is null ? null : JsonDocument.Parse(look).RootElement.Clone(),
-            u.TwoFactorEnabled, !u.TwoFactorEnabled && TwoFactorPolicy.IsRequiredFor(roles));
+            u.TwoFactorEnabled, !u.TwoFactorEnabled && TwoFactorPolicy.IsRequiredFor(roles), u.IsBot);
     }
 }

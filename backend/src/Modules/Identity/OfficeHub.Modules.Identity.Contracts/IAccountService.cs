@@ -35,6 +35,9 @@ public interface IAccountService
     /// <summary>Khoá / mở khoá đăng nhập (nhân viên nghỉ việc).</summary>
     Task SetActiveAsync(Guid userId, bool active, CancellationToken ct = default);
 
+    /// <summary>Đánh dấu / bỏ đánh dấu tài khoản là bot (hiện trong văn phòng 3D khi gọi MCP). false = không tìm thấy tài khoản.</summary>
+    Task<bool> SetBotAsync(Guid userId, bool isBot, CancellationToken ct = default);
+
     Task<AccountInfo?> GetAsync(Guid userId, CancellationToken ct = default);
 
     Task<IReadOnlyDictionary<Guid, AccountInfo>> GetManyAsync(IReadOnlyCollection<Guid> userIds, CancellationToken ct = default);
@@ -68,4 +71,5 @@ public sealed record AccountInfo(
     bool InvitePending,
     DateTimeOffset? LastLoginAt,
     string FullName = "",
-    bool TwoFactorEnabled = false);
+    bool TwoFactorEnabled = false,
+    bool IsBot = false);

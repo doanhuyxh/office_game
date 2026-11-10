@@ -24,6 +24,19 @@ internal static class AccountEndpoints
         g.MapPost("/reset-password", ResetPasswordAsync);
         g.MapPut("/roles", SetRolesAsync);
         g.MapPost("/reset-2fa", ResetTwoFactorAsync);
+        g.MapPut("/bot", SetBotAsync);
+    }
+
+    /// <summary>
+    /// Đánh dấu tài khoản do bot / agent AI vận hành → bot hiện trong văn phòng 3D khi gọi MCP (không đổi quyền).
+    /// Bàn giao tài khoản cho người thật → bỏ cờ.
+    /// </summary>
+    private static async Task<Results<NoContent, NotFound>> SetBotAsync(
+        Guid id, SetBotRequest req, OrgDbContext db, IAccountService accounts, CancellationToken ct)
+    {
+        var e = await db.Employees.FindAsync([id], ct);
+        if (e?.UserId is not { } uid || !await accounts.SetBotAsync(uid, req.IsBot, ct)) return TypedResults.NotFound();
+        return TypedResults.NoContent();
     }
 
     private static async Task<Results<Ok<AccountCreatedResponse>, NotFound, ValidationProblem, ProblemHttpResult>> CreateAsync(

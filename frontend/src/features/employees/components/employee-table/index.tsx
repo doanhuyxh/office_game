@@ -22,7 +22,7 @@ import { formatDate } from '@/utils/date';
 import { downloadUrl } from '@/utils/money';
 import { employeesApi, orgKeys } from '../../api/org.api';
 import {
-  useDepartments, useEmployeesPage, useReactivateEmployee, useResendInvite, useResetAccountPassword, useResetTwoFactor, useResignEmployee,
+  useDepartments, useEmployeesPage, useReactivateEmployee, useResendInvite, useResetAccountPassword, useResetTwoFactor, useResignEmployee, useSetBot,
 } from '../../hooks/useOrg';
 import { hasRole, useMe } from '@/features/auth';
 import type { IEmployee } from '../../types/employee.types';
@@ -93,6 +93,7 @@ export function EmployeeTable({ canEdit, resigned = false }: { canEdit: boolean;
   const resend = useResendInvite();
   const resetPw = useResetAccountPassword();
   const reset2fa = useResetTwoFactor();
+  const setBot = useSetBot();
   const { data: me } = useMe();
   const isAdmin = hasRole(me, 'admin');
 
@@ -226,6 +227,7 @@ export function EmployeeTable({ canEdit, resigned = false }: { canEdit: boolean;
                       <div className="mt-1 text-xs text-muted-foreground">
                         {e.account.userName} · {e.account.roles.filter((r) => r !== 'employee').map((r) => ROLE_LABEL[r] ?? r).join(', ') || 'Nhân viên'}
                         {e.account.twoFactorEnabled && ' · 2FA'}
+                        {e.account.isBot && ' · Bot'}
                       </div>
                     )}
                   </TableCell>
@@ -260,6 +262,16 @@ export function EmployeeTable({ canEdit, resigned = false }: { canEdit: boolean;
                             </DropdownMenuItem>
                             {canResetTwoFactor(e, me?.id, isAdmin) && (
                               <DropdownMenuItem onClick={() => setDialog({ kind: 'reset2fa', employee: e })}>Đặt lại 2FA</DropdownMenuItem>
+                            )}
+                            {e.account && (
+                              <DropdownMenuItem onClick={() => setBot.mutate({ id: e.id, isBot: !e.account?.isBot }, {
+                                onSuccess: () => toast.success(e.account?.isBot
+                                  ? 'Đã bỏ đánh dấu bot'
+                                  : 'Đã đánh dấu là bot — sẽ hiện trong văn phòng 3D khi làm việc qua MCP'),
+                                onError,
+                              })}>
+                                {e.account.isBot ? 'Bỏ đánh dấu bot' : 'Đánh dấu là bot (AI)'}
+                              </DropdownMenuItem>
                             )}
                           </>
                         )}

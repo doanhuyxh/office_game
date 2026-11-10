@@ -17,4 +17,9 @@ public sealed class AppUser : IdentityUser<Guid>
     public bool IsActive { get; set; } = true;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? LastLoginAt { get; set; }
+    /// <summary>
+    /// Tài khoản do bot / agent AI bên ngoài vận hành (HR đánh dấu). Chỉ dùng để hiện bot trong văn phòng 3D khi nó gọi MCP;
+    /// mọi quyền vẫn như tài khoản thường. Bàn giao cho người thật → HR bỏ cờ.
+    /// </summary>
+    public bool IsBot { get; set; }
 }

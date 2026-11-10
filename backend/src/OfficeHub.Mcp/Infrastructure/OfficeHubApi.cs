@@ -15,6 +15,8 @@ public sealed class McpSettings
     public string ApiBaseUrl { get; set; } = "http://localhost:5080";
     /// <summary>Kết quả kiểm tra token được nhớ bao lâu (giây) trước khi hỏi lại Api.</summary>
     public int TokenCacheSeconds { get; set; } = 30;
+    /// <summary>Địa chỉ nội bộ của OfficeHub.Realtime để báo bot online trong văn phòng 3D (dev: http://localhost:5090, Docker: http://realtime:8080).</summary>
+    public string RealtimeBaseUrl { get; set; } = "http://localhost:5090";
 }
 
 /// <summary>

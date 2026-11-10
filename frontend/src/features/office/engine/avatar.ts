@@ -70,12 +70,16 @@ export class Avatar {
   private t = Math.random() * 10;
   private talk: THREE.Mesh;
   private ring: THREE.Mesh | null = null;
+  /** Dòng "đang làm gì" phía trên nhãn tên (bot đang làm việc qua MCP); null = không hiện. */
+  private status: THREE.Sprite | null = null;
+  private statusText: string | null = null;
   private disposed = false;
   anim: AnimCode = ANIM.idle;
   /** Đang nói (voice) → vòng xanh lá nhấp nháy dưới chân. */
   speaking = false;
 
-  constructor(readonly id: string, name: string, isMe: boolean, look: AvatarLook = DEFAULT_LOOK, labelVisible = true) {
+  /** `bot` = tài khoản bot đang làm việc qua MCP: nhãn tím "AI · tên". */
+  constructor(readonly id: string, name: string, isMe: boolean, look: AvatarLook = DEFAULT_LOOK, labelVisible = true, readonly bot = false) {
     if (isMe) {
       this.ring = new THREE.Mesh(new THREE.RingGeometry(0.32, 0.4, 32), new THREE.MeshBasicMaterial({ color: 0x2563eb, transparent: true, opacity: 0.8 }));
       this.ring.rotation.x = -Math.PI / 2;
@@ -87,8 +91,10 @@ export class Avatar {
     this.talk.position.y = 0.02;
     this.talk.visible = false;
     this.root.add(this.talk);
-    const { tex, aspect } = textTexture(name.length > 22 ? name.slice(0, 21) + '…' : name, {
-      color: '#ffffff', bg: isMe ? 'rgba(37,99,235,.92)' : 'rgba(15,23,42,.78)', font: 'bold 34px Inter, system-ui, sans-serif', pad: 22,
+    const shown = name.length > 22 ? name.slice(0, 21) + '…' : name;
+    const { tex, aspect } = textTexture(bot ? `AI · ${shown}` : shown, {
+      color: '#ffffff', bg: isMe ? 'rgba(37,99,235,.92)' : bot ? 'rgba(124,58,237,.92)' : 'rgba(15,23,42,.78)',
+      font: 'bold 34px Inter, system-ui, sans-serif', pad: 22,
     });
     this.label = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
     this.label.scale.set(0.3 * aspect, 0.3, 1);
@@ -100,6 +106,28 @@ export class Avatar {
   }
 
   get currentLook() { return this.look; }
+
+  /** Bot đang làm gì ("Chuyển trạng thái việc · WEB-12") — bong bóng tím phía trên tên; null = gỡ. */
+  setStatus(text: string | null) {
+    if (text === this.statusText) return;
+    this.statusText = text;
+    if (this.status) {
+      this.root.remove(this.status);
+      this.status.material.map?.dispose();
+      this.status.material.dispose();
+      this.status = null;
+    }
+    if (!text) return;
+    const { tex, aspect } = textTexture(text.length > 40 ? `${text.slice(0, 39)}…` : text, {
+      color: '#ffffff', bg: 'rgba(124,58,237,.8)', font: '500 30px Inter, system-ui, sans-serif', pad: 18,
+    });
+    this.status = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+    this.status.scale.set(0.24 * aspect, 0.24, 1);
+    this.status.position.y = 2.25;
+    this.status.renderOrder = 10;
+    this.status.visible = this.label.visible;
+    this.root.add(this.status);
+  }
 
   /** Đổi ngoại hình: hiện khối theo màu mới ngay (nếu chưa có model), tải model GLB rồi thay. */
   setLook(look: AvatarLook) {
@@ -194,5 +222,6 @@ export class Avatar {
     for (const o of [this.talk, this.ring]) { o?.geometry.dispose(); (o?.material as THREE.Material | undefined)?.dispose(); }
     this.label.material.map?.dispose();
     this.label.material.dispose();
+    this.setStatus(null);
   }
 }

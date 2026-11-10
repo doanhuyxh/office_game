@@ -15,6 +15,8 @@ export interface OfficeHandlers {
   lookChanged(id: string, look: string | null): void;
   /** Màn hình phòng đổi tài liệu đang chiếu (null = tắt) — chỉ nhận khi đang ở trong phòng đó. */
   screenChanged(roomId: string, screen: ScreenDto | null): void;
+  /** Bot của tài khoản `id` đang làm gì (null = hết hoạt động). */
+  botStatus(id: string, status: string | null): void;
   state(s: 'online' | 'reconnecting' | 'offline'): void;
 }
 
@@ -48,6 +50,7 @@ export class OfficeConnection {
     this.conn.on('Teleport', (x: number, z: number) => h.teleport(x, z));
     this.conn.on('LookChanged', (id: string, look: string | null) => h.lookChanged(id, look ?? null));
     this.conn.on('ScreenChanged', (roomId: string, s: unknown) => h.screenChanged(roomId, s ? camel<ScreenDto>(s) : null));
+    this.conn.on('BotStatus', (id: string, status: string | null) => h.botStatus(id, status ?? null));
     this.conn.on('Kicked', (reason: string) => {
       this.kicked = true;
       h.kicked(reason);

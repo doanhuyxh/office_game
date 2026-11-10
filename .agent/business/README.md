@@ -19,6 +19,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Bảng tin: bài viết kiểu Facebook (ai cũng đăng, chọn phạm vi người xem), bình luận, cảm xúc, @nhắc, email tuỳ chọn, kiểm duyệt HR | [news.md](news.md) |
 | Engine 3D (Three.js): camera, đi / tìm đường, ngồi, minimap, đồ đạc, avatar | [office-engine.md](office-engine.md) |
 | Tuỳ chỉnh nhân vật 3D: model, danh mục, `identity.user_avatars`, editor, `LookChanged` | [office-avatar.md](office-avatar.md) |
+| Bot (agent AI qua MCP) hiện trong văn phòng 3D: cờ tài khoản `IsBot`, online 5 phút, xếp bàn theo khu, `BotStatus` | [office-bots.md](office-bots.md) |
 | Luồng duyệt (quản lý → HR), không tự duyệt, `IApprovalHandler`, thêm loại đơn | [approval.md](approval.md) |
 | Uỷ quyền duyệt (quản lý giao người duyệt thay theo khoảng ngày), "duyệt thay" | [approval-delegation.md](approval-delegation.md) |
 | Loại phép, quỹ phép năm (cộng dồn, không hết hạn), đơn nghỉ, điều chỉnh của HR | [leave.md](leave.md) |

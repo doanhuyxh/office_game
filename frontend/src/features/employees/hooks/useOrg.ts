@@ -74,6 +74,11 @@ export function useResetTwoFactor() {
   return useMutation({ mutationFn: (id: string) => employeesApi.resetTwoFactor(id), onSuccess: invalidate });
 }
 
+export function useSetBot() {
+  const invalidate = useInvalidateOrg();
+  return useMutation({ mutationFn: ({ id, isBot }: { id: string; isBot: boolean }) => employeesApi.setBot(id, isBot), onSuccess: invalidate });
+}
+
 export function useSetRoles() {
   const invalidate = useInvalidateOrg();
   return useMutation({ mutationFn: ({ id, roles }: { id: string; roles: string[] }) => employeesApi.setRoles(id, roles), onSuccess: invalidate });

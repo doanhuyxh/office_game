@@ -52,6 +52,8 @@ Realtime không đọc được dữ liệu tài khoản (ranh giới module) n�
 | `SessionWatch` mỗi `Realtime__SessionCheckSeconds` (30s) cho mọi người online | 401/403 → `Kicked("Phiên đăng nhập đã hết hiệu lực. Vui lòng đăng nhập lại.")`, `Abort` sau 500ms |
 | Api không trả lời / 5xx | `Unknown` → **cho qua** (ghi log `WRN`), để Api restart không đá cả văn phòng |
 
+Bot (agent AI qua MCP) cũng hiện trong văn phòng (`PlayerDto.bot` / `status`, sự kiện `BotStatus`) → [office-bots.md](office-bots.md).
+
 Tên hiển thị = claim `full_name`. `anim` (byte) chỉ chuyển tiếp: 0 đứng, 1 đi, 2 ngồi. Không làm (chủ dự án bỏ): trạng thái "Vắng" / nghỉ phép trên avatar, gán chỗ ngồi. Realtime **chưa** phát sự kiện presence sang Attendance.
 
 ## Voice (`Voice/VoiceEndpoints.cs`, `Voice/VoiceGuard.cs`) — giai đoạn 3

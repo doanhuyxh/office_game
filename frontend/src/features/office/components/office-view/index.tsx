@@ -21,7 +21,7 @@ import { AvatarEditorDialog } from '../avatar-editor-dialog';
 import { filesFromDrop, UploadPanel, useSpaces, useUploadQueue, type ISpaceRef } from '@/features/documents';
 import { OFFICE_MAP } from '../../engine/officeMap';
 import type { MapObject } from '../../engine/mapTypes';
-import type { ScreenDto } from '../../types/office.types';
+import type { PlayerDto, ScreenDto } from '../../types/office.types';
 import { OfficeDocsDialog, ScreenDocPanel, useCabinetDepartment, type DocsMode } from '../office-docs';
 
 const OBJECT_BY_ID = new Map(OFFICE_MAP.objects.map((o) => [o.id, o]));
@@ -43,7 +43,7 @@ export function OfficeView() {
   const { data: account } = useMe();
   const hostRef = useRef<HTMLDivElement>(null);
   const connRef = useRef<OfficeConnection | null>(null);
-  const { me, conn, online, zone, chat, kickReason } = useOffice();
+  const { me, conn, online, bots, zone, chat, kickReason } = useOffice();
   const [text, setText] = useState('');
   const [nearAction, setNearAction] = useState<string | null>(null);
   const [seatInfo, setSeatInfo] = useState<{ seat: SitSpot; sitting: boolean } | null>(null);
@@ -189,6 +189,10 @@ export function OfficeView() {
     if (!me || !hostRef.current) return;
     const scene = new OfficeScene(hostRef.current);
     const players = new Map<string, string>();
+    /** Id các avatar bot (tài khoản bot đang làm việc qua MCP) — đếm riêng với người online. */
+    const bots = new Set<string>();
+    const count = () => s.setOnline(players.size - bots.size, bots.size);
+    const track = (p: PlayerDto) => { players.set(p.id, p.name); if (p.bot) bots.add(p.id); else bots.delete(p.id); };
     const voice = new VoiceClient({ me: () => scene.myPosition(), of: (id) => scene.positionOf(id) });
     voice.onChange = setVoiceView;
     voice.onSpeaking = (ids) => scene.setSpeaking(ids);
@@ -197,28 +201,32 @@ export function OfficeView() {
       welcome: (w) => {
         s.setConn('online');
         for (const p of w.players) {
-          players.set(p.id, p.name);
-          if (p.id === w.selfId) scene.spawnMe(p.id, p.name, p.x, p.z, parseLook(p.look));
-          else scene.upsertOther(p.id, p.name, p.x, p.z, p.r, p.anim, parseLook(p.look));
+          track(p);
+          if (p.id === w.selfId) {
+            scene.spawnMe(p.id, p.name, p.x, p.z, parseLook(p.look));
+            scene.setStatus(p.id, p.status ?? null);
+          } else scene.upsertOther(p.id, p.name, p.x, p.z, p.r, p.anim, parseLook(p.look), !!p.bot, p.status ?? null);
         }
-        s.setOnline(players.size);
+        count();
         void voice.enable(); // vào văn phòng = vào voice để nghe (micro mặc định tắt)
       },
       playerJoined: (p) => {
         if (p.id === me.id) return;
-        players.set(p.id, p.name);
-        scene.upsertOther(p.id, p.name, p.x, p.z, p.r, p.anim, parseLook(p.look));
-        s.setOnline(players.size);
+        track(p);
+        scene.upsertOther(p.id, p.name, p.x, p.z, p.r, p.anim, parseLook(p.look), !!p.bot, p.status ?? null);
+        count();
       },
       playerLeft: (id) => {
         players.delete(id);
+        bots.delete(id);
         scene.removeOther(id);
-        s.setOnline(players.size);
+        count();
       },
       positions: (list) => list.forEach((p) => p.id !== me.id && scene.moveOther(p.id, p.x, p.z, p.r, p.anim)),
       chat: (m) => s.pushChat(m),
       teleport: (x, z) => scene.teleportMe(x, z),
       lookChanged: (id, look) => scene.setLook(id, parseLook(look)),
+      botStatus: (id, st) => scene.setStatus(id, st),
       screenChanged: (roomId, sc) => { if (roomId === roomRef.current) setScreen(sc); },
       kicked: (reason) => { s.kick(reason); void voice.disable(); },
       state: (st) => s.setConn(st),
@@ -290,7 +298,7 @@ export function OfficeView() {
           </div>
         )}
         <div className="card status">
-          <span className={`dot ${conn}`} /> {conn === 'online' ? `${online} người online` : STATUS[conn]}
+          <span className={`dot ${conn}`} /> {conn === 'online' ? `${online} người online${bots ? ` · ${bots} AI` : ''}` : STATUS[conn]}
         </div>
         {zone && <div className="card zone">{zone}</div>}
         {chatOpen ? (

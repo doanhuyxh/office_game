@@ -13,8 +13,11 @@ using OfficeHub.Realtime.Voice;
 namespace OfficeHub.Realtime.Hubs;
 
 // ---- Dữ liệu gửi qua SignalR (MessagePack). FE sinh type TS từ đây. ----
-/// <summary>Look = ngoại hình nhân vật (chuỗi JSON, null = mặc định) — client tự parse theo shared/avatar-catalog.json.</summary>
-public sealed record PlayerDto(string Id, string Name, float X, float Z, float R, byte Anim, string? Look = null);
+/// <summary>
+/// Look = ngoại hình nhân vật (chuỗi JSON, null = mặc định) — client tự parse theo shared/avatar-catalog.json.
+/// Bot = avatar của tài khoản bot đang làm việc qua MCP (ngồi yên ở bàn, nhãn "AI"); Status = bot đang làm gì (null = không có).
+/// </summary>
+public sealed record PlayerDto(string Id, string Name, float X, float Z, float R, byte Anim, string? Look = null, bool Bot = false, string? Status = null);
 public sealed record PositionDto(string Id, float X, float Z, float R, byte Anim);
 public sealed record WelcomeDto(string SelfId, string MapName, PlayerDto[] Players);
 /// <summary>
@@ -37,10 +40,12 @@ public interface IOfficeClient
     Task LookChanged(string id, string? look);
     /// <summary>Màn hình phòng <paramref name="roomId"/> đổi tài liệu đang chiếu (null = tắt) — chỉ gửi người đang ở trong phòng.</summary>
     Task ScreenChanged(string roomId, ScreenDto? screen);
+    /// <summary>Bot của tài khoản <paramref name="id"/> đang làm gì (null = hết hoạt động) — gắn lên avatar bot hoặc avatar người thật.</summary>
+    Task BotStatus(string id, string? status);
 }
 
 [Authorize]
-public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValidator sessions, VoiceGuard voice, RoomScreens screens,
+public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap map, SessionValidator sessions, VoiceGuard voice, RoomScreens screens,
     ChatApi chatApi, ChatFanout chatFanout, TimeProvider clock, ILogger<OfficeRoomHub> log) : Hub<IOfficeClient>
 {
     public const string Path = "/rt/hub/office";
@@ -83,8 +88,11 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
         }
 
         await Groups.AddToGroupAsync(Context.ConnectionId, Room);
+        // Bot chỉ hiện khi người thật của tài khoản đó KHÔNG ở trong văn phòng (có thì gắn trạng thái lên avatar người thật)
         await Clients.Caller.Welcome(new WelcomeDto(UserId, map.Name,
-            presence.All.Select(ToDto).ToArray()));
+            [.. presence.All.Select(ToDto), .. bots.All.Where(b => !presence.TryGet(b.UserId, out _)).Select(b => ToDto(b, map))]));
+        // Đang hiện bot của chính tài khoản này → gỡ trước, client khác không lẫn avatar bot với người thật
+        if (bots.TryGet(p.UserId, out _)) await Clients.OthersInGroup(Room).PlayerLeft(p.UserId);
         await Clients.OthersInGroup(Room).PlayerJoined(ToDto(p));
         log.LogInformation("{User} vào văn phòng ({Count} online)", name, presence.Count);
         // TODO (Attendance): phát sự kiện PresenceChanged qua Wolverine.
@@ -96,6 +104,8 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
         // Rời văn phòng (đóng tab, bị khoá tài khoản…) → rời luôn voice. Mở tab mới thì không vào đây (kết nối cũ không còn là kết nối hiện tại).
         if (p.VoiceRoom is { } voiceRoom) voice.Kick(voiceRoom, uid);
         await Clients.OthersInGroup(Room).PlayerLeft(uid);
+        // Bot của tài khoản này còn đang làm việc → hiện lại bot ở bàn
+        if (bots.TryGet(uid, out var bot)) await Clients.OthersInGroup(Room).PlayerJoined(ToDto(bot, map));
     }
 
     /// <summary>Client gửi vị trí ~10 lần/giây. Server kiểm tra tốc độ để chống dịch chuyển tức thời.</summary>
@@ -163,7 +173,13 @@ public sealed class OfficeRoomHub(Presence presence, OfficeMap map, SessionValid
         await Clients.Group(Room).LookChanged(p.UserId, look);
     }
 
-    private static PlayerDto ToDto(Player p) => new(p.UserId, p.Name, p.X, p.Z, p.R, p.Anim, p.Look);
+    private PlayerDto ToDto(Player p) =>
+        new(p.UserId, p.Name, p.X, p.Z, p.R, p.Anim, p.Look, Status: bots.TryGet(p.UserId, out var b) ? b.Activity : null);
+
+    /// <summary>Bot ngồi ở bàn được xếp (anim 2); hết bàn → đứng ở điểm vào văn phòng.</summary>
+    internal static PlayerDto ToDto(Bot b, OfficeMap map) => b.Seat is { } s
+        ? new(b.UserId, b.Name, (float)s.X, (float)s.Z, BotPresence.FacingAngle(s.Facing), 2, b.Look, true, b.Activity)
+        : new(b.UserId, b.Name, (float)map.Spawn.X, (float)map.Spawn.Z, 0, 0, b.Look, true, b.Activity);
 
     public async Task SendChat(string text)
     {

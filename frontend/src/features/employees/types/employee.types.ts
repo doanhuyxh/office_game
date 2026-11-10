@@ -11,6 +11,8 @@ export interface IAccountSummary {
   lastLoginAt: string | null;
   /** Đã bật xác thực 2 lớp. */
   twoFactorEnabled: boolean;
+  /** Tài khoản do bot / agent AI vận hành (hiện trong văn phòng 3D khi gọi MCP). */
+  isBot: boolean;
 }
 
 export interface IEmployee {
