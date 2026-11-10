@@ -1,0 +1,1 @@
+docker compose -f ./infra/docker-compose.yml --env-file .env ps

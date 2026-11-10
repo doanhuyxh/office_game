@@ -10,7 +10,10 @@ using OfficeHub.Modules.Notification.Contracts;
 namespace OfficeHub.Api;
 
 /// <param name="Commit">Commit Git lúc build image (deploy.sh truyền GIT_SHA); null khi chạy dev / build tay.</param>
-public sealed record BuildInfoDto(string? Commit, DateTimeOffset? BuiltAt, string AssemblyVersion, DateTimeOffset StartedAt, string Environment);
+/// <param name="TimeZone">Múi giờ nghiệp vụ của server (<c>Office__TimeZone</c>), vd Asia/Ho_Chi_Minh.</param>
+/// <param name="UtcOffset">Độ lệch hiện tại so với UTC, vd "+07:00".</param>
+public sealed record BuildInfoDto(string? Commit, DateTimeOffset? BuiltAt, string AssemblyVersion, DateTimeOffset StartedAt, string Environment,
+    string TimeZone = "", string UtcOffset = "");
 
 /// <summary>Bản sao lưu mới nhất của một loại (db = Postgres .dump, keys = khoá DataProtection).</summary>
 public sealed record BackupItemDto(string Kind, string? LatestKey, DateTimeOffset? LatestAt, long? LatestBytes, int Count, long TotalBytes);
@@ -28,8 +31,8 @@ public sealed record OpsReportDto(DateTimeOffset GeneratedAt, BuildInfoDto Build
 /// Tab "Vận hành" trang Hệ thống (chỉ admin): phiên bản đang chạy, bản sao lưu mới nhất trên S3 (<c>{S3__KeyPrefix}backup/db|keys/</c> ở
 /// <c>S3__BucketBackup</c>, do container backup ghi mỗi 24 giờ), hàng đợi email, job nền của tiến trình Api (<see cref="JobMonitor"/>).
 /// </summary>
-public sealed class OpsReport(IAmazonS3 s3, IOptions<S3Settings> s3Options, IConfiguration cfg, IHostEnvironment env, JobMonitor jobs, TimeProvider clock,
-    ILogger<OpsReport> log)
+public sealed class OpsReport(IAmazonS3 s3, IOptions<S3Settings> s3Options, IOptions<OfficeSettings> office, IConfiguration cfg, IHostEnvironment env,
+    JobMonitor jobs, TimeProvider clock, ILogger<OpsReport> log)
 {
     /// <summary>Backup chạy mỗi 24 giờ → quá 26 giờ chưa có bản mới là bất thường.</summary>
     public static readonly TimeSpan BackupMaxAge = TimeSpan.FromHours(26);
@@ -46,8 +49,10 @@ public sealed class OpsReport(IAmazonS3 s3, IOptions<S3Settings> s3Options, ICon
         var built = DateTimeOffset.TryParse(cfg["OFFICEHUB_BUILD_TIME"], out var b) ? b : (DateTimeOffset?)null;
         var asm = typeof(OpsReport).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "?";
         if (string.IsNullOrWhiteSpace(commit) || commit == "unknown") commit = CommitFromVersion(asm);
+        var tz = TimeZoneInfo.FindSystemTimeZoneById(office.Value.TimeZone);
+        var offset = tz.GetUtcOffset(clock.GetUtcNow());
         return new(commit?.Trim(), built, asm, new DateTimeOffset(Process.GetCurrentProcess().StartTime.ToUniversalTime(), TimeSpan.Zero),
-            env.EnvironmentName);
+            env.EnvironmentName, tz.Id, $"{(offset < TimeSpan.Zero ? "-" : "+")}{offset:hh\\:mm}");
     }
 
     /// <summary>Build từ thư mục có .git (dev): SDK ghi "1.0.0+&lt;sha đầy đủ&gt;" → 7 ký tự đầu. Image Docker không có .git → dùng OFFICEHUB_COMMIT.</summary>

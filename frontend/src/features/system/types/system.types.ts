@@ -21,7 +21,10 @@ export interface IStorageReport {
 }
 
 /** Tab Vận hành (GET /api/system/ops). */
-export interface IBuildInfo { commit: string | null; builtAt: string | null; assemblyVersion: string; startedAt: string; environment: string }
+/** timeZone = múi giờ nghiệp vụ của server (Office__TimeZone); utcOffset vd "+07:00". */
+export interface IBuildInfo {
+  commit: string | null; builtAt: string | null; assemblyVersion: string; startedAt: string; environment: string; timeZone?: string; utcOffset?: string;
+}
 export interface IBackupItem { kind: 'db' | 'keys' | string; latestKey: string | null; latestAt: string | null; latestBytes: number | null; count: number; totalBytes: number }
 export interface IBackupStatus {
   status: 'ok' | 'stale' | 'missing' | 'unconfigured' | 'error' | string; bucket: string | null; prefix: string | null; message: string | null; items: IBackupItem[];

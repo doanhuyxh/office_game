@@ -12,7 +12,7 @@ using OfficeHub.Modules.Identity.Contracts;
 namespace OfficeHub.Modules.Audit.Features;
 
 public sealed record AiRequestDto(Guid Id, DateTimeOffset OccurredAt, Guid UserId, string? UserName, string? FullName, string ClientName,
-    bool ViaOAuth, string? Tool, string Method, string Path, int Status, int DurationMs);
+    bool ViaOAuth, string? Tool, string Method, string Path, int Status, int DurationMs, string? Ip = null);
 
 /// <summary>Nhật ký thao tác của trợ lý AI. Nhân viên: của mình; HR: mọi người (lọc userId). Token AI không đọc được (không có trong danh sách cho phép).</summary>
 internal static class AiRequestEndpoints
@@ -46,7 +46,7 @@ internal static class AiRequestEndpoints
         {
             people.TryGetValue(r.UserId, out var a);
             return new AiRequestDto(r.Id, r.OccurredAt, r.UserId, a?.UserName, a?.FullName, r.ClientName, r.ViaOAuth, r.Tool,
-                r.Method, r.Path, r.Status, r.DurationMs);
+                r.Method, r.Path, r.Status, r.DurationMs, r.Ip);
         }).ToList();
         if (paged is null) return TypedResults.Ok(dtos);
         return TypedResults.Ok(paged.With(dtos));

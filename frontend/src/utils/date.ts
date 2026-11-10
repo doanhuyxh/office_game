@@ -60,6 +60,11 @@ export const formatDate = (v: Date | string | number) => dateFmt.format(parseIns
 export const formatTime = (v: Date | string | number) => timeFmt.format(parseInstant(v));
 /** 05/11/2026 08:02 */
 export const formatDateTime = (v: Date | string | number) => `${formatDate(v)} ${formatTime(v)}`;
+/** Nhãn múi giờ hiển thị của TZ, vd "GMT+7". */
+export const TZ_LABEL = new Intl.DateTimeFormat('en-US', { timeZone: TZ, timeZoneName: 'shortOffset' })
+  .formatToParts(new Date()).find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+7';
+/** 05/11/2026 08:02 GMT+7 — dùng khi cần nói rõ múi giờ (trang vận hành…). */
+export const formatDateTimeTz = (v: Date | string | number) => `${formatDateTime(v)} ${TZ_LABEL}`;
 /** 485 phút → "8 giờ 5 phút" */
 export const formatMinutes = (m: number) => {
   const h = Math.floor(m / 60), r = Math.round(m % 60);

@@ -29,6 +29,7 @@ API ứng dụng đã kết nối: `GET /api/oauth/grants` (của tôi), `DELETE
 
 - `AiAuditStartupFilter` (IStartupFilter → bọc cả pipeline Api, không sửa Program.cs): request có `HttpContext.Items[AccessTokenAuth.CallerItemKey]` (Identity đặt khi biết token thuộc ai — **kể cả khi route bị chặn 403**) → đưa vào hàng đợi RAM (10 000, đầy thì bỏ cũ nhất) → `AiAuditWriter` ghi theo lô vào `audit.ai_requests`; xoá bản ghi > 180 ngày mỗi ngày một lần.
 - Cột: thời điểm, user, token, tên token / ứng dụng, `ViaOAuth`, `Tool` (header `X-Mcp-Tool` do Mcp gửi qua call-tool filter; chỉ nhận snake_case ≤ 64), method, path, status, thời gian xử lý, IP.
+- IP = IP client AI: Mcp gửi `X-Forwarded-For` ở mọi lệnh gọi Api (tool, kiểm tra token `BearerGate`, báo bot `BotPresenceReporter`); Api tin header này (`UseForwardedHeaders`). Trả trong `AiRequestDto.ip`, FE hiện cột **IP** ở bảng hoạt động (2026-11-10).
 - `GET /api/audit/ai-requests?userId=&before=&take=` (≤ 200; có `page=&pageSize=` → trang, FE dùng): nhân viên luôn chỉ thấy của mình; HR lọc theo người hoặc xem tất cả. Token AI → 403.
 
 ## Quản trị (HR) & giới hạn

@@ -37,7 +37,7 @@ builder.Services.AddMcpServer(o =>
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
         var result = await next(ctx, ct);
         if (result.IsError != true && ctx.Services?.GetService<IHttpContextAccessor>()?.HttpContext is { } http)
-            ctx.Services.GetRequiredService<BotPresenceReporter>().Report(http.Request.Headers.Authorization.ToString(), name, ctx.Params?.Arguments);
+            ctx.Services.GetRequiredService<BotPresenceReporter>().Report(http.Request.Headers.Authorization.ToString(), http.Connection.RemoteIpAddress?.ToString(), name, ctx.Params?.Arguments);
         ctx.Services?.GetRequiredService<ILogger<OfficeHubApi>>().LogInformation("MCP tool {Tool} {Outcome} trong {Ms} ms",
             name, result.IsError == true ? "lỗi" : "xong", (int)System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds);
         return result;

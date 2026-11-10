@@ -27,7 +27,7 @@ public sealed class BearerGate(RequestDelegate next, IHttpClientFactory http, IM
         var key = "tok:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(header)));
         if (!cache.TryGetValue(key, out bool valid))
         {
-            if (await CheckAsync(header, ctx.RequestAborted) is not { } checkedValid)
+            if (await CheckAsync(header, ctx.Connection.RemoteIpAddress?.ToString(), ctx.RequestAborted) is not { } checkedValid)
             {
                 ctx.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
                 await ctx.Response.WriteAsJsonAsync(new { status = 503, detail = "Máy chủ OfficeHub đang không phản hồi, thử lại sau." },
@@ -46,10 +46,12 @@ public sealed class BearerGate(RequestDelegate next, IHttpClientFactory http, IM
     }
 
     /// <summary>true / false = Api trả lời; null = Api không phản hồi (không nhớ kết quả).</summary>
-    private async Task<bool?> CheckAsync(string header, CancellationToken ct)
+    private async Task<bool?> CheckAsync(string header, string? clientIp, CancellationToken ct)
     {
         using var req = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");
         req.Headers.TryAddWithoutValidation("Authorization", header);
+        // IP client AI → nhật ký AI của Api ghi đúng IP (không phải IP nội bộ của Mcp)
+        if (clientIp is not null) req.Headers.TryAddWithoutValidation("X-Forwarded-For", clientIp);
         try
         {
             using var res = await http.CreateClient(OfficeHubApi.HttpClientName).SendAsync(req, ct);

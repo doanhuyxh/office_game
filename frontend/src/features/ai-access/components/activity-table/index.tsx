@@ -21,6 +21,7 @@ export function ActivityTable({ all, userId, showUser }: { all?: boolean; userId
             <TableHead>Thời gian</TableHead>
             {showUser && <TableHead>Nhân viên</TableHead>}
             <TableHead>Ứng dụng</TableHead>
+            <TableHead>IP</TableHead>
             <TableHead>Thao tác</TableHead>
             <TableHead>Kết quả</TableHead>
           </TableRow>
@@ -31,6 +32,7 @@ export function ActivityTable({ all, userId, showUser }: { all?: boolean; userId
               <TableCell className="whitespace-nowrap">{formatDateTime(r.occurredAt)}</TableCell>
               {showUser && <TableCell>{r.fullName ?? r.userName ?? '—'}</TableCell>}
               <TableCell>{r.clientName}</TableCell>
+              <TableCell className="whitespace-nowrap font-mono text-xs">{r.ip ?? '—'}</TableCell>
               <TableCell>
                 <div className={cn(r.tool && WRITE_TOOLS.has(r.tool) && 'font-medium')}>
                   {r.tool ? TOOL_LABEL[r.tool] ?? r.tool : 'Gọi API trực tiếp'}

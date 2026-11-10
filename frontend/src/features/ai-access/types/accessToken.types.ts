@@ -61,6 +61,8 @@ export interface IAiRequest {
   path: string;
   status: number;
   durationMs: number;
+  /** IP của client AI (Mcp chuyển tiếp qua X-Forwarded-For); null = bản ghi cũ / không xác định. */
+  ip?: string | null;
 }
 
 export interface IAuthorizeInfo {

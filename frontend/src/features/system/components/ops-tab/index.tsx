@@ -8,7 +8,7 @@ import { confirmDialog } from '@/components/common/confirm-dialog';
 import { StatusBadge, type StatusTone } from '@/components/common/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { Spinner } from '@/components/feedback/Spinner';
-import { formatDateTime } from '@/utils/date';
+import { formatDateTimeTz as formatDateTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
 import { systemApi, systemKeys } from '../../api/system.api';
 import { useOpsReport } from '../../hooks/useSystem';
@@ -72,6 +72,7 @@ function VersionCard({ b }: { b: IBuildInfo }) {
         <Row label="Giao diện web">{webCommit ? <code className="rounded bg-muted px-1 text-xs">{webCommit}</code> : <span className="text-muted-foreground">Không rõ (dev)</span>}
           {import.meta.env.VITE_APP_BUILD_TIME ? ` · build ${formatDateTime(import.meta.env.VITE_APP_BUILD_TIME)}` : ''}</Row>
         <Row label="Môi trường">{b.environment}</Row>
+        <Row label="Múi giờ">{b.timeZone ? <>{b.timeZone} <span className="text-muted-foreground">(UTC{b.utcOffset})</span></> : '—'}</Row>
       </CardContent>
     </Card>
   );

@@ -34,7 +34,7 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
     private sealed record Caller(Guid UserId, string Name, string? Look, string? Zone);
 
     /// <summary>Gọi từ call-tool filter; trả ngay (không chờ). Header Authorization phải đọc trước khi request kết thúc.</summary>
-    public void Report(string? authorization, string? tool, IDictionary<string, JsonElement>? args)
+    public void Report(string? authorization, string? clientIp, string? tool, IDictionary<string, JsonElement>? args)
     {
         if (string.IsNullOrEmpty(authorization) || string.IsNullOrEmpty(tool) || string.IsNullOrEmpty(chat.Value.InternalKey)) return;
         var activity = Describe(tool, args);
@@ -42,7 +42,7 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
         {
             try
             {
-                if (await GetCallerAsync(authorization) is not { } caller) return;
+                if (await GetCallerAsync(authorization, clientIp) is not { } caller) return;
                 using var req = new HttpRequestMessage(HttpMethod.Post, BotActivityRoute.Path)
                 {
                     Content = JsonContent.Create(new BotActivity(caller.UserId, caller.Name, caller.Look, caller.Zone, activity), options: OfficeHubApi.Json),
@@ -74,30 +74,30 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
     }
 
     /// <summary>null = không phải bot / không xác định được (nhớ cả kết quả "không phải bot" để không hỏi Api mỗi lệnh gọi).</summary>
-    private async Task<Caller?> GetCallerAsync(string authorization)
+    private async Task<Caller?> GetCallerAsync(string authorization, string? clientIp)
     {
         var key = "bot:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(authorization)));
         if (cache.TryGetValue(key, out Caller? cached)) return cached;
 
         var api = http.CreateClient(OfficeHubApi.HttpClientName);
-        var me = await GetJsonAsync(api, "/api/auth/me", authorization);
+        var me = await GetJsonAsync(api, "/api/auth/me", authorization, clientIp);
         if (me is null) return null; // Api lỗi → không nhớ, lần sau hỏi lại
         Caller? caller = null;
         if (me["isBot"]?.GetValue<bool>() == true && Guid.TryParse(me["id"]?.GetValue<string>(), out var userId))
         {
             var look = me["avatar"] is { } a ? a.ToJsonString() : null;
-            caller = new Caller(userId, me["fullName"]?.GetValue<string>() ?? "Bot", look, await ZoneAsync(api, authorization));
+            caller = new Caller(userId, me["fullName"]?.GetValue<string>() ?? "Bot", look, await ZoneAsync(api, authorization, clientIp));
         }
         cache.Set(key, caller, TimeSpan.FromMinutes(IdentityCacheMinutes));
         return caller;
     }
 
     /// <summary>Khu bản đồ của phòng ban người gọi; phòng con chưa đặt khu → lấy theo phòng ban cha gần nhất.</summary>
-    private static async Task<string?> ZoneAsync(HttpClient api, string authorization)
+    private static async Task<string?> ZoneAsync(HttpClient api, string authorization, string? clientIp)
     {
-        var emp = await GetJsonAsync(api, "/api/org/employees/me", authorization);
+        var emp = await GetJsonAsync(api, "/api/org/employees/me", authorization, clientIp);
         if (!Guid.TryParse(emp?["employee"]?["departmentId"]?.GetValue<string>(), out var deptId)) return null;
-        if (await GetJsonAsync(api, "/api/org/departments", authorization) is not JsonArray depts) return null;
+        if (await GetJsonAsync(api, "/api/org/departments", authorization, clientIp) is not JsonArray depts) return null;
         var byId = depts.OfType<JsonObject>()
             .Where(d => Guid.TryParse(d["id"]?.GetValue<string>(), out _))
             .ToDictionary(d => Guid.Parse(d["id"]!.GetValue<string>()));
@@ -109,10 +109,11 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
         return null;
     }
 
-    private static async Task<JsonNode?> GetJsonAsync(HttpClient api, string path, string authorization)
+    private static async Task<JsonNode?> GetJsonAsync(HttpClient api, string path, string authorization, string? clientIp)
     {
         using var req = new HttpRequestMessage(HttpMethod.Get, path);
         req.Headers.TryAddWithoutValidation("Authorization", authorization);
+        if (clientIp is not null) req.Headers.TryAddWithoutValidation("X-Forwarded-For", clientIp);
         req.Headers.TryAddWithoutValidation("User-Agent", "OfficeHub.Mcp (bot presence)");
         using var res = await api.SendAsync(req);
         return res.IsSuccessStatusCode ? JsonNode.Parse(await res.Content.ReadAsStringAsync()) : null;
