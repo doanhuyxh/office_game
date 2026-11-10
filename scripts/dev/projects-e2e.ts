@@ -83,7 +83,8 @@ ok('Chuẩn bị hợp đồng bán 2 đợt', kc.status === 201, kc);
 const K = kc.body;
 
 // ---------- Tạo dự án ----------
-const base = { code: `app-${stamp}`, name: 'App đặt lịch', kind: 'Client', salesContractIds: [K], startOn: addDays(-40), budgetManDays: 60, memberIds: [Dev1.e.id] };
+// requireReview: false → giữ kịch bản kéo thả tự do (quy trình duyệt test riêng ở projects-workflow-e2e.ts)
+const base = { code: `app-${stamp}`, name: 'App đặt lịch', kind: 'Client', salesContractIds: [K], startOn: addDays(-40), budgetManDays: 60, memberIds: [Dev1.e.id], requireReview: false };
 ok('Nhân viên thường không tạo được dự án → 403', (await json(Dev1.cookie, 'POST', '/api/projects', base)).status === 403);
 ok('Dự án cho khách mà không gắn hợp đồng → 400', (await json(PM.cookie, 'POST', '/api/projects', { ...base, salesContractIds: [] })).status === 400);
 ok('Mã có dấu cách → 400', (await json(PM.cookie, 'POST', '/api/projects', { ...base, code: 'A B' })).status === 400);

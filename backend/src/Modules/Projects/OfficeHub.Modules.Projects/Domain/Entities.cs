@@ -42,6 +42,10 @@ public sealed class Project
     public DateOnly? ClosedOn { get; set; }
     /// <summary>Ngân sách ngày công (người × ngày).</summary>
     public decimal? BudgetManDays { get; set; }
+    /// <summary>Xong cần quản lý dự án duyệt + đi trạng thái lần lượt (<see cref="TaskWorkflow"/>). Dự án mới: bật; dự án có trước 2026-11-10: tắt.</summary>
+    public bool RequireReview { get; set; }
+    /// <summary>Hướng dẫn làm việc (Markdown) — quản lý dự án soạn; người và BOT đọc (MCP get_project) trước khi làm.</summary>
+    public string? WorkGuide { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public string? CreatedByName { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
@@ -127,8 +131,29 @@ public sealed class TaskItem
     public decimal? EstimateDays { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public string CreatedByName { get; set; } = "";
+    /// <summary>Tạo qua token AI / MCP (nhãn BOT).</summary>
+    public bool CreatedByBot { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
     public DateTimeOffset? DueRemindedAt { get; set; }
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<TaskActivityKind>))]
+public enum TaskActivityKind { Created = 0, Moved = 1, Assigned = 2, DueChanged = 3, Edited = 4 }
+
+/// <summary>Lịch sử một việc: tạo, chuyển trạng thái (kèm lý do khi lùi), đổi người, đổi hạn, sửa nội dung. Chỉ thêm. <see cref="ByBot"/> = làm qua token AI / MCP.</summary>
+public sealed class TaskActivity
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid TaskId { get; set; }
+    public TaskActivityKind Kind { get; set; }
+    /// <summary>Giá trị trước / sau (trạng thái: tên enum; người: họ tên; hạn: yyyy-MM-dd).</summary>
+    public string? From { get; set; }
+    public string? To { get; set; }
+    public string? Note { get; set; }
+    public Guid? ActorEmployeeId { get; set; }
+    public string ActorName { get; set; } = "";
+    public bool ByBot { get; set; }
+    public DateTimeOffset At { get; set; }
 }
 
 /// <summary>
@@ -165,5 +190,7 @@ public sealed class TaskComment
     public required string Content { get; set; }
     public Guid? AuthorEmployeeId { get; set; }
     public string AuthorName { get; set; } = "";
+    /// <summary>Viết qua token AI / MCP (nhãn BOT).</summary>
+    public bool ByBot { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }

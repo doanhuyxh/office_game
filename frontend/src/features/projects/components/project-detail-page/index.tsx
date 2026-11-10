@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from '@tanstack/react-router';
 import { ArrowLeft, FolderOpen, Pencil } from 'lucide-react';
+import { Markdown } from '@/components/common/markdown';
 import { Button } from '@/components/common/button';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
@@ -22,7 +23,7 @@ import { MilestonesPanel } from '../milestones-panel';
 import { ProjectFormDialog } from '../project-form-dialog';
 import { TaskBoard } from '../task-board';
 
-/** /projects/$projectId: Công việc · Mốc nghiệm thu · Thay đổi (CR) · Thành viên · Ngày công (quản lý dự án / HR / Ban giám đốc) · Tài chính (chỉ quyền Xem tài chính). */
+/** /projects/$projectId: Công việc · Hướng dẫn làm việc · Mốc nghiệm thu · Thay đổi (CR) · Thành viên · Ngày công (quản lý dự án / HR / Ban giám đốc) · Tài chính (chỉ quyền Xem tài chính). */
 export function ProjectDetailPage() {
   const { projectId } = useParams({ strict: false }) as { projectId: string };
   const { data: d, isLoading, error } = useProject(projectId);
@@ -30,7 +31,7 @@ export function ProjectDetailPage() {
   const me = useMe();
   const myEmployeeId = (useEmployees().data ?? []).find((e) => e.userId === me.data?.id)?.id ?? null;
   const canEffort = !!d && (d.project.canManage || finance.view);
-  const [tab, setTab] = useTabParam('tasks', ['tasks', 'milestones', 'changes', 'members', ...(canEffort ? ['effort'] : []), ...(finance.view ? ['finance'] : [])]);
+  const [tab, setTab] = useTabParam('tasks', ['tasks', 'guide', 'milestones', 'changes', 'members', ...(canEffort ? ['effort'] : []), ...(finance.view ? ['finance'] : [])]);
   const [editing, setEditing] = useState(false);
   if (isLoading) return <Spinner />;
   if (error || !d) return <div className="grid gap-2"><p className="text-sm text-destructive">{errorMessage(error, 'Không tìm thấy dự án')}</p><Link to={PATHS.projects} className="text-sm underline">← Danh sách dự án</Link></div>;
@@ -56,6 +57,7 @@ export function ProjectDetailPage() {
         <PageToolbar>
           <TabsList>
             <TabsTrigger value="tasks">Công việc ({p.tasks.open})</TabsTrigger>
+            <TabsTrigger value="guide">Hướng dẫn</TabsTrigger>
             <TabsTrigger value="milestones">Mốc ({p.milestonesAccepted}/{p.milestonesOpen + p.milestonesAccepted})</TabsTrigger>
             <TabsTrigger value="changes">Thay đổi</TabsTrigger>
             <TabsTrigger value="members">Thành viên ({p.memberCount})</TabsTrigger>
@@ -64,13 +66,22 @@ export function ProjectDetailPage() {
           </TabsList>
         </PageToolbar>
         <TabsContent value="tasks" className="mt-4"><TaskBoard d={d} myEmployeeId={myEmployeeId} /></TabsContent>
+        <TabsContent value="guide" className="mt-4">
+          <div className="grid max-w-3xl gap-3" data-testid="work-guide">
+            <p className="text-sm text-muted-foreground">{p.requireReview
+              ? 'Quy trình: Cần làm → Đang làm → Chờ review → Xong, đi lần lượt; chỉ quản lý dự án duyệt sang Xong; trả về phải ghi lý do.'
+              : 'Dự án không bật duyệt: kéo thả trạng thái tự do.'} Thành viên và BOT (qua MCP) đọc hướng dẫn này trước khi làm việc.</p>
+            {d.workGuide ? <div className="rounded-lg border p-4"><Markdown text={d.workGuide} /></div>
+              : <p className="text-sm text-muted-foreground">Chưa có hướng dẫn.{p.canManage && ' Bấm "Sửa" để soạn.'}</p>}
+          </div>
+        </TabsContent>
         <TabsContent value="milestones" className="mt-4"><MilestonesPanel d={d} /></TabsContent>
         <TabsContent value="changes" className="mt-4"><ChangeRequestsPanel d={d} /></TabsContent>
         <TabsContent value="members" className="mt-4"><MembersPanel d={d} /></TabsContent>
         {canEffort && <TabsContent value="effort" className="mt-4"><EffortPanel d={d} /></TabsContent>}
         {finance.view && <TabsContent value="finance" className="mt-4"><FinancialsPanel d={d} /></TabsContent>}
       </Tabs>
-      <ProjectFormDialog open={editing} project={p} onClose={() => setEditing(false)} />
+      <ProjectFormDialog open={editing} project={p} workGuide={d.workGuide} onClose={() => setEditing(false)} />
     </div>
   );
 }

@@ -6,6 +6,8 @@
 
 ## Đã xong
 
+> **2026-11-10 (chưa commit)** — Bot / agent bên ngoài làm việc qua MCP, giai đoạn 1/4 (Dự án): quy trình "Xong cần duyệt", hướng dẫn làm việc, lịch sử việc, nhãn BOT, tool `get_task` / `update_task` (65 tool). Migration `TaskWorkflowAndBot` (Projects), không biến `.env` mới. Build / test / `bun run build` ✔, `projects-workflow-e2e.ts` 53/53. Kế hoạch còn lại: (2) tài liệu — tool ghi; (3) webhook cá nhân + `list_notifications` lọc; (4) nhãn BOT ở các module khác. Chat cho AI: để sau. Chi tiết [projects.md](business/projects.md#quy-trình-xong-cần-duyệt--lịch-sử--bot-chủ-dự-án-chốt-2026-11-10).
+
 | Hạng mục | Tài liệu (`business/`) |
 |---|---|
 | Identity, Organization, chấm công + giải trình + tăng ca, phê duyệt, nghỉ phép, thông báo, hợp đồng (+ mẫu Word) | `auth`, `organization`, `attendance*`, `approval`, `leave`, `notifications`, `contracts` |

@@ -1,14 +1,16 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
+import { BotBadge } from '@/components/common/bot-badge';
 import { Button } from '@/components/common/button';
+import { promptDialog } from '@/components/common/confirm-dialog';
 import { Spinner } from '@/components/feedback/Spinner';
 import { fmtDate } from '@/features/finance';
 import { errorMessage } from '@/utils/errors';
 import { projectApi } from '../../api/project.api';
 import { useProjectMutation, useTasks } from '../../hooks/useProjects';
 import type { IProjectDetail, ITask, TaskState } from '../../types/project.types';
-import { TASK_STATE, TASK_STATES } from '../../utils/labels';
+import { needsMoveNote, TASK_STATE, TASK_STATES } from '../../utils/labels';
 import { TaskDialog } from '../task-dialog';
 
 /** Khoảng trống dưới bảng: padding dưới của <main> (py-6) + lề SidebarInset. */
@@ -35,7 +37,10 @@ function useFillHeight(ready: boolean) {
   return { ref, height };
 }
 
-/** Kanban 4 cột (màn rộng: cao hết màn hình, mỗi cột tự cuộn bên trong). Kéo thả thẻ sang cột khác (thành viên); bấm thẻ để sửa / bình luận. Lọc "việc của tôi". */
+/**
+ * Kanban 4 cột (màn rộng: cao hết màn hình, mỗi cột tự cuộn bên trong). Kéo thả thẻ sang cột khác (thành viên); bấm thẻ để sửa / bình luận. Lọc "việc của tôi".
+ * Dự án cần duyệt: back-end chặn nhảy cóc / người không phải quản lý chuyển Xong (toast lỗi); kéo lùi từ Chờ review / Xong → hỏi lý do trước.
+ */
 export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId: string | null }) {
   const p = d.project;
   const { data = [], isLoading } = useTasks(p.id);
@@ -43,20 +48,28 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
   const [mine, setMine] = useState(false);
   const [over, setOver] = useState<TaskState | null>(null);
   const board = useFillHeight(!isLoading);
-  const move = useProjectMutation((a: { id: string; state: TaskState }) => projectApi.moveTask(a.id, a.state));
+  const move = useProjectMutation((a: { id: string; state: TaskState; note?: string }) => projectApi.moveTask(a.id, a.state, a.note));
   if (isLoading) return <Spinner />;
   const shown = mine ? data.filter((t) => t.assigneeEmployeeId === myEmployeeId) : data;
-  const drop = (state: TaskState, id: string) => {
+  const drop = async (state: TaskState, id: string) => {
     setOver(null);
     const t = data.find((x) => x.id === id);
     if (!t || t.state === state || !p.canWork) return;
-    move.mutate({ id, state }, { onError: (err) => toast.error(errorMessage(err)) });
+    let note: string | undefined;
+    if (needsMoveNote(t.state, state, p.requireReview)) {
+      const r = await promptDialog({ title: t.state === 'Done' ? `Mở lại ${t.code}?` : `Review chưa đạt: ${t.code}`, label: 'Lý do (thành bình luận của việc)',
+        multiline: true, required: true, confirmText: 'Chuyển' });
+      if (r === null) return;
+      note = r;
+    }
+    move.mutate({ id, state, note }, { onError: (err) => toast.error(errorMessage(err)) });
   };
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} /> Chỉ việc của tôi</label>
         {!p.canWork && <span className="text-xs text-muted-foreground">{p.status === 'Closed' ? 'Dự án đã đóng — chỉ xem.' : 'Bạn chỉ xem (không phải thành viên).'}</span>}
+        {p.requireReview && <span className="text-xs text-muted-foreground" data-testid="review-hint">Quy trình: đi lần lượt từng cột · chỉ quản lý dự án duyệt sang Xong · trả về phải ghi lý do.</span>}
       </div>
       <div ref={board.ref} style={board.height ? { '--board-h': `${board.height}px` } as CSSProperties : undefined}
         className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:h-(--board-h) xl:grid-cols-4">
@@ -64,7 +77,7 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
           const col = shown.filter((t) => t.state === s);
           return (
             <div key={s} data-testid={`col-${s}`} onDragOver={(e) => { if (p.canWork) { e.preventDefault(); setOver(s); } }} onDragLeave={() => setOver(null)}
-              onDrop={(e) => drop(s, e.dataTransfer.getData('text/task'))}
+              onDrop={(e) => void drop(s, e.dataTransfer.getData('text/task'))}
               className={`flex max-h-[70dvh] min-h-48 flex-col gap-2 rounded-xl border p-2 xl:max-h-none xl:min-h-0 ${over === s ? 'border-primary bg-primary/5' : 'bg-muted/30'}`}>
               <div className="flex items-center justify-between px-1 text-sm">
                 <span className="font-medium">{TASK_STATE[s].label} <span className="text-muted-foreground">({col.length})</span></span>
@@ -74,7 +87,7 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
               {col.map((t) => (
                 <button key={t.id} type="button" draggable={p.canWork} onDragStart={(e) => e.dataTransfer.setData('text/task', t.id)} onClick={() => setEdit({ task: t, state: t.state })}
                   className="grid gap-1 rounded-lg border bg-card p-2 text-left text-sm shadow-xs hover:border-primary/50" data-testid="task-card">
-                  <span className="text-xs text-muted-foreground">{t.code}</span>
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">{t.code}{t.createdByBot && <BotBadge />}</span>
                   <span className={t.state === 'Done' ? 'text-muted-foreground line-through' : 'font-medium'}>{t.title}</span>
                   <span className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
                     {t.assigneeName ?? 'Chưa giao'}
@@ -91,7 +104,7 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
         })}
       </div>
       <TaskDialog projectId={p.id} task={edit?.task ?? (edit ? null : undefined)} initialState={edit?.state} members={d.members} milestones={d.milestones}
-        canWork={p.canWork} canDelete={p.canManage} onClose={() => setEdit(null)} />
+        canWork={p.canWork} canDelete={p.canManage} requireReview={p.requireReview} onClose={() => setEdit(null)} />
     </div>
   );
 }

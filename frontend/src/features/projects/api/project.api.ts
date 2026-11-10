@@ -1,6 +1,6 @@
 import { http, httpPost } from '@/services/api-client';
 import type {
-  IComment, IEffort, IInstallmentRef, IMilestoneRequest, IProject, IProjectDetail, IProjectFinancials, IProjectRequest, ISalesContractRef, ITask, ITaskRequest, MemberRole,
+  IComment, IEffort, ITaskDetail, IInstallmentRef, IMilestoneRequest, IProject, IProjectDetail, IProjectFinancials, IProjectRequest, ISalesContractRef, ITask, ITaskRequest, MemberRole,
   ProjectStatus, TaskState, ChangeRequestStatus, IChangeRequest, IChangeRequestRequest,
 } from '../types/project.types';
 
@@ -14,6 +14,7 @@ export const projectKeys = {
   tasks: (id: string) => ['projects', 'tasks', id] as const,
   myTasks: ['projects', 'my-tasks'] as const,
   comments: (taskId: string) => ['projects', 'comments', taskId] as const,
+  task: (taskId: string) => ['projects', 'task', taskId] as const,
   effort: (id: string) => ['projects', 'effort', id] as const,
   contracts: (search: string) => ['projects', 'sales-contracts', search] as const,
   installments: (projectId: string) => ['projects', 'installments', projectId] as const,
@@ -48,7 +49,8 @@ export const projectApi = {
   myTasks: () => http<ITask[]>(`${base}/tasks/mine`),
   createTask: (id: string, b: ITaskRequest) => httpPost<string>(`${base}/${id}/tasks`, b),
   updateTask: (tid: string, b: ITaskRequest) => send<void>('PUT', `${base}/tasks/${tid}`, b),
-  moveTask: (tid: string, state: TaskState, rank?: number) => httpPost<void>(`${base}/tasks/${tid}/move`, { state, rank }),
+  moveTask: (tid: string, state: TaskState, note?: string | null) => httpPost<void>(`${base}/tasks/${tid}/move`, { state, note: note || null }),
+  task: (tid: string) => http<ITaskDetail>(`${base}/tasks/${tid}`),
   deleteTask: (tid: string) => send<void>('DELETE', `${base}/tasks/${tid}`),
   comments: (tid: string) => http<IComment[]>(`${base}/tasks/${tid}/comments`),
   addComment: (tid: string, content: string) => httpPost<string>(`${base}/tasks/${tid}/comments`, { content }),

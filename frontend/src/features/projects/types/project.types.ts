@@ -13,6 +13,8 @@ export interface IProject {
   businessLineId: string | null; contracts: ISalesContractRef[]; startOn: string | null; endOn: string | null; budgetManDays: number | null; myRole: MemberRole | null;
   canManage: boolean; canWork: boolean; memberCount: number; tasks: { open: number; done: number; overdue: number }; milestonesOpen: number; milestonesAccepted: number; createdAt: string;
   progress: IProjectProgress;
+  /** Quy trình "Xong cần duyệt": đi lần lượt, chỉ quản lý dự án chuyển Chờ review → Xong, lùi phải ghi lý do (back-end kiểm). */
+  requireReview: boolean;
 }
 export type ProjectHealth = 'OnTrack' | 'AtRisk' | 'Late';
 /** Tiến độ do back-end tính (ProgressRules); health = null khi dự án đã đóng. */
@@ -24,15 +26,22 @@ export interface IMilestone {
   id: string; order: number; title: string; dueOn: string | null; status: MilestoneStatus; installmentId: string | null; installmentTitle: string | null;
   installmentDueOn: string | null; acceptedOn: string | null; acceptedByName: string | null; note: string | null; tasksOpen: number; tasksDone: number;
 }
-export interface IProjectDetail { project: IProject; members: IMember[]; milestones: IMilestone[] }
+/** workGuide: hướng dẫn làm việc (Markdown) do quản lý dự án soạn — người và BOT đọc trước khi làm. */
+export interface IProjectDetail { project: IProject; members: IMember[]; milestones: IMilestone[]; workGuide: string | null }
 export interface ITask {
   id: string; projectId: string; code: string; title: string; description: string | null; state: TaskState; rank: number; assigneeEmployeeId: string | null;
   assigneeName: string | null; milestoneId: string | null; dueOn: string | null; estimateDays: number | null; overdue: boolean; commentCount: number; createdAt: string;
   createdByName: string; completedAt: string | null; projectName: string | null;
+  /** Tạo qua token AI / MCP. */
+  createdByBot: boolean;
   /** Link ảnh / video (http/https). */
   mediaLinks: string[];
 }
-export interface IComment { id: string; content: string; authorName: string; createdAt: string }
+export interface IComment { id: string; content: string; authorName: string; createdAt: string; byBot: boolean }
+export type TaskActivityKind = 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited';
+export interface ITaskActivity { id: string; kind: TaskActivityKind; from: string | null; to: string | null; note: string | null; actorName: string; byBot: boolean; at: string }
+/** GET /tasks/{id}: việc + bình luận + lịch sử. canApprove = được duyệt Chờ review → Xong. */
+export interface ITaskDetail { task: ITask; comments: IComment[]; activities: ITaskActivity[]; requireReview: boolean; canApprove: boolean }
 export interface IEffortCell { employeeId: string; month: string; presentDays: number; percent: number; explicit: boolean; manDays: number }
 export interface IEffort {
   months: string[]; members: IMember[]; cells: IEffortCell[]; totalManDays: number; budgetManDays: number | null;
@@ -56,10 +65,13 @@ export interface IProjectFinancials {
 export interface IProjectRequest {
   code: string; name: string; kind: ProjectKind; description?: string | null; departmentId?: string | null; businessLineId?: string | null; salesContractIds?: string[];
   startOn?: string | null; endOn?: string | null; budgetManDays?: number | null; status?: ProjectStatus; memberIds?: string[];
+  requireReview?: boolean; workGuide?: string | null;
 }
 export interface ITaskRequest {
   title: string; description?: string | null; state: TaskState; assigneeEmployeeId?: string | null; milestoneId?: string | null; dueOn?: string | null; estimateDays?: number | null;
   mediaLinks?: string[];
+  /** Lý do khi chuyển lùi trạng thái (review chưa đạt / mở lại việc). */
+  note?: string | null;
 }
 export interface IMilestoneRequest { title: string; dueOn?: string | null; installmentId?: string | null; note?: string | null }
 

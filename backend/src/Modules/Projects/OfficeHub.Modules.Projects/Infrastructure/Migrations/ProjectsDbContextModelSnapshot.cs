@@ -231,6 +231,9 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<bool>("RequireReview")
+                        .HasColumnType("boolean");
+
                     b.Property<DateOnly?>("StartOn")
                         .HasColumnType("date");
 
@@ -241,6 +244,10 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("WorkGuide")
+                        .HasMaxLength(20000)
+                        .HasColumnType("character varying(20000)");
 
                     b.HasKey("Id");
 
@@ -295,6 +302,54 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.ToTable("members", "projects");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.TaskActivity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ActorEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("ByBot")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("From")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("To")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId", "At")
+                        .HasDatabaseName("ix_task_activities_task");
+
+                    b.ToTable("task_activities", "projects");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.TaskComment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -308,6 +363,9 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("ByBot")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Content")
                         .IsRequired()
@@ -342,6 +400,9 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("CreatedByBot")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("CreatedByName")
                         .IsRequired()
@@ -445,6 +506,15 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.HasOne("OfficeHub.Modules.Projects.Domain.Project", null)
                         .WithMany("Members")
                         .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.TaskActivity", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Projects.Domain.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

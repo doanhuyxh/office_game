@@ -19,11 +19,12 @@ public sealed record MemberDto(Guid EmployeeId, string? Code, string FullName, s
 public sealed record TaskCounts(int Open, int Done, int Overdue);
 public sealed record ProjectDto(Guid Id, string Code, string Name, string? Description, ProjectKind Kind, ProjectStatus Status, Guid? DepartmentId, string? DepartmentName,
     Guid? BusinessLineId, List<SalesContractRef> Contracts, DateOnly? StartOn, DateOnly? EndOn, decimal? BudgetManDays, ProjectMemberRole? MyRole, bool CanManage, bool CanWork,
-    int MemberCount, TaskCounts Tasks, int MilestonesOpen, int MilestonesAccepted, DateTimeOffset CreatedAt, ProjectProgress Progress);
-public sealed record ProjectDetail(ProjectDto Project, List<MemberDto> Members, List<MilestoneDto> Milestones);
+    int MemberCount, TaskCounts Tasks, int MilestonesOpen, int MilestonesAccepted, DateTimeOffset CreatedAt, ProjectProgress Progress, bool RequireReview);
+/// <param name="WorkGuide">Hướng dẫn làm việc (Markdown) — chỉ ở chi tiết, không ở danh sách (dài).</param>
+public sealed record ProjectDetail(ProjectDto Project, List<MemberDto> Members, List<MilestoneDto> Milestones, string? WorkGuide);
 public sealed record UpsertProject(string Code, string Name, ProjectKind Kind = ProjectKind.Internal, string? Description = null, Guid? DepartmentId = null,
     Guid? BusinessLineId = null, List<Guid>? SalesContractIds = null, DateOnly? StartOn = null, DateOnly? EndOn = null, decimal? BudgetManDays = null,
-    ProjectStatus Status = ProjectStatus.Active, List<Guid>? MemberIds = null);
+    ProjectStatus Status = ProjectStatus.Active, List<Guid>? MemberIds = null, bool? RequireReview = null, string? WorkGuide = null);
 public sealed record AddMembers(List<Guid> EmployeeIds, ProjectMemberRole Role = ProjectMemberRole.Member);
 public sealed record ChangeRole(ProjectMemberRole Role);
 public sealed record AllocationItem(Guid EmployeeId, decimal? Percent);
@@ -128,7 +129,7 @@ internal static class ProjectEndpoints
                 links.Where(l => l.ProjectId == p.Id).Select(l => contracts.GetValueOrDefault(l.ContractId)).OfType<SalesContractRef>().ToList(), p.StartOn, p.EndOn, p.BudgetManDays,
                 v.Roles.TryGetValue(p.Id, out var r) ? r : null, v.CanManage(p.Id), v.CanWork(p.Id) && p.Status == ProjectStatus.Active, p.Members.Count,
                 new TaskCounts(t.Count(x => x.State != TaskState.Done), t.Count(x => x.State == TaskState.Done), t.Count(x => EffortRules.IsOverdue(x.DueOn, x.State, today))),
-                ms.Count(x => x.ProjectId == p.Id && x.Status == MilestoneStatus.Open), ms.Count(x => x.ProjectId == p.Id && x.Status == MilestoneStatus.Accepted), p.CreatedAt, progress);
+                ms.Count(x => x.ProjectId == p.Id && x.Status == MilestoneStatus.Open), ms.Count(x => x.ProjectId == p.Id && x.Status == MilestoneStatus.Accepted), p.CreatedAt, progress, p.RequireReview);
         }).ToList();
     }
 
@@ -147,7 +148,7 @@ internal static class ProjectEndpoints
         var p = await db.Projects.AsNoTracking().Include(x => x.Members).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (p is null || !v.CanSee(id)) return TypedResults.NotFound();
         var dto = (await ToDtosAsync([p], v, db, dir, sales, clock.Today, ct))[0];
-        return TypedResults.Ok(new ProjectDetail(dto, await MembersAsync(p, access, ct), await MilestoneEndpoints.ListForAsync(p, db, sales, ct)));
+        return TypedResults.Ok(new ProjectDetail(dto, await MembersAsync(p, access, ct), await MilestoneEndpoints.ListForAsync(p, db, sales, ct), p.WorkGuide));
     }
 
     private static async Task<Validation> ValidateAsync(UpsertProject r, Guid? selfId, ProjectsDbContext db, ISalesContractsLookup sales, CancellationToken ct)
@@ -156,6 +157,7 @@ internal static class ProjectEndpoints
         var v = new Validation().Required(code, "code", "Mã dự án").MaxLength(code, 30, "code", "Mã dự án")
             .When(code is { Length: > 0 } c && !c.All(ch => char.IsAsciiLetterOrDigit(ch) || ch is '-' or '_'), "code", "Mã chỉ gồm chữ không dấu, số, - và _")
             .Required(r.Name, "name", "Tên dự án").MaxLength(r.Name, 200, "name", "Tên dự án").MaxLength(r.Description, 2000, "description", "Mô tả")
+            .MaxLength(r.WorkGuide, TaskRules.MaxDescription, "workGuide", "Hướng dẫn làm việc")
             .When(r.EndOn is { } e && r.StartOn is { } s && e < s, "endOn", "Ngày kết thúc trước ngày bắt đầu")
             .When(r.BudgetManDays is < 0 or > 100_000, "budgetManDays", "Ngân sách ngày công không hợp lệ")
             .When(r.Kind == ProjectKind.Client && ContractIdsOf(r).Count == 0, "salesContractIds", "Dự án làm cho khách cần gắn ít nhất một hợp đồng bán");
@@ -195,6 +197,7 @@ internal static class ProjectEndpoints
             Code = r.Code.Trim().ToUpperInvariant(), Name = r.Name.Trim(), Description = Clean(r.Description), Kind = r.Kind, Status = ProjectStatus.Active,
             DepartmentId = r.DepartmentId, BusinessLineId = r.BusinessLineId, StartOn = r.StartOn ?? clock.Today, EndOn = r.EndOn,
             BudgetManDays = r.BudgetManDays, CreatedAt = now, CreatedByName = v.Name,
+            RequireReview = r.RequireReview ?? true, WorkGuide = Clean(r.WorkGuide), // dự án mới mặc định cần duyệt (chủ dự án chốt 2026-11-10)
         };
         if (v.Employee is { } me) p.Members.Add(new ProjectMember { EmployeeId = me.Id, Role = ProjectMemberRole.Manager, AddedAt = now });
         foreach (var eid in memberIds) p.Members.Add(new ProjectMember { EmployeeId = eid, Role = ProjectMemberRole.Member, AddedAt = now });
@@ -237,6 +240,8 @@ internal static class ProjectEndpoints
             db.ProjectContracts.Add(new ProjectContract { ProjectId = id, ContractId = cid, LinkedAt = clock.Now });
         p.Name = r.Name.Trim(); p.Description = Clean(r.Description); p.Kind = r.Kind; p.DepartmentId = r.DepartmentId; p.BusinessLineId = r.BusinessLineId;
         p.StartOn = r.StartOn ?? p.StartOn; p.EndOn = r.EndOn; p.BudgetManDays = r.BudgetManDays; p.UpdatedAt = clock.Now;
+        if (r.RequireReview is { } rr) p.RequireReview = rr;   // null (client cũ) → giữ nguyên
+        if (r.WorkGuide is not null) p.WorkGuide = Clean(r.WorkGuide); // "" → xoá
         if (r.Status != p.Status) p.ClosedOn = r.Status == ProjectStatus.Closed ? clock.Today : null;
         p.Status = r.Status;
         try { await db.SaveChangesAsync(ct); }

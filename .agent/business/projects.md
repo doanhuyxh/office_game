@@ -20,7 +20,7 @@ Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsourc
 | Quyền **Xem tài chính** (chức vụ) | mọi dự án (chỉ đọc) | — | — | ✓ |
 | Người khác | 404 | | | |
 
-**Tạo dự án**: vai trò manager / hr / admin; người tạo (có hồ sơ) = quản lý. Luôn còn ≥ 1 quản lý (bỏ / hạ vai trò người cuối → 409). Xoá việc: người tạo hoặc quản lý. Token AI: đọc dự án / việc / bình luận / ngày công + tạo việc, chuyển trạng thái, bình luận (tool MCP — [mcp.md](mcp.md)); mọi route khác của `/api/projects` → 403.
+**Tạo dự án**: vai trò manager / hr / admin; người tạo (có hồ sơ) = quản lý. Luôn còn ≥ 1 quản lý (bỏ / hạ vai trò người cuối → 409). Xoá việc: người tạo hoặc quản lý. Token AI: đọc dự án (+ hướng dẫn) / việc (+ chi tiết, lịch sử) / bình luận / ngày công + tạo / sửa việc (`PUT /tasks/{id}`), chuyển trạng thái, bình luận (tool MCP — [mcp.md](mcp.md)); xoá việc + mọi route khác của `/api/projects` → 403.
 
 ## API (`/api/projects`, đăng nhập)
 
@@ -38,7 +38,8 @@ Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsourc
 | POST | `/milestones/{mid}/accept` | `{ acceptedOn (≤ hôm nay), note? }` → `ISalesContractsLookup.MarkAcceptedAsync`: hạn đợt thu sau ngày nghiệm thu thì **kéo về ngày nghiệm thu** (đặt lại mốc nhắc), báo kế toán + người phụ trách HĐ (`receivable_due`) |
 | GET / POST | `/{id}/tasks` | Mã `{MÃ DỰ ÁN}-{n}` (n tăng trong dự án, unique; trùng khi tạo đồng thời → thử lại). Người được giao phải là thành viên; mốc thuộc dự án. `description` = Markdown ≤ 20 000; `mediaLinks` ≤ 20 link http/https ≤ 1000 ký tự (`TaskRules`, bỏ trống / trùng; PUT gửi `null` → giữ nguyên) |
 | GET | `/tasks/mine` | Việc chưa xong giao cho tôi, mọi dự án |
-| PUT / POST / DELETE | `/tasks/{tid}`, `/tasks/{tid}/move` | `move { state, rank? }` (kéo thả). Xong → `CompletedAt`. Đổi hạn / người → nhắc lại |
+| GET | `/tasks/{tid}` | Việc + bình luận + lịch sử (`activities`) + `requireReview` + `canApprove` |
+| PUT / POST / DELETE | `/tasks/{tid}`, `/tasks/{tid}/move` | `move { state, rank?, note? }` (kéo thả); PUT cũng nhận `note`. Đổi trạng thái theo quy trình (dưới) → 409 nếu sai. Xong → `CompletedAt`. Đổi hạn / người → nhắc lại |
 | GET / POST | `/tasks/{tid}/comments` | Bình luận → chuông người được giao |
 
 ## Quy tắc (`Domain/EffortRules.cs`, test `tests/OfficeHub.Modules.Projects.Tests`)
@@ -49,13 +50,23 @@ Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsourc
 - Việc quá hạn: hạn < hôm nay và chưa Xong.
 - Hạn việc (tạo / sửa) **không được trước hôm nay** (`EffortRules.DueDateError` → 400 `dueOn`; lịch FE khoá ngày đã qua). Sửa việc mà giữ nguyên hạn cũ đã qua vẫn lưu được.
 
+## Quy trình "Xong cần duyệt" + lịch sử + BOT (chủ dự án chốt 2026-11-10)
+
+- `Project.RequireReview` (dự án mới mặc định **bật**, dự án có trước migration `TaskWorkflowAndBot` **tắt**) + `WorkGuide` (hướng dẫn làm việc Markdown ≤ 20 000, chỉ ở chi tiết dự án; quản lý dự án sửa qua PUT dự án — `null` = giữ, `""` = xoá). Tab "Hướng dẫn" ở trang dự án; MCP `get_project` trả kèm để bot làm theo.
+- Bật duyệt (`Domain/TaskWorkflow.cs`, test `TaskWorkflowTests`): Cần làm → Đang làm → Chờ review → Xong **đi lần lượt** (kể cả quản lý); chỉ quản lý dự án / HR chuyển Chờ review → Xong; Chờ review → Đang làm (review chưa đạt) và mở lại Xong → Đang làm (chỉ quản lý) **bắt buộc lý do** — lý do ghi vào lịch sử + thành bình luận. Việc mới chỉ ở Cần làm / Đang làm. Tắt duyệt → tự do như cũ.
+- Chuông `project_task` (chỉ khi bật duyệt): gửi review → các quản lý dự án; trả về / mở lại (kèm lý do) / duyệt Xong → người làm.
+- `task_activities` (chỉ thêm): Created, Moved (from/to/note), Assigned (tên cũ → mới), DueChanged, Edited. Hộp thoại việc có "Lịch sử".
+- **BOT**: mọi thay đổi qua token AI / MCP (`ClaimsPrincipal.IsAccessToken()`) → `tasks.CreatedByBot`, `task_comments.ByBot`, `task_activities.ByBot`; FE hiện chip BOT (`components/common/bot-badge.tsx`). Bot = tài khoản nhân viên bình thường, không có loại tài khoản riêng.
+
+E2E: `scripts/dev/projects-workflow-e2e.ts` (53 kiểm tra gồm MCP, đạt 2026-11-10).
+
 ## Nhắc (`TaskReminderJob`, mỗi giờ, sau 50 s)
 
 Việc chưa xong có người làm, hạn ≤ hôm nay → chuông `project_task` một lần (đổi hạn / người → nhắc lại). Giao việc / bình luận cũng gửi `project_task`.
 
 ## Schema `projects` (`ProjectsDbContext`, migration `InitialProjects`)
 
-`projects` (`Code` unique ≤ 30), `contracts` (PK dự án + HĐ bán, `ContractId` unique — migration `ProjectContractsAndFreeze`), `members` (PK dự án + nhân viên, `Role` chuỗi), `allocations` (PK dự án + nhân viên + tháng, `Percent numeric(5,2)`), `allocation_freezes` (PK tháng), `milestones` (`InstallmentId` unique khi có), `tasks` (unique dự án + số; `MediaLinks text[]` mặc định `{}` — migration `TaskMediaLinks`; index người làm + trạng thái; FK mốc SetNull), `task_comments`. Không lưu tiền. `Project` có `[Audited]`.
+`projects` (`Code` unique ≤ 30), `contracts` (PK dự án + HĐ bán, `ContractId` unique — migration `ProjectContractsAndFreeze`), `members` (PK dự án + nhân viên, `Role` chuỗi), `allocations` (PK dự án + nhân viên + tháng, `Percent numeric(5,2)`), `allocation_freezes` (PK tháng), `milestones` (`InstallmentId` unique khi có), `tasks` (unique dự án + số; `MediaLinks text[]` mặc định `{}` — migration `TaskMediaLinks`; index người làm + trạng thái; FK mốc SetNull; `CreatedByBot`), `task_comments` (`ByBot`), `task_activities` (cascade theo việc) — migration `TaskWorkflowAndBot` (+ `projects.RequireReview`, `WorkGuide`). Không lưu tiền. `Project` có `[Audited]`.
 
 ## UI
 

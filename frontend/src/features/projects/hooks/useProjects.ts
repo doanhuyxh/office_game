@@ -6,7 +6,8 @@ export const useProjectList = (mine: boolean) => useQuery({ queryKey: projectKey
 export const useProject = (id: string) => useQuery({ queryKey: projectKeys.detail(id), queryFn: () => projectApi.get(id) });
 export const useTasks = (id: string) => useQuery({ queryKey: projectKeys.tasks(id), queryFn: () => projectApi.tasks(id) });
 export const useMyTasks = () => useQuery({ queryKey: projectKeys.myTasks, queryFn: projectApi.myTasks });
-export const useComments = (taskId: string | null) => useQuery({ queryKey: projectKeys.comments(taskId ?? ''), queryFn: () => projectApi.comments(taskId!), enabled: !!taskId });
+/** Việc + bình luận + lịch sử (hộp thoại việc). */
+export const useTaskDetail = (taskId: string | null) => useQuery({ queryKey: projectKeys.task(taskId ?? ''), queryFn: () => projectApi.task(taskId!), enabled: !!taskId });
 export const useEffort = (id: string, enabled: boolean) => useQuery({ queryKey: projectKeys.effort(id), queryFn: () => projectApi.effort(id), enabled });
 export const useSalesContractSearch = (search: string, enabled: boolean) =>
   useQuery({ queryKey: projectKeys.contracts(search), queryFn: () => projectApi.salesContracts(search), enabled });

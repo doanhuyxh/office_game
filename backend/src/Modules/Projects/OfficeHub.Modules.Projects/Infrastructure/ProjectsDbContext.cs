@@ -22,6 +22,7 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
     public DbSet<Milestone> Milestones => Set<Milestone>();
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
     public DbSet<TaskComment> Comments => Set<TaskComment>();
+    public DbSet<TaskActivity> Activities => Set<TaskActivity>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -36,6 +37,7 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(10);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(10);
             e.Property(x => x.BudgetManDays).HasPrecision(10, 2);
+            e.Property(x => x.WorkGuide).HasMaxLength(TaskRules.MaxDescription);
             e.HasIndex(x => x.Code).IsUnique().HasDatabaseName("ux_projects_code");
             e.HasMany(x => x.Members).WithOne().HasForeignKey(m => m.ProjectId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -111,6 +113,17 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.Property(x => x.Content).HasMaxLength(3000);
             e.Property(x => x.AuthorName).HasMaxLength(200);
             e.HasIndex(x => new { x.TaskId, x.CreatedAt }).HasDatabaseName("ix_task_comments_task");
+            e.HasOne<TaskItem>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<TaskActivity>(e =>
+        {
+            e.ToTable("task_activities");
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(12);
+            e.Property(x => x.From).HasMaxLength(200);
+            e.Property(x => x.To).HasMaxLength(200);
+            e.Property(x => x.Note).HasMaxLength(TaskWorkflow.MaxNote);
+            e.Property(x => x.ActorName).HasMaxLength(200);
+            e.HasIndex(x => new { x.TaskId, x.At }).HasDatabaseName("ix_task_activities_task");
             e.HasOne<TaskItem>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
         });
     }
