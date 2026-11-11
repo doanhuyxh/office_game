@@ -45,7 +45,7 @@ public interface IOfficeClient
 }
 
 [Authorize]
-public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap map, SessionValidator sessions, VoiceGuard voice, RoomScreens screens,
+public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap map, SessionValidator sessions, VoiceGuard voice, RoomScreens screens, BotScreens botScreens,
     ChatApi chatApi, ChatFanout chatFanout, TimeProvider clock, ILogger<OfficeRoomHub> log) : Hub<IOfficeClient>
 {
     public const string Path = "/rt/hub/office";
@@ -259,6 +259,7 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
     {
         if (!presence.TryGet(UserId, out var p)) return;
         var room = RoomOf(p) ?? throw new HubException("Bạn không ở trong phòng nào");
+        botScreens.MarkCleared(room.Id, clock.GetUtcNow()); // bot đang chiếu không tự bật lại ngay (BotScreenEndpoints)
         if (screens.Clear(room.Id)) await Clients.Clients(InRoom(room.Id)).ScreenChanged(room.Id, null);
     }
 

@@ -107,7 +107,7 @@ public sealed class DocumentTools
         ?? throw new McpException($"{label} phải là một trong: {string.Join(" / ", allowed)}");
 
     /// <summary>Id / mã TL-… / số hiệu → Id (tìm trong mọi kho người dùng vào được, khớp đúng mã hoặc số hiệu).</summary>
-    private static async Task<Guid> ResolveDocumentAsync(OfficeHubApi api, string document, CancellationToken ct)
+    internal static async Task<Guid> ResolveDocumentAsync(OfficeHubApi api, string document, CancellationToken ct)
     {
         var key = document?.Trim() ?? "";
         if (key.Length == 0) throw new McpException("Thiếu tài liệu (id, mã hoặc số hiệu)");

@@ -58,6 +58,8 @@ Chủ dự án chốt 2026-11-11: **đi bộ** (không dịch chuyển), **ở l
 - Người thật của tài khoản đang trong văn phòng → 409 (không có avatar bot riêng để đi).
 - E2E: `scripts/dev/bot-walk-e2e.ts` (19 kiểm tra, người thật kết nối hub thấy bot đi từng bước). Test: `tests/OfficeHub.Realtime.Tests/BotPresenceTests.cs`.
 
+Chiếu màn hình / tài liệu lên TV phòng khi đang ở phòng họp: [office-bots-screen.md](office-bots-screen.md).
+
 ## Tin nhắn của bot
 
 Chủ dự án yêu cầu 2026-11-11 ("agent chat được trong văn phòng ảo"); phương án an toàn tự chọn (chủ dự án chưa trả lời 4 điểm, có thể đổi):

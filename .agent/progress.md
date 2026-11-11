@@ -54,6 +54,8 @@ Kiểm tra ghi lần trước (trước 34 commit sau `6cea7c6`): `dotnet build 
 
 > **2026-11-11 (chưa commit)** — Bot đi bộ trong văn phòng 3D: tool `go_to` / `list_office_places` (71 tool), A* trên server (port từ FE), ở lại tới lần go_to kế, vào phòng → kênh chat phòng. Không migration. Build / test / `bun run build` ✔, `bot-walk-e2e.ts` 19/19, ảnh Chrome bot ngồi trong phòng họp nhỏ. Chi tiết [office-bots.md](business/office-bots.md#đi-lại-go_to).
 
+> **2026-11-12 (chưa commit)** — Bot chiếu màn hình lên TV phòng họp (cách 1 — ảnh chụp cập nhật ≤ 1 / 3 giây, RAM): tool `present_screen` / `present_document` / `stop_presenting` (74 tool), nhãn "● Trực tiếp"; nginx `/mcp` `client_max_body_size 4m`. Không migration. Build / test / `bun run build` ✔, `bot-screen-e2e.ts` 20/20, ảnh Chrome. Chi tiết [office-bots-screen.md](business/office-bots-screen.md).
+
 ## Quyết định đã chốt gần đây (đừng hỏi / đề xuất lại)
 
 - Nhân vật 3D: chưa chọn = **một mẫu chung**; model miễn phí (Quaternius CC0); HR **không** khoá trang phục.

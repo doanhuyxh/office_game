@@ -36,4 +36,8 @@ public class BotPresenceReporterTests
     [Fact]
     public void Go_to_shows_short_walking_status() =>
         Assert.Equal("🚶 Phòng họp nhỏ", BotPresenceReporter.Describe("go_to", Args("place", " Phòng họp nhỏ ")));
+
+    [Fact]
+    public void Present_screen_status_does_not_echo_image() =>
+        Assert.Equal("🖥 Đang chiếu màn hình", BotPresenceReporter.Describe("present_screen", Args("image", new string('A', 5000))));
 }

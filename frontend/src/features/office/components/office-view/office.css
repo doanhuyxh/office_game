@@ -134,3 +134,6 @@
   .office-root .screen-doc-body img, .office-root .screen-doc-body video { max-height: 40vh; }
   .office-root .screen-doc-body iframe { height: 40vh; }
 }
+
+/* Bot đang chiếu màn hình làm việc (present_screen) — nhãn "● Trực tiếp" */
+.screen-doc .screen-live { display: inline-block; margin-right: 6px; padding: 0 6px; border-radius: 4px; background: #dc2626; color: #fff; font-size: 11px; font-weight: 600; }

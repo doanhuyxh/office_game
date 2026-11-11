@@ -41,6 +41,7 @@ builder.Services.AddSingleton<Presence>();
 builder.Services.AddSingleton<BotPresence>();
 builder.Services.AddHostedService<BotSweeper>();
 builder.Services.AddSingleton<OfficeHub.Realtime.Screens.RoomScreens>();
+builder.Services.AddSingleton<OfficeHub.Realtime.Screens.BotScreens>(); // bot chiếu màn hình (RAM)
 builder.Services.AddHostedService<OfficeLoop>();
 builder.Services.AddOptions<LiveKitSettings>()
     .Bind(builder.Configuration.GetSection(LiveKitSettings.Section))
@@ -58,6 +59,7 @@ app.UseAuthorization();
 app.MapHub<OfficeRoomHub>(OfficeRoomHub.Path);
 app.MapHub<ChatHub>(ChatHub.Path);
 app.MapVoice();
-app.MapBots();   // OfficeHub.Mcp báo bot đang làm việc (khoá nội bộ)
+app.MapBots();
+app.MapBotScreens(); // bot chiếu lên TV phòng + ảnh khung mới nhất /rt/screens/…   // OfficeHub.Mcp báo bot đang làm việc (khoá nội bộ)
 
 app.Run();

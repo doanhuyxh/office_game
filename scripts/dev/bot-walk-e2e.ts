@@ -115,7 +115,7 @@ const call = async (token: string, name: string, args: Record<string, unknown> =
   try { return { err: !!x?.result?.isError, j: JSON.parse(text) as any, text }; } catch { return { err: !!x?.result?.isError, j: null as any, text }; }
 };
 const names: string[] = ((await rpc(B.token, 'tools/list'))?.result?.tools ?? []).map((t: any) => t.name);
-ok('tools/list có go_to + list_office_places (71 tool)', names.includes('go_to') && names.includes('list_office_places') && names.length === 71, names.length);
+ok('tools/list có go_to + list_office_places (74 tool)', names.includes('go_to') && names.includes('list_office_places') && names.length === 74, names.length);
 ok('người thật dùng token gọi go_to → lỗi "chỉ tài khoản bot"', (await call(N.token, 'go_to', { place: 'Phòng họp nhỏ' })).text.includes('Chỉ tài khoản bot'));
 
 const lp = await call(B.token, 'list_office_places');

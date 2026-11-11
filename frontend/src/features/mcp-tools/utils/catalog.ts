@@ -239,6 +239,17 @@ export const MCP_TOOL_GROUPS: McpToolGroup[] = [
       { name: 'go_to', title: 'Đi tới chỗ trong văn phòng 3D', kind: 'write', idempotent: true, endpoint: 'Realtime POST /rt/internal/bot-move (khoá nội bộ)',
         description: '(Chỉ tài khoản bot) Đi bộ (tìm đường như người, 4,2 m/s) tới phòng / khu phòng ban / "bàn của tôi" / cạnh một người rồi ở lại cho tới lần go_to kế. Vào phòng có tường → thành thành viên kênh chat phòng (theo tài khoản). Người thật của tài khoản đang trong văn phòng → không đi được.',
         params: [{ name: 'place', type: 'string', required: true, description: 'Tên / id phòng, khu phòng ban, "bàn của tôi", hoặc tên người' }] },
+      { name: 'present_screen', title: 'Chiếu màn hình đang làm việc', kind: 'write', endpoint: 'Realtime POST /rt/internal/bot-screen (khoá nội bộ)',
+        description: '(Chỉ tài khoản bot, đang ở trong phòng có tường) Chiếu ảnh chụp màn hình nơi bot làm việc lên TV phòng — chỉ người trong phòng thấy, nhãn "● Trực tiếp". Gọi lại với ảnh mới (≥ 3 giây / ảnh) để cập nhật. PNG / JPEG / WebP ≤ 2 MB base64; chỉ giữ khung mới nhất trong RAM. Rời phòng / offline / 10 phút không cập nhật / người trong phòng bấm Tắt chiếu → tắt.',
+        params: [
+          { name: 'image', type: 'string', required: true, description: 'Ảnh chụp màn hình base64 (có thể kèm data:image/…;base64,)' },
+          { name: 'caption', type: 'string', required: false, description: 'Chú thích ngắn trên khung' },
+        ] },
+      { name: 'present_document', title: 'Chiếu tài liệu lên TV phòng họp', kind: 'write', idempotent: true, endpoint: 'GET /api/documents/assets/{id}(/file?present=true) → Realtime POST /rt/internal/bot-screen',
+        description: '(Chỉ tài khoản bot, đang ở trong phòng có tường) Chiếu một tài liệu trong kho lên TV phòng như người bấm "Chiếu"; bot phải có quyền xem, ghi nhật ký xem.',
+        params: [{ name: 'document', type: 'string', required: true, description: 'Id, mã TL-… hoặc số hiệu ban hành' }] },
+      { name: 'stop_presenting', title: 'Tắt chiếu', kind: 'write', idempotent: true, endpoint: 'Realtime POST /rt/internal/bot-screen',
+        description: '(Chỉ tài khoản bot) Tắt màn hình / tài liệu bot đang chiếu ở phòng mình.', params: [] },
     ],
   },
   {

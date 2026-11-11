@@ -12,5 +12,7 @@ export interface WelcomeDto { selfId: string; mapName: string; players: PlayerDt
 export interface ScreenDto {
   roomId: string; roomName: string; assetId: string; title: string; fileName: string; contentType: string;
   kind: 'Document' | 'Image' | 'Video' | 'Audio' | 'Archive' | 'Other'; url: string; inline: boolean; byName: string; at: string;
+  /** Màn hình bot đang làm việc (ảnh chụp cập nhật liên tục — tool MCP present_screen). */
+  live?: boolean;
 }
 export interface ChatDto { id: string; name: string; text: string; at: string; channel?: 'office' | 'room'; roomId?: string | null; roomName?: string | null }

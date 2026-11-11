@@ -36,7 +36,7 @@ public static class BotEndpoints
     /// 404 + danh sách chỗ khi không hiểu tên; 409 khi người thật của tài khoản đang ở trong văn phòng / hết chỗ / không có đường.
     /// </summary>
     private static async Task<IResult> MoveAsync(BotMove body, HttpRequest http, IOptions<ChatSettings> settings, BotPresence bots,
-        Presence presence, OfficeMap map, IHubContext<OfficeRoomHub, IOfficeClient> hub, TimeProvider clock)
+        Presence presence, OfficeMap map, IHubContext<OfficeRoomHub, IOfficeClient> hub, TimeProvider clock, Screens.BotScreens shows, Screens.RoomScreens screens)
     {
         if (!BotActivityRoute.KeyMatches(http.Headers[BotActivityRoute.KeyHeader].ToString(), settings.Value.InternalKey))
             return Results.Problem("Khoá nội bộ không đúng", statusCode: StatusCodes.Status401Unauthorized);
@@ -67,6 +67,7 @@ public static class BotEndpoints
         await group.BotStatus(bot.UserId, bot.Activity);
 
         if (bots.GoTo(userId, place, out var distance) is { } err) return Results.Problem(err, statusCode: StatusCodes.Status409Conflict);
+        await BotScreenEndpoints.SweepAsync(shows, bots, screens, presence, map, hub, clock.GetUtcNow()); // đứng dậy rời phòng → tắt màn hình bot ngay
         return Results.Ok(new BotMoveResult(new OfficePlaceInfo(place.Id, place.Kind, place.Name), bot.Spot?.PlaceName ?? place.Name,
             Math.Round(distance, 1), Math.Round(distance / BotPresence.Speed, 1), bot.Spot?.Sit == true));
     }
@@ -105,7 +106,7 @@ public static class BotEndpoints
 
 /// <summary>Mỗi 15 giây: bot quá hạn → offline (người thật cùng tài khoản đang trong văn phòng → chỉ gỡ dòng trạng thái).</summary>
 public sealed class BotSweeper(BotPresence bots, Presence presence, IHubContext<OfficeRoomHub, IOfficeClient> hub, TimeProvider clock,
-    ILogger<BotSweeper> log) : BackgroundService
+    Screens.BotScreens shows, Screens.RoomScreens screens, OfficeMap map, ILogger<BotSweeper> log) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
@@ -120,6 +121,8 @@ public sealed class BotSweeper(BotPresence bots, Presence presence, IHubContext<
                     if (presence.TryGet(b.UserId, out _)) await group.BotStatus(b.UserId, null);
                     else await group.PlayerLeft(b.UserId);
                 }
+                // Màn hình bot: tắt khi bot rời phòng / offline / 10 phút không cập nhật (2026-11-11)
+                await BotScreenEndpoints.SweepAsync(shows, bots, screens, presence, map, hub, clock.GetUtcNow());
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

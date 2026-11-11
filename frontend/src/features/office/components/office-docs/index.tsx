@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/ta
 import type { MapObject } from '../../engine/mapTypes';
 import { OFFICE_MAP } from '../../engine/officeMap';
 import type { ScreenDto } from '../../types/office.types';
+import { LiveImage } from '../live-image';
 
 /** Hộp thoại tài liệu trong văn phòng: duyệt một kho (tủ hồ sơ, kệ thư viện, nút HUD) hoặc bảng tin (mới ban hành). */
 export type DocsMode =
@@ -94,14 +95,19 @@ export function ScreenDocPanel({ screen, onClear }: { screen: ScreenDto | null; 
   if (!screen) return null;
   const media = !screen.inline ? (
     <a className="screen-doc-open" href={screen.url} target="_blank" rel="noreferrer">Loại file này không xem trực tiếp được — mở / tải về</a>
-  ) : screen.kind === 'Image' ? <img src={screen.url} alt={screen.title} />
+  ) : screen.live ? <LiveImage src={screen.url} alt={screen.title} />
+    : screen.kind === 'Image' ? <img src={screen.url} alt={screen.title} />
     : screen.kind === 'Video' ? <video src={screen.url} controls playsInline preload="metadata" />
       : screen.kind === 'Audio' ? <audio src={screen.url} controls />
         : <iframe src={screen.url} title={screen.title} />;
   return (
     <div className={`card screen screen-doc ${big ? 'big' : ''}`} data-testid="office-screen-doc">
       <div className="screen-doc-head">
-        <span>📺 <b>{screen.title}</b> · {screen.byName} đang chiếu ở {screen.roomName}</span>
+        <span>
+          {screen.live && <span className="screen-live" data-testid="office-screen-live">● Trực tiếp</span>}
+          📺 <b>{screen.title}</b> · {screen.byName} đang chiếu ở {screen.roomName}
+          {screen.live && <> · cập nhật {new Date(screen.at).toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</>}
+        </span>
         <div>
           <button type="button" onClick={() => setBig((b) => !b)}>{big ? 'Thu nhỏ' : 'Phóng to'}</button>
           <a href={screen.url} target="_blank" rel="noreferrer">Mở tab mới</a>

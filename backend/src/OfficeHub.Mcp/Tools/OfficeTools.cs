@@ -59,6 +59,56 @@ public static class OfficeTools
         throw new McpException(msg);
     }
 
+    [McpServerTool(Name = "present_screen", Title = "Chiếu màn hình đang làm việc", Destructive = false, Idempotent = false, OpenWorld = false)]
+    [Description("(Chỉ tài khoản bot, đang ngồi / đứng trong một phòng có tường — go_to phòng họp trước) Chiếu ảnh chụp màn hình nơi bạn đang làm việc " +
+                 "(trình duyệt, editor, máy ảo…) lên TV của phòng: chỉ người đang ở trong phòng thấy. Gọi lại với ảnh mới để cập nhật (≥ 3 giây / ảnh) — " +
+                 "người xem thấy như chia sẻ màn hình gần trực tiếp. Ảnh PNG / JPEG / WebP ≤ 2 MB, base64 (có thể kèm tiền tố data:image/…;base64,). " +
+                 "CHỈ chiếu khi được nhờ hoặc đang trình bày trong cuộc họp; che / không chiếu mật khẩu, token, dữ liệu cá nhân. Xong → stop_presenting.")]
+    public static async Task<string> PresentScreen(BotPresenceReporter reporter, IHttpContextAccessor ctx, IHttpClientFactory http, IOptions<ChatSettings> chat,
+        [Description("Ảnh chụp màn hình (base64 PNG / JPEG / WebP, ≤ 2 MB)")] string image,
+        [Description("Chú thích ngắn hiện trên khung (vd \"Đang sửa lỗi đăng nhập — WEB-12\")")] string? caption = null,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(image)) throw new McpException("Thiếu ảnh màn hình (image)");
+        var bot = await RequireBotAsync(reporter, ctx, "🖥 Đang chiếu màn hình");
+        return await SendScreenAsync(http, chat, new BotScreenRequest(bot, "frame", image, caption), ct);
+    }
+
+    [McpServerTool(Name = "present_document", Title = "Chiếu tài liệu lên TV phòng họp", Destructive = false, Idempotent = true, OpenWorld = false)]
+    [Description("(Chỉ tài khoản bot, đang ở trong một phòng có tường) Chiếu một tài liệu trong kho (ảnh, PDF, video…) lên TV của phòng — như người bấm \"Chiếu\". " +
+                 "Bot phải có quyền xem tài liệu; mỗi lần chiếu được ghi vào nhật ký xem của tài liệu.")]
+    public static async Task<string> PresentDocument(OfficeHubApi api, BotPresenceReporter reporter, IHttpContextAccessor ctx, IHttpClientFactory http,
+        IOptions<ChatSettings> chat,
+        [Description("Tài liệu: id, mã (TL-…) hoặc số hiệu ban hành")] string document,
+        CancellationToken ct = default)
+    {
+        var bot = await RequireBotAsync(reporter, ctx, "📺 Chiếu tài liệu");
+        var id = await DocumentTools.ResolveDocumentAsync(api, document, ct);
+        var detail = await api.GetAsync($"/api/documents/assets/{id}", ct);
+        var file = await api.GetAsync($"/api/documents/assets/{id}/file?present=true", ct);
+        return await SendScreenAsync(http, chat, new BotScreenRequest(bot, "document", DetailJson: detail?.ToJsonString(), FileJson: file?.ToJsonString()), ct);
+    }
+
+    [McpServerTool(Name = "stop_presenting", Title = "Tắt chiếu", Destructive = false, Idempotent = true, OpenWorld = false)]
+    [Description("(Chỉ tài khoản bot) Tắt màn hình / tài liệu bot đang chiếu ở phòng mình đang ở. Rời phòng (go_to chỗ khác) cũng tự tắt.")]
+    public static async Task<string> StopPresenting(BotPresenceReporter reporter, IHttpContextAccessor ctx, IHttpClientFactory http, IOptions<ChatSettings> chat,
+        CancellationToken ct = default)
+    {
+        var bot = await RequireBotAsync(reporter, ctx, "Tắt chiếu");
+        return await SendScreenAsync(http, chat, new BotScreenRequest(bot, "stop"), ct);
+    }
+
+    private static async Task<string> SendScreenAsync(IHttpClientFactory http, IOptions<ChatSettings> chat, BotScreenRequest body, CancellationToken ct)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Post, BotScreenRoute.Path) { Content = JsonContent.Create(body, options: OfficeHubApi.Json) };
+        req.Headers.Add(BotActivityRoute.KeyHeader, RequireKey(chat));
+        using var res = await http.CreateClient(BotPresenceReporter.RealtimeClientName).SendAsync(req, ct);
+        var text = await res.Content.ReadAsStringAsync(ct);
+        if (res.IsSuccessStatusCode) return text;
+        var node = JsonNode.Parse(text.Length > 0 ? text : "{}");
+        throw new McpException((string?)node?["detail"] ?? (string?)node?["title"] ?? $"Realtime trả {(int)res.StatusCode}");
+    }
+
     private static async Task<BotActivity> RequireBotAsync(BotPresenceReporter reporter, IHttpContextAccessor ctx, string activity)
     {
         var http = ctx.HttpContext ?? throw new McpException("Thiếu ngữ cảnh yêu cầu");
