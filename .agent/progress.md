@@ -52,6 +52,8 @@ Kiểm tra ghi lần trước (trước 34 commit sau `6cea7c6`): `dotnet build 
 
 > **2026-11-11 (chưa commit)** — Dự án tự cập nhật + toast: `GET /api/projects/activity` (con trỏ, bỏ thao tác của mình) + `ProjectLiveUpdates` hỏi 5 giây khi tab mở; đang xem đúng dự án → chỉ cập nhật, nơi khác → toast. Migration `ActivityFeedIndexes`. `project-activity-e2e.ts` 11/11, `project-live-ui-e2e.ts` 8/8 (Chrome). Chi tiết [projects-tasks.md](business/projects-tasks.md#tự-cập-nhật--toast-2026-11-11).
 
+> **2026-11-11 (chưa commit)** — Bot đi bộ trong văn phòng 3D: tool `go_to` / `list_office_places` (71 tool), A* trên server (port từ FE), ở lại tới lần go_to kế, vào phòng → kênh chat phòng. Không migration. Build / test / `bun run build` ✔, `bot-walk-e2e.ts` 19/19, ảnh Chrome bot ngồi trong phòng họp nhỏ. Chi tiết [office-bots.md](business/office-bots.md#đi-lại-go_to).
+
 ## Quyết định đã chốt gần đây (đừng hỏi / đề xuất lại)
 
 - Nhân vật 3D: chưa chọn = **một mẫu chung**; model miễn phí (Quaternius CC0); HR **không** khoá trang phục.

@@ -17,6 +17,22 @@ public sealed record BotActivity(Guid UserId, string Name, string? Look, string?
 /// OfficeHub.Mcp → OfficeHub.Realtime: bot vừa gửi tin chat qua Api (tool send_chat_message) → Realtime phát tới client chat + HUD 3D,
 /// như tin gửi qua hub. Body = nguyên JSON <c>SendResultDto</c> Api trả về. Cùng khoá <see cref="BotActivityRoute.KeyHeader"/>.
 /// </summary>
+/// <summary>
+/// OfficeHub.Mcp → OfficeHub.Realtime: bot gọi tool <c>go_to</c> → đi bộ tới chỗ <see cref="Place"/> (tên / id phòng, khu phòng ban,
+/// "bàn của tôi", tên người đang trong văn phòng). <see cref="Activity"/> để Realtime cho bot online trước nếu chưa có mặt.
+/// </summary>
+public sealed record BotMove(BotActivity Activity, string Place);
+public sealed record OfficePlaceInfo(string Id, string Kind, string Name);
+/// <param name="Seconds">Thời gian đi ước tính (giây).</param>
+public sealed record BotMoveResult(OfficePlaceInfo Place, string Spot, double Distance, double Seconds, bool Sit);
+
+public static class BotMoveRoute
+{
+    public const string Path = "/rt/internal/bot-move";
+    /// <summary>GET ?userId= — các chỗ bot đi tới được (phòng, khu, bàn của tôi, người đang online).</summary>
+    public const string PlacesPath = "/rt/internal/office-places";
+}
+
 public static class ChatRelayRoute
 {
     public const string Path = "/rt/internal/chat-message";

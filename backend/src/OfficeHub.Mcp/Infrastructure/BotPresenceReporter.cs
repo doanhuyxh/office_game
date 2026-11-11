@@ -22,7 +22,7 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
     public const string RealtimeClientName = "officehub-realtime";
     private const int IdentityCacheMinutes = 5;
     /// <summary>Tên tham số chỉ đối tượng đang thao tác (việc, dự án, tài liệu…) — hiện sau tiêu đề tool.</summary>
-    private static readonly string[] TargetArgs = ["task", "project", "document", "request", "meeting", "department", "position", "employee"];
+    private static readonly string[] TargetArgs = ["task", "project", "document", "request", "meeting", "department", "position", "employee", "place"];
 
     /// <summary>Tên tool → tiêu đề tiếng Việt (thuộc tính Title của [McpServerTool]).</summary>
     private static readonly FrozenDictionary<string, string> Titles = typeof(BotPresenceReporter).Assembly.GetTypes()
@@ -67,6 +67,9 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
         if (tool == "send_chat_message" && args.TryGetValue("text", out var t) && t.ValueKind == JsonValueKind.String
             && t.GetString()?.Trim() is { Length: > 0 } said)
             return "💬 " + (said.Length > 80 ? said[..80] + "…" : said);
+        // Đi lại → "🚶 Phòng họp nhỏ" (ngắn, hiện trên đầu bot khi đang đi)
+        if (tool == "go_to" && args.TryGetValue("place", out var pl) && pl.ValueKind == JsonValueKind.String && pl.GetString()?.Trim() is { Length: > 0 } where)
+            return "🚶 " + (where.Length > 40 ? where[..40] + "…" : where);
         foreach (var key in TargetArgs)
         {
             if (!args.TryGetValue(key, out var v) || v.ValueKind != JsonValueKind.String) continue;
@@ -76,6 +79,10 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
         }
         return title;
     }
+
+    /// <summary>Hoạt động của người gọi nếu là tài khoản bot (null = không phải bot) — tool go_to dùng để Realtime cho bot online trước khi đi.</summary>
+    public async Task<BotActivity?> BotActivityAsync(string authorization, string? clientIp, string activity) =>
+        await GetCallerAsync(authorization, clientIp) is { } c ? new BotActivity(c.UserId, c.Name, c.Look, c.Zone, activity) : null;
 
     /// <summary>null = không phải bot / không xác định được (nhớ cả kết quả "không phải bot" để không hỏi Api mỗi lệnh gọi).</summary>
     private async Task<Caller?> GetCallerAsync(string authorization, string? clientIp)

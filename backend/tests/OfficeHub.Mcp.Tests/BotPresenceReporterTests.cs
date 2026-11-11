@@ -32,4 +32,8 @@ public class BotPresenceReporterTests
         Assert.Equal("Gửi tin nhắn", BotPresenceReporter.Describe("send_chat_message", Args("text", " ")));
         Assert.Equal("Danh sách tin nhắn", BotPresenceReporter.Describe("list_chats", null));
     }
+
+    [Fact]
+    public void Go_to_shows_short_walking_status() =>
+        Assert.Equal("🚶 Phòng họp nhỏ", BotPresenceReporter.Describe("go_to", Args("place", " Phòng họp nhỏ ")));
 }

@@ -177,9 +177,7 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
         new(p.UserId, p.Name, p.X, p.Z, p.R, p.Anim, p.Look, Status: bots.TryGet(p.UserId, out var b) ? b.Activity : null);
 
     /// <summary>Bot ngồi ở bàn được xếp (anim 2); hết bàn → đứng ở điểm vào văn phòng.</summary>
-    internal static PlayerDto ToDto(Bot b, OfficeMap map) => b.Seat is { } s
-        ? new(b.UserId, b.Name, (float)s.X, (float)s.Z, BotPresence.FacingAngle(s.Facing), 2, b.Look, true, b.Activity)
-        : new(b.UserId, b.Name, (float)map.Spawn.X, (float)map.Spawn.Z, 0, 0, b.Look, true, b.Activity);
+    internal static PlayerDto ToDto(Bot b, OfficeMap map) => new(b.UserId, b.Name, b.X, b.Z, b.R, b.Anim, b.Look, true, b.Activity);
 
     public async Task SendChat(string text)
     {

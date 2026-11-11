@@ -17,6 +17,58 @@ public static class BotEndpoints
     {
         app.MapPost(BotActivityRoute.Path, ReportAsync);
         app.MapPost(ChatRelayRoute.Path, RelayChatAsync);
+        app.MapPost(BotMoveRoute.Path, MoveAsync);
+        app.MapGet(BotMoveRoute.PlacesPath, PlacesAsync);
+    }
+
+    private static List<OfficePlace> PlacesFor(string? userId, OfficeMap map, Presence presence) =>
+        OfficePlaces.List(map, presence.All.Select(p => (p.UserId, p.Name)), userId);
+
+    private static IResult PlacesAsync(string? userId, HttpRequest http, IOptions<ChatSettings> settings, OfficeMap map, Presence presence)
+    {
+        if (!BotActivityRoute.KeyMatches(http.Headers[BotActivityRoute.KeyHeader].ToString(), settings.Value.InternalKey))
+            return Results.Problem("Khoá nội bộ không đúng", statusCode: StatusCodes.Status401Unauthorized);
+        return Results.Ok(PlacesFor(userId, map, presence).Select(p => new OfficePlaceInfo(p.Id, p.Kind, p.Name)));
+    }
+
+    /// <summary>
+    /// Bot đi bộ tới một chỗ (tool MCP go_to): cho bot online nếu chưa có → tìm chỗ → tìm đường → <see cref="OfficeLoop"/> cho đi từng bước.
+    /// 404 + danh sách chỗ khi không hiểu tên; 409 khi người thật của tài khoản đang ở trong văn phòng / hết chỗ / không có đường.
+    /// </summary>
+    private static async Task<IResult> MoveAsync(BotMove body, HttpRequest http, IOptions<ChatSettings> settings, BotPresence bots,
+        Presence presence, OfficeMap map, IHubContext<OfficeRoomHub, IOfficeClient> hub, TimeProvider clock)
+    {
+        if (!BotActivityRoute.KeyMatches(http.Headers[BotActivityRoute.KeyHeader].ToString(), settings.Value.InternalKey))
+            return Results.Problem("Khoá nội bộ không đúng", statusCode: StatusCodes.Status401Unauthorized);
+        var a = body?.Activity;
+        if (a is null || a.UserId == Guid.Empty || string.IsNullOrWhiteSpace(a.Name) || string.IsNullOrWhiteSpace(body!.Place))
+            return Results.Problem("Thiếu bot / chỗ cần tới", statusCode: StatusCodes.Status400BadRequest);
+        var userId = a.UserId.ToString();
+        if (presence.TryGet(userId, out _))
+            return Results.Problem("Tài khoản này đang được người thật dùng trong văn phòng 3D — bot không tự di chuyển được lúc này",
+                statusCode: StatusCodes.Status409Conflict);
+
+        var places = PlacesFor(userId, map, presence);
+        var place = OfficePlaces.Resolve(body.Place, places, out var ambiguous);
+        if (place is null)
+        {
+            var hint = ambiguous.Count > 0 ? ambiguous : places;
+            return Results.Json(new
+            {
+                title = ambiguous.Count > 0 ? $"\"{body.Place}\" khớp nhiều chỗ — chọn một" : $"Không tìm thấy chỗ \"{body.Place}\"",
+                status = 404,
+                places = hint.Take(40).Select(p => new OfficePlaceInfo(p.Id, p.Kind, p.Name)),
+            }, statusCode: StatusCodes.Status404NotFound);
+        }
+
+        var (bot, placed) = bots.Record(a, clock.GetUtcNow());
+        var group = hub.Clients.Group(OfficeRoomHub.OfficeGroup);
+        if (placed) { await group.PlayerLeft(bot.UserId); await group.PlayerJoined(OfficeRoomHub.ToDto(bot, map)); }
+        await group.BotStatus(bot.UserId, bot.Activity);
+
+        if (bots.GoTo(userId, place, out var distance) is { } err) return Results.Problem(err, statusCode: StatusCodes.Status409Conflict);
+        return Results.Ok(new BotMoveResult(new OfficePlaceInfo(place.Id, place.Kind, place.Name), bot.Spot?.PlaceName ?? place.Name,
+            Math.Round(distance, 1), Math.Round(distance / BotPresence.Speed, 1), bot.Spot?.Sit == true));
     }
 
     /// <summary>Tin bot gửi qua Api (MCP) → phát như tin gửi qua hub. Chỉ nhận tin bot (ByBot) để khoá nội bộ không thành đường giả mạo tin người thật.</summary>

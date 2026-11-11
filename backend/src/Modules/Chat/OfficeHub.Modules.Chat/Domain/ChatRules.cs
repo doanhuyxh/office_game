@@ -17,8 +17,12 @@ public static class ChatRules
     public static readonly TimeSpan BotQuotaWindow = TimeSpan.FromHours(1);
     public const string AiNotBotMessage = "Chỉ tài khoản bot (HR đánh dấu) được nhắn tin qua trợ lý AI — nhắn trên web hoặc trong văn phòng 3D";
 
-    /// <summary>Bot (token AI) chỉ dùng kênh Toàn văn phòng + 1-1 có sẵn (người nhắn trước). Kênh phòng: bot không thật sự đứng trong phòng.</summary>
-    public static bool BotCanUse(ConversationType type) => type is ConversationType.Office or ConversationType.Direct;
+    /// <summary>
+    /// Bot (token AI): Toàn văn phòng, 1-1 có sẵn (người nhắn trước) và kênh phòng — kênh phòng vẫn chỉ khi là thành viên (bot đã đi vào phòng
+    /// bằng tool go_to, Realtime báo như người thật bước vào; chủ dự án mở 2026-11-11). Thành viên theo tài khoản: người thật đăng nhập cùng
+    /// tài khoản vẫn thấy lịch sử.
+    /// </summary>
+    public static bool BotCanUse(ConversationType type) => type is ConversationType.Office or ConversationType.Direct or ConversationType.Room;
 
     /// <summary>Còn hạn mức gửi không (đã gửi <paramref name="sentLastHour"/> tin trong giờ qua).</summary>
     public static bool BotQuotaLeft(int sentLastHour) => sentLastHour < BotMessagesPerHour;

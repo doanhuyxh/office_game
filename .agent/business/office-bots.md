@@ -2,7 +2,7 @@
 
 > Nguồn sự thật là code: `OfficeHub.Mcp/Infrastructure/BotPresenceReporter.cs`, `OfficeHub.Realtime/Simulation/BotPresence.cs`, `OfficeHub.Realtime/Hubs/BotEndpoints.cs`, `BuildingBlocks/Office/BotActivity.cs`. Về [README.md](README.md) · văn phòng: [office.md](office.md) · MCP: [mcp.md](mcp.md).
 
-Tài khoản **bot** (agent AI bên ngoài làm việc qua MCP) hiện trong văn phòng 3D khi đang làm việc: ngồi ở bàn trong khu phòng ban, nhãn tím **"AI · tên"**, bong bóng "đang làm gì". Chủ dự án chốt 2026-11-10.
+Tài khoản **bot** (agent AI bên ngoài làm việc qua MCP) hiện trong văn phòng 3D khi đang làm việc: ngồi ở bàn trong khu phòng ban, nhãn tím **"AI · tên"**, bong bóng "đang làm gì". Chủ dự án chốt 2026-11-10. Từ 2026-11-11 bot **đi bộ** được tới phòng / khu / người bằng tool `go_to` — mục [Đi lại](#đi-lại-go_to).
 
 ## Quyết định đã chốt (đừng đề xuất lại)
 
@@ -46,12 +46,24 @@ Bot không có trong `Presence` → không voice, không chat, không chiếu m�
 
 `PUT /api/org/employees/{id}/account/bot` `{ isBot }` → 204 (HR; 404 nếu chưa có tài khoản). `AccountSummary.isBot`, `MeResponse.isBot`. FE: bảng nhân viên → menu "Đánh dấu là bot (AI)" / "Bỏ đánh dấu bot", cột Tài khoản hiện "· Bot". HUD 3D: "N người online · M AI".
 
+## Đi lại (`go_to`)
+
+Chủ dự án chốt 2026-11-11: **đi bộ** (không dịch chuyển), **ở lại tới lần `go_to` kế**, vào phòng có tường → **dùng kênh chat của phòng** (thành viên theo tài khoản — người thật đăng nhập cùng tài khoản vẫn thấy lịch sử). Phòng đang có lịch họp: không chặn (như người thật).
+
+- Tool MCP `list_office_places`, `go_to(place)` (`Mcp/Tools/OfficeTools.cs`, chỉ tài khoản bot) → Realtime `GET /rt/internal/office-places?userId=`, `POST /rt/internal/bot-move { activity, place }` (`BotMoveRoute`, khoá `Chat__InternalKey`).
+- Chỗ (`OfficePlaces`): "bàn của tôi" (`desk`), phòng (id / tên), khu phòng ban (`areas`), người đang trong văn phòng (`person`, tiền tố "cạnh / gần" được bỏ). So tên bỏ dấu; khớp nhiều → lỗi + danh sách; không khớp → 404 + danh sách.
+- Điểm tới: phòng → ghế rời (`chair` / `beanbag`, góc quay về bàn gần nhất — port `chairAngle`) còn trống trong phòng (băm userId), không có ghế → bàn trong phòng → ô trống giữa phòng (đứng); khu → bàn trong khu; người → ô trống cách ~1 m, quay mặt về họ; bàn của tôi → bàn như lúc online. Không ngồi chồng bot khác / người đang ngồi.
+- Đi bộ: `NavGrid.FindPath` (A* 8 hướng, không cắt góc, làm mượt — **port giống** `findPath` ở FE) + bước nốt vào ghế; `OfficeLoop` 10 Hz gọi `BotPresence.Step` (4,2 m/s như người), phát `Positions` (anim 1 khi đi, 2 ngồi, 0 đứng) — FE tự nội suy như người khác, không cần sửa. Tới phòng có tường → `ChatApi.JoinRoomAsync` (kênh phòng). Bong bóng khi đi: `🚶 <chỗ>`.
+- Ở lại: `Bot.Explicit` → gọi tool khác / đổi phòng ban không kéo về bàn; chỗ được nhớ khi bot offline (online lại hiện ở đó) — **chỉ trong RAM**, Realtime khởi động lại thì về bàn.
+- Người thật của tài khoản đang trong văn phòng → 409 (không có avatar bot riêng để đi).
+- E2E: `scripts/dev/bot-walk-e2e.ts` (19 kiểm tra, người thật kết nối hub thấy bot đi từng bước). Test: `tests/OfficeHub.Realtime.Tests/BotPresenceTests.cs`.
+
 ## Tin nhắn của bot
 
 Chủ dự án yêu cầu 2026-11-11 ("agent chat được trong văn phòng ảo"); phương án an toàn tự chọn (chủ dự án chưa trả lời 4 điểm, có thể đổi):
 
 - **Chỉ tài khoản bot** (`IsBot`) nhắn được bằng token; người thật dùng token → 403 (`ChatRules.AiNotBotMessage`) — tin 1-1 của người thật không đi ra nhà cung cấp AI.
-- Kênh: **Toàn văn phòng** + **1-1 người khác đã mở** với bot. Bot không tự mở 1-1 (→ hai bot không nhắn riêng được), không kênh phòng (ẩn / 404, bot không đứng trong phòng), không tệp, không thu hồi. Route token: `AccessTokenAuth.AllowedExact` (`/api/chat/(conversations|unread-count)`, `…/(office|{guid})/(messages|read)`).
+- Kênh: **Toàn văn phòng** + **1-1 người khác đã mở** với bot. Bot không tự mở 1-1 (→ hai bot không nhắn riêng được), không tệp, không thu hồi. **Kênh phòng**: mở 2026-11-11 khi bot đã `go_to` vào phòng (thành viên như người thật; chưa vào → 404). Route token: `AccessTokenAuth.AllowedExact` (`/api/chat/(conversations|unread-count)`, `…/(office|{guid})/(messages|read)`).
 - **≤ 60 tin / giờ / bot** (`ChatRules.BotMessagesPerHour`, đếm `messages.ByBot` — chỉ mục lọc `ix_messages_bot_sender_time`) → 429; vẫn giữ 1 tin / giây chung.
 - `messages.ByBot` (migration `ChatByBot`) → `MessageDto.byBot`, chip **BOT** cạnh tên người gửi; `ConversationDto.peerIsBot` → tiêu đề 1-1 nhắc "tin nhắn được gửi tới trợ lý AI bên ngoài".
 - Phát ngay: tool `send_chat_message` gọi Api rồi `ChatRelay` (Mcp) POST nguyên `SendResultDto` tới Realtime `/rt/internal/chat-message` (`ChatRelayRoute`, khoá `Chat__InternalKey`) → `ChatFanout` như tin gửi qua hub. Realtime chỉ nhận tin `byBot` (khoá nội bộ không thành đường giả mạo tin người thật). Lỗi → tin vẫn đã lưu (`deliveredLive: false`). Bot gọi REST thẳng (không MCP) → không phát ngay, người nhận thấy khi tải lại.
