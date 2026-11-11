@@ -40,6 +40,8 @@ public sealed class Position : Entity
     public bool SelfPublishDocuments { get; set; }
     /// <summary>Quyền tài chính của người giữ chức vụ (bit của <c>FinancePermission</c>, đã chuẩn hoá). Chỉ admin / người có quyền Quản trị tài chính sửa được.</summary>
     public int FinancePermissions { get; set; }
+    /// <summary>Quản lý trạng thái (cột) công việc của mọi dự án người đó xem được: thêm, đổi tên / màu, sắp xếp, xoá (module Projects). Vai trò admin / hr không thay thế.</summary>
+    public bool ManageTaskColumns { get; set; }
     /// <summary>Mô tả ngắn (≤ 2.000) — hiện ở danh sách, trả cho trợ lý AI.</summary>
     public string? Description { get; set; }
     /// <summary>Hướng dẫn: trách nhiệm, quyền hạn, quy trình, đầu mối liên hệ (Markdown ≤ 40.000). Mọi nhân viên + trợ lý AI (MCP) đọc được.</summary>

@@ -67,7 +67,7 @@ export function ProjectsOverview() {
                   </TableCell>
                   <TableCell>
                     <ProgressBar p={g} />
-                    <div className="mt-1 text-xs text-muted-foreground">{g.done}/{g.todo + g.doing + g.review + g.done} việc xong · {g.doing} đang làm · {g.review} chờ review</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{g.done}/{g.total} việc xong · {g.total - g.done} chưa xong</div>
                   </TableCell>
                   <TableCell className={cn('text-right tabular-nums', g.overdue > 0 && 'font-medium text-destructive')}>{g.overdue || '—'}</TableCell>
                   <TableCell className="text-sm">

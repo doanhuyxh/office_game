@@ -6,17 +6,18 @@ namespace OfficeHub.Modules.Projects.Domain;
 [JsonConverter(typeof(JsonStringEnumConverter<ProjectHealth>))]
 public enum ProjectHealth { OnTrack = 0, AtRisk = 1, Late = 2 }
 
-public sealed record ProgressTask(TaskState State, DateOnly? DueOn);
+/// <param name="Done">Đang ở cột hoàn thành.</param>
+public sealed record ProgressTask(bool Done, DateOnly? DueOn);
 public sealed record ProgressMilestone(int Order, string Title, DateOnly? DueOn, MilestoneStatus Status);
 public sealed record NextMilestone(string Title, DateOnly? DueOn, bool Overdue);
 
 /// <summary>Tổng quan tiến độ một dự án (thẻ dự án + tab Tổng quan).</summary>
-public sealed record ProjectProgress(int Todo, int Doing, int Review, int Done, int Overdue, int? PercentDone, int? TimeElapsedPercent,
+public sealed record ProjectProgress(int Total, int Done, int Overdue, int? PercentDone, int? TimeElapsedPercent,
     NextMilestone? NextMilestone, int MilestonesOverdue, ProjectHealth? Health, List<string> HealthReasons);
 
 /// <summary>
 /// Tiến độ dự án — hàm thuần, test: tests/OfficeHub.Modules.Projects.Tests/ProgressRulesTests.cs.
-/// % hoàn thành = việc Xong / tổng việc. % thời gian = (hôm nay − bắt đầu) / (kết thúc − bắt đầu), kẹp 0–100.
+/// % hoàn thành = việc ở cột hoàn thành / tổng việc. % thời gian = (hôm nay − bắt đầu) / (kết thúc − bắt đầu), kẹp 0–100.
 /// Trễ: quá ngày kết thúc mà còn việc mở, có mốc chưa nghiệm thu đã quá hạn, hoặc việc quá hạn ≥ max(3, 20% việc mở).
 /// Có rủi ro: có việc quá hạn, % thời gian vượt % hoàn thành ≥ 25 điểm, hoặc còn ≤ 14 ngày đến hạn kết thúc mà hoàn thành &lt; 80%.
 /// </summary>
@@ -28,10 +29,9 @@ public static class ProgressRules
     public static ProjectProgress Compute(IReadOnlyList<ProgressTask> tasks, IReadOnlyList<ProgressMilestone> milestones, DateOnly? startOn, DateOnly? endOn,
         bool active, DateOnly today)
     {
-        int Count(TaskState s) => tasks.Count(t => t.State == s);
-        var done = Count(TaskState.Done);
+        var done = tasks.Count(t => t.Done);
         var open = tasks.Count - done;
-        var overdue = tasks.Count(t => EffortRules.IsOverdue(t.DueOn, t.State, today));
+        var overdue = tasks.Count(t => EffortRules.IsOverdue(t.DueOn, t.Done, today));
         int? pctDone = tasks.Count == 0 ? null : (int)Math.Round(100.0 * done / tasks.Count);
         int? pctTime = startOn is { } s && endOn is { } e && e > s
             ? (int)Math.Round(Math.Clamp(100.0 * (today.DayNumber - s.DayNumber) / (e.DayNumber - s.DayNumber), 0, 100)) : null;
@@ -39,7 +39,7 @@ public static class ProgressRules
         var msOverdue = openMs.Count(m => m.DueOn < today);
         var next = openMs.FirstOrDefault() is { } n ? new NextMilestone(n.Title, n.DueOn, n.DueOn < today) : null;
 
-        if (!active) return new ProjectProgress(Count(TaskState.Todo), Count(TaskState.Doing), Count(TaskState.Review), done, overdue, pctDone, pctTime, next, msOverdue, null, []);
+        if (!active) return new ProjectProgress(tasks.Count, done, overdue, pctDone, pctTime, next, msOverdue, null, []);
 
         var late = new List<string>();
         var risk = new List<string>();
@@ -51,7 +51,7 @@ public static class ProgressRules
         if (endOn is { } e2 && e2 >= today && e2.DayNumber - today.DayNumber <= EndSoonDays && open > 0 && (pctDone ?? 0) < 80)
             risk.Add($"Còn {e2.DayNumber - today.DayNumber} ngày đến hạn kết thúc, mới xong {pctDone ?? 0}%");
         var health = late.Count > 0 ? ProjectHealth.Late : risk.Count > 0 ? ProjectHealth.AtRisk : ProjectHealth.OnTrack;
-        return new ProjectProgress(Count(TaskState.Todo), Count(TaskState.Doing), Count(TaskState.Review), done, overdue, pctDone, pctTime, next, msOverdue, health,
+        return new ProjectProgress(tasks.Count, done, overdue, pctDone, pctTime, next, msOverdue, health,
             [.. late, .. risk]);
     }
 }

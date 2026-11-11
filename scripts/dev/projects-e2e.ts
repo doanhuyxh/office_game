@@ -83,8 +83,8 @@ ok('Chuẩn bị hợp đồng bán 2 đợt', kc.status === 201, kc);
 const K = kc.body;
 
 // ---------- Tạo dự án ----------
-// requireReview: false → giữ kịch bản kéo thả tự do (quy trình duyệt test riêng ở projects-workflow-e2e.ts)
-const base = { code: `app-${stamp}`, name: 'App đặt lịch', kind: 'Client', salesContractIds: [K], startOn: addDays(-40), budgetManDays: 60, memberIds: [Dev1.e.id], requireReview: false };
+// sequential: false → kéo thả tự do (quy trình + cột tự do test riêng ở projects-workflow-e2e.ts); cột Xong mặc định cần người duyệt → quản lý dự án kéo
+const base = { code: `app-${stamp}`, name: 'App đặt lịch', kind: 'Client', salesContractIds: [K], startOn: addDays(-40), budgetManDays: 60, memberIds: [Dev1.e.id], sequential: false };
 ok('Nhân viên thường không tạo được dự án → 403', (await json(Dev1.cookie, 'POST', '/api/projects', base)).status === 403);
 ok('Dự án cho khách mà không gắn hợp đồng → 400', (await json(PM.cookie, 'POST', '/api/projects', { ...base, salesContractIds: [] })).status === 400);
 ok('Mã có dấu cách → 400', (await json(PM.cookie, 'POST', '/api/projects', { ...base, code: 'A B' })).status === 400);
@@ -151,7 +151,9 @@ ok('Mã việc theo dự án (CODE-1, CODE-2); việc 1 quá hạn', ts.find((t)
   && ts.find((t) => t.id === t1.body)?.overdue === true, ts);
 ok('Dev1 nhận chuông được giao việc', ((await json(Dev1.cookie, 'GET', '/api/notifications?take=20')).body?.items ?? []).some((n: any) => n.category === 'project_task' && n.title.includes(`${CODE}-1`)));
 ok('Việc của tôi (Dev1) có việc 1 kèm tên dự án', ((await json(Dev1.cookie, 'GET', '/api/projects/tasks/mine')).body as any[]).some((t) => t.id === t1.body && t.projectName === 'App đặt lịch'));
-ok('Kéo sang Xong → hết quá hạn, có thời điểm xong', (await json(Dev1.cookie, 'POST', `/api/projects/tasks/${t1.body}/move`, { state: 'Done' })).status === 204
+const doneCol = ((await json(PM.cookie, 'GET', `/api/projects/${P1}`)).body.columns as any[]).find((c) => c.isDone).id;
+ok('Thành viên kéo sang Xong (cần người duyệt) → 409', (await json(Dev1.cookie, 'POST', `/api/projects/tasks/${t1.body}/move`, { columnId: doneCol })).status === 409);
+ok('Quản lý kéo sang Xong → hết quá hạn, có thời điểm xong', (await json(PM.cookie, 'POST', `/api/projects/tasks/${t1.body}/move`, { columnId: doneCol })).status === 204
   && (await tasks(Dev1.cookie)).find((t) => t.id === t1.body).overdue === false && !!(await tasks(Dev1.cookie)).find((t) => t.id === t1.body).completedAt);
 ok('Việc của tôi bỏ việc đã xong', !((await json(Dev1.cookie, 'GET', '/api/projects/tasks/mine')).body as any[]).some((t) => t.id === t1.body));
 ok('Bình luận (thành viên) → người được giao nhận chuông', (await json(PM.cookie, 'POST', `/api/projects/tasks/${t2.body}/comments`, { content: 'Ưu tiên tuần này' })).status === 201

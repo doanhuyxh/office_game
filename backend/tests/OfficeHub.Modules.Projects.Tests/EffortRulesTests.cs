@@ -56,10 +56,10 @@ public class EffortRulesTests
     public void Overdue_only_when_not_done()
     {
         var today = new DateOnly(2026, 11, 8);
-        Assert.True(IsOverdue(today.AddDays(-1), TaskState.Doing, today));
-        Assert.False(IsOverdue(today.AddDays(-1), TaskState.Done, today));
-        Assert.False(IsOverdue(today, TaskState.Todo, today));
-        Assert.False(IsOverdue(null, TaskState.Todo, today));
+        Assert.True(IsOverdue(today.AddDays(-1), false, today));
+        Assert.False(IsOverdue(today.AddDays(-1), true, today));
+        Assert.False(IsOverdue(today, false, today));
+        Assert.False(IsOverdue(null, false, today));
         Assert.Equal("WEB-12", TaskCode("WEB", 12));
     }
 }

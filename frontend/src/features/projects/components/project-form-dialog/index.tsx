@@ -40,9 +40,9 @@ export function ProjectFormDialog({ open, project, workGuide, onClose, onCreated
     save.reset();
     const p = project;
     setF(p ? { code: p.code, name: p.name, kind: p.kind, description: p.description ?? '', departmentId: p.departmentId, businessLineId: p.businessLineId, salesContractIds: p.contracts.map((c) => c.id),
-      startOn: p.startOn ?? '', endOn: p.endOn ?? '', budgetManDays: p.budgetManDays, status: p.status, requireReview: p.requireReview, workGuide: workGuide ?? '' }
+      startOn: p.startOn ?? '', endOn: p.endOn ?? '', budgetManDays: p.budgetManDays, status: p.status, sequential: p.sequential, workGuide: workGuide ?? '' }
       : { code: '', name: '', kind: 'Internal', description: '', departmentId: null, businessLineId: null, salesContractIds: [], startOn: todayVn(), endOn: '', budgetManDays: null, status: 'Active',
-        requireReview: true, workGuide: '' });
+        sequential: true, workGuide: '' });
     setMembers([]); setQ(''); setPicked(p?.contracts ?? []);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [open, project?.id]);
@@ -101,9 +101,9 @@ export function ProjectFormDialog({ open, project, workGuide, onClose, onCreated
           <SelectField id="pj-dept" label="Phòng ban chủ trì" allowEmpty value={f.departmentId ?? null} onChange={(v) => set('departmentId', v)} options={departmentOptions(departments)} />
           <FormField id="pj-desc" label="Mô tả" maxLength={2000} value={f.description ?? ''} onChange={(e) => set('description', e.target.value)} />
           <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" className="mt-0.5" checked={!!f.requireReview} onChange={(e) => set('requireReview', e.target.checked)} data-testid="pj-require-review" />
-            <span><span className="font-medium">Xong cần quản lý dự án duyệt</span>
-              <span className="block text-xs text-muted-foreground">Việc đi lần lượt Cần làm → Đang làm → Chờ review → Xong; chỉ quản lý dự án duyệt sang Xong; trả về phải ghi lý do. Áp dụng cho cả người và BOT.</span></span>
+            <input type="checkbox" className="mt-0.5" checked={!!f.sequential} onChange={(e) => set('sequential', e.target.checked)} data-testid="pj-sequential" />
+            <span><span className="font-medium">Đi lần lượt</span>
+              <span className="block text-xs text-muted-foreground">Việc chỉ tiến từng trạng thái một theo thứ tự cột; chuyển lùi phải ghi lý do. Trạng thái "Cần người duyệt" luôn chỉ quản lý dự án chuyển vào. Áp dụng cho cả người và BOT.</span></span>
           </label>
           <div className="grid gap-2">
             <Label htmlFor="pj-guide">Hướng dẫn làm việc <span className="font-normal text-muted-foreground">(Markdown — thành viên và BOT đọc trước khi làm)</span></Label>

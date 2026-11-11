@@ -35,6 +35,7 @@ export function PositionsPanel({ canEdit }: { canEdit: boolean }) {
   const [name, setName] = useState('');
   const [level, setLevel] = useState('');
   const [selfPublish, setSelfPublish] = useState(false);
+  const [manageColumns, setManageColumns] = useState(false);
   const [finance, setFinance] = useState(0);
   const [guide, setGuide] = useState<GuideTarget>(null);
   useEffect(() => {
@@ -43,6 +44,7 @@ export function PositionsPanel({ canEdit }: { canEdit: boolean }) {
     setName(editing?.name ?? '');
     setLevel(editing?.level ? String(editing.level) : '');
     setSelfPublish(editing?.selfPublishDocuments ?? false);
+    setManageColumns(editing?.manageTaskColumns ?? false);
     setFinance(editing?.financePermissions ?? 0);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [editing]);
@@ -53,6 +55,7 @@ export function PositionsPanel({ canEdit }: { canEdit: boolean }) {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     save.mutate({ id: editing?.id, body: { name, level: Number(level) || 0, sortOrder: editing?.sortOrder ?? 0, selfPublishDocuments: selfPublish && canSelf,
+      manageTaskColumns: manageColumns,
       // Không có quyền quản trị tài chính thì không gửi trường này → back-end giữ nguyên giá trị cũ.
       ...(canManageFinance ? { financePermissions: normalizeFinance(finance) } : {}) } }, {
       onSuccess: () => { toast.success('Đã lưu chức vụ'); setEditing(undefined); },
@@ -82,7 +85,7 @@ export function PositionsPanel({ canEdit }: { canEdit: boolean }) {
             {positions.map((p) => (
               <TableRow key={p.id}>
                 <TableCell>{p.level > 0 ? <span className="inline-flex size-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{p.level}</span> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
-                <TableCell><div className="flex flex-wrap items-center gap-2 font-medium">{p.name}{p.selfPublishDocuments && <StatusBadge tone="success">Tự ban hành tài liệu</StatusBadge>}{p.financePermissions > 0 && <StatusBadge tone="warning">Tài chính: {financeLabels(p.financePermissions).join(', ')}</StatusBadge>}</div>{p.description && <div className="max-w-md truncate text-xs text-muted-foreground" title={p.description}>{p.description}</div>}</TableCell>
+                <TableCell><div className="flex flex-wrap items-center gap-2 font-medium">{p.name}{p.selfPublishDocuments && <StatusBadge tone="success">Tự ban hành tài liệu</StatusBadge>}{p.manageTaskColumns && <StatusBadge tone="info">Quản lý trạng thái công việc</StatusBadge>}{p.financePermissions > 0 && <StatusBadge tone="warning">Tài chính: {financeLabels(p.financePermissions).join(', ')}</StatusBadge>}</div>{p.description && <div className="max-w-md truncate text-xs text-muted-foreground" title={p.description}>{p.description}</div>}</TableCell>
                 <TableCell className="text-right">{p.employeeCount}</TableCell>
                 <TableCell className="text-right whitespace-nowrap">
                   <Button variant="ghost" size="icon" aria-label="Mô tả & hướng dẫn" title="Mô tả & hướng dẫn" onClick={() => setGuide({ kind: 'position', id: p.id, name: p.name })}>
@@ -117,6 +120,12 @@ export function PositionsPanel({ canEdit }: { canEdit: boolean }) {
               </label>
               {errors.selfPublishDocuments && <p className="text-xs text-destructive">{errors.selfPublishDocuments}</p>}
             </div>
+            <label className="flex items-start gap-2 text-sm">
+              <Checkbox className="mt-0.5" checked={manageColumns} onCheckedChange={(c) => setManageColumns(c === true)} data-testid="p-manage-task-columns" />
+              <span>Quản lý trạng thái công việc
+                <span className="block text-xs text-muted-foreground">Thêm, đổi tên / màu, sắp xếp, xoá trạng thái (cột kanban) ở mọi dự án người giữ chức vụ này xem được.</span>
+              </span>
+            </label>
             {canManageFinance ? (
               <fieldset className="grid gap-2 rounded-lg border p-3" data-testid="p-finance">
                 <legend className="px-1 text-sm font-medium">Quyền tài chính</legend>

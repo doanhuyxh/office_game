@@ -14,9 +14,6 @@ public enum ProjectKind { Internal = 0, Client = 1 }
 [JsonConverter(typeof(JsonStringEnumConverter<MilestoneStatus>))]
 public enum MilestoneStatus { Open = 0, Accepted = 1 }
 
-[JsonConverter(typeof(JsonStringEnumConverter<TaskState>))]
-public enum TaskState { Todo = 0, Doing = 1, Review = 2, Done = 3 }
-
 /// <summary>Nháp → Đã gửi khách → Khách đồng ý / Từ chối; huỷ khi chưa quyết. Xem <see cref="ChangeRequestRules.CanMove"/>.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<ChangeRequestStatus>))]
 public enum ChangeRequestStatus { Draft = 0, Sent = 1, Approved = 2, Rejected = 3, Cancelled = 4 }
@@ -42,8 +39,8 @@ public sealed class Project
     public DateOnly? ClosedOn { get; set; }
     /// <summary>Ngân sách ngày công (người × ngày).</summary>
     public decimal? BudgetManDays { get; set; }
-    /// <summary>Xong cần quản lý dự án duyệt + đi trạng thái lần lượt (<see cref="TaskWorkflow"/>). Dự án mới: bật; dự án có trước 2026-11-10: tắt.</summary>
-    public bool RequireReview { get; set; }
+    /// <summary>"Đi lần lượt": việc chỉ tiến từng cột một, lùi phải ghi lý do (<see cref="TaskWorkflow"/>). Dự án mới: bật; dự án có trước 2026-11-10: tắt.</summary>
+    public bool Sequential { get; set; }
     /// <summary>Hướng dẫn làm việc (Markdown) — quản lý dự án soạn; người và BOT đọc (MCP get_project) trước khi làm.</summary>
     public string? WorkGuide { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
@@ -122,7 +119,8 @@ public sealed class TaskItem
     public string? Description { get; set; }
     /// <summary>Link ảnh / video minh hoạ (http/https, tối đa <see cref="TaskRules.MaxMediaLinks"/>) — FE tự nhận dạng ảnh, video, YouTube.</summary>
     public List<string> MediaLinks { get; set; } = [];
-    public TaskState State { get; set; }
+    /// <summary>Cột trạng thái (<see cref="TaskColumn"/>) — "xong" = cột hoàn thành, ghi ở <see cref="CompletedAt"/>.</summary>
+    public Guid ColumnId { get; set; }
     /// <summary>Thứ tự trong cột (số thực để chèn giữa không phải đánh lại).</summary>
     public double Rank { get; set; }
     public Guid? AssigneeEmployeeId { get; set; }
@@ -133,8 +131,28 @@ public sealed class TaskItem
     public string CreatedByName { get; set; } = "";
     /// <summary>Tạo qua token AI / MCP (nhãn BOT).</summary>
     public bool CreatedByBot { get; set; }
+    /// <summary>Có giá trị ⇔ việc đang ở cột hoàn thành (<see cref="TaskColumn.IsDone"/>) — dùng cho đếm xong / quá hạn / nhắc hạn.</summary>
     public DateTimeOffset? CompletedAt { get; set; }
     public DateTimeOffset? DueRemindedAt { get; set; }
+}
+
+/// <summary>
+/// Cột trạng thái công việc của một dự án (chủ dự án chốt 2026-11-11): tên / màu / thứ tự tự do. Dự án mới có 4 cột mặc định (<see cref="TaskColumnRules.Defaults"/>).
+/// Người giữ chức vụ có cờ "Quản lý trạng thái công việc" sửa được ở mọi dự án họ xem được. Luật: <see cref="TaskColumnRules"/>, quy trình: <see cref="TaskWorkflow"/>.
+/// </summary>
+public sealed class TaskColumn
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid ProjectId { get; set; }
+    public required string Name { get; set; }
+    /// <summary>Thứ tự trái → phải, 0-based, liên tục.</summary>
+    public int Position { get; set; }
+    /// <summary>Màu dạng #rrggbb.</summary>
+    public string Color { get; set; } = TaskColumnRules.DefaultColor;
+    /// <summary>Cột hoàn thành: việc ở đây tính là xong (không quá hạn, không nhắc, vào % tiến độ). Dự án luôn có ≥ 1 cột hoàn thành.</summary>
+    public bool IsDone { get; set; }
+    /// <summary>Cần người duyệt: chỉ quản lý dự án / HR chuyển việc vào cột này, hoặc kéo lùi việc ra khỏi cột (mở lại).</summary>
+    public bool ApproverOnly { get; set; }
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<TaskActivityKind>))]

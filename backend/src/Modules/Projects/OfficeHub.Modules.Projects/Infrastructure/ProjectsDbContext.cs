@@ -20,6 +20,7 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
     public DbSet<AllocationFreeze> Freezes => Set<AllocationFreeze>();
     public DbSet<ChangeRequest> ChangeRequests => Set<ChangeRequest>();
     public DbSet<Milestone> Milestones => Set<Milestone>();
+    public DbSet<TaskColumn> Columns => Set<TaskColumn>();
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
     public DbSet<TaskComment> Comments => Set<TaskComment>();
     public DbSet<TaskActivity> Activities => Set<TaskActivity>();
@@ -93,6 +94,14 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.HasIndex(x => x.InstallmentId).IsUnique().HasFilter("\"InstallmentId\" IS NOT NULL").HasDatabaseName("ux_milestones_installment");
             e.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
         });
+        b.Entity<TaskColumn>(e =>
+        {
+            e.ToTable("task_columns");
+            e.Property(x => x.Name).HasMaxLength(TaskColumnRules.MaxName);
+            e.Property(x => x.Color).HasMaxLength(7);
+            e.HasIndex(x => new { x.ProjectId, x.Position }).HasDatabaseName("ix_task_columns_project");
+            e.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
         b.Entity<TaskItem>(e =>
         {
             e.ToTable("tasks");
@@ -100,10 +109,11 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.Property(x => x.Description).HasMaxLength(TaskRules.MaxDescription);
             e.Property(x => x.MediaLinks).HasColumnType("text[]").HasDefaultValueSql("'{}'");
             e.Property(x => x.CreatedByName).HasMaxLength(200);
-            e.Property(x => x.State).HasConversion<string>().HasMaxLength(10);
             e.Property(x => x.EstimateDays).HasPrecision(6, 2);
             e.HasIndex(x => new { x.ProjectId, x.Number }).IsUnique().HasDatabaseName("ux_tasks_number");
-            e.HasIndex(x => new { x.AssigneeEmployeeId, x.State }).HasDatabaseName("ix_tasks_assignee");
+            e.HasIndex(x => new { x.AssigneeEmployeeId, x.CompletedAt }).HasDatabaseName("ix_tasks_assignee");
+            e.HasIndex(x => x.ColumnId).HasDatabaseName("ix_tasks_column");
+            e.HasOne<TaskColumn>().WithMany().HasForeignKey(x => x.ColumnId).OnDelete(DeleteBehavior.Restrict); // xoá cột: chuyển hết việc trước
             e.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<Milestone>().WithMany().HasForeignKey(x => x.MilestoneId).OnDelete(DeleteBehavior.SetNull);
         });
@@ -149,6 +159,7 @@ internal sealed class ProjectsMigrator(IServiceProvider sp, IConfiguration confi
         using var scope = sp.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ProjectsDbContext>();
         await db.Database.MigrateAsync(ct);
+        await EnsureColumnsAsync(db, ct);
         IReadOnlyList<LegacyProject> legacy;
         try { legacy = await scope.ServiceProvider.GetRequiredService<ILegacyDocumentProjects>().ListAsync(ct); }
         catch (Exception ex) { log.LogWarning(ex, "Không đọc được dự án cũ ở module Documents — bỏ qua bước chép"); return; }
@@ -173,7 +184,17 @@ internal sealed class ProjectsMigrator(IServiceProvider sp, IConfiguration confi
         {
             await db.SaveChangesAsync(ct);
             log.LogInformation("Đã chép {Count} dự án từ module Documents sang Projects", added);
+            await EnsureColumnsAsync(db, ct);
         }
+    }
+
+    /// <summary>Dự án chưa có cột trạng thái (vd vừa chép từ Documents) → thêm 4 cột mặc định. Idempotent.</summary>
+    private static async Task EnsureColumnsAsync(ProjectsDbContext db, CancellationToken ct)
+    {
+        var missing = await db.Projects.Where(p => !db.Columns.Any(c => c.ProjectId == p.Id)).Select(p => p.Id).ToListAsync(ct);
+        if (missing.Count == 0) return;
+        foreach (var id in missing) db.Columns.AddRange(TaskColumnRules.Defaults(id));
+        await db.SaveChangesAsync(ct);
     }
 
     public Task StopAsync(CancellationToken ct) => Task.CompletedTask;

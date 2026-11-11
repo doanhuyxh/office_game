@@ -130,6 +130,8 @@ export interface IPosition {
   financePermissions: number;
   /** Số phòng ban khác nhau của người đang giữ chức vụ (cảnh báo khi bật quyền tiền cho chức vụ dùng chung). */
   departmentCount: number;
+  /** Quản lý trạng thái (cột) công việc ở mọi dự án người đó xem được. */
+  manageTaskColumns: boolean;
 }
 
 export interface IUpsertPosition {
@@ -139,6 +141,8 @@ export interface IUpsertPosition {
   selfPublishDocuments?: boolean;
   /** Bỏ trống = giữ nguyên. Chỉ admin / người có quyền Quản trị tài chính mới đổi được. */
   financePermissions?: number;
+  /** Bỏ trống = giữ nguyên. */
+  manageTaskColumns?: boolean;
 }
 
 /** Quyền tài chính của tài khoản đang đăng nhập. `canManage` = được sửa quyền tài chính trên chức vụ. */

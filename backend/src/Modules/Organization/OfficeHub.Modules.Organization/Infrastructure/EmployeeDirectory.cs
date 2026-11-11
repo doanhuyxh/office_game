@@ -57,8 +57,8 @@ internal sealed class EmployeeDirectory(OrgDbContext db, IFieldEncryptor enc) : 
     {
         var p = await (from e in db.Employees.AsNoTracking().Where(e => e.Id == employeeId)
                        join pos in db.Positions on e.PositionId equals pos.Id
-                       select new { pos.Id, pos.Name, pos.Level, pos.SelfPublishDocuments }).FirstOrDefaultAsync(ct);
-        return p is null ? null : new PositionRef(p.Id, p.Name, p.Level, p.SelfPublishDocuments && PositionLadder.CanSelfPublish(p.Level));
+                       select new { pos.Id, pos.Name, pos.Level, pos.SelfPublishDocuments, pos.ManageTaskColumns }).FirstOrDefaultAsync(ct);
+        return p is null ? null : new PositionRef(p.Id, p.Name, p.Level, p.SelfPublishDocuments && PositionLadder.CanSelfPublish(p.Level), p.ManageTaskColumns);
     }
 
     public async Task<IReadOnlyList<DepartmentRef>> ListDepartmentsAsync(CancellationToken ct = default) =>

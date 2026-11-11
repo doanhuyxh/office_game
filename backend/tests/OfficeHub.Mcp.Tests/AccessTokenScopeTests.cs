@@ -125,6 +125,7 @@ public class ProjectDocumentScopeTests
     [InlineData("GET", "/api/projects/" + G)]
     [InlineData("GET", "/api/projects/" + G + "/tasks")]
     [InlineData("GET", "/api/projects/" + G + "/effort")]
+    [InlineData("GET", "/api/projects/" + G + "/columns")]
     [InlineData("GET", "/api/projects/tasks/mine")]
     [InlineData("GET", "/api/projects/tasks/" + G + "/comments")]
     [InlineData("GET", "/api/projects/tasks/" + G)]
@@ -154,6 +155,10 @@ public class ProjectDocumentScopeTests
     [InlineData("POST", "/api/projects/" + G + "/milestones")]
     [InlineData("POST", "/api/projects/milestones/" + G + "/accept")]
     [InlineData("DELETE", "/api/projects/tasks/" + G)]
+    [InlineData("POST", "/api/projects/" + G + "/columns")]
+    [InlineData("PUT", "/api/projects/columns/" + G)]
+    [InlineData("PUT", "/api/projects/" + G + "/columns/order")]
+    [InlineData("DELETE", "/api/projects/columns/" + G)]
     [InlineData("GET", "/api/projects/" + G + "/tasks/extra")]
     [InlineData("GET", "/api/projects/" + G + "/tasks\n")]
     [InlineData("GET", "/api/projects/not-a-guid/tasks")]
@@ -169,15 +174,25 @@ public class ProjectDocumentScopeTests
     [InlineData("GET", "/api/documents/doc-types")]
     public void Blocks_finance_admin_and_document_writes(string method, string path) => Assert.False(AccessTokenAuth.IsAllowed(method, path));
 
+    private static readonly List<(Guid Id, string Name, bool IsDone)> Cols =
+    [
+        (Guid.NewGuid(), "Cần làm", false), (Guid.NewGuid(), "Đang làm", false), (Guid.NewGuid(), "Chờ QA", false), (Guid.NewGuid(), "Hoàn tất", true),
+    ];
+
     [Theory]
-    [InlineData("todo", "Todo")]
-    [InlineData("Đang làm", "Doing")]
-    [InlineData(" REVIEW ", "Review")]
-    [InlineData("xong", "Done")]
-    public void Task_states_accept_vietnamese(string input, string expected) => Assert.Equal(expected, ProjectTools.ParseState(input));
+    [InlineData("todo", 0)]
+    [InlineData("Đang làm", 1)]
+    [InlineData(" dang lam ", 1)]
+    [InlineData("CHỜ QA", 2)]
+    [InlineData("xong", 3)]
+    [InlineData("done", 3)]
+    public void Task_columns_match_name_or_alias(string input, int expected) => Assert.Equal(Cols[expected].Id, ProjectTools.MatchColumn(Cols, input));
 
     [Fact]
-    public void Unknown_task_state_is_rejected() => Assert.Throws<McpException>(() => ProjectTools.ParseState("blocked"));
+    public void Task_column_by_id() => Assert.Equal(Cols[2].Id, ProjectTools.MatchColumn(Cols, Cols[2].Id.ToString()));
+
+    [Fact]
+    public void Unknown_task_column_is_rejected() => Assert.Throws<McpException>(() => ProjectTools.MatchColumn(Cols, "blocked"));
 }
 
 public class DepartmentAdminScopeTests

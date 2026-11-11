@@ -25,7 +25,8 @@ public interface IEmployeeDirectory
     Task<PositionRef?> GetPositionAsync(Guid employeeId, CancellationToken ct = default);
 }
 
-public sealed record PositionRef(Guid Id, string Name, int Level, bool SelfPublishDocuments);
+/// <param name="ManageTaskColumns">Quản lý trạng thái (cột) công việc dự án — cờ trên chức vụ.</param>
+public sealed record PositionRef(Guid Id, string Name, int Level, bool SelfPublishDocuments, bool ManageTaskColumns = false);
 
 public sealed record DepartmentRef(Guid Id, string? Code, string Name, Guid? ParentId, Guid? HeadEmployeeId);
 

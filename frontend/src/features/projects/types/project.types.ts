@@ -3,7 +3,9 @@ export type ProjectKind = 'Internal' | 'Client';
 export type ProjectStatus = 'Active' | 'Closed';
 export type MemberRole = 'Member' | 'Manager';
 export type MilestoneStatus = 'Open' | 'Accepted';
-export type TaskState = 'Todo' | 'Doing' | 'Review' | 'Done';
+/** Cột trạng thái công việc của một dự án (tên / màu / thứ tự tự do). isDone = cột hoàn thành; approverOnly = chỉ quản lý dự án chuyển vào / kéo lùi ra. */
+export interface ITaskColumn { id: string; name: string; position: number; color: string; isDone: boolean; approverOnly: boolean; taskCount: number }
+export interface ITaskColumnRequest { name: string; color?: string | null; isDone: boolean; approverOnly: boolean }
 
 export interface ISalesContractRef { id: string; code: string; title: string; customerName: string; status: string; businessLineId: string | null }
 export interface IInstallmentRef { id: string; contractId: string; title: string; dueOn: string; cancelled: boolean }
@@ -13,13 +15,15 @@ export interface IProject {
   businessLineId: string | null; contracts: ISalesContractRef[]; startOn: string | null; endOn: string | null; budgetManDays: number | null; myRole: MemberRole | null;
   canManage: boolean; canWork: boolean; memberCount: number; tasks: { open: number; done: number; overdue: number }; milestonesOpen: number; milestonesAccepted: number; createdAt: string;
   progress: IProjectProgress;
-  /** Quy trình "Xong cần duyệt": đi lần lượt, chỉ quản lý dự án chuyển Chờ review → Xong, lùi phải ghi lý do (back-end kiểm). */
-  requireReview: boolean;
+  /** "Đi lần lượt": tiến từng cột một, lùi phải ghi lý do (back-end kiểm). */
+  sequential: boolean;
+  /** Chức vụ có quyền "Quản lý trạng thái công việc" (thêm / sửa / sắp xếp / xoá cột). */
+  canManageColumns: boolean;
 }
 export type ProjectHealth = 'OnTrack' | 'AtRisk' | 'Late';
 /** Tiến độ do back-end tính (ProgressRules); health = null khi dự án đã đóng. */
 export interface IProjectProgress {
-  todo: number; doing: number; review: number; done: number; overdue: number; percentDone: number | null; timeElapsedPercent: number | null;
+  total: number; done: number; overdue: number; percentDone: number | null; timeElapsedPercent: number | null;
   nextMilestone: { title: string; dueOn: string | null; overdue: boolean } | null; milestonesOverdue: number; health: ProjectHealth | null; healthReasons: string[];
 }
 export interface IMilestone {
@@ -27,9 +31,11 @@ export interface IMilestone {
   installmentDueOn: string | null; acceptedOn: string | null; acceptedByName: string | null; note: string | null; tasksOpen: number; tasksDone: number;
 }
 /** workGuide: hướng dẫn làm việc (Markdown) do quản lý dự án soạn — người và BOT đọc trước khi làm. */
-export interface IProjectDetail { project: IProject; members: IMember[]; milestones: IMilestone[]; workGuide: string | null }
+export interface IProjectDetail { project: IProject; members: IMember[]; milestones: IMilestone[]; workGuide: string | null; columns: ITaskColumn[] }
 export interface ITask {
-  id: string; projectId: string; code: string; title: string; description: string | null; state: TaskState; rank: number; assigneeEmployeeId: string | null;
+  id: string; projectId: string; code: string; title: string; description: string | null; columnId: string; columnName: string; columnColor: string;
+  /** Đang ở cột hoàn thành. */
+  done: boolean; rank: number; assigneeEmployeeId: string | null;
   assigneeName: string | null; milestoneId: string | null; dueOn: string | null; estimateDays: number | null; overdue: boolean; commentCount: number; createdAt: string;
   createdByName: string; completedAt: string | null; projectName: string | null;
   /** Tạo qua token AI / MCP. */
@@ -40,8 +46,8 @@ export interface ITask {
 export interface IComment { id: string; content: string; authorName: string; createdAt: string; byBot: boolean }
 export type TaskActivityKind = 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited';
 export interface ITaskActivity { id: string; kind: TaskActivityKind; from: string | null; to: string | null; note: string | null; actorName: string; byBot: boolean; at: string }
-/** GET /tasks/{id}: việc + bình luận + lịch sử. canApprove = được duyệt Chờ review → Xong. */
-export interface ITaskDetail { task: ITask; comments: IComment[]; activities: ITaskActivity[]; requireReview: boolean; canApprove: boolean }
+/** GET /tasks/{id}: việc + bình luận + lịch sử. canApprove = được chuyển vào / kéo lùi ra cột cần người duyệt. */
+export interface ITaskDetail { task: ITask; comments: IComment[]; activities: ITaskActivity[]; sequential: boolean; canApprove: boolean; columns: ITaskColumn[] }
 export interface IEffortCell { employeeId: string; month: string; presentDays: number; percent: number; explicit: boolean; manDays: number }
 export interface IEffort {
   months: string[]; members: IMember[]; cells: IEffortCell[]; totalManDays: number; budgetManDays: number | null;
@@ -65,12 +71,12 @@ export interface IProjectFinancials {
 export interface IProjectRequest {
   code: string; name: string; kind: ProjectKind; description?: string | null; departmentId?: string | null; businessLineId?: string | null; salesContractIds?: string[];
   startOn?: string | null; endOn?: string | null; budgetManDays?: number | null; status?: ProjectStatus; memberIds?: string[];
-  requireReview?: boolean; workGuide?: string | null;
+  sequential?: boolean; workGuide?: string | null;
 }
 export interface ITaskRequest {
-  title: string; description?: string | null; state: TaskState; assigneeEmployeeId?: string | null; milestoneId?: string | null; dueOn?: string | null; estimateDays?: number | null;
+  title: string; description?: string | null; columnId?: string | null; assigneeEmployeeId?: string | null; milestoneId?: string | null; dueOn?: string | null; estimateDays?: number | null;
   mediaLinks?: string[];
-  /** Lý do khi chuyển lùi trạng thái (review chưa đạt / mở lại việc). */
+  /** Lý do khi chuyển lùi trạng thái (bắt buộc nếu dự án đi lần lượt). */
   note?: string | null;
 }
 export interface IMilestoneRequest { title: string; dueOn?: string | null; installmentId?: string | null; note?: string | null }

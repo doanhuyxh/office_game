@@ -2,7 +2,7 @@
 
 > Nguồn sự thật là code (`backend/src/Modules/Projects/`, `frontend/src/features/projects/`); nếu code khác tài liệu, tin code và sửa tài liệu. Kế hoạch: [docs/BUSINESS_PLAN.md](../../docs/BUSINESS_PLAN.md) giai đoạn 2. Về [README.md](README.md).
 
-Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsource là nhân viên → **ngày công tính theo chấm công** (không ghi giờ theo việc), chia theo % phân bổ; **quản lý dự án chỉ thấy ngày công, không thấy tiền**. **Nhiều hợp đồng / dự án, chốt phân bổ hằng tháng, chi phí nhân công + lãi / lỗ (giai đoạn 2b)**: [projects-finance.md](projects-finance.md). **Yêu cầu thay đổi (CR) + phụ lục HĐ**: [projects-changes.md](projects-changes.md).
+Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsource là nhân viên → **ngày công tính theo chấm công** (không ghi giờ theo việc), chia theo % phân bổ; **quản lý dự án chỉ thấy ngày công, không thấy tiền**. **Nhiều hợp đồng / dự án, chốt phân bổ hằng tháng, chi phí nhân công + lãi / lỗ (giai đoạn 2b)**: [projects-finance.md](projects-finance.md). **Yêu cầu thay đổi (CR) + phụ lục HĐ**: [projects-changes.md](projects-changes.md). **Công việc: cột trạng thái tự do, quy trình đi lần lượt / cần người duyệt, BOT**: [projects-tasks.md](projects-tasks.md).
 
 ## Tách khỏi module Documents (2026-11-08)
 
@@ -20,7 +20,7 @@ Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsourc
 | Quyền **Xem tài chính** (chức vụ) | mọi dự án (chỉ đọc) | — | — | ✓ |
 | Người khác | 404 | | | |
 
-**Tạo dự án**: vai trò manager / hr / admin; người tạo (có hồ sơ) = quản lý. Luôn còn ≥ 1 quản lý (bỏ / hạ vai trò người cuối → 409). Xoá việc: người tạo hoặc quản lý. Token AI: đọc dự án (+ hướng dẫn) / việc (+ chi tiết, lịch sử) / bình luận / ngày công + tạo / sửa việc (`PUT /tasks/{id}`), chuyển trạng thái, bình luận (tool MCP — [mcp.md](mcp.md)); xoá việc + mọi route khác của `/api/projects` → 403.
+**Tạo dự án**: vai trò manager / hr / admin; người tạo (có hồ sơ) = quản lý. Luôn còn ≥ 1 quản lý (bỏ / hạ vai trò người cuối → 409). Xoá việc: người tạo hoặc quản lý. **Sửa cột trạng thái**: theo chức vụ (`ManageTaskColumns`) — [projects-tasks.md](projects-tasks.md). Token AI: đọc dự án (+ hướng dẫn) / việc (+ chi tiết, lịch sử) / bình luận / ngày công + tạo / sửa việc (`PUT /tasks/{id}`), chuyển trạng thái, bình luận (tool MCP — [mcp.md](mcp.md)); xoá việc + mọi route khác của `/api/projects` → 403.
 
 ## API (`/api/projects`, đăng nhập)
 
@@ -36,10 +36,11 @@ Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsourc
 | GET | `/{id}/financials`, `/financials` | Lãi / lỗ — chỉ Xem tài chính ([projects-finance.md](projects-finance.md)) |
 | POST / PUT / DELETE | `/{id}/milestones`, `/milestones/{mid}` | Đợt thu phải thuộc một HĐ của dự án, chưa huỷ, chưa gắn mốc khác. Mốc đã nghiệm thu: không xoá, không đổi đợt |
 | POST | `/milestones/{mid}/accept` | `{ acceptedOn (≤ hôm nay), note? }` → `ISalesContractsLookup.MarkAcceptedAsync`: hạn đợt thu sau ngày nghiệm thu thì **kéo về ngày nghiệm thu** (đặt lại mốc nhắc), báo kế toán + người phụ trách HĐ (`receivable_due`) |
-| GET / POST | `/{id}/tasks` | Mã `{MÃ DỰ ÁN}-{n}` (n tăng trong dự án, unique; trùng khi tạo đồng thời → thử lại). Người được giao phải là thành viên; mốc thuộc dự án. `description` = Markdown ≤ 20 000; `mediaLinks` ≤ 20 link http/https ≤ 1000 ký tự (`TaskRules`, bỏ trống / trùng; PUT gửi `null` → giữ nguyên) |
+| GET / POST / PUT / DELETE | `/{id}/columns`, `/columns/{cid}`, `/{id}/columns/order` | Cột trạng thái — [projects-tasks.md](projects-tasks.md) |
+| GET / POST | `/{id}/tasks` | `columnId` (bỏ trống = cột đầu). Mã `{MÃ DỰ ÁN}-{n}` (n tăng trong dự án, unique; trùng khi tạo đồng thời → thử lại). Người được giao phải là thành viên; mốc thuộc dự án. `description` = Markdown ≤ 20 000; `mediaLinks` ≤ 20 link http/https ≤ 1000 ký tự (`TaskRules`, bỏ trống / trùng; PUT gửi `null` → giữ nguyên) |
 | GET | `/tasks/mine` | Việc chưa xong giao cho tôi, mọi dự án |
-| GET | `/tasks/{tid}` | Việc + bình luận + lịch sử (`activities`) + `requireReview` + `canApprove` |
-| PUT / POST / DELETE | `/tasks/{tid}`, `/tasks/{tid}/move` | `move { state, rank?, note? }` (kéo thả); PUT cũng nhận `note`. Đổi trạng thái theo quy trình (dưới) → 409 nếu sai. Xong → `CompletedAt`. Đổi hạn / người → nhắc lại |
+| GET | `/tasks/{tid}` | Việc + bình luận + lịch sử (`activities`) + `sequential` + `canApprove` + `columns` |
+| PUT / POST / DELETE | `/tasks/{tid}`, `/tasks/{tid}/move` | `move { columnId, rank?, note? }` (kéo thả); PUT cũng nhận `columnId`, `note`. Sai quy trình → 409. Vào cột hoàn thành → `CompletedAt`. Đổi hạn / người → nhắc lại |
 | GET / POST | `/tasks/{tid}/comments` | Bình luận → chuông người được giao |
 
 ## Quy tắc (`Domain/EffortRules.cs`, test `tests/OfficeHub.Modules.Projects.Tests`)
@@ -47,18 +48,12 @@ Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsourc
 - **Ngày công** = `TimesheetTotals.PresentDays` (module Attendance, `IAttendanceReports.MonthAsync`) × % phân bổ.
 - % mặc định khi chưa đặt tay: số dự án **đang chạy trong tháng** mà người đó là thành viên (theo bắt đầu / kết thúc / ngày đóng) — 1 → 100 %, n → 100 / n. Đặt 0 % = không tính.
 - Thành viên tính theo danh sách **hiện tại** ở tháng chưa chốt; tháng đã chốt chỉ tính dòng % đã lưu (job `AllocationFreezeJob` — [projects-finance.md](projects-finance.md)).
-- Việc quá hạn: hạn < hôm nay và chưa Xong.
+- Việc quá hạn: hạn < hôm nay và chưa ở cột hoàn thành (`CompletedAt` null).
 - Hạn việc (tạo / sửa) **không được trước hôm nay** (`EffortRules.DueDateError` → 400 `dueOn`; lịch FE khoá ngày đã qua). Sửa việc mà giữ nguyên hạn cũ đã qua vẫn lưu được.
 
-## Quy trình "Xong cần duyệt" + lịch sử + BOT (chủ dự án chốt 2026-11-10)
+## Quy trình, cột trạng thái, lịch sử, BOT
 
-- `Project.RequireReview` (dự án mới mặc định **bật**, dự án có trước migration `TaskWorkflowAndBot` **tắt**) + `WorkGuide` (hướng dẫn làm việc Markdown ≤ 20 000, chỉ ở chi tiết dự án; quản lý dự án sửa qua PUT dự án — `null` = giữ, `""` = xoá). Tab "Hướng dẫn" ở trang dự án; MCP `get_project` trả kèm để bot làm theo.
-- Bật duyệt (`Domain/TaskWorkflow.cs`, test `TaskWorkflowTests`): Cần làm → Đang làm → Chờ review → Xong **đi lần lượt** (kể cả quản lý); chỉ quản lý dự án / HR chuyển Chờ review → Xong; Chờ review → Đang làm (review chưa đạt) và mở lại Xong → Đang làm (chỉ quản lý) **bắt buộc lý do** — lý do ghi vào lịch sử + thành bình luận. Việc mới chỉ ở Cần làm / Đang làm. Tắt duyệt → tự do như cũ.
-- Chuông `project_task` (chỉ khi bật duyệt): gửi review → các quản lý dự án; trả về / mở lại (kèm lý do) / duyệt Xong → người làm.
-- `task_activities` (chỉ thêm): Created, Moved (from/to/note), Assigned (tên cũ → mới), DueChanged, Edited. Hộp thoại việc có "Lịch sử".
-- **BOT**: mọi thay đổi qua token AI / MCP (`ClaimsPrincipal.IsAccessToken()`) → `tasks.CreatedByBot`, `task_comments.ByBot`, `task_activities.ByBot`; FE hiện chip BOT (`components/common/bot-badge.tsx`). Bot = tài khoản nhân viên bình thường, không có loại tài khoản riêng.
-
-E2E: `scripts/dev/projects-workflow-e2e.ts` (53 kiểm tra gồm MCP, đạt 2026-11-10).
+Chuyển sang [projects-tasks.md](projects-tasks.md). Còn ở dự án: `Project.Sequential` ("Đi lần lượt") + `WorkGuide` (hướng dẫn làm việc Markdown ≤ 20 000, chỉ ở chi tiết; quản lý dự án sửa qua PUT — `null` = giữ, `""` = xoá; tab "Hướng dẫn"; MCP `get_project` trả kèm để bot làm theo).
 
 ## Nhắc (`TaskReminderJob`, mỗi giờ, sau 50 s)
 
@@ -66,10 +61,10 @@ Việc chưa xong có người làm, hạn ≤ hôm nay → chuông `project_tas
 
 ## Schema `projects` (`ProjectsDbContext`, migration `InitialProjects`)
 
-`projects` (`Code` unique ≤ 30), `contracts` (PK dự án + HĐ bán, `ContractId` unique — migration `ProjectContractsAndFreeze`), `members` (PK dự án + nhân viên, `Role` chuỗi), `allocations` (PK dự án + nhân viên + tháng, `Percent numeric(5,2)`), `allocation_freezes` (PK tháng), `milestones` (`InstallmentId` unique khi có), `tasks` (unique dự án + số; `MediaLinks text[]` mặc định `{}` — migration `TaskMediaLinks`; index người làm + trạng thái; FK mốc SetNull; `CreatedByBot`), `task_comments` (`ByBot`), `task_activities` (cascade theo việc) — migration `TaskWorkflowAndBot` (+ `projects.RequireReview`, `WorkGuide`). Không lưu tiền. `Project` có `[Audited]`.
+`projects` (`Code` unique ≤ 30), `contracts` (PK dự án + HĐ bán, `ContractId` unique — migration `ProjectContractsAndFreeze`), `members` (PK dự án + nhân viên, `Role` chuỗi), `allocations` (PK dự án + nhân viên + tháng, `Percent numeric(5,2)`), `allocation_freezes` (PK tháng), `milestones` (`InstallmentId` unique khi có), `task_columns` (index dự án + vị trí, cascade theo dự án), `tasks` (unique dự án + số; `ColumnId` FK Restrict; `MediaLinks text[]` mặc định `{}` — migration `TaskMediaLinks`; index người làm + `CompletedAt`; FK mốc SetNull; `CreatedByBot`), `task_comments` (`ByBot`), `task_activities` (cascade theo việc) — migration `TaskWorkflowAndBot` (+ `projects.RequireReview`, `WorkGuide`), `TaskColumns` (bảng cột, chép dữ liệu, xoá `tasks.State`, đổi tên `RequireReview` → `Sequential`). Không lưu tiền. `Project` có `[Audited]`.
 
 ## UI
 
-`/projects` (`ProjectsPage`, `?tab=`): Việc của tôi, thẻ dự án (Của tôi / Tất cả tôi xem được, ẩn dự án đóng; thanh tiến độ + tình trạng + mốc tiếp), **Tổng quan tiến độ** (dự án đang chạy: ô đếm Đúng tiến độ / Có rủi ro / Trễ / việc quá hạn, bảng trễ lên đầu), "Dự án mới" (manager / HR / admin). `/projects/$projectId` (`ProjectDetailPage`, `?tab=`): Công việc (kanban 4 cột kéo thả, lọc việc của tôi, hộp thoại việc + bình luận: nội dung Markdown GFM có Viết / Xem trước (`components/common/markdown.tsx`, react-markdown, không render HTML thô), link ảnh / video tự xem trước — ảnh, .mp4/.webm, YouTube, Vimeo, Google Drive (`utils/media.ts`); bình luận cũng hiển thị Markdown) · Mốc (thêm / sửa / nghiệm thu) · Thành viên · Ngày công (bảng tháng × người, sửa % tháng đang chọn, 🔒 tháng đã chốt, thanh ngân sách) · Tài chính (chỉ Xem tài chính). Nút "Tài liệu dự án" → `/documents?space=Project:{id}`.
+`/projects` (`ProjectsPage`, `?tab=`): Việc của tôi, thẻ dự án (Của tôi / Tất cả tôi xem được, ẩn dự án đóng; thanh tiến độ + tình trạng + mốc tiếp), **Tổng quan tiến độ** (dự án đang chạy: ô đếm Đúng tiến độ / Có rủi ro / Trễ / việc quá hạn, bảng trễ lên đầu), "Dự án mới" (manager / HR / admin). `/projects/$projectId` (`ProjectDetailPage`, `?tab=`): Công việc (kanban theo cột tự do, kéo thả việc + cột — [projects-tasks.md](projects-tasks.md), lọc việc của tôi, hộp thoại việc + bình luận: nội dung Markdown GFM có Viết / Xem trước (`components/common/markdown.tsx`, react-markdown, không render HTML thô), link ảnh / video tự xem trước — ảnh, .mp4/.webm, YouTube, Vimeo, Google Drive (`utils/media.ts`); bình luận cũng hiển thị Markdown) · Mốc (thêm / sửa / nghiệm thu) · Thành viên · Ngày công (bảng tháng × người, sửa % tháng đang chọn, 🔒 tháng đã chốt, thanh ngân sách) · Tài chính (chỉ Xem tài chính). Nút "Tài liệu dự án" → `/documents?space=Project:{id}`.
 
 Tiến độ / tình trạng dự án (tab Tổng quan tiến độ): [projects-progress.md](projects-progress.md).

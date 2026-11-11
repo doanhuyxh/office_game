@@ -31,12 +31,12 @@ internal static class MilestoneEndpoints
     {
         var rows = await db.Milestones.AsNoTracking().Where(m => m.ProjectId == p.Id).OrderBy(m => m.Order).ToListAsync(ct);
         var inst = (await ProjectEndpoints.InstallmentsOfAsync(db, sales, p.Id, ct)).ToDictionary(i => i.Id);
-        var tasks = await db.Tasks.AsNoTracking().Where(t => t.ProjectId == p.Id && t.MilestoneId != null).Select(t => new { t.MilestoneId, t.State }).ToListAsync(ct);
+        var tasks = await db.Tasks.AsNoTracking().Where(t => t.ProjectId == p.Id && t.MilestoneId != null).Select(t => new { t.MilestoneId, Done = t.CompletedAt != null }).ToListAsync(ct);
         return rows.Select(m =>
         {
             var i = m.InstallmentId is { } iid ? inst.GetValueOrDefault(iid) : null;
             return new MilestoneDto(m.Id, m.Order, m.Title, m.DueOn, m.Status, m.InstallmentId, i?.Title, i?.DueOn, m.AcceptedOn, m.AcceptedByName, m.Note,
-                tasks.Count(t => t.MilestoneId == m.Id && t.State != TaskState.Done), tasks.Count(t => t.MilestoneId == m.Id && t.State == TaskState.Done));
+                tasks.Count(t => t.MilestoneId == m.Id && !t.Done), tasks.Count(t => t.MilestoneId == m.Id && t.Done));
         }).ToList();
     }
 

@@ -15,22 +15,25 @@ using OfficeHub.Modules.Projects.Infrastructure;
 namespace OfficeHub.Modules.Projects.Features;
 
 /// <param name="CreatedByBot">Tạo qua token AI / MCP (nhãn BOT).</param>
-public sealed record TaskDto(Guid Id, Guid ProjectId, string Code, string Title, string? Description, TaskState State, double Rank, Guid? AssigneeEmployeeId, string? AssigneeName,
+/// <param name="Done">Đang ở cột hoàn thành.</param>
+public sealed record TaskDto(Guid Id, Guid ProjectId, string Code, string Title, string? Description, Guid ColumnId, string ColumnName, string ColumnColor, bool Done, double Rank, Guid? AssigneeEmployeeId, string? AssigneeName,
     Guid? MilestoneId, DateOnly? DueOn, decimal? EstimateDays, bool Overdue, int CommentCount, DateTimeOffset CreatedAt, string CreatedByName, DateTimeOffset? CompletedAt,
     List<string> MediaLinks, string? ProjectName = null, bool CreatedByBot = false);
-/// <param name="Note">Lý do khi chuyển lùi (review chưa đạt / mở lại việc) — bắt buộc nếu dự án cần duyệt.</param>
-public sealed record UpsertTask(string Title, string? Description = null, TaskState State = TaskState.Todo, Guid? AssigneeEmployeeId = null, Guid? MilestoneId = null,
+/// <param name="ColumnId">Cột trạng thái — tạo: bỏ trống = cột đầu; sửa: bỏ trống = giữ nguyên.</param>
+/// <param name="Note">Lý do khi chuyển lùi — bắt buộc nếu dự án đi lần lượt.</param>
+public sealed record UpsertTask(string Title, string? Description = null, Guid? ColumnId = null, Guid? AssigneeEmployeeId = null, Guid? MilestoneId = null,
     DateOnly? DueOn = null, decimal? EstimateDays = null, List<string>? MediaLinks = null, string? Note = null);
-public sealed record MoveTask(TaskState State, double? Rank = null, string? Note = null);
+public sealed record MoveTask(Guid ColumnId, double? Rank = null, string? Note = null);
 public sealed record CommentDto(Guid Id, string Content, string AuthorName, DateTimeOffset CreatedAt, bool ByBot);
 public sealed record NewComment(string Content);
 public sealed record TaskActivityDto(Guid Id, TaskActivityKind Kind, string? From, string? To, string? Note, string ActorName, bool ByBot, DateTimeOffset At);
-/// <param name="CanApprove">Người xem được chuyển Chờ review → Xong (quản lý dự án / HR).</param>
-public sealed record TaskDetailDto(TaskDto Task, List<CommentDto> Comments, List<TaskActivityDto> Activities, bool RequireReview, bool CanApprove);
+/// <param name="Sequential">Dự án đi lần lượt (tiến từng cột, lùi phải có lý do).</param>
+/// <param name="CanApprove">Người xem được chuyển việc vào / lùi ra khỏi cột cần người duyệt (quản lý dự án / HR).</param>
+public sealed record TaskDetailDto(TaskDto Task, List<CommentDto> Comments, List<TaskActivityDto> Activities, bool Sequential, bool CanApprove, List<TaskColumnDto> Columns);
 
 /// <summary>
-/// Công việc dạng kanban: Cần làm → Đang làm → Chờ review → Xong. Thành viên tạo / sửa / kéo; xoá: người tạo hoặc quản lý dự án.
-/// Dự án bật "Xong cần duyệt" → đi lần lượt, chỉ quản lý duyệt Xong (<see cref="TaskWorkflow"/>). Mọi thay đổi ghi <see cref="TaskActivity"/>; qua token AI → BOT.
+/// Công việc dạng kanban theo cột trạng thái tự do của dự án (<see cref="TaskColumn"/>). Thành viên tạo / sửa / kéo; xoá: người tạo hoặc quản lý dự án.
+/// Quy trình (đi lần lượt, cột cần người duyệt): <see cref="TaskWorkflow"/>. Mọi thay đổi ghi <see cref="TaskActivity"/>; qua token AI → BOT.
 /// </summary>
 internal static class TaskEndpoints
 {
@@ -54,11 +57,14 @@ internal static class TaskEndpoints
         var counts = await db.Comments.AsNoTracking().Where(c => ids.Contains(c.TaskId)).GroupBy(c => c.TaskId).Select(g => new { g.Key, N = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.N, ct);
         var projects = await db.Projects.AsNoTracking().Where(p => rows.Select(t => t.ProjectId).Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => new { p.Code, p.Name }, ct);
+        var columnIds = rows.Select(t => t.ColumnId).Distinct().ToList();
+        var columns = await db.Columns.AsNoTracking().Where(c => columnIds.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => new { c.Name, c.Color }, ct);
         var emps = await access.EmployeesAsync(ct);
         var today = clock.Today;
-        return rows.Select(t => new TaskDto(t.Id, t.ProjectId, EffortRules.TaskCode(projects[t.ProjectId].Code, t.Number), t.Title, t.Description, t.State, t.Rank,
+        return rows.Select(t => new TaskDto(t.Id, t.ProjectId, EffortRules.TaskCode(projects[t.ProjectId].Code, t.Number), t.Title, t.Description, t.ColumnId,
+            columns.GetValueOrDefault(t.ColumnId)?.Name ?? "?", columns.GetValueOrDefault(t.ColumnId)?.Color ?? TaskColumnRules.DefaultColor, t.CompletedAt != null, t.Rank,
             t.AssigneeEmployeeId, t.AssigneeEmployeeId is { } a && emps.TryGetValue(a, out var e) ? e.FullName : null, t.MilestoneId, t.DueOn, t.EstimateDays,
-            EffortRules.IsOverdue(t.DueOn, t.State, today), counts.GetValueOrDefault(t.Id), t.CreatedAt, t.CreatedByName, t.CompletedAt, t.MediaLinks,
+            EffortRules.IsOverdue(t.DueOn, t.CompletedAt != null, today), counts.GetValueOrDefault(t.Id), t.CreatedAt, t.CreatedByName, t.CompletedAt, t.MediaLinks,
             withProject ? projects[t.ProjectId].Name : null, t.CreatedByBot)).ToList();
     }
 
@@ -67,7 +73,7 @@ internal static class TaskEndpoints
     {
         var v = await access.ViewerAsync(user, ct);
         if (!v.CanSee(id) || !await db.Projects.AnyAsync(p => p.Id == id, ct)) return TypedResults.NotFound();
-        var rows = await db.Tasks.AsNoTracking().Where(t => t.ProjectId == id).OrderBy(t => t.State).ThenBy(t => t.Rank).ThenBy(t => t.Number).ToListAsync(ct);
+        var rows = await db.Tasks.AsNoTracking().Where(t => t.ProjectId == id).OrderBy(t => t.Rank).ThenBy(t => t.Number).ToListAsync(ct);
         return TypedResults.Ok(await ToDtosAsync(rows, db, access, clock, ct));
     }
 
@@ -76,7 +82,7 @@ internal static class TaskEndpoints
     {
         var v = await access.ViewerAsync(user, ct);
         if (v.Employee is null) return TypedResults.Ok(new List<TaskDto>());
-        var rows = await db.Tasks.AsNoTracking().Where(t => t.AssigneeEmployeeId == v.Employee.Id && t.State != TaskState.Done)
+        var rows = await db.Tasks.AsNoTracking().Where(t => t.AssigneeEmployeeId == v.Employee.Id && t.CompletedAt == null)
             .OrderBy(t => t.DueOn == null).ThenBy(t => t.DueOn).ThenBy(t => t.Id).Take(200).ToListAsync(ct);
         return TypedResults.Ok(await ToDtosAsync(rows, db, access, clock, ct, withProject: true));
     }
@@ -88,21 +94,21 @@ internal static class TaskEndpoints
         var v = await access.ViewerAsync(user, ct);
         var t = await db.Tasks.AsNoTracking().FirstOrDefaultAsync(x => x.Id == tid, ct);
         if (t is null || !v.CanSee(t.ProjectId)) return TypedResults.NotFound();
-        var requireReview = await db.Projects.Where(p => p.Id == t.ProjectId).Select(p => p.RequireReview).FirstAsync(ct);
+        var sequential = await db.Projects.Where(p => p.Id == t.ProjectId).Select(p => p.Sequential).FirstAsync(ct);
         var dto = (await ToDtosAsync([t], db, access, clock, ct, withProject: true))[0];
         var comments = await db.Comments.AsNoTracking().Where(c => c.TaskId == tid).OrderBy(c => c.CreatedAt)
             .Select(c => new CommentDto(c.Id, c.Content, c.AuthorName, c.CreatedAt, c.ByBot)).ToListAsync(ct);
         var activities = await db.Activities.AsNoTracking().Where(a => a.TaskId == tid).OrderBy(a => a.At)
             .Select(a => new TaskActivityDto(a.Id, a.Kind, a.From, a.To, a.Note, a.ActorName, a.ByBot, a.At)).ToListAsync(ct);
-        return TypedResults.Ok(new TaskDetailDto(dto, comments, activities, requireReview, v.CanManage(t.ProjectId)));
+        return TypedResults.Ok(new TaskDetailDto(dto, comments, activities, sequential, v.CanManage(t.ProjectId),
+            await TaskColumnEndpoints.ListForAsync(db, t.ProjectId, ct)));
     }
 
     private static async Task<Validation> ValidateAsync(UpsertTask r, Project p, ProjectsDbContext db, DateOnly today, DateOnly? previousDue, CancellationToken ct)
     {
         var v = new Validation().Required(r.Title, "title", "Tên việc").MaxLength(r.Title, 300, "title", "Tên việc").MaxLength(r.Description, TaskRules.MaxDescription, "description", "Mô tả")
             .MaxLength(r.Note, TaskWorkflow.MaxNote, "note", "Lý do")
-            .When(r.EstimateDays is < 0 or > 1000, "estimateDays", "Ước lượng không hợp lệ")
-            .When(!Enum.IsDefined(r.State), "state", "Trạng thái không hợp lệ");
+            .When(r.EstimateDays is < 0 or > 1000, "estimateDays", "Ước lượng không hợp lệ");
         if (r.MediaLinks is not null && TaskRules.MediaLinksError(TaskRules.NormalizeLinks(r.MediaLinks)) is { } linkErr) v.Add("mediaLinks", linkErr);
         if (EffortRules.DueDateError(r.DueOn, previousDue, today) is { } dueErr) v.Add("dueOn", dueErr);
         if (r.AssigneeEmployeeId is { } a && !p.Members.Any(m => m.EmployeeId == a)) v.Add("assigneeEmployeeId", "Người được giao phải là thành viên dự án");
@@ -131,28 +137,30 @@ internal static class TaskEndpoints
     }
 
     /// <summary>
-    /// Báo theo quy trình (chỉ dự án cần duyệt): gửi review → quản lý dự án; review chưa đạt / mở lại → người làm (kèm lý do); duyệt Xong → người làm.
-    /// Bỏ chính người thao tác.
+    /// Báo theo quy trình (<see cref="TaskWorkflow.Notice"/>): vào cột ngay trước cột cần duyệt → quản lý dự án; vào cột cần duyệt → người làm (đã duyệt);
+    /// lùi kèm lý do → người làm. Bỏ chính người thao tác.
     /// </summary>
-    private static async Task NotifyMovedAsync(INotifier notifier, IEmployeeDirectory dir, Project p, TaskItem t, TaskState from, string? note, ProjectViewer v, CancellationToken ct)
+    private static async Task NotifyMovedAsync(INotifier notifier, IEmployeeDirectory dir, Project p, TaskItem t, List<ColumnInfo> cols, Guid from, string? note,
+        ProjectViewer v, CancellationToken ct)
     {
-        if (!p.RequireReview || from == t.State) return;
+        var kind = TaskWorkflow.Notice(cols, from, t.ColumnId, note is not null);
+        if (kind == MoveNotice.None) return;
         var code = EffortRules.TaskCode(p.Code, t.Number);
+        string Name(Guid id) => cols.FirstOrDefault(c => c.Id == id)?.Name ?? "?";
         var to = new List<Guid>();
         string title, body;
-        if (t.State == TaskState.Review && from < TaskState.Review)
+        if (kind == MoveNotice.AwaitingApproval)
         {
             foreach (var m in p.Members.Where(m => m.Role == ProjectMemberRole.Manager && m.EmployeeId != v.Employee?.Id))
                 if (await UserOfAsync(dir, m.EmployeeId, ct) is { } u) to.Add(u);
-            (title, body) = ($"Chờ review: {code} {t.Title}", $"{v.Name} gửi review trong dự án {p.Name}.");
+            (title, body) = ($"Chờ duyệt: {code} {t.Title}", $"{v.Name} chuyển sang \"{Name(t.ColumnId)}\" trong dự án {p.Name}.");
         }
         else if (t.AssigneeEmployeeId != v.Employee?.Id && await UserOfAsync(dir, t.AssigneeEmployeeId, ct) is { } u)
         {
             to.Add(u);
-            if (t.State == TaskState.Done) (title, body) = ($"Đã duyệt xong: {code} {t.Title}", $"{v.Name} duyệt trong dự án {p.Name}.");
-            else if (from >= TaskState.Review && t.State < from)
-                (title, body) = (from == TaskState.Done ? $"Mở lại việc: {code} {t.Title}" : $"Review chưa đạt: {code} {t.Title}", $"{v.Name}: {note}");
-            else return;
+            (title, body) = kind == MoveNotice.Approved
+                ? ($"Đã duyệt: {code} {t.Title}", $"{v.Name} chuyển sang \"{Name(t.ColumnId)}\" trong dự án {p.Name}.")
+                : ($"Trả lại việc: {code} {t.Title}", $"{v.Name} ({Name(from)} → {Name(t.ColumnId)}): {note}");
         }
         else return;
         if (to.Count == 0) return;
@@ -169,21 +177,25 @@ internal static class TaskEndpoints
         if (!v.CanWork(id)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được tạo việc");
         if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
         var val = await ValidateAsync(r, p, db, clock.Today, null, ct);
-        if (TaskWorkflow.CreateStateError(r.State, p.RequireReview) is { } stateErr) val.Add("state", stateErr);
+        var cols = TaskColumnEndpoints.Infos(await TaskColumnEndpoints.LoadAsync(db, id, ct));
+        if (cols.Count == 0) return Problems.Conflict("Dự án chưa có trạng thái công việc");
+        var column = cols.FirstOrDefault(c => c.Id == (r.ColumnId ?? cols[0].Id));
+        if (column is null) val.Add("columnId", "Trạng thái không thuộc dự án");
+        else if (TaskWorkflow.CreateError(cols, column.Id, p.Sequential, v.CanManage(id)) is { } colErr) val.Add("columnId", colErr);
         if (val.Failed) return val.Problem();
         for (var attempt = 0; ; attempt++)
         {
             var number = (await db.Tasks.Where(t => t.ProjectId == id).MaxAsync(t => (int?)t.Number, ct) ?? 0) + 1;
-            var rank = (await db.Tasks.Where(t => t.ProjectId == id && t.State == r.State).MaxAsync(t => (double?)t.Rank, ct) ?? 0) + 1;
+            var rank = (await db.Tasks.Where(t => t.ColumnId == column!.Id).MaxAsync(t => (double?)t.Rank, ct) ?? 0) + 1;
             var t = new TaskItem
             {
                 ProjectId = id, Number = number, Title = r.Title.Trim(), Description = ProjectEndpoints.Clean(r.Description), MediaLinks = TaskRules.NormalizeLinks(r.MediaLinks),
-                State = r.State, Rank = rank,
+                ColumnId = column!.Id, Rank = rank,
                 AssigneeEmployeeId = r.AssigneeEmployeeId, MilestoneId = r.MilestoneId, DueOn = r.DueOn, EstimateDays = r.EstimateDays, CreatedAt = clock.Now, CreatedByName = v.Name,
-                CreatedByBot = user.IsAccessToken(), CompletedAt = r.State == TaskState.Done ? clock.Now : null,
+                CreatedByBot = user.IsAccessToken(), CompletedAt = column.IsDone ? clock.Now : null,
             };
             db.Tasks.Add(t);
-            var created = Activity(t, TaskActivityKind.Created, v, user, clock.Now, to: r.State.ToString());
+            var created = Activity(t, TaskActivityKind.Created, v, user, clock.Now, to: column.Name);
             db.Activities.Add(created);
             try { await db.SaveChangesAsync(ct); }
             catch (DbUpdateException) when (attempt < 3) { db.Tasks.Remove(t); db.Activities.Remove(created); continue; } // hai người tạo cùng lúc → số trùng, thử số kế
@@ -198,21 +210,24 @@ internal static class TaskEndpoints
         return t is null ? (null, null) : (t, await db.Projects.Include(p => p.Members).FirstOrDefaultAsync(p => p.Id == t.ProjectId, ct));
     }
 
-    /// <summary>Đổi trạng thái theo quy trình + ghi lịch sử (lý do khi lùi cũng thành bình luận để cả nhóm thấy). Trả lỗi (409) nếu sai quy trình.</summary>
-    private static string? ApplyState(TaskItem t, Project p, TaskState to, string? note, ProjectViewer v, ClaimsPrincipal user, ProjectsDbContext db, DateTimeOffset now)
+    /// <summary>Đổi cột theo quy trình + ghi lịch sử (lý do khi lùi cũng thành bình luận để cả nhóm thấy). Trả lỗi (409) nếu sai quy trình.</summary>
+    private static string? ApplyColumn(TaskItem t, Project p, List<ColumnInfo> cols, Guid to, string? note, ProjectViewer v, ClaimsPrincipal user, ProjectsDbContext db,
+        DateTimeOffset now)
     {
-        if (t.State == to) return null;
+        if (t.ColumnId == to) return null;
         note = ProjectEndpoints.Clean(note);
-        if (TaskWorkflow.MoveError(t.State, to, p.RequireReview, v.CanManage(p.Id), note is not null) is { } err) return err;
-        db.Activities.Add(Activity(t, TaskActivityKind.Moved, v, user, now, t.State.ToString(), to.ToString(), note));
+        if (TaskWorkflow.MoveError(cols, t.ColumnId, to, p.Sequential, v.CanManage(p.Id), note is not null) is { } err) return err;
+        var src = cols.FirstOrDefault(c => c.Id == t.ColumnId)?.Name ?? "?";
+        var dst = cols.First(c => c.Id == to);
+        db.Activities.Add(Activity(t, TaskActivityKind.Moved, v, user, now, src, dst.Name, note));
         if (note is not null)
             db.Comments.Add(new TaskComment
             {
                 TaskId = t.Id, AuthorEmployeeId = v.Employee?.Id, AuthorName = v.Name, ByBot = user.IsAccessToken(), CreatedAt = now,
-                Content = $"**{TaskWorkflow.Label(t.State)} → {TaskWorkflow.Label(to)}:** {note}",
+                Content = $"**{src} → {dst.Name}:** {note}",
             });
-        t.CompletedAt = to == TaskState.Done ? now : null;
-        t.State = to;
+        t.CompletedAt = dst.IsDone ? t.CompletedAt ?? now : null; // giữa hai cột hoàn thành: giữ ngày xong cũ
+        t.ColumnId = to;
         return null;
     }
 
@@ -227,8 +242,9 @@ internal static class TaskEndpoints
         var val = await ValidateAsync(r, p, db, clock.Today, t.DueOn, ct);
         if (val.Failed) return val.Problem();
         var now = clock.Now;
-        var from = t.State;
-        if (ApplyState(t, p, r.State, r.Note, v, user, db, now) is { } stateErr) return Problems.Conflict(stateErr);
+        var from = t.ColumnId;
+        var cols = TaskColumnEndpoints.Infos(await TaskColumnEndpoints.LoadAsync(db, p.Id, ct));
+        if (r.ColumnId is { } cid && ApplyColumn(t, p, cols, cid, r.Note, v, user, db, now) is { } stateErr) return Problems.Conflict(stateErr);
         var reassigned = r.AssigneeEmployeeId != t.AssigneeEmployeeId;
         if (reassigned)
             db.Activities.Add(Activity(t, TaskActivityKind.Assigned, v, user, now, await NameOfAsync(access, t.AssigneeEmployeeId, ct), await NameOfAsync(access, r.AssigneeEmployeeId, ct)));
@@ -244,7 +260,7 @@ internal static class TaskEndpoints
         t.DueOn = r.DueOn; t.EstimateDays = r.EstimateDays; t.MediaLinks = links;
         await db.SaveChangesAsync(ct);
         if (reassigned) await NotifyAssignedAsync(notifier, dir, p, t, v, ct);
-        await NotifyMovedAsync(notifier, dir, p, t, from, ProjectEndpoints.Clean(r.Note), v, ct);
+        await NotifyMovedAsync(notifier, dir, p, t, cols, from, ProjectEndpoints.Clean(r.Note), v, ct);
         return TypedResults.NoContent();
     }
 
@@ -256,13 +272,14 @@ internal static class TaskEndpoints
         if (t is null || p is null || !v.CanSee(p.Id)) return TypedResults.NotFound();
         if (!v.CanWork(p.Id)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được chuyển việc");
         if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
-        if (!Enum.IsDefined(r.State)) return Problems.Conflict("Trạng thái không hợp lệ");
         if (r.Note is { Length: > TaskWorkflow.MaxNote }) return Problems.Conflict($"Lý do dài quá {TaskWorkflow.MaxNote} ký tự");
-        var from = t.State;
-        if (ApplyState(t, p, r.State, r.Note, v, user, db, clock.Now) is { } err) return Problems.Conflict(err);
-        t.Rank = r.Rank ?? (await db.Tasks.Where(x => x.ProjectId == p.Id && x.State == r.State && x.Id != t.Id).MaxAsync(x => (double?)x.Rank, ct) ?? 0) + 1;
+        var cols = TaskColumnEndpoints.Infos(await TaskColumnEndpoints.LoadAsync(db, p.Id, ct));
+        if (cols.All(c => c.Id != r.ColumnId)) return Problems.Conflict("Trạng thái không thuộc dự án");
+        var from = t.ColumnId;
+        if (ApplyColumn(t, p, cols, r.ColumnId, r.Note, v, user, db, clock.Now) is { } err) return Problems.Conflict(err);
+        t.Rank = r.Rank ?? (await db.Tasks.Where(x => x.ColumnId == r.ColumnId && x.Id != t.Id).MaxAsync(x => (double?)x.Rank, ct) ?? 0) + 1;
         await db.SaveChangesAsync(ct);
-        await NotifyMovedAsync(notifier, dir, p, t, from, ProjectEndpoints.Clean(r.Note), v, ct);
+        await NotifyMovedAsync(notifier, dir, p, t, cols, from, ProjectEndpoints.Clean(r.Note), v, ct);
         return TypedResults.NoContent();
     }
 

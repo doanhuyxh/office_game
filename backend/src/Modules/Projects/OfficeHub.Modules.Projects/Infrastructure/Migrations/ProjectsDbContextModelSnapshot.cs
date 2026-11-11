@@ -231,7 +231,7 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<bool>("RequireReview")
+                    b.Property<bool>("Sequential")
                         .HasColumnType("boolean");
 
                     b.Property<DateOnly?>("StartOn")
@@ -350,6 +350,42 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.ToTable("task_activities", "projects");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.TaskColumn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("ApproverOnly")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<bool>("IsDone")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId", "Position")
+                        .HasDatabaseName("ix_task_columns_project");
+
+                    b.ToTable("task_columns", "projects");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.TaskComment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -393,6 +429,9 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<Guid?>("AssigneeEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ColumnId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset?>("CompletedAt")
@@ -441,11 +480,6 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.Property<double>("Rank")
                         .HasColumnType("double precision");
 
-                    b.Property<string>("State")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
-
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(300)
@@ -453,9 +487,12 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ColumnId")
+                        .HasDatabaseName("ix_tasks_column");
+
                     b.HasIndex("MilestoneId");
 
-                    b.HasIndex("AssigneeEmployeeId", "State")
+                    b.HasIndex("AssigneeEmployeeId", "CompletedAt")
                         .HasDatabaseName("ix_tasks_assignee");
 
                     b.HasIndex("ProjectId", "Number")
@@ -519,6 +556,15 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.TaskColumn", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Projects.Domain.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.TaskComment", b =>
                 {
                     b.HasOne("OfficeHub.Modules.Projects.Domain.TaskItem", null)
@@ -530,6 +576,12 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
 
             modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.TaskItem", b =>
                 {
+                    b.HasOne("OfficeHub.Modules.Projects.Domain.TaskColumn", null)
+                        .WithMany()
+                        .HasForeignKey("ColumnId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("OfficeHub.Modules.Projects.Domain.Milestone", null)
                         .WithMany()
                         .HasForeignKey("MilestoneId")

@@ -68,9 +68,8 @@ export function ProjectDetailPage() {
         <TabsContent value="tasks" className="mt-4"><TaskBoard d={d} myEmployeeId={myEmployeeId} /></TabsContent>
         <TabsContent value="guide" className="mt-4">
           <div className="grid max-w-3xl gap-3" data-testid="work-guide">
-            <p className="text-sm text-muted-foreground">{p.requireReview
-              ? 'Quy trình: Cần làm → Đang làm → Chờ review → Xong, đi lần lượt; chỉ quản lý dự án duyệt sang Xong; trả về phải ghi lý do.'
-              : 'Dự án không bật duyệt: kéo thả trạng thái tự do.'} Thành viên và BOT (qua MCP) đọc hướng dẫn này trước khi làm việc.</p>
+            <p className="text-sm text-muted-foreground">{`Quy trình: ${d.columns.map((c) => c.name).join(' → ')}${p.sequential ? ', đi lần lượt; chuyển lùi phải ghi lý do' : ', kéo thả tự do'}`}
+              {d.columns.some((c) => c.approverOnly) && `; chỉ quản lý dự án chuyển sang ${d.columns.filter((c) => c.approverOnly).map((c) => `"${c.name}"`).join(', ')}`}. Thành viên và BOT (qua MCP) đọc hướng dẫn này trước khi làm việc.</p>
             {d.workGuide ? <div className="rounded-lg border p-4"><Markdown text={d.workGuide} /></div>
               : <p className="text-sm text-muted-foreground">Chưa có hướng dẫn.{p.canManage && ' Bấm "Sửa" để soạn.'}</p>}
           </div>

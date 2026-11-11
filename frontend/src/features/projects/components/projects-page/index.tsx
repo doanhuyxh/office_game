@@ -10,7 +10,8 @@ import { useMe } from '@/features/auth';
 import { useTabParam } from '@/hooks/useTabParam';
 import { fmtDate, useFinancePerms } from '@/features/finance';
 import { useMyTasks, useProjectList } from '../../hooks/useProjects';
-import { PROJECT_HEALTH, PROJECT_KIND, PROJECT_STATUS, TASK_STATE } from '../../utils/labels';
+import { PROJECT_HEALTH, PROJECT_KIND, PROJECT_STATUS } from '../../utils/labels';
+import { ColumnBadge } from '../column-badge';
 import { ProgressBar } from '../progress-bar';
 import { ProjectsOverview } from '../projects-overview';
 import { ProfitTable } from '../profit-table';
@@ -47,7 +48,7 @@ export function ProjectsPage() {
               <li key={t.id}><Link to="/projects/$projectId" params={{ projectId: t.projectId }} className="hover:underline">
                 <span className="text-muted-foreground">{t.code}</span> {t.title} <span className="text-xs text-muted-foreground">· {t.projectName}</span>
                 {t.dueOn && <span className={`text-xs ${t.overdue ? 'text-rose-600' : 'text-muted-foreground'}`}> · hạn {fmtDate(t.dueOn)}</span>}
-                <StatusBadge tone={TASK_STATE[t.state].tone} className="ml-2">{TASK_STATE[t.state].label}</StatusBadge>
+                <ColumnBadge name={t.columnName} color={t.columnColor} className="ml-2" />
               </Link></li>
             ))}
           </ul>

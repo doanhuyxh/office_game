@@ -252,6 +252,9 @@ namespace OfficeHub.Modules.Organization.Infrastructure.Migrations
                     b.Property<int>("Level")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("ManageTaskColumns")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)

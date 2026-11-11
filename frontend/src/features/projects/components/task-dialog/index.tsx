@@ -15,19 +15,18 @@ import { todayVn } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { projectApi } from '../../api/project.api';
 import { useProjectMutation, useTaskDetail } from '../../hooks/useProjects';
-import type { IMember, IMilestone, ITask, ITaskActivity, ITaskRequest, TaskState } from '../../types/project.types';
-import { ACTIVITY_LABEL, needsMoveNote, TASK_STATE, TASK_STATES } from '../../utils/labels';
+import type { IMember, IMilestone, ITask, ITaskActivity, ITaskColumn, ITaskRequest } from '../../types/project.types';
+import { ACTIVITY_LABEL, createColumns, needsMoveNote, stateLabel } from '../../utils/labels';
 import { isHttpUrl } from '../../utils/media';
 import { TaskMedia } from '../task-media';
 
 const fmtTime = (iso: string) => new Date(iso).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-const stateLabel = (s: string | null) => (s && s in TASK_STATE ? TASK_STATE[s as TaskState].label : s ?? '—');
 const fmtDay = (d: string | null) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : 'không có');
 
 /** Một dòng lịch sử: "Nguyễn A [BOT] chuyển trạng thái Đang làm → Chờ review · 10/11 09:30" (+ lý do). */
 function ActivityLine({ a }: { a: ITaskActivity }) {
-  const change = a.kind === 'Moved' ? `${stateLabel(a.from)} → ${stateLabel(a.to)}`
+  const change = a.kind === 'Moved' ? `${stateLabel(a.from) || '—'} → ${stateLabel(a.to) || '—'}`
     : a.kind === 'Created' ? `(${stateLabel(a.to)})`
     : a.kind === 'Assigned' ? `${a.from ?? 'chưa giao'} → ${a.to ?? 'chưa giao'}`
     : a.kind === 'DueChanged' ? `${fmtDay(a.from)} → ${fmtDay(a.to)}` : '';
@@ -41,15 +40,17 @@ function ActivityLine({ a }: { a: ITaskActivity }) {
 }
 
 /**
- * Thêm / sửa việc + bình luận + lịch sử. `task`: undefined = đóng, null = thêm mới (trạng thái `initialState`).
- * `requireReview`: dự án cần duyệt → việc mới chỉ Cần làm / Đang làm; lưu với trạng thái lùi từ Chờ review / Xong → hỏi lý do.
+ * Thêm / sửa việc + bình luận + lịch sử. `task`: undefined = đóng, null = thêm mới (cột `initialColumnId`).
+ * `sequential`: dự án đi lần lượt → việc mới chỉ ở các cột trước cột cần duyệt / hoàn thành; lưu với trạng thái lùi → hỏi lý do.
  */
-export function TaskDialog({ projectId, task, initialState = 'Todo', members, milestones, canWork, canDelete, requireReview = false, onClose }: {
-  projectId: string; task: ITask | null | undefined; initialState?: TaskState; members: IMember[]; milestones: IMilestone[]; canWork: boolean; canDelete: boolean;
-  requireReview?: boolean; onClose: () => void;
+export function TaskDialog({ projectId, task, initialColumnId, columns, members, milestones, canWork, canDelete, sequential = false, onClose }: {
+  projectId: string; task: ITask | null | undefined; initialColumnId?: string; columns: ITaskColumn[]; members: IMember[]; milestones: IMilestone[]; canWork: boolean;
+  /** Quản lý dự án / HR: xoá việc, tạo việc ở cột cần người duyệt. */
+  canDelete: boolean;
+  sequential?: boolean; onClose: () => void;
 }) {
   const open = task !== undefined;
-  const [f, setF] = useState<ITaskRequest>({ title: '', state: 'Todo' });
+  const [f, setF] = useState<ITaskRequest>({ title: '', columnId: null });
   const [comment, setComment] = useState('');
   const [preview, setPreview] = useState(false);
   const [links, setLinks] = useState<string[]>([]);
@@ -60,14 +61,14 @@ export function TaskDialog({ projectId, task, initialState = 'Todo', members, mi
   const comments = detail?.comments ?? [];
   const activities = detail?.activities ?? [];
   const [showHistory, setShowHistory] = useState(false);
-  const createStates = requireReview ? TASK_STATES.filter((s) => s === 'Todo' || s === 'Doing') : TASK_STATES;
+  const createCols = createColumns(columns, sequential, canDelete);
   useEffect(() => {
     if (!open) return;
     save.reset(); setComment(''); setShowHistory(false);
     setPreview(!!task?.description); // việc đã có mô tả → mở ở chế độ xem Markdown
     setLinks(task?.mediaLinks.length ? [...task.mediaLinks] : []);
-    setF(task ? { title: task.title, description: task.description ?? '', state: task.state, assigneeEmployeeId: task.assigneeEmployeeId, milestoneId: task.milestoneId,
-      dueOn: task.dueOn ?? '', estimateDays: task.estimateDays } : { title: '', description: '', state: createStates.includes(initialState) ? initialState : 'Todo', assigneeEmployeeId: null, milestoneId: null, dueOn: '', estimateDays: null });
+    setF(task ? { title: task.title, description: task.description ?? '', columnId: task.columnId, assigneeEmployeeId: task.assigneeEmployeeId, milestoneId: task.milestoneId,
+      dueOn: task.dueOn ?? '', estimateDays: task.estimateDays } : { title: '', description: '', columnId: createCols.find((c) => c.id === initialColumnId)?.id ?? createCols[0]?.id ?? null, assigneeEmployeeId: null, milestoneId: null, dueOn: '', estimateDays: null });
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [open, task?.id]);
   const errors = fieldErrors(save.error);
@@ -79,8 +80,9 @@ export function TaskDialog({ projectId, task, initialState = 'Todo', members, mi
         <form className="grid gap-3" onSubmit={async (e) => {
           e.preventDefault();
           let note: string | null = null;
-          if (task && needsMoveNote(task.state, f.state, requireReview)) {
-            note = await promptDialog({ title: task.state === 'Done' ? `Mở lại ${task.code}?` : `Review chưa đạt: ${task.code}`, label: 'Lý do (thành bình luận của việc)',
+          if (task && f.columnId && needsMoveNote(columns, task.columnId, f.columnId, sequential)) {
+            const to = columns.find((c) => c.id === f.columnId)?.name ?? '';
+            note = await promptDialog({ title: `Trả ${task.code} về "${to}"?`, label: 'Lý do (thành bình luận của việc)',
               multiline: true, required: true, confirmText: 'Lưu' });
             if (note === null) return;
           }
@@ -126,8 +128,8 @@ export function TaskDialog({ projectId, task, initialState = 'Todo', members, mi
               {!canWork && !links.length && <p className="text-sm text-muted-foreground">Không có.</p>}
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <SelectField id="tk-state" label="Trạng thái" value={f.state} onChange={(v) => set('state', (v ?? 'Todo') as TaskState)} error={errors.state}
-                options={(task ? TASK_STATES : createStates).map((s) => ({ value: s, label: TASK_STATE[s].label }))} />
+              <SelectField id="tk-state" label="Trạng thái" value={f.columnId ?? null} onChange={(v) => set('columnId', v)} error={errors.columnId}
+                options={(task ? columns : createCols).map((c) => ({ value: c.id, label: c.name }))} />
               <SelectField id="tk-who" label="Người làm" allowEmpty emptyLabel="— Chưa giao —" value={f.assigneeEmployeeId ?? null} onChange={(v) => set('assigneeEmployeeId', v)}
                 options={members.filter((m) => m.isActive).map((m) => ({ value: m.employeeId, label: m.fullName }))} error={errors.assigneeEmployeeId} />
             </div>

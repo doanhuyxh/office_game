@@ -25,9 +25,12 @@ internal sealed class ProjectClock(TimeProvider clock, IOptions<OfficeSettings> 
 /// <param name="IsHr">admin / hr: thấy + quản lý mọi dự án (như kho tài liệu dự án trước đây).</param>
 /// <param name="FinanceView">quyền Xem tài chính (chức vụ): thấy mọi dự án (chỉ đọc) — để theo dõi tiến độ / ngày công + lãi / lỗ.</param>
 /// <param name="FinanceAdmin">quyền Quản trị tài chính: thêm chi phí nhân công theo từng người, sửa % phân bổ tháng đã chốt.</param>
+/// <param name="ManageColumns">Chức vụ có cờ "Quản lý trạng thái công việc" (vai trò admin / hr không thay thế — chủ dự án chốt 2026-11-11).</param>
 internal sealed record ProjectViewer(Guid UserId, string Name, bool IsHr, bool CanCreate, bool FinanceView, EmployeeRef? Employee,
-    IReadOnlyDictionary<Guid, ProjectMemberRole> Roles, bool FinanceAdmin = false)
+    IReadOnlyDictionary<Guid, ProjectMemberRole> Roles, bool FinanceAdmin = false, bool ManageColumns = false)
 {
+    /// <summary>Thêm / sửa / sắp xếp / xoá cột trạng thái: theo chức vụ, ở mọi dự án người đó xem được.</summary>
+    public bool CanManageColumns(Guid projectId) => ManageColumns && CanSee(projectId);
     public bool CanSee(Guid projectId) => IsHr || FinanceView || Roles.ContainsKey(projectId);
     public bool IsMember(Guid projectId) => Roles.ContainsKey(projectId);
     public bool CanManage(Guid projectId) => IsHr || (Roles.TryGetValue(projectId, out var r) && r == ProjectMemberRole.Manager);
@@ -51,8 +54,9 @@ internal sealed class ProjectAccess(ProjectsDbContext db, IEmployeeDirectory dir
             : await db.Members.AsNoTracking().Where(m => m.EmployeeId == emp.Id).ToDictionaryAsync(m => m.ProjectId, m => m.Role, ct);
         var isHr = user.IsHr();
         var fin = await finance.GetAsync(uid, ct);
+        var manageColumns = emp is not null && (await dir.GetPositionAsync(emp.Id, ct))?.ManageTaskColumns == true;
         return _viewer = new ProjectViewer(uid, user.FindFirstValue(ClaimNames.FullName) ?? user.Identity?.Name ?? "?", isHr,
-            isHr || user.IsInRole(Roles.Manager), fin.Has(FinancePermission.View), emp, roles, fin.Has(FinancePermission.Admin));
+            isHr || user.IsInRole(Roles.Manager), fin.Has(FinancePermission.View), emp, roles, fin.Has(FinancePermission.Admin), manageColumns);
     }
 
     public async Task<IReadOnlyDictionary<Guid, EmployeeRef>> EmployeesAsync(CancellationToken ct) =>
@@ -116,7 +120,7 @@ internal sealed class TaskReminderJob(IServiceScopeFactory scopes, ILogger<TaskR
         var dir = scope.ServiceProvider.GetRequiredService<IEmployeeDirectory>();
         var notifier = scope.ServiceProvider.GetRequiredService<INotifier>();
         var today = clock.Today;
-        var due = await db.Tasks.Where(t => t.State != TaskState.Done && t.DueOn != null && t.DueOn <= today && t.AssigneeEmployeeId != null && t.DueRemindedAt == null)
+        var due = await db.Tasks.Where(t => t.CompletedAt == null && t.DueOn != null && t.DueOn <= today && t.AssigneeEmployeeId != null && t.DueRemindedAt == null)
             .OrderBy(t => t.DueOn).ThenBy(t => t.Id).Take(500).ToListAsync(ct);
         if (due.Count == 0) return;
         var projects = await db.Projects.AsNoTracking().Where(p => due.Select(t => t.ProjectId).Contains(p.Id)).ToDictionaryAsync(p => p.Id, ct);

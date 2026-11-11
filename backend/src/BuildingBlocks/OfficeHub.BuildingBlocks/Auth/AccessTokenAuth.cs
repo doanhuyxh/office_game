@@ -90,7 +90,7 @@ public static class AccessTokenAuth
     [
         ("GET", Exact("/api/projects/?")),
         ("GET", Exact($"/api/projects/{Id}")),
-        ("GET", Exact($"/api/projects/{Id}/(tasks|effort)")),
+        ("GET", Exact($"/api/projects/{Id}/(tasks|effort|columns)")),
         ("GET", Exact("/api/projects/tasks/mine")),
         ("GET", Exact($"/api/projects/tasks/{Id}(/comments)?")),
         ("PUT", Exact($"/api/projects/tasks/{Id}")),

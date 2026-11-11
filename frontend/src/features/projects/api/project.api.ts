@@ -1,7 +1,7 @@
 import { http, httpPost } from '@/services/api-client';
 import type {
   IComment, IEffort, ITaskDetail, IInstallmentRef, IMilestoneRequest, IProject, IProjectDetail, IProjectFinancials, IProjectRequest, ISalesContractRef, ITask, ITaskRequest, MemberRole,
-  ProjectStatus, TaskState, ChangeRequestStatus, IChangeRequest, IChangeRequestRequest,
+  ProjectStatus, ITaskColumnRequest, ChangeRequestStatus, IChangeRequest, IChangeRequestRequest,
 } from '../types/project.types';
 
 const base = '/api/projects';
@@ -49,7 +49,11 @@ export const projectApi = {
   myTasks: () => http<ITask[]>(`${base}/tasks/mine`),
   createTask: (id: string, b: ITaskRequest) => httpPost<string>(`${base}/${id}/tasks`, b),
   updateTask: (tid: string, b: ITaskRequest) => send<void>('PUT', `${base}/tasks/${tid}`, b),
-  moveTask: (tid: string, state: TaskState, note?: string | null) => httpPost<void>(`${base}/tasks/${tid}/move`, { state, note: note || null }),
+  moveTask: (tid: string, columnId: string, note?: string | null) => httpPost<void>(`${base}/tasks/${tid}/move`, { columnId, note: note || null }),
+  createColumn: (id: string, b: ITaskColumnRequest) => httpPost<string>(`${base}/${id}/columns`, b),
+  updateColumn: (cid: string, b: ITaskColumnRequest) => send<void>('PUT', `${base}/columns/${cid}`, b),
+  reorderColumns: (id: string, ids: string[]) => send<void>('PUT', `${base}/${id}/columns/order`, { ids }),
+  deleteColumn: (cid: string, moveTo?: string | null) => send<void>('DELETE', `${base}/columns/${cid}${moveTo ? `?moveTo=${moveTo}` : ''}`),
   task: (tid: string) => http<ITaskDetail>(`${base}/tasks/${tid}`),
   deleteTask: (tid: string) => send<void>('DELETE', `${base}/tasks/${tid}`),
   comments: (tid: string) => http<IComment[]>(`${base}/tasks/${tid}/comments`),

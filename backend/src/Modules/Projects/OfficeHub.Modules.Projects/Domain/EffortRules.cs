@@ -51,5 +51,5 @@ public static class EffortRules
 
     public static string TaskCode(string projectCode, int number) => $"{projectCode}-{number}";
 
-    public static bool IsOverdue(DateOnly? dueOn, TaskState state, DateOnly today) => state != TaskState.Done && dueOn is { } d && d < today;
+    public static bool IsOverdue(DateOnly? dueOn, bool done, DateOnly today) => !done && dueOn is { } d && d < today;
 }

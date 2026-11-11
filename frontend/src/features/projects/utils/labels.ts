@@ -1,17 +1,21 @@
 import type { StatusTone } from '@/components/common/StatusBadge';
-import type { ChangeRequestStatus, ProjectHealth, ProjectKind, ProjectStatus, TaskActivityKind, TaskState } from '../types/project.types';
+import type { ChangeRequestStatus, ITaskColumn, ProjectHealth, ProjectKind, ProjectStatus, TaskActivityKind } from '../types/project.types';
 
-export const TASK_STATES: TaskState[] = ['Todo', 'Doing', 'Review', 'Done'];
-export const TASK_STATE: Record<TaskState, { label: string; tone: StatusTone }> = {
-  Todo: { label: 'Cần làm', tone: 'muted' },
-  Doing: { label: 'Đang làm', tone: 'info' },
-  Review: { label: 'Chờ review', tone: 'warning' },
-  Done: { label: 'Xong', tone: 'success' },
-};
-const ORDER: Record<TaskState, number> = { Todo: 0, Doing: 1, Review: 2, Done: 3 };
+/** Bảng màu gợi ý cho cột trạng thái (khớp TaskColumnRules.Palette ở back-end). */
+export const COLUMN_PALETTE = ['#64748b', '#3b82f6', '#06b6d4', '#8b5cf6', '#ec4899', '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e'];
+/** Lịch sử cũ (trước khi có cột tự do) lưu tên enum. */
+const LEGACY_STATE: Record<string, string> = { Todo: 'Cần làm', Doing: 'Đang làm', Review: 'Chờ review', Done: 'Xong' };
+export const stateLabel = (s: string | null) => (s ? (LEGACY_STATE[s] ?? s) : '');
 /** Chuyển lùi cần lý do (khớp TaskWorkflow.NeedsNote ở back-end — back-end vẫn là nơi kiểm). */
-export const needsMoveNote = (from: TaskState, to: TaskState, requireReview: boolean) =>
-  requireReview && ORDER[to] < ORDER[from] && (from === 'Review' || from === 'Done');
+export const needsMoveNote = (columns: ITaskColumn[], from: string, to: string, sequential: boolean) => {
+  const i = (id: string) => columns.findIndex((c) => c.id === id);
+  return sequential && i(to) < i(from);
+};
+/** Cột được chọn khi tạo việc (khớp TaskWorkflow.CreateError — back-end vẫn kiểm). */
+export function createColumns(columns: ITaskColumn[], sequential: boolean, canApprove: boolean) {
+  const gate = columns.findIndex((c) => c.approverOnly || c.isDone);
+  return columns.filter((c, i) => !(sequential && gate >= 0 && i >= gate) && (canApprove || !c.approverOnly));
+}
 export const ACTIVITY_LABEL: Record<TaskActivityKind, string> = {
   Created: 'tạo việc', Moved: 'chuyển trạng thái', Assigned: 'đổi người làm', DueChanged: 'đổi hạn', Edited: 'sửa nội dung',
 };

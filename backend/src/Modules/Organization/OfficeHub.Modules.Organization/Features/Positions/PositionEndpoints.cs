@@ -14,10 +14,12 @@ namespace OfficeHub.Modules.Organization.Features.Positions;
 
 /// <param name="Level">Cấp bậc, 1 = cao nhất. Danh sách luôn sắp theo cấp rồi tên.</param>
 public sealed record PositionDto(Guid Id, string Name, int Level, int SortOrder, int EmployeeCount, string? Description = null, bool HasGuide = false,
-    bool SelfPublishDocuments = false, int FinancePermissions = 0, int DepartmentCount = 0);
+    bool SelfPublishDocuments = false, int FinancePermissions = 0, int DepartmentCount = 0, bool ManageTaskColumns = false);
 /// <param name="SelfPublishDocuments">Tự ban hành tài liệu không cần duyệt — chỉ cấp 1–6 (Chuyên viên trở lên).</param>
 /// <param name="FinancePermissions">Bit <see cref="FinancePermission"/>; <c>null</c> = giữ nguyên. Đổi giá trị chỉ admin / người có quyền Quản trị tài chính.</param>
-public sealed record UpsertPositionRequest(string Name, int Level, int SortOrder = 0, bool SelfPublishDocuments = false, int? FinancePermissions = null);
+/// <param name="ManageTaskColumns">Quản lý trạng thái công việc dự án; <c>null</c> = giữ nguyên.</param>
+public sealed record UpsertPositionRequest(string Name, int Level, int SortOrder = 0, bool SelfPublishDocuments = false, int? FinancePermissions = null,
+    bool? ManageTaskColumns = null);
 /// <summary>Quyền tài chính của tài khoản đang đăng nhập (bit) + có được sửa quyền trên chức vụ không.</summary>
 public sealed record MyFinanceAccess(int Permissions, bool CanManage);
 
@@ -43,7 +45,7 @@ internal static class PositionEndpoints
             .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
         var list = await db.Positions.AsNoTracking().OrderBy(p => p.Level).ThenBy(p => p.SortOrder).ThenBy(p => p.Name).ToListAsync(ct);
         return TypedResults.Ok(list.Select(p => new PositionDto(p.Id, p.Name, p.Level, p.SortOrder, counts.GetValueOrDefault(p.Id), p.Description, p.Guide != null,
-            p.SelfPublishDocuments, p.FinancePermissions, deptCounts.GetValueOrDefault(p.Id))).ToList());
+            p.SelfPublishDocuments, p.FinancePermissions, deptCounts.GetValueOrDefault(p.Id), p.ManageTaskColumns)).ToList());
     }
 
     private static async Task<Ok<MyFinanceAccess>> MyFinanceAsync(ClaimsPrincipal user, IFinanceAccess access, CancellationToken ct)
@@ -63,7 +65,8 @@ internal static class PositionEndpoints
         if (v.Failed) return v.Problem();
         var finance = req.FinancePermissions is { } f ? (int)FinancePermissions.Normalize(f) : 0;
         if (finance != 0 && !await CanChangeFinanceAsync(user, access, ct)) return FinanceForbidden();
-        var p = new Position { Name = req.Name.Trim(), Level = req.Level, SortOrder = req.SortOrder, SelfPublishDocuments = req.SelfPublishDocuments, FinancePermissions = finance };
+        var p = new Position { Name = req.Name.Trim(), Level = req.Level, SortOrder = req.SortOrder, SelfPublishDocuments = req.SelfPublishDocuments, FinancePermissions = finance,
+            ManageTaskColumns = req.ManageTaskColumns ?? false };
         db.Positions.Add(p);
         await db.SaveChangesAsync(ct);
         return TypedResults.Created($"/api/org/positions/{p.Id}", p.Id);
@@ -85,6 +88,7 @@ internal static class PositionEndpoints
         p.Level = req.Level;
         p.SortOrder = req.SortOrder;
         p.SelfPublishDocuments = req.SelfPublishDocuments;
+        if (req.ManageTaskColumns is { } mtc) p.ManageTaskColumns = mtc;
         await db.SaveChangesAsync(ct);
         return TypedResults.NoContent();
     }
