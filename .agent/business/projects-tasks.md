@@ -34,6 +34,12 @@
 - Mọi thay đổi qua token AI / MCP (`ClaimsPrincipal.IsAccessToken()`) → `tasks.CreatedByBot`, `task_comments.ByBot`, `task_activities.ByBot`; FE chip BOT. Bot = tài khoản nhân viên bình thường.
 - Tool `update_task_status` / `create_task` / `list_project_tasks` nhận **tên hoặc id cột** (so không phân biệt hoa thường / dấu; bí danh `todo` = cột đầu, `done` / `xong` = cột hoàn thành đầu tiên; tên lạ → lỗi liệt kê các cột). `get_project` / `get_task` trả `columns` + `sequential`.
 
+## Tự cập nhật + toast (2026-11-11)
+
+- `GET /api/projects/activity?after=` (ISO kèm múi giờ; không có → chỉ trả `cursor`): thay đổi ở các dự án người xem thấy được — lịch sử việc (`task_activities`) + bình luận, **bỏ thao tác của chính mình**, ≤ 50 mục, lùi tối đa 1 giờ; `member` = người xem là thành viên. Lý do chuyển lùi (vừa là Moved vừa là bình luận) chỉ trả 1 mục. `cursor` lùi 10 giây (bản ghi lưu muộn không bị sót) → FE bỏ trùng theo `id`. Index `ix_task_activities_time`, `ix_task_comments_time` (migration `ActivityFeedIndexes`). Token AI 403.
+- FE `ProjectLiveUpdates` (gắn lazy ở `Header`, không vẽ gì): hỏi mỗi **5 giây khi tab đang mở** (mở lại tab → hỏi ngay) → có thay đổi thì làm mới mọi query `['projects']` (bảng việc, hộp thoại việc, việc của tôi); **toast** chỉ khi `member` và KHÔNG đang ở `/projects/<chính dự án đó>` — > 2 thay đổi / dự án / lần hỏi → gộp 1 toast; nút "Mở" → trang dự án. HR / người xem tài chính (không là thành viên): tự cập nhật, không toast.
+- Chọn hỏi định kỳ thay vì đẩy qua Realtime vì Api chưa có địa chỉ Realtime (cần biến `.env` mới). Muốn đẩy tức thì: thêm biến đó rồi Api báo Realtime như `ChatRelay`.
+
 ## UI
 
 Kanban cuộn ngang (mỗi cột rộng 18 rem, viền trên + chấm theo màu cột, icon ✓ hoàn thành / khiên cần duyệt). Người có quyền: kéo tiêu đề cột (HTML5 drag, kiểu `text/column`) để sắp xếp, ⚙ mở `ColumnDialog` (tên, 10 màu gợi ý + chọn màu khác, 2 cờ, xoá + chọn cột nhận việc), "+ Thêm trạng thái" cuối bảng. Kéo lùi khi đi lần lượt → hỏi lý do trước. "Việc của tôi" hiện `ColumnBadge` (chấm màu + tên cột).

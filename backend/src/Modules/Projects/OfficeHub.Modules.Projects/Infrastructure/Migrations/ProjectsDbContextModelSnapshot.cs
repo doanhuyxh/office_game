@@ -344,6 +344,9 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("At")
+                        .HasDatabaseName("ix_task_activities_time");
+
                     b.HasIndex("TaskId", "At")
                         .HasDatabaseName("ix_task_activities_task");
 
@@ -415,6 +418,9 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_task_comments_time");
 
                     b.HasIndex("TaskId", "CreatedAt")
                         .HasDatabaseName("ix_task_comments_task");

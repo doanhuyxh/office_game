@@ -95,3 +95,13 @@ export interface IChangeRequest {
   appendix: { id: string; code: string; contractId: string; contractCode: string; signedOn: string } | null;
 }
 export interface IChangeRequestRequest { title: string; description?: string | null; estimateManDays?: number | null; billable: boolean }
+
+/** Một thay đổi ở dự án (GET /api/projects/activity) — bảng việc tự cập nhật + toast khi đang ở trang khác. */
+export interface IProjectActivity {
+  id: string; projectId: string; projectName: string; taskId: string; taskCode: string; taskTitle: string;
+  kind: 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited' | 'Depends' | 'Commented';
+  from: string | null; to: string | null; text: string | null; actorName: string; byBot: boolean; at: string;
+  /** Người xem là thành viên dự án — chỉ hiện toast cho dự án mình tham gia. */
+  member: boolean;
+}
+export interface IProjectActivityFeed { cursor: string; items: IProjectActivity[] }

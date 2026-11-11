@@ -124,6 +124,7 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.Property(x => x.Content).HasMaxLength(3000);
             e.Property(x => x.AuthorName).HasMaxLength(200);
             e.HasIndex(x => new { x.TaskId, x.CreatedAt }).HasDatabaseName("ix_task_comments_task");
+            e.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_task_comments_time"); // luồng thay đổi (/activity)
             e.HasOne<TaskItem>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
         });
         b.Entity<TaskDependency>(e =>
@@ -144,6 +145,7 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.Property(x => x.Note).HasMaxLength(TaskWorkflow.MaxNote);
             e.Property(x => x.ActorName).HasMaxLength(200);
             e.HasIndex(x => new { x.TaskId, x.At }).HasDatabaseName("ix_task_activities_task");
+            e.HasIndex(x => x.At).HasDatabaseName("ix_task_activities_time"); // luồng thay đổi (/activity)
             e.HasOne<TaskItem>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
         });
     }

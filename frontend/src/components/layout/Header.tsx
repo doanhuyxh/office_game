@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { ArrowRight, Building2, Check, KeyRound, Laptop, LogOut, Moon, SearchIcon, Share, Smartphone, Sun, UserRound } from 'lucide-react';
 import { Button } from '@/components/common/button';
@@ -22,6 +22,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useNavigation } from './useNavigation';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import { useMyProfile } from '@/features/profile';
+
+/** Theo dõi thay đổi dự án (bảng việc tự cập nhật + toast) — tải lazy để module Dự án không vào bundle chính. */
+const ProjectLiveUpdates = lazy(() => import('@/features/projects').then((m) => ({ default: m.ProjectLiveUpdates })));
 
 const THEMES: { value: Theme; label: string; icon: typeof Sun }[] = [
   { value: 'light', label: 'Sáng', icon: Sun },
@@ -189,6 +192,7 @@ export function Header() {
         <div className="ms-auto flex items-center gap-2">
           <ChatButton />
           <NotificationBell />
+          <Suspense fallback={null}><ProjectLiveUpdates /></Suspense>
           <ThemeSwitch />
           <ProfileDropdown />
         </div>

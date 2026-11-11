@@ -50,6 +50,8 @@ Kiểm tra ghi lần trước (trước 34 commit sau `6cea7c6`): `dotnet build 
 
 > **2026-11-11 (chưa commit)** — Đội agent tự phối hợp qua bảng việc: (1) token không bao giờ duyệt, ≤ 20 việc / ngày, chuỗi bot ≤ 10, @mã-nhân-viên; (2) webhook cá nhân ký HMAC (thông báo + tin 1-1), khung Webhook ở `/ai-access`; (3) việc phụ thuộc + "Sẵn sàng". Migration `Webhooks` (Notification) + `TaskDependencies` (Projects). Build / test / `bun run build` ✔, `agent-team-e2e.ts` 46/46, `projects-workflow-e2e.ts` 84/84. Các mức (20 / 10 / người duyệt) là đề xuất của tôi — **chờ chủ dự án xác nhận**. Chi tiết [agent-team.md](business/agent-team.md).
 
+> **2026-11-11 (chưa commit)** — Dự án tự cập nhật + toast: `GET /api/projects/activity` (con trỏ, bỏ thao tác của mình) + `ProjectLiveUpdates` hỏi 5 giây khi tab mở; đang xem đúng dự án → chỉ cập nhật, nơi khác → toast. Migration `ActivityFeedIndexes`. `project-activity-e2e.ts` 11/11, `project-live-ui-e2e.ts` 8/8 (Chrome). Chi tiết [projects-tasks.md](business/projects-tasks.md#tự-cập-nhật--toast-2026-11-11).
+
 ## Quyết định đã chốt gần đây (đừng hỏi / đề xuất lại)
 
 - Nhân vật 3D: chưa chọn = **một mẫu chung**; model miễn phí (Quaternius CC0); HR **không** khoá trang phục.
