@@ -63,6 +63,10 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
     {
         var title = Titles.GetValueOrDefault(tool, tool);
         if (args is null) return title;
+        // Gửi tin chat → bong bóng trên đầu bot là chính nội dung tin (như người thật nói trong văn phòng).
+        if (tool == "send_chat_message" && args.TryGetValue("text", out var t) && t.ValueKind == JsonValueKind.String
+            && t.GetString()?.Trim() is { Length: > 0 } said)
+            return "💬 " + (said.Length > 80 ? said[..80] + "…" : said);
         foreach (var key in TargetArgs)
         {
             if (!args.TryGetValue(key, out var v) || v.ValueKind != JsonValueKind.String) continue;

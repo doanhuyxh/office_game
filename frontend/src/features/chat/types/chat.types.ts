@@ -9,6 +9,8 @@ export interface IConversation {
   lastMessageAt: string | null;
   lastPreview: string | null;
   unread: number;
+  /** 1-1 với tài khoản bot AI — tin nhắn được gửi tới trợ lý AI bên ngoài. */
+  peerIsBot?: boolean;
 }
 
 export interface IAttachment {
@@ -40,6 +42,8 @@ export interface IMessage {
   deleted: boolean;
   attachments: IAttachment[];
   clientId: string | null;
+  /** Gửi bởi bot AI qua MCP → nhãn BOT. */
+  byBot?: boolean;
   local?: ILocalState;
 }
 

@@ -106,6 +106,11 @@ public static class AccessTokenAuth
         ("POST", Exact("/api/news/posts/?")),
         ("GET", Exact("/api/documents/(spaces|folders|assets|recent)")),
         ("GET", Exact($"/api/documents/assets/{Id}(/file)?")),
+        // Chat (2026-11-11): CHỈ tài khoản bot (Api tự trả 403 cho người thật), kênh Toàn văn phòng + 1-1 người khác đã mở.
+        //   Không có: mở 1-1 mới, kênh phòng (Api trả 404), tải tệp, thu hồi, tìm người.
+        ("GET", Exact("/api/chat/(conversations|unread-count)")),
+        ("GET", Exact($"/api/chat/conversations/(office|{Id})/messages")),
+        ("POST", Exact($"/api/chat/conversations/(office|{Id})/(messages|read)")),
     ];
 
     private static System.Text.RegularExpressions.Regex Exact(string pattern) =>

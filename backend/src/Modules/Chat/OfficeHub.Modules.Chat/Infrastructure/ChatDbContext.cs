@@ -48,6 +48,8 @@ public sealed class ChatDbContext(DbContextOptions<ChatDbContext> options) : DbC
             e.Property(x => x.ClientId).HasMaxLength(64);
             e.HasIndex(x => x.Seq).IsUnique().HasDatabaseName("ux_messages_seq");
             e.HasIndex(x => new { x.ConversationId, x.Seq }).HasDatabaseName("ix_messages_conversation_seq");
+            // Hạn mức bot: đếm tin của bot trong 1 giờ qua (chỉ dòng ByBot — chỉ mục nhỏ).
+            e.HasIndex(x => new { x.SenderId, x.CreatedAt }).HasFilter("\"ByBot\"").HasDatabaseName("ix_messages_bot_sender_time");
             e.HasIndex(x => new { x.ConversationId, x.SenderId, x.ClientId }).IsUnique().HasFilter("\"ClientId\" IS NOT NULL").HasDatabaseName("ux_messages_client");
             e.HasMany(x => x.Attachments).WithOne().HasForeignKey(a => a.MessageId).OnDelete(DeleteBehavior.Cascade);
         });

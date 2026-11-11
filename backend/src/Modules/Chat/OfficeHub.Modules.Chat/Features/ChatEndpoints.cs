@@ -42,12 +42,13 @@ public static class ChatEndpoints
 
     // ---------------- Hội thoại ----------------
 
-    private static async Task<Ok<List<ConversationDto>>> ListConversationsAsync(ClaimsPrincipal user, ChatDbContext db, ChatStore store,
+    private static async Task<Results<Ok<List<ConversationDto>>, ProblemHttpResult>> ListConversationsAsync(ClaimsPrincipal user, ChatDbContext db, ChatStore store,
         IAccountService accounts, CancellationToken ct)
     {
+        if (await AiGuardAsync(user, accounts, ct) is { } denied) return denied;
         var me = Me(user);
         await store.EnsureOfficeReadAsync(me, ct);
-        var convs = await store.VisibleAsync(me, ct);
+        var convs = (await store.VisibleAsync(me, ct)).Where(c => !user.IsAccessToken() || ChatRules.BotCanUse(c.Type)).ToList();
         var unread = await store.UnreadAsync(me, convs.Select(c => c.Id).ToList(), ct);
         var peerIds = convs.Where(c => c.Type == ConversationType.Direct).Select(c => PeerOf(c, me)).Distinct().ToList();
         var peers = peerIds.Count > 0 ? await accounts.GetManyAsync(peerIds, ct) : new Dictionary<Guid, AccountInfo>();
@@ -72,14 +73,31 @@ public static class ChatEndpoints
             ConversationType.Room => store.RoomNameOf(c) ?? c.RoomId ?? "Phòng",
             _ => peers.TryGetValue(peer!.Value, out var p) ? (string.IsNullOrWhiteSpace(p.FullName) ? p.UserName : p.FullName) : "Người dùng",
         };
-        return new ConversationDto(c.Id, c.Type, title, c.RoomId, peer, c.LastMessageAt, c.LastPreview, unread);
+        var peerIsBot = peer is { } pid && peers.TryGetValue(pid, out var pa) && pa.IsBot;
+        return new ConversationDto(c.Id, c.Type, title, c.RoomId, peer, c.LastMessageAt, c.LastPreview, unread, peerIsBot);
     }
 
-    private static async Task<Ok<UnreadDto>> UnreadCountAsync(ClaimsPrincipal user, ChatStore store, CancellationToken ct)
+    /// <summary>
+    /// Token AI: chỉ tài khoản bot (cờ HR đặt) được chat — tin 1-1 của người thật không đi ra nhà cung cấp AI. Null = cho phép.
+    /// Danh sách route token được gọi nằm ở AccessTokenAuth (không có tạo 1-1, tải tệp, thu hồi, tìm người).
+    /// </summary>
+    private static async Task<ProblemHttpResult?> AiGuardAsync(ClaimsPrincipal user, IAccountService accounts, CancellationToken ct)
     {
+        if (!user.IsAccessToken()) return null;
+        var acc = await accounts.GetAsync(Me(user), ct);
+        return acc?.IsBot == true ? null : TypedResults.Problem(ChatRules.AiNotBotMessage, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    /// <summary>Bot không thấy kênh phòng (như không tồn tại).</summary>
+    private static bool HiddenForAi(ClaimsPrincipal user, Conversation conv) => user.IsAccessToken() && !ChatRules.BotCanUse(conv.Type);
+
+    private static async Task<Results<Ok<UnreadDto>, ProblemHttpResult>> UnreadCountAsync(ClaimsPrincipal user, ChatStore store,
+        IAccountService accounts, CancellationToken ct)
+    {
+        if (await AiGuardAsync(user, accounts, ct) is { } denied) return denied;
         var me = Me(user);
         await store.EnsureOfficeReadAsync(me, ct);
-        var ids = (await store.VisibleAsync(me, ct)).Select(c => c.Id).ToList();
+        var ids = (await store.VisibleAsync(me, ct)).Where(c => !HiddenForAi(user, c)).Select(c => c.Id).ToList();
         return TypedResults.Ok(new UnreadDto((await store.UnreadAsync(me, ids, ct)).Values.Sum()));
     }
 
@@ -126,11 +144,12 @@ public static class ChatEndpoints
     // ---------------- Tin nhắn ----------------
 
     private static async Task<Results<Ok<MessagePageDto>, ProblemHttpResult>> ListMessagesAsync(string id, long? before, int? take,
-        ClaimsPrincipal user, ChatDbContext db, ChatStore store, CancellationToken ct)
+        ClaimsPrincipal user, ChatDbContext db, ChatStore store, IAccountService accounts, CancellationToken ct)
     {
+        if (await AiGuardAsync(user, accounts, ct) is { } denied) return denied;
         var me = Me(user);
         var conv = await store.ResolveAsync(id, ct);
-        if (conv is null || !await store.CanAccessAsync(conv, me, ct)) return Unknown();
+        if (conv is null || HiddenForAi(user, conv) || !await store.CanAccessAsync(conv, me, ct)) return Unknown();
 
         var n = Math.Clamp(take ?? 50, 1, 100);
         var q = db.Messages.AsNoTracking().Include(m => m.Attachments).Where(m => m.ConversationId == conv.Id);
@@ -143,11 +162,14 @@ public static class ChatEndpoints
     }
 
     private static async Task<Results<Ok<SendResultDto>, ProblemHttpResult, ValidationProblem>> SendAsync(string id, SendRequest req,
-        ClaimsPrincipal user, ChatDbContext db, ChatStore store, ChatThrottle throttle, IFileStorage files, IPushSender push, TimeProvider clock, CancellationToken ct)
+        ClaimsPrincipal user, ChatDbContext db, ChatStore store, ChatThrottle throttle, IFileStorage files, IPushSender push, IAccountService accounts,
+        TimeProvider clock, CancellationToken ct)
     {
+        if (await AiGuardAsync(user, accounts, ct) is { } denied) return denied;
         var me = Me(user);
         var conv = await store.ResolveAsync(id, ct);
-        if (conv is null || !await store.CanAccessAsync(conv, me, ct)) return Unknown();
+        if (conv is null || HiddenForAi(user, conv) || !await store.CanAccessAsync(conv, me, ct)) return Unknown();
+        var byBot = user.IsAccessToken();
 
         var clientId = string.IsNullOrWhiteSpace(req.ClientId) ? null : req.ClientId.Trim();
         if (clientId is { Length: > 64 }) clientId = clientId[..64];
@@ -164,7 +186,16 @@ public static class ChatEndpoints
         var uploadIds = (req.UploadIds ?? []).Where(u => u != Guid.Empty).Distinct().ToList();
         var val = new Validation();
         foreach (var (field, message) in ChatRules.ValidateMessage(text, uploadIds.Count)) val.Add(field, message);
+        if (byBot && uploadIds.Count > 0) val.Add("uploadIds", "Bot chưa gửi được tệp đính kèm — chỉ gửi chữ");
         if (val.Failed) return val.Problem();
+        if (byBot)
+        {
+            var since = clock.GetUtcNow() - ChatRules.BotQuotaWindow;
+            var sent = await db.Messages.CountAsync(m => m.SenderId == me && m.ByBot && m.CreatedAt > since, ct);
+            if (!ChatRules.BotQuotaLeft(sent))
+                return TypedResults.Problem($"Bot đã gửi {ChatRules.BotMessagesPerHour} tin trong 1 giờ qua — đợi rồi gửi tiếp",
+                    statusCode: StatusCodes.Status429TooManyRequests);
+        }
         if (!throttle.TryAcquire(me)) return TypedResults.Problem("Gửi chậm lại một chút", statusCode: StatusCodes.Status429TooManyRequests);
 
         var tickets = uploadIds.Count == 0 ? [] : await db.UploadTickets.Where(t => uploadIds.Contains(t.Id) && t.UserId == me && t.ConversationId == conv.Id).ToListAsync(ct);
@@ -174,7 +205,7 @@ public static class ChatEndpoints
         var now = clock.GetUtcNow();
         var msg = new Message
         {
-            ConversationId = conv.Id, SenderId = me, CreatedAt = now, Text = text, ClientId = clientId,
+            ConversationId = conv.Id, SenderId = me, CreatedAt = now, Text = text, ClientId = clientId, ByBot = byBot,
             SenderName = user.FindFirstValue(ClaimNames.FullName) ?? user.Identity?.Name ?? "?",
         };
         foreach (var t in tickets)
@@ -232,11 +263,13 @@ public static class ChatEndpoints
         return TypedResults.Ok(new DeleteResultDto(conv.Id, msg.Id, conv.Type, conv.RoomId, await store.RecipientsAsync(conv, ct)));
     }
 
-    private static async Task<Results<NoContent, ProblemHttpResult>> ReadAsync(string id, ClaimsPrincipal user, ChatStore store, CancellationToken ct)
+    private static async Task<Results<NoContent, ProblemHttpResult>> ReadAsync(string id, ClaimsPrincipal user, ChatStore store,
+        IAccountService accounts, CancellationToken ct)
     {
+        if (await AiGuardAsync(user, accounts, ct) is { } denied) return denied;
         var me = Me(user);
         var conv = await store.ResolveAsync(id, ct);
-        if (conv is null || !await store.CanAccessAsync(conv, me, ct)) return Unknown();
+        if (conv is null || HiddenForAi(user, conv) || !await store.CanAccessAsync(conv, me, ct)) return Unknown();
         await store.MarkReadAsync(conv.Id, me, conv.LastSeq, ct);
         return TypedResults.NoContent();
     }

@@ -3,8 +3,9 @@ using OfficeHub.Modules.Chat.Domain;
 namespace OfficeHub.Modules.Chat.Features;
 
 /// <summary>Type = Office | Room | Direct. Title: "Toàn văn phòng" / tên phòng / tên người đối diện (Direct).</summary>
+/// <param name="PeerIsBot">Direct với tài khoản bot (AI) — FE nhắc "tin nhắn được gửi tới trợ lý AI bên ngoài".</param>
 public sealed record ConversationDto(Guid Id, ConversationType Type, string Title, string? RoomId, Guid? PeerUserId,
-    DateTimeOffset? LastMessageAt, string? LastPreview, int Unread);
+    DateTimeOffset? LastMessageAt, string? LastPreview, int Unread, bool PeerIsBot = false);
 
 public sealed record PersonDto(Guid UserId, string FullName, string Code, string? DepartmentName);
 
@@ -13,7 +14,7 @@ public sealed record AttachmentDto(Guid Id, string FileName, string ContentType,
 
 /// <summary>Tin đã thu hồi: Deleted = true, Text = null, Attachments rỗng (nội dung vẫn nằm trong DB nhưng không ai xem được).</summary>
 public sealed record MessageDto(Guid Id, long Seq, Guid ConversationId, Guid SenderId, string SenderName, string? Text,
-    DateTimeOffset CreatedAt, bool Deleted, IReadOnlyList<AttachmentDto> Attachments, string? ClientId);
+    DateTimeOffset CreatedAt, bool Deleted, IReadOnlyList<AttachmentDto> Attachments, string? ClientId, bool ByBot = false);
 
 public sealed record MessagePageDto(IReadOnlyList<MessageDto> Items, bool HasMore);
 

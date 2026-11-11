@@ -22,4 +22,14 @@ public class BotPresenceReporterTests
         Assert.Equal("Chi tiết việc", BotPresenceReporter.Describe("get_task", Args("task", Guid.NewGuid().ToString())));
         Assert.Equal("some_tool", BotPresenceReporter.Describe("some_tool", null));
     }
+
+    [Fact]
+    public void Chat_message_becomes_speech_bubble()
+    {
+        Assert.Equal("💬 Xong việc WEB-12 rồi ạ", BotPresenceReporter.Describe("send_chat_message", Args("text", "  Xong việc WEB-12 rồi ạ ")));
+        var longText = new string('a', 100);
+        Assert.Equal("💬 " + new string('a', 80) + "…", BotPresenceReporter.Describe("send_chat_message", Args("text", longText)));
+        Assert.Equal("Gửi tin nhắn", BotPresenceReporter.Describe("send_chat_message", Args("text", " ")));
+        Assert.Equal("Danh sách tin nhắn", BotPresenceReporter.Describe("list_chats", null));
+    }
 }

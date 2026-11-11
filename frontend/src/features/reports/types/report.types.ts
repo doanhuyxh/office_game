@@ -142,7 +142,7 @@ export interface IAiUsageUserRow {
 export type IAiUsageUsersPage = IPaged<IAiUsageUserRow>;
 
 /** Luật cảnh báo AI (AiAlertRules ở module Audit). */
-export type AiAlertRule = 'blocked' | 'errors' | 'burst_writes' | 'bot_approval';
+export type AiAlertRule = 'blocked' | 'errors' | 'burst_writes' | 'bot_approval' | 'chat_spam';
 
 /** Cảnh báo trợ lý AI bất thường (AiAlertDto, `GET /api/audit/ai-alerts`). */
 export interface IAiAlert {

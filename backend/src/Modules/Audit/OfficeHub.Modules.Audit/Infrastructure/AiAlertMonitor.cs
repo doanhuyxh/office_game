@@ -104,5 +104,6 @@ internal sealed class AiAlertMonitor(IServiceScopeFactory scopes, TimeProvider c
                 g.Count(x => x.Status >= 400 && x.Status != 403 && x.Status != 429),
                 g.Count(x => x.Method != "GET" && x.Method != "HEAD" && x.Method != "OPTIONS"),
                 g.Count(x => x.Method == "POST" && x.Path.StartsWith("/api/approval/")
-                    && (x.Path.EndsWith("/approve") || x.Path.EndsWith("/reject")))));
+                    && (x.Path.EndsWith("/approve") || x.Path.EndsWith("/reject"))),
+                g.Count(x => x.Method == "POST" && x.Path.StartsWith("/api/chat/conversations/") && x.Path.EndsWith("/messages"))));
 }

@@ -44,7 +44,9 @@
 
 Kiểm tra ghi lần trước (trước 34 commit sau `6cea7c6`): `dotnet build -warnaserror` ✔, `dotnet test` ✔ (12 project; Organization 36, Mcp 58, Payroll 15), `bun run build` ✔. E2E trên DB tạm: lương + ký 48/48, quyền tổ chức + hướng dẫn + danh bạ 37/37, hồ sơ cá nhân 34/34; trên bản dev: phân quyền trang 8/8, nút cột 13/13; quét responsive 12 trang × 4 độ rộng sạch. Phiên 7/11 tối **không chạy lại** build / test. **Phiên 8/11 (module News)**: `dotnet build -warnaserror` ✔ 0 cảnh báo, `dotnet test` ✔ (17 project, News 39 test), `bun run build` ✔; `news-e2e.ts` 112/112 trên DB tạm.
 
-> **2026-11-11 (chưa commit)** — Giám sát agent / bot: nội dung lệnh ghi bằng token AI (che trường nhạy cảm, lưu 7 ngày) hiện ở `/ai-access`; job cảnh báo bất thường 5 phút / lần (bị chặn nhiều, lỗi liên tục, ghi dồn dập, bot duyệt đơn) → chuông mọi admin + khung Cảnh báo ở Báo cáo → Trợ lý AI. Migration `AiRequestSummary` + `AiAlerts` (Audit). Build / test / `bun run build` ✔; `ai-monitor-e2e.ts` **chưa chạy** (không có Docker). Chi tiết [ai-monitoring.md](business/ai-monitoring.md).
+> **2026-11-11 (chưa commit)** — Giám sát agent / bot: nội dung lệnh ghi bằng token AI (che trường nhạy cảm, lưu 7 ngày) hiện ở `/ai-access`; job cảnh báo bất thường 5 phút / lần (bị chặn nhiều, lỗi liên tục, ghi dồn dập, bot duyệt đơn) → chuông mọi admin + khung Cảnh báo ở Báo cáo → Trợ lý AI. Migration `AiRequestSummary` + `AiAlerts` (Audit). Build / test / `bun run build` ✔; `ai-monitor-e2e.ts` 19/19 (DB tạm). Chi tiết [ai-monitoring.md](business/ai-monitoring.md).
+
+> **2026-11-11 (chưa commit)** — Bot nhắn tin trong văn phòng ảo: chỉ tài khoản bot, Toàn văn phòng + 1-1 người khác mở, nhãn BOT, ≤ 60 tin / giờ, 4 tool MCP (69 tool), tin hiện ngay (Mcp → Realtime `/rt/internal/chat-message`) + bong bóng 💬 trên đầu bot; cảnh báo `chat_spam`. Migration `ChatByBot`. Build / test / `bun run build` ✔, `bot-chat-e2e.ts` 30/30. 4 điểm (kênh, ai dùng, tự mở 1-1, hạn mức) là phương án an toàn tôi tự chọn — **chờ chủ dự án xác nhận**. Chi tiết [office-bots.md](business/office-bots.md#tin-nhắn-của-bot).
 
 ## Quyết định đã chốt gần đây (đừng hỏi / đề xuất lại)
 

@@ -29,7 +29,7 @@ public static class ChatRouting
         return new ChatMessageDto(m.Id.ToString(), m.Seq, m.ConversationId.ToString(), r.ConversationType, r.RoomId, r.RoomName,
             m.SenderId.ToString(), m.SenderName, m.Text, Iso(m.CreatedAt), m.Deleted,
             (m.Attachments ?? []).Select(a => new ChatAttachmentDto(a.Id.ToString(), a.FileName, a.ContentType, a.Size, a.IsImage, a.Url)).ToArray(),
-            m.ClientId);
+            m.ClientId, m.ByBot);
     }
 
     /// <summary>Tin hiện trong HUD chat của văn phòng 3D: chỉ kênh Office / Room, bỏ tin đã thu hồi (null = không gửi vào 3D).</summary>

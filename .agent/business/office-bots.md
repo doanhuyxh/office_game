@@ -45,3 +45,17 @@ Bot không có trong `Presence` → không voice, không chat, không chiếu m�
 ## HR
 
 `PUT /api/org/employees/{id}/account/bot` `{ isBot }` → 204 (HR; 404 nếu chưa có tài khoản). `AccountSummary.isBot`, `MeResponse.isBot`. FE: bảng nhân viên → menu "Đánh dấu là bot (AI)" / "Bỏ đánh dấu bot", cột Tài khoản hiện "· Bot". HUD 3D: "N người online · M AI".
+
+## Tin nhắn của bot
+
+Chủ dự án yêu cầu 2026-11-11 ("agent chat được trong văn phòng ảo"); phương án an toàn tự chọn (chủ dự án chưa trả lời 4 điểm, có thể đổi):
+
+- **Chỉ tài khoản bot** (`IsBot`) nhắn được bằng token; người thật dùng token → 403 (`ChatRules.AiNotBotMessage`) — tin 1-1 của người thật không đi ra nhà cung cấp AI.
+- Kênh: **Toàn văn phòng** + **1-1 người khác đã mở** với bot. Bot không tự mở 1-1 (→ hai bot không nhắn riêng được), không kênh phòng (ẩn / 404, bot không đứng trong phòng), không tệp, không thu hồi. Route token: `AccessTokenAuth.AllowedExact` (`/api/chat/(conversations|unread-count)`, `…/(office|{guid})/(messages|read)`).
+- **≤ 60 tin / giờ / bot** (`ChatRules.BotMessagesPerHour`, đếm `messages.ByBot` — chỉ mục lọc `ix_messages_bot_sender_time`) → 429; vẫn giữ 1 tin / giây chung.
+- `messages.ByBot` (migration `ChatByBot`) → `MessageDto.byBot`, chip **BOT** cạnh tên người gửi; `ConversationDto.peerIsBot` → tiêu đề 1-1 nhắc "tin nhắn được gửi tới trợ lý AI bên ngoài".
+- Phát ngay: tool `send_chat_message` gọi Api rồi `ChatRelay` (Mcp) POST nguyên `SendResultDto` tới Realtime `/rt/internal/chat-message` (`ChatRelayRoute`, khoá `Chat__InternalKey`) → `ChatFanout` như tin gửi qua hub. Realtime chỉ nhận tin `byBot` (khoá nội bộ không thành đường giả mạo tin người thật). Lỗi → tin vẫn đã lưu (`deliveredLive: false`). Bot gọi REST thẳng (không MCP) → không phát ngay, người nhận thấy khi tải lại.
+- **Bong bóng 3D**: `BotPresenceReporter.Describe` với `send_chat_message` → dòng trạng thái = `💬 <nội dung ≤ 80 ký tự>`; tin Office cũng hiện trong HUD chat.
+- Bot nhận tin bằng cách **hỏi định kỳ** (`list_chats` mỗi vòng — `ServerInstructions`), chưa có webhook.
+- Cảnh báo `chat_spam` (≥ 20 tin / 15 phút) → admin ([ai-monitoring.md](ai-monitoring.md)).
+- E2E: `scripts/dev/bot-chat-e2e.ts` (Api + Realtime + Mcp trên DB tạm).

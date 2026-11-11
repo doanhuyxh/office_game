@@ -67,7 +67,7 @@ public sealed class ChatStore(ChatDbContext db, ChatRooms rooms, IFileStorage fi
             foreach (var a in m.Attachments)
                 atts.Add(new AttachmentDto(a.Id, a.FileName, a.ContentType, a.Size, a.IsImage,
                     await files.GetDownloadUrlAsync(a.FileKey, a.FileName, inline: a.IsImage, ChatRules.AttachmentUrlTtl)));
-        return new MessageDto(m.Id, m.Seq, m.ConversationId, m.SenderId, m.SenderName, deleted ? null : m.Text, m.CreatedAt, deleted, atts, m.ClientId);
+        return new MessageDto(m.Id, m.Seq, m.ConversationId, m.SenderId, m.SenderName, deleted ? null : m.Text, m.CreatedAt, deleted, atts, m.ClientId, m.ByBot);
     }
 
     /// <summary>Office chưa có dòng đã đọc → khởi tạo ở tin mới nhất (người mới / lần đầu mở chat không bị "hàng nghìn tin chưa đọc").</summary>

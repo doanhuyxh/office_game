@@ -229,7 +229,7 @@ if (MCP) {
   const init = await rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'e2e', version: '1' } });
   ok('MCP instructions: chế độ chạy tự động + nhãn BOT', String(init?.result?.instructions ?? '').includes('CHẠY TỰ ĐỘNG') && String(init?.result?.instructions ?? '').includes('BOT'));
   const names: string[] = ((await rpc('tools/list'))?.result?.tools ?? []).map((t: any) => t.name);
-  ok('tools/list có get_task, update_task (65 tool)', names.includes('get_task') && names.includes('update_task') && names.length === 65, names.length);
+  ok('tools/list có get_task, update_task (69 tool)', names.includes('get_task') && names.includes('update_task') && names.length === 69, names.length);
   const call = async (name: string, args: Record<string, unknown> = {}) => {
     const x = await rpc('tools/call', { name, arguments: args });
     const text = x?.result?.content?.[0]?.text ?? '';

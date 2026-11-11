@@ -12,6 +12,16 @@ public static class ChatRules
     public const long MaxFileSize = 25L * 1024 * 1024;
     public const int MaxPreviewLength = 80;
     public const string DeletedPreview = "Tin nhắn đã thu hồi";
+    /// <summary>Tối đa số tin một bot (token AI) gửi trong 1 giờ — chặn vòng lặp / spam (chủ dự án chốt 2026-11-11).</summary>
+    public const int BotMessagesPerHour = 60;
+    public static readonly TimeSpan BotQuotaWindow = TimeSpan.FromHours(1);
+    public const string AiNotBotMessage = "Chỉ tài khoản bot (HR đánh dấu) được nhắn tin qua trợ lý AI — nhắn trên web hoặc trong văn phòng 3D";
+
+    /// <summary>Bot (token AI) chỉ dùng kênh Toàn văn phòng + 1-1 có sẵn (người nhắn trước). Kênh phòng: bot không thật sự đứng trong phòng.</summary>
+    public static bool BotCanUse(ConversationType type) => type is ConversationType.Office or ConversationType.Direct;
+
+    /// <summary>Còn hạn mức gửi không (đã gửi <paramref name="sentLastHour"/> tin trong giờ qua).</summary>
+    public static bool BotQuotaLeft(int sentLastHour) => sentLastHour < BotMessagesPerHour;
     public static readonly TimeSpan MinSendInterval = TimeSpan.FromSeconds(1);
     public static readonly TimeSpan UploadUrlTtl = TimeSpan.FromMinutes(30);
     /// <summary>Hạn link xem / tải trả kèm tin nhắn (client giữ cache lâu hơn → tải lại danh sách sẽ có link mới).</summary>

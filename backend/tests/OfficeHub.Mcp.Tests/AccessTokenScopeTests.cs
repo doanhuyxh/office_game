@@ -35,12 +35,26 @@ public class AccessTokenScopeTests
     [InlineData("GET", "/api/news/posts/0193a000-0000-7000-8000-000000000000")]
     [InlineData("GET", "/api/news/posts/0193a000-0000-7000-8000-000000000000/comments")]
     [InlineData("POST", "/api/news/posts")]                  // đăng bài: Api tự giới hạn admin / HR
+    [InlineData("GET", "/api/chat/conversations")]           // chat: Api tự giới hạn tài khoản bot
+    [InlineData("GET", "/api/chat/unread-count")]
+    [InlineData("GET", "/api/chat/conversations/office/messages")]
+    [InlineData("GET", "/api/chat/conversations/0193a000-0000-7000-8000-000000000000/messages")]
+    [InlineData("POST", "/api/chat/conversations/office/messages")]
+    [InlineData("POST", "/api/chat/conversations/0193a000-0000-7000-8000-000000000000/read")]
     public void Allows_self_service_routes(string method, string path) =>
         Assert.True(AccessTokenAuth.IsAllowed(method, path));
 
     [Theory]
     [InlineData("GET", "/api/contracts")]
     [InlineData("GET", "/api/contracts/my")]
+    [InlineData("POST", "/api/chat/conversations/direct")]  // bot không tự mở 1-1
+    [InlineData("GET", "/api/chat/conversations/room:meeting-large/messages")] // kênh phòng
+    [InlineData("POST", "/api/chat/conversations/room:kt/messages")]
+    [InlineData("POST", "/api/chat/uploads")]
+    [InlineData("DELETE", "/api/chat/messages/0193a000-0000-7000-8000-000000000000")]
+    [InlineData("GET", "/api/chat/people")]
+    [InlineData("GET", "/api/chat/attachments/0193a000-0000-7000-8000-000000000000/url")]
+    [InlineData("POST", "/api/chat/internal/rooms/kt/members")]
     [InlineData("GET", "/api/contracts/0193a000-0000-7000-8000-000000000000/file")]
     [InlineData("POST", "/api/auth/access-tokens")]
     [InlineData("GET", "/api/auth/access-tokens")]

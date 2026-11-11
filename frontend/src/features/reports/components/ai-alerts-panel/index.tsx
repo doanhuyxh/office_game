@@ -12,6 +12,7 @@ const RULE: Record<string, { label: string; tone: StatusTone }> = {
   errors: { label: 'Lỗi liên tục', tone: 'warning' },
   burst_writes: { label: 'Ghi dồn dập', tone: 'info' },
   bot_approval: { label: 'Bot duyệt đơn', tone: 'danger' },
+  chat_spam: { label: 'Nhắn tin dồn dập', tone: 'warning' },
 };
 
 /**

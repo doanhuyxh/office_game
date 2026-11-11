@@ -2,7 +2,7 @@
 
 > Nguồn sự thật là code: `backend/src/Modules/Chat/`, `backend/src/OfficeHub.Realtime/Chat/` + `Hubs/ChatHub.cs`, `frontend/src/features/chat/`. Về [README.md](README.md). Chat HUD trong 3D: [office.md](office.md).
 
-Chủ dự án chốt 2026-11-07 (đừng hỏi lại): chat ra ngoài 3D, **đồng bộ** với chat 3D, thêm chat 1-1; lưu **vĩnh viễn**, thu hồi = **xoá mềm**; admin / HR **không** đọc tin 1-1; tệp ở thư mục S3 riêng; chỉ badge + âm báo, **không chuông / email** (quyết định chống spam, vẫn giữ); **không** mở cho AI. Có **push FCM** (chốt 2026-11-08) cho Direct / Room, không cho Office — [notifications.md](notifications.md#push-fcm).
+Chủ dự án chốt 2026-11-07 (đừng hỏi lại): chat ra ngoài 3D, **đồng bộ** với chat 3D, thêm chat 1-1; lưu **vĩnh viễn**, thu hồi = **xoá mềm**; admin / HR **không** đọc tin 1-1; tệp ở thư mục S3 riêng; chỉ badge + âm báo, **không chuông / email** (quyết định chống spam, vẫn giữ); **không** mở cho AI — *đổi 2026-11-11*: **tài khoản bot** được nhắn Toàn văn phòng + 1-1 người khác mở, nhãn BOT ([office-bots.md](office-bots.md#tin-nhắn-của-bot)); người thật dùng token vẫn 403. Có **push FCM** (chốt 2026-11-08) cho Direct / Room, không cho Office — [notifications.md](notifications.md#push-fcm).
 
 ## Kiến trúc
 
@@ -20,7 +20,7 @@ Api là nguồn sự thật (lưu, quyền, giới hạn 1 tin / giây / tài kh
 |---|---|
 | `conversations` | `Type` (Office / Room / Direct), `RoomId`, `UserLowId` < `UserHighId`, `LastSeq`, `LastMessageAt`, `LastPreview` (bản sao để liệt kê). Unique: một Office, một dòng / `RoomId`, một dòng / cặp |
 | `room_members` | `(ConversationId, UserId)`, `JoinedAt` — người từng ở trong phòng |
-| `messages` | `Id` (v7), `Seq` (identity, con trỏ cuộn), `ConversationId`, `SenderId`, `SenderName` (snapshot), `Text` ≤ 1000, `CreatedAt`, `DeletedAt` (xoá mềm), `ClientId` (unique cùng hội thoại + người gửi) |
+| `messages` | `Id` (v7), `Seq` (identity, con trỏ cuộn), `ConversationId`, `SenderId`, `SenderName` (snapshot), `Text` ≤ 1000, `CreatedAt`, `DeletedAt` (xoá mềm), `ClientId` (unique cùng hội thoại + người gửi), `ByBot` (token bot — migration `ChatByBot`) |
 | `attachments` | `MessageId`, `FileKey`, `FileName`, `ContentType`, `Size`, `IsImage` |
 | `read_states` | `(ConversationId, UserId)`, `LastReadSeq` |
 | `upload_tickets` | vé tải lên chưa gắn tin (dọn sau 24 giờ khi có vé mới) |

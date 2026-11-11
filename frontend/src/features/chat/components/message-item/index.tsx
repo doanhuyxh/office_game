@@ -3,6 +3,7 @@ import { AlertCircle, File as FileIcon, Loader2, MoreHorizontal, RotateCcw, Undo
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/common/dropdown-menu';
+import { BotBadge } from '@/components/common/bot-badge';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import { formatTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
@@ -92,6 +93,7 @@ export function MessageItem({ m, mine, showHeader, onRecall, onRetry, onDiscard,
         {showHeader && (
           <div className="mb-0.5 flex items-baseline gap-2 px-1 text-[11px] text-muted-foreground">
             {!mine && <span className="font-medium text-foreground/80">{m.senderName}</span>}
+            {!mine && m.byBot && <BotBadge />}
             <span>{formatTime(m.createdAt)}</span>
           </div>
         )}

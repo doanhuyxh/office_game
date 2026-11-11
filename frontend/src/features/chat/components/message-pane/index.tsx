@@ -151,7 +151,8 @@ export function MessagePane({ conversation, onBack }: { conversation: IConversat
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-semibold" data-testid="chat-title">{conversation.title}</div>
           <div className="truncate text-[11px] text-muted-foreground">
-            {conversation.type === 'Office' ? 'Kênh chung cho cả văn phòng' : conversation.type === 'Room' ? 'Kênh phòng — người từng vào phòng này' : 'Tin nhắn riêng'}
+            {conversation.type === 'Office' ? 'Kênh chung cho cả văn phòng' : conversation.type === 'Room' ? 'Kênh phòng — người từng vào phòng này'
+              : conversation.peerIsBot ? 'Bot AI — tin nhắn được gửi tới trợ lý AI bên ngoài công ty, đừng gửi thông tin nhạy cảm' : 'Tin nhắn riêng'}
           </div>
         </div>
         {chat.link !== 'online' && (

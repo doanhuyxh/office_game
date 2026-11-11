@@ -86,6 +86,9 @@ namespace OfficeHub.Modules.Chat.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("ByBot")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("ClientId")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
@@ -125,6 +128,10 @@ namespace OfficeHub.Modules.Chat.Infrastructure.Migrations
 
                     b.HasIndex("ConversationId", "Seq")
                         .HasDatabaseName("ix_messages_conversation_seq");
+
+                    b.HasIndex("SenderId", "CreatedAt")
+                        .HasDatabaseName("ix_messages_bot_sender_time")
+                        .HasFilter("\"ByBot\"");
 
                     b.HasIndex("ConversationId", "SenderId", "ClientId")
                         .IsUnique()

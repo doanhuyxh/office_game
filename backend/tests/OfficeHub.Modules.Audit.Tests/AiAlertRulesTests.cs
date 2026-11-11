@@ -6,8 +6,8 @@ namespace OfficeHub.Modules.Audit.Tests;
 
 public class AiAlertRulesTests
 {
-    private static AiWindowStats S(int total = 0, int blocked = 0, int errors = 0, int writes = 0, int approvals = 0) =>
-        new(Guid.Empty, total, blocked, errors, writes, approvals);
+    private static AiWindowStats S(int total = 0, int blocked = 0, int errors = 0, int writes = 0, int approvals = 0, int chats = 0) =>
+        new(Guid.Empty, total, blocked, errors, writes, approvals, chats);
 
     private static string[] Rules(AiWindowStats s, bool isBot = false) => AiAlertRules.Evaluate(s, isBot).Select(h => h.Rule).ToArray();
 
@@ -39,6 +39,13 @@ public class AiAlertRulesTests
     {
         Assert.Equal([AiAlertRules.BotApproval], Rules(S(total: 3, writes: 1, approvals: 1), isBot: true));
         Assert.Empty(Rules(S(total: 3, writes: 1, approvals: 1), isBot: false)); // người thật duyệt qua Claude: hợp lệ
+    }
+
+    [Fact]
+    public void Chat_spam_threshold()
+    {
+        Assert.Empty(Rules(S(total: 19, writes: 19, chats: 19)));
+        Assert.Equal([AiAlertRules.ChatSpam], Rules(S(total: 20, writes: 20, chats: 20)));
     }
 
     [Fact]

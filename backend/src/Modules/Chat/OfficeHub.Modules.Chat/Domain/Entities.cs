@@ -45,6 +45,8 @@ public sealed class Message
     public DateTimeOffset? DeletedAt { get; set; }
     /// <summary>Id do client sinh để khử trùng khi gửi lại (cùng hội thoại + người gửi + ClientId chỉ lưu một lần).</summary>
     public string? ClientId { get; set; }
+    /// <summary>Gửi bằng token AI (chỉ tài khoản bot, qua MCP) → hiện nhãn BOT.</summary>
+    public bool ByBot { get; set; }
     public List<MessageAttachment> Attachments { get; set; } = [];
 }
 

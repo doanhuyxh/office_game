@@ -29,6 +29,7 @@ Job `AiAlertMonitor` (Api, `JobMonitor` key `audit.ai-alerts`): chạy 50 s sau 
 | `errors` | ≥ 20 lệnh lỗi (≥ 400, trừ 403 / 429) **và** > 50 % tổng | không |
 | `burst_writes` | ≥ 60 lệnh ghi | không |
 | `bot_approval` | tài khoản **bot** (`IsBot`) POST `/api/approval/{id}/approve|reject` (kể cả thất bại) | **có** |
+| `chat_spam` | ≥ 20 tin chat (POST `/api/chat/conversations/{id}/messages`) — thêm 2026-11-11 cùng [chat của bot](office-bots.md#tin-nhắn-của-bot) | không |
 
 - Chống lặp: cùng (người, luật) tối đa 1 cảnh báo / **1 giờ** (đọc `ai_alerts`). Lưu cảnh báo **trước** khi gửi → gửi lỗi cũng không báo lặp.
 - Gửi `INotifier` category `ai_alert` (chuông + push; email chỉ `bot_approval`) cho mọi admin `IsActive`; không có admin → chỉ log. Link `/reports?tab=ai`.

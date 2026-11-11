@@ -13,6 +13,15 @@ namespace OfficeHub.BuildingBlocks.Office;
 /// <param name="Activity">Đang làm gì, ví dụ "Chuyển trạng thái việc · WEB-12" (tiêu đề tool + đối tượng).</param>
 public sealed record BotActivity(Guid UserId, string Name, string? Look, string? Zone, string Activity);
 
+/// <summary>
+/// OfficeHub.Mcp → OfficeHub.Realtime: bot vừa gửi tin chat qua Api (tool send_chat_message) → Realtime phát tới client chat + HUD 3D,
+/// như tin gửi qua hub. Body = nguyên JSON <c>SendResultDto</c> Api trả về. Cùng khoá <see cref="BotActivityRoute.KeyHeader"/>.
+/// </summary>
+public static class ChatRelayRoute
+{
+    public const string Path = "/rt/internal/chat-message";
+}
+
 public static class BotActivityRoute
 {
     public const string Path = "/rt/internal/bot-activity";
