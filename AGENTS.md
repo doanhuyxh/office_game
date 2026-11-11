@@ -39,7 +39,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Lịch sử sửa dữ liệu (`[Audited]`) · nhập nhân viên từ Excel · thao tác hàng loạt (đổi phòng ban / quản lý / chức vụ, nghỉ việc, xuất Excel) | [.agent/business/audit.md](.agent/business/audit.md) · [.agent/business/employee-import.md](.agent/business/employee-import.md) · [.agent/business/employee-bulk.md](.agent/business/employee-bulk.md) |
 | Luồng duyệt, thêm loại đơn · uỷ quyền duyệt (duyệt thay) | [.agent/business/approval.md](.agent/business/approval.md) · [.agent/business/approval-delegation.md](.agent/business/approval-delegation.md) |
 | Nghỉ phép, quỹ phép năm | [.agent/business/leave.md](.agent/business/leave.md) |
-| Kết nối AI (MCP): token cá nhân, host `OfficeHub.Mcp`, danh sách tool · OAuth, nhật ký AI, quản trị HR | [.agent/business/mcp.md](.agent/business/mcp.md) · [.agent/business/mcp-oauth.md](.agent/business/mcp-oauth.md) |
+| Kết nối AI (MCP): token cá nhân, host `OfficeHub.Mcp`, danh sách tool · OAuth, nhật ký AI, quản trị HR · giám sát agent (nội dung lệnh ghi, cảnh báo bất thường) | [.agent/business/mcp.md](.agent/business/mcp.md) · [.agent/business/mcp-oauth.md](.agent/business/mcp-oauth.md) · [.agent/business/ai-monitoring.md](.agent/business/ai-monitoring.md) |
 | Văn phòng 3D: bản đồ v2, lưới va chạm, SignalR, voice | [.agent/business/office.md](.agent/business/office.md) · engine 3D / HUD: [.agent/business/office-engine.md](.agent/business/office-engine.md) · nhân vật tuỳ chỉnh: [.agent/business/office-avatar.md](.agent/business/office-avatar.md) · bot AI hiện trong 3D: [.agent/business/office-bots.md](.agent/business/office-bots.md) · mặt bằng + lộ trình: [design/README.md](design/README.md) |
 
 ## Luật không được vi phạm

@@ -24,6 +24,7 @@ public sealed class AuditModule : IModule
         services.AddTransient<IStartupFilter, AiAuditStartupFilter>();
         services.AddHostedService<AuditMigrator>();
         services.AddHostedService<AiAuditWriter>();
+        services.AddHostedService<AiAlertMonitor>();
         // Lịch sử sửa: thay NullChangeAuditSink mặc định (BuildingBlocks) bằng hàng đợi ghi DB.
         services.AddSingleton<ChangeAuditQueue>();
         services.AddSingleton<IChangeAuditSink>(sp => sp.GetRequiredService<ChangeAuditQueue>());
@@ -36,6 +37,7 @@ public sealed class AuditModule : IModule
         g.MapGet("/_status", () => TypedResults.Ok(new { module = "Audit", status = "nhật ký AI" }));
         AiRequestEndpoints.Map(g);
         AiUsageEndpoints.Map(g);
+        AiAlertEndpoints.Map(g);
         ChangeEndpoints.Map(g);
     }
 }

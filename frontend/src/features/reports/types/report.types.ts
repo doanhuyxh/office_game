@@ -140,3 +140,27 @@ export interface IAiUsageUserRow {
 }
 
 export type IAiUsageUsersPage = IPaged<IAiUsageUserRow>;
+
+/** Luật cảnh báo AI (AiAlertRules ở module Audit). */
+export type AiAlertRule = 'blocked' | 'errors' | 'burst_writes' | 'bot_approval';
+
+/** Cảnh báo trợ lý AI bất thường (AiAlertDto, `GET /api/audit/ai-alerts`). */
+export interface IAiAlert {
+  id: string;
+  createdAt: string;
+  userId: string;
+  fullName: string | null;
+  userName: string | null;
+  departmentName: string | null;
+  isBot: boolean;
+  rule: AiAlertRule | string;
+  title: string;
+  body: string;
+  /** Số lệnh khớp luật / tổng lệnh trong cửa sổ 15 phút. */
+  count: number;
+  total: number;
+  windowStart: string;
+  windowEnd: string;
+}
+
+export type IAiAlertPage = IPaged<IAiAlert>;

@@ -12,6 +12,7 @@ public sealed class AuditDbContext(DbContextOptions<AuditDbContext> options) : D
     public const string Schema = "audit";
     public DbSet<AiRequestLog> AiRequests => Set<AiRequestLog>();
     public DbSet<ChangeLog> Changes => Set<ChangeLog>();
+    public DbSet<AiAlert> AiAlerts => Set<AiAlert>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -24,8 +25,16 @@ public sealed class AuditDbContext(DbContextOptions<AuditDbContext> options) : D
             e.Property(x => x.Method).HasMaxLength(10).IsRequired();
             e.Property(x => x.Path).HasMaxLength(300).IsRequired();
             e.Property(x => x.Ip).HasMaxLength(64);
+            e.Property(x => x.RequestSummary).HasColumnType("jsonb");
             e.HasIndex(x => x.OccurredAt).HasDatabaseName("ix_ai_requests_time");
             e.HasIndex(x => new { x.UserId, x.OccurredAt }).HasDatabaseName("ix_ai_requests_user_time");
+        });
+        b.Entity<AiAlert>(e =>
+        {
+            e.ToTable("ai_alerts");
+            e.Property(x => x.Rule).HasMaxLength(30).IsRequired();
+            e.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_ai_alerts_time");
+            e.HasIndex(x => new { x.UserId, x.Rule, x.CreatedAt }).HasDatabaseName("ix_ai_alerts_user_rule");
         });
         b.Entity<ChangeLog>(e =>
         {

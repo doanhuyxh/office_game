@@ -63,6 +63,8 @@ export interface IAiRequest {
   durationMs: number;
   /** IP của client AI (Mcp chuyển tiếp qua X-Forwarded-For); null = bản ghi cũ / không xác định. */
   ip?: string | null;
+  /** JSON tóm tắt nội dung lệnh ghi (đã cắt + che trường nhạy cảm); chỉ có trong 7 ngày gần nhất. */
+  requestSummary?: string | null;
 }
 
 export interface IAuthorizeInfo {

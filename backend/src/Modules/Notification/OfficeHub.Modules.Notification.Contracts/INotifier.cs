@@ -84,4 +84,6 @@ public static class NotificationCategories
     public const string ProjectTask = "project_task";
     /// <summary>Yêu cầu thay đổi (CR) của dự án được khách đồng ý, có tính tiền → người phụ trách hợp đồng + kế toán lập phụ lục.</summary>
     public const string ChangeRequestApproved = "change_request_approved";
+    /// <summary>Trợ lý AI / bot hoạt động bất thường (bị chặn nhiều, lỗi liên tục, ghi dồn dập, bot duyệt đơn) → mọi admin — module Audit.</summary>
+    public const string AiAlert = "ai_alert";
 }

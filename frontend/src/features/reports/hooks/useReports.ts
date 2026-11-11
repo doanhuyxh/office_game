@@ -16,3 +16,6 @@ export const useAiUsage = (f: IAiUsageFilter, userId: string | null = null, enab
 /** Xếp hạng theo người (phân trang ở back-end). */
 export const useAiUsageUsersPage = (f: IAiUsageFilter, sort: AiUsageSort, q: IPageQuery) =>
   useQuery({ queryKey: reportKeys.aiUsageUsers(f, sort, q), queryFn: () => reportApi.aiUsageUsers(f, sort, q), placeholderData: (prev) => prev });
+/** Cảnh báo trợ lý AI bất thường (job quét 5 phút / lần). */
+export const useAiAlertsPage = (q: IPageQuery) =>
+  useQuery({ queryKey: reportKeys.aiAlerts(q), queryFn: () => reportApi.aiAlerts(q), placeholderData: (prev) => prev, refetchInterval: 60_000 });

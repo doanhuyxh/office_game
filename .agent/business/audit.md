@@ -7,7 +7,8 @@ Hai loại nhật ký, đều **chỉ thêm**:
 | Loại | Bảng | Ghi gì | Xem |
 |---|---|---|---|
 | Lịch sử sửa dữ liệu nhân sự | `audit.changes` | Ai (hoặc "Hệ thống" / "qua trợ lý AI"), lúc nào, thêm / sửa / xoá bản ghi nào, trường nào từ gì sang gì. Không tự xoá | `/audit` (HR), `GET /api/audit/changes` |
-| Request của trợ lý AI | `audit.ai_requests` | [mcp-oauth.md](mcp-oauth.md#nhật-ký-ai-module-audit-schema-audit) | `/ai-access` |
+| Request của trợ lý AI | `audit.ai_requests` (+ nội dung lệnh ghi 7 ngày) | [mcp-oauth.md](mcp-oauth.md#nhật-ký-ai-module-audit-schema-audit) · [ai-monitoring.md](ai-monitoring.md) | `/ai-access` |
+| Cảnh báo AI bất thường | `audit.ai_alerts` | [ai-monitoring.md](ai-monitoring.md) | Báo cáo → Trợ lý AI |
 
 ## Lịch sử sửa — cách hoạt động
 

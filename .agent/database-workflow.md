@@ -52,11 +52,12 @@ Trạng thái hợp đồng tính lúc đọc. Không trùng thời gian / số 
 
 Reporting **không có schema** (chỉ đọc qua `*.Contracts`).
 
-## Schema `audit` — `AuditDbContext` (migration `InitialAudit`, `ChangeLog`)
+## Schema `audit` — `AuditDbContext` (migration `InitialAudit`, `ChangeLog`, `AiRequestSummary`, `AiAlerts`)
 
 | Bảng | Cột chính | Ghi chú |
 |---|---|---|
-| `ai_requests` | request bằng token AI | index (`UserId`,`OccurredAt`), `OccurredAt`; tự xoá > 180 ngày ([business/mcp-oauth.md](business/mcp-oauth.md)) |
+| `ai_requests` | request bằng token AI | index (`UserId`,`OccurredAt`), `OccurredAt`; tự xoá > 180 ngày ([business/mcp-oauth.md](business/mcp-oauth.md)); `RequestSummary` (jsonb, nội dung lệnh ghi đã che) đặt null sau 7 ngày ([business/ai-monitoring.md](business/ai-monitoring.md)) |
+| `ai_alerts` | `CreatedAt`, `UserId`, `Rule`, `WindowStart`, `WindowEnd`, `Count`, `Total` | index `CreatedAt`, (`UserId`,`Rule`,`CreatedAt`); xoá > 180 ngày ([business/ai-monitoring.md](business/ai-monitoring.md)) |
 | `changes` | `OccurredAt`, `Source` (web/ai/system), `UserId?`, `UserName`, `Module` (schema), `Entity`, `EntityId`, `EntityLabel`, `Action`, `ChangesJson` (jsonb `[{field, old, new, masked}]`) | index `OccurredAt`, (`Entity`,`EntityId`,`OccurredAt`), (`UserId`,`OccurredAt`); không tự xoá ([business/audit.md](business/audit.md)) |
 
 `attendance.reminders` (migration `Reminders`): `EmployeeId`, `WorkDate`, `Kind` (Checkout / MissingCheckout), `SentAt`; unique (`EmployeeId`,`WorkDate`,`Kind`) — chống nhắc lặp.

@@ -1,7 +1,7 @@
 import { http, pageQs } from '@/services/api-client';
 import type { IPageQuery } from '@/types/api';
 import type {
-  AiUsageSort, IAiUsageFilter, IAiUsageReport, IAiUsageUsersPage, ILeavePayoutPage, ILeavePayoutRow, IOvertimePayPage,
+  AiUsageSort, IAiAlertPage, IAiUsageFilter, IAiUsageReport, IAiUsageUsersPage, ILeavePayoutPage, ILeavePayoutRow, IOvertimePayPage,
 } from '../types/report.types';
 
 export const reportKeys = {
@@ -11,6 +11,7 @@ export const reportKeys = {
   myLeavePayout: ['reports', 'leave-payout', 'me'] as const,
   aiUsage: (f: IAiUsageFilter, userId: string | null) => ['reports', 'ai-usage', f, userId] as const,
   aiUsageUsers: (f: IAiUsageFilter, sort: AiUsageSort, q: IPageQuery) => ['reports', 'ai-usage', 'users', f, sort, q] as const,
+  aiAlerts: (q: IPageQuery) => ['reports', 'ai-alerts', q] as const,
 };
 
 /** Query string bộ lọc báo cáo AI (bỏ giá trị trống). */
@@ -27,6 +28,7 @@ export const reportApi = {
   aiUsage: (f: IAiUsageFilter, userId: string | null) => http<IAiUsageReport>(`/api/audit/ai-usage?${aiUsageQs(f, { userId })}`),
   aiUsageUsers: (f: IAiUsageFilter, sort: AiUsageSort, q: IPageQuery) =>
     http<IAiUsageUsersPage>(`/api/audit/ai-usage/users?${aiUsageQs(f, { sort })}&${pageQs(q)}`),
+  aiAlerts: (q: IPageQuery) => http<IAiAlertPage>(`/api/audit/ai-alerts?${pageQs(q)}`),
 };
 
 /** Link tải Excel (GET, cookie cùng origin). */

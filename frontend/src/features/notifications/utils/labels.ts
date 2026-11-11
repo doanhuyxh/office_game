@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { AlarmClock, Boxes, ClipboardCheck, Laptop, Undo2, AtSign, Ban, Bell, MessageCircle, Megaphone, BadgeCheck, UserRoundCog, CalendarClock, CalendarX, CheckCircle2, FileClock, FileInput, FilePen, FileSignature, FolderKanban, Inbox, ShieldAlert, UserCheck, UserPen, UserX, Wallet, XCircle } from 'lucide-react';
+import { AlarmClock, Bot, Boxes, ClipboardCheck, Laptop, Undo2, AtSign, Ban, Bell, MessageCircle, Megaphone, BadgeCheck, UserRoundCog, CalendarClock, CalendarX, CheckCircle2, FileClock, FileInput, FilePen, FileSignature, FolderKanban, Inbox, ShieldAlert, UserCheck, UserPen, UserX, Wallet, XCircle } from 'lucide-react';
 import { formatDate } from '@/utils/date';
 
 /** Icon + màu (token theme) theo loại thông báo. */
@@ -34,6 +34,7 @@ export const CATEGORY: Record<string, { icon: LucideIcon; className: string }> =
   asset_offboarding: { icon: UserX, className: 'text-warning' },
   asset_review: { icon: ClipboardCheck, className: 'text-info' },
   social_post: { icon: Megaphone, className: 'text-destructive' },
+  ai_alert: { icon: Bot, className: 'text-destructive' },
 };
 export const FALLBACK = { icon: Bell, className: 'text-muted-foreground' };
 

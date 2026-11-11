@@ -20,11 +20,25 @@ public sealed class AiRequestLog
     public int Status { get; set; }
     public int DurationMs { get; set; }
     public string? Ip { get; set; }
+    /// <summary>JSON tóm tắt body của lệnh GHI (đã cắt + che trường nhạy cảm, <see cref="AiRequestSummary"/>). Chỉ giữ
+    /// <see cref="AuditRules.AiSummaryRetentionDays"/> ngày rồi đặt null; null với lệnh đọc / bị chặn.</summary>
+    public string? RequestSummary { get; set; }
 }
 
 public static class AuditRules
 {
     public const int AiRetentionDays = 180;
+    /// <summary>Nội dung lệnh ghi chỉ lưu 7 ngày (chủ dự án chốt 2026-11-11) — dòng nhật ký vẫn giữ 180 ngày.</summary>
+    public const int AiSummaryRetentionDays = 7;
+
+    /// <summary>Lệnh ghi = method khác GET / HEAD / OPTIONS (cùng định nghĩa với báo cáo sử dụng).</summary>
+    public static bool IsWrite(string method) =>
+        !HttpMethodsEq(method, "GET") && !HttpMethodsEq(method, "HEAD") && !HttpMethodsEq(method, "OPTIONS");
+
+    /// <summary>Có lưu nội dung không: lệnh ghi, route không bị chặn (403) và không bị giới hạn tần suất (429).</summary>
+    public static bool KeepsSummary(string method, int status) => IsWrite(method) && status is not (403 or 429);
+
+    private static bool HttpMethodsEq(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Tên tool hợp lệ: snake_case ≤ 64 ký tự; khác → bỏ (header do client gửi, không tin).</summary>
     public static string? CleanTool(string? value) =>

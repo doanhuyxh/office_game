@@ -12,6 +12,7 @@ import { formatNumber } from '@/utils/number';
 import { cn } from '@/utils/cn';
 import { useAiUsage, useAiUsageUsersPage } from '../../hooks/useReports';
 import type { AiUsageKind, AiUsageSort, IAiUsageFilter } from '../../types/report.types';
+import { AiAlertsPanel } from '../ai-alerts-panel';
 import { AiUsageBreakdown } from '../ai-usage-breakdown';
 import { AiUsageChart } from '../ai-usage-chart';
 import { AiUsageStats } from '../ai-usage-stats';
@@ -106,6 +107,9 @@ export function AiUsageTab() {
           <FilterSelect label="Loại" value={kind} onChange={(v) => setKind(v as AiUsageKind | null)} allLabel="Mọi loại" options={KINDS} className="w-40" />
         </div>
       </div>
+
+      <AiAlertsPanel canRevoke={isHr}
+        onOpen={(a) => setPerson({ userId: a.userId, name: a.fullName || a.userName || '—', departmentName: a.departmentName })} />
 
       {report.isLoading || !report.data ? <Spinner /> : (
         <>
