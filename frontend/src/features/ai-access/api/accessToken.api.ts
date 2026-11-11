@@ -1,13 +1,14 @@
 import { http, httpPost, pageQs } from '@/services/api-client';
 import type { IPaged, IPageQuery } from '@/types/api';
 import type {
-  IAccessToken, IAccessTokenCreated, IAiConnection, IAiRequest, IAuthorizeInfo, ICreateAccessToken, IGrant,
+  IAccessToken, IAccessTokenCreated, IAiConnection, IAiRequest, IAuthorizeInfo, ICreateAccessToken, IGrant, IWebhook,
 } from '../types/accessToken.types';
 
 export const accessTokenKeys = {
   all: ['access-tokens'] as const,
   tokens: ['access-tokens', 'tokens'] as const,
   grants: ['access-tokens', 'grants'] as const,
+  webhook: ['access-tokens', 'webhook'] as const,
   connectionsPage: (q: IPageQuery) => ['access-tokens', 'connections', 'page', q] as const,
   activityPage: (userId: string | null | undefined, all: boolean | undefined, q: IPageQuery) =>
     ['access-tokens', 'activity', all ? 'all' : 'me', userId ?? null, q] as const,
@@ -25,6 +26,12 @@ export const accessTokenApi = {
   connectionsPage: (q: IPageQuery) => http<IPaged<IAiConnection>>(`/api/auth/ai-connections?${pageQs(q)}`),
   activityPage: (userId: string | null | undefined, all: boolean | undefined, q: IPageQuery) =>
     http<IPaged<IAiRequest>>(`/api/audit/ai-requests?${pageQs(q)}${all ? '&all=true' : ''}${all && userId ? `&userId=${userId}` : ''}`),
+  webhook: () => http<IWebhook>('/api/notifications/webhook'),
+  saveWebhook: (body: { url: string; enabled: boolean }) =>
+    http<{ secret: string | null }>('/api/notifications/webhook', { method: 'PUT', body: JSON.stringify(body) }),
+  rotateWebhook: () => httpPost<{ secret: string }>('/api/notifications/webhook/rotate'),
+  testWebhook: () => httpPost<void>('/api/notifications/webhook/test'),
+  deleteWebhook: () => http<void>('/api/notifications/webhook', { method: 'DELETE' }),
   authorizeInfo: (p: OAuthParams) => http<IAuthorizeInfo>(`/api/oauth/authorize?${new URLSearchParams(p)}`),
   authorize: (p: OAuthParams, approve: boolean) => httpPost<{ redirectTo: string }>('/api/oauth/authorize', { ...p, approve }),
 };

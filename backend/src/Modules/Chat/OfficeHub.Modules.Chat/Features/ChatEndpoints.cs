@@ -163,7 +163,7 @@ public static class ChatEndpoints
 
     private static async Task<Results<Ok<SendResultDto>, ProblemHttpResult, ValidationProblem>> SendAsync(string id, SendRequest req,
         ClaimsPrincipal user, ChatDbContext db, ChatStore store, ChatThrottle throttle, IFileStorage files, IPushSender push, IAccountService accounts,
-        TimeProvider clock, CancellationToken ct)
+        IWebhookPublisher webhooks, TimeProvider clock, CancellationToken ct)
     {
         if (await AiGuardAsync(user, accounts, ct) is { } denied) return denied;
         var me = Me(user);
@@ -236,6 +236,13 @@ public static class ChatEndpoints
         // recipients == null ↔ kênh Office (toàn công ty) — không push, quá ồn; Direct/Room thì push cho người nhận (trừ người gửi).
         if (recipients is not null)
             await push.PushAsync(recipients.Where(r => r != me), msg.SenderName, preview, $"/chat?c={conv.Id}", ct);
+        // Tin 1-1 → webhook cá nhân của người nhận (đánh thức agent; người không đặt webhook bỏ qua). Office / kênh phòng: không (quá ồn).
+        if (conv.Type == ConversationType.Direct && recipients is not null)
+            await webhooks.PublishAsync(recipients.Where(r => r != me).ToList(), WebhookEvents.ChatMessage, new
+            {
+                conversationId = conv.Id, messageId = msg.Id, seq = msg.Seq, senderId = me, senderName = msg.SenderName, byBot = msg.ByBot,
+                text = msg.Text, files = msg.Attachments.Select(a => a.FileName).ToList(), createdAt = msg.CreatedAt, link = $"/chat?c={conv.Id}",
+            }, ct);
 
         return TypedResults.Ok(new SendResultDto(await store.ToDtoAsync(msg), conv.Type, conv.RoomId, store.RoomNameOf(conv), recipients));
     }

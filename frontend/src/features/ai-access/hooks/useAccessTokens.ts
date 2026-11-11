@@ -35,3 +35,10 @@ export function useRevokeGrant() {
   const invalidate = useInvalidate();
   return useMutation({ mutationFn: accessTokenApi.revokeGrant, onSuccess: invalidate });
 }
+
+/** Webhook cá nhân — hỏi lại 5 giây khi đang có lần gửi chờ (để thấy kết quả "Gửi thử"). */
+export const useWebhook = () =>
+  useQuery({
+    queryKey: accessTokenKeys.webhook, queryFn: accessTokenApi.webhook,
+    refetchInterval: (q) => (q.state.data?.recent.some((d) => d.status === 'Pending') ? 5000 : false),
+  });

@@ -156,7 +156,7 @@ public sealed class TaskColumn
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<TaskActivityKind>))]
-public enum TaskActivityKind { Created = 0, Moved = 1, Assigned = 2, DueChanged = 3, Edited = 4 }
+public enum TaskActivityKind { Created = 0, Moved = 1, Assigned = 2, DueChanged = 3, Edited = 4, Depends = 5 }
 
 /// <summary>Lịch sử một việc: tạo, chuyển trạng thái (kèm lý do khi lùi), đổi người, đổi hạn, sửa nội dung. Chỉ thêm. <see cref="ByBot"/> = làm qua token AI / MCP.</summary>
 public sealed class TaskActivity
@@ -210,5 +210,16 @@ public sealed class TaskComment
     public string AuthorName { get; set; } = "";
     /// <summary>Viết qua token AI / MCP (nhãn BOT).</summary>
     public bool ByBot { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>
+/// Việc <see cref="TaskId"/> chờ việc <see cref="DependsOnId"/> xong (cùng dự án, không vòng). Việc chờ xong hết → báo người làm
+/// (chuông + webhook — đội agent tự chuyền việc). Bot không bắt đầu việc còn chờ (<see cref="DependencyRules"/>).
+/// </summary>
+public sealed class TaskDependency
+{
+    public Guid TaskId { get; set; }
+    public Guid DependsOnId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }

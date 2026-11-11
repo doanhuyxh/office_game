@@ -10,6 +10,8 @@ public sealed class NotificationDbContext(DbContextOptions<NotificationDbContext
     public DbSet<Domain.Notification> Notifications => Set<Domain.Notification>();
     public DbSet<Domain.PushToken> PushTokens => Set<Domain.PushToken>();
     public DbSet<Domain.NotificationPreference> Preferences => Set<Domain.NotificationPreference>();
+    public DbSet<Domain.Webhook> Webhooks => Set<Domain.Webhook>();
+    public DbSet<Domain.WebhookDelivery> WebhookDeliveries => Set<Domain.WebhookDelivery>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -34,6 +36,25 @@ public sealed class NotificationDbContext(DbContextOptions<NotificationDbContext
             e.ToTable("preferences");
             e.HasKey(x => x.UserId);
             e.Property(x => x.UserId).ValueGeneratedNever();
+        });
+        b.Entity<Domain.Webhook>(e =>
+        {
+            e.ToTable("webhooks");
+            e.HasKey(x => x.UserId);
+            e.Property(x => x.UserId).ValueGeneratedNever();
+            e.Property(x => x.Url).HasMaxLength(Domain.WebhookRules.MaxUrlLength);
+            e.Property(x => x.SecretEncrypted).HasMaxLength(300);
+            e.Property(x => x.LastError).HasMaxLength(500);
+        });
+        b.Entity<Domain.WebhookDelivery>(e =>
+        {
+            e.ToTable("webhook_deliveries");
+            e.Property(x => x.Event).HasMaxLength(40);
+            e.Property(x => x.DataJson).HasColumnType("jsonb");
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Error).HasMaxLength(500);
+            e.HasIndex(x => x.NextAttemptAt).HasFilter("\"Status\" = 'Pending'").HasDatabaseName("ix_webhook_deliveries_due");
+            e.HasIndex(x => new { x.UserId, x.CreatedAt }).HasDatabaseName("ix_webhook_deliveries_user");
         });
         b.Entity<Domain.PushToken>(e =>
         {

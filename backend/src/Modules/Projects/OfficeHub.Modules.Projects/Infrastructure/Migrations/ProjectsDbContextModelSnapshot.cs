@@ -422,6 +422,25 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.ToTable("task_comments", "projects");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.TaskDependency", b =>
+                {
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DependsOnId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("TaskId", "DependsOnId");
+
+                    b.HasIndex("DependsOnId")
+                        .HasDatabaseName("ix_task_dependencies_on");
+
+                    b.ToTable("task_dependencies", "projects");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.TaskItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -567,6 +586,21 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
 
             modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.TaskComment", b =>
                 {
+                    b.HasOne("OfficeHub.Modules.Projects.Domain.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.TaskDependency", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Projects.Domain.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("DependsOnId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("OfficeHub.Modules.Projects.Domain.TaskItem", null)
                         .WithMany()
                         .HasForeignKey("TaskId")

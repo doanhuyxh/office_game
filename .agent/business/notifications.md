@@ -66,4 +66,6 @@ Module khác: `document_retention` (hạn lưu trữ), `document_handover` (bàn
 
 Chat dùng lại `playNotificationSound` + công tắc âm này cho tin nhắn mới ([chat.md](chat.md)); tin nhắn không tạo thông báo chuông / email, nhưng **có push** cho Direct / Room (xem mục Push ở trên).
 
+**Webhook cá nhân** (2026-11-11): mọi chuông + tin 1-1 → POST ký HMAC tới URL của tài khoản (đánh thức agent) — [agent-team.md](agent-team.md#2-webhook-cá-nhân-module-notification--đánh-thức-agent).
+
 **Chưa có:** tắt email theo từng nhóm (category), đẩy realtime (SignalR), gom email (digest), xoá thông báo cũ.

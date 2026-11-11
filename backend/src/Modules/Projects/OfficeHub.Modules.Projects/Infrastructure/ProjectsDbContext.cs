@@ -24,6 +24,7 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
     public DbSet<TaskComment> Comments => Set<TaskComment>();
     public DbSet<TaskActivity> Activities => Set<TaskActivity>();
+    public DbSet<TaskDependency> Dependencies => Set<TaskDependency>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -124,6 +125,15 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.Property(x => x.AuthorName).HasMaxLength(200);
             e.HasIndex(x => new { x.TaskId, x.CreatedAt }).HasDatabaseName("ix_task_comments_task");
             e.HasOne<TaskItem>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<TaskDependency>(e =>
+        {
+            e.ToTable("task_dependencies");
+            e.HasKey(x => new { x.TaskId, x.DependsOnId });
+            e.HasIndex(x => x.DependsOnId).HasDatabaseName("ix_task_dependencies_on");
+            // Xoá việc → xoá luôn quan hệ chờ (cả hai chiều)
+            e.HasOne<TaskItem>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<TaskItem>().WithMany().HasForeignKey(x => x.DependsOnId).OnDelete(DeleteBehavior.Cascade);
         });
         b.Entity<TaskActivity>(e =>
         {

@@ -20,6 +20,15 @@ internal sealed class ProjectClock(TimeProvider clock, IOptions<OfficeSettings> 
     public DateTimeOffset Now => clock.GetUtcNow();
     public DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), _tz).DateTime);
     public DateOnly DateOf(DateTimeOffset t) => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(t, _tz).DateTime);
+    /// <summary>0 giờ hôm nay (giờ văn phòng) dạng UTC — đếm hạn mức theo ngày.</summary>
+    public DateTimeOffset StartOfToday
+    {
+        get
+        {
+            var local = Today.ToDateTime(TimeOnly.MinValue);
+            return new DateTimeOffset(local, _tz.GetUtcOffset(local)).ToUniversalTime();
+        }
+    }
 }
 
 /// <param name="IsHr">admin / hr: thấy + quản lý mọi dự án (như kho tài liệu dự án trước đây).</param>

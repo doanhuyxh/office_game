@@ -145,7 +145,8 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
               {col.map((t) => (
                 <button key={t.id} type="button" draggable={p.canWork} onDragStart={(e) => e.dataTransfer.setData(TASK, t.id)} onClick={() => setEdit({ task: t })}
                   className="grid gap-1 rounded-lg border bg-card p-2 text-left text-sm shadow-xs hover:border-primary/50" data-testid="task-card">
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">{t.code}{t.createdByBot && <BotBadge />}</span>
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">{t.code}{t.createdByBot && <BotBadge />}
+                    {!!t.waitingOn && !t.done && <span className="rounded bg-warning/15 px-1 text-[10px] font-medium text-warning" title="Còn chờ việc khác xong" data-testid="task-waiting">Chờ {t.waitingOn} việc</span>}</span>
                   <span className={t.done ? 'text-muted-foreground line-through' : 'font-medium'}>{t.title}</span>
                   <span className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
                     {t.assigneeName ?? 'Chưa giao'}

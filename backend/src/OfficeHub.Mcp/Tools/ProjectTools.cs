@@ -85,6 +85,7 @@ public sealed class ProjectTools
         [Description("Ước lượng số ngày công (tuỳ chọn)")] decimal? estimateDays = null,
         [Description("Trạng thái ban đầu: tên hoặc id trạng thái của dự án (get_project → columns); bỏ trống = trạng thái đầu tiên")] string? state = null,
         [Description("Link ảnh / video minh hoạ (tuỳ chọn, ≤ 20 link http/https): ảnh .png/.jpg…, video .mp4, YouTube, Vimeo, Google Drive")] string[]? mediaLinks = null,
+        [Description("Việc phải xong trước (mã hoặc id việc cùng dự án, cách nhau bởi dấu phẩy, ≤ 10) — khi tất cả xong, người làm việc này nhận thông báo \"Sẵn sàng\"")] string? dependsOn = null,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(title)) throw new McpException("Thiếu tên việc");
@@ -101,6 +102,8 @@ public sealed class ProjectTools
             estimateDays,
             mediaLinks = mediaLinks?.Select(l => l?.Trim() ?? "").Where(l => l.Length > 0).ToList(),
         }, ct);
+        if (!string.IsNullOrWhiteSpace(dependsOn) && taskId is not null)
+            await SetDependenciesAsync(api, taskId.GetValue<Guid>(), dependsOn, ct);
         var created = (await api.GetAsync($"/api/projects/{id}/tasks", ct) as JsonArray ?? []).OfType<JsonObject>()
             .FirstOrDefault(t => taskId is not null && (string?)t["id"] == taskId.GetValue<string>());
         return Out(created ?? new JsonObject { ["id"] = taskId?.DeepClone() });
@@ -109,7 +112,7 @@ public sealed class ProjectTools
     [McpServerTool(Name = "update_task_status", Title = "Chuyển trạng thái việc", Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("Chuyển việc sang trạng thái khác (như kéo thả trên kanban). Trạng thái do từng dự án tự đặt — xem get_project → columns. " +
                  "Chỉ thành viên dự án đang chạy. Dự án sequential: chỉ tiến 1 trạng thái mỗi lần theo thứ tự cột; chuyển lùi BẮT BUỘC có note (lý do, thành bình luận). " +
-                 "Trạng thái approverOnly: chỉ quản lý dự án chuyển việc vào hoặc kéo lùi ra (duyệt / mở lại). " +
+                 "Trạng thái approverOnly: chỉ quản lý dự án chuyển việc vào hoặc kéo lùi ra (duyệt / mở lại) — và chỉ trên web, KHÔNG qua trợ lý AI. " +
                  "Làm xong việc → bình luận kết quả rồi chuyển sang trạng thái ngay trước trạng thái cần duyệt, không tự duyệt khi không phải quản lý. " +
                  "Đang trò chuyện với người dùng → hỏi xác nhận trước khi gọi.")]
     public static async Task<string> UpdateTaskStatus(OfficeHubApi api,
@@ -138,7 +141,7 @@ public sealed class ProjectTools
     }
 
     [McpServerTool(Name = "update_task", Title = "Sửa việc", Destructive = false, Idempotent = true, OpenWorld = false)]
-    [Description("Sửa nội dung một việc (chỉ thành viên dự án đang chạy): tên, mô tả Markdown, người làm, hạn, ước lượng, link ảnh / video. " +
+    [Description("Sửa nội dung một việc (chỉ thành viên dự án đang chạy): tên, mô tả Markdown, người làm, hạn, ước lượng, link ảnh / video, việc phải chờ. " +
                  "Chỉ đổi trường được truyền; \"none\" = bỏ (người làm / hạn / ước lượng). mediaLinks thay TOÀN BỘ danh sách. Không đổi trạng thái (dùng update_task_status). " +
                  "Đang trò chuyện với người dùng → xác nhận thay đổi trước khi gọi.")]
     public static async Task<string> UpdateTask(OfficeHubApi api,
@@ -149,6 +152,7 @@ public sealed class ProjectTools
         [Description("Hạn yyyy-MM-dd (không trước hôm nay); \"none\" = bỏ hạn")] string? dueDate = null,
         [Description("Ước lượng số ngày công; âm = bỏ")] decimal? estimateDays = null,
         [Description("Link ảnh / video (≤ 20, http/https) — thay toàn bộ danh sách; mảng rỗng = xoá hết")] string[]? mediaLinks = null,
+        [Description("Việc phải xong trước (mã / id việc cùng dự án, cách nhau bởi dấu phẩy) — thay toàn bộ danh sách; \"none\" = bỏ hết")] string? dependsOn = null,
         CancellationToken ct = default)
     {
         var tid = await ResolveTaskAsync(api, task, ct);
@@ -175,7 +179,20 @@ public sealed class ProjectTools
             estimateDays = est,
             mediaLinks = mediaLinks?.Select(l => l?.Trim() ?? "").Where(l => l.Length > 0).ToList(),
         }, ct);
-        return Out((await api.GetAsync($"/api/projects/tasks/{tid}", ct))?["task"]);
+        if (!string.IsNullOrWhiteSpace(dependsOn)) await SetDependenciesAsync(api, tid, None(dependsOn) ? "" : dependsOn, ct);
+        var detail = await api.GetAsync($"/api/projects/tasks/{tid}", ct);
+        if (detail?["task"]?.DeepClone() is not JsonObject result) throw new McpException("Không đọc được việc");
+        result["dependsOn"] = detail["dependsOn"]?.DeepClone();
+        return Out(result);
+    }
+
+    /// <summary>Đặt danh sách việc phải chờ (mã / id, cách nhau dấu phẩy; rỗng = bỏ hết).</summary>
+    private static async Task SetDependenciesAsync(OfficeHubApi api, Guid taskId, string list, CancellationToken ct)
+    {
+        var ids = new List<Guid>();
+        foreach (var key in list.Split([',', ';', ' ', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            ids.Add(await ResolveTaskAsync(api, key, ct));
+        await api.PutAsync($"/api/projects/tasks/{taskId}/dependencies", new { dependsOn = ids.Distinct().ToList() }, ct);
     }
 
     [McpServerTool(Name = "list_task_comments", Title = "Bình luận của việc", ReadOnly = true, OpenWorld = false)]
@@ -188,16 +205,29 @@ public sealed class ProjectTools
     }
 
     [McpServerTool(Name = "comment_task", Title = "Bình luận việc", Destructive = false, OpenWorld = false)]
-    [Description("Thêm bình luận vào việc (chỉ thành viên dự án, Markdown); người làm việc nhận chuông. Dùng để báo kết quả, hỏi quản lý dự án khi chưa rõ yêu cầu. " +
+    [Description("Thêm bình luận vào việc (chỉ thành viên dự án, Markdown); người làm việc nhận chuông. Dùng để báo kết quả, hỏi quản lý dự án khi chưa rõ yêu cầu, " +
+                 "chuyền thông tin cho thành viên khác (người hoặc bot). mention = người cần đọc (họ nhận chuông 'nhắc bạn'); trong nội dung cũng có thể viết @mã-nhân-viên. " +
                  "Đang trò chuyện với người dùng → đọc lại nội dung cho người dùng xác nhận trước khi gửi.")]
     public static async Task<string> CommentTask(OfficeHubApi api,
         [Description("Việc: id hoặc mã việc (vd WEB-12)")] string task,
         [Description("Nội dung bình luận (≤ 3000 ký tự)")] string content,
+        [Description("Nhắc thành viên dự án: mã nhân viên hoặc họ tên, cách nhau bởi dấu phẩy (tuỳ chọn)")] string? mention = null,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(content)) throw new McpException("Thiếu nội dung bình luận");
         var tid = await ResolveTaskAsync(api, task, ct);
-        var id = await api.PostAsync($"/api/projects/tasks/{tid}/comments", new { content = content.Trim() }, ct);
+        var text = content.Trim();
+        var who = (mention ?? "").Split([',', ';', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (who.Length > 0)
+        {
+            var projectId = (await api.GetAsync($"/api/projects/tasks/{tid}", ct))?["task"]?["projectId"]?.GetValue<Guid>()
+                ?? throw new McpException("Không tìm thấy dự án của việc");
+            var codes = new List<string>();
+            foreach (var w in who) codes.Add(await MemberCodeAsync(api, projectId, w, ct));
+            var tags = string.Join(" ", codes.Distinct(StringComparer.OrdinalIgnoreCase).Where(c => !text.Contains("@" + c, StringComparison.OrdinalIgnoreCase)).Select(c => "@" + c));
+            if (tags.Length > 0) text = $"{tags} {text}";
+        }
+        var id = await api.PostAsync($"/api/projects/tasks/{tid}/comments", new { content = text }, ct);
         return Out(new JsonObject { ["ok"] = true, ["commentId"] = id?.DeepClone() });
     }
 
@@ -275,6 +305,19 @@ public sealed class ProjectTools
     }
 
     /// <summary>Người làm: ưu tiên khớp mã / họ tên trong thành viên dự án; không thấy → tìm trong danh bạ (email…), Api kiểm tra là thành viên.</summary>
+    /// <summary>Mã nhân viên của một thành viên dự án (để viết @mã trong bình luận). Không phải thành viên → lỗi.</summary>
+    private static async Task<string> MemberCodeAsync(OfficeHubApi api, Guid projectId, string who, CancellationToken ct)
+    {
+        var members = ((await api.GetAsync($"/api/projects/{projectId}", ct))?["members"] as JsonArray ?? []).OfType<JsonObject>().ToList();
+        var hit = members.Where(m => string.Equals((string?)m["code"], who, StringComparison.OrdinalIgnoreCase)
+                                  || string.Equals((string?)m["fullName"], who, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (hit.Count == 0) hit = members.Where(m => ((string?)m["fullName"])?.Contains(who, StringComparison.OrdinalIgnoreCase) == true).ToList();
+        if (hit.Count == 1 && (string?)hit[0]["code"] is { Length: > 0 } code) return code;
+        if (hit.Count > 1)
+            throw new McpException($"'{who}' khớp nhiều thành viên: {string.Join(", ", hit.Take(8).Select(m => $"{m["fullName"]} ({m["code"]})"))}. Dùng mã nhân viên.");
+        throw new McpException($"'{who}' không phải thành viên dự án — chỉ nhắc được thành viên");
+    }
+
     private static async Task<Guid> ResolveMemberAsync(OfficeHubApi api, Guid projectId, string who, CancellationToken ct)
     {
         var members = ((await api.GetAsync($"/api/projects/{projectId}", ct))?["members"] as JsonArray ?? []).OfType<JsonObject>().ToList();

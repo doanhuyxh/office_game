@@ -17,7 +17,7 @@ export function createColumns(columns: ITaskColumn[], sequential: boolean, canAp
   return columns.filter((c, i) => !(sequential && gate >= 0 && i >= gate) && (canApprove || !c.approverOnly));
 }
 export const ACTIVITY_LABEL: Record<TaskActivityKind, string> = {
-  Created: 'tạo việc', Moved: 'chuyển trạng thái', Assigned: 'đổi người làm', DueChanged: 'đổi hạn', Edited: 'sửa nội dung',
+  Created: 'tạo việc', Moved: 'chuyển trạng thái', Assigned: 'đổi người làm', DueChanged: 'đổi hạn', Edited: 'sửa nội dung', Depends: 'đổi việc phải chờ',
 };
 export const PROJECT_HEALTH: Record<ProjectHealth, { label: string; tone: StatusTone; rank: number }> = {
   Late: { label: 'Trễ', tone: 'danger', rank: 0 },

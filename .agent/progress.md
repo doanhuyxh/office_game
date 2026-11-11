@@ -48,6 +48,8 @@ Kiểm tra ghi lần trước (trước 34 commit sau `6cea7c6`): `dotnet build 
 
 > **2026-11-11 (chưa commit)** — Bot nhắn tin trong văn phòng ảo: chỉ tài khoản bot, Toàn văn phòng + 1-1 người khác mở, nhãn BOT, ≤ 60 tin / giờ, 4 tool MCP (69 tool), tin hiện ngay (Mcp → Realtime `/rt/internal/chat-message`) + bong bóng 💬 trên đầu bot; cảnh báo `chat_spam`. Migration `ChatByBot`. Build / test / `bun run build` ✔, `bot-chat-e2e.ts` 30/30. 4 điểm (kênh, ai dùng, tự mở 1-1, hạn mức) là phương án an toàn tôi tự chọn — **chờ chủ dự án xác nhận**. Chi tiết [office-bots.md](business/office-bots.md#tin-nhắn-của-bot).
 
+> **2026-11-11 (chưa commit)** — Đội agent tự phối hợp qua bảng việc: (1) token không bao giờ duyệt, ≤ 20 việc / ngày, chuỗi bot ≤ 10, @mã-nhân-viên; (2) webhook cá nhân ký HMAC (thông báo + tin 1-1), khung Webhook ở `/ai-access`; (3) việc phụ thuộc + "Sẵn sàng". Migration `Webhooks` (Notification) + `TaskDependencies` (Projects). Build / test / `bun run build` ✔, `agent-team-e2e.ts` 46/46, `projects-workflow-e2e.ts` 84/84. Các mức (20 / 10 / người duyệt) là đề xuất của tôi — **chờ chủ dự án xác nhận**. Chi tiết [agent-team.md](business/agent-team.md).
+
 ## Quyết định đã chốt gần đây (đừng hỏi / đề xuất lại)
 
 - Nhân vật 3D: chưa chọn = **một mẫu chung**; model miễn phí (Quaternius CC0); HR **không** khoá trang phục.

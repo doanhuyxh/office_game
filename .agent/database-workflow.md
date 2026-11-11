@@ -28,6 +28,8 @@ Quỹ phép **không lưu**: tính khi đọc ([business/leave.md](business/leav
 
 `preferences` (migration `AddNotificationPreferences`): PK `UserId`, `EmailEnabled`, `UpdatedAt` — tuỳ chọn tắt email thông báo; không có dòng = nhận email.
 
+`webhooks` + `webhook_deliveries` (migration `Webhooks`, 2026-11-11): PK `UserId`, `Url`, `SecretEncrypted`, `Enabled`, `ConsecutiveFailures`, `Last*`; hàng đợi `Event`, `DataJson` (jsonb), `Status` (`Pending`/`Sent`/`Failed`), `Attempts`, `NextAttemptAt` (index lọc Pending), (`UserId`,`CreatedAt`) — [business/agent-team.md](business/agent-team.md).
+
 Một dòng cho mỗi người nhận. Chỉ module Notification ghi; `EmailDispatcher` cập nhật cột `Email*`. Chưa có job xoá thông báo cũ ([business/notifications.md](business/notifications.md)).
 
 ## Schema `contracts` — `ContractsDbContext` (migration `InitialContracts`, `ContractTemplates`, `SignRequests`, `ProbationReminders`)

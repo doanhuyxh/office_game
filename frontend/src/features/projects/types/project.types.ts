@@ -42,12 +42,18 @@ export interface ITask {
   createdByBot: boolean;
   /** Link ảnh / video (http/https). */
   mediaLinks: string[];
+  /** Số việc phải chờ chưa xong (0 = bắt đầu được). */
+  waitingOn?: number;
 }
+/** Việc liên quan (phải chờ / đang chặn). */
+export interface ITaskRef { id: string; code: string; title: string; done: boolean }
 export interface IComment { id: string; content: string; authorName: string; createdAt: string; byBot: boolean }
-export type TaskActivityKind = 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited';
+export type TaskActivityKind = 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited' | 'Depends';
 export interface ITaskActivity { id: string; kind: TaskActivityKind; from: string | null; to: string | null; note: string | null; actorName: string; byBot: boolean; at: string }
 /** GET /tasks/{id}: việc + bình luận + lịch sử. canApprove = được chuyển vào / kéo lùi ra cột cần người duyệt. */
-export interface ITaskDetail { task: ITask; comments: IComment[]; activities: ITaskActivity[]; sequential: boolean; canApprove: boolean; columns: ITaskColumn[] }
+export interface ITaskDetail { task: ITask; comments: IComment[]; activities: ITaskActivity[]; sequential: boolean; canApprove: boolean; columns: ITaskColumn[];
+  /** Việc phải xong trước / việc đang chờ việc này. */
+  dependsOn?: ITaskRef[]; blocks?: ITaskRef[] }
 export interface IEffortCell { employeeId: string; month: string; presentDays: number; percent: number; explicit: boolean; manDays: number }
 export interface IEffort {
   months: string[]; members: IMember[]; cells: IEffortCell[]; totalManDays: number; budgetManDays: number | null;

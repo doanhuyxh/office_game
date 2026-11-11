@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OfficeHub.BuildingBlocks.Modules;
 using OfficeHub.BuildingBlocks.Persistence;
+using OfficeHub.BuildingBlocks.Security;
 using OfficeHub.Modules.Notification.Contracts;
 using OfficeHub.Modules.Notification.Features;
 using OfficeHub.Modules.Notification.Infrastructure;
@@ -22,11 +23,21 @@ public sealed class NotificationModule : IModule
         services.AddOptions<FirebaseSettings>().Bind(config.GetSection(FirebaseSettings.Section));
         services.AddScoped<IPushSender, PushSender>();
         services.AddScoped<INotifier, Notifier>();
+        services.AddFieldEncryption(config); // khoá ký webhook lưu mã hoá
+        services.AddScoped<IWebhookPublisher, WebhookPublisher>();
+        services.AddHttpClient(WebhookDispatcher.ClientName)
+            .ConfigurePrimaryHttpMessageHandler(sp => WebhookDispatcher.CreateHandler(
+                allowPrivate: sp.GetRequiredService<Microsoft.Extensions.Hosting.IHostEnvironment>().EnvironmentName == "Development"));
         services.AddScoped<IEmailOutbox, EmailOutbox>(); // trang Hệ thống → Vận hành
         services.AddHostedService<NotificationMigrator>(); // trước EmailDispatcher: bảng phải có trước khi worker quét
         services.AddHostedService<EmailDispatcher>();
+        services.AddHostedService<WebhookDispatcher>();
     }
 
-    public void MapEndpoints(IEndpointRouteBuilder api) =>
-        NotificationEndpoints.Map(api.MapGroup("/notifications").WithTags("Notification").RequireAuthorization());
+    public void MapEndpoints(IEndpointRouteBuilder api)
+    {
+        var g = api.MapGroup("/notifications").WithTags("Notification").RequireAuthorization();
+        NotificationEndpoints.Map(g);
+        WebhookEndpoints.Map(g.MapGroup("/webhook"));
+    }
 }

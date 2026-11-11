@@ -23,6 +23,7 @@ import { TOKEN_STATUS } from '../../utils/labels';
 import { ActivityTable } from '../activity-table';
 import { ConnectGuide } from '../connect-guide';
 import { CreateTokenDialog } from '../create-token-dialog';
+import { WebhookCard } from '../webhook-card';
 import { useTabParam } from '@/hooks/useTabParam';
 
 const CAN = [
@@ -109,6 +110,8 @@ function MyTab({ onCreate, newToken }: { onCreate: () => void; newToken: string 
       </div>
 
       <ConnectGuide newToken={newToken} />
+
+      <WebhookCard />
 
       <Card>
         <CardHeader>

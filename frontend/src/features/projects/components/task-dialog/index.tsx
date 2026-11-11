@@ -18,6 +18,7 @@ import { useProjectMutation, useTaskDetail } from '../../hooks/useProjects';
 import type { IMember, IMilestone, ITask, ITaskActivity, ITaskColumn, ITaskRequest } from '../../types/project.types';
 import { ACTIVITY_LABEL, createColumns, needsMoveNote, stateLabel } from '../../utils/labels';
 import { isHttpUrl } from '../../utils/media';
+import { TaskDependencies } from '../task-dependencies';
 import { TaskMedia } from '../task-media';
 
 const fmtTime = (iso: string) => new Date(iso).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -29,7 +30,8 @@ function ActivityLine({ a }: { a: ITaskActivity }) {
   const change = a.kind === 'Moved' ? `${stateLabel(a.from) || '—'} → ${stateLabel(a.to) || '—'}`
     : a.kind === 'Created' ? `(${stateLabel(a.to)})`
     : a.kind === 'Assigned' ? `${a.from ?? 'chưa giao'} → ${a.to ?? 'chưa giao'}`
-    : a.kind === 'DueChanged' ? `${fmtDay(a.from)} → ${fmtDay(a.to)}` : '';
+    : a.kind === 'DueChanged' ? `${fmtDay(a.from)} → ${fmtDay(a.to)}`
+    : a.kind === 'Depends' ? `${a.from ?? 'không'} → ${a.to ?? 'không'}` : '';
   return (
     <li className="text-xs" data-testid="task-activity">
       <span className="font-medium">{a.actorName}</span>{a.byBot && <BotBadge className="ml-1" />} {ACTIVITY_LABEL[a.kind]} {change}
@@ -147,6 +149,9 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
             {canWork && <Button type="submit" disabled={save.isPending}>Lưu</Button>}
           </DialogFooter>
         </form>
+        {task && detail && (
+          <TaskDependencies projectId={projectId} taskId={task.id} dependsOn={detail.dependsOn ?? []} blocks={detail.blocks ?? []} canWork={canWork} />
+        )}
         {task && (
           <div className="grid gap-2 border-t pt-3">
             <div className="text-sm font-medium">Bình luận ({comments.length})</div>

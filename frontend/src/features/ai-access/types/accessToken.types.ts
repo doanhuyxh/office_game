@@ -81,3 +81,28 @@ export interface IAuthorizeError {
   message: string;
   redirectTo: string | null;
 }
+
+/** Một lần gửi webhook (WebhookDeliveryDto, module Notification). */
+export interface IWebhookDelivery {
+  id: string;
+  event: string;
+  status: 'Pending' | 'Sent' | 'Failed';
+  attempts: number;
+  responseStatus: number | null;
+  error: string | null;
+  createdAt: string;
+  sentAt: string | null;
+}
+
+/** Webhook cá nhân (WebhookDto): configured = false → chưa đặt. */
+export interface IWebhook {
+  configured: boolean;
+  url: string | null;
+  enabled: boolean;
+  createdAt: string | null;
+  lastSuccessAt: string | null;
+  lastFailureAt: string | null;
+  lastError: string | null;
+  consecutiveFailures: number;
+  recent: IWebhookDelivery[];
+}

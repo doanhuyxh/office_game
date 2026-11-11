@@ -96,6 +96,7 @@ public static class AccessTokenAuth
         ("PUT", Exact($"/api/projects/tasks/{Id}")),
         ("POST", Exact($"/api/projects/{Id}/tasks")),
         ("POST", Exact($"/api/projects/tasks/{Id}/(move|comments)")),
+        ("PUT", Exact($"/api/projects/tasks/{Id}/dependencies")), // việc phải chờ (2026-11-11, đội agent chuyền việc)
         // Phòng ban (HR — Api tự yêu cầu AuthPolicies.Hr): tạo / sửa / xoá mềm.
         ("POST", Exact("/api/org/departments/?")),
         ("PUT", Exact($"/api/org/departments/{Id}")),
