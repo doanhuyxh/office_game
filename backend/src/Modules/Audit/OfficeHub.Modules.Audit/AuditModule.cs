@@ -35,6 +35,7 @@ public sealed class AuditModule : IModule
         var g = api.MapGroup("/audit").WithTags("Audit").RequireAuthorization();
         g.MapGet("/_status", () => TypedResults.Ok(new { module = "Audit", status = "nhật ký AI" }));
         AiRequestEndpoints.Map(g);
+        AiUsageEndpoints.Map(g);
         ChangeEndpoints.Map(g);
     }
 }

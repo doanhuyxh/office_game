@@ -17,6 +17,8 @@ import { useLeavePayoutPage, useOvertimePayPage } from '../../hooks/useReports';
 import { days, hours } from '../../utils/labels';
 import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';
 import { useTabParam } from '@/hooks/useTabParam';
+import { hasRole, useMe } from '@/features/auth';
+import { AiUsageTab } from '../ai-usage-tab';
 
 function MonthPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return <Input type="month" value={value} onChange={(e) => e.target.value && onChange(e.target.value)} className="w-44" aria-label="Chọn tháng" />;
@@ -199,21 +201,28 @@ function LeavePayoutTab() {
   );
 }
 
-/** Báo cáo (HR): bảng công tháng, tiền tăng ca, phép năm — xem trên web và xuất Excel. */
+/**
+ * Báo cáo: bảng công tháng, tiền tăng ca, phép năm (xem trên web + Excel), sử dụng trợ lý AI.
+ * HR / admin: mọi tab. Quản lý: Bảng công + Trợ lý AI (bản thân + cấp dưới — back-end giới hạn).
+ */
 export function ReportsPage() {
-  const [tab, setTab] = useTabParam('timesheet', ['timesheet', 'overtime', 'leave']);
+  const { data: me } = useMe();
+  const isHr = hasRole(me, 'admin', 'hr');
+  const [tab, setTab] = useTabParam('timesheet', isHr ? ['timesheet', 'overtime', 'leave', 'ai'] : ['timesheet', 'ai']);
   return (
     <div className="grid grid-cols-1 gap-6">
       <PageHeader title="Báo cáo" />
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="timesheet">Bảng công</TabsTrigger>
-          <TabsTrigger value="overtime">Tiền tăng ca</TabsTrigger>
-          <TabsTrigger value="leave">Phép năm</TabsTrigger>
+          {isHr && <TabsTrigger value="overtime">Tiền tăng ca</TabsTrigger>}
+          {isHr && <TabsTrigger value="leave">Phép năm</TabsTrigger>}
+          <TabsTrigger value="ai">Trợ lý AI</TabsTrigger>
         </TabsList>
         <TabsContent value="timesheet" className="pt-2"><TimesheetTab /></TabsContent>
-        <TabsContent value="overtime" className="pt-2"><OvertimePayTab /></TabsContent>
-        <TabsContent value="leave" className="pt-2"><LeavePayoutTab /></TabsContent>
+        {isHr && <TabsContent value="overtime" className="pt-2"><OvertimePayTab /></TabsContent>}
+        {isHr && <TabsContent value="leave" className="pt-2"><LeavePayoutTab /></TabsContent>}
+        <TabsContent value="ai" className="pt-2"><AiUsageTab /></TabsContent>
       </Tabs>
     </div>
   );

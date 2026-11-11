@@ -79,6 +79,7 @@
     <Project Path="tests/OfficeHub.Mcp.Tests/OfficeHub.Mcp.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Approval.Tests/OfficeHub.Modules.Approval.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Attendance.Tests/OfficeHub.Modules.Attendance.Tests.csproj" />
+    <Project Path="tests/OfficeHub.Modules.Audit.Tests/OfficeHub.Modules.Audit.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Chat.Tests/OfficeHub.Modules.Chat.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Assets.Tests/OfficeHub.Modules.Assets.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Finance.Tests/OfficeHub.Modules.Finance.Tests.csproj" />

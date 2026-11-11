@@ -80,3 +80,63 @@ export interface IOvertimePayPage extends IPaged<IOvertimePayRow> {
 export interface ILeavePayoutPage extends IPaged<ILeavePayoutRow> {
   due: ILeavePayoutRow[];
 }
+
+// ---------- Sử dụng trợ lý AI (module Audit: /api/audit/ai-usage) ----------
+
+export type AiUsageKind = 'tool' | 'api';
+export type AiUsageSort = 'total' | 'writes' | 'errors' | 'blocked' | 'ips' | 'last' | 'name';
+
+/** Bộ lọc chung: from / to = yyyy-MM-dd (lịch VN). */
+export interface IAiUsageFilter {
+  from: string;
+  to: string;
+  departmentId?: string | null;
+  client?: string | null;
+  kind?: AiUsageKind | null;
+}
+
+/** Khớp AiUsageSummary. errors = status ≥ 400 trừ bị chặn; blocked = 403 + 429. */
+export interface IAiUsageSummary {
+  total: number;
+  users: number;
+  writes: number;
+  errors: number;
+  blocked: number;
+  avgDurationMs: number;
+  lastAt: string | null;
+}
+
+export interface IAiUsageDay { date: string; total: number; errors: number; blocked: number }
+/** tool null = gọi API trực tiếp bằng token. errors = mọi status ≥ 400. */
+export interface IAiUsageTool { tool: string | null; total: number; errors: number; users: number }
+export interface IAiUsageClient { clientName: string; total: number; users: number }
+export interface IAiUsageIp { ip: string; total: number; lastAt: string }
+
+export interface IAiUsageReport {
+  from: string;
+  to: string;
+  summary: IAiUsageSummary;
+  daily: IAiUsageDay[];
+  byTool: IAiUsageTool[];
+  byClient: IAiUsageClient[];
+  /** Chỉ khi lọc một người. */
+  ips: IAiUsageIp[] | null;
+}
+
+export interface IAiUsageUserRow {
+  userId: string;
+  fullName: string | null;
+  userName: string | null;
+  employeeCode: string | null;
+  departmentName: string | null;
+  isBot: boolean;
+  total: number;
+  writes: number;
+  errors: number;
+  blocked: number;
+  ips: number;
+  topClient: string | null;
+  lastAt: string;
+}
+
+export type IAiUsageUsersPage = IPaged<IAiUsageUserRow>;

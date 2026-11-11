@@ -3,6 +3,11 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\OfficeHub.BuildingBlocks\OfficeHub.BuildingBlocks.csproj" />
     <ProjectReference Include="..\..\Identity\OfficeHub.Modules.Identity.Contracts\OfficeHub.Modules.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\Organization\OfficeHub.Modules.Organization.Contracts\OfficeHub.Modules.Organization.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="OfficeHub.Modules.Audit.Tests" />
   </ItemGroup>
 
   <PropertyGroup>

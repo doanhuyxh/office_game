@@ -33,6 +33,6 @@ Tháng sai định dạng → 400 `month`. Excel tạo bằng ClosedXML (`Infras
 
 ## FE
 
-- `/reports` (admin / hr): tab Bảng công (dùng lại `ReportTable` của attendance + nút Excel), Tiền tăng ca, Phép năm (khối "Cần thanh toán khi nghỉ việc").
+- `/reports` (admin / hr / **manager**): quản lý chỉ thấy tab Bảng công + Trợ lý AI. Tab **Trợ lý AI** (`AiUsageTab`; dữ liệu từ module Audit — [mcp-oauth.md](mcp-oauth.md#nhật-ký-ai-module-audit-schema-audit)): bộ lọc khoảng ngày / phòng ban (HR) / ứng dụng / loại, ô số liệu, cột theo ngày (CSS), bảng theo nhân viên (bấm tiêu đề để sắp xếp, bấm dòng → sheet chi tiết + nhật ký), thao tác + ứng dụng. Tab HR: Bảng công (dùng lại `ReportTable` của attendance + nút Excel), Tiền tăng ca, Phép năm (khối "Cần thanh toán khi nghỉ việc").
 - Trang Chấm công, tab báo cáo của quản lý: nút "Xuất Excel" (`/api/reports/timesheet.xlsx`).
 - Trang Nghỉ phép, thẻ cuối năm: "Quy ra tiền khi nghỉ việc" + số tiền ước tính (`useMyLeavePayout`).
