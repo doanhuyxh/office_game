@@ -23,8 +23,8 @@ export const accessTokenApi = {
   grants: () => http<IGrant[]>('/api/oauth/grants'),
   revokeGrant: (id: string) => http<void>(`/api/oauth/grants/${id}`, { method: 'DELETE' }),
   connectionsPage: (q: IPageQuery) => http<IPaged<IAiConnection>>(`/api/auth/ai-connections?${pageQs(q)}`),
-  activityPage: (userId: string | null | undefined, q: IPageQuery) =>
-    http<IPaged<IAiRequest>>(`/api/audit/ai-requests?${pageQs(q)}${userId ? `&userId=${userId}` : ''}`),
+  activityPage: (userId: string | null | undefined, all: boolean | undefined, q: IPageQuery) =>
+    http<IPaged<IAiRequest>>(`/api/audit/ai-requests?${pageQs(q)}${all ? '&all=true' : ''}${all && userId ? `&userId=${userId}` : ''}`),
   authorizeInfo: (p: OAuthParams) => http<IAuthorizeInfo>(`/api/oauth/authorize?${new URLSearchParams(p)}`),
   authorize: (p: OAuthParams, approve: boolean) => httpPost<{ redirectTo: string }>('/api/oauth/authorize', { ...p, approve }),
 };

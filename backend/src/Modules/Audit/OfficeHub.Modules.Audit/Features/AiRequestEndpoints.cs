@@ -14,13 +14,13 @@ namespace OfficeHub.Modules.Audit.Features;
 public sealed record AiRequestDto(Guid Id, DateTimeOffset OccurredAt, Guid UserId, string? UserName, string? FullName, string ClientName,
     bool ViaOAuth, string? Tool, string Method, string Path, int Status, int DurationMs, string? Ip = null);
 
-/// <summary>Nhật ký thao tác của trợ lý AI. Nhân viên: của mình; HR: mọi người (lọc userId). Token AI không đọc được (không có trong danh sách cho phép).</summary>
+/// <summary>Nhật ký thao tác của trợ lý AI. Mặc định: của mình (kể cả HR); HR + <c>all=true</c>: mọi người (lọc userId). Token AI không đọc được (không có trong danh sách cho phép).</summary>
 internal static class AiRequestEndpoints
 {
     public static void Map(RouteGroupBuilder g) => g.MapGet("/ai-requests", ListAsync);
 
     /// <summary>Có <c>page</c> → trang (COUNT + OFFSET/LIMIT); không → <c>take</c> dòng mới nhất (phân trang lùi bằng <c>before</c>).</summary>
-    private static async Task<Results<Ok<List<AiRequestDto>>, Ok<PagedResult<AiRequestDto>>, ValidationProblem, ProblemHttpResult>> ListAsync(Guid? userId,
+    private static async Task<Results<Ok<List<AiRequestDto>>, Ok<PagedResult<AiRequestDto>>, ValidationProblem, ProblemHttpResult>> ListAsync(Guid? userId, bool? all,
         string? before, int? take, int? page, int? pageSize, ClaimsPrincipal user, AuditDbContext db, IAccountService accounts, CancellationToken ct)
     {
         if (user.IsAccessToken()) return TypedResults.Problem("Chỉ xem khi đăng nhập trên web", statusCode: StatusCodes.Status403Forbidden);
@@ -32,7 +32,7 @@ internal static class AiRequestEndpoints
             cursor = c;
         }
         var me = user.GetUserId()!.Value;
-        var filterUser = user.IsHr() ? userId : me;
+        var filterUser = all == true && user.IsHr() ? userId : me; // không có all → luôn chỉ của mình
 
         var q = db.AiRequests.AsNoTracking();
         if (filterUser is { } uid) q = q.Where(x => x.UserId == uid);

@@ -11,7 +11,7 @@ export const useAiConnectionsPage = (q: IPageQuery, enabled = true) =>
 export const useAiActivityPage = (opts: { all?: boolean; userId?: string | null; query: IPageQuery }) =>
   useQuery({
     queryKey: accessTokenKeys.activityPage(opts.all ? opts.userId : null, opts.all, opts.query),
-    queryFn: () => accessTokenApi.activityPage(opts.all ? opts.userId : null, opts.query),
+    queryFn: () => accessTokenApi.activityPage(opts.all ? opts.userId : null, opts.all, opts.query),
     refetchInterval: 30_000,
     placeholderData: (prev) => prev,
   });
