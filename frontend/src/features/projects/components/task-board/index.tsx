@@ -115,6 +115,7 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
           {columns.some((c) => c.approverOnly) && `${p.sequential ? ' ·' : ''} chỉ quản lý dự án chuyển sang ${columns.filter((c) => c.approverOnly).map((c) => `"${c.name}"`).join(', ')}`}.
         </span>}
         {manage && <span className="text-xs text-muted-foreground">Kéo tiêu đề cột để đổi thứ tự.</span>}
+        {manage && <Button size="sm" variant="outline" className="ml-auto" onClick={() => setColEdit(null)}><Plus /> Thêm trạng thái</Button>}
       </div>
       <div ref={board.ref} style={board.height ? { '--board-h': `${board.height}px` } as CSSProperties : undefined}
         className="flex gap-3 overflow-x-auto pb-2 xl:h-(--board-h)">
