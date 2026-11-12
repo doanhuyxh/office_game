@@ -65,8 +65,7 @@ public sealed class IdentityModule : IModule
         // Bộ đếm đăng nhập sai + hạn mức email quên mật khẩu: lưu DB (TEST-27, bảng identity.attempt_counters)
         services.AddScoped<IAttemptStore, DbAttemptStore>();
         services.AddScoped<LoginThrottle>();
-        services.AddSingleton<PasswordResetMailer>();
-        services.AddHostedService(sp => sp.GetRequiredService<PasswordResetMailer>());
+        services.AddHostedService<PasswordResetMailer>(); // hàng đợi DB identity.password_reset_requests (TEST-28)
         // /api/oauth/register, /token, /revoke được gọi từ máy chủ / trình duyệt của ứng dụng AI (không cookie).
         services.AddCors(o => o.AddPolicy(OAuthEndpoints.CorsPolicy, p => p.AllowAnyOrigin().AllowAnyHeader().WithMethods("POST")));
 

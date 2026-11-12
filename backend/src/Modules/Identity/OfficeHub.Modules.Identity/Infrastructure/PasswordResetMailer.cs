@@ -1,4 +1,4 @@
-using System.Threading.Channels;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,30 +10,67 @@ using OfficeHub.Modules.Identity.Domain;
 namespace OfficeHub.Modules.Identity.Infrastructure;
 
 /// <summary>
-/// Gửi email quên mật khẩu ở nền (TEST-20): <c>/auth/forgot-password</c> trả 204 ngay, không chờ SMTP → thời gian phản hồi như nhau
-/// dù email có tài khoản hay không. Hàng đợi trong RAM (tối đa 100, đầy thì bỏ) — mất khi khởi động lại, người dùng bấm gửi lại.
+/// Gửi email quên mật khẩu ở nền (TEST-20, TEST-28): <c>/auth/forgot-password</c> chỉ ghi một dòng <see cref="PasswordResetRequest"/> rồi trả 204 ngay
+/// (thời gian phản hồi như nhau dù email có tài khoản hay không). Job lấy dòng đến hạn bằng <c>FOR UPDATE SKIP LOCKED</c> (nhiều instance không
+/// gửi trùng), lúc đó mới tạo token + gửi; SMTP lỗi → thử lại sau 1 / 5 / 15 phút; quá 1 giờ (link hết hạn) hoặc 4 lần → bỏ. Không mất khi khởi động lại.
 /// </summary>
-public sealed class PasswordResetMailer(IServiceScopeFactory scopes, ILogger<PasswordResetMailer> log) : BackgroundService
+public sealed class PasswordResetMailer(IServiceScopeFactory scopes, TimeProvider clock, ILogger<PasswordResetMailer> log) : BackgroundService
 {
-    private readonly Channel<Guid> _queue = Channel.CreateBounded<Guid>(new BoundedChannelOptions(100) { FullMode = BoundedChannelFullMode.DropWrite });
+    private static readonly TimeSpan Tick = TimeSpan.FromSeconds(3);
+    /// <summary>Đang gửi thì đẩy hạn lên chừng này (instance gửi chết giữa chừng → dòng tự hiện lại).</summary>
+    private static readonly TimeSpan Lease = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan[] Backoff = [TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(15)];
+    public const int MaxAttempts = 4;
 
-    public bool Enqueue(Guid userId) => _queue.Writer.TryWrite(userId);
-
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task ExecuteAsync(CancellationToken stop)
     {
-        await foreach (var userId in _queue.Reader.ReadAllAsync(stoppingToken))
+        using var timer = new PeriodicTimer(Tick);
+        do
         {
+            try { await RunOnceAsync(stop); }
+            catch (Exception ex) when (!stop.IsCancellationRequested) { log.LogError(ex, "Lỗi hàng đợi email quên mật khẩu"); }
+        } while (await timer.WaitForNextTickAsync(stop));
+    }
+
+    public async Task<int> RunOnceAsync(CancellationToken ct)
+    {
+        using var scope = scopes.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<OfficeIdentityDbContext>();
+        var now = clock.GetUtcNow();
+        // Dọn: yêu cầu > 1 giờ (link đặt lại đã hết hạn) mà chưa gửi được → bỏ; dòng đã xong > 1 ngày → xoá.
+        await db.PasswordResetRequests.Where(r => r.NextAttemptAt != null && r.CreatedAt < now - PasswordResetTokens.ResetLifetime)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.NextAttemptAt, (DateTimeOffset?)null).SetProperty(r => r.Error, "Bỏ: quá hạn link 1 giờ"), ct);
+        await db.PasswordResetRequests.Where(r => r.NextAttemptAt == null && r.CreatedAt < now.AddDays(-1)).ExecuteDeleteAsync(ct);
+
+        // Nhận việc: đẩy hạn các dòng đến hạn lên (Lease) trong cùng câu lệnh → instance khác không lấy trùng.
+        var leaseUntil = now + Lease;
+        var claimed = await db.Database.SqlQuery<Guid>($"""
+            UPDATE identity.password_reset_requests SET "NextAttemptAt" = {leaseUntil}
+            WHERE "Id" IN (SELECT "Id" FROM identity.password_reset_requests WHERE "NextAttemptAt" <= {now}
+                           ORDER BY "NextAttemptAt" LIMIT 10 FOR UPDATE SKIP LOCKED)
+            RETURNING "Id" AS "Value"
+            """).ToListAsync(ct);
+        foreach (var id in claimed)
+        {
+            var r = await db.PasswordResetRequests.FirstAsync(x => x.Id == id, ct);
+            r.Attempts++;
             try
             {
-                using var scope = scopes.CreateScope();
                 var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
-                var user = await users.FindByIdAsync(userId.ToString());
+                var user = await users.FindByIdAsync(r.UserId.ToString());
                 if (user is { IsActive: true, Email: not null })
-                    await scope.ServiceProvider.GetRequiredService<AccountService>().SendLinkAsync(user, invite: false, stoppingToken);
+                    await scope.ServiceProvider.GetRequiredService<AccountService>().SendLinkAsync(user, invite: false, ct);
+                (r.SentAt, r.NextAttemptAt, r.Error) = (clock.GetUtcNow(), null, null);
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
-            catch (Exception ex) { log.LogError(ex, "Gửi email quên mật khẩu thất bại"); }
+            catch (Exception ex) when (!ct.IsCancellationRequested)
+            {
+                r.Error = ex.Message.Length > 500 ? ex.Message[..500] : ex.Message;
+                r.NextAttemptAt = r.Attempts >= MaxAttempts ? null : clock.GetUtcNow() + Backoff[Math.Min(r.Attempts - 1, Backoff.Length - 1)];
+                log.LogWarning("Gửi email quên mật khẩu lỗi (lần {Attempt}/{Max}): {Error}", r.Attempts, MaxAttempts, r.Error);
+            }
+            await db.SaveChangesAsync(ct);
         }
+        return claimed.Count;
     }
 }
 

@@ -465,6 +465,42 @@ namespace OfficeHub.Modules.Identity.Infrastructure.Migrations
                     b.ToTable("oauth_grants", "identity");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Identity.Domain.PasswordResetRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset?>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NextAttemptAt")
+                        .HasDatabaseName("ix_password_reset_requests_next");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_password_reset_requests_user");
+
+                    b.ToTable("password_reset_requests", "identity");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Identity.Domain.UserAvatar", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -570,6 +606,15 @@ namespace OfficeHub.Modules.Identity.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("OfficeHub.Modules.Identity.Domain.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Identity.Domain.PasswordResetRequest", b =>
+                {
                     b.HasOne("OfficeHub.Modules.Identity.Domain.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")

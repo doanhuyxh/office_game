@@ -27,17 +27,23 @@ internal static class PasswordEndpoints
     public const int ForgotPerEmailPerHour = 3;
 
     /// <summary>
-    /// Luôn trả 204 NGAY (không tiết lộ email có tồn tại hay không): email gửi ở nền qua <see cref="PasswordResetMailer"/>, nên thời gian
+    /// Luôn trả 204 NGAY (không tiết lộ email có tồn tại hay không): email gửi ở nền qua hàng đợi DB (<see cref="PasswordResetMailer"/>), nên thời gian
     /// phản hồi không phụ thuộc SMTP. Quá <see cref="ForgotPerEmailPerHour"/> lần / giờ cho cùng địa chỉ → vẫn 204 nhưng không gửi.
     /// </summary>
     private static async Task<NoContent> ForgotAsync(ForgotPasswordRequest req, UserManager<AppUser> users,
-        PasswordResetMailer mailer, IAttemptStore counter, CancellationToken ct)
+        OfficeIdentityDbContext db, IAttemptStore counter, TimeProvider clock, CancellationToken ct)
     {
         var email = (req.Email ?? "").Trim();
         if (email.Length == 0 || await counter.HitAsync("forgot|" + email.ToLowerInvariant(), TimeSpan.FromHours(1), ct) > ForgotPerEmailPerHour)
             return TypedResults.NoContent();
         var user = await users.FindByEmailAsync(email);
-        if (user is { IsActive: true, Email: not null }) mailer.Enqueue(user.Id);
+        // Ghi yêu cầu vào hàng đợi DB (TEST-28) — job PasswordResetMailer tạo token + gửi. Chống spam = hạn mức 3 / địa chỉ / giờ ở trên.
+        if (user is { IsActive: true, Email: not null })
+        {
+            var now = clock.GetUtcNow();
+            db.PasswordResetRequests.Add(new PasswordResetRequest { UserId = user.Id, CreatedAt = now, NextAttemptAt = now });
+            await db.SaveChangesAsync(ct);
+        }
         return TypedResults.NoContent();
     }
 

@@ -69,3 +69,5 @@ Chat dùng lại `playNotificationSound` + công tắc âm này cho tin nhắn m
 **Webhook cá nhân** (2026-11-11): mọi chuông + tin 1-1 → POST ký HMAC tới URL của tài khoản (đánh thức agent) — [agent-team.md](agent-team.md#2-webhook-cá-nhân-module-notification--đánh-thức-agent).
 
 **Chưa có:** tắt email theo từng nhóm (category), đẩy realtime (SignalR), gom email (digest), xoá thông báo cũ.
+
+> Email quên mật khẩu **không** đi qua hàng đợi này (TEST-28): link chứa token bí mật, không được lưu vào bảng `notifications` / hiện ở chuông → Identity có hàng đợi riêng `identity.password_reset_requests` ([auth-sessions.md](auth-sessions.md)).

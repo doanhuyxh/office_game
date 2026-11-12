@@ -17,6 +17,7 @@ public sealed class OfficeIdentityDbContext(DbContextOptions<OfficeIdentityDbCon
     public DbSet<OAuthGrant> OAuthGrants => Set<OAuthGrant>();
     public DbSet<UserAvatar> UserAvatars => Set<UserAvatar>();
     public DbSet<AttemptCounterRow> AttemptCounters => Set<AttemptCounterRow>();
+    public DbSet<PasswordResetRequest> PasswordResetRequests => Set<PasswordResetRequest>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -74,6 +75,15 @@ public sealed class OfficeIdentityDbContext(DbContextOptions<OfficeIdentityDbCon
             c.HasKey(x => x.Key);
             c.Property(x => x.Key).HasMaxLength(300);
             c.HasIndex(x => x.Until).HasDatabaseName("ix_attempt_counters_until"); // dọn dòng hết hạn
+        });
+
+        b.Entity<PasswordResetRequest>(r =>
+        {
+            r.ToTable("password_reset_requests");
+            r.Property(x => x.Error).HasMaxLength(500);
+            r.HasIndex(x => x.NextAttemptAt).HasDatabaseName("ix_password_reset_requests_next");
+            r.HasIndex(x => x.UserId).HasDatabaseName("ix_password_reset_requests_user");
+            r.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<UserAvatar>(a =>
