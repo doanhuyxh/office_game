@@ -102,6 +102,10 @@ Bảng + index + seed: [business/finance.md](business/finance.md#schema-finance-
 
 Bảng tin nội bộ: `posts` (`Seq` identity = con trỏ feed, `ContentHtml` đã lọc + `PlainText`, `Audience`, `PinnedUntil`, `HiddenAt`, xoá mềm, `ReactionCount` / `CommentCount` denormalize), `post_targets` (phạm vi: phòng ban / người), `post_media` (ảnh / video / tệp trên S3 `feed/`), `comments` (trả lời **một cấp**, ảnh tuỳ chọn, xoá mềm), `reactions` (`(TargetType, TargetId, UserId)` — mỗi người một cảm xúc), `mentions`, `feed_states` (badge bài mới), `upload_tickets`. Cột `AuthorUserId` → `identity.users.Id`, `post_targets.TargetId` → `org.departments.Id` / `identity.users.Id` (**không** FK chéo schema). Quy tắc + API: [business/news.md](business/news.md).
 
+## Schema `settings` — `SettingsDbContext` (migration `InitialSettings`, TEST-41)
+
+`system_settings`: một dòng / nhóm cấu hình (PK `Group` = `s3` / `smtp` / `fcm` / `office_ips`), `Name`, `ValuesJson` (jsonb, trường thường khoá camelCase), `SecretsEncrypted` (JSON {khoá: giá trị} của trường bí mật, `IFieldEncryptor` — job xoay khoá có khai báo cột), `UpdatedAt`, `UpdatedById`, `UpdatedByName`; `[Audited]` (bí mật chỉ ghi "đã đổi"). **Có dòng = dùng DB, không có = `.env`.** Đọc qua `RuntimeConfig` (BuildingBlocks, cache 30 giây, lưu / xoá → xoá cache). Module `OfficeHub.Modules.Settings`; API ở [routes.md](routes.md).
+
 ## Schema `audit`, `meetings`, …
 
 Xem [database-workflow.md](database-workflow.md).

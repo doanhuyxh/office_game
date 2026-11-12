@@ -61,7 +61,7 @@ DbContext hiện có: `OfficeIdentityDbContext`, `OrgDbContext`, `AttendanceDbCo
 
 ## Biến môi trường
 
-Bảng đầy đủ: [env.md](env.md). Dev cần `Chat__InternalKey` trong `.env` (Api và Realtime cùng giá trị; `openssl rand -base64 32`). Tuỳ chọn tách theo chiều gọi: `Chat__McpToRealtimeKey`, `Chat__RealtimeToApiKey` ([env.md](env.md)).
+Bảng đầy đủ: [env.md](env.md). S3 (file nghiệp vụ) / SMTP / FCM / IP văn phòng sửa được trên trang Hệ thống → Cấu hình và được ưu tiên hơn `.env`; biến `.env` vẫn là mặc định khi nhóm chưa lưu trong DB ([env.md](env.md#cấu-hình-lưu-trong-db-test-41)). Dev cần `Chat__InternalKey` trong `.env` (Api và Realtime cùng giá trị; `openssl rand -base64 32`). Tuỳ chọn tách theo chiều gọi: `Chat__McpToRealtimeKey`, `Chat__RealtimeToApiKey` ([env.md](env.md)).
 
 ## Địa chỉ dev
 

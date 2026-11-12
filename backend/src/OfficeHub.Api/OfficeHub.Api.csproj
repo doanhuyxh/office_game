@@ -34,6 +34,7 @@
     <ProjectReference Include="..\Modules\Organization\OfficeHub.Modules.Organization\OfficeHub.Modules.Organization.csproj" />
     <ProjectReference Include="..\Modules\Reporting\OfficeHub.Modules.Reporting\OfficeHub.Modules.Reporting.csproj" />
     <ProjectReference Include="..\Modules\LaborContracts\OfficeHub.Modules.LaborContracts\OfficeHub.Modules.LaborContracts.csproj" />
+    <ProjectReference Include="..\Modules\Settings\OfficeHub.Modules.Settings\OfficeHub.Modules.Settings.csproj" />
   </ItemGroup>
 
 </Project>

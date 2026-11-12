@@ -1,4 +1,3 @@
-using Amazon.S3;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
@@ -53,6 +52,7 @@ public static class HostingExtensions
 
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<JobMonitor>(); // trạng thái job nền cho trang Hệ thống → Vận hành
+        builder.Services.AddSingleton<RuntimeConfig>(); // cấu hình S3 / SMTP / FCM / IP văn phòng: DB (module Settings) rồi mới tới .env — TEST-41
         builder.Services.AddSingleton<OfficeNetwork>();
         // Body JSON sai (kiểu dữ liệu, thời điểm thiếu múi giờ…) → 400 ở MỌI môi trường (mặc định Development ném ra thành 500,
         // Production trả 400 không nội dung). Thông điệp tiếng Việt của Instants được giữ để FE / AI hiển thị.
@@ -90,7 +90,7 @@ public static class HostingExtensions
     public static IServiceCollection AddOfficeHubFileStorage(this IServiceCollection services, Microsoft.Extensions.Configuration.IConfiguration cfg)
     {
         services.AddValidatedOptions<S3Settings>(cfg, S3Settings.Section);
-        services.AddSingleton<IAmazonS3>(sp => S3FileStorage.CreateClient(sp.GetRequiredService<IOptions<S3Settings>>().Value));
+        services.AddSingleton<S3ClientProvider>(); // client tạo lại khi cấu hình S3 trong DB đổi
         services.AddSingleton<IFileStorage, S3FileStorage>();
         services.AddHealthChecks().AddCheck<S3Check>("s3", tags: ["ready"]);
         return services;

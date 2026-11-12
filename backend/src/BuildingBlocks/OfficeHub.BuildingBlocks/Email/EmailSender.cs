@@ -1,6 +1,5 @@
 using MailKit.Net.Smtp;
 using MailKit.Security;
-using Microsoft.Extensions.Options;
 using MimeKit;
 using OfficeHub.BuildingBlocks.Configuration;
 
@@ -11,14 +10,14 @@ public interface IEmailSender
     Task SendAsync(string toEmail, string toName, string subject, string htmlBody, CancellationToken ct = default);
 }
 
-public sealed class SmtpEmailSender(IOptions<SmtpSettings> options) : IEmailSender
+/// <summary>Gửi qua SMTP theo cấu hình đang có hiệu lực (<see cref="RuntimeConfig.Smtp"/>: DB, chưa có thì .env) — đọc lại mỗi lần gửi.</summary>
+public sealed class SmtpEmailSender(RuntimeConfig config) : IEmailSender
 {
     public static readonly TimeSpan SendTimeout = TimeSpan.FromSeconds(15);
 
-    private readonly SmtpSettings _cfg = options.Value;
-
     public async Task SendAsync(string toEmail, string toName, string subject, string htmlBody, CancellationToken ct = default)
     {
+        var _cfg = config.Smtp;
         var msg = new MimeMessage();
         msg.From.Add(new MailboxAddress(_cfg.FromName, _cfg.FromEmail));
         msg.To.Add(new MailboxAddress(toName, toEmail));

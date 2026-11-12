@@ -1,6 +1,7 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import { systemApi, systemKeys } from '../api/system.api';
+import type { ISaveSettingsRequest, ISettingsGroup, SettingsGroupKey } from '../types/system.types';
 
 export const useSystemInfo = () => useQuery({ queryKey: systemKeys.info, queryFn: systemApi.info, staleTime: 30_000 });
 /** Tab Vận hành: chỉ tải khi mở tab; tự làm mới mỗi phút khi đang mở. */
@@ -19,4 +20,20 @@ export function useStorageReport() {
   };
   const load = useCallback(() => setEnabled(true), []);
   return { ...q, load, started: enabled, rescan, rescanning };
+}
+
+/** Cấu hình hệ thống (tab Cấu hình). */
+export const useSystemSettings = () => useQuery({ queryKey: systemKeys.settings, queryFn: systemApi.settings });
+
+/** Lưu / dùng lại .env cho một nhóm: cập nhật cache nhóm đó + làm mới tab Tổng quan (tình trạng S3 / SMTP). */
+export function useSettingsMutations(group: SettingsGroupKey) {
+  const qc = useQueryClient();
+  const apply = (g: ISettingsGroup) => {
+    qc.setQueryData<ISettingsGroup[]>(systemKeys.settings, (old) => old?.map((x) => (x.group === g.group ? g : x)));
+    void qc.invalidateQueries({ queryKey: systemKeys.info });
+  };
+  const save = useMutation({ mutationFn: (body: ISaveSettingsRequest) => systemApi.saveSettings(group, body), onSuccess: apply });
+  const reset = useMutation({ mutationFn: () => systemApi.resetSettings(group), onSuccess: apply });
+  const test = useMutation({ mutationFn: () => systemApi.testSettings(group) });
+  return { save, reset, test };
 }

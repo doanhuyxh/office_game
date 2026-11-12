@@ -49,7 +49,7 @@ internal static class SystemEndpoints
             .RequireAuthorization(AuthPolicies.Admin).WithTags("System");
     }
 
-    private static async Task<SystemInfoDto> InfoAsync(IConfiguration cfg, IHostEnvironment env, IOptions<SmtpSettings> smtp,
+    private static async Task<SystemInfoDto> InfoAsync(IConfiguration cfg, IHostEnvironment env, RuntimeConfig runtime,
         IOptions<OfficeSettings> office, HealthCheckService health, TimeProvider clock, CancellationToken ct)
     {
         var dev = env.IsDevelopment();
@@ -59,7 +59,7 @@ internal static class SystemEndpoints
             return !string.IsNullOrWhiteSpace(v) ? v.Trim() : dev ? devDefault : null;
         }
         var seqEnabled = !string.IsNullOrWhiteSpace(cfg["Seq:Url"]);
-        var (mailUrl, mailNote) = MailLink(cfg["SystemTools:MailUrl"], smtp.Value.Host);
+        var (mailUrl, mailNote) = MailLink(cfg["SystemTools:MailUrl"], runtime.Smtp.Host);
         var links = new List<SystemLinkDto>
         {
             new("docs", "Tài liệu API (Scalar / OpenAPI)", DocsPath + "/",
@@ -80,7 +80,7 @@ internal static class SystemEndpoints
             e.Value.Status == HealthStatus.Healthy ? null : e.Value.Description ?? e.Value.Exception?.Message,
             Math.Round(e.Value.Duration.TotalMilliseconds))).ToList();
 
-        var s = smtp.Value;
+        var s = runtime.Smtp;
         var version = typeof(SystemEndpoints).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "?";
         return new SystemInfoDto(env.EnvironmentName, version, clock.GetUtcNow(), office.Value.TimeZone,
             new DateTimeOffset(Process.GetCurrentProcess().StartTime.ToUniversalTime(), TimeSpan.Zero),

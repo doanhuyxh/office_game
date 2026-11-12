@@ -4,6 +4,7 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Options;
 using OfficeHub.BuildingBlocks.Configuration;
+using OfficeHub.BuildingBlocks.Storage;
 using OfficeHub.BuildingBlocks.Hosting;
 using OfficeHub.Modules.Notification.Contracts;
 
@@ -31,7 +32,7 @@ public sealed record OpsReportDto(DateTimeOffset GeneratedAt, BuildInfoDto Build
 /// Tab "Vận hành" trang Hệ thống (chỉ admin): phiên bản đang chạy, bản sao lưu mới nhất trên S3 (<c>{S3__KeyPrefix}backup/db|keys/</c> ở
 /// <c>S3__BucketBackup</c>, do container backup ghi mỗi 24 giờ), hàng đợi email, job nền của tiến trình Api (<see cref="JobMonitor"/>).
 /// </summary>
-public sealed class OpsReport(IAmazonS3 s3, IOptions<S3Settings> s3Options, IOptions<OfficeSettings> office, IConfiguration cfg, IHostEnvironment env,
+public sealed class OpsReport(S3ClientProvider s3Provider, IOptions<OfficeSettings> office, IConfiguration cfg, IHostEnvironment env,
     JobMonitor jobs, TimeProvider clock, ILogger<OpsReport> log)
 {
     /// <summary>Backup chạy mỗi 24 giờ → quá 26 giờ chưa có bản mới là bất thường.</summary>
@@ -80,7 +81,8 @@ public sealed class OpsReport(IAmazonS3 s3, IOptions<S3Settings> s3Options, IOpt
     private async Task<BackupStatusDto> BackupAsync(DateTimeOffset now, CancellationToken ct)
     {
         var bucket = cfg["S3:BucketBackup"]?.Trim();
-        var keyPrefix = s3Options.Value.KeyPrefix;
+        var (s3, s3Cfg) = s3Provider.Get();
+        var keyPrefix = s3Cfg.KeyPrefix;
         var prefix = (string.IsNullOrWhiteSpace(keyPrefix) ? "" : keyPrefix.Trim().Trim('/') + "/") + "backup/";
         if (string.IsNullOrWhiteSpace(bucket))
             return new("unconfigured", null, prefix, "Chưa đặt S3__BucketBackup — container backup không có nơi ghi.", []);

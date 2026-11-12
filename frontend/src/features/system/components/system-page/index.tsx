@@ -10,11 +10,11 @@ import { StatusBadge, type StatusTone } from '@/components/common/StatusBadge';
 import { Spinner } from '@/components/feedback/Spinner';
 import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
-import { AgentLimitsCard } from '@/features/projects';
 import { useTabParam } from '@/hooks/useTabParam';
 import { formatDateTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
 import { useSystemInfo } from '../../hooks/useSystem';
+import { ConfigTab } from '../config-tab';
 import { OpsTab } from '../ops-tab';
 import { StorageCard } from '../storage-card';
 import type { IHealthItem, ISystemLink } from '../../types/system.types';
@@ -163,7 +163,7 @@ export function SystemPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Cấu hình gửi mail (SMTP)</CardTitle>
-                <CardDescription>Sửa trong <code className="rounded bg-muted px-1 text-xs">.env</code> (<code className="rounded bg-muted px-1 text-xs">Smtp__*</code>) rồi khởi động lại Api. Mật khẩu không hiển thị.</CardDescription>
+                <CardDescription>Sửa ở tab Cấu hình (có hiệu lực ngay) — chưa lưu ở đó thì lấy từ <code className="rounded bg-muted px-1 text-xs">.env</code> (<code className="rounded bg-muted px-1 text-xs">Smtp__*</code>). Mật khẩu không hiển thị.</CardDescription>
               </CardHeader>
               <CardContent>
                 <Row label="Máy chủ">{data.smtp.host}:{data.smtp.port} · {data.smtp.useSsl ? 'SSL' : 'STARTTLS / không mã hoá'}</Row>
@@ -177,7 +177,7 @@ export function SystemPage() {
 
         <TabsContent value="storage" className="mt-4"><StorageCard /></TabsContent>
         <TabsContent value="ops" className="mt-4"><OpsTab active={tab === 'ops'} /></TabsContent>
-        <TabsContent value="config" className="mt-4">{tab === 'config' && <AgentLimitsCard />}</TabsContent>
+        <TabsContent value="config" className="mt-4">{tab === 'config' && <ConfigTab />}</TabsContent>
       </Tabs>
       <EmbedDialog link={embed} onClose={() => setEmbed(null)} />
     </div>

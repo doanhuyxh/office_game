@@ -8,6 +8,7 @@ export const ENTITY_LABEL: Record<string, string> = {
   Shift: 'Ca làm', ScheduleEntry: 'Lịch tuần', Holiday: 'Ngày lễ', LeaveType: 'Loại phép', LeaveAdjustment: 'Điều chỉnh phép',
   Asset: 'Tài liệu', Project: 'Dự án', DocType: 'Loại tài liệu',
   Category: 'Loại thiết bị', Device: 'Thiết bị', Service: 'Dịch vụ', ServiceSeat: 'Tài khoản dịch vụ',
+  SystemSetting: 'Cấu hình hệ thống',
 };
 
 export const ACTION: Record<string, { label: string; tone: StatusTone }> = {
@@ -35,6 +36,7 @@ const FIELD_LABEL: Record<string, string> = {
   Url: 'Đường dẫn', SeatLimit: 'Số ghế tối đa', BillingCycle: 'Chu kỳ thanh toán', Cost: 'Chi phí mỗi kỳ', RenewalDate: 'Ngày gia hạn',
   OwnerDepartmentId: 'Phòng ban sở hữu', AdminEmployeeId: 'Người quản trị', ServiceId: 'Dịch vụ', AccountLogin: 'Tên đăng nhập',
   GrantedAt: 'Ngày cấp', RevokedAt: 'Ngày thu hồi',
+  ValuesJson: 'Giá trị cấu hình', SecretsEncrypted: 'Giá trị bí mật', UpdatedById: 'Người sửa', UpdatedByName: 'Tên người sửa',
 };
 export const fieldLabel = (f: string) => FIELD_LABEL[f] ?? f;
 

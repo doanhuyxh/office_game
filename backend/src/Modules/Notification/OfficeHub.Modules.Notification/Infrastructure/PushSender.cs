@@ -2,56 +2,90 @@ using FirebaseAdmin;
 using FirebaseAdmin.Messaging;
 using Google.Apis.Auth.OAuth2;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.Modules.Notification.Contracts;
 using FbNotification = FirebaseAdmin.Messaging.Notification;
 
 namespace OfficeHub.Modules.Notification.Infrastructure;
 
-/// <summary>Firebase Cloud Messaging — tuỳ chọn, trống <see cref="CredentialsPath"/> thì tắt push (không ảnh hưởng chuông / email).</summary>
-public sealed class FirebaseSettings
+/// <summary>
+/// FirebaseMessaging theo cấu hình FCM đang có hiệu lực (<see cref="RuntimeConfig.Fcm"/>: DB, chưa có thì <c>Firebase__CredentialsPath</c>).
+/// Cấu hình đổi → tạo FirebaseApp mới (tên riêng), xoá app cũ. Lỗi khởi tạo → log một lần cho mỗi cấu hình, push tắt tới khi sửa cấu hình.
+/// </summary>
+internal sealed class FirebaseProvider(RuntimeConfig config, ILogger<FirebaseProvider> log)
 {
-    public const string Section = "Firebase";
-    /// <summary>Đường dẫn file service-account JSON (tải từ Firebase Console, không commit — xem env.md).</summary>
-    public string? CredentialsPath { get; set; }
-    public bool Enabled => !string.IsNullOrWhiteSpace(CredentialsPath);
+    private readonly Lock _gate = new();
+    private FcmSettings? _settings;
+    private FirebaseApp? _app;
+    private FirebaseMessaging? _messaging;
+    private string? _error;
+    private int _seq;
+
+    /// <summary>(messaging, lỗi khởi tạo). Cả hai null = chưa cấu hình FCM.</summary>
+    public (FirebaseMessaging? Messaging, string? Error) Get()
+    {
+        var cfg = config.Fcm;
+        lock (_gate)
+        {
+            if (ReferenceEquals(cfg, _settings)) return (_messaging, _error);
+            _app?.Delete();
+            (_settings, _app, _messaging, _error) = (cfg, null, null, null);
+            if (!cfg.Enabled) return (null, null);
+            try
+            {
+                var credential = cfg.ServiceAccountJson is { Length: > 0 } json
+                    ? CredentialFactory.FromJson<ServiceAccountCredential>(json)
+                    : CredentialFactory.FromFile<ServiceAccountCredential>(cfg.CredentialsPath!);
+                _app = FirebaseApp.Create(new AppOptions
+                {
+                    Credential = credential.ToGoogleCredential(),
+                    ProjectId = string.IsNullOrWhiteSpace(cfg.ProjectId) ? null : cfg.ProjectId,
+                }, $"officehub-{++_seq}");
+                _messaging = FirebaseMessaging.GetMessaging(_app);
+            }
+            catch (Exception ex)
+            {
+                _error = ex.Message;
+                log.LogError(ex, "Không khởi tạo được Firebase — kiểm tra cấu hình FCM (trang Hệ thống → Cấu hình / Firebase__CredentialsPath); push bị tắt");
+            }
+            return (_messaging, _error);
+        }
+    }
 }
 
 /// <summary>
 /// Gửi push qua FCM tới các thiết bị đã đăng ký (<see cref="Domain.PushToken"/>). Best-effort: lỗi SDK/mạng chỉ log, không ném;
-/// token bị FCM báo không còn tồn tại thì xoá luôn. Không khởi tạo Firebase nếu <see cref="FirebaseSettings.Enabled"/> = false.
+/// token bị FCM báo không còn tồn tại thì xoá luôn. Chưa cấu hình FCM → không làm gì.
 /// </summary>
-internal sealed class PushSender : IPushSender
+internal sealed class PushSender(NotificationDbContext db, FirebaseProvider firebase, ILogger<PushSender> log) : IPushSender
 {
-    private readonly NotificationDbContext _db;
-    private readonly ILogger<PushSender> _log;
-    private readonly FirebaseMessaging? _messaging;
+    private readonly NotificationDbContext _db = db;
+    private readonly ILogger<PushSender> _log = log;
+    private FirebaseMessaging? _messaging;
 
-    public PushSender(NotificationDbContext db, IOptions<FirebaseSettings> options, IHostEnvironment env, ILogger<PushSender> log)
+    public async Task<(bool Ok, string Message)> DryRunAsync(CancellationToken ct = default)
     {
-        _db = db;
-        _log = log;
-        if (!options.Value.Enabled) return;
+        var (messaging, error) = firebase.Get();
+        if (messaging is null) return (false, error is null ? "Chưa cấu hình FCM" : $"Không khởi tạo được Firebase: {error}");
         try
         {
-            var path = EnvLoader.ResolvePath(options.Value.CredentialsPath!, env.ContentRootPath);
-            var app = FirebaseApp.DefaultInstance ?? FirebaseApp.Create(new AppOptions
+            var id = await messaging.SendAsync(new Message
             {
-                Credential = CredentialFactory.FromFile<ServiceAccountCredential>(path).ToGoogleCredential(),
-            });
-            _messaging = FirebaseMessaging.GetMessaging(app);
+                Topic = "officehub-config-check",
+                Notification = new FbNotification { Title = "OfficeHub", Body = "Kiểm tra cấu hình FCM" },
+            }, dryRun: true, ct);
+            return (true, $"FCM chấp nhận tin thử (dry run, không gửi tới thiết bị nào): {id}");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
-            _log.LogError(ex, "Không khởi tạo được Firebase — kiểm tra Firebase__CredentialsPath; push bị tắt cho tới khi khởi động lại");
+            return (false, $"FCM từ chối: {ex.Message}");
         }
     }
 
     public async Task PushAsync(IEnumerable<Guid> recipientUserIds, string title, string body, string? link, CancellationToken ct = default)
     {
+        _messaging = firebase.Get().Messaging;
         if (_messaging is null) return;
         var ids = recipientUserIds.Distinct().ToList();
         if (ids.Count == 0) return;

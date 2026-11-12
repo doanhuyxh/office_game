@@ -20,7 +20,7 @@ public sealed class NotificationModule : IModule
     public void Register(IServiceCollection services, IConfiguration config)
     {
         services.AddModuleDbContext<NotificationDbContext>(config, NotificationDbContext.Schema);
-        services.AddOptions<FirebaseSettings>().Bind(config.GetSection(FirebaseSettings.Section));
+        services.AddSingleton<FirebaseProvider>(); // FCM theo cấu hình DB / .env (TEST-41)
         services.AddScoped<IPushSender, PushSender>();
         services.AddScoped<INotifier, Notifier>();
         services.AddFieldEncryption(config); // khoá ký webhook lưu mã hoá

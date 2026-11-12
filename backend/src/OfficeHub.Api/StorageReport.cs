@@ -2,6 +2,7 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Options;
 using OfficeHub.BuildingBlocks.Configuration;
+using OfficeHub.BuildingBlocks.Storage;
 
 namespace OfficeHub.Api;
 
@@ -18,7 +19,7 @@ public sealed record StorageReportDto(DateTimeOffset GeneratedAt, string KeyPref
 /// lớp lưu trữ, tháng tải lên (12 tháng), 15 file lớn nhất. Quét tối đa <see cref="MaxObjects"/> object; kết quả giữ 10 phút (nút "Quét lại" bỏ qua).
 /// Chi phí chỉ là ước tính theo giá S3 Standard tham khảo (<see cref="UsdPerGbMonth"/>), chưa gồm request / băng thông.
 /// </summary>
-public sealed class StorageReport(IAmazonS3 s3, IOptions<S3Settings> s3Options, IConfiguration cfg, TimeProvider clock, ILogger<StorageReport> log)
+public sealed class StorageReport(S3ClientProvider s3Provider, IConfiguration cfg, TimeProvider clock, ILogger<StorageReport> log)
 {
     public const int MaxObjects = 200_000;
     public const decimal UsdPerGbMonth = 0.025m;
@@ -52,7 +53,7 @@ public sealed class StorageReport(IAmazonS3 s3, IOptions<S3Settings> s3Options, 
 
     private async Task<StorageReportDto> ScanAsync(CancellationToken ct)
     {
-        var o = s3Options.Value;
+        var (s3, o) = s3Provider.Get();
         var prefix = string.IsNullOrWhiteSpace(o.KeyPrefix) ? "" : o.KeyPrefix.Trim().Trim('/') + "/";
         var buckets = new[] { o.BucketFiles, cfg["S3:BucketBackup"], cfg["S3:BucketWeb"] }
             .Where(b => !string.IsNullOrWhiteSpace(b)).Select(b => b!.Trim()).Distinct().ToList();

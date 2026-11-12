@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Amazon.S3;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.AspNetCore.Builder;
@@ -8,9 +7,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 using Npgsql;
 using OfficeHub.BuildingBlocks.Configuration;
+using OfficeHub.BuildingBlocks.Storage;
 
 namespace OfficeHub.BuildingBlocks.Health;
 
@@ -28,22 +27,23 @@ public sealed class PostgresCheck(IConfiguration cfg) : IHealthCheck
     }
 }
 
-public sealed class S3Check(IAmazonS3 s3, IOptions<S3Settings> opt) : IHealthCheck
+public sealed class S3Check(S3ClientProvider s3Provider) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken ct = default)
     {
-        var bucket = opt.Value.BucketFiles;
-        var prefix = opt.Value.FilesPrefix;
+        var (s3, cfg) = s3Provider.Get();
+        var bucket = cfg.BucketFiles;
+        var prefix = cfg.FilesPrefix;
         await s3.ListObjectsV2Async(new() { BucketName = bucket, Prefix = prefix, MaxKeys = 1 }, ct);
         return HealthCheckResult.Healthy($"s3://{bucket}/{prefix} truy cập được");
     }
 }
 
-public sealed class SmtpCheck(IOptions<SmtpSettings> opt) : IHealthCheck
+public sealed class SmtpCheck(RuntimeConfig config) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken ct = default)
     {
-        var c = opt.Value;
+        var c = config.Smtp;
         using var client = new SmtpClient { Timeout = 10_000, CheckCertificateRevocation = c.CheckCertificateRevocation };
         await client.ConnectAsync(c.Host, c.Port, c.UseSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTlsWhenAvailable, ct);
         if (!string.IsNullOrEmpty(c.Username)) await client.AuthenticateAsync(c.Username, c.Password ?? "", ct);

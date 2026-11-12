@@ -74,6 +74,9 @@
   <Folder Name="/src/Modules/Reporting/">
     <Project Path="src/Modules/Reporting/OfficeHub.Modules.Reporting/OfficeHub.Modules.Reporting.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Settings/">
+    <Project Path="src/Modules/Settings/OfficeHub.Modules.Settings/OfficeHub.Modules.Settings.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OfficeHub.Architecture.Tests/OfficeHub.Architecture.Tests.csproj" />
     <Project Path="tests/OfficeHub.Mcp.Tests/OfficeHub.Mcp.Tests.csproj" />
@@ -95,6 +98,7 @@
     <Project Path="tests/OfficeHub.Modules.Organization.Tests/OfficeHub.Modules.Organization.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Payroll.Tests/OfficeHub.Modules.Payroll.Tests.csproj" />
     <Project Path="tests/OfficeHub.Modules.Reporting.Tests/OfficeHub.Modules.Reporting.Tests.csproj" />
+    <Project Path="tests/OfficeHub.Modules.Settings.Tests/OfficeHub.Modules.Settings.Tests.csproj" />
     <Project Path="tests/OfficeHub.Realtime.Tests/OfficeHub.Realtime.Tests.csproj" />
   </Folder>
 </Solution>

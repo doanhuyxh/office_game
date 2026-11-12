@@ -21,6 +21,7 @@ using OfficeHub.Modules.Payroll;
 using OfficeHub.Modules.Notification;
 using OfficeHub.Modules.Organization;
 using OfficeHub.Modules.Reporting;
+using OfficeHub.Modules.Settings;
 using OfficeHub.Api;
 using Scalar.AspNetCore;
 
@@ -56,6 +57,7 @@ IModule[] modules =
     new ProjectsModule(), // sau DocumentsModule: chép dự án cũ của kho tài liệu
     new ChatModule(),
     new NewsModule(),
+    new SettingsModule(), // cấu hình S3 / SMTP / FCM / IP văn phòng trong DB (TEST-41)
 ];
 foreach (var m in modules) m.Register(builder.Services, builder.Configuration);
 

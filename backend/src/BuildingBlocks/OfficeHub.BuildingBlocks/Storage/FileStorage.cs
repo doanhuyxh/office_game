@@ -1,7 +1,6 @@
 using Amazon;
 using Amazon.S3;
 using Amazon.S3.Model;
-using Microsoft.Extensions.Options;
 using OfficeHub.BuildingBlocks.Configuration;
 
 namespace OfficeHub.BuildingBlocks.Storage;
@@ -47,11 +46,36 @@ public interface IFileStorage
 /// <summary>Kết quả xác nhận tải lên: <c>Size</c> null + <c>Error</c> null = chưa tải lên; <c>Error</c> = nội dung không hợp lệ (file đã bị xoá).</summary>
 public sealed record UploadCheck(long? Size, string? Error = null);
 
-public sealed class S3FileStorage(IAmazonS3 s3, IOptions<S3Settings> options, TimeProvider clock) : IFileStorage
+/// <summary>
+/// Client S3 theo cấu hình đang có hiệu lực (<see cref="RuntimeConfig.S3"/>: DB, chưa có thì .env). Cấu hình đổi (admin lưu trên trang Hệ thống)
+/// → lần gọi kế tiếp tạo client mới; client cũ không dispose ngay (request đang chạy vẫn dùng), để GC thu.
+/// </summary>
+public sealed class S3ClientProvider(RuntimeConfig config)
+{
+    private readonly Lock _gate = new();
+    private (S3Settings Settings, IAmazonS3 Client)? _current;
+
+    public (IAmazonS3 Client, S3Settings Settings) Get()
+    {
+        var cfg = config.S3;
+        var cur = _current;
+        if (cur is { } c && ReferenceEquals(c.Settings, cfg)) return (c.Client, c.Settings);
+        lock (_gate)
+        {
+            if (_current is { } c2 && ReferenceEquals(c2.Settings, cfg)) return (c2.Client, c2.Settings);
+            var client = S3FileStorage.CreateClient(cfg);
+            _current = (cfg, client);
+            return (client, cfg);
+        }
+    }
+}
+
+public sealed class S3FileStorage(S3ClientProvider provider, TimeProvider clock) : IFileStorage
 {
     /// <summary>Thư mục key tạm cho PUT từ trình duyệt (nên đặt lifecycle S3 xoá sau 1–2 ngày: file tải lên rồi bỏ dở).</summary>
     public const string StagingPrefix = "uploads/";
-    private readonly S3Settings _cfg = options.Value;
+    private IAmazonS3 s3 => provider.Get().Client;
+    private S3Settings _cfg => provider.Get().Settings;
     private ServerSideEncryptionMethod? Sse => string.IsNullOrEmpty(_cfg.ServiceUrl) ? ServerSideEncryptionMethod.AES256 : null;
 
     public Task UploadAsync(string key, Stream content, string contentType, CancellationToken ct = default) =>
