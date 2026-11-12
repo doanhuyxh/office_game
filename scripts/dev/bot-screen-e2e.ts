@@ -149,10 +149,13 @@ const s1 = h.screens.at(-1);
 ok('người trong phòng nhận ScreenChanged: live, chú thích, tên bot, URL /rt/screens/…', s1?.live === true && s1.title.includes('WEB-12') && s1.byName === 'Bot Trình Bày'
   && s1.kind === 'Image' && String(s1.url).startsWith('/rt/screens/meeting-small/'), s1);
 ok('người ngoài phòng không nhận gì', o.screens.length === 0, o.screens);
-const img = await fetch(RT + s1.url);
-ok('tải ảnh bằng URL: đúng PNG, không cache', img.status === 200 && img.headers.get('content-type') === 'image/png' && img.headers.get('cache-control') === 'no-store'
+const asH = { headers: { cookie: H.cookie } };
+const img = await fetch(RT + s1.url, asH);
+ok('tải ảnh bằng URL (người trong phòng): đúng PNG, không cache', img.status === 200 && img.headers.get('content-type') === 'image/png' && img.headers.get('cache-control') === 'no-store'
   && Buffer.from(await img.arrayBuffer()).equals(Buffer.from(PNG, 'base64')));
-ok('mã trong URL sai → 404', (await fetch(`${RT}/rt/screens/meeting-small/${'0'.repeat(32)}`)).status === 404);
+ok('mã trong URL sai → 404', (await fetch(`${RT}/rt/screens/meeting-small/${'0'.repeat(32)}`, asH)).status === 404);
+ok('TEST-18: không đăng nhập → 401', (await fetch(RT + s1.url)).status === 401);
+ok('TEST-18: người ngoài phòng có link → 404', (await fetch(RT + s1.url, { headers: { cookie: O.cookie } })).status === 404);
 ok('cập nhật ngay (< 3 giây) → lỗi tần suất', (await call(B.token, 'present_screen', { image: PNG })).text.includes('3 giây'));
 ok('ảnh không phải PNG/JPEG/WebP (svg) → lỗi', (await call(B.token, 'present_screen', { image: Buffer.from('<svg/>').toString('base64') })).text.includes('PNG, JPEG'));
 await Bun.sleep(3100);
@@ -160,13 +163,14 @@ await call(B.token, 'present_screen', { image: JPEG_HEAD });
 await Bun.sleep(500);
 const s2 = h.screens.at(-1);
 ok('khung mới: URL đổi ?v=2, cùng mã; tải ra JPEG', s2.url !== s1.url && s2.url.split('?')[0] === s1.url.split('?')[0] && s2.url.endsWith('v=2')
-  && (await fetch(RT + s2.url)).headers.get('content-type') === 'image/jpeg', s2.url);
+  && (await fetch(RT + s2.url, asH)).headers.get('content-type') === 'image/jpeg', s2.url);
 ok('người tham gia sau (GetScreen) thấy màn hình bot', (await h.c.invoke('GetScreen'))?.live === true);
 
 // ---------- Người trong phòng tắt ----------
 await h.c.invoke('ClearScreen');
 await Bun.sleep(300);
 ok('người trong phòng bấm Tắt chiếu → màn hình tắt', h.screens.at(-1) === null);
+ok('TEST-18: tắt chiếu → link ảnh bot hết hiệu lực ngay (404)', (await fetch(RT + s2.url, asH)).status === 404);
 ok('bot chiếu lại ngay → bị chặn 1 phút', (await call(B.token, 'present_screen', { image: PNG })).text.includes('vừa tắt'));
 console.log('… đợi hết 1 phút sau khi người tắt chiếu');
 await Bun.sleep(61_000);
@@ -175,7 +179,17 @@ await Bun.sleep(300);
 const s3 = h.screens.at(-1);
 const st = await call(B.token, 'stop_presenting');
 await Bun.sleep(300);
-ok('stop_presenting → tắt, ảnh cũ 404', st.j?.stopped === true && h.screens.at(-1) === null && (await fetch(RT + s3.url)).status === 404, st.text);
+ok('stop_presenting → tắt, ảnh cũ 404', st.j?.stopped === true && h.screens.at(-1) === null && (await fetch(RT + s3.url, asH)).status === 404, st.text);
+
+// ---------- TEST-18: đường nội bộ kiểm khoá + giới hạn body trước khi đọc ----------
+const big = 'x'.repeat(5 * 1024 * 1024);
+const noKey = await fetch(`${RT}/rt/internal/bot-screen`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: big });
+ok('/rt/internal không có khoá (body 5 MB) → 401', noKey.status === 401, noKey.status);
+const KEY = process.env.CHAT_INTERNAL_KEY;
+if (KEY) {
+  const tooBig = await fetch(`${RT}/rt/internal/bot-activity`, { method: 'POST', headers: { 'content-type': 'application/json', 'X-Internal-Key': KEY }, body: big });
+  ok('/rt/internal có khoá nhưng body quá giới hạn → 413', tooBig.status === 413, tooBig.status);
+}
 
 // ---------- Trình bày Markdown ----------
 const MD = '# Tiến độ WEB-12\n\n- [x] Tìm lỗi\n- [ ] Sửa\n\n| Bước | Trạng thái |\n|---|---|\n| test | chạy |';

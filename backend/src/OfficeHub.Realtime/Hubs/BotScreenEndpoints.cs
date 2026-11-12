@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -24,9 +25,16 @@ public static class BotScreenEndpoints
         app.MapGet(BotScreens.FramePathPrefix + "/{roomId}/{token}", FrameAsync);
     }
 
-    /// <summary>Ảnh khung mới nhất. Mã sai / đã tắt → 404. Không cache (mỗi khung một <c>?v=</c>).</summary>
-    private static IResult FrameAsync(string roomId, string token, HttpResponse res, BotScreens bots)
+    /// <summary>
+    /// Ảnh khung mới nhất. Chỉ người đã đăng nhập (cookie) ĐANG ĐỨNG trong phòng đó (TEST-18: trước đây ai có link cũng xem được, kể cả đã rời
+    /// phòng / người ngoài). Chưa đăng nhập → 401; không ở trong phòng / mã sai / đã tắt → 404. Không cache (mỗi khung một <c>?v=</c>).
+    /// </summary>
+    private static IResult FrameAsync(string roomId, string token, HttpResponse res, System.Security.Claims.ClaimsPrincipal user, BotScreens bots,
+        Presence presence, OfficeMap map)
     {
+        if (user.Identity?.IsAuthenticated != true || user.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier) is not { } uid)
+            return Results.Problem("Cần đăng nhập", statusCode: StatusCodes.Status401Unauthorized);
+        if (!presence.TryGet(uid, out var viewer) || map.WallRoomOf(viewer)?.Id != roomId) return Results.NotFound();
         var p = bots.Get(roomId);
         if (p?.Frame is not { } f || !CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(p.Token), Encoding.ASCII.GetBytes(token ?? "")))
             return Results.NotFound();
@@ -71,12 +79,17 @@ public static class BotScreenEndpoints
         {
             // Kiểm ảnh trước (lỗi rõ ràng cho agent), rồi mới tới tần suất
             if (BotScreens.DecodeImage(body.Image, out var err) is not { } bytes) return Problem(err!, 400);
-            if (current?.UserId == uid && current.Frame is not null && now - current.LastAt < BotScreens.MinInterval)
-                return Problem("Cập nhật màn hình tối đa 1 ảnh / 3 giây", 429);
-            var p = shows.Begin(uid, room.Id);
             var type = BotScreens.DetectImage(bytes)!;
-            p.Frame = new BotFrame(bytes, type, (p.Frame?.Version ?? 0) + 1, now);
-            p.LastAt = now;
+            BotPresentation p;
+            lock (shows) // kiểm tần suất + ghi LastAt nguyên tử: 2 lệnh song song không cùng lọt (TEST-18)
+            {
+                current = shows.Get(room.Id);
+                if (current?.UserId == uid && current.Frame is not null && now - current.LastAt < BotScreens.MinInterval)
+                    return Problem("Cập nhật màn hình tối đa 1 ảnh / 3 giây", 429);
+                p = shows.Begin(uid, room.Id);
+                p.Frame = new BotFrame(bytes, type, (p.Frame?.Version ?? 0) + 1, now);
+                p.LastAt = now;
+            }
             var title = string.IsNullOrWhiteSpace(body.Caption) ? $"Màn hình của {bot.Name}" : Cut(body.Caption.Trim(), 120);
             screen = new ScreenDto(room.Id, room.Name, $"bot:{uid}", title, type == "image/png" ? "screen.png" : type == "image/webp" ? "screen.webp" : "screen.jpg",
                 type, "Image", BotScreens.FrameUrl(p), true, bot.Name, Instants.Format(now), Live: true);
@@ -85,9 +98,15 @@ public static class BotScreenEndpoints
         else if (body.Mode == "markdown")
         {
             if (BotScreens.CleanMarkdown(body.Markdown, out var err) is not { } md) return Problem(err!, 400);
-            if (current?.UserId == uid && current.Screen?.Kind == "Markdown" && now - current.LastAt < BotScreens.MarkdownMinInterval)
-                return Problem("Cập nhật trình bày tối đa 1 lần / giây", 429);
-            var p = shows.Begin(uid, room.Id);
+            BotPresentation p;
+            lock (shows)
+            {
+                current = shows.Get(room.Id);
+                if (current?.UserId == uid && current.Screen?.Kind == "Markdown" && now - current.LastAt < BotScreens.MarkdownMinInterval)
+                    return Problem("Cập nhật trình bày tối đa 1 lần / giây", 429);
+                p = shows.Begin(uid, room.Id);
+                p.LastAt = now;
+            }
             var title = string.IsNullOrWhiteSpace(body.Caption) ? $"{bot.Name} đang trình bày" : Cut(body.Caption.Trim(), 120);
             screen = new ScreenDto(room.Id, room.Name, $"bot:{uid}", title, "", "text/markdown", "Markdown", "", true, bot.Name, Instants.Format(now),
                 Live: true, Markdown: md);

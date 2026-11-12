@@ -53,6 +53,7 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<VoiceGuard>());
 var app = builder.Build();
 app.UseOfficeHubDefaults();
 app.UseCsrfGuard();       // negotiate (POST) + bắt tay WebSocket phải đến từ chính trang (chống Cross-Site WebSocket Hijacking)
+app.UseInternalRouteGuard(); // /rt/internal/*: kiểm khoá + giới hạn body TRƯỚC khi đọc body (Hubs/InternalRouteGuard.cs)
 app.UseAuthentication();
 app.UseAuthorization();
 

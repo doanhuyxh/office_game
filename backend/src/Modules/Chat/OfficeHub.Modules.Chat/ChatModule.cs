@@ -33,6 +33,7 @@ public sealed class ChatModule : IModule
     {
         var g = api.MapGroup("/chat").WithTags("Chat");
         ChatEndpoints.Map(g.MapGroup("").RequireAuthorization());
-        InternalEndpoints.Map(g.MapGroup("/internal").AllowAnonymous());
+        // Body nhỏ (roomId + userId): giới hạn 16 KB — đường này chỉ gọi trong mạng Docker, nginx chặn từ ngoài (TEST-18)
+        InternalEndpoints.Map(g.MapGroup("/internal").AllowAnonymous().WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(16 * 1024)));
     }
 }

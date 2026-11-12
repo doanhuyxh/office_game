@@ -249,6 +249,7 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
         p.LastScreenAt = now;
         var (screen, error) = await screens.FetchAsync(p.AuthCookie, id, room, p.Name, Context.ConnectionAborted);
         if (screen is null) throw new HubException(error ?? "Chưa chiếu được tài liệu");
+        if (botScreens.Get(room.Id) is { } bot) botScreens.End(room.Id, bot); // người chiếu đè → kết thúc lượt bot ngay (link ảnh cũ hết hiệu lực)
         screens.Set(screen);
         await Clients.Clients(InRoom(room.Id)).ScreenChanged(room.Id, screen);
         log.LogInformation("{User} chiếu tài liệu {Asset} ở {Room}", p.Name, id, room.Name);
@@ -260,6 +261,7 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
         if (!presence.TryGet(UserId, out var p)) return;
         var room = RoomOf(p) ?? throw new HubException("Bạn không ở trong phòng nào");
         botScreens.MarkCleared(room.Id, clock.GetUtcNow()); // bot đang chiếu không tự bật lại ngay (BotScreenEndpoints)
+        if (botScreens.Get(room.Id) is { } bot) botScreens.End(room.Id, bot); // TEST-18: tắt là hết ngay, không đợi BotSweeper (link ảnh hết hiệu lực)
         if (screens.Clear(room.Id)) await Clients.Clients(InRoom(room.Id)).ScreenChanged(room.Id, null);
     }
 
