@@ -41,13 +41,43 @@ public sealed class S3Settings
 }
 
 /// <summary>
-/// Khoá AES-256 mã hoá từng trường nhạy cảm trong DB (lương trên hợp đồng…). Base64 của đúng 32 byte: `openssl rand -base64 32`.
-/// KHÁC DataProtection: không xoay vòng, không nằm trong thư mục .keys. MẤT KHOÁ = MẤT DỮ LIỆU ĐÃ MÃ HOÁ → sao lưu cùng DB, không đổi khi đã có dữ liệu.
+/// Khoá AES-256 mã hoá từng trường nhạy cảm trong DB (lương, CCCD, số tài khoản, token…). Base64 của đúng 32 byte: `openssl rand -base64 32`.
+/// KHÁC DataProtection: không nằm trong thư mục .keys. MẤT KHOÁ = MẤT DỮ LIỆU ĐÃ MÃ HOÁ → sao lưu cùng DB.
+/// Xoay khoá (TEST-17): đặt khoá mới vào <see cref="Key"/> + <see cref="KeyId"/> mới, chuyển khoá cũ vào <see cref="PreviousKeys"/> ("id:base64");
+/// job nền mã hoá lại dữ liệu sang khoá mới; khi log báo xong (không còn giá trị khoá cũ) mới bỏ khoá cũ khỏi PreviousKeys.
 /// </summary>
 public sealed class EncryptionSettings
 {
     public const string Section = "Encryption";
+    /// <summary>KeyId khi không đặt <c>Encryption__KeyId</c> — khoá đang dùng trước khi có keyring.</summary>
+    public const string DefaultKeyId = "k1";
+    public const string KeyIdError = "Encryption__KeyId chỉ gồm chữ thường / số / - (1–16 ký tự), vd k2";
+    public const string PreviousError = "Encryption__PreviousKeys dạng \"id:base64;id:base64\" — id như Encryption__KeyId, khoá base64 đúng 32 byte";
+
     [Required(ErrorMessage = "Thiếu Encryption__Key trong .env")] public string Key { get; set; } = "";
+    /// <summary>Tên khoá hiện hành, ghi vào mỗi giá trị mã hoá (tuỳ chọn, mặc định <see cref="DefaultKeyId"/>).</summary>
+    public string? KeyId { get; set; }
+    /// <summary>Khoá cũ CHỈ để giải mã, "id:base64;id:base64" (tuỳ chọn).</summary>
+    public string? PreviousKeys { get; set; }
+
+    public static bool IsValidKeyId(string id) => id.Length is >= 1 and <= 16 && id.All(c => char.IsAsciiLetterLower(c) || char.IsAsciiDigit(c) || c == '-');
+
+    /// <summary>Phân tích PreviousKeys; sai định dạng → null. Rỗng → danh sách rỗng.</summary>
+    public static List<(string Id, byte[] Key)>? ParsePrevious(string? value)
+    {
+        var list = new List<(string, byte[])>();
+        foreach (var part in (value ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var sep = part.IndexOf(':');
+            if (sep <= 0) return null;
+            var id = part[..sep].Trim();
+            byte[]? key;
+            try { key = Convert.FromBase64String(part[(sep + 1)..].Trim()) is { Length: 32 } k ? k : null; } catch (FormatException) { key = null; }
+            if (!IsValidKeyId(id) || key is null) return null;
+            list.Add((id, key));
+        }
+        return list;
+    }
 }
 
 /// <summary>

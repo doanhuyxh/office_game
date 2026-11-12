@@ -24,6 +24,9 @@ public sealed class OrganizationModule : IModule
     {
         services.AddModuleDbContext<OrgDbContext>(config, OrgDbContext.Schema);
         services.AddFieldEncryption(config); // CCCD, số tài khoản ngân hàng
+        // Cột mã hoá → job xoay khoá mã hoá lại (TEST-17)
+        services.AddEncryptedColumns<OrgDbContext, Domain.Employee>(nameof(Domain.Employee.IdNumberEncrypted), nameof(Domain.Employee.BankAccountEncrypted));
+        services.AddEncryptedColumns<OrgDbContext, Domain.ProfileChangeRequest>(nameof(Domain.ProfileChangeRequest.DataEncrypted));
         services.AddScoped<IEmployeeDirectory, EmployeeDirectory>();
         services.AddScoped<IFinanceAccess, FinanceAccess>();
         services.AddHostedService<OrgMigrator>();

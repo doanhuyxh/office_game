@@ -101,7 +101,7 @@ public class FieldEncryptorTests
         IFieldEncryptor enc = new AesGcmFieldEncryptor(Key);
         var a = enc.EncryptDecimal(12_345_678.90m)!;
         var b = enc.EncryptDecimal(12_345_678.90m)!;
-        Assert.StartsWith("v1:", a);
+        Assert.StartsWith("v2:k1:", a);              // TEST-17: định dạng có keyId (mặc định k1)
         Assert.NotEqual(a, b);                       // cùng giá trị → chuỗi khác (không đoán được lương bằng so sánh)
         Assert.DoesNotContain("12345678", a);
         Assert.Equal(12_345_678.90m, enc.DecryptDecimal(a));
@@ -116,9 +116,11 @@ public class FieldEncryptorTests
         var token = enc.Encrypt("15000000");
         var other = new AesGcmFieldEncryptor(Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
         Assert.ThrowsAny<CryptographicException>(() => other.Decrypt(token));
-        var bytes = Convert.FromBase64String(token[3..]);
+        var bytes = Convert.FromBase64String(token["v2:k1:".Length..]);
         bytes[^1] ^= 1;
-        Assert.ThrowsAny<CryptographicException>(() => enc.Decrypt("v1:" + Convert.ToBase64String(bytes)));
+        Assert.ThrowsAny<CryptographicException>(() => enc.Decrypt("v2:k1:" + Convert.ToBase64String(bytes)));
+        // Đổi keyId trên token (khoá khác / AAD khác) → không giải mã được
+        Assert.ThrowsAny<CryptographicException>(() => enc.Decrypt(token.Replace("v2:k1:", "v2:k9:")));
     }
 
     [Theory]

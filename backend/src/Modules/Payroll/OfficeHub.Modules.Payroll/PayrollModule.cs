@@ -19,6 +19,10 @@ public sealed class PayrollModule : IModule
     public void Register(IServiceCollection services, IConfiguration config)
     {
         services.AddModuleDbContext<PayrollDbContext>(config, PayrollDbContext.Schema);
+        services.AddFieldEncryption(config); // phiếu lương + khoản cộng trừ mã hoá
+        // Cột mã hoá → job xoay khoá mã hoá lại (TEST-17)
+        services.AddEncryptedColumns<PayrollDbContext, Domain.Payslip>(nameof(Domain.Payslip.DataEncrypted));
+        services.AddEncryptedColumns<PayrollDbContext, Domain.PayAdjustment>(nameof(Domain.PayAdjustment.AmountEncrypted));
         services.AddFieldEncryption(config);
         services.AddScoped<PayrollService>();
         services.AddScoped<OfficeHub.Modules.Payroll.Contracts.IPayrollCosts, PayrollCosts>();

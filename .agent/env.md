@@ -14,7 +14,8 @@ Một file `.env` ở gốc repo cho BE + Docker Compose. Quy ước `Section__K
 | `Database__MigrateOnStartup` | – (mặc định true) | Tự chạy migration khi Api khởi động |
 | `Seed__AdminEmail`, `Seed__AdminPassword`, `Seed__AdminFullName` | khi DB chưa có admin | Tạo admin đầu tiên |
 | `DataProtection__KeysPath` | ✔ | Thư mục khoá mã hoá cookie. Api và Realtime **phải dùng chung**. Đường dẫn tương đối tính từ thư mục chứa `.env` |
-| `Encryption__Key` | ✔ | Base64 của 32 byte (`openssl rand -base64 32`), AES-256-GCM cho trường nhạy cảm (lương hợp đồng). **Mất / đổi khoá = mất dữ liệu đã mã hoá** → sao lưu cùng DB. Sai định dạng → app dừng |
+| `Encryption__Key` | ✔ | Base64 của 32 byte (`openssl rand -base64 32`), AES-256-GCM cho trường nhạy cảm (lương, CCCD, số tài khoản, token MXH, secret webhook). **Mất khoá = mất dữ liệu đã mã hoá** → sao lưu cùng DB. Sai định dạng → app dừng. Đổi khoá → xoay bằng 2 biến dưới, không thay thẳng |
+| `Encryption__KeyId` / `Encryption__PreviousKeys` | – | Xoay khoá (TEST-17): tên khoá hiện hành (mặc định `k1`, ghi vào mỗi giá trị `v2:<id>:…`) + khoá cũ chỉ để giải mã `id:base64;id:base64`. Quy trình ở [ops.md](ops.md#xoay-khoá-mã-hoá-trường) |
 | `Office__TimeZone` | ✔ | Múi giờ tính công (`Asia/Ho_Chi_Minh`) |
 | `Office__IpRanges` | – | CIDR, cách nhau dấu phẩy. Trống → mọi lần chấm công là "Remote" |
 | `Office__InactiveMinutes` | – | Khai báo nhưng **chưa được code dùng** |

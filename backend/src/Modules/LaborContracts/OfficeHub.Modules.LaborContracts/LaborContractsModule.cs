@@ -22,6 +22,9 @@ public sealed class LaborContractsModule : IModule
     {
         services.AddModuleDbContext<ContractsDbContext>(config, ContractsDbContext.Schema);
         services.AddFieldEncryption(config);
+        // Cột mã hoá → job xoay khoá mã hoá lại (TEST-17)
+        services.AddEncryptedColumns<ContractsDbContext, Domain.LaborContract>(nameof(Domain.LaborContract.SalaryEncrypted), nameof(Domain.LaborContract.AllowanceEncrypted));
+        services.AddEncryptedColumns<ContractsDbContext, Domain.ContractAmendment>(nameof(Domain.ContractAmendment.SalaryEncrypted), nameof(Domain.ContractAmendment.AllowanceEncrypted));
         services.AddScoped<ISalaryLookup, SalaryLookup>();
         services.AddHostedService<ContractsMigrator>();
         services.AddHostedService<ContractReminderJob>();

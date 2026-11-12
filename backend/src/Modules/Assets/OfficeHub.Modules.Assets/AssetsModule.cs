@@ -30,6 +30,9 @@ public sealed class AssetsModule : IModule
         services.AddHostedService<AssetsMaintenanceJob>();
         // Mạng xã hội (Facebook BM): token mã hoá bằng Encryption__Key, gọi Graph API, job đăng bài
         services.AddFieldEncryption(config);
+        // Cột mã hoá → job xoay khoá mã hoá lại (TEST-17)
+        services.AddEncryptedColumns<AssetsDbContext, Domain.SocialAccount>(nameof(Domain.SocialAccount.TokenEncrypted));
+        services.AddEncryptedColumns<AssetsDbContext, Domain.SocialPage>(nameof(Domain.SocialPage.TokenEncrypted));
         services.AddOptions<FacebookSettings>().Bind(config.GetSection(FacebookSettings.Section));
         services.AddHttpClient(FacebookGraph.HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(120));
         services.AddScoped<IFacebookGraph, FacebookGraph>();

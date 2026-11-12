@@ -24,6 +24,7 @@ public sealed class NotificationModule : IModule
         services.AddScoped<IPushSender, PushSender>();
         services.AddScoped<INotifier, Notifier>();
         services.AddFieldEncryption(config); // khoá ký webhook lưu mã hoá
+        services.AddEncryptedColumns<NotificationDbContext, Domain.Webhook>(nameof(Domain.Webhook.SecretEncrypted)); // job xoay khoá (TEST-17)
         services.AddScoped<IWebhookPublisher, WebhookPublisher>();
         services.AddHttpClient(WebhookDispatcher.ClientName)
             .ConfigurePrimaryHttpMessageHandler(sp => WebhookDispatcher.CreateHandler(
