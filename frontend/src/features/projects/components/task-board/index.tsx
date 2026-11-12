@@ -42,6 +42,11 @@ function useFillHeight(ready: boolean) {
 /** Kiểu dữ liệu kéo thả: thẻ việc / tiêu đề cột. */
 const TASK = 'text/task';
 const COLUMN = 'text/column';
+const DESC_KEY = 'projects.taskBoard.desc';
+
+function readDesc() {
+  try { return localStorage.getItem(DESC_KEY) === '1'; } catch { return false; }
+}
 
 /** Đưa cột `id` tới vị trí của cột `target` (kéo thả tiêu đề cột). */
 function reorder(ids: string[], id: string, target: string) {
@@ -62,6 +67,7 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
   const [edit, setEdit] = useState<{ task: ITask | null; columnId?: string } | null>(null);
   const [colEdit, setColEdit] = useState<ITaskColumn | null | undefined>(undefined);
   const [mine, setMine] = useState(false);
+  const [desc, setDesc] = useState(readDesc);
   const [over, setOver] = useState<string | null>(null);
   const [dragCol, setDragCol] = useState<string | null>(null);
   const [pendingOrder, setPendingOrder] = useState<string[] | null>(null);
@@ -94,6 +100,10 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
     setPendingOrder(ids);
     reorderCols.mutate(ids, { onError: (err) => toast.error(errorMessage(err)), onSettled: () => setPendingOrder(null) });
   };
+  const toggleDesc = (v: boolean) => {
+    setDesc(v);
+    try { localStorage.setItem(DESC_KEY, v ? '1' : '0'); } catch { /* bỏ qua: trình duyệt chặn lưu trữ */ }
+  };
   const onDragOver = (e: DragEvent, columnId: string) => {
     const isCol = e.dataTransfer.types.includes(COLUMN);
     if (isCol ? !manage : !p.canWork) return;
@@ -109,6 +119,8 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} /> Chỉ việc của tôi</label>
+        <label className="flex items-center gap-2 text-sm" title="Chỉ đổi thứ tự hiển thị, không đổi thứ tự lưu"><input type="checkbox" checked={desc}
+          onChange={(e) => toggleDesc(e.target.checked)} data-testid="sort-desc" /> Sắp xếp giảm dần</label>
         {!p.canWork && <span className="text-xs text-muted-foreground">{p.status === 'Closed' ? 'Dự án đã đóng — chỉ xem.' : 'Bạn chỉ xem (không phải thành viên).'}</span>}
         {(p.sequential || columns.some((c) => c.approverOnly)) && <span className="text-xs text-muted-foreground" data-testid="review-hint">
           Quy trình:{p.sequential && ' đi lần lượt từng cột · chuyển lùi phải ghi lý do'}
@@ -120,7 +132,9 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
       <div ref={board.ref} style={board.height ? { '--board-h': `${board.height}px` } as CSSProperties : undefined}
         className="flex gap-3 overflow-x-auto pb-2 xl:h-(--board-h)">
         {columns.map((c) => {
+          // API trả theo rank tăng dần → giảm dần chỉ đảo thứ tự hiển thị, rank trong DB giữ nguyên.
           const col = shown.filter((t) => t.columnId === c.id);
+          if (desc) col.reverse();
           return (
             <div key={c.id} data-testid={`col-${c.name}`} onDragOver={(e) => onDragOver(e, c.id)} onDragLeave={() => setOver(null)} onDrop={(e) => onDrop(e, c.id)}
               style={{ borderTopColor: c.color }}
