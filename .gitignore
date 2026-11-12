@@ -30,5 +30,11 @@ account.txt
 server.txt
 /sdks/*
 
+# Bộ điều phối agent (TEST-44): cấu hình thật có token + dữ liệu chạy — không commit
+agent-runner/agents.yaml
+agent-runner/data/
+# Dữ liệu + worktree của runner khi đặt trong repo (data_dir / worktrees_dir trong agents.yaml)
+/.officehub-runner/
+
 # Log chạy local (TEST-22) — không commit
 *.log

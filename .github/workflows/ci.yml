@@ -24,6 +24,17 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
 
+  # Bộ điều phối agent (TEST-44): typecheck + test (gồm test tích hợp với Telegram / MCP / CLI giả, cần git)
+  agent-runner:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: agent-runner } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun test
+
   # Build & push image lên GHCR khi merge vào main. Bước deploy (SSH vào VPS) thêm sau khi có VPS.
   images:
     if: github.ref == 'refs/heads/main'

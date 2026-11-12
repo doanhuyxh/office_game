@@ -1,0 +1,21 @@
+# systemd unit mẫu cho bộ điều phối agent (TEST-44). Cài: xem .agent/business/agent-runner.md
+[Unit]
+Description=OfficeHub agent runner
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# User thường (KHÔNG root: Claude Code từ chối bypassPermissions khi chạy root). Mỗi agent nên có user / HOME riêng ở bản sau.
+User=officehub-runner
+Environment=RUNNER_CONFIG=/etc/officehub-runner/agents.yaml
+# Binary build từ commit đã merge vào main (bun build --compile), KHÔNG chạy từ worktree của agent
+ExecStart=/opt/officehub-runner/officehub-runner start
+Restart=on-failure
+RestartSec=10
+KillMode=mixed
+TimeoutStopSec=20
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

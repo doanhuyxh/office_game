@@ -4,7 +4,7 @@
 
 ## Biến môi trường
 
-Một file `.env` ở gốc repo cho BE + Docker Compose. Quy ước `Section__Key` ↔ `Section:Key`. Biến môi trường đã có sẵn **không bị ghi đè** bởi `.env`. Thiếu biến bắt buộc → app dừng với thông báo `Thiếu <Tên__Biến> trong .env`.
+Một file `.env` ở gốc repo cho BE + Docker Compose. `EnvLoader` dò ngược từ thư mục chạy và **dừng ở gốc git** (thư mục có `.git`): git worktree (agent-runner, `.claude/worktrees`) không đọc `.env` của repo chính — cần thì đặt `.env` / biến môi trường riêng cho worktree. Quy ước `Section__Key` ↔ `Section:Key`. Biến môi trường đã có sẵn **không bị ghi đè** bởi `.env`. Thiếu biến bắt buộc → app dừng với thông báo `Thiếu <Tên__Biến> trong .env`.
 
 | Biến | Bắt buộc | Ý nghĩa |
 |---|---|---|

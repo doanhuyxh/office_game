@@ -34,6 +34,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Giám sát agent / bot: nội dung lệnh ghi (7 ngày), cảnh báo bất thường gửi admin | [ai-monitoring.md](ai-monitoring.md) |
 | Bot chiếu ảnh màn hình đang làm việc / tài liệu lên TV phòng họp (`present_screen`) | [office-bots-screen.md](office-bots-screen.md) |
 | Đội agent tự phối hợp: rào chắn (không duyệt qua token, giới hạn việc / ngày + chuỗi bot do admin đặt), @nhắc, webhook cá nhân, việc phụ thuộc | [agent-team.md](agent-team.md) |
+| Bộ điều phối agent `agent-runner/`: Telegram → kiểm tra lại qua MCP → CLI trong worktree riêng → PR + bình luận chi phí | [agent-runner.md](agent-runner.md) |
 | Hồ sơ cá nhân (tự sửa liên hệ / ảnh; CCCD, ngân hàng, ngày sinh qua HR duyệt; mã hoá; không ra MCP) | [profile.md](profile.md) |
 | Mô tả + hướng dẫn phòng ban / chức vụ cho nhân viên và trợ lý AI (`get_my_role`), quyền trưởng phòng | [org-guides.md](org-guides.md) |
 | Ký hợp đồng điện tử: OTP email, chữ ký vẽ tay, PDF có trang chứng nhận + SHA-256 | [contracts-esign.md](contracts-esign.md) |

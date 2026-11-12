@@ -1,0 +1,5 @@
+# Bộ điều phối agent: mọi thay đổi cần chủ dự án review (agent không tự sửa luật / bộ điều phối của chính nó — TEST-44).
+# Bật "Require review from Code Owners" trong branch protection của main để có hiệu lực.
+/agent-runner/ @doanhuyxh
+/.github/ @doanhuyxh
+/.claude/settings.json @doanhuyxh

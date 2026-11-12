@@ -40,6 +40,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Luồng duyệt, thêm loại đơn · uỷ quyền duyệt (duyệt thay) | [.agent/business/approval.md](.agent/business/approval.md) · [.agent/business/approval-delegation.md](.agent/business/approval-delegation.md) |
 | Nghỉ phép, quỹ phép năm | [.agent/business/leave.md](.agent/business/leave.md) |
 | Kết nối AI (MCP): token cá nhân, host `OfficeHub.Mcp`, danh sách tool · OAuth, nhật ký AI, quản trị HR · giám sát agent (nội dung lệnh ghi, cảnh báo bất thường) · đội agent tự phối hợp (webhook, việc phụ thuộc, rào chắn) | [.agent/business/mcp.md](.agent/business/mcp.md) · [.agent/business/mcp-oauth.md](.agent/business/mcp-oauth.md) · [.agent/business/ai-monitoring.md](.agent/business/ai-monitoring.md) · [.agent/business/agent-team.md](.agent/business/agent-team.md) |
+| Bộ điều phối agent (`agent-runner/`): nhận tin Telegram đánh thức, kiểm tra lại việc qua MCP, chạy CLI agent (Claude Code / tuỳ chỉnh) trong worktree riêng, push + PR, bình luận chi phí; cấu hình `agents.yaml`, systemd, `doctor` | [.agent/business/agent-runner.md](.agent/business/agent-runner.md) |
 | Văn phòng 3D: bản đồ v2, lưới va chạm, SignalR, voice | [.agent/business/office.md](.agent/business/office.md) · engine 3D / HUD: [.agent/business/office-engine.md](.agent/business/office-engine.md) · nhân vật tuỳ chỉnh: [.agent/business/office-avatar.md](.agent/business/office-avatar.md) · bot AI hiện trong 3D (đi lại, chat): [.agent/business/office-bots.md](.agent/business/office-bots.md) · bot chiếu màn hình: [.agent/business/office-bots-screen.md](.agent/business/office-bots-screen.md) · mặt bằng + lộ trình: [design/README.md](design/README.md) |
 
 ## Luật không được vi phạm
@@ -51,7 +52,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 5. **Thời gian do server quyết định** (`TimeProvider` + `Office__TimeZone`); lưu `DateTimeOffset` UTC.
 6. **Không commit secret**: cấu hình qua `.env` (gitignore). Thêm biến → Settings có `ErrorMessage = "Thiếu X__Y trong .env"`, cập nhật `.env.example` + `commands.md`.
 7. **FE**: ngoài feature chỉ import qua `@/features/<x>`; màn hình mới = feature + `page(...)` trong `routes/router.tsx`. Component trong feature: **mỗi component một thư mục kebab-case** `components/<ten-component>/index.tsx` (không file phẳng `components/Ten.tsx`) — chi tiết [.agent/frontend.md](.agent/frontend.md). Dùng helper sẵn có trước khi tạo mới. Chỉ dùng bun.
-8. **Xong việc phải pass**: `backend/`: `dotnet build -warnaserror` và `dotnet test`; `frontend/`: `bun run build`.
+8. **Xong việc phải pass**: `backend/`: `dotnet build -warnaserror` và `dotnet test`; `frontend/`: `bun run build`; đổi `agent-runner/`: `bun run typecheck` và `bun test` trong đó. **Agent chạy qua bộ điều phối không được sửa `agent-runner/`** (runner + hook pre-push chặn).
 9. **Đổi tool MCP phải cập nhật màn hình quản trị**: thêm / sửa / xoá tool trong `backend/src/OfficeHub.Mcp/Tools/*.cs` → cập nhật ngay catalog `frontend/src/features/mcp-tools/utils/catalog.ts` (tên, tiêu đề, mô tả, tham số, loại read/write/destructive, endpoint) cho khớp. Đây là màn hình tham chiếu "Công cụ AI (MCP)" (`/mcp-tools`, chỉ admin), không tự suy ra từ code nên không được để lệch. Cập nhật luôn số lượng tool trong [.agent/business/mcp.md](.agent/business/mcp.md).
 
 ## Giữ tài liệu đúng

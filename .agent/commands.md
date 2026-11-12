@@ -59,6 +59,10 @@ dotnet ef migrations add <TenMigration> \
 
 DbContext hiện có: `OfficeIdentityDbContext`, `OrgDbContext`, `AttendanceDbContext`, `ApprovalDbContext`, `LeaveDbContext`, `NotificationDbContext`, `ContractsDbContext`, `DocumentsDbContext`, `AssetsDbContext`, `ChatDbContext` (… và các module khác). Migration tự chạy khi Api khởi động nếu `Database__MigrateOnStartup=true`. Chi tiết: [database.md](database.md).
 
+## Bộ điều phối agent (`agent-runner/`)
+
+`cd agent-runner && bun install && bun run typecheck && bun test` · `bun src/cli.ts doctor --config <agents.yaml>` · build `bun run build`. Chi tiết: [business/agent-runner.md](business/agent-runner.md).
+
 ## Biến môi trường
 
 Bảng đầy đủ: [env.md](env.md). S3 (file nghiệp vụ) / SMTP / FCM / IP văn phòng sửa được trên trang Hệ thống → Cấu hình và được ưu tiên hơn `.env`; biến `.env` vẫn là mặc định khi nhóm chưa lưu trong DB ([env.md](env.md#cấu-hình-lưu-trong-db-test-41)). Dev cần `Chat__InternalKey` trong `.env` (Api và Realtime cùng giá trị; `openssl rand -base64 32`). Tuỳ chọn tách theo chiều gọi: `Chat__McpToRealtimeKey`, `Chat__RealtimeToApiKey` ([env.md](env.md)).
