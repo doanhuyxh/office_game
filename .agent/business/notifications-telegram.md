@@ -2,7 +2,7 @@
 
 > Về [notifications.md](notifications.md) · cấu hình lưu DB: [../env.md](../env.md#cấu-hình-lưu-trong-db-test-41) · bối cảnh agent: [agent-team.md](agent-team.md)
 
-**Mục đích:** khi một việc được **giao cho tài khoản bot** (cờ IsBot), OfficeHub gửi **đúng một tin** vào một nhóm Telegram. Bộ điều phối trên máy chạy agent đọc tin rồi cho agent làm việc đó (TEST-44). Hiện có hai sự kiện: **giao việc** và **trả lại việc** (lùi kèm lý do); thông báo khác chưa đi qua Telegram.
+**Mục đích:** khi một việc được **giao cho tài khoản bot** (cờ IsBot), OfficeHub gửi **đúng một tin** vào một nhóm Telegram. Bộ điều phối trên máy chạy agent đọc tin rồi cho agent làm việc đó (TEST-44). Hiện có hai sự kiện: **giao việc** và **trả lại việc** (lùi kèm lý do); thông báo khác chưa đi qua Telegram. Thêm sự kiện Telegram = thêm phương thức `ITelegramWakeup` **và** dòng trong danh mục sự kiện ([notifications-catalog.md](notifications-catalog.md), test bắt buộc).
 
 ## Cấu hình
 

@@ -25,6 +25,9 @@ export function useStorageReport() {
 /** Kênh thông báo (tab Kênh thông báo): chỉ tải khi mở tab, tự làm mới mỗi phút. */
 export const useNotificationChannels = (enabled: boolean) =>
   useQuery({ queryKey: systemKeys.channels, queryFn: systemApi.channels, enabled, refetchInterval: enabled ? 60_000 : false });
+/** Danh mục sự kiện thông báo: tĩnh theo bản build back-end, chỉ tải khi mở tab. */
+export const useNotificationEvents = (enabled: boolean) =>
+  useQuery({ queryKey: systemKeys.events, queryFn: systemApi.notificationEvents, enabled, staleTime: 10 * 60_000 });
 
 /** Cấu hình hệ thống (tab Cấu hình). */
 export const useSystemSettings = () => useQuery({ queryKey: systemKeys.settings, queryFn: systemApi.settings });

@@ -70,3 +70,10 @@ export interface INotificationChannel {
   /** Số liệu chỉ trong RAM, tính từ lúc này (Api khởi động). */
   statsSince: string | null;
 }
+
+/** Danh mục sự kiện thông báo theo nhóm (GET /api/system/notification-channels/events, TEST-59) — back-end giữ danh mục duy nhất. */
+export type NotificationChannelKey = 'bell' | 'email' | 'push' | 'webhook' | 'telegram';
+/** note: điều kiện gửi qua kênh này (vd email chỉ khi duyệt bước cuối). */
+export interface IEventChannel { channel: NotificationChannelKey | string; note: string | null }
+export interface INotificationEvent { key: string; title: string; description: string; category: string | null; channels: IEventChannel[] }
+export interface INotificationEventGroup { key: string; name: string; events: INotificationEvent[] }

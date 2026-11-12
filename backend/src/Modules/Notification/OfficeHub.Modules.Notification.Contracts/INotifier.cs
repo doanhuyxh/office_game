@@ -21,6 +21,7 @@ public sealed record NotificationRequest(
     string? Link = null,
     bool SendEmail = true);
 
+/// <summary>Thêm / xoá hằng → sửa danh mục sự kiện NotificationCatalog (module Notification) trong cùng commit; NotificationCatalogTests fail nếu lệch.</summary>
 public static class NotificationCategories
 {
     /// <summary>Có đơn chờ người nhận duyệt.</summary>

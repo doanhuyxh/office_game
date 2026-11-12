@@ -113,8 +113,31 @@ const get = async () => {
 };
 let { r, by } = await get();
 ok('Admin thấy đủ 5 kênh theo thứ tự', r.status === 200 && JSON.stringify(r.body.map((c: any) => c.key)) === JSON.stringify(['bell', 'email', 'push', 'webhook', 'telegram']), r.body);
-ok('Chuông: có sẵn, hoạt động, dùng cho mọi loại (có nhãn tiếng Việt)', by('bell').source === 'builtin' && by('bell').health === 'ok'
-  && by('bell').usedBy.length >= 37 && by('bell').usedBy.some((u: any) => u.key === 'approval_requested' && u.label === 'Có đơn chờ duyệt'), by('bell'));
+ok('Chuông: có sẵn, hoạt động, dùng cho mọi sự kiện có chuông (từ danh mục)', by('bell').source === 'builtin' && by('bell').health === 'ok'
+  && by('bell').usedBy.length >= 37 && by('bell').usedBy.some((u: any) => u.key === 'approval.requested' && u.label === 'Có đơn chờ duyệt')
+  && !by('bell').usedBy.some((u: any) => u.key.startsWith('chat.')), by('bell'));
+ok('Chip "Dùng cho" lấy từ danh mục: Telegram = giao + trả lại việc, webhook có tin 1-1, email không có giao việc',
+  JSON.stringify(by('telegram').usedBy.map((u: any) => u.key)) === JSON.stringify(['projects.task_assigned', 'projects.task_returned'])
+  && by('webhook').usedBy.some((u: any) => u.key === 'chat.direct') && by('push').usedBy.some((u: any) => u.key === 'chat.room')
+  && by('email').usedBy.some((u: any) => u.key === 'people.account_security') && !by('email').usedBy.some((u: any) => u.key === 'projects.task_assigned'),
+  { telegram: by('telegram').usedBy, email: by('email').usedBy.map((u: any) => u.key) });
+
+// TEST-59: danh mục sự kiện theo nhóm
+const EV = `${PATH}/events`;
+ok('Danh mục sự kiện: chưa đăng nhập 401, nhân viên / HR / token AI 403', (await call({}, 'GET', EV)).status === 401
+  && (await json(EMP.cookie, 'GET', EV)).status === 403 && (await json(HR.cookie, 'GET', EV)).status === 403
+  && (await call({ authorization: `Bearer ${tok}` }, 'GET', EV)).status === 403);
+const ev = await json(admin, 'GET', EV);
+const evAll = (ev.body as any[] ?? []).flatMap((g: any) => g.events);
+const evBy = (k: string) => evAll.find((e: any) => e.key === k);
+const chans = (k: string) => (evBy(k)?.channels ?? []).map((c: any) => c.channel).join(',');
+ok('Danh mục: theo nhóm, mỗi nhóm có sự kiện, mã duy nhất', ev.status === 200 && ev.body.length >= 10 && ev.body.every((g: any) => g.name && g.events.length > 0)
+  && new Set(evAll.map((e: any) => e.key)).size === evAll.length && ev.body[0].key === 'approval', ev.body?.map?.((g: any) => g.key));
+ok('Danh mục: kênh đúng theo sự kiện', chans('projects.task_assigned') === 'bell,push,webhook,telegram' && chans('projects.task_returned') === 'bell,push,webhook,telegram'
+  && chans('projects.task_comment') === 'bell,push,webhook' && chans('people.account_security') === 'bell,email,push,webhook'
+  && chans('chat.direct') === 'push,webhook' && chans('chat.room') === 'push'
+  && evBy('approval.approved')?.channels.find((c: any) => c.channel === 'email')?.note?.includes('bước cuối'),
+  { assigned: chans('projects.task_assigned'), sec: chans('people.account_security'), direct: chans('chat.direct') });
 ok('Email: đã cấu hình, nguồn .env, link nhóm smtp', by('email').configured && by('email').source === 'env' && by('email').configGroup === 'smtp', by('email'));
 const fcmCfg = (await json(admin, 'GET', '/api/system/settings/fcm')).body;
 ok('Push: trạng thái khớp cấu hình FCM', by('push').configured === fcmCfg.secrets.serviceAccountJson && by('push').configGroup === 'fcm'
@@ -146,8 +169,8 @@ await json(PM.cookie, 'POST', `/api/projects/${P}/tasks`, { title: 'Giao bot', a
 await until(() => sent.some((s) => s.text.startsWith(`@kn_${stamp}_bot`)));
 await sleep(1500);
 ({ r, by } = await get());
-ok('Sau khi gửi được: lastSuccessAt có, dùng cho "Giao việc cho tài khoản bot"', !!by('telegram').lastSuccessAt && by('telegram').health === 'ok'
-  && by('telegram').usedBy[0]?.label === 'Giao việc cho tài khoản bot', by('telegram'));
+ok('Sau khi gửi được: lastSuccessAt có, dùng cho "Được giao việc"', !!by('telegram').lastSuccessAt && by('telegram').health === 'ok'
+  && by('telegram').usedBy[0]?.label === 'Được giao việc', by('telegram'));
 
 // Token sai → lỗi gần nhất, health error, không lộ token
 await json(admin, 'PUT', '/api/system/settings/telegram', { values: { enabled: true, chatId: '-1009876543210' }, secrets: { botToken: BAD } });

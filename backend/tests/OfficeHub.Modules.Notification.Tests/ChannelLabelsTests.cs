@@ -5,14 +5,6 @@ namespace OfficeHub.Modules.Notification.Tests;
 public class ChannelLabelsTests
 {
     [Fact]
-    public void Every_category_has_a_vietnamese_label()
-    {
-        var missing = ChannelLabels.AllCategoryKeys.Where(k => !ChannelLabels.Categories.ContainsKey(k)).ToList();
-        Assert.True(missing.Count == 0, "Thêm nhãn cho: " + string.Join(", ", missing));
-        Assert.Equal(ChannelLabels.Categories.Count, ChannelLabels.AllCategoryKeys.Count);
-    }
-
-    [Fact]
     public void Health_rules()
     {
         var now = DateTimeOffset.UnixEpoch.AddDays(10);
