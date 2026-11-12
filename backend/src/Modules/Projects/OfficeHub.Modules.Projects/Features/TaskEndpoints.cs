@@ -527,11 +527,9 @@ internal static class TaskEndpoints
         if (codes.Count > 0)
         {
             var emps = await access.EmployeesAsync(ct);
-            var memberIds = p.Members.Select(m => m.EmployeeId).ToHashSet();
-            var mentioned = new List<Guid>();
-            foreach (var e in emps.Values.Where(e => memberIds.Contains(e.Id) && e.Id != v.Employee?.Id && e.Id != t.AssigneeEmployeeId
-                         && codes.Contains(e.Code, StringComparer.OrdinalIgnoreCase)))
-                if (e.UserId is { } mu) mentioned.Add(mu);
+            var mentioned = AgentTeamRules.MentionRecipients(
+                p.Members.Select(m => emps.GetValueOrDefault(m.EmployeeId)).OfType<EmployeeRef>().Select(e => (e.Id, e.Code, e.UserId, e.IsActive)),
+                codes, v.Employee?.Id, t.AssigneeEmployeeId);
             if (mentioned.Count > 0)
                 await notifier.NotifyAsync(new NotificationRequest(mentioned, NotificationCategories.ProjectTask, $"{v.Name} nhắc bạn trong việc {code}",
                     preview, $"/projects/{p.Id}", SendEmail: false), ct);

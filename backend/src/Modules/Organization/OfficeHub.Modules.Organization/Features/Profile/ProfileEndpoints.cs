@@ -64,8 +64,10 @@ internal static class ProfileEndpoints
 
     // ---------------- Hỗ trợ ----------------
 
-    internal static string? AvatarUrl(Employee e) =>
-        e.AvatarKey is { } k ? $"/api/org/profile/avatars/{e.Id}?v={Path.GetFileNameWithoutExtension(k)}" : null;
+    internal static string? AvatarUrl(Employee e) => AvatarUrl(e.Id, e.AvatarKey);
+
+    internal static string? AvatarUrl(Guid employeeId, string? avatarKey) =>
+        avatarKey is { } k ? $"/api/org/profile/avatars/{employeeId}?v={Path.GetFileNameWithoutExtension(k)}" : null;
 
     private static ProblemHttpResult NoProfile() =>
         TypedResults.Problem("Tài khoản chưa gắn hồ sơ nhân viên", statusCode: StatusCodes.Status404NotFound, title: "no_employee_profile");

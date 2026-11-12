@@ -7,13 +7,13 @@ namespace OfficeHub.Modules.Organization.Infrastructure;
 
 internal sealed class EmployeeDirectory(OrgDbContext db, IFieldEncryptor enc) : IEmployeeDirectory
 {
-    /// <summary>Lọc trên bảng Employee TRƯỚC, rồi mới chiếu sang EmployeeRef (EF không dịch được Where trên record đã chiếu).</summary>
+    /// <summary>Lọc trên bảng Employee TRƯỚC, rồi mới chiếu sang EmployeeRef (EF không dịch được Where trên record đã chiếu). AvatarUrl tính phía client (select cuối).</summary>
     private IQueryable<EmployeeRef> Project(IQueryable<Employee> employees) =>
         from e in employees.AsNoTracking()
         join d in db.Departments on e.DepartmentId equals d.Id into dj
         from d in dj.DefaultIfEmpty()
         select new EmployeeRef(e.Id, e.Code, e.FullName, e.UserId, e.DepartmentId, d != null ? d.Name : null, e.ManagerId,
-            e.Status != EmployeeStatus.Resigned, e.JoinedAt, e.LeftAt);
+            e.Status != EmployeeStatus.Resigned, e.JoinedAt, e.LeftAt, Features.Profile.ProfileEndpoints.AvatarUrl(e.Id, e.AvatarKey));
 
     public Task<EmployeeRef?> GetByUserIdAsync(Guid userId, CancellationToken ct = default) =>
         Project(db.Employees.Where(e => e.UserId == userId)).FirstOrDefaultAsync(ct);

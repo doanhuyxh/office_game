@@ -66,6 +66,8 @@ function DialogContent({
         // Vẫn đóng được bằng Esc, nút X hoặc DialogClose; có thể ghi đè qua props.
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
+        // Esc khi đang mở gợi ý @nhắc (ô nhập nằm trong [data-mention-open]) → chỉ đóng gợi ý, không đóng modal.
+        onEscapeKeyDown={(e) => { if (e.target instanceof Element && e.target.closest('[data-mention-open]')) e.preventDefault(); }}
         {...props}
       >
         {children}

@@ -65,6 +65,14 @@ public class AgentTeamRulesTests
     [InlineData("@x quá ngắn", new string[0])]
     [InlineData("(@Lan) xem", new[] { "Lan" })]
     [InlineData(null, new string[0])]
+    [InlineData("@NV012", new[] { "NV012" })]
+    [InlineData("Xong rồi, nhờ @NV012", new[] { "NV012" })]
+    [InlineData("@NV012, @NV013! @NV014? @NV015: @NV016; (@NV017)", new[] { "NV012", "NV013", "NV014", "NV015", "NV016", "NV017" })]
+    [InlineData("@NV012 @nv012 @Nv012", new[] { "NV012" })]
+    [InlineData("dòng 1\n@NV012 dòng 2", new[] { "NV012" })]
+    [InlineData("@@NV012 hay x@NV012", new string[0])]
+    [InlineData("@NV012-", new[] { "NV012" })]
+    [InlineData("không nhắc ai", new string[0])]
     public void Mentions(string? content, string[] expected) => Assert.Equal(expected, AgentTeamRules.MentionedCodes(content));
 
     [Fact]
@@ -72,5 +80,28 @@ public class AgentTeamRulesTests
     {
         var s = string.Join(" ", Enumerable.Range(10, 20).Select(i => $"@NV0{i}"));
         Assert.Equal(AgentTeamRules.MaxMentions, AgentTeamRules.MentionedCodes(s).Count);
+    }
+
+    private static readonly Guid Author = Guid.NewGuid(), Assignee = Guid.NewGuid(), Lan = Guid.NewGuid(), BotAgent = Guid.NewGuid(), Left = Guid.NewGuid(), NoAccount = Guid.NewGuid();
+    private static readonly Guid UAuthor = Guid.NewGuid(), UAssignee = Guid.NewGuid(), ULan = Guid.NewGuid(), UBot = Guid.NewGuid(), ULeft = Guid.NewGuid();
+    private static readonly (Guid, string, Guid?, bool)[] Members =
+    [
+        (Author, "NV001", UAuthor, true), (Assignee, "NV002", UAssignee, true), (Lan, "NV003", ULan, true),
+        (BotAgent, "NV018", UBot, true), (Left, "NV004", ULeft, false), (NoAccount, "NV005", null, true),
+    ];
+
+    [Fact]
+    public void Mention_recipients_are_active_members_except_author_and_assignee()
+    {
+        var codes = AgentTeamRules.MentionedCodes("@NV001 @NV002 @nv003 @NV018 @NV004 @NV005 @NV999");
+        Assert.Equal([ULan, UBot], AgentTeamRules.MentionRecipients(Members, codes, Author, Assignee));
+    }
+
+    [Fact]
+    public void Mention_recipients_empty_without_codes_and_include_assignee_when_unassigned()
+    {
+        Assert.Empty(AgentTeamRules.MentionRecipients(Members, [], Author, Assignee));
+        Assert.Equal([UAssignee], AgentTeamRules.MentionRecipients(Members, ["NV002"], Author, null));
+        Assert.Equal([UAuthor], AgentTeamRules.MentionRecipients(Members, ["NV001"], null, null));
     }
 }

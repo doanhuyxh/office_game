@@ -48,4 +48,6 @@ public sealed record EmployeeRef(
     bool IsActive,
     DateOnly JoinedAt,
     /// <summary>Ngày nghỉ việc (null = đang làm).</summary>
-    DateOnly? LeftAt);
+    DateOnly? LeftAt,
+    /// <summary>Link ảnh đại diện (/api/org/profile/avatars/{id}?v=…), null = chưa có ảnh.</summary>
+    string? AvatarUrl = null);

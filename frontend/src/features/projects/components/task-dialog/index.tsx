@@ -1,6 +1,6 @@
 import { BotBadge } from '@/components/common/bot-badge';
 import { confirmDialog, promptDialog } from '@/components/common/confirm-dialog';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { ImagePlus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/common/button';
@@ -10,7 +10,6 @@ import { Input } from '@/components/common/input';
 import { Markdown } from '@/components/common/markdown';
 import { Label } from '@/components/common/label';
 import { SelectField } from '@/components/common/SelectField';
-import { MessageInput } from '@/components/common/message-input';
 import { todayVn } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { projectApi } from '../../api/project.api';
@@ -19,6 +18,7 @@ import type { IMember, IMilestone, ITask, ITaskActivity, ITaskColumn, ITaskReque
 import { ACTIVITY_LABEL, createColumns, needsMoveNote, stateLabel } from '../../utils/labels';
 import { isHttpUrl } from '../../utils/media';
 import { MarkdownEditor } from '../markdown-editor';
+import { TaskCommentInput } from '../task-comment-input';
 import { TaskDependencies } from '../task-dependencies';
 import { TaskMedia } from '../task-media';
 
@@ -65,6 +65,8 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
   const comments = detail?.comments ?? [];
   const activities = detail?.activities ?? [];
   const [showHistory, setShowHistory] = useState(false);
+  // @mã thành viên trong bình luận → hiện họ tên nổi bật (mã HOA → họ tên)
+  const mentionNames = useMemo(() => new Map(members.filter((m) => m.code).map((m) => [m.code!.toUpperCase(), m.fullName])), [members]);
   const createCols = createColumns(columns, sequential, canDelete);
   useEffect(() => {
     if (!open) return;
@@ -137,9 +139,8 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
                           && deleteComment.mutate(c.id, { onSuccess: () => toast.success('Đã xoá bình luận'), onError: (err) => toast.error(errorMessage(err)) })}>
                         <Trash2 className="size-3.5" /></Button>}
                     </div>
-                    <Markdown text={c.content} /></div>)}
-                  {canWork && <MessageInput placeholder="Viết bình luận…" ariaLabel="Bình luận" sendLabel="Gửi bình luận" value={comment} onChange={setComment}
-                    onSubmit={postComment} pending={addComment.isPending} />}
+                    <Markdown text={c.content} mentions={mentionNames} /></div>)}
+                  {canWork && <TaskCommentInput members={members} value={comment} onChange={setComment} onSubmit={postComment} pending={addComment.isPending} />}
                   <p className="text-xs text-muted-foreground">Tạo bởi {task.createdByName}{task.createdByBot && <BotBadge className="ml-1" />} · {fmtTime(task.createdAt)}{task.completedAt && ` · xong ${fmtTime(task.completedAt)}`}
                     {activities.length > 0 && <button type="button" className="ml-2 underline" onClick={() => setShowHistory((x) => !x)}>{showHistory ? 'Ẩn lịch sử' : `Lịch sử (${activities.length})`}</button>}</p>
                   {showHistory && <ul className="grid gap-1 rounded-md border p-2" data-testid="task-history">{[...activities].reverse().map((a) => <ActivityLine key={a.id} a={a} />)}</ul>}

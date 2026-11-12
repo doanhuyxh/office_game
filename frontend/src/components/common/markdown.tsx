@@ -1,6 +1,10 @@
+import { useMemo } from 'react';
+import type { Parent, Root, RootContent, Text } from 'mdast';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import type { PluggableList } from 'unified';
 import { cn } from '@/utils/cn';
+import { splitMentions } from '@/utils/mention';
 import { isTrustedMediaUrl } from '@/utils/trustedMedia';
 
 /** Map thẻ Markdown → class Tailwind (không có plugin typography). */
@@ -31,14 +35,37 @@ const COMPONENTS: Components = {
 /** Nội dung do bot gửi (TV phòng họp): ảnh nhúng → chỉ hiện chữ thay thế, không tải URL lạ từ máy người xem. */
 const NO_IMAGES: Components = { ...COMPONENTS, img: ({ alt }) => <span className="text-muted-foreground">[ảnh{alt ? `: ${alt}` : ''}]</span> };
 
+const MENTION_CLASS = ['rounded', 'bg-primary/10', 'px-1', 'font-medium', 'text-primary'];
+
+/** Plugin remark: "@mã" có trong `names` (mã HOA → họ tên) → span nổi bật hiện "@Họ tên" (hover: mã). Bỏ qua chữ trong link và code. */
+function remarkMentions(names: ReadonlyMap<string, string>) {
+  const walk = (node: Parent) => {
+    const out: RootContent[] = [];
+    for (const child of node.children as RootContent[]) {
+      if (child.type === 'text') {
+        for (const part of splitMentions(child.value, names))
+          out.push(typeof part === 'string' ? { type: 'text', value: part }
+            : { type: 'text', value: `@${part.name}`, data: { hName: 'span', hProperties: { className: MENTION_CLASS, title: part.code, dataMention: part.code } } } satisfies Text);
+      } else {
+        if ('children' in child && child.type !== 'link' && child.type !== 'linkReference') walk(child);
+        out.push(child);
+      }
+    }
+    node.children = out as Parent['children'];
+  };
+  return (tree: Root) => walk(tree);
+}
+
 /**
  * Hiển thị Markdown (GFM: bảng, checklist, ~~gạch~~, link tự động) do người dùng nhập.
  * An toàn: react-markdown không render HTML thô và lọc URL `javascript:` — không dùng rehype-raw. `noImages`: không tải ảnh nhúng.
+ * `mentions` (mã nhân viên viết HOA → họ tên): "@mã" khớp hiện thành tên nổi bật (bình luận việc), mã khác giữ chữ thường.
  */
-export function Markdown({ text, className, noImages }: { text: string; className?: string; noImages?: boolean }) {
+export function Markdown({ text, className, noImages, mentions }: { text: string; className?: string; noImages?: boolean; mentions?: ReadonlyMap<string, string> }) {
+  const plugins = useMemo<PluggableList>(() => (mentions && mentions.size > 0 ? [remarkGfm, [remarkMentions, mentions]] : [remarkGfm]), [mentions]);
   return (
     <div className={cn('text-sm leading-relaxed break-words', className)}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={noImages ? NO_IMAGES : COMPONENTS}>{text}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={plugins} components={noImages ? NO_IMAGES : COMPONENTS}>{text}</ReactMarkdown>
     </div>
   );
 }

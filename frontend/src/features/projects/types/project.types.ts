@@ -9,7 +9,8 @@ export interface ITaskColumnRequest { name: string; color?: string | null; isDon
 
 export interface ISalesContractRef { id: string; code: string; title: string; customerName: string; status: string; businessLineId: string | null }
 export interface IInstallmentRef { id: string; contractId: string; title: string; dueOn: string; cancelled: boolean }
-export interface IMember { employeeId: string; code: string | null; fullName: string; jobTitle: string | null; role: MemberRole; isActive: boolean }
+/** avatarUrl / isBot: gợi ý @nhắc trong bình luận việc (TEST-62). */
+export interface IMember { employeeId: string; code: string | null; fullName: string; jobTitle: string | null; role: MemberRole; isActive: boolean; avatarUrl?: string | null; isBot?: boolean }
 /** Phòng ban tham gia dự án (TEST-40); isLead = phòng chủ trì (đứng đầu danh sách). */
 export interface IProjectDepartment { id: string; name: string; isLead: boolean }
 export interface IProject {

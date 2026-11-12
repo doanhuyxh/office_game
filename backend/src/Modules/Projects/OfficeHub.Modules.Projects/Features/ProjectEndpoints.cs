@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.Modules.Attendance.Contracts;
+using OfficeHub.Modules.Identity.Contracts;
 using OfficeHub.Modules.Notification.Contracts;
 using OfficeHub.Modules.Organization.Contracts;
 using OfficeHub.Modules.Projects.Contracts;
@@ -16,7 +17,8 @@ using OfficeHub.Modules.Sales.Contracts;
 
 namespace OfficeHub.Modules.Projects.Features;
 
-public sealed record MemberDto(Guid EmployeeId, string? Code, string FullName, string? JobTitle, ProjectMemberRole Role, bool IsActive);
+/// <summary>AvatarUrl / IsBot: cho gợi ý @nhắc trong bình luận việc (TEST-62).</summary>
+public sealed record MemberDto(Guid EmployeeId, string? Code, string FullName, string? JobTitle, ProjectMemberRole Role, bool IsActive, string? AvatarUrl = null, bool IsBot = false);
 public sealed record TaskCounts(int Open, int Done, int Overdue);
 public sealed record ProjectDepartmentDto(Guid Id, string Name, bool IsLead);
 /// <param name="Departments">Phòng ban tham gia (chủ trì đứng đầu) — TEST-40.</param>
@@ -156,22 +158,26 @@ internal static class ProjectEndpoints
         ProjectDepartmentRules.Ordered(p.Departments.Select(d => new ProjectDepartmentDto(d.DepartmentId, depts.GetValueOrDefault(d.DepartmentId, "(phòng ban đã xoá)"), d.IsLead)),
             d => d.IsLead, d => d.Name).ToList();
 
-    internal static async Task<List<MemberDto>> MembersAsync(Project p, ProjectAccess access, CancellationToken ct)
+    /// <summary>Thành viên dự án; có <paramref name="accounts"/> thì đánh dấu tài khoản bot.</summary>
+    internal static async Task<List<MemberDto>> MembersAsync(Project p, ProjectAccess access, CancellationToken ct, IAccountService? accounts = null)
     {
         var emps = await access.EmployeesAsync(ct);
+        var accs = accounts is null ? null
+            : await accounts.GetManyAsync(p.Members.Select(m => emps.TryGetValue(m.EmployeeId, out var e) ? e.UserId : null).OfType<Guid>().ToList(), ct);
         return p.Members.OrderByDescending(m => m.Role).ThenBy(m => emps.TryGetValue(m.EmployeeId, out var e) ? e.FullName : "").Select(m =>
-            emps.TryGetValue(m.EmployeeId, out var e) ? new MemberDto(m.EmployeeId, e.Code, e.FullName, null, m.Role, e.IsActive)
+            emps.TryGetValue(m.EmployeeId, out var e) ? new MemberDto(m.EmployeeId, e.Code, e.FullName, null, m.Role, e.IsActive, e.AvatarUrl,
+                    e.UserId is { } u && accs is not null && accs.TryGetValue(u, out var a) && a.IsBot)
                 : new MemberDto(m.EmployeeId, null, "(không rõ)", null, m.Role, false)).ToList();
     }
 
     private static async Task<Results<Ok<ProjectDetail>, NotFound>> GetAsync(Guid id, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, IEmployeeDirectory dir,
-        ISalesContractsLookup sales, ProjectClock clock, CancellationToken ct)
+        ISalesContractsLookup sales, IAccountService accounts, ProjectClock clock, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var p = await db.Projects.AsNoTracking().Include(x => x.Members).Include(x => x.Departments).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (p is null || !v.CanSee(id)) return TypedResults.NotFound();
         var dto = (await ToDtosAsync([p], v, db, dir, sales, clock.Today, ct))[0];
-        return TypedResults.Ok(new ProjectDetail(dto, await MembersAsync(p, access, ct), await MilestoneEndpoints.ListForAsync(p, db, sales, ct), p.WorkGuide,
+        return TypedResults.Ok(new ProjectDetail(dto, await MembersAsync(p, access, ct, accounts), await MilestoneEndpoints.ListForAsync(p, db, sales, ct), p.WorkGuide,
             await TaskColumnEndpoints.ListForAsync(db, id, ct), ProjectPermissions.Allowed(v, id)));
     }
 

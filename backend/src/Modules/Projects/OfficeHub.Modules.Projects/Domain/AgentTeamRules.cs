@@ -77,4 +77,15 @@ public static partial class AgentTeamRules
         }
         return list;
     }
+
+    /// <summary>Người nhận chuông "… nhắc bạn trong việc …": chỉ thành viên dự án còn làm việc, có tài khoản, mã khớp (không phân biệt hoa thường);
+    /// bỏ người viết và người làm việc (đã nhận chuông bình luận). Trả UserId, bỏ trùng, giữ thứ tự danh sách thành viên.</summary>
+    public static IReadOnlyList<Guid> MentionRecipients(IEnumerable<(Guid EmployeeId, string Code, Guid? UserId, bool IsActive)> members,
+        IReadOnlyCollection<string> codes, Guid? authorEmployeeId, Guid? assigneeEmployeeId)
+    {
+        if (codes.Count == 0) return [];
+        var set = new HashSet<string>(codes, StringComparer.OrdinalIgnoreCase);
+        return members.Where(m => m.IsActive && m.UserId is not null && m.EmployeeId != authorEmployeeId && m.EmployeeId != assigneeEmployeeId && set.Contains(m.Code))
+            .Select(m => m.UserId!.Value).Distinct().ToList();
+    }
 }

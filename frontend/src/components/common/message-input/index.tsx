@@ -25,6 +25,10 @@ export const MessageInput = forwardRef<HTMLTextAreaElement, {
   maxLength?: number;
   autoFocus?: boolean;
   onPaste?: (e: ClipboardEvent<HTMLTextAreaElement>) => void;
+  /** Xử lý phím trước (vd danh sách gợi ý @nhắc); gọi preventDefault → ô nhập bỏ qua phím đó. */
+  onKeyDown?: (e: KeyboardEvent<HTMLTextAreaElement>) => void;
+  /** Con trỏ / vùng chọn đổi (bấm chuột, phím mũi tên). */
+  onSelect?: () => void;
   /** Nút đặt trước ô nhập (vd đính kèm). */
   leading?: ReactNode;
   /** Phần phủ trong ô nhập (vd bộ đếm ký tự). */
@@ -33,7 +37,7 @@ export const MessageInput = forwardRef<HTMLTextAreaElement, {
   sendTestId?: string;
   className?: string;
 }>(function MessageInput({ value, onChange, onSubmit, canSubmit, pending = false, placeholder, ariaLabel, sendLabel = 'Gửi', maxLength, autoFocus,
-  onPaste, leading, overlay, inputTestId, sendTestId, className }, ref) {
+  onPaste, onKeyDown: onKeyDownFirst, onSelect, leading, overlay, inputTestId, sendTestId, className }, ref) {
   const area = useRef<HTMLTextAreaElement>(null);
   useImperativeHandle(ref, () => area.current!, []);
   // Safari chưa hỗ trợ `field-sizing: content` (Textarea tự giãn) → ô kẹt 1 dòng. Tự giãn theo nội dung bằng JS.
@@ -51,6 +55,8 @@ export const MessageInput = forwardRef<HTMLTextAreaElement, {
     area.current?.focus();
   };
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    onKeyDownFirst?.(e);
+    if (e.defaultPrevented) return;
     if (e.key === 'Enter' && !e.nativeEvent.isComposing && (!e.shiftKey || e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       submit();
@@ -73,6 +79,7 @@ export const MessageInput = forwardRef<HTMLTextAreaElement, {
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
           onPaste={onPaste}
+          onSelect={onSelect}
           data-testid={inputTestId}
         />
         {overlay}

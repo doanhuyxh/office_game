@@ -2,9 +2,12 @@ import { useRef, useState } from 'react';
 import { ImagePlus, Loader2, SendHorizontal, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
+import { MentionList, type IMentionOption } from '@/components/common/mention-list';
 import { Textarea } from '@/components/common/textarea';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useMentionNav } from '@/hooks/useMentionNav';
 import { errorMessage } from '@/utils/errors';
+import { mentionQuery, replaceMentionQuery } from '@/utils/mention';
 import { usePeople } from '../../hooks/useNews';
 import { checkFile, mentionToken } from '../../utils/labels';
 import { uploadFile } from '../../utils/upload';
@@ -26,21 +29,23 @@ export function CommentInput({ placeholder = 'Viết bình luận…', initial =
   const file = useRef<HTMLInputElement>(null);
   const term = useDebounce(query ?? '', 200);
   const people = usePeople(term, query !== null);
-  const list = query !== null ? (people.data ?? []).slice(0, 5) : [];
+  const list: IMentionOption[] = query !== null
+    ? (people.data ?? []).slice(0, 5).map((p) => ({ key: p.userId, name: p.fullName, hint: `${p.code}${p.departmentName ? ` · ${p.departmentName}` : ''}` }))
+    : [];
+  const nav = useMentionNav(list, pick, () => setQuery(null));
 
   function onChange(v: string, caret: number) {
     setText(v);
-    const m = /(?:^|\s)@([^\s@]{0,20})$/.exec(v.slice(0, caret));
-    setQuery(m ? m[1] : null);
+    setQuery(mentionQuery(v.slice(0, caret)));
+    nav.setActive(0);
   }
 
-  function pick(p: { userId: string; fullName: string }) {
-    const caret = area.current?.selectionStart ?? text.length;
-    const before = text.slice(0, caret).replace(/@[^\s@]{0,20}$/, `@${p.fullName} `);
-    setText(before + text.slice(caret));
-    setMentions((m) => (m.some((x) => x.id === p.userId) ? m : [...m, { id: p.userId, name: p.fullName }]));
+  function pick(p: IMentionOption) {
+    const next = replaceMentionQuery(text, area.current?.selectionStart ?? text.length, `@${p.name}`);
+    setText(next.text);
+    setMentions((m) => (m.some((x) => x.id === p.key) ? m : [...m, { id: p.key, name: p.name }]));
     setQuery(null);
-    requestAnimationFrame(() => { area.current?.focus(); area.current?.setSelectionRange(before.length, before.length); });
+    requestAnimationFrame(() => { area.current?.focus(); area.current?.setSelectionRange(next.caret, next.caret); });
   }
 
   function pickImage(f: File | undefined) {
@@ -68,16 +73,15 @@ export function CommentInput({ placeholder = 'Viết bình luận…', initial =
   }
 
   return (
-    <div className="relative grid gap-1.5">
+    <div className="relative grid gap-1.5" data-mention-open={list.length > 0 || undefined}>
       <div className="flex items-end gap-1.5 rounded-2xl border bg-muted/40 px-3 py-1.5 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
         <Textarea ref={area} rows={1} value={text} autoFocus={autoFocus} placeholder={placeholder} maxLength={2000} disabled={busy} data-testid="comment-input"
           className="min-h-8 resize-none border-0 bg-transparent px-0 py-1 shadow-none focus-visible:ring-0 dark:bg-transparent"
           onChange={(e) => onChange(e.target.value, e.target.selectionStart)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              if (query !== null && list.length > 0) pick(list[0]); else void submit();
-            } else if (e.key === 'Escape') { if (query !== null) setQuery(null); else onCancel?.(); }
+            if (nav.handleKey({ key: e.key, shiftKey: e.shiftKey, isComposing: e.nativeEvent.isComposing })) { e.preventDefault(); return; }
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void submit(); }
+            else if (e.key === 'Escape') { if (query !== null) setQuery(null); else onCancel?.(); }
           }} />
         {allowImage && (
           <>
@@ -96,18 +100,7 @@ export function CommentInput({ placeholder = 'Viết bình luận…', initial =
         </div>
       )}
       {onCancel && <button type="button" className="w-fit text-xs text-muted-foreground hover:underline" onClick={onCancel}>Huỷ</button>}
-      {query !== null && list.length > 0 && (
-        <ul className="absolute bottom-full left-0 z-20 mb-1 w-72 overflow-hidden rounded-md border bg-popover shadow-md">
-          {list.map((p) => (
-            <li key={p.userId}>
-              <button type="button" className="flex w-full flex-col px-3 py-1.5 text-left text-sm hover:bg-accent" onMouseDown={(e) => { e.preventDefault(); pick(p); }}>
-                <span className="font-medium">{p.fullName}</span>
-                <span className="text-xs text-muted-foreground">{p.code}{p.departmentName ? ` · ${p.departmentName}` : ''}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <MentionList options={list} active={nav.active} onPick={pick} onHover={nav.setActive} className="absolute bottom-full left-0 mb-1" />
     </div>
   );
 }
