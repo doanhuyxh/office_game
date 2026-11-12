@@ -11,9 +11,9 @@
 - Enum lưu dạng **chuỗi** (`HasConversion<string>()`).
 - Id: `Guid.CreateVersion7()` (UUID v7, sắp theo thời gian).
 
-## Schema `identity` — `OfficeIdentityDbContext` (migration `InitialIdentity`, `AccessTokens`, `OAuth`, `UserAvatars`, `AttemptCounters`, `PasswordResetRequests`, `UserTelegramBot`)
+## Schema `identity` — `OfficeIdentityDbContext` (migration `InitialIdentity`, `AccessTokens`, `OAuth`, `UserAvatars`, `AttemptCounters`, `PasswordResetRequests`, `UserTelegramBot`, `DropUserTelegramBot`)
 
-`UserTelegramBot` (TEST-42): `users.TelegramBot` varchar 64 ("@…bot" chữ thường, unique `ux_users_telegram_bot` khi khác null) — [business/notifications-telegram.md](business/notifications-telegram.md).
+`UserTelegramBot` (TEST-42) thêm `users.TelegramBot`; `DropUserTelegramBot` (TEST-48) xoá cột + index `ux_users_telegram_bot` (agent nhận việc theo `employee_code`) — [business/notifications-telegram.md](business/notifications-telegram.md).
 
 Bảng ASP.NET Identity đổi tên: `users`, `roles`, `user_roles`, `user_claims`, `user_logins`, `user_tokens`, `role_claims`. 2FA dùng sẵn `users.TwoFactorEnabled` + `user_tokens` (`[AspNetUserStore]` / `AuthenticatorKey`, `RecoveryCodes`) — không thêm bảng ([business/auth-2fa.md](business/auth-2fa.md)).
 

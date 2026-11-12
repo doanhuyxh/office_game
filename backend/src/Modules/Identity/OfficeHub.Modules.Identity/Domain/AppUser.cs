@@ -22,9 +22,4 @@ public sealed class AppUser : IdentityUser<Guid>
     /// mọi quyền vẫn như tài khoản thường. Bàn giao cho người thật → HR bỏ cờ.
     /// </summary>
     public bool IsBot { get; set; }
-    /// <summary>
-    /// Username bot Telegram của agent vận hành tài khoản này (vd "@agent_dev01_bot", TEST-42) — giao việc cho tài khoản bot có trường này
-    /// → OfficeHub gửi tin đánh thức vào nhóm Telegram, nhắc tên bot. Chỉ admin đặt; mỗi bot Telegram gắn đúng một tài khoản.
-    /// </summary>
-    public string? TelegramBot { get; set; }
 }

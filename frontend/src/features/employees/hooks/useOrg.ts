@@ -79,11 +79,6 @@ export function useSetBot() {
   return useMutation({ mutationFn: ({ id, isBot }: { id: string; isBot: boolean }) => employeesApi.setBot(id, isBot), onSuccess: invalidate });
 }
 
-export function useSetTelegramBot() {
-  const invalidate = useInvalidateOrg();
-  return useMutation({ mutationFn: ({ id, telegramBot }: { id: string; telegramBot: string | null }) => employeesApi.setTelegramBot(id, telegramBot), onSuccess: invalidate });
-}
-
 export function useSetRoles() {
   const invalidate = useInvalidateOrg();
   return useMutation({ mutationFn: ({ id, roles }: { id: string; roles: string[] }) => employeesApi.setRoles(id, roles), onSuccess: invalidate });

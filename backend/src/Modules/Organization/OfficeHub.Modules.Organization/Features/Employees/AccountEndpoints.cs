@@ -25,27 +25,6 @@ internal static class AccountEndpoints
         g.MapPut("/roles", SetRolesAsync);
         g.MapPost("/reset-2fa", ResetTwoFactorAsync);
         g.MapPut("/bot", SetBotAsync);
-        g.MapPut("/telegram", SetTelegramBotAsync).RequireAuthorization(AuthPolicies.Admin); // chỉ admin (nhóm đã yêu cầu HR)
-    }
-
-    /// <summary>
-    /// TEST-42: gắn bot Telegram của agent với tài khoản bot → giao việc cho tài khoản này sẽ gửi tin đánh thức vào nhóm Telegram.
-    /// Chỉ tài khoản đã đánh dấu bot; một bot Telegram chỉ gắn một tài khoản.
-    /// </summary>
-    private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> SetTelegramBotAsync(
-        Guid id, SetTelegramBotRequest req, OrgDbContext db, IAccountService accounts, CancellationToken ct)
-    {
-        var username = TelegramRules.NormalizeBotUsername(req.TelegramBot, out var error);
-        if (error is not null) return new Validation().Add("telegramBot", error).Problem();
-        var e = await db.Employees.FindAsync([id], ct);
-        if (e?.UserId is not { } uid) return TypedResults.NotFound();
-        return await accounts.SetTelegramBotAsync(uid, username, ct) switch
-        {
-            TelegramBotResult.NotFound => TypedResults.NotFound(),
-            TelegramBotResult.NotBot => Problems.Conflict("Chỉ gắn bot Telegram cho tài khoản đã đánh dấu là bot"),
-            TelegramBotResult.Duplicate => Problems.Conflict($"Bot Telegram {username} đã gắn với tài khoản khác"),
-            _ => TypedResults.NoContent(),
-        };
     }
 
     /// <summary>
