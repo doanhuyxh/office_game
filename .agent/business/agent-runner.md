@@ -8,7 +8,7 @@ Dự án bun + TypeScript độc lập ở gốc repo, **không thư viện runt
 
 1. **Listener** (`runner.ts` → `telegram.ts`): mỗi agent long-poll `getUpdates` bằng **token bot của agent** (không mở cổng); offset lưu SQLite.
 2. **Validator** (`validator.ts`):
-   - `parseWake` (không gọi mạng): đúng `group_chat_id`, người gửi là `notifier_bot` (is_bot), dòng 1 nhắc đúng bot của agent, dòng 2 JSON đúng 4 trường (`employee_code`, `project_id`, `task_id`, `task_code`), mã NV khớp. Sai → bỏ qua, chỉ log.
+   - `parseWake` (không gọi mạng): đúng `group_chat_id` + có dòng JSON (`employee_code`, `project_id`, `task_id`, `task_code`) với `employee_code` **trùng mã NV của agent**. KHÔNG kiểm người gửi / dòng nhắc bot (đã bỏ `notifier_bot`; key này trong `agents.yaml` nếu còn thì bị bỏ qua). Sai → bỏ qua, chỉ log.
    - `checkTask` (MCP `get_task`, **lúc nhận tin và ngay trước khi chạy**): đúng dự án, vẫn giao cho chính agent (`assigneeEmployeeId` = id trong `get_my_profile`), chưa xong, `dependsOn` đã xong hết.
 3. **Store** (`store.ts`, `{data_dir}/runner.db`): hàng đợi FIFO, **khoá theo `task_id`** (index unique khi queued / running), tổng ≤ `max_parallel`, mỗi agent 1 phiên. Khởi động lại → job đang chạy dở về hàng đợi.
 4. **Workspace** (`workspace.ts`): worktree `{worktrees_dir}/{mã NV}/{mã việc}` — ngoài repo, hoặc **trong repo nếu thư mục đã gitignore** (vd `/.officehub-runner/`, `doctor` bắt buộc; `EnvLoader` dừng ở gốc worktree nên không đọc `.env` production của repo chính), nhánh `agent/{nv}/{việc}` từ `origin/{base}`; việc được đánh thức lại dùng lại worktree. Cài hook `pre-push` (thư mục hooks chung của repo): chặn push lên main / master và nhánh có thay đổi trong `agent-runner/`.

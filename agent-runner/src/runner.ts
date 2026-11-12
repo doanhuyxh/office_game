@@ -129,7 +129,7 @@ export class Runner {
 
   async onMessage(s: AgentState, msg: TgMessage) {
     const wake = parseWake(msg, {
-      groupChatId: this.config.groupChatId, notifierBot: this.config.notifierBot, agentBot: s.cfg.telegramBot, employeeCode: s.cfg.employeeCode,
+      groupChatId: this.config.groupChatId, employeeCode: s.cfg.employeeCode,
     });
     if (!wake.ok) { log('info', 'bỏ qua tin Telegram', { agent: s.cfg.employeeCode, reason: wake.reason }); return null; }
     return this.accept(s, wake.value);

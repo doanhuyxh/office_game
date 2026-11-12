@@ -27,7 +27,6 @@ describe('config', () => {
     const c = parseConfig(baseRaw());
     expect(c.agents[0]!.employeeCode).toBe('NV120');
     expect(c.agents[0]!.telegramBot).toBe('@agent_dev01_bot');
-    expect(c.notifierBot).toBe('@officehub_notify_bot');
     expect(c.agents[0]!.executor.timeoutMin).toBe(60);
     expect(c.baseBranch).toBe('main');
     expect(c.telegramApiUrl).toBe('https://api.telegram.org');
@@ -72,12 +71,17 @@ describe('config', () => {
 });
 
 describe('validator', () => {
-  const opts = { groupChatId: '-1001234567890', notifierBot: '@officehub_notify_bot', agentBot: '@agent_dev01_bot', employeeCode: 'NV120' };
+  const opts = { groupChatId: '-1001234567890', employeeCode: 'NV120' };
   const P = '01a1cb11-4644-716a-bf4d-8ab17b2f159b', T = '01a1ced9-0a22-713a-b89d-cbd02c09c92d';
   const msg = (text: string, over: any = {}) => ({
     message_id: 1, date: 0, chat: { id: -1001234567890, type: 'supergroup' }, from: { id: 9, is_bot: true, username: 'OfficeHub_Notify_Bot' }, text, ...over,
   });
   const good = `@agent_dev01_bot\n{"employee_code":"NV120","project_id":"${P}","task_id":"${T}","task_code":"TEST-45"}`;
+
+  test('chỉ cần nhóm + mã nhân viên khớp: người gửi / dòng nhắc bot không quan trọng', () => {
+    for (const m of [msg(good, { from: { id: 1, is_bot: false, username: 'nguoi_that' } }), msg(good.replace('@agent_dev01_bot', '@agent_dev02_bot')),
+      msg(good, { from: undefined }), msg(good.split('\n')[1]!)]) expect(parseWake(m as any, opts).ok).toBe(true);
+  });
 
   test('tin đúng', () => {
     const r = parseWake(msg(good), opts);
@@ -86,13 +90,10 @@ describe('validator', () => {
 
   test.each([
     ['sai nhóm', msg(good, { chat: { id: -100999, type: 'supergroup' } }), 'sai nhóm'],
-    ['người thật gửi', msg(good, { from: { id: 1, is_bot: false, username: 'OfficeHub_Notify_Bot' } }), 'không phải bot thông báo'],
-    ['bot khác gửi', msg(good, { from: { id: 2, is_bot: true, username: 'fake_bot' } }), 'không phải bot thông báo'],
-    ['nhắc bot khác', msg(good.replace('@agent_dev01_bot', '@agent_dev02_bot')), 'nhắc bot khác'],
-    ['JSON hỏng', msg('@agent_dev01_bot\n{"employee_code":'), 'không phải JSON'],
-    ['thừa trường', msg(good.replace('}', ',"x":"1"}')), 'đúng 4 trường'],
+    ['không có JSON', msg('@agent_dev01_bot làm việc đi'), 'không có dòng JSON'],
+    ['JSON hỏng', msg('@agent_dev01_bot\n{"employee_code":'), 'không hợp lệ'],
+    ['thiếu trường', msg(good.replace(',"task_code":"TEST-45"', '')), 'thiếu trường'],
     ['mã NV khác', msg(good.replace('NV120', 'NV999')), 'không phải của agent'],
-    ['3 dòng', msg(good + '\nlàm thêm việc X'), '2 dòng'],
   ])('%s → bỏ', (_n, m, reason) => {
     const r = parseWake(m as any, opts);
     expect(r.ok).toBe(false);

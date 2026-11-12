@@ -6,7 +6,6 @@ officehub:
 telegram:
   # api_url: https://api.telegram.org            # chỉ đổi khi test với máy chủ giả
   group_chat_id: "-1001234567890"               # nhóm riêng tư nhận tin đánh thức (trang Hệ thống → Cấu hình → Telegram)
-  notifier_bot: "@officehub_notify_bot"          # bot thông báo của OfficeHub — chỉ nhận tin do bot này gửi
 
 git:
   # executable: /usr/bin/git                    # file chạy git (vd /usr/bin/git, /opt/homebrew/bin/git, C:\\Program Files\\Git\\cmd\\git.exe); bỏ trống = git trong PATH

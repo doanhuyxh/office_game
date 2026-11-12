@@ -30,7 +30,6 @@ export interface RunnerConfig {
   mcpUrl: string;
   telegramApiUrl: string;
   groupChatId: string;
-  notifierBot: string;
   dataDir: string;
   worktreesDir: string;
   maxParallel: number;
@@ -69,8 +68,6 @@ export function parseConfig(raw: unknown): RunnerConfig {
   if (!mcpUrl || !/^https?:\/\//.test(mcpUrl)) p.push('officehub.mcp_url phải là URL http(s) tới /mcp');
   const groupChatId = str(String(tg.group_chat_id ?? ''));
   if (!groupChatId || !/^-?\d+$/.test(groupChatId)) p.push('telegram.group_chat_id phải là số (nhóm dạng -100…)');
-  const notifier = str(tg.notifier_bot);
-  if (!notifier) p.push('Thiếu telegram.notifier_bot (bot thông báo của OfficeHub)');
   const dataDir = str(rn.data_dir), worktreesDir = str(rn.worktrees_dir);
   if (!dataDir || !isAbsolute(dataDir)) p.push('runner.data_dir phải là đường dẫn tuyệt đối');
   if (!worktreesDir || !isAbsolute(worktreesDir)) p.push('runner.worktrees_dir phải là đường dẫn tuyệt đối');
@@ -128,7 +125,7 @@ export function parseConfig(raw: unknown): RunnerConfig {
   if (p.length) throw new ConfigError(p);
   return {
     mcpUrl: mcpUrl!, telegramApiUrl: (str(tg.api_url) ?? 'https://api.telegram.org').replace(/\/$/, ''), groupChatId: groupChatId!,
-    notifierBot: normalizeBot(notifier!), dataDir: resolve(dataDir!), worktreesDir: resolve(worktreesDir!), maxParallel,
+    dataDir: resolve(dataDir!), worktreesDir: resolve(worktreesDir!), maxParallel,
     baseBranch: str(rn.base_branch) ?? 'main', gitBin: gitBin ?? 'git', agents,
   };
 }
