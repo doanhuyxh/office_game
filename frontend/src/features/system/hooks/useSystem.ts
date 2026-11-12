@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import { systemApi, systemKeys } from '../api/system.api';
-import type { ISaveSettingsRequest, ISettingsGroup, SettingsGroupKey } from '../types/system.types';
+import type { ISaveSettingsRequest, ISettingsGroup, ISettingsTestRequest, SettingsGroupKey } from '../types/system.types';
 
 export const useSystemInfo = () => useQuery({ queryKey: systemKeys.info, queryFn: systemApi.info, staleTime: 30_000 });
 /** Tab Vận hành: chỉ tải khi mở tab; tự làm mới mỗi phút khi đang mở. */
@@ -34,6 +34,6 @@ export function useSettingsMutations(group: SettingsGroupKey) {
   };
   const save = useMutation({ mutationFn: (body: ISaveSettingsRequest) => systemApi.saveSettings(group, body), onSuccess: apply });
   const reset = useMutation({ mutationFn: () => systemApi.resetSettings(group), onSuccess: apply });
-  const test = useMutation({ mutationFn: () => systemApi.testSettings(group) });
+  const test = useMutation({ mutationFn: (body: ISettingsTestRequest = {}) => systemApi.testSettings(group, body) });
   return { save, reset, test };
 }

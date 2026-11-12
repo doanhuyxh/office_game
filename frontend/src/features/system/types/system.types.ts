@@ -52,3 +52,5 @@ export interface ISettingsGroup {
 /** secrets: để trống / bỏ qua = giữ giá trị cũ; clearSecrets: xoá hẳn. */
 export interface ISaveSettingsRequest { values: Record<string, SettingsValue>; secrets?: Record<string, string>; clearSecrets?: string[] }
 export interface ISettingsTestResult { ok: boolean; message: string }
+/** to: SMTP — email nhận thư thử (trống = email của bạn). */
+export interface ISettingsTestRequest { to?: string }

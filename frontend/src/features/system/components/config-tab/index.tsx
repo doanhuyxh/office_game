@@ -51,7 +51,7 @@ export function ConfigTab() {
           {s3 && <SettingsGroupCard group={s3} icon={HardDrive} fields={S3_FIELDS}
             description="Nơi lưu file nghiệp vụ (hợp đồng, tài liệu, ảnh…). Sao lưu DB và bản build web vẫn dùng biến S3__* trong .env." />}
           {smtp && <SettingsGroupCard group={smtp} icon={Mail} fields={SMTP_FIELDS}
-            description="Máy chủ gửi email (thông báo, mời, quên mật khẩu). Kiểm tra = gửi một thư thử tới email của bạn." />}
+            description="Máy chủ gửi email (thông báo, mời, quên mật khẩu). Kiểm tra = gửi một thư thử tới email nhập ở ô “Gửi thư thử tới” (mặc định email của bạn)." />}
           {fcm && <SettingsGroupCard group={fcm} icon={BellRing} fields={FCM_FIELDS}
             description="Thông báo đẩy Firebase Cloud Messaging. Trống = tắt push (chuông / email vẫn chạy). Kiểm tra = gửi dry run, không tới thiết bị nào." />}
           {ips && <OfficeIpsCard group={ips} />}

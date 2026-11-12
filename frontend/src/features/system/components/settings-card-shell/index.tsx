@@ -1,11 +1,15 @@
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { FlaskConical, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
 import { confirmDialog } from '@/components/common/confirm-dialog';
+import { Input } from '@/components/common/input';
+import { Label } from '@/components/common/label';
 import { StatusBadge } from '@/components/common/StatusBadge';
+import { useMe } from '@/features/auth';
 import { formatDateTime } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { useSettingsMutations } from '../../hooks/useSystem';
@@ -25,6 +29,12 @@ export function SettingsCardShell({ group, icon: Icon, description, dirty, build
   children: (errors: Record<string, string>) => ReactNode;
 }) {
   const { save, reset, test } = useSettingsMutations(group.group);
+  const { data: me } = useMe();
+  const isSmtp = group.group === 'smtp';
+  // SMTP: email nhận thư thử, mặc định email tài khoản đang đăng nhập (sửa được).
+  const [testTo, setTestTo] = useState('');
+  useEffect(() => { if (me?.email) setTestTo((x) => x || me.email!); }, [me?.email]);
+  const testErrors = fieldErrors(test.error);
   const errors = fieldErrors(save.error);
   const busy = save.isPending || reset.isPending;
   return (
@@ -46,9 +56,19 @@ export function SettingsCardShell({ group, icon: Icon, description, dirty, build
           });
         }}>
           {children(errors)}
+          {isSmtp && (
+            <div className="grid max-w-md gap-2">
+              <Label htmlFor="settings-smtp-test-to">Gửi thư thử tới</Label>
+              <Input id="settings-smtp-test-to" type="email" placeholder="email@congty.vn" value={testTo} aria-invalid={!!testErrors.to}
+                onChange={(e) => setTestTo(e.target.value)} data-testid="settings-smtp-test-to" />
+              <p className={`text-xs ${testErrors.to ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {testErrors.to ?? 'Bấm Kiểm tra để gửi thư thử bằng cấu hình đang có hiệu lực. Để trống = email tài khoản của bạn.'}
+              </p>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <Button type="submit" disabled={busy || !dirty}>Lưu</Button>
-            <Button type="button" variant="outline" disabled={busy || test.isPending} onClick={() => test.mutate()} data-testid={`settings-${group.group}-test`}>
+            <Button type="button" variant="outline" disabled={busy || test.isPending} onClick={() => test.mutate(isSmtp ? { to: testTo.trim() || undefined } : {})} data-testid={`settings-${group.group}-test`}>
               <FlaskConical /> Kiểm tra
             </Button>
             {group.source === 'db' && (
@@ -66,7 +86,7 @@ export function SettingsCardShell({ group, icon: Icon, description, dirty, build
                 : 'Chưa lưu trên trang — Lưu để chuyển sang dùng cấu hình này.'}
             </span>
           </div>
-          {(test.data || test.error) && (
+          {(test.data || (test.error && !testErrors.to)) && (
             <p className={`text-sm ${test.data?.ok ? 'text-success' : 'text-destructive'}`} data-testid={`settings-${group.group}-result`}>
               {test.data ? test.data.message : errorMessage(test.error)}
             </p>

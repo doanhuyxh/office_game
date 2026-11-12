@@ -1,5 +1,5 @@
 import { http, httpPost } from '@/services/api-client';
-import type { IOpsReport, ISaveSettingsRequest, ISettingsGroup, ISettingsTestResult, IStorageReport, ISystemInfo, SettingsGroupKey } from '../types/system.types';
+import type { IOpsReport, ISaveSettingsRequest, ISettingsGroup, ISettingsTestRequest, ISettingsTestResult, IStorageReport, ISystemInfo, SettingsGroupKey } from '../types/system.types';
 
 export const systemKeys = { info: ['system', 'info'] as const, storage: ['system', 'storage'] as const, ops: ['system', 'ops'] as const, settings: ['system', 'settings'] as const };
 
@@ -18,6 +18,6 @@ export const systemApi = {
     http<ISettingsGroup>(`/api/system/settings/${group}`, { method: 'PUT', body: JSON.stringify(body) }),
   /** Xoá cấu hình trong DB → quay về .env. */
   resetSettings: (group: SettingsGroupKey) => http<ISettingsGroup>(`/api/system/settings/${group}`, { method: 'DELETE' }),
-  /** Thử cấu hình đang có hiệu lực (S3 ghi + xoá file, SMTP gửi thư cho bạn, FCM dry run, IP so với IP của bạn). */
-  testSettings: (group: SettingsGroupKey) => httpPost<ISettingsTestResult>(`/api/system/settings/${group}/test`),
+  /** Thử cấu hình đang có hiệu lực (S3 ghi + xoá file, SMTP gửi thư tới email nhập / của bạn, FCM dry run, IP so với IP của bạn). */
+  testSettings: (group: SettingsGroupKey, body: ISettingsTestRequest = {}) => httpPost<ISettingsTestResult>(`/api/system/settings/${group}/test`, body),
 };

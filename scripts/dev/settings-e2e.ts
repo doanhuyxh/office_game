@@ -134,6 +134,17 @@ await Bun.sleep(1000);
 let mails = (await (await fetch(`${MAILPIT}/api/v1/messages?limit=20`)).json()).messages as any[];
 ok('Thư thử tới admin, gửi từ email trong DB (hiệu lực ngay)', mails.some((m) => m.From?.Address === `db-config-${stamp}@officehub-e2e.vn`
   && m.To?.some((t: any) => t.Address === ADMIN_LOGIN) && m.Subject.includes('thư thử')), mails.map((m) => [m.From?.Address, m.Subject]));
+r = await json(admin, 'POST', '/api/system/settings/smtp/test', { to: 'khong-phai-email' });
+ok('Email nhận thư thử sai → 400 (trường to)', r.status === 400 && !!r.body?.errors?.to, r.body);
+await fetch(`${MAILPIT}/api/v1/messages`, { method: 'DELETE' });
+const TEST_TO = `nguoi-nhan-${stamp}@officehub-e2e.vn`;
+r = await json(admin, 'POST', '/api/system/settings/smtp/test', { to: `  ${TEST_TO} ` });
+ok('Kiểm tra SMTP tới email tự nhập → gửi được, thông điệp nêu email', r.status === 200 && r.body.ok === true && r.body.message.includes(TEST_TO), r.body);
+await Bun.sleep(1000);
+mails = (await (await fetch(`${MAILPIT}/api/v1/messages?limit=20`)).json()).messages as any[];
+ok('Thư thử tới đúng email đã nhập (không tới admin)', mails.length === 1 && mails[0].To?.some((t: any) => t.Address === TEST_TO), mails.map((m) => m.To));
+r = await json(EMP.cookie, 'POST', '/api/system/settings/smtp/test', { to: TEST_TO });
+ok('Nhân viên gửi thư thử → 403', r.status === 403);
 r = await json(admin, 'PUT', '/api/system/settings/smtp', {
   values: { host: '127.0.0.1', port: 11061, fromEmail: `db-config-${stamp}@officehub-e2e.vn`, fromName: 'Đổi tên' }, secrets: { password: '' },
 });

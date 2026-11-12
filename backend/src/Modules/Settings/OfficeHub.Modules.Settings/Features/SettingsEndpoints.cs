@@ -30,6 +30,9 @@ public sealed record SaveSettingsRequest(JsonObject? Values, Dictionary<string, 
 
 public sealed record SettingsTestResult(bool Ok, string Message);
 
+/// <param name="To">SMTP: email nhận thư thử (trống = email của admin đang đăng nhập). Nhóm khác bỏ qua.</param>
+public sealed record SettingsTestRequest(string? To);
+
 /// <summary>
 /// Cấu hình hệ thống (TEST-41): GET / PUT / DELETE <c>/api/system/settings/{group}</c> + POST <c>/{group}/test</c>. Chỉ admin (AuthPolicies.Admin);
 /// prefix /api/system nằm NGOÀI allowlist token AI. Lưu / xoá → <see cref="RuntimeConfig.Invalidate"/> → có hiệu lực ngay, không khởi động lại.
@@ -109,18 +112,25 @@ internal static class SettingsEndpoints
         return TypedResults.Ok(ToDto(def, runtime));
     }
 
-    /// <summary>Thử cấu hình ĐANG CÓ HIỆU LỰC (lưu trước rồi mới kiểm tra). Luôn 200 kèm ok / thông điệp.</summary>
-    private static async Task<Results<Ok<SettingsTestResult>, ProblemHttpResult>> TestAsync(string group, HttpContext http, ClaimsPrincipal user,
-        IFileStorage files, IEmailSender email, IPushSender push, OfficeNetwork network, RuntimeConfig runtime, TimeProvider clock, CancellationToken ct)
+    /// <summary>Thử cấu hình ĐANG CÓ HIỆU LỰC (lưu trước rồi mới kiểm tra). Luôn 200 kèm ok / thông điệp; SMTP: email nhận sai → 400 (trường <c>to</c>).</summary>
+    private static async Task<Results<Ok<SettingsTestResult>, ValidationProblem, ProblemHttpResult>> TestAsync(string group, SettingsTestRequest? req,
+        HttpContext http, ClaimsPrincipal user, IFileStorage files, IEmailSender email, IPushSender push, OfficeNetwork network, RuntimeConfig runtime,
+        TimeProvider clock, CancellationToken ct)
     {
         if (SettingsRules.Find(group) is null) return Problems.NotFound("Nhóm cấu hình");
+        var to = req?.To?.Trim();
+        if (group == SettingsGroups.Smtp && !string.IsNullOrEmpty(to))
+        {
+            var v = new Validation().Email(to, "to").MaxLength(to, 200, "to", "Email nhận thư thử");
+            if (v.Failed) return v.Problem();
+        }
         SettingsTestResult result;
         try
         {
             result = group switch
             {
                 SettingsGroups.S3 => await TestS3Async(files, runtime, ct),
-                SettingsGroups.Smtp => await TestSmtpAsync(user, email, runtime, clock, ct),
+                SettingsGroups.Smtp => await TestSmtpAsync(to, user, email, runtime, clock, ct),
                 SettingsGroups.Fcm => await TestFcmAsync(push, ct),
                 _ => TestIp(http, network, runtime),
             };
@@ -141,12 +151,13 @@ internal static class SettingsEndpoints
         return new(true, $"Ghi và xoá file thử thành công ở s3://{s3.BucketFiles}/{s3.FilesPrefix}");
     }
 
-    private static async Task<SettingsTestResult> TestSmtpAsync(ClaimsPrincipal user, IEmailSender email, RuntimeConfig runtime, TimeProvider clock, CancellationToken ct)
+    private static async Task<SettingsTestResult> TestSmtpAsync(string? requested, ClaimsPrincipal user, IEmailSender email, RuntimeConfig runtime,
+        TimeProvider clock, CancellationToken ct)
     {
-        var to = user.FindFirstValue(ClaimTypes.Email);
-        if (string.IsNullOrWhiteSpace(to)) return new(false, "Tài khoản của bạn chưa có email để nhận thư thử");
+        var to = string.IsNullOrEmpty(requested) ? user.FindFirstValue(ClaimTypes.Email) : requested;
+        if (string.IsNullOrWhiteSpace(to)) return new(false, "Nhập email nhận thư thử (tài khoản của bạn chưa có email)");
         var smtp = runtime.Smtp;
-        await email.SendAsync(to, user.FindFirstValue(ClaimNames.FullName) ?? to, "OfficeHub — thư thử cấu hình SMTP",
+        await email.SendAsync(to, string.IsNullOrEmpty(requested) ? user.FindFirstValue(ClaimNames.FullName) ?? to : to, "OfficeHub — thư thử cấu hình SMTP",
             $"<p>Thư thử từ trang Hệ thống → Cấu hình lúc {clock.GetUtcNow():yyyy-MM-dd HH:mm:ss} UTC.</p><p>Máy chủ: {System.Net.WebUtility.HtmlEncode(smtp.Host)}:{smtp.Port}</p>", ct);
         return new(true, $"Đã gửi thư thử tới {to} qua {smtp.Host}:{smtp.Port}");
     }
