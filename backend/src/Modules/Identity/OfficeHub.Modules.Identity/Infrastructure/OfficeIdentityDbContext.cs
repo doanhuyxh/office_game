@@ -98,9 +98,6 @@ public sealed class OfficeIdentityDbContext(DbContextOptions<OfficeIdentityDbCon
         {
             u.ToTable("users");
             u.Property(x => x.FullName).HasMaxLength(200).IsRequired();
-            u.Property(x => x.TelegramBot).HasMaxLength(64);
-            // TEST-42: một bot Telegram gắn đúng một tài khoản (lưu chữ thường, dạng "@…bot").
-            u.HasIndex(x => x.TelegramBot).IsUnique().HasFilter("\"TelegramBot\" IS NOT NULL").HasDatabaseName("ux_users_telegram_bot");
             // Email không bắt buộc nhưng nếu có thì phải duy nhất.
             u.HasIndex(x => x.NormalizedEmail).IsUnique().HasFilter("\"NormalizedEmail\" IS NOT NULL").HasDatabaseName("ux_users_email");
         });

@@ -62,7 +62,6 @@ export const employeesApi = {
   /** Đánh dấu tài khoản do bot / agent AI vận hành → bot hiện trong văn phòng 3D khi gọi MCP (không đổi quyền). */
   setBot: (id: string, isBot: boolean) => put<void>(`/api/org/employees/${id}/account/bot`, { isBot }),
   /** Chỉ admin; trống = xoá. */
-  setTelegramBot: (id: string, telegramBot: string | null) => put<void>(`/api/org/employees/${id}/account/telegram`, { telegramBot }),
   setRoles: (id: string, roles: string[]) => put<void>(`/api/org/employees/${id}/account/roles`, { roles }),
   // Nhập từ Excel (HR)
   importTemplateUrl: '/api/org/employees/import-template',

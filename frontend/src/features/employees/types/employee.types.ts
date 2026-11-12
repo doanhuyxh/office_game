@@ -13,8 +13,6 @@ export interface IAccountSummary {
   twoFactorEnabled: boolean;
   /** Tài khoản do bot / agent AI vận hành (hiện trong văn phòng 3D khi gọi MCP). */
   isBot: boolean;
-  /** Username bot Telegram của agent ("@…bot") — giao việc cho tài khoản bot này sẽ gửi tin đánh thức vào nhóm Telegram (TEST-42). */
-  telegramBot: string | null;
 }
 
 export interface IEmployee {

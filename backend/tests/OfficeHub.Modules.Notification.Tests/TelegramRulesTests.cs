@@ -6,40 +6,14 @@ namespace OfficeHub.Modules.Notification.Tests;
 
 public class TelegramRulesTests
 {
-    [Theory]
-    [InlineData("@agent_dev01_bot", "@agent_dev01_bot")]
-    [InlineData("Agent_Dev01_Bot", "@agent_dev01_bot")]
-    [InlineData("  @abcbot ", "@abcbot")]
-    public void Username_normalized(string input, string expected)
-    {
-        Assert.Equal(expected, TelegramRules.NormalizeBotUsername(input, out var err));
-        Assert.Null(err);
-    }
-
-    [Theory]
-    [InlineData("@agent_dev01")]      // không kết thúc bằng bot
-    [InlineData("@1agentbot")]        // bắt đầu bằng số
-    [InlineData("@abot")]             // < 5 ký tự
-    [InlineData("@agent-dev_bot")]    // ký tự '-'
-    [InlineData("@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaabot")] // 33 ký tự
-    public void Username_invalid(string input)
-    {
-        Assert.Null(TelegramRules.NormalizeBotUsername(input, out var err));
-        Assert.NotNull(err);
-    }
-
     [Fact]
-    public void Blank_username_clears() => Assert.Null(TelegramRules.NormalizeBotUsername("  ", out var err) ?? err);
-
-    [Fact]
-    public void Wake_message_mentions_bot_and_has_exactly_four_fields()
+    public void Wake_message_is_single_json_line_with_exactly_four_fields()
     {
         var p = Guid.NewGuid(); var t = Guid.NewGuid();
-        var text = TelegramRules.WakeMessage("@agent_dev01_bot", "NV012", p, t, "TEST-35");
-        var lines = text.Split('\n');
-        Assert.Equal(2, lines.Length);
-        Assert.Equal("@agent_dev01_bot", lines[0]);
-        using var doc = JsonDocument.Parse(lines[1]);
+        var text = TelegramRules.WakeMessage("NV012", p, t, "TEST-35");
+        Assert.DoesNotContain('\n', text);
+        Assert.DoesNotContain("@", text);
+        using var doc = JsonDocument.Parse(text);
         var names = doc.RootElement.EnumerateObject().Select(x => x.Name).ToArray();
         Assert.Equal(["employee_code", "project_id", "task_id", "task_code"], names);
         Assert.Equal("NV012", doc.RootElement.GetProperty("employee_code").GetString());

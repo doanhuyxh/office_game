@@ -63,9 +63,9 @@ export function ConfigTab() {
           {ips && <OfficeIpsCard group={ips} />}
           {tg && <SettingsGroupCard group={tg} icon={Send} fields={TELEGRAM_FIELDS} testLabel="Gửi thử"
             description={<>
-              Đánh thức agent: khi một việc được giao cho tài khoản bot có "Bot Telegram" (Nhân viên → menu tài khoản, chỉ admin), OfficeHub gửi đúng một tin
-              vào nhóm — dòng 1 nhắc tên bot của agent, dòng 2 JSON <code className="rounded bg-muted px-1 text-xs">employee_code, project_id, task_id, task_code</code> (không có nội dung việc).
-              Phải bật <b>Bot-to-Bot Communication Mode</b> trong @BotFather cho cả bot thông báo và bot của agent, rồi thêm cả hai vào nhóm.
+              Đánh thức agent: khi một việc được giao cho tài khoản bot (Nhân viên → "Đánh dấu là bot"), OfficeHub gửi đúng một tin vào nhóm — một dòng JSON
+              <code className="rounded bg-muted px-1 text-xs">employee_code, project_id, task_id, task_code</code> (không có nội dung việc). Agent đọc nhóm và tự nhận việc có
+              <code className="rounded bg-muted px-1 text-xs">employee_code</code> của mình.
             </>} />}
         </>
       )}

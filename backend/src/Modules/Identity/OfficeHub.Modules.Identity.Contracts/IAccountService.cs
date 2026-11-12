@@ -38,13 +38,6 @@ public interface IAccountService
     /// <summary>Đánh dấu / bỏ đánh dấu tài khoản là bot (hiện trong văn phòng 3D khi gọi MCP). false = không tìm thấy tài khoản.</summary>
     Task<bool> SetBotAsync(Guid userId, bool isBot, CancellationToken ct = default);
 
-    /// <summary>
-    /// Đặt / xoá (null) username bot Telegram của tài khoản bot (TEST-42). Username đã chuẩn hoá ("@…bot").
-    /// Lỗi: <see cref="TelegramBotResult.NotFound"/>, <see cref="TelegramBotResult.NotBot"/> (tài khoản chưa đánh dấu bot),
-    /// <see cref="TelegramBotResult.Duplicate"/> (bot Telegram đã gắn tài khoản khác).
-    /// </summary>
-    Task<TelegramBotResult> SetTelegramBotAsync(Guid userId, string? username, CancellationToken ct = default);
-
     Task<AccountInfo?> GetAsync(Guid userId, CancellationToken ct = default);
 
     Task<IReadOnlyDictionary<Guid, AccountInfo>> GetManyAsync(IReadOnlyCollection<Guid> userIds, CancellationToken ct = default);
@@ -79,7 +72,5 @@ public sealed record AccountInfo(
     DateTimeOffset? LastLoginAt,
     string FullName = "",
     bool TwoFactorEnabled = false,
-    bool IsBot = false,
-    string? TelegramBot = null);
+    bool IsBot = false);
 
-public enum TelegramBotResult { Ok, NotFound, NotBot, Duplicate }

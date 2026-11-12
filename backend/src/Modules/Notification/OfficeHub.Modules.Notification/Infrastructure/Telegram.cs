@@ -57,7 +57,7 @@ internal sealed class TelegramClient(IHttpClientFactory http, IConfiguration con
     private static string Trim(string s) => s.Length > 500 ? s[..500] : s;
 }
 
-/// <summary>Đưa tin đánh thức vào hàng đợi (TEST-42) + gửi thử. Chỉ tài khoản bot đang hoạt động có username bot Telegram.</summary>
+/// <summary>Đưa tin đánh thức vào hàng đợi (TEST-42) + gửi thử. Chỉ tài khoản bot đang hoạt động.</summary>
 internal sealed class TelegramWakeup(NotificationDbContext db, IAccountService accounts, RuntimeConfig runtime, TelegramClient client,
     TimeProvider clock, ILogger<TelegramWakeup> log) : ITelegramWakeup
 {
@@ -68,12 +68,12 @@ internal sealed class TelegramWakeup(NotificationDbContext db, IAccountService a
             var cfg = runtime.Telegram;
             if (!cfg.Ready) return;
             var acc = await accounts.GetAsync(assigneeUserId, ct);
-            if (acc is not { IsBot: true, IsActive: true, TelegramBot: { Length: > 0 } bot }) return;
+            if (acc is not { IsBot: true, IsActive: true }) return;
             var now = clock.GetUtcNow();
             db.TelegramMessages.Add(new TelegramMessage
             {
                 Kind = "task_assigned", ChatId = cfg.ChatId!, UserId = assigneeUserId, TaskId = taskId, CreatedAt = now, NextAttemptAt = now,
-                Text = TelegramRules.WakeMessage(bot, employeeCode, projectId, taskId, taskCode),
+                Text = TelegramRules.WakeMessage(employeeCode, projectId, taskId, taskCode),
             });
             await db.SaveChangesAsync(ct);
         }
