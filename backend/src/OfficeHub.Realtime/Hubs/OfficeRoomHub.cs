@@ -53,10 +53,12 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
     public const string OfficeGroup = "office";
     private const string Room = OfficeGroup;
     private const float MaxSpeed = 7f, Slack = 2.5f;
-    /// <summary>TEST-22: khoảng thời gian tối đa tính cho một bước (đứng yên lâu không "tích" quãng đường để dịch chuyển xa).</summary>
-    private const float MaxStepSeconds = 0.2f;
-    /// <summary>Nhịp gửi vị trí của client (~10 lần / giây): Slack chỉ cho đủ khi cách lần trước ≥ nhịp này (gửi dồn không cộng Slack mỗi lần).</summary>
-    private const float NominalTick = 0.1f;
+    /// <summary>
+    /// TEST-22: thời gian tối đa tính cho một bước — đứng yên lâu không "tích" quãng đường để dịch chuyển xa (trước đây đứng 10 s nhảy được 70 m).
+    /// Để 1 s (không thấp hơn): tin vị trí đến dồn / trễ theo mạng; bản 0,2 s + Slack theo nhịp + kiểm đoạn đi cắt tường đã làm kẹt nhân vật ở
+    /// cửa phòng (office-docs-e2e) nên đã bỏ — đường đi client làm mượt có thể lướt sát góc tường.
+    /// </summary>
+    private const float MaxStepSeconds = 1f;
     private const byte AnimSit = 2;
 
     private string UserId => Context.UserIdentifier ?? throw new HubException("unauthorized");
@@ -120,12 +122,10 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
         if (!float.IsFinite(x) || !float.IsFinite(z) || !float.IsFinite(r) || anim > AnimSit) return; // TEST-22: NaN / ∞ / anim lạ
         var now = Stopwatch.GetTimestamp();
         var elapsed = (float)Stopwatch.GetElapsedTime(p.LastMoveTicks, now).TotalSeconds;
-        var allowed = MaxSpeed * MathF.Min(elapsed, MaxStepSeconds) + Slack * MathF.Min(1f, elapsed / NominalTick);
+        var allowed = MaxSpeed * MathF.Min(elapsed, MaxStepSeconds) + Slack;
         var dist = MathF.Sqrt((x - p.X) * (x - p.X) + (z - p.Z) * (z - p.Z));
-        // Ngồi xuống / đứng dậy: client nhảy thẳng lên ghế / ra ô trống gần nhất (có thể qua cạnh bàn) → không kiểm đường đi
-        var sitTransition = anim == AnimSit || p.Anim == AnimSit;
-        // Ngoài sàn / xuyên tường, đồ vật (lưới va chạm chung với FE) / đi quá nhanh / đường đi cắt qua tường → kéo về vị trí cũ
-        if (!map.CanStand(x, z) || dist > allowed || (!sitTransition && !SegmentClear(p.X, p.Z, x, z)))
+        // Ngoài sàn / xuyên tường, đồ vật (lưới va chạm chung với FE) / đi quá nhanh → kéo về vị trí cũ
+        if (!map.CanStand(x, z) || dist > allowed)
         {
             await Clients.Caller.Teleport(p.X, p.Z);
             return;
@@ -143,19 +143,6 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
             // Vừa bước vào phòng có tường đang chiếu tài liệu → gửi ngay cho người này (client không phải đoán lúc server đã thấy mình trong phòng)
             if (screens.Get(after.Id) is { } screen) await Clients.Caller.ScreenChanged(after.Id, screen);
         }
-    }
-
-    /// <summary>Mọi điểm trên đoạn đi (mỗi 0,1 m) đều đứng được — một bước 0,7 m không được nhảy qua tường mỏng (TEST-22).</summary>
-    private bool SegmentClear(float x0, float z0, float x1, float z1)
-    {
-        var len = MathF.Sqrt((x1 - x0) * (x1 - x0) + (z1 - z0) * (z1 - z0));
-        var steps = (int)MathF.Ceiling(len / 0.1f);
-        for (var i = 1; i < steps; i++)
-        {
-            var t = (float)i / steps;
-            if (!map.CanStand(x0 + (x1 - x0) * t, z0 + (z1 - z0) * t)) return false;
-        }
-        return true;
     }
 
     /// <summary>
