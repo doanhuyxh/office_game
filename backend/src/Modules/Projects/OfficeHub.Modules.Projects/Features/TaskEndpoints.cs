@@ -409,7 +409,15 @@ internal static class TaskEndpoints
         var v = await access.ViewerAsync(user, ct);
         var (t, p) = await LoadAsync(tid, db, ct);
         if (t is null || p is null || !v.CanSee(p.Id)) return TypedResults.NotFound();
-        if (!v.CanManage(p.Id) && t.CreatedByName != v.Name) return ProjectEndpoints.Forbidden("Chỉ người tạo việc hoặc quản lý dự án được xoá");
+        // TEST-14: so người tạo bằng Id nhân viên (hoạt động "Created"), không bằng tên — hai người trùng tên từng xoá được việc của nhau.
+        // Việc tạo trước khi có lịch sử (không có hoạt động Created) → chỉ quản lý dự án xoá. Người tạo phải còn là thành viên (CanWork).
+        if (!v.CanManage(p.Id))
+        {
+            var creator = await db.Activities.AsNoTracking().Where(a => a.TaskId == t.Id && a.Kind == TaskActivityKind.Created)
+                .Select(a => a.ActorEmployeeId).FirstOrDefaultAsync(ct);
+            if (!v.CanWork(p.Id) || v.Employee?.Id is not { } me || creator != me)
+                return ProjectEndpoints.Forbidden("Chỉ người tạo việc hoặc quản lý dự án được xoá");
+        }
         db.Tasks.Remove(t);
         await db.SaveChangesAsync(ct);
         return TypedResults.NoContent();

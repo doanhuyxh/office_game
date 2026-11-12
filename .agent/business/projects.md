@@ -20,7 +20,7 @@ Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsourc
 | Quyền **Xem tài chính** (chức vụ) | mọi dự án (chỉ đọc) | — | — | ✓ |
 | Người khác | 404 | | | |
 
-**Tạo dự án**: vai trò manager / hr / admin; người tạo (có hồ sơ) = quản lý. Luôn còn ≥ 1 quản lý (bỏ / hạ vai trò người cuối → 409). Xoá việc: người tạo hoặc quản lý. **Sửa cột trạng thái**: theo chức vụ (`ManageTaskColumns`) — [projects-tasks.md](projects-tasks.md). Token AI: đọc dự án (+ hướng dẫn) / việc (+ chi tiết, lịch sử) / bình luận / ngày công + tạo / sửa việc (`PUT /tasks/{id}`), chuyển trạng thái, bình luận (tool MCP — [mcp.md](mcp.md)); xoá việc + mọi route khác của `/api/projects` → 403.
+**Tạo dự án**: vai trò manager / hr / admin; người tạo (có hồ sơ) = quản lý. Luôn còn ≥ 1 quản lý (bỏ / hạ vai trò người cuối → 409). Xoá việc: quản lý, hoặc người tạo (so Id nhân viên ở hoạt động `Created`, không so tên; còn là thành viên; việc không có lịch sử → chỉ quản lý). **Sửa cột trạng thái**: theo chức vụ (`ManageTaskColumns`) — [projects-tasks.md](projects-tasks.md). Token AI: đọc dự án (+ hướng dẫn) / việc (+ chi tiết, lịch sử) / bình luận / ngày công + tạo / sửa việc (`PUT /tasks/{id}`), chuyển trạng thái, bình luận (tool MCP — [mcp.md](mcp.md)); xoá việc + mọi route khác của `/api/projects` → 403.
 
 ## API (`/api/projects`, đăng nhập)
 
@@ -28,7 +28,7 @@ Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsourc
 |---|---|---|
 | GET | `?mine&status` | HR / Xem tài chính thấy tất cả trừ khi `mine=true`. Kèm đếm việc (mở / xong / quá hạn), mốc, hợp đồng (số, tên, khách — **không tiền**) |
 | GET | `/{id}` | Dự án + thành viên + mốc |
-| POST / PUT | `/`, `/{id}` | `{ code (≤ 30, chữ không dấu / số / - _, viết hoa, duy nhất; **không đổi sau khi tạo**), name, kind: Internal/Client (Client bắt buộc ≥ 1 `salesContractIds` — một HĐ chỉ một dự án), description?, departmentId?, businessLineId?, startOn? (mặc định hôm nay), endOn?, budgetManDays?, status (PUT), memberIds (POST) }`. Đóng → `ClosedOn` |
+| POST / PUT | `/`, `/{id}` | `{ code (≤ 30, chữ không dấu / số / - _, viết hoa, duy nhất; **không đổi sau khi tạo**), name, kind: Internal/Client (Client bắt buộc ≥ 1 `salesContractIds` — một HĐ chỉ một dự án; HĐ **gắn thêm** phải xem được bên Sales — `ISalesContractsLookup.VisibleToAsync`: người phụ trách, cấp quản lý của họ, Xem tài chính; HR / admin không tự có. `GET /sales-contracts` cũng lọc theo quyền này), description?, departmentId?, businessLineId?, startOn? (mặc định hôm nay), endOn?, budgetManDays?, status (PUT), memberIds (POST) }`. Đóng → `ClosedOn` |
 | POST / PUT / DELETE | `/{id}/members`, `/{id}/members/{employeeId}` | Thêm (chuông `project_member_added`, link `/projects/{id}`), đổi vai trò, bỏ |
 | PUT | `/{id}/allocations` | `{ month, items[{ employeeId, percent \| null }] }` — null = về mặc định; tổng % **đặt tay** của một người ở mọi dự án trong tháng ≤ 100. Tháng đã chốt: chỉ HR / Quản trị tài chính |
 | GET | `/{id}/effort` | Từ tháng bắt đầu đến tháng hiện tại / kết thúc / đóng (≤ 24 tháng): mỗi người × tháng = ngày có mặt × % |

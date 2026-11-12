@@ -214,8 +214,8 @@ ok('sai mật khẩu hiện tại 5 lần → bị tạm khoá kể cả khi nh�
 
 // ================= TEST-10: tách nhiệm vụ duyệt =================
 await sleep(61_000); // hạn mức 30 lần đăng nhập / phút / IP
-const mkUser = async (code: string, user: string, roles: string[], managerId: string | null = null) => {
-  const r = await json(admin, 'POST', '/api/org/employees', { code, fullName: `Tách Nhiệm Vụ ${code}`, email: `${user}@${MAIL}`, phone: null, dateOfBirth: null,
+const mkUser = async (code: string, user: string, roles: string[], managerId: string | null = null, fullName = `Tách Nhiệm Vụ ${code}`) => {
+  const r = await json(admin, 'POST', '/api/org/employees', { code, fullName, email: `${user}@${MAIL}`, phone: null, dateOfBirth: null,
     departmentId: null, positionId: null, managerId, status: 'Active', joinedAt: '2026-01-05', note: null });
   if (r.status >= 300) throw new Error(`Tạo ${code} lỗi: ${JSON.stringify(r.body)}`);
   const acc = (await json(admin, 'POST', `/api/org/employees/${r.body.employee.id}/account`, { mode: 'password', roles, userName: user })).body;
@@ -264,6 +264,39 @@ if (perId) {
   const oth = await json(H.cookie, 'POST', `/api/payroll/periods/${perId}/adjustments`, { employeeId: S.e.id, label: 'x', amount: 1, taxable: true });
   ok('HR thêm khoản cho người khác không bị chặn bởi luật này (≠ 403)', oth.status !== 403, oth);
 } else ok('tạo kỳ lương để thử', false, per);
+
+// ================= TEST-14: quyền sửa / xoá trong dự án, hợp đồng bán, push token =================
+await sleep(61_000);
+const twin = `Trùng Tên ${stamp}`;
+const X1 = await mkUser(`SEC-${stamp}-X1`, `e2e.sec.x1${stamp}`, ['employee'], MH.e.id, twin);
+const X2 = await mkUser(`SEC-${stamp}-X2`, `e2e.sec.x2${stamp}`, ['employee'], MH.e.id, twin);
+const prj = await json(MH.cookie, 'POST', '/api/projects', { code: `SEC${stamp}`.toUpperCase(), name: 'Dự án bảo mật', kind: 'Internal', memberIds: [X1.e.id, X2.e.id], sequential: false });
+ok('quản lý tạo dự án nội bộ', prj.status === 201, prj);
+const tk = await json(X1.cookie, 'POST', `/api/projects/${prj.body}/tasks`, { title: 'Việc của X1' });
+ok('X1 tạo việc', tk.status === 201, tk);
+const delTwin = await json(X2.cookie, 'DELETE', `/api/projects/tasks/${tk.body}`);
+ok('X2 trùng HỌ TÊN với người tạo xoá việc → 403', delTwin.status === 403, delTwin);
+ok('X1 (người tạo) xoá việc của mình → 204', (await json(X1.cookie, 'DELETE', `/api/projects/tasks/${tk.body}`)).status === 204);
+
+const cust = (await json(S.cookie, 'POST', '/api/sales/customers', { name: `Khách bảo mật ${stamp}` })).body;
+const kc = await json(S.cookie, 'POST', '/api/sales/contracts', { code: `HD-SEC-${stamp}`, customerId: cust, title: 'HĐ bảo mật', valueBeforeTax: 10_000_000, vatRate: 0,
+  signedOn: today2, billing: 'Milestone', installments: [{ title: 'Một đợt', dueOn: today2, amount: 10_000_000 }] });
+ok('nhân viên S tạo hợp đồng bán (S phụ trách)', kc.status === 201, kc);
+const clientPrj = (who: string, code: string) => json(who, 'POST', '/api/projects', { code, name: 'Dự án cho khách', kind: 'Client', salesContractIds: [kc.body], memberIds: [], sequential: false });
+const hrLink = await clientPrj(H.cookie, `SECH${stamp}`.toUpperCase());
+ok('HR (không có quyền Sales với HĐ) gắn hợp đồng → 400', hrLink.status === 400 && /quyền/.test(JSON.stringify(hrLink.body?.errors?.salesContractIds)), hrLink.body);
+const hrSearch = (await json(H.cookie, 'GET', `/api/projects/sales-contracts?search=HD-SEC-${stamp}`)).body as any[];
+ok('HR không thấy HĐ của người khác trong ô tìm', Array.isArray(hrSearch) && hrSearch.length === 0, hrSearch);
+const mhSearch = (await json(MH.cookie, 'GET', `/api/projects/sales-contracts?search=HD-SEC-${stamp}`)).body as any[];
+ok('quản lý của người phụ trách thấy HĐ', Array.isArray(mhSearch) && mhSearch.length === 1, mhSearch);
+ok('quản lý của người phụ trách gắn HĐ → 201', (await clientPrj(MH.cookie, `SECM${stamp}`.toUpperCase())).status === 201);
+
+const ptok = `fcm-sec-${stamp}`;
+ok('X1 đăng ký push token', (await json(X1.cookie, 'PUT', '/api/notifications/push-tokens', { token: ptok })).status === 204);
+await json(X2.cookie, 'DELETE', '/api/notifications/push-tokens', { token: ptok });
+ok('người khác gỡ push token của X1 → token vẫn còn', (await sql(`SELECT count(*) FROM notifications.push_tokens WHERE "Token" = '${ptok}'`)).trim() === '1');
+await json(X1.cookie, 'DELETE', '/api/notifications/push-tokens', { token: ptok });
+ok('chính chủ gỡ được', (await sql(`SELECT count(*) FROM notifications.push_tokens WHERE "Token" = '${ptok}'`)).trim() === '0');
 
 console.log(`\n${pass} đạt, ${fail} lỗi`);
 process.exit(fail ? 1 : 0);

@@ -32,6 +32,17 @@ internal sealed class SalesContractsLookup(SalesDbContext db, IEmployeeDirectory
         return await RefsAsync(q.OrderByDescending(c => c.SignedOn).ThenBy(c => c.Id).Take(30), ct);
     }
 
+    public async Task<IReadOnlySet<Guid>> VisibleToAsync(Guid userId, IReadOnlyCollection<Guid> contractIds, CancellationToken ct = default)
+    {
+        if (contractIds.Count == 0) return new HashSet<Guid>();
+        // Cùng quy tắc SalesViewer.CanSee: Xem tài chính thấy hết; còn lại người phụ trách + cấp quản lý của họ.
+        if ((await finance.GetAsync(userId, ct)).Has(FinancePermission.View)) return contractIds.ToHashSet();
+        if (await dir.GetByUserIdAsync(userId, ct) is not { IsActive: true } emp) return new HashSet<Guid>();
+        var owners = (await dir.GetSubordinateIdsAsync(emp.Id, ct)).Append(emp.Id).ToList();
+        return (await db.Contracts.AsNoTracking().Where(c => contractIds.Contains(c.Id) && owners.Contains(c.OwnerEmployeeId))
+            .Select(c => c.Id).ToListAsync(ct)).ToHashSet();
+    }
+
     public async Task<IReadOnlyList<InstallmentRef>> InstallmentsAsync(Guid contractId, CancellationToken ct = default) =>
         await db.Installments.AsNoTracking().Where(i => i.ContractId == contractId).OrderBy(i => i.Order)
             .Select(i => new InstallmentRef(i.Id, i.ContractId, i.Title, i.DueOn, i.Cancelled)).ToListAsync(ct);

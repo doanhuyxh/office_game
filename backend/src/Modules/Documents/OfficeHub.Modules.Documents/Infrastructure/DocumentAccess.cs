@@ -107,6 +107,14 @@ internal sealed class DocumentAccess(IEmployeeDirectory dir, IProjectDirectory p
     public static bool IsOwner(Viewer v, Asset a) =>
         a.CreatedByUserId == v.UserId || (v.Employee is { } e && a.CustodianEmployeeId == e.Id);
 
+    /// <summary>
+    /// Sửa / thay file / xoá / khôi phục / xoá hẳn / gửi duyệt / lưu trữ / đổi người phụ trách / xem nhật ký (TEST-14):
+    /// quản lý kho, HOẶC người tạo / phụ trách còn quyền ghi kho. Trước đây sửa + thêm phiên bản chỉ cần quyền ghi kho (sửa được tài liệu
+    /// của người khác), còn người phụ trách đã mất quyền kho vẫn xem nhật ký / khôi phục / xoá hẳn được.
+    /// </summary>
+    public async Task<bool> CanActAsync(Viewer v, Asset a, CancellationToken ct) =>
+        CanManage(v, a.SpaceKind, a.SpaceId) || (IsOwner(v, a) && await CanWriteAsync(v, a.SpaceKind, a.SpaceId, ct));
+
     /// <summary>Tên + mã kho (mã dùng trong mã tài sản / số hiệu). null = kho không tồn tại.</summary>
     public async Task<(string Name, string Code)?> SpaceAsync(SpaceKind kind, Guid? spaceId, CancellationToken ct)
     {

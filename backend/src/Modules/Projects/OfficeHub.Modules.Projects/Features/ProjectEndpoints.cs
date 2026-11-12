@@ -155,7 +155,8 @@ internal static class ProjectEndpoints
             await TaskColumnEndpoints.ListForAsync(db, id, ct)));
     }
 
-    private static async Task<Validation> ValidateAsync(UpsertProject r, Guid? selfId, ProjectsDbContext db, ISalesContractsLookup sales, CancellationToken ct)
+    private static async Task<Validation> ValidateAsync(UpsertProject r, Guid? selfId, Guid userId, ProjectsDbContext db, ISalesContractsLookup sales,
+        CancellationToken ct)
     {
         var code = r.Code?.Trim().ToUpperInvariant();
         var v = new Validation().Required(code, "code", "Mã dự án").MaxLength(code, 30, "code", "Mã dự án")
@@ -178,6 +179,14 @@ internal static class ProjectEndpoints
                 var codes = string.Join(", ", taken.Select(t => found.TryGetValue(t, out var c) ? c.Code : "?"));
                 v.Add("salesContractIds", $"Hợp đồng {codes} đã gắn với dự án khác");
             }
+            // TEST-14: gắn THÊM hợp đồng phải có quyền xem hợp đồng đó bên Sales (hợp đồng đã gắn sẵn thì giữ được dù người sửa không có quyền).
+            var linked = selfId is { } pid
+                ? await db.ProjectContracts.AsNoTracking().Where(x => x.ProjectId == pid).Select(x => x.ContractId).ToListAsync(ct)
+                : [];
+            var added = ids.Except(linked).Where(found.ContainsKey).ToList();
+            var visible = await sales.VisibleToAsync(userId, added, ct);
+            if (added.Any(x => !visible.Contains(x)))
+                v.Add("salesContractIds", $"Không có quyền với hợp đồng {string.Join(", ", added.Where(x => !visible.Contains(x)).Select(x => found[x].Code))} — nhờ người phụ trách hợp đồng / kế toán gắn");
         }
         return v;
     }
@@ -190,7 +199,7 @@ internal static class ProjectEndpoints
     {
         var v = await access.ViewerAsync(user, ct);
         if (!v.CanCreate) return Forbidden("Chỉ quản lý / HR được tạo dự án");
-        var val = await ValidateAsync(r, null, db, sales, ct);
+        var val = await ValidateAsync(r, null, v.UserId, db, sales, ct);
         var memberIds = (r.MemberIds ?? []).Distinct().Where(x => x != v.Employee?.Id).ToList();
         foreach (var eid in memberIds)
             if (await dir.GetAsync(eid, ct) is not { IsActive: true }) { val.Add("memberIds", "Có thành viên không tồn tại hoặc đã nghỉ việc"); break; }
@@ -223,7 +232,7 @@ internal static class ProjectEndpoints
         var p = await db.Projects.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (p is null || !v.CanSee(id)) return TypedResults.NotFound();
         if (!v.CanManage(id)) return Forbidden("Chỉ quản lý dự án hoặc HR được sửa dự án");
-        var val = await ValidateAsync(r, id, db, sales, ct);
+        var val = await ValidateAsync(r, id, v.UserId, db, sales, ct);
         if (r.Code.Trim().ToUpperInvariant() != p.Code) val.Add("code", "Không đổi mã dự án (mã đã dùng trong số hiệu tài liệu)");
         // Bỏ hợp đồng mà mốc của dự án đang gắn đợt thu của nó → chặn (đổi / bỏ đợt thu ở mốc trước).
         var newIds = ContractIdsOf(r);
@@ -383,7 +392,10 @@ internal static class ProjectEndpoints
     {
         var v = await access.ViewerAsync(user, ct);
         if (!v.CanCreate && !v.Roles.Values.Contains(ProjectMemberRole.Manager)) return Forbidden("Chỉ quản lý dự án / HR được gắn hợp đồng");
-        return TypedResults.Ok(await sales.SearchActiveAsync(search, ct));
+        // Chỉ gợi ý hợp đồng người này được xem bên Sales (không lộ tên hợp đồng / khách của người khác).
+        var found = await sales.SearchActiveAsync(search, ct);
+        var visible = await sales.VisibleToAsync(v.UserId, found.Select(c => c.Id).ToList(), ct);
+        return TypedResults.Ok<IReadOnlyList<SalesContractRef>>([.. found.Where(c => visible.Contains(c.Id))]);
     }
 
     private static async Task<Results<Ok<IReadOnlyList<InstallmentRef>>, ProblemHttpResult>> InstallmentsAsync(Guid contractId, ClaimsPrincipal user, ProjectAccess access,

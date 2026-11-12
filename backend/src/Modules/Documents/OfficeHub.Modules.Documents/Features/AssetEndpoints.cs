@@ -193,7 +193,8 @@ internal static class AssetEndpoints
         var v = await access.ViewerAsync(user, ct);
         var a = await db.Assets.Include(x => x.Versions).FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct);
         if (a is null || !DocumentAccess.CanView(v, a)) return Problems.NotFound("tài liệu");
-        if (a.Status == AssetStatus.Destroyed || !await access.CanWriteAsync(v, a.SpaceKind, a.SpaceId, ct)) return Http.Forbidden("Không sửa được tài liệu này");
+        if (a.Status == AssetStatus.Destroyed || !await access.CanActAsync(v, a, ct))
+            return Http.Forbidden("Chỉ người tạo / phụ trách tài liệu hoặc quản lý kho được sửa");
         var val = new Validation().Required(req.Title, "title", "Tiêu đề").MaxLength(req.Title?.Trim(), 300, "title", "Tiêu đề")
             .MaxLength(req.Description, 4000, "description", "Mô tả");
         if (req.FolderId is { } fid && !await db.Folders.AnyAsync(f => f.Id == fid && f.SpaceKind == a.SpaceKind && f.SpaceId == a.SpaceId, ct))
@@ -224,7 +225,7 @@ internal static class AssetEndpoints
         var a = await db.Assets.Include(x => x.Versions).FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct);
         if (a is null || !DocumentAccess.CanView(v, a)) return Problems.NotFound("tài liệu");
         if (!DocumentRules.CanChangeFile(a.Status)) return Problems.Conflict("Tài liệu đã gửi duyệt / ban hành — không thay file được");
-        if (!await access.CanWriteAsync(v, a.SpaceKind, a.SpaceId, ct)) return Http.Forbidden();
+        if (!await access.CanActAsync(v, a, ct)) return Http.Forbidden("Chỉ người tạo / phụ trách tài liệu hoặc quản lý kho được thay file");
         var (t, size, err) = await ClaimTicketAsync(req.TicketId, v, db, files, ct);
         if (err is not null) return err;
         var now = clock.Now;
@@ -249,14 +250,14 @@ internal static class AssetEndpoints
     {
         var v = await access.ViewerAsync(user, ct);
         var a = await db.Assets.AsNoTracking().Include(x => x.Versions).FirstOrDefaultAsync(x => x.Id == id, ct);
-        if (a is null || !await CanSeeAsync(v, a, dir, ct)) return Problems.NotFound("tài liệu");
+        if (a is null || !await CanSeeAsync(v, a, access, dir, ct)) return Problems.NotFound("tài liệu");
         return TypedResults.Ok(await DetailAsync(a, v, access, db, dir, ct));
     }
 
     /// <summary>Xem được kho, HOẶC là quản lý trực tiếp của người gửi khi tài liệu đang chờ mình duyệt ban hành. Thùng rác: chỉ chủ / người quản lý kho.</summary>
-    private static async Task<bool> CanSeeAsync(Viewer v, Asset a, IEmployeeDirectory dir, CancellationToken ct)
+    private static async Task<bool> CanSeeAsync(Viewer v, Asset a, DocumentAccess access, IEmployeeDirectory dir, CancellationToken ct)
     {
-        if (a.DeletedAt is not null) return DocumentAccess.IsOwner(v, a) || DocumentAccess.CanManage(v, a.SpaceKind, a.SpaceId);
+        if (a.DeletedAt is not null) return await access.CanActAsync(v, a, ct);
         if (DocumentAccess.CanView(v, a)) return true;
         return a.Status == AssetStatus.PendingApproval && v.Employee is { } me && (a.SubmittedByEmployeeId ?? a.CreatedByEmployeeId) is { } cid
                && (await dir.GetAsync(cid, ct))?.ManagerId == me.Id;
@@ -275,9 +276,10 @@ internal static class AssetEndpoints
             for (Guid? cur = fid; cur is { } c && folders.TryGetValue(c, out var f) && parts.Count < 30; cur = f.ParentId) parts.Insert(0, f.Name);
             path = string.Join(" / ", parts);
         }
-        var write = a.Status != AssetStatus.Destroyed && a.DeletedAt is null && await access.CanWriteAsync(v, a.SpaceKind, a.SpaceId, ct);
         var manage = DocumentAccess.CanManage(v, a.SpaceKind, a.SpaceId);
-        var owner = DocumentAccess.IsOwner(v, a);
+        // "owner" = người tạo / phụ trách CÒN quyền ghi kho (mất quyền kho thì mất quyền chủ) — DocumentAccess.CanActAsync
+        var owner = !manage && DocumentAccess.IsOwner(v, a) && await access.CanWriteAsync(v, a.SpaceKind, a.SpaceId, ct);
+        var write = a.Status != AssetStatus.Destroyed && a.DeletedAt is null && (owner || manage);
         var can = new AssetPermissions(
             Edit: write,
             ChangeFile: write && DocumentRules.CanChangeFile(a.Status),
@@ -304,7 +306,7 @@ internal static class AssetEndpoints
     {
         var v = await access.ViewerAsync(user, ct);
         var a = await db.Assets.AsNoTracking().Include(x => x.Versions).FirstOrDefaultAsync(x => x.Id == id, ct);
-        if (a is null || !await CanSeeAsync(v, a, dir, ct)) return Problems.NotFound("tài liệu");
+        if (a is null || !await CanSeeAsync(v, a, access, dir, ct)) return Problems.NotFound("tài liệu");
         var ver = a.Versions.FirstOrDefault(x => x.Number == (version ?? a.CurrentVersion));
         if (ver is null) return Problems.NotFound("phiên bản");
         if (ver.FileKey is null) return TypedResults.Problem("File đã bị huỷ theo hạn lưu trữ", statusCode: StatusCodes.Status410Gone);
@@ -326,7 +328,7 @@ internal static class AssetEndpoints
         var v = await access.ViewerAsync(user, ct);
         var a = await db.Assets.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (a is null) return Problems.NotFound("tài liệu");
-        if (!DocumentAccess.IsOwner(v, a) && !DocumentAccess.CanManage(v, a.SpaceKind, a.SpaceId)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho xem được nhật ký");
+        if (!await access.CanActAsync(v, a, ct)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho xem được nhật ký");
         var paged = await db.AccessLogs.AsNoTracking().Where(x => x.AssetId == id).OrderByDescending(x => x.At).ThenByDescending(x => x.Id)
             .ToPagedAsync(page ?? 1, pageSize, ct);
         return TypedResults.Ok(paged.Map(x => new AccessLogDto(x.At, x.UserName, x.Action, x.VersionNumber, x.Ip)));
@@ -341,7 +343,7 @@ internal static class AssetEndpoints
         var a = await db.Assets.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct);
         if (a is null || !DocumentAccess.CanView(v, a)) return Problems.NotFound("tài liệu");
         if (!DocumentRules.CanTrash(a.Status)) return Problems.Conflict("Chỉ xoá được tài liệu nháp — tài liệu đã ban hành chỉ lưu trữ hoặc huỷ theo hạn");
-        if (!DocumentAccess.IsOwner(v, a) && !DocumentAccess.CanManage(v, a.SpaceKind, a.SpaceId)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho được xoá");
+        if (!await access.CanActAsync(v, a, ct)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho được xoá");
         a.DeletedAt = clock.Now;
         a.DeletedByName = v.Name;
         await db.SaveChangesAsync(ct);
@@ -354,7 +356,7 @@ internal static class AssetEndpoints
         var v = await access.ViewerAsync(user, ct);
         var a = await db.Assets.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt != null, ct);
         if (a is null) return Problems.NotFound("tài liệu trong thùng rác");
-        if (!DocumentAccess.IsOwner(v, a) && !DocumentAccess.CanManage(v, a.SpaceKind, a.SpaceId)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho được khôi phục");
+        if (!await access.CanActAsync(v, a, ct)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho được khôi phục");
         a.DeletedAt = null;
         a.DeletedByName = null;
         a.UpdatedAt = clock.Now;
@@ -369,7 +371,7 @@ internal static class AssetEndpoints
         var v = await access.ViewerAsync(user, ct);
         var a = await db.Assets.Include(x => x.Versions).FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt != null, ct);
         if (a is null) return Problems.NotFound("tài liệu trong thùng rác");
-        if (!DocumentAccess.IsOwner(v, a) && !DocumentAccess.CanManage(v, a.SpaceKind, a.SpaceId)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho được xoá hẳn");
+        if (!await access.CanActAsync(v, a, ct)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho được xoá hẳn");
         foreach (var ver in a.Versions.Where(x => x.FileKey is not null)) await files.DeleteAsync(ver.FileKey!, ct);
         db.Assets.Remove(a);
         await db.SaveChangesAsync(ct);
@@ -430,7 +432,7 @@ internal static class AssetEndpoints
     {
         var v = await access.ViewerAsync(user, ct);
         var a = await db.Assets.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
-        if (a is null || !await CanSeeAsync(v, a, dir, ct)) return Problems.NotFound("tài liệu");
+        if (a is null || !await CanSeeAsync(v, a, access, dir, ct)) return Problems.NotFound("tài liệu");
         var pending = a.Status == AssetStatus.PendingApproval;
         if (!pending && a.Status != AssetStatus.Draft)
             return TypedResults.Ok(new ApproversDto("None", false, null, "Tài liệu không ở trạng thái nháp nên không gửi duyệt.", []));
@@ -474,7 +476,7 @@ internal static class AssetEndpoints
         var a = await db.Assets.Include(x => x.Versions).FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct);
         if (a is null || !DocumentAccess.CanView(v, a)) return Problems.NotFound("tài liệu");
         if (!DocumentRules.CanSubmit(a.Status)) return Problems.Conflict("Chỉ gửi duyệt được tài liệu nháp");
-        if (!DocumentAccess.IsOwner(v, a) && !DocumentAccess.CanManage(v, a.SpaceKind, a.SpaceId)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho được gửi duyệt");
+        if (!await access.CanActAsync(v, a, ct)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho được gửi duyệt");
         if (v.Employee is not { } me) return Http.NoProfile();
         // Chức vụ được tự ban hành (cấp Chuyên viên trở lên, HR bật ở tab Chức vụ) → ban hành ngay, không tạo đơn duyệt
         if ((await dir.GetPositionAsync(me.Id, ct))?.SelfPublishDocuments == true)
@@ -515,7 +517,7 @@ internal static class AssetEndpoints
         var a = await db.Assets.Include(x => x.Versions).FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct);
         if (a is null || !DocumentAccess.CanView(v, a)) return Problems.NotFound("tài liệu");
         if (!DocumentRules.CanArchive(a.Status)) return Problems.Conflict("Chỉ lưu trữ được tài liệu đã ban hành");
-        if (!DocumentAccess.IsOwner(v, a) && !DocumentAccess.CanManage(v, a.SpaceKind, a.SpaceId)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho được lưu trữ");
+        if (!await access.CanActAsync(v, a, ct)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho được lưu trữ");
         a.Status = AssetStatus.Archived;
         a.UpdatedAt = clock.Now;
         await db.SaveChangesAsync(ct);
@@ -528,7 +530,7 @@ internal static class AssetEndpoints
         var v = await access.ViewerAsync(user, ct);
         var a = await db.Assets.Include(x => x.Versions).FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct);
         if (a is null || !DocumentAccess.CanView(v, a)) return Problems.NotFound("tài liệu");
-        if (!DocumentAccess.IsOwner(v, a) && !DocumentAccess.CanManage(v, a.SpaceKind, a.SpaceId)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho được đổi người phụ trách");
+        if (!await access.CanActAsync(v, a, ct)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho được đổi người phụ trách");
         if (await dir.GetAsync(req.EmployeeId, ct) is not { IsActive: true } e) return new Validation().Add("employeeId", "Nhân viên không tồn tại hoặc đã nghỉ việc").Problem();
         a.CustodianEmployeeId = e.Id;
         a.CustodianName = e.FullName;

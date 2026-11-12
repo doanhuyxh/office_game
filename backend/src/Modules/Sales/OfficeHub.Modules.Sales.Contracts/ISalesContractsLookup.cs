@@ -12,6 +12,11 @@ public interface ISalesContractsLookup
     Task<IReadOnlyList<SalesContractRef>> SearchActiveAsync(string? search, CancellationToken ct = default);
     Task<IReadOnlyList<InstallmentRef>> InstallmentsAsync(Guid contractId, CancellationToken ct = default);
     /// <summary>
+    /// Các hợp đồng trong <paramref name="contractIds"/> mà tài khoản này được xem theo quyền Sales (người phụ trách, quản lý trực tiếp / gián tiếp
+    /// của họ, hoặc quyền Xem tài chính) — gắn hợp đồng vào dự án phải có quyền này (TEST-14).
+    /// </summary>
+    Task<IReadOnlySet<Guid>> VisibleToAsync(Guid userId, IReadOnlyCollection<Guid> contractIds, CancellationToken ct = default);
+    /// <summary>
     /// Mốc dự án đã nghiệm thu → đợt thu gắn với nó đến hạn: hạn thu sau ngày nghiệm thu thì kéo về ngày nghiệm thu (đặt lại mốc nhắc), báo người phụ trách
     /// hợp đồng + kế toán. Đợt đã huỷ / không tồn tại → false.
     /// </summary>

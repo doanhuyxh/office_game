@@ -122,9 +122,12 @@ internal static class NotificationEndpoints
     }
 
     // DELETE không tự suy ra body (chỉ POST/PUT/PATCH) — phải đánh dấu [FromBody] rõ ràng, thiếu thì app không khởi động được.
-    private static async Task<NoContent> UnregisterPushTokenAsync([FromBody] PushTokenRequest req, NotificationDbContext db, CancellationToken ct)
+    // TEST-14: chỉ xoá token của chính tài khoản đang đăng nhập (người khác không gỡ được thiết bị nhận push của mình).
+    private static async Task<NoContent> UnregisterPushTokenAsync([FromBody] PushTokenRequest req, ClaimsPrincipal user, NotificationDbContext db,
+        CancellationToken ct)
     {
-        await db.PushTokens.Where(t => t.Token == req.Token).ExecuteDeleteAsync(ct);
+        var uid = user.GetUserId()!.Value;
+        await db.PushTokens.Where(t => t.Token == req.Token && t.UserId == uid).ExecuteDeleteAsync(ct);
         return TypedResults.NoContent();
     }
 }
