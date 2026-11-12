@@ -20,7 +20,7 @@ Quy tắc (`Domain/OAuthRules.cs`, test `tests/OfficeHub.Modules.Identity.Tests`
 - client_id / redirect_uri sai → **không chuyển hướng** (chỉ hiện lỗi). Lỗi khác (thiếu PKCE, response_type ≠ code, `resource` khác host — RFC 8707) → chuyển về ứng dụng kèm `error` + `state`.
 - PKCE **S256 bắt buộc**. Mã sống 2 phút, dùng 1 lần; dùng lại → thu hồi grant đã cấp từ mã đó. Sai `code_verifier` không tiêu mã.
 - Refresh trượt 30 ngày, grant tối đa 365 ngày. Dùng lại refresh token cũ (`PreviousRefreshHash`) → thu hồi cả grant (access token đang dùng chết ngay). Mỗi lần refresh xoá access token hết hạn của grant.
-- Kiểm tra lại user (`IsActive`, khoá, `MustChangePassword`) khi đổi mã và refresh. DCR: dọn client chưa từng được cho phép sau 7 ngày, tối đa 2000 client.
+- Kiểm tra lại user (`IsActive`, khoá, `MustChangePassword`) khi đổi mã và refresh. Đổi / đặt lại mật khẩu, reset 2FA, khoá tài khoản → mọi grant + token bị thu hồi ([auth-sessions.md](auth-sessions.md)). DCR: dọn client chưa từng được cho phép sau 7 ngày, tối đa 2000 client.
 - Chưa hỗ trợ: Client ID Metadata Document (`client_id_metadata_document_supported: false`), client có secret, OIDC (`openid-configuration`).
 
 API ứng dụng đã kết nối: `GET /api/oauth/grants` (của tôi), `DELETE /api/oauth/grants/{id}` (chủ hoặc HR).

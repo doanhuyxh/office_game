@@ -53,3 +53,13 @@ public static class TwoFactorRules
     /// <summary>Mã TOTP hợp lệ về hình thức: đúng 6 chữ số.</summary>
     public static bool IsTotpFormat(string code) => code.Length == 6 && code.All(char.IsAsciiDigit);
 }
+
+/// <summary>Xác nhận lại danh tính trước thao tác nhạy cảm (tạo token AI).</summary>
+public static class ReauthRules
+{
+    /// <summary>Vừa đăng nhập trong khoảng này thì không hỏi lại (mỗi lúc 1 thiết bị → phiên hiện tại chính là lần đăng nhập đó).</summary>
+    public static readonly TimeSpan RecentLoginWindow = TimeSpan.FromMinutes(10);
+
+    public static bool IsRecentLogin(DateTimeOffset? lastLoginAt, DateTimeOffset now) =>
+        lastLoginAt is { } t && t <= now && now - t <= RecentLoginWindow;
+}

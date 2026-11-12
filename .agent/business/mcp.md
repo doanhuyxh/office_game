@@ -27,8 +27,8 @@ AI client ──POST /mcp (Bearer ohk_…)──▶ OfficeHub.Mcp (BearerGate �
 | Method | Path | Ghi chú |
 |---|---|---|
 | GET | `/api/auth/access-tokens` | Token cá nhân của tôi (≤ 50, không gồm access token OAuth), `status` = `Active` / `Expired` / `Revoked` |
-| POST | `/api/auth/access-tokens` | `{ name (≤100), expiresInDays ∈ 30/90/180/365 (mặc định 90) }` → `{ accessToken, token }`; `token` hiện **một lần**. Tối đa 10 token đang dùng / người → 409 |
-| DELETE | `/api/auth/access-tokens/{id}` | Thu hồi (đặt `RevokedAt`, giữ dòng) → 204. Chủ token hoặc HR |
+| POST | `/api/auth/access-tokens` | `{ name (≤100), expiresInDays ∈ 30/90/180/365 (mặc định 90), confirm (mật khẩu / mã 2FA — bỏ qua nếu vừa đăng nhập ≤ 10 phút) }` → `{ accessToken, token }`; `token` hiện **một lần**. Tối đa 10 token đang dùng / người → 409 |
+| DELETE | `/api/auth/access-tokens/{id}` | Thu hồi (đặt `RevokedAt`, giữ dòng) → 204. Chủ token hoặc HR. Tự thu hồi hết khi đổi mật khẩu / khoá ([auth-sessions.md](auth-sessions.md)) |
 
 - Token = `ohk_` + 32 byte ngẫu nhiên base64url. Lưu SHA-256 (`identity.access_tokens.TokenHash`, unique) + `Prefix` để hiển thị. Chỉ quản lý được bằng cookie web (token gọi → 403).
 - Xác thực (`Infrastructure/AccessTokenHandler.cs`, scheme `AccessToken`): scheme mặc định của Api là policy `OfficeHub` → có `Authorization: Bearer ohk_…` thì dùng token, ngược lại cookie. Mỗi request đọc lại token + user (+ grant nếu là token OAuth): token / grant thu hồi, hết hạn, user `IsActive=false`, đang khoá, `MustChangePassword`, admin / hr chưa bật 2FA ([auth-2fa.md](auth-2fa.md)), hoặc `AccessTokens__Enabled=false` → 401. Principal tạo bằng `AppClaimsFactory` (vai trò hiện tại) + claim `access_token_id`; `LastUsedAt` ghi tối đa 5 phút / lần.

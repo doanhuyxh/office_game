@@ -97,14 +97,21 @@ internal static class AccountEndpoints
     }
 
     private static async Task<Results<Ok<TempPasswordResponse>, NotFound, ProblemHttpResult>> ResetPasswordAsync(
-        Guid id, ClaimsPrincipal user, OrgDbContext db, IAccountService accounts, CancellationToken ct)
+        Guid id, ClaimsPrincipal user, OrgDbContext db, IAccountService accounts, INotifier notifier, CancellationToken ct)
     {
         var e = await db.Employees.FindAsync([id], ct);
         if (e?.UserId is not { } uid) return TypedResults.NotFound();
         if (await IsAdminTargetByNonAdminAsync(user, uid, accounts, ct)) return Forbidden("Chỉ admin được đặt lại mật khẩu của admin");
         var temp = GenerateTempPassword();
         var r = await accounts.ResetToTempPasswordAsync(uid, temp, ct);
-        return r.Succeeded ? TypedResults.Ok(new TempPasswordResponse(temp)) : Problems.Conflict(string.Join(" ", r.Errors));
+        if (!r.Succeeded) return Problems.Conflict(string.Join(" ", r.Errors));
+        // Báo chính chủ (email + chuông): phiên + token AI cũ đã bị thu hồi — nếu không phải họ nhờ HR thì phát hiện được ngay.
+        if (uid != user.GetUserId())
+            await notifier.NotifyAsync(new NotificationRequest([uid], NotificationCategories.AccountSecurity, "Mật khẩu đã được đặt lại",
+                $"{user.FindFirstValue(ClaimNames.FullName) ?? "Bộ phận Nhân sự"} vừa đặt lại mật khẩu tài khoản của bạn bằng mật khẩu tạm. " +
+                "Mọi phiên đăng nhập và kết nối AI cũ đã bị đăng xuất. Nếu bạn không yêu cầu, hãy báo ngay cho bộ phận Nhân sự.",
+                "/profile"), ct);
+        return TypedResults.Ok(new TempPasswordResponse(temp));
     }
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> SetRolesAsync(

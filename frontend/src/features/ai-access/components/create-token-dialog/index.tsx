@@ -19,6 +19,7 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: {
   const create = useCreateAccessToken();
   const [name, setName] = useState('');
   const [days, setDays] = useState('90');
+  const [confirm, setConfirm] = useState('');
   const [token, setToken] = useState<string | null>(null);
   const errors = fieldErrors(create.error);
 
@@ -26,13 +27,13 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: {
     if (o) return;
     onOpenChange(false);
     // reset sau khi dialog đóng xong để không nháy nội dung
-    setTimeout(() => { setName(''); setDays('90'); setToken(null); create.reset(); }, 200);
+    setTimeout(() => { setName(''); setDays('90'); setConfirm(''); setToken(null); create.reset(); }, 200);
   };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    create.mutate({ name: name.trim(), expiresInDays: Number(days) }, {
-      onSuccess: (r) => { setToken(r.token); onCreated(r.token); },
+    create.mutate({ name: name.trim(), expiresInDays: Number(days), confirm }, {
+      onSuccess: (r) => { setToken(r.token); setConfirm(''); onCreated(r.token); },
       onError: (err) => !Object.keys(fieldErrors(err)).length && toast.error(errorMessage(err)),
     });
   };
@@ -65,9 +66,12 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: {
               <FormField id="tk-name" label="Tên gợi nhớ *" required maxLength={100} autoFocus value={name}
                 onChange={(e) => setName(e.target.value)} placeholder="Vd: Claude Code trên MacBook" error={errors.name} />
               <SelectField id="tk-days" label="Thời hạn" value={days} onChange={(v) => setDays(v ?? '90')} options={LIFETIMES} error={errors.expiresInDays} />
+              <FormField id="tk-confirm" label="Xác nhận: mật khẩu hiện tại hoặc mã 2FA *" type="password" required autoComplete="current-password"
+                value={confirm} onChange={(e) => setConfirm(e.target.value)} error={errors.confirm}
+                hint="Token có quyền như tài khoản của bạn nên cần xác nhận lại danh tính." />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => close(false)}>Huỷ</Button>
-                <Button type="submit" disabled={create.isPending || !name.trim()}>{create.isPending ? 'Đang tạo…' : 'Tạo token'}</Button>
+                <Button type="submit" disabled={create.isPending || !name.trim() || !confirm}>{create.isPending ? 'Đang tạo…' : 'Tạo token'}</Button>
               </DialogFooter>
             </form>
           </>

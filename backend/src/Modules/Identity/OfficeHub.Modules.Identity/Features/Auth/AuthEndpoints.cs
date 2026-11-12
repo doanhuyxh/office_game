@@ -29,8 +29,7 @@ internal static class AuthEndpoints
         var g = api.MapGroup("/auth").WithTags("Auth");
 
         g.MapPost("/login", LoginAsync).AllowAnonymous().RequireRateLimiting(Infrastructure.RateLimits.Auth);
-        g.MapPost("/logout", async (SignInManager<AppUser> signIn) => { await signIn.SignOutAsync(); return TypedResults.NoContent(); })
-            .RequireAuthorization();
+        g.MapPost("/logout", LogoutAsync).RequireAuthorization();
         g.MapGet("/me", MeAsync).RequireAuthorization();
         g.MapPost("/change-password", ChangePasswordAsync).RequireAuthorization();
     }
@@ -65,6 +64,17 @@ internal static class AuthEndpoints
         return TypedResults.Ok(await ToMe(user, users, db));
     }
 
+    /// <summary>
+    /// Đổi security stamp TRƯỚC khi xoá cookie: bản sao cookie (bị chép / còn trong máy khác) cũng hết hiệu lực ở request kế tiếp
+    /// (ValidationInterval = 0). Token AI không bị ảnh hưởng — đăng xuất web không ngắt trợ lý AI đã kết nối.
+    /// </summary>
+    private static async Task<NoContent> LogoutAsync(HttpContext ctx, UserManager<AppUser> users, SignInManager<AppUser> signIn)
+    {
+        if (!ctx.User.IsAccessToken() && await users.GetUserAsync(ctx.User) is { } user) await users.UpdateSecurityStampAsync(user);
+        await signIn.SignOutAsync();
+        return TypedResults.NoContent();
+    }
+
     private static async Task<Results<Ok<MeResponse>, UnauthorizedHttpResult>> MeAsync(HttpContext ctx, UserManager<AppUser> users,
         OfficeIdentityDbContext db)
     {
@@ -73,7 +83,8 @@ internal static class AuthEndpoints
     }
 
     private static async Task<Results<NoContent, ValidationProblem, UnauthorizedHttpResult>> ChangePasswordAsync(
-        ChangePasswordRequest req, HttpContext ctx, UserManager<AppUser> users, SignInManager<AppUser> signIn)
+        ChangePasswordRequest req, HttpContext ctx, UserManager<AppUser> users, SignInManager<AppUser> signIn, OfficeIdentityDbContext db,
+        TimeProvider clock, CancellationToken ct)
     {
         var user = await users.GetUserAsync(ctx.User);
         if (user is null) return TypedResults.Unauthorized();
@@ -89,6 +100,8 @@ internal static class AuthEndpoints
 
         user.MustChangePassword = false;
         await users.UpdateAsync(user);
+        // ChangePasswordAsync đã đổi security stamp (phiên ở nơi khác hết hiệu lực); token AI / ứng dụng OAuth thu hồi riêng.
+        await AiAccessRevoker.RevokeAllAsync(db, user.Id, clock.GetUtcNow(), ct);
         await signIn.RefreshSignInAsync(user); // cấp lại cookie không còn cờ must_change_password
         return TypedResults.NoContent();
     }

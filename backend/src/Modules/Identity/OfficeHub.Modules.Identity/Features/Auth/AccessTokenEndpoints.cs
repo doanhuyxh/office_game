@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using OfficeHub.BuildingBlocks.Auth;
@@ -11,8 +12,11 @@ using OfficeHub.Modules.Identity.Infrastructure;
 
 namespace OfficeHub.Modules.Identity.Features.Auth;
 
-/// <summary>expiresInDays ∈ {30, 90, 180, 365}; mặc định 90.</summary>
-public sealed record CreateAccessTokenRequest(string Name, int? ExpiresInDays);
+/// <summary>
+/// expiresInDays ∈ {30, 90, 180, 365}; mặc định 90. <c>Confirm</c> = mật khẩu hiện tại HOẶC mã 2FA 6 số — bắt buộc trừ khi vừa
+/// đăng nhập ≤ 10 phút (<see cref="ReauthRules"/>): cookie bị đánh cắp không tự tạo được token AI dài hạn.
+/// </summary>
+public sealed record CreateAccessTokenRequest(string Name, int? ExpiresInDays, string? Confirm = null);
 public sealed record AccessTokenDto(Guid Id, string Name, string Prefix, DateTimeOffset CreatedAt, DateTimeOffset ExpiresAt,
     DateTimeOffset? LastUsedAt, DateTimeOffset? RevokedAt, string Status);
 /// <summary><c>Token</c> chỉ trả về MỘT lần lúc tạo.</summary>
@@ -69,7 +73,8 @@ internal static class AccessTokenEndpoints
     }
 
     private static async Task<Results<Ok<AccessTokenCreatedDto>, ValidationProblem, ProblemHttpResult>> CreateAsync(
-        CreateAccessTokenRequest req, ClaimsPrincipal user, OfficeIdentityDbContext db, TimeProvider clock, CancellationToken ct)
+        CreateAccessTokenRequest req, ClaimsPrincipal user, OfficeIdentityDbContext db, UserManager<AppUser> users, TimeProvider clock,
+        CancellationToken ct)
     {
         if (user.IsAccessToken()) return TokenNotAllowed();
         var uid = user.GetUserId()!.Value;
@@ -79,6 +84,14 @@ internal static class AccessTokenEndpoints
             .Required(req.Name, "name", "Tên").MaxLength(req.Name?.Trim(), 100, "name", "Tên")
             .When(!AllowedLifetimes.Contains(days), "expiresInDays", "Thời hạn chỉ được 30, 90, 180 hoặc 365 ngày");
         if (v.Failed) return v.Problem();
+
+        var account = await users.FindByIdAsync(uid.ToString());
+        if (account is null) return TypedResults.Problem("Không tìm thấy tài khoản", statusCode: StatusCodes.Status401Unauthorized);
+        if (!ReauthRules.IsRecentLogin(account.LastLoginAt, now) && !await ConfirmAsync(users, account, req.Confirm))
+        {
+            await users.AccessFailedAsync(account); // sai nhiều lần → khoá như đăng nhập sai
+            return new Validation().Add("confirm", "Nhập đúng mật khẩu hiện tại hoặc mã xác thực 2 lớp để tạo token").Problem();
+        }
 
         var active = await db.AccessTokens.CountAsync(t => t.UserId == uid && t.GrantId == null && t.RevokedAt == null && t.ExpiresAt > now, ct);
         if (active >= MaxActivePerUser)
@@ -113,6 +126,15 @@ internal static class AccessTokenEndpoints
             await db.SaveChangesAsync(ct);
         }
         return TypedResults.NoContent();
+    }
+
+    /// <summary>6 số + đã bật 2FA → kiểm mã TOTP; còn lại coi là mật khẩu (mật khẩu tối thiểu 8 ký tự nên không nhầm).</summary>
+    private static async Task<bool> ConfirmAsync(UserManager<AppUser> users, AppUser account, string? confirm)
+    {
+        if (string.IsNullOrWhiteSpace(confirm) || await users.IsLockedOutAsync(account)) return false;
+        if (account.TwoFactorEnabled && TwoFactorRules.IsTotpFormat(TwoFactorRules.NormalizeCode(confirm)))
+            return await TwoFactorEndpoints.VerifyTotpAsync(users, account, confirm);
+        return await users.CheckPasswordAsync(account, confirm);
     }
 
     private static ProblemHttpResult TokenNotAllowed() =>

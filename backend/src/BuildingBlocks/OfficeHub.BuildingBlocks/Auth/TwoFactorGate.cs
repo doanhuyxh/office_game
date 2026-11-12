@@ -58,3 +58,29 @@ public static class TwoFactorPolicy
         await next(ctx);
     });
 }
+
+/// <summary>
+/// Mật khẩu tạm (HR cấp / tài khoản mới): cookie mang claim <see cref="ClaimNames.MustChangePassword"/> → mọi API trừ
+/// <see cref="TwoFactorPolicy.IsExempt"/> trả 403 <see cref="RequiredTitle"/> tới khi đổi mật khẩu. Trước đây chỉ guard FE chặn,
+/// gọi API thẳng bằng cookie mật khẩu tạm vẫn dùng được mọi chức năng. Token AI của tài khoản này đã bị chặn ở <c>AccessTokenHandler</c>.
+/// </summary>
+public static class PasswordChangePolicy
+{
+    public const string RequiredTitle = "password_change_required";
+    public const string RequiredMessage = "Cần đổi mật khẩu tạm trước khi tiếp tục";
+
+    public static bool MustChangePassword(this System.Security.Claims.ClaimsPrincipal user) =>
+        user.HasClaim(ClaimNames.MustChangePassword, "true");
+
+    /// <summary>Đặt sau <c>UseAuthentication</c>. Dùng chung danh sách route miễn với cổng 2FA (đổi mật khẩu, đăng xuất, me…).</summary>
+    public static IApplicationBuilder UsePasswordChangeGate(this IApplicationBuilder app) => app.Use(async (ctx, next) =>
+    {
+        if (ctx.User.Identity?.IsAuthenticated == true && !ctx.User.IsAccessToken() && ctx.User.MustChangePassword()
+            && !TwoFactorPolicy.IsExempt(ctx.Request.Path.Value))
+        {
+            await Results.Problem(RequiredMessage, statusCode: StatusCodes.Status403Forbidden, title: RequiredTitle).ExecuteAsync(ctx);
+            return;
+        }
+        await next(ctx);
+    });
+}

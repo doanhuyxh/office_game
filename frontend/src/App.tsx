@@ -26,10 +26,14 @@ function onUnauthorized(err: unknown) {
  * → chuyển sang trang bật 2FA thay vì hiện toast lỗi ở từng request. Trả true nếu đã xử lý.
  */
 function onTwoFactorRequired(err: unknown) {
-  if (!(err instanceof ApiError) || err.status !== 403 || err.problem.title !== '2fa_setup_required') return false;
-  if (location.pathname !== PATHS.setupTwoFactor) {
+  if (!(err instanceof ApiError) || err.status !== 403) return false;
+  // Mật khẩu tạm (BE chặn API bằng 403 `password_change_required`) → trang đổi mật khẩu.
+  const to = err.problem.title === '2fa_setup_required' ? PATHS.setupTwoFactor
+    : err.problem.title === 'password_change_required' ? PATHS.changePassword : null;
+  if (!to) return false;
+  if (location.pathname !== to) {
     void queryClient.invalidateQueries({ queryKey: authKeys.me });
-    void router.navigate({ to: PATHS.setupTwoFactor, search: { returnUrl: location.pathname + location.search } });
+    void router.navigate({ to, search: { returnUrl: location.pathname + location.search } });
   }
   return true;
 }

@@ -9,7 +9,7 @@ Việc **cấp tài khoản cho nhân viên** do HR làm ở module Organization
 | Method | Path | Auth | Kết quả |
 |---|---|---|---|
 | POST | `/api/auth/login` | ẩn danh, rate limit | `{ login, password, rememberMe=true }` → 200 `MeResponse` + cookie |
-| POST | `/api/auth/logout` | đăng nhập | 204, xoá cookie |
+| POST | `/api/auth/logout` | đăng nhập | 204, đổi security stamp rồi xoá cookie ([auth-sessions.md](auth-sessions.md)) |
 | GET | `/api/auth/me` | đăng nhập | `MeResponse { id, userName, email, fullName, roles[], mustChangePassword, avatar, twoFactorEnabled, mustSetupTwoFactor }`; 401 nếu user không tồn tại hoặc `IsActive=false`. `avatar` = nhân vật 3D (null = mặc định) |
 | PUT / DELETE | `/api/auth/avatar` | đăng nhập | Lưu / bỏ nhân vật 3D của chính mình — [office-avatar.md](office-avatar.md) |
 | POST | `/api/auth/change-password` | đăng nhập | `{ currentPassword, newPassword }` → 204; sai → 400 ValidationProblem (key = mã lỗi Identity) |
@@ -49,7 +49,7 @@ Việc **cấp tài khoản cho nhân viên** do HR làm ở module Organization
 
 | Luồng | Cách làm | Sau đó |
 |---|---|---|
-| HR cấp mật khẩu tạm | `CreateWithPasswordAsync` → `MustChangePassword = true` | Đăng nhập được, FE bắt sang `/change-password`. Đổi xong → cờ về false, `RefreshSignInAsync` cấp cookie mới |
+| HR cấp mật khẩu tạm | `CreateWithPasswordAsync` → `MustChangePassword = true` | Đăng nhập được, API khác 403 `password_change_required` ([auth-sessions.md](auth-sessions.md)), FE bắt sang `/change-password`. Đổi xong → cờ về false, `RefreshSignInAsync` cấp cookie mới |
 | HR mời qua email | `CreateInvitedAsync` (user **không có mật khẩu**) → bên gọi lưu liên kết → `SendInviteAsync` gửi link `{App__BaseUrl}/accept-invite?uid=&token=` | Không đăng nhập được tới khi đặt mật khẩu |
 | Quên mật khẩu | `/forgot-password`: chỉ gửi nếu user tồn tại, `IsActive`, có email; lỗi SMTP chỉ ghi log | Link `{App__BaseUrl}/reset-password?uid=&token=` |
 | Đặt mật khẩu qua link | `/reset-password` (dùng chung cho mời + quên) | `EmailConfirmed = true`, `MustChangePassword = false`, mở khoá |
@@ -66,10 +66,10 @@ Module khác **chỉ** thao tác tài khoản qua interface này.
 | `CreateWithPasswordAsync(NewAccount, tempPassword)` | `"Tên đăng nhập '{x}' đã tồn tại"`, `"Email '{x}' đã có tài khoản"`, `"Vai trò không hợp lệ: …"`, lỗi mật khẩu Identity |
 | `CreateInvitedAsync(NewAccount)` | như trên + `"Cần email để gửi lời mời"`. **Không gửi email** |
 | `SendInviteAsync(userId)` (gửi / gửi lại) | `"Không tìm thấy tài khoản"`, `"Tài khoản đã đặt mật khẩu, không cần mời lại"`, `"Tài khoản không có email"`; SMTP lỗi → **không ném**, trả `Code = AccountErrors.EmailFailed` |
-| `ResetToTempPasswordAsync(userId, temp)` | đặt mật khẩu mới + `MustChangePassword`, mở khoá, **đổi security stamp** |
+| `ResetToTempPasswordAsync(userId, temp)` | đặt mật khẩu mới + `MustChangePassword`, mở khoá, **đổi security stamp**, thu hồi token AI |
 | `SetRolesAsync(userId, roles)` | thay toàn bộ vai trò, **đổi security stamp** |
-| `ResetTwoFactorAsync(userId)` | tắt 2FA + xoá khoá / mã dự phòng, mở khoá, **đổi security stamp**; `"Tài khoản chưa bật xác thực 2 lớp"` |
-| `SetActiveAsync(userId, active)` | `false` → đổi security stamp |
+| `ResetTwoFactorAsync(userId)` | tắt 2FA + xoá khoá / mã dự phòng, mở khoá, **đổi security stamp**, thu hồi token AI; `"Tài khoản chưa bật xác thực 2 lớp"` |
+| `SetActiveAsync(userId, active)` | `false` → đổi security stamp + thu hồi token AI |
 | `GetAsync` / `GetManyAsync` | `AccountInfo { …, InvitePending = PasswordHash == null, TwoFactorEnabled }` |
 
 Vai trò hợp lệ: `Roles.All` = `admin`, `hr`, `manager`, `employee`. Tạo tài khoản không truyền vai trò → `employee`.

@@ -15,6 +15,8 @@ export interface IAccessToken {
 export interface ICreateAccessToken {
   name: string;
   expiresInDays: number;
+  /** Mật khẩu hiện tại hoặc mã 2FA 6 số (BE bỏ qua nếu vừa đăng nhập ≤ 10 phút). */
+  confirm?: string;
 }
 
 /** `token` chỉ trả về MỘT lần lúc tạo. */

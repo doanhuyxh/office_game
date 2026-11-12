@@ -171,7 +171,7 @@ internal static class TwoFactorEndpoints
         return TypedResults.Ok(await AuthEndpoints.ToMe(user, users, db));
     }
 
-    private static async Task<bool> VerifyTotpAsync(UserManager<AppUser> users, AppUser user, string? raw)
+    internal static async Task<bool> VerifyTotpAsync(UserManager<AppUser> users, AppUser user, string? raw)
     {
         var code = TwoFactorRules.NormalizeCode(raw);
         return TwoFactorRules.IsTotpFormat(code)
