@@ -8,6 +8,7 @@ import { parseConfig } from '../src/config';
 import { Runner } from '../src/runner';
 import { Store } from '../src/store';
 import { sh } from '../src/workspace';
+import type { RunnerConfig } from '../src/config';
 
 const P = '01a1cb11-4644-716a-bf4d-8ab17b2f159b';
 const T1 = '01a1ced9-0a22-713a-b89d-cbd02c09c92d', T2 = '01a1ced9-3468-7c5f-a773-f45aea6d3732';
@@ -231,4 +232,115 @@ test('agent sửa agent-runner/ → runner không push, hook pre-push cũng ch�
   expect(manual.err).toContain('agent không được sửa bộ điều phối');
   const main = await sh(['git', 'push', 'origin', 'HEAD:main'], wt);
   expect(main.code).not.toBe(0);
+}, 30000);
+
+// ---------------- mode in_place: commit thẳng vào nhánh đang checkout, không push / PR ----------------
+const inPlaceSetup = async () => {
+  const repo = join(root, 'agent-repo-ip');
+  if (!existsSync(repo)) {
+    await run(['git', 'clone', join(root, 'origin.git'), repo], root);
+    await run(['git', 'config', 'user.name', 'Chu Du An'], repo);
+    await run(['git', 'config', 'user.email', 'owner@example.vn'], repo);
+    await run(['git', 'checkout', '-b', 'work'], repo);
+  }
+  const base = runner.config.agents[0]!;
+  const config: RunnerConfig = { ...runner.config, dataDir: join(root, 'data-ip'), agents: [{ ...base, repo, workspace: { mode: 'in_place', allowBaseBranch: false, allowEnvFiles: false } }] };
+  require('node:fs').mkdirSync(config.dataDir, { recursive: true });
+  const st = new Store(join(config.dataDir, 'runner.db'));
+  const r = new Runner(config, st);
+  const lines = await r.checkAgents('NV120', false);
+  const exec = async () => {
+    const s = r.agents.get('NV120')!;
+    const id = await r.accept(s, { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' });
+    const job = st.claimNext(1, ['NV120'])!;
+    await r.process(job);
+    return { id, job: st.getJob(job.id)! };
+  };
+  return { repo, r, st, lines, exec };
+};
+
+test('in_place: commit vào nhánh đang checkout, KHÔNG push / PR / worktree / hook', async () => {
+  const { repo, lines, exec } = await inPlaceSetup();
+  expect(lines.filter((l) => l.startsWith('✘'))).toEqual([]);
+  expect(lines.join('\n')).toContain('workspace in_place');
+  const before = comments.length;
+  const headBefore = await run(['git', 'rev-parse', 'HEAD'], repo);
+  const { job } = await exec();
+  expect(job.status).toBe('done');
+  expect(job.pr_url).toBeNull();
+  expect(comments.length).toBe(before + 1);
+  expect(comments.at(-1)!.content).toContain('CHƯA push');
+  expect(comments.at(-1)!.content).toContain('`work`');
+  expect(await run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], repo)).toBe('work'); // vẫn nhánh cũ
+  expect(await run(['git', 'rev-list', '--count', `${headBefore}..HEAD`], repo)).toBe('1');
+  const msg = await run(['git', 'log', '-1', '--format=%an <%ae>%n%B'], repo);
+  expect(msg).toContain('Chu Du An <owner@example.vn>');
+  expect(msg).not.toContain('Agent: NV120'); // không có hook commit-msg → không có trailer
+  expect((await run(['git', 'ls-remote', '--heads', 'origin', 'work'], repo))).toBe(''); // không có gì lên remote
+  expect((await run(['git', 'worktree', 'list'], repo)).split('\n').length).toBe(1); // không tạo worktree
+  // in_place không dùng hook: runner không cài hook nào trong repo này
+  expect(existsSync(join(repo, '.git/hooks/pre-push'))).toBe(false);
+  expect(existsSync(join(repo, '.git/hooks/commit-msg'))).toBe(false);
+}, 30000);
+
+test('in_place: repo còn thay đổi chưa commit → không chạy agent, báo lại trong việc', async () => {
+  const { repo, exec } = await inPlaceSetup();
+  writeFileSync(join(repo, 'dang-lam-do.txt'), 'của người');
+  const before = comments.length, head = await run(['git', 'rev-parse', 'HEAD'], repo);
+  const { job } = await exec();
+  expect(job.status).toBe('skipped');
+  expect(job.reason).toContain('chưa commit');
+  expect(comments.length).toBe(before + 1);
+  expect(comments.at(-1)!.content).toContain('KHÔNG chạy');
+  expect(await run(['git', 'rev-parse', 'HEAD'], repo)).toBe(head); // agent không chạy → không có commit
+  rmSync(join(repo, 'dang-lam-do.txt'));
+}, 30000);
+
+test('in_place: đang ở nhánh main hoặc detached HEAD → từ chối', async () => {
+  const { repo, exec } = await inPlaceSetup();
+  await run(['git', 'checkout', '-q', 'main'], repo);
+  expect((await exec()).job.reason).toContain('nhánh main');
+  await run(['git', 'checkout', '-q', '--detach'], repo);
+  expect((await exec()).job.reason).toContain('detached HEAD');
+  await run(['git', 'checkout', '-q', 'work'], repo);
+}, 30000);
+
+test('in_place: repo có .env ở gốc → doctor tắt agent (trừ allow_env_files)', async () => {
+  const { repo, r } = await inPlaceSetup();
+  writeFileSync(join(repo, '.env'), 'X=1\n');
+  await run(['git', 'update-index', '--assume-unchanged', '.env'], repo).catch(() => undefined);
+  const lines = await r.checkAgents('NV120', false);
+  expect(lines.join('\n')).toContain('repo có .env');
+  expect(r.agents.get('NV120')!.enabled).toBe(false);
+  rmSync(join(repo, '.env'));
+}, 30000);
+
+test('hook pre-push bị xoá → job kế tiếp tự tạo lại trước khi chạy (mode worktree)', async () => {
+  const hooks = join(root, 'agent-repo/.git/hooks');
+  rmSync(join(hooks, 'pre-push'));
+  rmSync(join(hooks, 'commit-msg'));
+  expect(existsSync(join(hooks, 'pre-push'))).toBe(false);
+  const s = runner.agents.get('NV120')!;
+  const before = comments.length;
+  expect(await runner.accept(s, { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' })).not.toBeNull();
+  expect(await waitFor(() => comments.length > before)).toBe(true);
+  expect(readFileSync(join(hooks, 'pre-push'), 'utf8')).toContain('officehub-agent-runner');
+  expect(readFileSync(join(hooks, 'commit-msg'), 'utf8')).toContain('officehub-agent-runner');
+  // commit của job vừa chạy đã có trailer → hook có mặt TRƯỚC khi agent commit
+  const wt = join(root, 'worktrees/NV120/TEST-45');
+  expect((await sh(['git', 'log', '-1', '--format=%B'], wt)).out).toContain('Agent: NV120');
+}, 30000);
+
+test('in_place: gỡ hook do runner cài, giữ nguyên hook của người dùng', async () => {
+  const { repo, exec } = await inPlaceSetup();
+  const hooks = join(repo, '.git/hooks');
+  // hook của runner (có dấu) bị gỡ — cả ở lần job kế tiếp, không chỉ ở doctor
+  writeFileSync(join(hooks, 'commit-msg'), '#!/bin/sh\n# officehub-agent-runner commit-msg — do runner cài\nexit 0\n');
+  // hook của người dùng (không có dấu) giữ nguyên
+  writeFileSync(join(hooks, 'pre-push'), '#!/bin/sh\n# hook riêng của chủ máy\nexit 0\n');
+  const { job } = await exec();
+  expect(job.status).toBe('done');
+  expect(existsSync(join(hooks, 'commit-msg'))).toBe(false);
+  expect(readFileSync(join(hooks, 'pre-push'), 'utf8')).toContain('hook riêng của chủ máy');
+  rmSync(join(hooks, 'pre-push'));
 }, 30000);

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isInside, readEnvFile, type AgentConfig, type RunnerConfig } from './config';
 import { runExecutor, type RunOutcome } from './executor/run';
@@ -8,7 +8,7 @@ import { buildPrompt, mcpConfig } from './prompt';
 import { Store, type Job } from './store';
 import { TelegramClient, type TgMessage } from './telegram';
 import { checkTask, parseWake, type WakeData } from './validator';
-import { AGENT_ENV, Git, TASK_ENV, branchChanges, installHooks, prepareWorktree, publish, sh } from './workspace';
+import { AGENT_ENV, Git, TASK_ENV, WorkspaceRefused, branchChanges, inPlaceChanges, installHooks, prepareInPlace, prepareWorktree, publish, removeHooks, sh } from './workspace';
 
 interface AgentState {
   cfg: AgentConfig;
@@ -71,9 +71,25 @@ export class Runner {
           const ignored = await git.run(s.cfg.repo, 'check-ignore', '-q', join(dir, 'x'));
           if (ignored.code !== 0) throw new Error(`${dir} nằm trong repo nhưng chưa có trong .gitignore — thêm vào trước khi chạy`);
         }
-        const hookWarns = await installHooks(git, s.cfg.repo, this.config.baseBranch);
-        for (const w of hookWarns) out.push(`⚠ ${code}: ${w}`);
-        out.push(`✔ ${code}: repo ${s.cfg.repo}, hook pre-push (chặn main / force push / agent-runner/) + commit-msg (trailer) đã cài`);
+        if (s.cfg.workspace.mode === 'in_place') {
+          const removed = await removeHooks(git, s.cfg.repo); // in_place không dùng hook
+          out.push(`✔ ${code}: repo ${s.cfg.repo}, mode in_place không dùng hook${removed.length ? ` — đã gỡ hook của runner: ${removed.join(', ')}` : ''}`);
+        } else {
+          const hookWarns = await installHooks(git, s.cfg.repo, this.config.baseBranch);
+          for (const w of hookWarns) out.push(`⚠ ${code}: ${w}`);
+          out.push(`✔ ${code}: repo ${s.cfg.repo}, hook pre-push (chặn main / force push / agent-runner/) + commit-msg (trailer) đã cài`);
+        }
+        if (s.cfg.workspace.mode === 'in_place') {
+          // CLI chạy thẳng trong repo → đọc được .env ở gốc repo (worktree ngoài repo thì không). Mặc định từ chối.
+          const envFiles = readdirSync(s.cfg.repo).filter((f) => f === '.env' || (f.startsWith('.env.') && !/\.(example|sample|template)$/.test(f)));
+          if (envFiles.length && !s.cfg.workspace.allowEnvFiles) { fail(`workspace in_place nhưng repo có ${envFiles.join(', ')} — CLI đọc được file này; dùng bản clone riêng không có .env (hoặc workspace.allow_env_files: true)`); continue; }
+          if (envFiles.length) out.push(`⚠ ${code}: repo có ${envFiles.join(', ')} và CLI đọc được (allow_env_files)`);
+          const cur = (await git.run(s.cfg.repo, 'symbolic-ref', '--short', '-q', 'HEAD')).out;
+          const dirty = (await git.run(s.cfg.repo, 'status', '--porcelain')).out;
+          out.push(`✔ ${code}: workspace in_place — commit thẳng vào nhánh đang checkout, KHÔNG push / PR (hiện: ${cur || 'detached HEAD'})`);
+          if (!cur || (!s.cfg.workspace.allowBaseBranch && [this.config.baseBranch, 'main', 'master'].includes(cur))) out.push(`⚠ ${code}: nhánh hiện tại không dùng được cho in_place — việc sẽ bị từ chối cho tới khi chuyển nhánh`);
+          if (dirty) out.push(`⚠ ${code}: repo đang có thay đổi chưa commit — việc sẽ bị từ chối cho tới khi sạch`);
+        }
         if (s.cfg.envFile && !existsSync(s.cfg.envFile)) { fail(`không thấy env_file ${s.cfg.envFile}`); continue; }
         if (telegram) {
           const bot = await s.tg.getMe();
@@ -175,11 +191,34 @@ export class Runner {
       if (!c.ok) { this.store.finish(job.id, 'skipped', { reason: c.reason }); log('info', 'bỏ job', { job: job.id, reason: c.reason }); return; }
 
       const git = this.gitFor(s.cfg);
-      const ws = await prepareWorktree(git, s.cfg.repo, this.config.worktreesDir, job.agent, job.task_code, this.config.baseBranch);
+      const inPlace = s.cfg.workspace.mode === 'in_place';
+      if (inPlace) {
+        // in_place không dùng hook → gỡ hook của runner nếu còn (hook của người dùng giữ nguyên).
+        const removed = await removeHooks(git, s.cfg.repo);
+        if (removed.length) log('info', 'đã gỡ hook của runner (in_place không dùng)', { job: job.id, agent: job.agent, hooks: removed });
+      } else {
+        // worktree: hook có thể bị xoá sau lúc khởi động → trước mỗi job kiểm tra, thiếu thì tạo lại (hook khác của người dùng: không ghi đè, chỉ cảnh báo).
+        for (const m of await installHooks(git, s.cfg.repo, this.config.baseBranch)) log('warn', 'hook git', { job: job.id, agent: job.agent, message: m });
+      }
+      let ws: { path: string; branch: string; reused: boolean }, startHead = '';
+      try {
+        if (inPlace) {
+          const r = await prepareInPlace(git, s.cfg.repo, this.config.baseBranch, s.cfg.workspace.allowBaseBranch);
+          ws = { path: r.path, branch: r.branch, reused: false };
+          startHead = r.head;
+        } else ws = await prepareWorktree(git, s.cfg.repo, this.config.worktreesDir, job.agent, job.task_code, this.config.baseBranch);
+      } catch (e) {
+        if (!(e instanceof WorkspaceRefused)) throw e;
+        // Workspace chưa sẵn sàng (đang bẩn / sai nhánh…) — không chạy agent, báo lại trong việc để người xử lý rồi giao lại.
+        this.store.finish(job.id, 'skipped', { reason: e.message });
+        await s.hub.comment(job.task_id, `**🤖 agent-runner** (${job.agent}) — KHÔNG chạy: ${e.message}`).catch(() => undefined);
+        log('warn', 'bỏ job — workspace chưa sẵn sàng', { job: job.id, task: job.task_code, reason: e.message });
+        return;
+      }
       const prev = this.store.session(job.task_id);
       const resume = prev?.agent === job.agent && prev.session_id ? prev.session_id : undefined;
       mkdirSync(jobDir, { recursive: true });
-      const prompt = buildPrompt(w, ws.branch, ws.reused || !!resume);
+      const prompt = buildPrompt(w, { mode: s.cfg.workspace.mode, branch: ws.branch, resumed: ws.reused || !!resume });
       const promptFile = join(jobDir, 'prompt.md'), mcpFile = join(jobDir, 'mcp.json');
       writeFileSync(promptFile, prompt, { mode: 0o600 });
       writeFileSync(mcpFile, JSON.stringify(mcpConfig(this.config.mcpUrl), null, 2), { mode: 0o600 });
@@ -189,16 +228,27 @@ export class Runner {
         onActivity: (action) => log('info', 'agent đang làm', { job: job.id, agent: job.agent, task: job.task_code, action }) }, env, ctl.signal);
       this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, ws.branch, ws.path);
 
-      const ch = await branchChanges(git, ws.path, this.config.baseBranch);
       let prUrl: string | undefined, note = '';
-      if (ch.touchesProtected) note = '⚠ Nhánh có thay đổi trong `agent-runner/` — runner KHÔNG push. Người thật kiểm tra worktree trên máy agent.';
-      else if (ch.ahead > 0) {
-        try {
-          prUrl = await publish(git, ws.path, ws.branch, this.config.baseBranch, `${job.task_code}: ${c.value.title}`.slice(0, 200),
-            `Việc OfficeHub **${job.task_code}** — agent ${job.agent}, tạo tự động bởi agent-runner (TEST-44). Người thật review trước khi merge.`);
-        } catch (e) { note = `⚠ Không push / tạo được PR: ${errText(e)}`; }
-      } else note = 'Phiên kết thúc, nhánh không có commit mới.';
-      if (ch.dirty) note += (note ? ' ' : '') + 'Còn thay đổi chưa commit trong worktree.';
+      if (inPlace) {
+        // in_place: chỉ commit trong workspace — KHÔNG push, KHÔNG PR. Người thật xem lại commit rồi tự push.
+        const ch = await inPlaceChanges(git, ws.path, startHead, ws.branch);
+        note = ch.ahead > 0
+          ? `${ch.ahead} commit mới trên nhánh \`${ch.branchNow || ws.branch}\` (CHƯA push): ${ch.commits.slice(0, 5).map((c) => `\`${c}\``).join(', ')}${ch.ahead > 5 ? ', …' : ''}`
+          : 'Phiên kết thúc, không có commit mới.';
+        if (ch.touchesProtected) note += ' ⚠ Có thay đổi trong `agent-runner/` — người thật xem lại / bỏ commit đó trước khi push.';
+        if (ch.branchChanged) note += ` ⚠ Agent đã đổi nhánh (${ws.branch} → ${ch.branchNow || 'detached HEAD'}) trái quy tắc — kiểm tra repo.`;
+        if (ch.dirty) note += ' Còn thay đổi chưa commit trong workspace.';
+      } else {
+        const ch = await branchChanges(git, ws.path, this.config.baseBranch);
+        if (ch.touchesProtected) note = '⚠ Nhánh có thay đổi trong `agent-runner/` — runner KHÔNG push. Người thật kiểm tra worktree trên máy agent.';
+        else if (ch.ahead > 0) {
+          try {
+            prUrl = await publish(git, ws.path, ws.branch, this.config.baseBranch, `${job.task_code}: ${c.value.title}`.slice(0, 200),
+              `Việc OfficeHub **${job.task_code}** — agent ${job.agent}, tạo tự động bởi agent-runner (TEST-44). Người thật review trước khi merge.`);
+          } catch (e) { note = `⚠ Không push / tạo được PR: ${errText(e)}`; }
+        } else note = 'Phiên kết thúc, nhánh không có commit mới.';
+        if (ch.dirty) note += (note ? ' ' : '') + 'Còn thay đổi chưa commit trong worktree.';
+      }
 
       const ok = out.exitCode === 0 && !out.timedOut && !out.isError;
       await s.hub.comment(job.task_id, resultComment(job, out, prUrl, note, ok));

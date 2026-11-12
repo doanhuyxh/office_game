@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join } from 'node:path';
 import { isInside } from './config';
 
@@ -122,6 +122,21 @@ export async function installHooks(git: Git, repo: string, baseBranch: string): 
 }
 
 /**
+ * Mode in_place không dùng hook (runner không push, commit không cần trailer) → gỡ hook DO RUNNER cài (có dấu PRE_PUSH_MARK / COMMIT_MSG_MARK).
+ * Hook khác của người dùng (không có dấu) giữ nguyên. Trả tên các hook đã gỡ.
+ */
+export async function removeHooks(git: Git, repo: string): Promise<string[]> {
+  const common = await git.out(repo, 'rev-parse', '--git-common-dir');
+  const dir = join(isAbsolute(common) ? common : join(repo, common), 'hooks');
+  const removed: string[] = [];
+  for (const [name, mark] of [['pre-push', PRE_PUSH_MARK], ['commit-msg', COMMIT_MSG_MARK]] as const) {
+    const path = join(dir, name);
+    if (existsSync(path) && readFileSync(path, 'utf8').includes(mark)) { unlinkSync(path); removed.push(name); }
+  }
+  return removed;
+}
+
+/**
  * Worktree riêng cho việc: {worktreesDir}/{mã NV}/{mã việc}. Đã có (việc bị trả về) → dùng lại, nhánh giữ nguyên.
  * Chưa có → fetch rồi tạo nhánh mới từ origin/{base}.
  */
@@ -158,4 +173,34 @@ export async function publish(git: Git, worktree: string, branch: string, baseBr
   const pr = await sh(['gh', 'pr', 'create', '--base', baseBranch, '--head', branch, '--title', title, '--body', body], worktree, env);
   if (pr.code !== 0) throw new Error(`gh pr create lỗi: ${pr.err || pr.out}`);
   return pr.out.split('\n').pop()!;
+}
+
+/** Workspace không đủ điều kiện để agent làm việc (in_place) — không phải lỗi hệ thống: job bị bỏ + báo lại trong việc. */
+export class WorkspaceRefused extends Error {}
+
+/**
+ * Mode in_place: agent làm ngay trong `repo`, trên nhánh đang checkout — không fetch, không tạo nhánh / worktree.
+ * Từ chối khi: đang detached HEAD; đang ở nhánh base / main / master (trừ allowBaseBranch); còn thay đổi chưa commit (kể cả file mới chưa theo dõi)
+ * — tránh lẫn / ghi đè việc đang làm dở của người. Trả HEAD trước khi chạy để đếm commit mới sau phiên.
+ */
+export async function prepareInPlace(git: Git, repo: string, baseBranch: string, allowBaseBranch: boolean) {
+  const branch = (await git.run(repo, 'symbolic-ref', '--short', '-q', 'HEAD')).out;
+  if (!branch) throw new WorkspaceRefused('repo đang ở detached HEAD — checkout một nhánh trước khi giao việc');
+  if (!allowBaseBranch && [baseBranch, 'main', 'master'].includes(branch))
+    throw new WorkspaceRefused(`repo đang ở nhánh ${branch} — chuyển sang nhánh làm việc (hoặc bật workspace.allow_base_branch)`);
+  const dirty = (await git.out(repo, 'status', '--porcelain')).split('\n').filter(Boolean);
+  if (dirty.length) throw new WorkspaceRefused(`repo còn ${dirty.length} thay đổi chưa commit (vd ${dirty[0]!.trim()}) — commit / stash trước khi giao việc`);
+  return { path: repo, branch, head: await git.out(repo, 'rev-parse', 'HEAD') };
+}
+
+/** Sau phiên in_place: commit mới so với HEAD lúc bắt đầu, file đổi, còn dirty không, có bị đổi nhánh không. */
+export async function inPlaceChanges(git: Git, repo: string, startHead: string, startBranch: string) {
+  const commits = (await git.out(repo, 'log', '--format=%h %s', `${startHead}..HEAD`)).split('\n').filter(Boolean);
+  const files = commits.length ? (await git.out(repo, 'diff', '--name-only', startHead, 'HEAD')).split('\n').filter(Boolean) : [];
+  const dirty = (await git.out(repo, 'status', '--porcelain')).length > 0;
+  const branchNow = (await git.run(repo, 'symbolic-ref', '--short', '-q', 'HEAD')).out;
+  return {
+    commits, ahead: commits.length, files, dirty, branchChanged: branchNow !== startBranch, branchNow,
+    touchesProtected: files.some((f) => PROTECTED_PATHS.some((p) => f.startsWith(p))),
+  };
 }

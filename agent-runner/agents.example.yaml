@@ -10,7 +10,7 @@ telegram:
 git:
   # executable: /usr/bin/git                    # file chạy git (vd /usr/bin/git, /opt/homebrew/bin/git, C:\\Program Files\\Git\\cmd\\git.exe); bỏ trống = git trong PATH
   # Dùng tài khoản git SẴN CÓ của máy: user.name / user.email + credential helper / SSH key trong HOME — runner không lưu token git,
-  # không đổi tác giả; commit của agent được thêm trailer "Agent: <mã NV>" + "Task: <mã việc>".
+  # không đổi tác giả; commit của agent (mode worktree) được thêm trailer "Agent: <mã NV>" + "Task: <mã việc>" (mode in_place không dùng hook → không có trailer).
 
 runner:
   data_dir: /var/lib/officehub-runner            # SQLite (hàng đợi, phiên, chi phí) + thư mục tạm của từng job
@@ -25,6 +25,12 @@ agents:
     token: "ohk_xxxxxxxxxxxxxxxx"               # token AI (MCP) của tài khoản agent NV120 — quyền Employee
     repo: /srv/agents/NV120/office_game          # bản clone riêng của agent (có remote origin)
     env_file: /etc/officehub-runner/NV120.env    # tuỳ chọn: biến môi trường THỬ NGHIỆM (DB tạm, S3 thử, Mailpit…) — không phải .env production
+    # workspace:                                 # tuỳ chọn; bỏ trống = mode worktree (worktree riêng + push + PR)
+    #   mode: in_place                           # in_place = làm NGAY trong `repo`, commit vào nhánh đang checkout, KHÔNG push / PR (người thật tự xem + push)
+    #                                            #   · từ chối khi repo còn thay đổi chưa commit, đang ở main / master / nhánh base hoặc detached HEAD
+    #                                            #   · không dùng chung repo với agent khác; nên là bản clone RIÊNG của agent
+    #   allow_base_branch: false                 # true = cho chạy khi đang ở main / master / base
+    #   allow_env_files: false                   # true = cho repo có .env ở gốc (CLI đọc được file đó!) — mặc định doctor tắt agent
     executor:
       kind: claude                               # claude | custom
       bin: /usr/local/bin/claude

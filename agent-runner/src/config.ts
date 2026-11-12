@@ -16,6 +16,17 @@ export interface ExecutorConfig {
   outputFormat: 'text' | 'json';
 }
 
+/** Nơi agent làm việc: worktree riêng + push + PR (mặc định) | in_place = ngay trong `repo`, commit vào nhánh đang checkout, KHÔNG push / PR. */
+export type WorkspaceMode = 'worktree' | 'in_place';
+
+export interface WorkspaceConfig {
+  mode: WorkspaceMode;
+  /** in_place: cho phép chạy khi đang ở nhánh base / main / master (mặc định từ chối). */
+  allowBaseBranch: boolean;
+  /** in_place: cho phép repo có file .env ở gốc (CLI chạy trong repo nên đọc được .env đó). Mặc định không. */
+  allowEnvFiles: boolean;
+}
+
 export interface AgentConfig {
   employeeCode: string;
   telegramBot: string;
@@ -23,6 +34,7 @@ export interface AgentConfig {
   token: string;
   repo: string;
   envFile?: string;
+  workspace: WorkspaceConfig;
   executor: ExecutorConfig;
 }
 
@@ -98,6 +110,11 @@ export function parseConfig(raw: unknown): RunnerConfig {
     // repo chính; `doctor` / khởi động bắt buộc thư mục đó đã gitignore.
     const envFile = str(a?.env_file);
     if (envFile && !isAbsolute(envFile)) p.push(`${at}.env_file phải là đường dẫn tuyệt đối`);
+    const w = a?.workspace ?? {};
+    const mode = w.mode ?? 'worktree';
+    if (mode !== 'worktree' && mode !== 'in_place') p.push(`${at}.workspace.mode là worktree hoặc in_place`);
+    for (const k of ['allow_base_branch', 'allow_env_files'])
+      if (w[k] !== undefined && typeof w[k] !== 'boolean') p.push(`${at}.workspace.${k} là true / false`);
     const e = a?.executor ?? {};
     const kind = e.kind;
     if (kind !== 'claude' && kind !== 'custom') p.push(`${at}.executor.kind phải là claude hoặc custom`);
@@ -116,12 +133,16 @@ export function parseConfig(raw: unknown): RunnerConfig {
     if (code && bot && tgToken && token && repo && bin && (kind === 'claude' || kind === 'custom'))
       agents.push({
         employeeCode: code, telegramBot: normalizeBot(bot), telegramToken: tgToken, token, repo: resolve(repo), envFile,
+        workspace: { mode, allowBaseBranch: w.allow_base_branch === true, allowEnvFiles: w.allow_env_files === true },
         executor: {
           kind, bin, model: str(e.model), home: str(e.home), timeoutMin, maxBudgetUsd: budget, extraArgs: strList(e.extra_args) ?? [],
           args, resumeArgs, outputFormat: fmt,
         },
       });
   });
+  // in_place làm việc thẳng trong repo → hai agent không được dùng chung một repo (không có worktree ngăn cách).
+  for (const a of agents.filter((x) => x.workspace.mode === 'in_place'))
+    if (agents.some((b) => b !== a && b.repo === a.repo)) p.push(`${a.employeeCode}: workspace in_place nhưng repo ${a.repo} bị agent khác dùng chung`);
   if (p.length) throw new ConfigError(p);
   return {
     mcpUrl: mcpUrl!, telegramApiUrl: (str(tg.api_url) ?? 'https://api.telegram.org').replace(/\/$/, ''), groupChatId: groupChatId!,

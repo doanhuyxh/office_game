@@ -32,6 +32,21 @@ describe('config', () => {
     expect(c.telegramApiUrl).toBe('https://api.telegram.org');
   });
 
+  test('workspace: mặc định worktree; in_place + cờ; sai giá trị / dùng chung repo → lỗi', () => {
+    expect(parseConfig(baseRaw()).agents[0]!.workspace).toEqual({ mode: 'worktree', allowBaseBranch: false, allowEnvFiles: false });
+    const r: any = baseRaw();
+    r.agents[0].workspace = { mode: 'in_place', allow_base_branch: true };
+    expect(parseConfig(r).agents[0]!.workspace).toEqual({ mode: 'in_place', allowBaseBranch: true, allowEnvFiles: false });
+    r.agents[0].workspace = { mode: 'ban-nhap' };
+    expect(() => parseConfig(r)).toThrow(ConfigError);
+    r.agents[0].workspace = { mode: 'in_place', allow_env_files: 'yes' };
+    expect(() => parseConfig(r)).toThrow(ConfigError);
+    // hai agent chung repo mà một bên in_place → lỗi
+    r.agents[0].workspace = { mode: 'in_place' };
+    r.agents.push({ ...r.agents[0], employee_code: 'NV121', telegram_bot: 'Agent_Dev02_Bot', token: 'ohk_zzzzzzzz12345678', workspace: undefined });
+    expect(() => parseConfig(r)).toThrow('bị agent khác dùng chung');
+  });
+
   test('worktrees_dir trong repo được phép (doctor bắt buộc gitignore); repo trong worktrees_dir → lỗi', () => {
     const r = baseRaw();
     r.runner.worktrees_dir = '/srv/agents/NV120/office_game/.officehub-runner/worktrees';
@@ -167,13 +182,28 @@ describe('executor adapters', () => {
 
 describe('prompt / mcp / log', () => {
   const w = { employee_code: 'NV120', project_id: 'p', task_id: 't', task_code: 'TEST-45' };
+  const ctx = (mode: 'worktree' | 'in_place', resumed = false) => ({ mode, branch: 'agent/nv120/test-45', resumed });
   test('prompt không chứa nội dung việc, có quy tắc cứng', () => {
-    const p = buildPrompt(w, 'agent/nv120/test-45', false);
+    const p = buildPrompt(w, ctx('worktree'));
     expect(p).toContain('get_my_role');
     expect(p).toContain('KHÔNG push');
     expect(p).toContain('agent-runner/');
     expect(p).not.toContain('NỐI TIẾP');
-    expect(buildPrompt(w, 'b', true)).toContain('NỐI TIẾP');
+    expect(buildPrompt(w, ctx('worktree', true))).toContain('NỐI TIẾP');
+  });
+  test('prompt theo mode: quy tắc chung ở cả hai, phần git khác nhau', () => {
+    const wt = buildPrompt(w, ctx('worktree')), ip = buildPrompt(w, ctx('in_place'));
+    for (const p of [wt, ip]) {
+      for (const r of ['get_my_role', 'get_project', 'comment_task TEST-45', 'Không duyệt / từ chối đơn', 'Không đọc / tạo / sửa file .env', 'agent-runner/', 'git add -A']) expect(p).toContain(r);
+    }
+    expect(wt).toContain('worktree riêng');
+    expect(wt).not.toContain('workspace THẬT');
+    expect(ip).toContain('workspace THẬT');
+    expect(ip).toContain('KHÔNG checkout');
+    expect(ip).toContain('Không git push');
+    expect(ip).toContain('không reset / stash / rebase');
+    expect(ip).not.toContain('Làm việc trong thư mục hiện tại: worktree riêng');
+    expect(ip).not.toContain('bộ điều phối sẽ push');
   });
   test('cấu hình MCP không chứa token', () => {
     expect(JSON.stringify(mcpConfig('http://x/mcp'))).toContain('${OFFICEHUB_TOKEN}');
