@@ -18,6 +18,7 @@ import { useProjectMutation, useTaskDetail } from '../../hooks/useProjects';
 import type { IMember, IMilestone, ITask, ITaskActivity, ITaskColumn, ITaskRequest } from '../../types/project.types';
 import { ACTIVITY_LABEL, createColumns, needsMoveNote, stateLabel } from '../../utils/labels';
 import { isHttpUrl } from '../../utils/media';
+import { MarkdownEditor } from '../markdown-editor';
 import { TaskDependencies } from '../task-dependencies';
 import { TaskMedia } from '../task-media';
 
@@ -101,23 +102,10 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
             <div className="flex flex-col gap-3 px-6 py-4 lg:min-h-0 lg:overflow-y-auto">
               <fieldset disabled={!canWork} className="grid min-w-0 grid-cols-1 gap-3">
                 <FormField id="tk-title" label="Tên việc *" required autoFocus maxLength={300} value={f.title} onChange={(e) => set('title', e.target.value)} error={errors.title} />
-                <div className="grid grid-cols-1 gap-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="tk-desc">Nội dung <span className="font-normal text-muted-foreground">(Markdown)</span></Label>
-                    {canWork && <div className="flex rounded-md border p-0.5 text-xs">
-                      {([['Viết', false], ['Xem trước', true]] as const).map(([label, v]) => (
-                        <button key={label} type="button" onClick={() => setPreview(v)}
-                          className={`rounded px-2 py-0.5 ${preview === v ? 'bg-muted font-medium' : 'text-muted-foreground hover:text-foreground'}`}>{label}</button>))}
-                    </div>}
-                  </div>
-                  {preview || !canWork
-                    ? <div className="min-h-20 rounded-md border px-3 py-2 wrap-anywhere" onDoubleClick={() => canWork && setPreview(false)}>
-                        {f.description?.trim() ? <Markdown text={f.description} /> : <p className="text-sm text-muted-foreground">Chưa có nội dung.</p>}
-                      </div>
-                    : <Textarea id="tk-desc" rows={10} maxLength={20000} className="font-mono text-xs" value={f.description ?? ''} onChange={(e) => set('description', e.target.value)}
-                        placeholder={'## Mục tiêu\n- [ ] Việc cần làm\n**đậm**, *nghiêng*, `code`, [link](https://...), ![ảnh](https://.../a.png)'} />}
-                  {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
-                </div>
+                <MarkdownEditor id="tk-desc" label={<>Nội dung <span className="font-normal text-muted-foreground">(Markdown)</span></>}
+                  value={f.description ?? ''} onChange={(v) => set('description', v)} preview={preview} onPreviewChange={setPreview} editable={canWork}
+                  rows={10} maxLength={20000} error={errors.description}
+                  placeholder={'## Mục tiêu\n- [ ] Việc cần làm\n**đậm**, *nghiêng*, `code`, [link](https://...), ![ảnh](https://.../a.png)'} />
                 <div className="grid grid-cols-1 gap-2">
                   <div className="flex items-center justify-between">
                     <Label>Ảnh / video <span className="font-normal text-muted-foreground">(link)</span></Label>
