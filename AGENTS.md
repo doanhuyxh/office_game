@@ -8,7 +8,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 
 | Khi bạn cần... | Đọc |
 |---|---|
-| **Đầu phiên**: tiến độ, việc tiếp theo, dữ liệu / tài khoản thử · bẫy đã gặp | [.agent/progress.md](.agent/progress.md) · [.agent/pitfalls.md](.agent/pitfalls.md) |
+| **Đầu phiên**: nhật ký đã xong, dữ liệu / tài khoản thử · bẫy đã gặp. **Việc còn lại / để sau / chờ chủ dự án: trên bảng dự án `TEST` của OfficeHub (không ghi vào file local)** | [.agent/progress.md](.agent/progress.md) · [.agent/pitfalls.md](.agent/pitfalls.md) |
 | Chạy dev, build, test, migration, CI, deploy · biến `.env` (S3 / SMTP / FCM / IP văn phòng sửa được trên trang Hệ thống → Cấu hình, ưu tiên hơn `.env`) · trang Hệ thống → Vận hành (phiên bản, sao lưu, email, job nền) | [.agent/commands.md](.agent/commands.md) · [.agent/env.md](.agent/env.md) · [.agent/ops.md](.agent/ops.md) |
 | Script e2e, test trên DB tạm (+ Mailpit đọc email) | [.agent/e2e.md](.agent/e2e.md) |
 | Viết code đúng chuẩn: module BE, validation, đặt tên | [.agent/conventions.md](.agent/conventions.md) |
@@ -61,6 +61,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 - Đổi business rule → sửa file trong `.agent/business/`; đổi schema → `database.md` / `database-workflow.md`; thêm lệnh/script/env → `commands.md`; đổi cấu trúc/luồng dữ liệu → `architecture.md`.
 - Mỗi file ≤ ~8 KB, chỉ đọc file cần cho task; vượt thì tách theo domain con, thêm dòng vào bảng định tuyến (ở đây và `business/README.md`).
 - Nếu tài liệu khác code, tin code và sửa tài liệu trong cùng commit.
+- **Đối chiếu kế hoạch theo từng task**: khi làm xong một task (trước khi chuyển Chờ review), xem task đó có thuộc mục nào trong kế hoạch ở `docs/` (`BUSINESS_PLAN.md`, `ARCHITECTURE_V2.md`) không. Có → cập nhật mục đó cho khớp (đổi ⏳ → ✅, ghi trạng thái / phần còn lại, sửa lộ trình) **trong cùng commit** với task. Không thuộc kế hoạch → bỏ qua. Nếu thấy mục kế hoạch đã xong / đã bỏ mà vẫn ghi chưa làm, sửa luôn. Chỉ đánh dấu trạng thái mục kế hoạch; **việc còn lại / để sau ghi trên bảng dự án `TEST`**, không thêm danh sách tiến độ vào `docs/` hay `.agent/progress.md`. Ghi trong bình luận kết quả của task: đã đối chiếu kế hoạch, sửa mục nào (hoặc "không thuộc kế hoạch").
 
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph
