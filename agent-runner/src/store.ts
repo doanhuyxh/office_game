@@ -19,7 +19,13 @@ export interface Job {
   output_tokens: number | null;
   turns: number | null;
   pr_url: string | null;
+  /** Model chính agent thật sự dùng (TEST-64); `model_usage` = JSON mọi model của phiên `{ model: { costUsd, inputTokens, outputTokens } }`. */
+  model: string | null;
+  model_usage: string | null;
 }
+
+/** Cột thêm sau khi bảng đã có trong runner.db cũ → `ALTER TABLE … ADD COLUMN` lúc mở (migration nhẹ, không mất dữ liệu). */
+const JOB_COLUMNS_ADDED: [string, string][] = [['model', 'TEXT'], ['model_usage', 'TEXT']];
 
 /**
  * SQLite của runner (`{data_dir}/runner.db`): hàng đợi job, khoá theo task_id (một task chỉ một job đang chờ / chạy — index unique có điều kiện),
@@ -35,12 +41,14 @@ export class Store {
       CREATE TABLE IF NOT EXISTS jobs (
         id INTEGER PRIMARY KEY AUTOINCREMENT, agent TEXT NOT NULL, task_id TEXT NOT NULL, task_code TEXT NOT NULL, project_id TEXT NOT NULL,
         status TEXT NOT NULL, reason TEXT, created_at TEXT NOT NULL, started_at TEXT, finished_at TEXT,
-        session_id TEXT, cost_usd REAL, input_tokens INTEGER, output_tokens INTEGER, turns INTEGER, pr_url TEXT);
+        session_id TEXT, cost_usd REAL, input_tokens INTEGER, output_tokens INTEGER, turns INTEGER, pr_url TEXT, model TEXT, model_usage TEXT);
       CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_active ON jobs(task_id) WHERE status IN ('queued', 'running');
       CREATE TABLE IF NOT EXISTS task_sessions (
         task_id TEXT PRIMARY KEY, agent TEXT NOT NULL, session_id TEXT, branch TEXT NOT NULL, worktree TEXT NOT NULL, updated_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS tg_offsets (bot TEXT PRIMARY KEY, next_offset INTEGER NOT NULL);
     `);
+    const have = new Set(this.db.query<{ name: string }, []>(`PRAGMA table_info(jobs)`).all().map((c) => c.name));
+    for (const [col, type] of JOB_COLUMNS_ADDED) if (!have.has(col)) this.db.exec(`ALTER TABLE jobs ADD COLUMN ${col} ${type}`);
   }
 
   private now() { return new Date().toISOString(); }
@@ -81,9 +89,12 @@ export class Store {
     })();
   }
 
-  finish(id: number, status: Exclude<JobStatus, 'queued' | 'running'>, f: Partial<Pick<Job, 'reason' | 'session_id' | 'cost_usd' | 'input_tokens' | 'output_tokens' | 'turns' | 'pr_url'>> = {}) {
-    this.db.run(`UPDATE jobs SET status = ?, finished_at = ?, reason = ?, session_id = ?, cost_usd = ?, input_tokens = ?, output_tokens = ?, turns = ?, pr_url = ? WHERE id = ?`,
-      [status, this.now(), f.reason ?? null, f.session_id ?? null, f.cost_usd ?? null, f.input_tokens ?? null, f.output_tokens ?? null, f.turns ?? null, f.pr_url ?? null, id]);
+  finish(id: number, status: Exclude<JobStatus, 'queued' | 'running'>,
+    f: Partial<Pick<Job, 'reason' | 'session_id' | 'cost_usd' | 'input_tokens' | 'output_tokens' | 'turns' | 'pr_url' | 'model' | 'model_usage'>> = {}) {
+    this.db.run(`UPDATE jobs SET status = ?, finished_at = ?, reason = ?, session_id = ?, cost_usd = ?, input_tokens = ?, output_tokens = ?, turns = ?, pr_url = ?,
+        model = ?, model_usage = ? WHERE id = ?`,
+      [status, this.now(), f.reason ?? null, f.session_id ?? null, f.cost_usd ?? null, f.input_tokens ?? null, f.output_tokens ?? null, f.turns ?? null, f.pr_url ?? null,
+        f.model ?? null, f.model_usage ?? null, id]);
   }
 
   getJob(id: number) { return this.db.query<Job, [number]>(`SELECT * FROM jobs WHERE id = ?`).get(id); }
@@ -111,5 +122,12 @@ export class Store {
     return this.db.query<{ agent: string; jobs: number; cost: number | null; input: number | null; output: number | null }, [string]>(`
       SELECT agent, COUNT(*) jobs, SUM(cost_usd) cost, SUM(input_tokens) input, SUM(output_tokens) output
       FROM jobs WHERE finished_at >= ? GROUP BY agent ORDER BY agent`).all(sinceIso);
+  }
+
+  /** Chi phí theo agent + model chính (TEST-64, lệnh `report`); job không rõ model → model null. */
+  costsByModel(sinceIso: string) {
+    return this.db.query<{ agent: string; model: string | null; jobs: number; cost: number | null; input: number | null; output: number | null }, [string]>(`
+      SELECT agent, model, COUNT(*) jobs, SUM(cost_usd) cost, SUM(input_tokens) input, SUM(output_tokens) output
+      FROM jobs WHERE finished_at >= ? GROUP BY agent, model ORDER BY agent, cost DESC`).all(sinceIso);
   }
 }

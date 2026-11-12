@@ -1,7 +1,8 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isInside, readEnvFile, type AgentConfig, type RunnerConfig } from './config';
-import { runExecutor, type RunOutcome } from './executor/run';
+import { modelLine, modelMatches } from './executor/model';
+import { adapters, runExecutor, type RunOutcome } from './executor/run';
 import { errText, log, redact, registerSecret } from './log';
 import { OfficeHubClient } from './officehub';
 import { buildPrompt, mcpConfig } from './prompt';
@@ -17,6 +18,8 @@ interface AgentState {
   employeeId?: string;
   enabled: boolean;
   problem?: string;
+  /** Model thật đọc được lúc chạy thử (`checkAgents`, TEST-64). */
+  model?: string;
 }
 
 /** Bộ điều phối: Listener (Telegram) → Validator → Store (hàng đợi + khoá task_id) → Workspace → Executor → Publisher (PR + bình luận). */
@@ -41,8 +44,10 @@ export class Runner {
   /**
    * Kiểm tra từng agent (giống `doctor`): CLI chạy được, token đúng nhân viên, repo git có origin, hook pre-push, bot Telegram đúng username.
    * Agent lỗi bị tắt riêng, các agent khác vẫn chạy. Trả danh sách dòng kết quả.
+   * `modelCheck` (TEST-64): adapter có `probe` (claude) → chạy thử một lượt để đọc model thật; model sai → agent tắt, lệch cấu hình → cảnh báo.
+   * Tốn vài trăm token mỗi agent → tắt bằng `--no-model-check`.
    */
-  async checkAgents(only?: string, telegram = true): Promise<string[]> {
+  async checkAgents(only?: string, telegram = true, modelCheck = true): Promise<string[]> {
     const out: string[] = [];
     // TEST-46: git sai đường dẫn → mọi agent tắt (không nhận việc).
     let gitError: string | null = null;
@@ -56,7 +61,8 @@ export class Runner {
         if (!existsSync(s.cfg.executor.bin)) { fail(`không thấy CLI ${s.cfg.executor.bin}`); continue; }
         const v = await sh([s.cfg.executor.bin, '--version'], '/', this.baseEnv(s.cfg));
         if (v.code !== 0) { fail(`${s.cfg.executor.bin} --version lỗi: ${v.err || v.out}`); continue; }
-        out.push(`✔ ${code}: CLI ${v.out.split('\n')[0]}`);
+        const conf = s.cfg.executor.model ? `model cấu hình ${s.cfg.executor.model}` : 'model: mặc định của CLI (không cấu hình)';
+        out.push(`✔ ${code}: CLI ${s.cfg.executor.kind} ${s.cfg.executor.bin} — ${v.out.split('\n')[0]} · ${conf}`);
         const me = await s.hub.me();
         if (me.code !== code) { fail(`token thuộc nhân viên ${me.code}, không phải ${code}`); continue; }
         s.employeeId = me.id;
@@ -98,6 +104,10 @@ export class Runner {
         }
         const gh = await sh(['gh', 'auth', 'status'], s.cfg.repo, this.baseEnv(s.cfg)).catch(() => ({ code: 1, out: '', err: 'không có gh' }));
         out.push(gh.code === 0 ? `✔ ${code}: gh đã đăng nhập` : `⚠ ${code}: gh chưa sẵn sàng (${(gh.err || gh.out).split('\n')[0]}) — sẽ không tạo được PR`);
+        // Chạy thử model sau cùng: chỉ tốn token khi mọi kiểm tra khác đã qua.
+        const model = await this.checkModel(s, modelCheck);
+        if (model.fail) { fail(model.fail); continue; }
+        out.push(model.line);
         s.enabled = true;
         s.problem = undefined;
       } catch (e) {
@@ -105,6 +115,22 @@ export class Runner {
       }
     }
     return out;
+  }
+
+  /** Model thật của agent (TEST-64): `fail` = model không hợp lệ (agent tắt); `line` = dòng ✔ / ⚠ cho doctor / log khởi động. */
+  private async checkModel(s: AgentState, enabled: boolean): Promise<{ line: string; fail?: string }> {
+    const code = s.cfg.employeeCode, configured = s.cfg.executor.model;
+    const adapter = adapters[s.cfg.executor.kind];
+    if (!adapter?.probe || !adapter.parseProbe) return { line: `✔ ${code}: model ${configured ?? 'mặc định của CLI'} (adapter ${s.cfg.executor.kind} không chạy thử — đọc model từ output mỗi job nếu có)` };
+    if (!enabled) return { line: `✔ ${code}: model ${configured ?? 'mặc định của CLI'} — chưa kiểm tra (--no-model-check)` };
+    const cmd = adapter.probe(s.cfg.executor);
+    const r = await sh([cmd.bin, ...cmd.args], this.config.dataDir, this.baseEnv(s.cfg), 120_000);
+    const p = adapter.parseProbe(r.out);
+    if (p.invalidModel) return { line: '', fail: `model ${configured ?? '(mặc định)'} không hợp lệ: ${p.error}` };
+    if (p.error || !p.model) return { line: `⚠ ${code}: chạy thử model lỗi (${p.error ?? `không đọc được model, mã thoát ${r.code}`}) — vẫn bật agent` };
+    s.model = p.model;
+    if (!modelMatches(configured, p.model)) return { line: `⚠ ${code}: model thật ${p.model} KHÁC cấu hình ${configured}` };
+    return { line: `✔ ${code}: model thật ${p.model}${configured ? (configured === p.model ? '' : ` (cấu hình ${configured})`) : ' (mặc định của CLI)'}` };
   }
 
   /** Biến môi trường cho tiến trình con: KHÔNG kế thừa toàn bộ env của runner (tránh lộ bí mật khác) — chỉ PATH / ngôn ngữ / HOME + env_file. */
@@ -224,12 +250,18 @@ export class Runner {
       writeFileSync(mcpFile, JSON.stringify(mcpConfig(this.config.mcpUrl), null, 2), { mode: 0o600 });
       const env = { ...this.baseEnv(s.cfg), OFFICEHUB_TOKEN: s.cfg.token, [AGENT_ENV]: job.agent, [TASK_ENV]: job.task_code };
 
-      const out = await runExecutor({ cwd: ws.path, jobDir, promptFile, prompt, mcpConfigFile: mcpFile, resumeSessionId: resume, exec: s.cfg.executor,
-        onActivity: (action) => {
-          log('info', 'agent đang làm', { job: job.id, agent: job.agent, task: job.task_code, action });
-          // activity.log: bản đọc được của phiên (output.log là stream-json thô) — mỗi thao tác một dòng kèm giờ.
-          try { appendFileSync(join(jobDir, 'activity.log'), redact(`${new Date().toTimeString().slice(0, 8)}  ${action}\n`)); } catch { /* không chặn job vì log */ }
-        } }, env, ctl.signal);
+      const onActivity = (action: string) => {
+        log('info', 'agent đang làm', { job: job.id, agent: job.agent, task: job.task_code, action });
+        // activity.log: bản đọc được của phiên (output.log là stream-json thô) — mỗi thao tác một dòng kèm giờ.
+        try { appendFileSync(join(jobDir, 'activity.log'), redact(`${new Date().toTimeString().slice(0, 8)}  ${action}\n`)); } catch { /* không chặn job vì log */ }
+      };
+      // Dòng đầu job ghi model: adapter claude tự báo từ sự kiện system/init; adapter khác chỉ biết model cấu hình.
+      if (!adapters[s.cfg.executor.kind]?.activity) onActivity(`Model ${s.cfg.executor.model ? `${s.cfg.executor.model} (cấu hình)` : 'mặc định của CLI'}`);
+      const out = await runExecutor({ cwd: ws.path, jobDir, promptFile, prompt, mcpConfigFile: mcpFile, resumeSessionId: resume, exec: s.cfg.executor, onActivity },
+        env, ctl.signal);
+      const configured = s.cfg.executor.model;
+      if (out.model && !out.modelFromConfig && !modelMatches(configured, out.model))
+        log('warn', 'model thật khác cấu hình', { job: job.id, agent: job.agent, task: job.task_code, model: out.model, configured });
       this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, ws.branch, ws.path);
 
       let prUrl: string | undefined, note = '';
@@ -255,13 +287,15 @@ export class Runner {
       }
 
       const ok = out.exitCode === 0 && !out.timedOut && !out.isError;
-      await s.hub.comment(job.task_id, resultComment(job, out, prUrl, note, ok));
+      await s.hub.comment(job.task_id, resultComment(job, out, prUrl, note, ok, configured));
       this.store.finish(job.id, ok ? 'done' : 'failed', {
         reason: out.timedOut ? 'hết giờ' : out.isError ? `CLI báo lỗi (${out.errorKind ?? out.exitCode})` : out.exitCode !== 0 ? `mã thoát ${out.exitCode}` : note || null,
         session_id: out.sessionId ?? null, cost_usd: out.costUsd ?? null, input_tokens: out.inputTokens ?? null, output_tokens: out.outputTokens ?? null,
         turns: out.turns ?? null, pr_url: prUrl ?? null,
+        model: out.model ? out.model + (out.modelFromConfig ? ' (cấu hình)' : '') : null,
+        model_usage: out.modelUsage ? JSON.stringify(out.modelUsage) : null,
       });
-      log(ok ? 'info' : 'warn', 'xong job', { job: job.id, task: job.task_code, ok, pr: prUrl, cost: out.costUsd, sec: out.durationSec });
+      log(ok ? 'info' : 'warn', 'xong job', { job: job.id, task: job.task_code, ok, model: out.model, pr: prUrl, cost: out.costUsd, sec: out.durationSec });
     } catch (e) {
       this.store.finish(job.id, 'failed', { reason: errText(e) });
       log('error', 'job lỗi', { job: job.id, task: job.task_code, error: errText(e) });
@@ -271,10 +305,10 @@ export class Runner {
     }
   }
 
-  async start() {
+  async start(modelCheck = true) {
     const recovered = this.store.recoverRunning();
     if (recovered) log('warn', 'đưa lại job đang chạy dở vào hàng đợi', { count: recovered });
-    for (const line of await this.checkAgents()) log(line.startsWith('✘') ? 'error' : line.startsWith('⚠') ? 'warn' : 'info', line);
+    for (const line of await this.checkAgents(undefined, true, modelCheck)) log(line.startsWith('✘') ? 'error' : line.startsWith('⚠') ? 'warn' : 'info', line);
     const enabled = [...this.agents.values()].filter((a) => a.enabled);
     if (enabled.length === 0) throw new Error('Không agent nào chạy được — xem các dòng ✘ ở trên (chạy `doctor`)');
     for (const s of enabled) void this.listen(s);
@@ -287,12 +321,16 @@ export class Runner {
   }
 }
 
-/** Bình luận runner gửi vào việc sau mỗi phiên: PR, chi phí, token, thời gian, trạng thái. Không chép output của CLI (agent tự báo kết quả). */
-export function resultComment(job: Pick<Job, 'agent'>, out: RunOutcome, prUrl: string | undefined, note: string, ok: boolean): string {
+/**
+ * Bình luận runner gửi vào việc sau mỗi phiên: PR, thời gian, model (TEST-64), chi phí, token, trạng thái.
+ * Không chép output của CLI (agent tự báo kết quả).
+ */
+export function resultComment(job: Pick<Job, 'agent'>, out: RunOutcome, prUrl: string | undefined, note: string, ok: boolean, configuredModel?: string): string {
   const parts = [
     `**🤖 agent-runner** (${job.agent}) — ${ok ? 'phiên kết thúc' : out.timedOut ? 'HẾT GIỜ, đã dừng phiên' : 'phiên lỗi'}`,
     prUrl ? `- PR: ${prUrl}` : null,
     `- Thời gian: ${Math.round(out.durationSec / 60)} phút${out.turns ? ` · ${out.turns} lượt` : ''}`,
+    `- Model: ${modelLine(out, configuredModel)}`,
     out.costUsd !== undefined ? `- Chi phí: $${out.costUsd.toFixed(2)}${out.inputTokens ? ` · ${out.inputTokens.toLocaleString('en')} token vào / ${(out.outputTokens ?? 0).toLocaleString('en')} ra` : ''}` : null,
     note ? `- ${note}` : null,
   ];

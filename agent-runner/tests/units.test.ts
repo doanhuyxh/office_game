@@ -1,8 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigError, isInside, parseConfig } from '../src/config';
-import { claudeAdapter } from '../src/executor/adapters/claude';
+import { claudeAdapter, parseProbe, probeArgs } from '../src/executor/adapters/claude';
+import { mainModel, modelLine, modelMatches, readModelUsage } from '../src/executor/model';
+import { resultComment } from '../src/runner';
 import { customAdapter, fillArgs } from '../src/executor/adapters/custom';
 import type { ExecContext, ExecResult } from '../src/executor/types';
 import { formatLine, redact, registerSecret } from '../src/log';
@@ -144,6 +147,68 @@ describe('executor adapters', () => {
     for (const l of readFileSync(join(import.meta.dir, 'fixtures/claude-stream.jsonl'), 'utf8').split('\n')) claudeAdapter.parseLine(l, r);
     expect(r).toMatchObject({ sessionId: '0d6c1f3e-1111-4222-8333-944455556666', costUsd: 0.8123, turns: 17, inputTokens: 44200, outputTokens: 5300, isError: false });
     expect(r.summary).toContain('Chờ review');
+    // TEST-64: model chính (init + modelUsage) và model phụ
+    expect(r.model).toBe('claude-sonnet-5-5');
+    expect(Object.keys(r.modelUsage!)).toEqual(['claude-sonnet-5-5', 'claude-haiku-5-5']);
+    expect(r.modelUsage!['claude-sonnet-5-5']).toEqual({ costUsd: 0.8, inputTokens: 44100, outputTokens: 5000 });
+    expect(claudeAdapter.activity!(readFileSync(join(import.meta.dir, 'fixtures/claude-stream.jsonl'), 'utf8').split('\n')[0]!, '/w')).toEqual(['Model claude-sonnet-5-5']);
+  });
+
+  test('model: init chỉ là model được yêu cầu, model thật lấy từ modelUsage', () => {
+    const r: ExecResult = {};
+    claudeAdapter.parseLine('{"type":"system","subtype":"init","model":"claude-opus-5-5","session_id":"s"}', r);
+    expect(r.model).toBe('claude-opus-5-5');
+    // CLI tự hạ model (fallback) → modelUsage không có model init → lấy model tốn nhiều nhất
+    claudeAdapter.parseLine('{"type":"result","subtype":"success","is_error":false,"session_id":"s","modelUsage":{"claude-haiku-5-5":{"costUSD":0.01,"outputTokens":10},"claude-sonnet-5-5":{"costUSD":0.3,"outputTokens":900}}}', r);
+    expect(r.model).toBe('claude-sonnet-5-5');
+    expect(mainModel(undefined, undefined)).toBeUndefined();
+    expect(mainModel('x', {})).toBe('x');
+    expect(readModelUsage({})).toBeUndefined();
+    expect(readModelUsage(null)).toBeUndefined();
+  });
+
+  test('model: khớp cấu hình (alias, hậu tố [1m])', () => {
+    expect(modelMatches(undefined, 'claude-opus-5-5')).toBe(true);
+    expect(modelMatches('opus', 'claude-opus-5-5')).toBe(true);
+    expect(modelMatches('claude-opus-5-5[1m]', 'claude-opus-5-5')).toBe(true);
+    expect(modelMatches('CLAUDE-OPUS-5-5', 'claude-opus-5-5')).toBe(true);
+    expect(modelMatches('claude-opus-5-5', 'claude-sonnet-5-5')).toBe(false);
+  });
+
+  test('model: dòng mô tả cho bình luận', () => {
+    expect(modelLine({}, undefined)).toBe('không rõ (mặc định của CLI)');
+    expect(modelLine({}, 'm1')).toBe('m1 (cấu hình)');
+    expect(modelLine({ model: 'm1', modelFromConfig: true }, 'm1')).toBe('m1 (cấu hình)');
+    expect(modelLine({ model: 'claude-opus-5-5', modelUsage: { 'claude-opus-5-5': { costUsd: 1 }, 'claude-haiku-5-5': { costUsd: 0.012 } } }, 'opus'))
+      .toBe('claude-opus-5-5 · phụ: claude-haiku-5-5 ($0.01)');
+    expect(modelLine({ model: 'claude-sonnet-5-5' }, 'claude-opus-5-5')).toBe('claude-sonnet-5-5 ⚠ khác cấu hình (claude-opus-5-5)');
+  });
+
+  test('bình luận chi phí có dòng Model', () => {
+    const c = resultComment({ agent: 'NV018' }, { exitCode: 0, timedOut: false, durationSec: 120, costUsd: 0.31, model: 'claude-opus-5-5' }, undefined, '', true, 'claude-opus-5-5');
+    expect(c).toContain('- Model: claude-opus-5-5');
+    expect(c.indexOf('Model')).toBeLessThan(c.indexOf('Chi phí'));
+  });
+
+  test('claude: chạy thử model (doctor / start)', () => {
+    const a = probeArgs('claude-opus-5-5').join(' ');
+    for (const f of ['-p ok', '--output-format stream-json', '--verbose', '--max-turns 1', '--strict-mcp-config', '--model claude-opus-5-5']) expect(a).toContain(f);
+    expect(probeArgs(undefined)).not.toContain('--model');
+    const ok = ['{"type":"system","subtype":"init","model":"claude-haiku-5-5"}',
+      '{"type":"result","subtype":"success","is_error":false,"modelUsage":{"claude-haiku-5-5":{"costUSD":0.0002}}}'].join('\n');
+    expect(parseProbe(ok)).toEqual({ model: 'claude-haiku-5-5' });
+    // Mẫu thật Claude Code 2.1.x với model sai: init lặp lại tên sai, result is_error + 404
+    const bad = ['{"type":"system","subtype":"init","model":"claude-bogus-9"}', '[claude-code:unrecognized_model] {"model":"claude-bogus-9"}',
+      '{"type":"result","subtype":"success","is_error":true,"result":"There\'s an issue with the selected model (claude-bogus-9). It may not exist or you may not have access to it.","terminal_reason":"api_error","api_error_status":404,"modelUsage":{}}'].join('\n');
+    const p = parseProbe(bad);
+    expect(p.invalidModel).toBe(true);
+    expect(p.model).toBeUndefined();
+    expect(p.error).toContain('selected model');
+    const r: ExecResult = {};
+    claudeAdapter.parseLine(bad.split('\n')[2]!, r);
+    expect(r).toMatchObject({ isError: true, errorKind: 'api_error 404' });
+    expect(parseProbe('{"type":"result","subtype":"error_during_execution","is_error":true,"result":"rate limited"}')).toMatchObject({ invalidModel: false, error: 'rate limited' });
+    expect(parseProbe('')).toMatchObject({ error: 'CLI không trả sự kiện result' });
   });
 
   test('claude: mô tả thao tác agent đang làm', () => {
@@ -172,8 +237,8 @@ describe('executor adapters', () => {
     expect(c.args).toEqual(['run', '--cwd', '/w', '--p', '/j/prompt.md', '-m', 'claude-sonnet-5-5', '--session', 's9']);
     expect(fillArgs(['{mcp_config}'], ctx)).toEqual(['/j/mcp.json']);
     const r: ExecResult = {};
-    customAdapter.parseLine('{"session_id":"x","cost_usd":0.5,"summary":"ok"}', r);
-    expect(r).toMatchObject({ sessionId: 'x', costUsd: 0.5, summary: 'ok' });
+    customAdapter.parseLine('{"session_id":"x","cost_usd":0.5,"summary":"ok","model":"gpt-x"}', r);
+    expect(r).toMatchObject({ sessionId: 'x', costUsd: 0.5, summary: 'ok', model: 'gpt-x' });
     const t: ExecResult = {};
     customAdapter.finish!('dòng 1\nkết quả cuối\n', t);
     expect(t.summary).toBe('dòng 1\nkết quả cuối');
@@ -190,6 +255,7 @@ describe('định dạng log', () => {
     const f = { job: 3, agent: 'NV120', task: 'TEST-45' };
     expect(formatLine('info', 'agent đang làm', { ...f, action: 'Sửa src/a.ts' }, 'pretty', false, t)).toBe('10:21:07 NV120 TEST-45 #3    ✎ Sửa src/a.ts');
     expect(formatLine('info', 'agent đang làm', { ...f, action: 'Chạy: bun test' }, 'pretty', false, t)).toContain('$ bun test');
+    expect(formatLine('info', 'agent đang làm', { ...f, action: 'Model claude-opus-5-5' }, 'pretty', false, t)).toBe('10:21:07 NV120 TEST-45 #3    ▶ claude-opus-5-5');
     const done = formatLine('info', 'xong job', { ...f, ok: true, cost: 0.42, pr: undefined }, 'pretty', false, t);
     expect(done).toContain('xong job');
     expect(done).toContain('ok=true cost=0.42');
@@ -276,5 +342,32 @@ describe('store', () => {
     s.setOffset('@b', 42);
     expect(s.offset('@b')).toBe(42);
     expect(s.costs('2000-01-01')[0]).toMatchObject({ agent: 'NV1', cost: 1.5 });
+  });
+
+  test('model: lưu cột model / model_usage, report nhóm theo model, migration DB cũ', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'runner-db-'));
+    try {
+      const path = join(dir, 'runner.db');
+      // runner.db trước TEST-64: bảng jobs chưa có cột model / model_usage
+      const { Database } = require('bun:sqlite');
+      const old = new Database(path, { create: true });
+      old.exec(`CREATE TABLE jobs (id INTEGER PRIMARY KEY AUTOINCREMENT, agent TEXT NOT NULL, task_id TEXT NOT NULL, task_code TEXT NOT NULL, project_id TEXT NOT NULL,
+        status TEXT NOT NULL, reason TEXT, created_at TEXT NOT NULL, started_at TEXT, finished_at TEXT,
+        session_id TEXT, cost_usd REAL, input_tokens INTEGER, output_tokens INTEGER, turns INTEGER, pr_url TEXT)`);
+      old.run(`INSERT INTO jobs (agent, task_id, task_code, project_id, status, created_at, finished_at, cost_usd) VALUES ('NV1', 't0', 'A-0', 'p', 'done', '2026', '2026-11-01', 2)`);
+      old.close();
+      const s = new Store(path);
+      const a = s.enqueue('NV1', 't1', 'A-1', 'p')!, b = s.enqueue('NV1', 't2', 'A-2', 'p')!;
+      s.finish(a, 'done', { cost_usd: 1, model: 'claude-opus-5-5', model_usage: JSON.stringify({ 'claude-opus-5-5': { costUsd: 1 } }) });
+      s.finish(b, 'done', { cost_usd: 0.5, model: 'claude-opus-5-5' });
+      expect(s.getJob(a)).toMatchObject({ model: 'claude-opus-5-5' });
+      expect(JSON.parse(s.getJob(a)!.model_usage!)).toEqual({ 'claude-opus-5-5': { costUsd: 1 } });
+      expect(s.costsByModel('2000-01-01')).toEqual([
+        { agent: 'NV1', model: null, jobs: 1, cost: 2, input: null, output: null },
+        { agent: 'NV1', model: 'claude-opus-5-5', jobs: 2, cost: 1.5, input: null, output: null },
+      ]);
+      s.db.close();
+      new Store(path).db.close(); // mở lại: cột đã có, không ALTER lần nữa
+    } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 });

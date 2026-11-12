@@ -1,6 +1,6 @@
 # Bộ điều phối agent (`agent-runner/`, TEST-44)
 
-> Về [README](README.md) · tin đánh thức: [notifications-telegram.md](notifications-telegram.md) · đội agent: [agent-team.md](agent-team.md)
+> Về [README](README.md) · model thật agent dùng: [agent-runner-model.md](agent-runner-model.md) · tin đánh thức: [notifications-telegram.md](notifications-telegram.md) · đội agent: [agent-team.md](agent-team.md)
 
 Dự án bun + TypeScript độc lập ở gốc repo, **không thư viện runtime** (Telegram / MCP qua `fetch`, YAML `Bun.YAML`, SQLite `bun:sqlite`). Không import mã `backend/` / `frontend/` — chỉ nói chuyện với OfficeHub qua `/mcp` (token AI của agent) và Telegram.
 
@@ -14,7 +14,8 @@ Dự án bun + TypeScript độc lập ở gốc repo, **không thư viện runt
 4. **Workspace** (`workspace.ts`): worktree `{worktrees_dir}/{mã NV}/{mã việc}` — ngoài repo, hoặc **trong repo nếu thư mục đã gitignore** (vd `/.officehub-runner/`, `doctor` bắt buộc; `EnvLoader` dừng ở gốc worktree nên không đọc `.env` production của repo chính), nhánh `agent/{nv}/{việc}` từ `origin/{base}`; việc được đánh thức lại dùng lại worktree. Cài hook `pre-push` (thư mục hooks chung của repo; **kiểm tra lại trước MỖI job**, bị xoá thì tạo lại, hook khác của người dùng thì không ghi đè và chỉ log cảnh báo): chặn push lên main / master và nhánh có thay đổi trong `agent-runner/`.
 5. **Executor** (`executor/`): chạy CLI theo đường dẫn cấu hình, adapter:
    - `claude` (kiểm với Claude Code 2.1.x): `-p … --output-format stream-json --verbose --mcp-config <job>/mcp.json --strict-mcp-config --setting-sources user --permission-mode bypassPermissions [--model] [--max-budget-usd] [--resume <session>]`. `--setting-sources user` = không nạp `.claude/settings.json` của repo (agent sửa được file đó); `CLAUDE.md` / `AGENTS.md` vẫn đọc.
-   - `custom`: `args` / `resume_args` với `{cwd} {model} {mcp_config} {prompt_file} {session_id}`; output `text` (2000 ký tự cuối) hoặc `json` (dòng JSON có `session_id`, `cost_usd`, `summary`…).
+   - `custom`: `args` / `resume_args` với `{cwd} {model} {mcp_config} {prompt_file} {session_id}`; output `text` (2000 ký tự cuối) hoặc `json` (dòng JSON có `session_id`, `cost_usd`, `summary`, `model`…).
+   - **Model thật** (TEST-64): đọc `modelUsage` của `result`, lưu `jobs.model` / `model_usage`, ghi vào log + bình luận; khởi động / `doctor` chạy thử → model sai thì agent tắt — [agent-runner-model.md](agent-runner-model.md).
    - **Log tiến độ:** adapter có `activity(line, cwd)` (tuỳ chọn) → mỗi thao tác agent làm (đọc / sửa / ghi file, chạy lệnh, tìm kiếm, gọi tool OfficeHub, đoạn agent nói) thành một dòng log `agent đang làm` kèm `job`, `agent`, `task`, `action` (đã che bí mật). Hiện chỉ adapter `claude` có; `custom` chỉ có output.log.
    - **Định dạng log:** `runner.log_format` / env `RUNNER_LOG_FORMAT` = `auto` (terminal → một dòng dễ đọc có màu: `10:21:07 NV120 TEST-45 #3  ✎ Sửa src/a.ts`; systemd / pipe → JSON một dòng) | `json` | `pretty`. Mỗi job còn có `{data_dir}/jobs/{id}/activity.log` (mỗi thao tác một dòng kèm giờ, đã che bí mật) cạnh `output.log` (stream-json thô).
    - Tiến trình tách nhóm; hết `timeout_min` / dừng runner → SIGTERM cả process group, 10 giây sau SIGKILL. stdout / stderr → `{data_dir}/jobs/{id}/output.log` (đã che bí mật).
@@ -41,10 +42,10 @@ Dự án bun + TypeScript độc lập ở gốc repo, **không thư viện runt
 
 | Lệnh | Việc |
 |---|---|
-| `bun src/cli.ts doctor [--agent NV120] [--no-telegram]` | CLI `--version`, token đúng nhân viên, repo có origin, cài hook, bot Telegram (`getMe`), `gh auth status` |
-| `bun src/cli.ts start` | Dịch vụ (systemd: `deploy/officehub-runner.service`) |
+| `bun src/cli.ts doctor [--agent NV120] [--no-telegram] [--no-model-check]` | CLI `--version` + model thật (chạy thử), token đúng nhân viên, repo có origin, cài hook, bot Telegram (`getMe`), `gh auth status` |
+| `bun src/cli.ts start [--no-model-check]` | Dịch vụ (systemd: `deploy/officehub-runner.service`) |
 | `bun src/cli.ts run --agent NV120 --task TEST-45` | Chạy ngay một việc (bỏ qua Telegram, vẫn hỏi lại OfficeHub) |
-| `bun src/cli.ts report [--days 1]` | Chi phí theo agent |
+| `bun src/cli.ts report [--days 1]` | Chi phí theo agent + theo model |
 | `bun run build` | Một file chạy `dist/officehub-runner` — build từ commit đã merge `main`, cài `/opt/officehub-runner/` |
 | `bun run typecheck`, `bun test` | Bắt buộc khi đổi `agent-runner/` (CI job `agent-runner`) |
 

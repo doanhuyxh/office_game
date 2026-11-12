@@ -99,7 +99,7 @@ case "$cwd" in
   *) f=note-$(date +%s%N).txt && echo "đã sửa" > "$f" ;;
 esac
 git add "$f" && git commit -qm "agent commit" || exit 4
-echo '{"session_id":"sess-xyz","cost_usd":0.42,"input_tokens":1000,"output_tokens":200,"summary":"token='$tok' home='$HOME' secret='$LEAK'"}'
+echo '{"session_id":"sess-xyz","model":"fake-model-1","cost_usd":0.42,"input_tokens":1000,"output_tokens":200,"summary":"token='$tok' home='$HOME' secret='$LEAK'"}'
 `);
   chmodSync(bin, 0o755);
   const envFile = join(root, 'agent.env');
@@ -135,6 +135,8 @@ test('doctor: CLI, token đúng nhân viên, repo + hook, bot Telegram', async (
   const lines = await runner.checkAgents();
   expect(lines.filter((l) => l.startsWith('✘'))).toEqual([]);
   expect(lines.join('\n')).toContain('token AI đúng nhân viên');
+  expect(lines.join('\n')).toContain('NV120: CLI custom'); // TEST-64: kind + bin + version + model cấu hình
+  expect(lines.join('\n')).toContain('model: mặc định của CLI');
   expect(lines.join('\n')).toContain('commit đứng tên Chu Du An <owner@example.vn>');
   expect(lines[0]).toContain(`(${gitBin})`);
   expect(existsSync(join(root, 'agent-repo/.git/hooks/commit-msg'))).toBe(true);
@@ -151,6 +153,7 @@ test('tin Telegram hợp lệ → job chạy trong worktree ngoài repo → push
   expect(c.task).toBe(T1);
   expect(c.content).toContain('agent-runner');
   expect(c.content).toContain('Chi phí: $0.42');
+  expect(c.content).toContain('- Model: fake-model-1'); // TEST-64: model CLI báo
   expect(authOk).toBe(true);
   const wt = join(root, 'worktrees/NV120/TEST-45');
   expect(existsSync(join(wt, '.git'))).toBe(true);
@@ -158,6 +161,7 @@ test('tin Telegram hợp lệ → job chạy trong worktree ngoài repo → push
   expect(remote.out).toContain('agent/nv120/test-45'); // runner đã push nhánh (gh có / không thì PR tuỳ máy)
   const job = store.db.query<any, []>(`SELECT * FROM jobs WHERE task_code = 'TEST-45'`).get()!;
   expect(job.status).toBe('done');
+  expect(job.model).toBe('fake-model-1');
   expect(job.session_id).toBe('sess-xyz');
   expect(job.cost_usd).toBe(0.42);
   const log = readFileSync(join(root, 'data/jobs', String(job.id), 'output.log'), 'utf8');

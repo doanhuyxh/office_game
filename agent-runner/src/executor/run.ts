@@ -46,6 +46,8 @@ export function runExecutor(ctx: ExecContext, env: Record<string, string>, signa
       clearTimeout(timer);
       if (killTimer) clearTimeout(killTimer);
       adapter.finish?.(tail, r);
+      // CLI không báo model → ghi model cấu hình, đánh dấu để bình luận / report ghi "(cấu hình)".
+      if (!r.model && ctx.exec.model) { r.model = ctx.exec.model; r.modelFromConfig = true; }
       logFile.end();
       resolveRun({ ...r, exitCode: code, timedOut, durationSec: Math.round((Date.now() - started) / 1000) });
     });

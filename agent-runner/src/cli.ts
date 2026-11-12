@@ -8,10 +8,14 @@ import { Store } from './store';
 
 const HELP = `officehub-agent-runner — bộ điều phối agent (TEST-44)
 
-  start                               nghe Telegram, chạy việc được giao (dịch vụ systemd)
-  doctor [--agent NV120] [--no-telegram]   kiểm tra cấu hình: CLI, token, repo, hook, bot Telegram, gh
-  run --agent NV120 --task TEST-45    chạy ngay một việc (bỏ qua Telegram, vẫn hỏi lại OfficeHub) rồi thoát
-  report [--days 1]                   tổng chi phí theo agent
+  start [--no-model-check]            nghe Telegram, chạy việc được giao (dịch vụ systemd)
+  doctor [--agent NV120] [--no-telegram] [--no-model-check]
+                                      kiểm tra cấu hình: CLI, model thật, token, repo, hook, bot Telegram, gh
+  run --agent NV120 --task TEST-45 [--no-model-check]
+                                      chạy ngay một việc (bỏ qua Telegram, vẫn hỏi lại OfficeHub) rồi thoát
+  report [--days 1]                   tổng chi phí theo agent và theo model
+
+  --no-model-check  không chạy thử CLI để đọc model thật (mỗi agent tốn vài trăm token)
 
   --config <file>   mặc định $RUNNER_CONFIG hoặc /etc/officehub-runner/agents.yaml`;
 
@@ -30,17 +34,18 @@ async function main() {
   mkdirSync(config.dataDir, { recursive: true });
   const store = new Store(join(config.dataDir, 'runner.db'));
   const runner = new Runner(config, store);
+  const modelCheck = !process.argv.includes('--no-model-check');
 
   switch (cmd) {
     case 'doctor': {
-      const lines = await runner.checkAgents(arg('--agent')?.toUpperCase(), !process.argv.includes('--no-telegram'));
+      const lines = await runner.checkAgents(arg('--agent')?.toUpperCase(), !process.argv.includes('--no-telegram'), modelCheck);
       console.log(lines.join('\n'));
       return lines.some((l) => l.startsWith('✘')) ? 1 : 0;
     }
     case 'run': {
       const code = arg('--agent')?.toUpperCase(), task = arg('--task');
       if (!code || !task) { console.error('Cần --agent và --task'); return 2; }
-      const lines = await runner.checkAgents(code, false);
+      const lines = await runner.checkAgents(code, false, modelCheck);
       console.log(lines.join('\n'));
       const s = runner.agents.get(code);
       if (!s?.enabled) return 1;
@@ -52,20 +57,25 @@ async function main() {
       if (!job) { console.error('Agent đang có job khác chạy'); return 1; }
       await runner.process(job);
       const done = store.getJob(job.id)!;
-      console.log(JSON.stringify({ status: done.status, reason: done.reason, pr: done.pr_url, cost: done.cost_usd }, null, 2));
+      console.log(JSON.stringify({ status: done.status, reason: done.reason, pr: done.pr_url, model: done.model, cost: done.cost_usd }, null, 2));
       return done.status === 'done' ? 0 : 1;
     }
     case 'report': {
       const days = Number(arg('--days') ?? 1);
       const rows = store.costs(new Date(Date.now() - days * 86_400_000).toISOString());
       for (const r of rows) console.log(`${r.agent}\t${r.jobs} việc\t$${(r.cost ?? 0).toFixed(2)}\t${r.input ?? 0} vào / ${r.output ?? 0} ra`);
+      const byModel = store.costsByModel(new Date(Date.now() - days * 86_400_000).toISOString());
+      if (byModel.length) {
+        console.log('\nTheo model (model chính của phiên):');
+        for (const r of byModel) console.log(`${r.agent}\t${r.model ?? 'không rõ'}\t${r.jobs} việc\t$${(r.cost ?? 0).toFixed(2)}\t${r.input ?? 0} vào / ${r.output ?? 0} ra`);
+      }
       return 0;
     }
     case 'start': {
       const stop = () => { log('info', 'dừng runner'); runner.stop(); setTimeout(() => process.exit(0), 12_000); };
       process.on('SIGTERM', stop);
       process.on('SIGINT', stop);
-      await runner.start();
+      await runner.start(modelCheck);
       return 0;
     }
     default:

@@ -34,6 +34,7 @@ const ANSI = { dim: '\x1b[2m', red: '\x1b[31m', yellow: '\x1b[33m', cyan: '\x1b[
 /** Ký hiệu đầu dòng theo loại thao tác của agent (đoán từ chữ đầu của mô tả — xem describeBlock). */
 const GLYPHS: [RegExp, string, RegExp?][] = [
   [/^Đọc /, '·'], [/^(Sửa|Ghi) /, '✎'], [/^Chạy: /, '$', /^Chạy: /], [/^Tìm: /, '?', /^Tìm: /], [/^OfficeHub /, '⇄'], [/^Nói: /, '›', /^Nói: /], [/^Giao việc phụ/, '↳'],
+  [/^Model /, '▶', /^Model /], // dòng đầu job (TEST-64): `▶ claude-opus-5-5`
 ];
 /** `ký hiệu + mô tả`; ký hiệu đã nói rõ loại thao tác thì bỏ chữ thừa ("$ bun test" thay vì "$ Chạy: bun test"). */
 function actionText(action: string) {

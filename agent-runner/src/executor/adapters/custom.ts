@@ -10,7 +10,7 @@ export function fillArgs(template: string[], ctx: ExecContext): string[] {
 
 /**
  * CLI tự khai báo (`executor.args`, `resume_args`). output.format = json → đọc dòng JSON cuối có `session_id`, `cost_usd`, `summary`,
- * `input_tokens`, `output_tokens`, `is_error`; text → 2000 ký tự cuối làm tóm tắt.
+ * `input_tokens`, `output_tokens`, `is_error`, `model` (không có → model cấu hình, ghi "(cấu hình)"); text → 2000 ký tự cuối làm tóm tắt.
  */
 export const customAdapter: Adapter = {
   kind: 'custom',
@@ -32,6 +32,7 @@ export const customAdapter: Adapter = {
     if (typeof m.input_tokens === 'number') r.inputTokens = m.input_tokens;
     if (typeof m.output_tokens === 'number') r.outputTokens = m.output_tokens;
     if (typeof m.summary === 'string') r.summary = m.summary;
+    if (typeof m.model === 'string' && m.model.trim()) r.model = m.model.trim();
     if (typeof m.is_error === 'boolean') r.isError = m.is_error;
   },
   finish(tail, r) {

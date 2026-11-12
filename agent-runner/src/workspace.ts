@@ -5,8 +5,8 @@ import { isInside } from './config';
 export interface Sh { code: number; out: string; err: string }
 
 /** Chạy lệnh (không qua shell) và chờ xong. */
-export async function sh(cmd: string[], cwd: string, env?: Record<string, string>): Promise<Sh> {
-  const p = Bun.spawn(cmd, { cwd, env: env ?? (process.env as Record<string, string>), stdout: 'pipe', stderr: 'pipe' });
+export async function sh(cmd: string[], cwd: string, env?: Record<string, string>, timeoutMs?: number): Promise<Sh> {
+  const p = Bun.spawn(cmd, { cwd, env: env ?? (process.env as Record<string, string>), stdout: 'pipe', stderr: 'pipe', ...(timeoutMs ? { timeout: timeoutMs } : {}) });
   const [out, err] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text()]);
   return { code: await p.exited, out: out.trim(), err: err.trim() };
 }
