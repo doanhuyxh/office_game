@@ -20,6 +20,7 @@ export function describeActivity(a: IProjectActivity): string {
     case 'DueChanged': return `${who} đổi hạn ${a.taskCode}`;
     case 'Depends': return `${who} đổi việc phải chờ của ${a.taskCode}`;
     case 'Commented': return `${who} bình luận ${a.taskCode}: ${a.text ?? ''}`;
+    case 'CommentDeleted': return `${who} xoá một bình luận ở ${a.taskCode}`;
     default: return `${who} sửa ${a.taskCode}: ${a.taskTitle}`;
   }
 }

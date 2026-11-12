@@ -59,6 +59,7 @@ export const projectApi = {
   deleteTask: (tid: string) => send<void>('DELETE', `${base}/tasks/${tid}`),
   comments: (tid: string) => http<IComment[]>(`${base}/tasks/${tid}/comments`),
   addComment: (tid: string, content: string) => httpPost<string>(`${base}/tasks/${tid}/comments`, { content }),
+  deleteComment: (commentId: string) => send<void>('DELETE', `${base}/comments/${commentId}`),
   activity: (after: string | null) => http<IProjectActivityFeed>(`${base}/activity${after ? `?after=${encodeURIComponent(after)}` : ''}`),
   setDependencies: (tid: string, dependsOn: string[]) => send<void>('PUT', `${base}/tasks/${tid}/dependencies`, { dependsOn }),
   agentSettings: () => http<IAgentSettings>(`${base}/agent-settings`),

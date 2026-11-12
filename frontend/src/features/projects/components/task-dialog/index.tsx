@@ -60,6 +60,7 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
   const save = useProjectMutation((b: ITaskRequest): Promise<unknown> => (task ? projectApi.updateTask(task.id, b) : projectApi.createTask(projectId, b)));
   const remove = useProjectMutation(projectApi.deleteTask);
   const addComment = useProjectMutation((c: string) => projectApi.addComment(task!.id, c));
+  const deleteComment = useProjectMutation(projectApi.deleteComment);
   const detail = useTaskDetail(task?.id ?? null).data;
   const comments = detail?.comments ?? [];
   const activities = detail?.activities ?? [];
@@ -127,7 +128,15 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
               {task && (
                 <div className="grid gap-2 border-t pt-3">
                   <div className="text-sm font-medium">Bình luận ({comments.length})</div>
-                  {comments.map((c) => <div key={c.id} className="rounded-md bg-muted/50 p-2 text-sm"><div className="text-xs text-muted-foreground">{c.authorName}{c.byBot && <BotBadge className="ml-1" />} · {fmtTime(c.createdAt)}</div>
+                  {comments.map((c) => <div key={c.id} className="rounded-md bg-muted/50 p-2 text-sm" data-testid="task-comment">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <span className="min-w-0 flex-1">{c.authorName}{c.byBot && <BotBadge className="ml-1" />} · {fmtTime(c.createdAt)}</span>
+                      {c.canDelete && <Button type="button" size="icon" variant="ghost" className="size-6 shrink-0 text-muted-foreground hover:text-destructive" aria-label="Xoá bình luận"
+                        disabled={deleteComment.isPending}
+                        onClick={async () => await confirmDialog({ title: 'Xoá bình luận?', description: 'Bình luận bị xoá hẳn; lịch sử việc ghi lại là đã xoá một bình luận.', confirmText: 'Xoá', destructive: true })
+                          && deleteComment.mutate(c.id, { onSuccess: () => toast.success('Đã xoá bình luận'), onError: (err) => toast.error(errorMessage(err)) })}>
+                        <Trash2 className="size-3.5" /></Button>}
+                    </div>
                     <Markdown text={c.content} /></div>)}
                   {canWork && <div className="flex gap-2">
                     <Textarea rows={2} placeholder="Viết bình luận…" aria-label="Bình luận" value={comment} onChange={(e) => setComment(e.target.value)} />

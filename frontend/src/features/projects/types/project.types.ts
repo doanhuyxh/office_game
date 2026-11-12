@@ -47,8 +47,9 @@ export interface ITask {
 }
 /** Việc liên quan (phải chờ / đang chặn). */
 export interface ITaskRef { id: string; code: string; title: string; done: boolean }
-export interface IComment { id: string; content: string; authorName: string; createdAt: string; byBot: boolean }
-export type TaskActivityKind = 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited' | 'Depends';
+/** canDelete: back-end tính theo người xem — chỉ chính người viết, trên web, dự án đang chạy. */
+export interface IComment { id: string; content: string; authorName: string; createdAt: string; byBot: boolean; canDelete: boolean }
+export type TaskActivityKind = 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited' | 'Depends' | 'CommentDeleted';
 export interface ITaskActivity { id: string; kind: TaskActivityKind; from: string | null; to: string | null; note: string | null; actorName: string; byBot: boolean; at: string }
 /** GET /tasks/{id}: việc + bình luận + lịch sử. canApprove = được chuyển vào / kéo lùi ra cột cần người duyệt. */
 export interface ITaskDetail { task: ITask; comments: IComment[]; activities: ITaskActivity[]; sequential: boolean; canApprove: boolean; columns: ITaskColumn[];
@@ -99,7 +100,7 @@ export interface IChangeRequestRequest { title: string; description?: string | n
 /** Một thay đổi ở dự án (GET /api/projects/activity) — bảng việc tự cập nhật + toast khi đang ở trang khác. */
 export interface IProjectActivity {
   id: string; projectId: string; projectName: string; taskId: string; taskCode: string; taskTitle: string;
-  kind: 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited' | 'Depends' | 'Commented';
+  kind: 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited' | 'Depends' | 'CommentDeleted' | 'Commented';
   from: string | null; to: string | null; text: string | null; actorName: string; byBot: boolean; at: string;
   /** Người xem là thành viên dự án — chỉ hiện toast cho dự án mình tham gia. */
   member: boolean;

@@ -174,6 +174,7 @@ public class ProjectDocumentScopeTests
     [InlineData("POST", "/api/projects/" + G + "/milestones")]
     [InlineData("POST", "/api/projects/milestones/" + G + "/accept")]
     [InlineData("DELETE", "/api/projects/tasks/" + G)]
+    [InlineData("DELETE", "/api/projects/comments/" + G)]              // xoá bình luận: chỉ người viết, trên web (TEST-39)
     [InlineData("POST", "/api/projects/" + G + "/columns")]
     [InlineData("PUT", "/api/projects/columns/" + G)]
     [InlineData("PUT", "/api/projects/" + G + "/columns/order")]

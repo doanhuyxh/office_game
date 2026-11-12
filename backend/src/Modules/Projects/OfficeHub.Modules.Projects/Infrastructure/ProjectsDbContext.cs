@@ -151,7 +151,7 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
         b.Entity<TaskActivity>(e =>
         {
             e.ToTable("task_activities");
-            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(12);
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.From).HasMaxLength(200);
             e.Property(x => x.To).HasMaxLength(200);
             e.Property(x => x.Note).HasMaxLength(TaskWorkflow.MaxNote);

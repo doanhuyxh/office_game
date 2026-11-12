@@ -29,7 +29,8 @@ public sealed record SetDependencies(List<Guid> DependsOn);
 public sealed record UpsertTask(string Title, string? Description = null, Guid? ColumnId = null, Guid? AssigneeEmployeeId = null, Guid? MilestoneId = null,
     DateOnly? DueOn = null, decimal? EstimateDays = null, List<string>? MediaLinks = null, string? Note = null);
 public sealed record MoveTask(Guid ColumnId, double? Rank = null, string? Note = null);
-public sealed record CommentDto(Guid Id, string Content, string AuthorName, DateTimeOffset CreatedAt, bool ByBot);
+/// <param name="CanDelete">Người xem được xoá (chỉ chính người viết, trên web, dự án đang chạy — TEST-39).</param>
+public sealed record CommentDto(Guid Id, string Content, string AuthorName, DateTimeOffset CreatedAt, bool ByBot, bool CanDelete = false);
 public sealed record NewComment(string Content);
 public sealed record TaskActivityDto(Guid Id, TaskActivityKind Kind, string? From, string? To, string? Note, string ActorName, bool ByBot, DateTimeOffset At);
 /// <param name="Sequential">Dự án đi lần lượt (tiến từng cột, lùi phải có lý do).</param>
@@ -55,6 +56,7 @@ internal static class TaskEndpoints
         g.MapDelete("/tasks/{tid:guid}", DeleteAsync);
         g.MapGet("/tasks/{tid:guid}/comments", CommentsAsync);
         g.MapPost("/tasks/{tid:guid}/comments", AddCommentAsync);
+        g.MapDelete("/comments/{cid:guid}", DeleteCommentAsync);
         g.MapPut("/tasks/{tid:guid}/dependencies", SetDependenciesAsync);
     }
 
@@ -107,10 +109,10 @@ internal static class TaskEndpoints
         var v = await access.ViewerAsync(user, ct);
         var t = await db.Tasks.AsNoTracking().FirstOrDefaultAsync(x => x.Id == tid, ct);
         if (t is null || !v.CanSee(t.ProjectId)) return TypedResults.NotFound();
-        var sequential = await db.Projects.Where(p => p.Id == t.ProjectId).Select(p => p.Sequential).FirstAsync(ct);
+        var proj = await db.Projects.Where(p => p.Id == t.ProjectId).Select(p => new { p.Sequential, p.Status }).FirstAsync(ct);
+        var sequential = proj.Sequential;
         var dto = (await ToDtosAsync([t], db, access, clock, ct, withProject: true))[0];
-        var comments = await db.Comments.AsNoTracking().Where(c => c.TaskId == tid).OrderBy(c => c.CreatedAt)
-            .Select(c => new CommentDto(c.Id, c.Content, c.AuthorName, c.CreatedAt, c.ByBot)).ToListAsync(ct);
+        var comments = await CommentListAsync(db, tid, CommentDeleter(v, user, proj.Status), ct);
         var activities = await db.Activities.AsNoTracking().Where(a => a.TaskId == tid).OrderBy(a => a.At)
             .Select(a => new TaskActivityDto(a.Id, a.Kind, a.From, a.To, a.Note, a.ActorName, a.ByBot, a.At)).ToListAsync(ct);
         var code = dto.Code[..dto.Code.LastIndexOf('-')];
@@ -461,8 +463,36 @@ internal static class TaskEndpoints
         var v = await access.ViewerAsync(user, ct);
         var t = await db.Tasks.AsNoTracking().FirstOrDefaultAsync(x => x.Id == tid, ct);
         if (t is null || !v.CanSee(t.ProjectId)) return TypedResults.NotFound();
-        return TypedResults.Ok(await db.Comments.AsNoTracking().Where(c => c.TaskId == tid).OrderBy(c => c.CreatedAt)
-            .Select(c => new CommentDto(c.Id, c.Content, c.AuthorName, c.CreatedAt, c.ByBot)).ToListAsync(ct));
+        var status = await db.Projects.Where(p => p.Id == t.ProjectId).Select(p => p.Status).FirstAsync(ct);
+        return TypedResults.Ok(await CommentListAsync(db, tid, CommentDeleter(v, user, status), ct));
+    }
+
+    /// <summary>Nhân viên được xoá bình luận CỦA CHÍNH MÌNH (null = không xoá được gì): trên web (không qua token AI), dự án đang chạy.</summary>
+    private static Guid? CommentDeleter(ProjectViewer v, ClaimsPrincipal user, ProjectStatus status) =>
+        status == ProjectStatus.Active && !user.IsAccessToken() ? v.Employee?.Id : null;
+
+    private static Task<List<CommentDto>> CommentListAsync(ProjectsDbContext db, Guid tid, Guid? deleter, CancellationToken ct) =>
+        db.Comments.AsNoTracking().Where(c => c.TaskId == tid).OrderBy(c => c.CreatedAt)
+            .Select(c => new CommentDto(c.Id, c.Content, c.AuthorName, c.CreatedAt, c.ByBot, deleter != null && c.AuthorEmployeeId == deleter)).ToListAsync(ct);
+
+    /// <summary>
+    /// TEST-39: chỉ chính người viết xoá được bình luận (so <c>AuthorEmployeeId</c>) — không ngoại lệ cho quản lý dự án / HR / admin. Bình luận viết qua token AI
+    /// của mình thì chủ token xoá được trên web; token AI không gọi được (ngoài allowlist). Xoá cứng + ghi lịch sử CommentDeleted (không chép nội dung).
+    /// </summary>
+    private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteCommentAsync(Guid cid, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
+        ProjectClock clock, CancellationToken ct)
+    {
+        var v = await access.ViewerAsync(user, ct);
+        var c = await db.Comments.FirstOrDefaultAsync(x => x.Id == cid, ct);
+        var t = c is null ? null : await db.Tasks.FirstOrDefaultAsync(x => x.Id == c.TaskId, ct);
+        if (c is null || t is null || !v.CanSee(t.ProjectId)) return TypedResults.NotFound();
+        if (user.IsAccessToken()) return ProjectEndpoints.Forbidden("Xoá bình luận chỉ làm trên web");
+        if (v.Employee?.Id is not { } me || c.AuthorEmployeeId != me) return ProjectEndpoints.Forbidden("Chỉ người viết được xoá bình luận");
+        if (await db.Projects.Where(p => p.Id == t.ProjectId).Select(p => p.Status).FirstAsync(ct) != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
+        db.Comments.Remove(c);
+        db.Activities.Add(Activity(t, TaskActivityKind.CommentDeleted, v, user, clock.Now));
+        await db.SaveChangesAsync(ct);
+        return TypedResults.NoContent();
     }
 
     private static async Task<Results<Created<Guid>, NotFound, ValidationProblem, ProblemHttpResult>> AddCommentAsync(Guid tid, NewComment r, ClaimsPrincipal user,
