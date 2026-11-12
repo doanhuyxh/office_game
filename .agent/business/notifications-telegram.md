@@ -1,8 +1,8 @@
-# Kênh Telegram — đánh thức agent (TEST-42)
+# Kênh Telegram — đánh thức agent (TEST-42, @nhắc: TEST-63)
 
 > Về [notifications.md](notifications.md) · cấu hình lưu DB: [../env.md](../env.md#cấu-hình-lưu-trong-db-test-41) · bối cảnh agent: [agent-team.md](agent-team.md)
 
-**Mục đích:** khi một việc được **giao cho tài khoản bot** (cờ IsBot), OfficeHub gửi **đúng một tin** vào một nhóm Telegram. Bộ điều phối trên máy chạy agent đọc tin rồi cho agent làm việc đó (TEST-44). Hiện có hai sự kiện: **giao việc** và **trả lại việc** (lùi kèm lý do); thông báo khác chưa đi qua Telegram. Thêm sự kiện Telegram = thêm phương thức `ITelegramWakeup` **và** dòng trong danh mục sự kiện ([notifications-catalog.md](notifications-catalog.md), test bắt buộc).
+**Mục đích:** khi một việc được **giao cho tài khoản bot** (cờ IsBot), OfficeHub gửi **đúng một tin** vào một nhóm Telegram. Bộ điều phối trên máy chạy agent đọc tin rồi cho agent làm việc đó (TEST-44). Hiện có ba sự kiện: **giao việc**, **trả lại việc** (lùi kèm lý do) và **bot được @nhắc trong bình luận việc**; thông báo khác chưa đi qua Telegram. Thêm sự kiện Telegram = thêm phương thức `ITelegramWakeup` **và** dòng trong danh mục sự kiện ([notifications-catalog.md](notifications-catalog.md), test bắt buộc).
 
 ## Cấu hình
 
@@ -13,13 +13,17 @@
 
 `TaskEndpoints` (Projects) → `NotifyAssignedAsync` → `ITelegramWakeup.TaskAssignedAsync` (Notification.Contracts) mỗi khi tạo việc có người làm hoặc **đổi** người làm — mọi đường (web, token AI, MCP `create_task` / `update_task`) đều qua đây. Bỏ qua khi: người thao tác tự giao cho mình, kênh tắt / thiếu cấu hình, người nhận không phải bot / đã khoá. Sửa việc mà không đổi người → không gửi.
 
-**Trả lại việc:** `NotifyMovedAsync` → `ITelegramWakeup.TaskReturnedAsync` khi việc lùi kèm lý do (`MoveNotice.Returned`, vd Review → Cần làm) và người làm là bot, không phải người thao tác. Cùng tin JSON 4 trường (hàng đợi `Kind = task_returned`); runner kiểm tra lại việc qua MCP rồi làm lại, đọc lý do ở bình luận / chuông. Không đổi `agent-runner/`. Duyệt xong (Done) không gửi.
+**Trả lại việc:** `NotifyMovedAsync` → `ITelegramWakeup.TaskReturnedAsync` khi việc lùi kèm lý do (`MoveNotice.Returned`, vd Review → Cần làm) và người làm là bot, không phải người thao tác. Tin `event: returned` (hàng đợi `Kind = task_returned`); runner kiểm tra lại việc qua MCP rồi làm lại, đọc lý do ở bình luận / chuông. Duyệt xong (Done) không gửi.
 
-Tin = một dòng JSON (không nhắc bot, không có tên / mô tả việc — agent tự đọc qua MCP):
+**Được @nhắc (TEST-63):** `AddCommentAsync` → `ITelegramWakeup.TaskMentionedAsync` cho mỗi thành viên dự án được `@mã-NV` (`AgentTeamRules.MentionWakeTargets`): còn làm việc, có tài khoản, **không phải người viết** (bot tự nhắc mình → không gửi); **gồm cả người làm việc** (chuông bình luận không đánh thức agent). Người thật / bot đã khoá bị bỏ trong `TelegramWakeup` như các sự kiện khác. Tin `event: mentioned` + `comment_id` (hàng đợi `Kind = task_mentioned`). Bot nhắc bot vẫn bị chặn vòng lặp bởi `StreakErrorAsync` (bình luận bị 409 → không có tin).
+
+Tin = một dòng JSON (không nhắc bot, không có tên / mô tả việc / nội dung bình luận — agent tự đọc qua MCP):
 ```
-{"employee_code":"NV012","project_id":"…","task_id":"…","task_code":"TEST-35"}
+{"employee_code":"NV012","project_id":"…","task_id":"…","task_code":"TEST-35","event":"assigned"}
+{"employee_code":"NV018","project_id":"…","task_id":"…","task_code":"TEST-63","event":"mentioned","comment_id":"…"}
 ```
-(`TelegramRules.WakeMessage`, test ở `TelegramRulesTests`.)
+`event` = `assigned` / `returned` / `mentioned` (hằng `TelegramRules.Assigned/Returned/Mentioned`); tin cũ không có `event` = `assigned`. (`TelegramRules.WakeMessage`, test ở `TelegramRulesTests`.)
+**Runner:** `agent-runner/` hiện bỏ qua `event` / `comment_id` (chỉ đọc 4 trường) — tin `mentioned` cho bot không phải người làm bị bỏ ("việc không còn giao cho agent này"); bot là người làm thì mở phiên làm việc bình thường. Xử lý riêng `mentioned` (chỉ trả lời bằng `comment_task`) do người thật sửa runner — xem [agent-runner.md](agent-runner.md#chưa-làm-bước-sau-của-test-44).
 
 ## Gửi nền (`Infrastructure/Telegram.cs`)
 

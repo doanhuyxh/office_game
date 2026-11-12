@@ -88,4 +88,15 @@ public static partial class AgentTeamRules
         return members.Where(m => m.IsActive && m.UserId is not null && m.EmployeeId != authorEmployeeId && m.EmployeeId != assigneeEmployeeId && set.Contains(m.Code))
             .Select(m => m.UserId!.Value).Distinct().ToList();
     }
+
+    /// <summary>Ứng viên nhận tin Telegram "được nhắc" (TEST-63): như <see cref="MentionRecipients"/> nhưng GIỮ người làm việc
+    /// (chuông bình luận không đánh thức agent) — chỉ bỏ người viết. Trả (UserId, mã), bỏ trùng; lọc bot / đã khoá ở <c>ITelegramWakeup</c>.</summary>
+    public static IReadOnlyList<(Guid UserId, string Code)> MentionWakeTargets(IEnumerable<(Guid EmployeeId, string Code, Guid? UserId, bool IsActive)> members,
+        IReadOnlyCollection<string> codes, Guid? authorEmployeeId)
+    {
+        if (codes.Count == 0) return [];
+        var set = new HashSet<string>(codes, StringComparer.OrdinalIgnoreCase);
+        return members.Where(m => m.IsActive && m.UserId is not null && m.EmployeeId != authorEmployeeId && set.Contains(m.Code))
+            .Select(m => (m.UserId!.Value, m.Code)).DistinctBy(x => x.Item1).ToList();
+    }
 }

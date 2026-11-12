@@ -104,4 +104,13 @@ public class AgentTeamRulesTests
         Assert.Equal([UAssignee], AgentTeamRules.MentionRecipients(Members, ["NV002"], Author, null));
         Assert.Equal([UAuthor], AgentTeamRules.MentionRecipients(Members, ["NV001"], null, null));
     }
+
+    [Fact]
+    public void Mention_wake_targets_keep_assignee_but_drop_author()
+    {
+        var codes = AgentTeamRules.MentionedCodes("@NV001 @NV002 @NV018 @NV004 @NV005");
+        Assert.Equal([(UAssignee, "NV002"), (UBot, "NV018")], AgentTeamRules.MentionWakeTargets(Members, codes, Author));
+        Assert.Empty(AgentTeamRules.MentionWakeTargets(Members, ["NV018"], BotAgent));
+        Assert.Empty(AgentTeamRules.MentionWakeTargets(Members, [], null));
+    }
 }

@@ -62,12 +62,16 @@ internal sealed class TelegramWakeup(NotificationDbContext db, IAccountService a
     TimeProvider clock, ILogger<TelegramWakeup> log) : ITelegramWakeup
 {
     public Task TaskAssignedAsync(Guid assigneeUserId, string employeeCode, Guid projectId, Guid taskId, string taskCode, CancellationToken ct = default) =>
-        EnqueueAsync("task_assigned", assigneeUserId, employeeCode, projectId, taskId, taskCode, ct);
+        EnqueueAsync("task_assigned", TelegramRules.Assigned, assigneeUserId, employeeCode, projectId, taskId, taskCode, null, ct);
 
     public Task TaskReturnedAsync(Guid assigneeUserId, string employeeCode, Guid projectId, Guid taskId, string taskCode, CancellationToken ct = default) =>
-        EnqueueAsync("task_returned", assigneeUserId, employeeCode, projectId, taskId, taskCode, ct);
+        EnqueueAsync("task_returned", TelegramRules.Returned, assigneeUserId, employeeCode, projectId, taskId, taskCode, null, ct);
 
-    private async Task EnqueueAsync(string kind, Guid assigneeUserId, string employeeCode, Guid projectId, Guid taskId, string taskCode, CancellationToken ct)
+    public Task TaskMentionedAsync(Guid userId, string employeeCode, Guid projectId, Guid taskId, string taskCode, Guid commentId, CancellationToken ct = default) =>
+        EnqueueAsync("task_mentioned", TelegramRules.Mentioned, userId, employeeCode, projectId, taskId, taskCode, commentId, ct);
+
+    private async Task EnqueueAsync(string kind, string @event, Guid assigneeUserId, string employeeCode, Guid projectId, Guid taskId, string taskCode, Guid? commentId,
+        CancellationToken ct)
     {
         try
         {
@@ -79,7 +83,7 @@ internal sealed class TelegramWakeup(NotificationDbContext db, IAccountService a
             db.TelegramMessages.Add(new TelegramMessage
             {
                 Kind = kind, ChatId = cfg.ChatId!, UserId = assigneeUserId, TaskId = taskId, CreatedAt = now, NextAttemptAt = now,
-                Text = TelegramRules.WakeMessage(employeeCode, projectId, taskId, taskCode),
+                Text = TelegramRules.WakeMessage(employeeCode, projectId, taskId, taskCode, @event, commentId),
             });
             await db.SaveChangesAsync(ct);
         }

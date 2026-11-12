@@ -7,18 +7,31 @@ namespace OfficeHub.Modules.Notification.Tests;
 public class TelegramRulesTests
 {
     [Fact]
-    public void Wake_message_is_single_json_line_with_exactly_four_fields()
+    public void Wake_message_is_single_json_line_with_event()
     {
         var p = Guid.NewGuid(); var t = Guid.NewGuid();
-        var text = TelegramRules.WakeMessage("NV012", p, t, "TEST-35");
+        var text = TelegramRules.WakeMessage("NV012", p, t, "TEST-35", TelegramRules.Assigned);
         Assert.DoesNotContain('\n', text);
         Assert.DoesNotContain("@", text);
         using var doc = JsonDocument.Parse(text);
         var names = doc.RootElement.EnumerateObject().Select(x => x.Name).ToArray();
-        Assert.Equal(["employee_code", "project_id", "task_id", "task_code"], names);
+        Assert.Equal(["employee_code", "project_id", "task_id", "task_code", "event"], names);
         Assert.Equal("NV012", doc.RootElement.GetProperty("employee_code").GetString());
         Assert.Equal(t.ToString(), doc.RootElement.GetProperty("task_id").GetString());
         Assert.Equal("TEST-35", doc.RootElement.GetProperty("task_code").GetString());
+        Assert.Equal("assigned", doc.RootElement.GetProperty("event").GetString());
+    }
+
+    [Fact]
+    public void Mention_wake_message_carries_comment_id()
+    {
+        var c = Guid.NewGuid();
+        var text = TelegramRules.WakeMessage("NV018", Guid.NewGuid(), Guid.NewGuid(), "TEST-63", TelegramRules.Mentioned, c);
+        using var doc = JsonDocument.Parse(text);
+        Assert.Equal(["employee_code", "project_id", "task_id", "task_code", "event", "comment_id"], doc.RootElement.EnumerateObject().Select(x => x.Name).ToArray());
+        Assert.Equal("mentioned", doc.RootElement.GetProperty("event").GetString());
+        Assert.Equal(c.ToString(), doc.RootElement.GetProperty("comment_id").GetString());
+        Assert.Equal("returned", TelegramRules.Returned);
     }
 
     [Theory]

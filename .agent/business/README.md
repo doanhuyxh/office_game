@@ -26,7 +26,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Loại phép, quỹ phép năm (cộng dồn, không hết hạn), đơn nghỉ, điều chỉnh của HR | [leave.md](leave.md) |
 | Giải trình chấm công (bổ sung giờ vào / ra), nhắc quên chấm ra | [attendance-corrections.md](attendance-corrections.md) |
 | Tăng ca (đơn, hệ số theo loại ngày, giới hạn) | [attendance-overtime.md](attendance-overtime.md) |
-| Thông báo: chuông in-app + email (hàng đợi, thử lại), ai nhận gì khi gửi / duyệt / từ chối / huỷ đơn, `INotifier` · kênh Telegram đánh thức agent khi giao việc cho bot · danh mục sự kiện thông báo + kênh gửi (bắt buộc cập nhật khi thêm / xoá thông báo) | [notifications.md](notifications.md) · [notifications-telegram.md](notifications-telegram.md) · [notifications-catalog.md](notifications-catalog.md) |
+| Thông báo: chuông in-app + email (hàng đợi, thử lại), ai nhận gì khi gửi / duyệt / từ chối / huỷ đơn, `INotifier` · kênh Telegram đánh thức agent khi giao / trả lại việc cho bot hoặc bot được @nhắc · danh mục sự kiện thông báo + kênh gửi (bắt buộc cập nhật khi thêm / xoá thông báo) | [notifications.md](notifications.md) · [notifications-telegram.md](notifications-telegram.md) · [notifications-catalog.md](notifications-catalog.md) |
 | Hợp đồng lao động: loại / thời hạn theo BLLĐ, phụ lục, lương mã hoá, file S3, quyền xem, mẫu hợp đồng Word | [contracts.md](contracts.md) |
 | Nhắc hợp đồng sắp hết hạn (30 / 7 ngày), nhắc hết thử việc (7 / 3 ngày, quá hạn) | [contracts-reminders.md](contracts-reminders.md) |
 | Kết nối AI (MCP): token truy cập cá nhân, route token được gọi, tool cho Claude / Cursor / Codex | [mcp.md](mcp.md) |

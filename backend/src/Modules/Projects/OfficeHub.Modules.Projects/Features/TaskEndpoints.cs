@@ -501,7 +501,7 @@ internal static class TaskEndpoints
     }
 
     private static async Task<Results<Created<Guid>, NotFound, ValidationProblem, ProblemHttpResult>> AddCommentAsync(Guid tid, NewComment r, ClaimsPrincipal user,
-        ProjectsDbContext db, ProjectAccess access, IEmployeeDirectory dir, INotifier notifier, ProjectClock clock, CancellationToken ct)
+        ProjectsDbContext db, ProjectAccess access, IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, ProjectClock clock, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var (t, p) = await LoadAsync(tid, db, ct);
@@ -527,13 +527,15 @@ internal static class TaskEndpoints
         if (codes.Count > 0)
         {
             var emps = await access.EmployeesAsync(ct);
-            var mentioned = AgentTeamRules.MentionRecipients(
-                p.Members.Select(m => emps.GetValueOrDefault(m.EmployeeId)).OfType<EmployeeRef>().Select(e => (e.Id, e.Code, e.UserId, e.IsActive)),
-                codes, v.Employee?.Id, t.AssigneeEmployeeId);
+            var members = p.Members.Select(m => emps.GetValueOrDefault(m.EmployeeId)).OfType<EmployeeRef>().Select(e => (e.Id, e.Code, e.UserId, e.IsActive)).ToList();
+            var mentioned = AgentTeamRules.MentionRecipients(members, codes, v.Employee?.Id, t.AssigneeEmployeeId);
             if (mentioned.Count > 0)
                 await notifier.NotifyAsync(new NotificationRequest(mentioned, NotificationCategories.ProjectTask, $"{v.Name} nhắc bạn trong việc {code}",
                     preview, $"/projects/{p.Id}", SendEmail: false), ct);
             notified.AddRange(mentioned);
+            // Telegram đánh thức bot được nhắc (TEST-63) — gồm cả người làm việc là bot; người không phải bot / đã khoá bị bỏ trong ITelegramWakeup
+            foreach (var (botUid, botCode) in AgentTeamRules.MentionWakeTargets(members, codes, v.Employee?.Id))
+                await telegram.TaskMentionedAsync(botUid, botCode, p.Id, t.Id, code, c.Id, ct);
         }
         await NotifyMembersAsync(notifier, access, p, v, notified, $"{v.Name} bình luận việc {code}", $"{t.Title}: {preview}", ct);
         return TypedResults.Created($"/api/projects/comments/{c.Id}", c.Id);

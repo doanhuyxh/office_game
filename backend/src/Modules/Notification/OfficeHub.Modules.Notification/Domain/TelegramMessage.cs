@@ -9,7 +9,7 @@ public enum TelegramStatus { Pending, Sent, Failed }
 public sealed class TelegramMessage
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
-    /// <summary>task_assigned.</summary>
+    /// <summary>task_assigned / task_returned / task_mentioned.</summary>
     public string Kind { get; set; } = "";
     public string ChatId { get; set; } = "";
     public string Text { get; set; } = "";

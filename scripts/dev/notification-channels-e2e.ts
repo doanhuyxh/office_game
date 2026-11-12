@@ -116,8 +116,8 @@ ok('Admin thấy đủ 5 kênh theo thứ tự', r.status === 200 && JSON.string
 ok('Chuông: có sẵn, hoạt động, dùng cho mọi sự kiện có chuông (từ danh mục)', by('bell').source === 'builtin' && by('bell').health === 'ok'
   && by('bell').usedBy.length >= 37 && by('bell').usedBy.some((u: any) => u.key === 'approval.requested' && u.label === 'Có đơn chờ duyệt')
   && !by('bell').usedBy.some((u: any) => u.key.startsWith('chat.')), by('bell'));
-ok('Chip "Dùng cho" lấy từ danh mục: Telegram = giao + trả lại việc, webhook có tin 1-1, email không có giao việc',
-  JSON.stringify(by('telegram').usedBy.map((u: any) => u.key)) === JSON.stringify(['projects.task_assigned', 'projects.task_returned'])
+ok('Chip "Dùng cho" lấy từ danh mục: Telegram = giao + trả lại việc + @nhắc, webhook có tin 1-1, email không có giao việc',
+  JSON.stringify(by('telegram').usedBy.map((u: any) => u.key)) === JSON.stringify(['projects.task_assigned', 'projects.task_returned', 'projects.task_mention'])
   && by('webhook').usedBy.some((u: any) => u.key === 'chat.direct') && by('push').usedBy.some((u: any) => u.key === 'chat.room')
   && by('email').usedBy.some((u: any) => u.key === 'people.account_security') && !by('email').usedBy.some((u: any) => u.key === 'projects.task_assigned'),
   { telegram: by('telegram').usedBy, email: by('email').usedBy.map((u: any) => u.key) });
@@ -134,7 +134,7 @@ const chans = (k: string) => (evBy(k)?.channels ?? []).map((c: any) => c.channel
 ok('Danh mục: theo nhóm, mỗi nhóm có sự kiện, mã duy nhất', ev.status === 200 && ev.body.length >= 10 && ev.body.every((g: any) => g.name && g.events.length > 0)
   && new Set(evAll.map((e: any) => e.key)).size === evAll.length && ev.body[0].key === 'approval', ev.body?.map?.((g: any) => g.key));
 ok('Danh mục: kênh đúng theo sự kiện', chans('projects.task_assigned') === 'bell,push,webhook,telegram' && chans('projects.task_returned') === 'bell,push,webhook,telegram'
-  && chans('projects.task_comment') === 'bell,push,webhook' && chans('people.account_security') === 'bell,email,push,webhook'
+  && chans('projects.task_comment') === 'bell,push,webhook' && chans('projects.task_mention') === 'bell,push,webhook,telegram' && chans('people.account_security') === 'bell,email,push,webhook'
   && chans('chat.direct') === 'push,webhook' && chans('chat.room') === 'push'
   && evBy('approval.approved')?.channels.find((c: any) => c.channel === 'email')?.note?.includes('bước cuối'),
   { assigned: chans('projects.task_assigned'), sec: chans('people.account_security'), direct: chans('chat.direct') });

@@ -1,4 +1,4 @@
-// E2E TEST-42: kênh Telegram đánh thức agent khi việc được giao cho tài khoản bot có "Bot Telegram".
+// E2E TEST-42 / TEST-48 / TEST-63: kênh Telegram đánh thức agent khi việc được giao cho tài khoản bot, hoặc bot được @nhắc trong bình luận việc.
 // MÁY CHỦ TELEGRAM GIẢ trong cùng tiến trình (cổng FAKE_PORT, mặc định 5198) — không gọi Telegram thật. Api phải chạy với Telegram__ApiUrl trỏ vào đây.
 // TẠO DỮ LIỆU THẬT → CHỈ DB tạm (container như security-e2e.ts):
 //   Api (từ backend/): env ASPNETCORE_URLS=http://localhost:5185 'ConnectionStrings__Default=Host=127.0.0.1;Port=55461;Database=e2e;Username=e2e;Password=e2e'
@@ -103,23 +103,10 @@ const B2 = await mkEmp(`TC${stamp}`.toUpperCase(), 'Bot Hai TG', `e2e.tg.bot2.${
 const HU = await mkEmp(`TH${stamp}`.toUpperCase(), 'Người Thật TG', `e2e.tg.hu.${stamp}`, ['employee']);
 const HR = await mkEmp(`TR${stamp}`.toUpperCase(), 'HR TG', `e2e.tg.hr.${stamp}`, ['employee', 'hr']);
 ok('5 tài khoản đăng nhập', [PM, B1, B2, HU, HR].every((x) => !!x.cookie));
-const BOT1 = `@e2e_${stamp}_one_bot`;
-
-// ---- Trường "Bot Telegram" của tài khoản ----
-const tgPut = (c: string, id: string, v: string | null) => json(c, 'PUT', `/api/org/employees/${id}/account/telegram`, { telegramBot: v });
-ok('Chưa đánh dấu bot → 409', (await tgPut(admin, B1.e.id, BOT1)).status === 409);
 for (const b of [B1, B2]) await json(admin, 'PUT', `/api/org/employees/${b.e.id}/account/bot`, { isBot: true });
-ok('HR (không phải admin) → 403', (await tgPut(HR.cookie, B1.e.id, BOT1)).status === 403);
-let r = await tgPut(admin, B1.e.id, '@khong_hop_le');
-ok('Username không kết thúc bằng bot → 400', r.status === 400 && !!r.body?.errors?.telegramBot, r.body);
-ok('Admin gắn bot Telegram (chữ hoa → chuẩn hoá)', (await tgPut(admin, B1.e.id, BOT1.toUpperCase().replace('@', ''))).status === 204);
-ok('Bot Telegram đã gắn tài khoản khác → 409', (await tgPut(admin, B2.e.id, BOT1)).status === 409);
-r = await json(admin, 'GET', `/api/org/employees/${B1.e.id}`);
-ok('Hồ sơ hiện telegramBot đã chuẩn hoá', r.body?.employee?.account?.telegramBot === BOT1, r.body?.employee?.account);
-ok('Người thật không gắn được', (await tgPut(admin, HU.e.id, `@e2e_${stamp}_hu_bot`)).status === 409);
 
 // ---- Cấu hình kênh ----
-r = await json(admin, 'PUT', '/api/system/settings/telegram', { values: { enabled: true } });
+let r = await json(admin, 'PUT', '/api/system/settings/telegram', { values: { enabled: true } });
 ok('Bật kênh thiếu chat id / token → 400', r.status === 400 && !!r.body?.errors?.chatId && !!r.body?.errors?.botToken, r.body);
 r = await json(admin, 'PUT', '/api/system/settings/telegram', { values: { enabled: true, chatId: '-1001234567890' }, secrets: { botToken: GOOD } });
 ok('Lưu cấu hình Telegram (200, token chỉ là cờ)', r.status === 200 && r.body.secrets.botToken === true && r.body.values.enabled === true && !r.text.includes(GOOD), r.body);
@@ -135,18 +122,18 @@ const pr = await json(PM.cookie, 'POST', '/api/projects', { code: `tg-${stamp}`,
 ok('Tạo dự án', pr.status === 201, pr.body);
 const P = pr.body;
 const PCODE = `TG-${stamp}`.toUpperCase();
-const wakes = () => sent.filter((s) => s.text.startsWith('@'));
+const wakes = () => sent.filter((s) => s.text.startsWith('{'));
+const wakeData = (s: Sent) => JSON.parse(s.text);
 let before = wakes().length;
 r = await json(PM.cookie, 'POST', `/api/projects/${P}/tasks`, { title: 'Việc cho bot 1', description: 'Nội dung bí mật không được gửi', assigneeEmployeeId: B1.e.id });
 ok('Tạo việc giao cho bot (201)', r.status === 201, r.body);
 const T1 = r.body as string;
 ok('Telegram nhận đúng 1 tin', await until(() => wakes().length === before + 1) && (await sleep(3500), wakes().length === before + 1), wakes().length - before);
 const w = wakes().at(-1)!;
-const [line1, line2] = w.text.split('\n');
-const data = JSON.parse(line2 ?? '{}');
-ok('Dòng 1 nhắc tên bot, đúng chat', line1 === BOT1 && w.chat_id === '-1001234567890', w);
-ok('JSON đúng 4 trường + giá trị', JSON.stringify(Object.keys(data)) === JSON.stringify(['employee_code', 'project_id', 'task_id', 'task_code'])
-  && data.employee_code === B1.code && data.project_id === P && data.task_id === T1 && data.task_code === `${PCODE}-1`, data);
+const data = wakeData(w);
+ok('Một dòng JSON, đúng chat, không nhắc bot', !w.text.includes('\n') && !w.text.includes('@') && w.chat_id === '-1001234567890', w);
+ok('JSON đúng 5 trường + giá trị (event assigned)', JSON.stringify(Object.keys(data)) === JSON.stringify(['employee_code', 'project_id', 'task_id', 'task_code', 'event'])
+  && data.employee_code === B1.code && data.project_id === P && data.task_id === T1 && data.task_code === `${PCODE}-1` && data.event === 'assigned', data);
 ok('Tin không chứa tên / mô tả việc', !w.text.includes('Việc cho bot') && !w.text.includes('bí mật'));
 
 const task = async (id: string) => (await json(PM.cookie, 'GET', `/api/projects/tasks/${id}`)).body?.task ?? (await json(PM.cookie, 'GET', `/api/projects/tasks/${id}`)).body;
@@ -158,7 +145,6 @@ const upd = async (id: string, patch: Record<string, unknown>) => {
 before = wakes().length;
 ok('Sửa tên (không đổi người) → 204', (await upd(T1, { title: 'Đổi tên' })).status === 204);
 ok('Đổi người → người thật', (await upd(T1, { assigneeEmployeeId: HU.e.id })).status === 204);
-ok('Đổi người → bot chưa có username', (await upd(T1, { assigneeEmployeeId: B2.e.id })).status === 204);
 await sleep(4000);
 ok('… không gửi tin nào', wakes().length === before, wakes().length - before);
 ok('Đổi lại → bot 1', (await upd(T1, { assigneeEmployeeId: B1.e.id })).status === 204);
@@ -168,6 +154,30 @@ r = await json(PM.cookie, 'POST', `/api/projects/${P}/tasks`, { title: 'Việc c
 r = await json(PM.cookie, 'POST', `/api/projects/${P}/tasks`, { title: 'Việc không giao' });
 await sleep(4000);
 ok('Tạo việc giao người thật / không giao → không gửi', wakes().length === before);
+
+// ---- TEST-63: bot được @nhắc trong bình luận việc ----
+const comment = (c: string, id: string, content: string) => json(c, 'POST', `/api/projects/tasks/${id}/comments`, { content });
+before = wakes().length;
+r = await comment(PM.cookie, T1, `@${B2.code} xem giúp, cc @${HU.code}`);
+const C1 = r.body as string;
+ok('Nhắc bot không phải người làm (+ người thật) → đúng 1 tin cho bot', r.status === 201 && await until(() => wakes().length === before + 1)
+  && (await sleep(3500), wakes().length === before + 1), { status: r.status, n: wakes().length - before });
+let m = wakeData(wakes().at(-1)!);
+ok('… JSON event mentioned + comment_id, đúng bot / việc', JSON.stringify(Object.keys(m)) === JSON.stringify(['employee_code', 'project_id', 'task_id', 'task_code', 'event', 'comment_id'])
+  && m.event === 'mentioned' && m.employee_code === B2.code && m.task_id === T1 && m.project_id === P && m.comment_id === C1, m);
+ok('… tin không chứa nội dung bình luận', !wakes().at(-1)!.text.includes('xem giúp'));
+before = wakes().length;
+r = await comment(PM.cookie, T1, `@${B1.code} trả lời giúp`);
+ok('Nhắc bot là người làm việc → vẫn 1 tin mentioned', r.status === 201 && await until(() => wakes().length === before + 1)
+  && wakeData(wakes().at(-1)!).employee_code === B1.code && wakeData(wakes().at(-1)!).event === 'mentioned');
+before = wakes().length;
+ok('Nhắc người thật → 201', (await comment(PM.cookie, T1, `@${HU.code} nhé`)).status === 201);
+ok('Bot tự nhắc mình → 201', (await comment(B2.cookie, T1, `@${B2.code} ghi chú`)).status === 201);
+ok('Bình luận không nhắc ai → 201', (await comment(PM.cookie, T1, 'không nhắc ai')).status === 201);
+await sleep(4000);
+ok('… không gửi tin nào', wakes().length === before, wakes().slice(before).map((x) => x.text));
+const qk = (await sql(`select count(*) from notifications.telegram_messages where "Kind"='task_mentioned' and "TaskId"='${T1}'`)).trim();
+ok('DB: hàng đợi Kind = task_mentioned (2 tin)', qk === '2', qk);
 
 // Qua token AI (đường MCP gọi) + MCP thật
 const tok = (await json(PM.cookie, 'POST', '/api/auth/access-tokens', { name: `pm ${stamp}`, expiresInDays: 30 })).body?.token as string;
@@ -187,7 +197,7 @@ if (MCP) {
   before = wakes().length;
   let x = await rpc('tools/call', { name: 'create_task', arguments: { project: PCODE, title: 'Qua MCP', assignee: B1.code } });
   ok('MCP create_task giao bot → 1 tin', !x?.result?.isError && await until(() => wakes().length === before + 1), x?.result?.content?.[0]?.text?.slice(0, 200));
-  const mcpTask = JSON.parse(wakes().at(-1)!.text.split('\n')[1]).task_code;
+  const mcpTask = wakeData(wakes().at(-1)!).task_code;
   x = await rpc('tools/call', { name: 'update_task', arguments: { task: mcpTask, assignee: 'none' } });
   before = wakes().length;
   x = await rpc('tools/call', { name: 'update_task', arguments: { task: mcpTask, assignee: B1.code } });
@@ -229,10 +239,8 @@ if (API_LOG) {
   ok('Log Api KHÔNG chứa bot token', !logText.includes('AAH-e2e-good') && !logText.includes('AAH-e2e-bad'));
 }
 
-// Dọn: tắt kênh, gỡ bot
-await json(admin, 'DELETE', '/api/system/settings/telegram');
-ok('Gỡ bot Telegram (trống)', (await tgPut(admin, B1.e.id, '')).status === 204
-  && (await json(admin, 'GET', `/api/org/employees/${B1.e.id}`)).body?.employee?.account?.telegramBot === null);
+// Dọn: xoá cấu hình kênh
+ok('Xoá cấu hình Telegram', (await json(admin, 'DELETE', '/api/system/settings/telegram')).status < 300);
 
 console.log(`\n${pass}/${pass + fail} đạt`);
 process.exit(fail ? 1 : 0);
