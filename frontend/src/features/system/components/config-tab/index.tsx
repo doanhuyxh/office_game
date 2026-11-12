@@ -1,4 +1,4 @@
-import { BellRing, HardDrive, Mail } from 'lucide-react';
+import { BellRing, HardDrive, Mail, Send } from 'lucide-react';
 import { Spinner } from '@/components/feedback/Spinner';
 import { AgentLimitsCard } from '@/features/projects';
 import { errorMessage } from '@/utils/errors';
@@ -34,11 +34,17 @@ const FCM_FIELDS: ISettingsField[] = [
   { key: 'projectId', label: 'Project ID', kind: 'text', placeholder: 'Để trống = lấy từ service account' },
 ];
 
-/** Tab Cấu hình của trang Hệ thống: giới hạn bot (TEST-36) + cấu hình S3 / SMTP / FCM / IP văn phòng lưu trong DB (TEST-41). */
+const TELEGRAM_FIELDS: ISettingsField[] = [
+  { key: 'enabled', label: 'Bật kênh Telegram', kind: 'bool', hint: 'Tắt = giao việc cho bot không gửi tin (vẫn lưu được cấu hình để bật sau).' },
+  { key: 'chatId', label: 'Chat id nhóm', kind: 'text', placeholder: '-1001234567890', hint: 'Nhóm / siêu nhóm dạng -100…, hoặc @tenkenh.' },
+  { key: 'botToken', label: 'Bot token (bot thông báo của OfficeHub)', kind: 'secret', placeholder: '123456789:AA…', hint: 'Lấy từ @BotFather.' },
+];
+
+/** Tab Cấu hình của trang Hệ thống: giới hạn bot (TEST-36) + cấu hình S3 / SMTP / FCM / IP văn phòng lưu trong DB (TEST-41) + Telegram đánh thức agent (TEST-42). */
 export function ConfigTab() {
   const { data, isLoading, error } = useSystemSettings();
   const by = (g: string) => data?.find((x) => x.group === g);
-  const s3 = by('s3'), smtp = by('smtp'), fcm = by('fcm'), ips = by('office_ips');
+  const s3 = by('s3'), smtp = by('smtp'), fcm = by('fcm'), ips = by('office_ips'), tg = by('telegram');
   return (
     <div className="grid gap-4">
       <AgentLimitsCard />
@@ -55,6 +61,12 @@ export function ConfigTab() {
           {fcm && <SettingsGroupCard group={fcm} icon={BellRing} fields={FCM_FIELDS}
             description="Thông báo đẩy Firebase Cloud Messaging. Trống = tắt push (chuông / email vẫn chạy). Kiểm tra = gửi dry run, không tới thiết bị nào." />}
           {ips && <OfficeIpsCard group={ips} />}
+          {tg && <SettingsGroupCard group={tg} icon={Send} fields={TELEGRAM_FIELDS} testLabel="Gửi thử"
+            description={<>
+              Đánh thức agent: khi một việc được giao cho tài khoản bot có "Bot Telegram" (Nhân viên → menu tài khoản, chỉ admin), OfficeHub gửi đúng một tin
+              vào nhóm — dòng 1 nhắc tên bot của agent, dòng 2 JSON <code className="rounded bg-muted px-1 text-xs">employee_code, project_id, task_id, task_code</code> (không có nội dung việc).
+              Phải bật <b>Bot-to-Bot Communication Mode</b> trong @BotFather cho cả bot thông báo và bot của agent, rồi thêm cả hai vào nhóm.
+            </>} />}
         </>
       )}
     </div>

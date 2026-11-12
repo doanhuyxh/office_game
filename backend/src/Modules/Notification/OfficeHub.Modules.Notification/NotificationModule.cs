@@ -29,10 +29,15 @@ public sealed class NotificationModule : IModule
         services.AddHttpClient(WebhookDispatcher.ClientName)
             .ConfigurePrimaryHttpMessageHandler(sp => WebhookDispatcher.CreateHandler(
                 allowPrivate: sp.GetRequiredService<Microsoft.Extensions.Hosting.IHostEnvironment>().EnvironmentName == "Development"));
+        // TEST-42: kênh Telegram đánh thức agent. URL Bot API chứa token → tắt log của HttpClient này.
+        services.AddHttpClient(TelegramClient.ClientName).RemoveAllLoggers();
+        services.AddSingleton<TelegramClient>();
+        services.AddScoped<ITelegramWakeup, TelegramWakeup>();
         services.AddScoped<IEmailOutbox, EmailOutbox>(); // trang Hệ thống → Vận hành
         services.AddHostedService<NotificationMigrator>(); // trước EmailDispatcher: bảng phải có trước khi worker quét
         services.AddHostedService<EmailDispatcher>();
         services.AddHostedService<WebhookDispatcher>();
+        services.AddHostedService<TelegramDispatcher>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder api)

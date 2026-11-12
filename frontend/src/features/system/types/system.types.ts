@@ -42,7 +42,7 @@ export interface IJobStatus {
 export interface IOpsReport { generatedAt: string; build: IBuildInfo; backup: IBackupStatus; email: IEmailQueue; jobs: IJobStatus[] }
 
 /** Nhóm cấu hình hệ thống (GET /api/system/settings, TEST-41). source = 'db' (lưu trên trang) | 'env' (chưa lưu, đọc .env). secrets: chỉ cho biết đã đặt chưa. */
-export type SettingsGroupKey = 's3' | 'smtp' | 'fcm' | 'office_ips';
+export type SettingsGroupKey = 's3' | 'smtp' | 'fcm' | 'office_ips' | 'telegram';
 export type SettingsValue = string | number | boolean | null | ISettingsIpRange[];
 export interface ISettingsIpRange { cidr: string; note: string | null }
 export interface ISettingsGroup {

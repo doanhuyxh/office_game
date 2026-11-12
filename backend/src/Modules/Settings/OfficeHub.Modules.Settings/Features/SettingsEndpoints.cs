@@ -114,8 +114,8 @@ internal static class SettingsEndpoints
 
     /// <summary>Thử cấu hình ĐANG CÓ HIỆU LỰC (lưu trước rồi mới kiểm tra). Luôn 200 kèm ok / thông điệp; SMTP: email nhận sai → 400 (trường <c>to</c>).</summary>
     private static async Task<Results<Ok<SettingsTestResult>, ValidationProblem, ProblemHttpResult>> TestAsync(string group, SettingsTestRequest? req,
-        HttpContext http, ClaimsPrincipal user, IFileStorage files, IEmailSender email, IPushSender push, OfficeNetwork network, RuntimeConfig runtime,
-        TimeProvider clock, CancellationToken ct)
+        HttpContext http, ClaimsPrincipal user, IFileStorage files, IEmailSender email, IPushSender push, ITelegramWakeup telegram, OfficeNetwork network,
+        RuntimeConfig runtime, TimeProvider clock, CancellationToken ct)
     {
         if (SettingsRules.Find(group) is null) return Problems.NotFound("Nhóm cấu hình");
         var to = req?.To?.Trim();
@@ -132,6 +132,7 @@ internal static class SettingsEndpoints
                 SettingsGroups.S3 => await TestS3Async(files, runtime, ct),
                 SettingsGroups.Smtp => await TestSmtpAsync(to, user, email, runtime, clock, ct),
                 SettingsGroups.Fcm => await TestFcmAsync(push, ct),
+                SettingsGroups.Telegram => await TestTelegramAsync(telegram, ct),
                 _ => TestIp(http, network, runtime),
             };
         }
@@ -165,6 +166,12 @@ internal static class SettingsEndpoints
     private static async Task<SettingsTestResult> TestFcmAsync(IPushSender push, CancellationToken ct)
     {
         var (ok, message) = await push.DryRunAsync(ct);
+        return new(ok, message);
+    }
+
+    private static async Task<SettingsTestResult> TestTelegramAsync(ITelegramWakeup telegram, CancellationToken ct)
+    {
+        var (ok, message) = await telegram.SendTestAsync(ct);
         return new(ok, message);
     }
 

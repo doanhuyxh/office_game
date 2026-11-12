@@ -100,3 +100,36 @@ public class SettingsRulesTests
         Assert.Single(s.Networks);
     }
 }
+
+public class TelegramSettingsRulesTests
+{
+    private static Validation Run(string json, Dictionary<string, string?>? secrets = null, Func<string, string?>? current = null)
+    {
+        var v = new Validation();
+        SettingsRules.Normalize(SettingsRules.Find(SettingsGroups.Telegram)!, JsonNode.Parse(json) as JsonObject, secrets, null, current ?? (_ => null), v);
+        return v;
+    }
+
+    [Fact]
+    public void Disabled_can_be_empty() => Assert.False(Run("""{"enabled":false}""").Failed);
+
+    [Fact]
+    public void Enabled_requires_chat_and_token()
+    {
+        var v = Run("""{"enabled":true}""");
+        Assert.True(v.Has("chatId"));
+        Assert.True(v.Has("botToken"));
+    }
+
+    [Fact]
+    public void Bad_formats_rejected()
+    {
+        var v = Run("""{"enabled":false,"chatId":"nhom abc"}""", new() { ["botToken"] = "khong-dung" });
+        Assert.True(v.Has("chatId"));
+        Assert.True(v.Has("botToken"));
+    }
+
+    [Fact]
+    public void Enabled_with_stored_token_ok() =>
+        Assert.False(Run("""{"enabled":true,"chatId":"-1001234567890"}""", current: _ => "123456789:AAH-abcdefghijklmnopqrstuvwxyz012345").Failed);
+}

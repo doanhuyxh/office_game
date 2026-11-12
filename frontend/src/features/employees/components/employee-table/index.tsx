@@ -23,7 +23,9 @@ import { downloadUrl } from '@/utils/money';
 import { employeesApi, orgKeys } from '../../api/org.api';
 import {
   useDepartments, useEmployeesPage, useReactivateEmployee, useResendInvite, useResetAccountPassword, useResetTwoFactor, useResignEmployee, useSetBot,
+  useSetTelegramBot,
 } from '../../hooks/useOrg';
+import { promptDialog } from '@/components/common/confirm-dialog';
 import { hasRole, useMe } from '@/features/auth';
 import type { IEmployee } from '../../types/employee.types';
 import { ROLE_LABEL, STATUS_LABEL, STATUS_VARIANT } from '../../utils/labels';
@@ -94,6 +96,7 @@ export function EmployeeTable({ canEdit, resigned = false }: { canEdit: boolean;
   const resetPw = useResetAccountPassword();
   const reset2fa = useResetTwoFactor();
   const setBot = useSetBot();
+  const setTelegram = useSetTelegramBot();
   const { data: me } = useMe();
   const isAdmin = hasRole(me, 'admin');
 
@@ -228,6 +231,7 @@ export function EmployeeTable({ canEdit, resigned = false }: { canEdit: boolean;
                         {e.account.userName} · {e.account.roles.filter((r) => r !== 'employee').map((r) => ROLE_LABEL[r] ?? r).join(', ') || 'Nhân viên'}
                         {e.account.twoFactorEnabled && ' · 2FA'}
                         {e.account.isBot && ' · Bot'}
+                        {e.account.telegramBot && ` · Telegram ${e.account.telegramBot}`}
                       </div>
                     )}
                   </TableCell>
@@ -271,6 +275,21 @@ export function EmployeeTable({ canEdit, resigned = false }: { canEdit: boolean;
                                 onError,
                               })}>
                                 {e.account.isBot ? 'Bỏ đánh dấu bot' : 'Đánh dấu là bot (AI)'}
+                              </DropdownMenuItem>
+                            )}
+                            {isAdmin && e.account?.isBot && (
+                              <DropdownMenuItem onClick={async () => {
+                                const v = await promptDialog({
+                                  title: 'Bot Telegram của agent',
+                                  description: 'Giao việc cho tài khoản bot này → OfficeHub gửi tin đánh thức vào nhóm Telegram, nhắc tên bot. Để trống = gỡ.',
+                                  label: 'Username bot', placeholder: '@agent_dev01_bot', initial: e.account?.telegramBot ?? '', confirmText: 'Lưu',
+                                });
+                                if (v === null) return;
+                                setTelegram.mutate({ id: e.id, telegramBot: v.trim() || null }, {
+                                  onSuccess: () => toast.success(v.trim() ? 'Đã gắn bot Telegram' : 'Đã gỡ bot Telegram'), onError,
+                                });
+                              }}>
+                                Bot Telegram…
                               </DropdownMenuItem>
                             )}
                           </>

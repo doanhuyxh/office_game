@@ -12,6 +12,7 @@ public sealed class NotificationDbContext(DbContextOptions<NotificationDbContext
     public DbSet<Domain.NotificationPreference> Preferences => Set<Domain.NotificationPreference>();
     public DbSet<Domain.Webhook> Webhooks => Set<Domain.Webhook>();
     public DbSet<Domain.WebhookDelivery> WebhookDeliveries => Set<Domain.WebhookDelivery>();
+    public DbSet<Domain.TelegramMessage> TelegramMessages => Set<Domain.TelegramMessage>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -55,6 +56,17 @@ public sealed class NotificationDbContext(DbContextOptions<NotificationDbContext
             e.Property(x => x.Error).HasMaxLength(500);
             e.HasIndex(x => x.NextAttemptAt).HasFilter("\"Status\" = 'Pending'").HasDatabaseName("ix_webhook_deliveries_due");
             e.HasIndex(x => new { x.UserId, x.CreatedAt }).HasDatabaseName("ix_webhook_deliveries_user");
+        });
+        b.Entity<Domain.TelegramMessage>(e =>
+        {
+            e.ToTable("telegram_messages");
+            e.Property(x => x.Kind).HasMaxLength(40);
+            e.Property(x => x.ChatId).HasMaxLength(40);
+            e.Property(x => x.Text).HasMaxLength(4096);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Error).HasMaxLength(500);
+            e.HasIndex(x => x.NextAttemptAt).HasFilter("\"Status\" = 'Pending'").HasDatabaseName("ix_telegram_messages_due");
+            e.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_telegram_messages_created");
         });
         b.Entity<Domain.PushToken>(e =>
         {

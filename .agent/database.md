@@ -11,7 +11,9 @@
 - Enum lưu dạng **chuỗi** (`HasConversion<string>()`).
 - Id: `Guid.CreateVersion7()` (UUID v7, sắp theo thời gian).
 
-## Schema `identity` — `OfficeIdentityDbContext` (migration `InitialIdentity`, `AccessTokens`, `OAuth`, `UserAvatars`, `AttemptCounters`, `PasswordResetRequests`)
+## Schema `identity` — `OfficeIdentityDbContext` (migration `InitialIdentity`, `AccessTokens`, `OAuth`, `UserAvatars`, `AttemptCounters`, `PasswordResetRequests`, `UserTelegramBot`)
+
+`UserTelegramBot` (TEST-42): `users.TelegramBot` varchar 64 ("@…bot" chữ thường, unique `ux_users_telegram_bot` khi khác null) — [business/notifications-telegram.md](business/notifications-telegram.md).
 
 Bảng ASP.NET Identity đổi tên: `users`, `roles`, `user_roles`, `user_claims`, `user_logins`, `user_tokens`, `role_claims`. 2FA dùng sẵn `users.TwoFactorEnabled` + `user_tokens` (`[AspNetUserStore]` / `AuthenticatorKey`, `RecoveryCodes`) — không thêm bảng ([business/auth-2fa.md](business/auth-2fa.md)).
 
@@ -62,7 +64,7 @@ Quy tắc ghi:
 
 ## Schema `approval`, `leave`, `notifications`
 
-Xem [database-workflow.md](database-workflow.md) (đơn, duyệt, nghỉ phép, thông báo, hợp đồng + mẫu Word, phòng họp).
+Xem [database-workflow.md](database-workflow.md) (đơn, duyệt, nghỉ phép, thông báo, hợp đồng + mẫu Word, phòng họp). `notifications.telegram_messages` (migration `TelegramMessages`, TEST-42): hàng đợi tin Telegram (`Kind`, `ChatId`, `Text` ≤ 4096, `UserId?`, `TaskId?`, `Status` Pending / Sent / Failed, `Attempts`, `NextAttemptAt`, `SentAt`, `ResponseStatus`, `Error` ≤ 500; index lọc `ix_telegram_messages_due`, `ix_telegram_messages_created`; giữ 30 ngày) — [business/notifications-telegram.md](business/notifications-telegram.md).
 
 ## Dữ liệu seed khi khởi động
 
@@ -104,7 +106,7 @@ Bảng tin nội bộ: `posts` (`Seq` identity = con trỏ feed, `ContentHtml` �
 
 ## Schema `settings` — `SettingsDbContext` (migration `InitialSettings`, TEST-41)
 
-`system_settings`: một dòng / nhóm cấu hình (PK `Group` = `s3` / `smtp` / `fcm` / `office_ips`), `Name`, `ValuesJson` (jsonb, trường thường khoá camelCase), `SecretsEncrypted` (JSON {khoá: giá trị} của trường bí mật, `IFieldEncryptor` — job xoay khoá có khai báo cột), `UpdatedAt`, `UpdatedById`, `UpdatedByName`; `[Audited]` (bí mật chỉ ghi "đã đổi"). **Có dòng = dùng DB, không có = `.env`.** Đọc qua `RuntimeConfig` (BuildingBlocks, cache 30 giây, lưu / xoá → xoá cache). Module `OfficeHub.Modules.Settings`; API ở [routes.md](routes.md).
+`system_settings`: một dòng / nhóm cấu hình (PK `Group` = `s3` / `smtp` / `fcm` / `office_ips` / `telegram`), `Name`, `ValuesJson` (jsonb, trường thường khoá camelCase), `SecretsEncrypted` (JSON {khoá: giá trị} của trường bí mật, `IFieldEncryptor` — job xoay khoá có khai báo cột), `UpdatedAt`, `UpdatedById`, `UpdatedByName`; `[Audited]` (bí mật chỉ ghi "đã đổi"). **Có dòng = dùng DB, không có = `.env`.** Đọc qua `RuntimeConfig` (BuildingBlocks, cache 30 giây, lưu / xoá → xoá cache). Module `OfficeHub.Modules.Settings`; API ở [routes.md](routes.md).
 
 ## Schema `audit`, `meetings`, …
 

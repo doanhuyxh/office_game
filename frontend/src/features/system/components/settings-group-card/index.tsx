@@ -23,8 +23,8 @@ export interface ISettingsField {
 }
 
 /** Card cấu hình dạng danh sách ô (S3, SMTP, FCM) — sinh form từ `fields`. */
-export function SettingsGroupCard({ group, icon, description, fields }: {
-  group: ISettingsGroup; icon: LucideIcon; description: ReactNode; fields: ISettingsField[];
+export function SettingsGroupCard({ group, icon, description, fields, testLabel }: {
+  group: ISettingsGroup; icon: LucideIcon; description: ReactNode; fields: ISettingsField[]; testLabel?: string;
 }) {
   const [values, setValues] = useState<Record<string, SettingsValue>>(group.values);
   const [secrets, setSecrets] = useState<Record<string, string>>({});
@@ -34,7 +34,7 @@ export function SettingsGroupCard({ group, icon, description, fields }: {
   const set = (k: string, v: SettingsValue) => setValues((x) => ({ ...x, [k]: v }));
   const id = (k: string) => `settings-${group.group}-${k}`;
   return (
-    <SettingsCardShell group={group} icon={icon} description={description} dirty={dirty}
+    <SettingsCardShell group={group} icon={icon} description={description} dirty={dirty} testLabel={testLabel}
       build={() => ({ values, secrets: Object.fromEntries(Object.entries(secrets).filter(([, s]) => s.trim())), clearSecrets: clear })}
       onSaved={() => { setSecrets({}); setClear([]); }}>
       {(errors) => (

@@ -139,6 +139,19 @@ internal sealed class AccountService(
         return true;
     }
 
+    public async Task<TelegramBotResult> SetTelegramBotAsync(Guid userId, string? username, CancellationToken ct = default)
+    {
+        var user = await users.FindByIdAsync(userId.ToString());
+        if (user is null) return TelegramBotResult.NotFound;
+        if (username is not null && !user.IsBot) return TelegramBotResult.NotBot;
+        if (username is not null && await users.Users.AnyAsync(u => u.Id != userId && u.TelegramBot == username, ct))
+            return TelegramBotResult.Duplicate;
+        if (user.TelegramBot == username) return TelegramBotResult.Ok;
+        user.TelegramBot = username;
+        await users.UpdateAsync(user);
+        return TelegramBotResult.Ok;
+    }
+
     public async Task<AccountInfo?> GetAsync(Guid userId, CancellationToken ct = default) =>
         (await GetManyAsync([userId], ct)).GetValueOrDefault(userId);
 
@@ -151,7 +164,7 @@ internal sealed class AccountService(
         {
             var roles = await users.GetRolesAsync(u);
             result[u.Id] = new AccountInfo(u.Id, u.UserName!, u.Email, [.. roles], u.IsActive, u.MustChangePassword,
-                InvitePending: u.PasswordHash is null, u.LastLoginAt, u.FullName, u.TwoFactorEnabled, u.IsBot);
+                InvitePending: u.PasswordHash is null, u.LastLoginAt, u.FullName, u.TwoFactorEnabled, u.IsBot, u.TelegramBot);
         }
         return result;
     }

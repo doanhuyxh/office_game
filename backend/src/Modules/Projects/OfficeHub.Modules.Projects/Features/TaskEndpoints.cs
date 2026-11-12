@@ -168,10 +168,13 @@ internal static class TaskEndpoints
         employeeId is { } id ? (await dir.GetAsync(id, ct))?.UserId : null;
 
     /// <returns>Tài khoản đã nhận chuông (null = không gửi).</returns>
-    private static async Task<Guid?> NotifyAssignedAsync(INotifier notifier, IEmployeeDirectory dir, Project p, TaskItem t, ProjectViewer v, CancellationToken ct)
+    private static async Task<Guid?> NotifyAssignedAsync(INotifier notifier, IEmployeeDirectory dir, ITelegramWakeup telegram, Project p, TaskItem t, ProjectViewer v,
+        CancellationToken ct)
     {
         if (t.AssigneeEmployeeId is not { } a || a == v.Employee?.Id) return null;
-        if (await UserOfAsync(dir, a, ct) is not { } uid) return null;
+        if (await dir.GetAsync(a, ct) is not { UserId: { } uid } emp) return null;
+        // TEST-42: tài khoản bot có bot Telegram → một tin đánh thức vào nhóm (Notification tự kiểm tra kênh bật / IsBot / username).
+        await telegram.TaskAssignedAsync(uid, emp.Code, p.Id, t.Id, EffortRules.TaskCode(p.Code, t.Number), ct);
         await notifier.NotifyAsync(new NotificationRequest([uid], NotificationCategories.ProjectTask, $"Bạn được giao việc {EffortRules.TaskCode(p.Code, t.Number)}: {t.Title}",
             $"{v.Name} giao trong dự án {p.Name}{(t.DueOn is { } d ? $", hạn {d:dd/MM/yyyy}" : "")}.", $"/projects/{p.Id}", SendEmail: false), ct);
         return uid;
@@ -232,7 +235,7 @@ internal static class TaskEndpoints
     }
 
     private static async Task<Results<Created<Guid>, NotFound, ValidationProblem, ProblemHttpResult>> CreateAsync(Guid id, UpsertTask r, ClaimsPrincipal user,
-        ProjectsDbContext db, ProjectAccess access, IEmployeeDirectory dir, INotifier notifier, ProjectClock clock, CancellationToken ct)
+        ProjectsDbContext db, ProjectAccess access, IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, ProjectClock clock, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var p = await db.Projects.AsNoTracking().Include(x => x.Members).FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -271,7 +274,7 @@ internal static class TaskEndpoints
             db.Activities.Add(created);
             try { await db.SaveChangesAsync(ct); }
             catch (DbUpdateException) when (attempt < 3) { db.Tasks.Remove(t); db.Activities.Remove(created); continue; } // hai người tạo cùng lúc → số trùng, thử số kế
-            var assigned = await NotifyAssignedAsync(notifier, dir, p, t, v, ct);
+            var assigned = await NotifyAssignedAsync(notifier, dir, telegram, p, t, v, ct);
             await NotifyMembersAsync(notifier, access, p, v, assigned is { } au ? [au] : [], $"Việc mới {EffortRules.TaskCode(p.Code, t.Number)}: {t.Title}",
                 $"{v.Name} tạo trong dự án {p.Name} (\"{column.Name}\").", ct);
             return TypedResults.Created($"/api/projects/tasks/{t.Id}", t.Id);
@@ -306,7 +309,7 @@ internal static class TaskEndpoints
     }
 
     private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> UpdateAsync(Guid tid, UpsertTask r, ClaimsPrincipal user, ProjectsDbContext db,
-        ProjectAccess access, IEmployeeDirectory dir, INotifier notifier, ProjectClock clock, CancellationToken ct)
+        ProjectAccess access, IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, ProjectClock clock, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var (t, p) = await LoadAsync(tid, db, ct);
@@ -338,7 +341,7 @@ internal static class TaskEndpoints
         t.DueOn = r.DueOn; t.EstimateDays = r.EstimateDays; t.MediaLinks = links;
         await db.SaveChangesAsync(ct);
         var notified = new List<Guid>();
-        if (reassigned && await NotifyAssignedAsync(notifier, dir, p, t, v, ct) is { } au) notified.Add(au);
+        if (reassigned && await NotifyAssignedAsync(notifier, dir, telegram, p, t, v, ct) is { } au) notified.Add(au);
         var note = ProjectEndpoints.Clean(r.Note);
         notified.AddRange(await NotifyMovedAsync(notifier, dir, p, t, cols, from, note, v, ct));
         await NotifyMembersMovedAsync(notifier, access, p, t, cols, from, note, v, notified, ct);

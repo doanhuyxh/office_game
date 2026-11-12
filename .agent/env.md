@@ -61,6 +61,7 @@ Admin sửa **S3 (file nghiệp vụ), SMTP, FCM, IP văn phòng** ở trang H�
 | `smtp` | `Smtp__*` | — |
 | `fcm` | `Firebase__CredentialsPath` (DB lưu nội dung service account JSON + project id) | `VITE_FIREBASE_*` của FE |
 | `office_ips` | `Office__IpRanges` (DB thêm ghi chú từng dải; nhận IP đơn → /32, CIDR có bit host bị từ chối) | — |
+| `telegram` | — (chỉ cấu hình trên trang: bật / tắt, chat id, bot token — [business/notifications-telegram.md](business/notifications-telegram.md)) | `Telegram__ApiUrl` (tuỳ chọn, mặc định `https://api.telegram.org`; chỉ đổi khi test với máy chủ giả) |
 
 Bí mật (secret key S3, mật khẩu SMTP, service account) mã hoá bằng `Encryption__Key` — mất khoá này thì phải nhập lại cấu hình. Realtime / Mcp không dùng các nhóm này (chỉ `.env`).
 

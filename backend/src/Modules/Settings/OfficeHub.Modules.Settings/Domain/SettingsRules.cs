@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.BuildingBlocks.Http;
+using OfficeHub.Modules.Notification.Contracts;
 
 namespace OfficeHub.Modules.Settings.Domain;
 
@@ -20,6 +21,7 @@ public static class SettingsRules
         new(SettingsGroups.Smtp, "Gửi mail (SMTP)", ["password"]),
         new(SettingsGroups.Fcm, "Thông báo đẩy (FCM)", ["serviceAccountJson"]),
         new(SettingsGroups.OfficeIps, "IP văn phòng", []),
+        new(SettingsGroups.Telegram, "Telegram (đánh thức agent)", ["botToken"]),
     ];
 
     public static SettingsGroupDef? Find(string group) => Groups.FirstOrDefault(g => g.Group == group);
@@ -44,6 +46,7 @@ public static class SettingsRules
             SettingsGroups.Smtp => Smtp(input, v),
             SettingsGroups.Fcm => Fcm(input, secrets, v),
             SettingsGroups.OfficeIps => OfficeIps(input, v),
+            SettingsGroups.Telegram => Telegram(input, secrets, v),
             _ => [],
         };
         return new(values, secrets);
@@ -108,6 +111,20 @@ public static class SettingsRules
         projectId ??= jsonProject;
         v.MaxLength(projectId, 100, "projectId", "Project ID");
         return new() { ["projectId"] = projectId };
+    }
+
+    /// <summary>Bật thì bắt buộc chat id + bot token đúng dạng; tắt thì được để trống (lưu sẵn để bật sau).</summary>
+    private static JsonObject Telegram(JsonObject i, Dictionary<string, string> secrets, Validation v)
+    {
+        var enabled = Bool(i, "enabled") ?? false;
+        var chatId = Str(i, "chatId");
+        if (chatId is not null && !TelegramRules.ChatId().IsMatch(chatId))
+            v.Add("chatId", "Chat id là số (nhóm dạng -100…) hoặc @tenkenh");
+        else if (enabled && chatId is null) v.Add("chatId", "Bật kênh thì phải có chat id");
+        if (secrets.TryGetValue("botToken", out var token) && !TelegramRules.BotToken().IsMatch(token))
+            v.Add("botToken", "Bot token dạng 123456789:AA… (lấy từ @BotFather)");
+        else if (enabled && token is null) v.Add("botToken", "Bật kênh thì phải có bot token");
+        return new() { ["enabled"] = enabled, ["chatId"] = chatId };
     }
 
     private static JsonObject OfficeIps(JsonObject i, Validation v)

@@ -14,10 +14,10 @@ public sealed record EmployeeListItem(
 
 /// <summary>Tóm tắt tài khoản đăng nhập (chỉ HR / chính chủ thấy).</summary>
 public sealed record AccountSummary(string UserName, IReadOnlyList<string> Roles, bool IsActive, bool MustChangePassword,
-    bool InvitePending, DateTimeOffset? LastLoginAt, bool TwoFactorEnabled = false, bool IsBot = false)
+    bool InvitePending, DateTimeOffset? LastLoginAt, bool TwoFactorEnabled = false, bool IsBot = false, string? TelegramBot = null)
 {
     public static AccountSummary From(AccountInfo a) =>
-        new(a.UserName, a.Roles, a.IsActive, a.MustChangePassword, a.InvitePending, a.LastLoginAt, a.TwoFactorEnabled, a.IsBot);
+        new(a.UserName, a.Roles, a.IsActive, a.MustChangePassword, a.InvitePending, a.LastLoginAt, a.TwoFactorEnabled, a.IsBot, a.TelegramBot);
 }
 
 public sealed record EmployeeDetail(EmployeeListItem Employee, DateOnly? DateOfBirth, string? Note, int SubordinateCount);
@@ -35,6 +35,9 @@ public sealed record SetRolesRequest(string[] Roles);
 
 /// <summary>true = tài khoản do bot vận hành (hiện trong văn phòng 3D khi gọi MCP).</summary>
 public sealed record SetBotRequest(bool IsBot);
+
+/// <summary>Username bot Telegram của agent (vd "@agent_dev01_bot"); trống / null = xoá (TEST-42).</summary>
+public sealed record SetTelegramBotRequest(string? TelegramBot);
 
 /// <summary>Trả về mật khẩu tạm MỘT LẦN để HR đưa cho nhân viên (không lưu ở đâu khác).</summary>
 public sealed record AccountCreatedResponse(Guid UserId, string UserName, string? TempPassword, bool InviteSent);

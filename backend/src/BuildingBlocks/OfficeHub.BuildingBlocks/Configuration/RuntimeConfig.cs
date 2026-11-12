@@ -11,8 +11,8 @@ namespace OfficeHub.BuildingBlocks.Configuration;
 /// <summary>Nhóm cấu hình hệ thống admin sửa được trên trang Hệ thống → Cấu hình (TEST-41). Tên = khoá dòng trong <c>settings.system_settings</c>.</summary>
 public static class SettingsGroups
 {
-    public const string S3 = "s3", Smtp = "smtp", Fcm = "fcm", OfficeIps = "office_ips";
-    public static readonly string[] All = [S3, Smtp, Fcm, OfficeIps];
+    public const string S3 = "s3", Smtp = "smtp", Fcm = "fcm", OfficeIps = "office_ips", Telegram = "telegram";
+    public static readonly string[] All = [S3, Smtp, Fcm, OfficeIps, Telegram];
 }
 
 /// <summary>
@@ -37,6 +37,16 @@ public sealed class FcmSettings
 }
 
 public sealed record OfficeIpRange(string Cidr, string? Note);
+
+/// <summary>Kênh Telegram đánh thức agent (TEST-42) — chỉ cấu hình trên trang (không có biến .env).</summary>
+public sealed class TelegramSettings
+{
+    public bool Enabled { get; init; }
+    public string? ChatId { get; init; }
+    public string? BotToken { get; init; }
+    /// <summary>Đủ để gửi: bật + có chat id + có token.</summary>
+    public bool Ready => Enabled && !string.IsNullOrWhiteSpace(ChatId) && !string.IsNullOrWhiteSpace(BotToken);
+}
 
 /// <summary>Dải IP văn phòng đã phân tích (một đối tượng mới mỗi khi cấu hình đổi).</summary>
 public sealed class OfficeIpSettings(IReadOnlyList<OfficeIpRange> ranges)
@@ -72,7 +82,8 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
 {
     public static readonly TimeSpan CacheFor = TimeSpan.FromSeconds(30);
 
-    private sealed record Snapshot(IReadOnlyDictionary<string, StoredSettingsGroup> Groups, S3Settings S3, SmtpSettings Smtp, FcmSettings Fcm, OfficeIpSettings OfficeIps);
+    private sealed record Snapshot(IReadOnlyDictionary<string, StoredSettingsGroup> Groups, S3Settings S3, SmtpSettings Smtp, FcmSettings Fcm, OfficeIpSettings OfficeIps,
+        TelegramSettings Telegram);
 
     private readonly Lock _gate = new();
     private Snapshot? _snap;
@@ -84,6 +95,7 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
     public SmtpSettings Smtp => Current.Smtp;
     public FcmSettings Fcm => Current.Fcm;
     public OfficeIpSettings OfficeIps => Current.OfficeIps;
+    public TelegramSettings Telegram => Current.Telegram;
 
     /// <summary>Nhóm đang lấy từ DB (null = .env).</summary>
     public StoredSettingsGroup? Stored(string group) => Current.Groups.GetValueOrDefault(group);
@@ -98,6 +110,7 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
         SettingsGroups.Smtp => SmtpValues(smtpEnv.Value),
         SettingsGroups.Fcm => new JsonObject { ["projectId"] = null, ["credentialsPath"] = config["Firebase:CredentialsPath"] },
         SettingsGroups.OfficeIps => IpValues(ParseEnvIps(officeEnv.Value.IpRanges)),
+        SettingsGroups.Telegram => new JsonObject { ["enabled"] = false, ["chatId"] = null },
         _ => [],
     };
 
@@ -155,7 +168,11 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
         var fcm = Same(SettingsGroups.Fcm) ? prev!.Fcm : groups.TryGetValue(SettingsGroups.Fcm, out var c) ? FcmFrom(c) : FcmEnv();
         var ips = Same(SettingsGroups.OfficeIps) ? prev!.OfficeIps : new OfficeIpSettings(groups.TryGetValue(SettingsGroups.OfficeIps, out var d)
             ? IpsFrom(d.Values) : ParseEnvIps(officeEnv.Value.IpRanges));
-        return new Snapshot(groups, s3, smtp, fcm, ips);
+        var tg = Same(SettingsGroups.Telegram) ? prev!.Telegram : groups.TryGetValue(SettingsGroups.Telegram, out var t) ? new TelegramSettings
+        {
+            Enabled = Bool(t.Values, "enabled") ?? false, ChatId = Str(t.Values, "chatId"), BotToken = t.Secrets.GetValueOrDefault("botToken"),
+        } : new TelegramSettings();
+        return new Snapshot(groups, s3, smtp, fcm, ips, tg);
     }
 
     private FcmSettings FcmEnv()

@@ -4,6 +4,8 @@
 
 Ba kênh: **chuông trong app** + **email** (chốt 2026-11-05) + **push FCM** (chốt 2026-11-08, Firebase Cloud Messaging). Module khác gửi qua `INotifier.NotifyAsync(NotificationRequest)` (project `Notification.Contracts`) với **Id tài khoản** nhận (admin không có hồ sơ nhân viên vẫn nhận được). Schema `notifications`: [database.md](../database.md).
 
+> Kênh Telegram đánh thức agent (giao việc cho bot): [notifications-telegram.md](notifications-telegram.md).
+
 ## Push (FCM)
 
 `IPushSender.PushAsync` (project `Notification.Contracts`) — best-effort, không ghi bảng `notifications`, không bao giờ ném lỗi; tắt hoàn toàn nếu thiếu `Firebase__CredentialsPath` ([env.md](../env.md)). `Notifier.NotifyAsync` tự gọi sau khi lưu chuông/email, nên **mọi** category hiện có (phê duyệt, nghỉ phép, tài sản, hợp đồng, 2FA, Bảng tin…) tự có push — không cần sửa module gọi `INotifier`. Chat gọi `IPushSender` trực tiếp (không qua `INotifier`, vì chủ động không tạo chuông/email — [chat.md](chat.md)).

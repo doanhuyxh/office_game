@@ -91,7 +91,7 @@ ok('Chưa đăng nhập → 401', (await call({}, 'GET', '/api/system/settings')
 // ---- Đọc ----
 let r = await json(admin, 'GET', '/api/system/settings');
 const groups = r.body as any[];
-ok('GET 4 nhóm, đều đang đọc .env', r.status === 200 && groups.length === 4 && groups.every((g) => g.source === 'env'), r.body);
+ok('GET 5 nhóm (s3, smtp, fcm, office_ips, telegram), đều đang đọc .env', r.status === 200 && groups.length === 5 && groups.every((g) => g.source === 'env'), r.body);
 const s3env = groups.find((g) => g.group === 's3');
 ok('S3 .env: có region / bucket, secretKey chỉ là cờ true', !!s3env.values.region && !!s3env.values.bucketFiles && s3env.secrets.secretKey === true
   && !('secretKey' in s3env.values), s3env);
