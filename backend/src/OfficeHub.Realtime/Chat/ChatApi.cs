@@ -43,7 +43,7 @@ public sealed class ChatApi(IHttpClientFactory http, IOptions<ChatSettings> sett
         {
             Content = JsonContent.Create(new { userId = id }, options: Json),
         };
-        req.Headers.Add(KeyHeader, settings.Value.InternalKey);
+        req.Headers.Add(KeyHeader, settings.Value.RealtimeApiKey); // TEST-29: khoá chiều Realtime → Api
         using var res = await DoAsync(req, ct);
         if (!res.IsSuccessStatusCode) throw await ErrorAsync(res, ct);
     }

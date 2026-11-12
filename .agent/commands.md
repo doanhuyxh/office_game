@@ -61,7 +61,7 @@ DbContext hiện có: `OfficeIdentityDbContext`, `OrgDbContext`, `AttendanceDbCo
 
 ## Biến môi trường
 
-Bảng đầy đủ: [env.md](env.md). Dev cần `Chat__InternalKey` trong `.env` (Api và Realtime cùng giá trị; `openssl rand -base64 32`).
+Bảng đầy đủ: [env.md](env.md). Dev cần `Chat__InternalKey` trong `.env` (Api và Realtime cùng giá trị; `openssl rand -base64 32`). Tuỳ chọn tách theo chiều gọi: `Chat__McpToRealtimeKey`, `Chat__RealtimeToApiKey` ([env.md](env.md)).
 
 ## Địa chỉ dev
 

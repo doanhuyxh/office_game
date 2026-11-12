@@ -64,7 +64,7 @@ public static class BotScreenEndpoints
     private static async Task<IResult> PresentAsync(BotScreenRequest body, HttpRequest http, IOptions<ChatSettings> settings, BotPresence bots, BotScreens shows,
         RoomScreens screens, Presence presence, OfficeMap map, IHubContext<OfficeRoomHub, IOfficeClient> hub, TimeProvider clock)
     {
-        if (!BotActivityRoute.KeyMatches(http.Headers[BotActivityRoute.KeyHeader].ToString(), settings.Value.InternalKey))
+        if (!BotActivityRoute.KeyMatches(http.Headers[BotActivityRoute.KeyHeader].ToString(), settings.Value.McpRealtimeKey))
             return Problem("Khoá nội bộ không đúng", 401);
         var a = body?.Activity;
         if (a is null || a.UserId == Guid.Empty || string.IsNullOrWhiteSpace(a.Name) || body!.Mode is not ("frame" or "markdown" or "document" or "stop"))

@@ -84,11 +84,31 @@ public sealed class EncryptionSettings
 /// Khoá nội bộ giữa OfficeHub.Realtime và OfficeHub.Api cho module Chat (Realtime báo "người này vừa vào phòng X" để cấp quyền xem kênh phòng;
 /// chỉ Realtime biết vị trí thật trong văn phòng 3D). Gửi qua header <c>X-Chat-Key</c>; tối thiểu 32 ký tự (<c>openssl rand -base64 32</c>).
 /// </summary>
-public sealed class ChatSettings
+public sealed class ChatSettings : IValidatableObject
 {
     public const string Section = "Chat";
     [Required(ErrorMessage = "Thiếu Chat__InternalKey trong .env"), MinLength(32, ErrorMessage = "Chat__InternalKey phải dài tối thiểu 32 ký tự (openssl rand -base64 32)")]
     public string InternalKey { get; set; } = "";
+    /// <summary>
+    /// TEST-29 (tuỳ chọn): khoá riêng cho từng chiều gọi — lộ một khoá không mở được chiều còn lại. Trống → dùng <see cref="InternalKey"/>.
+    /// <c>Chat__McpToRealtimeKey</c>: OfficeHub.Mcp → Realtime (<c>/rt/internal/*</c>: bot hiện diện, đi bộ, chiếu, chuyển tin chat).
+    /// </summary>
+    public string? McpToRealtimeKey { get; set; }
+    /// <summary><c>Chat__RealtimeToApiKey</c>: Realtime → Api (<c>/api/chat/internal/*</c>: cấp quyền kênh chat phòng). Trống → <see cref="InternalKey"/>.</summary>
+    public string? RealtimeToApiKey { get; set; }
+
+    /// <summary>Khoá thực dùng cho chiều Mcp → Realtime.</summary>
+    public string McpRealtimeKey => string.IsNullOrWhiteSpace(McpToRealtimeKey) ? InternalKey : McpToRealtimeKey.Trim();
+    /// <summary>Khoá thực dùng cho chiều Realtime → Api.</summary>
+    public string RealtimeApiKey => string.IsNullOrWhiteSpace(RealtimeToApiKey) ? InternalKey : RealtimeToApiKey.Trim();
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext context)
+    {
+        if (!string.IsNullOrWhiteSpace(McpToRealtimeKey) && McpToRealtimeKey.Trim().Length < 32)
+            yield return new("Chat__McpToRealtimeKey phải dài tối thiểu 32 ký tự (hoặc để trống = dùng Chat__InternalKey)", [nameof(McpToRealtimeKey)]);
+        if (!string.IsNullOrWhiteSpace(RealtimeToApiKey) && RealtimeToApiKey.Trim().Length < 32)
+            yield return new("Chat__RealtimeToApiKey phải dài tối thiểu 32 ký tự (hoặc để trống = dùng Chat__InternalKey)", [nameof(RealtimeToApiKey)]);
+    }
 }
 
 public sealed class SmtpSettings

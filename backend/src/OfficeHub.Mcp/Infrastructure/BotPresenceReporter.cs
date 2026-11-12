@@ -36,7 +36,7 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
     /// <summary>Gọi từ call-tool filter; trả ngay (không chờ). Header Authorization phải đọc trước khi request kết thúc.</summary>
     public void Report(string? authorization, string? clientIp, string? tool, IDictionary<string, JsonElement>? args)
     {
-        if (string.IsNullOrEmpty(authorization) || string.IsNullOrEmpty(tool) || string.IsNullOrEmpty(chat.Value.InternalKey)) return;
+        if (string.IsNullOrEmpty(authorization) || string.IsNullOrEmpty(tool) || string.IsNullOrEmpty(chat.Value.McpRealtimeKey)) return;
         var activity = Describe(tool, args);
         _ = Task.Run(async () =>
         {
@@ -47,7 +47,7 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
                 {
                     Content = JsonContent.Create(new BotActivity(caller.UserId, caller.Name, caller.Look, caller.Zone, activity), options: OfficeHubApi.Json),
                 };
-                req.Headers.Add(BotActivityRoute.KeyHeader, chat.Value.InternalKey);
+                req.Headers.Add(BotActivityRoute.KeyHeader, chat.Value.McpRealtimeKey);
                 using var res = await http.CreateClient(RealtimeClientName).SendAsync(req);
                 if (!res.IsSuccessStatusCode) log.LogWarning("Báo bot online cho Realtime: {Status}", (int)res.StatusCode);
             }

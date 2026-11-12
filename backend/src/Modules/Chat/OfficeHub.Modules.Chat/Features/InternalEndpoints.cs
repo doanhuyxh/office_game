@@ -14,7 +14,7 @@ using OfficeHub.Modules.Chat.Infrastructure;
 namespace OfficeHub.Modules.Chat.Features;
 
 /// <summary>
-/// Đường nội bộ Realtime → Api, KHÔNG dùng cookie mà dùng khoá chung <c>Chat__InternalKey</c> (header X-Chat-Key):
+/// Đường nội bộ Realtime → Api, KHÔNG dùng cookie mà dùng khoá <c>Chat__RealtimeToApiKey</c> (trống = <c>Chat__InternalKey</c>, header X-Chat-Key):
 /// chỉ Realtime biết người này đang đứng trong phòng nào ở văn phòng 3D nên chỉ Realtime được cấp quyền xem kênh phòng.
 /// </summary>
 public static class InternalEndpoints
@@ -26,7 +26,7 @@ public static class InternalEndpoints
     private static async Task<Results<NoContent, ProblemHttpResult, ValidationProblem>> JoinRoomAsync(string roomId, JoinRoomRequest req,
         HttpRequest http, IOptions<ChatSettings> settings, ChatDbContext db, ChatRooms rooms, TimeProvider clock, CancellationToken ct)
     {
-        if (!KeyMatches(http.Headers[KeyHeader].ToString(), settings.Value.InternalKey))
+        if (!KeyMatches(http.Headers[KeyHeader].ToString(), settings.Value.RealtimeApiKey))
             return TypedResults.Problem("Khoá nội bộ không đúng", statusCode: StatusCodes.Status401Unauthorized);
         if (req.UserId == Guid.Empty) return new Validation().Add("userId", "Thiếu userId").Problem();
         if (rooms.Find(roomId) is null) return Problems.NotFound("phòng");

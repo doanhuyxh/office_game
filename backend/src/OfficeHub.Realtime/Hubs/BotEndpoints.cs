@@ -7,7 +7,7 @@ using OfficeHub.Realtime.Simulation;
 namespace OfficeHub.Realtime.Hubs;
 
 /// <summary>
-/// Bot trong văn phòng 3D: OfficeHub.Mcp báo "tài khoản bot vừa gọi tool" (khoá chung <c>Chat__InternalKey</c>) → hiện / cập nhật bot;
+/// Bot trong văn phòng 3D: OfficeHub.Mcp báo "tài khoản bot vừa gọi tool" (khoá <c>Chat__McpToRealtimeKey</c>, trống = <c>Chat__InternalKey</c>) → hiện / cập nhật bot;
 /// <see cref="BotSweeper"/> xoá bot quá 5 phút không hoạt động. Người thật của tài khoản đó đang ở trong văn phòng → không tạo avatar
 /// thứ hai, chỉ gắn dòng trạng thái lên avatar đang có.
 /// </summary>
@@ -26,7 +26,7 @@ public static class BotEndpoints
 
     private static IResult PlacesAsync(string? userId, HttpRequest http, IOptions<ChatSettings> settings, OfficeMap map, Presence presence)
     {
-        if (!BotActivityRoute.KeyMatches(http.Headers[BotActivityRoute.KeyHeader].ToString(), settings.Value.InternalKey))
+        if (!BotActivityRoute.KeyMatches(http.Headers[BotActivityRoute.KeyHeader].ToString(), settings.Value.McpRealtimeKey))
             return Results.Problem("Khoá nội bộ không đúng", statusCode: StatusCodes.Status401Unauthorized);
         return Results.Ok(PlacesFor(userId, map, presence).Select(p => new OfficePlaceInfo(p.Id, p.Kind, p.Name)));
     }
@@ -38,7 +38,7 @@ public static class BotEndpoints
     private static async Task<IResult> MoveAsync(BotMove body, HttpRequest http, IOptions<ChatSettings> settings, BotPresence bots,
         Presence presence, OfficeMap map, IHubContext<OfficeRoomHub, IOfficeClient> hub, TimeProvider clock, Screens.BotScreens shows, Screens.RoomScreens screens)
     {
-        if (!BotActivityRoute.KeyMatches(http.Headers[BotActivityRoute.KeyHeader].ToString(), settings.Value.InternalKey))
+        if (!BotActivityRoute.KeyMatches(http.Headers[BotActivityRoute.KeyHeader].ToString(), settings.Value.McpRealtimeKey))
             return Results.Problem("Khoá nội bộ không đúng", statusCode: StatusCodes.Status401Unauthorized);
         var a = body?.Activity;
         if (a is null || a.UserId == Guid.Empty || string.IsNullOrWhiteSpace(a.Name) || string.IsNullOrWhiteSpace(body!.Place))
@@ -75,7 +75,7 @@ public static class BotEndpoints
     /// <summary>Tin bot gửi qua Api (MCP) → phát như tin gửi qua hub. Chỉ nhận tin bot (ByBot) để khoá nội bộ không thành đường giả mạo tin người thật.</summary>
     private static async Task<IResult> RelayChatAsync(Chat.SendResultDto body, HttpRequest http, IOptions<ChatSettings> settings, Chat.ChatFanout fanout)
     {
-        if (!BotActivityRoute.KeyMatches(http.Headers[BotActivityRoute.KeyHeader].ToString(), settings.Value.InternalKey))
+        if (!BotActivityRoute.KeyMatches(http.Headers[BotActivityRoute.KeyHeader].ToString(), settings.Value.McpRealtimeKey))
             return Results.Problem("Khoá nội bộ không đúng", statusCode: StatusCodes.Status401Unauthorized);
         if (body?.Message is not { } m || m.Id == Guid.Empty || m.SenderId == Guid.Empty || !m.ByBot)
             return Results.Problem("Chỉ chuyển tiếp tin của bot", statusCode: StatusCodes.Status400BadRequest);
@@ -86,7 +86,7 @@ public static class BotEndpoints
     private static async Task<IResult> ReportAsync(BotActivity body, HttpRequest http, IOptions<ChatSettings> settings, BotPresence bots,
         Presence presence, OfficeMap map, IHubContext<OfficeRoomHub, IOfficeClient> hub, TimeProvider clock)
     {
-        if (!BotActivityRoute.KeyMatches(http.Headers[BotActivityRoute.KeyHeader].ToString(), settings.Value.InternalKey))
+        if (!BotActivityRoute.KeyMatches(http.Headers[BotActivityRoute.KeyHeader].ToString(), settings.Value.McpRealtimeKey))
             return Results.Problem("Khoá nội bộ không đúng", statusCode: StatusCodes.Status401Unauthorized);
         if (body.UserId == Guid.Empty || string.IsNullOrWhiteSpace(body.Name) || string.IsNullOrWhiteSpace(body.Activity))
             return Results.Problem("Thiếu userId / name / activity", statusCode: StatusCodes.Status400BadRequest);

@@ -16,14 +16,14 @@ public sealed class ChatRelay(IHttpClientFactory http, IOptions<ChatSettings> ch
     /// <returns>true = Realtime đã nhận (tin hiện ngay cho người đang mở chat / trong văn phòng 3D).</returns>
     public async Task<bool> PublishAsync(JsonNode sendResult, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(chat.Value.InternalKey)) return false;
+        if (string.IsNullOrEmpty(chat.Value.McpRealtimeKey)) return false;
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Post, ChatRelayRoute.Path)
             {
                 Content = new StringContent(sendResult.ToJsonString(), Encoding.UTF8, new MediaTypeHeaderValue("application/json")),
             };
-            req.Headers.Add(BotActivityRoute.KeyHeader, chat.Value.InternalKey);
+            req.Headers.Add(BotActivityRoute.KeyHeader, chat.Value.McpRealtimeKey);
             using var res = await http.CreateClient(BotPresenceReporter.RealtimeClientName).SendAsync(req, ct);
             if (res.IsSuccessStatusCode) return true;
             log.LogWarning("Chuyển tin chat của bot sang Realtime: {Status}", (int)res.StatusCode);

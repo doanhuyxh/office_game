@@ -132,5 +132,5 @@ public static class OfficeTools
     }
 
     private static string RequireKey(IOptions<ChatSettings> chat) =>
-        string.IsNullOrEmpty(chat.Value.InternalKey) ? throw new McpException("Văn phòng 3D chưa bật cho bot (thiếu Chat__InternalKey)") : chat.Value.InternalKey;
+        string.IsNullOrEmpty(chat.Value.McpRealtimeKey) ? throw new McpException("Văn phòng 3D chưa bật cho bot (thiếu Chat__InternalKey / Chat__McpToRealtimeKey)") : chat.Value.McpRealtimeKey;
 }
