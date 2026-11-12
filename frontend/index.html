@@ -13,14 +13,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap" rel="stylesheet" />
-    <script>
-      // Áp theme trước khi React tải để không nháy màu (khớp src/context/theme-provider.tsx).
-      try {
-        var t = localStorage.getItem('officehub:theme') || 'system';
-        if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
-          document.documentElement.classList.add('dark');
-      } catch (e) {}
-    </script>
+    <!-- Áp theme trước khi React tải để không nháy màu — file riêng (không inline) để CSP script-src 'self' không cần 'unsafe-inline' -->
+    <script src="/theme-init.js"></script>
     <title>OfficeHub</title>
   </head>
   <body>

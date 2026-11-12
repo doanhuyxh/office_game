@@ -34,6 +34,11 @@ internal static class SystemEndpoints
             .RequireAuthorization(AuthPolicies.Admin);
 
         app.MapGet("/api/system/info", InfoAsync).RequireAuthorization(AuthPolicies.Admin).WithTags("System");
+        // Báo cáo vi phạm CSP (TEST-19, header Content-Security-Policy-Report-Only ở nginx): trình duyệt tự gửi, không cookie / Origin chuẩn
+        // → bỏ qua CsrfGuard (DisableCors = có metadata CORS), giới hạn 16 KB + 30 lần / phút / IP; chỉ ghi log Warning (xem trong Seq).
+        app.MapPost("/api/csp-report", CspReportAsync).AllowAnonymous().WithTags("System")
+            .WithMetadata(new Microsoft.AspNetCore.Cors.DisableCorsAttribute(), new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(16 * 1024))
+            .RequireRateLimiting(OfficeHub.Modules.Identity.Infrastructure.RateLimits.Auth);
         // Báo cáo dung lượng S3 (quét object, giữ 10 phút; refresh=true quét lại)
         app.MapGet("/api/system/storage", (bool? refresh, StorageReport report, CancellationToken ct) => report.GetAsync(refresh == true, ct))
             .RequireAuthorization(AuthPolicies.Admin).WithTags("System");
@@ -95,5 +100,14 @@ internal static class SystemEndpoints
         if (host.EndsWith("gmail.com", StringComparison.Ordinal))
             return ("https://mail.google.com", $"Email gửi qua Gmail ({smtpHost}) — mở mục \"Đã gửi\" của tài khoản SMTP bên dưới.");
         return (null, $"Email gửi qua {smtpHost}. Đặt SystemTools__MailUrl = trang quản trị của nhà cung cấp SMTP.");
+    }
+
+    private static async Task<IResult> CspReportAsync(HttpRequest req, ILoggerFactory lf, CancellationToken ct)
+    {
+        using var reader = new StreamReader(req.Body);
+        var body = await reader.ReadToEndAsync(ct);
+        if (body.Length > 0)
+            lf.CreateLogger("Csp").LogWarning("Vi phạm CSP: {Report}", body.Length > 2000 ? body[..2000] : body);
+        return Results.NoContent();
     }
 }

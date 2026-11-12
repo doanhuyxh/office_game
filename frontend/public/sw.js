@@ -7,7 +7,7 @@ const VERSION = 'v2';
 const SHELL = `officehub-shell-${VERSION}`;
 const ASSETS = `officehub-assets-${VERSION}`;
 const FONTS = `officehub-fonts-${VERSION}`;
-const PRECACHE = ['/offline.html', '/icons/icon-192.png'];
+const PRECACHE = ['/offline.html', '/offline.js', '/icons/icon-192.png'];
 const NEVER = ['/api/', '/rt/', '/mcp', '/livekit/', '/.well-known/', '/health', '/oauth/'];
 
 self.addEventListener('install', (e) => {
