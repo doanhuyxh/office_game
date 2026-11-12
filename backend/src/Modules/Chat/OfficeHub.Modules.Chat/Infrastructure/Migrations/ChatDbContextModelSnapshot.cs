@@ -32,6 +32,9 @@ namespace OfficeHub.Modules.Chat.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTimeOffset?>("LastMessageAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -45,6 +48,10 @@ namespace OfficeHub.Modules.Chat.Infrastructure.Migrations
                     b.Property<string>("RoomId")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -100,6 +107,9 @@ namespace OfficeHub.Modules.Chat.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("EditedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("SenderId")
@@ -177,6 +187,26 @@ namespace OfficeHub.Modules.Chat.Infrastructure.Migrations
                         .HasDatabaseName("ix_attachments_message");
 
                     b.ToTable("attachments", "chat");
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Chat.Domain.MessageReaction", b =>
+                {
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Emoji")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("MessageId", "UserId", "Emoji");
+
+                    b.ToTable("reactions", "chat");
                 });
 
             modelBuilder.Entity("OfficeHub.Modules.Chat.Domain.ReadState", b =>
@@ -270,9 +300,20 @@ namespace OfficeHub.Modules.Chat.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Chat.Domain.MessageReaction", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Chat.Domain.Message", null)
+                        .WithMany("Reactions")
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Chat.Domain.Message", b =>
                 {
                     b.Navigation("Attachments");
+
+                    b.Navigation("Reactions");
                 });
 #pragma warning restore 612, 618
         }

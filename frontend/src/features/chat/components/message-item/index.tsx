@@ -1,8 +1,9 @@
-import { Fragment } from 'react';
-import { AlertCircle, File as FileIcon, Loader2, MoreHorizontal, RotateCcw, Undo2, X } from 'lucide-react';
+import { Fragment, useState, type KeyboardEvent } from 'react';
+import { AlertCircle, File as FileIcon, Loader2, MoreHorizontal, Pencil, RotateCcw, SmilePlus, Undo2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/common/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/common/dropdown-menu';
+import { Textarea } from '@/components/common/textarea';
 import { BotBadge } from '@/components/common/bot-badge';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import { formatTime } from '@/utils/date';
@@ -10,7 +11,13 @@ import { errorMessage } from '@/utils/errors';
 import { cn } from '@/utils/cn';
 import { chatApi } from '../../api/chat.api';
 import type { IAttachment, IMessage } from '../../types/chat.types';
-import { formatBytes } from '../../utils/labels';
+import { MAX_TEXT, formatBytes } from '../../utils/labels';
+import { EmojiDialog, QUICK_EMOJIS } from '../emoji-dialog';
+import { ReactionBar } from '../reaction-bar';
+
+/** Cùng quy tắc server: chỉ sửa trong 24 giờ sau khi gửi. */
+const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const canEdit = (m: IMessage) => Date.now() - new Date(m.createdAt).getTime() <= EDIT_WINDOW_MS;
 
 const URL_RE = /(https?:\/\/[^\s<>"']+)/g;
 
@@ -75,17 +82,53 @@ function Attachments({ items, local, onPreview }: { items: IAttachment[]; local:
   );
 }
 
-/** Một tin nhắn: bong bóng (của tôi bên phải), tệp / ảnh, trạng thái gửi, menu thu hồi. */
-export function MessageItem({ m, mine, showHeader, onRecall, onRetry, onDiscard, onPreview }: {
+/** Ô sửa nội dung ngay trong bong bóng: Enter lưu, Shift+Enter xuống dòng, Esc huỷ. */
+function EditBox({ m, onSave, onCancel }: { m: IMessage; onSave: (text: string) => Promise<boolean>; onCancel: () => void }) {
+  const [text, setText] = useState(m.text ?? '');
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    const t = text.trim();
+    if (saving || (!t && m.attachments.length === 0)) return;
+    if (t === (m.text ?? '')) return onCancel();
+    setSaving(true);
+    const ok = await onSave(t);
+    setSaving(false);
+    if (ok) onCancel();
+  };
+  const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Escape') onCancel();
+    else if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      void save();
+    }
+  };
+  return (
+    <div className="grid w-72 max-w-full gap-1.5">
+      <Textarea autoFocus value={text} maxLength={MAX_TEXT} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} rows={3} className="bg-background text-foreground" data-testid="chat-edit-input" />
+      <div className="flex justify-end gap-1.5">
+        <Button size="sm" variant="ghost" onClick={onCancel} disabled={saving}>Huỷ</Button>
+        <Button size="sm" onClick={() => void save()} disabled={saving} data-testid="chat-edit-save">{saving && <Loader2 className="animate-spin" />} Lưu</Button>
+      </div>
+    </div>
+  );
+}
+
+/** Một tin nhắn: bong bóng (của tôi bên phải), tệp / ảnh, cảm xúc, trạng thái gửi, menu (cảm xúc, sửa, thu hồi). */
+export function MessageItem({ m, mine, meId, showHeader, onRecall, onEdit, onReact, onRetry, onDiscard, onPreview }: {
   m: IMessage;
   mine: boolean;
+  meId: string | undefined;
   showHeader: boolean;
   onRecall: (m: IMessage) => void;
+  onEdit: (m: IMessage, text: string) => Promise<boolean>;
+  onReact: (m: IMessage, emoji: string) => void;
   onRetry: (m: IMessage) => void;
   onDiscard: (m: IMessage) => void;
   onPreview: (a: IAttachment) => void;
 }) {
   const local = m.local;
+  const [editing, setEditing] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
   return (
     <div className={cn('group flex gap-2', mine ? 'justify-end' : 'justify-start', showHeader ? 'mt-3' : 'mt-0.5')} data-testid="chat-message">
       {!mine && (showHeader ? <PersonAvatar name={m.senderName} className="mt-0.5 size-8 shrink-0" /> : <div className="w-8 shrink-0" />)}
@@ -97,6 +140,9 @@ export function MessageItem({ m, mine, showHeader, onRecall, onRetry, onDiscard,
             <span>{formatTime(m.createdAt)}</span>
           </div>
         )}
+        {editing ? (
+          <EditBox m={m} onSave={(t) => onEdit(m, t)} onCancel={() => setEditing(false)} />
+        ) : (
         <div className={cn('flex items-center gap-1', mine && 'flex-row-reverse')}>
           <div
             className={cn(
@@ -112,23 +158,38 @@ export function MessageItem({ m, mine, showHeader, onRecall, onRetry, onDiscard,
             ) : (
               <>
                 {m.text && <p className="break-words whitespace-pre-wrap"><Linkified text={m.text} /></p>}
+                {m.editedAt && <span className="text-[10px] opacity-70" title={`Sửa lúc ${formatTime(m.editedAt)}`} data-testid="chat-edited">(đã sửa)</span>}
                 <Attachments items={m.attachments} local={!!local} onPreview={onPreview} />
               </>
             )}
           </div>
-          {mine && !m.deleted && !local && (
+          {!m.deleted && !local && (
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="size-7 shrink-0 opacity-0 focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100 max-md:opacity-60" aria-label="Tuỳ chọn tin nhắn">
+                <Button variant="ghost" size="icon" className="size-7 shrink-0 opacity-0 focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100 max-md:opacity-60" aria-label="Tuỳ chọn tin nhắn" data-testid="chat-message-menu">
                   <MoreHorizontal className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={() => onRecall(m)} data-testid="chat-recall"><Undo2 /> Thu hồi</DropdownMenuItem>
+              <DropdownMenuContent align={mine ? 'end' : 'start'}>
+                <div className="flex gap-0.5 p-1">
+                  {QUICK_EMOJIS.map((e) => (
+                    <DropdownMenuItem key={e} className="px-1.5 text-lg" onSelect={() => onReact(m, e)} aria-label={`Thả ${e}`} data-testid="chat-quick-emoji">{e}</DropdownMenuItem>
+                  ))}
+                </div>
+                <DropdownMenuItem onSelect={() => setEmojiOpen(true)}><SmilePlus /> Emoji khác…</DropdownMenuItem>
+                {mine && (
+                  <>
+                    <DropdownMenuSeparator />
+                    {canEdit(m) && <DropdownMenuItem onSelect={() => setEditing(true)} data-testid="chat-edit"><Pencil /> Sửa</DropdownMenuItem>}
+                    <DropdownMenuItem onSelect={() => onRecall(m)} data-testid="chat-recall"><Undo2 /> Thu hồi</DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
         </div>
+        )}
+        {!m.deleted && <ReactionBar reactions={m.reactions ?? []} meId={meId} mine={mine} onToggle={(e) => onReact(m, e)} />}
         {local?.status === 'sending' && (
           <span className="mt-0.5 flex items-center gap-1 px-1 text-[11px] text-muted-foreground">
             <Loader2 className="size-3 animate-spin" />
@@ -143,6 +204,7 @@ export function MessageItem({ m, mine, showHeader, onRecall, onRetry, onDiscard,
           </span>
         )}
       </div>
+      <EmojiDialog open={emojiOpen} onOpenChange={setEmojiOpen} onPick={(e) => onReact(m, e)} />
     </div>
   );
 }

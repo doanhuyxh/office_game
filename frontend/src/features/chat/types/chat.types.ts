@@ -1,4 +1,4 @@
-export type ConversationType = 'Office' | 'Room' | 'Direct';
+export type ConversationType = 'Office' | 'Room' | 'Direct' | 'Group';
 
 export interface IConversation {
   id: string;
@@ -31,6 +31,12 @@ export interface ILocalState {
   error?: string;
 }
 
+/** Một loại emoji trên tin + ai đã thả. */
+export interface IReaction {
+  emoji: string;
+  userIds: string[];
+}
+
 export interface IMessage {
   id: string;
   seq: number;
@@ -44,6 +50,9 @@ export interface IMessage {
   clientId: string | null;
   /** Gửi bởi bot AI qua MCP → nhãn BOT. */
   byBot?: boolean;
+  /** Lần sửa gần nhất (null = chưa sửa) — hiện "đã sửa". */
+  editedAt?: string | null;
+  reactions?: IReaction[];
   local?: ILocalState;
 }
 
@@ -79,6 +88,13 @@ export interface IPerson {
   fullName: string;
   code: string;
   departmentName: string | null;
+}
+
+export interface IGroupMember {
+  userId: string;
+  fullName: string;
+  code: string | null;
+  isCreator: boolean;
 }
 
 export interface IUploadTicket {

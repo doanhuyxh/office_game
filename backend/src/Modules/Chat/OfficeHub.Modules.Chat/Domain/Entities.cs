@@ -2,13 +2,14 @@ using System.Text.Json.Serialization;
 
 namespace OfficeHub.Modules.Chat.Domain;
 
-/// <summary>Trả ra API dạng chuỗi ("Office" / "Room" / "Direct").</summary>
+/// <summary>Trả ra API dạng chuỗi ("Office" / "Room" / "Direct" / "Group").</summary>
 [JsonConverter(typeof(JsonStringEnumConverter<ConversationType>))]
-public enum ConversationType { Office, Room, Direct }
+public enum ConversationType { Office, Room, Direct, Group }
 
 /// <summary>
 /// Hội thoại. Office = kênh toàn văn phòng (đúng một dòng); Room = kênh nhóm của một phòng có tường (RoomId = id trong shared/office-map.json,
 /// chỉ thành viên mới xem được); Direct = chat 1-1 (UserLowId &lt; UserHighId để mỗi cặp chỉ có một hội thoại).
+/// Group = nhóm chat tuỳ chọn do một nhân viên bất kỳ tạo (Title, thành viên lưu ở room_members như kênh phòng).
 /// LastSeq / LastMessageAt / LastPreview là bản sao để liệt kê hội thoại không phải quét bảng tin nhắn.
 /// </summary>
 public sealed class Conversation
@@ -18,13 +19,17 @@ public sealed class Conversation
     public string? RoomId { get; set; }
     public Guid? UserLowId { get; set; }
     public Guid? UserHighId { get; set; }
+    /// <summary>Tên nhóm (chỉ Group).</summary>
+    public string? Title { get; set; }
+    /// <summary>Người tạo nhóm (chỉ Group).</summary>
+    public Guid? CreatedBy { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public long LastSeq { get; set; }
     public DateTimeOffset? LastMessageAt { get; set; }
     public string? LastPreview { get; set; }
 }
 
-/// <summary>Người đã từng ở trong phòng (do Realtime báo) → được xem / nhắn kênh phòng đó trên web.</summary>
+/// <summary>Room: người đã từng ở trong phòng (do Realtime báo) → được xem / nhắn kênh phòng đó trên web. Group: thành viên nhóm.</summary>
 public sealed class RoomMember
 {
     public Guid ConversationId { get; set; }
@@ -43,11 +48,23 @@ public sealed class Message
     public string? Text { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? DeletedAt { get; set; }
+    /// <summary>Lần sửa nội dung gần nhất (chỉ người gửi, trong <see cref="ChatRules.EditWindow"/> kể từ lúc gửi) — hiện "đã sửa".</summary>
+    public DateTimeOffset? EditedAt { get; set; }
     /// <summary>Id do client sinh để khử trùng khi gửi lại (cùng hội thoại + người gửi + ClientId chỉ lưu một lần).</summary>
     public string? ClientId { get; set; }
     /// <summary>Gửi bằng token AI (chỉ tài khoản bot, qua MCP) → hiện nhãn BOT.</summary>
     public bool ByBot { get; set; }
     public List<MessageAttachment> Attachments { get; set; } = [];
+    public List<MessageReaction> Reactions { get; set; } = [];
+}
+
+/// <summary>Phản ứng (emoji tự do) của một người với một tin — mỗi người mỗi emoji một lần; bấm lại = gỡ.</summary>
+public sealed class MessageReaction
+{
+    public Guid MessageId { get; set; }
+    public Guid UserId { get; set; }
+    public required string Emoji { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
 }
 
 public sealed class MessageAttachment

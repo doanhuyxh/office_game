@@ -16,6 +16,7 @@ public sealed class ChatDbContext(DbContextOptions<ChatDbContext> options) : DbC
     public DbSet<RoomMember> RoomMembers => Set<RoomMember>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<MessageAttachment> Attachments => Set<MessageAttachment>();
+    public DbSet<MessageReaction> Reactions => Set<MessageReaction>();
     public DbSet<ReadState> ReadStates => Set<ReadState>();
     public DbSet<UploadTicket> UploadTickets => Set<UploadTicket>();
 
@@ -28,6 +29,7 @@ public sealed class ChatDbContext(DbContextOptions<ChatDbContext> options) : DbC
             e.Property(x => x.Type).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.RoomId).HasMaxLength(50);
             e.Property(x => x.LastPreview).HasMaxLength(200);
+            e.Property(x => x.Title).HasMaxLength(ChatRules.MaxGroupTitleLength);
             e.HasIndex(x => x.Type).IsUnique().HasFilter("\"Type\" = 'Office'").HasDatabaseName("ux_conversations_office");
             e.HasIndex(x => x.RoomId).IsUnique().HasFilter("\"RoomId\" IS NOT NULL").HasDatabaseName("ux_conversations_room");
             e.HasIndex(x => new { x.UserLowId, x.UserHighId }).IsUnique().HasFilter("\"UserLowId\" IS NOT NULL").HasDatabaseName("ux_conversations_direct");
@@ -52,6 +54,13 @@ public sealed class ChatDbContext(DbContextOptions<ChatDbContext> options) : DbC
             e.HasIndex(x => new { x.SenderId, x.CreatedAt }).HasFilter("\"ByBot\"").HasDatabaseName("ix_messages_bot_sender_time");
             e.HasIndex(x => new { x.ConversationId, x.SenderId, x.ClientId }).IsUnique().HasFilter("\"ClientId\" IS NOT NULL").HasDatabaseName("ux_messages_client");
             e.HasMany(x => x.Attachments).WithOne().HasForeignKey(a => a.MessageId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Reactions).WithOne().HasForeignKey(r => r.MessageId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<MessageReaction>(e =>
+        {
+            e.ToTable("reactions");
+            e.HasKey(x => new { x.MessageId, x.UserId, x.Emoji });
+            e.Property(x => x.Emoji).HasMaxLength(ChatRules.MaxEmojiLength);
         });
         b.Entity<MessageAttachment>(e =>
         {

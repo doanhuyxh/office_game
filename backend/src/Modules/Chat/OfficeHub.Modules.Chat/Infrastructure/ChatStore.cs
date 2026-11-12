@@ -49,7 +49,7 @@ public sealed class ChatStore(ChatDbContext db, ChatRooms rooms, IFileStorage fi
         _ => await db.RoomMembers.AnyAsync(m => m.ConversationId == c.Id && m.UserId == userId, ct),
     };
 
-    /// <summary>Null = mọi người (Office). Direct: hai người; Room: thành viên.</summary>
+    /// <summary>Null = mọi người (Office). Direct: hai người; Room / Group: thành viên.</summary>
     public async Task<IReadOnlyList<Guid>?> RecipientsAsync(Conversation c, CancellationToken ct) => c.Type switch
     {
         ConversationType.Office => null,
@@ -59,6 +59,9 @@ public sealed class ChatStore(ChatDbContext db, ChatRooms rooms, IFileStorage fi
 
     public string? RoomNameOf(Conversation c) => c.RoomId is null ? null : rooms.Find(c.RoomId)?.Name;
 
+    /// <summary>Tin kèm tệp + cảm xúc (đủ để quy đổi DTO).</summary>
+    public IQueryable<Message> MessagesWithDetails() => db.Messages.Include(m => m.Attachments).Include(m => m.Reactions).AsSplitQuery();
+
     public async Task<MessageDto> ToDtoAsync(Message m)
     {
         var deleted = m.DeletedAt is not null;
@@ -67,7 +70,11 @@ public sealed class ChatStore(ChatDbContext db, ChatRooms rooms, IFileStorage fi
             foreach (var a in m.Attachments)
                 atts.Add(new AttachmentDto(a.Id, a.FileName, a.ContentType, a.Size, a.IsImage,
                     await files.GetDownloadUrlAsync(a.FileKey, a.FileName, inline: a.IsImage, ChatRules.AttachmentUrlTtl)));
-        return new MessageDto(m.Id, m.Seq, m.ConversationId, m.SenderId, m.SenderName, deleted ? null : m.Text, m.CreatedAt, deleted, atts, m.ClientId, m.ByBot);
+        // Cảm xúc theo thứ tự lần đầu được thả; tin thu hồi không còn cảm xúc
+        var reactions = deleted ? [] : m.Reactions.OrderBy(r => r.CreatedAt).GroupBy(r => r.Emoji)
+            .Select(g => new ReactionDto(g.Key, g.Select(r => r.UserId).ToList())).ToList();
+        return new MessageDto(m.Id, m.Seq, m.ConversationId, m.SenderId, m.SenderName, deleted ? null : m.Text, m.CreatedAt, deleted, atts, m.ClientId, m.ByBot,
+            m.EditedAt, reactions);
     }
 
     /// <summary>Office chưa có dòng đã đọc → khởi tạo ở tin mới nhất (người mới / lần đầu mở chat không bị "hàng nghìn tin chưa đọc").</summary>

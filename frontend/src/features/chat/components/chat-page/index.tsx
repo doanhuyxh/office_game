@@ -11,7 +11,7 @@ import { MessagePane } from '../message-pane';
 import { NewChatDialog } from '../new-chat-dialog';
 
 /**
- * Trang /chat: trái danh sách hội thoại (kênh văn phòng, kênh phòng, tin 1-1), phải khung chat. Điện thoại: hai màn hình có nút quay lại.
+ * Trang /chat: trái danh sách hội thoại (kênh văn phòng, kênh phòng, tin 1-1, nhóm), phải khung chat. Điện thoại: hai màn hình có nút quay lại.
  * Hội thoại đang mở lưu trên URL (`?c=<id>`) → reload / gửi link vẫn mở đúng cuộc trò chuyện.
  */
 export function ChatPage() {
@@ -47,11 +47,11 @@ export function ChatPage() {
         </aside>
         <section className={cn('min-w-0 flex-1', !selected && 'hidden md:block')}>
           {selected ? (
-            <MessagePane key={selected.id} conversation={selected} onBack={() => setSelectedId(null)} />
+            <MessagePane key={selected.id} conversation={selected} onBack={() => setSelectedId(null)} onLeft={() => { setOpened(null); setSelectedId(null); }} />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
               <MessageSquare className="size-10" />
-              Chọn một cuộc trò chuyện hoặc bấm + để nhắn cho đồng nghiệp.
+              Chọn một cuộc trò chuyện hoặc bấm + để nhắn cho đồng nghiệp / tạo nhóm.
             </div>
           )}
         </section>

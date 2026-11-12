@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, MessageSquareDashed, Upload, WifiOff } from 'lucide-react';
+import { ArrowLeft, Loader2, MessageSquareDashed, Search, Upload, Users, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -17,13 +17,15 @@ import type { IAttachment, IConversation, IMessage } from '../../types/chat.type
 import { MAX_FILES, dayKey, dayLabel, fileProblem } from '../../utils/labels';
 import { Composer } from '../composer';
 import { ConversationIcon } from '../conversation-list';
+import { GroupMembersDialog } from '../group-members-dialog';
 import { MessageItem } from '../message-item';
+import { MessageSearch } from '../message-search';
 
 const GROUP_GAP_MS = 5 * 60 * 1000;
 const NEAR_BOTTOM_PX = 120;
 
 /** Khung chat bên phải: tiêu đề, danh sách tin (cuộn, tải tin cũ), kéo-thả tệp, ô soạn. Đặt `key={conversation.id}` để đổi hội thoại là làm mới trạng thái. */
-export function MessagePane({ conversation, onBack }: { conversation: IConversation; onBack: () => void }) {
+export function MessagePane({ conversation, onBack, onLeft }: { conversation: IConversation; onBack: () => void; onLeft: () => void }) {
   const qc = useQueryClient();
   const chat = useChat();
   const { data: me } = useMe();
@@ -36,6 +38,8 @@ export function MessagePane({ conversation, onBack }: { conversation: IConversat
   const [preview, setPreview] = useState<IAttachment | null>(null);
   const [recalling, setRecalling] = useState<IMessage | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
 
   const box = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
@@ -134,8 +138,11 @@ export function MessagePane({ conversation, onBack }: { conversation: IConversat
         key={m.local ? `local-${m.clientId}` : m.id}
         m={m}
         mine={m.senderId === meId}
+        meId={meId}
         showHeader={showHeader}
         onRecall={setRecalling}
+        onEdit={chat.edit}
+        onReact={chat.react}
         onRetry={(x) => x.clientId && chat.retry(conversation.id, x.clientId)}
         onDiscard={(x) => x.clientId && chat.discard(conversation.id, x.clientId)}
         onPreview={setPreview}
@@ -152,9 +159,14 @@ export function MessagePane({ conversation, onBack }: { conversation: IConversat
           <div className="truncate text-sm font-semibold" data-testid="chat-title">{conversation.title}</div>
           <div className="truncate text-[11px] text-muted-foreground">
             {conversation.type === 'Office' ? 'Kênh chung cho cả văn phòng' : conversation.type === 'Room' ? 'Kênh phòng — người từng vào phòng này'
+              : conversation.type === 'Group' ? 'Nhóm chat'
               : conversation.peerIsBot ? 'Bot AI — tin nhắn được gửi tới trợ lý AI bên ngoài công ty, đừng gửi thông tin nhạy cảm' : 'Tin nhắn riêng'}
           </div>
         </div>
+        <Button variant="ghost" size="icon" aria-label="Tìm trong tin nhắn" aria-pressed={searching} onClick={() => setSearching((v) => !v)} data-testid="chat-search-toggle"><Search /></Button>
+        {conversation.type === 'Group' && (
+          <Button variant="ghost" size="icon" aria-label="Thành viên nhóm" onClick={() => setMembersOpen(true)} data-testid="chat-group-members"><Users /></Button>
+        )}
         {chat.link !== 'online' && (
           <span className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground" data-testid="chat-link-state">
             <WifiOff className="size-3.5" /> {chat.link === 'connecting' ? 'Đang kết nối…' : 'Mất kết nối, đang thử lại…'}
@@ -162,7 +174,9 @@ export function MessagePane({ conversation, onBack }: { conversation: IConversat
         )}
       </div>
 
-      <div ref={box} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto px-3 py-2" data-testid="chat-messages">
+      {searching && <MessageSearch conversationId={conversation.id} onClose={() => setSearching(false)} />}
+
+      <div ref={box} onScroll={onScroll} className={cn('min-h-0 flex-1 overflow-y-auto px-3 py-2', searching && 'hidden')} data-testid="chat-messages">
         {isLoading && <Spinner />}
         {isError && (
           <div className="flex flex-col items-center gap-2 py-10 text-sm text-muted-foreground">
@@ -188,6 +202,10 @@ export function MessagePane({ conversation, onBack }: { conversation: IConversat
           </>
         )}
       </div>
+
+      {conversation.type === 'Group' && (
+        <GroupMembersDialog conversation={conversation} open={membersOpen} onOpenChange={setMembersOpen} onLeft={onLeft} />
+      )}
 
       <Composer draftKey={`chat-draft:${conversation.id}`} files={files} onAddFiles={addFiles} onRemoveFile={(i) => setFiles((cur) => cur.filter((_, j) => j !== i))} onSubmit={submit} />
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Building2, DoorOpen, Plus, Search } from 'lucide-react';
+import { Building2, DoorOpen, Plus, Search, Users } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { Input } from '@/components/common/input';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
@@ -11,7 +11,7 @@ import { fold } from '../../utils/labels';
 
 export function ConversationIcon({ c, className }: { c: IConversation; className?: string }) {
   if (c.type === 'Direct') return <PersonAvatar name={c.title} className={cn('size-10', className)} />;
-  const Icon = c.type === 'Office' ? Building2 : DoorOpen;
+  const Icon = c.type === 'Office' ? Building2 : c.type === 'Group' ? Users : DoorOpen;
   return (
     <div className={cn('flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary', className)}>
       <Icon className="size-5" />

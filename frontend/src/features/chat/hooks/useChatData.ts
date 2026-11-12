@@ -55,3 +55,34 @@ export function useOpenDirect() {
     onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.conversations }),
   });
 }
+
+export const useGroupMembers = (conversationId: string, enabled: boolean) =>
+  useQuery({ queryKey: chatKeys.members(conversationId), queryFn: () => chatApi.members(conversationId), enabled, staleTime: 30_000 });
+
+export function useCreateGroup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ title, userIds }: { title: string; userIds: string[] }) => chatApi.createGroup(title, userIds),
+    onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.conversations }),
+  });
+}
+
+export function useAddMembers(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userIds: string[]) => chatApi.addMembers(conversationId, userIds),
+    onSuccess: () => qc.invalidateQueries({ queryKey: chatKeys.members(conversationId) }),
+  });
+}
+
+export function useLeaveGroup(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => chatApi.leaveGroup(conversationId),
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: chatKeys.messages(conversationId) });
+      void qc.invalidateQueries({ queryKey: chatKeys.conversations });
+      void qc.invalidateQueries({ queryKey: chatKeys.unread });
+    },
+  });
+}

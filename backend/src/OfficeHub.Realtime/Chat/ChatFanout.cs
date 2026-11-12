@@ -29,6 +29,15 @@ public sealed class ChatFanout(IHubContext<ChatHub, IChatClient> chat, IHubConte
         return dto;
     }
 
+    /// <summary>Sửa tin / đổi cảm xúc: chỉ báo client chat (HUD 3D không sửa tin cũ). Người thao tác luôn nhận (các tab khác của họ).</summary>
+    public async Task<ChatMessageDto> PublishUpdatedAsync(SendResultDto result, string actorUserId)
+    {
+        var dto = ChatRouting.ToHubMessage(result);
+        var groups = ChatRouting.Groups(result.Recipients, actorUserId);
+        await (groups is null ? chat.Clients.Group(ChatRouting.AllGroup) : chat.Clients.Groups(groups)).MessageUpdated(dto);
+        return dto;
+    }
+
     /// <summary>Thu hồi tin: chỉ báo client chat (HUD 3D không có tin cũ để gỡ).</summary>
     public Task PublishDeletedAsync(DeleteResultDto result, string actorUserId)
     {

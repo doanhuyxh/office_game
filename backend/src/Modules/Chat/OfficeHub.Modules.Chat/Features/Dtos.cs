@@ -2,10 +2,16 @@ using OfficeHub.Modules.Chat.Domain;
 
 namespace OfficeHub.Modules.Chat.Features;
 
-/// <summary>Type = Office | Room | Direct. Title: "Toàn văn phòng" / tên phòng / tên người đối diện (Direct).</summary>
+/// <summary>Type = Office | Room | Direct | Group. Title: "Toàn văn phòng" / tên phòng / tên người đối diện (Direct) / tên nhóm (Group).</summary>
 /// <param name="PeerIsBot">Direct với tài khoản bot (AI) — FE nhắc "tin nhắn được gửi tới trợ lý AI bên ngoài".</param>
 public sealed record ConversationDto(Guid Id, ConversationType Type, string Title, string? RoomId, Guid? PeerUserId,
     DateTimeOffset? LastMessageAt, string? LastPreview, int Unread, bool PeerIsBot = false);
+
+/// <summary>Thành viên nhóm (Group). IsCreator = người tạo nhóm.</summary>
+public sealed record GroupMemberDto(Guid UserId, string FullName, string? Code, bool IsCreator);
+
+/// <summary>Một loại emoji trên tin: ai đã thả (client tự xét "của tôi").</summary>
+public sealed record ReactionDto(string Emoji, IReadOnlyList<Guid> UserIds);
 
 public sealed record PersonDto(Guid UserId, string FullName, string Code, string? DepartmentName);
 
@@ -14,16 +20,27 @@ public sealed record AttachmentDto(Guid Id, string FileName, string ContentType,
 
 /// <summary>Tin đã thu hồi: Deleted = true, Text = null, Attachments rỗng (nội dung vẫn nằm trong DB nhưng không ai xem được).</summary>
 public sealed record MessageDto(Guid Id, long Seq, Guid ConversationId, Guid SenderId, string SenderName, string? Text,
-    DateTimeOffset CreatedAt, bool Deleted, IReadOnlyList<AttachmentDto> Attachments, string? ClientId, bool ByBot = false);
+    DateTimeOffset CreatedAt, bool Deleted, IReadOnlyList<AttachmentDto> Attachments, string? ClientId, bool ByBot = false,
+    DateTimeOffset? EditedAt = null, IReadOnlyList<ReactionDto>? Reactions = null);
 
 public sealed record MessagePageDto(IReadOnlyList<MessageDto> Items, bool HasMore);
 
-/// <summary>Recipients = null → mọi người (kênh Office); ngược lại danh sách tài khoản nhận (Direct: hai người; Room: thành viên). Realtime dùng để phát.</summary>
+/// <summary>
+/// Kết quả gửi / sửa / thả cảm xúc (Realtime phát cho người nhận: gửi → <c>Message</c>, sửa / cảm xúc → <c>MessageUpdated</c>).
+/// Recipients = null → mọi người (kênh Office); ngược lại danh sách tài khoản nhận (Direct: hai người; Room: thành viên). Realtime dùng để phát.</summary>
 public sealed record SendResultDto(MessageDto Message, ConversationType ConversationType, string? RoomId, string? RoomName, IReadOnlyList<Guid>? Recipients);
 
 public sealed record DeleteResultDto(Guid ConversationId, Guid MessageId, ConversationType ConversationType, string? RoomId, IReadOnlyList<Guid>? Recipients);
 
 public sealed record SendRequest(string? Text, List<Guid>? UploadIds, string? ClientId);
+
+public sealed record EditRequest(string? Text);
+
+public sealed record ReactRequest(string? Emoji);
+
+public sealed record GroupRequest(string? Title, List<Guid>? UserIds);
+
+public sealed record MembersRequest(List<Guid>? UserIds);
 
 public sealed record DirectRequest(Guid UserId);
 

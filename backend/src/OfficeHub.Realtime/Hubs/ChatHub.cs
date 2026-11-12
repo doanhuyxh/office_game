@@ -8,7 +8,7 @@ namespace OfficeHub.Realtime.Hubs;
 
 /// <summary>
 /// Hub tin nhắn cho toàn bộ web (không cần đang ở văn phòng 3D). Một tài khoản có thể có nhiều kết nối (tab / thiết bị).
-/// Realtime không lưu gì: Send / Delete gọi Api bằng cookie của chính kết nối rồi phát lại theo người nhận Api trả về.
+/// Realtime không lưu gì: Send / Edit / React / Delete gọi Api bằng cookie của chính kết nối rồi phát lại theo người nhận Api trả về.
 /// </summary>
 [Authorize]
 public sealed class ChatHub(ChatConnections connections, SessionValidator sessions, ChatApi api, ChatFanout fanout, ILogger<ChatHub> log) : Hub<IChatClient>
@@ -62,6 +62,22 @@ public sealed class ChatHub(ChatConnections connections, SessionValidator sessio
         if (!Guid.TryParse(messageId, out var id)) throw new HubException("Tin nhắn không hợp lệ");
         var result = await api.DeleteAsync(Cookie(), id, Context.ConnectionAborted);
         await fanout.PublishDeletedAsync(result, UserId);
+    }
+
+    /// <summary>Sửa nội dung tin của mình (trong 24 giờ) → mọi người nhận <c>MessageUpdated</c>.</summary>
+    public async Task<ChatMessageDto> Edit(string messageId, string? text)
+    {
+        if (!Guid.TryParse(messageId, out var id)) throw new HubException("Tin nhắn không hợp lệ");
+        var result = await api.EditAsync(Cookie(), id, text, Context.ConnectionAborted);
+        return await fanout.PublishUpdatedAsync(result, UserId);
+    }
+
+    /// <summary>Thả / gỡ cảm xúc (emoji tự do) → mọi người nhận <c>MessageUpdated</c>.</summary>
+    public async Task<ChatMessageDto> React(string messageId, string emoji)
+    {
+        if (!Guid.TryParse(messageId, out var id)) throw new HubException("Tin nhắn không hợp lệ");
+        var result = await api.ReactAsync(Cookie(), id, emoji, Context.ConnectionAborted);
+        return await fanout.PublishUpdatedAsync(result, UserId);
     }
 
     private string Cookie() =>

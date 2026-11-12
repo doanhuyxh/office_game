@@ -1,5 +1,5 @@
 import { http, httpPost } from '@/services/api-client';
-import type { IConversation, IMessagePage, IPerson, ISendResult, IUploadTicket } from '../types/chat.types';
+import type { IConversation, IGroupMember, IMessage, IMessagePage, IPerson, ISendResult, IUploadTicket } from '../types/chat.types';
 
 const base = '/api/chat';
 
@@ -9,6 +9,8 @@ export const chatKeys = {
   unread: ['chat', 'unread'] as const,
   messages: (conversationId: string) => ['chat', 'messages', conversationId] as const,
   people: (search: string) => ['chat', 'people', search] as const,
+  members: (conversationId: string) => ['chat', 'members', conversationId] as const,
+  search: (conversationId: string, q: string) => ['chat', 'search', conversationId, q] as const,
 };
 
 export const chatApi = {
@@ -22,6 +24,14 @@ export const chatApi = {
   send: (conversationId: string, text: string | null, uploadIds: string[], clientId: string) =>
     httpPost<ISendResult>(`${base}/conversations/${conversationId}/messages`, { text, uploadIds, clientId }),
   remove: (messageId: string) => http<void>(`${base}/messages/${messageId}`, { method: 'DELETE' }),
+  /** Dự phòng khi hub chưa kết nối (đường chính: hub `Edit` / `React` để người khác thấy ngay). */
+  edit: (messageId: string, text: string) => http<ISendResult>(`${base}/messages/${messageId}`, { method: 'PATCH', body: JSON.stringify({ text }) }),
+  react: (messageId: string, emoji: string) => httpPost<ISendResult>(`${base}/messages/${messageId}/reactions`, { emoji }),
+  search: (conversationId: string, q: string) => http<IMessage[]>(`${base}/conversations/${conversationId}/search?q=${encodeURIComponent(q)}`),
+  createGroup: (title: string, userIds: string[]) => httpPost<IConversation>(`${base}/conversations/group`, { title, userIds }),
+  members: (conversationId: string) => http<IGroupMember[]>(`${base}/conversations/${conversationId}/members`),
+  addMembers: (conversationId: string, userIds: string[]) => httpPost<void>(`${base}/conversations/${conversationId}/members`, { userIds }),
+  leaveGroup: (conversationId: string) => http<void>(`${base}/conversations/${conversationId}/members/me`, { method: 'DELETE' }),
   markRead: (conversationId: string) => httpPost<void>(`${base}/conversations/${conversationId}/read`),
   upload: (conversationId: string, file: File) =>
     httpPost<IUploadTicket>(`${base}/uploads`, { conversationId, fileName: file.name, contentType: file.type || null, size: file.size }),

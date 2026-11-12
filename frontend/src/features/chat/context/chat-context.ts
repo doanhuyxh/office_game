@@ -11,6 +11,10 @@ export interface IChatContext {
   discard(conversationId: string, clientId: string): void;
   /** Thu hồi tin của mình (xoá mềm). */
   recall(message: IMessage): Promise<void>;
+  /** Sửa nội dung tin của mình (trong 24 giờ); true = đã lưu. */
+  edit(message: IMessage, text: string): Promise<boolean>;
+  /** Thả / gỡ cảm xúc (bấm lại cùng emoji = gỡ). */
+  react(message: IMessage, emoji: string): void;
   markRead(conversationId: string): void;
 }
 

@@ -19,7 +19,7 @@ Api là nguồn sự thật (lưu, quyền, giới hạn 1 tin / giây / tài kh
 | Bảng (migration `InitialChat`) | Nội dung |
 |---|---|
 | `conversations` | `Type` (Office / Room / Direct), `RoomId`, `UserLowId` < `UserHighId`, `LastSeq`, `LastMessageAt`, `LastPreview` (bản sao để liệt kê). Unique: một Office, một dòng / `RoomId`, một dòng / cặp |
-| `room_members` | `(ConversationId, UserId)`, `JoinedAt` — người từng ở trong phòng |
+| `room_members` | `(ConversationId, UserId)`, `JoinedAt` — người từng ở trong phòng / thành viên nhóm |
 | `messages` | `Id` (v7), `Seq` (identity, con trỏ cuộn), `ConversationId`, `SenderId`, `SenderName` (snapshot), `Text` ≤ 1000, `CreatedAt`, `DeletedAt` (xoá mềm), `ClientId` (unique cùng hội thoại + người gửi), `ByBot` (token bot — migration `ChatByBot`) |
 | `attachments` | `MessageId`, `FileKey`, `FileName`, `ContentType`, `Size`, `IsImage` |
 | `read_states` | `(ConversationId, UserId)`, `LastReadSeq` |
@@ -32,6 +32,7 @@ Api là nguồn sự thật (lưu, quyền, giới hạn 1 tin / giây / tài kh
 | `Office` | mọi tài khoản | tên "Toàn văn phòng"; bí danh `office` |
 | `Room` | **thành viên** (từng đứng trong phòng ở 3D) | mỗi phòng có tường trong `shared/office-map.json` một kênh (tạo lúc khởi động, `ChatMigrator`); bí danh `room:<id>`; thành viên gửi được cả từ web |
 | `Direct` | đúng hai người | người ngoài (kể cả admin / HR) nhận **404** |
+| `Group` | thành viên (ai cũng tạo được) | [chat-extras.md](chat-extras.md#nhóm-tuỳ-chọn-conversationtypegroup) |
 
 Thành viên phòng: Realtime báo khi người chơi **bước vào** phòng có tường (`OfficeRoomHub.Move`, không chặn, lỗi chỉ log) và trước khi gửi tin phòng; xem được lịch sử cũ nhưng không bị tính chưa đọc. Khu mở không tường không có kênh.
 
@@ -48,7 +49,7 @@ Thành viên phòng: Realtime báo khi người chơi **bước vào** phòng c�
 | POST | `/uploads` · GET `/attachments/{id}/url?download=` | vé + presigned PUT 30 phút · link tải mới (404 nếu tin thu hồi / không phải thành viên) |
 | POST | `/internal/rooms/{roomId}/members` | `AllowAnonymous` + `X-Chat-Key`, 204 idempotent, sai khoá 401 |
 
-`id` hội thoại: Guid, `office` hoặc `room:<id>`. Quy tắc (`Domain/ChatRules.cs`): trim, ≤ **1000** ký tự, cần chữ hoặc ≥ 1 tệp, ≤ **5** tệp; < 1 giây → **429**; gửi lại cùng `clientId` → trả tin cũ. **Chưa đọc** = tin người khác, chưa thu hồi, `Seq` > `LastReadSeq`; Office khởi tạo ở tin mới nhất khi xem lần đầu, Room khi vào phòng, Direct bắt đầu từ 0. **Thu hồi**: API ẩn chữ + tệp (`deleted: true`) nhưng dòng và file S3 vẫn giữ; không sửa tin.
+`id` hội thoại: Guid, `office` hoặc `room:<id>`. Quy tắc (`Domain/ChatRules.cs`): trim, ≤ **1000** ký tự, cần chữ hoặc ≥ 1 tệp, ≤ **5** tệp; < 1 giây → **429**; gửi lại cùng `clientId` → trả tin cũ. **Chưa đọc** = tin người khác, chưa thu hồi, `Seq` > `LastReadSeq`; Office khởi tạo ở tin mới nhất khi xem lần đầu, Room khi vào phòng, Direct bắt đầu từ 0. **Thu hồi**: API ẩn chữ + tệp (`deleted: true`) nhưng dòng và file S3 vẫn giữ. Sửa tin (24 giờ), cảm xúc, tìm: [chat-extras.md](chat-extras.md).
 
 ## Tệp đính kèm
 
@@ -68,4 +69,4 @@ Thành viên phòng: Realtime báo khi người chơi **bước vào** phòng c�
 
 ## Chưa làm
 
-Sửa tin, tìm trong tin nhắn, phản ứng, dọn tệp S3 mồ côi, giới hạn dung lượng tổng, chat nhóm tuỳ chọn.
+Dọn tệp S3 mồ côi, giới hạn dung lượng tổng (việc ở bảng dự án TEST). Đã làm 2026-11-12: [chat-extras.md](chat-extras.md).

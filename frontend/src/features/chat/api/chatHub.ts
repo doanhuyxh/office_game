@@ -6,6 +6,8 @@ import type { ChatLinkState, IChatMessage } from '../types/chat.types';
 export interface ChatHandlers {
   message(m: IChatMessage): void;
   deleted(conversationId: string, messageId: string): void;
+  /** Tin bị sửa / đổi cảm xúc. */
+  updated(m: IChatMessage): void;
   kicked(reason: string): void;
   state(s: ChatLinkState): void;
   /** Kết nối lại thành công sau khi mất → bù tin bị lỡ. */
@@ -30,7 +32,10 @@ export function hubErrorMessage(err: unknown): string {
 
 /** Chuẩn hoá tin từ MessagePack (seq có thể là bigint/null, mảng/chuỗi có thể null). */
 function normalize(m: IChatMessage): IChatMessage {
-  return { ...m, seq: Number(m.seq), text: m.text ?? null, deleted: !!m.deleted, attachments: m.attachments ?? [], clientId: m.clientId ?? null };
+  return {
+    ...m, seq: Number(m.seq), text: m.text ?? null, deleted: !!m.deleted, attachments: m.attachments ?? [], clientId: m.clientId ?? null,
+    editedAt: m.editedAt ?? null, reactions: (m.reactions ?? []).map((r) => ({ emoji: r.emoji, userIds: r.userIds ?? [] })),
+  };
 }
 
 const RETRY_MS = [2000, 5000, 10000, 30000];
@@ -50,6 +55,7 @@ export class ChatConnection {
       .build();
 
     this.conn.on('Message', (m) => h.message(normalize(camel(m))));
+    this.conn.on('MessageUpdated', (m) => h.updated(normalize(camel(m))));
     this.conn.on('MessageDeleted', (conversationId: string, messageId: string) => h.deleted(conversationId, messageId));
     this.conn.on('Kicked', (reason: string) => {
       this.kickedOut = true;
@@ -96,6 +102,22 @@ export class ChatConnection {
     try {
       const m = await this.conn.invoke('Send', conversationId, text, uploadIds.length ? uploadIds : null, clientId);
       return normalize(camel<IChatMessage>(m));
+    } catch (err) {
+      throw new Error(hubErrorMessage(err));
+    }
+  }
+
+  async edit(messageId: string, text: string): Promise<IChatMessage> {
+    try {
+      return normalize(camel<IChatMessage>(await this.conn.invoke('Edit', messageId, text)));
+    } catch (err) {
+      throw new Error(hubErrorMessage(err));
+    }
+  }
+
+  async react(messageId: string, emoji: string): Promise<IChatMessage> {
+    try {
+      return normalize(camel<IChatMessage>(await this.conn.invoke('React', messageId, emoji)));
     } catch (err) {
       throw new Error(hubErrorMessage(err));
     }

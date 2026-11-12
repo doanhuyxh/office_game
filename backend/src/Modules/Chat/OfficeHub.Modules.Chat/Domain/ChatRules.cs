@@ -24,6 +24,55 @@ public static class ChatRules
     /// </summary>
     public static bool BotCanUse(ConversationType type) => type is ConversationType.Office or ConversationType.Direct or ConversationType.Room;
 
+    // ---------------- Sửa tin, phản ứng, tìm, nhóm (TEST-54, chủ dự án chốt 2026-11-12) ----------------
+
+    /// <summary>Chỉ sửa được tin của mình trong 24 giờ kể từ lúc gửi.</summary>
+    public static readonly TimeSpan EditWindow = TimeSpan.FromHours(24);
+    public const string EditExpiredMessage = "Chỉ sửa được tin nhắn trong 24 giờ sau khi gửi";
+    public const int MaxEmojiLength = 32;
+    /// <summary>Mỗi tin tối đa bấy nhiêu emoji khác nhau (chặn spam phản ứng).</summary>
+    public const int MaxReactionKinds = 20;
+    public const int MaxGroupTitleLength = 100;
+    /// <summary>Tối đa thành viên một nhóm tự tạo (kể cả người tạo).</summary>
+    public const int MaxGroupMembers = 100;
+    public const int MinSearchLength = 2;
+    public const int MaxSearchResults = 50;
+
+    public static bool CanEdit(DateTimeOffset createdAt, DateTimeOffset now) => now - createdAt <= EditWindow;
+
+    /// <summary>
+    /// Emoji tự do: đúng MỘT ký tự hiển thị (grapheme — có thể ghép nhiều code point như 👍🏽, 👨‍👩‍👧, cờ), có ít nhất một ký hiệu (Unicode So),
+    /// không chữ cái / khoảng trắng / ký tự điều khiển. Sai → null.
+    /// </summary>
+    public static string? NormalizeEmoji(string? emoji)
+    {
+        var e = emoji?.Trim();
+        if (string.IsNullOrEmpty(e) || e.Length > MaxEmojiLength || new StringInfo(e).LengthInTextElements != 1) return null;
+        var symbol = false;
+        foreach (var r in e.EnumerateRunes())
+        {
+            var cat = Rune.GetUnicodeCategory(r);
+            if (Rune.IsLetter(r) || Rune.IsWhiteSpace(r) || cat is UnicodeCategory.Control or UnicodeCategory.PrivateUse) return null;
+            if (cat == UnicodeCategory.OtherSymbol) symbol = true;
+        }
+        return symbol ? e : null;
+    }
+
+    /// <summary>Lỗi theo field khi tạo nhóm. <paramref name="memberCount"/> = số người được mời (không tính người tạo).</summary>
+    public static List<(string Field, string Message)> ValidateGroup(string? title, int memberCount)
+    {
+        var e = new List<(string, string)>();
+        if (string.IsNullOrWhiteSpace(title)) e.Add(("title", "Nhập tên nhóm"));
+        else if (title.Trim().Length > MaxGroupTitleLength) e.Add(("title", $"Tên nhóm tối đa {MaxGroupTitleLength} ký tự"));
+        if (memberCount < 1) e.Add(("userIds", "Chọn ít nhất một đồng nghiệp"));
+        else if (memberCount + 1 > MaxGroupMembers) e.Add(("userIds", $"Nhóm tối đa {MaxGroupMembers} người"));
+        return e;
+    }
+
+    /// <summary>Mẫu ILIKE "chứa chuỗi" — thoát % _ \ để người dùng gõ ký tự đặc biệt không thành ký tự đại diện.</summary>
+    public static string LikeContains(string term) =>
+        "%" + term.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+
     /// <summary>Còn hạn mức gửi không (đã gửi <paramref name="sentLastHour"/> tin trong giờ qua).</summary>
     public static bool BotQuotaLeft(int sentLastHour) => sentLastHour < BotMessagesPerHour;
     public static readonly TimeSpan MinSendInterval = TimeSpan.FromSeconds(1);

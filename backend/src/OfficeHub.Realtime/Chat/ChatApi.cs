@@ -32,6 +32,18 @@ public sealed class ChatApi(IHttpClientFactory http, IOptions<ChatSettings> sett
         return CallAsync<SendResultDto>(req, cookie, ct);
     }
 
+    public Task<SendResultDto> EditAsync(string? cookie, Guid messageId, string? text, CancellationToken ct) =>
+        CallAsync<SendResultDto>(new HttpRequestMessage(HttpMethod.Patch, $"/api/chat/messages/{messageId}")
+        {
+            Content = JsonContent.Create(new { text }, options: Json),
+        }, cookie, ct);
+
+    public Task<SendResultDto> ReactAsync(string? cookie, Guid messageId, string emoji, CancellationToken ct) =>
+        CallAsync<SendResultDto>(new HttpRequestMessage(HttpMethod.Post, $"/api/chat/messages/{messageId}/reactions")
+        {
+            Content = JsonContent.Create(new { emoji }, options: Json),
+        }, cookie, ct);
+
     public Task<DeleteResultDto> DeleteAsync(string? cookie, Guid messageId, CancellationToken ct) =>
         CallAsync<DeleteResultDto>(new HttpRequestMessage(HttpMethod.Delete, $"/api/chat/messages/{messageId}"), cookie, ct);
 

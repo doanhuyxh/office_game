@@ -85,4 +85,18 @@ public class ChatRoutingTests
         Assert.Equal(7, dto.Seq);
         Assert.Equal(Bob.ToString(), Assert.Single(dto.Attachments).Id);
     }
+
+    [Fact]
+    public void Hub_message_carries_edit_time_and_reactions()
+    {
+        var api = new ApiMessageDto(Guid.Parse("33333333-3333-3333-3333-333333333333"), 8, Guid.Parse("44444444-4444-4444-4444-444444444444"),
+            Alice, "An", "đã sửa", "2026-11-07T10:00:00+07:00", false, [], null, false, "2026-11-07T11:00:00+07:00",
+            [new ApiReactionDto("👍", [Alice, Bob])]);
+        var dto = ChatRouting.ToHubMessage(new SendResultDto(api, "Group", null, null, [Alice, Bob]));
+        Assert.Equal("2026-11-07T04:00:00Z", dto.EditedAt);
+        var r = Assert.Single(dto.Reactions!);
+        Assert.Equal("👍", r.Emoji);
+        Assert.Equal([Alice.ToString(), Bob.ToString()], r.UserIds);
+        Assert.Null(ChatRouting.ToOfficeChat(dto)); // nhóm không vào HUD 3D
+    }
 }

@@ -104,6 +104,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, [qc, markRead]);
 
+  /** Tin bị sửa / đổi cảm xúc (hub đẩy, hoặc kết quả thao tác của chính mình). */
+  const onUpdated = useCallback((m: IMessage) => {
+    if (!upsertMessage(qc, m)) return;
+    const list = qc.getQueryData<IConversation[]>(chatKeys.conversations);
+    // Sửa tin mới nhất → dòng xem trước trong danh sách đổi theo
+    if (m.editedAt && list?.some((c) => c.id === m.conversationId && c.lastMessageAt === m.createdAt)) {
+      void qc.invalidateQueries({ queryKey: chatKeys.conversations });
+    }
+  }, [qc]);
+
   const onDeleted = useCallback((conversationId: string, messageId: string) => {
     markDeleted(qc, conversationId, messageId);
     void qc.invalidateQueries({ queryKey: chatKeys.conversations });
@@ -123,6 +133,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     const c = new ChatConnection({
       message: onIncoming,
       deleted: onDeleted,
+      updated: onUpdated,
       kicked: () => setLink('offline'),
       state: setLink,
       reconnected: onReconnected,
@@ -135,7 +146,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       conn.current = null;
       void c.stop();
     };
-  }, [meId, onIncoming, onDeleted, onReconnected]);
+  }, [meId, onIncoming, onDeleted, onUpdated, onReconnected]);
 
   const finishPending = useCallback((clientId: string) => {
     const p = pending.current.get(clientId);
@@ -206,7 +217,29 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, [qc]);
 
-  const value = useMemo<IChatContext>(() => ({ link, setActive, send, retry, discard, recall, markRead }),
-    [link, setActive, send, retry, discard, recall, markRead]);
+  const edit = useCallback(async (m: IMessage, text: string) => {
+    try {
+      const saved: IMessage = conn.current?.connected ? await conn.current.edit(m.id, text) : (await chatApi.edit(m.id, text)).message;
+      onUpdated(saved);
+      return true;
+    } catch (e) {
+      toast.error(e instanceof ApiError ? errorMessage(e) : e instanceof Error ? e.message : 'Không sửa được tin nhắn');
+      return false;
+    }
+  }, [onUpdated]);
+
+  const react = useCallback((m: IMessage, emoji: string) => {
+    void (async () => {
+      try {
+        const saved: IMessage = conn.current?.connected ? await conn.current.react(m.id, emoji) : (await chatApi.react(m.id, emoji)).message;
+        onUpdated(saved);
+      } catch (e) {
+        toast.error(e instanceof ApiError ? errorMessage(e) : e instanceof Error ? e.message : 'Không thả được cảm xúc');
+      }
+    })();
+  }, [onUpdated]);
+
+  const value = useMemo<IChatContext>(() => ({ link, setActive, send, retry, discard, recall, edit, react, markRead }),
+    [link, setActive, send, retry, discard, recall, edit, react, markRead]);
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 }
