@@ -12,7 +12,7 @@ using OfficeHub.Realtime.Simulation;
 namespace OfficeHub.Realtime.Hubs;
 
 /// <summary>
-/// Bot chiếu lên TV phòng họp (2026-11-11): ảnh chụp màn hình cập nhật liên tục hoặc tài liệu trong kho. Chỉ khi bot đang NGỒI / ĐỨNG trong một
+/// Bot chiếu lên TV phòng họp (2026-11-11): ảnh chụp màn hình cập nhật liên tục, trang Markdown (present_markdown, 2026-11-12) hoặc tài liệu trong kho. Chỉ khi bot đang NGỒI / ĐỨNG trong một
 /// phòng có tường (đã go_to tới nơi); chỉ người đang ở trong phòng nhận <c>ScreenChanged</c> (như chiếu tài liệu của người).
 /// Ảnh chỉ nằm trong RAM (khung mới nhất), phục vụ ở <c>/rt/screens/{phòng}/{mã ngẫu nhiên}</c>.
 /// </summary>
@@ -43,7 +43,7 @@ public static class BotScreenEndpoints
         if (!BotActivityRoute.KeyMatches(http.Headers[BotActivityRoute.KeyHeader].ToString(), settings.Value.InternalKey))
             return Problem("Khoá nội bộ không đúng", 401);
         var a = body?.Activity;
-        if (a is null || a.UserId == Guid.Empty || string.IsNullOrWhiteSpace(a.Name) || body!.Mode is not ("frame" or "document" or "stop"))
+        if (a is null || a.UserId == Guid.Empty || string.IsNullOrWhiteSpace(a.Name) || body!.Mode is not ("frame" or "markdown" or "document" or "stop"))
             return Problem("Yêu cầu chiếu không hợp lệ", 400);
         var uid = a.UserId.ToString();
         if (presence.TryGet(uid, out _)) return Problem("Tài khoản này đang được người thật dùng trong văn phòng 3D — chiếu từ trình duyệt", 409);
@@ -81,6 +81,17 @@ public static class BotScreenEndpoints
             screen = new ScreenDto(room.Id, room.Name, $"bot:{uid}", title, type == "image/png" ? "screen.png" : type == "image/webp" ? "screen.webp" : "screen.jpg",
                 type, "Image", BotScreens.FrameUrl(p), true, bot.Name, Instants.Format(now), Live: true);
             p.Screen = screen;
+        }
+        else if (body.Mode == "markdown")
+        {
+            if (BotScreens.CleanMarkdown(body.Markdown, out var err) is not { } md) return Problem(err!, 400);
+            if (current?.UserId == uid && current.Screen?.Kind == "Markdown" && now - current.LastAt < BotScreens.MarkdownMinInterval)
+                return Problem("Cập nhật trình bày tối đa 1 lần / giây", 429);
+            var p = shows.Begin(uid, room.Id);
+            var title = string.IsNullOrWhiteSpace(body.Caption) ? $"{bot.Name} đang trình bày" : Cut(body.Caption.Trim(), 120);
+            screen = new ScreenDto(room.Id, room.Name, $"bot:{uid}", title, "", "text/markdown", "Markdown", "", true, bot.Name, Instants.Format(now),
+                Live: true, Markdown: md);
+            (p.Frame, p.LastAt, p.Screen) = (null, now, screen);
         }
         else
         {

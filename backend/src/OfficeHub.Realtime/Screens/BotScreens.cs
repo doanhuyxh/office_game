@@ -28,6 +28,9 @@ public sealed class BotScreens
 {
     public const int MaxBytes = 2 * 1024 * 1024;
     public static readonly TimeSpan MinInterval = TimeSpan.FromSeconds(3);
+    /// <summary>present_markdown: nội dung chữ gửi kèm ScreenChanged (không qua URL) → giới hạn ký tự + tần suất riêng (nhẹ hơn ảnh).</summary>
+    public const int MaxMarkdownChars = 20_000;
+    public static readonly TimeSpan MarkdownMinInterval = TimeSpan.FromSeconds(1);
     /// <summary>Không có khung / lệnh mới trong từng này → tự tắt.</summary>
     public static readonly TimeSpan Idle = TimeSpan.FromMinutes(10);
     public const string FramePathPrefix = "/rt/screens";
@@ -63,6 +66,16 @@ public sealed class BotScreens
         if (b.Length >= 3 && b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF) return "image/jpeg";
         if (b.Length >= 12 && b[..4].SequenceEqual("RIFF"u8) && b[8..12].SequenceEqual("WEBP"u8)) return "image/webp";
         return null;
+    }
+
+    /// <summary>Kiểm nội dung present_markdown: bỏ ký tự điều khiển (trừ xuống dòng / tab), không rỗng, ≤ <see cref="MaxMarkdownChars"/>.</summary>
+    public static string? CleanMarkdown(string? input, out string? error)
+    {
+        error = null;
+        var s = new string((input ?? "").Where(c => c is '\n' or '\t' || !char.IsControl(c)).ToArray()).Trim();
+        if (s.Length == 0) { error = "Thiếu nội dung trình bày (content)"; return null; }
+        if (s.Length > MaxMarkdownChars) { error = $"Nội dung dài quá {MaxMarkdownChars:N0} ký tự — rút gọn hoặc chia nhiều lần trình bày"; return null; }
+        return s;
     }
 
     /// <summary>Base64 (có thể kèm tiền tố data:image/…;base64,) → byte; lỗi / quá cỡ → null + lý do tiếng Việt.</summary>

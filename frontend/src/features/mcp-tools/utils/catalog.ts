@@ -245,6 +245,12 @@ export const MCP_TOOL_GROUPS: McpToolGroup[] = [
           { name: 'image', type: 'string', required: true, description: 'Ảnh chụp màn hình base64 (có thể kèm data:image/…;base64,)' },
           { name: 'caption', type: 'string', required: false, description: 'Chú thích ngắn trên khung' },
         ] },
+      { name: 'present_markdown', title: 'Trình bày nội dung (Markdown) lên TV phòng họp', kind: 'write', endpoint: 'Realtime POST /rt/internal/bot-screen (khoá nội bộ)',
+        description: '(Chỉ tài khoản bot, đang ở trong phòng có tường) Hiện một trang Markdown (GFM: tiêu đề, danh sách, checklist, bảng, code) lên TV phòng — chỉ người trong phòng thấy, nhãn "● Trực tiếp". Cách trình bày chính khi họp / báo cáo tiến độ (rẻ hơn ảnh). Gọi lại với cả trang mới (≥ 1 giây / lần) để cập nhật; ≤ 20.000 ký tự; ảnh nhúng không hiện. Tắt như present_screen.',
+        params: [
+          { name: 'content', type: 'string', required: true, description: 'Nội dung Markdown cả trang (≤ 20.000 ký tự)' },
+          { name: 'title', type: 'string', required: false, description: 'Tiêu đề ngắn trên khung; trống = "<tên bot> đang trình bày"' },
+        ] },
       { name: 'present_document', title: 'Chiếu tài liệu lên TV phòng họp', kind: 'write', idempotent: true, endpoint: 'GET /api/documents/assets/{id}(/file?present=true) → Realtime POST /rt/internal/bot-screen',
         description: '(Chỉ tài khoản bot, đang ở trong phòng có tường) Chiếu một tài liệu trong kho lên TV phòng như người bấm "Chiếu"; bot phải có quyền xem, ghi nhật ký xem.',
         params: [{ name: 'document', type: 'string', required: true, description: 'Id, mã TL-… hoặc số hiệu ban hành' }] },

@@ -1,4 +1,4 @@
-// E2E: bot chiếu màn hình lên TV phòng họp (present_screen / stop_presenting) — người trong phòng nhận ScreenChanged live, người ngoài không;
+// E2E: bot chiếu màn hình lên TV phòng họp (present_screen / present_markdown / stop_presenting) — người trong phòng nhận ScreenChanged live, người ngoài không;
 // ảnh chỉ lấy được bằng URL có mã ngẫu nhiên (mã sai 404, no-store); 1 ảnh / 3 giây; ảnh không hợp lệ bị từ chối; chỉ bot, chỉ khi ở trong phòng
 // có tường; người trong phòng "Tắt chiếu" → bot không tự bật lại trong 1 phút; stop_presenting; bot rời phòng → tự tắt, ảnh cũ 404.
 // CHỈ DB tạm. Api :5180, Realtime :5190, Mcp :5200 (như bot-walk-e2e.ts). Mất ~1,5 phút (đợi hết 1 phút sau khi người tắt chiếu).
@@ -135,7 +135,7 @@ const call = async (token: string, name: string, args: Record<string, unknown> =
 
 // ---------- Quyền + điều kiện ----------
 const names: string[] = ((await rpc(B.token, 'tools/list'))?.result?.tools ?? []).map((t: any) => t.name);
-ok('tools/list có present_screen / present_document / stop_presenting (74 tool)', ['present_screen', 'present_document', 'stop_presenting'].every((n) => names.includes(n)) && names.length === 74, names.length);
+ok('tools/list có present_screen / present_markdown / present_document / stop_presenting (75 tool)', ['present_screen', 'present_markdown', 'present_document', 'stop_presenting'].every((n) => names.includes(n)) && names.length === 75, names.length);
 ok('người thật dùng token → lỗi chỉ bot', (await call(H.token, 'present_screen', { image: PNG })).text.includes('Chỉ tài khoản bot'));
 ok('bot chưa ở phòng có tường → lỗi go_to phòng họp trước', (await call(B.token, 'present_screen', { image: PNG })).text.includes('phòng có tường'));
 const g = await call(B.token, 'go_to', { place: 'Phòng họp nhỏ' });
@@ -176,6 +176,28 @@ const s3 = h.screens.at(-1);
 const st = await call(B.token, 'stop_presenting');
 await Bun.sleep(300);
 ok('stop_presenting → tắt, ảnh cũ 404', st.j?.stopped === true && h.screens.at(-1) === null && (await fetch(RT + s3.url)).status === 404, st.text);
+
+// ---------- Trình bày Markdown ----------
+const MD = '# Tiến độ WEB-12\n\n- [x] Tìm lỗi\n- [ ] Sửa\n\n| Bước | Trạng thái |\n|---|---|\n| test | chạy |';
+const m1 = await call(B.token, 'present_markdown', { content: MD, title: 'Tiến độ WEB-12' });
+await Bun.sleep(300);
+const s4 = h.screens.at(-1);
+ok('present_markdown → người trong phòng nhận trang Markdown (live, không URL)', !m1.err && m1.j.viewers === 1 && s4?.kind === 'Markdown' && s4.live === true
+  && s4.markdown === MD && s4.url === '' && s4.title === 'Tiến độ WEB-12', { m1: m1.text, s4 });
+ok('người ngoài phòng vẫn không nhận gì', o.screens.length === 0, o.screens);
+ok('cập nhật ngay (< 1 giây) → lỗi tần suất', (await call(B.token, 'present_markdown', { content: MD })).text.includes('1 lần / giây'));
+ok('nội dung rỗng → lỗi', (await call(B.token, 'present_markdown', { content: '   ' })).err);
+ok('quá 20.000 ký tự → lỗi', (await call(B.token, 'present_markdown', { content: 'a'.repeat(20_001) })).text.includes('dài quá'));
+await Bun.sleep(1100);
+await call(B.token, 'present_markdown', { content: MD.replace('[ ] Sửa', '[x] Sửa') + '\u0007' });
+await Bun.sleep(300);
+const s5 = h.screens.at(-1);
+ok('cập nhật trang: tick checklist, ký tự điều khiển bị bỏ, tiêu đề mặc định theo tên bot', s5?.markdown === MD.replace('[ ] Sửa', '[x] Sửa')
+  && s5.title === 'Bot Trình Bày đang trình bày', s5);
+ok('người tham gia sau (GetScreen) thấy trang Markdown', (await h.c.invoke('GetScreen'))?.kind === 'Markdown');
+const st2 = await call(B.token, 'stop_presenting');
+await Bun.sleep(300);
+ok('stop_presenting tắt trang Markdown', st2.j?.stopped === true && h.screens.at(-1) === null, st2.text);
 
 // ---------- Rời phòng → tự tắt ----------
 await Bun.sleep(3100);

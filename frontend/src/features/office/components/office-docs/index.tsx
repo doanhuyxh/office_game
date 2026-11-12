@@ -4,6 +4,7 @@ import { AssetSheet, AssetTable, DocumentsBrowser, useRecentPublished, type ISpa
 import { useDepartments } from '@/features/employees';
 import { RecentNews } from '@/features/news';
 import { Button } from '@/components/common/button';
+import { Markdown } from '@/components/common/markdown';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
 import type { MapObject } from '../../engine/mapTypes';
 import { OFFICE_MAP } from '../../engine/officeMap';
@@ -93,7 +94,9 @@ export function useCabinetDepartment() {
 export function ScreenDocPanel({ screen, onClear }: { screen: ScreenDto | null; onClear: () => void }) {
   const [big, setBig] = useState(false);
   if (!screen) return null;
-  const media = !screen.inline ? (
+  const media = screen.kind === 'Markdown' ? (
+    <div className="screen-doc-md" data-testid="office-screen-markdown"><Markdown text={screen.markdown ?? ''} noImages /></div>
+  ) : !screen.inline ? (
     <a className="screen-doc-open" href={screen.url} target="_blank" rel="noreferrer">Loại file này không xem trực tiếp được — mở / tải về</a>
   ) : screen.live ? <LiveImage src={screen.url} alt={screen.title} />
     : screen.kind === 'Image' ? <img src={screen.url} alt={screen.title} />
@@ -110,7 +113,7 @@ export function ScreenDocPanel({ screen, onClear }: { screen: ScreenDto | null; 
         </span>
         <div>
           <button type="button" onClick={() => setBig((b) => !b)}>{big ? 'Thu nhỏ' : 'Phóng to'}</button>
-          <a href={screen.url} target="_blank" rel="noreferrer">Mở tab mới</a>
+          {screen.url && <a href={screen.url} target="_blank" rel="noreferrer">Mở tab mới</a>}
           <button type="button" className="danger" onClick={onClear} data-testid="office-screen-clear">Tắt chiếu</button>
         </div>
       </div>

@@ -40,4 +40,8 @@ public class BotPresenceReporterTests
     [Fact]
     public void Present_screen_status_does_not_echo_image() =>
         Assert.Equal("🖥 Đang chiếu màn hình", BotPresenceReporter.Describe("present_screen", Args("image", new string('A', 5000))));
+
+    [Fact]
+    public void Present_markdown_status_does_not_echo_content() =>
+        Assert.Equal("📝 Đang trình bày", BotPresenceReporter.Describe("present_markdown", Args("content", "# Bí mật dài")));
 }

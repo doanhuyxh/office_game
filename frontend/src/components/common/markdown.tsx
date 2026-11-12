@@ -24,14 +24,17 @@ const COMPONENTS: Components = {
   input: ({ node: _n, ...p }) => <input {...p} disabled className="mr-1.5 align-middle" />,
 };
 
+/** Nội dung do bot gửi (TV phòng họp): ảnh nhúng → chỉ hiện chữ thay thế, không tải URL lạ từ máy người xem. */
+const NO_IMAGES: Components = { ...COMPONENTS, img: ({ alt }) => <span className="text-muted-foreground">[ảnh{alt ? `: ${alt}` : ''}]</span> };
+
 /**
  * Hiển thị Markdown (GFM: bảng, checklist, ~~gạch~~, link tự động) do người dùng nhập.
- * An toàn: react-markdown không render HTML thô và lọc URL `javascript:` — không dùng rehype-raw.
+ * An toàn: react-markdown không render HTML thô và lọc URL `javascript:` — không dùng rehype-raw. `noImages`: không tải ảnh nhúng.
  */
-export function Markdown({ text, className }: { text: string; className?: string }) {
+export function Markdown({ text, className, noImages }: { text: string; className?: string; noImages?: boolean }) {
   return (
     <div className={cn('text-sm leading-relaxed break-words', className)}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={COMPONENTS}>{text}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={noImages ? NO_IMAGES : COMPONENTS}>{text}</ReactMarkdown>
     </div>
   );
 }

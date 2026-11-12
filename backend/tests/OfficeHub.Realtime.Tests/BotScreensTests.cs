@@ -72,4 +72,29 @@ public class BotScreensTests
         Assert.False(s.RecentlyCleared("r", t.AddSeconds(61)));
         Assert.False(s.RecentlyCleared("other", t));
     }
+
+    [Fact]
+    public void Markdown_is_trimmed_and_control_chars_removed()
+    {
+        Assert.Equal("# Tiến độ\n- [x] Xong\tok", BotScreens.CleanMarkdown("  # Tiến độ\n- [x] Xong\tok\u0007\u0000 ", out var err));
+        Assert.Null(err);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("  \n\t ")]
+    [InlineData(null)]
+    public void Markdown_empty_rejected(string? input)
+    {
+        Assert.Null(BotScreens.CleanMarkdown(input, out var err));
+        Assert.Equal("Thiếu nội dung trình bày (content)", err);
+    }
+
+    [Fact]
+    public void Markdown_too_long_rejected()
+    {
+        Assert.NotNull(BotScreens.CleanMarkdown(new string('a', BotScreens.MaxMarkdownChars), out _));
+        Assert.Null(BotScreens.CleanMarkdown(new string('a', BotScreens.MaxMarkdownChars + 1), out var err));
+        Assert.Contains("Nội dung dài quá", err);
+    }
 }

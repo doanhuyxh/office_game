@@ -74,6 +74,21 @@ public static class OfficeTools
         return await SendScreenAsync(http, chat, new BotScreenRequest(bot, "frame", image, caption), ct);
     }
 
+    [McpServerTool(Name = "present_markdown", Title = "Trình bày nội dung (Markdown) lên TV phòng họp", Destructive = false, Idempotent = false, OpenWorld = false)]
+    [Description("(Chỉ tài khoản bot, đang ở trong một phòng có tường — go_to phòng họp trước) Hiện một trang Markdown (GFM: tiêu đề, danh sách, checklist, " +
+                 "bảng, khối code) lên TV của phòng: chỉ người đang ở trong phòng thấy, nhãn \"● Trực tiếp\". Cách trình bày CHÍNH khi họp / báo cáo tiến độ: " +
+                 "rẻ hơn ảnh rất nhiều. Gọi lại với nội dung mới (≥ 1 giây / lần) để cập nhật — vd tick checklist khi xong từng bước, thêm dòng log, đổi đoạn code. " +
+                 "Mỗi lần gửi TOÀN BỘ trang (thay trang cũ), ≤ 20.000 ký tự; không hiện ảnh nhúng. Không đưa mật khẩu, token, dữ liệu cá nhân. Xong → stop_presenting.")]
+    public static async Task<string> PresentMarkdown(BotPresenceReporter reporter, IHttpContextAccessor ctx, IHttpClientFactory http, IOptions<ChatSettings> chat,
+        [Description("Nội dung Markdown cả trang (≤ 20.000 ký tự)")] string content,
+        [Description("Tiêu đề ngắn trên khung (vd \"Tiến độ WEB-12\"); bỏ trống = \"<tên bot> đang trình bày\"")] string? title = null,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(content)) throw new McpException("Thiếu nội dung trình bày (content)");
+        var bot = await RequireBotAsync(reporter, ctx, "📝 Đang trình bày");
+        return await SendScreenAsync(http, chat, new BotScreenRequest(bot, "markdown", Caption: title, Markdown: content), ct);
+    }
+
     [McpServerTool(Name = "present_document", Title = "Chiếu tài liệu lên TV phòng họp", Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("(Chỉ tài khoản bot, đang ở trong một phòng có tường) Chiếu một tài liệu trong kho (ảnh, PDF, video…) lên TV của phòng — như người bấm \"Chiếu\". " +
                  "Bot phải có quyền xem tài liệu; mỗi lần chiếu được ghi vào nhật ký xem của tài liệu.")]

@@ -11,8 +11,10 @@ export interface WelcomeDto { selfId: string; mapName: string; players: PlayerDt
 /** Tài liệu đang chiếu trên màn hình một phòng có tường (Realtime ScreenDto). url = link tạm (3 giờ) của người chiếu. */
 export interface ScreenDto {
   roomId: string; roomName: string; assetId: string; title: string; fileName: string; contentType: string;
-  kind: 'Document' | 'Image' | 'Video' | 'Audio' | 'Archive' | 'Other'; url: string; inline: boolean; byName: string; at: string;
-  /** Màn hình bot đang làm việc (ảnh chụp cập nhật liên tục — tool MCP present_screen). */
+  kind: 'Document' | 'Image' | 'Video' | 'Audio' | 'Archive' | 'Other' | 'Markdown'; url: string; inline: boolean; byName: string; at: string;
+  /** Màn hình bot đang làm việc (ảnh chụp cập nhật liên tục — tool MCP present_screen / trang present_markdown). */
   live?: boolean;
+  /** kind = 'Markdown' (bot present_markdown): nội dung trang, url rỗng. */
+  markdown?: string | null;
 }
 export interface ChatDto { id: string; name: string; text: string; at: string; channel?: 'office' | 'room'; roomId?: string | null; roomName?: string | null }

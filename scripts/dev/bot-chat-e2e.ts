@@ -145,7 +145,7 @@ const call = async (token: string, name: string, args: Record<string, unknown> =
 const init = await rpc(B1.token, 'initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'e2e', version: '1' } });
 ok('MCP instructions có hướng dẫn tin nhắn', String(init?.result?.instructions ?? '').includes('list_chats'));
 const names: string[] = ((await rpc(B1.token, 'tools/list'))?.result?.tools ?? []).map((t: any) => t.name);
-ok('tools/list có 4 tool chat (74 tool)', ['list_chats', 'read_chat', 'send_chat_message', 'mark_chat_read'].every((n) => names.includes(n)) && names.length === 74, names.length);
+ok('tools/list có 4 tool chat (75 tool)', ['list_chats', 'read_chat', 'send_chat_message', 'mark_chat_read'].every((n) => names.includes(n)) && names.length === 75, names.length);
 const lc = await call(B1.token, 'list_chats');
 ok('MCP list_chats: office + 1-1', !lc.err && lc.j.some((c: any) => c.conversation === 'office') && lc.j.some((c: any) => c.conversation === dm.id), lc.text.slice(0, 300));
 const rc = await call(B1.token, 'read_chat', { conversation: dm.id });

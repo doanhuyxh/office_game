@@ -54,7 +54,8 @@ Kiểm tra ghi lần trước (trước 34 commit sau `6cea7c6`): `dotnet build 
 
 > **2026-11-11 (chưa commit)** — Bot đi bộ trong văn phòng 3D: tool `go_to` / `list_office_places` (71 tool), A* trên server (port từ FE), ở lại tới lần go_to kế, vào phòng → kênh chat phòng. Không migration. Build / test / `bun run build` ✔, `bot-walk-e2e.ts` 19/19, ảnh Chrome bot ngồi trong phòng họp nhỏ. Chi tiết [office-bots.md](business/office-bots.md#đi-lại-go_to).
 
-> **2026-11-12 (chưa commit)** — Bot chiếu màn hình lên TV phòng họp (cách 1 — ảnh chụp cập nhật ≤ 1 / 3 giây, RAM): tool `present_screen` / `present_document` / `stop_presenting` (74 tool), nhãn "● Trực tiếp"; nginx `/mcp` `client_max_body_size 4m`. Không migration. Build / test / `bun run build` ✔, `bot-screen-e2e.ts` 20/20, ảnh Chrome. Chi tiết [office-bots-screen.md](business/office-bots-screen.md).
+> **2026-11-12 (chưa commit)** — Bot chiếu màn hình lên TV phòng họp (cách 1 — ảnh chụp cập nhật ≤ 1 / 3 giây, RAM): tool `present_screen` / `present_document` / `stop_presenting` (nay 75 tool), nhãn "● Trực tiếp"; nginx `/mcp` `client_max_body_size 4m`. Không migration. Build / test / `bun run build` ✔, `bot-screen-e2e.ts` 20/20, ảnh Chrome. Chi tiết [office-bots-screen.md](business/office-bots-screen.md).
+> **2026-11-12 (chưa commit)** — `present_markdown` (trang Markdown live trên TV phòng họp, ≥ 1 giây / lần, ≤ 20.000 ký tự, 75 tool): ảnh base64 qua LLM quá đắt nên agent thực tế chỉ gửi 1 khung tĩnh. Build / test / `bun run build` ✔, `bot-screen-e2e.ts` 28/28. Tiếp theo (chờ chủ dự án chốt): chương trình chụp màn hình chạy cạnh agent đẩy khung 1–2 / giây (token ngắn hạn), LiveKit nếu cần mượt.
 
 ## Quyết định đã chốt gần đây (đừng hỏi / đề xuất lại)
 

@@ -68,6 +68,7 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
             && t.GetString()?.Trim() is { Length: > 0 } said)
             return "💬 " + (said.Length > 80 ? said[..80] + "…" : said);
         if (tool == "present_screen") return "🖥 Đang chiếu màn hình";
+        if (tool == "present_markdown") return "📝 Đang trình bày"; // không lặp nội dung trang lên bong bóng
         // Đi lại → "🚶 Phòng họp nhỏ" (ngắn, hiện trên đầu bot khi đang đi)
         if (tool == "go_to" && args.TryGetValue("place", out var pl) && pl.ValueKind == JsonValueKind.String && pl.GetString()?.Trim() is { Length: > 0 } where)
             return "🚶 " + (where.Length > 40 ? where[..40] + "…" : where);

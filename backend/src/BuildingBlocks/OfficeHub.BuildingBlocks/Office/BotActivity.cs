@@ -37,7 +37,8 @@ public static class BotMoveRoute
 /// OfficeHub.Mcp → OfficeHub.Realtime: bot chiếu lên TV phòng đang ngồi. Mode: <c>frame</c> (ảnh chụp màn hình base64 — <see cref="Image"/>),
 /// <c>document</c> (tài liệu trong kho: <see cref="DetailJson"/> + <see cref="FileJson"/> = body Api trả cho token của bot), <c>stop</c>.
 /// </summary>
-public sealed record BotScreenRequest(BotActivity Activity, string Mode, string? Image = null, string? Caption = null, string? DetailJson = null, string? FileJson = null);
+public sealed record BotScreenRequest(BotActivity Activity, string Mode, string? Image = null, string? Caption = null, string? DetailJson = null, string? FileJson = null,
+    string? Markdown = null);
 
 public static class BotScreenRoute
 {

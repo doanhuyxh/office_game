@@ -11,8 +11,9 @@ namespace OfficeHub.Realtime.Screens;
 /// người trong phòng xem bằng link đó — chiếu = chia sẻ tạm cho người đang ở trong phòng. Kind = AssetKind của Api ("Image", "Video"…).
 /// </summary>
 /// <param name="Live">Màn hình bot đang làm việc (ảnh chụp cập nhật liên tục — present_screen); FE hiện "trực tiếp · cập nhật lúc …".</param>
+/// <param name="Markdown">Kind = "Markdown" (bot present_markdown): nội dung hiển thị luôn trong DTO, không có Url.</param>
 public sealed record ScreenDto(string RoomId, string RoomName, string AssetId, string Title, string FileName, string ContentType, string Kind,
-    string Url, bool Inline, string ByName, string At, bool Live = false);
+    string Url, bool Inline, string ByName, string At, bool Live = false, string? Markdown = null);
 
 /// <summary>
 /// Màn hình các phòng (RAM, như Presence). Realtime không đọc DB tài liệu (ranh giới module) → hỏi Api bằng cookie của người chiếu:
