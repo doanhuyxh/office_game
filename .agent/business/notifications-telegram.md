@@ -2,7 +2,7 @@
 
 > Về [notifications.md](notifications.md) · cấu hình lưu DB: [../env.md](../env.md#cấu-hình-lưu-trong-db-test-41) · bối cảnh agent: [agent-team.md](agent-team.md)
 
-**Mục đích:** khi một việc được **giao cho tài khoản bot** (cờ IsBot), OfficeHub gửi **đúng một tin** vào một nhóm Telegram. Bộ điều phối trên máy chạy agent đọc tin rồi cho agent làm việc đó (TEST-44). Hiện chỉ sự kiện **giao việc**; thông báo khác chưa đi qua Telegram.
+**Mục đích:** khi một việc được **giao cho tài khoản bot** (cờ IsBot), OfficeHub gửi **đúng một tin** vào một nhóm Telegram. Bộ điều phối trên máy chạy agent đọc tin rồi cho agent làm việc đó (TEST-44). Hiện có hai sự kiện: **giao việc** và **trả lại việc** (lùi kèm lý do); thông báo khác chưa đi qua Telegram.
 
 ## Cấu hình
 
@@ -12,6 +12,8 @@
 ## Khi nào gửi
 
 `TaskEndpoints` (Projects) → `NotifyAssignedAsync` → `ITelegramWakeup.TaskAssignedAsync` (Notification.Contracts) mỗi khi tạo việc có người làm hoặc **đổi** người làm — mọi đường (web, token AI, MCP `create_task` / `update_task`) đều qua đây. Bỏ qua khi: người thao tác tự giao cho mình, kênh tắt / thiếu cấu hình, người nhận không phải bot / đã khoá. Sửa việc mà không đổi người → không gửi.
+
+**Trả lại việc:** `NotifyMovedAsync` → `ITelegramWakeup.TaskReturnedAsync` khi việc lùi kèm lý do (`MoveNotice.Returned`, vd Review → Cần làm) và người làm là bot, không phải người thao tác. Cùng tin JSON 4 trường (hàng đợi `Kind = task_returned`); runner kiểm tra lại việc qua MCP rồi làm lại, đọc lý do ở bình luận / chuông. Không đổi `agent-runner/`. Duyệt xong (Done) không gửi.
 
 Tin = một dòng JSON (không nhắc bot, không có tên / mô tả việc — agent tự đọc qua MCP):
 ```

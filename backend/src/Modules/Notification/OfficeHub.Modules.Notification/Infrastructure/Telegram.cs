@@ -61,7 +61,13 @@ internal sealed class TelegramClient(IHttpClientFactory http, IConfiguration con
 internal sealed class TelegramWakeup(NotificationDbContext db, IAccountService accounts, RuntimeConfig runtime, TelegramClient client,
     TimeProvider clock, ILogger<TelegramWakeup> log) : ITelegramWakeup
 {
-    public async Task TaskAssignedAsync(Guid assigneeUserId, string employeeCode, Guid projectId, Guid taskId, string taskCode, CancellationToken ct = default)
+    public Task TaskAssignedAsync(Guid assigneeUserId, string employeeCode, Guid projectId, Guid taskId, string taskCode, CancellationToken ct = default) =>
+        EnqueueAsync("task_assigned", assigneeUserId, employeeCode, projectId, taskId, taskCode, ct);
+
+    public Task TaskReturnedAsync(Guid assigneeUserId, string employeeCode, Guid projectId, Guid taskId, string taskCode, CancellationToken ct = default) =>
+        EnqueueAsync("task_returned", assigneeUserId, employeeCode, projectId, taskId, taskCode, ct);
+
+    private async Task EnqueueAsync(string kind, Guid assigneeUserId, string employeeCode, Guid projectId, Guid taskId, string taskCode, CancellationToken ct)
     {
         try
         {
@@ -72,7 +78,7 @@ internal sealed class TelegramWakeup(NotificationDbContext db, IAccountService a
             var now = clock.GetUtcNow();
             db.TelegramMessages.Add(new TelegramMessage
             {
-                Kind = "task_assigned", ChatId = cfg.ChatId!, UserId = assigneeUserId, TaskId = taskId, CreatedAt = now, NextAttemptAt = now,
+                Kind = kind, ChatId = cfg.ChatId!, UserId = assigneeUserId, TaskId = taskId, CreatedAt = now, NextAttemptAt = now,
                 Text = TelegramRules.WakeMessage(employeeCode, projectId, taskId, taskCode),
             });
             await db.SaveChangesAsync(ct);

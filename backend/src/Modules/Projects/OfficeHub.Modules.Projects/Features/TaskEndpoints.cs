@@ -205,7 +205,7 @@ internal static class TaskEndpoints
     /// lùi kèm lý do → người làm. Bỏ chính người thao tác.
     /// </summary>
     /// <returns>Tài khoản đã nhận chuông.</returns>
-    private static async Task<List<Guid>> NotifyMovedAsync(INotifier notifier, IEmployeeDirectory dir, Project p, TaskItem t, List<ColumnInfo> cols, Guid from, string? note,
+    private static async Task<List<Guid>> NotifyMovedAsync(INotifier notifier, IEmployeeDirectory dir, ITelegramWakeup telegram, Project p, TaskItem t, List<ColumnInfo> cols, Guid from, string? note,
         ProjectViewer v, CancellationToken ct)
     {
         var kind = TaskWorkflow.Notice(cols, from, t.ColumnId, note is not null);
@@ -223,6 +223,8 @@ internal static class TaskEndpoints
         else if (t.AssigneeEmployeeId != v.Employee?.Id && await UserOfAsync(dir, t.AssigneeEmployeeId, ct) is { } u)
         {
             to.Add(u);
+            // Trả lại việc (lùi kèm lý do) cho bot → đánh thức lại qua Telegram (cùng tin JSON; runner kiểm tra lại việc qua MCP).
+            if (kind != MoveNotice.Approved) await telegram.TaskReturnedAsync(u, (await dir.GetAsync(t.AssigneeEmployeeId!.Value, ct))!.Code, p.Id, t.Id, code, ct);
             (title, body) = kind == MoveNotice.Approved
                 ? ($"Đã duyệt: {code} {t.Title}", $"{v.Name} chuyển sang \"{Name(t.ColumnId)}\" trong dự án {p.Name}.")
                 : ($"Trả lại việc: {code} {t.Title}", $"{v.Name} ({Name(from)} → {Name(t.ColumnId)}): {note}");
@@ -343,14 +345,14 @@ internal static class TaskEndpoints
         var notified = new List<Guid>();
         if (reassigned && await NotifyAssignedAsync(notifier, dir, telegram, p, t, v, ct) is { } au) notified.Add(au);
         var note = ProjectEndpoints.Clean(r.Note);
-        notified.AddRange(await NotifyMovedAsync(notifier, dir, p, t, cols, from, note, v, ct));
+        notified.AddRange(await NotifyMovedAsync(notifier, dir, telegram, p, t, cols, from, note, v, ct));
         await NotifyMembersMovedAsync(notifier, access, p, t, cols, from, note, v, notified, ct);
         if (!wasDone && t.CompletedAt != null) await NotifyUnblockedAsync(notifier, dir, db, p, t, v, ct);
         return TypedResults.NoContent();
     }
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> MoveAsync(Guid tid, MoveTask r, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
-        IEmployeeDirectory dir, INotifier notifier, ProjectClock clock, CancellationToken ct)
+        IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, ProjectClock clock, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var (t, p) = await LoadAsync(tid, db, ct);
@@ -368,7 +370,7 @@ internal static class TaskEndpoints
         t.Rank = r.Rank ?? (await db.Tasks.Where(x => x.ColumnId == r.ColumnId && x.Id != t.Id).MaxAsync(x => (double?)x.Rank, ct) ?? 0) + 1;
         await db.SaveChangesAsync(ct);
         var note = ProjectEndpoints.Clean(r.Note);
-        var notified = await NotifyMovedAsync(notifier, dir, p, t, cols, from, note, v, ct);
+        var notified = await NotifyMovedAsync(notifier, dir, telegram, p, t, cols, from, note, v, ct);
         await NotifyMembersMovedAsync(notifier, access, p, t, cols, from, note, v, notified, ct);
         if (!wasDone && t.CompletedAt != null) await NotifyUnblockedAsync(notifier, dir, db, p, t, v, ct);
         return TypedResults.NoContent();
