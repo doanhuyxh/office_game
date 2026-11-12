@@ -9,6 +9,8 @@ export interface ExecContext {
   mcpConfigFile: string;
   resumeSessionId?: string;
   exec: ExecutorConfig;
+  /** Gọi mỗi khi agent làm một thao tác (đọc / sửa file, chạy lệnh, gọi MCP, nhận định) — để runner log tiến độ. */
+  onActivity?: (message: string) => void;
 }
 
 export interface Command { bin: string; args: string[] }
@@ -31,6 +33,8 @@ export interface Adapter {
   command(ctx: ExecContext): Command;
   /** Đọc từng dòng stdout, cập nhật kết quả. */
   parseLine(line: string, r: ExecResult): void;
+  /** Mô tả ngắn các thao tác agent vừa làm trong dòng stdout này (rỗng nếu không có). Không bắt buộc. */
+  activity?(line: string, cwd: string): string[];
   /** Sau khi tiến trình thoát (vd output text: lấy phần cuối làm tóm tắt). */
   finish?(stdoutTail: string, r: ExecResult): void;
 }

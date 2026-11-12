@@ -131,6 +131,19 @@ describe('executor adapters', () => {
     expect(r.summary).toContain('Chờ review');
   });
 
+  test('claude: mô tả thao tác agent đang làm', () => {
+    const line = (content: unknown[]) => JSON.stringify({ type: 'assistant', message: { content } });
+    const out = claudeAdapter.activity!(line([
+      { type: 'text', text: 'Đọc   code\ntrước' },
+      { type: 'tool_use', name: 'Read', input: { file_path: '/w/src/a.ts' } },
+      { type: 'tool_use', name: 'Bash', input: { command: 'bun test' } },
+      { type: 'tool_use', name: 'mcp__officehub__update_task_status', input: { status: 'Doing' } },
+    ]), '/w');
+    expect(out).toEqual(['Nói: Đọc code trước', 'Đọc src/a.ts', 'Chạy: bun test', 'OfficeHub update_task_status → Doing']);
+    expect(claudeAdapter.activity!('không phải json', '/w')).toEqual([]);
+    expect(claudeAdapter.activity!('{"type":"result"}', '/w')).toEqual([]);
+  });
+
   test('claude: hết ngân sách → isError', () => {
     const r: ExecResult = {};
     claudeAdapter.parseLine('{"type":"result","subtype":"error_max_budget_usd","is_error":true,"total_cost_usd":5.01,"session_id":"s"}', r);

@@ -38,6 +38,7 @@ export function runExecutor(ctx: ExecContext, env: Record<string, string>, signa
       logFile.write(redact(line) + '\n');
       tail = (tail + line + '\n').slice(-4000);
       adapter.parseLine(line, r);
+      if (ctx.onActivity && adapter.activity) for (const a of adapter.activity(line, ctx.cwd)) ctx.onActivity(a);
     });
     child.stderr!.on('data', (d: Buffer) => logFile.write('[stderr] ' + redact(d.toString())));
     child.on('error', (e) => { clearTimeout(timer); logFile.end(); reject(e); });

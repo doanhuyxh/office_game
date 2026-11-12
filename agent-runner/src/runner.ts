@@ -185,7 +185,8 @@ export class Runner {
       writeFileSync(mcpFile, JSON.stringify(mcpConfig(this.config.mcpUrl), null, 2), { mode: 0o600 });
       const env = { ...this.baseEnv(s.cfg), OFFICEHUB_TOKEN: s.cfg.token, [AGENT_ENV]: job.agent, [TASK_ENV]: job.task_code };
 
-      const out = await runExecutor({ cwd: ws.path, jobDir, promptFile, prompt, mcpConfigFile: mcpFile, resumeSessionId: resume, exec: s.cfg.executor }, env, ctl.signal);
+      const out = await runExecutor({ cwd: ws.path, jobDir, promptFile, prompt, mcpConfigFile: mcpFile, resumeSessionId: resume, exec: s.cfg.executor,
+        onActivity: (action) => log('info', 'agent đang làm', { job: job.id, agent: job.agent, task: job.task_code, action }) }, env, ctl.signal);
       this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, ws.branch, ws.path);
 
       const ch = await branchChanges(git, ws.path, this.config.baseBranch);
