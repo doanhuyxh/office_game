@@ -1,6 +1,7 @@
-// E2E TEST-32: chuông cho MỌI thành viên dự án khi việc được tạo / đổi trạng thái / có bình luận (bỏ người thao tác, mỗi người ≤ 1 chuông / sự kiện);
+// E2E TEST-32 + TEST-38: chuông cho MỌI thành viên dự án khi việc được tạo / đổi trạng thái / có bình luận (bỏ người thao tác, mỗi người ≤ 1 chuông / sự kiện);
 // thao tác qua token AI (BOT) cũng báo. Người ngoài dự án và thành viên đã nghỉ việc không nhận.
 // TẠO DỮ LIỆU THẬT → CHỈ chạy trên DB tạm (Api :5180 trỏ DB tạm, `dotnet run --no-launch-profile`):
+//   MCP tuỳ chọn: MCP_URL=http://localhost:5200/mcp (host Mcp với Mcp__ApiBaseUrl=http://localhost:5180)
 //   E2E_LOCAL_DB=1 API_URL=http://localhost:5180 PG_CONTAINER=officehub-e2e-pg PG_USER=e2e PG_DB=officehub_e2e ADMIN_LOGIN=… ADMIN_PASSWORD=… \
 //     bun scripts/dev/project-notify-e2e.ts
 import { $ } from 'bun';
@@ -11,6 +12,7 @@ import { totp } from './totp';
 if (process.env.E2E_LOCAL_DB !== '1') throw new Error('Chỉ chạy với DB tạm: đặt E2E_LOCAL_DB=1');
 const API = process.env.API_URL ?? 'http://localhost:5180';
 const ADMIN_LOGIN = process.env.ADMIN_LOGIN!, ADMIN_PASSWORD = process.env.ADMIN_PASSWORD!;
+const MCP = process.env.MCP_URL ?? '';
 const PG = process.env.PG_CONTAINER ?? 'officehub-e2e-pg', PG_USER = process.env.PG_USER ?? 'e2e', PG_DB = process.env.PG_DB ?? 'officehub_e2e';
 let pass = 0, fail = 0;
 const ok = (name: string, cond: boolean, extra?: unknown) => {
@@ -141,9 +143,58 @@ const botExpected = [`Bot NT bình luận việc ${CODE}-2`, `Bot NT chuyển ${
 ok('BOT: PM, A, B mỗi người nhận 3 chuông (tạo, chuyển, bình luận)', [got.PM, got.A, got.B].every((l) => JSON.stringify(titles(l)) === JSON.stringify(botExpected)), got);
 ok('BOT: chính tài khoản bot + người ngoài không nhận', got.Bot.length === 0 && got.O.length === 0, { Bot: got.Bot, O: got.O });
 
+// 6b) TEST-38: sửa THÔNG TIN DỰ ÁN → mọi thành viên; web bỏ người sửa, token AI thì chủ token cũng nhận; không đổi gì → không gửi
+const UPD = `Dự án ${CODE} đã được cập nhật`;
+const detail = async () => (await json(PM.cookie, 'GET', `/api/projects/${P}`)).body;
+const putProject = async (cookie: string, patch: Record<string, unknown>) => {
+  const d = (await detail()).project;
+  return json(cookie, 'PUT', `/api/projects/${P}`, { code: d.code, name: d.name, kind: d.kind, description: d.description, departmentId: d.departmentId,
+    businessLineId: d.businessLineId, salesContractIds: [], startOn: d.startOn, endOn: d.endOn, budgetManDays: d.budgetManDays, status: d.status, sequential: d.sequential, ...patch });
+};
+before = await snap();
+ok('PM sửa tên + kết thúc dự kiến (204)', (await putProject(PM.cookie, { name: 'Thông báo NT 2', endOn: '2026-12-15' })).status === 204);
+got = await fresh(before);
+ok('Sửa dự án (web): A, B, Bot mỗi người 1 chuông "đã được cập nhật"', [got.A, got.B, got.Bot].every((l) => l.length === 1 && l[0].title === UPD), got);
+ok('Nội dung: người sửa + đúng các trường', got.A[0]?.body?.startsWith('Quản Lý NT đã sửa:') && got.A[0].body.includes('Tên: "Thông báo NT" → "Thông báo NT 2"')
+  && got.A[0].body.includes('Kết thúc dự kiến: trống → 15/12/2026') && got.A[0].link === `/projects/${P}`, got.A[0]);
+ok('Sửa dự án (web): người sửa + người ngoài không nhận', got.PM.length === 0 && got.O.length === 0, { PM: got.PM, O: got.O });
+before = await snap();
+ok('Lưu lại y nguyên (204)', (await putProject(PM.cookie, {})).status === 204);
+ok('Không đổi gì → không ai nhận chuông', Object.values(await fresh(before)).every((l) => l.length === 0));
+before = await snap();
+await putProject(PM.cookie, { description: 'Nội dung mô tả bí mật', workGuide: '## Hướng dẫn bí mật' });
+got = await fresh(before);
+ok('Mô tả + hướng dẫn chỉ ghi "đã sửa", không chép nội dung', got.A.length === 1 && got.A[0].body.includes('Mô tả: đã sửa') && got.A[0].body.includes('Hướng dẫn làm việc: đã sửa')
+  && !got.A[0].body.includes('bí mật'), got.A[0]);
+// Token AI của quản lý dự án (đường của MCP update_project_guide)
+const pmTok = (await json(PM.cookie, 'POST', '/api/auth/access-tokens', { name: `pm ${stamp}`, expiresInDays: 30 })).body?.token as string;
+const pmBearer = { authorization: `Bearer ${pmTok}` };
+before = await snap();
+ok('Token: PUT /guide (200)', (await call(pmBearer, 'PUT', `/api/projects/${P}/guide`, { workGuide: '## Bản do bot sửa' })).status === 200);
+got = await fresh(before);
+ok('Sửa qua token: PM (chủ token) + A + B + Bot đều nhận, nhãn BOT, link tab Hướng dẫn', [got.PM, got.A, got.B, got.Bot].every((l) => l.length === 1 && l[0].title === UPD
+  && l[0].body.startsWith('BOT (token của Quản Lý NT) đã sửa: Hướng dẫn làm việc: đã sửa') && l[0].link === `/projects/${P}?tab=guide`) && got.O.length === 0, got);
+before = await snap();
+await call(pmBearer, 'PUT', `/api/projects/${P}/guide`, { workGuide: '## Bản do bot sửa' });
+ok('Token gửi lại cùng hướng dẫn → không ai nhận', Object.values(await fresh(before)).every((l) => l.length === 0));
+if (MCP) {
+  let rid = 0;
+  const rpc = async (method: string, params: unknown = {}) => {
+    const res = await fetch(MCP, { method: 'POST', headers: { ...pmBearer, 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: ++rid, method, params }) });
+    const text = await res.text();
+    return JSON.parse(text.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5)).pop() ?? text);
+  };
+  await rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'e2e', version: '1' } });
+  before = await snap();
+  const m = await rpc('tools/call', { name: 'update_project_guide', arguments: { project: CODE, guide: '## Bản qua MCP' } });
+  got = await fresh(before);
+  ok('MCP update_project_guide → chủ token + thành viên nhận chuông BOT', !m?.result?.isError && [got.PM, got.A, got.Bot].every((l) => l.length === 1 && l[0].body.startsWith('BOT (token')), { m: m?.result, got });
+}
+
 // 7) Thành viên nghỉ việc không nhận — B đã bị khoá nên đọc chuông của B thẳng từ DB tạm
 const bUser = (await json(admin, 'GET', `/api/org/employees/${B.e.id}`)).body?.employee?.userId ?? (await json(admin, 'GET', `/api/org/employees/${B.e.id}`)).body?.userId;
-const bCount = async () => Number((await $`docker exec ${PG} psql -U ${PG_USER} -d ${PG_DB} -tAc ${`select count(*) from notifications.notifications where "UserId" = '${bUser}' and "Title" like 'Việc mới %'`}`.text()).trim());
+const bCount = async () => Number((await $`docker exec ${PG} psql -U ${PG_USER} -d ${PG_DB} -tAc ${`select count(*) from notifications.notifications where "UserId" = '${bUser}' and ("Title" like 'Việc mới %' or "Title" like 'Dự án %')`}`.text()).trim());
 ok('Có userId của B để đọc DB', !!bUser);
 const bBefore = await bCount();
 ok('Nghỉ việc B', (await json(admin, 'POST', '/api/org/employees/bulk/resign', { ids: [B.e.id], leftAt: today })).status === 200);
@@ -151,6 +202,10 @@ before = await snap();
 ok('A tạo việc thứ 3 (201)', (await json(A.cookie, 'POST', `/api/projects/${P}/tasks`, { title: 'Sau khi B nghỉ' })).status === 201);
 got = await fresh(before);
 ok('Sau nghỉ việc: PM + Bot nhận', got.PM.length === 1 && got.Bot.length === 1, got);
+before = await snap();
+await putProject(PM.cookie, { status: 'Closed' });
+got = await fresh(before);
+ok('Đóng dự án → Bot nhận "Trạng thái: Đang chạy → Đã đóng"', got.Bot.length === 1 && got.Bot[0].body.includes('Trạng thái: Đang chạy → Đã đóng'), got.Bot);
 ok('Sau nghỉ việc: B không có chuông mới trong DB', (await bCount()) === bBefore, { bBefore, after: await bCount() });
 
 console.log(`\n${pass} đạt / ${fail} lỗi`);

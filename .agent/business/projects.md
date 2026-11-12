@@ -55,6 +55,8 @@ Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsourc
 
 Chuyển sang [projects-tasks.md](projects-tasks.md). Còn ở dự án: `Project.Sequential` ("Đi lần lượt") + `WorkGuide` (hướng dẫn làm việc Markdown ≤ 20 000, chỉ ở chi tiết; quản lý dự án sửa qua PUT — `null` = giữ, `""` = xoá; tab "Hướng dẫn"; MCP `get_project` trả kèm để bot làm theo). Chỉ sửa hướng dẫn: `PUT /{id}/guide { workGuide }` (quản lý dự án / HR, dự án đang chạy — đóng → 409, ≤ 20 000, `null` / `""` = xoá, trả `{ workGuide }`; mở cho token AI → tool MCP `update_project_guide`, TEST-35).
 
+**Chuông khi sửa thông tin dự án** (TEST-38, chủ dự án chốt 2026-11-12): `PUT /{id}` và `PUT /{id}/guide` so trước / sau (`Domain/ProjectChangeRules.Diff`: tên, loại, trạng thái, mô tả, phòng ban chủ trì, mảng kinh doanh, hợp đồng bán, bắt đầu / kết thúc, ngân sách ngày công, đi lần lượt, hướng dẫn; mô tả / hướng dẫn chỉ ghi "đã sửa") → không đổi gì thì không gửi. Chuông `project_task` "Dự án {Mã} đã được cập nhật", thân "{người sửa} đã sửa: …" (≤ 300 ký tự), link `/projects/{id}` (chỉ đổi hướng dẫn → `?tab=guide`), chỉ app. Nhận: mọi thành viên còn làm có tài khoản; sửa trên web bỏ người sửa, **qua token AI / MCP thì chủ token cũng nhận** và người sửa ghi "BOT (token của X)". Thêm / bớt thành viên, phân bổ, mốc, cột không thuộc chuông này. Một lúc chỉ một người sửa — không xử lý sửa đồng thời.
+
 ## Nhắc (`TaskReminderJob`, mỗi giờ, sau 50 s)
 
 Việc chưa xong có người làm, hạn ≤ hôm nay → chuông `project_task` một lần (đổi hạn / người → nhắc lại). Giao việc / bình luận cũng gửi `project_task`.

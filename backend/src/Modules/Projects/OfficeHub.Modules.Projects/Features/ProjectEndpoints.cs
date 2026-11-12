@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.Modules.Attendance.Contracts;
 using OfficeHub.Modules.Notification.Contracts;
@@ -230,7 +231,7 @@ internal static class ProjectEndpoints
     }
 
     private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> UpdateAsync(Guid id, UpsertProject r, ClaimsPrincipal user, ProjectsDbContext db,
-        ProjectAccess access, ISalesContractsLookup sales, ProjectClock clock, CancellationToken ct)
+        ProjectAccess access, ISalesContractsLookup sales, IEmployeeDirectory dir, INotifier notifier, ProjectClock clock, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var p = await db.Projects.FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -253,6 +254,9 @@ internal static class ProjectEndpoints
                 }
         }
         if (val.Failed) return val.Problem();
+        var depts = (await dir.ListDepartmentsAsync(ct)).ToDictionary(d => d.Id, d => d.Name);
+        var codes = (await sales.GetManyAsync(links.Select(l => l.ContractId).Union(newIds).ToList(), ct)).ToDictionary(c => c.Id, c => c.Code);
+        var before = Snapshot(p, links.Select(l => l.ContractId), depts, codes);
         db.ProjectContracts.RemoveRange(removed);
         foreach (var cid in newIds.Where(c => links.All(l => l.ContractId != c)))
             db.ProjectContracts.Add(new ProjectContract { ProjectId = id, ContractId = cid, LinkedAt = clock.Now });
@@ -264,7 +268,30 @@ internal static class ProjectEndpoints
         p.Status = r.Status;
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { return new Validation().Add("salesContractIds", "Hợp đồng vừa được gắn với dự án khác").Problem(); }
+        await NotifyChangedAsync(notifier, access, db, p, v, user, ProjectChangeRules.Diff(before, Snapshot(p, newIds, depts, codes)), ct);
         return TypedResults.NoContent();
+    }
+
+    private static ProjectSnapshot Snapshot(Project p, IEnumerable<Guid> contractIds, IReadOnlyDictionary<Guid, string> depts, IReadOnlyDictionary<Guid, string> codes) =>
+        new(p.Name, p.Kind, p.Status, p.Description, p.DepartmentId is { } d ? depts.GetValueOrDefault(d, "(phòng ban đã xoá)") : null, p.BusinessLineId,
+            contractIds.Select(c => codes.GetValueOrDefault(c, "(hợp đồng)")).ToList(), p.StartOn, p.EndOn, p.BudgetManDays, p.Sequential, p.WorkGuide);
+
+    /// <summary>
+    /// TEST-38: chuông "Dự án … đã được cập nhật" cho mọi thành viên còn làm (<see cref="ProjectChangeRules"/>). Gọi ở mọi đường sửa dự án (web + token AI / MCP)
+    /// sau khi lưu; không có thay đổi → không gửi. Qua token AI chủ token cũng nhận (biết bot vừa đổi gì).
+    /// </summary>
+    private static async Task NotifyChangedAsync(INotifier notifier, ProjectAccess access, ProjectsDbContext db, Project p, ProjectViewer v, ClaimsPrincipal user,
+        List<string> changes, CancellationToken ct)
+    {
+        if (changes.Count == 0) return;
+        var emps = await access.EmployeesAsync(ct);
+        var memberIds = await db.Members.AsNoTracking().Where(m => m.ProjectId == p.Id).Select(m => m.EmployeeId).ToListAsync(ct);
+        var byToken = user.IsAccessToken();
+        var to = ProjectChangeRules.Recipients(memberIds.Select(m => emps.TryGetValue(m, out var e) ? (e.UserId, e.IsActive) : ((Guid?)null, false)), v.UserId, byToken);
+        if (to.Count == 0) return;
+        var guideOnly = changes.All(c => c.StartsWith(ProjectChangeRules.GuideField, StringComparison.Ordinal));
+        await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.ProjectTask, $"Dự án {p.Code} đã được cập nhật",
+            ProjectChangeRules.Body(ProjectChangeRules.Actor(v.Name, byToken), changes), $"/projects/{p.Id}{(guideOnly ? "?tab=guide" : "")}", SendEmail: false), ct);
     }
 
     /// <summary>
@@ -272,7 +299,7 @@ internal static class ProjectEndpoints
     /// null / "" = xoá. Project có [Audited] → lịch sử sửa ghi như sửa trên web.
     /// </summary>
     private static async Task<Results<Ok<ProjectGuideDto>, NotFound, ValidationProblem, ProblemHttpResult>> UpdateGuideAsync(Guid id, UpdateProjectGuide r,
-        ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, ProjectClock clock, CancellationToken ct)
+        ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, INotifier notifier, ProjectClock clock, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var p = await db.Projects.FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -287,6 +314,7 @@ internal static class ProjectEndpoints
             p.WorkGuide = guide;
             p.UpdatedAt = clock.Now;
             await db.SaveChangesAsync(ct);
+            await NotifyChangedAsync(notifier, access, db, p, v, user, [$"{ProjectChangeRules.GuideField}: đã sửa"], ct);
         }
         return TypedResults.Ok(new ProjectGuideDto(p.WorkGuide));
     }
