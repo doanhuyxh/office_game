@@ -7,7 +7,7 @@
 ```
 assets/styles/global.css      # Tailwind v4 + biến màu theme shadcn
 components/common/            # shadcn (tên file thường: button.tsx, dialog.tsx…) + FormField, SelectField
-components/feedback/          # Spinner, ComingSoon
+components/feedback/          # Spinner, ComingSoon, NotFoundPage, Forbidden, error-page / maintenance-page / app-error-boundary → frontend-errors.md
 context/                      # theme-provider (sáng/tối), search-provider (Ctrl/⌘+K)
 components/layout/            # MainLayout, AppSidebar, Header (⌘K, chuông thông báo, theme, tài khoản), PageHeader, navigation.ts
 config/                       # env.ts, paths.ts (PATHS), roles.ts (ROLE), theme.ts

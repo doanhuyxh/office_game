@@ -27,6 +27,7 @@ export default defineConfig(({ mode }) => {
       // Dev: cùng origin với API → cookie đăng nhập hoạt động giống production.
       proxy: {
         '/api': { target: env.VITE_API_TARGET ?? 'http://localhost:5080' },
+        '/health': { target: env.VITE_API_TARGET ?? 'http://localhost:5080' }, // trang bảo trì tự kiểm tra API còn sống
         '/rt': { target: env.VITE_RT_TARGET ?? 'http://localhost:5090', ws: true },
         '/mcp': { target: env.VITE_MCP_TARGET ?? 'http://localhost:5100' }, // máy chủ MCP cho trợ lý AI
         '/.well-known/oauth-': { target: env.VITE_MCP_TARGET ?? 'http://localhost:5100' }, // OAuth discovery

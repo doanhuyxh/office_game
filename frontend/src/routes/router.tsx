@@ -14,6 +14,7 @@ import { AcceptInviteForm, ChangePasswordForm, ForgotPasswordForm, LoginForm, Re
 import { PATHS } from '@/config/paths';
 import { Forbidden } from '@/components/feedback/Forbidden';
 import { NotFoundPage } from '@/components/feedback/NotFoundPage';
+import { ErrorPage } from '@/components/feedback/error-page';
 import { canAccessPage, PAGE_ROLES } from '@/config/access';
 
 /**
@@ -93,8 +94,10 @@ const oauthAuthorize = createRoute({
 
 // Các màn hình nhân sự: dùng chung sidebar.
 // notFoundComponent: trang con ném notFound({ data: { forbidden: true } }) khi sai vai trò → "không có quyền"; còn lại là 404 thật.
+// errorComponent: lỗi khi render / tải một màn hình → trang lỗi tiếng Việt trong khung trang, vẫn giữ sidebar / header (TEST-67).
 const main = createRoute({
   getParentRoute: () => protectedRoute, id: 'main', component: MainLayout,
+  errorComponent: ({ error }) => <ErrorPage error={error} />,
   notFoundComponent: ({ data }) => ((data as { forbidden?: boolean } | undefined)?.forbidden ? <Forbidden /> : <NotFoundPage />),
 });
 
@@ -180,6 +183,8 @@ export function createAppRouter(queryClient: QueryClient) {
     defaultPendingComponent: Spinner, // hiện khi đang tải chunk của màn hình (lazy)
     defaultPendingMs: 200,
     defaultNotFoundComponent: NotFoundPage, // URL lạ (ngoài khung trang) — trong khung trang dùng notFoundComponent của main
+    // Lỗi ngoài khung trang (đăng nhập, văn phòng 3D…) → trang lỗi toàn màn hình thay "Something went wrong!" mặc định (TEST-67)
+    defaultErrorComponent: ({ error }) => <ErrorPage error={error} fullScreen />,
   });
 }
 

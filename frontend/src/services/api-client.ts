@@ -1,4 +1,5 @@
 import type { IPageQuery, IProblemDetails } from '@/types/api';
+import { isGatewayDown, maintenance } from '@/services/maintenance';
 
 export class ApiError extends Error {
   constructor(
@@ -18,11 +19,20 @@ export class ApiError extends Error {
 /** Mọi request gửi kèm cookie đăng nhập (cùng domain với API). Body FormData (upload file) → để trình duyệt tự đặt Content-Type + boundary. */
 export async function http<T>(url: string, init: RequestInit = {}): Promise<T> {
   const isForm = init.body instanceof FormData;
-  const res = await fetch(url, {
-    ...init,
-    credentials: 'include',
-    headers: { ...(isForm ? {} : { 'Content-Type': 'application/json' }), ...init.headers },
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...init,
+      credentials: 'include',
+      headers: { ...(isForm ? {} : { 'Content-Type': 'application/json' }), ...init.headers },
+    });
+  } catch (err) {
+    if (!(err instanceof DOMException && err.name === 'AbortError')) maintenance.networkError();
+    throw err;
+  }
+  // API tắt / đang khởi động lại (proxy trả 502 / 503 / 504) → trang bảo trì chung (services/maintenance.ts)
+  if (isGatewayDown(res)) maintenance.gatewayDown();
+  else maintenance.ok();
   if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;

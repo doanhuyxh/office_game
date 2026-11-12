@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { ThemeProvider } from '@/context/theme-provider';
@@ -7,6 +8,8 @@ import { Toaster } from '@/components/common/sonner';
 import { authKeys } from '@/features/auth';
 import { PATHS } from '@/config/paths';
 import { ApiError } from '@/services/api-client';
+import { useApiDown } from '@/services/maintenance';
+import { MaintenancePage } from '@/components/feedback/maintenance-page';
 import { createAppRouter } from '@/routes/router';
 
 /**
@@ -55,6 +58,17 @@ const queryClient = new QueryClient({
 });
 const router = createAppRouter(queryClient);
 
+/** API không phản hồi (services/maintenance.ts) → trang bảo trì phủ toàn màn hình; API chạy lại → tải lại dữ liệu đang hiển thị (TEST-67). */
+function MaintenanceGate() {
+  const down = useApiDown();
+  const wasDown = useRef(false);
+  useEffect(() => {
+    if (wasDown.current && !down) void queryClient.refetchQueries({ type: 'active' });
+    wasDown.current = down;
+  }, [down]);
+  return down ? <MaintenancePage /> : null;
+}
+
 /** Root component: bọc Providers & Router. Thêm provider mới (toast, theme, i18n...) ở đây. */
 export function App() {
   return (
@@ -63,6 +77,7 @@ export function App() {
         <RouterProvider router={router} />
         <Toaster position="top-right" richColors closeButton />
         <ConfirmHost />
+        <MaintenanceGate />
       </QueryClientProvider>
     </ThemeProvider>
   );
