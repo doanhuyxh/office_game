@@ -7,7 +7,7 @@
 | Tiền tố | Module | Tài liệu |
 |---|---|---|
 | `/api/auth/*` | Identity | [business/auth.md](business/auth.md) |
-| `/api/org/*` | Organization | [business/organization.md](business/organization.md), hồ sơ cá nhân `/api/org/profile/*` [business/profile.md](business/profile.md), `PUT /api/org/employees/{id}/account/telegram` (chỉ admin, Bot Telegram của tài khoản bot — [business/notifications-telegram.md](business/notifications-telegram.md)) |
+| `/api/org/*` | Organization | [business/organization.md](business/organization.md), hồ sơ cá nhân `/api/org/profile/*` [business/profile.md](business/profile.md) |
 | `/api/attendance/*` | Attendance | [business/attendance.md](business/attendance.md), [business/attendance-corrections.md](business/attendance-corrections.md), [business/attendance-overtime.md](business/attendance-overtime.md) |
 | `/api/notifications/*` | Notification | [business/notifications.md](business/notifications.md) |
 | `/api/contracts/*` | LaborContracts | [business/contracts.md](business/contracts.md), ký điện tử [business/contracts-esign.md](business/contracts-esign.md) |

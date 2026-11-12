@@ -273,10 +273,6 @@ namespace OfficeHub.Modules.Identity.Infrastructure.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("text");
 
-                    b.Property<string>("TelegramBot")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean");
 
@@ -294,11 +290,6 @@ namespace OfficeHub.Modules.Identity.Infrastructure.Migrations
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
-
-                    b.HasIndex("TelegramBot")
-                        .IsUnique()
-                        .HasDatabaseName("ux_users_telegram_bot")
-                        .HasFilter("\"TelegramBot\" IS NOT NULL");
 
                     b.ToTable("users", "identity");
                 });
