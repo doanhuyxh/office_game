@@ -10,7 +10,7 @@ import { Input } from '@/components/common/input';
 import { Markdown } from '@/components/common/markdown';
 import { Label } from '@/components/common/label';
 import { SelectField } from '@/components/common/SelectField';
-import { Textarea } from '@/components/common/textarea';
+import { MessageInput } from '@/components/common/message-input';
 import { todayVn } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { projectApi } from '../../api/project.api';
@@ -77,7 +77,7 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
   }, [open, task?.id]);
   const errors = fieldErrors(save.error);
   const set = <K extends keyof ITaskRequest>(k: K, v: ITaskRequest[K]) => setF((x) => ({ ...x, [k]: v }));
-  const postComment = () => { if (comment.trim()) addComment.mutate(comment, { onSuccess: () => setComment(''), onError: (err) => toast.error(errorMessage(err)) }); };
+  const postComment = () => { if (comment.trim() && !addComment.isPending) addComment.mutate(comment, { onSuccess: () => setComment(''), onError: (err) => toast.error(errorMessage(err)) }); };
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="flex h-[92vh] w-[96vw] max-w-none flex-col gap-0 p-0 sm:max-w-none">
@@ -138,10 +138,8 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
                         <Trash2 className="size-3.5" /></Button>}
                     </div>
                     <Markdown text={c.content} /></div>)}
-                  {canWork && <div className="flex gap-2">
-                    <Textarea rows={2} placeholder="Viết bình luận…" aria-label="Bình luận" value={comment} onChange={(e) => setComment(e.target.value)} />
-                    <Button type="button" size="sm" disabled={addComment.isPending || !comment.trim()} onClick={postComment}>Gửi</Button>
-                  </div>}
+                  {canWork && <MessageInput placeholder="Viết bình luận…" ariaLabel="Bình luận" sendLabel="Gửi bình luận" value={comment} onChange={setComment}
+                    onSubmit={postComment} pending={addComment.isPending} />}
                   <p className="text-xs text-muted-foreground">Tạo bởi {task.createdByName}{task.createdByBot && <BotBadge className="ml-1" />} · {fmtTime(task.createdAt)}{task.completedAt && ` · xong ${fmtTime(task.completedAt)}`}
                     {activities.length > 0 && <button type="button" className="ml-2 underline" onClick={() => setShowHistory((x) => !x)}>{showHistory ? 'Ẩn lịch sử' : `Lịch sử (${activities.length})`}</button>}</p>
                   {showHistory && <ul className="grid gap-1 rounded-md border p-2" data-testid="task-history">{[...activities].reverse().map((a) => <ActivityLine key={a.id} a={a} />)}</ul>}
