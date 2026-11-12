@@ -8,7 +8,7 @@ import { Textarea } from '@/components/common/textarea';
  * để tự chọn khi mở hộp thoại; không sửa được (`editable=false`) → luôn xem. Nhấp đúp vùng xem → chuyển sang viết.
  */
 export function MarkdownEditor({ id, label, value, onChange, preview, onPreviewChange, editable = true, rows = 10, maxLength, placeholder, error,
-  emptyText = 'Chưa có nội dung.' }: {
+  emptyText = 'Chưa có nội dung.', minHeightClass = '' }: {
   id: string;
   label: ReactNode;
   value: string;
@@ -21,6 +21,8 @@ export function MarkdownEditor({ id, label, value, onChange, preview, onPreviewC
   placeholder?: string;
   error?: string;
   emptyText?: string;
+  /** Chiều cao tối thiểu cho cả ô viết lẫn vùng xem (Textarea tự co theo nội dung nên `rows` không giữ chiều cao). */
+  minHeightClass?: string;
 }) {
   return (
     <div className="grid grid-cols-1 gap-2">
@@ -33,10 +35,10 @@ export function MarkdownEditor({ id, label, value, onChange, preview, onPreviewC
         </div>}
       </div>
       {preview || !editable
-        ? <div className="min-h-20 rounded-md border px-3 py-2 wrap-anywhere" onDoubleClick={() => editable && onPreviewChange(false)}>
+        ? <div className={`min-h-20 rounded-md border px-3 py-2 wrap-anywhere ${minHeightClass}`} onDoubleClick={() => editable && onPreviewChange(false)}>
             {value.trim() ? <Markdown text={value} /> : <p className="text-sm text-muted-foreground">{emptyText}</p>}
           </div>
-        : <Textarea id={id} rows={rows} maxLength={maxLength} className="font-mono text-xs" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />}
+        : <Textarea id={id} rows={rows} maxLength={maxLength} className={`font-mono text-xs ${minHeightClass}`} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );

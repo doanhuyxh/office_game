@@ -5,7 +5,6 @@ import { Button } from '@/components/common/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/common/input';
-import { Label } from '@/components/common/label';
 import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { SelectField } from '@/components/common/SelectField';
 import { Textarea } from '@/components/common/textarea';
@@ -35,7 +34,7 @@ function Section({ title, hint, children, testId }: { title: string; hint?: stri
  * Tạo / sửa dự án. Làm cho khách → gắn một hoặc nhiều hợp đồng bán (tìm theo số / tên / khách); một hợp đồng chỉ thuộc một dự án.
  * Mã không đổi sau khi tạo (dùng trong mã việc + số hiệu tài liệu). Quy trình "Đi lần lượt" (mặc định bật cho dự án mới)
  * + hướng dẫn làm việc (Markdown — người và BOT đọc qua MCP get_project).
- * Bố cục: header + footer cố định, thân cuộn; từ `lg` 2 cột (trái: thông tin chung + hướng dẫn, phải: hợp đồng / thời gian / quy trình / thành viên).
+ * Bố cục: header + footer cố định; từ `lg` 2 cột cuộn riêng — trái: thông tin chung / hợp đồng / thời gian / quy trình / thành viên, phải: chỉ mô tả + hướng dẫn.
  */
 export function ProjectFormDialog({ open, project, workGuide, onClose, onCreated }: {
   open: boolean; project?: IProject | null; workGuide?: string | null; onClose: () => void; onCreated?: (id: string) => void;
@@ -81,15 +80,16 @@ export function ProjectFormDialog({ open, project, workGuide, onClose, onCreated
             <DialogTitle>{project ? `Sửa dự án ${project.code}` : 'Dự án mới'}</DialogTitle>
             <DialogDescription>Mỗi dự án có kho tài liệu riêng cho thành viên. Người tạo là quản lý dự án.</DialogDescription>
           </DialogHeader>
-          <div className="grid min-h-0 flex-1 grid-cols-1 content-start gap-6 overflow-y-auto px-6 py-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
-            <div className="grid min-w-0 grid-cols-1 content-start gap-6">
+          {/* Mobile: 1 cột, cả thân cuộn chung; từ lg: trái = các ô thông tin, phải = mô tả + hướng dẫn, mỗi cột cuộn riêng */}
+          <div className="grid min-h-0 flex-1 grid-cols-1 content-start overflow-y-auto lg:grid-cols-2 lg:content-stretch lg:overflow-hidden">
+            <div className="grid min-w-0 grid-cols-1 content-start gap-6 px-6 py-5 lg:min-h-0 lg:overflow-y-auto" data-testid="pj-col-fields">
               <Section title="Thông tin chung">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
+                <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
                   <FormField id="pj-code" label="Mã *" required maxLength={30} disabled={!!project} placeholder="APP-DATLICH" value={f.code}
                     onChange={(e) => set('code', e.target.value.toUpperCase())} error={errors.code} hint={project ? 'Không đổi sau khi tạo' : undefined} />
                   <FormField id="pj-name" label="Tên dự án *" required maxLength={200} value={f.name} onChange={(e) => set('name', e.target.value)} error={errors.name} />
                 </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
                   <SelectField id="pj-kind" label="Loại" value={f.kind} onChange={(v) => set('kind', (v ?? 'Internal') as ProjectKind)}
                     options={(Object.keys(PROJECT_KIND) as ProjectKind[]).map((k) => ({ value: k, label: PROJECT_KIND[k] }))} />
                   {project && <SelectField id="pj-status" label="Trạng thái" value={f.status ?? 'Active'} onChange={(v) => set('status', (v ?? 'Active') as ProjectStatus)}
@@ -99,20 +99,7 @@ export function ProjectFormDialog({ open, project, workGuide, onClose, onCreated
                   <SelectField id="pj-dept" label="Phòng ban chủ trì" allowEmpty value={f.departmentId ?? null} onChange={(v) => set('departmentId', v)}
                     options={departmentOptions(departments)} error={errors.departmentId} />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="pj-desc">Mô tả</Label>
-                  <Textarea id="pj-desc" rows={3} maxLength={2000} value={f.description ?? ''} onChange={(e) => set('description', e.target.value)}
-                    placeholder="Mục tiêu, phạm vi, khách hàng…" />
-                  {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
-                </div>
               </Section>
-              <Section title="Hướng dẫn làm việc" hint="Thành viên và BOT đọc trước khi làm việc trong dự án (Markdown).">
-                <MarkdownEditor id="pj-guide" label="Nội dung hướng dẫn" value={f.workGuide ?? ''} onChange={(v) => set('workGuide', v)}
-                  preview={preview} onPreviewChange={setPreview} rows={12} maxLength={20000} error={errors.workGuide} emptyText="Chưa có hướng dẫn."
-                  placeholder={'## Định nghĩa "xong"\n- Có bình luận kết quả + link sản phẩm\n## Quy ước\n- Đặt tên nhánh theo mã việc…'} />
-              </Section>
-            </div>
-            <div className="grid min-w-0 grid-cols-1 content-start gap-6 lg:border-l lg:pl-6">
               {f.kind === 'Client' && (
                 <Section title="Khách hàng & hợp đồng" hint="Hợp đồng bán * — một dự án có thể có nhiều hợp đồng, một hợp đồng chỉ thuộc một dự án." testId="pj-contracts">
                   {picked.length > 0 && <ul className="grid gap-1">
@@ -137,7 +124,7 @@ export function ProjectFormDialog({ open, project, workGuide, onClose, onCreated
                 </Section>
               )}
               <Section title="Thời gian & ngân sách">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
                   <FormField id="pj-start" label="Bắt đầu" type="date" value={f.startOn ?? ''} onChange={(e) => set('startOn', e.target.value)} error={errors.startOn} />
                   <FormField id="pj-end" label="Kết thúc dự kiến" type="date" value={f.endOn ?? ''} onChange={(e) => set('endOn', e.target.value)} error={errors.endOn} />
                   <FormField id="pj-budget" label="Ngân sách (ngày công)" type="number" min={0} step="0.5" value={f.budgetManDays ?? ''}
@@ -163,6 +150,18 @@ export function ProjectFormDialog({ open, project, workGuide, onClose, onCreated
                   {errors.memberIds && <p className="text-xs text-destructive">{errors.memberIds}</p>}
                 </Section>
               )}
+            </div>
+            <div className="grid min-w-0 grid-cols-1 content-start gap-6 border-t px-6 py-5 lg:min-h-0 lg:overflow-y-auto lg:border-t-0 lg:border-l" data-testid="pj-col-text">
+              <Section title="Mô tả">
+                <Textarea id="pj-desc" aria-label="Mô tả" rows={5} className="min-h-28" maxLength={2000} value={f.description ?? ''} onChange={(e) => set('description', e.target.value)}
+                  placeholder="Mục tiêu, phạm vi, khách hàng…" />
+                {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
+              </Section>
+              <Section title="Hướng dẫn làm việc" hint="Thành viên và BOT đọc trước khi làm việc trong dự án (Markdown).">
+                <MarkdownEditor id="pj-guide" label="Nội dung hướng dẫn" value={f.workGuide ?? ''} onChange={(v) => set('workGuide', v)}
+                  preview={preview} onPreviewChange={setPreview} rows={16} minHeightClass="min-h-80" maxLength={20000} error={errors.workGuide} emptyText="Chưa có hướng dẫn."
+                  placeholder={'## Định nghĩa "xong"\n- Có bình luận kết quả + link sản phẩm\n## Quy ước\n- Đặt tên nhánh theo mã việc…'} />
+              </Section>
             </div>
           </div>
           <DialogFooter className="shrink-0 border-t px-6 py-4">
