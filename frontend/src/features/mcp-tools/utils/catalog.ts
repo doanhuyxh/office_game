@@ -384,6 +384,12 @@ export const MCP_TOOL_GROUPS: McpToolGroup[] = [
       { name: 'get_project_effort', title: 'Ngày công dự án', kind: 'read', endpoint: 'GET /api/projects/{id}/effort',
         description: '(Quản lý dự án / HR / Ban giám đốc) Ngày công theo chấm công: mỗi người × tháng = ngày có mặt × % phân bổ, tổng, ngân sách ngày công, tháng đã chốt. Không có số tiền.',
         params: [{ name: 'project', type: 'string', required: true, description: 'Id hoặc mã dự án' }] },
+      { name: 'update_project_guide', title: 'Sửa hướng dẫn làm việc của dự án', kind: 'write', idempotent: true, endpoint: 'PUT /api/projects/{id}/guide',
+        description: '(Quản lý dự án / HR) Sửa hướng dẫn làm việc Markdown (≤ 20.000 ký tự, thay toàn bộ) của dự án đang chạy — thành viên và bot đọc qua get_project → workGuide. "none" = xoá. AI xem bản hiện tại, cho người dùng xem bản mới và chờ đồng ý. Trả trước / sau.',
+        params: [
+          { name: 'project', type: 'string', required: true, description: 'Id hoặc mã dự án' },
+          { name: 'guide', type: 'string', required: true, description: 'Hướng dẫn mới, Markdown — thay toàn bộ ("none" = xoá)' },
+        ] },
     ],
   },
   {

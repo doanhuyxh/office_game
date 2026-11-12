@@ -83,7 +83,7 @@ public static class AccessTokenAuth
     // Route có Id ở giữa (không diễn tả được bằng tiền tố) → khớp NGUYÊN path bằng mẫu. {id} = Guid.
     // Dự án: đọc dự án / việc (+ bình luận, lịch sử) / ngày công (không tiền), ghi CHỈ tạo / sửa việc, chuyển trạng thái việc (theo quy trình), bình luận.
     //   Cố ý không có: tài chính (/financials), đợt thu / HĐ bán (/installments, /sales-contracts), CR (/change-requests),
-    //   thành viên, phân bổ %, mốc nghiệm thu, tạo / sửa dự án (gồm hướng dẫn làm việc), xoá việc.
+    //   thành viên, phân bổ %, mốc nghiệm thu, tạo / sửa dự án (trừ PUT /{id}/guide — chỉ hướng dẫn làm việc, TEST-35), xoá việc.
     // Tài liệu: chỉ ĐỌC (kho, thư mục, tìm, chi tiết, link xem / tải — ghi nhật ký truy cập). Không tải lên, ban hành, xoá, quản trị.
     private const string Id = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
     private static readonly (string Method, System.Text.RegularExpressions.Regex Path)[] AllowedExact =
@@ -97,6 +97,7 @@ public static class AccessTokenAuth
         ("POST", Exact($"/api/projects/{Id}/tasks")),
         ("POST", Exact($"/api/projects/tasks/{Id}/(move|comments)")),
         ("PUT", Exact($"/api/projects/tasks/{Id}/dependencies")), // việc phải chờ (2026-11-11, đội agent chuyền việc)
+        ("PUT", Exact($"/api/projects/{Id}/guide")),               // hướng dẫn làm việc (quản lý dự án / HR — Api kiểm)
         // Phòng ban (HR — Api tự yêu cầu AuthPolicies.Hr): tạo / sửa / xoá mềm.
         ("POST", Exact("/api/org/departments/?")),
         ("PUT", Exact($"/api/org/departments/{Id}")),

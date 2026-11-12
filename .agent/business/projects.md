@@ -53,7 +53,7 @@ Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsourc
 
 ## Quy trình, cột trạng thái, lịch sử, BOT
 
-Chuyển sang [projects-tasks.md](projects-tasks.md). Còn ở dự án: `Project.Sequential` ("Đi lần lượt") + `WorkGuide` (hướng dẫn làm việc Markdown ≤ 20 000, chỉ ở chi tiết; quản lý dự án sửa qua PUT — `null` = giữ, `""` = xoá; tab "Hướng dẫn"; MCP `get_project` trả kèm để bot làm theo).
+Chuyển sang [projects-tasks.md](projects-tasks.md). Còn ở dự án: `Project.Sequential` ("Đi lần lượt") + `WorkGuide` (hướng dẫn làm việc Markdown ≤ 20 000, chỉ ở chi tiết; quản lý dự án sửa qua PUT — `null` = giữ, `""` = xoá; tab "Hướng dẫn"; MCP `get_project` trả kèm để bot làm theo). Chỉ sửa hướng dẫn: `PUT /{id}/guide { workGuide }` (quản lý dự án / HR, dự án đang chạy — đóng → 409, ≤ 20 000, `null` / `""` = xoá, trả `{ workGuide }`; mở cho token AI → tool MCP `update_project_guide`, TEST-35).
 
 ## Nhắc (`TaskReminderJob`, mỗi giờ, sau 50 s)
 

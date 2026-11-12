@@ -241,6 +241,36 @@ public sealed class ProjectTools
         return Out(await api.GetAsync($"/api/projects/{id}/effort", ct));
     }
 
+    /// <summary>Khớp TaskRules.MaxDescription ở module Projects (Mcp không tham chiếu module — Api vẫn kiểm tra lại).</summary>
+    internal const int GuideMax = 20_000;
+
+    [McpServerTool(Name = "update_project_guide", Title = "Sửa hướng dẫn làm việc của dự án", Destructive = false, Idempotent = true, OpenWorld = false)]
+    [Description("(Quản lý dự án / HR) Sửa hướng dẫn làm việc (Markdown ≤ 20.000 ký tự: ## tiêu đề, - gạch đầu dòng, **đậm**) của một dự án đang chạy — " +
+                 "nội dung mọi thành viên và bot đọc qua get_project → workGuide. Bản mới THAY THẾ TOÀN BỘ bản cũ — muốn thêm một mục thì gửi lại cả bài đã ghép; " +
+                 "\"none\" = xoá. Gọi get_project xem bản hiện tại, cho người dùng xem bản mới (hoặc tóm tắt thay đổi) và chờ đồng ý trước khi gọi. " +
+                 "Không ghi mật khẩu, thông tin cá nhân. Trả before / after.")]
+    public static async Task<string> UpdateProjectGuide(OfficeHubApi api,
+        [Description("Dự án: id hoặc mã dự án")] string project,
+        [Description("Hướng dẫn mới (Markdown, thay toàn bộ); \"none\" = xoá")] string guide,
+        CancellationToken ct = default)
+    {
+        var next = GuideValue(guide);
+        var id = await ResolveProjectAsync(api, project, ct);
+        var before = (await api.GetAsync($"/api/projects/{id}", ct))?["workGuide"]?.DeepClone();
+        var saved = await api.PutAsync($"/api/projects/{id}/guide", new { workGuide = next }, ct);
+        return Out(new JsonObject { ["before"] = before, ["after"] = saved?["workGuide"]?.DeepClone() });
+    }
+
+    /// <summary>Tham số guide → nội dung gửi Api: "none" / "không" = xoá (null); trống hoặc quá dài → McpException.</summary>
+    internal static string? GuideValue(string? guide)
+    {
+        var g = guide?.Trim() ?? "";
+        if (g.Length == 0) throw new McpException("Thiếu nội dung hướng dẫn — muốn xoá thì truyền \"none\"");
+        if (g.ToLowerInvariant() is "none" or "không") return null;
+        if (g.Length > GuideMax) throw new McpException($"Hướng dẫn tối đa {GuideMax:N0} ký tự (đang {g.Length:N0}) — rút gọn hoặc tách bớt");
+        return g;
+    }
+
     // ---------------- Helpers ----------------
 
     /// <summary>Trạng thái (cột) của dự án: id, tên (không phân biệt hoa thường / dấu), hoặc bí danh "todo" = cột đầu, "done" / "xong" = cột hoàn thành đầu tiên.</summary>

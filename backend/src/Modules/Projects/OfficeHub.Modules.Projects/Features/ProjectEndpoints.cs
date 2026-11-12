@@ -23,6 +23,9 @@ public sealed record ProjectDto(Guid Id, string Code, string Name, string? Descr
     bool CanManageColumns = false);
 /// <param name="WorkGuide">Hướng dẫn làm việc (Markdown) — chỉ ở chi tiết, không ở danh sách (dài).</param>
 /// <param name="Columns">Cột trạng thái công việc theo thứ tự.</param>
+/// <param name="WorkGuide">Hướng dẫn làm việc mới (Markdown, thay toàn bộ); null / "" = xoá.</param>
+public sealed record UpdateProjectGuide(string? WorkGuide);
+public sealed record ProjectGuideDto(string? WorkGuide);
 public sealed record ProjectDetail(ProjectDto Project, List<MemberDto> Members, List<MilestoneDto> Milestones, string? WorkGuide, List<TaskColumnDto> Columns);
 public sealed record UpsertProject(string Code, string Name, ProjectKind Kind = ProjectKind.Internal, string? Description = null, Guid? DepartmentId = null,
     Guid? BusinessLineId = null, List<Guid>? SalesContractIds = null, DateOnly? StartOn = null, DateOnly? EndOn = null, decimal? BudgetManDays = null,
@@ -45,6 +48,7 @@ internal static class ProjectEndpoints
         g.MapGet("/{id:guid}", GetAsync);
         g.MapPost("/", CreateAsync);
         g.MapPut("/{id:guid}", UpdateAsync);
+        g.MapPut("/{id:guid}/guide", UpdateGuideAsync);
         g.MapPost("/{id:guid}/members", AddMembersAsync);
         g.MapPut("/{id:guid}/members/{employeeId:guid}", ChangeRoleAsync);
         g.MapDelete("/{id:guid}/members/{employeeId:guid}", RemoveMemberAsync);
@@ -261,6 +265,30 @@ internal static class ProjectEndpoints
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { return new Validation().Add("salesContractIds", "Hợp đồng vừa được gắn với dự án khác").Problem(); }
         return TypedResults.NoContent();
+    }
+
+    /// <summary>
+    /// Chỉ sửa hướng dẫn làm việc (tool MCP update_project_guide — không phải gửi lại cả dự án như PUT /{id}). Quản lý dự án / HR, dự án đang chạy;
+    /// null / "" = xoá. Project có [Audited] → lịch sử sửa ghi như sửa trên web.
+    /// </summary>
+    private static async Task<Results<Ok<ProjectGuideDto>, NotFound, ValidationProblem, ProblemHttpResult>> UpdateGuideAsync(Guid id, UpdateProjectGuide r,
+        ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, ProjectClock clock, CancellationToken ct)
+    {
+        var v = await access.ViewerAsync(user, ct);
+        var p = await db.Projects.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (p is null || !v.CanSee(id)) return TypedResults.NotFound();
+        if (!v.CanManage(id)) return Forbidden("Chỉ quản lý dự án hoặc HR được sửa hướng dẫn làm việc");
+        if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
+        var val = new Validation().MaxLength(r.WorkGuide, TaskRules.MaxDescription, "workGuide", "Hướng dẫn làm việc");
+        if (val.Failed) return val.Problem();
+        var guide = Clean(r.WorkGuide);
+        if (guide != p.WorkGuide)
+        {
+            p.WorkGuide = guide;
+            p.UpdatedAt = clock.Now;
+            await db.SaveChangesAsync(ct);
+        }
+        return TypedResults.Ok(new ProjectGuideDto(p.WorkGuide));
     }
 
     private static async Task NotifyAddedAsync(INotifier notifier, IEmployeeDirectory dir, Project p, IEnumerable<Guid> employeeIds, ProjectViewer v, CancellationToken ct)
