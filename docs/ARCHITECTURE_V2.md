@@ -35,7 +35,7 @@
 | **Nhập nhân viên từ Excel** (mẫu, xem trước lỗi từng dòng, nhập hết hoặc không) | ✅ |
 | Docker image (api, realtime, web), compose production, backup S3, CI GitHub Actions | ✅ (chưa deploy thật) |
 | Test: kiến trúc (ranh giới module, nguồn giờ, hợp đồng thời điểm) + tính công, phép, tăng ca, hợp đồng, OAuth, MCP, báo cáo, phòng họp (223 test) | ✅ |
-| Wolverine (sự kiện/outbox), Hangfire (job) | ⏳ (chưa cần — job nền dùng BackgroundService, module gọi nhau đồng bộ) |
+| Wolverine (sự kiện/outbox), Hangfire (job) | ⏳ (chưa cần — job nền dùng BackgroundService, module gọi nhau đồng bộ; Lưu trữ, TEST-53) |
 | **Tăng ca**: đăng ký trước / khai bù 7 ngày, duyệt quản lý → HR, tính theo giờ trên đơn, tách 150 / 200 / 300% theo loại ngày, cảnh báo 40 giờ/tháng · 200 giờ/năm | ✅ |
 | **Nhắc quên chấm ra** (hết ca vẫn "vào"; sáng hôm sau nhắc giải trình) | ✅ |
 | Engine 3D đầy đủ (viết mới), dựng theo mặt bằng thật | ⏳ |
@@ -505,6 +505,8 @@ Tăng ca tính theo giờ trên đơn đã duyệt (không đối chiếu chấm
 
 ### 6.4 Webhook máy chấm công (giai đoạn 3)
 
+> **Trạng thái 2026-11-12: Lưu trữ** (chưa có máy; cùng chốt công tháng, ca qua đêm, API loại phép, chính sách phép cấu hình) — bảng dự án `TEST`, việc TEST-53.
+
 - Endpoint: `POST /api/attendance/devices/{deviceId}/events`.
 - Ký **HMAC-SHA256** bằng secret riêng của từng máy. Timestamp lệch quá 5 phút thì từ chối.
 - Mỗi hãng một adapter. Máy ZKTeco thường đẩy dữ liệu qua giao thức ADMS (`/iclock/cdata`), nên cần adapter riêng.
@@ -790,4 +792,6 @@ Trước đó (tới 2026-11-05) dùng bucket chung `finsplit` + IAM user `finsp
 | **2. Hoàn thiện** ✅ | Bảng công tháng + Excel, mẫu hợp đồng, quy ra tiền tăng ca + phép (khi nghỉ việc), voice + đặt phòng họp | Bỏ quy trình giấy/Excel |
 | **3. Mở rộng** ✅ (trừ máy chấm công) | PWA/mobile ✅ (không push), ký điện tử nội bộ + OTP ✅, bảng lương ✅ · webhook máy chấm công: chủ dự án chưa làm | Tuỳ nhu cầu |
 
-**Bước tiếp theo** (chủ dự án chọn): vận hành (giám sát, diễn tập khôi phục backup) · kế toán đối chiếu thông số lương · webhook máy chấm công khi có máy.
+**Việc còn lại theo dõi trên bảng dự án `TEST`** (không ghi danh sách ở đây). Tình trạng 2026-11-12:
+- **Lưu trữ (để sau):** webhook máy chấm công, chốt công tháng, ca qua đêm, API loại phép, chính sách phép cấu hình (TEST-53) · tổng quan giám đốc + dự báo dòng tiền (TEST-50) · Affiliate + lịch studio (TEST-51) · phần lẻ tài chính / kinh doanh (TEST-52) · chat / bảng tin / kho tài liệu (TEST-54) · CAPTCHA đăng nhập (TEST-26).
+- **Không làm:** gói xây kênh MXH (TEST-49) · MXH Zalo / TikTok / Instagram, MCP (Client ID Metadata, HR bật / tắt AI theo người), agent-runner mở rộng (TEST-55) · diễn tập khôi phục backup, tắt email theo người, xuất sơ đồ tổ chức ra ảnh / PDF (TEST-56).

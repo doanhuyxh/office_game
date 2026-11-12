@@ -124,6 +124,8 @@ công của A ở P = công thực tế tháng (bảng công từ attendance.eve
 
 ## 5. Giai đoạn 3 — Affiliate TikTok Shop / Shopee (module `Affiliate`)
 
+> **Trạng thái 2026-11-12: Lưu trữ** (tạm dừng từ 2026-11-08, chờ chủ dự án yêu cầu) — bảng dự án `TEST`, việc TEST-51.
+
 Mảng đang dự định triển khai → làm **bản tối thiểu**, mở rộng khi chạy thật.
 
 - **Kênh**: nền tảng (TikTok Shop / Shopee), tên kênh, người phụ trách, nhân sự tham gia, trạng thái.
@@ -135,6 +137,8 @@ Mảng đang dự định triển khai → làm **bản tối thiểu**, mở r�
 
 ## 6. Giai đoạn 4 — Gói xây kênh MXH thuê (trong `Projects`, loại "Gói dịch vụ")
 
+> **Trạng thái 2026-11-12: KHÔNG LÀM** (chủ dự án chuyển sang cột "Không làm") — bảng dự án `TEST`, việc TEST-49. Nội dung dưới giữ để tham khảo, không triển khai.
+
 - Hợp đồng định kỳ tháng (từ Sales) → **gói**: kênh của khách (nền tảng, link), cam kết mỗi tháng (số bài, video, live).
 - **Lịch nội dung**: mục nội dung *Ý tưởng → Sản xuất → Chờ khách duyệt → Đã đăng* (+ link bài), người làm, hạn; đếm so với cam kết.
 - Khách duyệt: giai đoạn này **ghi nhận nội bộ** (nhân viên đánh dấu khách đã duyệt). Cổng cho khách bên ngoài để sau (cần thiết kế bảo mật riêng).
@@ -143,6 +147,8 @@ Mảng đang dự định triển khai → làm **bản tối thiểu**, mở r�
 - Nhân công: % phân bổ nhân viên vào gói như dự án.
 
 ## 7. Giai đoạn 5 — Tổng quan cho giám đốc
+
+> **Trạng thái 2026-11-12: Lưu trữ** (để sau, chưa làm) — bảng dự án `TEST`, việc TEST-50.
 
 - Màn hình `/finance` → Tổng quan: số dư các quỹ, thu / chi / lãi theo tháng và theo mảng, công nợ quá hạn, pipeline có trọng số, dự án lỗ / sắp vượt ngân sách ngày công.
 - **Dự báo dòng tiền 13 tuần**: số dư hiện tại + đợt thu sắp đến hạn + cơ hội × xác suất − lương dự kiến − gia hạn dịch vụ − đề nghị chi đã duyệt chưa chi.
@@ -157,6 +163,8 @@ Mảng đang dự định triển khai → làm **bản tối thiểu**, mở r�
 - MCP: chưa mở. Nếu mở sau → chỉ đọc việc / dự án của mình, không tool tiền; cập nhật `catalog.ts` + `mcp.md` (luật #9).
 
 ## 9. Ước lượng
+
+> Giai đoạn 1 + 2 đã xong. Giai đoạn 3 và 5: Lưu trữ (TEST-51, TEST-50). Giai đoạn 4: Không làm (TEST-49). Phần lẻ của giai đoạn 1 (PDF báo giá, ký hợp đồng bán điện tử, đối soát sao kê, đề nghị chi từ lương, 2FA + thông báo đổi quyền tài chính): Lưu trữ (TEST-52).
 
 | Giai đoạn | Khối lượng |
 |---|---|
