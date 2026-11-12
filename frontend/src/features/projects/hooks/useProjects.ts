@@ -19,6 +19,8 @@ export const useFinancials = (id: string, enabled: boolean) => useQuery({ queryK
 export const useChangeRequests = (id: string) => useQuery({ queryKey: projectKeys.changeRequests(id), queryFn: () => projectApi.changeRequests(id) });
 /** Giới hạn đội agent — chỉ admin (back-end 403 nếu không). */
 export const useAgentSettings = () => useQuery({ queryKey: projectKeys.agentSettings, queryFn: projectApi.agentSettings });
+/** Tab Phụ lục (phòng ban, thành viên, quyền hạn) — chỉ tải khi mở tab. */
+export const useProjectAppendix = (id: string, enabled: boolean) => useQuery({ queryKey: projectKeys.appendix(id), queryFn: () => projectApi.appendix(id), enabled });
 export const useAllFinancials = (status: ProjectStatus | undefined, enabled: boolean) =>
   useQuery({ queryKey: projectKeys.allFinancials(status), queryFn: () => projectApi.allFinancials(status), enabled });
 

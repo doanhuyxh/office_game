@@ -6,7 +6,8 @@ namespace OfficeHub.Modules.Projects.Contracts;
 [JsonConverter(typeof(JsonStringEnumConverter<ProjectMemberRole>))]
 public enum ProjectMemberRole { Member = 0, Manager = 1 }
 
-public sealed record ProjectRef(Guid Id, string Code, string Name, bool IsActive, Guid? DepartmentId);
+/// <param name="DepartmentIds">Phòng ban tham gia (TEST-40).</param><param name="LeadDepartmentId">Phòng chủ trì (một trong DepartmentIds).</param>
+public sealed record ProjectRef(Guid Id, string Code, string Name, bool IsActive, IReadOnlyList<Guid> DepartmentIds, Guid? LeadDepartmentId);
 
 /// <summary>Phần công khai của module Projects: module khác (Documents — kho tài liệu dự án) tra dự án + thành viên.</summary>
 public interface IProjectDirectory

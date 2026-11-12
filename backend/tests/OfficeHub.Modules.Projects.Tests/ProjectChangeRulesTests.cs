@@ -34,8 +34,8 @@ public class ProjectChangeRulesTests
     [Fact]
     public void Empty_values_and_department()
     {
-        var lines = ProjectChangeRules.Diff(Base with { Department = null, EndOn = null }, Base with { Department = "Kinh doanh" });
-        Assert.Equal(["Phòng ban chủ trì: trống → Kinh doanh", "Kết thúc dự kiến: trống → 30/11/2026"], lines);
+        var lines = ProjectChangeRules.Diff(Base with { Department = null, EndOn = null }, Base with { Department = "Kinh doanh (chủ trì), Kỹ thuật" });
+        Assert.Equal(["Phòng ban tham gia: trống → Kinh doanh (chủ trì), Kỹ thuật", "Kết thúc dự kiến: trống → 30/11/2026"], lines);
     }
 
     [Fact]

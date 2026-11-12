@@ -4,6 +4,7 @@ namespace OfficeHub.Modules.Projects.Domain;
 /// Thông tin dự án tại một thời điểm, đã đổi sẵn ra chữ hiển thị (tên phòng ban, mã hợp đồng) để <see cref="ProjectChangeRules.Diff"/> là hàm thuần.
 /// Mảng kinh doanh chỉ so id (tên nằm ở module Finance, Projects không tra được).
 /// </summary>
+/// <param name="Department">Phòng ban tham gia dạng chữ ("Kỹ thuật (chủ trì), Kinh doanh"), null = không có.</param>
 public sealed record ProjectSnapshot(string Name, ProjectKind Kind, ProjectStatus Status, string? Description, string? Department, Guid? BusinessLineId,
     IReadOnlyCollection<string> Contracts, DateOnly? StartOn, DateOnly? EndOn, decimal? BudgetManDays, bool Sequential, string? WorkGuide);
 
@@ -30,7 +31,7 @@ public static class ProjectChangeRules
         if (a.Kind != b.Kind) c.Add($"Loại: {Kind(a.Kind)} → {Kind(b.Kind)}");
         if (a.Status != b.Status) c.Add($"Trạng thái: {Status(a.Status)} → {Status(b.Status)}");
         if ((a.Description ?? "") != (b.Description ?? "")) c.Add("Mô tả: đã sửa");
-        if (a.Department != b.Department) c.Add($"Phòng ban chủ trì: {Text(a.Department)} → {Text(b.Department)}");
+        if (a.Department != b.Department) c.Add($"Phòng ban tham gia: {Text(a.Department)} → {Text(b.Department)}");
         if (a.BusinessLineId != b.BusinessLineId) c.Add("Mảng kinh doanh: đã đổi");
         var added = b.Contracts.Except(a.Contracts).Order().ToList();
         var removed = a.Contracts.Except(b.Contracts).Order().ToList();

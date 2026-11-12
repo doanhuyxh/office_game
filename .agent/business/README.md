@@ -49,6 +49,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Dự án: thành viên, phân bổ, mốc nghiệm thu, công việc, ngày công, `IProjectDirectory` (kho tài liệu dự án), chép dự án cũ từ Documents | [projects.md](projects.md) |
 | Dự án — hợp đồng (nhiều HĐ / dự án), chốt phân bổ tháng, chi phí nhân công từ lương, thu / chi gắn dự án, lãi / lỗ | [projects-finance.md](projects-finance.md) |
 | Dự án — tổng quan tiến độ: % hoàn thành, % thời gian, mốc tiếp, tình trạng Đúng tiến độ / Có rủi ro / Trễ | [projects-progress.md](projects-progress.md) |
+| Dự án — phòng ban tham gia (chủ trì), nhân viên phòng ban xem dự án chỉ đọc, tab Phụ lục quyền hạn (sinh từ `ProjectViewer`) | [projects-departments.md](projects-departments.md) |
 | Công việc dự án: cột trạng thái tự do (tên / màu / thứ tự, hoàn thành, cần người duyệt), quyền sửa theo chức vụ, quy trình đi lần lượt, lịch sử, BOT / MCP | [projects-tasks.md](projects-tasks.md) |
 | Yêu cầu thay đổi (CR) của dự án → phụ lục hợp đồng bán (tăng / giảm giá trị, đợt thu mới) | [projects-changes.md](projects-changes.md) |
 | Tài chính — chứng từ đính kèm dòng sổ / đề nghị chi (S3 `finance/`), Excel sổ thu chi + sổ quỹ + tổng hợp | [finance-docs.md](finance-docs.md) |
@@ -62,6 +63,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 ## Nguyên tắc chung
 
 - **Vai trò** (`Roles`): `admin`, `hr`, `manager`, `employee`. Policy: `AuthPolicies.Hr` = admin|hr (mọi thao tác ghi dữ liệu nhân sự, ca, lịch), `AuthPolicies.Manager` = admin|hr|manager (xem bảng công người khác). Manager chỉ thấy **bản thân + cấp dưới** (theo `ManagerId`, cả gián tiếp, qua `GetSubordinateIdsAsync`). Kiểm tra quyền luôn ở back-end; menu / guard FE chỉ để điều hướng.
+- **Dự án theo phòng ban** (TEST-40): nhân viên thuộc đúng phòng ban tham gia dự án (không tính phòng con) được **xem** dự án — chỉ đọc; làm việc / quản lý / ngày công / tài chính / kho tài liệu vẫn theo thành viên hoặc chức năng — [projects-departments.md](projects-departments.md).
 - **Tài khoản ≠ nhân viên**: `identity.users` (đăng nhập) và `org.employees` (hồ sơ) liên kết bằng `employees.UserId`. Tài khoản không có hồ sơ (admin seed) đăng nhập được nhưng không chấm công.
 - **Múi giờ**: mọi tính toán ngày giờ dùng `Office__TimeZone` (`Asia/Ho_Chi_Minh`). DB lưu `DateTimeOffset` UTC; `WorkDate` là ngày địa phương. FE hiển thị qua `utils/date.ts` cùng múi giờ.
 - **Giờ do server quyết định** (chấm công). Không tin giờ trình duyệt.

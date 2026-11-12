@@ -15,6 +15,7 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
     public const string Schema = "projects";
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProjectMember> Members => Set<ProjectMember>();
+    public DbSet<ProjectDepartment> ProjectDepartments => Set<ProjectDepartment>();
     public DbSet<Allocation> Allocations => Set<Allocation>();
     public DbSet<ProjectContract> ProjectContracts => Set<ProjectContract>();
     public DbSet<AllocationFreeze> Freezes => Set<AllocationFreeze>();
@@ -48,6 +49,13 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.Property(x => x.WorkGuide).HasMaxLength(TaskRules.MaxDescription);
             e.HasIndex(x => x.Code).IsUnique().HasDatabaseName("ux_projects_code");
             e.HasMany(x => x.Members).WithOne().HasForeignKey(m => m.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Departments).WithOne().HasForeignKey(d => d.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<ProjectDepartment>(e =>
+        {
+            e.ToTable("project_departments");
+            e.HasKey(x => new { x.ProjectId, x.DepartmentId });
+            e.HasIndex(x => x.DepartmentId).HasDatabaseName("ix_project_departments_department");
         });
         b.Entity<ProjectMember>(e =>
         {
@@ -196,9 +204,10 @@ internal sealed class ProjectsMigrator(IServiceProvider sp, IConfiguration confi
             var p = new Project
             {
                 Id = l.Id, Code = l.Code, Name = l.Name, Description = l.Description, Kind = ProjectKind.Internal,
-                Status = l.Closed ? ProjectStatus.Closed : ProjectStatus.Active, DepartmentId = l.DepartmentId, CreatedAt = l.CreatedAt, CreatedByName = l.CreatedByName,
+                Status = l.Closed ? ProjectStatus.Closed : ProjectStatus.Active, CreatedAt = l.CreatedAt, CreatedByName = l.CreatedByName,
                 StartOn = DateOnly.FromDateTime(l.CreatedAt.UtcDateTime),
             };
+            if (l.DepartmentId is { } dep) p.Departments.Add(new ProjectDepartment { DepartmentId = dep, IsLead = true, CreatedAt = l.CreatedAt });
             foreach (var m in l.Members)
                 p.Members.Add(new ProjectMember { EmployeeId = m.EmployeeId, Role = (ProjectMemberRole)m.Role, AddedAt = m.AddedAt });
             db.Projects.Add(p);

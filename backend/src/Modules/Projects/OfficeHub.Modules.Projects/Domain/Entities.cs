@@ -31,7 +31,6 @@ public sealed class Project
     public string? Description { get; set; }
     public ProjectKind Kind { get; set; }
     public ProjectStatus Status { get; set; }
-    public Guid? DepartmentId { get; set; }
     /// <summary>Mảng kinh doanh (module Finance) — để báo cáo lãi / lỗ theo mảng.</summary>
     public Guid? BusinessLineId { get; set; }
     public DateOnly? StartOn { get; set; }
@@ -47,6 +46,22 @@ public sealed class Project
     public string? CreatedByName { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
     public List<ProjectMember> Members { get; set; } = [];
+    /// <summary>Phòng ban tham gia (TEST-40) — tối đa một phòng chủ trì. Nhân viên các phòng này xem được dự án (chỉ đọc).</summary>
+    public List<ProjectDepartment> Departments { get; set; } = [];
+}
+
+/// <summary>
+/// Phòng ban tham gia dự án (TEST-40, chủ dự án chốt 2026-11-12). Phòng ban thuộc module Organization — không FK chéo schema, tên tra qua IEmployeeDirectory.
+/// Nhân viên có <c>DepartmentId</c> đúng phòng này (không tính phòng con) xem được dự án, chỉ đọc.
+/// </summary>
+[Audited]
+public sealed class ProjectDepartment
+{
+    public Guid ProjectId { get; set; }
+    public Guid DepartmentId { get; set; }
+    /// <summary>Phòng chủ trì — tối đa một phòng / dự án.</summary>
+    public bool IsLead { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
 }
 
 public sealed class ProjectMember

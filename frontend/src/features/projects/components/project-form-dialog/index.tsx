@@ -8,7 +8,7 @@ import { Input } from '@/components/common/input';
 import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { SelectField } from '@/components/common/SelectField';
 import { Textarea } from '@/components/common/textarea';
-import { departmentOptions, useDepartments, useEmployees } from '@/features/employees';
+import { useDepartments, useEmployees } from '@/features/employees';
 import { todayVn, useLines } from '@/features/finance';
 import { useDebounce } from '@/hooks/useDebounce';
 import { errorMessage, fieldErrors } from '@/utils/errors';
@@ -16,6 +16,7 @@ import { projectApi } from '../../api/project.api';
 import { useProjectMutation, useSalesContractSearch } from '../../hooks/useProjects';
 import type { IProject, IProjectRequest, ISalesContractRef, ProjectKind, ProjectStatus } from '../../types/project.types';
 import { PROJECT_KIND, PROJECT_STATUS } from '../../utils/labels';
+import { DepartmentPicker } from '../department-picker';
 import { MarkdownEditor } from '../markdown-editor';
 
 function Section({ title, hint, children, testId }: { title: string; hint?: string; children: ReactNode; testId?: string }) {
@@ -55,9 +56,10 @@ export function ProjectFormDialog({ open, project, workGuide, onClose, onCreated
     if (!open) return;
     save.reset();
     const p = project;
-    setF(p ? { code: p.code, name: p.name, kind: p.kind, description: p.description ?? '', departmentId: p.departmentId, businessLineId: p.businessLineId, salesContractIds: p.contracts.map((c) => c.id),
+    setF(p ? { code: p.code, name: p.name, kind: p.kind, description: p.description ?? '', departmentIds: p.departments.map((d) => d.id),
+      leadDepartmentId: p.departments.find((d) => d.isLead)?.id ?? null, businessLineId: p.businessLineId, salesContractIds: p.contracts.map((c) => c.id),
       startOn: p.startOn ?? '', endOn: p.endOn ?? '', budgetManDays: p.budgetManDays, status: p.status, sequential: p.sequential, workGuide: workGuide ?? '' }
-      : { code: '', name: '', kind: 'Internal', description: '', departmentId: null, businessLineId: null, salesContractIds: [], startOn: todayVn(), endOn: '', budgetManDays: null, status: 'Active',
+      : { code: '', name: '', kind: 'Internal', description: '', departmentIds: [], leadDepartmentId: null, businessLineId: null, salesContractIds: [], startOn: todayVn(), endOn: '', budgetManDays: null, status: 'Active',
         sequential: true, workGuide: '' });
     setMembers([]); setQ(''); setPicked(p?.contracts ?? []); setPreview(!!workGuide?.trim());
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
@@ -96,9 +98,9 @@ export function ProjectFormDialog({ open, project, workGuide, onClose, onCreated
                     options={(Object.keys(PROJECT_STATUS) as ProjectStatus[]).map((s) => ({ value: s, label: PROJECT_STATUS[s].label }))} />}
                   <SelectField id="pj-line" label="Mảng kinh doanh" allowEmpty value={f.businessLineId ?? null} onChange={(v) => set('businessLineId', v)}
                     options={lines.map((l) => ({ value: l.id, label: l.name }))} error={errors.businessLineId} />
-                  <SelectField id="pj-dept" label="Phòng ban chủ trì" allowEmpty value={f.departmentId ?? null} onChange={(v) => set('departmentId', v)}
-                    options={departmentOptions(departments)} error={errors.departmentId} />
                 </div>
+                <DepartmentPicker departments={departments} value={f.departmentIds ?? []} lead={f.leadDepartmentId ?? null}
+                  onChange={(ids, lead) => setF((x) => ({ ...x, departmentIds: ids, leadDepartmentId: lead }))} error={errors.departmentIds} leadError={errors.leadDepartmentId} />
               </Section>
               {f.kind === 'Client' && (
                 <Section title="Khách hàng & hợp đồng" hint="Hợp đồng bán * — một dự án có thể có nhiều hợp đồng, một hợp đồng chỉ thuộc một dự án." testId="pj-contracts">

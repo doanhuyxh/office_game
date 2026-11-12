@@ -10,6 +10,7 @@
     <ProjectReference Include="..\..\Finance\OfficeHub.Modules.Finance.Contracts\OfficeHub.Modules.Finance.Contracts.csproj" />
     <ProjectReference Include="..\..\Payroll\OfficeHub.Modules.Payroll.Contracts\OfficeHub.Modules.Payroll.Contracts.csproj" />
     <ProjectReference Include="..\..\Documents\OfficeHub.Modules.Documents.Contracts\OfficeHub.Modules.Documents.Contracts.csproj" />
+    <ProjectReference Include="..\..\Identity\OfficeHub.Modules.Identity.Contracts\OfficeHub.Modules.Identity.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

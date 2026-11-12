@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/common/button';
+import { SelectField } from '@/components/common/SelectField';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/common/tabs';
 import { Spinner } from '@/components/feedback/Spinner';
@@ -29,7 +30,10 @@ export function ProjectsPage() {
   const myTasks = useMyTasks().data ?? [];
   const [creating, setCreating] = useState(false);
   const navigate = useNavigate();
-  const shown = data.filter((p) => showClosed || p.status === 'Active');
+  const [dept, setDept] = useState<string | null>(null);
+  const deptOptions = [...new Map(data.flatMap((p) => p.departments).map((d) => [d.id, d.name])).entries()]
+    .map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, 'vi'));
+  const shown = data.filter((p) => (showClosed || p.status === 'Active') && (!dept || p.departments.some((d) => d.id === dept)));
   return (
     <div className="grid grid-cols-1 gap-4">
       <PageHeader title="Dự án" />
@@ -54,7 +58,11 @@ export function ProjectsPage() {
           </ul>
         </div>
       )}
-      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} /> Hiện dự án đã đóng</label>
+      <div className="flex flex-wrap items-end gap-4">
+        {deptOptions.length > 0 && <div className="w-64"><SelectField id="pj-filter-dept" label="Phòng ban tham gia" allowEmpty emptyLabel="— Tất cả —" value={dept}
+          onChange={setDept} options={deptOptions} /></div>}
+        <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} /> Hiện dự án đã đóng</label>
+      </div>
       {isLoading ? <Spinner /> : shown.length === 0 ? <p className="text-sm text-muted-foreground">Chưa có dự án{canCreate ? ' — bấm "Dự án mới"' : ''}.</p> : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {shown.map((p) => (
@@ -68,6 +76,8 @@ export function ProjectsPage() {
                 </div>
               </div>
               <ProgressBar p={p.progress} />
+              {p.departments.length > 0 && <div className="text-xs text-muted-foreground" data-testid="project-departments">
+                {p.departments.map((d) => (d.isLead ? `${d.name} (chủ trì)` : d.name)).join(', ')}</div>}
               {p.contracts.length > 0 && <div className="text-xs text-muted-foreground">HĐ {p.contracts.map((c) => c.code).join(', ')} · {[...new Set(p.contracts.map((c) => c.customerName))].join(', ')}</div>}
               <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                 <span>{p.memberCount} thành viên</span>
@@ -81,6 +91,7 @@ export function ProjectsPage() {
                 {p.endOn && <span>Kết thúc {fmtDate(p.endOn)}</span>}
               </div>}
               {p.myRole && <div className="text-xs">{p.myRole === 'Manager' ? 'Bạn là quản lý dự án' : 'Bạn là thành viên'}</div>}
+              {p.viaDepartment && <div className="text-xs text-muted-foreground">Xem nhờ phòng ban — chỉ đọc</div>}
             </button>
           ))}
         </div>

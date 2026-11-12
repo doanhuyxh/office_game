@@ -18,18 +18,24 @@ namespace OfficeHub.Modules.Projects.Features;
 
 public sealed record MemberDto(Guid EmployeeId, string? Code, string FullName, string? JobTitle, ProjectMemberRole Role, bool IsActive);
 public sealed record TaskCounts(int Open, int Done, int Overdue);
-public sealed record ProjectDto(Guid Id, string Code, string Name, string? Description, ProjectKind Kind, ProjectStatus Status, Guid? DepartmentId, string? DepartmentName,
+public sealed record ProjectDepartmentDto(Guid Id, string Name, bool IsLead);
+/// <param name="Departments">Phòng ban tham gia (chủ trì đứng đầu) — TEST-40.</param>
+/// <param name="ViaDepartment">Người xem chỉ thấy dự án nhờ phòng ban của mình tham gia → chỉ đọc.</param>
+public sealed record ProjectDto(Guid Id, string Code, string Name, string? Description, ProjectKind Kind, ProjectStatus Status, List<ProjectDepartmentDto> Departments,
     Guid? BusinessLineId, List<SalesContractRef> Contracts, DateOnly? StartOn, DateOnly? EndOn, decimal? BudgetManDays, ProjectMemberRole? MyRole, bool CanManage, bool CanWork,
     int MemberCount, TaskCounts Tasks, int MilestonesOpen, int MilestonesAccepted, DateTimeOffset CreatedAt, ProjectProgress Progress, bool Sequential,
-    bool CanManageColumns = false);
+    bool CanManageColumns = false, bool ViaDepartment = false);
 /// <param name="WorkGuide">Hướng dẫn làm việc (Markdown) — chỉ ở chi tiết, không ở danh sách (dài).</param>
 /// <param name="Columns">Cột trạng thái công việc theo thứ tự.</param>
 /// <param name="WorkGuide">Hướng dẫn làm việc mới (Markdown, thay toàn bộ); null / "" = xoá.</param>
 public sealed record UpdateProjectGuide(string? WorkGuide);
 public sealed record ProjectGuideDto(string? WorkGuide);
-public sealed record ProjectDetail(ProjectDto Project, List<MemberDto> Members, List<MilestoneDto> Milestones, string? WorkGuide, List<TaskColumnDto> Columns);
-public sealed record UpsertProject(string Code, string Name, ProjectKind Kind = ProjectKind.Internal, string? Description = null, Guid? DepartmentId = null,
-    Guid? BusinessLineId = null, List<Guid>? SalesContractIds = null, DateOnly? StartOn = null, DateOnly? EndOn = null, decimal? BudgetManDays = null,
+/// <param name="MyAccess">Quyền của người xem trong dự án (khoá của <see cref="ProjectPermissions"/>: view, work, manage, columns, effort, finance, documents).</param>
+public sealed record ProjectDetail(ProjectDto Project, List<MemberDto> Members, List<MilestoneDto> Milestones, string? WorkGuide, List<TaskColumnDto> Columns,
+    List<string>? MyAccess = null);
+/// <param name="DepartmentIds">Phòng ban tham gia (≤ 20); null = giữ nguyên khi sửa.</param><param name="LeadDepartmentId">Phòng chủ trì — phải nằm trong DepartmentIds.</param>
+public sealed record UpsertProject(string Code, string Name, ProjectKind Kind = ProjectKind.Internal, string? Description = null, List<Guid>? DepartmentIds = null,
+    Guid? LeadDepartmentId = null, Guid? BusinessLineId = null, List<Guid>? SalesContractIds = null, DateOnly? StartOn = null, DateOnly? EndOn = null, decimal? BudgetManDays = null,
     ProjectStatus Status = ProjectStatus.Active, List<Guid>? MemberIds = null, bool? Sequential = null, string? WorkGuide = null);
 public sealed record AddMembers(List<Guid> EmployeeIds, ProjectMemberRole Role = ProjectMemberRole.Member);
 public sealed record ChangeRole(ProjectMemberRole Role);
@@ -104,15 +110,20 @@ internal static class ProjectEndpoints
         return TypedResults.Ok(rows.Select(r => r with { Months = [], Categories = [] }).ToList());
     }
 
+    private static async Task<IReadOnlySet<Guid>> DepartmentIdsAsync(IEmployeeDirectory dir, CancellationToken ct) =>
+        (await dir.ListDepartmentsAsync(ct)).Select(d => d.Id).ToHashSet();
+
     internal static ProblemHttpResult Forbidden(string msg) => TypedResults.Problem(msg, statusCode: StatusCodes.Status403Forbidden);
 
     private static async Task<Ok<List<ProjectDto>>> ListAsync(ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, IEmployeeDirectory dir,
-        ISalesContractsLookup sales, ProjectClock clock, bool? mine, ProjectStatus? status, CancellationToken ct)
+        ISalesContractsLookup sales, ProjectClock clock, bool? mine, ProjectStatus? status, Guid? departmentId, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
-        var q = db.Projects.AsNoTracking().Include(p => p.Members).AsQueryable();
-        if (mine == true || !(v.IsHr || v.FinanceView)) { var ids = v.Roles.Keys.ToList(); q = q.Where(p => ids.Contains(p.Id)); }
+        var q = db.Projects.AsNoTracking().Include(p => p.Members).Include(p => p.Departments).AsQueryable();
+        if (mine == true) { var ids = v.Roles.Keys.ToList(); q = q.Where(p => ids.Contains(p.Id)); }
+        else if (!(v.IsHr || v.FinanceView)) { var ids = v.Roles.Keys.Concat(v.DeptProjects ?? new HashSet<Guid>()).Distinct().ToList(); q = q.Where(p => ids.Contains(p.Id)); }
         if (status is { } s) q = q.Where(p => p.Status == s);
+        if (departmentId is { } dep) q = q.Where(p => p.Departments.Any(d => d.DepartmentId == dep));
         var rows = await q.OrderBy(p => p.Status).ThenBy(p => p.Name).ToListAsync(ct);
         return TypedResults.Ok(await ToDtosAsync(rows, v, db, dir, sales, clock.Today, ct));
     }
@@ -132,14 +143,18 @@ internal static class ProjectEndpoints
             var progress = ProgressRules.Compute(t.Select(x => new ProgressTask(x.Done, x.DueOn)).ToList(),
                 ms.Where(x => x.ProjectId == p.Id).Select(x => new ProgressMilestone(x.Order, x.Title, x.DueOn, x.Status)).ToList(), p.StartOn, p.EndOn,
                 p.Status == ProjectStatus.Active, today);
-            return new ProjectDto(p.Id, p.Code, p.Name, p.Description, p.Kind, p.Status, p.DepartmentId, p.DepartmentId is { } d ? depts.GetValueOrDefault(d) : null, p.BusinessLineId,
+            return new ProjectDto(p.Id, p.Code, p.Name, p.Description, p.Kind, p.Status, DepartmentsOf(p, depts), p.BusinessLineId,
                 links.Where(l => l.ProjectId == p.Id).Select(l => contracts.GetValueOrDefault(l.ContractId)).OfType<SalesContractRef>().ToList(), p.StartOn, p.EndOn, p.BudgetManDays,
                 v.Roles.TryGetValue(p.Id, out var r) ? r : null, v.CanManage(p.Id), v.CanWork(p.Id) && p.Status == ProjectStatus.Active, p.Members.Count,
                 new TaskCounts(t.Count(x => !x.Done), t.Count(x => x.Done), t.Count(x => EffortRules.IsOverdue(x.DueOn, x.Done, today))),
                 ms.Count(x => x.ProjectId == p.Id && x.Status == MilestoneStatus.Open), ms.Count(x => x.ProjectId == p.Id && x.Status == MilestoneStatus.Accepted), p.CreatedAt, progress, p.Sequential,
-                v.CanManageColumns(p.Id));
+                v.CanManageColumns(p.Id), v.ViaDepartment(p.Id));
         }).ToList();
     }
+
+    internal static List<ProjectDepartmentDto> DepartmentsOf(Project p, IReadOnlyDictionary<Guid, string> depts) =>
+        ProjectDepartmentRules.Ordered(p.Departments.Select(d => new ProjectDepartmentDto(d.DepartmentId, depts.GetValueOrDefault(d.DepartmentId, "(phòng ban đã xoá)"), d.IsLead)),
+            d => d.IsLead, d => d.Name).ToList();
 
     internal static async Task<List<MemberDto>> MembersAsync(Project p, ProjectAccess access, CancellationToken ct)
     {
@@ -153,15 +168,15 @@ internal static class ProjectEndpoints
         ISalesContractsLookup sales, ProjectClock clock, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
-        var p = await db.Projects.AsNoTracking().Include(x => x.Members).FirstOrDefaultAsync(x => x.Id == id, ct);
+        var p = await db.Projects.AsNoTracking().Include(x => x.Members).Include(x => x.Departments).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (p is null || !v.CanSee(id)) return TypedResults.NotFound();
         var dto = (await ToDtosAsync([p], v, db, dir, sales, clock.Today, ct))[0];
         return TypedResults.Ok(new ProjectDetail(dto, await MembersAsync(p, access, ct), await MilestoneEndpoints.ListForAsync(p, db, sales, ct), p.WorkGuide,
-            await TaskColumnEndpoints.ListForAsync(db, id, ct)));
+            await TaskColumnEndpoints.ListForAsync(db, id, ct), ProjectPermissions.Allowed(v, id)));
     }
 
     private static async Task<Validation> ValidateAsync(UpsertProject r, Guid? selfId, Guid userId, ProjectsDbContext db, ISalesContractsLookup sales,
-        CancellationToken ct)
+        IReadOnlySet<Guid> existingDepartments, CancellationToken ct)
     {
         var code = r.Code?.Trim().ToUpperInvariant();
         var v = new Validation().Required(code, "code", "Mã dự án").MaxLength(code, 30, "code", "Mã dự án")
@@ -172,6 +187,8 @@ internal static class ProjectEndpoints
             .When(r.BudgetManDays is < 0 or > 100_000, "budgetManDays", "Ngân sách ngày công không hợp lệ")
             .When(r.Kind == ProjectKind.Client && ContractIdsOf(r).Count == 0, "salesContractIds", "Dự án làm cho khách cần gắn ít nhất một hợp đồng bán");
         if (!v.Has("code") && await db.Projects.AnyAsync(p => p.Code == code && p.Id != selfId, ct)) v.Add("code", "Mã dự án đã tồn tại");
+        if (r.DepartmentIds is not null || r.LeadDepartmentId is not null)
+            foreach (var (field, msg) in ProjectDepartmentRules.Errors(ProjectDepartmentRules.Normalize(r.DepartmentIds), r.LeadDepartmentId, existingDepartments)) v.Add(field, msg);
         var ids = ContractIdsOf(r);
         if (ids.Count > 0)
         {
@@ -204,7 +221,7 @@ internal static class ProjectEndpoints
     {
         var v = await access.ViewerAsync(user, ct);
         if (!v.CanCreate) return Forbidden("Chỉ quản lý / HR được tạo dự án");
-        var val = await ValidateAsync(r, null, v.UserId, db, sales, ct);
+        var val = await ValidateAsync(r, null, v.UserId, db, sales, await DepartmentIdsAsync(dir, ct), ct);
         var memberIds = (r.MemberIds ?? []).Distinct().Where(x => x != v.Employee?.Id).ToList();
         foreach (var eid in memberIds)
             if (await dir.GetAsync(eid, ct) is not { IsActive: true }) { val.Add("memberIds", "Có thành viên không tồn tại hoặc đã nghỉ việc"); break; }
@@ -213,10 +230,12 @@ internal static class ProjectEndpoints
         var p = new Project
         {
             Code = r.Code.Trim().ToUpperInvariant(), Name = r.Name.Trim(), Description = Clean(r.Description), Kind = r.Kind, Status = ProjectStatus.Active,
-            DepartmentId = r.DepartmentId, BusinessLineId = r.BusinessLineId, StartOn = r.StartOn ?? clock.Today, EndOn = r.EndOn,
+            BusinessLineId = r.BusinessLineId, StartOn = r.StartOn ?? clock.Today, EndOn = r.EndOn,
             BudgetManDays = r.BudgetManDays, CreatedAt = now, CreatedByName = v.Name,
             Sequential = r.Sequential ?? true, WorkGuide = Clean(r.WorkGuide), // dự án mới mặc định đi lần lượt (chủ dự án chốt 2026-11-10)
         };
+        foreach (var dep in ProjectDepartmentRules.Normalize(r.DepartmentIds))
+            p.Departments.Add(new ProjectDepartment { DepartmentId = dep, IsLead = dep == r.LeadDepartmentId, CreatedAt = now });
         if (v.Employee is { } me) p.Members.Add(new ProjectMember { EmployeeId = me.Id, Role = ProjectMemberRole.Manager, AddedAt = now });
         foreach (var eid in memberIds) p.Members.Add(new ProjectMember { EmployeeId = eid, Role = ProjectMemberRole.Member, AddedAt = now });
         if (p.Members.Count == 0) return new Validation().Add("memberIds", "Tài khoản không có hồ sơ: chọn ít nhất một thành viên (sẽ là quản lý dự án)").Problem();
@@ -234,10 +253,11 @@ internal static class ProjectEndpoints
         ProjectAccess access, ISalesContractsLookup sales, IEmployeeDirectory dir, INotifier notifier, ProjectClock clock, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
-        var p = await db.Projects.FirstOrDefaultAsync(x => x.Id == id, ct);
+        var p = await db.Projects.Include(x => x.Departments).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (p is null || !v.CanSee(id)) return TypedResults.NotFound();
         if (!v.CanManage(id)) return Forbidden("Chỉ quản lý dự án hoặc HR được sửa dự án");
-        var val = await ValidateAsync(r, id, v.UserId, db, sales, ct);
+        var existingDepts = await DepartmentIdsAsync(dir, ct);
+        var val = await ValidateAsync(r, id, v.UserId, db, sales, existingDepts, ct);
         if (r.Code.Trim().ToUpperInvariant() != p.Code) val.Add("code", "Không đổi mã dự án (mã đã dùng trong số hiệu tài liệu)");
         // Bỏ hợp đồng mà mốc của dự án đang gắn đợt thu của nó → chặn (đổi / bỏ đợt thu ở mốc trước).
         var newIds = ContractIdsOf(r);
@@ -260,9 +280,17 @@ internal static class ProjectEndpoints
         db.ProjectContracts.RemoveRange(removed);
         foreach (var cid in newIds.Where(c => links.All(l => l.ContractId != c)))
             db.ProjectContracts.Add(new ProjectContract { ProjectId = id, ContractId = cid, LinkedAt = clock.Now });
-        p.Name = r.Name.Trim(); p.Description = Clean(r.Description); p.Kind = r.Kind; p.DepartmentId = r.DepartmentId; p.BusinessLineId = r.BusinessLineId;
+        p.Name = r.Name.Trim(); p.Description = Clean(r.Description); p.Kind = r.Kind; p.BusinessLineId = r.BusinessLineId;
         p.StartOn = r.StartOn ?? p.StartOn; p.EndOn = r.EndOn; p.BudgetManDays = r.BudgetManDays; p.UpdatedAt = clock.Now;
         if (r.Sequential is { } sq) p.Sequential = sq;   // null (client cũ) → giữ nguyên
+        if (r.DepartmentIds is not null)
+        {
+            var want = ProjectDepartmentRules.Normalize(r.DepartmentIds);
+            p.Departments.RemoveAll(d => !want.Contains(d.DepartmentId));
+            foreach (var d in p.Departments) d.IsLead = d.DepartmentId == r.LeadDepartmentId;
+            foreach (var dep in want.Where(x => p.Departments.All(d => d.DepartmentId != x)))
+                p.Departments.Add(new ProjectDepartment { ProjectId = p.Id, DepartmentId = dep, IsLead = dep == r.LeadDepartmentId, CreatedAt = clock.Now });
+        }
         if (r.WorkGuide is not null) p.WorkGuide = Clean(r.WorkGuide); // "" → xoá
         if (r.Status != p.Status) p.ClosedOn = r.Status == ProjectStatus.Closed ? clock.Today : null;
         p.Status = r.Status;
@@ -273,7 +301,8 @@ internal static class ProjectEndpoints
     }
 
     private static ProjectSnapshot Snapshot(Project p, IEnumerable<Guid> contractIds, IReadOnlyDictionary<Guid, string> depts, IReadOnlyDictionary<Guid, string> codes) =>
-        new(p.Name, p.Kind, p.Status, p.Description, p.DepartmentId is { } d ? depts.GetValueOrDefault(d, "(phòng ban đã xoá)") : null, p.BusinessLineId,
+        new(p.Name, p.Kind, p.Status, p.Description,
+            p.Departments.Count == 0 ? null : string.Join(", ", DepartmentsOf(p, depts).Select(d => d.IsLead ? $"{d.Name} (chủ trì)" : d.Name)), p.BusinessLineId,
             contractIds.Select(c => codes.GetValueOrDefault(c, "(hợp đồng)")).ToList(), p.StartOn, p.EndOn, p.BudgetManDays, p.Sequential, p.WorkGuide);
 
     /// <summary>
@@ -428,7 +457,7 @@ internal static class ProjectEndpoints
         var v = await access.ViewerAsync(user, ct);
         var p = await db.Projects.AsNoTracking().Include(x => x.Members).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (p is null || !v.CanSee(id)) return TypedResults.NotFound();
-        if (!v.CanManage(id) && !v.FinanceView) return Forbidden("Chỉ quản lý dự án, HR hoặc Ban giám đốc xem ngày công");
+        if (!v.CanSeeEffort(id)) return Forbidden("Chỉ quản lý dự án, HR hoặc Ban giám đốc xem ngày công");
         var rows = await calc.ComputeAsync([p], ct);
         var cells = rows.Select(r => new EffortCell(r.EmployeeId, r.Month, r.PresentDays, r.Percent, r.Explicit, r.ManDays)).ToList();
         var months = calc.MonthsOf(p);

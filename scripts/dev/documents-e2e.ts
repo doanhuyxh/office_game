@@ -236,7 +236,7 @@ ok('xoá hẳn → hồ sơ + file S3 biến mất', (await json(staff.cookie, '
 // ---------- Dự án ----------
 // Dự án thuộc module Projects từ 2026-11-08 (/api/projects); kho tài liệu dự án đọc qua IProjectDirectory. Kiểm tra đầy đủ: projects-e2e.ts.
 ok('nhân viên thường không tạo dự án (403)', (await json(staff.cookie, 'POST', '/api/projects', { code: 'X', name: 'X' })).status === 403);
-const pjNew = await json(head.cookie, 'POST', '/api/projects', { code: 'appe2e', name: 'Ứng dụng E2E', description: null, departmentId: tech, memberIds: [staff.e.id] });
+const pjNew = await json(head.cookie, 'POST', '/api/projects', { code: 'appe2e', name: 'Ứng dụng E2E', description: null, departmentIds: [tech], leadDepartmentId: tech, memberIds: [staff.e.id] });
 const pj = { status: pjNew.status, body: (await json(head.cookie, 'GET', `/api/projects/${pjNew.body}`)).body?.project as any };
 const pjMembers = (await json(head.cookie, 'GET', `/api/projects/${pjNew.body}`)).body?.members as any[];
 ok('quản lý tạo dự án: mã viết hoa, người tạo = quản lý dự án, có thành viên', pj.status === 201 && pj.body.code === 'APPE2E' && pj.body.myRole === 'Manager'
@@ -249,7 +249,7 @@ ok('người ngoài dự án không thấy kho dự án', !(await spaces(outside
   && (await json(outsider.cookie, 'GET', `/api/documents/assets/${pa.body.asset.id}`)).status === 404);
 ok('thành viên thường không sửa dự án (403)', (await json(staff.cookie, 'PUT', `/api/projects/${pj.body.id}`, { code: 'APPE2E', name: 'x', status: 'Active' })).status === 403);
 ok('không bỏ được quản lý cuối cùng (409)', (await json(head.cookie, 'DELETE', `/api/projects/${pj.body.id}/members/${head.e.id}`)).status === 409);
-await json(head.cookie, 'PUT', `/api/projects/${pj.body.id}`, { code: 'APPE2E', name: 'Ứng dụng E2E', description: null, departmentId: tech, status: 'Closed' });
+await json(head.cookie, 'PUT', `/api/projects/${pj.body.id}`, { code: 'APPE2E', name: 'Ứng dụng E2E', description: null, departmentIds: [tech], leadDepartmentId: tech, status: 'Closed' });
 ok('dự án đã đóng: kho chỉ đọc (403 khi tải lên)', (await createAsset(staff.cookie, 'late.txt', 'x', P)).status === 403);
 ok('không còn API xoá dự án (chỉ đóng)', [404, 405].includes((await json(admin, 'DELETE', `/api/projects/${pj.body.id}`)).status));
 

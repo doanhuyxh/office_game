@@ -148,7 +148,7 @@ const UPD = `Dự án ${CODE} đã được cập nhật`;
 const detail = async () => (await json(PM.cookie, 'GET', `/api/projects/${P}`)).body;
 const putProject = async (cookie: string, patch: Record<string, unknown>) => {
   const d = (await detail()).project;
-  return json(cookie, 'PUT', `/api/projects/${P}`, { code: d.code, name: d.name, kind: d.kind, description: d.description, departmentId: d.departmentId,
+  return json(cookie, 'PUT', `/api/projects/${P}`, { code: d.code, name: d.name, kind: d.kind, description: d.description, departmentIds: d.departments.map((x: any) => x.id), leadDepartmentId: d.departments.find((x: any) => x.isLead)?.id ?? null,
     businessLineId: d.businessLineId, salesContractIds: [], startOn: d.startOn, endOn: d.endOn, budgetManDays: d.budgetManDays, status: d.status, sequential: d.sequential, ...patch });
 };
 before = await snap();

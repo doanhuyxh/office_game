@@ -41,6 +41,7 @@ public sealed class ProjectsModule : IModule
         AgentSettingsEndpoints.Map(g); // /agent-settings — giới hạn bot, chỉ admin
         MilestoneEndpoints.Map(g);
         ChangeRequestEndpoints.Map(g);
+        ProjectAppendixEndpoints.Map(g); // /{id}/appendix — tab Phụ lục (TEST-40)
         ProjectEndpoints.Map(g);
     }
 }

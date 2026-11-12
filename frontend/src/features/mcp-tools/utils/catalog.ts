@@ -319,13 +319,13 @@ export const MCP_TOOL_GROUPS: McpToolGroup[] = [
     name: 'Dự án',
     tools: [
       { name: 'list_projects', title: 'Dự án', kind: 'read', endpoint: 'GET /api/projects',
-        description: 'Dự án tôi xem được (thành viên; HR / Ban giám đốc thấy tất cả trừ khi mine=true): mã, tên, loại, trạng thái, phòng ban, hợp đồng bán gắn kèm (không tiền), ngày bắt đầu / kết thúc, ngân sách ngày công, vai trò của tôi, canWork, số thành viên, đếm việc, mốc, tiến độ (progress: % hoàn thành, % thời gian, mốc tiếp theo, Đúng tiến độ / Có rủi ro / Trễ kèm lý do).',
+        description: 'Dự án tôi xem được (thành viên; nhân viên phòng ban tham gia — viaDepartment, chỉ đọc; HR / Ban giám đốc thấy tất cả trừ khi mine=true): mã, tên, loại, trạng thái, phòng ban tham gia (departments, isLead = chủ trì), hợp đồng bán gắn kèm (không tiền), ngày bắt đầu / kết thúc, ngân sách ngày công, vai trò của tôi, canWork, số thành viên, đếm việc, mốc, tiến độ (progress: % hoàn thành, % thời gian, mốc tiếp theo, Đúng tiến độ / Có rủi ro / Trễ kèm lý do).',
         params: [
           { name: 'mine', type: 'bool', required: false, description: 'Chỉ dự án tôi là thành viên', default: 'false' },
           { name: 'includeClosed', type: 'bool', required: false, description: 'Gồm cả dự án đã đóng', default: 'false' },
         ] },
       { name: 'get_project', title: 'Chi tiết dự án', kind: 'read', endpoint: 'GET /api/projects/{id}',
-        description: 'Một dự án: thông tin chung, sequential (đi lần lượt, lùi phải có lý do), columns (trạng thái công việc tự do theo thứ tự: tên, màu, isDone = hoàn thành, approverOnly = chỉ quản lý chuyển vào / lùi ra), thành viên (mã, họ tên, vai trò Manager / Member), mốc nghiệm thu (tên, hạn, trạng thái), workGuide (hướng dẫn làm việc Markdown do quản lý dự án soạn — bot đọc và làm theo).',
+        description: 'Một dự án: thông tin chung, sequential (đi lần lượt, lùi phải có lý do), columns (trạng thái công việc tự do theo thứ tự: tên, màu, isDone = hoàn thành, approverOnly = chỉ quản lý chuyển vào / lùi ra), thành viên (mã, họ tên, vai trò Manager / Member), mốc nghiệm thu (tên, hạn, trạng thái), workGuide (hướng dẫn làm việc Markdown do quản lý dự án soạn — bot đọc và làm theo), phòng ban tham gia, myAccess (quyền của tôi trong dự án: view / work / manage / columns / effort / finance / documents — không có work = chỉ đọc).',
         params: [{ name: 'project', type: 'string', required: true, description: 'Id hoặc mã dự án (vd WEB-2026)' }] },
       { name: 'list_project_tasks', title: 'Công việc của dự án', kind: 'read', endpoint: 'GET /api/projects/{id}/tasks',
         description: 'Việc trên kanban của dự án: mã việc, tên, mô tả, trạng thái (columnId, columnName, done), người làm, hạn, ước lượng, overdue, số bình luận, link ảnh / video (mediaLinks). Mô tả là Markdown. Mặc định bỏ việc đã xong.',

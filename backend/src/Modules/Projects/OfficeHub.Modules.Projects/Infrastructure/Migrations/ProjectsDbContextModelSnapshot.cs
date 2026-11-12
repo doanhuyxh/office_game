@@ -234,9 +234,6 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<Guid?>("DepartmentId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
@@ -299,6 +296,28 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .HasDatabaseName("ux_project_contracts_contract");
 
                     b.ToTable("contracts", "projects");
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.ProjectDepartment", b =>
+                {
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DepartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsLead")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("ProjectId", "DepartmentId");
+
+                    b.HasIndex("DepartmentId")
+                        .HasDatabaseName("ix_project_departments_department");
+
+                    b.ToTable("project_departments", "projects");
                 });
 
             modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.ProjectMember", b =>
@@ -586,6 +605,15 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.ProjectDepartment", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Projects.Domain.Project", null)
+                        .WithMany("Departments")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.ProjectMember", b =>
                 {
                     b.HasOne("OfficeHub.Modules.Projects.Domain.Project", null)
@@ -659,6 +687,8 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
 
             modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.Project", b =>
                 {
+                    b.Navigation("Departments");
+
                     b.Navigation("Members");
                 });
 #pragma warning restore 612, 618

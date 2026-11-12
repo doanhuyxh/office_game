@@ -18,6 +18,7 @@ Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsourc
 | Quản lý dự án | ✓ | ✓ | ✓ | ✓ |
 | HR / admin | mọi dự án | ✓ | ✓ | ✓ |
 | Quyền **Xem tài chính** (chức vụ) | mọi dự án (chỉ đọc) | — | — | ✓ |
+| Nhân viên **phòng ban tham gia** (không phải thành viên) | ✓ chỉ đọc + tab Phụ lục — [projects-departments.md](projects-departments.md) | — | — | — |
 | Người khác | 404 | | | |
 
 **Tạo dự án**: vai trò manager / hr / admin; người tạo (có hồ sơ) = quản lý. Luôn còn ≥ 1 quản lý (bỏ / hạ vai trò người cuối → 409). Xoá việc: quản lý, hoặc người tạo (so Id nhân viên ở hoạt động `Created`, không so tên; còn là thành viên; việc không có lịch sử → chỉ quản lý). **Sửa cột trạng thái**: theo chức vụ (`ManageTaskColumns`) — [projects-tasks.md](projects-tasks.md). Token AI: đọc dự án (+ hướng dẫn) / việc (+ chi tiết, lịch sử) / bình luận / ngày công + tạo / sửa việc (`PUT /tasks/{id}`), chuyển trạng thái, bình luận (tool MCP — [mcp.md](mcp.md)); xoá việc + mọi route khác của `/api/projects` → 403.

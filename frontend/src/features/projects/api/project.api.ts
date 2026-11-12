@@ -1,7 +1,7 @@
 import { http, httpPost } from '@/services/api-client';
 import type {
   IComment, IEffort, ITaskDetail, IInstallmentRef, IMilestoneRequest, IProject, IProjectDetail, IProjectFinancials, IProjectRequest, ISalesContractRef, ITask, ITaskRequest, MemberRole,
-  ProjectStatus, ITaskColumnRequest, ChangeRequestStatus, IChangeRequest, IChangeRequestRequest, IProjectActivityFeed, IAgentSettings, IAgentSettingsRequest,
+  ProjectStatus, ITaskColumnRequest, ChangeRequestStatus, IChangeRequest, IChangeRequestRequest, IProjectActivityFeed, IAgentSettings, IAgentSettingsRequest, IProjectAppendix,
 } from '../types/project.types';
 
 const base = '/api/projects';
@@ -22,6 +22,7 @@ export const projectKeys = {
   changeRequests: (id: string) => ['projects', 'change-requests', id] as const,
   allFinancials: (status: ProjectStatus | undefined) => ['projects', 'financials', 'all', status] as const,
   agentSettings: ['projects', 'agent-settings'] as const,
+  appendix: (id: string) => ['projects', 'appendix', id] as const,
 };
 
 export const projectApi = {
@@ -63,5 +64,6 @@ export const projectApi = {
   activity: (after: string | null) => http<IProjectActivityFeed>(`${base}/activity${after ? `?after=${encodeURIComponent(after)}` : ''}`),
   setDependencies: (tid: string, dependsOn: string[]) => send<void>('PUT', `${base}/tasks/${tid}/dependencies`, { dependsOn }),
   agentSettings: () => http<IAgentSettings>(`${base}/agent-settings`),
+  appendix: (id: string) => http<IProjectAppendix>(`${base}/${id}/appendix`),
   saveAgentSettings: (b: IAgentSettingsRequest) => send<IAgentSettings>('PUT', `${base}/agent-settings`, b),
 };

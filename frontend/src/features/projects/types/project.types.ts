@@ -10,8 +10,12 @@ export interface ITaskColumnRequest { name: string; color?: string | null; isDon
 export interface ISalesContractRef { id: string; code: string; title: string; customerName: string; status: string; businessLineId: string | null }
 export interface IInstallmentRef { id: string; contractId: string; title: string; dueOn: string; cancelled: boolean }
 export interface IMember { employeeId: string; code: string | null; fullName: string; jobTitle: string | null; role: MemberRole; isActive: boolean }
+/** Phòng ban tham gia dự án (TEST-40); isLead = phòng chủ trì (đứng đầu danh sách). */
+export interface IProjectDepartment { id: string; name: string; isLead: boolean }
 export interface IProject {
-  id: string; code: string; name: string; description: string | null; kind: ProjectKind; status: ProjectStatus; departmentId: string | null; departmentName: string | null;
+  id: string; code: string; name: string; description: string | null; kind: ProjectKind; status: ProjectStatus; departments: IProjectDepartment[];
+  /** Chỉ thấy dự án nhờ phòng ban của mình tham gia → chỉ đọc. */
+  viaDepartment: boolean;
   businessLineId: string | null; contracts: ISalesContractRef[]; startOn: string | null; endOn: string | null; budgetManDays: number | null; myRole: MemberRole | null;
   canManage: boolean; canWork: boolean; memberCount: number; tasks: { open: number; done: number; overdue: number }; milestonesOpen: number; milestonesAccepted: number; createdAt: string;
   progress: IProjectProgress;
@@ -31,7 +35,17 @@ export interface IMilestone {
   installmentDueOn: string | null; acceptedOn: string | null; acceptedByName: string | null; note: string | null; tasksOpen: number; tasksDone: number;
 }
 /** workGuide: hướng dẫn làm việc (Markdown) do quản lý dự án soạn — người và BOT đọc trước khi làm. */
-export interface IProjectDetail { project: IProject; members: IMember[]; milestones: IMilestone[]; workGuide: string | null; columns: ITaskColumn[] }
+/** Khoá quyền trong dự án (back-end sinh từ ProjectViewer). */
+export type ProjectAccess = 'view' | 'work' | 'manage' | 'columns' | 'effort' | 'finance' | 'documents';
+/** myAccess: quyền của người xem trong dự án. */
+export interface IProjectDetail { project: IProject; members: IMember[]; milestones: IMilestone[]; workGuide: string | null; columns: ITaskColumn[]; myAccess: ProjectAccess[] }
+/** Tab Phụ lục: quyền theo vai trò (personas) + phòng ban + thành viên. */
+export interface IProjectAppendix {
+  capabilities: { key: ProjectAccess; label: string }[];
+  personas: { key: 'manager' | 'member' | 'department' | 'hr' | 'finance' | 'columns'; label: string; who: string; allowed: ProjectAccess[] }[];
+  departments: { id: string; name: string; isLead: boolean; employeeCount: number }[];
+  members: { employeeId: string; code: string | null; fullName: string; departmentName: string | null; role: MemberRole; isBot: boolean; isActive: boolean }[];
+}
 export interface ITask {
   id: string; projectId: string; code: string; title: string; description: string | null; columnId: string; columnName: string; columnColor: string;
   /** Đang ở cột hoàn thành. */
@@ -76,7 +90,7 @@ export interface IProjectFinancials {
 }
 
 export interface IProjectRequest {
-  code: string; name: string; kind: ProjectKind; description?: string | null; departmentId?: string | null; businessLineId?: string | null; salesContractIds?: string[];
+  code: string; name: string; kind: ProjectKind; description?: string | null; departmentIds?: string[]; leadDepartmentId?: string | null; businessLineId?: string | null; salesContractIds?: string[];
   startOn?: string | null; endOn?: string | null; budgetManDays?: number | null; status?: ProjectStatus; memberIds?: string[];
   sequential?: boolean; workGuide?: string | null;
 }
