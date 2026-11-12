@@ -24,6 +24,8 @@ Một file `.env` ở gốc repo cho BE + Docker Compose. Quy ước `Section__K
 | `S3__KeyPrefix` | – | Thư mục gốc trong bucket (bucket dùng chung dự án khác) |
 | `S3__PresignMinutes` | – (5) | Hạn presigned URL |
 | `S3__BucketBackup`, `S3__BucketWeb` | script | Dùng bởi `infra/backup/backup.sh`, `frontend/scripts/upload-web-s3.sh` |
+| `BACKUP_AGE_RECIPIENT` | khuyên đặt | Khoá **công khai** age (`age1…`) mã hoá file sao lưu DB + khoá DataProtection (TEST-16). Tạo `age-keygen -o officehub-backup.key` trên máy cá nhân, khoá bí mật cất offline. Trống → DB không mã hoá + **không** sao lưu khoá DataProtection; trang Vận hành cảnh báo |
+| `BACKUP_S3_ACCESS_KEY` / `BACKUP_S3_SECRET_KEY` | – | Access key S3 riêng cho container backup (chỉ quyền ghi `backup/`); trống = dùng key của app |
 | `Smtp__Host`, `Smtp__FromEmail` | ✔ | SMTP (MailKit, timeout 15s mỗi lần gửi). `Smtp__Port/UseSsl/Username/Password/FromName` tuỳ chọn. Cổng 587 ↔ `UseSsl=false` (STARTTLS), 465 ↔ `UseSsl=true` |
 | `Smtp__CheckCertificateRevocation` | – (true) | Kiểm tra thu hồi chứng chỉ TLS. Chủ dự án có thể đặt `false` trên máy dev macOS nếu Gmail báo "incomplete certificate revocation check" |
 | `LiveKit__Url/ApiKey/ApiSecret` | – | Thiếu → voice trả 503. Secret < 32 ký tự → Realtime không khởi động |

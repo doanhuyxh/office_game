@@ -119,6 +119,9 @@ public sealed class OpsReport(IAmazonS3 s3, IOptions<S3Settings> s3Options, IOpt
         {
             "missing" => "Chưa có bản sao lưu nào — kiểm tra container backup (docker compose logs backup).",
             "stale" => $"Bản sao lưu mới nhất đã quá {BackupMaxAge.TotalHours:0} giờ — container backup có thể đã dừng.",
+            // TEST-16: backup.sh chỉ mã hoá (đuôi .age) khi có BACKUP_AGE_RECIPIENT
+            _ when db.LatestKey is { } k && !k.EndsWith(".age", StringComparison.Ordinal) =>
+                "Bản sao lưu chưa mã hoá — đặt BACKUP_AGE_RECIPIENT (khoá công khai age) trong .env của container backup (xem infra/backup/backup.sh).",
             _ => null,
         };
         return new(status, bucket, prefix, msg, items);
