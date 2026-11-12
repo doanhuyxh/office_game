@@ -30,6 +30,9 @@ x-backend: &backend
     DataProtection__KeysPath: /keys
     Seq__Url: ${SEQ_URL:-}           # --profile logs → SEQ_URL=http://seq:5341
     App__BaseUrl: https://${APP_DOMAIN}
+    # TEST-25 (tuỳ chọn): chỉ nhận header Host trong danh sách (chống DNS rebinding / Host giả). Mặc định * = không lọc.
+    # Bật: ALLOWED_HOSTS=<APP_DOMAIN>;api;realtime;mcp;localhost trong .env (tên container để các host gọi nhau, localhost cho healthcheck).
+    AllowedHosts: ${ALLOWED_HOSTS:-*}
     Realtime__MapPath: /app/shared/office-map.json
     Realtime__ApiBaseUrl: http://api:8080   # Realtime hỏi Api để kiểm tra phiên đăng nhập
   volumes:

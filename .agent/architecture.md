@@ -43,7 +43,7 @@ Trình duyệt (SPA :5173)
 - FE: mọi query/mutation trả **401** → `onUnauthorized` (`App.tsx`) xoá cache và chuyển `/login?returnUrl=…`; query không retry khi 401.
 - Business logic nằm ở back-end. FE chỉ hiển thị và điều hướng; `routes/guards.ts` và menu theo vai trò **không phải** lớp bảo mật.
 - IP client: Api / Realtime dùng `ForwardedHeaders`, **chỉ tin proxy ở loopback / dải IP riêng** (`HostingExtensions.TrustedProxyNetworks` — mạng Docker) → `HttpContext.Connection.RemoteIpAddress` là IP thật sau nginx (nginx VPS gửi `X-Forwarded-For`, container `web` lọc qua `realip.conf` rồi gửi đúng một giá trị). Container `web` đặt cứng `X-Forwarded-Proto: https` (không chuyển tiếp giá trị client), cả ở `/rt/`. Dev qua Vite proxy → IP là localhost.
-- Cookie `officehub.auth` / `officehub.2fa`: ngoài Development luôn `Secure` (`PostConfigureAll<CookieAuthenticationOptions>` trong `AddOfficeHubDefaults`), kể cả request HTTP gọi thẳng cổng 7080. `AllowedHosts` giữ `*`: link trong email / OAuth đều lấy từ `App__BaseUrl`, không từ `Host`, còn các host gọi nhau bằng tên container (`api`, `realtime`, `mcp`).
+- Cookie `officehub.auth` / `officehub.2fa`: ngoài Development luôn `Secure` (`PostConfigureAll<CookieAuthenticationOptions>` trong `AddOfficeHubDefaults`), kể cả request HTTP gọi thẳng cổng 7080. `AllowedHosts` (TEST-25): compose truyền `${ALLOWED_HOSTS:-*}` — mặc định không lọc (link email / OAuth đều lấy từ `App__BaseUrl`, không từ `Host`); bật bằng `ALLOWED_HOSTS=<APP_DOMAIN>;api;realtime;mcp;localhost` (tên container cho các host gọi nhau, `localhost` cho healthcheck) → Host khác trả 400.
 
 ## Host Api
 
