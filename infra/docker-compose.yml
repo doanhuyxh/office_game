@@ -80,7 +80,8 @@ services:
       dockerfile: frontend/Dockerfile
       args: { GIT_SHA: "${GIT_SHA:-unknown}", BUILD_TIME: "${BUILD_TIME:-}" }
     # Mặc định mở 0.0.0.0 để nginx ở VPS khác proxy vào. Docker BỎ QUA ufw → chặn cổng này bằng firewall nhà cung cấp
-    # (chỉ cho IP VPS proxy). Nginx cùng máy: HTTP_BIND=127.0.0.1
+    # (chỉ cho IP VPS proxy). Nginx cùng máy: HTTP_BIND=127.0.0.1; proxy qua VPN: HTTP_BIND=<IP VPN của máy này> (không mở ra Internet).
+    # Không đổi mặc định sang 127.0.0.1 vì sẽ cắt kết nối của mô hình proxy ở VPS khác đang chạy.
     ports: ["${HTTP_BIND:-0.0.0.0}:${HTTP_PORT:-7080}:80"]
     environment:
       TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-}   # IP VPS chạy nginx proxy (cách nhau dấu phẩy)

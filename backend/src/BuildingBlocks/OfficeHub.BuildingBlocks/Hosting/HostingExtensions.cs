@@ -18,6 +18,9 @@ namespace OfficeHub.BuildingBlocks.Hosting;
 
 public static class HostingExtensions
 {
+    /// <summary>Proxy được tin X-Forwarded-*: loopback + dải IP riêng (mạng Docker dùng 172.16/12, 192.168/16 hoặc 10/8).</summary>
+    public static readonly string[] TrustedProxyNetworks = ["127.0.0.0/8", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"];
+
     /// <summary>Cấu hình chung cho mọi host: log, Sentry, DataProtection, health check, proxy headers.</summary>
     public static WebApplicationBuilder AddOfficeHubDefaults(this WebApplicationBuilder builder, string serviceName)
     {
@@ -70,11 +73,17 @@ public static class HostingExtensions
         builder.Services.AddHealthChecks().AddCheck<PostgresCheck>("postgres", tags: ["ready"]);
         builder.Services.Configure<ForwardedHeadersOptions>(o =>
         {
-            // Chạy sau Traefik trong mạng Docker: tin X-Forwarded-* để lấy đúng IP client (chấm công văn phòng / từ xa).
+            // Chạy sau nginx (container web) trong mạng Docker: tin X-Forwarded-* để lấy đúng IP client (chấm công văn phòng / từ xa).
+            // CHỈ tin khi request tới từ loopback / dải mạng riêng (mạng Docker) — client gọi thẳng từ Internet không giả được IP / scheme.
             o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
             o.KnownIPNetworks.Clear();
             o.KnownProxies.Clear();
+            foreach (var net in TrustedProxyNetworks) o.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(net));
         });
+        // Ngoài Development: cookie đăng nhập / 2FA luôn có cờ Secure, kể cả khi request tới qua HTTP (vd gọi thẳng cổng 7080).
+        if (!builder.Environment.IsDevelopment())
+            builder.Services.PostConfigureAll<Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationOptions>(o =>
+                o.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always);
         return builder;
     }
 
