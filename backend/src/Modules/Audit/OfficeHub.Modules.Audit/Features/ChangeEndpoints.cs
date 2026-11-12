@@ -32,7 +32,7 @@ internal static class ChangeEndpoints
         if (userId is { } uid) q = q.Where(x => x.UserId == uid);
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var s = $"%{search.Trim()}%";
+            var s = Like.Contains(search);
             q = q.Where(x => (x.EntityLabel != null && EF.Functions.ILike(x.EntityLabel, s)) || (x.UserName != null && EF.Functions.ILike(x.UserName, s)));
         }
         if (!string.IsNullOrWhiteSpace(before))

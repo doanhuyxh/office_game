@@ -82,7 +82,7 @@ internal static class QuoteEndpoints
         else if (includeOld != true) q = q.Where(x => x.Status != QuoteStatus.Superseded && x.Status != QuoteStatus.Cancelled);
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var p = $"%{search.Trim()}%";
+            var p = Like.Contains(search);
             q = q.Where(x => EF.Functions.ILike(x.Title, p) || db.Customers.Any(c => c.Id == x.CustomerId && EF.Functions.ILike(c.Name, p)));
         }
         var paged = await q.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id).ToPagedAsync(page < 1 ? 1 : page, pageSize, ct);

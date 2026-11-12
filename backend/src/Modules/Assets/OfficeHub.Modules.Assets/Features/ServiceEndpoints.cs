@@ -54,6 +54,9 @@ internal static class ServiceEndpoints
             .Required(r.Name, "name", "Tên dịch vụ").MaxLength(r.Name?.Trim(), 200, "name", "Tên dịch vụ")
             .MaxLength(r.Vendor?.Trim(), 200, "vendor", "Nhà cung cấp").MaxLength(r.Plan?.Trim(), 100, "plan", "Gói")
             .MaxLength(r.Url?.Trim(), 500, "url", "Địa chỉ").MaxLength(r.Note?.Trim(), 2000, "note", "Ghi chú")
+            // TEST-22: link hiện thành <a href> trên giao diện → chỉ http(s) (chặn javascript: / data:)
+            .When(!string.IsNullOrWhiteSpace(r.Url) && !(Uri.TryCreate(r.Url.Trim(), UriKind.Absolute, out var u) && (u.Scheme == Uri.UriSchemeHttps || u.Scheme == Uri.UriSchemeHttp)),
+                "url", "Địa chỉ phải bắt đầu bằng https:// hoặc http://")
             .When(r.SeatLimit is < 1 or > 100000, "seatLimit", "Số ghế từ 1 đến 100000 (bỏ trống = không giới hạn)")
             .When(r.Cost is < 0 or > 1_000_000_000_000m, "cost", "Chi phí không hợp lệ");
         if (r.AdminEmployeeId is { } a && await dir.GetAsync(a, ct) is not { IsActive: true }) v.Add("adminEmployeeId", "Người quản trị không tồn tại hoặc đã nghỉ việc");

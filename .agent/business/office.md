@@ -37,7 +37,7 @@ Quy tắc server:
 | Cookie có `must_change_password` / `must_setup_2fa` | `Context.Abort()` ngay khi kết nối |
 | Phiên không còn hợp lệ lúc kết nối (`SessionValidator` hỏi Api → 401/403) | `Kicked(SessionWatch.ExpiredReason)` rồi `Abort` |
 | Cùng tài khoản kết nối lần 2 | kết nối cũ nhận `Kicked("Tài khoản vừa đăng nhập ở nơi khác")`, bị `Abort` sau 500ms |
-| `Move` tới ô bị chặn (ngoài sàn, tường, đồ vật — `OfficeMap.CanStand`; cho phép: đúng toạ độ bàn làm việc ±0,05, hoặc trong footprint đồ ngồi được `OfficeMap.Sittable` = chair / beanbag / loungeSofa / loungeSofaCorner — khớp `SITTABLE_PREFABS` ở FE) hoặc quãng đường > `7·dt + 2.5` | không cập nhật, gửi `Teleport` về vị trí cũ |
+| `Move` tới ô bị chặn (ngoài sàn, tường, đồ vật — `OfficeMap.CanStand`; cho phép: đúng toạ độ bàn làm việc ±0,05, hoặc trong footprint đồ ngồi được `OfficeMap.Sittable` = chair / beanbag / loungeSofa / loungeSofaCorner — khớp `SITTABLE_PREFABS` ở FE) hoặc quãng đường > `7·min(dt, 0,2) + 2,5·min(1, dt/0,1)` (đứng yên lâu không tích quãng đường; gửi dồn không cộng Slack mỗi lần) hoặc đoạn đi (lấy mẫu 0,1 m) cắt qua ô không đứng được — trừ lúc ngồi xuống / đứng dậy (anim 2) — hoặc toạ độ NaN / ∞ / anim > 2 (TEST-22) | không cập nhật, gửi `Teleport` về vị trí cũ (NaN / anim lạ: bỏ qua). `SendChat`, `SendRoomChat`, `GetScreen`, `ClearScreen` chỉ nhận từ kết nối hiện tại (như `Move`) |
 | `SendChat` | trim, rỗng → bỏ; cắt 200 ký tự; < 1 giây từ lần trước → `HubException("Gửi chậm lại một chút")`. Tin **được lưu** qua Api (module Chat, `ChatApi` bằng `Player.AuthCookie`) rồi `ChatFanout` phát lại (HUD 3D + web) — [chat.md](chat.md) |
 | `SendRoomChat` | cùng giới hạn như `SendChat`; server tự xác định phòng theo vị trí (`RoomOf`), đứng ở khu mở → `HubException`; chỉ gửi cho người đang ở trong phòng đó lúc gửi; cũng được lưu (kênh phòng, người gửi tự thành thành viên). `Move` vào phòng có tường → báo Api cấp thành viên (không chặn) |
 | Ngắt kết nối | `Presence.Remove(userId, connectionId)` chỉ xoá nếu đúng kết nối hiện tại, rồi gửi `PlayerLeft` |
@@ -67,7 +67,7 @@ Tên hiển thị = claim `full_name`. `anim` (byte) chỉ chuyển tiếp: 0 đ
 | Room | **Server quyết định** theo vị trí hiện tại trong `Presence` (bỏ qua mọi tham số client) → đứng ngoài không xin được token phòng họp |
 | Chưa vào hub văn phòng | 409 `"Hãy vào văn phòng 3D trước khi bật voice"` |
 | Phiên hết hiệu lực | 401 · thiếu `LiveKit__*` → 503 · secret < 32 ký tự → Realtime không khởi động |
-| Grant | identity = userId, TTL 10 phút (chỉ để vào room; LiveKit tự gia hạn). Nguồn được publish: `microphone`; phòng có tường thêm `screen_share`, `screen_share_audio` (khu mở không → không chia sẻ cho cả văn phòng). Không có data channel |
+| Grant | identity = userId, TTL **60 giây** (TEST-22; chỉ để vào room, LiveKit tự gia hạn trong phiên — token lộ ra hết hạn nhanh). Nguồn được publish: `microphone`; phòng có tường thêm `screen_share`, `screen_share_audio` (khu mở không → không chia sẻ cho cả văn phòng). Không có data channel |
 | Đổi kênh | Cấp token room mới → đẩy khỏi room cũ (`RemoveParticipant`) |
 
 `VoiceGuard` (mỗi giây): người có `Player.VoiceRoom` mà kênh tại vị trí khác room đó quá **3 giây** → bị đẩy khỏi room LiveKit (client chuẩn tự đổi kênh sau ~0,5 s; guard chặn client bị sửa ở lại nghe lén). Rời hub (đóng tab, bị khoá tài khoản, `Kicked`) → cũng bị đẩy khỏi voice; mở tab mới thì không (LiveKit tự thay kết nối cùng identity). API LiveKit gọi qua URL suy ra từ `LiveKit__Url` (ws → http, wss → https).

@@ -26,7 +26,7 @@ internal sealed class SalesContractsLookup(SalesDbContext db, IEmployeeDirectory
         var q = db.Contracts.Where(c => c.Status == ContractStatus.Active);
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var p = $"%{search.Trim()}%";
+            var p = OfficeHub.BuildingBlocks.Http.Like.Contains(search);
             q = q.Where(c => EF.Functions.ILike(c.Code, p) || EF.Functions.ILike(c.Title, p) || db.Customers.Any(x => x.Id == c.CustomerId && EF.Functions.ILike(x.Name, p)));
         }
         return await RefsAsync(q.OrderByDescending(c => c.SignedOn).ThenBy(c => c.Id).Take(30), ct);

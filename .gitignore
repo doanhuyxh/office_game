@@ -29,3 +29,6 @@ account.txt
 .claude/worktrees/
 server.txt
 /sdks/*
+
+# Log chạy local (TEST-22) — không commit
+*.log

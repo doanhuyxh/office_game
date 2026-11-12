@@ -130,7 +130,7 @@ internal static class AssetEndpoints
         if (!v.IsHr) q = q.Where(a => a.Classification == Classification.Internal);
         if (!string.IsNullOrEmpty(term))
         {
-            var s = $"%{term}%";
+            var s = Like.Contains(term);
             q = q.Where(a => EF.Functions.ILike(a.Title, s) || EF.Functions.ILike(a.Code, s) || (a.Description != null && EF.Functions.ILike(a.Description, s))
                              || (a.DocumentNumber != null && EF.Functions.ILike(a.DocumentNumber, s)) || a.Tags.Any(t => EF.Functions.ILike(t, s))
                              || a.Versions.Any(x => EF.Functions.ILike(x.FileName, s)));

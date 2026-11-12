@@ -107,7 +107,7 @@ internal static class DeviceEndpoints
         if (!string.IsNullOrWhiteSpace(search))
         {
             var s = search.Trim();
-            var like = $"%{s.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_")}%";
+            var like = Like.Contains(s);
             var holderIds = emps.Values.Where(e => e.FullName.Contains(s, StringComparison.OrdinalIgnoreCase) || e.Code.Contains(s, StringComparison.OrdinalIgnoreCase))
                 .Select(e => e.Id).ToList();
             q = q.Where(d => EF.Functions.ILike(d.Code, like) || EF.Functions.ILike(d.Name, like) || EF.Functions.ILike(d.SerialNumber ?? "", like)

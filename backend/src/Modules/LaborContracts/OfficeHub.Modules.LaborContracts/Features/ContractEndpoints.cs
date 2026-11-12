@@ -86,7 +86,7 @@ internal static class ContractEndpoints
         if (!string.IsNullOrWhiteSpace(search))
         {
             var s = search.Trim();
-            var like = $"%{s}%";
+            var like = Like.Contains(s);
             // Tên / mã nhân viên nằm ở module Organization (không JOIN chéo schema) → lọc id qua directory rồi đưa vào truy vấn.
             var ids = (await dir.ListEmployedAsync(DateOnly.MinValue, DateOnly.MaxValue, ct))
                 .Where(e => e.FullName.Contains(s, StringComparison.OrdinalIgnoreCase) || e.Code.Contains(s, StringComparison.OrdinalIgnoreCase))

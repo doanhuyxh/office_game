@@ -22,7 +22,7 @@ Tham chiếu nhân viên bằng `EmployeeId` thuần (không FK chéo schema); t
 | `categories` | `Code` (tiền tố mã: MT, MH, DT, PK, KH), `Name`, `SortOrder`, `IsActive`. Seed 5 loại; HR thêm / sửa |
 | `devices` `[Audited]` | `Code` `TB-{loại}-{00001}` (bộ đếm theo loại, bảng `sequences`), `CategoryId`, `Name`, `Brand`, `Model`, `SerialNumber` (duy nhất khi có), `PurchaseDate`, `PurchasePrice` (VND), `WarrantyUntil`, `DepreciationMonths?` (riêng, null = theo loại), `Status`, `HolderEmployeeId`, `Note`, `DeletedAt`, `WarrantyReminded30At/7At` |
 | `device_assignments` | `DeviceId`, `EmployeeId`, `AssignedAt/By`, `ReturnedAt/By`, `ReturnNote` — chỉ thêm / đóng, không xoá (lịch sử giao nhận) |
-| `services` `[Audited]` | `Name`, `Vendor`, `Plan`, `Url`, `SeatLimit` (null = không giới hạn), `BillingCycle` (None / Monthly / Yearly), `Cost` (VND/kỳ), `RenewalDate`, `OwnerDepartmentId`, `AdminEmployeeId`, `Status` (Active / Cancelled), `RenewalReminded30At/7At` |
+| `services` `[Audited]` | `Name`, `Vendor`, `Plan`, `Url` (chỉ `http(s)://`, TEST-22), `SeatLimit` (null = không giới hạn), `BillingCycle` (None / Monthly / Yearly), `Cost` (VND/kỳ), `RenewalDate`, `OwnerDepartmentId`, `AdminEmployeeId`, `Status` (Active / Cancelled), `RenewalReminded30At/7At` |
 | `service_seats` `[Audited]` | `ServiceId`, `EmployeeId`, `AccountLogin`, `Role`, `GrantedAt/By`, `RevokedAt/By`, `Note`. Duy nhất `(ServiceId, AccountLogin)` khi chưa thu hồi |
 | `offboarding_notices` | `EmployeeId` (duy nhất), `NotifiedAt` — để job chỉ báo một lần mỗi người |
 

@@ -46,3 +46,10 @@ jobs:
           build-args: ${{ matrix.args }}
           push: true
           tags: ghcr.io/${{ github.repository }}/${{ matrix.name }}:${{ github.sha }},ghcr.io/${{ github.repository }}/${{ matrix.name }}:latest
+      # Quét lỗ hổng image vừa đẩy (TEST-22) — hiện chỉ báo cáo (exit-code 0); ổn định rồi đổi exit-code thành "1" để chặn deploy khi có CRITICAL
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ghcr.io/${{ github.repository }}/${{ matrix.name }}:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"

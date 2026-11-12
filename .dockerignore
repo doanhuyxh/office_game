@@ -1,9 +1,19 @@
 **/node_modules
 **/dist
-.env
 **/bin
 **/obj
-.keys
 .git
+# Bí mật / dữ liệu riêng — không bao giờ vào build context của image (TEST-22)
+.env
 .env.*
+**/.env
+**/.env.*
 !.env.example
+.keys
+**/.keys
+account.txt
+server.txt
+*.log
+**/*.log
+sdks/
+.dockerignore

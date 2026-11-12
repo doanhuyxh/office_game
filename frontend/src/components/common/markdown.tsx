@@ -1,6 +1,7 @@
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/utils/cn';
+import { isTrustedMediaUrl } from '@/utils/trustedMedia';
 
 /** Map thẻ Markdown → class Tailwind (không có plugin typography). */
 const COMPONENTS: Components = {
@@ -15,7 +16,10 @@ const COMPONENTS: Components = {
   a: ({ node: _n, ...p }) => <a className="break-words text-primary underline underline-offset-2" target="_blank" rel="noopener noreferrer" {...p} />,
   blockquote: ({ node: _n, ...p }) => <blockquote className="my-2 border-l-2 pl-3 text-muted-foreground" {...p} />,
   hr: () => <hr className="my-3" />,
-  img: ({ node: _n, alt, ...p }) => <img alt={alt ?? ''} loading="lazy" className="my-2 max-h-96 max-w-full rounded-md border" {...p} />,
+  // Ảnh ngoài S3 / cùng domain → link bấm mở, không tự tải (utils/trustedMedia.ts)
+  img: ({ node: _n, alt, src, ...p }) => isTrustedMediaUrl(src)
+    ? <img alt={alt ?? ''} src={src} loading="lazy" className="my-2 max-h-96 max-w-full rounded-md border" {...p} />
+    : <a href={src} target="_blank" rel="noopener noreferrer" className="break-words text-primary underline underline-offset-2">[ảnh{alt ? `: ${alt}` : ''}]</a>,
   pre: ({ node: _n, ...p }) => <pre className="my-2 overflow-x-auto rounded-md bg-muted p-3 text-xs [&_code]:bg-transparent [&_code]:p-0" {...p} />,
   code: ({ node: _n, ...p }) => <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]" {...p} />,
   table: ({ node: _n, ...p }) => <div className="my-2 overflow-x-auto"><table className="w-full border-collapse text-xs" {...p} /></div>,

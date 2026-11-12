@@ -94,8 +94,25 @@ public static class WebhookRules
                      || b[0] >= 224);
         }
         if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            // TEST-22: IPv6 chứa IPv4 bên trong → xét theo IPv4 đó (không vòng qua NAT64 / 6to4 / IPv4-compatible tới mạng nội bộ)
+            if (EmbeddedIPv4(ip) is { } v4) return IsPublic(v4);
+            var b = ip.GetAddressBytes();
+            if (b[0] == 0x20 && b[1] == 0x01 && b[2] == 0 && b[3] == 0) return false; // Teredo 2001::/32 — đường hầm, không dùng cho webhook
             return !(ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6Multicast || ip.IsIPv6UniqueLocal);
+        }
         return false;
+    }
+
+    /// <summary>IPv4 nhúng trong IPv6: NAT64 64:ff9b::/96 (+ 64:ff9b:1::/48), 6to4 2002::/16, IPv4-compatible ::a.b.c.d. Không có → null.</summary>
+    internal static IPAddress? EmbeddedIPv4(IPAddress ip)
+    {
+        var b = ip.GetAddressBytes();
+        if (b.Length != 16) return null;
+        if (b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xff && b[3] == 0x9b) return new IPAddress(b[12..16]);       // NAT64
+        if (b[0] == 0x20 && b[1] == 0x02) return new IPAddress(b[2..6]);                                       // 6to4
+        if (b[..12].All(x => x == 0) && !(b[12] == 0 && b[13] == 0 && b[14] == 0 && b[15] <= 1)) return new IPAddress(b[12..16]); // ::a.b.c.d (trừ :: và ::1)
+        return null;
     }
 
     /// <summary>Khoá ký mới: "whsec_" + 32 byte ngẫu nhiên base64url.</summary>

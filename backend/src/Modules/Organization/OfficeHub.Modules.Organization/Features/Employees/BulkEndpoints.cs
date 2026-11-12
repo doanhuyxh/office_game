@@ -130,7 +130,7 @@ internal static class BulkEndpoints
             if (departmentId is { } did) q = q.Where(e => e.DepartmentId == did);
             if (!string.IsNullOrWhiteSpace(search))
             {
-                var s = $"%{search.Trim()}%";
+                var s = Like.Contains(search);
                 q = q.Where(e => EF.Functions.ILike(e.FullName, s) || EF.Functions.ILike(e.Code, s) || (e.Email != null && EF.Functions.ILike(e.Email, s)));
             }
         }

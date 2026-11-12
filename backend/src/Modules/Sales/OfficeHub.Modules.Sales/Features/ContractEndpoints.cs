@@ -80,7 +80,7 @@ internal static class ContractEndpoints
         if (status is { } s) q = q.Where(c => c.Status == s);
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var p = $"%{search.Trim()}%";
+            var p = Like.Contains(search);
             q = q.Where(c => EF.Functions.ILike(c.Code, p) || EF.Functions.ILike(c.Title, p) || db.Customers.Any(x => x.Id == c.CustomerId && EF.Functions.ILike(x.Name, p)));
         }
         var paged = await q.OrderByDescending(c => c.SignedOn).ThenByDescending(c => c.CreatedAt).ThenBy(c => c.Id).ToPagedAsync(page < 1 ? 1 : page, pageSize, ct);

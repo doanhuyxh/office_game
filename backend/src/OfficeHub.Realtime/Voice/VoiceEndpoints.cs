@@ -69,7 +69,7 @@ public static class VoiceEndpoints
                 .WithIdentity(userId)
                 .WithName(user.FindFirstValue(ClaimNames.FullName) ?? user.Identity?.Name ?? "?")
                 .WithGrants(grants)
-                .WithTtl(TimeSpan.FromMinutes(10)) // chỉ dùng để vào room; LiveKit tự gia hạn trong phiên
+                .WithTtl(TimeSpan.FromSeconds(60)) // TEST-22: chỉ cần còn hạn lúc vào room (LiveKit tự gia hạn trong phiên) — token lộ ra cũng hết hạn nhanh
                 .ToJwt();
             return Results.Ok(new VoiceTokenResponse(cfg.Url!, token, ch.LiveKitRoom, ch.Id, ch.Meeting, ch.ScreenShare));
         }).RequireAuthorization();

@@ -53,6 +53,11 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
     public const string OfficeGroup = "office";
     private const string Room = OfficeGroup;
     private const float MaxSpeed = 7f, Slack = 2.5f;
+    /// <summary>TEST-22: khoảng thời gian tối đa tính cho một bước (đứng yên lâu không "tích" quãng đường để dịch chuyển xa).</summary>
+    private const float MaxStepSeconds = 0.2f;
+    /// <summary>Nhịp gửi vị trí của client (~10 lần / giây): Slack chỉ cho đủ khi cách lần trước ≥ nhịp này (gửi dồn không cộng Slack mỗi lần).</summary>
+    private const float NominalTick = 0.1f;
+    private const byte AnimSit = 2;
 
     private string UserId => Context.UserIdentifier ?? throw new HubException("unauthorized");
 
@@ -112,11 +117,15 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
     public async Task Move(float x, float z, float r, byte anim)
     {
         if (!presence.TryGet(UserId, out var p) || p.ConnectionId != Context.ConnectionId) return;
+        if (!float.IsFinite(x) || !float.IsFinite(z) || !float.IsFinite(r) || anim > AnimSit) return; // TEST-22: NaN / ∞ / anim lạ
         var now = Stopwatch.GetTimestamp();
-        var dt = (float)Stopwatch.GetElapsedTime(p.LastMoveTicks, now).TotalSeconds;
+        var elapsed = (float)Stopwatch.GetElapsedTime(p.LastMoveTicks, now).TotalSeconds;
+        var allowed = MaxSpeed * MathF.Min(elapsed, MaxStepSeconds) + Slack * MathF.Min(1f, elapsed / NominalTick);
         var dist = MathF.Sqrt((x - p.X) * (x - p.X) + (z - p.Z) * (z - p.Z));
-        // Ngoài sàn / xuyên tường, đồ vật (lưới va chạm chung với FE) / đi quá nhanh → kéo về vị trí cũ
-        if (!map.CanStand(x, z) || dist > MaxSpeed * dt + Slack)
+        // Ngồi xuống / đứng dậy: client nhảy thẳng lên ghế / ra ô trống gần nhất (có thể qua cạnh bàn) → không kiểm đường đi
+        var sitTransition = anim == AnimSit || p.Anim == AnimSit;
+        // Ngoài sàn / xuyên tường, đồ vật (lưới va chạm chung với FE) / đi quá nhanh / đường đi cắt qua tường → kéo về vị trí cũ
+        if (!map.CanStand(x, z) || dist > allowed || (!sitTransition && !SegmentClear(p.X, p.Z, x, z)))
         {
             await Clients.Caller.Teleport(p.X, p.Z);
             return;
@@ -134,6 +143,19 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
             // Vừa bước vào phòng có tường đang chiếu tài liệu → gửi ngay cho người này (client không phải đoán lúc server đã thấy mình trong phòng)
             if (screens.Get(after.Id) is { } screen) await Clients.Caller.ScreenChanged(after.Id, screen);
         }
+    }
+
+    /// <summary>Mọi điểm trên đoạn đi (mỗi 0,1 m) đều đứng được — một bước 0,7 m không được nhảy qua tường mỏng (TEST-22).</summary>
+    private bool SegmentClear(float x0, float z0, float x1, float z1)
+    {
+        var len = MathF.Sqrt((x1 - x0) * (x1 - x0) + (z1 - z0) * (z1 - z0));
+        var steps = (int)MathF.Ceiling(len / 0.1f);
+        for (var i = 1; i < steps; i++)
+        {
+            var t = (float)i / steps;
+            if (!map.CanStand(x0 + (x1 - x0) * t, z0 + (z1 - z0) * t)) return false;
+        }
+        return true;
     }
 
     /// <summary>
@@ -181,7 +203,7 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
 
     public async Task SendChat(string text)
     {
-        if (!presence.TryGet(UserId, out var p)) return;
+        if (!presence.TryGet(UserId, out var p) || p.ConnectionId != Context.ConnectionId) return; // TEST-22: chỉ kết nối hiện tại (như Move)
         text = (text ?? "").Trim();
         if (text.Length == 0) return;
         if (text.Length > 200) text = text[..200];
@@ -200,7 +222,7 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
     /// </summary>
     public async Task SendRoomChat(string text)
     {
-        if (!presence.TryGet(UserId, out var p)) return;
+        if (!presence.TryGet(UserId, out var p) || p.ConnectionId != Context.ConnectionId) return;
         text = (text ?? "").Trim();
         if (text.Length == 0) return;
         if (text.Length > 200) text = text[..200];
@@ -233,7 +255,7 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
 
     /// <summary>Tài liệu đang chiếu ở phòng có tường mình đang đứng (vào phòng → client hỏi); khu mở / chưa chiếu → null.</summary>
     public ScreenDto? GetScreen() =>
-        presence.TryGet(UserId, out var p) && RoomOf(p) is { } room ? screens.Get(room.Id) : null;
+        presence.TryGet(UserId, out var p) && p.ConnectionId == Context.ConnectionId && RoomOf(p) is { } room ? screens.Get(room.Id) : null;
 
     /// <summary>
     /// Chiếu tài liệu lên màn hình phòng có tường đang đứng. Server hỏi Api bằng cookie người chiếu (Api kiểm tra quyền xem + ghi nhật ký),
@@ -258,7 +280,7 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
     /// <summary>Tắt màn hình phòng đang đứng (ai trong phòng cũng tắt được).</summary>
     public async Task ClearScreen()
     {
-        if (!presence.TryGet(UserId, out var p)) return;
+        if (!presence.TryGet(UserId, out var p) || p.ConnectionId != Context.ConnectionId) return;
         var room = RoomOf(p) ?? throw new HubException("Bạn không ở trong phòng nào");
         botScreens.MarkCleared(room.Id, clock.GetUtcNow()); // bot đang chiếu không tự bật lại ngay (BotScreenEndpoints)
         if (botScreens.Get(room.Id) is { } bot) botScreens.End(room.Id, bot); // TEST-18: tắt là hết ngay, không đợi BotSweeper (link ảnh hết hiệu lực)

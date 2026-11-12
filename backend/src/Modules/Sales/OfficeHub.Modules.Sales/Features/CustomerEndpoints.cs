@@ -51,7 +51,7 @@ internal static class CustomerEndpoints
         if (includeInactive != true) q = q.Where(c => c.IsActive);
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var s = $"%{search.Trim()}%";
+            var s = Like.Contains(search);
             q = q.Where(c => EF.Functions.ILike(c.Name, s) || EF.Functions.ILike(c.TaxCode ?? "", s) || EF.Functions.ILike(c.Phone ?? "", s) || EF.Functions.ILike(c.Email ?? "", s)
                              || c.Contacts.Any(x => EF.Functions.ILike(x.Name, s) || EF.Functions.ILike(x.Phone ?? "", s)));
         }

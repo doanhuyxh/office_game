@@ -75,3 +75,5 @@ Bảng danh sách: **phân trang ở BE** — `usePageState` + hook `use…Page`
 
 `components/common/columns` → `useColumns(tableId, COLUMNS)` + `<ColumnsMenu state={cols} />` (đặt ở hàng công cụ của bảng, căn phải). `COLUMNS: ColumnDef[]` khai báo hằng ngoài component (`id` ổn định, `required` = không cho ẩn, `defaultHidden`). Trong bảng: `{v('id') && <TableHead>…}` và ô tương ứng; dòng trống / đang tải dùng `colSpan={cols.span(sốCộtCốĐịnh)}`; footer có colSpan thì tính theo cột đang hiện. Lựa chọn lưu localStorage `officehub.columns.<tableId>` (mỗi trình duyệt). Đang dùng: danh bạ nhân viên, hợp đồng, kỳ lương, chấm công hôm nay / tổng hợp tháng / bảng công tháng, báo cáo tăng ca + phép năm, quỹ phép. Bảng mới ≥ 6 cột dữ liệu → thêm nút này.
 
+
+- **Ảnh / video ngoài** (TEST-22, `utils/trustedMedia.ts`): Markdown (`components/common/markdown.tsx`) và link media của việc (`task-media`) chỉ tự tải ảnh / file video từ cùng domain hoặc S3 `*.amazonaws.com`; nguồn khác hiện thành link bấm mở (tránh ảnh theo dõi). YouTube / Vimeo / Drive nhúng như cũ.

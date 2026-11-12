@@ -46,6 +46,15 @@ public class WebhookRulesTests
     [InlineData("fd00::1", false)]
     [InlineData("fe80::1", false)]
     [InlineData("2606:4700:4700::1111", true)]
+    // TEST-22: IPv6 nhúng IPv4 nội bộ
+    [InlineData("64:ff9b::a00:1", false)]        // NAT64 → 10.0.0.1
+    [InlineData("64:ff9b::808:808", true)]       // NAT64 → 8.8.8.8
+    [InlineData("2002:a00:1::1", false)]         // 6to4 → 10.0.0.1
+    [InlineData("2002:c0a8:101::1", false)]      // 6to4 → 192.168.1.1
+    [InlineData("::127.0.0.1", false)]           // IPv4-compatible
+    [InlineData("::169.254.169.254", false)]     // metadata cloud
+    [InlineData("2001:0:4136:e378::1", false)]   // Teredo
+    [InlineData("::1", false)]
     public void Public_ip(string ip, bool expected) => Assert.Equal(expected, WebhookRules.IsPublic(IPAddress.Parse(ip)));
 
     [Fact]

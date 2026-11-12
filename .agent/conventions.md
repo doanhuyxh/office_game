@@ -67,3 +67,4 @@ Quy ước FE (cây thư mục, feature, shadcn/ui, theme, layout): xem [fronten
 
 - `features/office/engine/OfficeScene.ts` là engine tối giản tạm (capsule + mặt sàn), chưa phải chuẩn cho đồ hoạ.
 - `components/feedback/ComingSoon` chỉ dùng cho màn hình chưa làm (leave, approvals, contracts, reports).
+- **Tìm kiếm `ILIKE`**: luôn dùng `Like.Contains(term)` (`BuildingBlocks/Http/Like.cs`, TEST-22) để thoát `% _ \` trong từ khoá người dùng — không ghép `$"%{term}%"`.

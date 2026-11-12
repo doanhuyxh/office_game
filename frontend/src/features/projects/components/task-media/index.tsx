@@ -1,4 +1,5 @@
 import { ExternalLink } from 'lucide-react';
+import { isTrustedMediaUrl } from '@/utils/trustedMedia';
 import { mediaKind } from '../../utils/media';
 
 /** Xem trước link ảnh / video của việc: ảnh → <img>, file video → <video>, YouTube / Vimeo / Google Drive → iframe, còn lại → link. */
@@ -7,7 +8,9 @@ export function TaskMedia({ links }: { links: string[] }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2">
       {links.map((url) => {
-        const m = mediaKind(url);
+        const k = mediaKind(url);
+        // Ảnh / file video ngoài S3 / cùng domain → chỉ hiện link (không tự tải từ máy người xem); YouTube / Vimeo / Drive nhúng như cũ
+        const m = (k.kind === 'image' || k.kind === 'video') && !isTrustedMediaUrl(url) ? { kind: 'link' as const } : k;
         const open = (
           <a href={url} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-1 text-xs text-primary hover:underline">
             <ExternalLink className="size-3 shrink-0" /><span className="truncate">{url}</span>

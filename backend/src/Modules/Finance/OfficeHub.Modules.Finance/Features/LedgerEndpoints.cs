@@ -84,7 +84,7 @@ internal static class LedgerEndpoints
         q = voided == true ? q.Where(e => e.Status == TxStatus.Voided) : q.Where(e => e.Status == TxStatus.Active);
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var s = $"%{search.Trim()}%";
+            var s = Like.Contains(search);
             q = q.Where(e => EF.Functions.ILike(e.Description ?? "", s) || EF.Functions.ILike(e.Counterparty ?? "", s) || EF.Functions.ILike(e.InvoiceNumber ?? "", s));
         }
         var paged = await q.OrderByDescending(e => e.Date).ThenByDescending(e => e.CreatedAt).ThenBy(e => e.Id).ToPagedAsync(page < 1 ? 1 : page, pageSize, ct);
