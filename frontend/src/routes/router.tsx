@@ -122,9 +122,12 @@ const newsPost = createRoute({
 });
 
 // Chi tiết dự án (link từ chuông giao việc / thêm thành viên): /projects/<id>?tab=tasks|milestones|members|effort
+// ?task=<id việc> mở luôn hộp thoại việc, &comment=<id bình luận> cuộn tới bình luận (TEST-66)
+const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
 const projectDetail = createRoute({
   getParentRoute: () => main,
   path: '/projects/$projectId',
+  validateSearch: (s: Record<string, unknown>): { tab?: string; task?: string; comment?: string } => ({ tab: str(s.tab), task: str(s.task), comment: str(s.comment) }),
   component: lazyRouteComponent(() => import('@/features/projects'), 'ProjectDetailPage'),
 });
 

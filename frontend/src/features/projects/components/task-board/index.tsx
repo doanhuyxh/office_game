@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, CheckCircle2, GripVertical, Plus, Settings2, ShieldCheck } from 'lucide-react';
 import { BotBadge } from '@/components/common/bot-badge';
@@ -10,7 +11,7 @@ import { fmtDate } from '@/features/finance';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errors';
 import { projectApi } from '../../api/project.api';
-import { useProjectMutation, useTasks } from '../../hooks/useProjects';
+import { useProjectMutation, useTaskDetail, useTasks } from '../../hooks/useProjects';
 import type { IProjectDetail, ITask, ITaskColumn } from '../../types/project.types';
 import { createColumns, needsMoveNote } from '../../utils/labels';
 import { ColumnDialog } from '../column-dialog';
@@ -65,11 +66,25 @@ function reorder(ids: string[], id: string, target: string) {
  * Thành viên kéo thẻ sang cột khác; bấm thẻ để sửa / bình luận; lọc "việc của tôi".
  * Chức vụ có quyền "Quản lý trạng thái công việc": kéo tiêu đề cột để sắp xếp, ⚙ để sửa tên / màu / cờ / xoá, nút "Thêm trạng thái" trên thanh công cụ.
  * Back-end kiểm quy trình (đi lần lượt, cột cần người duyệt) → toast lỗi; kéo lùi khi đi lần lượt → hỏi lý do trước.
+ * Việc đang mở nằm trên URL `?task=<id>` (+ `&comment=<id>` từ chuông bình luận → cuộn tới) để link chuông / copy link mở thẳng hộp thoại (TEST-66);
+ * lấy theo id nên mở được cả việc đã xong / đang bị lọc. Đóng hộp thoại → bỏ task / comment khỏi URL (replace).
  */
 export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId: string | null }) {
   const p = d.project;
   const { data = [], isLoading } = useTasks(p.id);
-  const [edit, setEdit] = useState<{ task: ITask | null; columnId?: string } | null>(null);
+  const [create, setCreate] = useState<{ columnId: string } | null>(null);
+  const search = useSearch({ strict: false }) as { task?: string; comment?: string };
+  const navigate = useNavigate();
+  const openTask = (task: string | undefined) =>
+    void navigate({ to: '.', search: ((prev: Record<string, unknown>) => ({ ...prev, task, comment: undefined })) as never, replace: true });
+  const linked = useTaskDetail(search.task ?? null);
+  const missing = !!search.task && (linked.isError || (!!linked.data && linked.data.task.projectId !== p.id));
+  useEffect(() => {
+    if (!missing) return;
+    toast.error('Không tìm thấy việc');
+    openTask(undefined);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [missing]);
   const [colEdit, setColEdit] = useState<ITaskColumn | null | undefined>(undefined);
   const [mine, setMine] = useState(false);
   const [desc, setDesc] = useState(readDesc);
@@ -84,6 +99,7 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
   const byId = new Map(d.columns.map((c) => [c.id, c]));
   const columns = pendingOrder ? pendingOrder.map((id) => byId.get(id)).filter((c): c is ITaskColumn => !!c) : d.columns;
   const creatable = new Set(createColumns(columns, p.sequential, p.canManage).map((c) => c.id));
+  const opened: ITask | undefined = search.task && !missing ? data.find((t) => t.id === search.task) ?? linked.data?.task : undefined;
   const shown = mine ? data.filter((t) => t.assigneeEmployeeId === myEmployeeId) : data;
   const dropTask = async (columnId: string, id: string) => {
     const t = data.find((x) => x.id === id);
@@ -167,12 +183,12 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
                   </Tooltip>
                   {manage && <Button size="icon" variant="ghost" className="size-7" aria-label={`Sửa trạng thái ${c.name}`} onClick={() => setColEdit(c)}><Settings2 /></Button>}
                   {p.canWork && creatable.has(c.id) && <Button size="icon" variant="ghost" className="size-7" aria-label={`Thêm việc vào ${c.name}`}
-                    onClick={() => setEdit({ task: null, columnId: c.id })}><Plus /></Button>}
+                    onClick={() => setCreate({ columnId: c.id })}><Plus /></Button>}
                 </span>
               </div>
               <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-1 pb-1">
               {col.map((t) => (
-                <button key={t.id} type="button" draggable={p.canWork} onDragStart={(e) => e.dataTransfer.setData(TASK, t.id)} onClick={() => setEdit({ task: t })}
+                <button key={t.id} type="button" draggable={p.canWork} onDragStart={(e) => e.dataTransfer.setData(TASK, t.id)} onClick={() => openTask(t.id)}
                   className="grid gap-1 rounded-lg border bg-card p-2 text-left text-sm shadow-xs hover:border-primary/50" data-testid="task-card">
                   <span className="flex items-center gap-1 text-xs text-muted-foreground">{t.code}{t.createdByBot && <BotBadge />}
                     {!!t.waitingOn && !t.done && <span className="rounded bg-warning/15 px-1 text-[10px] font-medium text-warning" title="Còn chờ việc khác xong" data-testid="task-waiting">Chờ {t.waitingOn} việc</span>}</span>
@@ -191,8 +207,9 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
           );
         })}
       </div>
-      <TaskDialog projectId={p.id} task={edit?.task ?? (edit ? null : undefined)} initialColumnId={edit?.columnId} columns={columns} members={d.members}
-        milestones={d.milestones} canWork={p.canWork} canDelete={p.canManage} sequential={p.sequential} onClose={() => setEdit(null)} />
+      <TaskDialog projectId={p.id} task={opened ?? (create ? null : undefined)} initialColumnId={create?.columnId} columns={columns} members={d.members}
+        milestones={d.milestones} canWork={p.canWork} canDelete={p.canManage} sequential={p.sequential} focusCommentId={opened ? search.comment : undefined}
+        onClose={() => (opened ? openTask(undefined) : setCreate(null))} />
       <ColumnDialog projectId={p.id} column={colEdit} columns={columns} onClose={() => setColEdit(undefined)} />
     </div>
   );

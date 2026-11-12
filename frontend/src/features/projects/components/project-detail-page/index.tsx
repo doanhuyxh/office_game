@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useParams } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
+import { Link, useParams, useSearch } from '@tanstack/react-router';
 import { ArrowLeft, FolderOpen, Pencil } from 'lucide-react';
 import { Markdown } from '@/components/common/markdown';
 import { Button } from '@/components/common/button';
@@ -36,6 +36,9 @@ export function ProjectDetailPage() {
   const canFinance = access.includes('finance') && finance.view;
   const [tab, setTab] = useTabParam('tasks', ['tasks', 'guide', 'milestones', 'changes', 'members', 'appendix', ...(canEffort ? ['effort'] : []), ...(canFinance ? ['finance'] : [])]);
   const [editing, setEditing] = useState(false);
+  // Link chuông ?task=… (TEST-66) → luôn ở tab Công việc để hộp thoại việc mở được
+  const openTask = (useSearch({ strict: false }) as { task?: string }).task;
+  useEffect(() => { if (openTask && tab !== 'tasks') setTab('tasks'); }, [openTask, tab, setTab]);
   if (isLoading) return <Spinner />;
   if (error || !d) return <div className="grid gap-2"><p className="text-sm text-destructive">{errorMessage(error, 'Không tìm thấy dự án')}</p><Link to={PATHS.projects} className="text-sm underline">← Danh sách dự án</Link></div>;
   const p = d.project;
@@ -57,7 +60,7 @@ export function ProjectDetailPage() {
           {p.canManage && <Button size="sm" variant="outline" onClick={() => setEditing(true)}><Pencil /> Sửa</Button>}
         </div>
       </div>
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={openTask ? 'tasks' : tab} onValueChange={setTab}>
         <PageToolbar>
           <TabsList>
             <TabsTrigger value="tasks">Công việc ({p.tasks.open})</TabsTrigger>

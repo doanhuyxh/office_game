@@ -34,4 +34,11 @@ public class TaskNotifyRulesTests
         Assert.Equal(TaskNotifyRules.MaxBody + 1, cut.Length);
         Assert.EndsWith("…", cut);
     }
+
+    [Fact]
+    public void Link_opens_task_and_optional_comment()
+    {
+        Assert.Equal($"/projects/{A}?task={B}", TaskNotifyRules.Link(A, B));
+        Assert.Equal($"/projects/{A}?task={B}&comment={C}", TaskNotifyRules.Link(A, B, C));
+    }
 }

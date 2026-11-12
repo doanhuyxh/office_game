@@ -1,6 +1,7 @@
 import { BotBadge } from '@/components/common/bot-badge';
 import { confirmDialog, promptDialog } from '@/components/common/confirm-dialog';
 import { useEffect, useMemo, useState } from 'react';
+import { cn } from '@/utils/cn';
 import { toast } from 'sonner';
 import { ImagePlus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/common/button';
@@ -45,12 +46,13 @@ function ActivityLine({ a }: { a: ITaskActivity }) {
 /**
  * Thêm / sửa việc + bình luận + lịch sử. `task`: undefined = đóng, null = thêm mới (cột `initialColumnId`).
  * `sequential`: dự án đi lần lượt → việc mới chỉ ở các cột trước cột cần duyệt / hoàn thành; lưu với trạng thái lùi → hỏi lý do.
+ * `focusCommentId` (link chuông bình luận / @nhắc): cuộn tới bình luận đó và tô sáng.
  */
-export function TaskDialog({ projectId, task, initialColumnId, columns, members, milestones, canWork, canDelete, sequential = false, onClose }: {
+export function TaskDialog({ projectId, task, initialColumnId, columns, members, milestones, canWork, canDelete, sequential = false, focusCommentId, onClose }: {
   projectId: string; task: ITask | null | undefined; initialColumnId?: string; columns: ITaskColumn[]; members: IMember[]; milestones: IMilestone[]; canWork: boolean;
   /** Quản lý dự án / HR: xoá việc, tạo việc ở cột cần người duyệt. */
   canDelete: boolean;
-  sequential?: boolean; onClose: () => void;
+  sequential?: boolean; focusCommentId?: string; onClose: () => void;
 }) {
   const open = task !== undefined;
   const [f, setF] = useState<ITaskRequest>({ title: '', columnId: null });
@@ -65,6 +67,10 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
   const comments = detail?.comments ?? [];
   const activities = detail?.activities ?? [];
   const [showHistory, setShowHistory] = useState(false);
+  const focusLoaded = !!focusCommentId && comments.some((c) => c.id === focusCommentId);
+  useEffect(() => {
+    if (focusLoaded) document.getElementById(`task-comment-${focusCommentId}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [focusLoaded, focusCommentId]);
   // @mã thành viên trong bình luận → hiện họ tên nổi bật (mã HOA → họ tên)
   const mentionNames = useMemo(() => new Map(members.filter((m) => m.code).map((m) => [m.code!.toUpperCase(), m.fullName])), [members]);
   const createCols = createColumns(columns, sequential, canDelete);
@@ -130,7 +136,7 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
               {task && (
                 <div className="grid gap-2 border-t pt-3">
                   <div className="text-sm font-medium">Bình luận ({comments.length})</div>
-                  {comments.map((c) => <div key={c.id} className="rounded-md bg-muted/50 p-2 text-sm" data-testid="task-comment">
+                  {comments.map((c) => <div key={c.id} id={`task-comment-${c.id}`} className={cn('rounded-md bg-muted/50 p-2 text-sm', c.id === focusCommentId && 'ring-2 ring-primary/50')} data-testid="task-comment">
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <span className="min-w-0 flex-1">{c.authorName}{c.byBot && <BotBadge className="ml-1" />} · {fmtTime(c.createdAt)}</span>
                       {c.canDelete && <Button type="button" size="icon" variant="ghost" className="size-6 shrink-0 text-muted-foreground hover:text-destructive" aria-label="Xoá bình luận"

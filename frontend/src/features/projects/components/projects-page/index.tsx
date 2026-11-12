@@ -49,7 +49,7 @@ export function ProjectsPage() {
           <div className="mb-2 text-sm font-medium">Việc của tôi ({myTasks.length}) {myTasks.some((t) => t.overdue) && <StatusBadge tone="danger">{myTasks.filter((t) => t.overdue).length} quá hạn</StatusBadge>}</div>
           <ul className="grid gap-1 text-sm">
             {myTasks.slice(0, 8).map((t) => (
-              <li key={t.id}><Link to="/projects/$projectId" params={{ projectId: t.projectId }} className="hover:underline">
+              <li key={t.id}><Link to="/projects/$projectId" params={{ projectId: t.projectId }} search={{ task: t.id }} className="hover:underline">
                 <span className="text-muted-foreground">{t.code}</span> {t.title} <span className="text-xs text-muted-foreground">· {t.projectName}</span>
                 {t.dueOn && <span className={`text-xs ${t.overdue ? 'text-rose-600' : 'text-muted-foreground'}`}> · hạn {fmtDate(t.dueOn)}</span>}
                 <ColumnBadge name={t.columnName} color={t.columnColor} className="ml-2" />

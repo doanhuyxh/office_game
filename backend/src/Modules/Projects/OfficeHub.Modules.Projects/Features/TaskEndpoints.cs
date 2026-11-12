@@ -176,19 +176,19 @@ internal static class TaskEndpoints
         // TEST-42: tài khoản bot có bot Telegram → một tin đánh thức vào nhóm (Notification tự kiểm tra kênh bật / IsBot / username).
         await telegram.TaskAssignedAsync(uid, emp.Code, p.Id, t.Id, EffortRules.TaskCode(p.Code, t.Number), ct);
         await notifier.NotifyAsync(new NotificationRequest([uid], NotificationCategories.ProjectTask, $"Bạn được giao việc {EffortRules.TaskCode(p.Code, t.Number)}: {t.Title}",
-            $"{v.Name} giao trong dự án {p.Name}{(t.DueOn is { } d ? $", hạn {d:dd/MM/yyyy}" : "")}.", $"/projects/{p.Id}", SendEmail: false), ct);
+            $"{v.Name} giao trong dự án {p.Name}{(t.DueOn is { } d ? $", hạn {d:dd/MM/yyyy}" : "")}.", TaskNotifyRules.Link(p.Id, t.Id), SendEmail: false), ct);
         return uid;
     }
 
     /// <summary>Chuông chung cho mọi thành viên dự án, trừ người thao tác và <paramref name="alreadyNotified"/> (<see cref="TaskNotifyRules"/>).</summary>
     private static async Task NotifyMembersAsync(INotifier notifier, ProjectAccess access, Project p, ProjectViewer v, IEnumerable<Guid> alreadyNotified,
-        string title, string body, CancellationToken ct)
+        string title, string body, string link, CancellationToken ct)
     {
         var emps = await access.EmployeesAsync(ct);
         var to = TaskNotifyRules.Recipients(
             p.Members.Select(m => emps.TryGetValue(m.EmployeeId, out var e) ? (e.UserId, e.IsActive) : ((Guid?)null, false)), v.UserId, alreadyNotified);
         if (to.Count == 0) return;
-        await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.ProjectTask, title, TaskNotifyRules.Body(body), $"/projects/{p.Id}", SendEmail: false), ct);
+        await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.ProjectTask, title, TaskNotifyRules.Body(body), link, SendEmail: false), ct);
     }
 
     private static Task NotifyMembersMovedAsync(INotifier notifier, ProjectAccess access, Project p, TaskItem t, List<ColumnInfo> cols, Guid from, string? note,
@@ -197,7 +197,7 @@ internal static class TaskEndpoints
         if (from == t.ColumnId) return Task.CompletedTask;
         string Name(Guid id) => cols.FirstOrDefault(c => c.Id == id)?.Name ?? "?";
         return NotifyMembersAsync(notifier, access, p, v, alreadyNotified, $"{v.Name} chuyển {EffortRules.TaskCode(p.Code, t.Number)} sang \"{Name(t.ColumnId)}\"",
-            $"{t.Title} ({Name(from)} → {Name(t.ColumnId)}), dự án {p.Name}.{(note is null ? "" : $" Lý do: {note}")}", ct);
+            $"{t.Title} ({Name(from)} → {Name(t.ColumnId)}), dự án {p.Name}.{(note is null ? "" : $" Lý do: {note}")}", TaskNotifyRules.Link(p.Id, t.Id), ct);
     }
 
     /// <summary>
@@ -232,7 +232,7 @@ internal static class TaskEndpoints
         else return [];
         if (to.Count == 0) return [];
         await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.ProjectTask, title, TaskNotifyRules.Body(body),
-            $"/projects/{p.Id}", SendEmail: false), ct);
+            TaskNotifyRules.Link(p.Id, t.Id), SendEmail: false), ct);
         return to;
     }
 
@@ -278,7 +278,7 @@ internal static class TaskEndpoints
             catch (DbUpdateException) when (attempt < 3) { db.Tasks.Remove(t); db.Activities.Remove(created); continue; } // hai người tạo cùng lúc → số trùng, thử số kế
             var assigned = await NotifyAssignedAsync(notifier, dir, telegram, p, t, v, ct);
             await NotifyMembersAsync(notifier, access, p, v, assigned is { } au ? [au] : [], $"Việc mới {EffortRules.TaskCode(p.Code, t.Number)}: {t.Title}",
-                $"{v.Name} tạo trong dự án {p.Name} (\"{column.Name}\").", ct);
+                $"{v.Name} tạo trong dự án {p.Name} (\"{column.Name}\").", TaskNotifyRules.Link(p.Id, t.Id), ct);
             return TypedResults.Created($"/api/projects/tasks/{t.Id}", t.Id);
         }
     }
@@ -411,7 +411,7 @@ internal static class TaskEndpoints
             if (to.Count == 0) continue;
             await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.ProjectTask,
                 $"Sẵn sàng: {EffortRules.TaskCode(p.Code, x.Number)} {x.Title}",
-                $"{EffortRules.TaskCode(p.Code, done.Number)} \"{done.Title}\" đã xong — việc này hết phải chờ, có thể bắt đầu.", $"/projects/{p.Id}", SendEmail: false), ct);
+                $"{EffortRules.TaskCode(p.Code, done.Number)} \"{done.Title}\" đã xong — việc này hết phải chờ, có thể bắt đầu.", TaskNotifyRules.Link(p.Id, x.Id), SendEmail: false), ct);
         }
     }
 
@@ -519,7 +519,7 @@ internal static class TaskEndpoints
         if (t.AssigneeEmployeeId is { } a && a != v.Employee?.Id && (await dir.GetAsync(a, ct))?.UserId is { } uid)
         {
             await notifier.NotifyAsync(new NotificationRequest([uid], NotificationCategories.ProjectTask, $"{v.Name} bình luận việc {code}",
-                preview, $"/projects/{p.Id}", SendEmail: false), ct);
+                preview, TaskNotifyRules.Link(p.Id, t.Id, c.Id), SendEmail: false), ct);
             notified.Add(uid);
         }
         // @mã-nhân-viên → báo thành viên dự án được nhắc (trừ người viết và người làm việc — đã nhận chuông bình luận ở trên)
@@ -531,13 +531,13 @@ internal static class TaskEndpoints
             var mentioned = AgentTeamRules.MentionRecipients(members, codes, v.Employee?.Id, t.AssigneeEmployeeId);
             if (mentioned.Count > 0)
                 await notifier.NotifyAsync(new NotificationRequest(mentioned, NotificationCategories.ProjectTask, $"{v.Name} nhắc bạn trong việc {code}",
-                    preview, $"/projects/{p.Id}", SendEmail: false), ct);
+                    preview, TaskNotifyRules.Link(p.Id, t.Id, c.Id), SendEmail: false), ct);
             notified.AddRange(mentioned);
             // Telegram đánh thức bot được nhắc (TEST-63) — gồm cả người làm việc là bot; người không phải bot / đã khoá bị bỏ trong ITelegramWakeup
             foreach (var (botUid, botCode) in AgentTeamRules.MentionWakeTargets(members, codes, v.Employee?.Id))
                 await telegram.TaskMentionedAsync(botUid, botCode, p.Id, t.Id, code, c.Id, ct);
         }
-        await NotifyMembersAsync(notifier, access, p, v, notified, $"{v.Name} bình luận việc {code}", $"{t.Title}: {preview}", ct);
+        await NotifyMembersAsync(notifier, access, p, v, notified, $"{v.Name} bình luận việc {code}", $"{t.Title}: {preview}", TaskNotifyRules.Link(p.Id, t.Id, c.Id), ct);
         return TypedResults.Created($"/api/projects/comments/{c.Id}", c.Id);
     }
 }

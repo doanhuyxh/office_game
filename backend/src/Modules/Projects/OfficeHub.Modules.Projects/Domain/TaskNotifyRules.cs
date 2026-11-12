@@ -19,4 +19,8 @@ public static class TaskNotifyRules
     }
 
     public static string Body(string s) => s.Length > MaxBody ? s[..MaxBody] + "…" : s;
+
+    /// <summary>Link chuông của một việc (TEST-66): mở trang dự án + modal việc; bình luận / @nhắc thêm <c>comment</c> để cuộn tới.</summary>
+    public static string Link(Guid projectId, Guid taskId, Guid? commentId = null) =>
+        $"/projects/{projectId}?task={taskId}" + (commentId is { } c ? $"&comment={c}" : "");
 }

@@ -194,7 +194,7 @@ internal sealed class TaskReminderJob(IServiceScopeFactory scopes, ILogger<TaskR
             if ((await dir.GetAsync(t.AssigneeEmployeeId!.Value, ct))?.UserId is { } uid)
                 await notifier.NotifyAsync(new NotificationRequest([uid], NotificationCategories.ProjectTask,
                     t.DueOn == today ? $"Việc đến hạn hôm nay: {EffortRules.TaskCode(p.Code, t.Number)} {t.Title}" : $"Việc quá hạn: {EffortRules.TaskCode(p.Code, t.Number)} {t.Title}",
-                    $"Dự án {p.Name}. Hạn {t.DueOn:dd/MM/yyyy}.", $"/projects/{p.Id}", SendEmail: false), ct);
+                    $"Dự án {p.Name}. Hạn {t.DueOn:dd/MM/yyyy}.", TaskNotifyRules.Link(p.Id, t.Id), SendEmail: false), ct);
             t.DueRemindedAt = clock.Now;
         }
         await db.SaveChangesAsync(ct);
