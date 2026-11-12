@@ -24,7 +24,7 @@ Chủ dự án hỏi 2026-11-11 "đội agent tự làm việc với nhau đư�
 ## 3. Việc phụ thuộc (`projects.task_dependencies`, `DependencyRules`)
 
 - `PUT /api/projects/tasks/{id}/dependencies { dependsOn: Guid[] }` (thành viên, dự án đang chạy; token được gọi) — thay toàn bộ; cùng dự án, không vòng (DFS), không chờ chính nó, ≤ 10; ghi lịch sử `Depends` (mã việc trước → sau). Xoá việc → cascade.
-- `TaskDto.waitingOn` (số việc chờ chưa xong; FE badge "Chờ N việc"), `TaskDetailDto.dependsOn / blocks` (`{id, code, title, done}`; FE khung "Phải chờ việc" trong hộp thoại việc, thành viên thêm / bỏ).
+- `TaskDto.waitingOn` (số việc chờ chưa xong; FE badge "Chờ N việc"), `TaskDetailDto.dependsOn / blocks` (`{id, code, title, done}`; FE khung "Phải chờ việc" trong hộp thoại việc, thành viên thêm / bỏ; thêm bằng ô tìm mã / tên không phân biệt dấu + danh sách có phân trang 10 việc / trang và nhãn trạng thái, lọc ở FE từ `useTasks` — TEST-33).
 - **Bot (token) không đưa việc còn chờ ra khỏi cột đầu** → 409. Người thật: chỉ thấy badge.
 - Việc vừa sang cột hoàn thành → mỗi việc chờ nó mà nay hết chờ: chuông **"Sẵn sàng: CODE tên"** cho người làm (chưa giao → quản lý dự án), trừ người thao tác → kèm webhook → agent được giao tự bắt đầu.
 - MCP `create_task` / `update_task` thêm `dependsOn` (mã / id, dấu phẩy; `"none"` = bỏ). `update_task` vẫn trả đối tượng việc, thêm trường `dependsOn`.

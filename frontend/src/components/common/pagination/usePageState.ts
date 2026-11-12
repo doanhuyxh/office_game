@@ -27,9 +27,10 @@ function loadSize(tableId: string): number | null {
 /**
  * Trạng thái trang của một bảng (dữ liệu do BE cắt trang). Số dòng / trang lưu theo `tableId` trên trình duyệt
  * (localStorage `officehub.pageSize.<tableId>`, giống nút "Cột"). `resetKey` đổi (tìm kiếm, bộ lọc, tháng…) → về trang 1.
+ * `defaultSize`: số dòng khi chưa chọn (danh sách trong khung hẹp dùng 10).
  */
-export function usePageState(tableId: string, resetKey: string = ''): PageState {
-  const [pageSize, setPageSizeState] = useState(() => loadSize(tableId) ?? DEFAULT_PAGE_SIZE);
+export function usePageState(tableId: string, resetKey: string = '', defaultSize: number = DEFAULT_PAGE_SIZE): PageState {
+  const [pageSize, setPageSizeState] = useState(() => loadSize(tableId) ?? defaultSize);
   const [page, setPageState] = useState(1);
   const [seenKey, setSeenKey] = useState(resetKey);
   if (resetKey !== seenKey) { // đổi bộ lọc → về trang 1 ngay trong lần render này (không nháy trang cũ)

@@ -11,7 +11,7 @@ export interface SearchOption extends SelectOption {
 }
 
 /** Bỏ dấu tiếng Việt + chữ thường để tìm "nguyen" ra "Nguyễn". */
-const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+export const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
 
 /**
  * Ô chọn có tìm kiếm cho danh sách dài (nhân viên…): bấm mở → ô tìm (không phân biệt dấu) + tối đa `limit` kết quả (mặc định 5).

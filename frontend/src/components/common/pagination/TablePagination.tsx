@@ -31,11 +31,11 @@ export function TablePagination({ state, total, unit = 'dòng', className }: { s
             </SelectContent>
           </Select>
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon-sm" aria-label="Trang đầu" disabled={page <= 1} onClick={() => setPage(1)}><ChevronsLeft /></Button>
-            <Button variant="outline" size="icon-sm" aria-label="Trang trước" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft /></Button>
+            <Button type="button" variant="outline" size="icon-sm" aria-label="Trang đầu" disabled={page <= 1} onClick={() => setPage(1)}><ChevronsLeft /></Button>
+            <Button type="button" variant="outline" size="icon-sm" aria-label="Trang trước" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft /></Button>
             <span className="min-w-16 text-center tabular-nums">Trang {page}/{pageCount}</span>
-            <Button variant="outline" size="icon-sm" aria-label="Trang sau" disabled={page >= pageCount} onClick={() => setPage(page + 1)}><ChevronRight /></Button>
-            <Button variant="outline" size="icon-sm" aria-label="Trang cuối" disabled={page >= pageCount} onClick={() => setPage(pageCount)}><ChevronsRight /></Button>
+            <Button type="button" variant="outline" size="icon-sm" aria-label="Trang sau" disabled={page >= pageCount} onClick={() => setPage(page + 1)}><ChevronRight /></Button>
+            <Button type="button" variant="outline" size="icon-sm" aria-label="Trang cuối" disabled={page >= pageCount} onClick={() => setPage(pageCount)}><ChevronsRight /></Button>
           </div>
         </div>
       )}
