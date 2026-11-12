@@ -12,6 +12,7 @@ Chủ dự án chốt 2026-11-07: **quản lý tự uỷ quyền theo khoảng n
 - **Không trùng**: mỗi người uỷ quyền chỉ một uỷ quyền chưa thu hồi + chưa hết hạn phủ một ngày. Kiểm tra trong transaction + `pg_advisory_xact_lock` theo người uỷ quyền.
 - **Không bắc cầu**: chỉ uỷ quyền trực tiếp của `ApproverEmployeeId` có tác dụng (A → B, B → C: C không duyệt đơn của A).
 - Uỷ quyền **cộng thêm** quyền: người quản lý vẫn duyệt được. Chỉ bước `Manager`; bước `Hr` không đổi. **Không tự duyệt** vẫn giữ (người được uỷ quyền gửi đơn thì không duyệt được đơn đó).
+- HR tạo hộ uỷ quyền (`delegatorEmployeeId` ≠ mình) mà **người nhận là chính mình** → 403 (tách nhiệm vụ, TEST-10): nhờ HR khác hoặc chính người quản lý tạo.
 - Hiệu lực tính lúc gọi API (`DelegationLookup.Today()`): hết hạn / thu hồi → mất ngay quyền duyệt, đơn biến khỏi hộp duyệt, `GET /{id}` → 403 (trừ đơn đã tự tay duyệt thay).
 - Trạng thái (tính lúc đọc): `Revoked` (có `RevokedAt`) / `Upcoming` / `Active` / `Expired`. Thu hồi = đặt `RevokedAt/ById/ByName` (không xoá dòng), chỉ khi `Active` / `Upcoming`; đã thu hồi / hết hạn → 409.
 

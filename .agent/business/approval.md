@@ -27,6 +27,7 @@ Nếu mọi bước bị bỏ qua thì luôn còn 1 bước `Hr`. Bước đầu
 |---|---|
 | Đơn không còn `Pending` | Không ai |
 | Người thao tác chính là người gửi | **Không** (không tự duyệt), kể cả HR / admin |
+| Người đã duyệt một bước trước của đơn (kể cả duyệt thay) | **Không** quyết bước sau (tách nhiệm vụ — vd quản lý kiêm HR không duyệt cả 2 bước), trừ admin. So `ApprovalStep.DecidedByUserId` (`ApprovalRules.DecidedEarlierStep`) |
 | Bước hiện tại `Manager` | Đúng nhân viên `ApproverEmployeeId`, **người được người đó uỷ quyền hôm nay** ("duyệt thay", [approval-delegation.md](approval-delegation.md)), hoặc **admin** |
 | Bước hiện tại `Hr` | Vai trò `hr` / `admin` (HR **không** duyệt thay bước quản lý; uỷ quyền không áp dụng) |
 

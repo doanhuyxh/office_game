@@ -7,7 +7,9 @@ public enum DecisionRight { None, Approver, Delegate, Admin, Hr, Finance }
 
 /// <summary>Người đang thao tác. <paramref name="DelegatedBy"/> = Id người quản lý đang uỷ quyền cho người này hôm nay (không bắc cầu).</summary>
 /// <param name="IsFinanceApprover">Chức vụ của người này có quyền tài chính "Duyệt chi".</param>
-public sealed record DeciderContext(Guid? EmployeeId, bool IsHr, bool IsAdmin, IReadOnlySet<Guid> DelegatedBy, bool IsFinanceApprover = false);
+/// <param name="UserId">Tài khoản đang thao tác — so với người đã quyết các bước trước (tách nhiệm vụ).</param>
+public sealed record DeciderContext(Guid? EmployeeId, bool IsHr, bool IsAdmin, IReadOnlySet<Guid> DelegatedBy, bool IsFinanceApprover = false,
+    Guid? UserId = null);
 
 /// <summary>Ai được quyết định đơn — hàm thuần (test: tests/OfficeHub.Modules.Approval.Tests).</summary>
 public static class ApprovalRules
@@ -18,11 +20,14 @@ public static class ApprovalRules
     /// <summary>
     /// Không ai tự duyệt đơn của mình (kể cả HR / admin / người được uỷ quyền). Bước Manager: đúng người quản lý → Approver;
     /// người được người quản lý đó uỷ quyền hôm nay → Delegate; admin → Admin. Bước Hr: hr / admin (HR không duyệt thay bước quản lý).
+    /// Tách nhiệm vụ (TEST-10): người đã duyệt một bước của đơn (kể cả duyệt thay) không quyết bước sau của chính đơn đó — trừ admin
+    /// (giữ theo thiết kế: admin là chốt cuối khi công ty nhỏ không đủ người).
     /// </summary>
     public static DecisionRight Right(ApprovalRequest r, DeciderContext a)
     {
         if (CurrentStep(r) is not { } step) return DecisionRight.None;
         if (a.EmployeeId is { } me && me == r.RequesterEmployeeId) return DecisionRight.None;
+        if (!a.IsAdmin && a.UserId is { } uid && DecidedEarlierStep(r, uid)) return DecisionRight.None;
         if (step.Kind == ApprovalStepKind.Hr) return a.IsHr ? DecisionRight.Hr : DecisionRight.None;
         // Bước Tài chính chỉ người có quyền Duyệt chi (admin / HR không tự có quyền xem hay duyệt tiền).
         if (step.Kind == ApprovalStepKind.Finance) return a.IsFinanceApprover ? DecisionRight.Finance : DecisionRight.None;
@@ -35,6 +40,10 @@ public static class ApprovalRules
     }
 
     public static bool CanDecide(ApprovalRequest r, DeciderContext a) => Right(r, a) != DecisionRight.None;
+
+    /// <summary>Tài khoản này đã duyệt một bước trước của đơn.</summary>
+    public static bool DecidedEarlierStep(ApprovalRequest r, Guid userId) =>
+        r.Steps.Any(s => s.Status == StepStatus.Approved && s.DecidedByUserId == userId);
 }
 
 public enum DelegationStatus { Upcoming, Active, Expired, Revoked }

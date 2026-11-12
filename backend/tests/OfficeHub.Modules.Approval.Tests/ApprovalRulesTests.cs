@@ -33,6 +33,20 @@ public class ApprovalRulesTests
     }
 
     [Fact]
+    public void Same_person_cannot_decide_two_steps_of_one_request()
+    {
+        // TEST-10: người quản lý kiêm HR (hoặc người duyệt thay có vai trò HR) đã duyệt bước quản lý → không duyệt tiếp bước HR.
+        var managerUser = Guid.NewGuid();
+        var r = Request(managerStepDone: true);
+        r.Steps[0].DecidedByUserId = managerUser;
+        Assert.Equal(DecisionRight.None, ApprovalRules.Right(r, new DeciderContext(Manager, true, false, None, UserId: managerUser)));
+        // HR khác vẫn duyệt được
+        Assert.Equal(DecisionRight.Hr, ApprovalRules.Right(r, new DeciderContext(Other, true, false, None, UserId: Guid.NewGuid())));
+        // Admin giữ nguyên theo thiết kế
+        Assert.Equal(DecisionRight.Hr, ApprovalRules.Right(r, new DeciderContext(Manager, true, true, None, UserId: managerUser)));
+    }
+
+    [Fact]
     public void Delegation_is_not_transitive()
     {
         // Manager → Delegate, Delegate → Other: Other chỉ có DelegatedBy = {Delegate}, không phải {Manager}.

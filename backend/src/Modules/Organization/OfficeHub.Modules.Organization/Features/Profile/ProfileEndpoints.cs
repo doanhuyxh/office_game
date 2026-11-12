@@ -277,6 +277,7 @@ internal static class ProfileEndpoints
         if (r is null) return TypedResults.NotFound();
         if (r.Status != ProfileRequestStatus.Pending) return Problems.Conflict("Yêu cầu đã được xử lý");
         var e = await db.Employees.FirstAsync(x => x.Id == r.EmployeeId, ct);
+        if (IsSelfByNonAdmin(user, e)) return SelfForbidden();
         var dto = ToDto(r, e, enc); // diff trước khi áp
         ApplySensitive(e, Read(r, enc), enc);
         r.Status = ProfileRequestStatus.Approved;
@@ -315,11 +316,12 @@ internal static class ProfileEndpoints
         return e is null ? TypedResults.NotFound() : TypedResults.Ok(await ToMyProfileAsync(e, db, enc, ct));
     }
 
-    private static async Task<Results<Ok<MyProfileDto>, NotFound, ValidationProblem>> HrUpdateAsync(Guid id, HrUpdateBody body, OrgDbContext db,
-        IFieldEncryptor enc, IOptions<OfficeSettings> office, TimeProvider clock, CancellationToken ct)
+    private static async Task<Results<Ok<MyProfileDto>, NotFound, ValidationProblem, ProblemHttpResult>> HrUpdateAsync(Guid id, HrUpdateBody body,
+        ClaimsPrincipal user, OrgDbContext db, IFieldEncryptor enc, IOptions<OfficeSettings> office, TimeProvider clock, CancellationToken ct)
     {
         var e = await db.Employees.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (e is null) return TypedResults.NotFound();
+        if (IsSelfByNonAdmin(user, e)) return SelfForbidden();
         var s = body.Sensitive;
         // Thay toàn bộ: null → chuỗi rỗng (= xoá) cho đúng ngữ nghĩa SensitiveChange
         var change = PersonalProfile.Normalize(new SensitiveChange(s.DateOfBirth, s.DateOfBirth is null, s.IdNumber ?? "", s.IdIssuedOn, s.IdIssuedPlace ?? "",
@@ -333,4 +335,14 @@ internal static class ProfileEndpoints
         await db.SaveChangesAsync(ct);
         return TypedResults.Ok(await ToMyProfileAsync(e, db, enc, ct));
     }
+
+    /// <summary>
+    /// Tách nhiệm vụ (TEST-10): HR không tự duyệt / sửa thẳng CCCD, số tài khoản ngân hàng của chính mình (đổi STK nhận lương không ai kiểm).
+    /// Nhờ HR khác hoặc admin. Admin giữ nguyên theo thiết kế.
+    /// </summary>
+    private static bool IsSelfByNonAdmin(ClaimsPrincipal user, Employee e) =>
+        e.UserId is { } uid && uid == user.GetUserId() && !user.IsInRole(Roles.Admin);
+
+    private static ProblemHttpResult SelfForbidden() => TypedResults.Problem(
+        "Không tự duyệt / sửa thông tin cá nhân nhạy cảm của chính mình — nhờ HR khác hoặc admin", statusCode: StatusCodes.Status403Forbidden);
 }

@@ -6,7 +6,7 @@ Chủ dự án chốt 2026-11-06. Về [organization.md](organization.md).
 |---|---|---|
 | Liên hệ | `Phone`, `CurrentAddress`, `PermanentAddress`, `EmergencyContactName/Relation/Phone` | **Nhân viên tự sửa, hiệu lực ngay** (+ HR) |
 | Ảnh đại diện | `AvatarKey` (S3 `employees/{id}/avatar/{uuid}.{ext}`, JPG/PNG/WebP ≤ 2 MB) | Nhân viên |
-| Cần duyệt | `DateOfBirth`, `IdNumberEncrypted` (CCCD 12 số), `IdIssuedOn`, `IdIssuedPlace`, `BankName`, `BankAccountEncrypted` (6–20 số), `BankAccountHolder` (viết HOA) | Nhân viên **gửi yêu cầu → HR duyệt**; HR sửa thẳng |
+| Cần duyệt | `DateOfBirth`, `IdNumberEncrypted` (CCCD 12 số), `IdIssuedOn`, `IdIssuedPlace`, `BankName`, `BankAccountEncrypted` (6–20 số), `BankAccountHolder` (viết HOA) | Nhân viên **gửi yêu cầu → HR duyệt**; HR sửa thẳng. HR **không** tự duyệt / sửa thẳng hồ sơ của chính mình → 403 (nhờ HR khác hoặc admin; admin không bị chặn) |
 | Email | `Email` | **Chỉ HR** (form hồ sơ nhân viên) — gắn đăng nhập + OTP ký điện tử |
 
 - CCCD / số tài khoản mã hoá AES-GCM (`IFieldEncryptor`, `Encryption__Key`); lịch sử sửa tự che (tên cột kết thúc `Encrypted`). Quy tắc thuần: `Domain/PersonalProfile.cs` (`Validate`, `Normalize` — bỏ ký tự không phải số, chủ TK viết hoa; `Mask`), test `PersonalProfileTests`.

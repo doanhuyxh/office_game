@@ -226,10 +226,12 @@ internal static class PayrollEndpoints
     }
 
     private static async Task<Results<Ok<AdjustmentDto>, NotFound, ValidationProblem, ProblemHttpResult>> AddAdjustmentAsync(Guid id,
-        CreateAdjustmentRequest req, ClaimsPrincipal user, PayrollDbContext db, PayrollService svc, TimeProvider clock, CancellationToken ct)
+        CreateAdjustmentRequest req, ClaimsPrincipal user, PayrollDbContext db, PayrollService svc, IEmployeeDirectory dir, TimeProvider clock,
+        CancellationToken ct)
     {
         var p = await db.Periods.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (p is null) return TypedResults.NotFound();
+        if (await IsOwnByNonAdminAsync(user, req.EmployeeId, dir, ct)) return OwnAdjustmentForbidden();
         if (p.Status == PeriodStatus.Locked) return Problems.Conflict("Kỳ lương đã chốt");
         var v = new Validation().Required(req.Label, "label", "Nội dung").MaxLength(req.Label, 200, "label", "Nội dung")
             .When(req.Amount == 0 || Math.Abs(req.Amount) > 10_000_000_000m, "amount", "Số tiền không hợp lệ")
@@ -246,10 +248,12 @@ internal static class PayrollEndpoints
         return TypedResults.Ok(new AdjustmentDto(a.Id, a.EmployeeId, a.Label, svc.Amount(a), a.Taxable, a.CreatedByName));
     }
 
-    private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteAdjustmentAsync(Guid id, PayrollDbContext db, PayrollService svc, CancellationToken ct)
+    private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteAdjustmentAsync(Guid id, ClaimsPrincipal user, PayrollDbContext db,
+        PayrollService svc, IEmployeeDirectory dir, CancellationToken ct)
     {
         var a = await db.Adjustments.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (a is null) return TypedResults.NotFound();
+        if (await IsOwnByNonAdminAsync(user, a.EmployeeId, dir, ct)) return OwnAdjustmentForbidden();
         var p = await db.Periods.FirstAsync(x => x.Id == a.PeriodId, ct);
         if (p.Status == PeriodStatus.Locked) return Problems.Conflict("Kỳ lương đã chốt");
         db.Adjustments.Remove(a);
@@ -337,4 +341,11 @@ internal static class PayrollEndpoints
         wb.SaveAs(ms);
         return TypedResults.File(ms.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"bang-luong-{p.Month:yyyy-MM}.xlsx");
     }
+
+    /// <summary>Tách nhiệm vụ (TEST-10): HR không tự thêm / xoá khoản cộng trừ lương của chính mình. Admin giữ nguyên.</summary>
+    private static async Task<bool> IsOwnByNonAdminAsync(ClaimsPrincipal user, Guid employeeId, IEmployeeDirectory dir, CancellationToken ct) =>
+        !user.IsInRole(Roles.Admin) && (await dir.GetByUserIdAsync(user.GetUserId()!.Value, ct))?.Id == employeeId;
+
+    private static ProblemHttpResult OwnAdjustmentForbidden() => TypedResults.Problem(
+        "Không tự thêm / xoá khoản cộng trừ lương của chính mình — nhờ HR khác hoặc admin", statusCode: StatusCodes.Status403Forbidden);
 }

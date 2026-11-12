@@ -75,6 +75,10 @@ internal static class DelegationEndpoints
         if (req.DelegatorEmployeeId is { } given && given != me?.Id)
         {
             if (!user.IsHr()) return TypedResults.Problem("Chỉ HR được tạo uỷ quyền thay người khác", statusCode: StatusCodes.Status403Forbidden);
+            // Tách nhiệm vụ (TEST-10): HR không tự trao cho mình quyền duyệt thay quản lý khác — nhờ HR khác hoặc chính người quản lý tạo.
+            if (me is not null && req.DelegateEmployeeId == me.Id)
+                return TypedResults.Problem("Không tự uỷ quyền duyệt thay cho chính mình khi tạo hộ người khác — nhờ HR khác hoặc chính người quản lý tạo",
+                    statusCode: StatusCodes.Status403Forbidden);
             delegatorId = given;
         }
         else if (me is null) return Problems.Conflict("Tài khoản chưa gắn hồ sơ nhân viên");

@@ -212,5 +212,58 @@ for (let i = 0; i < 5; i++) await json(bck, 'POST', '/api/auth/change-password',
 const lockedCh = await json(bck, 'POST', '/api/auth/change-password', { currentPassword: PW, newPassword: PW + '9' });
 ok('sai mật khẩu hiện tại 5 lần → bị tạm khoá kể cả khi nhập đúng', lockedCh.status === 400 && /khoá/.test(JSON.stringify(lockedCh.body)), lockedCh.body);
 
+// ================= TEST-10: tách nhiệm vụ duyệt =================
+await sleep(61_000); // hạn mức 30 lần đăng nhập / phút / IP
+const mkUser = async (code: string, user: string, roles: string[], managerId: string | null = null) => {
+  const r = await json(admin, 'POST', '/api/org/employees', { code, fullName: `Tách Nhiệm Vụ ${code}`, email: `${user}@${MAIL}`, phone: null, dateOfBirth: null,
+    departmentId: null, positionId: null, managerId, status: 'Active', joinedAt: '2026-01-05', note: null });
+  if (r.status >= 300) throw new Error(`Tạo ${code} lỗi: ${JSON.stringify(r.body)}`);
+  const acc = (await json(admin, 'POST', `/api/org/employees/${r.body.employee.id}/account`, { mode: 'password', roles, userName: user })).body;
+  const c0 = await login(user, acc.tempPassword);
+  await json(c0, 'POST', '/api/auth/change-password', { currentPassword: acc.tempPassword, newPassword: PW });
+  return { e: r.body.employee, cookie: await login(user, PW) };
+};
+const MH = await mkUser(`SEC-${stamp}-MH`, `e2e.sec.mh${stamp}`, ['manager', 'hr']);   // quản lý kiêm HR
+const H = await mkUser(`SEC-${stamp}-H`, `e2e.sec.h${stamp}`, ['hr']);                   // HR khác
+const S = await mkUser(`SEC-${stamp}-S`, `e2e.sec.s${stamp}`, ['employee'], MH.e.id);   // nhân viên của MH
+ok('tạo 3 tài khoản (quản lý kiêm HR, HR, nhân viên)', !!MH.cookie && !!H.cookie && !!S.cookie);
+const types = (await json(S.cookie, 'GET', '/api/leave/types')).body as any[];
+const unpaid = types.find((t) => t.code === 'unpaid') ?? types[types.length - 1];
+const leaveDay = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() + 40); while ([0, 6].includes(d.getUTCDay())) d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
+const lr = await json(S.cookie, 'POST', '/api/leave/requests', { leaveTypeId: unpaid.id, startDate: leaveDay, endDate: leaveDay, period: 'FullDay', reason: 'E2E tách nhiệm vụ' });
+const reqId = lr.body?.approvalRequestId as string;
+ok('nhân viên gửi đơn nghỉ', lr.status < 300 && !!reqId, lr.body);
+const m1 = await json(MH.cookie, 'POST', `/api/approval/${reqId}/approve`, { comment: null });
+ok('quản lý duyệt bước quản lý', m1.status === 200, m1.body);
+const m2 = await json(MH.cookie, 'POST', `/api/approval/${reqId}/approve`, { comment: null });
+ok('cùng người (kiêm HR) duyệt tiếp bước HR → 403', m2.status === 403, m2);
+const inboxMH = (await json(MH.cookie, 'GET', '/api/approval/inbox')).body as any[];
+ok('đơn không còn trong hộp duyệt của người đã duyệt bước trước', !JSON.stringify(inboxMH ?? []).includes(reqId));
+ok('HR khác duyệt bước HR → 200', (await json(H.cookie, 'POST', `/api/approval/${reqId}/approve`, { comment: null })).status === 200);
+
+const today2 = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
+const selfDel = await json(H.cookie, 'POST', '/api/approval/delegations', { delegatorEmployeeId: MH.e.id, delegateEmployeeId: H.e.id, fromDate: today2, toDate: today2, note: null });
+ok('HR tạo hộ uỷ quyền mà người nhận là chính mình → 403', selfDel.status === 403, selfDel);
+const otherDel = await json(H.cookie, 'POST', '/api/approval/delegations', { delegatorEmployeeId: MH.e.id, delegateEmployeeId: S.e.id, fromDate: today2, toDate: today2, note: null });
+ok('HR tạo hộ uỷ quyền cho người khác → 200', otherDel.status === 200, otherDel);
+
+const pr = await json(H.cookie, 'POST', '/api/org/profile/me/requests', { change: { bankName: 'Vietcombank', bankAccount: '0123456789', bankAccountHolder: 'tach nhiem vu' }, note: null });
+ok('HR gửi yêu cầu đổi STK của mình', pr.status === 200, pr.body);
+ok('HR tự duyệt yêu cầu của mình → 403', (await json(H.cookie, 'POST', `/api/org/profile/requests/${pr.body.id}/approve`)).status === 403);
+ok('HR khác duyệt → 200', (await json(MH.cookie, 'POST', `/api/org/profile/requests/${pr.body.id}/approve`)).status === 200);
+const selfEdit = await json(H.cookie, 'PUT', `/api/org/profile/employees/${H.e.id}`, { contact: {}, sensitive: { bankAccount: '999' } });
+ok('HR sửa thẳng hồ sơ nhạy cảm của mình → 403', selfEdit.status === 403, selfEdit);
+const otherEdit = await json(H.cookie, 'GET', `/api/org/profile/employees/${S.e.id}`);
+ok('HR vẫn xem / sửa được hồ sơ người khác', otherEdit.status === 200);
+
+const per = await json(H.cookie, 'POST', '/api/payroll/periods', { month: '2026-09' });
+const perId = per.body?.id ?? ((await json(H.cookie, 'GET', '/api/payroll/periods')).body as any[])?.find((x: any) => x.month === '2026-09')?.id;
+if (perId) {
+  const own = await json(H.cookie, 'POST', `/api/payroll/periods/${perId}/adjustments`, { employeeId: H.e.id, label: 'Thưởng tự cho', amount: 5000000, taxable: true });
+  ok('HR tự thêm khoản cộng lương của mình → 403', own.status === 403, own);
+  const oth = await json(H.cookie, 'POST', `/api/payroll/periods/${perId}/adjustments`, { employeeId: S.e.id, label: 'x', amount: 1, taxable: true });
+  ok('HR thêm khoản cho người khác không bị chặn bởi luật này (≠ 403)', oth.status !== 403, oth);
+} else ok('tạo kỳ lương để thử', false, per);
+
 console.log(`\n${pass} đạt, ${fail} lỗi`);
 process.exit(fail ? 1 : 0);

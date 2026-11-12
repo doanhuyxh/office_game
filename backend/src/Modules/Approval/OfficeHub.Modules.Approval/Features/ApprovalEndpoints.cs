@@ -41,7 +41,7 @@ internal static class ApprovalEndpoints
     /// <summary>Người đang thao tác: tài khoản + hồ sơ nhân viên (có thể null với admin hệ thống) + người quản lý đang uỷ quyền cho họ hôm nay.</summary>
     internal sealed record Actor(Guid UserId, string Name, Guid? EmployeeId, bool IsHr, bool IsAdmin, IReadOnlySet<Guid> DelegatedBy, bool IsFinanceApprover = false)
     {
-        public DeciderContext Decider => new(EmployeeId, IsHr, IsAdmin, DelegatedBy, IsFinanceApprover);
+        public DeciderContext Decider => new(EmployeeId, IsHr, IsAdmin, DelegatedBy, IsFinanceApprover, UserId);
     }
 
     internal static async Task<Actor> ActorAsync(ClaimsPrincipal user, IEmployeeDirectory dir, DelegationLookup delegations, IFinanceAccess finance, CancellationToken ct)

@@ -40,7 +40,7 @@ Chủ dự án chốt 2026-11-06: **tính đầy đủ theo luật VN**, mọi t
 | HR | `GET /periods/{id}/payslips?page=&pageSize=` | Phiếu theo trang, sắp theo mã NV, chỉ giải mã phiếu trong trang (FE bảng kỳ lương dùng cái này; tổng kỳ lấy ở `/periods/{id}`) |
 | HR | `POST /periods/{id}/compute \| lock \| unlock` | Lock: tính lại lần cuối, **chỉ khi tháng đã kết thúc**, gửi chuông `payslip_ready` (không email) |
 | HR | `GET /periods/{id}/export.xlsx` | ClosedXML; sheet 2 "Chuyển khoản" (tài khoản nhân viên đã khai + HR duyệt, qua `IEmployeeDirectory.GetBankAccountsAsync`) |
-| HR | `POST /periods/{id}/adjustments`, `DELETE /adjustments/{id}` | Tự tính lại; kỳ đã chốt → 409 |
+| HR | `POST /periods/{id}/adjustments`, `DELETE /adjustments/{id}` | Tự tính lại; kỳ đã chốt → 409. Khoản của **chính mình** → 403 (trừ admin) |
 | Mọi người | `GET /my` | Chỉ phiếu của kỳ **đã chốt** |
 
 `/api/payroll` bị chặn với token AI (`AccessTokenAuth`) — lương không bao giờ ra MCP.
