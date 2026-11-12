@@ -298,5 +298,28 @@ ok('người khác gỡ push token của X1 → token vẫn còn', (await sql(`S
 await json(X1.cookie, 'DELETE', '/api/notifications/push-tokens', { token: ptok });
 ok('chính chủ gỡ được', (await sql(`SELECT count(*) FROM notifications.push_tokens WHERE "Token" = '${ptok}'`)).trim() === '0');
 
+// ================= TEST-21: HĐ bán theo báo giá + máy trạng thái =================
+const qb = { customerId: cust, title: 'Báo giá bảo mật', validUntil: today2, vatRate: 8, discountPercent: 10,
+  lines: [{ description: 'Gói dịch vụ', unit: 'gói', quantity: 1, unitPrice: 50_000_000 }], terms: null };
+const q = await json(S.cookie, 'POST', '/api/sales/quotes', qb);
+const qs = await json(S.cookie, 'POST', `/api/sales/quotes/${q.body}/submit`, {});
+const qd = (await json(S.cookie, 'GET', `/api/sales/quotes/${q.body}`)).body?.quote;
+ok('báo giá CK 10 % (dưới ngưỡng) chốt ngay', q.status === 201 && qs.status < 300 && qd?.status === 'Ready', [q.status, qs, qd?.status]);
+const fromQuote = (value: number, vat: number) => json(S.cookie, 'POST', '/api/sales/contracts', { code: `HD-Q-${stamp}-${value}`, customerId: cust, title: 'HĐ từ báo giá',
+  valueBeforeTax: value, vatRate: vat, signedOn: today2, billing: 'OneTime',
+  installments: [{ title: 'Trọn gói', dueOn: today2, amount: Math.round(value * (1 + vat / 100)) }], quoteId: q.body });
+const low = await fromQuote(qd.beforeTax - 5_000_000, qd.vatRate);
+ok('HĐ từ báo giá với giá thấp hơn báo giá → 400 valueBeforeTax', low.status === 400 && !!low.body?.errors?.valueBeforeTax, low.body);
+const vatDiff = await fromQuote(qd.beforeTax, 0);
+ok('HĐ từ báo giá với VAT khác → 400', vatDiff.status === 400 && !!vatDiff.body?.errors?.valueBeforeTax, vatDiff.body);
+const okQ = await fromQuote(qd.beforeTax, qd.vatRate);
+ok('HĐ đúng giá báo giá → 201', okQ.status === 201, okQ.body);
+const setStatus = (status: string) => json(S.cookie, 'PUT', `/api/sales/contracts/${okQ.body}`, { title: 'HĐ từ báo giá', status, endOn: null, note: null });
+ok('Đang hiệu lực → Hoàn thành → Đang hiệu lực (mở lại)', (await setStatus('Completed')).status === 204 && (await setStatus('Active')).status === 204);
+ok('Đang hiệu lực → Huỷ', (await setStatus('Cancelled')).status === 204);
+const reopen = await setStatus('Active');
+ok('Huỷ → Đang hiệu lực → 400 status', reopen.status === 400 && !!reopen.body?.errors?.status, reopen.body);
+ok('Huỷ → Hoàn thành → 400', (await setStatus('Completed')).status === 400);
+
 console.log(`\n${pass} đạt, ${fail} lỗi`);
 process.exit(fail ? 1 : 0);

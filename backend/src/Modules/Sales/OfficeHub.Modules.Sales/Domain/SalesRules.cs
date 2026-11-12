@@ -3,6 +3,17 @@ namespace OfficeHub.Modules.Sales.Domain;
 /// <summary>Quy tắc kinh doanh / công nợ — hàm thuần (test: tests/OfficeHub.Modules.Sales.Tests).</summary>
 public static class SalesRules
 {
+    /// <summary>
+    /// Máy trạng thái hợp đồng bán (TEST-21): Đang hiệu lực → Hoàn thành / Huỷ; Hoàn thành → Đang hiệu lực (mở lại khi đóng nhầm);
+    /// Huỷ là trạng thái cuối — không mở lại (đợt thu / công nợ đã dừng theo hợp đồng huỷ). Giữ nguyên trạng thái luôn hợp lệ.
+    /// </summary>
+    public static bool CanChangeStatus(ContractStatus from, ContractStatus to) => from == to || (from, to) switch
+    {
+        (ContractStatus.Active, ContractStatus.Completed or ContractStatus.Cancelled) => true,
+        (ContractStatus.Completed, ContractStatus.Active) => true,
+        _ => false,
+    };
+
     public const long MaxAmount = 10_000_000_000_000;
     /// <summary>Đợt thu đến hạn trong ≤ 7 ngày = "sắp đến hạn" (cũng là mốc nhắc lần đầu).</summary>
     public const int DueSoonDays = 7;

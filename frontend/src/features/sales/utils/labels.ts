@@ -13,6 +13,13 @@ export const STAGE: Record<OpportunityStage, { label: string; tone: StatusTone }
   Lost: { label: 'Thua', tone: 'danger' },
 };
 export const BILLING: Record<BillingKind, string> = { Milestone: 'Theo mốc', Monthly: 'Hằng tháng', OneTime: 'Một lần' };
+/** Trạng thái chọn được từ trạng thái hiện tại — khớp `SalesRules.CanChangeStatus` ở BE (huỷ là cuối, hoàn thành mở lại được). */
+export const CONTRACT_NEXT_STATUS: Record<ContractStatus, ContractStatus[]> = {
+  Active: ['Active', 'Completed', 'Cancelled'],
+  Completed: ['Completed', 'Active'],
+  Cancelled: ['Cancelled'],
+};
+
 export const CONTRACT_STATUS: Record<ContractStatus, { label: string; tone: StatusTone }> = {
   Active: { label: 'Đang hiệu lực', tone: 'success' },
   Completed: { label: 'Đã kết thúc', tone: 'muted' },

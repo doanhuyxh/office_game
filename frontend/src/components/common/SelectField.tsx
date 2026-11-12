@@ -10,7 +10,7 @@ export interface SelectOption {
 }
 
 /** Label + Select (shadcn). `allowEmpty` thêm lựa chọn "— Không —" (giá trị null). */
-export function SelectField({ id, label, value, onChange, options, allowEmpty, emptyLabel = '— Không —', error, placeholder }: {
+export function SelectField({ id, label, value, onChange, options, allowEmpty, emptyLabel = '— Không —', error, placeholder, disabled }: {
   id: string;
   label: string;
   value: string | null | undefined;
@@ -20,11 +20,12 @@ export function SelectField({ id, label, value, onChange, options, allowEmpty, e
   emptyLabel?: string;
   error?: string;
   placeholder?: string;
+  disabled?: boolean;
 }) {
   return (
     <div className="grid min-w-0 gap-2">
       <Label htmlFor={id}>{label}</Label>
-      <Select value={value ?? (allowEmpty ? NONE : undefined)} onValueChange={(v) => onChange(v === NONE ? null : v)}>
+      <Select value={value ?? (allowEmpty ? NONE : undefined)} onValueChange={(v) => onChange(v === NONE ? null : v)} disabled={disabled}>
         <SelectTrigger id={id} className="w-full min-w-0" aria-invalid={!!error}>
           <SelectValue className="min-w-0 truncate block!" placeholder={placeholder ?? 'Chọn…'} />
         </SelectTrigger>

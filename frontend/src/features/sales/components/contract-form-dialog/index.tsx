@@ -76,8 +76,9 @@ export function ContractFormDialog({ open, customerId, opportunities = [], fromQ
             options={openOpps.map((o) => ({ value: o.id, label: `${o.title} — ${formatMoney(o.value)}` }))} />}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="col-span-2"><FormField id="k-value" label="Giá trị trước thuế (đ) *" inputMode="numeric" required value={groupDigits(f.valueBeforeTax)}
-              onChange={(e) => set('valueBeforeTax', parseMoney(e.target.value))} error={errors.valueBeforeTax} hint={`Sau thuế: ${formatMoney(total)}`} /></div>
-            <SelectField id="k-vat" label="VAT" value={String(f.vatRate)} onChange={(v) => set('vatRate', Number(v ?? 10))} options={VAT_RATES.map((r) => ({ value: String(r), label: `${r} %` }))} error={errors.vatRate} />
+              disabled={!!f.quoteId} onChange={(e) => set('valueBeforeTax', parseMoney(e.target.value))} error={errors.valueBeforeTax}
+              hint={f.quoteId ? `Theo báo giá — sau thuế: ${formatMoney(total)}` : `Sau thuế: ${formatMoney(total)}`} /></div>
+            <SelectField id="k-vat" label="VAT" disabled={!!f.quoteId} value={String(f.vatRate)} onChange={(v) => set('vatRate', Number(v ?? 10))} options={VAT_RATES.map((r) => ({ value: String(r), label: `${r} %` }))} error={errors.vatRate} />
             <SelectField id="k-billing" label="Kiểu thu" value={f.billing} onChange={(v) => set('billing', (v ?? 'Milestone') as BillingKind)}
               options={(Object.keys(BILLING) as BillingKind[]).map((b) => ({ value: b, label: BILLING[b] }))} />
           </div>

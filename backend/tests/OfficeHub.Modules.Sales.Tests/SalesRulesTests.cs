@@ -7,6 +7,16 @@ public class SalesRulesTests
 {
     private static readonly DateOnly Today = new(2026, 11, 11); // thứ Tư
 
+    [Theory]
+    [InlineData(ContractStatus.Active, ContractStatus.Completed, true)]
+    [InlineData(ContractStatus.Active, ContractStatus.Cancelled, true)]
+    [InlineData(ContractStatus.Completed, ContractStatus.Active, true)]       // mở lại khi đóng nhầm
+    [InlineData(ContractStatus.Cancelled, ContractStatus.Active, false)]      // TEST-21: huỷ là trạng thái cuối
+    [InlineData(ContractStatus.Cancelled, ContractStatus.Completed, false)]
+    [InlineData(ContractStatus.Completed, ContractStatus.Cancelled, false)]
+    [InlineData(ContractStatus.Cancelled, ContractStatus.Cancelled, true)]    // giữ nguyên (sửa tên / ghi chú)
+    public void Contract_status_machine(ContractStatus from, ContractStatus to, bool ok) => Assert.Equal(ok, CanChangeStatus(from, to));
+
     [Fact]
     public void Total_adds_vat_rounded()
     {

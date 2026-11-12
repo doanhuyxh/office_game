@@ -15,7 +15,7 @@ import { formatMoney, groupDigits, parseMoney } from '@/utils/money';
 import { salesApi } from '../../api/sales.api';
 import { useContract, useSalesMutation } from '../../hooks/useSales';
 import type { ContractStatus, IContractDetail, IInstallment, IInstallmentInput } from '../../types/sales.types';
-import { BILLING, CONTRACT_STATUS, INSTALLMENT_STATE } from '../../utils/labels';
+import { BILLING, CONTRACT_NEXT_STATUS, CONTRACT_STATUS, INSTALLMENT_STATE } from '../../utils/labels';
 import { AppendixDialog } from '../appendix-dialog';
 import { CollectDialog } from '../collect-dialog';
 
@@ -147,12 +147,12 @@ function Detail({ d, onOpenCustomer }: { d: IContractDetail; onOpenCustomer: (id
           <div className="flex flex-wrap items-end justify-between gap-2">
             <Button size="sm" variant="outline" disabled={free <= 0} onClick={() => { add.reset(); setAdding({ title: `Đợt ${d.installments.length + 1}`, dueOn: todayVn(), amount: free }); }}><Plus /> Thêm đợt thu</Button>
             <div className="w-48"><SelectField id="k-status" label="Trạng thái hợp đồng" value={k.status} onChange={(v) => v && v !== k.status && status.mutate(v as ContractStatus, { onSuccess: () => toast.success('Đã cập nhật'), onError: onErr })}
-              options={(Object.keys(CONTRACT_STATUS) as ContractStatus[]).map((s) => ({ value: s, label: CONTRACT_STATUS[s].label }))} /></div>
+              options={CONTRACT_NEXT_STATUS[k.status].map((s) => ({ value: s, label: CONTRACT_STATUS[s].label }))} /></div>
           </div>
         ))}
-        {d.canEdit && k.status !== 'Active' && <div className="w-48"><SelectField id="k-status2" label="Trạng thái hợp đồng" value={k.status}
+        {d.canEdit && k.status === 'Completed' && <div className="w-48"><SelectField id="k-status2" label="Trạng thái hợp đồng" value={k.status}
           onChange={(v) => v && v !== k.status && status.mutate(v as ContractStatus, { onSuccess: () => toast.success('Đã cập nhật'), onError: onErr })}
-          options={(Object.keys(CONTRACT_STATUS) as ContractStatus[]).map((s) => ({ value: s, label: CONTRACT_STATUS[s].label }))} /></div>}
+          options={CONTRACT_NEXT_STATUS[k.status].map((s) => ({ value: s, label: CONTRACT_STATUS[s].label }))} /></div>}
         <p className="text-xs text-muted-foreground">File hợp đồng đã ký lưu ở Tài liệu. Tiền thu ghi vào sổ thu chi; kế toán huỷ dòng thu ở sổ thì số đã thu ở đây tự trừ.</p>
       </div>
       <CollectDialog installment={collecting} contractCode={k.code} onClose={() => setCollecting(null)} />

@@ -146,6 +146,10 @@ internal static class ContractEndpoints
             if (quote is null || quote.CustomerId != r.CustomerId) val.Add("quoteId", "Báo giá không thuộc khách này");
             else if (quote.ContractId is not null) val.Add("quoteId", "Báo giá đã có hợp đồng");
             else if (quote.Status is not (QuoteStatus.Ready or QuoteStatus.Sent or QuoteStatus.Accepted)) val.Add("quoteId", "Báo giá chưa chốt / đã bị thay / đã huỷ");
+            // TEST-21: giá trị + VAT lấy theo báo giá đã chốt (chiết khấu đã qua duyệt quote_discount) — client gửi số khác → 400,
+            // không lách duyệt chiết khấu bằng cách lập hợp đồng thấp hơn báo giá. Thay đổi giá sau ký → phụ lục.
+            else if (r.ValueBeforeTax != quote.BeforeTax || r.VatRate != quote.VatRate)
+                val.Add("valueBeforeTax", $"Giá trị trước thuế / VAT phải đúng như báo giá ({quote.BeforeTax:N0} đ, VAT {quote.VatRate}%) — đổi giá thì sửa báo giá (duyệt lại chiết khấu) hoặc lập phụ lục sau khi ký");
         }
         var total = SalesRules.Total(r.ValueBeforeTax, r.VatRate);
         var items = (r.Installments ?? []).Select(i => (i.Title?.Trim() ?? "", i.DueOn, i.Amount)).ToList();
@@ -182,6 +186,8 @@ internal static class ContractEndpoints
         if (!v.CanEdit(c.OwnerEmployeeId)) return CustomerEndpoints.Forbidden("Bạn không phụ trách hợp đồng này");
         var val = new Validation().Required(r.Title, "title", "Tên hợp đồng").MaxLength(r.Title, 300, "title", "Tên hợp đồng").MaxLength(r.Note, 2000, "note", "Ghi chú")
             .When(r.EndOn is { } end && end < c.SignedOn, "endOn", "Ngày kết thúc trước ngày ký");
+        if (!SalesRules.CanChangeStatus(c.Status, r.Status))
+            val.Add("status", c.Status == ContractStatus.Cancelled ? "Hợp đồng đã huỷ, không mở lại được — lập hợp đồng mới" : "Không chuyển được sang trạng thái này");
         if (val.Failed) return val.Problem();
         c.Title = r.Title.Trim(); c.EndOn = r.EndOn; c.Note = CustomerEndpoints.Clean(r.Note); c.Status = r.Status;
         await db.SaveChangesAsync(ct);

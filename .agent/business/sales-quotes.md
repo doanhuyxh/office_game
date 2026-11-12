@@ -16,7 +16,7 @@ Nháp → **Chốt**: trong ngưỡng → *Sẵn sàng*; vượt ngưỡng → *
 **Mỗi lần gửi duyệt dùng `ApprovalSubjectId` mới** (Approval unique `Type + SubjectId` → gửi lại sau khi bị từ chối phải là đơn mới); handler tìm báo giá theo mã này.
 *Sẵn sàng* → *Đã gửi khách* → *Khách đồng ý* / *Khách từ chối* (`decidedOn` ≤ hôm nay, ghi chú). Chỉ sửa khi *Nháp*. **Phiên bản mới** (từ Nháp / Sẵn sàng / Đã gửi / Từ chối, phải là bản mới nhất; không khi Chờ duyệt) → chép thành Nháp v+1, bản cũ *Đã thay*. Huỷ: Nháp / Sẵn sàng / Đã gửi. Hết hiệu lực (`validUntil` < hôm nay) chỉ là cờ `expired`; chốt khi đã hết hiệu lực → 409.
 
-**Lập hợp đồng**: `POST /api/sales/contracts { …, quoteId }` — báo giá cùng khách, đang Sẵn sàng / Đã gửi / Khách đồng ý, chưa có hợp đồng → báo giá *Khách đồng ý* + `ContractId`. FE điền sẵn giá trị trước thuế, VAT, tên, cơ hội, điều khoản (ghi chú), một đợt thu trọn giá trị.
+**Lập hợp đồng**: `POST /api/sales/contracts { …, quoteId }` — báo giá cùng khách, đang Sẵn sàng / Đã gửi / Khách đồng ý, chưa có hợp đồng → báo giá *Khách đồng ý* + `ContractId`. FE điền sẵn giá trị trước thuế, VAT (khoá, không sửa), tên, cơ hội, điều khoản (ghi chú), một đợt thu trọn giá trị. BE bắt `valueBeforeTax` + `vatRate` **đúng như báo giá** (khác → 400 `errors.valueBeforeTax`) — không lách duyệt chiết khấu `quote_discount` bằng hợp đồng giá thấp hơn; đổi giá sau ký → phụ lục.
 
 ## Quyền
 
