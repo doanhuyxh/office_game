@@ -8,7 +8,7 @@ import { buildPrompt, mcpConfig } from './prompt';
 import { Store, type Job } from './store';
 import { TelegramClient, type TgMessage } from './telegram';
 import { checkTask, parseWake, type WakeData } from './validator';
-import { branchChanges, installPrePush, prepareWorktree, publish, sh } from './workspace';
+import { AGENT_ENV, Git, TASK_ENV, branchChanges, installHooks, prepareWorktree, publish, sh } from './workspace';
 
 interface AgentState {
   cfg: AgentConfig;
@@ -24,8 +24,11 @@ export class Runner {
   readonly agents = new Map<string, AgentState>();
   private readonly abort = new AbortController();
   private readonly running = new Map<number, AbortController>();
+  /** Git của runner (env của runner); thao tác cho agent dùng `gitFor(agent)` (HOME / PATH của agent). */
+  readonly git: Git;
 
   constructor(readonly config: RunnerConfig, readonly store: Store) {
+    this.git = new Git(config.gitBin);
     for (const a of config.agents) {
       registerSecret(a.token);
       registerSecret(a.telegramToken);
@@ -41,10 +44,14 @@ export class Runner {
    */
   async checkAgents(only?: string, telegram = true): Promise<string[]> {
     const out: string[] = [];
+    // TEST-46: git sai đường dẫn → mọi agent tắt (không nhận việc).
+    let gitError: string | null = null;
+    try { out.push(`✔ git: ${await this.git.version()} (${this.config.gitBin})`); } catch (e) { gitError = errText(e); }
     for (const s of this.agents.values()) {
       if (only && s.cfg.employeeCode !== only) continue;
       const code = s.cfg.employeeCode;
       const fail = (m: string) => { s.enabled = false; s.problem = m; out.push(`✘ ${code}: ${m}`); };
+      if (gitError) { fail(gitError); continue; }
       try {
         if (!existsSync(s.cfg.executor.bin)) { fail(`không thấy CLI ${s.cfg.executor.bin}`); continue; }
         const v = await sh([s.cfg.executor.bin, '--version'], '/', this.baseEnv(s.cfg));
@@ -54,14 +61,19 @@ export class Runner {
         if (me.code !== code) { fail(`token thuộc nhân viên ${me.code}, không phải ${code}`); continue; }
         s.employeeId = me.id;
         out.push(`✔ ${code}: token AI đúng nhân viên (${me.fullName})`);
-        const origin = await sh(['git', 'remote', 'get-url', 'origin'], s.cfg.repo);
+        const git = this.gitFor(s.cfg);
+        const origin = await git.run(s.cfg.repo, 'remote', 'get-url', 'origin');
         if (origin.code !== 0) { fail(`${s.cfg.repo} không phải git repo có remote origin`); continue; }
+        const who = await git.identity(s.cfg.repo);
+        if (!who) { fail(`chưa có git user.name / user.email (HOME ${this.baseEnv(s.cfg).HOME}) — commit sẽ lỗi; runner không tự đặt danh tính`); continue; }
+        out.push(`✔ ${code}: commit đứng tên ${who.name} <${who.email}> (tài khoản git của máy), trailer Agent / Task`);
         for (const dir of [this.config.worktreesDir, this.config.dataDir].filter((d) => isInside(d, s.cfg.repo))) {
-          const ignored = await sh(['git', 'check-ignore', '-q', join(dir, 'x')], s.cfg.repo);
+          const ignored = await git.run(s.cfg.repo, 'check-ignore', '-q', join(dir, 'x'));
           if (ignored.code !== 0) throw new Error(`${dir} nằm trong repo nhưng chưa có trong .gitignore — thêm vào trước khi chạy`);
         }
-        const hookWarn = await installPrePush(s.cfg.repo, this.config.baseBranch);
-        out.push(hookWarn ? `⚠ ${code}: ${hookWarn}` : `✔ ${code}: repo ${s.cfg.repo}, hook pre-push đã cài`);
+        const hookWarns = await installHooks(git, s.cfg.repo, this.config.baseBranch);
+        for (const w of hookWarns) out.push(`⚠ ${code}: ${w}`);
+        out.push(`✔ ${code}: repo ${s.cfg.repo}, hook pre-push (chặn main / force push / agent-runner/) + commit-msg (trailer) đã cài`);
         if (s.cfg.envFile && !existsSync(s.cfg.envFile)) { fail(`không thấy env_file ${s.cfg.envFile}`); continue; }
         if (telegram) {
           const bot = await s.tg.getMe();
@@ -84,9 +96,15 @@ export class Runner {
     const env: Record<string, string> = {};
     for (const k of ['PATH', 'LANG', 'LC_ALL', 'TERM', 'TMPDIR', 'USER', 'SHELL', 'DOTNET_ROOT']) if (process.env[k]) env[k] = process.env[k]!;
     env.HOME = a.executor.home ?? process.env.HOME ?? '/tmp';
+    for (const k of ['SSH_AUTH_SOCK']) if (process.env[k]) env[k] = process.env[k]!; // SSH key sẵn có của máy (ssh-agent)
     if (a.envFile && existsSync(a.envFile)) Object.assign(env, readEnvFile(a.envFile));
+    env.PATH = this.git.pathWithGit(env.PATH); // CLI agent / gh / hook gọi đúng git cấu hình
+    env.GIT_TERMINAL_PROMPT = '0'; // không treo chờ mật khẩu
     return env;
   }
+
+  /** Git với HOME / PATH của agent (credential helper, SSH key, user.name của HOME đó). */
+  gitFor(a: AgentConfig) { return this.git.withEnv(this.baseEnv(a)); }
 
   // ---------------- Listener ----------------
 
@@ -156,7 +174,8 @@ export class Runner {
       const c = checkTask(detail, w, s.employeeId!);
       if (!c.ok) { this.store.finish(job.id, 'skipped', { reason: c.reason }); log('info', 'bỏ job', { job: job.id, reason: c.reason }); return; }
 
-      const ws = await prepareWorktree(s.cfg.repo, this.config.worktreesDir, job.agent, job.task_code, this.config.baseBranch);
+      const git = this.gitFor(s.cfg);
+      const ws = await prepareWorktree(git, s.cfg.repo, this.config.worktreesDir, job.agent, job.task_code, this.config.baseBranch);
       const prev = this.store.session(job.task_id);
       const resume = prev?.agent === job.agent && prev.session_id ? prev.session_id : undefined;
       mkdirSync(jobDir, { recursive: true });
@@ -164,18 +183,18 @@ export class Runner {
       const promptFile = join(jobDir, 'prompt.md'), mcpFile = join(jobDir, 'mcp.json');
       writeFileSync(promptFile, prompt, { mode: 0o600 });
       writeFileSync(mcpFile, JSON.stringify(mcpConfig(this.config.mcpUrl), null, 2), { mode: 0o600 });
-      const env = { ...this.baseEnv(s.cfg), OFFICEHUB_TOKEN: s.cfg.token };
+      const env = { ...this.baseEnv(s.cfg), OFFICEHUB_TOKEN: s.cfg.token, [AGENT_ENV]: job.agent, [TASK_ENV]: job.task_code };
 
       const out = await runExecutor({ cwd: ws.path, jobDir, promptFile, prompt, mcpConfigFile: mcpFile, resumeSessionId: resume, exec: s.cfg.executor }, env, ctl.signal);
       this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, ws.branch, ws.path);
 
-      const ch = await branchChanges(ws.path, this.config.baseBranch);
+      const ch = await branchChanges(git, ws.path, this.config.baseBranch);
       let prUrl: string | undefined, note = '';
       if (ch.touchesProtected) note = '⚠ Nhánh có thay đổi trong `agent-runner/` — runner KHÔNG push. Người thật kiểm tra worktree trên máy agent.';
       else if (ch.ahead > 0) {
         try {
-          prUrl = await publish(ws.path, ws.branch, this.config.baseBranch, `${job.task_code}: ${c.value.title}`.slice(0, 200),
-            `Việc OfficeHub **${job.task_code}** — agent ${job.agent}, tạo tự động bởi agent-runner (TEST-44). Người thật review trước khi merge.`, this.baseEnv(s.cfg));
+          prUrl = await publish(git, ws.path, ws.branch, this.config.baseBranch, `${job.task_code}: ${c.value.title}`.slice(0, 200),
+            `Việc OfficeHub **${job.task_code}** — agent ${job.agent}, tạo tự động bởi agent-runner (TEST-44). Người thật review trước khi merge.`);
         } catch (e) { note = `⚠ Không push / tạo được PR: ${errText(e)}`; }
       } else note = 'Phiên kết thúc, nhánh không có commit mới.';
       if (ch.dirty) note += (note ? ' ' : '') + 'Còn thay đổi chưa commit trong worktree.';

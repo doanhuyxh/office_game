@@ -20,6 +20,13 @@ Dự án bun + TypeScript độc lập ở gốc repo, **không thư viện runt
 6. **Prompt** (`prompt.ts`): chỉ mã NV / mã việc / id + các bước `get_my_role` → `get_project` (workGuide) → `get_task` → làm → `comment_task` → chuyển trạng thái trước bước duyệt; agent **chỉ commit, không push / không tạo PR**; quy tắc cứng (không `.env`, không sửa `agent-runner/`, không duyệt, không production). Không chép nội dung việc.
 7. **Publisher**: nhánh có commit mới → `git push` + `gh pr create` (PR đã có → dùng lại); chạm `agent-runner/` → không push. Runner `comment_task` một dòng: PR, thời gian, lượt, chi phí, token, ghi chú lỗi.
 
+## Git (TEST-46)
+
+- `git.executable` (tuỳ chọn, đường dẫn tuyệt đối; trống = `git` trong PATH). Mọi lệnh git của runner qua lớp `Git` (`workspace.ts`); CLI agent / `gh` / hook dùng đúng git đó (thư mục của nó đặt đầu PATH). Khởi động / `doctor` chạy `git --version`: sai → mọi agent tắt, không nhận việc.
+- **Tài khoản git của máy:** runner không ghi đè `user.name` / `user.email`, không lưu token git; push dùng credential helper / SSH key (`SSH_AUTH_SOCK`) sẵn có trong HOME. `GIT_TERMINAL_PROMPT=0` → thiếu đăng nhập thì lỗi ngay, không treo hỏi mật khẩu. `doctor` ghi commit sẽ đứng tên ai; thiếu `user.name` / `user.email` → agent tắt.
+- **Đánh dấu commit của bot:** hook `commit-msg` (cài cạnh `pre-push`) chỉ khi có `OFFICEHUB_AGENT` (runner đặt cho CLI agent) → thêm trailer `Agent: <mã NV>`, `Task: <mã việc>`; tác giả giữ nguyên; commit của người không bị đụng.
+- **Quy tắc:** mỗi việc một worktree + nhánh; hook `pre-push` chặn main / master, **force push** (remote không phải tổ tiên) và nhánh chạm `agent-runner/`; runner push không bao giờ `--force`; prompt cấm `git add -A` / `git add .`, sửa git config / hook.
+
 ## Cấu hình
 
 `agents.example.yaml` (file thật `chmod 600`, có token; `agent-runner/agents.yaml` + `/.officehub-runner/` trong `.gitignore`). Kiểm tra khi đọc: repo không nằm trong `worktrees_dir`, token `ohk_…`, username bot kết thúc `bot`, `bin` tuyệt đối…

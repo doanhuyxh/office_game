@@ -8,6 +8,11 @@ telegram:
   group_chat_id: "-1001234567890"               # nhóm riêng tư nhận tin đánh thức (trang Hệ thống → Cấu hình → Telegram)
   notifier_bot: "@officehub_notify_bot"          # bot thông báo của OfficeHub — chỉ nhận tin do bot này gửi
 
+git:
+  # executable: /usr/bin/git                    # file chạy git (vd /usr/bin/git, /opt/homebrew/bin/git, C:\\Program Files\\Git\\cmd\\git.exe); bỏ trống = git trong PATH
+  # Dùng tài khoản git SẴN CÓ của máy: user.name / user.email + credential helper / SSH key trong HOME — runner không lưu token git,
+  # không đổi tác giả; commit của agent được thêm trailer "Agent: <mã NV>" + "Task: <mã việc>".
+
 runner:
   data_dir: /var/lib/officehub-runner            # SQLite (hàng đợi, phiên, chi phí) + thư mục tạm của từng job
   worktrees_dir: /srv/agents/worktrees           # PHẢI nằm ngoài mọi repo (tránh đọc nhầm .env của repo chính)

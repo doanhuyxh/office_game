@@ -18,6 +18,7 @@ let authOk = true;
 let updatesServed = false;
 const servers: { stop: () => void }[] = [];
 let runner: Runner;
+let gitBin = '';
 let store: Store;
 
 const tasks: Record<string, any> = {
@@ -43,6 +44,9 @@ beforeAll(async () => {
   await run(['git', 'remote', 'add', 'origin', origin], seed);
   await run(['git', 'push', 'origin', 'main'], seed);
   await run(['git', 'clone', origin, repo], root);
+  // TEST-46: danh tính lấy từ cấu hình git sẵn có (ở đây: cấu hình của repo) — runner không tự đặt
+  await run(['git', 'config', 'user.name', 'Chu Du An'], repo);
+  await run(['git', 'config', 'user.email', 'owner@example.vn'], repo);
 
   // MCP giả
   const mcp = Bun.serve({
@@ -90,18 +94,20 @@ echo "$@" > "$(dirname "$prompt")/args.txt"
 [ -n "$OFFICEHUB_TOKEN" ] && grep -q 'OFFICEHUB_TOKEN' "$mcp" && tok=yes || tok=no
 cd "$cwd" || exit 3
 case "$cwd" in
-  *TEST-46) mkdir -p agent-runner && echo hack > agent-runner/x.ts ;;
-  *) echo "đã sửa" > note-$(date +%s%N).txt ;;
+  *TEST-46) mkdir -p agent-runner && echo hack > agent-runner/x.ts && f=agent-runner/x.ts ;;
+  *) f=note-$(date +%s%N).txt && echo "đã sửa" > "$f" ;;
 esac
-git add -A && git commit -qm "agent commit" || exit 4
+git add "$f" && git commit -qm "agent commit" || exit 4
 echo '{"session_id":"sess-xyz","cost_usd":0.42,"input_tokens":1000,"output_tokens":200,"summary":"token='$tok' home='$HOME' secret='$LEAK'"}'
 `);
   chmodSync(bin, 0o755);
   const envFile = join(root, 'agent.env');
-  writeFileSync(envFile, 'GIT_AUTHOR_NAME=agent\nGIT_AUTHOR_EMAIL=a@a\nGIT_COMMITTER_NAME=agent\nGIT_COMMITTER_EMAIL=a@a\n');
+  writeFileSync(envFile, 'APP_MODE=test\n'); // env_file chỉ cho biến thử nghiệm — không còn đặt danh tính git
   process.env.LEAK = 'runner-secret-should-not-pass';
 
+  gitBin = Bun.which('git')!;
   const config = parseConfig({
+    git: { executable: gitBin },
     officehub: { mcp_url: `http://localhost:${mcp.port}/mcp` },
     telegram: { api_url: `http://localhost:${tg.port}`, group_chat_id: '-1001234567890', notifier_bot: '@officehub_notify_bot' },
     runner: { data_dir: join(root, 'data'), worktrees_dir: join(root, 'worktrees'), max_parallel: 1 },
@@ -128,6 +134,9 @@ test('doctor: CLI, token đúng nhân viên, repo + hook, bot Telegram', async (
   const lines = await runner.checkAgents();
   expect(lines.filter((l) => l.startsWith('✘'))).toEqual([]);
   expect(lines.join('\n')).toContain('token AI đúng nhân viên');
+  expect(lines.join('\n')).toContain('commit đứng tên Chu Du An <owner@example.vn>');
+  expect(lines[0]).toContain(`(${gitBin})`);
+  expect(existsSync(join(root, 'agent-repo/.git/hooks/commit-msg'))).toBe(true);
   expect(readFileSync(join(root, 'agent-repo/.git/hooks/pre-push'), 'utf8')).toContain('officehub-agent-runner');
 }, 30000);
 
@@ -176,6 +185,35 @@ test('việc không còn giao cho agent → bỏ, không chạy', async () => {
   tasks[T1] = { ...saved, task: { ...saved.task, assigneeEmployeeId: 'nguoi-khac' } };
   expect(await runner.accept(s, { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' })).toBeNull();
   tasks[T1] = saved;
+});
+
+test('commit đứng tên tài khoản git của máy + trailer Agent / Task; force push bị chặn', async () => {
+  const wt = join(root, 'worktrees/NV120/TEST-45');
+  const log = await sh(['git', 'log', '-1', '--format=%an <%ae>%n%B'], wt);
+  expect(log.out).toContain('Chu Du An <owner@example.vn>');
+  expect(log.out).toContain('Agent: NV120');
+  expect(log.out).toContain('Task: TEST-45');
+  // commit của người (không có biến OFFICEHUB_AGENT) → hook không thêm gì
+  writeFileSync(join(wt, 'human.txt'), 'x');
+  await sh(['git', 'add', 'human.txt'], wt);
+  await sh(['git', '-c', 'user.name=Nguoi', '-c', 'user.email=n@n', 'commit', '-qm', 'người sửa'], wt, { ...process.env, OFFICEHUB_AGENT: '' } as any);
+  expect((await sh(['git', 'log', '-1', '--format=%B'], wt)).out).not.toContain('Agent:');
+  // viết lại lịch sử rồi đẩy đè → hook chặn
+  await sh(['git', 'reset', '-q', '--hard', 'HEAD~2'], wt);
+  writeFileSync(join(wt, 'other.txt'), 'y');
+  await sh(['git', 'add', 'other.txt'], wt);
+  await sh(['git', '-c', 'user.name=Nguoi', '-c', 'user.email=n@n', 'commit', '-qm', 'lịch sử khác'], wt);
+  const force = await sh(['git', 'push', '--force', 'origin', 'agent/nv120/test-45'], wt);
+  expect(force.code).not.toBe(0);
+  expect(force.err).toContain('không force push');
+}, 30000);
+
+test('git.executable sai → doctor báo lỗi, agent không nhận việc', async () => {
+  const bad = new Runner({ ...runner.config, gitBin: '/khong/co/git' }, store);
+  const lines = await bad.checkAgents(undefined, false);
+  expect(lines.join('\n')).toContain('git.executable /khong/co/git không tồn tại');
+  expect(bad.agents.get('NV120')!.enabled).toBe(false);
+  expect(await bad.accept(bad.agents.get('NV120')!, { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' })).toBeNull();
 });
 
 test('agent sửa agent-runner/ → runner không push, hook pre-push cũng chặn', async () => {

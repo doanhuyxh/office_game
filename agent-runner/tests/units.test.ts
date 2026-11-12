@@ -9,7 +9,7 @@ import { redact, registerSecret } from '../src/log';
 import { buildPrompt, mcpConfig } from '../src/prompt';
 import { Store } from '../src/store';
 import { checkTask, parseWake } from '../src/validator';
-import { PRE_PUSH_MARK, branchName, prePushHook } from '../src/workspace';
+import { COMMIT_MSG_MARK, PRE_PUSH_MARK, branchName, commitMsgHook, prePushHook } from '../src/workspace';
 
 const TG = '123456789:AAH-test-token-abcdefghijklmnopqrstu';
 export const baseRaw = () => ({
@@ -54,6 +54,15 @@ describe('config', () => {
       expect(p).toContain('executor.bin');
       expect(p).toContain('executor.args bắt buộc');
     }
+  });
+
+  test('git.executable: trống = git trong PATH, tương đối → lỗi, tuyệt đối → giữ', () => {
+    expect(parseConfig(baseRaw()).gitBin).toBe('git');
+    const r: any = baseRaw();
+    r.git = { executable: 'bin/git' };
+    expect(() => parseConfig(r)).toThrow('git.executable');
+    r.git = { executable: '/usr/bin/git' };
+    expect(parseConfig(r).gitBin).toBe('/usr/bin/git');
   });
 
   test('isInside', () => {
@@ -159,6 +168,15 @@ describe('prompt / mcp / log', () => {
     registerSecret('ohk_supersecret_1234');
     expect(redact('lỗi với token ohk_supersecret_1234 ở đây')).toBe('lỗi với token *** ở đây');
   });
+  test('hook commit-msg chỉ gắn trailer trong phiên agent; pre-push chặn force push', () => {
+    const h = commitMsgHook();
+    expect(h).toContain(COMMIT_MSG_MARK);
+    expect(h).toContain('[ -z "$OFFICEHUB_AGENT" ] && exit 0');
+    expect(h).toContain('--trailer "Agent: $OFFICEHUB_AGENT"');
+    expect(h).toContain('--trailer "Task: $OFFICEHUB_TASK"');
+    expect(prePushHook('main')).toContain('merge-base --is-ancestor');
+  });
+
   test('hook pre-push chặn main + agent-runner/', () => {
     const h = prePushHook('main');
     expect(h).toContain(PRE_PUSH_MARK);

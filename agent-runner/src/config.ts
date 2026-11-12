@@ -35,6 +35,8 @@ export interface RunnerConfig {
   worktreesDir: string;
   maxParallel: number;
   baseBranch: string;
+  /** File chạy git (TEST-46). Không đặt = "git" trong PATH. */
+  gitBin: string;
   agents: AgentConfig[];
 }
 
@@ -60,7 +62,9 @@ export const isInside = (child: string, parent: string) => {
 export function parseConfig(raw: unknown): RunnerConfig {
   const p: string[] = [];
   const o = (raw ?? {}) as Record<string, any>;
-  const oh = o.officehub ?? {}, tg = o.telegram ?? {}, rn = o.runner ?? {};
+  const oh = o.officehub ?? {}, tg = o.telegram ?? {}, rn = o.runner ?? {}, gt = o.git ?? {};
+  const gitBin = str(gt.executable);
+  if (gitBin && !isAbsolute(gitBin)) p.push('git.executable phải là đường dẫn tuyệt đối tới file chạy git (hoặc bỏ trống = git trong PATH)');
   const mcpUrl = str(oh.mcp_url);
   if (!mcpUrl || !/^https?:\/\//.test(mcpUrl)) p.push('officehub.mcp_url phải là URL http(s) tới /mcp');
   const groupChatId = str(String(tg.group_chat_id ?? ''));
@@ -125,7 +129,7 @@ export function parseConfig(raw: unknown): RunnerConfig {
   return {
     mcpUrl: mcpUrl!, telegramApiUrl: (str(tg.api_url) ?? 'https://api.telegram.org').replace(/\/$/, ''), groupChatId: groupChatId!,
     notifierBot: normalizeBot(notifier!), dataDir: resolve(dataDir!), worktreesDir: resolve(worktreesDir!), maxParallel,
-    baseBranch: str(rn.base_branch) ?? 'main', agents,
+    baseBranch: str(rn.base_branch) ?? 'main', gitBin: gitBin ?? 'git', agents,
   };
 }
 
