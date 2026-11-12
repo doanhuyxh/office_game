@@ -1,8 +1,8 @@
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isInside, readEnvFile, type AgentConfig, type RunnerConfig } from './config';
 import { runExecutor, type RunOutcome } from './executor/run';
-import { errText, log, registerSecret } from './log';
+import { errText, log, redact, registerSecret } from './log';
 import { OfficeHubClient } from './officehub';
 import { buildPrompt, mcpConfig } from './prompt';
 import { Store, type Job } from './store';
@@ -225,7 +225,11 @@ export class Runner {
       const env = { ...this.baseEnv(s.cfg), OFFICEHUB_TOKEN: s.cfg.token, [AGENT_ENV]: job.agent, [TASK_ENV]: job.task_code };
 
       const out = await runExecutor({ cwd: ws.path, jobDir, promptFile, prompt, mcpConfigFile: mcpFile, resumeSessionId: resume, exec: s.cfg.executor,
-        onActivity: (action) => log('info', 'agent đang làm', { job: job.id, agent: job.agent, task: job.task_code, action }) }, env, ctl.signal);
+        onActivity: (action) => {
+          log('info', 'agent đang làm', { job: job.id, agent: job.agent, task: job.task_code, action });
+          // activity.log: bản đọc được của phiên (output.log là stream-json thô) — mỗi thao tác một dòng kèm giờ.
+          try { appendFileSync(join(jobDir, 'activity.log'), redact(`${new Date().toTimeString().slice(0, 8)}  ${action}\n`)); } catch { /* không chặn job vì log */ }
+        } }, env, ctl.signal);
       this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, ws.branch, ws.path);
 
       let prUrl: string | undefined, note = '';

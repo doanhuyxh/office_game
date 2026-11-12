@@ -17,6 +17,7 @@ runner:
   worktrees_dir: /srv/agents/worktrees           # PHẢI nằm ngoài mọi repo (tránh đọc nhầm .env của repo chính)
   max_parallel: 2                                # tổng số phiên chạy cùng lúc trên máy (mỗi agent tối đa 1)
   base_branch: main
+  # log_format: auto                            # auto (terminal → dòng dễ đọc có màu; systemd / pipe → JSON) | json | pretty; hoặc env RUNNER_LOG_FORMAT
 
 agents:
   - employee_code: NV120

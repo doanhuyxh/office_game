@@ -2,7 +2,7 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigError, loadConfig } from './config';
-import { errText, log } from './log';
+import { errText, log, setLogFormat } from './log';
 import { Runner } from './runner';
 import { Store } from './store';
 
@@ -25,6 +25,7 @@ async function main() {
   if (!cmd || cmd === '--help' || cmd === 'help') { console.log(HELP); return 0; }
   const path = arg('--config') ?? process.env.RUNNER_CONFIG ?? '/etc/officehub-runner/agents.yaml';
   const { config, warnings } = loadConfig(path);
+  setLogFormat(config.logFormat);
   for (const w of warnings) log('warn', w);
   mkdirSync(config.dataDir, { recursive: true });
   const store = new Store(join(config.dataDir, 'runner.db'));
