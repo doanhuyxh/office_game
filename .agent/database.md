@@ -11,7 +11,7 @@
 - Enum lưu dạng **chuỗi** (`HasConversion<string>()`).
 - Id: `Guid.CreateVersion7()` (UUID v7, sắp theo thời gian).
 
-## Schema `identity` — `OfficeIdentityDbContext` (migration `InitialIdentity`, `AccessTokens`, `OAuth`, `UserAvatars`)
+## Schema `identity` — `OfficeIdentityDbContext` (migration `InitialIdentity`, `AccessTokens`, `OAuth`, `UserAvatars`, `AttemptCounters`)
 
 Bảng ASP.NET Identity đổi tên: `users`, `roles`, `user_roles`, `user_claims`, `user_logins`, `user_tokens`, `role_claims`. 2FA dùng sẵn `users.TwoFactorEnabled` + `user_tokens` (`[AspNetUserStore]` / `AuthenticatorKey`, `RecoveryCodes`) — không thêm bảng ([business/auth-2fa.md](business/auth-2fa.md)).
 
@@ -20,6 +20,8 @@ Bảng ASP.NET Identity đổi tên: `users`, `roles`, `user_roles`, `user_claim
 OAuth: `oauth_clients`, `oauth_codes`, `oauth_grants` (FK `users` / client, cascade; secret chỉ lưu SHA-256) — cột + quy tắc: [business/mcp-oauth.md](business/mcp-oauth.md).
 
 `users` (`AppUser : IdentityUser<Guid>`) thêm: `FullName` (≤200), `MustChangePassword`, `IsActive` (default true), `CreatedAt`, `LastLoginAt`, `IsBot` (default false — tài khoản bot, HR đặt; [business/office-bots.md](business/office-bots.md)).
+
+`attempt_counters` (TEST-27): `Key` (PK, ≤300 — `s|{userId}|{ip}`, `a|{userId}`, `forgot|{email}`), `Count`, `Until` (index `ix_attempt_counters_until`). Bộ đếm cửa sổ cố định cho `LoginThrottle` + hạn mức email quên mật khẩu; tăng bằng `INSERT … ON CONFLICT DO UPDATE … RETURNING`, dòng hết hạn dọn dần (~0,5 % lần ghi).
 `user_avatars`: `UserId` PK (FK `users`, cascade), `Look` jsonb, `UpdatedAt` — nhân vật 3D, không dòng = mặc định ([business/office-avatar.md](business/office-avatar.md)).
 - `UserName` duy nhất (`UserNameIndex`). Email **không bắt buộc**; nếu có thì duy nhất: index `ux_users_email` trên `NormalizedEmail` lọc `IS NOT NULL` (`User.RequireUniqueEmail = false`).
 - `PasswordHash` null = tài khoản được mời, chưa đặt mật khẩu (`InvitePending`).

@@ -294,6 +294,26 @@ namespace OfficeHub.Modules.Identity.Infrastructure.Migrations
                     b.ToTable("users", "identity");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Identity.Domain.AttemptCounterRow", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("Until")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Key");
+
+                    b.HasIndex("Until")
+                        .HasDatabaseName("ix_attempt_counters_until");
+
+                    b.ToTable("attempt_counters", "identity");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Identity.Domain.OAuthClient", b =>
                 {
                     b.Property<Guid>("Id")

@@ -47,19 +47,19 @@ internal static class AuthEndpoints
     /// <summary>Đăng nhập bằng email HOẶC tên đăng nhập (mã nhân viên).</summary>
     private static async Task<Results<Ok<MeResponse>, ProblemHttpResult>> LoginAsync(
         LoginRequest req, HttpContext ctx, UserManager<AppUser> users, SignInManager<AppUser> signIn, OfficeIdentityDbContext db,
-        TimeProvider clock, LoginThrottle throttle)
+        TimeProvider clock, LoginThrottle throttle, CancellationToken ct)
     {
         var login = (req.Login ?? "").Trim();
         var user = login.Length == 0 ? null : await users.FindByNameAsync(login) ?? await users.FindByEmailAsync(login);
         // Đếm theo id tài khoản (đổi qua lại email / tên đăng nhập không nhân đôi lượt thử); không có tài khoản → theo chuỗi nhập.
         var account = user?.Id.ToString() ?? "?" + login.ToLowerInvariant();
         var ip = ctx.Connection.RemoteIpAddress?.ToString() ?? "?";
-        if (throttle.IsBlocked(account, ip)) return LoginFailed();
+        if (await throttle.IsBlockedAsync(account, ip, ct)) return LoginFailed();
 
         if (user is null || !user.IsActive)
         {
             users.PasswordHasher.VerifyHashedPassword(new AppUser(), DummyHash.Value, req.Password ?? "");
-            throttle.Fail(account, ip);
+            await throttle.FailAsync(account, ip, ct);
             return LoginFailed();
         }
 
@@ -70,15 +70,15 @@ internal static class AuthEndpoints
         // Đã bật 2FA: Identity cấp cookie tạm officehub.2fa (5 phút) → FE gửi mã qua POST /auth/login/2fa. Chỉ tới đây khi ĐÚNG mật khẩu.
         if (result.RequiresTwoFactor)
         {
-            throttle.Succeed(account, ip);
+            await throttle.SucceedAsync(account, ip, ct);
             return TypedResults.Problem("Cần mã xác thực 2 lớp", statusCode: StatusCodes.Status403Forbidden, title: "2fa_required");
         }
         if (!result.Succeeded)
         {
-            throttle.Fail(account, ip);
+            await throttle.FailAsync(account, ip, ct);
             return LoginFailed();
         }
-        throttle.Succeed(account, ip);
+        await throttle.SucceedAsync(account, ip, ct);
 
         // Mỗi lúc chỉ 1 thiết bị: đổi security stamp → cookie ở thiết bị khác (nếu có) bị từ chối ở request kế tiếp
         // (giống cơ chế khoá tài khoản / đổi mật khẩu); cấp lại cookie cho CHÍNH thiết bị này theo stamp mới.

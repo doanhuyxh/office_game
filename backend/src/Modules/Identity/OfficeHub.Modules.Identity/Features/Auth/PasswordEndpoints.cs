@@ -31,10 +31,10 @@ internal static class PasswordEndpoints
     /// phản hồi không phụ thuộc SMTP. Quá <see cref="ForgotPerEmailPerHour"/> lần / giờ cho cùng địa chỉ → vẫn 204 nhưng không gửi.
     /// </summary>
     private static async Task<NoContent> ForgotAsync(ForgotPasswordRequest req, UserManager<AppUser> users,
-        PasswordResetMailer mailer, AttemptCounter counter)
+        PasswordResetMailer mailer, IAttemptStore counter, CancellationToken ct)
     {
         var email = (req.Email ?? "").Trim();
-        if (email.Length == 0 || counter.Hit("forgot|" + email.ToLowerInvariant(), TimeSpan.FromHours(1)) > ForgotPerEmailPerHour)
+        if (email.Length == 0 || await counter.HitAsync("forgot|" + email.ToLowerInvariant(), TimeSpan.FromHours(1), ct) > ForgotPerEmailPerHour)
             return TypedResults.NoContent();
         var user = await users.FindByEmailAsync(email);
         if (user is { IsActive: true, Email: not null }) mailer.Enqueue(user.Id);

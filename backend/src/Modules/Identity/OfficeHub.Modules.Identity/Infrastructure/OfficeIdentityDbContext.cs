@@ -16,6 +16,7 @@ public sealed class OfficeIdentityDbContext(DbContextOptions<OfficeIdentityDbCon
     public DbSet<OAuthCode> OAuthCodes => Set<OAuthCode>();
     public DbSet<OAuthGrant> OAuthGrants => Set<OAuthGrant>();
     public DbSet<UserAvatar> UserAvatars => Set<UserAvatar>();
+    public DbSet<AttemptCounterRow> AttemptCounters => Set<AttemptCounterRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -65,6 +66,14 @@ public sealed class OfficeIdentityDbContext(DbContextOptions<OfficeIdentityDbCon
             g.HasIndex(x => x.UserId).HasDatabaseName("ix_oauth_grants_user");
             g.HasOne<OAuthClient>().WithMany().HasForeignKey(x => x.ClientId).OnDelete(DeleteBehavior.Cascade);
             g.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<AttemptCounterRow>(c =>
+        {
+            c.ToTable("attempt_counters");
+            c.HasKey(x => x.Key);
+            c.Property(x => x.Key).HasMaxLength(300);
+            c.HasIndex(x => x.Until).HasDatabaseName("ix_attempt_counters_until"); // dọn dòng hết hạn
         });
 
         b.Entity<UserAvatar>(a =>

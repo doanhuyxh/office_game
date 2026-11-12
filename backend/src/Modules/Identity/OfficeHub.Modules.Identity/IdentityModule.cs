@@ -62,8 +62,9 @@ public sealed class IdentityModule : IModule
         services.AddScoped<IAccountService>(sp => sp.GetRequiredService<AccountService>());
         services.AddValidatedOptions<AccessTokenSettings>(config, AccessTokenSettings.Section);
         services.AddAuthRateLimits();
-        services.AddSingleton<LoginThrottle>();
-        services.AddSingleton(sp => new AttemptCounter(sp.GetRequiredService<TimeProvider>())); // hạn mức email quên mật khẩu
+        // Bộ đếm đăng nhập sai + hạn mức email quên mật khẩu: lưu DB (TEST-27, bảng identity.attempt_counters)
+        services.AddScoped<IAttemptStore, DbAttemptStore>();
+        services.AddScoped<LoginThrottle>();
         services.AddSingleton<PasswordResetMailer>();
         services.AddHostedService(sp => sp.GetRequiredService<PasswordResetMailer>());
         // /api/oauth/register, /token, /revoke được gọi từ máy chủ / trình duyệt của ứng dụng AI (không cookie).
