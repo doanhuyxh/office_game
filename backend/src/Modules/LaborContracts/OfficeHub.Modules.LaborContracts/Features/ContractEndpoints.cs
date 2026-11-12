@@ -352,6 +352,12 @@ internal static class ContractEndpoints
         if (file is null || file.Length == 0) v.Add("file", "Chọn file");
         else if (!ContractRules.AllowedFiles.ContainsKey(file.ContentType)) v.Add("file", "Chỉ nhận file PDF, JPG, PNG");
         else if (file.Length > ContractRules.MaxFileBytes) v.Add("file", $"File tối đa {ContractRules.MaxFileBytes / 1024 / 1024} MB");
+        else
+        {
+            // TEST-13: chữ ký đầu file phải khớp loại khai báo (PDF / JPG / PNG)
+            using var head = file.OpenReadStream();
+            if (!FileTypes.StreamMatches(head, ContractRules.AllowedFiles[file.ContentType])) v.Add("file", "Nội dung file không đúng PDF / JPG / PNG");
+        }
         return v.Failed ? v.Problem() : null;
     }
 

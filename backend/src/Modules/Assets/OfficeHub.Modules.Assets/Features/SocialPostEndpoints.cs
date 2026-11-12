@@ -106,7 +106,15 @@ internal static class SocialPostEndpoints
         var m = await db.SocialMedia.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (m is null || m.CreatedByUserId != user.GetUserId()) return TypedResults.NotFound();
         if (m.Ready) return TypedResults.Ok(ToDto(m));
-        var size = await files.GetSizeAsync(m.FileKey, ct);
+        // TEST-13: chép key tạm → key chính rồi kiểm cỡ + chữ ký trên bản đã chép (link PUT còn hạn không thay được file đã xác nhận)
+        var check = await files.PromoteUploadAsync(m.FileKey, m.FileName, ct);
+        if (check.Error is { } bad)
+        {
+            db.SocialMedia.Remove(m);
+            await db.SaveChangesAsync(ct);
+            return new Validation().Add("fileName", bad).Problem();
+        }
+        var size = check.Size;
         if (size is null) return Problems.Conflict("Tệp chưa tải lên xong — thử lại");
         var max = m.Kind == SocialMediaKind.Video ? SocialRules.MaxVideoBytes : SocialRules.MaxImageBytes;
         if (size.Value <= 0 || size.Value > max)

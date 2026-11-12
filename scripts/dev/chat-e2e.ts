@@ -192,7 +192,7 @@ ok('ảnh > 10 MB → 400', (await up(A, DM, { size: 11 * 1024 * 1024 })).status
 ok('tệp > 25 MB → 400', (await up(A, DM, { fileName: 'a.pdf', contentType: 'application/pdf', size: 26 * 1024 * 1024 })).status === 400);
 ok('C xin tải lên vào hội thoại A–B → 404', (await up(C, DM)).status === 404);
 const t = await up(A, DM);
-ok('xin tải lên → vé + presigned PUT trỏ vào thư mục chat/', t.status === 200 && /\/files\/chat\/\d{4}\/\d{2}\//.test(decodeURIComponent(t.body.url)) && !t.body.url.includes('documents/'), t.body?.url?.slice(0, 200));
+ok('xin tải lên → vé + presigned PUT trỏ vào thư mục chat/', t.status === 200 && /\/files\/(uploads\/)?chat\/\d{4}\/\d{2}\//.test(decodeURIComponent(t.body.url)) && !t.body.url.includes('documents/'), t.body?.url?.slice(0, 200));
 const unfinished = await send(A, DM, { text: 'chưa tải xong', uploadIds: [t.body.id] });
 ok('gửi khi tệp chưa PUT lên S3 → 409', unfinished.status === 409, unfinished.body);
 const put = await fetch(t.body.url, { method: 'PUT', headers: { 'content-type': t.body.contentType }, body: PNG });

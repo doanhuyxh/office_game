@@ -50,13 +50,20 @@ internal static class AssetEndpoints
         var v = await access.ViewerAsync(user, ct);
         var name = DocumentRules.CleanFileName(req.FileName ?? "");
         var val = new Validation().Required(name, "fileName", "Tên file");
-        if (name.Length > 0 && DocumentRules.IsBlocked(name)) val.Add("fileName", "Không lưu file chạy chương trình (.exe, .bat, .apk…) vào kho");
+        // TEST-13: danh sách đuôi được phép (không còn danh sách chặn) — kiểu file do server quyết, không tin ContentType trình duyệt gửi
+        if (name.Length > 0 && !FileTypes.IsAllowed(name)) val.Add("fileName", $"Không nhận loại file {Path.GetExtension(name)} — chỉ tài liệu văn phòng, ảnh, video, âm thanh, file nén, thiết kế");
         if (req.Size <= 0) val.Add("size", "File rỗng");
         else if (req.Size > DocumentRules.MaxFileSize) val.Add("size", "File tối đa 5 GB");
         if (val.Failed) return val.Problem();
 
-        var contentType = DocumentRules.NormalizeContentType(req.ContentType);
         var now = clock.Now;
+        // Hạn mức vé chưa dùng / người (vé + PUT thẳng lên S3 không đi qua Api → không giới hạn thì lấp đầy bucket được)
+        var since = now - DocumentRules.TicketCleanupAfter;
+        var pending = await db.UploadTickets.Where(x => x.UserId == v.UserId && x.CreatedAt >= since)
+            .GroupBy(_ => 1).Select(g => new { Count = g.Count(), Size = g.Sum(x => x.Size) }).FirstOrDefaultAsync(ct);
+        if (pending is { } pd && (pd.Count >= DocumentRules.MaxPendingTickets || pd.Size + req.Size > DocumentRules.MaxPendingBytes))
+            return val.Add("size", "Đang có quá nhiều file tải lên dở — hoàn tất hoặc đợi 24 giờ rồi thử lại").Problem();
+        var contentType = FileTypes.ContentTypeFor(name);
         var t = new UploadTicket { FileName = name, ContentType = contentType, Size = req.Size, UserId = v.UserId, CreatedAt = now,
             FileKey = "" };
         t.FileKey = $"documents/{now:yyyy}/{now:MM}/{t.Id:N}/{DocumentRules.SafeKeyName(name)}";
@@ -72,9 +79,21 @@ internal static class AssetEndpoints
     {
         var t = await db.UploadTickets.FirstOrDefaultAsync(x => x.Id == ticketId && x.UserId == v.UserId, ct);
         if (t is null) return (null, 0, Problems.NotFound("phiên tải lên (đã hết hạn hoặc đã dùng)"));
-        var size = await files.GetSizeAsync(t.FileKey, ct);
-        if (size is null) return (null, 0, Problems.Conflict("File chưa tải lên xong — thử tải lại"));
-        return (t, size.Value, null);
+        // TEST-13: chép key tạm → key chính rồi kiểm cỡ + chữ ký đầu file trên bản đã chép (link PUT cũ không thay được nữa)
+        var check = await files.PromoteUploadAsync(t.FileKey, t.FileName, ct);
+        if (check.Error is { } bad)
+        {
+            db.UploadTickets.Remove(t);
+            await db.SaveChangesAsync(ct);
+            return (null, 0, TypedResults.Problem(bad, statusCode: StatusCodes.Status400BadRequest));
+        }
+        if (check.Size is not { } size) return (null, 0, Problems.Conflict("File chưa tải lên xong — thử tải lại"));
+        if (size > DocumentRules.MaxFileSize)
+        {
+            await files.DeleteAsync(t.FileKey, ct);
+            return (null, 0, TypedResults.Problem("File tối đa 5 GB", statusCode: StatusCodes.Status400BadRequest));
+        }
+        return (t, size, null);
     }
 
     // ---------------- Danh sách ----------------
@@ -311,7 +330,8 @@ internal static class AssetEndpoints
         if (ver is null) return Problems.NotFound("phiên bản");
         if (ver.FileKey is null) return TypedResults.Problem("File đã bị huỷ theo hạn lưu trữ", statusCode: StatusCodes.Status410Gone);
         var kind = DocumentRules.KindOf(ver.ContentType, ver.FileName);
-        var previewable = kind is AssetKind.Image or AssetKind.Video or AssetKind.Audio || ver.ContentType is "application/pdf" or "text/plain";
+        // TEST-13: xem trực tiếp theo đuôi file (khớp header S3 do FileStorage ép) — không theo MIME cũ do trình duyệt gửi (vd SVG từng lưu image/svg+xml)
+        var previewable = FileTypes.IsInlineSafe(FileTypes.ContentTypeFor(ver.FileName));
         var inline = download != true && previewable;
         var ttl = present == true || kind is AssetKind.Video or AssetKind.Audio ? TimeSpan.FromHours(3) : TimeSpan.FromMinutes(15);
         var url = await files.GetDownloadUrlAsync(ver.FileKey, ver.FileName, inline, ttl);

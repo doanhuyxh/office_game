@@ -53,7 +53,7 @@ public static class CommentEndpoints
     }
 
     private static async Task<Results<Ok<CommentDto>, ProblemHttpResult, ValidationProblem>> CreateAsync(Guid id, CommentRequest req, ClaimsPrincipal user,
-        NewsDbContext db, NewsStore store, NewsThrottle throttle, TimeProvider clock, CancellationToken ct)
+        NewsDbContext db, NewsStore store, NewsThrottle throttle, IFileStorage files, TimeProvider clock, CancellationToken ct)
     {
         var me = Me(user);
         var v = await store.ViewerAsync(me, user.IsHr(), ct);
@@ -80,6 +80,15 @@ public static class CommentEndpoints
         {
             ticket = await db.UploadTickets.FirstOrDefaultAsync(t => t.Id == tid && t.UserId == me && t.Kind == MediaKind.Image, ct);
             if (ticket is null) return new Validation().Add("uploadId", "Ảnh đính kèm không hợp lệ hoặc đã hết hạn — tải lại ảnh").Problem();
+            // TEST-13: trước đây không kiểm file đã lên S3 / cỡ — chép key tạm → key chính + kiểm cỡ, chữ ký ảnh
+            var check = await files.PromoteUploadAsync(ticket.FileKey, ticket.FileName, ct);
+            if (check.Error is { } bad) return new Validation().Add("uploadId", bad).Problem();
+            if (check.Size is not { } size) return Problems.Conflict("Ảnh chưa tải lên xong — thử lại");
+            if (size <= 0 || size > NewsRules.MaxSizeOf(MediaKind.Image))
+            {
+                await files.DeleteAsync(ticket.FileKey, ct);
+                return new Validation().Add("uploadId", "Ảnh vượt giới hạn dung lượng").Problem();
+            }
         }
 
         var now = clock.GetUtcNow();

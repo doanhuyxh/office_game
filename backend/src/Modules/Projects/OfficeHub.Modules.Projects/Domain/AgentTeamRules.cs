@@ -19,7 +19,7 @@ public readonly record struct TaskEvent(DateTimeOffset At, bool ByBot, bool Coun
 /// </summary>
 public static partial class AgentTeamRules
 {
-    public const int MaxBotTasksPerDay = 20;
+    public const int MaxBotTasksPerDay = 50;
     public const int MaxBotStreak = 10;
     public const int MaxMentions = 10;
 

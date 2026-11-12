@@ -12,24 +12,21 @@ public static class DocumentRules
     /// <summary>Nhắc HR + người phụ trách trước khi hết hạn lưu trữ.</summary>
     public const int RetentionNoticeDays = 30;
     /// <summary>Hạn presigned PUT (đủ cho file vài GB bắt đầu tải); vé quá <see cref="TicketCleanupAfter"/> bị dọn.</summary>
-    public static readonly TimeSpan UploadUrlTtl = TimeSpan.FromHours(2);
+    public static readonly TimeSpan UploadUrlTtl = TimeSpan.FromMinutes(30); // chỉ cần còn hạn lúc BẮT ĐẦU PUT (TEST-13: trước 2 giờ)
+    /// <summary>Vé chưa dùng tối đa / người trong <see cref="TicketCleanupAfter"/> và tổng dung lượng đang chờ.</summary>
+    public const int MaxPendingTickets = 20;
+    public const long MaxPendingBytes = 20L * 1024 * 1024 * 1024;
     public static readonly TimeSpan TicketCleanupAfter = TimeSpan.FromHours(24);
     public const string CompanySpaceCode = "CTY";
     public const int MaxTags = 20;
     public const int MaxTagLength = 40;
 
-    private static readonly HashSet<string> Blocked = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".exe", ".msi", ".bat", ".cmd", ".com", ".scr", ".ps1", ".vbs", ".jar", ".apk", ".dll", ".sh", ".app", ".dmg", ".pkg",
-    };
     private static readonly HashSet<string> ArchiveExt = new(StringComparer.OrdinalIgnoreCase) { ".zip", ".rar", ".7z", ".tar", ".gz", ".tgz" };
     private static readonly HashSet<string> DocExt = new(StringComparer.OrdinalIgnoreCase)
     {
         ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".odt", ".ods", ".odp", ".txt", ".csv", ".md", ".rtf", ".json", ".xml", ".html",
     };
 
-    /// <summary>File thực thi bị chặn (tránh dùng kho để phát tán mã độc).</summary>
-    public static bool IsBlocked(string fileName) => Blocked.Contains(Path.GetExtension(fileName));
 
     public static AssetKind KindOf(string contentType, string fileName)
     {
@@ -42,13 +39,6 @@ public static class DocumentRules
         return AssetKind.Other;
     }
 
-    /// <summary>Loại MIME hợp lệ dạng "type/subtype"; rỗng / sai → application/octet-stream.</summary>
-    public static string NormalizeContentType(string? contentType)
-    {
-        var ct = contentType?.Split(';')[0].Trim().ToLowerInvariant();
-        return ct is { Length: > 2 and <= 150 } && ct.Count(c => c == '/') == 1 && ct.All(c => char.IsAsciiLetterOrDigit(c) || "/.+-_".Contains(c))
-            ? ct : "application/octet-stream";
-    }
 
     /// <summary>Tên file dùng trong key S3: bỏ dấu, chỉ giữ chữ / số / . - _ (tên gốc vẫn lưu ở DB và trả về khi tải).</summary>
     public static string SafeKeyName(string fileName)

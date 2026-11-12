@@ -29,7 +29,7 @@ public static class MiscEndpoints
         IFileStorage files, TimeProvider clock, CancellationToken ct)
     {
         var name = NewsRules.CleanFileName(req.FileName);
-        var contentType = NewsRules.NormalizeContentType(req.ContentType);
+        var contentType = FileTypes.ContentTypeFor(name); // TEST-13: theo đuôi, không tin trình duyệt
         var val = new Validation();
         foreach (var (f, m) in NewsRules.ValidateUpload(name, contentType, req.Size, req.ForComment)) val.Add(f, m);
         if (val.Failed) return val.Problem();

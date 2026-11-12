@@ -48,6 +48,7 @@ public static partial class NewsRules
         var kind = KindOf(contentType);
         if (fileName.Length == 0) e.Add(("fileName", "Thiếu tên tệp"));
         else if (IsBlocked(fileName)) e.Add(("fileName", "Không đăng file chạy chương trình hoặc trang web (.exe, .bat, .html, .svg…)"));
+        else if (!OfficeHub.BuildingBlocks.Storage.FileTypes.IsAllowed(fileName)) e.Add(("fileName", $"Không đăng được loại tệp {Path.GetExtension(fileName)}"));
         if (imageOnly && kind != MediaKind.Image) e.Add(("contentType", "Bình luận chỉ đính kèm được ảnh (jpeg, png, webp, gif)"));
         if (size <= 0) e.Add(("size", "Tệp rỗng"));
         else if (size > MaxSizeOf(kind))
@@ -55,12 +56,6 @@ public static partial class NewsRules
         return e;
     }
 
-    public static string NormalizeContentType(string? contentType)
-    {
-        var ct = contentType?.Split(';')[0].Trim().ToLowerInvariant();
-        return ct is { Length: > 2 and <= 150 } && ct.Count(c => c == '/') == 1 && ct.All(c => char.IsAsciiLetterOrDigit(c) || "/.+-_".Contains(c))
-            ? ct : "application/octet-stream";
-    }
 
     public static string CleanFileName(string? fileName)
     {

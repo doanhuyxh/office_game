@@ -185,6 +185,9 @@ internal static class ProfileEndpoints
             return new Validation().Add("file", "Ảnh phải là JPG, PNG hoặc WebP").Problem();
         if (file.Length is 0 or > PersonalProfile.AvatarMaxBytes)
             return new Validation().Add("file", "Ảnh tối đa 2 MB").Problem();
+        // TEST-13: chữ ký đầu file phải đúng loại ảnh khai báo (không tin Content-Type trình duyệt gửi)
+        await using (var head = file.OpenReadStream())
+            if (!FileTypes.StreamMatches(head, ext)) return new Validation().Add("file", "Ảnh phải là JPG, PNG hoặc WebP").Problem();
         var old = e.AvatarKey;
         var key = $"employees/{e.Id}/avatar/{Guid.NewGuid():N}.{ext}";
         await using (var s = file.OpenReadStream()) await storage.UploadAsync(key, s, file.ContentType, ct);

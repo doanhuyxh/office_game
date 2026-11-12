@@ -98,7 +98,7 @@ internal static class AttachmentEndpoints
         var now = clock.Now;
         // Dọn link bỏ dở (> 1 ngày chưa xác nhận) — chỉ xoá dòng, file mồ côi (nếu có) để lại.
         await db.Attachments.Where(a => !a.Ready && a.CreatedAt < now.AddDays(-1)).ExecuteDeleteAsync(ct);
-        var contentType = AttachmentRules.NormalizeContentType(r.ContentType);
+        var contentType = FileTypes.ContentTypeFor(name); // TEST-13: theo đuôi, không tin trình duyệt
         var a = new FinanceAttachment
         {
             OwnerType = r.OwnerType, OwnerId = r.OwnerId, FileName = name, ContentType = contentType, Size = r.Size, CreatedAt = now,
@@ -118,7 +118,15 @@ internal static class AttachmentEndpoints
         var a = await db.Attachments.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct);
         if (a is null || a.CreatedByUserId != user.GetUserId()) return TypedResults.NotFound();
         if (a.Ready) return TypedResults.Ok(ToDto(a, true));
-        var size = await files.GetSizeAsync(a.FileKey, ct);
+        // TEST-13: chép key tạm → key chính rồi kiểm cỡ + chữ ký trên bản đã chép (link PUT còn hạn không thay được chứng từ đã xác nhận)
+        var check = await files.PromoteUploadAsync(a.FileKey, a.FileName, ct);
+        if (check.Error is { } bad)
+        {
+            db.Attachments.Remove(a);
+            await db.SaveChangesAsync(ct);
+            return new Validation().Add("fileName", bad).Problem();
+        }
+        var size = check.Size;
         if (size is null) return Problems.Conflict("Tệp chưa tải lên xong — thử lại");
         if (size.Value <= 0 || size.Value > AttachmentRules.MaxBytes)
         {

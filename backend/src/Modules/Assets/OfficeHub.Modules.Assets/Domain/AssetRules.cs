@@ -121,12 +121,6 @@ public static class AssetRules
         return n[..(200 - ext.Length)] + ext;
     }
 
-    public static string NormalizeContentType(string? contentType)
-    {
-        var ct = contentType?.Split(';')[0].Trim().ToLowerInvariant();
-        return ct is { Length: > 2 and <= 150 } && ct.Count(c => c == '/') == 1 && ct.All(c => char.IsAsciiLetterOrDigit(c) || "/.+-_".Contains(c))
-            ? ct : "application/octet-stream";
-    }
 
     /// <summary>Ảnh: png / jpg / webp / heic. Hoá đơn: + PDF, XML (hoá đơn điện tử), zip. Khác: + Word / Excel / txt. Tối đa 20 MB.</summary>
     public static List<(string Field, string Message)> ValidateAttachment(AttachmentKind kind, string fileName, long size)

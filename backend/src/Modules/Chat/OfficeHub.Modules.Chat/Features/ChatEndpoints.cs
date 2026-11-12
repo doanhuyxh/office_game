@@ -210,7 +210,10 @@ public static class ChatEndpoints
         };
         foreach (var t in tickets)
         {
-            var size = await files.GetSizeAsync(t.FileKey, ct);
+            // TEST-13: chép key tạm → key chính + kiểm chữ ký đầu file trên bản đã chép
+            var check = await files.PromoteUploadAsync(t.FileKey, t.FileName, ct);
+            if (check.Error is { } bad) return new Validation().Add("uploadIds", $"Tệp \"{t.FileName}\": {bad}").Problem();
+            var size = check.Size;
             if (size is null) return Problems.Conflict($"Tệp \"{t.FileName}\" chưa tải lên xong — thử lại");
             if (size.Value <= 0 || size.Value > ChatRules.MaxSizeOf(t.ContentType))
             {
@@ -291,7 +294,7 @@ public static class ChatEndpoints
         if (conv is null || !await store.CanAccessAsync(conv, me, ct)) return Unknown();
 
         var name = ChatRules.CleanFileName(req.FileName);
-        var contentType = ChatRules.NormalizeContentType(req.ContentType);
+        var contentType = FileTypes.ContentTypeFor(name); // TEST-13: theo đuôi, không tin trình duyệt
         var val = new Validation();
         foreach (var (field, message) in ChatRules.ValidateUpload(name, contentType, req.Size)) val.Add(field, message);
         if (val.Failed) return val.Problem();

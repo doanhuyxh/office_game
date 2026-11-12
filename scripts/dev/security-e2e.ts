@@ -321,5 +321,44 @@ const reopen = await setStatus('Active');
 ok('Huỷ → Đang hiệu lực → 400 status', reopen.status === 400 && !!reopen.body?.errors?.status, reopen.body);
 ok('Huỷ → Hoàn thành → 400', (await setStatus('Completed')).status === 400);
 
+// ================= TEST-13: upload an toàn (S3 thật, thư mục documents/) =================
+const up = async (c: string, name: string, body: Uint8Array | string) => {
+  const t = await json(c, 'POST', '/api/documents/uploads', { fileName: name, contentType: 'image/png', size: new Blob([body]).size });
+  const put = t.status === 200 ? await fetch(t.body.url, { method: 'PUT', headers: { 'Content-Type': t.body.contentType }, body }) : null;
+  return { t, put };
+};
+const reg = (c: string, ticketId: string) => json(c, 'POST', '/api/documents/assets', { ticketId, spaceKind: 'Company', spaceId: null, folderId: null, title: null,
+  description: null, tags: [], docTypeId: null });
+ok('chặn đuôi ngoài danh sách (.exe, .scr lạ)', (await json(S.cookie, 'POST', '/api/documents/uploads', { fileName: 'virus.exe', contentType: 'image/png', size: 10 })).status === 400
+  && (await json(S.cookie, 'POST', '/api/documents/uploads', { fileName: 'x.weirdext', contentType: null, size: 10 })).status === 400);
+const html = await up(S.cookie, `trang-${stamp}.html`, '<script>alert(1)</script>');
+ok('HTML: server bỏ Content-Type trình duyệt gửi (image/png) → text/plain; PUT vào key tạm uploads/', html.t.body?.contentType === 'text/plain'
+  && String(html.t.body?.url).includes('/uploads/documents/') && html.put?.ok === true, html.t.body);
+const hReg = await reg(S.cookie, html.t.body.ticketId);
+const hFile = await json(S.cookie, 'GET', `/api/documents/assets/${hReg.body?.asset?.id ?? hReg.body?.id}/file`);
+const hGet = await fetch(hFile.body?.url);
+ok('tải HTML: Content-Type text/plain (không dựng trang)', hGet.status === 200 && (hGet.headers.get('content-type') ?? '').startsWith('text/plain'), [hReg.status, hFile.body, hGet.headers.get('content-type')]);
+const svg = await up(S.cookie, `logo-${stamp}.svg`, '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
+const sReg = await reg(S.cookie, svg.t.body.ticketId);
+const sFile = await json(S.cookie, 'GET', `/api/documents/assets/${sReg.body?.asset?.id ?? sReg.body?.id}/file`);
+const sGet = await fetch(sFile.body?.url);
+ok('SVG: luôn tải về (attachment, octet-stream), cờ inline = false', sFile.body?.inline === false && (sGet.headers.get('content-disposition') ?? '').startsWith('attachment')
+  && sGet.headers.get('content-type') === 'application/octet-stream', [sFile.body, sGet.headers.get('content-disposition'), sGet.headers.get('content-type')]);
+const fake = await up(S.cookie, `anh-${stamp}.png`, new Uint8Array([0x4D, 0x5A, 0x90, 0x00, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
+const fReg = await reg(S.cookie, fake.t.body.ticketId);
+ok('.exe đổi tên thành .png → 400 (chữ ký không khớp), file bị loại', fReg.status === 400 && /không đúng định dạng/.test(JSON.stringify(fReg.body)), fReg.body);
+const PNG1 = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'));
+const good = await up(S.cookie, `that-${stamp}.png`, PNG1);
+const gReg = await reg(S.cookie, good.t.body.ticketId);
+ok('PNG thật → đăng ký được', gReg.status < 300, gReg.body);
+const swap = await fetch(good.t.body.url, { method: 'PUT', headers: { 'Content-Type': good.t.body.contentType }, body: 'nội dung tráo sau khi xác nhận' });
+const gFile = await json(S.cookie, 'GET', `/api/documents/assets/${gReg.body?.asset?.id ?? gReg.body?.id}/file`);
+const gBytes = new Uint8Array(await (await fetch(gFile.body?.url)).arrayBuffer());
+ok('PUT lại bằng link cũ sau khi xác nhận KHÔNG đổi file đã lưu', swap.ok && Buffer.from(gBytes).equals(Buffer.from(PNG1)), { swap: swap.status, len: gBytes.length });
+let quotaHit = false;
+for (let i = 0; i < 25 && !quotaHit; i++)
+  quotaHit = (await json(S.cookie, 'POST', '/api/documents/uploads', { fileName: `q${i}.txt`, contentType: null, size: 1 })).status === 400;
+ok('hạn mức vé chưa dùng / người (≤ 20 trong 24 giờ) → 400', quotaHit);
+
 console.log(`\n${pass} đạt, ${fail} lỗi`);
 process.exit(fail ? 1 : 0);

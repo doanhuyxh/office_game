@@ -285,7 +285,10 @@ public static class PostEndpoints
         foreach (var id in uploadIds)
         {
             var t = tickets.First(x => x.Id == id);
-            var size = await files.GetSizeAsync(t.FileKey, ct);
+            // TEST-13: chép key tạm → key chính + kiểm chữ ký đầu file trên bản đã chép
+            var check = await files.PromoteUploadAsync(t.FileKey, t.FileName, ct);
+            if (check.Error is { } bad) return new Validation().Add("uploadIds", $"Tệp \"{t.FileName}\": {bad}").Problem();
+            var size = check.Size;
             if (size is null) return Problems.Conflict($"Tệp \"{t.FileName}\" chưa tải lên xong — thử lại");
             if (size.Value <= 0 || size.Value > NewsRules.MaxSizeOf(t.Kind))
             {

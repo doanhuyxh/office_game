@@ -17,14 +17,6 @@ public class DocumentRulesTests
     public void KindOf_uses_mime_then_extension(string mime, string name, AssetKind expected) =>
         Assert.Equal(expected, DocumentRules.KindOf(mime, name));
 
-    [Theory]
-    [InlineData("setup.exe", true)]
-    [InlineData("SCRIPT.BAT", true)]
-    [InlineData("app.apk", true)]
-    [InlineData("bao-cao.pdf", false)]
-    [InlineData("video.mov", false)]
-    public void Executables_are_blocked(string name, bool blocked) => Assert.Equal(blocked, DocumentRules.IsBlocked(name));
-
     [Fact]
     public void SafeKeyName_strips_vietnamese_marks_and_unsafe_chars()
     {
@@ -40,14 +32,6 @@ public class DocumentRulesTests
         Assert.Equal("ảnh 1.jpg", DocumentRules.CleanFileName("thư mục/ảnh 1.jpg"));
         Assert.Equal("ab.txt", DocumentRules.CleanFileName("a\u0000b.txt"));
     }
-
-    [Theory]
-    [InlineData("video/MP4; codecs=avc1", "video/mp4")]
-    [InlineData("", "application/octet-stream")]
-    [InlineData(null, "application/octet-stream")]
-    [InlineData("not a mime", "application/octet-stream")]
-    [InlineData("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")]
-    public void NormalizeContentType(string? input, string expected) => Assert.Equal(expected, DocumentRules.NormalizeContentType(input));
 
     [Theory]
     [InlineData("Hợp đồng 2026", null)]

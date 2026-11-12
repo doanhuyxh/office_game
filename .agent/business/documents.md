@@ -19,9 +19,9 @@ Video, ảnh, văn bản công việc là **tài sản của công ty**: mỗi f
 
 ## Tải lên (thẳng S3, không qua Api)
 
-1. `POST /uploads { fileName, contentType, size }` → vé `{ ticketId, url, contentType, expiresAt }`. Chặn file thực thi (`.exe .bat .apk .sh .dll…`), tối đa **5 GB** (giới hạn PUT đơn của S3). Key: `documents/{yyyy}/{MM}/{ticketId}/{tên-không-dấu}`.
+1. `POST /uploads { fileName, contentType, size }` → vé `{ ticketId, url, contentType, expiresAt }`. Chỉ nhận **đuôi trong danh sách cho phép** (`FileTypes`; MIME do server quyết, bỏ `contentType` trình duyệt gửi), tối đa **5 GB** (giới hạn PUT đơn của S3). Hạn mức: ≤ 20 vé chưa dùng và ≤ 20 GB đang chờ / người / 24 giờ. Link PUT 30 phút, trỏ vào key tạm `uploads/…` ([architecture.md](../architecture.md)). Key: `documents/{yyyy}/{MM}/{ticketId}/{tên-không-dấu}`.
 2. Trình duyệt `PUT url` với header `Content-Type` đúng như vé (XHR có % tiến độ). Bucket đã bật CORS cho PUT từ domain app (2026-11-07) — xem [env.md](../env.md#s3-cors-kho-tài-liệu).
-3. `POST /assets { ticketId, spaceKind, spaceId, folderId?, docTypeId?, title?, description?, tags? }` → Api HEAD S3 kiểm tra file có thật (chưa có → 409), vé chỉ dùng một lần và chỉ của chính người xin. Loại mặc định theo nhóm file: ảnh → `HA`, video → `VD`, còn lại → `VB`; tiêu đề mặc định = tên file bỏ đuôi.
+3. `POST /assets { ticketId, spaceKind, spaceId, folderId?, docTypeId?, title?, description?, tags? }` → Api chép key tạm → key chính rồi kiểm cỡ + chữ ký đầu file (chưa có → 409; chữ ký không khớp đuôi, vd `.exe` đổi tên `.png` → 400, file bị xoá), vé chỉ dùng một lần và chỉ của chính người xin. Loại mặc định theo nhóm file: ảnh → `HA`, video → `VD`, còn lại → `VB`; tiêu đề mặc định = tên file bỏ đuôi.
 - Nhập cả thư mục (chọn / kéo thả): FE gọi `POST /folders/ensure { path: "a/b/c" }` **tuần tự** cho từng thư mục rồi tải 3 file song song (`upload-queue/`).
 - Vé quá 24 giờ chưa dùng → job xoá file rác trên S3.
 

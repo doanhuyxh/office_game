@@ -93,6 +93,8 @@ public static class ChatRules
         var e = new List<(string, string)>();
         if (fileName.Length == 0) e.Add(("fileName", "Thiếu tên tệp"));
         else if (IsBlocked(fileName)) e.Add(("fileName", "Không gửi file chạy chương trình (.exe, .bat, .apk…)"));
+        // TEST-13: ngoài danh sách chặn còn phải nằm trong danh sách đuôi được phép (FileTypes)
+        else if (!OfficeHub.BuildingBlocks.Storage.FileTypes.IsAllowed(fileName)) e.Add(("fileName", $"Không gửi được loại tệp {Path.GetExtension(fileName)}"));
         if (size <= 0) e.Add(("size", "Tệp rỗng"));
         else if (size > MaxSizeOf(contentType))
             e.Add(("size", IsImage(contentType) ? "Ảnh tối đa 10 MB" : "Tệp tối đa 25 MB"));

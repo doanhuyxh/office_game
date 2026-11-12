@@ -31,8 +31,4 @@ public class AttachmentRulesTests
         Assert.Equal("finance/2026/11/01a1bb23d70f74b599503f418f1a3564/Ho____n_th_ng_11.pdf",
             FileKey(new DateTimeOffset(2026, 11, 8, 0, 0, 0, TimeSpan.Zero), id, "Hoá đơn tháng 11.pdf"));
     }
-
-    [Fact]
-    public void Content_type_is_normalized() =>
-        Assert.Equal("application/octet-stream", NormalizeContentType("<script>"));
 }

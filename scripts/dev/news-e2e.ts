@@ -308,14 +308,15 @@ ok('ảnh > 10 MB, video > 200 MB, tệp > 25 MB → 400', (await up(A, { size: 
 ok('video 150 MB hợp lệ (xin vé được)', (await up(A, { fileName: 'v.mp4', contentType: 'video/mp4', size: 150 * 1024 * 1024 })).status === 200);
 ok('bình luận chỉ nhận ảnh: video → 400', (await up(A, { fileName: 'v.mp4', contentType: 'video/mp4', size: 1000, forComment: true })).status === 400);
 const t1 = await up(A);
-ok('vé ảnh → presigned PUT trỏ thư mục feed/, kind Image', t1.status === 200 && /\/files\/feed\/\d{4}\/\d{2}\//.test(decodeURIComponent(t1.body.url)) && t1.body.kind === 'Image' && !t1.body.url.includes('chat/') && !t1.body.url.includes('documents/'), t1.body?.url?.slice(0, 200));
+ok('vé ảnh → presigned PUT trỏ thư mục feed/, kind Image', t1.status === 200 && /\/files\/(uploads\/)?feed\/\d{4}\/\d{2}\//.test(decodeURIComponent(t1.body.url)) && t1.body.kind === 'Image' && !t1.body.url.includes('chat/') && !t1.body.url.includes('documents/'), t1.body?.url?.slice(0, 200));
 ok('đăng khi tệp chưa PUT lên S3 → 409', (await post(A, { contentHtml: '<p>x</p>', uploadIds: [t1.body.id] })).status === 409);
 ok('PUT ảnh lên S3 thật', (await fetch(t1.body.url, { method: 'PUT', headers: { 'content-type': t1.body.contentType }, body: PNG })).status === 200);
 const tv = await up(A, { fileName: 'clip thử.mp4', contentType: 'video/mp4', size: 16 });
-const vbytes = new Uint8Array(16);
+// Header MP4 thật ("ftyp" ở byte 4) — server kiểm chữ ký đầu file (TEST-13)
+const vbytes = new Uint8Array([0, 0, 0, 16, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0, 0, 0, 0]);
 ok('PUT video nhỏ (kiểu video/mp4) lên S3', tv.body.kind === 'Video' && (await fetch(tv.body.url, { method: 'PUT', headers: { 'content-type': 'video/mp4' }, body: vbytes })).status === 200);
 const tf = await up(A, { fileName: 'Báo cáo thử.pdf', contentType: 'application/pdf', size: 8 });
-ok('PUT tệp pdf nhỏ lên S3', tf.body.kind === 'File' && (await fetch(tf.body.url, { method: 'PUT', headers: { 'content-type': 'application/pdf' }, body: new Uint8Array(8) })).status === 200);
+ok('PUT tệp pdf nhỏ lên S3', tf.body.kind === 'File' && (await fetch(tf.body.url, { method: 'PUT', headers: { 'content-type': 'application/pdf' }, body: new TextEncoder().encode('%PDF-1.4') })).status === 200);
 ok('vé của A không dùng được bởi B (400)', (await post(B, { contentHtml: '<p>x</p>', uploadIds: [t1.body.id] })).status === 400);
 const withMedia = await post(A, { contentHtml: '<p>Bài có đính kèm</p>', audience: 'Departments', targets: [dep(D1)], uploadIds: [t1.body.id, tv.body.id, tf.body.id] });
 const mk = (withMedia.body?.media ?? []).map((m: any) => m.kind).join(',');

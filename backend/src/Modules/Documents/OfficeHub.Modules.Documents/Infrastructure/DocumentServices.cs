@@ -132,7 +132,11 @@ internal sealed class DocumentsMaintenanceJob(IServiceScopeFactory scopes, ILogg
         // (3) Vé tải lên bỏ dở
         var stale = clock.Now - DocumentRules.TicketCleanupAfter;
         var tickets = await db.UploadTickets.Where(t => t.CreatedAt < stale).Take(200).ToListAsync(ct);
-        foreach (var t in tickets) await files.DeleteAsync(t.FileKey, ct); // S3 xoá key không tồn tại vẫn thành công
+        foreach (var t in tickets) // S3 xoá key không tồn tại vẫn thành công
+        {
+            await files.DeleteAsync(t.FileKey, ct);
+            await files.DeleteAsync(S3FileStorage.StagingPrefix + t.FileKey, ct); // key tạm (PUT bỏ dở)
+        }
         if (tickets.Count > 0) { db.UploadTickets.RemoveRange(tickets); await db.SaveChangesAsync(ct); }
     }
 }

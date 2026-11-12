@@ -15,13 +15,17 @@ namespace OfficeHub.BuildingBlocks.Documents;
 /// </summary>
 public static partial class DocxTemplate
 {
+    /// <summary>TEST-13: giới hạn ký tự mỗi phần XML (chống bomb giải nén mà dung lượng khai báo trong zip bị làm giả).</summary>
+    private static readonly OpenSettings Settings = new() { MaxCharactersInPart = 50_000_000 };
+
     [GeneratedRegex(@"\{\{\s*([A-Za-z0-9_]+)\s*\}\}")]
     private static partial Regex Field();
 
     /// <summary>Tên các trường có trong mẫu (giữ nguyên chữ hoa / thường như trong file, không trùng).</summary>
     public static IReadOnlyList<string> ScanFields(Stream docx)
     {
-        using var doc = WordprocessingDocument.Open(docx, false);
+        ZipGuard.Check(docx);
+        using var doc = WordprocessingDocument.Open(docx, false, Settings);
         var names = new List<string>();
         foreach (var p in Paragraphs(doc))
             foreach (Match m in Field().Matches(string.Concat(p.Descendants<W.Text>().Select(t => t.Text))))
@@ -41,7 +45,9 @@ public static partial class DocxTemplate
     {
         using var ms = new MemoryStream();
         template.CopyTo(ms);
-        using (var doc = WordprocessingDocument.Open(ms, true))
+        ms.Position = 0;
+        ZipGuard.Check(ms);
+        using (var doc = WordprocessingDocument.Open(ms, true, Settings))
         {
             if (rows is not null && !string.IsNullOrEmpty(rowPrefix) && doc.MainDocumentPart?.Document is { } body)
                 foreach (var row in body.Descendants<W.TableRow>().ToList())

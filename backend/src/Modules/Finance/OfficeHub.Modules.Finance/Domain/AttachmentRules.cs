@@ -19,12 +19,6 @@ public static class AttachmentRules
         return n[..(200 - ext.Length)] + ext;
     }
 
-    public static string NormalizeContentType(string? contentType)
-    {
-        var ct = contentType?.Split(';')[0].Trim().ToLowerInvariant();
-        return ct is { Length: > 2 and <= 150 } && ct.Count(c => c == '/') == 1 && ct.All(c => char.IsAsciiLetterOrDigit(c) || "/.+-_".Contains(c))
-            ? ct : "application/octet-stream";
-    }
 
     /// <summary>Chỉ nhận chứng từ văn phòng: PDF, ảnh, Excel / Word, XML (hoá đơn điện tử), zip, txt — tối đa 20 MB.</summary>
     public static List<(string Field, string Message)> Validate(string fileName, long size)

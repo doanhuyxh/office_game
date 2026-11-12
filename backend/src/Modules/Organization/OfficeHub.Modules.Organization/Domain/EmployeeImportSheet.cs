@@ -47,6 +47,7 @@ public static class EmployeeImportSheet
     public static List<ImportSheetRow> Read(Stream xlsx, out string? fileError)
     {
         fileError = null;
+        OfficeHub.BuildingBlocks.Documents.ZipGuard.Check(xlsx); // TEST-13: chống zip bomb trước khi ClosedXML giải nén
         using var wb = new XLWorkbook(xlsx);
         var ws = wb.Worksheets.First();
         var headerRow = ws.FirstRowUsed();

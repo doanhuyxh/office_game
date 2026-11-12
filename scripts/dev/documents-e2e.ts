@@ -126,8 +126,11 @@ ok('tạo tài liệu: nháp, mã TL-CNE2-năm-xxxxx, tiêu đề = tên file, t
   && A.tags.length === 2 && A.custodianName === 'Nhân Viên Tài Liệu' && A.docTypeName === 'Văn bản chung' && A.kind === 'Document', a1);
 ok('vé đã dùng không dùng lại được', (await json(staff.cookie, 'POST', '/api/documents/assets', { ticketId: u1.ticket.body.ticketId, spaceKind: 'Company', spaceId: null })).status === 404);
 ok('người phòng khác KHÔNG tải vào kho Công nghệ (403)', (await createAsset(outsider.cookie, 'x.txt', 'x', T)).status === 403);
-const img = await createAsset(staff.cookie, 'logo.png', 'png-bytes', { kind: 'Company', id: null });
-ok('tải vào kho công ty (ai cũng được) — ảnh nhận loại VB vì MIME gửi là text', img.status === 200, img);
+// TEST-13: nội dung chữ đặt tên .png → server kiểm chữ ký đầu file → 400, file bị loại
+const fakeImg = await createAsset(staff.cookie, 'logo.png', 'png-bytes', { kind: 'Company', id: null });
+ok('chữ đặt tên .png → 400 (chữ ký không khớp đuôi)', fakeImg.status === 400 && /không đúng định dạng/.test(JSON.stringify(fakeImg.body)), fakeImg);
+const img = await createAsset(staff.cookie, 'logo.txt', 'logo bytes', { kind: 'Company', id: null });
+ok('tải vào kho công ty (ai cũng được)', img.status === 200, img);
 
 // ---------- Danh sách / tìm ----------
 const inFolder = await json(staff.cookie, 'GET', `/api/documents/assets?spaceKind=Department&spaceId=${tech}&folderId=${f1.body.id}&page=1&pageSize=20`);
