@@ -8,7 +8,7 @@ export interface PlayerDto {
 export interface PositionDto { id: string; x: number; z: number; r: number; anim: number }
 export interface WelcomeDto { selfId: string; mapName: string; players: PlayerDto[] }
 /** at = ISO 8601 UTC "…Z" (server). channel: "office" toàn văn phòng | "room" chỉ người trong phòng roomId. */
-/** Tài liệu đang chiếu trên màn hình một phòng có tường (Realtime ScreenDto). url = link tạm (3 giờ) của người chiếu. */
+/** Tài liệu đang chiếu trên màn hình một phòng có tường (Realtime ScreenDto). url = link qua Realtime /rt/screens/doc/… (chỉ người trong phòng, tự làm mới link S3 30 phút — TEST-30); bot / màn hình live có url riêng. */
 export interface ScreenDto {
   roomId: string; roomName: string; assetId: string; title: string; fileName: string; contentType: string;
   kind: 'Document' | 'Image' | 'Video' | 'Audio' | 'Archive' | 'Other' | 'Markdown'; url: string; inline: boolean; byName: string; at: string;

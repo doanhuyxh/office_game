@@ -3,7 +3,10 @@
 // thấy qua link tạm của A; người ngoài phòng không nhận; ai trong phòng cũng tắt được; ra khỏi phòng thì khung chiếu biến mất.
 // TẠO NHÂN VIÊN THẬT → CHỈ chạy trên DB tạm. Cần Api + Realtime (Realtime__ApiBaseUrl trỏ Api tạm) + Vite (proxy /api, /rt):
 //   E2E_LOCAL_DB=1 API_URL=http://localhost:5180 BASE_URL=http://localhost:5174 bun scripts/dev/office-docs-e2e.ts
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { BASE, launch } from './cdp';
+import { totp } from './totp';
 if (process.env.E2E_LOCAL_DB !== '1') throw new Error('Chỉ chạy với DB tạm: đặt E2E_LOCAL_DB=1');
 const API = process.env.API_URL ?? 'http://localhost:5180';
 const env = Object.fromEntries((await Bun.file(new URL('../../.env', import.meta.url)).text()).split('\n')
@@ -21,7 +24,33 @@ const json = async (cookie: string, method: string, path: string, body?: unknown
   return { status: r.status, body: await r.json().catch(() => null) as any };
 };
 const PW = 'E2e-Local-2026';
-const admin = await loginApi(env.Seed__AdminEmail, env.Seed__AdminPassword);
+// Admin bắt buộc 2FA (auth-2fa.md): lần đầu tự bật, lần sau nhập mã; khoá lưu theo cổng Api. ADMIN_LOGIN / ADMIN_PASSWORD ưu tiên hơn .env.
+const KEYS_FILE = `${tmpdir()}/officehub-e2e-2fa-keys-${new URL(API).port}.json`;
+const keys: Record<string, string> = existsSync(KEYS_FILE) ? JSON.parse(readFileSync(KEYS_FILE, 'utf8')) : {};
+const loginAdmin = async (login: string, password: string): Promise<string> => {
+  const r = await fetch(`${API}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login, password }) });
+  const pick = (x: Response, n: string) => x.headers.getSetCookie().map((c) => c.split(';')[0]).filter((c) => c.startsWith(n + '=')).at(-1) ?? '';
+  const body = await r.json().catch(() => null) as any;
+  if (r.status === 403 && body?.title === '2fa_required') {
+    const r2 = await fetch(`${API}/api/auth/login/2fa`, { method: 'POST', headers: { 'content-type': 'application/json', cookie: pick(r, 'officehub.2fa') },
+      body: JSON.stringify({ code: totp(keys[login]), isRecoveryCode: false, rememberMe: true }) });
+    return pick(r2, 'officehub.auth');
+  }
+  let cookie = pick(r, 'officehub.auth');
+  if (r.ok && body?.mustSetupTwoFactor) {
+    const post = async (path: string, b: unknown) => {
+      const x = await fetch(API + path, { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify(b) });
+      cookie = pick(x, 'officehub.auth') || cookie;
+      return (await x.json().catch(() => null)) as any;
+    };
+    const s2 = await post('/api/auth/2fa/setup', {});
+    await post('/api/auth/2fa/enable', { code: totp(s2.sharedKey) });
+    keys[login] = s2.sharedKey;
+    writeFileSync(KEYS_FILE, JSON.stringify(keys));
+  }
+  return cookie;
+};
+const admin = await loginAdmin(process.env.ADMIN_LOGIN ?? env.Seed__AdminEmail, process.env.ADMIN_PASSWORD ?? env.Seed__AdminPassword);
 if (!admin) throw new Error('Không đăng nhập được admin seed');
 
 // ---------- Dữ liệu: phòng "Công nghệ ODE" gắn khu dept-kt (tủ hồ sơ kt-cabinet-*), A là trưởng phòng; B ở phòng khác ----------
@@ -107,6 +136,10 @@ try {
   await a.sleep(2500);
   const bPanel = await text(b, '[data-testid=office-screen-doc]');
   ok('B (cùng phòng, không có quyền kho) thấy tài liệu đang chiếu', String(bPanel).includes('Sơ đồ hệ thống ODE') && String(bPanel).includes('Người Chiếu'), bPanel);
+  const src = await b.evalJs(`document.querySelector('[data-testid=office-screen-doc] img')?.getAttribute('src') ?? ''`);
+  ok('TEST-30: link chiếu đi qua Realtime (/rt/screens/doc/…), không phát thẳng link S3', String(src).startsWith('/rt/screens/doc/'), src);
+  ok('TEST-30: mở link không đăng nhập → 401', (await fetch(`${BASE}${src}`, { redirect: 'manual' })).status === 401);
+  ok('TEST-30: đăng nhập nhưng không ở trong phòng (admin) → 404', (await fetch(`${BASE}${src}`, { headers: { cookie: admin }, redirect: 'manual' })).status === 404);
   ok('ảnh chiếu tải được ở máy B', await b.evalJs(`(() => { const i = document.querySelector('[data-testid=office-screen-doc] img'); return !!i && i.complete && i.naturalWidth > 0 })()`));
   ok('A cũng thấy khung chiếu', String(await text(a, '[data-testid=office-screen-doc]')).includes('Sơ đồ hệ thống ODE'));
   if (shotDir) { await b.shot(`${shotDir}/office-screen-b.png`); }

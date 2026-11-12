@@ -318,7 +318,7 @@ internal static class AssetEndpoints
     /// <summary>
     /// Link presigned để xem / tải (ghi nhật ký). Mặc định bản hiện tại; xem trong trình duyệt với ảnh / video / âm thanh / PDF / văn bản thuần,
     /// còn lại tải về. Link video / âm thanh sống 3 giờ (tua khi đang xem), loại khác 15 phút. <c>present</c> = chiếu lên màn hình phòng trong
-    /// văn phòng 3D (Realtime gọi bằng cookie người chiếu rồi phát link cho người trong phòng) → mọi loại 3 giờ.
+    /// văn phòng 3D (Realtime gọi bằng cookie người chiếu, phát qua link Realtime kiểm người xem) → mọi loại 30 phút, Realtime tự làm mới.
     /// </summary>
     private static async Task<Results<Ok<FileUrlDto>, ProblemHttpResult>> FileAsync(Guid id, int? version, bool? download, bool? present, ClaimsPrincipal user,
         HttpContext http, DocumentAccess access, DocumentsDbContext db, IFileStorage files, IEmployeeDirectory dir, DocClock clock, CancellationToken ct)
@@ -333,7 +333,8 @@ internal static class AssetEndpoints
         // TEST-13: xem trực tiếp theo đuôi file (khớp header S3 do FileStorage ép) — không theo MIME cũ do trình duyệt gửi (vd SVG từng lưu image/svg+xml)
         var previewable = FileTypes.IsInlineSafe(FileTypes.ContentTypeFor(ver.FileName));
         var inline = download != true && previewable;
-        var ttl = present == true || kind is AssetKind.Video or AssetKind.Audio ? TimeSpan.FromHours(3) : TimeSpan.FromMinutes(15);
+        // Chiếu lên TV phòng: 30 phút — Realtime phát qua link riêng của nó và tự xin link mới khi gần hết hạn (TEST-30, trước 3 giờ)
+        var ttl = present == true ? TimeSpan.FromMinutes(30) : kind is AssetKind.Video or AssetKind.Audio ? TimeSpan.FromHours(3) : TimeSpan.FromMinutes(15);
         var url = await files.GetDownloadUrlAsync(ver.FileKey, ver.FileName, inline, ttl);
         db.AccessLogs.Add(new AccessLog { AssetId = a.Id, VersionNumber = ver.Number, UserId = v.UserId, UserName = v.Name,
             Action = inline ? AccessAction.View : AccessAction.Download, At = clock.Now, Ip = http.Connection.RemoteIpAddress?.ToString() });

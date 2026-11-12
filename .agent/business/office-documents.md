@@ -23,12 +23,12 @@ Chủ dự án chốt 2026-11-07: làm cả 4 phần — nút HUD, tủ hồ sơ
 
 | Hướng | Tên | Ghi chú |
 |---|---|---|
-| client → server | `PinScreen(assetId)` | Phòng = phòng có tường đang đứng (`RoomOf`, server quyết định); khu mở → `HubException`. 1 lần / 3 s. Server gọi Api **bằng cookie người chiếu**: `GET /api/documents/assets/{id}` (tiêu đề) + `GET …/file?present=true` (presigned 3 giờ, Api kiểm tra quyền + ghi nhật ký "Xem"); lỗi → `HubException` tiếng Việt (404/403 → "Không tìm thấy tài liệu hoặc bạn không có quyền xem", 410 → đã huỷ) |
+| client → server | `PinScreen(assetId)` | Phòng = phòng có tường đang đứng (`RoomOf`, server quyết định); khu mở → `HubException`. 1 lần / 3 s. Server gọi Api **bằng cookie người chiếu**: `GET /api/documents/assets/{id}` (tiêu đề) + `GET …/file?present=true` (presigned **30 phút**, Api kiểm tra quyền + ghi nhật ký "Xem"); lỗi → `HubException` tiếng Việt (404/403 → "Không tìm thấy tài liệu hoặc bạn không có quyền xem", 410 → đã huỷ) |
 | | `ClearScreen()` | Ai trong phòng cũng tắt được |
 | | `GetScreen()` | Tài liệu đang chiếu ở phòng mình đứng (client hỏi sau khi đổi phòng 600 ms, chỉ nhận kết quả khác null) |
 | server → client | `ScreenChanged(roomId, ScreenDto?)` | Chỉ gửi người đang ở trong phòng; `Move` vào phòng đang chiếu → server gửi ngay cho người đó |
 
-- `ScreenDto { roomId, roomName, assetId, title, fileName, contentType, kind, url, inline, byName, at }` — `RoomScreens` giữ trong RAM, tự hết sau 170 phút (link 3 giờ). URL chỉ nhận http/https (`RoomScreens.Parse`, test `RoomScreensTests`).
+- `ScreenDto { roomId, roomName, assetId, title, fileName, contentType, kind, url, inline, byName, at }` — `RoomScreens` giữ trong RAM, tự hết sau 170 phút. URL chỉ nhận http/https (`RoomScreens.Parse`, test `RoomScreensTests`). **TEST-30**: tài liệu người chiếu phát `url = /rt/screens/doc/{phòng}/{mã}` thay vì link S3 — `GET` chỉ cho người đăng nhập đang đứng trong phòng (401 / 404), chuyển hướng tới link S3 hiện hành; còn < 8 phút thì Realtime xin link mới bằng phiên người chiếu (`RoomScreens.ResolveDocAsync`), người chiếu hết phiên / mất quyền → tắt màn hình. Bot `present_document` vẫn phát thẳng link S3 30 phút (không có phiên để làm mới; bot tự tắt sau 10 phút không cập nhật).
 - **Chiếu = chia sẻ tạm**: người cùng phòng xem bằng link của người chiếu dù không có quyền kho đó (như đưa tài liệu lên màn hình thật). Chỉ người chiếu cần quyền.
 - HUD `ScreenDocPanel`: ảnh / video / âm thanh / PDF, văn bản thuần xem trực tiếp; loại khác → link mở / tải. Nút Phóng to, Mở tab mới, Tắt chiếu. Ra khỏi phòng → khung biến mất.
 

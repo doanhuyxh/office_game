@@ -23,6 +23,22 @@ public static class BotScreenEndpoints
     {
         app.MapPost(BotScreenRoute.Path, PresentAsync);
         app.MapGet(BotScreens.FramePathPrefix + "/{roomId}/{token}", FrameAsync);
+        app.MapGet(RoomScreens.DocPathPrefix + "/{roomId}/{token}", DocAsync);
+    }
+
+    /// <summary>
+    /// Tài liệu người chiếu trên TV phòng (TEST-30): chỉ người đăng nhập đang đứng trong phòng → chuyển hướng tới link S3 hiện hành (≤ 30 phút,
+    /// tự làm mới). Chưa đăng nhập → 401; ngoài phòng / mã sai / đã tắt → 404.
+    /// </summary>
+    private static async Task<IResult> DocAsync(string roomId, string token, HttpResponse res, ClaimsPrincipal user, RoomScreens screens,
+        Presence presence, OfficeMap map, CancellationToken ct)
+    {
+        if (user.Identity?.IsAuthenticated != true || user.FindFirstValue(ClaimTypes.NameIdentifier) is not { } uid)
+            return Results.Problem("Cần đăng nhập", statusCode: StatusCodes.Status401Unauthorized);
+        if (!presence.TryGet(uid, out var viewer) || map.WallRoomOf(viewer)?.Id != roomId) return Results.NotFound();
+        if (await screens.ResolveDocAsync(roomId, token, ct) is not { } url) return Results.NotFound();
+        res.Headers.CacheControl = "no-store";
+        return Results.Redirect(url);
     }
 
     /// <summary>
