@@ -73,7 +73,8 @@ const server = Bun.serve({
   port: HOOK_PORT,
   async fetch(req) {
     const body = await req.text();
-    if (failNext > 0) { failNext--; return new Response('boom', { status: 500 }); }
+    // chỉ làm hỏng lần gửi ping: chuông chung của dự án (TEST-32) có thể tới xen giữa
+    if (failNext > 0 && req.headers.get('x-officehub-event') === 'ping') { failNext--; return new Response('boom', { status: 500 }); }
     hits.push({ event: req.headers.get('x-officehub-event') ?? '', ts: req.headers.get('x-officehub-timestamp') ?? '', sig: req.headers.get('x-officehub-signature') ?? '',
       body, json: JSON.parse(body) });
     return new Response('ok');

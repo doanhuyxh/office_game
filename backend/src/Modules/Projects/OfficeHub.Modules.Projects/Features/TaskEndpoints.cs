@@ -164,23 +164,46 @@ internal static class TaskEndpoints
     private static async Task<Guid?> UserOfAsync(IEmployeeDirectory dir, Guid? employeeId, CancellationToken ct) =>
         employeeId is { } id ? (await dir.GetAsync(id, ct))?.UserId : null;
 
-    private static async Task NotifyAssignedAsync(INotifier notifier, IEmployeeDirectory dir, Project p, TaskItem t, ProjectViewer v, CancellationToken ct)
+    /// <returns>Tài khoản đã nhận chuông (null = không gửi).</returns>
+    private static async Task<Guid?> NotifyAssignedAsync(INotifier notifier, IEmployeeDirectory dir, Project p, TaskItem t, ProjectViewer v, CancellationToken ct)
     {
-        if (t.AssigneeEmployeeId is not { } a || a == v.Employee?.Id) return;
-        if (await UserOfAsync(dir, a, ct) is not { } uid) return;
+        if (t.AssigneeEmployeeId is not { } a || a == v.Employee?.Id) return null;
+        if (await UserOfAsync(dir, a, ct) is not { } uid) return null;
         await notifier.NotifyAsync(new NotificationRequest([uid], NotificationCategories.ProjectTask, $"Bạn được giao việc {EffortRules.TaskCode(p.Code, t.Number)}: {t.Title}",
             $"{v.Name} giao trong dự án {p.Name}{(t.DueOn is { } d ? $", hạn {d:dd/MM/yyyy}" : "")}.", $"/projects/{p.Id}", SendEmail: false), ct);
+        return uid;
+    }
+
+    /// <summary>Chuông chung cho mọi thành viên dự án, trừ người thao tác và <paramref name="alreadyNotified"/> (<see cref="TaskNotifyRules"/>).</summary>
+    private static async Task NotifyMembersAsync(INotifier notifier, ProjectAccess access, Project p, ProjectViewer v, IEnumerable<Guid> alreadyNotified,
+        string title, string body, CancellationToken ct)
+    {
+        var emps = await access.EmployeesAsync(ct);
+        var to = TaskNotifyRules.Recipients(
+            p.Members.Select(m => emps.TryGetValue(m.EmployeeId, out var e) ? (e.UserId, e.IsActive) : ((Guid?)null, false)), v.UserId, alreadyNotified);
+        if (to.Count == 0) return;
+        await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.ProjectTask, title, TaskNotifyRules.Body(body), $"/projects/{p.Id}", SendEmail: false), ct);
+    }
+
+    private static Task NotifyMembersMovedAsync(INotifier notifier, ProjectAccess access, Project p, TaskItem t, List<ColumnInfo> cols, Guid from, string? note,
+        ProjectViewer v, IEnumerable<Guid> alreadyNotified, CancellationToken ct)
+    {
+        if (from == t.ColumnId) return Task.CompletedTask;
+        string Name(Guid id) => cols.FirstOrDefault(c => c.Id == id)?.Name ?? "?";
+        return NotifyMembersAsync(notifier, access, p, v, alreadyNotified, $"{v.Name} chuyển {EffortRules.TaskCode(p.Code, t.Number)} sang \"{Name(t.ColumnId)}\"",
+            $"{t.Title} ({Name(from)} → {Name(t.ColumnId)}), dự án {p.Name}.{(note is null ? "" : $" Lý do: {note}")}", ct);
     }
 
     /// <summary>
     /// Báo theo quy trình (<see cref="TaskWorkflow.Notice"/>): vào cột ngay trước cột cần duyệt → quản lý dự án; vào cột cần duyệt → người làm (đã duyệt);
     /// lùi kèm lý do → người làm. Bỏ chính người thao tác.
     /// </summary>
-    private static async Task NotifyMovedAsync(INotifier notifier, IEmployeeDirectory dir, Project p, TaskItem t, List<ColumnInfo> cols, Guid from, string? note,
+    /// <returns>Tài khoản đã nhận chuông.</returns>
+    private static async Task<List<Guid>> NotifyMovedAsync(INotifier notifier, IEmployeeDirectory dir, Project p, TaskItem t, List<ColumnInfo> cols, Guid from, string? note,
         ProjectViewer v, CancellationToken ct)
     {
         var kind = TaskWorkflow.Notice(cols, from, t.ColumnId, note is not null);
-        if (kind == MoveNotice.None) return;
+        if (kind == MoveNotice.None) return [];
         var code = EffortRules.TaskCode(p.Code, t.Number);
         string Name(Guid id) => cols.FirstOrDefault(c => c.Id == id)?.Name ?? "?";
         var to = new List<Guid>();
@@ -198,10 +221,11 @@ internal static class TaskEndpoints
                 ? ($"Đã duyệt: {code} {t.Title}", $"{v.Name} chuyển sang \"{Name(t.ColumnId)}\" trong dự án {p.Name}.")
                 : ($"Trả lại việc: {code} {t.Title}", $"{v.Name} ({Name(from)} → {Name(t.ColumnId)}): {note}");
         }
-        else return;
-        if (to.Count == 0) return;
-        await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.ProjectTask, title, body.Length > 300 ? body[..300] + "…" : body,
+        else return [];
+        if (to.Count == 0) return [];
+        await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.ProjectTask, title, TaskNotifyRules.Body(body),
             $"/projects/{p.Id}", SendEmail: false), ct);
+        return to;
     }
 
     private static async Task<Results<Created<Guid>, NotFound, ValidationProblem, ProblemHttpResult>> CreateAsync(Guid id, UpsertTask r, ClaimsPrincipal user,
@@ -243,7 +267,9 @@ internal static class TaskEndpoints
             db.Activities.Add(created);
             try { await db.SaveChangesAsync(ct); }
             catch (DbUpdateException) when (attempt < 3) { db.Tasks.Remove(t); db.Activities.Remove(created); continue; } // hai người tạo cùng lúc → số trùng, thử số kế
-            await NotifyAssignedAsync(notifier, dir, p, t, v, ct);
+            var assigned = await NotifyAssignedAsync(notifier, dir, p, t, v, ct);
+            await NotifyMembersAsync(notifier, access, p, v, assigned is { } au ? [au] : [], $"Việc mới {EffortRules.TaskCode(p.Code, t.Number)}: {t.Title}",
+                $"{v.Name} tạo trong dự án {p.Name} (\"{column.Name}\").", ct);
             return TypedResults.Created($"/api/projects/tasks/{t.Id}", t.Id);
         }
     }
@@ -307,8 +333,11 @@ internal static class TaskEndpoints
         t.Title = title; t.Description = description; t.AssigneeEmployeeId = r.AssigneeEmployeeId; t.MilestoneId = r.MilestoneId;
         t.DueOn = r.DueOn; t.EstimateDays = r.EstimateDays; t.MediaLinks = links;
         await db.SaveChangesAsync(ct);
-        if (reassigned) await NotifyAssignedAsync(notifier, dir, p, t, v, ct);
-        await NotifyMovedAsync(notifier, dir, p, t, cols, from, ProjectEndpoints.Clean(r.Note), v, ct);
+        var notified = new List<Guid>();
+        if (reassigned && await NotifyAssignedAsync(notifier, dir, p, t, v, ct) is { } au) notified.Add(au);
+        var note = ProjectEndpoints.Clean(r.Note);
+        notified.AddRange(await NotifyMovedAsync(notifier, dir, p, t, cols, from, note, v, ct));
+        await NotifyMembersMovedAsync(notifier, access, p, t, cols, from, note, v, notified, ct);
         if (!wasDone && t.CompletedAt != null) await NotifyUnblockedAsync(notifier, dir, db, p, t, v, ct);
         return TypedResults.NoContent();
     }
@@ -331,7 +360,9 @@ internal static class TaskEndpoints
         if (ApplyColumn(t, p, cols, r.ColumnId, r.Note, v, user, db, clock.Now) is { } err) return Problems.Conflict(err);
         t.Rank = r.Rank ?? (await db.Tasks.Where(x => x.ColumnId == r.ColumnId && x.Id != t.Id).MaxAsync(x => (double?)x.Rank, ct) ?? 0) + 1;
         await db.SaveChangesAsync(ct);
-        await NotifyMovedAsync(notifier, dir, p, t, cols, from, ProjectEndpoints.Clean(r.Note), v, ct);
+        var note = ProjectEndpoints.Clean(r.Note);
+        var notified = await NotifyMovedAsync(notifier, dir, p, t, cols, from, note, v, ct);
+        await NotifyMembersMovedAsync(notifier, access, p, t, cols, from, note, v, notified, ct);
         if (!wasDone && t.CompletedAt != null) await NotifyUnblockedAsync(notifier, dir, db, p, t, v, ct);
         return TypedResults.NoContent();
     }
@@ -447,9 +478,13 @@ internal static class TaskEndpoints
         await db.SaveChangesAsync(ct);
         var code = EffortRules.TaskCode(p.Code, t.Number);
         var preview = c.Content.Length > 200 ? c.Content[..200] + "…" : c.Content;
+        var notified = new List<Guid>();
         if (t.AssigneeEmployeeId is { } a && a != v.Employee?.Id && (await dir.GetAsync(a, ct))?.UserId is { } uid)
+        {
             await notifier.NotifyAsync(new NotificationRequest([uid], NotificationCategories.ProjectTask, $"{v.Name} bình luận việc {code}",
                 preview, $"/projects/{p.Id}", SendEmail: false), ct);
+            notified.Add(uid);
+        }
         // @mã-nhân-viên → báo thành viên dự án được nhắc (trừ người viết và người làm việc — đã nhận chuông bình luận ở trên)
         var codes = AgentTeamRules.MentionedCodes(c.Content);
         if (codes.Count > 0)
@@ -463,7 +498,9 @@ internal static class TaskEndpoints
             if (mentioned.Count > 0)
                 await notifier.NotifyAsync(new NotificationRequest(mentioned, NotificationCategories.ProjectTask, $"{v.Name} nhắc bạn trong việc {code}",
                     preview, $"/projects/{p.Id}", SendEmail: false), ct);
+            notified.AddRange(mentioned);
         }
+        await NotifyMembersAsync(notifier, access, p, v, notified, $"{v.Name} bình luận việc {code}", $"{t.Title}: {preview}", ct);
         return TypedResults.Created($"/api/projects/comments/{c.Id}", c.Id);
     }
 }
