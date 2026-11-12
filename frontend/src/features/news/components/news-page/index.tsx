@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Newspaper, PenLine } from 'lucide-react';
+import { ArrowUp, Loader2, Newspaper, PenLine } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { Card } from '@/components/common/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/common/tabs';
@@ -7,7 +7,7 @@ import { Spinner } from '@/components/feedback/Spinner';
 import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
 import { useMe } from '@/features/auth';
 import { useTabParam } from '@/hooks/useTabParam';
-import { useFeed, useMarkSeen } from '../../hooks/useNews';
+import { useFeed, useMarkSeen, useNewsUnseenLive } from '../../hooks/useNews';
 import { AuthorAvatar } from '../author-avatar';
 import { ComposerDialog } from '../composer-dialog';
 import { PostCard } from '../post-card';
@@ -20,6 +20,12 @@ export function NewsPage() {
   const markSeen = useMarkSeen();
   const [composing, setComposing] = useState(false);
   const sentinel = useRef<HTMLDivElement>(null);
+  // Bài mới của người khác trong lúc đang xem trang (hỏi lại mỗi 20 giây) → nút "N bài mới" thay vì phải tải lại trang
+  const fresh = useNewsUnseenLive(tab === 'all' && feed.isSuccess);
+  const showFresh = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    void feed.refetch().then(() => markSeen.mutate());
+  };
 
   const pinned = feed.data?.pages[0]?.pinned ?? [];
   const items = feed.data?.pages.flatMap((p) => p.items) ?? [];
@@ -56,6 +62,11 @@ export function NewsPage() {
         </button>
       </Card>
 
+      {fresh > 0 && tab === 'all' && (
+        <div className="sticky top-16 z-10 flex justify-center">
+          <Button size="sm" className="rounded-full shadow-md" onClick={showFresh} data-testid="fresh-posts"><ArrowUp /> {fresh} bài mới</Button>
+        </div>
+      )}
       {feed.isLoading && <Spinner />}
       {feed.isError && <p className="text-center text-sm text-destructive">Không tải được bảng tin. <button type="button" className="underline" onClick={() => feed.refetch()}>Thử lại</button></p>}
       {pinned.map((p) => <PostCard key={p.id} post={p} />)}

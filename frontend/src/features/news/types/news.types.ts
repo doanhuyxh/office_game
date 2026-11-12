@@ -12,7 +12,17 @@ export interface IPost {
   targets: IAudienceTarget[]; commentsDisabled: boolean; pinned: boolean; createdAt: string; editedAt: string | null;
   hidden: boolean; hiddenReason: string | null; media: IMedia[]; reactionCount: number; reactions: Partial<Record<ReactionType, number>>;
   myReaction: ReactionType | null; commentCount: number; emailSent: boolean; canEdit: boolean; canDelete: boolean; canHide: boolean;
+  /** Giờ hẹn đăng (bài chưa đăng — chỉ tác giả thấy). */
+  publishAt?: string | null;
+  /** Số người đã xem — chỉ tác giả / HR (người khác null). */
+  viewCount?: number | null;
+  /** Bài gốc được chia sẻ; sharedPost null = người xem không xem được bài gốc / bài gốc đã xoá. */
+  sharedPostId?: string | null;
+  sharedPost?: IPost | null;
 }
+
+export interface IViewer { userId: string; name: string; code: string | null; departmentName: string | null; viewedAt: string }
+export interface IViewers { count: number; audienceCount: number; items: IViewer[] }
 
 export interface IFeed { pinned: IPost[]; items: IPost[]; nextCursor: number | null }
 
@@ -27,8 +37,15 @@ export interface IReactionSummary { total: number; counts: Partial<Record<Reacti
 export interface IReactor { userId: string; name: string; type: ReactionType }
 
 export interface ITargetRequest { kind: TargetKind; id: string }
-export interface IPostRequest { contentHtml: string; audience: PostAudience; targets: ITargetRequest[]; uploadIds: string[]; sendEmail: boolean; commentsDisabled: boolean }
-export interface IEditPostRequest { contentHtml: string; audience: PostAudience; targets: ITargetRequest[]; uploadIds: string[]; removeMediaIds: string[]; commentsDisabled: boolean }
+export interface IPostRequest {
+  contentHtml: string; audience: PostAudience; targets: ITargetRequest[]; uploadIds: string[]; sendEmail: boolean; commentsDisabled: boolean;
+  publishAt?: string | null; sharedPostId?: string | null;
+}
+export interface IEditPostRequest {
+  contentHtml: string; audience: PostAudience; targets: ITargetRequest[]; uploadIds: string[]; removeMediaIds: string[]; commentsDisabled: boolean;
+  /** Chỉ với bài đang hẹn giờ: đổi giờ hẹn / đăng ngay. */
+  publishAt?: string | null; publishNow?: boolean;
+}
 
 export interface IUploadTicket { id: string; url: string; contentType: string; kind: MediaKind; expiresAt: string }
 export interface IPerson { userId: string; fullName: string; code: string; departmentName: string | null }

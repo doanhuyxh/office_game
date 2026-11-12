@@ -135,3 +135,31 @@ export function useReactComment(postId: string) {
 
 export const useReactors = (kind: 'posts' | 'comments', id: string, enabled: boolean) =>
   useQuery({ queryKey: newsKeys.reactors(kind, id), queryFn: () => newsApi.reactors(kind, id), enabled });
+
+export const useViewers = (id: string, enabled: boolean) =>
+  useQuery({ queryKey: newsKeys.viewers(id), queryFn: () => newsApi.viewers(id), enabled, staleTime: 15_000 });
+
+/** Đang ở trang Bảng tin: hỏi số bài mới mỗi 20 giây để hiện "N bài mới" (không cần tải lại trang). */
+export const useNewsUnseenLive = (enabled: boolean) => {
+  const { data } = useQuery({ queryKey: newsKeys.unseen, queryFn: newsApi.unseen, enabled, refetchInterval: enabled ? 20_000 : false, refetchIntervalInBackground: false });
+  return data?.count ?? 0;
+};
+
+// ---- "Đã xem": gom các bài hiện trên màn hình, gửi một lần mỗi 3 giây ----
+const viewQueue = new Set<string>();
+const viewSent = new Set<string>();
+let viewTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Ghi nhận bài đã hiện ≥ 1 giây (mỗi bài chỉ gửi một lần mỗi phiên trang). Lỗi bỏ qua — thống kê là phụ. */
+export function trackPostView(id: string) {
+  if (viewSent.has(id)) return;
+  viewSent.add(id);
+  viewQueue.add(id);
+  if (viewTimer) return;
+  viewTimer = setTimeout(() => {
+    viewTimer = null;
+    const ids = [...viewQueue].slice(0, 50);
+    ids.forEach((x) => viewQueue.delete(x));
+    if (ids.length) newsApi.views(ids).catch(() => ids.forEach((x) => viewSent.delete(x)));
+  }, 3000);
+}

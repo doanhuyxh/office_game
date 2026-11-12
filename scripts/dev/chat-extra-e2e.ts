@@ -191,6 +191,10 @@ ok('rời nhóm 1-1 / Office → 404', (await json(A.cookie, 'DELETE', `/api/cha
 const m2 = await send(A, G, { text: 'sau khi C rời' });
 ok('người nhận còn A + B', m2.body?.recipients?.length === 2 && !m2.body.recipients.includes(C.userId), m2.body);
 
+// ---------- Vé tải lên (đường dọn file mồ côi chạy trước khi cấp vé) ----------
+const up = await json(A.cookie, 'POST', '/api/chat/uploads', { conversationId: G, fileName: 'a.png', contentType: 'image/png', size: 10 });
+ok('xin vé tải lên vẫn 200 (dọn vé quá 24 giờ + file S3 trước đó)', up.status === 200 && !!up.body?.url, up);
+
 // ---------- Token AI ----------
 const tok = (await json(D.cookie, 'POST', '/api/auth/access-tokens', { name: 'e2e-cx', expiresInDays: 30 })).body?.token;
 const ai = (method: string, path: string, body?: unknown) => fetch(API + path, { method, headers: { authorization: `Bearer ${tok}`, 'content-type': 'application/json' },

@@ -131,6 +131,24 @@ public static partial class NewsRules
     }
 
     /// <summary>Lỗi theo field của bài: nội dung (chữ hoặc có tệp), độ dài, phạm vi.</summary>
+    // ---------------- Hẹn giờ, đã xem, chia sẻ (TEST-54) ----------------
+
+    /// <summary>Hẹn giờ: ít nhất 1 phút sau hiện tại, tối đa 60 ngày.</summary>
+    public static readonly TimeSpan MinScheduleLead = TimeSpan.FromMinutes(1);
+    public static readonly TimeSpan MaxScheduleAhead = TimeSpan.FromDays(60);
+    /// <summary>Số bài tối đa một lần báo "đã xem".</summary>
+    public const int MaxViewBatch = 50;
+    public const int MaxViewerList = 500;
+
+    /// <summary>Lỗi giờ hẹn (null = hợp lệ).</summary>
+    public static string? ValidateSchedule(DateTimeOffset publishAt, DateTimeOffset now) =>
+        publishAt < now + MinScheduleLead ? "Giờ hẹn đăng phải sau hiện tại ít nhất 1 phút"
+        : publishAt > now + MaxScheduleAhead ? "Chỉ hẹn giờ đăng trong vòng 60 ngày"
+        : null;
+
+    /// <summary>Bài chia sẻ luôn trỏ thẳng bài gốc (chia sẻ của bài chia sẻ → bài gốc của nó).</summary>
+    public static Guid ShareRoot(Guid postId, Guid? sharedPostId) => sharedPostId ?? postId;
+
     public static List<(string Field, string Message)> ValidatePost(string plainText, int htmlLength, int mediaCount, PostAudience audience, int targetCount)
     {
         var e = new List<(string, string)>();

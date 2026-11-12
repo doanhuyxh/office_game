@@ -470,8 +470,8 @@ public static class ChatEndpoints
         if (val.Failed) return val.Problem();
 
         var now = clock.GetUtcNow();
-        // Dọn vé bỏ dở (đã xin link nhưng không bao giờ gửi tin) — file mồ côi trên S3 giữ lại, chỉ xoá dòng vé
-        await db.UploadTickets.Where(t => t.CreatedAt < now - ChatRules.TicketCleanupAfter).ExecuteDeleteAsync(ct);
+        // Dọn vé bỏ dở (đã xin link nhưng không bao giờ gửi tin): xoá cả file mồ côi trên S3 (key chính + key tạm) — TEST-54
+        await UploadCleanup.PurgeAsync(db.UploadTickets, t => t.CreatedAt < now - ChatRules.TicketCleanupAfter, t => t.FileKey, files, db, ct);
 
         var ticket = new UploadTicket
         {

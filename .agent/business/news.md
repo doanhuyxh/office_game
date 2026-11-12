@@ -26,6 +26,7 @@ Chủ dự án chốt 2026-11-07 (đừng hỏi lại): bảng tin **kiểu Face
 | `post_media` | `Kind` (Image / Video / File), `FileKey`, `FileName`, `ContentType`, `Size`, `Order` |
 | `comments` | `Seq`, `PostId`, `ParentId` (**một cấp**: trả lời của trả lời gom về gốc), `Text` ≤ 2000, `ImageKey/Name/ContentType`, `EditedAt`, `HiddenAt` + lý do, `DeletedAt`, `ReactionCount` |
 | `reactions` | `(TargetType, TargetId, UserId)` → `Type` (Like / Love / Haha / Wow / Sad / Angry) — mỗi người **một** cảm xúc / mục |
+| `post_views` · `PublishAt`, `SharedPostId` trên `posts` | ai đã xem · hẹn giờ · chia sẻ lại — [news-extras.md](news-extras.md) |
 | `mentions`, `feed_states`, `upload_tickets` | người được @nhắc (không mở rộng quyền xem) · `LastSeenSeq` cho badge · vé tải lên chưa gắn bài (dọn sau 24 giờ) |
 
 Xoá bài / bình luận là **xoá mềm**; bình luận gốc đã xoá mà còn trả lời thì giữ chỗ "đã bị xoá".
@@ -88,4 +89,4 @@ Xoá bài / bình luận là **xoá mềm**; bình luận gốc đã xoá mà c�
 
 ## Chưa làm
 
-Tìm kiếm toàn văn, sửa / xoá cảm xúc hàng loạt, thống kê "ai đã đọc", chia sẻ lại bài, bài hẹn giờ, dọn tệp S3 mồ côi, realtime (bài mới hiện ngay không cần tải lại), video xem trước dạng stream (hiện phát trực tiếp từ presigned URL).
+Tìm kiếm toàn văn (TEST-61), sửa / xoá cảm xúc hàng loạt, video xem trước dạng stream / chuyển mã (hiện phát trực tiếp từ presigned URL, trình duyệt tự tải theo đoạn). Đã làm 2026-11-12 (hẹn giờ, ai đã xem, chia sẻ lại, bài mới tự hiện, dọn tệp mồ côi): [news-extras.md](news-extras.md).

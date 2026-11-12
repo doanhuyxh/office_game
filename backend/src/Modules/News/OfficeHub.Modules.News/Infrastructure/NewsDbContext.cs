@@ -18,6 +18,7 @@ public sealed class NewsDbContext(DbContextOptions<NewsDbContext> options) : DbC
     public DbSet<Mention> Mentions => Set<Mention>();
     public DbSet<FeedState> FeedStates => Set<FeedState>();
     public DbSet<UploadTicket> UploadTickets => Set<UploadTicket>();
+    public DbSet<PostView> Views => Set<PostView>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -32,8 +33,15 @@ public sealed class NewsDbContext(DbContextOptions<NewsDbContext> options) : DbC
             e.HasIndex(x => x.Seq).IsUnique().HasDatabaseName("ux_posts_seq");
             e.HasIndex(x => x.AuthorUserId).HasDatabaseName("ix_posts_author");
             e.HasIndex(x => x.PinnedUntil).HasFilter("\"PinnedUntil\" IS NOT NULL").HasDatabaseName("ix_posts_pinned");
+            e.HasIndex(x => x.PublishAt).HasFilter("\"PublishAt\" IS NOT NULL").HasDatabaseName("ix_posts_scheduled");
+            e.HasIndex(x => x.SharedPostId).HasFilter("\"SharedPostId\" IS NOT NULL").HasDatabaseName("ix_posts_shared");
             e.HasMany(x => x.Targets).WithOne().HasForeignKey(t => t.PostId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Media).WithOne().HasForeignKey(m => m.PostId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<PostView>(e =>
+        {
+            e.ToTable("post_views");
+            e.HasKey(x => new { x.PostId, x.UserId });
         });
         b.Entity<PostTarget>(e =>
         {

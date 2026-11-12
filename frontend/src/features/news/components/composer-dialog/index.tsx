@@ -7,12 +7,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/common/label';
 import { Spinner } from '@/components/feedback/Spinner';
 import { cn } from '@/utils/cn';
+import { addDays, formatTime, toVnDate, todayVn, vnInstant } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { useCreatePost, useEditPost } from '../../hooks/useNews';
 import type { IMedia, IPost } from '../../types/news.types';
 import { ACCEPT_MEDIA, MAX_MEDIA, MAX_POST_CHARS, checkFile, formatSize } from '../../utils/labels';
 import { uploadFile } from '../../utils/upload';
 import { AudiencePicker, type IAudienceValue } from '../audience-picker';
+import { ScheduleField, type IScheduleValue } from '../schedule-field';
+import { SharedPost } from '../shared-post';
 
 // Tiptap + ProseMirror khá nặng → chỉ tải khi mở hộp soạn bài (giữ ngoài gói chính vì sidebar import barrel của feature)
 const PostEditor = lazy(() => import('../post-editor').then((m) => ({ default: m.PostEditor })));
@@ -25,9 +28,19 @@ const initialAudience = (post?: IPost): IAudienceValue => ({
   people: post?.targets.filter((t) => t.kind === 'User').map((t) => ({ id: t.id, name: t.name })) ?? [],
 });
 
-/** Hộp soạn bài: tạo mới hoặc sửa (truyền `post`). Tệp tải thẳng lên S3 (thư mục feed/) trước khi lưu bài. */
-export function ComposerDialog({ open, onOpenChange, post }: { open: boolean; onOpenChange: (o: boolean) => void; post?: IPost }) {
+const initialSchedule = (post?: IPost): IScheduleValue => post?.publishAt
+  ? { on: true, date: toVnDate(post.publishAt), time: formatTime(post.publishAt) }
+  : { on: false, date: addDays(todayVn(), 1), time: '08:00' };
+
+/**
+ * Hộp soạn bài: tạo mới, sửa (truyền `post`) hoặc chia sẻ lại (truyền `sharing` = bài gốc). Tệp tải thẳng lên S3 (thư mục feed/) trước khi lưu bài.
+ * Hẹn giờ: bài mới, hoặc bài đang hẹn (đổi giờ / bỏ hẹn = đăng ngay).
+ */
+export function ComposerDialog({ open, onOpenChange, post, sharing }: { open: boolean; onOpenChange: (o: boolean) => void; post?: IPost; sharing?: IPost }) {
   const editing = !!post;
+  const shared = sharing ? (sharing.sharedPost ?? sharing) : post?.sharedPostId ? post.sharedPost : undefined;
+  const isShare = !!sharing || !!post?.sharedPostId;
+  const canSchedule = !editing || !!post?.publishAt;
   const create = useCreatePost();
   const edit = useEditPost();
   const [html, setHtml] = useState(post?.contentHtml ?? '');
@@ -39,19 +52,20 @@ export function ComposerDialog({ open, onOpenChange, post }: { open: boolean; on
   const [commentsDisabled, setCommentsDisabled] = useState(post?.commentsDisabled ?? false);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [schedule, setSchedule] = useState<IScheduleValue>(() => initialSchedule(post));
   const input = useRef<HTMLInputElement>(null);
 
   // Mở lại hộp (bài khác / bài mới) → đặt lại toàn bộ
   useEffect(() => {
     if (!open) return;
     setHtml(post?.contentHtml ?? ''); setPlain(post?.plainText ?? ''); setAud(initialAudience(post)); setPending([]); setRemoved([]);
-    setSendEmail(false); setCommentsDisabled(post?.commentsDisabled ?? false); setErrors({}); setBusy(false);
+    setSendEmail(false); setCommentsDisabled(post?.commentsDisabled ?? false); setErrors({}); setBusy(false); setSchedule(initialSchedule(post));
   }, [open, post]);
 
   const existing: IMedia[] = useMemo(() => (post?.media ?? []).filter((m) => !removed.includes(m.id)), [post, removed]);
   const mediaCount = existing.length + pending.length;
   const targetCount = aud.audience === 'Departments' ? aud.departmentIds.length : aud.audience === 'Custom' ? aud.people.length : 0;
-  const empty = plain.length === 0 && mediaCount === 0;
+  const empty = plain.length === 0 && mediaCount === 0 && !isShare;
   const tooLong = plain.length > MAX_POST_CHARS;
 
   function addFiles(list: FileList | null) {
@@ -84,9 +98,17 @@ export function ComposerDialog({ open, onOpenChange, post }: { open: boolean; on
       }
       const targets = aud.audience === 'Departments' ? aud.departmentIds.map((id) => ({ kind: 'Department' as const, id }))
         : aud.audience === 'Custom' ? aud.people.map((p) => ({ kind: 'User' as const, id: p.id })) : [];
-      if (post) await edit.mutateAsync({ id: post.id, req: { contentHtml: html, audience: aud.audience, targets, uploadIds: ids, removeMediaIds: removed, commentsDisabled } });
-      else await create.mutateAsync({ contentHtml: html, audience: aud.audience, targets, uploadIds: ids, sendEmail: sendEmail && aud.audience !== 'Private', commentsDisabled });
-      toast.success(editing ? 'Đã lưu bài viết' : 'Đã đăng bài');
+      const publishAt = canSchedule && schedule.on ? vnInstant(schedule.date, schedule.time) : null;
+      if (post) {
+        await edit.mutateAsync({ id: post.id, req: {
+          contentHtml: html, audience: aud.audience, targets, uploadIds: ids, removeMediaIds: removed, commentsDisabled,
+          publishAt, publishNow: !!post.publishAt && !schedule.on,
+        } });
+      } else {
+        await create.mutateAsync({ contentHtml: html, audience: aud.audience, targets, uploadIds: ids, sendEmail: sendEmail && aud.audience !== 'Private', commentsDisabled,
+          publishAt, sharedPostId: sharing?.id ?? null });
+      }
+      toast.success(publishAt ? `Đã hẹn đăng lúc ${schedule.time} ngày ${schedule.date.split('-').reverse().join('/')}` : editing ? 'Đã lưu bài viết' : 'Đã đăng bài');
       pending.forEach((p) => p.preview && URL.revokeObjectURL(p.preview));
       onOpenChange(false);
     } catch (e) {
@@ -99,7 +121,7 @@ export function ComposerDialog({ open, onOpenChange, post }: { open: boolean; on
     <Dialog open={open} onOpenChange={(o) => !busy && onOpenChange(o)}>
       <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto" data-testid="composer-dialog">
         <DialogHeader>
-          <DialogTitle>{editing ? 'Sửa bài viết' : 'Tạo bài viết'}</DialogTitle>
+          <DialogTitle>{editing ? 'Sửa bài viết' : sharing ? 'Chia sẻ bài viết' : 'Tạo bài viết'}</DialogTitle>
           <DialogDescription className="sr-only">Soạn nội dung, chọn người xem và đính kèm tệp</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
@@ -109,6 +131,7 @@ export function ComposerDialog({ open, onOpenChange, post }: { open: boolean; on
             </Suspense>
             {errors.contentHtml && <p className="text-xs text-destructive">{errors.contentHtml}</p>}
           </div>
+          {isShare && <SharedPost post={shared} />}
 
           {(existing.length > 0 || pending.length > 0) && (
             <ul className="grid gap-1.5" data-testid="attachment-list">
@@ -143,6 +166,8 @@ export function ComposerDialog({ open, onOpenChange, post }: { open: boolean; on
                 </Label>
               </div>
             )}
+            {canSchedule && <ScheduleField value={schedule} onChange={setSchedule} disabled={busy} error={errors.publishAt} />}
+            {editing && post?.publishAt && !schedule.on && <p className="ps-6 text-xs text-warning">Bỏ hẹn giờ → bài được đăng ngay khi lưu.</p>}
             <div className="flex items-center gap-2">
               <Checkbox id="news-nocomment" checked={commentsDisabled} disabled={busy} onCheckedChange={(c) => setCommentsDisabled(c === true)} />
               <Label htmlFor="news-nocomment" className="font-normal">Tắt bình luận</Label>
@@ -152,7 +177,7 @@ export function ComposerDialog({ open, onOpenChange, post }: { open: boolean; on
         <DialogFooter>
           <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>Huỷ</Button>
           <Button type="button" disabled={busy || empty || tooLong || (aud.audience === 'Departments' || aud.audience === 'Custom') && targetCount === 0} onClick={submit} data-testid="submit-post">
-            {busy && <Loader2 className="animate-spin" />} {editing ? 'Lưu' : 'Đăng'}
+            {busy && <Loader2 className="animate-spin" />} {canSchedule && schedule.on ? (editing ? 'Lưu giờ hẹn' : 'Hẹn giờ') : editing ? (post?.publishAt ? 'Đăng ngay' : 'Lưu') : sharing ? 'Chia sẻ' : 'Đăng'}
           </Button>
         </DialogFooter>
       </DialogContent>

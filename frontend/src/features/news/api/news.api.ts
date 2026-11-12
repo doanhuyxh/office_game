@@ -1,6 +1,6 @@
 import { http, httpPost } from '@/services/api-client';
 import type {
-  IComment, ICommentPage, IDepartment, IEditPostRequest, IFeed, IPerson, IPost, IPostRequest, IReactionSummary, IReactor, IUploadTicket, ReactionType,
+  IComment, ICommentPage, IDepartment, IEditPostRequest, IFeed, IPerson, IPost, IPostRequest, IReactionSummary, IReactor, IUploadTicket, IViewers, ReactionType,
 } from '../types/news.types';
 
 const base = '/api/news';
@@ -15,6 +15,7 @@ export const newsKeys = {
   people: (s: string) => ['news', 'people', s] as const,
   departments: ['news', 'departments'] as const,
   reactors: (kind: 'posts' | 'comments', id: string) => ['news', 'reactors', kind, id] as const,
+  viewers: (id: string) => ['news', 'viewers', id] as const,
 };
 
 export const newsApi = {
@@ -42,6 +43,9 @@ export const newsApi = {
   departments: () => http<IDepartment[]>(`${base}/departments`),
   unseen: () => http<{ count: number }>(`${base}/unseen-count`),
   markSeen: () => httpPost<void>(`${base}/seen`),
+  /** Báo các bài đã hiện trên màn hình (thống kê "ai đã đọc"). */
+  views: (postIds: string[]) => httpPost<void>(`${base}/posts/views`, { postIds }),
+  viewers: (id: string) => http<IViewers>(`${base}/posts/${id}/viewers`),
 
   // HR / admin
   hide: (kind: 'posts' | 'comments', id: string, reason: string) => httpPost<void>(`${base}/admin/${kind}/${id}/hide`, { reason }),

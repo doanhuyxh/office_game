@@ -23,7 +23,7 @@ Api là nguồn sự thật (lưu, quyền, giới hạn 1 tin / giây / tài kh
 | `messages` | `Id` (v7), `Seq` (identity, con trỏ cuộn), `ConversationId`, `SenderId`, `SenderName` (snapshot), `Text` ≤ 1000, `CreatedAt`, `DeletedAt` (xoá mềm), `ClientId` (unique cùng hội thoại + người gửi), `ByBot` (token bot — migration `ChatByBot`) |
 | `attachments` | `MessageId`, `FileKey`, `FileName`, `ContentType`, `Size`, `IsImage` |
 | `read_states` | `(ConversationId, UserId)`, `LastReadSeq` |
-| `upload_tickets` | vé tải lên chưa gắn tin (dọn sau 24 giờ khi có vé mới) |
+| `upload_tickets` | vé tải lên chưa gắn tin (dọn cả file S3 sau 24 giờ khi có vé mới) |
 
 ## Hội thoại
 
@@ -69,4 +69,4 @@ Thành viên phòng: Realtime báo khi người chơi **bước vào** phòng c�
 
 ## Chưa làm
 
-Dọn tệp S3 mồ côi, giới hạn dung lượng tổng (việc ở bảng dự án TEST). Đã làm 2026-11-12: [chat-extras.md](chat-extras.md).
+Giới hạn dung lượng tổng (việc ở bảng dự án TEST). Đã làm 2026-11-12: [chat-extras.md](chat-extras.md); dọn file của vé tải lên bỏ dở: [news-extras.md](news-extras.md#dọn-tệp-mồ-côi-cả-chat).

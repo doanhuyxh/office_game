@@ -17,7 +17,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Ca làm, lịch tuần, ngày lễ, UI chấm công | [attendance-shifts.md](attendance-shifts.md) |
 | Văn phòng 3D, SignalR hub, bản đồ `shared/office-map.json`, chat HUD, voice token, chấm công trong 3D | [office.md](office.md) |
 | Tin nhắn: kênh Office / phòng / 1-1, ảnh + tệp, thu hồi, chưa đọc, `ChatHub` · sửa tin, cảm xúc, tìm, nhóm tuỳ chọn | [chat.md](chat.md) · [chat-extras.md](chat-extras.md) |
-| Bảng tin: bài viết kiểu Facebook (ai cũng đăng, chọn phạm vi người xem), bình luận, cảm xúc, @nhắc, email tuỳ chọn, kiểm duyệt HR | [news.md](news.md) |
+| Bảng tin: bài viết kiểu Facebook (ai cũng đăng, chọn phạm vi người xem), bình luận, cảm xúc, @nhắc, email tuỳ chọn, kiểm duyệt HR · hẹn giờ, ai đã xem, chia sẻ lại | [news.md](news.md) · [news-extras.md](news-extras.md) |
 | Engine 3D (Three.js): camera, đi / tìm đường, ngồi, minimap, đồ đạc, avatar | [office-engine.md](office-engine.md) |
 | Tuỳ chỉnh nhân vật 3D: model, danh mục, `identity.user_avatars`, editor, `LookChanged` | [office-avatar.md](office-avatar.md) |
 | Bot (agent AI qua MCP) hiện trong văn phòng 3D: cờ tài khoản `IsBot`, online 5 phút, xếp bàn theo khu, `BotStatus` | [office-bots.md](office-bots.md) |

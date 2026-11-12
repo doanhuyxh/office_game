@@ -43,11 +43,23 @@ public sealed class Post
     public DateTimeOffset? DeletedAt { get; set; }
     public int ReactionCount { get; set; }
     public int CommentCount { get; set; }
+    /// <summary>Bài hẹn giờ: chưa tới giờ thì chỉ tác giả thấy; job <c>NewsScheduler</c> đăng (đổi Seq mới, CreatedAt = lúc đăng, gửi email / @nhắc) rồi đặt null.</summary>
+    public DateTimeOffset? PublishAt { get; set; }
+    /// <summary>Chia sẻ lại bài khác (luôn trỏ bài gốc, không chuỗi chia sẻ). Người xem chỉ thấy bài gốc nếu tự xem được nó.</summary>
+    public Guid? SharedPostId { get; set; }
     public List<PostTarget> Targets { get; set; } = [];
     public List<PostMedia> Media { get; set; } = [];
 }
 
 /// <summary>Đối tượng của phạm vi Departments (TargetId = Id phòng ban) hoặc Custom (TargetId = Id tài khoản).</summary>
+/// <summary>Lần đầu một người xem bài (thống kê "ai đã đọc" cho tác giả + HR). Tác giả không được tính.</summary>
+public sealed class PostView
+{
+    public Guid PostId { get; set; }
+    public Guid UserId { get; set; }
+    public DateTimeOffset ViewedAt { get; set; }
+}
+
 public sealed class PostTarget
 {
     public Guid PostId { get; set; }

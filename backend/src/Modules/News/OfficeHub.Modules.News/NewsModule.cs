@@ -26,6 +26,7 @@ public sealed class NewsModule : IModule
         services.AddSingleton<NewsThrottle>();
         services.AddScoped<NewsStore>();
         services.AddHostedService<NewsMigrator>();
+        services.AddHostedService<NewsScheduler>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder api)

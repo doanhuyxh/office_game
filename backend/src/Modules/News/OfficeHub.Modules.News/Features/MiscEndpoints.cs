@@ -35,8 +35,8 @@ public static class MiscEndpoints
         if (val.Failed) return val.Problem();
 
         var now = clock.GetUtcNow();
-        // Dọn vé bỏ dở (đã xin link nhưng không đăng) — file mồ côi trên S3 giữ lại, chỉ xoá dòng vé
-        await db.UploadTickets.Where(t => t.CreatedAt < now - NewsRules.TicketCleanupAfter).ExecuteDeleteAsync(ct);
+        // Dọn vé bỏ dở (đã xin link nhưng không đăng): xoá cả file mồ côi trên S3 (key chính + key tạm) — TEST-54
+        await UploadCleanup.PurgeAsync(db.UploadTickets, t => t.CreatedAt < now - NewsRules.TicketCleanupAfter, t => t.FileKey, files, db, ct);
         var ticket = new UploadTicket
         {
             UserId = Me(user), Kind = NewsRules.KindOf(contentType), FileName = name, ContentType = contentType, Size = req.Size, CreatedAt = now, FileKey = "",

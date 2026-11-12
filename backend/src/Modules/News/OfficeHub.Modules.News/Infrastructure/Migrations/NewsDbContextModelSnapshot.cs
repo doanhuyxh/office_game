@@ -192,6 +192,9 @@ namespace OfficeHub.Modules.News.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTimeOffset?>("PublishAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("ReactionCount")
                         .HasColumnType("integer");
 
@@ -204,6 +207,9 @@ namespace OfficeHub.Modules.News.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Seq"));
 
+                    b.Property<Guid?>("SharedPostId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AuthorUserId")
@@ -213,9 +219,17 @@ namespace OfficeHub.Modules.News.Infrastructure.Migrations
                         .HasDatabaseName("ix_posts_pinned")
                         .HasFilter("\"PinnedUntil\" IS NOT NULL");
 
+                    b.HasIndex("PublishAt")
+                        .HasDatabaseName("ix_posts_scheduled")
+                        .HasFilter("\"PublishAt\" IS NOT NULL");
+
                     b.HasIndex("Seq")
                         .IsUnique()
                         .HasDatabaseName("ux_posts_seq");
+
+                    b.HasIndex("SharedPostId")
+                        .HasDatabaseName("ix_posts_shared")
+                        .HasFilter("\"SharedPostId\" IS NOT NULL");
 
                     b.ToTable("posts", "news");
                 });
@@ -281,6 +295,22 @@ namespace OfficeHub.Modules.News.Infrastructure.Migrations
                         .HasDatabaseName("ix_post_targets_target");
 
                     b.ToTable("post_targets", "news");
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.News.Domain.PostView", b =>
+                {
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ViewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("PostId", "UserId");
+
+                    b.ToTable("post_views", "news");
                 });
 
             modelBuilder.Entity("OfficeHub.Modules.News.Domain.Reaction", b =>

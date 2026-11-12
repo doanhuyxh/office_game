@@ -10,11 +10,15 @@ public sealed record MediaDto(Guid Id, MediaKind Kind, string FileName, string C
 
 public sealed record AudienceTargetDto(TargetKind Kind, Guid Id, string Name);
 
-/// <summary>Reactions = số lượng theo loại (chỉ loại &gt; 0). Với token AI: ContentHtml = null (chỉ có PlainText).</summary>
+/// <summary>
+/// PublishAt = giờ hẹn đăng (chỉ tác giả thấy bài chưa đăng). ViewCount = số người đã xem (chỉ tác giả / HR, người khác null).
+/// SharedPostId / SharedPost = bài gốc được chia sẻ (SharedPost null khi người xem không xem được bài gốc / bài gốc đã xoá).
+/// Reactions = số lượng theo loại (chỉ loại &gt; 0). Với token AI: ContentHtml = null (chỉ có PlainText).</summary>
 public sealed record PostDto(Guid Id, long Seq, AuthorDto Author, string? ContentHtml, string PlainText, PostAudience Audience,
     IReadOnlyList<AudienceTargetDto> Targets, bool CommentsDisabled, bool Pinned, DateTimeOffset CreatedAt, DateTimeOffset? EditedAt,
     bool Hidden, string? HiddenReason, IReadOnlyList<MediaDto> Media, int ReactionCount, IReadOnlyDictionary<ReactionType, int> Reactions,
-    ReactionType? MyReaction, int CommentCount, bool EmailSent, bool CanEdit, bool CanDelete, bool CanHide);
+    ReactionType? MyReaction, int CommentCount, bool EmailSent, bool CanEdit, bool CanDelete, bool CanHide,
+    DateTimeOffset? PublishAt = null, int? ViewCount = null, Guid? SharedPostId = null, PostDto? SharedPost = null);
 
 public sealed record FeedDto(IReadOnlyList<PostDto> Pinned, IReadOnlyList<PostDto> Items, long? NextCursor);
 
@@ -26,12 +30,21 @@ public sealed record CommentPageDto(IReadOnlyList<CommentDto> Items, bool HasMor
 
 public sealed record TargetRequest(TargetKind Kind, Guid Id);
 
+/// <summary>PublishAt = hẹn giờ đăng (null = đăng ngay). SharedPostId = chia sẻ lại bài này (nội dung được để trống).</summary>
 public sealed record PostRequest(string? ContentHtml, PostAudience Audience, List<TargetRequest>? Targets, List<Guid>? UploadIds,
-    bool SendEmail, bool CommentsDisabled);
+    bool SendEmail, bool CommentsDisabled, DateTimeOffset? PublishAt = null, Guid? SharedPostId = null);
 
 /// <summary>Sửa bài: không đổi được SendEmail; RemoveMediaIds gỡ tệp cũ, UploadIds thêm tệp mới.</summary>
+/// <summary>Bài đang hẹn giờ: PublishAt = đổi giờ hẹn (null = giữ), PublishNow = đăng ngay. Bài đã đăng bỏ qua hai trường này.</summary>
 public sealed record EditPostRequest(string? ContentHtml, PostAudience Audience, List<TargetRequest>? Targets, List<Guid>? UploadIds,
-    List<Guid>? RemoveMediaIds, bool CommentsDisabled);
+    List<Guid>? RemoveMediaIds, bool CommentsDisabled, DateTimeOffset? PublishAt = null, bool PublishNow = false);
+
+public sealed record ViewsRequest(List<Guid>? PostIds);
+
+public sealed record ViewerDto(Guid UserId, string Name, string? Code, string? DepartmentName, DateTimeOffset ViewedAt);
+
+/// <summary>Count = số người đã xem; AudienceCount = số người trong phạm vi bài (trừ tác giả) để hiện "đã xem x / y".</summary>
+public sealed record ViewersDto(int Count, int AudienceCount, IReadOnlyList<ViewerDto> Items);
 
 public sealed record CommentRequest(string? Text, Guid? ParentId, Guid? UploadId);
 

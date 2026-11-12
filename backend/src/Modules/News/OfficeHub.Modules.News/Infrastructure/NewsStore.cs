@@ -44,7 +44,7 @@ public sealed class NewsStore(NewsDbContext db, IEmployeeDirectory directory, IA
     private async Task<Dictionary<Guid, Guid?>> ParentMapAsync(CancellationToken ct) =>
         (await directory.ListDepartmentsAsync(ct)).ToDictionary(d => d.Id, d => d.ParentId);
 
-    /// <summary>Bài người xem thấy được (chưa xoá; bài ẩn chỉ tác giả + HR thấy).</summary>
+    /// <summary>Bài người xem thấy được (chưa xoá; bài ẩn chỉ tác giả + HR thấy; bài hẹn giờ chưa đăng chỉ tác giả thấy).</summary>
     public IQueryable<Post> Visible(Viewer v)
     {
         var me = v.UserId;
@@ -52,6 +52,7 @@ public sealed class NewsStore(NewsDbContext db, IEmployeeDirectory directory, IA
         var hr = v.IsHr;
         return db.Posts.Where(p => p.DeletedAt == null
             && (p.HiddenAt == null || p.AuthorUserId == me || hr)
+            && (p.PublishAt == null || p.AuthorUserId == me)
             && (p.AuthorUserId == me || p.Audience == PostAudience.Company
                 || (p.Audience == PostAudience.Departments && p.Targets.Any(t => t.Kind == TargetKind.Department && depts.Contains(t.TargetId)))
                 || (p.Audience == PostAudience.Custom && p.Targets.Any(t => t.Kind == TargetKind.User && t.TargetId == me))));
@@ -113,9 +114,22 @@ public sealed class NewsStore(NewsDbContext db, IEmployeeDirectory directory, IA
 
     // ---------------- DTO ----------------
 
-    public async Task<IReadOnlyList<PostDto>> ToDtosAsync(IReadOnlyList<Post> posts, Viewer v, bool forAi, CancellationToken ct)
+    public async Task<IReadOnlyList<PostDto>> ToDtosAsync(IReadOnlyList<Post> posts, Viewer v, bool forAi, CancellationToken ct, bool withShared = true)
     {
         if (posts.Count == 0) return [];
+        // Bài gốc của các bài chia sẻ — chỉ những bài người xem tự xem được (chia sẻ không mở rộng phạm vi)
+        var sharedIds = withShared ? posts.Where(p => p.SharedPostId is not null).Select(p => p.SharedPostId!.Value).Distinct().ToList() : [];
+        var shared = new Dictionary<Guid, PostDto>();
+        if (sharedIds.Count > 0)
+        {
+            var originals = await Visible(v).AsNoTracking().AsSplitQuery().Include(p => p.Targets).Include(p => p.Media)
+                .Where(p => sharedIds.Contains(p.Id) && p.PublishAt == null).ToListAsync(ct);
+            foreach (var d in await ToDtosAsync(originals, v, forAi, ct, withShared: false)) shared[d.Id] = d;
+        }
+        // "Đã xem": chỉ tác giả + HR
+        var statIds = posts.Where(p => p.AuthorUserId == v.UserId || v.IsHr).Select(p => p.Id).ToList();
+        var views = statIds.Count == 0 ? [] : await db.Views.AsNoTracking().Where(x => statIds.Contains(x.PostId))
+            .GroupBy(x => x.PostId).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
         var ids = posts.Select(p => p.Id).ToList();
         var reacts = await db.Reactions.AsNoTracking().Where(r => r.TargetType == TargetType.Post && ids.Contains(r.TargetId))
             .GroupBy(r => new { r.TargetId, r.Type }).Select(g => new { g.Key.TargetId, g.Key.Type, N = g.Count() }).ToListAsync(ct);
@@ -137,7 +151,9 @@ public sealed class NewsStore(NewsDbContext db, IEmployeeDirectory directory, IA
                 p.Targets.Select(t => new AudienceTargetDto(t.Kind, t.TargetId, names.GetValueOrDefault((t.Kind, t.TargetId), "?"))).ToList(),
                 p.CommentsDisabled, p.PinnedUntil > now, p.CreatedAt, p.EditedAt, p.HiddenAt is not null, own || v.IsHr ? p.HiddenReason : null, media,
                 p.ReactionCount, reacts.Where(r => r.TargetId == p.Id).ToDictionary(r => r.Type, r => r.N), mine.TryGetValue(p.Id, out var mt) ? mt : null,
-                p.CommentCount, p.SendEmail, own, own || v.IsHr, v.IsHr));
+                p.CommentCount, p.SendEmail, own, own || v.IsHr, v.IsHr,
+                p.PublishAt, own || v.IsHr ? views.GetValueOrDefault(p.Id) : null,
+                p.SharedPostId, p.SharedPostId is { } sid ? shared.GetValueOrDefault(sid) : null));
         }
         return list;
     }

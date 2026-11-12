@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { EyeOff, Megaphone, MessageCircle, MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
+import { CalendarClock, Eye, EyeOff, Megaphone, MessageCircle, MoreHorizontal, Pencil, Pin, PinOff, Share2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -11,8 +11,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/common/tooltip';
 import { timeAgo } from '@/features/notifications';
 import { cn } from '@/utils/cn';
+import { formatDateTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
-import { useDeletePost, useModeratePost, useReactPost } from '../../hooks/useNews';
+import { trackPostView, useDeletePost, useModeratePost, useReactPost } from '../../hooks/useNews';
 import type { IPost } from '../../types/news.types';
 import { AUDIENCE } from '../../utils/labels';
 import { AuthorAvatar } from '../author-avatar';
@@ -22,6 +23,8 @@ import { MediaGrid } from '../media-grid';
 import { ReactionButton, ReactionSummaryLine } from '../reaction-bar';
 import { ReasonDialog } from '../reason-dialog';
 import { RichContent } from '../rich-content';
+import { SharedPost } from '../shared-post';
+import { ViewersDialog } from '../viewers-dialog';
 
 const COLLAPSE_CHARS = 500;
 
@@ -32,19 +35,43 @@ export function PostCard({ post, expanded, focusComment }: { post: IPost; expand
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [hiding, setHiding] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [viewersOpen, setViewersOpen] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const scheduled = !!post.publishAt;
+  const own = post.canEdit;
+
+  // "Đã xem": bài của người khác hiện ≥ 50% trên màn hình trong 1 giây
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el || own || scheduled || typeof IntersectionObserver === 'undefined') return;
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) t ??= setTimeout(() => { trackPostView(post.id); io.disconnect(); }, 1000);
+      else if (t) { clearTimeout(t); t = null; }
+    }, { threshold: 0.5 });
+    io.observe(el);
+    return () => { if (t) clearTimeout(t); io.disconnect(); };
+  }, [post.id, own, scheduled]);
   const react = useReactPost();
   const del = useDeletePost();
   const mod = useModeratePost();
   const Aud = AUDIENCE[post.audience].icon;
   const long = post.plainText.length > COLLAPSE_CHARS || post.plainText.split('\n').length > 8;
-  const canPin = post.canHide && post.audience === 'Company' && !post.hidden;
+  const canPin = post.canHide && post.audience === 'Company' && !post.hidden && !scheduled;
   const hasMenu = post.canEdit || post.canDelete || post.canHide;
   const audienceNames = post.audience === 'Company' || post.audience === 'Private' ? AUDIENCE[post.audience].hint : post.targets.map((t) => t.name).join(', ');
   const fail = (e: unknown) => toast.error(errorMessage(e));
 
   return (
-    <Card className={cn('gap-3 p-4', post.hidden && 'border-warning/60')} data-testid="post-card" data-post-id={post.id}>
+    <Card ref={cardRef} className={cn('gap-3 p-4', post.hidden && 'border-warning/60', scheduled && 'border-dashed')} data-testid="post-card" data-post-id={post.id}>
       {post.pinned && <p className="-mb-1 flex items-center gap-1 text-xs font-medium text-primary"><Pin className="size-3" /> Bài được ghim</p>}
+      {scheduled && (
+        <p className="-mb-1 flex items-center gap-1 text-xs font-medium text-primary" data-testid="scheduled-banner">
+          <CalendarClock className="size-3" /> Hẹn đăng lúc {formatDateTime(post.publishAt!)} — chỉ bạn thấy cho tới lúc đăng
+        </p>
+      )}
+      {post.sharedPostId && <p className="-mb-1 flex items-center gap-1 text-xs text-muted-foreground"><Share2 className="size-3" /> đã chia sẻ một bài viết</p>}
       <div className="flex items-start gap-3">
         <AuthorAvatar author={post.author} className="size-10" />
         <div className="min-w-0 flex-1">
@@ -92,10 +119,16 @@ export function PostCard({ post, expanded, focusComment }: { post: IPost; expand
         </div>
       )}
       {post.media.length > 0 && <MediaGrid media={post.media} />}
+      {post.sharedPostId && <SharedPost post={post.sharedPost} />}
 
-      {(post.reactionCount > 0 || post.commentCount > 0) && (
-        <div className="flex items-center justify-between">
+      {(post.reactionCount > 0 || post.commentCount > 0 || post.viewCount != null) && (
+        <div className="flex items-center justify-between gap-3">
           <ReactionSummaryLine kind="posts" id={post.id} total={post.reactionCount} counts={post.reactions} />
+          {post.viewCount != null && !scheduled && (
+            <button type="button" className="ms-auto inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline" onClick={() => setViewersOpen(true)} data-testid="view-count">
+              <Eye className="size-3.5" /> {post.viewCount} đã xem
+            </button>
+          )}
           {post.commentCount > 0 && (
             <button type="button" className="ms-auto text-sm text-muted-foreground hover:underline" onClick={() => setShowComments((s) => !s)} data-testid="comment-count">{post.commentCount} bình luận</button>
           )}
@@ -106,10 +139,17 @@ export function PostCard({ post, expanded, focusComment }: { post: IPost; expand
         <button type="button" className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent" onClick={() => setShowComments((s) => !s)} data-testid="toggle-comments">
           <MessageCircle className="size-4" /> Bình luận
         </button>
+        {!scheduled && !post.hidden && (post.sharedPostId ? !!post.sharedPost : true) && (
+          <button type="button" className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent" onClick={() => setSharing(true)} data-testid="share-post">
+            <Share2 className="size-4" /> Chia sẻ
+          </button>
+        )}
       </div>
       {showComments && <CommentsSection postId={post.id} disabled={post.commentsDisabled || post.hidden} focusId={focusComment} />}
 
       {editing && <ComposerDialog open post={post} onOpenChange={setEditing} />}
+      {sharing && <ComposerDialog open sharing={post} onOpenChange={setSharing} />}
+      {viewersOpen && <ViewersDialog postId={post.id} open onOpenChange={setViewersOpen} />}
       <ReasonDialog open={hiding} title="Ẩn bài viết" description="Tác giả sẽ nhận được lý do này. Bài vẫn hiện với tác giả và quản trị." confirmLabel="Ẩn bài"
         busy={mod.hide.isPending} onClose={() => setHiding(false)}
         onConfirm={(reason) => mod.hide.mutate({ id: post.id, reason }, { onSuccess: () => setHiding(false), onError: fail })} />
