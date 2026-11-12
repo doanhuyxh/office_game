@@ -53,7 +53,7 @@ function reorder(ids: string[], id: string, target: string) {
 /**
  * Kanban theo cột trạng thái tự do của dự án (cao hết màn hình, cuộn ngang khi nhiều cột, mỗi cột tự cuộn bên trong).
  * Thành viên kéo thẻ sang cột khác; bấm thẻ để sửa / bình luận; lọc "việc của tôi".
- * Chức vụ có quyền "Quản lý trạng thái công việc": kéo tiêu đề cột để sắp xếp, ⚙ để sửa tên / màu / cờ / xoá, "+ Thêm trạng thái" ở cuối.
+ * Chức vụ có quyền "Quản lý trạng thái công việc": kéo tiêu đề cột để sắp xếp, ⚙ để sửa tên / màu / cờ / xoá, nút "Thêm trạng thái" trên thanh công cụ.
  * Back-end kiểm quy trình (đi lần lượt, cột cần người duyệt) → toast lỗi; kéo lùi khi đi lần lượt → hỏi lý do trước.
  */
 export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId: string | null }) {
@@ -161,12 +161,6 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
             </div>
           );
         })}
-        {manage && (
-          <button type="button" onClick={() => setColEdit(null)} data-testid="add-column"
-            className="flex h-12 w-60 shrink-0 items-center justify-center gap-1 rounded-xl border border-dashed text-sm text-muted-foreground hover:border-primary/50 hover:text-foreground">
-            <Plus className="size-4" /> Thêm trạng thái
-          </button>
-        )}
       </div>
       <TaskDialog projectId={p.id} task={edit?.task ?? (edit ? null : undefined)} initialColumnId={edit?.columnId} columns={columns} members={d.members}
         milestones={d.milestones} canWork={p.canWork} canDelete={p.canManage} sequential={p.sequential} onClose={() => setEdit(null)} />
