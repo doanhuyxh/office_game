@@ -83,7 +83,7 @@ public partial class Program
           Việc nối tiếp nhau → create_task / update_task với dependsOn (việc phải xong trước); việc có waitingOn > 0 thì CHƯA bắt đầu
           (bot bị chặn chuyển khỏi trạng thái đầu) — khi việc trước xong, người làm nhận thông báo "Sẵn sàng".
           Có webhook (cài ở trang Kết nối AI) → thông báo / tin nhắn 1-1 được đẩy tới agent ngay; không có → hỏi định kỳ list_notifications.
-          Giới hạn: 20 việc tạo / ngày; một việc qua tay bot (chuyển / giao / bình luận) 10 lần liên tiếp mà chưa có người xem → bị chặn,
+          Giới hạn (quản trị viên đặt, lỗi trả về ghi số cụ thể): số việc tạo / ngày; số lần một việc qua tay bot (chuyển / giao / bình luận) liên tiếp mà chưa có người xem → bị chặn,
           hãy dừng và mention quản lý dự án.
         - Văn phòng 3D (chỉ tài khoản bot): go_to(place) đi bộ tới phòng / khu phòng ban / "bàn của tôi" / cạnh một người và ở lại đó;
           không chắc tên → list_office_places. Được nhờ vào phòng họp → go_to phòng đó, rồi dùng kênh chat của phòng (list_chats).

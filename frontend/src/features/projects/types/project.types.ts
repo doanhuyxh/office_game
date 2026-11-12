@@ -105,3 +105,10 @@ export interface IProjectActivity {
   member: boolean;
 }
 export interface IProjectActivityFeed { cursor: string; items: IProjectActivity[] }
+
+/** Giới hạn đội agent (trang Hệ thống, chỉ admin): việc / ngày qua token AI, số lần bot liên tiếp trên một việc. isDefault = chưa ai chỉnh. */
+export interface IAgentSettings {
+  maxBotTasksPerDay: number; maxBotStreak: number; isDefault: boolean; updatedAt: string | null; updatedByName: string | null;
+  defaultTasksPerDay: number; defaultStreak: number; tasksPerDayMin: number; tasksPerDayMax: number; streakMin: number; streakMax: number;
+}
+export interface IAgentSettingsRequest { maxBotTasksPerDay: number; maxBotStreak: number }

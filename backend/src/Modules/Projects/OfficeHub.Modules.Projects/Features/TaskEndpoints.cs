@@ -149,7 +149,8 @@ internal static class TaskEndpoints
             .Select(c => new { c.CreatedAt, c.ByBot }).ToListAsync(ct);
         var events = acts.Select(a => new TaskEvent(a.At, a.ByBot, a.Kind is TaskActivityKind.Moved or TaskActivityKind.Assigned))
             .Concat(comments.Select(c => new TaskEvent(c.CreatedAt, c.ByBot, true))); // bình luận bot cũng tính: chặn hai bot @nhắc nhau qua lại
-        return AgentTeamRules.StreakAllows(AgentTeamRules.BotStreak(events)) ? null : AgentTeamRules.StreakMessage;
+        var limit = (await db.AgentLimitsAsync(ct)).Streak;
+        return AgentTeamRules.StreakAllows(AgentTeamRules.BotStreak(events), limit) ? null : AgentTeamRules.StreakMessage(limit);
     }
 
     private static TaskActivity Activity(TaskItem t, TaskActivityKind kind, ProjectViewer v, ClaimsPrincipal user, DateTimeOffset now,
@@ -248,8 +249,9 @@ internal static class TaskEndpoints
             var since = clock.StartOfToday;
             var me = v.Employee?.Id;
             var createdToday = await db.Activities.CountAsync(a => a.Kind == TaskActivityKind.Created && a.ByBot && a.ActorEmployeeId == me && a.At >= since, ct);
-            if (!AgentTeamRules.TaskQuotaLeft(createdToday))
-                return TypedResults.Problem(AgentTeamRules.TaskQuotaMessage, statusCode: StatusCodes.Status429TooManyRequests);
+            var limit = (await db.AgentLimitsAsync(ct)).TasksPerDay;
+            if (!AgentTeamRules.TaskQuotaLeft(createdToday, limit))
+                return TypedResults.Problem(AgentTeamRules.TaskQuotaMessage(limit), statusCode: StatusCodes.Status429TooManyRequests);
         }
         for (var attempt = 0; ; attempt++)
         {

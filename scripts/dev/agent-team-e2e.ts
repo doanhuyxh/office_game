@@ -1,5 +1,6 @@
 // E2E: đội agent tự phối hợp qua bảng việc — (1) rào chắn + @nhắc, (2) webhook đánh thức agent, (3) việc phụ thuộc.
-// (1) token không bao giờ duyệt (kể cả quản lý dự án), 20 việc / ngày / tài khoản, chuỗi 10 thao tác bot liên tiếp → chặn tới khi người thật xem,
+// (1) token không bao giờ duyệt (kể cả quản lý dự án), N việc / ngày / tài khoản, chuỗi M thao tác bot liên tiếp → chặn tới khi người thật xem
+//     (N, M admin chỉnh ở /api/projects/agent-settings — TEST-36; script đặt N = 20, M = 10 lúc đầu, đặt lại mặc định lúc cuối),
 //     @mã-nhân-viên → chuông "nhắc bạn". (2) đặt / sửa / đổi khoá / gửi thử / xoá webhook (token 403), ký HMAC đúng, thông báo + tin 1-1 → webhook,
 //     URL chết → lỗi + thử lại. (3) chờ việc, chặn vòng / khác dự án, bot không bắt đầu việc còn chờ, việc trước xong → "Sẵn sàng" (+ webhook), MCP dependsOn.
 // CHỈ DB tạm. Api :5180 chạy ASPNETCORE_ENVIRONMENT=Development (cho phép webhook về localhost). MCP tuỳ chọn (MCP_URL).
@@ -111,6 +112,15 @@ const CODE = `AT-${stamp}`.toUpperCase();
 const pd = (await json(PM.cookie, 'GET', `/api/projects/${P}`)).body;
 const col = (n: string) => pd.columns.find((c: any) => c.name === n)!.id as string;
 const [TODO, DOING, REVIEW, DONE] = ['Cần làm', 'Đang làm', 'Chờ review', 'Xong'].map(col);
+// ---------- Giới hạn bot do admin đặt (TEST-36) ----------
+const gs = await json(admin, 'GET', '/api/projects/agent-settings');
+ok('admin xem giới hạn: mặc định 50 / 10, khoảng 1–500 / 1–100', gs.status === 200 && gs.body.defaultTasksPerDay === 50 && gs.body.defaultStreak === 10
+  && gs.body.tasksPerDayMax === 500 && gs.body.streakMax === 100, gs);
+ok('ngoài khoảng → 400 (cả hai trường)', (await json(admin, 'PUT', '/api/projects/agent-settings', { maxBotTasksPerDay: 0, maxBotStreak: 101 })).status === 400);
+const setLimits = await json(admin, 'PUT', '/api/projects/agent-settings', { maxBotTasksPerDay: 20, maxBotStreak: 10 });
+ok('admin đặt 20 / 10 → isDefault=false, có người sửa', setLimits.status === 200 && setLimits.body.isDefault === false && !!setLimits.body.updatedByName, setLimits);
+ok('quản lý dự án (không phải admin) xem / sửa → 403', (await json(PM.cookie, 'GET', '/api/projects/agent-settings')).status === 403
+  && (await json(PM.cookie, 'PUT', '/api/projects/agent-settings', { maxBotTasksPerDay: 500, maxBotStreak: 100 })).status === 403);
 const tk = async (token: string, method: string, path: string, body?: unknown) => {
   const r = await fetch(API + path, { method, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
   return { status: r.status, body: await r.json().catch(() => null) as any };
@@ -220,16 +230,31 @@ await newTask(L.token, 'Việc sau khi xoá webhook');
 await Bun.sleep(5000);
 ok('xoá rồi → không còn webhook', hits.length === 0, hits.map((h) => h.event));
 
-// ================= Hạn mức 20 việc / ngày =================
+// ================= Hạn mức việc / ngày (admin đặt 20 ở đầu script) =================
 // L đã tạo 5 việc qua token (T1, t2, A, B, việc sau khi xoá webhook) → còn 15 việc tới hạn mức 20
 let made = 0, quota: any = null;
 for (let i = 0; i < 25; i++) {
   const r = await newTask(L.token, `Việc hàng loạt ${i + 1}`, null);
   if (r.status === 201) made++; else { quota = r; break; }
 }
-ok('bot tạo tối đa 20 việc / ngày → việc thứ 21 → 429', quota?.status === 429 && made === 15, { made, quota });
+ok('bot tạo tối đa 20 việc / ngày → việc thứ 21 → 429, câu lỗi ghi 20', quota?.status === 429 && made === 15 && String(quota.body?.detail ?? '').includes('Đã tạo 20 việc'), { made, quota });
+ok('admin nâng lên 22 → bot tạo thêm đúng 2 việc', (await json(admin, 'PUT', '/api/projects/agent-settings', { maxBotTasksPerDay: 22, maxBotStreak: 10 })).status === 200
+  && (await newTask(L.token, 'Thêm 1', null)).status === 201 && (await newTask(L.token, 'Thêm 2', null)).status === 201 && (await newTask(L.token, 'Thêm 3', null)).status === 429);
 ok('người thật vẫn tạo việc bình thường', (await json(PM.cookie, 'POST', `/api/projects/${P}/tasks`, { title: 'Việc người tạo' })).status === 201);
 ok('bot khác (W) không bị ảnh hưởng', (await newTask(W.token, 'Việc của bot thợ', null)).status === 201);
+
+// Giới hạn chuỗi do admin đặt: 3 → lần bot thứ 4 liên tiếp → 409, câu lỗi ghi 3
+ok('token AI không xem / sửa được giới hạn (403)', (await tk(L.token, 'GET', '/api/projects/agent-settings')).status === 403
+  && (await tk(L.token, 'PUT', '/api/projects/agent-settings', { maxBotTasksPerDay: 500, maxBotStreak: 100 })).status === 403);
+ok('admin đặt chuỗi = 3', (await json(admin, 'PUT', '/api/projects/agent-settings', { maxBotTasksPerDay: 22, maxBotStreak: 3 })).status === 200);
+const t3 = (await json(PM.cookie, 'POST', `/api/projects/${P}/tasks`, { title: 'Việc thử chuỗi 3' })).body;
+const chain: number[] = [];
+for (let i = 0; i < 4; i++) chain.push((await tk(i % 2 ? W.token : L.token, 'POST', `/api/projects/tasks/${t3}/comments`, { content: `lượt ${i + 1}` })).status);
+const fourth = await tk(L.token, 'POST', `/api/projects/tasks/${t3}/comments`, { content: 'lượt 5' });
+ok('chuỗi = 3: 3 lần được, lần 4 → 409, câu lỗi ghi 3', JSON.stringify(chain) === '[201,201,201,409]' && fourth.status === 409
+  && String(fourth.body?.detail ?? '').includes('3 lần liên tiếp'), { chain, fourth });
+const reset = await json(admin, 'PUT', '/api/projects/agent-settings', { maxBotTasksPerDay: 50, maxBotStreak: 10 });
+ok('đặt lại 50 / 10', reset.status === 200 && reset.body.maxBotTasksPerDay === 50 && reset.body.maxBotStreak === 10, reset);
 
 // ================= MCP (tuỳ chọn) =================
 if (MCP) {

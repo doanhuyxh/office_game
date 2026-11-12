@@ -10,6 +10,7 @@ import { StatusBadge, type StatusTone } from '@/components/common/StatusBadge';
 import { Spinner } from '@/components/feedback/Spinner';
 import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
+import { AgentLimitsCard } from '@/features/projects';
 import { useTabParam } from '@/hooks/useTabParam';
 import { formatDateTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
@@ -110,6 +111,7 @@ const TABS = [
   { id: 'smtp', label: 'Email (SMTP)' },
   { id: 'storage', label: 'Lưu trữ S3' },
   { id: 'ops', label: 'Vận hành' },
+  { id: 'config', label: 'Cấu hình' },
 ] as const;
 
 /** Trang Hệ thống — chỉ quản trị viên (PAGE_ROLES + back-end AuthPolicies.Admin). Mỗi phần một tab, tab lưu trên URL (?tab=). */
@@ -175,6 +177,7 @@ export function SystemPage() {
 
         <TabsContent value="storage" className="mt-4"><StorageCard /></TabsContent>
         <TabsContent value="ops" className="mt-4"><OpsTab active={tab === 'ops'} /></TabsContent>
+        <TabsContent value="config" className="mt-4">{tab === 'config' && <AgentLimitsCard />}</TabsContent>
       </Tabs>
       <EmbedDialog link={embed} onClose={() => setEmbed(null)} />
     </div>

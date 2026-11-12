@@ -25,6 +25,12 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
     public DbSet<TaskComment> Comments => Set<TaskComment>();
     public DbSet<TaskActivity> Activities => Set<TaskActivity>();
     public DbSet<TaskDependency> Dependencies => Set<TaskDependency>();
+    public DbSet<AgentSettings> AgentSettings => Set<AgentSettings>();
+
+    /// <summary>Giới hạn đội agent đang áp dụng (đọc mỗi lần: chỉ request qua token AI cần, truy vấn theo khoá chính).</summary>
+    public async Task<AgentLimits> AgentLimitsAsync(CancellationToken ct) =>
+        await AgentSettings.AsNoTracking().Where(x => x.Id == Domain.AgentSettings.SingletonId)
+            .Select(x => new AgentLimits(x.MaxBotTasksPerDay, x.MaxBotStreak)).FirstOrDefaultAsync(ct) ?? AgentLimits.Default;
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -64,6 +70,12 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.HasKey(x => new { x.ProjectId, x.ContractId });
             e.HasIndex(x => x.ContractId).IsUnique().HasDatabaseName("ux_project_contracts_contract"); // một hợp đồng chỉ thuộc một dự án
             e.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<AgentSettings>(e =>
+        {
+            e.ToTable("agent_settings");
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.UpdatedByName).HasMaxLength(200);
         });
         b.Entity<AllocationFreeze>(e =>
         {

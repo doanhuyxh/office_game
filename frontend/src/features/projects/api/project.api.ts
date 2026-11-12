@@ -1,7 +1,7 @@
 import { http, httpPost } from '@/services/api-client';
 import type {
   IComment, IEffort, ITaskDetail, IInstallmentRef, IMilestoneRequest, IProject, IProjectDetail, IProjectFinancials, IProjectRequest, ISalesContractRef, ITask, ITaskRequest, MemberRole,
-  ProjectStatus, ITaskColumnRequest, ChangeRequestStatus, IChangeRequest, IChangeRequestRequest, IProjectActivityFeed,
+  ProjectStatus, ITaskColumnRequest, ChangeRequestStatus, IChangeRequest, IChangeRequestRequest, IProjectActivityFeed, IAgentSettings, IAgentSettingsRequest,
 } from '../types/project.types';
 
 const base = '/api/projects';
@@ -21,6 +21,7 @@ export const projectKeys = {
   financials: (id: string) => ['projects', 'financials', id] as const,
   changeRequests: (id: string) => ['projects', 'change-requests', id] as const,
   allFinancials: (status: ProjectStatus | undefined) => ['projects', 'financials', 'all', status] as const,
+  agentSettings: ['projects', 'agent-settings'] as const,
 };
 
 export const projectApi = {
@@ -60,4 +61,6 @@ export const projectApi = {
   addComment: (tid: string, content: string) => httpPost<string>(`${base}/tasks/${tid}/comments`, { content }),
   activity: (after: string | null) => http<IProjectActivityFeed>(`${base}/activity${after ? `?after=${encodeURIComponent(after)}` : ''}`),
   setDependencies: (tid: string, dependsOn: string[]) => send<void>('PUT', `${base}/tasks/${tid}/dependencies`, { dependsOn }),
+  agentSettings: () => http<IAgentSettings>(`${base}/agent-settings`),
+  saveAgentSettings: (b: IAgentSettingsRequest) => send<IAgentSettings>('PUT', `${base}/agent-settings`, b),
 };

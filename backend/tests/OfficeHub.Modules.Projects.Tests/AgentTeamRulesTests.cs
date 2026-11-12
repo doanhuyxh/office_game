@@ -28,13 +28,35 @@ public class AgentTeamRulesTests
         Assert.Equal(1, AgentTeamRules.BotStreak([Bot(5), Human(3), Bot(1)]));
 
     [Fact]
-    public void Limits()
+    public void Limits_use_the_configured_values()
     {
-        Assert.True(AgentTeamRules.StreakAllows(9));
-        Assert.False(AgentTeamRules.StreakAllows(10));
-        Assert.True(AgentTeamRules.TaskQuotaLeft(AgentTeamRules.MaxBotTasksPerDay - 1));
-        Assert.False(AgentTeamRules.TaskQuotaLeft(AgentTeamRules.MaxBotTasksPerDay));
+        Assert.True(AgentTeamRules.StreakAllows(9, 10));
+        Assert.False(AgentTeamRules.StreakAllows(10, 10));
+        Assert.False(AgentTeamRules.StreakAllows(3, 3));
+        Assert.True(AgentTeamRules.TaskQuotaLeft(49, 50));
+        Assert.False(AgentTeamRules.TaskQuotaLeft(50, 50));
+        Assert.False(AgentTeamRules.TaskQuotaLeft(2, 2));
     }
+
+    [Fact]
+    public void Defaults_are_50_tasks_and_10_in_a_row() => Assert.Equal(new AgentLimits(50, 10), AgentLimits.Default);
+
+    [Fact]
+    public void Messages_show_the_real_limit()
+    {
+        Assert.Contains("Đã tạo 7 việc", AgentTeamRules.TaskQuotaMessage(7));
+        Assert.Contains("3 lần liên tiếp", AgentTeamRules.StreakMessage(3));
+    }
+
+    [Theory]
+    [InlineData(1, 1, 0)]
+    [InlineData(500, 100, 0)]
+    [InlineData(0, 10, 1)]
+    [InlineData(501, 10, 1)]
+    [InlineData(50, 0, 1)]
+    [InlineData(50, 101, 1)]
+    [InlineData(0, 0, 2)]
+    public void Limit_ranges(int tasks, int streak, int errors) => Assert.Equal(errors, AgentTeamRules.LimitErrors(tasks, streak).Count);
 
     [Theory]
     [InlineData("@NV012 xem giúp", new[] { "NV012" })]

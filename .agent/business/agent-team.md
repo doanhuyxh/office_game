@@ -9,9 +9,11 @@ Chủ dự án hỏi 2026-11-11 "đội agent tự làm việc với nhau đư�
 | Luật | Chi tiết |
 |---|---|
 | Token **không bao giờ duyệt** | `CanApprove = CanManage && !IsAccessToken()` → không chuyển vào / ra cột `ApproverOnly`, không tạo việc ở đó, `TaskDetailDto.canApprove = false` — kể cả quản lý dự án / HR dùng Claude |
-| ≤ **20 việc / ngày** / tài khoản qua token | đếm `task_activities` Kind=Created, ByBot, `ActorEmployeeId`, từ 0 giờ VN (`ProjectClock.StartOfToday`) → 429 |
-| Chuỗi bot ≤ **10** | một việc có 10 thao tác bot liên tiếp (chuyển trạng thái / giao người / bình luận / đặt việc chờ; tạo + sửa nội dung không tính) mà chưa có sự kiện của người thật → 409 với mọi thao tác bot trên việc đó cho tới khi người thật bình luận / thao tác. Chặn 2 bot @nhắc nhau qua lại |
+| ≤ **N việc / ngày** / tài khoản qua token (mặc định 50) | đếm `task_activities` Kind=Created, ByBot, `ActorEmployeeId`, từ 0 giờ VN (`ProjectClock.StartOfToday`) → 429 |
+| Chuỗi bot ≤ **M** (mặc định 10) | một việc có M thao tác bot liên tiếp (chuyển trạng thái / giao người / bình luận / đặt việc chờ; tạo + sửa nội dung không tính) mà chưa có sự kiện của người thật → 409 với mọi thao tác bot trên việc đó cho tới khi người thật bình luận / thao tác. Chặn 2 bot @nhắc nhau qua lại |
 | **@mã-nhân-viên** trong bình luận | `MentionedCodes` (không dính email, ≤ 10, bỏ dấu câu cuối) → chuông "X nhắc bạn trong việc …" cho **thành viên dự án** được nhắc (trừ người viết và người làm việc — đã có chuông bình luận). Tool `comment_task` thêm `mention` (mã / tên thành viên → chèn `@mã`; người ngoài dự án → lỗi) |
+
+**N, M do admin chỉnh** (TEST-36, 2026-11-12): bảng một dòng `projects.agent_settings` (`[Audited]`, migration `AgentSettings`; chưa có dòng → `AgentLimits.Default` 50 / 10). `GET / PUT /api/projects/agent-settings` `{ maxBotTasksPerDay 1–500, maxBotStreak 1–100 }` chỉ `AuthPolicies.Admin`, ngoài allowlist token AI (bot không tự nới). Đọc DB mỗi request token AI (không cache) → áp dụng ngay; câu lỗi ghi số thật. FE: `/system?tab=config` → thẻ "Giới hạn trợ lý AI" (`features/projects` `AgentLimitsCard`).
 
 ## 2. Webhook cá nhân (module Notification) — "đánh thức agent"
 

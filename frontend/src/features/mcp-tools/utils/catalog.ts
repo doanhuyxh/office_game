@@ -337,7 +337,7 @@ export const MCP_TOOL_GROUPS: McpToolGroup[] = [
       { name: 'list_my_tasks', title: 'Việc của tôi', kind: 'read', endpoint: 'GET /api/projects/tasks/mine',
         description: 'Việc chưa xong được giao cho tôi ở mọi dự án (tối đa 200), sắp theo hạn.', params: [] },
       { name: 'create_task', title: 'Tạo việc trong dự án', kind: 'write', endpoint: 'POST /api/projects/{id}/tasks (+ PUT /tasks/{id}/dependencies)',
-        description: 'Tạo việc trên kanban (chỉ thành viên, dự án đang chạy). Người được giao nhận chuông. Hạn không trước hôm nay. Dự án đi lần lượt: việc mới chỉ ở các trạng thái trước trạng thái cần duyệt / hoàn thành đầu tiên. Đang trò chuyện → AI xác nhận trước khi gọi; chạy tự động → theo hướng dẫn làm việc của dự án; bot trưởng nhóm giao việc cho thành viên (người hoặc bot). Qua trợ lý AI tối đa 20 việc / ngày / tài khoản. Hiện nhãn BOT.',
+        description: 'Tạo việc trên kanban (chỉ thành viên, dự án đang chạy). Người được giao nhận chuông. Hạn không trước hôm nay. Dự án đi lần lượt: việc mới chỉ ở các trạng thái trước trạng thái cần duyệt / hoàn thành đầu tiên. Đang trò chuyện → AI xác nhận trước khi gọi; chạy tự động → theo hướng dẫn làm việc của dự án; bot trưởng nhóm giao việc cho thành viên (người hoặc bot). Qua trợ lý AI có giới hạn số việc / ngày / tài khoản (quản trị viên đặt ở Hệ thống → Cấu hình, mặc định 50). Hiện nhãn BOT.',
         params: [
           { name: 'project', type: 'string', required: true, description: 'Id hoặc mã dự án' },
           { name: 'title', type: 'string', required: true, description: 'Tên việc (≤ 300 ký tự)' },

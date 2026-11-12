@@ -17,6 +17,8 @@ export const useInstallments = (projectId: string | null | undefined) =>
 /** Lãi / lỗ — chỉ bật khi có quyền Xem tài chính (back-end trả 403 nếu không). */
 export const useFinancials = (id: string, enabled: boolean) => useQuery({ queryKey: projectKeys.financials(id), queryFn: () => projectApi.financials(id), enabled });
 export const useChangeRequests = (id: string) => useQuery({ queryKey: projectKeys.changeRequests(id), queryFn: () => projectApi.changeRequests(id) });
+/** Giới hạn đội agent — chỉ admin (back-end 403 nếu không). */
+export const useAgentSettings = () => useQuery({ queryKey: projectKeys.agentSettings, queryFn: projectApi.agentSettings });
 export const useAllFinancials = (status: ProjectStatus | undefined, enabled: boolean) =>
   useQuery({ queryKey: projectKeys.allFinancials(status), queryFn: () => projectApi.allFinancials(status), enabled });
 

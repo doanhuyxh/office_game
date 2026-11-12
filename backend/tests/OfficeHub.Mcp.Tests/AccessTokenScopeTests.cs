@@ -165,6 +165,8 @@ public class ProjectDocumentScopeTests
     [InlineData("GET", "/api/projects/" + G + "/change-requests")]
     [InlineData("POST", "/api/projects")]                                 // tạo / sửa dự án, thành viên, phân bổ, mốc: chỉ web
     [InlineData("PUT", "/api/projects/" + G)]
+    [InlineData("GET", "/api/projects/agent-settings")]                   // giới hạn bot: chỉ admin trên web, bot không tự nới (TEST-36)
+    [InlineData("PUT", "/api/projects/agent-settings")]
     [InlineData("GET", "/api/projects/" + G + "/guide")]
     [InlineData("PUT", "/api/projects/" + G + "/guide/x")]
     [InlineData("POST", "/api/projects/" + G + "/members")]

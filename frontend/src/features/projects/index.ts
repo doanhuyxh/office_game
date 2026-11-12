@@ -2,3 +2,4 @@
 export { ProjectsPage } from './components/projects-page';
 export { ProjectDetailPage } from './components/project-detail-page';
 export { ProjectLiveUpdates } from './components/project-live-updates';
+export { AgentLimitsCard } from './components/agent-limits-card';

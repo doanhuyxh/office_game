@@ -86,6 +86,22 @@ public sealed class Allocation
 /// Tháng đã chốt phân bổ (<c>AllocationFreezeJob</c>, đầu tháng sau): % mặc định đã ghi thành dòng <see cref="Allocation"/> → thêm / bỏ thành viên về sau
 /// không làm đổi ngày công / chi phí của tháng này. Sửa % tháng đã chốt: chỉ HR hoặc quyền Quản trị tài chính.
 /// </summary>
+/// <summary>
+/// Giới hạn đội agent do quản trị viên đặt ở trang Hệ thống (TEST-36). Bảng một dòng (<see cref="SingletonId"/>); chưa có dòng → <see cref="AgentLimits.Default"/>.
+/// </summary>
+[Audited]
+public sealed class AgentSettings
+{
+    public const int SingletonId = 1;
+    public int Id { get; set; } = SingletonId;
+    /// <summary>Số việc một tài khoản được tạo / ngày qua token AI.</summary>
+    public int MaxBotTasksPerDay { get; set; }
+    /// <summary>Số lần một việc qua tay bot liên tiếp (chưa có người thật xem) trước khi bot bị chặn trên việc đó.</summary>
+    public int MaxBotStreak { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+    public string? UpdatedByName { get; set; }
+}
+
 public sealed class AllocationFreeze
 {
     /// <summary>Ngày 1 của tháng.</summary>

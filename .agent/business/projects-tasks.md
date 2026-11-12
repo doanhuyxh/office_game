@@ -30,7 +30,7 @@
 
 ## BOT + MCP
 
-- **Đội agent** (2026-11-11): token không bao giờ duyệt, ≤ 20 việc / ngày, chuỗi bot ≤ 10, @mã-nhân-viên, việc phụ thuộc (`waitingOn`, "Sẵn sàng") — [agent-team.md](agent-team.md).
+- **Đội agent** (2026-11-11): token không bao giờ duyệt, giới hạn việc / ngày + chuỗi bot do admin đặt (mặc định 50 / 10), @mã-nhân-viên, việc phụ thuộc (`waitingOn`, "Sẵn sàng") — [agent-team.md](agent-team.md).
 
 - Mọi thay đổi qua token AI / MCP (`ClaimsPrincipal.IsAccessToken()`) → `tasks.CreatedByBot`, `task_comments.ByBot`, `task_activities.ByBot`; FE chip BOT. Bot = tài khoản nhân viên bình thường.
 - Tool `update_task_status` / `create_task` / `list_project_tasks` nhận **tên hoặc id cột** (so không phân biệt hoa thường / dấu; bí danh `todo` = cột đầu, `done` / `xong` = cột hoàn thành đầu tiên; tên lạ → lỗi liệt kê các cột). `get_project` / `get_task` trả `columns` + `sequential`.

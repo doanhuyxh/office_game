@@ -38,6 +38,7 @@ public sealed class ProjectsModule : IModule
         TaskEndpoints.Map(g);       // trước ProjectEndpoints: "/tasks/mine" không bị "/{id:guid}" nuốt (guid constraint đã chặn, giữ thứ tự cho rõ)
         TaskColumnEndpoints.Map(g);
         ActivityFeedEndpoints.Map(g); // /activity — bảng việc tự cập nhật + toast
+        AgentSettingsEndpoints.Map(g); // /agent-settings — giới hạn bot, chỉ admin
         MilestoneEndpoints.Map(g);
         ChangeRequestEndpoints.Map(g);
         ProjectEndpoints.Map(g);
