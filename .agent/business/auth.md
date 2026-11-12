@@ -21,7 +21,7 @@ Việc **cấp tài khoản cho nhân viên** do HR làm ở module Organization
 
 - `login` khớp `UserName` trước, rồi `Email` (`FindByNameAsync` ?? `FindByEmailAsync`). Tên đăng nhập của nhân viên mặc định = mã nhân viên (`NV001`).
 - Không tìm thấy hoặc `IsActive=false` → 401 `"Sai tài khoản hoặc mật khẩu"` (không phân biệt để tránh dò tài khoản).
-- Bị khoá → **423** `"Tài khoản tạm khoá do đăng nhập sai nhiều lần, thử lại sau 15 phút"`.
+- Mọi thất bại (sai mật khẩu, không có tài khoản, tài khoản nghỉ / đang khoá, bị chặn) → **cùng 401** `AuthEndpoints.LoginFailedMessage` (không còn 423 ở bước mật khẩu); tài khoản không tồn tại vẫn băm mật khẩu giả → không dò được bằng thời gian ([auth-sessions.md](auth-sessions.md#đăng-nhập--hạn-mức)).
 - Đã bật 2FA → 403 `title: "2fa_required"` + cookie tạm → bước 2 `POST /auth/login/2fa`. Admin / hr chưa bật → vào được nhưng bị buộc bật ([auth-2fa.md](auth-2fa.md)).
 - Thành công → cập nhật `LastLoginAt`.
 - **Mỗi lúc chỉ 1 thiết bị** (chốt 2026-11-08): đăng nhập thành công (bước mật khẩu nếu không 2FA, hoặc sau khi xác thực 2FA xong) → `UserManager.UpdateSecurityStampAsync` đổi security stamp rồi **đăng nhập lại** (`SignInAsync` / 2FA: `SignInWithClaimsAsync` + `amr=mfa`) để cấp cookie stamp mới cho **chính thiết bị vừa đăng nhập**. ⚠ **Không dùng `RefreshSignInAsync`** ở đây: nó chỉ cấp lại khi request đã có cookie đăng nhập — request `/login` chưa có → cookie vừa cấp mang stamp cũ → 401 ngay (lỗi của bản đầu `b063b06`, sửa 2026-11-08). Phản hồi đăng nhập có **2 `Set-Cookie: officehub.auth`**, trình duyệt giữ cái sau. Thiết bị khác (nếu đang mở) có cookie mang stamp cũ → bị 401 ở request kế tiếp (cùng cơ chế "Kiểm tra security stamp ở mọi request" bên dưới) → FE tự chuyển về `/login` (`App.tsx`, `onUnauthorized`). Áp dụng cho web; **không** ảnh hưởng token AI (`ohk_…`, scheme Bearer riêng, không qua stamp cookie). Mở nhiều tab **cùng** trình duyệt vẫn bình thường (không đăng nhập lại = không đổi stamp).
@@ -29,9 +29,9 @@ Việc **cấp tài khoản cho nhân viên** do HR làm ở module Organization
 | Quy tắc | Giá trị (`IdentityModule.cs`) |
 |---|---|
 | Mật khẩu | ≥ 8 ký tự, có chữ số, có chữ thường; không bắt buộc chữ hoa / ký tự đặc biệt |
-| Khoá | 5 lần sai → khoá 15 phút |
-| Rate limit (`RateLimits.Auth`) | 30 request / phút / (IP + path) cho login, forgot-password, reset-password → 429 |
-| Token link email | `DataProtectionTokenProviderOptions.TokenLifespan` = 72 giờ; dùng một lần (đổi security stamp) |
+| Khoá / chặn | Đăng nhập: `LoginThrottle` — 5 lần sai / 15 phút **theo tài khoản + IP** (chỉ IP đó bị chặn), 30 lần / giờ / tài khoản từ mọi IP; **không** khoá tài khoản bằng lockout Identity. Lockout Identity (5 lần → 15 phút) còn cho: mã 2FA, mật khẩu hiện tại khi đổi mật khẩu / tắt 2FA, xác nhận tạo token |
+| Rate limit (`RateLimits.Auth`) | 30 request / phút / (IP + path) cho login, forgot-password, reset-password, change-password, 2FA → 429. Cookie đăng nhập: trần chung 600 request / phút / người (`CookieRequestsPerMinute`) |
+| Token link email | Mời: provider `Default` 72 giờ, mục đích `Invite` (chỉ tài khoản chưa có mật khẩu); quên mật khẩu: provider `PasswordReset1h` **1 giờ**; dùng một lần (đổi security stamp). Quên mật khẩu gửi nền (`PasswordResetMailer`), tối đa 3 email / địa chỉ / giờ |
 
 ## Cookie (`BuildingBlocks/Auth/AuthCookie.cs`)
 

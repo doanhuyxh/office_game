@@ -146,5 +146,71 @@ const on = await json(admin, 'POST', `/api/org/employees/${A.e.id}/reactivate`);
 ok('nghỉ việc (khoá) rồi đi làm lại (mở)', off.status < 300 && on.status < 300, [off.status, on.status, off.body, on.body]);
 ok('mở lại: token cũ vẫn 401', (await bearer(t6)) === 401);
 
+// ================= TEST-20: đăng nhập & hạn mức =================
+const B = await mkTemp(`SEC-${stamp}-B`, `e2e.sec.b${stamp}`);
+await json(B.cookie, 'POST', '/api/auth/change-password', { currentPassword: B.temp, newPassword: PW });
+// Phản hồi đồng nhất: không có tài khoản / sai mật khẩu → cùng status + cùng thông điệp
+const noUser = await rawLogin(`khong.ton.tai.${stamp}`, 'Sai-Mat-Khau-1');
+const badPw = await rawLogin(B.user, 'Sai-Mat-Khau-1');
+const [nb, bb] = [await noUser.json() as any, await badPw.json() as any];
+ok('không có tài khoản và sai mật khẩu → cùng 401 + cùng thông điệp', noUser.status === 401 && badPw.status === 401 && nb.detail === bb.detail, [nb, bb]);
+// 5 lần sai từ cùng IP → chặn (kể cả mật khẩu đúng) nhưng KHÔNG khoá tài khoản ở DB
+for (let i = 0; i < 4; i++) await rawLogin(B.user, 'Sai-Mat-Khau-1');
+const blockedRight = await rawLogin(B.user, PW);
+const bj = await blockedRight.json() as any;
+ok('sai 5 lần → IP bị chặn, mật khẩu đúng vẫn 401 cùng thông điệp', blockedRight.status === 401 && bj.detail === bb.detail, [blockedRight.status, bj]);
+const lockEnd = (await sql(`SELECT coalesce("LockoutEnd"::text, '') FROM identity.users WHERE "UserName" = '${B.user}'`)).trim();
+ok('tài khoản KHÔNG bị khoá trong DB (người khác không khoá được nạn nhân)', lockEnd === '' || new Date(lockEnd) < new Date(), lockEnd);
+// Tài khoản thật bị khoá (vd sai mã 2FA) → cũng trả cùng phản hồi, không lộ 423
+await sql(`UPDATE identity.users SET "LockoutEnd" = now() + interval '10 minutes' WHERE "UserName" = '${A.user}'`);
+const lockedRes = await rawLogin(A.user, 'Sai-Mat-Khau-1');
+const lj = await lockedRes.json() as any;
+ok('tài khoản đang khoá → 401 cùng thông điệp (không 423)', lockedRes.status === 401 && lj.detail === bb.detail, [lockedRes.status, lj]);
+await sql(`UPDATE identity.users SET "LockoutEnd" = NULL WHERE "UserName" = '${A.user}'`);
+
+// Quên mật khẩu: 204 ngay (gửi nền), hạn mức 3 / email / giờ, link 1 giờ
+await fetch(`${MAILPIT}/api/v1/messages`, { method: 'DELETE' });
+const forgot = (email: string) => fetch(`${API}/api/auth/forgot-password`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email }) });
+const t0 = performance.now();
+const f1 = await forgot(A.email);
+const dt = performance.now() - t0;
+ok('quên mật khẩu → 204 nhanh (không chờ SMTP)', f1.status === 204 && dt < 1500, [f1.status, Math.round(dt)]);
+ok('quên mật khẩu: email không tồn tại → 204', (await forgot(`khong.co.${stamp}@${MAIL}`)).status === 204);
+const resetMail = await mailTo(A.email, 'Đặt lại mật khẩu');
+ok('email đặt lại tới (gửi nền)', !!resetMail);
+const body = resetMail ? await (await fetch(`${MAILPIT}/api/v1/message/${resetMail.ID}`)).json() as any : null;
+ok('email ghi "hết hạn sau 1 giờ"', !!body?.HTML?.includes('1 giờ'));
+await forgot(A.email); await forgot(A.email); await forgot(A.email); // lần 2, 3, 4
+await sleep(3000);
+const all = await (await fetch(`${MAILPIT}/api/v1/messages?limit=100`)).json() as any;
+const toA = all.messages.filter((m: any) => m.To?.some((t: any) => t.Address === A.email) && m.Subject.includes('Đặt lại mật khẩu')).length;
+ok('hạn mức 3 email / địa chỉ / giờ', toA === 3, toA);
+// Link đặt lại hoạt động
+const link = body?.HTML?.match(/href="([^"]+reset-password[^"]+)"/)?.[1]?.replaceAll('&amp;', '&');
+const u = link ? new URL(link) : null;
+const rs = await fetch(`${API}/api/auth/reset-password`, { method: 'POST', headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ userId: u?.searchParams.get('uid'), token: u?.searchParams.get('token'), newPassword: PW + '#' }) });
+ok('link đặt lại 1 giờ dùng được → 204', rs.status === 204, rs.status);
+// Link mời (72 giờ) vẫn hoạt động cho tài khoản chưa có mật khẩu
+const ie = await json(admin, 'POST', '/api/org/employees', { code: `SEC-${stamp}-I`, fullName: 'Được Mời', email: `e2e.sec.i${stamp}@${MAIL}`, phone: null,
+  dateOfBirth: null, departmentId: null, positionId: null, managerId: null, status: 'Active', joinedAt: '2026-01-05', note: null });
+const inv = await json(admin, 'POST', `/api/org/employees/${ie.body.employee.id}/account`, { mode: 'invite', roles: ['employee'], userName: `e2e.sec.i${stamp}` });
+const im = await mailTo(`e2e.sec.i${stamp}@${MAIL}`, 'Lời mời');
+const ib = im ? await (await fetch(`${MAILPIT}/api/v1/message/${im.ID}`)).json() as any : null;
+const il = ib?.HTML?.match(/href="([^"]+accept-invite[^"]+)"/)?.[1]?.replaceAll('&amp;', '&');
+const iu = il ? new URL(il) : null;
+ok('email mời ghi 72 giờ', inv.status < 300 && !!ib?.HTML?.includes('72 giờ'), inv);
+const accept = (pw: string) => fetch(`${API}/api/auth/reset-password`, { method: 'POST', headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ userId: iu?.searchParams.get('uid'), token: iu?.searchParams.get('token'), newPassword: pw }) });
+ok('nhận lời mời → 204', (await accept(PW)).status === 204);
+ok('link mời dùng lần 2 → 400', (await accept(PW + '2')).status === 400);
+ok('đăng nhập bằng mật khẩu vừa đặt từ lời mời', !!(await login(`e2e.sec.i${stamp}`, PW)));
+
+// Đổi mật khẩu: sai mật khẩu hiện tại tính vào khoá
+let bck = await login(`e2e.sec.i${stamp}`, PW);
+for (let i = 0; i < 5; i++) await json(bck, 'POST', '/api/auth/change-password', { currentPassword: 'sai-sai-sai', newPassword: PW + '9' });
+const lockedCh = await json(bck, 'POST', '/api/auth/change-password', { currentPassword: PW, newPassword: PW + '9' });
+ok('sai mật khẩu hiện tại 5 lần → bị tạm khoá kể cả khi nhập đúng', lockedCh.status === 400 && /khoá/.test(JSON.stringify(lockedCh.body)), lockedCh.body);
+
 console.log(`\n${pass} đạt, ${fail} lỗi`);
 process.exit(fail ? 1 : 0);

@@ -28,3 +28,16 @@ Thu hồi = đặt `RevokedAt` (giữ dòng để còn dấu vết) cho mọi `A
 `POST /api/auth/access-tokens` nhận thêm `confirm` = **mật khẩu hiện tại hoặc mã 2FA 6 số** (6 chữ số + đã bật 2FA → kiểm TOTP; còn lại → mật khẩu). Bỏ qua khi **vừa đăng nhập ≤ 10 phút** (`ReauthRules.IsRecentLogin(LastLoginAt)`) — an toàn nhờ "mỗi lúc 1 thiết bị": đăng nhập mới làm chết mọi cookie cũ, nên phiên hiện tại chính là lần đăng nhập đó (script e2e đăng nhập rồi tạo token ngay vẫn chạy). Sai → 400 `errors.confirm` + `AccessFailedAsync` (5 lần → khoá 15 phút như đăng nhập sai). FE: ô "Xác nhận" bắt buộc trong `create-token-dialog`.
 
 Test: `tests/OfficeHub.Modules.Identity.Tests/ReauthRulesTests.cs`.
+
+## Đăng nhập & hạn mức
+
+> TEST-20 (2026-11-12). Bảng tóm tắt ở [auth.md](auth.md#đăng-nhập-loginasync).
+
+- **Không khoá tài khoản của người khác được**: đăng nhập gọi `PasswordSignInAsync(lockoutOnFailure: false)`; `LoginThrottle` (singleton, RAM — `Infrastructure/AttemptCounter.cs`) đếm sai theo **id tài khoản + IP** (5 lần / 15 phút → chỉ IP đó bị chặn với tài khoản đó; đúng mật khẩu → xoá đếm của IP) và theo tài khoản (30 lần / giờ từ mọi IP → chặn cả tài khoản, chống dò phân tán). Không tìm thấy tài khoản → đếm theo chuỗi nhập.
+- **Phản hồi đồng nhất**: mọi thất bại trả 401 `LoginFailedMessage`; tài khoản không tồn tại băm mật khẩu giả. Chỉ khi **đúng** mật khẩu mới thấy `2fa_required` (bước 2FA vẫn trả 423 khi khoá — người đó đã biết mật khẩu).
+- **Quên mật khẩu**: 204 ngay, email gửi nền (`PasswordResetMailer`, hàng đợi RAM 100) → thời gian như nhau dù email có tài khoản hay không; 3 email / địa chỉ / giờ (`AttemptCounter`, đếm cả email không tồn tại). Link 1 giờ (provider `PasswordReset1h`); link mời 72 giờ dùng provider `Default` + mục đích `Invite`, `/auth/reset-password` thử token đặt lại trước, sai và tài khoản **chưa có mật khẩu** thì thử token mời (chấp nhận cả token mời cũ mục đích `ResetPassword`).
+- **Đổi mật khẩu / tắt 2FA**: sai mật khẩu hiện tại → `AccessFailedAsync` (5 lần → khoá 15 phút), đang khoá thì từ chối kể cả nhập đúng; `change-password` thêm rate limit `Auth`.
+- **Trần chung cho cookie**: `GlobalLimiter` 600 request / phút / người dùng (`RateLimits.CookieRequestsPerMinute`) → 429.
+- Chưa làm: CAPTCHA (cân nhắc nếu thấy tấn công thật).
+
+Test: `LoginThrottleTests`; e2e `scripts/dev/security-e2e.ts` (40/40, DB tạm + Mailpit, hướng dẫn đầu file).

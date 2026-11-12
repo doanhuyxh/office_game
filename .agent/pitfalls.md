@@ -9,6 +9,7 @@
 - S3: bucket riêng `officehubdoanhuyxh` + IAM user `OfficeHub` (chỉ quyền trên `officehub/*`), không public. File upload trước khi đổi vẫn ở bucket cũ `finsplit/officehub/` (chưa chuyển).
 - Đăng nhập trả **2 `Set-Cookie: officehub.auth`** (cookie stamp cũ rồi cookie stamp mới — xem "Mỗi lúc chỉ 1 thiết bị" ở [business/auth.md](business/auth.md)). Script e2e tự đọc cookie phải lấy **cái cuối** (`.filter(...).at(-1)`, mẫu `finance-e2e.ts`) hoặc gộp theo tên giữ cái sau — đã sửa toàn bộ `scripts/dev/*.ts` ngày 2026-11-08; script mới đừng dùng `.find(...)` / `headers.get('set-cookie')`.
 - `/api/auth/login` giới hạn **30 lần / phút / IP** (`RateLimits.Auth`) → chạy hai script e2e nối nhau (mỗi script tạo + đăng nhập nhiều tài khoản) dễ bị **429** → cookie rỗng → hàng loạt 401 trông như lỗi đăng nhập. Đợi ≥ 60 s giữa các script.
+- Đăng nhập sai **5 lần / 15 phút** cùng tài khoản + IP → bị chặn (401 như sai mật khẩu, kể cả khi nhập đúng) — `LoginThrottle` trong RAM, khởi động lại Api là hết. Script e2e thử mật khẩu sai nhiều lần nên dùng tài khoản riêng.
 - `dotnet run` dùng `launchSettings.json` (cổng 5080) và **bỏ qua `ASPNETCORE_URLS`** → chạy Api e2e ở cổng khác cần `--no-launch-profile`.
 - Lần migrate đầu của schema mới, EF log `ERR … __ef_migrations` — bình thường.
 - `dotnet ef migrations remove` cần DB → với migration đầu của context, xoá tay 3 file (migration, Designer, Snapshot).

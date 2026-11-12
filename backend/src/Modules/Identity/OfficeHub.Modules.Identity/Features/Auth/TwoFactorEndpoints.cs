@@ -101,8 +101,12 @@ internal static class TwoFactorEndpoints
         if (!user.TwoFactorEnabled) return Problems.Conflict("Xác thực 2 lớp chưa bật");
         if (TwoFactorPolicy.IsRequiredFor(await users.GetRolesAsync(user)))
             return Problems.Conflict("Tài khoản admin / HR bắt buộc dùng xác thực 2 lớp, không thể tắt. Đổi điện thoại: nhờ admin / HR khác đặt lại.");
+        if (await users.IsLockedOutAsync(user)) return LockedOut();
         if (!await users.CheckPasswordAsync(user, req.CurrentPassword ?? ""))
+        {
+            await users.AccessFailedAsync(user); // sai mật khẩu tính vào khoá tài khoản
             return new Validation().Add("currentPassword", "Mật khẩu hiện tại không đúng").Problem();
+        }
         if (!await VerifyTotpAsync(users, user, req.Code)) return CodeError();
 
         await users.ClearTwoFactorAsync(user);

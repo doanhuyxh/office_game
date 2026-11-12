@@ -31,25 +31,54 @@ internal static class AuthEndpoints
         g.MapPost("/login", LoginAsync).AllowAnonymous().RequireRateLimiting(Infrastructure.RateLimits.Auth);
         g.MapPost("/logout", LogoutAsync).RequireAuthorization();
         g.MapGet("/me", MeAsync).RequireAuthorization();
-        g.MapPost("/change-password", ChangePasswordAsync).RequireAuthorization();
+        g.MapPost("/change-password", ChangePasswordAsync).RequireAuthorization().RequireRateLimiting(Infrastructure.RateLimits.Auth);
     }
+
+    /// <summary>
+    /// Mọi lần đăng nhập thất bại (sai mật khẩu, không có tài khoản, tài khoản khoá / tạm khoá, bị <see cref="LoginThrottle"/> chặn) trả
+    /// CÙNG một phản hồi → không dò được tài khoản nào tồn tại (TEST-20). Thông điệp nhắc khả năng bị tạm chặn để người thật hiểu.
+    /// </summary>
+    internal const string LoginFailedMessage = "Sai tài khoản hoặc mật khẩu. Sai nhiều lần liên tiếp sẽ bị tạm chặn 15 phút.";
+    private static ProblemHttpResult LoginFailed() => TypedResults.Problem(LoginFailedMessage, statusCode: StatusCodes.Status401Unauthorized);
+
+    /// <summary>Hash giả để tài khoản không tồn tại cũng tốn thời gian băm như tài khoản thật (không dò được bằng thời gian phản hồi).</summary>
+    private static readonly Lazy<string> DummyHash = new(() => new PasswordHasher<AppUser>().HashPassword(new AppUser(), Guid.NewGuid().ToString()));
 
     /// <summary>Đăng nhập bằng email HOẶC tên đăng nhập (mã nhân viên).</summary>
     private static async Task<Results<Ok<MeResponse>, ProblemHttpResult>> LoginAsync(
-        LoginRequest req, UserManager<AppUser> users, SignInManager<AppUser> signIn, OfficeIdentityDbContext db, TimeProvider clock)
+        LoginRequest req, HttpContext ctx, UserManager<AppUser> users, SignInManager<AppUser> signIn, OfficeIdentityDbContext db,
+        TimeProvider clock, LoginThrottle throttle)
     {
-        var user = await users.FindByNameAsync(req.Login) ?? await users.FindByEmailAsync(req.Login);
-        if (user is null || !user.IsActive)
-            return TypedResults.Problem("Sai tài khoản hoặc mật khẩu", statusCode: StatusCodes.Status401Unauthorized);
+        var login = (req.Login ?? "").Trim();
+        var user = login.Length == 0 ? null : await users.FindByNameAsync(login) ?? await users.FindByEmailAsync(login);
+        // Đếm theo id tài khoản (đổi qua lại email / tên đăng nhập không nhân đôi lượt thử); không có tài khoản → theo chuỗi nhập.
+        var account = user?.Id.ToString() ?? "?" + login.ToLowerInvariant();
+        var ip = ctx.Connection.RemoteIpAddress?.ToString() ?? "?";
+        if (throttle.IsBlocked(account, ip)) return LoginFailed();
 
-        var result = await signIn.PasswordSignInAsync(user, req.Password, req.RememberMe, lockoutOnFailure: true);
-        if (result.IsLockedOut)
-            return TypedResults.Problem("Tài khoản tạm khoá do đăng nhập sai nhiều lần, thử lại sau 15 phút", statusCode: StatusCodes.Status423Locked);
-        // Đã bật 2FA: Identity cấp cookie tạm officehub.2fa (5 phút) → FE gửi mã qua POST /auth/login/2fa.
+        if (user is null || !user.IsActive)
+        {
+            users.PasswordHasher.VerifyHashedPassword(new AppUser(), DummyHash.Value, req.Password ?? "");
+            throttle.Fail(account, ip);
+            return LoginFailed();
+        }
+
+        // lockoutOnFailure: false — sai mật khẩu không khoá cả tài khoản (người khác cố tình khoá được); LoginThrottle chặn theo IP.
+        // Tài khoản vẫn có thể bị khoá bởi lần sai mã 2FA / xác nhận tạo token → IsLockedOut trả cùng phản hồi.
+        var result = await signIn.PasswordSignInAsync(user, req.Password ?? "", req.RememberMe, lockoutOnFailure: false);
+        if (result.IsLockedOut) return LoginFailed();
+        // Đã bật 2FA: Identity cấp cookie tạm officehub.2fa (5 phút) → FE gửi mã qua POST /auth/login/2fa. Chỉ tới đây khi ĐÚNG mật khẩu.
         if (result.RequiresTwoFactor)
+        {
+            throttle.Succeed(account, ip);
             return TypedResults.Problem("Cần mã xác thực 2 lớp", statusCode: StatusCodes.Status403Forbidden, title: "2fa_required");
+        }
         if (!result.Succeeded)
-            return TypedResults.Problem("Sai tài khoản hoặc mật khẩu", statusCode: StatusCodes.Status401Unauthorized);
+        {
+            throttle.Fail(account, ip);
+            return LoginFailed();
+        }
+        throttle.Succeed(account, ip);
 
         // Mỗi lúc chỉ 1 thiết bị: đổi security stamp → cookie ở thiết bị khác (nếu có) bị từ chối ở request kế tiếp
         // (giống cơ chế khoá tài khoản / đổi mật khẩu); cấp lại cookie cho CHÍNH thiết bị này theo stamp mới.
@@ -94,7 +123,11 @@ internal static class AuthEndpoints
         if (string.IsNullOrEmpty(req.NewPassword)) missing["newPassword"] = ["Nhập mật khẩu mới"];
         if (missing.Count > 0) return TypedResults.ValidationProblem(missing);
 
+        if (await users.IsLockedOutAsync(user))
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["currentPassword"] = ["Tạm khoá do nhập sai nhiều lần, thử lại sau 15 phút"] });
         var result = await users.ChangePasswordAsync(user, req.CurrentPassword, req.NewPassword);
+        // Sai mật khẩu hiện tại → tính vào khoá tài khoản (phiên bị chiếm không dò được mật khẩu thật bằng endpoint này).
+        if (!result.Succeeded && result.Errors.Any(e => e.Code == "PasswordMismatch")) await users.AccessFailedAsync(user);
         if (!result.Succeeded)
             return TypedResults.ValidationProblem(result.Errors.GroupBy(e => e.Code).ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray()));
 

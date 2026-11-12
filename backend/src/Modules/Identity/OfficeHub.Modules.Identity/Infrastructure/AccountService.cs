@@ -162,10 +162,13 @@ internal sealed class AccountService(
         return [.. (await GetManyAsync(ids, ct)).Values];
     }
 
-    /// <summary>Gửi link đặt mật khẩu: dùng cho lời mời và quên mật khẩu (token reset của Identity, hết hạn 72 giờ).</summary>
+    /// <summary>Gửi link đặt mật khẩu: dùng cho lời mời và quên mật khẩu (mời 72 giờ, quên mật khẩu 1 giờ — PasswordResetTokens).</summary>
     internal async Task SendLinkAsync(AppUser user, bool invite, CancellationToken ct)
     {
-        var token = await users.GeneratePasswordResetTokenAsync(user);
+        // Mời: provider Default 72 giờ, mục đích riêng; quên mật khẩu: provider 1 giờ (PasswordResetTokens).
+        var token = invite
+            ? await users.GenerateUserTokenAsync(user, TokenOptions.DefaultProvider, PasswordResetTokens.InvitePurpose)
+            : await users.GeneratePasswordResetTokenAsync(user);
         var path = invite ? "accept-invite" : "reset-password";
         var link = $"{app.Value.BaseUrl.TrimEnd('/')}/{path}?uid={user.Id}&token={Uri.EscapeDataString(token)}";
         var name = WebUtility.HtmlEncode(user.FullName);
@@ -177,7 +180,7 @@ internal sealed class AccountService(
             <p>{intro}</p>
             <p><a href="{link}" style="display:inline-block;padding:10px 18px;background:#2563eb;color:#fff;border-radius:8px;text-decoration:none">
               {(invite ? "Đặt mật khẩu" : "Đặt lại mật khẩu")}</a></p>
-            <p style="color:#64748b;font-size:13px">Link hết hạn sau 72 giờ. Tên đăng nhập của bạn: <b>{WebUtility.HtmlEncode(user.UserName)}</b></p>
+            <p style="color:#64748b;font-size:13px">Link hết hạn sau {(invite ? "72 giờ" : "1 giờ")}. Tên đăng nhập của bạn: <b>{WebUtility.HtmlEncode(user.UserName)}</b></p>
             """;
         try
         {
