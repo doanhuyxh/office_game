@@ -1,9 +1,10 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react';
 import { toast } from 'sonner';
-import { CheckCircle2, GripVertical, Plus, Settings2, ShieldCheck } from 'lucide-react';
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, CheckCircle2, GripVertical, Plus, Settings2, ShieldCheck } from 'lucide-react';
 import { BotBadge } from '@/components/common/bot-badge';
 import { Button } from '@/components/common/button';
 import { promptDialog } from '@/components/common/confirm-dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/common/tooltip';
 import { Spinner } from '@/components/feedback/Spinner';
 import { fmtDate } from '@/features/finance';
 import { cn } from '@/utils/cn';
@@ -42,10 +43,14 @@ function useFillHeight(ready: boolean) {
 /** Kiểu dữ liệu kéo thả: thẻ việc / tiêu đề cột. */
 const TASK = 'text/task';
 const COLUMN = 'text/column';
-const DESC_KEY = 'projects.taskBoard.desc';
+const DESC_KEY = 'projects.taskBoard.descColumns';
 
+/** Id các cột đang xem giảm dần (nhớ theo trình duyệt). */
 function readDesc() {
-  try { return localStorage.getItem(DESC_KEY) === '1'; } catch { return false; }
+  try {
+    const v: unknown = JSON.parse(localStorage.getItem(DESC_KEY) ?? '[]');
+    return new Set(Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+  } catch { return new Set<string>(); }
 }
 
 /** Đưa cột `id` tới vị trí của cột `target` (kéo thả tiêu đề cột). */
@@ -100,9 +105,11 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
     setPendingOrder(ids);
     reorderCols.mutate(ids, { onError: (err) => toast.error(errorMessage(err)), onSettled: () => setPendingOrder(null) });
   };
-  const toggleDesc = (v: boolean) => {
-    setDesc(v);
-    try { localStorage.setItem(DESC_KEY, v ? '1' : '0'); } catch { /* bỏ qua: trình duyệt chặn lưu trữ */ }
+  const toggleDesc = (columnId: string) => {
+    const next = new Set(desc);
+    if (!next.delete(columnId)) next.add(columnId);
+    setDesc(next);
+    try { localStorage.setItem(DESC_KEY, JSON.stringify([...next])); } catch { /* bỏ qua: trình duyệt chặn lưu trữ */ }
   };
   const onDragOver = (e: DragEvent, columnId: string) => {
     const isCol = e.dataTransfer.types.includes(COLUMN);
@@ -119,8 +126,6 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} /> Chỉ việc của tôi</label>
-        <label className="flex items-center gap-2 text-sm" title="Chỉ đổi thứ tự hiển thị, không đổi thứ tự lưu"><input type="checkbox" checked={desc}
-          onChange={(e) => toggleDesc(e.target.checked)} data-testid="sort-desc" /> Sắp xếp giảm dần</label>
         {!p.canWork && <span className="text-xs text-muted-foreground">{p.status === 'Closed' ? 'Dự án đã đóng — chỉ xem.' : 'Bạn chỉ xem (không phải thành viên).'}</span>}
         {(p.sequential || columns.some((c) => c.approverOnly)) && <span className="text-xs text-muted-foreground" data-testid="review-hint">
           Quy trình:{p.sequential && ' đi lần lượt từng cột · chuyển lùi phải ghi lý do'}
@@ -134,7 +139,8 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
         {columns.map((c) => {
           // API trả theo rank tăng dần → giảm dần chỉ đảo thứ tự hiển thị, rank trong DB giữ nguyên.
           const col = shown.filter((t) => t.columnId === c.id);
-          if (desc) col.reverse();
+          const isDesc = desc.has(c.id);
+          if (isDesc) col.reverse();
           return (
             <div key={c.id} data-testid={`col-${c.name}`} onDragOver={(e) => onDragOver(e, c.id)} onDragLeave={() => setOver(null)} onDrop={(e) => onDrop(e, c.id)}
               style={{ borderTopColor: c.color }}
@@ -150,6 +156,15 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
                 {c.isDone && <span title="Trạng thái hoàn thành"><CheckCircle2 className="size-3.5 shrink-0 text-success" aria-label="Hoàn thành" /></span>}
                 {c.approverOnly && <span title="Cần người duyệt (chỉ quản lý dự án)"><ShieldCheck className="size-3.5 shrink-0 text-warning" aria-label="Cần người duyệt" /></span>}
                 <span className="ml-auto flex shrink-0 items-center">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="icon" variant="ghost" className={cn('size-7', isDesc && 'text-primary')} aria-pressed={isDesc} data-testid="sort-desc"
+                        aria-label={`Sắp xếp ${c.name} ${isDesc ? 'tăng' : 'giảm'} dần`} onClick={() => toggleDesc(c.id)}>
+                        {isDesc ? <ArrowDownWideNarrow /> : <ArrowUpNarrowWide />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{isDesc ? 'Đang giảm dần (mới nhất lên đầu) — bấm để xếp tăng dần' : 'Đang tăng dần — bấm để xếp giảm dần (mới nhất lên đầu)'}</TooltipContent>
+                  </Tooltip>
                   {manage && <Button size="icon" variant="ghost" className="size-7" aria-label={`Sửa trạng thái ${c.name}`} onClick={() => setColEdit(c)}><Settings2 /></Button>}
                   {p.canWork && creatable.has(c.id) && <Button size="icon" variant="ghost" className="size-7" aria-label={`Thêm việc vào ${c.name}`}
                     onClick={() => setEdit({ task: null, columnId: c.id })}><Plus /></Button>}

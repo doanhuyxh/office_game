@@ -44,6 +44,6 @@
 
 ## UI
 
-Kanban cuộn ngang (mỗi cột rộng 18 rem, viền trên + chấm theo màu cột, icon ✓ hoàn thành / khiên cần duyệt). Người có quyền: kéo tiêu đề cột (HTML5 drag, kiểu `text/column`) để sắp xếp, ⚙ mở `ColumnDialog` (tên, 10 màu gợi ý + chọn màu khác, 2 cờ, xoá + chọn cột nhận việc), nút "Thêm trạng thái" trên thanh công cụ (lối vào duy nhất, không còn ô ở cuối bảng). Kéo lùi khi đi lần lượt → hỏi lý do trước. Thanh công cụ có ô "Sắp xếp giảm dần" (nhớ trong localStorage `projects.taskBoard.desc`, mặc định tăng dần): chỉ đảo thứ tự hiển thị việc trong cột (API vẫn trả theo `Rank`, không đổi DB); kéo thả chỉ chuyển cột nên không phụ thuộc thứ tự hiển thị. "Việc của tôi" hiện `ColumnBadge` (chấm màu + tên cột).
+Kanban cuộn ngang (mỗi cột rộng 18 rem, viền trên + chấm theo màu cột, icon ✓ hoàn thành / khiên cần duyệt). Người có quyền: kéo tiêu đề cột (HTML5 drag, kiểu `text/column`) để sắp xếp, ⚙ mở `ColumnDialog` (tên, 10 màu gợi ý + chọn màu khác, 2 cờ, xoá + chọn cột nhận việc), nút "Thêm trạng thái" trên thanh công cụ (lối vào duy nhất, không còn ô ở cuối bảng). Kéo lùi khi đi lần lượt → hỏi lý do trước. Mỗi cột có icon sắp xếp (tooltip) bật / tắt giảm dần riêng cho cột đó (nhớ id cột trong localStorage `projects.taskBoard.descColumns`, mặc định tăng dần): chỉ đảo thứ tự hiển thị việc trong cột (API vẫn trả theo `Rank`, không đổi DB); kéo thả chỉ chuyển cột nên không phụ thuộc thứ tự hiển thị. "Việc của tôi" hiện `ColumnBadge` (chấm màu + tên cột).
 
 E2E: `scripts/dev/projects-workflow-e2e.ts` (84 kiểm tra gồm MCP thật, đạt 2026-11-11).
