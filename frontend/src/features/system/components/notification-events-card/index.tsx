@@ -39,9 +39,10 @@ export function NotificationEventsCard({ active }: { active: boolean }) {
           "notification" cho mọi thông báo chuông, tới người đã cài webhook · Telegram: chỉ khi người làm là tài khoản bot có "Bot Telegram" và kênh đang bật.
         </p>
       </div>
-      <div className="overflow-x-auto rounded-md border">
-        <Table>
-          <TableHeader>
+      {/* Khung tự cuộn (dọc + ngang) để header sticky bám trong khung; viền dưới header bằng shadow vì border-collapse làm border trôi theo nội dung. */}
+      <div className="rounded-md border">
+        <Table containerClassName="max-h-[calc(100vh-12rem)] overflow-auto rounded-md">
+          <TableHeader className="sticky top-0 z-10 bg-background shadow-[inset_0_-1px_0_var(--color-border)] [&_tr]:border-b-0">
             <TableRow>
               <TableHead className="min-w-80">Sự kiện</TableHead>
               {COLUMNS.map((c) => <TableHead key={c.key} className="w-28 text-center">{c.label}</TableHead>)}
