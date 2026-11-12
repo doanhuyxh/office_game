@@ -54,3 +54,19 @@ export interface ISaveSettingsRequest { values: Record<string, SettingsValue>; s
 export interface ISettingsTestResult { ok: boolean; message: string }
 /** to: SMTP — email nhận thư thử (trống = email của bạn). */
 export interface ISettingsTestRequest { to?: string }
+
+/** Kênh thông báo (GET /api/system/notification-channels, TEST-43). Không có giá trị bí mật. */
+export interface IChannelUse { key: string; label: string }
+export interface INotificationChannel {
+  key: 'bell' | 'email' | 'push' | 'webhook' | 'telegram' | string;
+  name: string; description: string; configured: boolean; enabled: boolean;
+  /** builtin · db · env · user (mỗi người tự cài) · none */
+  source: 'builtin' | 'db' | 'env' | 'user' | 'none' | string;
+  /** Khung ở tab Cấu hình (s3 / smtp / fcm / telegram); null = không có. */
+  configGroup: SettingsGroupKey | null;
+  health: 'ok' | 'error' | 'off' | string;
+  usedBy: IChannelUse[];
+  lastSuccessAt: string | null; lastFailureAt: string | null; lastError: string | null; detail: string | null;
+  /** Số liệu chỉ trong RAM, tính từ lúc này (Api khởi động). */
+  statsSince: string | null;
+}

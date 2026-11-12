@@ -1,7 +1,7 @@
 import { http, httpPost } from '@/services/api-client';
-import type { IOpsReport, ISaveSettingsRequest, ISettingsGroup, ISettingsTestRequest, ISettingsTestResult, IStorageReport, ISystemInfo, SettingsGroupKey } from '../types/system.types';
+import type { INotificationChannel, IOpsReport, ISaveSettingsRequest, ISettingsGroup, ISettingsTestRequest, ISettingsTestResult, IStorageReport, ISystemInfo, SettingsGroupKey } from '../types/system.types';
 
-export const systemKeys = { info: ['system', 'info'] as const, storage: ['system', 'storage'] as const, ops: ['system', 'ops'] as const, settings: ['system', 'settings'] as const };
+export const systemKeys = { info: ['system', 'info'] as const, storage: ['system', 'storage'] as const, ops: ['system', 'ops'] as const, settings: ['system', 'settings'] as const, channels: ['system', 'channels'] as const };
 
 export const systemApi = {
   /** Chỉ admin (back-end kiểm tra). Có kiểm tra Postgres / S3 / SMTP nên có thể mất vài giây. */
@@ -12,6 +12,8 @@ export const systemApi = {
   ops: () => http<IOpsReport>('/api/system/ops'),
   /** Đưa email đã bỏ cuộc (30 ngày) vào hàng đợi lại. */
   retryEmails: () => httpPost<{ count: number }>('/api/system/ops/email/retry'),
+  /** Kênh thông báo: đã cấu hình / bật / nguồn / lần gửi gần nhất (back-end đăng ký kênh). */
+  channels: () => http<INotificationChannel[]>('/api/system/notification-channels'),
   /** Cấu hình S3 / SMTP / FCM / IP văn phòng (DB, chưa lưu thì .env). Không bao giờ có giá trị bí mật. */
   settings: () => http<ISettingsGroup[]>('/api/system/settings'),
   saveSettings: (group: SettingsGroupKey, body: ISaveSettingsRequest) =>

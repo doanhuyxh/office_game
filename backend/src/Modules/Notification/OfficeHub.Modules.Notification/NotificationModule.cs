@@ -33,6 +33,12 @@ public sealed class NotificationModule : IModule
         services.AddHttpClient(TelegramClient.ClientName).RemoveAllLoggers();
         services.AddSingleton<TelegramClient>();
         services.AddScoped<ITelegramWakeup, TelegramWakeup>();
+        // TEST-43: danh sách kênh cho trang Hệ thống → Kênh thông báo. Kênh mới = thêm một dòng ở đây.
+        services.AddScoped<INotificationChannel, BellChannel>();
+        services.AddScoped<INotificationChannel, EmailChannel>();
+        services.AddScoped<INotificationChannel, PushChannel>();
+        services.AddScoped<INotificationChannel, WebhookChannel>();
+        services.AddScoped<INotificationChannel, TelegramChannel>();
         services.AddScoped<IEmailOutbox, EmailOutbox>(); // trang Hệ thống → Vận hành
         services.AddHostedService<NotificationMigrator>(); // trước EmailDispatcher: bảng phải có trước khi worker quét
         services.AddHostedService<EmailDispatcher>();
@@ -45,5 +51,7 @@ public sealed class NotificationModule : IModule
         var g = api.MapGroup("/notifications").WithTags("Notification").RequireAuthorization();
         NotificationEndpoints.Map(g);
         WebhookEndpoints.Map(g.MapGroup("/webhook"));
+        // /api/system/* nằm ngoài allowlist token AI; chỉ admin.
+        ChannelEndpoints.Map(api.MapGroup("/system/notification-channels").WithTags("System").RequireAuthorization(OfficeHub.BuildingBlocks.Auth.AuthPolicies.Admin));
     }
 }

@@ -13,8 +13,15 @@ namespace OfficeHub.Modules.Notification.Infrastructure;
 /// FirebaseMessaging theo cấu hình FCM đang có hiệu lực (<see cref="RuntimeConfig.Fcm"/>: DB, chưa có thì <c>Firebase__CredentialsPath</c>).
 /// Cấu hình đổi → tạo FirebaseApp mới (tên riêng), xoá app cũ. Lỗi khởi tạo → log một lần cho mỗi cấu hình, push tắt tới khi sửa cấu hình.
 /// </summary>
-internal sealed class FirebaseProvider(RuntimeConfig config, ILogger<FirebaseProvider> log)
+internal sealed class FirebaseProvider(RuntimeConfig config, TimeProvider clock, ILogger<FirebaseProvider> log)
 {
+    /// <summary>Lần gửi push thành công / lỗi gần nhất (RAM, tính từ lúc Api khởi động) — trang Hệ thống → Kênh thông báo (TEST-43).</summary>
+    public sealed record PushStats(DateTimeOffset Since, DateTimeOffset? LastSuccessAt, DateTimeOffset? LastFailureAt, string? LastError);
+    private PushStats _stats = new(clock.GetUtcNow(), null, null, null);
+    public PushStats Stats => _stats;
+    public void RecordSuccess() => _stats = _stats with { LastSuccessAt = clock.GetUtcNow() };
+    public void RecordFailure(string error) => _stats = _stats with { LastFailureAt = clock.GetUtcNow(), LastError = error.Length > 500 ? error[..500] : error };
+
     private readonly Lock _gate = new();
     private FcmSettings? _settings;
     private FirebaseApp? _app;
@@ -116,6 +123,8 @@ internal sealed class PushSender(NotificationDbContext db, FirebaseProvider fire
         try
         {
             var result = await _messaging!.SendEachForMulticastAsync(message, ct);
+            if (result.SuccessCount > 0) firebase.RecordSuccess();
+            if (result.FailureCount > 0 && result.Responses.FirstOrDefault(r => !r.IsSuccess)?.Exception is { } fx) firebase.RecordFailure(fx.Message);
             var dead = new List<string>();
             for (var i = 0; i < result.Responses.Count; i++)
             {
@@ -129,6 +138,7 @@ internal sealed class PushSender(NotificationDbContext db, FirebaseProvider fire
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _log.LogWarning(ex, "Gửi FCM push lỗi ({Count} thiết bị)", batch.Count);
+            firebase.RecordFailure(ex.Message);
         }
     }
 }

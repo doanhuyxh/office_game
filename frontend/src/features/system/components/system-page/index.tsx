@@ -15,9 +15,10 @@ import { formatDateTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
 import { useSystemInfo } from '../../hooks/useSystem';
 import { ConfigTab } from '../config-tab';
+import { NotificationChannelsTab } from '../notification-channels-tab';
 import { OpsTab } from '../ops-tab';
 import { StorageCard } from '../storage-card';
-import type { IHealthItem, ISystemLink } from '../../types/system.types';
+import type { IHealthItem, ISystemLink, SettingsGroupKey } from '../../types/system.types';
 
 const LINK_ICON: Record<string, LucideIcon> = { docs: BookOpen, logs: ScrollText, mail: Mail };
 const HEALTH_NAME: Record<string, string> = { postgres: 'Cơ sở dữ liệu (PostgreSQL)', s3: 'Lưu trữ file (S3)', smtp: 'Máy chủ gửi mail (SMTP)' };
@@ -111,6 +112,7 @@ const TABS = [
   { id: 'smtp', label: 'Email (SMTP)' },
   { id: 'storage', label: 'Lưu trữ S3' },
   { id: 'ops', label: 'Vận hành' },
+  { id: 'channels', label: 'Kênh thông báo' },
   { id: 'config', label: 'Cấu hình' },
 ] as const;
 
@@ -121,14 +123,29 @@ export function SystemPage() {
   const { data, isLoading, isFetching, error, refetch } = useSystemInfo();
   const qc = useQueryClient();
   const opsFetching = useIsFetching({ queryKey: systemKeys.ops }) > 0;
+  const channelsFetching = useIsFetching({ queryKey: systemKeys.channels }) > 0;
+  /** Từ tab Kênh thông báo sang đúng khung ở tab Cấu hình. */
+  const openConfig = (group: SettingsGroupKey) => {
+    setTab('config');
+    let tries = 0;
+    const scroll = () => {
+      const el = document.getElementById(`settings-${group}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      else if (++tries < 20) setTimeout(scroll, 150);
+    };
+    setTimeout(scroll, 50);
+  };
   const info = isLoading ? <Spinner /> : error || !data ? <p className="text-sm text-destructive">{errorMessage(error)}</p> : null;
   return (
     <div className="grid grid-cols-1 gap-6">
       <PageHeader title="Hệ thống" />
       <Tabs value={tab} onValueChange={setTab}>
         <PageToolbar
-          actions={tab === 'ops'
-            ? <Button variant="outline" size="sm" onClick={() => void qc.invalidateQueries({ queryKey: systemKeys.ops })} disabled={opsFetching}><RefreshCw className={opsFetching ? 'animate-spin' : ''} /> Làm mới</Button>
+          actions={tab === 'ops' || tab === 'channels'
+            ? <Button variant="outline" size="sm" onClick={() => void qc.invalidateQueries({ queryKey: tab === 'ops' ? systemKeys.ops : systemKeys.channels })}
+                disabled={tab === 'ops' ? opsFetching : channelsFetching}>
+                <RefreshCw className={(tab === 'ops' ? opsFetching : channelsFetching) ? 'animate-spin' : ''} /> Làm mới
+              </Button>
             : tab !== 'storage' && <Button variant="outline" size="sm" onClick={() => void refetch()} disabled={isFetching}><RefreshCw className={isFetching ? 'animate-spin' : ''} /> Kiểm tra lại</Button>}>
           <TabsList>{TABS.map((t) => <TabsTrigger key={t.id} value={t.id}>{t.label}</TabsTrigger>)}</TabsList>
         </PageToolbar>
@@ -177,6 +194,7 @@ export function SystemPage() {
 
         <TabsContent value="storage" className="mt-4"><StorageCard /></TabsContent>
         <TabsContent value="ops" className="mt-4"><OpsTab active={tab === 'ops'} /></TabsContent>
+        <TabsContent value="channels" className="mt-4"><NotificationChannelsTab active={tab === 'channels'} onOpenConfig={openConfig} /></TabsContent>
         <TabsContent value="config" className="mt-4">{tab === 'config' && <ConfigTab />}</TabsContent>
       </Tabs>
       <EmbedDialog link={embed} onClose={() => setEmbed(null)} />

@@ -22,6 +22,10 @@ export function useStorageReport() {
   return { ...q, load, started: enabled, rescan, rescanning };
 }
 
+/** Kênh thông báo (tab Kênh thông báo): chỉ tải khi mở tab, tự làm mới mỗi phút. */
+export const useNotificationChannels = (enabled: boolean) =>
+  useQuery({ queryKey: systemKeys.channels, queryFn: systemApi.channels, enabled, refetchInterval: enabled ? 60_000 : false });
+
 /** Cấu hình hệ thống (tab Cấu hình). */
 export const useSystemSettings = () => useQuery({ queryKey: systemKeys.settings, queryFn: systemApi.settings });
 
@@ -31,6 +35,7 @@ export function useSettingsMutations(group: SettingsGroupKey) {
   const apply = (g: ISettingsGroup) => {
     qc.setQueryData<ISettingsGroup[]>(systemKeys.settings, (old) => old?.map((x) => (x.group === g.group ? g : x)));
     void qc.invalidateQueries({ queryKey: systemKeys.info });
+    void qc.invalidateQueries({ queryKey: systemKeys.channels }); // trạng thái kênh đổi theo cấu hình
   };
   const save = useMutation({ mutationFn: (body: ISaveSettingsRequest) => systemApi.saveSettings(group, body), onSuccess: apply });
   const reset = useMutation({ mutationFn: () => systemApi.resetSettings(group), onSuccess: apply });
