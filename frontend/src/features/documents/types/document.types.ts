@@ -148,7 +148,16 @@ export interface IFileUrl {
   kind: AssetKind;
   version: number;
   inline: boolean;
+  /** Link trỏ về Api: PDF Hạn chế / Mật đã đóng dấu mã nhân viên + giờ (không phải presigned S3). */
+  watermarked?: boolean;
 }
+
+/** Hạn chế / Mật: chỉ admin, HR, người tạo xem / tải; PDF đóng dấu; không chiếu lên TV, không qua trợ lý AI. */
+export const CLASSIFICATION: Record<Classification, { label: string; hint: string }> = {
+  Internal: { label: 'Nội bộ', hint: 'Ai đọc được kho đều xem / tải được' },
+  Restricted: { label: 'Hạn chế', hint: 'Chỉ quản trị, HR và người tạo xem / tải; PDF đóng dấu mã nhân viên + giờ' },
+  Confidential: { label: 'Mật', hint: 'Chỉ quản trị, HR và người tạo xem / tải; PDF đóng dấu mã nhân viên + giờ' },
+};
 
 export interface IAccessLog {
   at: string;
@@ -206,6 +215,8 @@ export interface IOrphan {
 }
 
 export interface IUpdateAsset {
+  /** null / bỏ trống = giữ nguyên mức bảo mật. */
+  classification?: Classification;
   title: string;
   description: string | null;
   tags: string[];

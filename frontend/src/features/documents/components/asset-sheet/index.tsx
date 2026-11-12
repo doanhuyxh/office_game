@@ -18,7 +18,7 @@ import { formatDate, formatDateTime } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { documentApi } from '../../api/document.api';
 import { useAccessLog, useApprovers, useAsset, useDocMutation, useDocTypes, useFolders } from '../../hooks/useDocuments';
-import type { IApprovers, IAssetDetail, IFileUrl, IFolder, IUpdateAsset } from '../../types/document.types';
+import { CLASSIFICATION, type Classification, type IApprovers, type IAssetDetail, type IFileUrl, type IFolder, type IUpdateAsset } from '../../types/document.types';
 import { formatSize, KIND, STATUS } from '../../utils/labels';
 import { uploadNewVersion } from '../../utils/upload';
 import { PromptDialog, type PromptSpec } from '../prompt-dialog';
@@ -73,6 +73,7 @@ function Detail({ d, onClose, onPresent }: { d: IAssetDetail; onClose: () => voi
           <StatusBadge tone={STATUS[a.status].tone}>{STATUS[a.status].label}</StatusBadge>
           <span>{a.code}</span>
           {a.documentNumber && <span className="font-medium text-foreground">Số {a.documentNumber}</span>}
+          {a.classification !== 'Internal' && <StatusBadge tone="danger" data-testid="asset-classification">🔒 {CLASSIFICATION[a.classification].label}</StatusBadge>}
         </SheetDescription>
       </SheetHeader>
 
@@ -88,10 +89,10 @@ function Detail({ d, onClose, onPresent }: { d: IAssetDetail; onClose: () => voi
 
       {approvers.data && <Approvers data={approvers.data} />}
 
-      {a.status !== 'Destroyed' && !a.deletedAt && <Preview assetId={a.id} version={a.currentVersion} />}
+      {a.status !== 'Destroyed' && !a.deletedAt && <Preview assetId={a.id} version={a.currentVersion} protectedDoc={a.classification !== 'Internal'} />}
 
       <div className="flex flex-wrap gap-2">
-        {onPresent && a.status !== 'Destroyed' && !a.deletedAt && (
+        {onPresent && a.status !== 'Destroyed' && !a.deletedAt && a.classification === 'Internal' && (
           <Button size="sm" onClick={() => { onPresent(a.id); onClose(); }} data-testid="asset-present"><MonitorPlay /> Chiếu lên màn hình phòng</Button>
         )}
         {a.status !== 'Destroyed' && <Button size="sm" variant="outline" onClick={() => download()}><Download /> Tải về</Button>}
@@ -185,7 +186,7 @@ function Approvers({ data }: { data: IApprovers }) {
 }
 
 /** Xem trước ngay trong trang (ảnh, video, âm thanh, PDF, văn bản thuần); loại khác chỉ tải về. Mỗi lần mở = 1 dòng "Xem" trong nhật ký. */
-function Preview({ assetId, version }: { assetId: string; version: number }) {
+function Preview({ assetId, version, protectedDoc }: { assetId: string; version: number; protectedDoc: boolean }) {
   const [file, setFile] = useState<IFileUrl | null>(null);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
@@ -196,12 +197,17 @@ function Preview({ assetId, version }: { assetId: string; version: number }) {
   }, [assetId, version]);
   if (err) return <p className="text-sm text-destructive">{err}</p>;
   if (!file) return <div className="flex h-40 items-center justify-center rounded-lg border"><Spinner /></div>;
-  if (!file.inline) return <p className="rounded-lg border p-4 text-sm text-muted-foreground">Loại file này không xem trước được — bấm "Tải về" để mở.</p>;
+  const note = protectedDoc && (
+    <p className="text-xs text-muted-foreground" data-testid="watermark-note">
+      {file.watermarked ? '🔒 Bản xem / tải đã đóng dấu mã nhân viên của bạn và thời gian.' : '🔒 Loại file này chưa đóng dấu được (chỉ PDF) — lượt xem / tải vẫn được ghi nhật ký.'}
+    </p>
+  );
+  if (!file.inline) return <div className="grid gap-1">{note}<p className="rounded-lg border p-4 text-sm text-muted-foreground">Loại file này không xem trước được — bấm "Tải về" để mở.</p></div>;
   const box = 'w-full rounded-lg border bg-muted/30';
   if (file.kind === 'Image') return <img src={file.url} alt={file.fileName} className={`${box} max-h-[60vh] object-contain`} />;
   if (file.kind === 'Video') return <video src={file.url} controls preload="metadata" className={`${box} max-h-[60vh]`} />;
   if (file.kind === 'Audio') return <audio src={file.url} controls className="w-full" />;
-  return <iframe src={file.url} title={file.fileName} className={`${box} h-[60vh]`} />;
+  return <div className="grid gap-1">{note}<iframe src={file.url} title={file.fileName} className={`${box} h-[60vh]`} /></div>;
 }
 
 function Custodian({ d }: { d: IAssetDetail }) {
@@ -227,7 +233,8 @@ function EditForm({ d }: { d: IAssetDetail }) {
   const a = d.asset;
   const types = useDocTypes();
   const folders = useFolders({ kind: a.spaceKind, id: a.spaceId });
-  const [form, setForm] = useState<IUpdateAsset>({ title: a.title, description: d.description, tags: a.tags, docTypeId: a.docTypeId, folderId: a.folderId });
+  const [form, setForm] = useState<IUpdateAsset>({ title: a.title, description: d.description, tags: a.tags, docTypeId: a.docTypeId, folderId: a.folderId, classification: a.classification });
+  const clsOptions = (Object.keys(CLASSIFICATION) as Classification[]).map((c) => ({ value: c, label: CLASSIFICATION[c].label }));
   const [tagText, setTagText] = useState(a.tags.join(', '));
   const save = useDocMutation((body: IUpdateAsset) => documentApi.update(a.id, body));
   const errors = fieldErrors(save.error);
@@ -250,6 +257,11 @@ function EditForm({ d }: { d: IAssetDetail }) {
           options={typeOptions} onChange={(v) => v && a.status === 'Draft' && setForm({ ...form, docTypeId: v })} error={errors.docTypeId} />
         <SelectField id="as-folder" label="Thư mục" value={form.folderId} allowEmpty emptyLabel="— Gốc kho —"
           options={folderOptions(folders.data ?? [])} onChange={(v) => setForm({ ...form, folderId: v })} error={errors.folderId} />
+      </div>
+      <div className="grid gap-1">
+        <SelectField id="as-classification" label="Mức bảo mật" value={form.classification ?? 'Internal'} options={clsOptions}
+          onChange={(v) => v && setForm({ ...form, classification: v as Classification })} error={errors.classification} />
+        <p className="text-xs text-muted-foreground">{CLASSIFICATION[form.classification ?? 'Internal'].hint}</p>
       </div>
       <div className="grid gap-2">
         <Label htmlFor="as-tags">Thẻ (cách nhau bằng dấu phẩy)</Label>

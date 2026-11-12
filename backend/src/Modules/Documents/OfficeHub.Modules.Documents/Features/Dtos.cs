@@ -20,9 +20,18 @@ public sealed record UploadRequest(string? FileName, string? ContentType, long S
 /// <summary>Trình duyệt PUT file lên <see cref="Url"/> với header Content-Type = <see cref="ContentType"/>, rồi gửi <see cref="TicketId"/> để đăng ký.</summary>
 public sealed record UploadTicketDto(Guid TicketId, string Url, string ContentType, DateTimeOffset ExpiresAt);
 
+/// <summary>Classification: null = Nội bộ. Hạn chế / Mật → chỉ admin, HR, người tạo xem / tải (TEST-54).</summary>
 public sealed record CreateAssetRequest(Guid TicketId, SpaceKind SpaceKind, Guid? SpaceId, Guid? FolderId, Guid? DocTypeId, string? Title,
-    string? Description, List<string>? Tags);
-public sealed record UpdateAssetRequest(string? Title, string? Description, List<string>? Tags, Guid DocTypeId, Guid? FolderId);
+    string? Description, List<string>? Tags, Classification? Classification = null);
+/// <summary>Classification null = giữ nguyên.</summary>
+public sealed record UpdateAssetRequest(string? Title, string? Description, List<string>? Tags, Guid DocTypeId, Guid? FolderId,
+    Classification? Classification = null);
+/// <summary>
+/// Tạo tài liệu từ nội dung chữ (Api tự ghi file lên S3) — dùng cho trợ lý AI (MCP <c>create_document</c>), không cần presigned PUT.
+/// Format: md / txt / csv. Luôn mức Nội bộ, trạng thái Nháp.
+/// </summary>
+public sealed record CreateTextAssetRequest(SpaceKind SpaceKind, Guid? SpaceId, Guid? FolderId, Guid? DocTypeId, string? Title, string? Format,
+    string? Content, string? Description, List<string>? Tags);
 public sealed record NewVersionRequest(Guid TicketId, string? Note);
 public sealed record CustodianRequest(Guid EmployeeId);
 public sealed record DestroyRequest(string? Reason);
@@ -53,7 +62,8 @@ public sealed record AssetDetailDto(AssetRowDto Asset, string? Description, stri
 public sealed record ApproverDto(string Name, string? Email, string Detail);
 public sealed record ApproversDto(string Step, bool Pending, string? RequesterName, string Note, IReadOnlyList<ApproverDto> People);
 
-public sealed record FileUrlDto(string Url, string FileName, string ContentType, AssetKind Kind, int Version, bool Inline);
+/// <summary>Watermarked = link trỏ về Api (PDF đã đóng dấu mã nhân viên + giờ), không phải presigned S3 — chỉ tài liệu Hạn chế / Mật dạng PDF.</summary>
+public sealed record FileUrlDto(string Url, string FileName, string ContentType, AssetKind Kind, int Version, bool Inline, bool Watermarked = false);
 public sealed record AccessLogDto(DateTimeOffset At, string? UserName, AccessAction Action, int VersionNumber, string? Ip);
 
 public sealed record CountSize(string Key, string Label, int Count, long Size);

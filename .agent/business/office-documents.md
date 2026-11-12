@@ -34,4 +34,6 @@ Chủ dự án chốt 2026-11-07: làm cả 4 phần — nút HUD, tủ hồ sơ
 
 E2E: `scripts/dev/office-docs-e2e.ts` (25 kiểm tra, 2 Chrome, DB tạm + Realtime + Vite) — [e2e.md](../e2e.md). Kéo thả file chưa có trong e2e (CDP khó giả lập file thật).
 
+Tài liệu **Hạn chế / Mật** không chiếu được (`file?present=true` → 403, nút chiếu ẩn) — [documents-security.md](documents-security.md).
+
 **Chưa làm:** hiện tiêu đề / ảnh tài liệu lên chính mặt TV 3D, điều khiển trang PDF đồng bộ cho cả phòng.

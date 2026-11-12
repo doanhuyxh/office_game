@@ -110,7 +110,7 @@ if (MCP) {
   await rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'e2e', version: '1' } });
   const tools = ((await rpc('tools/list'))?.result?.tools ?? []) as any[];
   const t = tools.find((x) => x.name === 'update_project_guide');
-  ok('tools/list có update_project_guide (76 tool), ghi + idempotent', !!t && tools.length === 76 && t.annotations?.readOnlyHint !== true && t.annotations?.idempotentHint === true,
+  ok('tools/list có update_project_guide (78 tool), ghi + idempotent', !!t && tools.length === 78 && t.annotations?.readOnlyHint !== true && t.annotations?.idempotentHint === true,
     { n: tools.length, a: t?.annotations });
   const mcall = async (name: string, args: Record<string, unknown>) => {
     const x = await rpc('tools/call', { name, arguments: args });

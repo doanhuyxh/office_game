@@ -41,7 +41,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Bảng lương theo luật VN (BH, thuế TNCN, giảm trừ, thử việc 10 %), kỳ lương, phiếu lương | [payroll.md](payroll.md) |
 | Báo cáo + Excel (bảng công, tiền tăng ca, tiền phép khi nghỉ việc), quy tắc lương giờ / ngày công chuẩn | [reports.md](reports.md) |
 | Đặt phòng họp, chặn trùng giờ, mời họp, bảng "Đang họp" trong 3D | [meetings.md](meetings.md) |
-| Kho tài liệu / tài sản số: kho + quyền, tải thẳng S3, phiên bản, ban hành, hạn lưu trữ, thùng rác, dự án, bàn giao | [documents.md](documents.md) |
+| Kho tài liệu / tài sản số: kho + quyền, tải thẳng S3, phiên bản, ban hành, hạn lưu trữ, thùng rác, dự án, bàn giao | [documents.md](documents.md) · [documents-security.md](documents-security.md) |
 | Tài liệu trong văn phòng 3D: tủ hồ sơ / thư viện / bảng tin (E), kéo thả tải lên, chiếu lên màn hình phòng (`PinScreen`) | [office-documents.md](office-documents.md) |
 | Tài sản công ty: thiết bị + dịch vụ / ghế, cấp phát / thu hồi, nhắc hạn, nghỉ việc còn giữ, quyền xem | [assets.md](assets.md) |
 | Tài sản: rà soát quyền định kỳ, kiểm kê, xuất Excel, tool MCP | [assets-review.md](assets-review.md) |

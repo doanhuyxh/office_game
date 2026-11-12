@@ -26,10 +26,12 @@ internal static class AssetEndpoints
         g.MapPost("/uploads", CreateUploadAsync);
         g.MapGet("/assets", ListAsync);
         g.MapPost("/assets", CreateAsync);
+        g.MapPost("/assets/text", CreateTextAsync);
         g.MapGet("/assets/{id:guid}", GetAsync);
         g.MapPut("/assets/{id:guid}", UpdateAsync);
         g.MapPost("/assets/{id:guid}/versions", AddVersionAsync);
         g.MapGet("/assets/{id:guid}/file", FileAsync);
+        g.MapGet("/assets/{id:guid}/protected-file", ProtectedFileAsync);
         g.MapGet("/assets/{id:guid}/approvers", ApproversAsync);
         g.MapGet("/assets/{id:guid}/access-log", AccessLogAsync);
         g.MapDelete("/assets/{id:guid}", TrashAsync);
@@ -127,7 +129,7 @@ internal static class AssetEndpoints
                                  || (a.SpaceKind == SpaceKind.Project && projects.Contains(a.SpaceId)));
             }
         }
-        if (!v.IsHr) q = q.Where(a => a.Classification == Classification.Internal);
+        if (!v.IsHr) q = q.Where(a => a.Classification == Classification.Internal || a.CreatedByUserId == v.UserId);
         if (!string.IsNullOrEmpty(term))
         {
             var s = Like.Contains(term);
@@ -157,6 +159,59 @@ internal static class AssetEndpoints
 
     // ---------------- Tạo / sửa ----------------
 
+    /// <summary>
+    /// Tạo tài liệu Nháp từ nội dung chữ (md / txt / csv, ≤ 1 triệu ký tự): Api ghi file thẳng lên S3 (khoá <c>documents/…</c>), cùng quyền kho
+    /// như tải lên thường. Mức luôn Nội bộ. Dành cho trợ lý AI (token được gọi), web cũng dùng được.
+    /// </summary>
+    private static async Task<Results<Ok<AssetDetailDto>, ValidationProblem, ProblemHttpResult>> CreateTextAsync(CreateTextAssetRequest req, ClaimsPrincipal user,
+        DocumentAccess access, DocumentsDbContext db, IFileStorage files, IEmployeeDirectory dir, DocClock clock, CancellationToken ct)
+    {
+        var v = await access.ViewerAsync(user, ct);
+        if (await access.SpaceAsync(req.SpaceKind, req.SpaceId, ct) is not { } space) return Problems.NotFound("kho tài liệu");
+        if (!await access.CanWriteAsync(v, req.SpaceKind, req.SpaceId, ct)) return Http.Forbidden();
+        if (req.FolderId is { } fid && !await db.Folders.AnyAsync(f => f.Id == fid && f.SpaceKind == req.SpaceKind && f.SpaceId == req.SpaceId, ct))
+            return Problems.NotFound("thư mục");
+        var title = req.Title?.Trim() ?? "";
+        var format = (req.Format ?? "md").Trim().TrimStart('.').ToLowerInvariant();
+        var val = new Validation().MaxLength(title, 300, "title", "Tiêu đề").MaxLength(req.Description, 4000, "description", "Mô tả");
+        if (title.Length == 0) val.Add("title", "Nhập tiêu đề tài liệu");
+        if (!DocumentRules.TextFormats.Contains(format)) val.Add("format", "Định dạng chỉ nhận md / txt / csv");
+        if (string.IsNullOrWhiteSpace(req.Content)) val.Add("content", "Thiếu nội dung tài liệu");
+        else if (req.Content.Length > DocumentRules.MaxTextContent) val.Add("content", $"Nội dung tối đa {DocumentRules.MaxTextContent:N0} ký tự");
+        if (val.Failed) return val.Problem();
+
+        var fileName = $"{(title.Length > 120 ? title[..120] : title)}.{format}";
+        var contentType = FileTypes.ContentTypeFor(fileName);
+        var kind = DocumentRules.KindOf(contentType, fileName);
+        var type = req.DocTypeId is { } tid ? await db.DocTypes.FirstOrDefaultAsync(x => x.Id == tid && x.IsActive, ct) : await DefaultTypeAsync(db, kind, ct);
+        if (type is null) return new Validation().Add("docTypeId", "Loại tài liệu không tồn tại").Problem();
+
+        var now = clock.Now;
+        var bytes = System.Text.Encoding.UTF8.GetBytes(req.Content!);
+        var key = $"documents/{now:yyyy}/{now:MM}/{Guid.CreateVersion7():N}/{DocumentRules.SafeKeyName(fileName)}";
+        using (var stream = new MemoryStream(bytes)) await files.UploadAsync(key, stream, contentType, ct);
+
+        var today = clock.Today;
+        var seq = await db.NextAsync($"asset:{today.Year}", ct);
+        var a = new Asset
+        {
+            Code = DocumentRules.AssetCode(space.Code, today.Year, seq),
+            Title = title,
+            Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim(),
+            Tags = DocumentRules.NormalizeTags(req.Tags),
+            SpaceKind = req.SpaceKind, SpaceId = req.SpaceId, FolderId = req.FolderId, DocTypeId = type.Id, Kind = kind,
+            Status = AssetStatus.Draft, CurrentVersion = 1, TotalSize = bytes.Length, Classification = Classification.Internal,
+            CustodianEmployeeId = v.Employee?.Id, CustodianName = v.Employee?.FullName,
+            CreatedByUserId = v.UserId, CreatedByEmployeeId = v.Employee?.Id, CreatedByName = v.Name, CreatedAt = now, UpdatedAt = now,
+            RetentionUntil = DocumentRules.RetentionUntil(today, type.RetentionYears),
+        };
+        a.Versions.Add(new AssetVersion { AssetId = a.Id, Number = 1, FileKey = key, FileName = fileName, ContentType = contentType, Size = bytes.Length,
+            Note = user.IsAccessToken() ? "Tạo qua trợ lý AI" : null, UploadedByUserId = v.UserId, UploadedByName = v.Name, UploadedAt = now });
+        db.Assets.Add(a);
+        await db.SaveChangesAsync(ct);
+        return TypedResults.Ok(await DetailAsync(a, v, access, db, dir, ct));
+    }
+
     private static async Task<Results<Ok<AssetDetailDto>, ValidationProblem, ProblemHttpResult>> CreateAsync(CreateAssetRequest req, ClaimsPrincipal user,
         DocumentAccess access, DocumentsDbContext db, IFileStorage files, IEmployeeDirectory dir, DocClock clock, CancellationToken ct)
     {
@@ -166,6 +221,7 @@ internal static class AssetEndpoints
         if (req.FolderId is { } fid && !await db.Folders.AnyAsync(f => f.Id == fid && f.SpaceKind == req.SpaceKind && f.SpaceId == req.SpaceId, ct))
             return Problems.NotFound("thư mục");
         var val = new Validation().MaxLength(req.Title?.Trim(), 300, "title", "Tiêu đề").MaxLength(req.Description, 4000, "description", "Mô tả");
+        if (req.Classification is { } c0 && !Enum.IsDefined(c0)) val.Add("classification", "Mức bảo mật không hợp lệ");
         if (val.Failed) return val.Problem();
         var (t, size, err) = await ClaimTicketAsync(req.TicketId, v, db, files, ct);
         if (err is not null) return err;
@@ -185,7 +241,7 @@ internal static class AssetEndpoints
             Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim(),
             Tags = DocumentRules.NormalizeTags(req.Tags),
             SpaceKind = req.SpaceKind, SpaceId = req.SpaceId, FolderId = req.FolderId, DocTypeId = type.Id, Kind = kind,
-            Status = AssetStatus.Draft, CurrentVersion = 1, TotalSize = size,
+            Status = AssetStatus.Draft, CurrentVersion = 1, TotalSize = size, Classification = req.Classification ?? Classification.Internal,
             CustodianEmployeeId = v.Employee?.Id, CustodianName = v.Employee?.FullName,
             CreatedByUserId = v.UserId, CreatedByEmployeeId = v.Employee?.Id, CreatedByName = v.Name, CreatedAt = now, UpdatedAt = now,
             RetentionUntil = DocumentRules.RetentionUntil(today, type.RetentionYears),
@@ -225,12 +281,14 @@ internal static class AssetEndpoints
                 a.RetentionUntil = DocumentRules.RetentionUntil(clock.DateOf(a.CreatedAt), nt.RetentionYears);
             else val.Add("docTypeId", "Loại tài liệu không tồn tại");
         }
+        if (req.Classification is { } c1 && !Enum.IsDefined(c1)) val.Add("classification", "Mức bảo mật không hợp lệ");
         if (val.Failed) return val.Problem();
         a.Title = req.Title!.Trim();
         a.Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim();
         a.Tags = DocumentRules.NormalizeTags(req.Tags);
         a.DocTypeId = req.DocTypeId;
         a.FolderId = req.FolderId;
+        if (req.Classification is { } cls) a.Classification = cls;
         a.UpdatedAt = clock.Now;
         await db.SaveChangesAsync(ct);
         return TypedResults.Ok(await DetailAsync(a, v, access, db, dir, ct));
@@ -330,6 +388,19 @@ internal static class AssetEndpoints
         if (ver is null) return Problems.NotFound("phiên bản");
         if (ver.FileKey is null) return TypedResults.Problem("File đã bị huỷ theo hạn lưu trữ", statusCode: StatusCodes.Status410Gone);
         var kind = DocumentRules.KindOf(ver.ContentType, ver.FileName);
+        if (DocumentRules.IsProtected(a.Classification))
+        {
+            // Hạn chế / Mật: không ra trợ lý AI, không chiếu lên TV phòng họp; PDF → link Api trả bản đóng dấu (không presigned S3)
+            if (user.IsAccessToken()) return Http.Forbidden("Tài liệu Hạn chế / Mật không mở qua trợ lý AI");
+            if (present == true) return Http.Forbidden("Tài liệu Hạn chế / Mật không chiếu lên màn hình phòng họp");
+            if (DocumentRules.CanWatermark(ver.FileName))
+            {
+                if (ver.Size > DocumentRules.MaxWatermarkBytes)
+                    return TypedResults.Problem("PDF quá 100 MB, không đóng dấu được — liên hệ HR", statusCode: StatusCodes.Status413PayloadTooLarge);
+                var wm = $"/api/documents/assets/{a.Id}/protected-file?version={ver.Number}&download={(download == true ? "true" : "false")}";
+                return TypedResults.Ok(new FileUrlDto(wm, ver.FileName, ver.ContentType, kind, ver.Number, download != true, Watermarked: true));
+            }
+        }
         // TEST-13: xem trực tiếp theo đuôi file (khớp header S3 do FileStorage ép) — không theo MIME cũ do trình duyệt gửi (vd SVG từng lưu image/svg+xml)
         var previewable = FileTypes.IsInlineSafe(FileTypes.ContentTypeFor(ver.FileName));
         var inline = download != true && previewable;
@@ -340,6 +411,36 @@ internal static class AssetEndpoints
             Action = inline ? AccessAction.View : AccessAction.Download, At = clock.Now, Ip = http.Connection.RemoteIpAddress?.ToString() });
         await db.SaveChangesAsync(ct);
         return TypedResults.Ok(new FileUrlDto(url, ver.FileName, ver.ContentType, kind, ver.Number, inline));
+    }
+
+    /// <summary>
+    /// PDF Hạn chế / Mật đã đóng dấu (mã nhân viên + giờ VN) trên mọi trang — đọc từ S3 vào bộ nhớ, đóng dấu, trả thẳng (cookie, không link S3).
+    /// Mỗi lần gọi ghi nhật ký. PDF có mật khẩu / hỏng → 422.
+    /// </summary>
+    private static async Task<Results<FileContentHttpResult, ProblemHttpResult>> ProtectedFileAsync(Guid id, int? version, bool? download, ClaimsPrincipal user,
+        HttpContext http, DocumentAccess access, DocumentsDbContext db, IFileStorage files, IEmployeeDirectory dir, DocClock clock, CancellationToken ct)
+    {
+        if (user.IsAccessToken()) return Http.Forbidden("Tài liệu Hạn chế / Mật không mở qua trợ lý AI");
+        var v = await access.ViewerAsync(user, ct);
+        var a = await db.Assets.AsNoTracking().Include(x => x.Versions).FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (a is null || !await CanSeeAsync(v, a, access, dir, ct)) return Problems.NotFound("tài liệu");
+        var ver = a.Versions.FirstOrDefault(x => x.Number == (version ?? a.CurrentVersion));
+        if (ver is null || !DocumentRules.IsProtected(a.Classification) || !DocumentRules.CanWatermark(ver.FileName)) return Problems.NotFound("phiên bản");
+        if (ver.FileKey is null) return TypedResults.Problem("File đã bị huỷ theo hạn lưu trữ", statusCode: StatusCodes.Status410Gone);
+        if (ver.Size > DocumentRules.MaxWatermarkBytes)
+            return TypedResults.Problem("PDF quá 100 MB, không đóng dấu được — liên hệ HR", statusCode: StatusCodes.Status413PayloadTooLarge);
+
+        using var original = await files.OpenReadAsync(ver.FileKey, ct);
+        var text = DocumentRules.WatermarkText(v.Employee?.Code ?? v.Name, clock.Now, clock.Zone);
+        byte[] stamped;
+        try { stamped = PdfWatermark.Stamp(original.ToArray(), text); }
+        catch (InvalidDataException e) { return TypedResults.Problem(e.Message, statusCode: StatusCodes.Status422UnprocessableEntity); }
+
+        var inline = download != true;
+        db.AccessLogs.Add(new AccessLog { AssetId = a.Id, VersionNumber = ver.Number, UserId = v.UserId, UserName = v.Name,
+            Action = inline ? AccessAction.View : AccessAction.Download, At = clock.Now, Ip = http.Connection.RemoteIpAddress?.ToString() });
+        await db.SaveChangesAsync(ct);
+        return TypedResults.File(stamped, "application/pdf", inline ? null : ver.FileName);
     }
 
     /// <summary>Nhật ký xem / tải: người phụ trách, người tạo, người quản lý kho, HR.</summary>
@@ -499,8 +600,9 @@ internal static class AssetEndpoints
         if (!DocumentRules.CanSubmit(a.Status)) return Problems.Conflict("Chỉ gửi duyệt được tài liệu nháp");
         if (!await access.CanActAsync(v, a, ct)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho được gửi duyệt");
         if (v.Employee is not { } me) return Http.NoProfile();
-        // Chức vụ được tự ban hành (cấp Chuyên viên trở lên, HR bật ở tab Chức vụ) → ban hành ngay, không tạo đơn duyệt
-        if ((await dir.GetPositionAsync(me.Id, ct))?.SelfPublishDocuments == true)
+        // Chức vụ được tự ban hành (cấp Chuyên viên trở lên, HR bật ở tab Chức vụ) → ban hành ngay, không tạo đơn duyệt.
+        // Qua trợ lý AI (token) LUÔN tạo đơn cho người duyệt — chủ dự án chốt 2026-11-12 (TEST-54).
+        if (!user.IsAccessToken() && (await dir.GetPositionAsync(me.Id, ct))?.SelfPublishDocuments == true)
         {
             a.SubmittedByEmployeeId = me.Id;
             await publisher.PublishAsync(a, ct);

@@ -154,6 +154,8 @@ public class ProjectDocumentScopeTests
     [InlineData("GET", "/api/documents/recent")]
     [InlineData("GET", "/api/documents/assets/" + G)]
     [InlineData("GET", "/api/documents/assets/" + G + "/file")]
+    [InlineData("POST", "/api/documents/assets/text")]                     // TEST-54: tạo tài liệu chữ (nháp)
+    [InlineData("POST", "/api/documents/assets/" + G + "/submit")]          // TEST-54: gửi duyệt (luôn qua người duyệt)
     public void Allows_project_tasks_and_document_reads(string method, string path) => Assert.True(AccessTokenAuth.IsAllowed(method, path));
 
     [Theory]
@@ -182,11 +184,13 @@ public class ProjectDocumentScopeTests
     [InlineData("GET", "/api/projects/" + G + "/tasks/extra")]
     [InlineData("GET", "/api/projects/" + G + "/tasks\n")]
     [InlineData("GET", "/api/projects/not-a-guid/tasks")]
-    [InlineData("POST", "/api/documents/uploads")]                        // tài liệu: chỉ đọc
+    [InlineData("POST", "/api/documents/uploads")]                        // tài liệu: chỉ tạo chữ + gửi duyệt
     [InlineData("POST", "/api/documents/assets")]
     [InlineData("PUT", "/api/documents/assets/" + G)]
     [InlineData("DELETE", "/api/documents/assets/" + G)]
-    [InlineData("POST", "/api/documents/assets/" + G + "/submit")]
+    [InlineData("GET", "/api/documents/assets/" + G + "/protected-file")]
+    [InlineData("POST", "/api/documents/assets/" + G + "/archive")]
+    [InlineData("POST", "/api/documents/assets/text/submit")]
     [InlineData("GET", "/api/documents/assets/" + G + "/access-log")]
     [InlineData("GET", "/api/documents/trash")]
     [InlineData("GET", "/api/documents/admin/stats")]

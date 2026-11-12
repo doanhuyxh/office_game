@@ -135,7 +135,7 @@ const call = async (token: string, name: string, args: Record<string, unknown> =
 
 // ---------- Quyền + điều kiện ----------
 const names: string[] = ((await rpc(B.token, 'tools/list'))?.result?.tools ?? []).map((t: any) => t.name);
-ok('tools/list có present_screen / present_markdown / present_document / stop_presenting (76 tool)', ['present_screen', 'present_markdown', 'present_document', 'stop_presenting'].every((n) => names.includes(n)) && names.length === 76, names.length);
+ok('tools/list có present_screen / present_markdown / present_document / stop_presenting (78 tool)', ['present_screen', 'present_markdown', 'present_document', 'stop_presenting'].every((n) => names.includes(n)) && names.length === 78, names.length);
 ok('người thật dùng token → lỗi chỉ bot', (await call(H.token, 'present_screen', { image: PNG })).text.includes('Chỉ tài khoản bot'));
 ok('bot chưa ở phòng có tường → lỗi go_to phòng họp trước', (await call(B.token, 'present_screen', { image: PNG })).text.includes('phòng có tường'));
 const g = await call(B.token, 'go_to', { place: 'Phòng họp nhỏ' });

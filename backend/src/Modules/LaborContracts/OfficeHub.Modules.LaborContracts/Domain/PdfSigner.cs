@@ -1,7 +1,6 @@
 using System.Globalization;
-using System.Reflection;
 using PdfSharp.Drawing;
-using PdfSharp.Fonts;
+using OfficeHub.BuildingBlocks.Pdf;
 using PdfSharp.Pdf;
 using PdfSharp.Pdf.IO;
 
@@ -18,15 +17,10 @@ public sealed record SignStamp(string ContractNumber, string SignerName, string 
 /// </summary>
 public static class PdfSigner
 {
-    private const string Font = "Noto Sans";
-    private static int _init;
+    private const string Font = PdfFonts.Family;
 
-    /// <summary>Font nhúng (Noto Sans, OFL) — container Alpine không có font hệ thống, cần đủ dấu tiếng Việt.</summary>
-    public static void EnsureFonts()
-    {
-        if (Interlocked.Exchange(ref _init, 1) == 1) return;
-        GlobalFontSettings.FontResolver ??= new EmbeddedFontResolver();
-    }
+    /// <summary>Font nhúng dùng chung (Noto Sans, OFL — <see cref="PdfFonts"/>), cần đủ dấu tiếng Việt.</summary>
+    public static void EnsureFonts() => PdfFonts.Ensure();
 
     /// <exception cref="InvalidDataException">PDF hỏng / có mật khẩu.</exception>
     public static byte[] Stamp(byte[] originalPdf, byte[] signaturePng, SignStamp s)
@@ -122,22 +116,5 @@ public static class PdfSigner
             while (line.Length > width) { yield return line[..width]; line = line[width..]; }
         }
         if (line.Length > 0) yield return line;
-    }
-
-    private sealed class EmbeddedFontResolver : IFontResolver
-    {
-        public FontResolverInfo? ResolveTypeface(string familyName, bool bold, bool italic) =>
-            new(bold ? "NotoSans-Bold" : "NotoSans-Regular");
-
-        public byte[]? GetFont(string faceName)
-        {
-            var asm = Assembly.GetExecutingAssembly();
-            var name = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith($"{faceName}.ttf", StringComparison.Ordinal));
-            if (name is null) return null;
-            using var s = asm.GetManifestResourceStream(name)!;
-            using var ms = new MemoryStream();
-            s.CopyTo(ms);
-            return ms.ToArray();
-        }
     }
 }

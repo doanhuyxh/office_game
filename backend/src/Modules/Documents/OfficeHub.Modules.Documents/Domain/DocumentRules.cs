@@ -6,6 +6,27 @@ namespace OfficeHub.Modules.Documents.Domain;
 /// <summary>Quy tắc thuần của kho tài liệu (không truy cập DB) — test ở OfficeHub.Modules.Documents.Tests.</summary>
 public static class DocumentRules
 {
+    // ---------------- Tài liệu chữ do trợ lý AI tạo (TEST-54) ----------------
+
+    public static readonly string[] TextFormats = ["md", "txt", "csv"];
+    /// <summary>Tối đa ký tự nội dung tài liệu chữ (≈ 1 MB).</summary>
+    public const int MaxTextContent = 1_000_000;
+
+    // ---------------- Mức bảo mật + watermark (TEST-54) ----------------
+
+    /// <summary>Hạn chế / Mật: chỉ admin / HR / người tạo; file PDF trả bản đóng dấu; không chiếu lên TV, không ra trợ lý AI.</summary>
+    public static bool IsProtected(Classification c) => c != Classification.Internal;
+
+    /// <summary>Đóng dấu được (hiện chỉ PDF — PDFsharp). Loại khác trả file gốc (vẫn ghi nhật ký).</summary>
+    public static bool CanWatermark(string fileName) => Path.GetExtension(fileName).Equals(".pdf", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>PDF lớn hơn không đóng dấu trong bộ nhớ được → 413.</summary>
+    public const long MaxWatermarkBytes = 100L * 1024 * 1024;
+
+    /// <summary>Nội dung dấu: mã nhân viên + giờ Việt Nam dạng yyyy/MM/dd-HH:mm (chủ dự án chốt 2026-11-12; "hh" hiểu là 24 giờ).</summary>
+    public static string WatermarkText(string who, DateTimeOffset nowUtc, TimeZoneInfo tz) =>
+        $"{who} {TimeZoneInfo.ConvertTime(nowUtc, tz):yyyy'/'MM'/'dd'-'HH':'mm}";
+
     /// <summary>Giới hạn một lần PUT presigned của S3.</summary>
     public const long MaxFileSize = 5L * 1024 * 1024 * 1024;
     public const int TrashDays = 30;

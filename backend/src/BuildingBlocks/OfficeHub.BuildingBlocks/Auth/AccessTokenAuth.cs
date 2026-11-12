@@ -108,6 +108,8 @@ public static class AccessTokenAuth
         ("POST", Exact("/api/news/posts/?")),
         ("GET", Exact("/api/documents/(spaces|folders|assets|recent)")),
         ("GET", Exact($"/api/documents/assets/{Id}(/file)?")),
+        // TEST-54: tạo tài liệu chữ (Nháp) + gửi duyệt ban hành — token luôn qua người duyệt (không tự ban hành)
+        ("POST", Exact($"/api/documents/assets/(text|{Id}/submit)")),
         // Chat (2026-11-11): CHỈ tài khoản bot (Api tự trả 403 cho người thật), kênh Toàn văn phòng + 1-1 người khác đã mở.
         //   Không có: mở 1-1 mới, kênh phòng (Api trả 404), tải tệp, thu hồi, tìm người.
         ("GET", Exact("/api/chat/(conversations|unread-count)")),

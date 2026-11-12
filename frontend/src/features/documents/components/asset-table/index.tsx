@@ -40,7 +40,7 @@ export function AssetTable({ rows, loading, onOpen, empty = 'Chưa có tài li�
                 <div className="flex items-start gap-2">
                   <k.icon className={`mt-0.5 size-4 shrink-0 ${k.className}`} />
                   <div className="min-w-0">
-                    <div className="truncate font-medium">{r.title}</div>
+                    <div className="truncate font-medium">{r.classification !== 'Internal' && <span title="Hạn chế / Mật" aria-label="Hạn chế / Mật">🔒 </span>}{r.title}</div>
                     <div className="truncate text-xs text-muted-foreground">
                       {r.code}{r.documentNumber ? ` · Số ${r.documentNumber}` : ''}{r.currentVersion > 1 ? ` · v${r.currentVersion}` : ''}
                       {showLocation ? ` · ${showLocation(r)}` : ''}

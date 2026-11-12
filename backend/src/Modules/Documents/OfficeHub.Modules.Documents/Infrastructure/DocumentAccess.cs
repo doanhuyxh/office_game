@@ -100,9 +100,12 @@ internal sealed class DocumentAccess(IEmployeeDirectory dir, IProjectDirectory p
         _ => false,
     };
 
-    /// <summary>Xem một tài liệu: đọc được kho + mức bảo mật cho phép (hiện chỉ Nội bộ; mức cao hơn chỉ HR).</summary>
+    /// <summary>
+    /// Xem một tài liệu: đọc được kho + mức bảo mật cho phép. Hạn chế / Mật: chỉ admin / HR và người tạo (chủ dự án chốt 2026-11-12, TEST-54);
+    /// người duyệt ban hành xem thêm khi đang chờ duyệt (<c>AssetEndpoints.CanSeeAsync</c>).
+    /// </summary>
     public static bool CanView(Viewer v, Asset a) =>
-        CanRead(v, a.SpaceKind, a.SpaceId) && (a.Classification == Classification.Internal || v.IsHr);
+        CanRead(v, a.SpaceKind, a.SpaceId) && (a.Classification == Classification.Internal || v.IsHr || a.CreatedByUserId == v.UserId);
 
     public static bool IsOwner(Viewer v, Asset a) =>
         a.CreatedByUserId == v.UserId || (v.Employee is { } e && a.CustodianEmployeeId == e.Id);
@@ -139,6 +142,7 @@ internal sealed class DocClock(TimeProvider clock, IOptions<OfficeSettings> offi
 {
     private readonly TimeZoneInfo _tz = TimeZoneInfo.FindSystemTimeZoneById(office.Value.TimeZone);
     public DateTimeOffset Now => clock.GetUtcNow();
+    public TimeZoneInfo Zone => _tz;
     public DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), _tz).DateTime);
     public DateOnly DateOf(DateTimeOffset t) => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(t, _tz).DateTime);
 }
