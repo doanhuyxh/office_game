@@ -32,8 +32,8 @@ public class AgentTeamRulesTests
     {
         Assert.True(AgentTeamRules.StreakAllows(9));
         Assert.False(AgentTeamRules.StreakAllows(10));
-        Assert.True(AgentTeamRules.TaskQuotaLeft(19));
-        Assert.False(AgentTeamRules.TaskQuotaLeft(20));
+        Assert.True(AgentTeamRules.TaskQuotaLeft(AgentTeamRules.MaxBotTasksPerDay - 1));
+        Assert.False(AgentTeamRules.TaskQuotaLeft(AgentTeamRules.MaxBotTasksPerDay));
     }
 
     [Theory]
