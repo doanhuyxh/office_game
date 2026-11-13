@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react';
+import { useMutationState } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { toast } from 'sonner';
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, CheckCircle2, GripVertical, Plus, Settings2, ShieldCheck } from 'lucide-react';
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, CheckCircle2, GripVertical, Loader2, Plus, Settings2, ShieldCheck } from 'lucide-react';
 import { BotBadge } from '@/components/common/bot-badge';
 import { Button } from '@/components/common/button';
 import { promptDialog } from '@/components/common/confirm-dialog';
@@ -11,9 +12,9 @@ import { fmtDate } from '@/features/finance';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errors';
 import { projectApi } from '../../api/project.api';
-import { useProjectMutation, useTaskDetail, useTasks } from '../../hooks/useProjects';
+import { moveTaskKey, useMoveTask, useProjectMutation, useTaskDetail, useTasks, type IMoveTaskArgs } from '../../hooks/useProjects';
 import type { IProjectDetail, ITask, ITaskColumn } from '../../types/project.types';
-import { createColumns, needsMoveNote } from '../../utils/labels';
+import { createColumns, moveBlockReason, needsMoveNote } from '../../utils/labels';
 import { ColumnDialog } from '../column-dialog';
 import { TaskDialog } from '../task-dialog';
 
@@ -66,6 +67,8 @@ function reorder(ids: string[], id: string, target: string) {
  * Thành viên kéo thẻ sang cột khác; bấm thẻ để sửa / bình luận; lọc "việc của tôi".
  * Chức vụ có quyền "Quản lý trạng thái công việc": kéo tiêu đề cột để sắp xếp, ⚙ để sửa tên / màu / cờ / xoá, nút "Thêm trạng thái" trên thanh công cụ.
  * Back-end kiểm quy trình (đi lần lượt, cột cần người duyệt) → toast lỗi; kéo lùi khi đi lần lượt → hỏi lý do trước.
+ * Kéo thẻ (TEST-72): thẻ nguồn mờ, cột không thả được mờ + ghi lý do (quy tắc FE chỉ gợi ý); thả → thẻ sang cột mới ngay (`useMoveTask` optimistic),
+ * spinner + khoá thẻ tới khi lưu xong, nháy viền khi xong (primary) / khi lỗi thẻ quay về cột cũ (destructive).
  * Việc đang mở nằm trên URL `?task=<id>` (+ `&comment=<id>` từ chuông bình luận → cuộn tới) để link chuông / copy link mở thẳng hộp thoại (TEST-66);
  * lấy theo id nên mở được cả việc đã xong / đang bị lọc. Đóng hộp thoại → bỏ task / comment khỏi URL (replace).
  */
@@ -91,8 +94,13 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
   const [over, setOver] = useState<string | null>(null);
   const [dragCol, setDragCol] = useState<string | null>(null);
   const [pendingOrder, setPendingOrder] = useState<string[] | null>(null);
+  const [savingCol, setSavingCol] = useState<string | null>(null);
+  const [dragTask, setDragTask] = useState<ITask | null>(null);
+  const [flash, setFlash] = useState<Record<string, 'ok' | 'err'>>({});
   const board = useFillHeight(!isLoading);
-  const move = useProjectMutation((a: { id: string; columnId: string; note?: string }) => projectApi.moveTask(a.id, a.columnId, a.note));
+  const move = useMoveTask(p.id);
+  const moving = new Set(useMutationState({ filters: { mutationKey: moveTaskKey(p.id), status: 'pending' },
+    select: (m) => (m.state.variables as IMoveTaskArgs | undefined)?.task.id }));
   const reorderCols = useProjectMutation((ids: string[]) => projectApi.reorderColumns(p.id, ids));
   if (isLoading) return <Spinner />;
   const manage = p.canManageColumns && p.status === 'Active';
@@ -103,7 +111,8 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
   const shown = mine ? data.filter((t) => t.assigneeEmployeeId === myEmployeeId) : data;
   const dropTask = async (columnId: string, id: string) => {
     const t = data.find((x) => x.id === id);
-    if (!t || t.columnId === columnId || !p.canWork) return;
+    const column = byId.get(columnId);
+    if (!t || !column || t.columnId === columnId || !p.canWork || moving.has(id) || blocked(t, columnId)) return;
     let note: string | undefined;
     if (needsMoveNote(columns, t.columnId, columnId, p.sequential)) {
       const r = await promptDialog({ title: `Trả ${t.code} về "${byId.get(columnId)?.name}"?`, label: 'Lý do (thành bình luận của việc)',
@@ -111,15 +120,22 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
       if (r === null) return;
       note = r;
     }
-    move.mutate({ id, columnId, note }, { onError: (err) => toast.error(errorMessage(err)) });
+    // mutateAsync: mỗi lần thả có promise riêng (callback của mutate chỉ chạy cho lần gọi cuối); toast lỗi đã ở hook.
+    move.mutateAsync({ task: t, column, note }).then(() => blink(id, 'ok'), () => blink(id, 'err'));
   };
+  const blink = (id: string, kind: 'ok' | 'err') => {
+    setFlash((f) => ({ ...f, [id]: kind }));
+    setTimeout(() => setFlash(({ [id]: _, ...rest }) => rest), 700);
+  };
+  const blocked = (t: ITask, columnId: string) => moveBlockReason(columns, t.columnId, columnId, p.sequential, p.canManage);
   const dropColumn = (target: string) => {
     const id = dragCol;
     setDragCol(null);
     if (!id || id === target) return;
     const ids = reorder(columns.map((c) => c.id), id, target);
     setPendingOrder(ids);
-    reorderCols.mutate(ids, { onError: (err) => toast.error(errorMessage(err)), onSettled: () => setPendingOrder(null) });
+    setSavingCol(id);
+    reorderCols.mutate(ids, { onError: (err) => toast.error(errorMessage(err)), onSettled: () => { setPendingOrder(null); setSavingCol(null); } });
   };
   const toggleDesc = (columnId: string) => {
     const next = new Set(desc);
@@ -129,12 +145,13 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
   };
   const onDragOver = (e: DragEvent, columnId: string) => {
     const isCol = e.dataTransfer.types.includes(COLUMN);
-    if (isCol ? !manage : !p.canWork) return;
+    if (isCol ? !manage : !p.canWork || (dragTask && blocked(dragTask, columnId))) return;
     e.preventDefault();
     setOver(columnId);
   };
   const onDrop = (e: DragEvent, columnId: string) => {
     setOver(null);
+    setDragTask(null);
     if (e.dataTransfer.types.includes(COLUMN)) dropColumn(columnId);
     else void dropTask(columnId, e.dataTransfer.getData(TASK));
   };
@@ -157,11 +174,13 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
           const col = shown.filter((t) => t.columnId === c.id);
           const isDesc = desc.has(c.id);
           if (isDesc) col.reverse();
+          const why = dragTask && dragTask.columnId !== c.id ? blocked(dragTask, c.id) : null;
           return (
             <div key={c.id} data-testid={`col-${c.name}`} onDragOver={(e) => onDragOver(e, c.id)} onDragLeave={() => setOver(null)} onDrop={(e) => onDrop(e, c.id)}
               style={{ borderTopColor: c.color }}
               className={cn('flex max-h-[70dvh] min-h-48 w-72 shrink-0 flex-col gap-2 rounded-xl border border-t-4 p-2 xl:max-h-none xl:min-h-0',
-                over === c.id ? 'border-x-primary border-b-primary bg-primary/5' : 'bg-muted/30', dragCol === c.id && 'opacity-50')}>
+                over === c.id ? 'border-x-primary border-b-primary bg-primary/5' : 'bg-muted/30', (dragCol === c.id || why) && 'cursor-not-allowed opacity-50')}
+              title={why ?? undefined} data-blocked={why ? '' : undefined}>
               <div className="flex items-center gap-1 px-1 text-sm" draggable={manage} data-testid="column-header"
                 onDragStart={(e) => { e.dataTransfer.setData(COLUMN, c.id); e.dataTransfer.effectAllowed = 'move'; setDragCol(c.id); }}
                 onDragEnd={() => setDragCol(null)}>
@@ -169,6 +188,7 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
                 <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
                 <span className="min-w-0 truncate font-medium" title={c.name}>{c.name}</span>
                 <span className="text-muted-foreground">({col.length})</span>
+                {savingCol === c.id && <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" aria-label="Đang lưu thứ tự" />}
                 {c.isDone && <span title="Trạng thái hoàn thành"><CheckCircle2 className="size-3.5 shrink-0 text-success" aria-label="Hoàn thành" /></span>}
                 {c.approverOnly && <span title="Cần người duyệt (chỉ quản lý dự án)"><ShieldCheck className="size-3.5 shrink-0 text-warning" aria-label="Cần người duyệt" /></span>}
                 <span className="ml-auto flex shrink-0 items-center">
@@ -186,11 +206,19 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
                     onClick={() => setCreate({ columnId: c.id })}><Plus /></Button>}
                 </span>
               </div>
+              {why && <p className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground" data-testid="drop-blocked">{why}</p>}
               <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-1 pb-1">
-              {col.map((t) => (
-                <button key={t.id} type="button" draggable={p.canWork} onDragStart={(e) => e.dataTransfer.setData(TASK, t.id)} onClick={() => openTask(t.id)}
-                  className="grid gap-1 rounded-lg border bg-card p-2 text-left text-sm shadow-xs hover:border-primary/50" data-testid="task-card">
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">{t.code}{t.createdByBot && <BotBadge />}
+              {col.map((t) => {
+                const busy = moving.has(t.id);
+                return (
+                <button key={t.id} type="button" draggable={p.canWork && !busy} disabled={busy} aria-busy={busy} onClick={() => openTask(t.id)}
+                  onDragStart={(e) => { e.dataTransfer.setData(TASK, t.id); e.dataTransfer.effectAllowed = 'move'; setDragTask(t); }}
+                  onDragEnd={() => { setDragTask(null); setOver(null); }}
+                  className={cn('grid gap-1 rounded-lg border bg-card p-2 text-left text-sm shadow-xs transition-opacity hover:border-primary/50 disabled:cursor-progress',
+                    dragTask?.id === t.id && 'opacity-50', busy && 'opacity-80',
+                    flash[t.id] === 'ok' && 'animate-in fade-in ring-2 ring-primary/60 duration-500', flash[t.id] === 'err' && 'ring-2 ring-destructive')}
+                  data-testid="task-card">
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">{t.code}{busy && <Loader2 className="size-3 animate-spin" aria-label="Đang lưu" />}{t.createdByBot && <BotBadge />}
                     {!!t.waitingOn && !t.done && <span className="rounded bg-warning/15 px-1 text-[10px] font-medium text-warning" title="Còn chờ việc khác xong" data-testid="task-waiting">Chờ {t.waitingOn} việc</span>}</span>
                   <span className={t.done ? 'text-muted-foreground line-through' : 'font-medium'}>{t.title}</span>
                   <span className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
@@ -201,7 +229,8 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
                     {t.mediaLinks.length > 0 && <span title="Ảnh / video">🖼 {t.mediaLinks.length}</span>}
                   </span>
                 </button>
-              ))}
+                );
+              })}
               </div>
             </div>
           );

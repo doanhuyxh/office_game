@@ -11,6 +11,18 @@ export const needsMoveNote = (columns: ITaskColumn[], from: string, to: string, 
   const i = (id: string) => columns.findIndex((c) => c.id === id);
   return sequential && i(to) < i(from);
 };
+/**
+ * Lý do không thả được việc từ `from` sang `to` (null = thả được) — gợi ý khi kéo, khớp TaskWorkflow.MoveError ở back-end
+ * (trừ lý do chuyển lùi: hỏi bằng hộp thoại). Back-end vẫn là nơi kiểm.
+ */
+export function moveBlockReason(columns: ITaskColumn[], from: string, to: string, sequential: boolean, canApprove: boolean): string | null {
+  const fi = columns.findIndex((c) => c.id === from), ti = columns.findIndex((c) => c.id === to);
+  if (fi < 0 || ti < 0 || fi === ti) return null;
+  const src = columns[fi], dst = columns[ti];
+  if (ti > fi && sequential && ti !== fi + 1) return `Phải đi lần lượt: ${src.name} → ${columns[fi + 1].name}`;
+  if (ti < fi && src.approverOnly && !canApprove) return `Chỉ quản lý dự án được chuyển việc ra khỏi "${src.name}"`;
+  return dst.approverOnly && !canApprove ? `Chỉ quản lý dự án được chuyển việc sang "${dst.name}"` : null;
+}
 /** Cột được chọn khi tạo việc (khớp TaskWorkflow.CreateError — back-end vẫn kiểm). */
 export function createColumns(columns: ITaskColumn[], sequential: boolean, canApprove: boolean) {
   const gate = columns.findIndex((c) => c.approverOnly || c.isDone);
