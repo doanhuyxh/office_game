@@ -52,7 +52,10 @@ export class ActivitySender {
   async drain(timeoutMs = ActivitySender.drainMs): Promise<void> {
     this.clearTimer();
     let timeout: ReturnType<typeof setTimeout> | undefined;
-    const all = (async () => { while (this.active && (this.queue.length > 0 || this.sending)) await this.flush(); })();
+    // Có hạn chót ngay trong vòng lặp: vòng `await` không tiến triển sẽ chiếm hết microtask, timer của Promise.race không bao giờ chạy
+    // (lỗi 2026-11-14: runner treo 100% CPU ở cuối job, không ghi kết quả / không bình luận chi phí).
+    const deadline = Date.now() + timeoutMs;
+    const all = (async () => { while (this.active && (this.queue.length > 0 || this.sending) && Date.now() < deadline) await this.flush(); })();
     await Promise.race([all, new Promise<void>((r) => { timeout = setTimeout(r, timeoutMs); })]);
     clearTimeout(timeout);
     this.queue = [];
@@ -62,16 +65,23 @@ export class ActivitySender {
 
   private clearTimer() { clearTimeout(this.timer); this.timer = undefined; }
 
-  /** Gửi lần lượt từng lô cho tới khi hết hàng chờ. Đang gửi → chờ lượt đang chạy (nó tự lấy tiếp hàng chờ). */
+  /**
+   * Gửi lần lượt từng lô cho tới khi hết hàng chờ. Đang gửi → chờ lượt đang chạy (nó tự lấy tiếp hàng chờ). Không có gì để gửi → xong ngay,
+   * KHÔNG ghi `sending` (trước đây lượt rỗng chạy xong đồng bộ rồi mới gán `sending` → cờ "đang gửi" kẹt mãi, `drain` lặp vô hạn).
+   */
   private flush(): Promise<void> {
-    this.sending ??= (async () => {
-      try {
-        while (this.active && this.queue.length > 0) await this.send(this.takeBatch());
-      } finally {
-        this.sending = undefined;
-      }
-    })();
-    return this.sending;
+    if (this.sending) return this.sending;
+    if (!this.active || this.queue.length === 0) return Promise.resolve();
+    // Hoãn một microtask: `sending` đã được gán trước khi `pump` chạy (và trước khi `finally` của nó xoá cờ).
+    return this.sending = Promise.resolve().then(() => this.pump());
+  }
+
+  private async pump(): Promise<void> {
+    try {
+      while (this.active && this.queue.length > 0) await this.send(this.takeBatch());
+    } finally {
+      this.sending = undefined;
+    }
   }
 
   /** Lấy ≤ maxBatch sự kiện đầu hàng chờ, tổng thân ≤ maxBytes (luôn lấy ít nhất 1). */

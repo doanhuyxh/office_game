@@ -8,6 +8,8 @@ import { baseRaw } from './units.test';
 const batches: ActivityEvent[][] = [];
 let replies: (number | 'hang')[] = [];
 let auth: string | null = null;
+/** Gọi một lần khi máy chủ giả nhận request kế tiếp (để chen sự kiện vào đúng lúc đang gửi). */
+let onRequest: (() => void) | undefined;
 let server: ReturnType<typeof Bun.serve>;
 let url = '';
 const defaults = { intervalMs: ActivitySender.intervalMs, maxBatch: ActivitySender.maxBatch, maxBytes: ActivitySender.maxBytes,
@@ -18,6 +20,7 @@ beforeAll(() => {
     port: 0,
     async fetch(req) {
       auth = req.headers.get('authorization');
+      onRequest?.(); onRequest = undefined;
       const body = await req.json() as { events: ActivityEvent[] };
       const r = replies.shift() ?? 204;
       if (r === 'hang') { await new Promise((ok) => setTimeout(ok, 2_000)); return new Response(null, { status: 204 }); }
@@ -146,6 +149,34 @@ describe('gửi hoạt động xem trực tiếp (TEST-99)', () => {
     await s.drain(150);
     expect(Date.now() - t).toBeLessThan(1_000);
     expect(s.pending).toBe(0);
+  });
+
+  test('sự kiện tới giữa lúc đang gửi rồi nhịp chạy với hàng chờ rỗng → không kẹt cờ đang gửi, drain kết thúc ngay', async () => {
+    // Lỗi 2026-11-14 (job TEST-97): lượt gửi đang chạy lấy luôn sự kiện mới, nhịp 1 giây sau đó chạy với hàng chờ rỗng → `sending` kẹt →
+    // drain cuối job lặp vô hạn, runner treo 100% CPU, không bình luận chi phí.
+    ActivitySender.intervalMs = 40;
+    const s = new ActivitySender(url, 't', 'NV120');
+    onRequest = () => s.push(ev(2));       // e2 vào hàng chờ khi lô [e1] đang trên đường → đặt nhịp mới
+    s.push(ev(1));
+    await sleep(200);                      // lô e1, rồi lô e2 (cùng lượt gửi); nhịp của e2 chạy khi hàng chờ đã rỗng
+    expect(ids()).toEqual([['e1'], ['e2']]);
+    expect((s as any).sending).toBeUndefined();
+    const t = Date.now();
+    await s.drain();
+    expect(Date.now() - t).toBeLessThan(500);
+    s.push(ev(3));                         // vẫn gửi tiếp được
+    await s.drain();
+    expect(ids()).toEqual([['e1'], ['e2'], ['e3']]);
+  });
+
+  test('drain trên bộ gửi chưa có gì / gọi nhiều lần liên tiếp → xong ngay', async () => {
+    const s = new ActivitySender(url, 't', 'NV120');
+    const t = Date.now();
+    await s.drain(); await s.drain();
+    s.push(ev(1));
+    await s.drain(); await s.drain();
+    expect(Date.now() - t).toBeLessThan(1_000);
+    expect(ids()).toEqual([['e1']]);
   });
 
   test('activity_stream: false → không gửi gì', async () => {
