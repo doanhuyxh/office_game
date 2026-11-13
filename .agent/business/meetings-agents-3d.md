@@ -29,7 +29,7 @@ Realtime AgentMeetingWatch ──mỗi 3 s GET /api/meetings/internal/live (X-Ch
 |---|---|
 | Đang đi vào phòng | `🚶 <tên phòng>` |
 | Giữ lượt nói | `🎤 Đang phát biểu` (`BotPresence.SpeakingBubble`) — tool khác không che |
-| Không giữ lượt | `👥 Đang họp · <chủ đề>` |
+| Không giữ lượt | `👥 Đang họp` (`BotPresence.InMeetingBubble`) — không ghi chủ đề (đã có ở thanh "Họp với AI") để bong bóng bot ngồi cạnh nhau không chồng lên nhau (TEST-89) |
 | Vừa nói (`send_chat_message` / `speak_in_meeting` qua MCP) | `💬 …` như cũ — vẫn giữ khi lượt chuyển đi; `🖥` / `📝` (trình chiếu) cũng giữ |
 
 ## Bảng phòng (FE)

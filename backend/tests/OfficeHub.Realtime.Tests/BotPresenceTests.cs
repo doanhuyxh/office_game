@@ -371,7 +371,7 @@ public class BotPresenceTests
         Assert.True(WalkAll(bots));
         bots.SyncMeetings([Meeting(session, a, a, b)], T0);           // vừa tới chỗ → bong bóng họp
         Assert.Equal(BotPresence.SpeakingBubble, chair.Activity);
-        Assert.Equal("👥 Đang họp · Kế hoạch quý", other.Activity);
+        Assert.Equal(BotPresence.InMeetingBubble, other.Activity); // TEST-89: không ghi chủ đề
 
         Assert.Equal(BotPresence.SpeakingBubble, bots.Record(Work(a, true, "Xem phiên họp"), T0).Bot.Activity); // tool khác không che dấu đang nói
         Assert.Equal("💬 Đề xuất A", bots.Record(Work(a, true, "💬 Đề xuất A"), T0).Bot.Activity);

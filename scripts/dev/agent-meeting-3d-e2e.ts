@@ -1,5 +1,5 @@
 // E2E TEST-76: họp agent trong văn phòng 3D — người thật kết nối hub văn phòng: mở họp → bot dự họp (kể cả chưa online) xuất hiện và ĐI BỘ
-// từng bước vào ghế trong phòng họp; bong bóng "🎤 Đang phát biểu" theo lượt nói, bot khác "👥 Đang họp · chủ đề"; dừng họp → bot rời phòng;
+// từng bước vào ghế trong phòng họp; bong bóng "🎤 Đang phát biểu" theo lượt nói, bot khác "👥 Đang họp"; dừng họp → bot rời phòng;
 // tài khoản bot đang được người thật dùng trong 3D → không có avatar bot thứ hai. Đường nội bộ /api/meetings/internal/live (khoá).
 // TẠO TÀI KHOẢN THẬT → CHỈ chạy trên DB tạm:
 //   docker run -d --name e2e-agm3d-pg -e POSTGRES_DB=e2e -e POSTGRES_USER=e2e -e POSTGRES_PASSWORD=e2e -p 127.0.0.1:55491:5432 postgres:18-alpine
@@ -156,7 +156,7 @@ ok('tới nơi: cả hai ngồi (anim 2) trong Phòng họp lớn, khác ghế',
   && Math.hypot(p1.x - p2.x, p1.z - p2.z) > 0.3, { p1, p2 });
 const statusOf = (id: string) => status.filter((s) => s.id === id).at(-1)?.s;
 ok('B1 giữ lượt → "🎤 Đang phát biểu"', statusOf(B1.userId) === '🎤 Đang phát biểu', status.filter((s) => s.id === B1.userId));
-ok('B2 → "👥 Đang họp · chủ đề"', statusOf(B2.userId) === `👥 Đang họp · ${topic}`, statusOf(B2.userId));
+ok('B2 → "👥 Đang họp"', statusOf(B2.userId) === '👥 Đang họp', statusOf(B2.userId));
 ok('B3 (người thật dùng) → bong bóng không gắn (không có bot riêng)', !status.some((s) => s.id === B3.userId));
 const h2 = await connect(N.cookie, false); // tài khoản khác (một tài khoản chỉ giữ một kết nối hub)
 const w2 = h2.welcome?.players ?? [];
@@ -170,7 +170,7 @@ const said = await tk(B1.token, 'POST', `/api/chat/conversations/${conv?.id}/mes
 ok('B1 nói trong kênh phòng, @nhắc B2', said.status === 200, said);
 await Bun.sleep(4000);
 ok('lượt sang B2 → B2 "🎤 Đang phát biểu" (≤ 4 giây)', statusOf(B2.userId) === '🎤 Đang phát biểu', status.filter((s) => s.id === B2.userId));
-ok('B1 hết lượt → "👥 Đang họp · chủ đề"', statusOf(B1.userId) === `👥 Đang họp · ${topic}`, statusOf(B1.userId));
+ok('B1 hết lượt → "👥 Đang họp"', statusOf(B1.userId) === '👥 Đang họp', statusOf(B1.userId));
 const lv2 = ((await (await live(CHAT_KEY)).json()) as any[]).find((m) => m.sessionId === open.body?.id);
 ok('internal/live: lượt 1, B2 giữ lượt', lv2?.turnsUsed === 1 && lv2?.speakerUserId === B2.userId, lv2);
 const before = moves.length;

@@ -1,5 +1,5 @@
 // E2E TEST-87: bảng trạng thái phòng họp trong văn phòng 3D — nằm ngay trên cửa, chữ ngắn ≤ 24 ký tự, đỏ = bận / xám = trống,
-// không vẽ đè lên avatar / nhãn tên / bong bóng bot. Dựng 3 trạng thái: Phòng họp nhỏ đang họp với AI (2 bot đi vào phòng),
+// không vẽ đè lên avatar / nhãn tên / bong bóng bot. TEST-89: bong bóng bot nhỏ ("👥 Đang họp" không chủ đề), không che nhãn tên — đo chồng nhau giữa 2 bot. Dựng 3 trạng thái: Phòng họp nhỏ đang họp với AI (2 bot đi vào phòng),
 // Phòng họp lớn có lịch đang diễn ra, Hội trường trống có lịch kế tiếp hôm nay. Chrome headless (máy tính 1440×900 + điện thoại 390×844)
 // đứng ngoài hành lang / trong phòng, xoay camera 0 / 90 / 180 / 270°, phóng to / thu nhỏ → kiểm tra số đo trên màn hình + chụp ảnh vào SHOTS_DIR.
 // Dùng hook dev `window.__officeScene` (chỉ có khi chạy Vite dev).
@@ -123,7 +123,8 @@ const MEASURE = `(() => {
   const pxH = (obj) => { const wp = obj.getWorldPosition(obj.position.clone()); const d = wp.distanceTo(cam.position);
     return obj.scale.y / (2 * Math.tan(cam.fov * Math.PI / 360) * d) * Hh; };
   const rect = (obj) => { const wp = obj.getWorldPosition(obj.position.clone()); const c = toPx(wp); const h = pxH(obj), w = h * obj.scale.x / obj.scale.y;
-    return { x0: c.x - w / 2, x1: c.x + w / 2, y0: c.y - h / 2, y1: c.y + h / 2, z: c.z, dist: wp.distanceTo(cam.position) }; };
+    const cx = obj.center?.x ?? 0.5, cy = obj.center?.y ?? 0.5; // sprite.center: điểm neo trong sprite (bong bóng bot neo dưới đáy, TEST-89)
+    return { x0: c.x - w * cx, x1: c.x + w * (1 - cx), y0: c.y - h * (1 - cy), y1: c.y + h * cy, z: c.z, dist: wp.distanceTo(cam.position) }; };
   const signs = [...sc.roomSigns].map(([id, s]) => {
     const img = s.material.map.image, px = img.getContext('2d').getImageData(10, Math.floor(img.height / 2), 1, 1).data; // mép trái giữa chiều cao: nền, không phải chữ / góc bo
     return { id, text: s.name, x: s.position.x, y: s.position.y, z: s.position.z, depthTest: s.material.depthTest, renderOrder: s.renderOrder,
@@ -131,7 +132,9 @@ const MEASURE = `(() => {
   });
   const people = [...sc.others.values()].map((o) => o.avatar).concat(sc.me ? [sc.me] : []).flatMap((a) =>
     [a.label, a.status].filter(Boolean).filter((l) => l.visible).map((l) => ({ renderOrder: l.renderOrder, depthTest: l.material.depthTest, rect: rect(l) })));
-  return { signs, people, me: sc.snapshot().me, others: sc.snapshot().others.length, W, H: Hh };
+  const bots = [...sc.others.values()].map((o) => o.avatar).filter((a) => a.status && a.label.visible)
+    .map((a) => ({ label: rect(a.label), status: rect(a.status), statusH: a.status.scale.y, labelH: a.label.scale.y }));
+  return { signs, people, bots, me: sc.snapshot().me, others: sc.snapshot().others.length, W, H: Hh };
 })()`;
 const onScreen = (r: any, W: number, H: number) => r.z < 1 && r.x1 > 0 && r.x0 < W && r.y1 > 0 && r.y0 < H;
 const overlap = (a: any, b: any) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
@@ -165,8 +168,15 @@ const view = async (label: string, width: number, height: number, mobile: boolea
     ok(`${label}: ${id} treo ngay trên cửa (tâm cửa x=${doorX}, ngoài cạnh nam, cao 2,5)`, !!s && Math.abs(s.x - doorX) < 0.01 && s.z > r.z1 && s.z - r.z1 < 0.3 && s.y === 2.5, s);
     ok(`${label}: ${id} vẽ có depthTest, renderOrder < nhãn tên / bong bóng`, !!s && s.depthTest === true && m0.people.every((l: any) => s.renderOrder < l.renderOrder), s);
   }
-  const bubbles = await p.evalJs(`[...window.__officeScene.others.values()].filter(o=>o.avatar.status).length`);
-  ok(`${label}: 2 bot trong Phòng họp nhỏ có bong bóng họp`, bubbles >= 2, bubbles);
+  // bot đi vào phòng hiện "🚶 …" — đợi tới ghế, bong bóng đổi sang bong bóng họp
+  for (let i = 0; i < 30 && !(await p.evalJs(`[...window.__officeScene.others.values()].filter(o=>/^(🎤|👥)/.test(o.avatar.statusText ?? '')).length >= 2`)); i++) await p.sleep(1000);
+  const bubbles: string[] = await p.evalJs(`[...window.__officeScene.others.values()].filter(o=>o.avatar.status).map(o=>o.avatar.statusText)`);
+  ok(`${label}: 2 bot trong Phòng họp nhỏ có bong bóng họp`, bubbles.length >= 2, bubbles);
+  // TEST-89: bong bóng họp ngắn, không ghi chủ đề (chủ đề ở thanh "Họp với AI")
+  // (bot của lần chạy trước có thể đang "🚶 bàn …" về chỗ — chỉ xét bong bóng họp)
+  const inMeeting = bubbles.filter((t) => /^(🎤|👥)/.test(t));
+  ok(`${label}: bong bóng họp chỉ "🎤 Đang phát biểu" / "👥 Đang họp"`, inMeeting.length >= 2 && inMeeting.includes('👥 Đang họp')
+    && inMeeting.every((t) => /^(🎤 Đang phát biểu|👥 Đang họp)$/.test(t)), bubbles);
 
   const spots: [string, number, number][] = [['ngoai', 32.5, 10], ['trong', 32.5, 3.5]];
   for (const [where, x, z] of spots) {
@@ -189,6 +199,19 @@ const view = async (label: string, width: number, height: number, mobile: boolea
           const hits = m.people.filter((l: any) => onScreen(l.rect, m.W, m.H) && overlap(l.rect, s.rect));
           parts.push(`${s.id}:${vis ? Math.round(s.rect.y1 - s.rect.y0) + 'px' : 'ngoài khung'}${hits.length ? ` chồng ${hits.length} nhãn` : ''}`);
         }
+        // TEST-89: bong bóng bot (cao 0,17) không chồng lên bong bóng bot khác, không che nhãn tên của chính bot (sai số 1 px)
+        const shrink = (r: any) => ({ ...r, x0: r.x0 + 1, x1: r.x1 - 1, y0: r.y0 + 1, y1: r.y1 - 1 });
+        const vb = m.bots.filter((b: any) => onScreen(b.status, m.W, m.H));
+        let bb = 0, bl = 0, own = 0;
+        for (const [i, a] of vb.entries()) {
+          if (overlap(shrink(a.status), shrink(a.label))) own++;
+          for (const b of vb.slice(i + 1)) {
+            if (overlap(shrink(a.status), shrink(b.status))) bb++;
+            if (overlap(shrink(a.status), shrink(b.label)) || overlap(shrink(b.status), shrink(a.label))) bl++;
+          }
+        }
+        parts.push(`bot: ${vb.length} bóng ${vb.length ? Math.round(vb[0].status.y1 - vb[0].status.y0) + 'px' : ''}${bb ? ` · ${bb} cặp bóng chồng` : ''}${bl ? ` · ${bl} bóng che nhãn bot khác` : ''}${own ? ` · ${own} bóng che nhãn mình` : ''}`);
+        if (vb.length) ok(`${tag}: bong bóng bot không che nhãn tên của chính bot, không chồng bong bóng bot khác`, own === 0 && bb === 0, m.bots);
         table.push(`${tag}: ${parts.join(' · ')}`);
         // Bảng phòng họp nhỏ (phòng đang đứng / cạnh đó) khi thấy được phải đọc được: cao ≥ 9 px
         const s = m.signs.find((x: any) => x.id === 'meeting-small');

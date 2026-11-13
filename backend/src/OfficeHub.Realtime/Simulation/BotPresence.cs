@@ -57,6 +57,8 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
     public static readonly string[] RestRooms = ["lounge", "pantry"];
     public const double Speed = 4.2;
     public const string SpeakingBubble = "🎤 Đang phát biểu";
+    /// <summary>Bong bóng bot dự họp không giữ lượt (TEST-89: bỏ chủ đề).</summary>
+    public const string InMeetingBubble = "👥 Đang họp";
     public static readonly TimeSpan Timeout = TimeSpan.FromMinutes(BotActivityRoute.OnlineMinutes);
     private readonly ConcurrentDictionary<string, Bot> _bots = new();
     /// <summary>Chỗ đã go_to của từng bot (giữ khi bot offline).</summary>
@@ -252,9 +254,11 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
         }
     }
 
-    /// <summary>Bong bóng khi đang dự họp (đã tới phòng): giữ lượt → <see cref="SpeakingBubble"/>, không thì "👥 Đang họp · chủ đề".</summary>
-    internal static string MeetingBubble(Bot bot) =>
-        bot.Speaking ? SpeakingBubble : Clip($"👥 Đang họp · {bot.Meeting?.Topic}", 120)!;
+    /// <summary>
+    /// Bong bóng khi đang dự họp (đã tới phòng): giữ lượt → <see cref="SpeakingBubble"/>, không thì <see cref="InMeetingBubble"/> — không ghi chủ đề
+    /// (đã có ở thanh "Họp với AI"), để bong bóng các bot ngồi cạnh nhau ngắn, không chồng lên nhau (TEST-89).
+    /// </summary>
+    internal static string MeetingBubble(Bot bot) => bot.Speaking ? SpeakingBubble : InMeetingBubble;
 
     /// <summary>
     /// Đồng bộ với các phiên họp agent đang họp (Realtime hỏi Api mỗi <see cref="AgentMeetingLiveRoute.PollSeconds"/> giây — TEST-76):

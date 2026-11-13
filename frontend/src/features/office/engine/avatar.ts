@@ -8,6 +8,8 @@ export const ANIM = { idle: 0, walk: 1, sit: 2 } as const;
 export type AnimCode = (typeof ANIM)[keyof typeof ANIM];
 
 const PANTS = 0x334155;
+/** Nhãn tên / bong bóng bot (TEST-89: thu nhỏ) — chiều cao sprite (m) và độ cao tâm nhãn tên. */
+const LABEL_H = 0.24, STATUS_H = 0.17, LABEL_Y = 1.95;
 const m = (color: THREE.ColorRepresentation) => new THREE.MeshStandardMaterial({ color, roughness: 0.8, flatShading: true });
 
 /** Màu cho nhân vật khối dự phòng: theo bảng màu đã chọn, null = màu gần giống model gốc. */
@@ -108,8 +110,8 @@ export class Avatar {
       font: 'bold 34px Inter, system-ui, sans-serif', pad: 22,
     });
     const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-    label.scale.set(0.3 * aspect, 0.3, 1);
-    label.position.y = 1.95;
+    label.scale.set(LABEL_H * aspect, LABEL_H, 1);
+    label.position.y = LABEL_Y;
     label.renderOrder = 10;
     return label;
   }
@@ -129,7 +131,7 @@ export class Avatar {
 
   get currentLook() { return this.look; }
 
-  /** Bot đang làm gì ("Chuyển trạng thái việc · WEB-12") — bong bóng tím phía trên tên; null = gỡ. */
+  /** Bot đang làm gì ("Chuyển trạng thái việc · WEB-12") — bong bóng tím nhỏ sát trên tên (≤ 24 ký tự, TEST-89); null = gỡ. */
   setStatus(text: string | null) {
     if (text === this.statusText) return;
     this.statusText = text;
@@ -140,12 +142,14 @@ export class Avatar {
       this.status = null;
     }
     if (!text) return;
-    const { tex, aspect } = textTexture(text.length > 40 ? `${text.slice(0, 39)}…` : text, {
+    const { tex, aspect } = textTexture(text.length > 24 ? `${text.slice(0, 23)}…` : text, {
       color: '#ffffff', bg: 'rgba(124,58,237,.8)', font: '500 30px Inter, system-ui, sans-serif', pad: 18,
     });
     this.status = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-    this.status.scale.set(0.24 * aspect, 0.24, 1);
-    this.status.position.y = 2.25;
+    this.status.scale.set(STATUS_H * aspect, STATUS_H, 1);
+    // Neo cùng điểm với nhãn tên, đẩy lên theo chiều dọc màn hình (center) → luôn sát ngay trên nhãn, không che nhãn ở mọi góc camera
+    this.status.position.y = LABEL_Y;
+    this.status.center.set(0.5, -(LABEL_H / 2 + 0.015) / STATUS_H);
     this.status.renderOrder = 10;
     this.status.visible = this.label.visible;
     this.root.add(this.status);
