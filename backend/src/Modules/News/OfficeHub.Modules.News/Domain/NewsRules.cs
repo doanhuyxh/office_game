@@ -9,6 +9,8 @@ namespace OfficeHub.Modules.News.Domain;
 public static partial class NewsRules
 {
     public const int MaxPlainLength = 20000;
+    /// <summary>Số kết quả tối đa của /api/news/people (gợi ý @nhắc, chọn phạm vi người xem).</summary>
+    public const int MaxPeople = 20;
     public const int MaxHtmlLength = 200_000;
     public const int MaxCommentLength = 2000;
     public const int MaxMedia = 10;

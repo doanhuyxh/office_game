@@ -7,9 +7,10 @@ import { AtSign, Bold, Heading2, Italic, Link2, List, ListOrdered, Quote, Smile,
 import { Button } from '@/components/common/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/common/dropdown-menu';
 import { MentionList, type IMentionOption } from '@/components/common/mention-list';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useMentionNav } from '@/hooks/useMentionNav';
 import { cn } from '@/utils/cn';
-import { mentionQuery } from '@/utils/mention';
+import { MENTION_MAX_CHARS, mentionHint, nextMentionQuery } from '@/utils/mention';
 import { usePeople } from '../../hooks/useNews';
 import { EMOJIS, MAX_POST_CHARS } from '../../utils/labels';
 import '../rich-content/rich-content.css';
@@ -35,11 +36,11 @@ const Mention = TiptapNode.create({
   },
 });
 
-/** Từ khoá @nhắc ngay trước con trỏ + vị trí dấu @ trong tài liệu, hoặc null. */
-function editorMentionQuery(editor: Editor): { query: string; from: number } | null {
+/** Từ khoá @nhắc ngay trước con trỏ + vị trí dấu @ trong tài liệu, hoặc null. `prev` = từ khoá đang mở (cho phép gõ họ tên có dấu cách). */
+function editorMentionQuery(editor: Editor, prev: string | null): { query: string; from: number } | null {
   const { $from, empty } = editor.state.selection;
   if (!empty) return null;
-  const query = mentionQuery($from.parent.textBetween(Math.max(0, $from.parentOffset - 25), $from.parentOffset, undefined, '￼'));
+  const query = nextMentionQuery($from.parent.textBetween(Math.max(0, $from.parentOffset - MENTION_MAX_CHARS - 5), $from.parentOffset, undefined, '￼'), prev);
   return query !== null ? { query, from: $from.pos - query.length - 1 } : null;
 }
 
@@ -51,13 +52,18 @@ export function PostEditor({ value, onChange, placeholder = 'Bạn muốn chia s
   autoFocus?: boolean;
 }) {
   const [mention, setMention] = useState<{ query: string; from: number } | null>(null);
-  const people = usePeople(mention?.query ?? '', mention !== null);
-  const list: IMentionOption[] = mention
-    ? (people.data ?? []).slice(0, 6).map((p) => ({ key: p.userId, name: p.fullName, hint: `${p.code}${p.departmentName ? ` · ${p.departmentName}` : ''}` }))
+  const term = useDebounce(mention?.query ?? '', 200);
+  const people = usePeople(term, mention !== null);
+  const loading = mention !== null && (term !== mention.query || people.isFetching);
+  const found: IMentionOption[] = mention
+    ? (people.data ?? []).map((p) => ({ key: p.userId, name: p.fullName, hint: mentionHint(p.code, p.departmentName, p.title), avatarUrl: p.avatarUrl, isBot: p.isBot }))
     : [];
+  // Gõ họ tên có dấu cách mà không còn ai khớp → đóng gợi ý
+  const live = mention && mention.query.includes(' ') && !loading && found.length === 0 ? null : mention;
+  const list = live ? found : [];
   const nav = useMentionNav(list, (p) => pick(p), () => setMention(null));
-  const mentionRef = useRef(mention);
-  mentionRef.current = mention;
+  const mentionRef = useRef(live);
+  mentionRef.current = live;
 
   const editor = useEditor({
     extensions: [
@@ -73,10 +79,10 @@ export function PostEditor({ value, onChange, placeholder = 'Bạn muốn chia s
     },
     onUpdate: ({ editor: ed }) => {
       onChange(ed.isEmpty ? '' : ed.getHTML(), ed.getText({ blockSeparator: '\n' }).trim());
-      setMention(editorMentionQuery(ed));
+      setMention(editorMentionQuery(ed, mentionRef.current?.query ?? null));
       nav.setActive(0);
     },
-    onSelectionUpdate: ({ editor: ed }) => setMention(editorMentionQuery(ed)),
+    onSelectionUpdate: ({ editor: ed }) => setMention(editorMentionQuery(ed, mentionRef.current?.query ?? null)),
   });
 
   // Nội dung đổi từ ngoài (mở lại hộp soạn khác) → nạp lại
@@ -97,9 +103,10 @@ export function PostEditor({ value, onChange, placeholder = 'Bạn muốn chia s
   return (
     <div className="rounded-md border border-input focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
       <Toolbar editor={editor} />
-      <div className="relative" data-mention-open={list.length > 0 || undefined}>
+      <div className="relative" data-mention-open={live !== null || undefined}>
         <EditorContent editor={editor} />
-        <MentionList options={list} active={nav.active} onPick={pick} onHover={nav.setActive} className="absolute bottom-1 left-2" />
+        <MentionList options={list} active={nav.active} onPick={pick} onHover={nav.setActive} query={live?.query ?? ''} loading={loading} open={live !== null}
+          className="absolute bottom-1 left-2" />
       </div>
       <div className={cn('border-t px-3 py-1 text-right text-xs text-muted-foreground', chars > MAX_POST_CHARS && 'text-destructive')}>
         {chars.toLocaleString('vi-VN')} / {MAX_POST_CHARS.toLocaleString('vi-VN')}

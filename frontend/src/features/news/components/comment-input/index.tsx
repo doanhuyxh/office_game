@@ -7,7 +7,7 @@ import { Textarea } from '@/components/common/textarea';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useMentionNav } from '@/hooks/useMentionNav';
 import { errorMessage } from '@/utils/errors';
-import { mentionQuery, replaceMentionQuery } from '@/utils/mention';
+import { mentionHint, nextMentionQuery, replaceMentionQuery } from '@/utils/mention';
 import { usePeople } from '../../hooks/useNews';
 import { checkFile, mentionToken } from '../../utils/labels';
 import { uploadFile } from '../../utils/upload';
@@ -29,19 +29,23 @@ export function CommentInput({ placeholder = 'Viết bình luận…', initial =
   const file = useRef<HTMLInputElement>(null);
   const term = useDebounce(query ?? '', 200);
   const people = usePeople(term, query !== null);
-  const list: IMentionOption[] = query !== null
-    ? (people.data ?? []).slice(0, 5).map((p) => ({ key: p.userId, name: p.fullName, hint: `${p.code}${p.departmentName ? ` · ${p.departmentName}` : ''}` }))
+  const loading = query !== null && (term !== query || people.isFetching);
+  const found: IMentionOption[] = query !== null
+    ? (people.data ?? []).map((p) => ({ key: p.userId, name: p.fullName, hint: mentionHint(p.code, p.departmentName, p.title), avatarUrl: p.avatarUrl, isBot: p.isBot }))
     : [];
+  // Đã gõ họ tên có dấu cách mà không còn ai khớp → coi như đóng gợi ý (gõ câu bình thường tiếp)
+  const live = query !== null && query.includes(' ') && !loading && found.length === 0 ? null : query;
+  const list = live === null ? [] : found;
   const nav = useMentionNav(list, pick, () => setQuery(null));
 
   function onChange(v: string, caret: number) {
     setText(v);
-    setQuery(mentionQuery(v.slice(0, caret)));
+    setQuery(nextMentionQuery(v.slice(0, caret), live));
     nav.setActive(0);
   }
 
   function pick(p: IMentionOption) {
-    const next = replaceMentionQuery(text, area.current?.selectionStart ?? text.length, `@${p.name}`);
+    const next = replaceMentionQuery(text, area.current?.selectionStart ?? text.length, live ?? '', `@${p.name}`);
     setText(next.text);
     setMentions((m) => (m.some((x) => x.id === p.key) ? m : [...m, { id: p.key, name: p.name }]));
     setQuery(null);
@@ -73,7 +77,7 @@ export function CommentInput({ placeholder = 'Viết bình luận…', initial =
   }
 
   return (
-    <div className="relative grid gap-1.5" data-mention-open={list.length > 0 || undefined}>
+    <div className="relative grid gap-1.5" data-mention-open={live !== null || undefined}>
       <div className="flex items-end gap-1.5 rounded-2xl border bg-muted/40 px-3 py-1.5 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
         <Textarea ref={area} rows={1} value={text} autoFocus={autoFocus} placeholder={placeholder} maxLength={2000} disabled={busy} data-testid="comment-input"
           className="min-h-8 resize-none border-0 bg-transparent px-0 py-1 shadow-none focus-visible:ring-0 dark:bg-transparent"
@@ -81,7 +85,7 @@ export function CommentInput({ placeholder = 'Viết bình luận…', initial =
           onKeyDown={(e) => {
             if (nav.handleKey({ key: e.key, shiftKey: e.shiftKey, isComposing: e.nativeEvent.isComposing })) { e.preventDefault(); return; }
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void submit(); }
-            else if (e.key === 'Escape') { if (query !== null) setQuery(null); else onCancel?.(); }
+            else if (e.key === 'Escape') { if (live !== null) setQuery(null); else onCancel?.(); }
           }} />
         {allowImage && (
           <>
@@ -100,7 +104,8 @@ export function CommentInput({ placeholder = 'Viết bình luận…', initial =
         </div>
       )}
       {onCancel && <button type="button" className="w-fit text-xs text-muted-foreground hover:underline" onClick={onCancel}>Huỷ</button>}
-      <MentionList options={list} active={nav.active} onPick={pick} onHover={nav.setActive} className="absolute bottom-full left-0 mb-1" />
+      <MentionList options={list} active={nav.active} onPick={pick} onHover={nav.setActive} query={live ?? ''} loading={loading} open={live !== null}
+        className="absolute bottom-full left-0 mb-1" />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 using OfficeHub.BuildingBlocks.Security;
+using OfficeHub.BuildingBlocks.Text;
 using Microsoft.EntityFrameworkCore;
 using OfficeHub.Modules.Organization.Contracts;
 using OfficeHub.Modules.Organization.Domain;
@@ -23,6 +24,41 @@ internal sealed class EmployeeDirectory(OrgDbContext db, IFieldEncryptor enc) : 
 
     public async Task<IReadOnlyList<EmployeeRef>> ListActiveAsync(CancellationToken ct = default) =>
         await Project(db.Employees.Where(e => e.Status != EmployeeStatus.Resigned).OrderBy(e => e.Code)).ToListAsync(ct);
+
+    /// <summary>Trần số dòng lọc thô từ DB trước khi xếp hạng trong bộ nhớ (từ khoá rỗng / quá ngắn khớp nhiều người).</summary>
+    private const int SearchCandidates = 300;
+
+    public async Task<IReadOnlyList<EmployeeMatch>> SearchActiveAsync(string? term, int limit, CancellationToken ct = default)
+    {
+        var tokens = PersonSearch.Tokens(term);
+        var (foldFrom, foldTo) = PersonSearch.SqlFoldMap;
+        var rows = from e in db.Employees.AsNoTracking()
+                   where e.Status != EmployeeStatus.Resigned && e.UserId != null
+                   join d in db.Departments on e.DepartmentId equals d.Id into dj
+                   from d in dj.DefaultIfEmpty()
+                   join p in db.Positions on e.PositionId equals p.Id into pj
+                   from p in pj.DefaultIfEmpty()
+                   select new
+                   {
+                       e.Id, e.Code, e.FullName, e.UserId, e.DepartmentId, DepartmentName = d != null ? d.Name : null, e.ManagerId,
+                       e.JoinedAt, e.LeftAt, e.AvatarKey, e.JobTitle, PositionName = p != null ? p.Name : null,
+                       Haystack = OrgDbContext.SqlTranslate(e.FullName + " " + e.Code + " " + (d != null ? d.Name : "") + " "
+                           + (e.JobTitle ?? "") + " " + (p != null ? p.Name : ""), foldFrom, foldTo),
+                   };
+        // Mọi từ phải có mặt (lọc thô, không dấu, không phân biệt hoa thường); xếp hạng chi tiết làm sau trong bộ nhớ.
+        foreach (var t in tokens)
+        {
+            var pattern = "%" + t.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_") + "%";
+            rows = rows.Where(r => EF.Functions.ILike(r.Haystack, pattern, @"\"));
+        }
+        var found = await rows.OrderBy(r => r.Code).Take(SearchCandidates).ToListAsync(ct);
+        return PersonSearch.Search(found, term, limit, r => r.FullName, r => r.Code, r => r.DepartmentName, r => r.JobTitle ?? r.PositionName)
+            .Select(r => new EmployeeMatch(
+                new EmployeeRef(r.Id, r.Code, r.FullName, r.UserId, r.DepartmentId, r.DepartmentName, r.ManagerId, true, r.JoinedAt, r.LeftAt,
+                    Features.Profile.ProfileEndpoints.AvatarUrl(r.Id, r.AvatarKey)),
+                r.JobTitle ?? r.PositionName))
+            .ToList();
+    }
 
     public async Task<IReadOnlyCollection<Guid>> GetSubordinateIdsAsync(Guid managerEmployeeId, CancellationToken ct = default)
     {

@@ -29,6 +29,9 @@ export interface IMentionCandidate {
   code: string;
   isBot: boolean;
   avatarUrl: string | null;
+  departmentName: string | null;
+  /** Chức danh / chức vụ (null với thành viên nhóm / phòng) — dòng phụ phân biệt người trùng tên. */
+  title: string | null;
 }
 
 export interface IAttachment {
@@ -108,6 +111,9 @@ export interface IPerson {
   fullName: string;
   code: string;
   departmentName: string | null;
+  title: string | null;
+  avatarUrl: string | null;
+  isBot: boolean;
 }
 
 export interface IGroupMember {

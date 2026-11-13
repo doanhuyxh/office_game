@@ -42,8 +42,10 @@ public static class ChatRules
 
     /// <summary>Tối đa số người được nhắc trong một tin (như bình luận việc).</summary>
     public const int MaxMentions = 10;
-    /// <summary>Số gợi ý tối đa khi gõ @ trong ô soạn tin.</summary>
-    public const int MaxMentionCandidates = 8;
+    /// <summary>Số gợi ý tối đa khi gõ @ trong ô soạn tin (danh sách cuộn được — TEST-71).</summary>
+    public const int MaxMentionCandidates = 20;
+    /// <summary>Số kết quả tối đa của /api/chat/people (tìm người nhắn 1-1 / thêm vào nhóm).</summary>
+    public const int MaxPeople = 20;
 
     /// <summary>1-1 không cần @nhắc (người kia đã nhận tin) — mọi loại hội thoại khác có.</summary>
     public static bool CanMention(ConversationType type) => type != ConversationType.Direct;

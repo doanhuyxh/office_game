@@ -13,9 +13,13 @@ public sealed class OrgDbContext(DbContextOptions<OrgDbContext> options, TimePro
     public DbSet<ProfileChangeRequest> ProfileRequests => Set<ProfileChangeRequest>();
     public DbSet<Employee> Employees => Set<Employee>();
 
+    /// <summary>Hàm SQL có sẵn <c>translate(text, from, to)</c> — bỏ dấu khi tìm người (<see cref="EmployeeDirectory.SearchActiveAsync"/>). Chỉ dùng trong LINQ to SQL.</summary>
+    public static string SqlTranslate(string text, string from, string to) => throw new NotSupportedException("Chỉ dùng trong truy vấn EF");
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.HasDefaultSchema(Schema);
+        b.HasDbFunction(typeof(OrgDbContext).GetMethod(nameof(SqlTranslate))!).HasName("translate").IsBuiltIn();
 
         b.Entity<Department>(e =>
         {

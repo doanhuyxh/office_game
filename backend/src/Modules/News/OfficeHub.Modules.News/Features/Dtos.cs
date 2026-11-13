@@ -62,7 +62,8 @@ public sealed record UrlDto(string Url);
 
 public sealed record CountDto(int Count);
 
-public sealed record PersonDto(Guid UserId, string FullName, string Code, string? DepartmentName);
+/// <param name="Title">Chức danh / chức vụ — dòng phụ phân biệt người trùng tên (TEST-71).</param>
+public sealed record PersonDto(Guid UserId, string FullName, string Code, string? DepartmentName, string? Title = null, string? AvatarUrl = null, bool IsBot = false);
 
 public sealed record DepartmentDto(Guid Id, string Name, Guid? ParentId);
 

@@ -4,15 +4,17 @@ import { Button } from '@/components/common/button';
 import { MentionList, type IMentionOption } from '@/components/common/mention-list';
 import { MessageInput } from '@/components/common/message-input';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useMentionNav } from '@/hooks/useMentionNav';
 import { cn } from '@/utils/cn';
-import { mentionQuery, replaceMentionQuery } from '@/utils/mention';
+import { mentionHint, nextMentionQuery, replaceMentionQuery } from '@/utils/mention';
 import { useMentionCandidates } from '../../hooks/useChatData';
 import { MAX_FILES, MAX_TEXT, formatBytes, isImageFile } from '../../utils/labels';
 
 /**
  * Ô soạn tin: Enter gửi, Shift+Enter xuống dòng, đính kèm bằng nút / dán ảnh (kéo-thả xử lý ở khung chat).
- * Gõ @ (trừ 1-1) → gợi ý thành viên hội thoại (server lọc không dấu theo tên / mã; bot có chip BOT), ↑↓ Enter / Tab chọn, Esc đóng.
+ * Gõ @ (trừ 1-1) → gợi ý thành viên hội thoại (server tìm + xếp hạng như Bảng tin — TEST-71: không dấu, gõ họ tên có dấu cách, mã / phòng ban;
+ * bot có chip BOT; chờ 200 ms sau khi ngừng gõ), ↑↓ Enter / Tab chọn, Esc đóng.
  * Chọn → chèn "@<mã NV>" — cùng cú pháp bình luận việc; server tách người được nhắc khi lưu tin.
  */
 /** Bản nháp chưa gửi theo hội thoại, giữ qua reload trong tab (sessionStorage; bị chặn thì bỏ qua). */
@@ -41,18 +43,23 @@ export function Composer({ conversationId, canMention, draftKey, files, onAddFil
   useEffect(() => area.current?.focus(), []);
   const isMobile = useIsMobile();
   const [query, setQuery] = useState<string | null>(null);
-  const { data: candidates } = useMentionCandidates(conversationId, canMention ? query : null);
-  const options: IMentionOption[] = query === null || !canMention ? [] : (candidates ?? [])
-    .map((c) => ({ key: c.code, name: c.fullName, hint: c.code, avatarUrl: c.avatarUrl, isBot: c.isBot }));
+  const term = useDebounce(query ?? '', 200);
+  const candidates = useMentionCandidates(conversationId, canMention && query !== null ? term : null);
+  const loading = query !== null && (term !== query || candidates.isFetching);
+  const found: IMentionOption[] = query === null || !canMention ? [] : (candidates.data ?? [])
+    .map((c) => ({ key: c.code, name: c.fullName, hint: mentionHint(c.code, c.departmentName, c.title), avatarUrl: c.avatarUrl, isBot: c.isBot }));
+  // Gõ họ tên có dấu cách mà không còn ai khớp → đóng gợi ý
+  const live = !canMention || (query !== null && query.includes(' ') && !loading && found.length === 0) ? null : query;
+  const options = live === null ? [] : found;
   const nav = useMentionNav(options, pick, () => setQuery(null));
-  const queryAtCaret = (value: string) => mentionQuery(value.slice(0, area.current?.selectionStart ?? value.length));
+  const queryAtCaret = (value: string) => nextMentionQuery(value.slice(0, area.current?.selectionStart ?? value.length), live);
   function change(value: string) {
     setText(value);
     setQuery(queryAtCaret(value));
     nav.setActive(0);
   }
   function pick(o: IMentionOption) {
-    const next = replaceMentionQuery(text, area.current?.selectionStart ?? text.length, `@${o.key}`);
+    const next = replaceMentionQuery(text, area.current?.selectionStart ?? text.length, live ?? '', `@${o.key}`);
     setText(next.text);
     setQuery(null);
     requestAnimationFrame(() => { area.current?.focus(); area.current?.setSelectionRange(next.caret, next.caret); });
@@ -113,7 +120,8 @@ export function Composer({ conversationId, canMention, draftKey, files, onAddFil
           </Button>
         </>}
         overlay={<>
-          <MentionList options={options} active={nav.active} onPick={pick} onHover={nav.setActive} className="absolute bottom-full left-0 mb-1" />
+          <MentionList options={options} active={nav.active} onPick={pick} onHover={nav.setActive} query={live ?? ''} loading={loading} open={live !== null}
+            className="absolute bottom-full left-0 mb-1" />
           {text.length > MAX_TEXT * 0.8 && (
             <span className={cn('pointer-events-none absolute right-2 bottom-1 text-[10px]', text.length >= MAX_TEXT ? 'text-destructive' : 'text-muted-foreground')}>
               {text.length}/{MAX_TEXT}

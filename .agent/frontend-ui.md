@@ -27,6 +27,13 @@
 
 `components/common/columns` → `useColumns(tableId, COLUMNS)` + `<ColumnsMenu state={cols} />` (đặt ở hàng công cụ của bảng, căn phải). `COLUMNS: ColumnDef[]` khai báo hằng ngoài component (`id` ổn định, `required` = không cho ẩn, `defaultHidden`). Trong bảng: `{v('id') && <TableHead>…}` và ô tương ứng; dòng trống / đang tải dùng `colSpan={cols.span(sốCộtCốĐịnh)}`; footer có colSpan thì tính theo cột đang hiện. Lựa chọn lưu localStorage `officehub.columns.<tableId>` (mỗi trình duyệt). Đang dùng: danh bạ nhân viên, hợp đồng, kỳ lương, chấm công hôm nay / tổng hợp tháng / bảng công tháng, báo cáo tăng ca + phép năm, quỹ phép. Bảng mới ≥ 6 cột dữ liệu → thêm nút này.
 
+## Gợi ý @nhắc (TEST-71)
+
+Dùng chung ở Bảng tin (soạn bài, bình luận), bình luận việc, chat: `utils/mention.ts` + `hooks/useMentionNav.ts` + `components/common/mention-list`.
+- Gõ: `nextMentionQuery(trước-con-trỏ, từ-khoá-đang-mở)` — một từ ≤ 20 ký tự; **khi gợi ý đang mở** cho thêm dấu cách (≤ 3 từ / 40 ký tự). Đóng: hai dấu cách liền, xuống dòng, Esc, hoặc từ khoá có dấu cách mà hết người khớp (biến `live` ở ô nhập). Chọn → `replaceMentionQuery(text, caret, query, insert)` thay cả từ khoá; vẫn chèn `@<mã>` (việc, chat) / `@Họ tên` (Bảng tin) như cũ.
+- Server tìm (Bảng tin, chat) — [news-extras.md](business/news-extras.md); thành viên dự án lọc ở FE bằng `rankPeople` (bỏ dấu, tách từ, xếp hạng giống `PersonSearch` ở BE). Gọi server sau 200 ms (`useDebounce`).
+- `MentionList`: cao ~8 dòng, cuộn, ↑↓ cuộn theo (`data-index` + `scrollIntoView`), tô chữ khớp (`highlightMatches`), dòng phụ `mentionHint(mã, phòng ban, chức danh)`, avatar + chip BOT; prop `open` → "Đang tìm…" / "Không tìm thấy ai"; đủ 20 → "Gõ thêm … để thu hẹp".
+
 ## Ảnh / video ngoài
 
 - (TEST-22, `utils/trustedMedia.ts`): Markdown (`components/common/markdown.tsx`) và link media của việc (`task-media`) chỉ tự tải ảnh / file video từ cùng domain hoặc S3 `*.amazonaws.com`; nguồn khác hiện thành link bấm mở (tránh ảnh theo dõi). YouTube / Vimeo / Drive nhúng như cũ.

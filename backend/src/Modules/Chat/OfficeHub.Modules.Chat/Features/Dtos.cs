@@ -18,9 +18,10 @@ public sealed record ReactionDto(string Emoji, IReadOnlyList<Guid> UserIds);
 public sealed record MentionDto(Guid UserId, string Code, string Name);
 
 /// <summary>Gợi ý khi gõ @ trong ô soạn tin: thành viên hội thoại đang làm việc (Office: mọi nhân viên).</summary>
-public sealed record MentionCandidateDto(Guid UserId, string FullName, string Code, bool IsBot, string? AvatarUrl);
+public sealed record MentionCandidateDto(Guid UserId, string FullName, string Code, bool IsBot, string? AvatarUrl, string? DepartmentName = null, string? Title = null);
 
-public sealed record PersonDto(Guid UserId, string FullName, string Code, string? DepartmentName);
+/// <param name="Title">Chức danh / chức vụ — dòng phụ phân biệt người trùng tên (TEST-71).</param>
+public sealed record PersonDto(Guid UserId, string FullName, string Code, string? DepartmentName, string? Title = null, string? AvatarUrl = null, bool IsBot = false);
 
 /// <summary>Url = link presigned (hạn <see cref="ChatRules.AttachmentUrlTtl"/>): ảnh xem trong trình duyệt, tệp khác tải về.</summary>
 public sealed record AttachmentDto(Guid Id, string FileName, string ContentType, long Size, bool IsImage, string Url);

@@ -65,7 +65,7 @@ Xoá bài / bình luận là **xoá mềm**; bình luận gốc đã xoá mà c�
 | GET | `/posts/{id}/comments?after=&take=` | bình luận gốc (tăng dần `Seq`) + mọi trả lời của chúng, `hasMore` |
 | POST | `/posts/{id}/comments` · PUT / DELETE `/comments/{id}` | bình luận (`text`, `parentId`, `uploadId`) · sửa (chính chủ) · xoá (chính chủ / chủ bài / HR) |
 | POST | `/uploads` · GET `/media/{id}/url?download=` | vé + presigned PUT · link mới |
-| GET | `/people?search=` · `/departments` | ≤ 20 người (tìm không dấu) · phòng ban (kèm `parentId`) |
+| GET | `/people?search=` · `/departments` | ≤ 20 người (tìm + xếp hạng chung — [news-extras.md](news-extras.md) TEST-71) · phòng ban (kèm `parentId`) |
 | GET | `/unseen-count` · POST `/seen` | số bài mới của người khác · đánh dấu đã xem (lần đầu tự coi như đã xem hết) |
 | POST | `/admin/posts/{id}/hide|unhide|pin|unpin`, `/admin/comments/{id}/hide|unhide` | **`AuthPolicies.Hr`**; ẩn **bắt buộc lý do**; ghim 1–90 ngày (mặc định 7) chỉ cho bài `Company` đang hiện |
 

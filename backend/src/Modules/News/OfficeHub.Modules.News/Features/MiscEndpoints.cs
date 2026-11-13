@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.BuildingBlocks.Storage;
+using OfficeHub.Modules.Identity.Contracts;
 using OfficeHub.Modules.News.Domain;
 using OfficeHub.Modules.News.Infrastructure;
 using OfficeHub.Modules.Organization.Contracts;
@@ -58,17 +59,15 @@ public static class MiscEndpoints
         return TypedResults.Ok(new UrlDto(await files.GetDownloadUrlAsync(m.FileKey, m.FileName, inline: m.Kind != MediaKind.File && download != true, NewsRules.MediaUrlTtl)));
     }
 
-    private static async Task<Ok<List<PersonDto>>> PeopleAsync(string? search, ClaimsPrincipal user, IEmployeeDirectory dir, CancellationToken ct)
+    /// <summary>Tìm đồng nghiệp (gợi ý @nhắc, chọn người): tìm chung ở Organization (TEST-71) — bỏ dấu, tách từ, xếp hạng, tối đa <see cref="NewsRules.MaxPeople"/>; trừ chính mình.
+    /// Chỉ trả tên, mã, phòng ban, chức danh, ảnh, cờ bot.</summary>
+    private static async Task<Ok<List<PersonDto>>> PeopleAsync(string? search, ClaimsPrincipal user, IEmployeeDirectory dir, IAccountService accounts, CancellationToken ct)
     {
         var me = Me(user);
-        var term = NewsRules.Fold(search?.Trim());
-        var people = (await dir.ListActiveAsync(ct))
-            .Where(e => e.UserId is { } u && u != me)
-            .Where(e => term.Length == 0 || NewsRules.Fold(e.FullName).Contains(term) || NewsRules.Fold(e.Code).Contains(term))
-            .OrderBy(e => e.FullName, StringComparer.CurrentCultureIgnoreCase)
-            .Take(20)
-            .Select(e => new PersonDto(e.UserId!.Value, e.FullName, e.Code, e.DepartmentName))
-            .ToList();
+        var found = (await dir.SearchActiveAsync(search, NewsRules.MaxPeople + 1, ct)).Where(m => m.Employee.UserId != me).Take(NewsRules.MaxPeople).ToList();
+        var accs = found.Count > 0 ? await accounts.GetManyAsync(found.Select(m => m.Employee.UserId!.Value).ToList(), ct) : new Dictionary<Guid, AccountInfo>();
+        var people = found.Select(m => new PersonDto(m.Employee.UserId!.Value, m.Employee.FullName, m.Employee.Code, m.Employee.DepartmentName, m.Title,
+            m.Employee.AvatarUrl, accs.TryGetValue(m.Employee.UserId!.Value, out var a) && a.IsBot)).ToList();
         return TypedResults.Ok(people);
     }
 

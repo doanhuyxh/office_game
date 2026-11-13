@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.BuildingBlocks.Storage;
+using OfficeHub.BuildingBlocks.Text;
 using OfficeHub.Modules.Chat.Domain;
 using OfficeHub.Modules.Chat.Infrastructure;
 using OfficeHub.Modules.Identity.Contracts;
@@ -111,17 +112,15 @@ public static class ChatEndpoints
         return TypedResults.Ok(new UnreadDto((await store.UnreadAsync(me, ids, ct)).Values.Sum()));
     }
 
-    private static async Task<Ok<List<PersonDto>>> PeopleAsync(string? search, ClaimsPrincipal user, IEmployeeDirectory dir, CancellationToken ct)
+    /// <summary>Tìm đồng nghiệp (gợi ý @nhắc, chọn người): tìm chung ở Organization (TEST-71) — bỏ dấu, tách từ, xếp hạng, tối đa <see cref="ChatRules.MaxPeople"/>; trừ chính mình.
+    /// Chỉ trả tên, mã, phòng ban, chức danh, ảnh, cờ bot.</summary>
+    private static async Task<Ok<List<PersonDto>>> PeopleAsync(string? search, ClaimsPrincipal user, IEmployeeDirectory dir, IAccountService accounts, CancellationToken ct)
     {
         var me = Me(user);
-        var term = ChatRules.Fold(search?.Trim());
-        var people = (await dir.ListActiveAsync(ct))
-            .Where(e => e.UserId is { } u && u != me)
-            .Where(e => term.Length == 0 || ChatRules.Fold(e.FullName).Contains(term) || ChatRules.Fold(e.Code).Contains(term))
-            .OrderBy(e => e.FullName, StringComparer.CurrentCultureIgnoreCase)
-            .Take(20)
-            .Select(e => new PersonDto(e.UserId!.Value, e.FullName, e.Code, e.DepartmentName))
-            .ToList();
+        var found = (await dir.SearchActiveAsync(search, ChatRules.MaxPeople + 1, ct)).Where(m => m.Employee.UserId != me).Take(ChatRules.MaxPeople).ToList();
+        var accs = found.Count > 0 ? await accounts.GetManyAsync(found.Select(m => m.Employee.UserId!.Value).ToList(), ct) : new Dictionary<Guid, AccountInfo>();
+        var people = found.Select(m => new PersonDto(m.Employee.UserId!.Value, m.Employee.FullName, m.Employee.Code, m.Employee.DepartmentName, m.Title,
+            m.Employee.AvatarUrl, accs.TryGetValue(m.Employee.UserId!.Value, out var a) && a.IsBot)).ToList();
         return TypedResults.Ok(people);
     }
 
@@ -407,23 +406,28 @@ public static class ChatEndpoints
                 await telegram.ChatMentionedAsync(u, e.Code, conv.Id, msg.Id, ct);
     }
 
-    /// <summary>Gợi ý khi gõ @ (tìm không dấu theo tên / mã, tối đa <see cref="ChatRules.MaxMentionCandidates"/>): thành viên hội thoại trừ mình; 1-1 → rỗng.</summary>
+    /// <summary>
+    /// Gợi ý khi gõ @ (tối đa <see cref="ChatRules.MaxMentionCandidates"/>, trừ mình; 1-1 → rỗng). Tìm + xếp hạng chung với Bảng tin (TEST-71):
+    /// Office → tìm trong DB qua <see cref="IEmployeeDirectory.SearchActiveAsync"/>; Room / Group → lọc cùng quy tắc trên thành viên hội thoại.
+    /// </summary>
     private static async Task<Results<Ok<List<MentionCandidateDto>>, ProblemHttpResult>> MentionCandidatesAsync(string id, string? search, ClaimsPrincipal user,
-        ChatStore store, IAccountService accounts, CancellationToken ct)
+        ChatStore store, IEmployeeDirectory dir, IAccountService accounts, CancellationToken ct)
     {
         var me = Me(user);
         var conv = await store.ResolveAsync(id, ct);
         if (conv is null || HiddenForAi(user, conv) || !await store.CanAccessAsync(conv, me, ct)) return Unknown();
-        var term = ChatRules.Fold(search?.Trim());
-        var found = (await store.MentionableAsync(conv, ct))
-            .Where(e => e.UserId != me)
-            .Where(e => term.Length == 0 || ChatRules.Fold(e.FullName).Contains(term) || ChatRules.Fold(e.Code).Contains(term))
-            .OrderBy(e => e.FullName, StringComparer.CurrentCultureIgnoreCase)
-            .Take(ChatRules.MaxMentionCandidates)
-            .ToList();
-        var accs = found.Count > 0 ? await accounts.GetManyAsync(found.Select(e => e.UserId!.Value).ToList(), ct) : new Dictionary<Guid, AccountInfo>();
-        return TypedResults.Ok(found.Select(e => new MentionCandidateDto(e.UserId!.Value, e.FullName, e.Code,
-            accs.TryGetValue(e.UserId!.Value, out var a) && a.IsBot, e.AvatarUrl)).ToList());
+        const int max = ChatRules.MaxMentionCandidates;
+        List<EmployeeMatch> found;
+        if (!ChatRules.CanMention(conv.Type)) found = [];
+        else if (conv.Type == ConversationType.Office)
+            found = (await dir.SearchActiveAsync(search, max + 1, ct)).Where(m => m.Employee.UserId != me).Take(max).ToList();
+        else
+            found = PersonSearch.Search((await store.MentionableAsync(conv, ct)).Where(e => e.UserId != me), search, max,
+                    e => e.FullName, e => e.Code, e => e.DepartmentName)
+                .Select(e => new EmployeeMatch(e, null)).ToList();
+        var accs = found.Count > 0 ? await accounts.GetManyAsync(found.Select(m => m.Employee.UserId!.Value).ToList(), ct) : new Dictionary<Guid, AccountInfo>();
+        return TypedResults.Ok(found.Select(m => new MentionCandidateDto(m.Employee.UserId!.Value, m.Employee.FullName, m.Employee.Code,
+            accs.TryGetValue(m.Employee.UserId!.Value, out var a) && a.IsBot, m.Employee.AvatarUrl, m.Employee.DepartmentName, m.Title)).ToList());
     }
 
     // ---------------- Nhóm tuỳ chọn (Group) ----------------

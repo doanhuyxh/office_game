@@ -31,6 +31,13 @@ Không có kênh đẩy Api → trình duyệt cho bảng tin; đang mở `/news
 - Vé tải lên quá 24 giờ chưa gắn bài / tin: lần xin vé kế tiếp xoá **file S3** (key chính + key tạm `uploads/`) rồi mới xoá dòng vé — `BuildingBlocks/Storage/UploadCleanup.PurgeAsync` (≤ 20 vé / lần; S3 lỗi → giữ vé cho lần sau). Trước đây chỉ xoá dòng vé, file nằm lại.
 - Sửa bài gỡ tệp (`removeMediaIds`) → xoá file đó trên S3 sau khi lưu. Bài / tin bị xoá mềm / thu hồi **vẫn giữ file** (quy tắc cũ).
 
+## Tìm người @nhắc (TEST-71, cả Chat)
+
+- `GET /api/news/people?search=` và `/api/chat/people` (+ gợi ý @ kênh Toàn văn phòng) gọi chung `IEmployeeDirectory.SearchActiveAsync(term, limit)` (Organization): nhân viên đang làm **có tài khoản**, lọc **trong DB** — `translate()` bỏ dấu (bảng ký tự `BuildingBlocks/Text/PersonSearch.SqlFoldMap`, không cần extension `unaccent`) + `ILIKE` cho **từng từ** trên "họ tên + mã + phòng ban + chức danh (JobTitle, không có thì tên chức vụ)" (≤ 300 dòng thô), rồi xếp hạng `PersonSearch.Rank`.
+- Từ khoá: bỏ dấu, tách theo khoảng trắng, ≤ **3 từ / 40 ký tự**, **mọi từ phải khớp**. Hạng: mã khớp chính xác → đầu tên gọi (từ cuối họ tên) → đầu một từ trong họ tên → đầu mã / từ phòng ban / chức danh → giữa chuỗi; cùng hạng theo họ tên. "huy doan" → Đoàn Quang Huy; "huy ke toan" → Huy phòng Kế toán.
+- ≤ **20** kết quả (`NewsRules.MaxPeople` / `ChatRules.MaxPeople`), trừ chính mình; chỉ trả `userId, fullName, code, departmentName, title, avatarUrl, isBot`. Tần suất: trần chung 600 request / phút / người ([auth-sessions.md](auth-sessions.md)) + FE chờ 200 ms sau khi ngừng gõ.
+- FE: [frontend-ui.md](../frontend-ui.md) (Gợi ý @nhắc).
+
 ## Test
 
-`OfficeHub.Modules.News.Tests/NewsScheduleShareTests.cs`; e2e `scripts/dev/news-extra-e2e.ts` (33 kiểm tra, ~2 phút) — [e2e.md](../e2e.md).
+`OfficeHub.Modules.News.Tests/NewsScheduleShareTests.cs`, `OfficeHub.Modules.Organization.Tests/PersonSearchTests.cs` (tìm người); e2e `scripts/dev/mention-search-e2e.ts` (TEST-71, ~100 nhân viên); e2e `scripts/dev/news-extra-e2e.ts` (33 kiểm tra, ~2 phút) — [e2e.md](../e2e.md).

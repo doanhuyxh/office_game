@@ -11,6 +11,12 @@ public interface IEmployeeDirectory
     /// <summary>Nhân viên đang làm việc (chưa nghỉ việc).</summary>
     Task<IReadOnlyList<EmployeeRef>> ListActiveAsync(CancellationToken ct = default);
 
+    /// <summary>
+    /// Tìm nhân viên đang làm CÓ tài khoản cho gợi ý @nhắc (TEST-71): lọc trong DB (bỏ dấu, mọi từ phải khớp họ tên / mã / phòng ban / chức vụ),
+    /// xếp hạng theo <c>BuildingBlocks.Text.PersonSearch</c>, tối đa <paramref name="limit"/>. Từ khoá rỗng → theo họ tên A–Z.
+    /// </summary>
+    Task<IReadOnlyList<EmployeeMatch>> SearchActiveAsync(string? term, int limit, CancellationToken ct = default);
+
     /// <summary>Id các nhân viên cấp dưới (trực tiếp và gián tiếp) của một nhân viên.</summary>
     Task<IReadOnlyCollection<Guid>> GetSubordinateIdsAsync(Guid managerEmployeeId, CancellationToken ct = default);
     /// <summary>Nhân viên có làm việc trong [from, to] (vào làm ≤ to và chưa nghỉ hoặc nghỉ ≥ from) — báo cáo theo kỳ, gồm cả người đã nghỉ.</summary>
@@ -27,6 +33,9 @@ public interface IEmployeeDirectory
 
 /// <param name="ManageTaskColumns">Quản lý trạng thái (cột) công việc dự án — cờ trên chức vụ.</param>
 public sealed record PositionRef(Guid Id, string Name, int Level, bool SelfPublishDocuments, bool ManageTaskColumns = false);
+
+/// <param name="Title">Chức danh (JobTitle) hoặc tên chức vụ — dòng phụ phân biệt người trùng tên.</param>
+public sealed record EmployeeMatch(EmployeeRef Employee, string? Title);
 
 public sealed record DepartmentRef(Guid Id, string? Code, string Name, Guid? ParentId, Guid? HeadEmployeeId);
 

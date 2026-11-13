@@ -48,5 +48,6 @@ export interface IEditPostRequest {
 }
 
 export interface IUploadTicket { id: string; url: string; contentType: string; kind: MediaKind; expiresAt: string }
-export interface IPerson { userId: string; fullName: string; code: string; departmentName: string | null }
+/** Người tìm được (gợi ý @nhắc, chọn phạm vi): title = chức danh / chức vụ, phân biệt người trùng tên (TEST-71). */
+export interface IPerson { userId: string; fullName: string; code: string; departmentName: string | null; title: string | null; avatarUrl: string | null; isBot: boolean }
 export interface IDepartment { id: string; name: string; parentId: string | null }
