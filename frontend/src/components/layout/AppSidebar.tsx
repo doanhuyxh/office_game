@@ -50,7 +50,7 @@ function NavLink({ item, pathname, badge }: { item: NavItem; pathname: string; b
           <span>{item.label}</span>
         </Link>
       </SidebarMenuButton>
-      {!!badge && <SidebarMenuBadge className="rounded-full bg-destructive text-white peer-hover/menu-button:text-white" data-testid="inbox-badge">{badge}</SidebarMenuBadge>}
+      {!!badge && <SidebarMenuBadge className="rounded-full bg-destructive text-destructive-foreground peer-hover/menu-button:text-destructive-foreground peer-data-[active=true]/menu-button:text-destructive-foreground" data-testid="inbox-badge">{badge}</SidebarMenuBadge>}
     </SidebarMenuItem>
   );
 }
