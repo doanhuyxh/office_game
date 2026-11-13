@@ -45,12 +45,15 @@ Một dòng cho mỗi người nhận. Chỉ module Notification ghi; `EmailDisp
 
 Trạng thái hợp đồng tính lúc đọc. Không trùng thời gian / số phụ lục kiểm tra bằng code ([business/contracts.md](business/contracts.md)). Cột `…Encrypted` cần `Encryption__Key` cũ để đọc.
 
-## Schema `meetings` — `MeetingsDbContext` (migration `InitialMeetings`)
+## Schema `meetings` — `MeetingsDbContext` (migration `InitialMeetings`, `AgentMeetings`)
 
 | Bảng | Cột chính | Ràng buộc |
 |---|---|---|
 | `bookings` | `RoomId` (≤50, id phòng trong `shared/office-map.json`), `Title` ≤200, `StartAt` / `EndAt` (timestamptz UTC), `OrganizerEmployeeId`, `OrganizerUserId`, `OrganizerName`, `Note` ≤1000, `CreatedAt`, `CancelledAt?` | index (`RoomId`, `StartAt`); không trùng giờ kiểm tra bằng code + `pg_advisory_xact_lock` theo phòng ([business/meetings.md](business/meetings.md)) |
 | `attendees` | PK (`BookingId`, `EmployeeId`), `UserId?`, `Name` | FK `bookings` cascade; index `EmployeeId` |
+| `agent_sessions` | Phiên họp agent (TEST-74): `RoomId` ≤50, `Topic` ≤300, người mở (`OpenedByEmployeeId` / `UserId` / `Name`), `ChairEmployeeId`, `Status` (string `Active` / `Ended`), `EndReason?` (string), `EndedByName?`, `TurnsUsed`, `MaxTurns` / `MaxMinutes` (chụp lúc mở), `StartedAt`, `EndedAt?` | unique một phần `ux_agent_sessions_room_active` (`RoomId`) WHERE `"Status" = 'Active'`; index (`Status`, `StartedAt`) ([business/meetings-agents.md](business/meetings-agents.md)) |
+| `agent_session_bots` | PK (`MeetingId`, `EmployeeId`), `UserId`, `Name` (chụp lúc mở) | FK `agent_sessions` cascade; index `UserId` |
+| `agent_settings` | Một dòng (`Id` = 1) [Audited]: `MaxTurns`, `MaxMinutes`, `UpdatedAt`, `UpdatedByName`; chưa có dòng = mặc định 30 / 30 | — |
 
 Reporting **không có schema** (chỉ đọc qua `*.Contracts`).
 

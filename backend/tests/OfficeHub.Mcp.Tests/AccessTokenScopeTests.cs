@@ -271,6 +271,9 @@ public class MeetingToolTests
     [Theory]
     [InlineData("GET", "/api/meetings/rooms")]
     [InlineData("GET", "/api/meetings/bookings")]
+    [InlineData("GET", "/api/meetings/bookings/now")]
+    [InlineData("GET", "/api/meetings/sessions")]
+    [InlineData("GET", "/api/meetings/sessions/0193a000-0000-7000-8000-000000000000")]
     [InlineData("POST", "/api/meetings/bookings")]
     [InlineData("DELETE", "/api/meetings/bookings/0193a000-0000-7000-8000-000000000000")]
     public void Meetings_routes_allowed_for_ai(string method, string path) => Assert.True(AccessTokenAuth.IsAllowed(method, path));
@@ -281,4 +284,14 @@ public class MeetingToolTests
     [InlineData("GET", "/api/contracts/templates")]
     [InlineData("DELETE", "/api/meetings/bookings")]
     public void Salary_reports_and_templates_blocked_for_ai(string method, string path) => Assert.False(AccessTokenAuth.IsAllowed(method, path));
+
+    // TEST-74: chỉ người thật mở / dừng họp agent; trần họp chỉ admin trên web.
+    [Theory]
+    [InlineData("POST", "/api/meetings/sessions")]
+    [InlineData("POST", "/api/meetings/sessions/0193a000-0000-7000-8000-000000000000/stop")]
+    [InlineData("GET", "/api/meetings/agent-settings")]
+    [InlineData("PUT", "/api/meetings/agent-settings")]
+    [InlineData("GET", "/api/meetings")]
+    public void Agent_meeting_open_stop_and_settings_blocked_for_ai(string method, string path) =>
+        Assert.False(AccessTokenAuth.IsAllowed(method, path));
 }

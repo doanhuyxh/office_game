@@ -10,7 +10,7 @@ using OfficeHub.Modules.Meetings.Infrastructure;
 
 namespace OfficeHub.Modules.Meetings;
 
-/// <summary>Đặt phòng họp (phòng lấy từ bản đồ văn phòng 3D): lịch, chặn trùng giờ, mời người (chuông + email), huỷ.</summary>
+/// <summary>Đặt phòng họp (phòng lấy từ bản đồ văn phòng 3D): lịch, chặn trùng giờ, mời người (chuông + email), huỷ; phiên họp agent trong phòng họp.</summary>
 public sealed class MeetingsModule : IModule
 {
     public string Name => "meetings";
@@ -20,8 +20,13 @@ public sealed class MeetingsModule : IModule
         services.AddModuleDbContext<MeetingsDbContext>(config, MeetingsDbContext.Schema);
         services.AddSingleton<MeetingRooms>();
         services.AddHostedService<MeetingsMigrator>();
+        services.AddHostedService<AgentMeetingExpiryJob>();
     }
 
-    public void MapEndpoints(IEndpointRouteBuilder api) =>
-        BookingEndpoints.Map(api.MapGroup("/meetings").WithTags("Meetings").RequireAuthorization());
+    public void MapEndpoints(IEndpointRouteBuilder api)
+    {
+        var g = api.MapGroup("/meetings").WithTags("Meetings").RequireAuthorization();
+        BookingEndpoints.Map(g);
+        AgentMeetingEndpoints.Map(g); // /sessions — phiên họp agent (TEST-74); /agent-settings — trần lượt / phút, chỉ admin
+    }
 }

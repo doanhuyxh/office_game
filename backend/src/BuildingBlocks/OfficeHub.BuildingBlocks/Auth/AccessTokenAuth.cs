@@ -66,7 +66,11 @@ public static class AccessTokenAuth
         ("POST", "/api/leave/requests"),
         ("GET", "/api/approval/"),
         ("POST", "/api/approval/"),
-        ("GET", "/api/meetings"),
+        // Phòng họp: KHÔNG mở cả tiền tố GET /api/meetings — /api/meetings/agent-settings (trần họp agent) chỉ admin trên web.
+        // /sessions: bot chỉ xem phiên mình dự (Api lọc); mở / dừng phiên họp agent chỉ người thật (TEST-74).
+        ("GET", "/api/meetings/rooms"),
+        ("GET", "/api/meetings/bookings"),
+        ("GET", "/api/meetings/sessions"),
         ("POST", "/api/meetings/bookings"),
         ("DELETE", "/api/meetings/bookings/"),
         // Bảng tin: ĐỌC (feed, bài, bình luận) — endpoint tự bỏ HTML + link tệp khi gọi bằng token AI. Đăng bài: xem AllowedExact (chỉ admin / HR).

@@ -21,6 +21,8 @@ Chủ dự án chốt (2026-11-06): **lịch đặt + hiển thị trong 3D**, m
 | POST | `/bookings` | `{ roomId, title, startAt, endAt, attendeeIds?, note? }` → `{ booking, warnings }` |
 | DELETE | `/bookings/{id}` | 204 |
 
+Phiên họp agent (`/sessions`, trần `/agent-settings`) — [meetings-agents.md](meetings-agents.md).
+
 Token AI được gọi các route này (tool `list_meeting_rooms`, `list_meetings`, `book_meeting_room`, `cancel_meeting` — [mcp.md](mcp.md)); tool nhận ngày + giờ VN rồi tự gắn `+07:00`.
 
 ## FE

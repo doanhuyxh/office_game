@@ -23,6 +23,124 @@ namespace OfficeHub.Modules.Meetings.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("OfficeHub.Modules.Meetings.Domain.AgentMeeting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ChairEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EndReason")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTimeOffset?>("EndedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EndedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("MaxMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxTurns")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("OpenedByEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OpenedByName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("OpenedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RoomId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("Topic")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<int>("TurnsUsed")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoomId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_agent_sessions_room_active")
+                        .HasFilter("\"Status\" = 'Active'");
+
+                    b.HasIndex("Status", "StartedAt")
+                        .HasDatabaseName("ix_agent_sessions_status_started");
+
+                    b.ToTable("agent_sessions", "meetings");
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Meetings.Domain.AgentMeetingBot", b =>
+                {
+                    b.Property<Guid>("MeetingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("MeetingId", "EmployeeId");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_agent_session_bots_user");
+
+                    b.ToTable("agent_session_bots", "meetings");
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Meetings.Domain.AgentMeetingSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxTurns")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("agent_settings", "meetings");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Meetings.Domain.Booking", b =>
                 {
                     b.Property<Guid>("Id")
@@ -98,6 +216,15 @@ namespace OfficeHub.Modules.Meetings.Infrastructure.Migrations
                     b.ToTable("attendees", "meetings");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Meetings.Domain.AgentMeetingBot", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Meetings.Domain.AgentMeeting", null)
+                        .WithMany("Bots")
+                        .HasForeignKey("MeetingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Meetings.Domain.BookingAttendee", b =>
                 {
                     b.HasOne("OfficeHub.Modules.Meetings.Domain.Booking", null)
@@ -105,6 +232,11 @@ namespace OfficeHub.Modules.Meetings.Infrastructure.Migrations
                         .HasForeignKey("BookingId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Meetings.Domain.AgentMeeting", b =>
+                {
+                    b.Navigation("Bots");
                 });
 
             modelBuilder.Entity("OfficeHub.Modules.Meetings.Domain.Booking", b =>
