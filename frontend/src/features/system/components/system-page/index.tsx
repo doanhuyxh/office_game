@@ -153,7 +153,7 @@ export function SystemPage() {
         <TabsContent value="overview" className="mt-4 grid gap-4">
           {info ?? (data && (
             <>
-              <div className="grid gap-4 md:grid-cols-3">{data.links.map((l) => <LinkCard key={l.key} link={l} onEmbed={setEmbed} />)}</div>
+              <div className="grid gap-4 md:grid-cols-3 @7xl/content:grid-cols-4 @min-[112rem]/content:grid-cols-6">{data.links.map((l) => <LinkCard key={l.key} link={l} onEmbed={setEmbed} />)}</div>
               <div className="grid gap-4 lg:grid-cols-2">
                 <Card>
                   <CardHeader><CardTitle className="text-base">Tình trạng dịch vụ</CardTitle></CardHeader>

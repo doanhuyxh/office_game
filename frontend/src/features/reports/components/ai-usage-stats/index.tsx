@@ -20,7 +20,7 @@ const pct = (n: number, total: number) => (total ? `${formatNumber((n / total) *
 /** Ô số liệu tổng của báo cáo AI. `single` = đang xem một người (bỏ ô "Số người"). */
 export function AiUsageStats({ s, single }: { s: IAiUsageSummary; single?: boolean }) {
   return (
-    <div className={`grid grid-cols-2 gap-3 ${single ? 'xl:grid-cols-4' : 'lg:grid-cols-3 xl:grid-cols-5'}`}>
+    <div className={`grid grid-cols-2 gap-3 ${single ? 'xl:grid-cols-4 @min-[112rem]/content:grid-cols-[repeat(4,minmax(0,28rem))]' : 'lg:grid-cols-3 xl:grid-cols-5 @min-[140rem]/content:grid-cols-[repeat(5,minmax(0,28rem))]'}`}>
       <Stat label="Tổng request" value={formatNumber(s.total)} sub={s.lastAt ? `Gần nhất ${formatDateTime(s.lastAt)}` : 'Chưa có'} />
       {!single && <Stat label="Số người dùng" value={formatNumber(s.users)} />}
       <Stat label="Thao tác ghi" value={formatNumber(s.writes)} sub={`${pct(s.writes, s.total)} · tạo / sửa / xoá`} />

@@ -33,7 +33,7 @@ function Overview({ p }: { p: IMyProfile }) {
   const remove = useDeleteAvatar();
   const input = useRef<HTMLInputElement>(null);
   return (
-    <Card>
+    <Card className="col-span-full">
       <CardContent className="flex flex-col gap-6 pt-6 sm:flex-row sm:items-start">
         <div className="flex flex-col items-center gap-2">
           <PersonAvatar name={p.fullName} url={p.avatarUrl} className="size-24" fallbackClassName="text-2xl" />
@@ -240,7 +240,7 @@ export function ProfilePage() {
   const save = useSaveContact();
   if (isLoading) return <Spinner />;
   return (
-    <div className="grid grid-cols-1 gap-6">
+    <div className="grid grid-cols-1 items-start gap-6 @min-[96rem]/content:grid-cols-2 @min-[160rem]/content:grid-cols-3">
       <PageHeader title="Hồ sơ cá nhân" />
       {!p ? (
         <Card><CardHeader><CardTitle className="text-base">Tài khoản chưa gắn hồ sơ nhân viên</CardTitle>

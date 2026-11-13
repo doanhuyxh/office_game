@@ -10,9 +10,10 @@ import { Header } from './Header';
 const sidebarOpen = () => !document.cookie.split('; ').includes('sidebar_state=false');
 
 /**
- * Khung các màn hình nhân sự (bố cục theo shadcn-admin): sidebar inset + header dính + nội dung giữa trang.
- * Độ rộng nội dung theo bề ngang vùng nội dung (container query): tối đa 7xl (80rem) như Full HD; vùng ≥ 112rem (màn 2K trở lên) → trải
- * gần hết bề ngang (tối đa 200rem) + lề 8 để hiển thị nhiều nội dung hơn. Cỡ chữ giữ nguyên ở mọi màn hình.
+ * Khung các màn hình nhân sự (bố cục theo shadcn-admin): sidebar inset + header dính + nội dung.
+ * `<main>` luôn rộng hết vùng nội dung ở mọi cỡ màn hình (không trần, không canh giữa); lề ngang tăng theo bề ngang vùng nội dung
+ * (container query `@container/content`, tính cả sidebar mở / thu): 4 → từ @3xl 6 → từ @7xl 8 — `Header` dùng cùng lề.
+ * Cỡ chữ giữ nguyên ở mọi màn hình; trang tự thêm cột khi rộng (xem .agent/frontend-layout.md).
  */
 export function MainLayout() {
   usePushForeground();
@@ -23,7 +24,7 @@ export function MainLayout() {
           <AppSidebar />
           <SidebarInset className="@container/content">
             <Header />
-            <main className="flex flex-1 flex-col gap-4 px-4 py-6 sm:gap-6 @7xl/content:mx-auto @7xl/content:w-full @7xl/content:max-w-7xl @min-[112rem]/content:max-w-[200rem] @min-[112rem]/content:px-8">
+            <main className="flex flex-1 flex-col gap-4 px-4 py-6 sm:gap-6 @3xl/content:px-6 @7xl/content:px-8">
               <Outlet />
             </main>
           </SidebarInset>

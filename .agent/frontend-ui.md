@@ -18,6 +18,10 @@
 - Màu dùng token (`bg-background`, `text-muted-foreground`, `border`, `bg-primary`…), không hard-code mã màu → dark mode (`.dark`, nút ở header) chạy đúng. Palette slate theo shadcn-admin; đổi màu chủ đạo: `--primary`/`--ring` trong `global.css`. Animation `animate-in/out` từ `tw-animate-css`. `sonner.tsx` dùng `useTheme` của dự án thay `next-themes`.
 - Màu trạng thái: token tự thêm `success` / `warning` / `info` (+ `-foreground`) cạnh `destructive` → `text-success`, `bg-warning/15`… Badge trạng thái dùng `StatusBadge` (`components/common/StatusBadge.tsx`, prop `tone`); map nhãn trong `features/<x>/utils/labels.ts` khai báo `tone`, không khai báo class màu. Sidebar dùng token `sidebar-*`.
 
+## Trang mới: bề ngang
+
+- Không tự đặt `max-w-*` + `mx-auto` ở cấp trang (khung `MainLayout` đã rộng hết + lề theo vùng nội dung); lưới thẻ phải có bậc cột cho `@7xl/content` và `@min-[112rem]/content` (container query, không `xl:` / `2xl:`). Trang đọc một cột: xem 3 nhóm trang ở [frontend-layout.md](frontend-layout.md).
+
 ## Bảng
 
 - Bảng dài cần header dính khi cuộn: `<Table containerClassName="max-h-[calc(100vh-…)] overflow-auto">` (khung tự cuộn — sticky không bám theo cuộn trang vì `Table` đã bọc `overflow-x-auto`) + `<TableHeader className="sticky top-0 z-10 bg-background shadow-[inset_0_-1px_0_var(--color-border)] [&_tr]:border-b-0">` (viền dưới bằng shadow). Mẫu: `notification-events-card`.

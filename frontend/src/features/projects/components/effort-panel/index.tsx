@@ -64,7 +64,7 @@ export function EffortPanel({ d }: { d: IProjectDetail }) {
       {month && canEditMonth && (
         <div className="grid gap-2 rounded-xl border bg-card p-3">
           <div className="text-sm font-medium">Phân bổ tháng {fmtMonth(month)} <span className="font-normal text-muted-foreground">{frozen(month) ? '— tháng đã chốt, để trống = không tính' : '— để trống = mặc định'}</span></div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 @7xl/content:grid-cols-4 @min-[112rem]/content:grid-cols-6">
             {data.members.map((mb) => { const c = cell(mb.employeeId, month); return (
               <label key={mb.employeeId} className="flex items-center justify-between gap-2 text-sm">{mb.fullName}
                 <span className="flex items-center gap-1"><Input className="w-20 text-right" type="number" min={0} max={100} step="0.01" aria-label={`% ${mb.fullName}`}

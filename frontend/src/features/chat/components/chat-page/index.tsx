@@ -52,7 +52,7 @@ export function ChatPage() {
     <div className="grid grid-cols-1 gap-4">
       <PageHeader title="Tin nhắn" />
       <div className="flex h-[calc(100dvh-8.5rem)] min-h-[28rem] overflow-hidden rounded-xl border bg-card" data-testid="chat-page">
-        <aside className={cn('w-full shrink-0 border-e md:block md:w-80', selected && 'hidden')}>
+        <aside className={cn('w-full shrink-0 border-e md:block md:w-80 @min-[112rem]/content:w-96', selected && 'hidden')}>
           <ConversationList conversations={conversations} loading={isLoading} selectedId={selectedId} onSelect={setSelectedId} onNew={() => setNewOpen(true)} />
         </aside>
         <section className={cn('min-w-0 flex-1', !selected && 'hidden md:block')}>

@@ -64,7 +64,7 @@ export function ProjectsPage() {
         <label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} /> Hiện dự án đã đóng</label>
       </div>
       {isLoading ? <Spinner /> : shown.length === 0 ? <p className="text-sm text-muted-foreground">Chưa có dự án{canCreate ? ' — bấm "Dự án mới"' : ''}.</p> : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 @7xl/content:grid-cols-4 @min-[112rem]/content:grid-cols-5 @min-[160rem]/content:grid-cols-6">
           {shown.map((p) => (
             <button key={p.id} type="button" onClick={() => void navigate({ to: '/projects/$projectId', params: { projectId: p.id } })} data-testid="project-card"
               className="grid gap-2 rounded-xl border bg-card p-4 text-left hover:border-primary/50">

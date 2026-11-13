@@ -182,7 +182,7 @@ export function Header() {
     <header className={cn('sticky top-0 z-40 h-16 rounded-t-[inherit]', scrolled ? 'shadow-lg' : 'shadow-sm')}>
       <div
         className={cn(
-          'relative flex h-full items-center gap-3 p-4 sm:gap-4',
+          'relative flex h-full items-center gap-3 p-4 sm:gap-4 @3xl/content:px-6 @7xl/content:px-8',
           scrolled && 'after:absolute after:inset-0 after:-z-10 after:rounded-t-[inherit] after:bg-background/60 after:backdrop-blur-lg',
         )}
       >

@@ -125,7 +125,7 @@ export function OvertimeTab() {
         <Button onClick={() => setOpen(true)} data-testid="overtime-new"><Plus /> Đăng ký tăng ca</Button>
       </div>
       {s && (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 @min-[112rem]/content:grid-cols-[repeat(4,minmax(0,28rem))]">
           <Stat label="Tổng đã duyệt" value={hm(s.overtimeMinutes)} />
           <Stat label="Ngày thường · 150%" value={hm(s.overtimeWeekdayMinutes)} />
           <Stat label="Ngày nghỉ tuần · 200%" value={hm(s.overtimeRestDayMinutes)} />

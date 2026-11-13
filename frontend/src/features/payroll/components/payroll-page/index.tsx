@@ -284,7 +284,7 @@ function SettingsTab() {
           <CardDescription>Cập nhật bởi {current.createdByName ?? '—'} · {formatDateTime(current.createdAt)}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 @7xl/content:grid-cols-4 @min-[112rem]/content:grid-cols-6">
             {NUM_FIELDS.map((f) => f.unit === 'đ'
               ? <MoneyField key={f.key} id={`r-${f.key}`} label={`${f.label} (${f.unit})`}
                   value={rules[f.key] as number} onValueChange={(v) => set(f.key, (v ?? 0) as never)} />

@@ -87,7 +87,7 @@ function Stats() {
   if (isLoading || !data) return <Spinner />;
   return (
     <section className="grid gap-3">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 @min-[112rem]/content:grid-cols-[repeat(4,minmax(0,28rem))]">
         <Stat label="Tài liệu" value={data.totalAssets.toLocaleString('vi-VN')} hint={`${data.published} ban hành · ${data.drafts} nháp · ${data.pending} chờ duyệt`} />
         <Stat label="Dung lượng" value={formatSize(data.totalSize)} hint="Tính cả mọi phiên bản" />
         <Stat label="Sắp hết hạn lưu trữ" value={data.retentionDueCount} hint="Trong 30 ngày tới" warn={data.retentionDueCount > 0} />

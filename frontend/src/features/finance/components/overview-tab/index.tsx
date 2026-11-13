@@ -24,7 +24,7 @@ export function OverviewTab() {
   const month = `từ ${fmtDate(data.monthStart)}`;
   return (
     <div className="grid grid-cols-1 gap-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 @min-[112rem]/content:grid-cols-[repeat(4,minmax(0,28rem))]">
         <Stat label="Tổng số dư các quỹ đang dùng" value={formatMoney(data.totalBalance)} sub={data.lockedThrough ? `Sổ đã khoá đến hết ${fmtDate(data.lockedThrough)}` : 'Chưa khoá sổ'} />
         <Stat label="Thu tháng này" value={formatMoney(data.monthIncome)} sub={month} tone="pos" />
         <Stat label="Chi tháng này" value={formatMoney(data.monthExpense)} sub={`Chênh lệch ${formatMoney(data.monthIncome - data.monthExpense)}`} tone="neg" />

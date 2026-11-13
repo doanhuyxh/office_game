@@ -17,7 +17,7 @@ export function Dashboard() {
       <PageHeader title="Tổng quan" />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[380px_minmax(0,1fr)]">
         <CheckInCard />
-        <div className="grid h-fit gap-4 sm:grid-cols-2">
+        <div className="grid h-fit gap-4 sm:grid-cols-2 @7xl/content:grid-cols-4">
           <Card>
             <CardHeader>
               <CardDescription>Văn phòng 3D</CardDescription>
@@ -54,7 +54,7 @@ export function Dashboard() {
               <Link to={PATHS.approvals} className="text-sm text-primary hover:underline">Xem đơn →</Link>
             </CardContent>
           </Card>
-          <Card className="sm:col-span-2">
+          <Card className="sm:col-span-2 @7xl/content:col-span-4">
             <CardHeader>
               <CardDescription>Bảng tin</CardDescription>
               <CardTitle className="text-lg">Tin mới trong công ty</CardTitle>

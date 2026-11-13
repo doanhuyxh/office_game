@@ -75,11 +75,11 @@ export function ProjectDetailPage() {
         </PageToolbar>
         <TabsContent value="tasks" className="mt-4"><TaskBoard d={d} myEmployeeId={myEmployeeId} /></TabsContent>
         <TabsContent value="guide" className="mt-4">
-          <div className="grid max-w-3xl gap-3" data-testid="work-guide">
-            <p className="text-sm text-muted-foreground">{`Quy trình: ${d.columns.map((c) => c.name).join(' → ')}${p.sequential ? ', đi lần lượt; chuyển lùi phải ghi lý do' : ', kéo thả tự do'}`}
+          <div className="grid max-w-3xl items-start gap-3 @min-[96rem]/content:max-w-none @min-[96rem]/content:grid-cols-[minmax(0,48rem)_minmax(0,24rem)] @min-[96rem]/content:gap-6" data-testid="work-guide">
+            <p className="text-sm text-muted-foreground @min-[96rem]/content:col-start-2 @min-[96rem]/content:row-start-1">{`Quy trình: ${d.columns.map((c) => c.name).join(' → ')}${p.sequential ? ', đi lần lượt; chuyển lùi phải ghi lý do' : ', kéo thả tự do'}`}
               {d.columns.some((c) => c.approverOnly) && `; chỉ quản lý dự án chuyển sang ${d.columns.filter((c) => c.approverOnly).map((c) => `"${c.name}"`).join(', ')}`}. Thành viên và BOT (qua MCP) đọc hướng dẫn này trước khi làm việc.</p>
-            {d.workGuide ? <div className="rounded-lg border p-4"><Markdown text={d.workGuide} /></div>
-              : <p className="text-sm text-muted-foreground">Chưa có hướng dẫn.{p.canManage && ' Bấm "Sửa" để soạn.'}</p>}
+            {d.workGuide ? <div className="rounded-lg border p-4 @min-[96rem]/content:row-start-1"><Markdown text={d.workGuide} /></div>
+              : <p className="text-sm text-muted-foreground @min-[96rem]/content:row-start-1">Chưa có hướng dẫn.{p.canManage && ' Bấm "Sửa" để soạn.'}</p>}
           </div>
         </TabsContent>
         <TabsContent value="milestones" className="mt-4"><MilestonesPanel d={d} /></TabsContent>

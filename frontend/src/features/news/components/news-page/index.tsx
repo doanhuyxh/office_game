@@ -12,7 +12,10 @@ import { AuthorAvatar } from '../author-avatar';
 import { ComposerDialog } from '../composer-dialog';
 import { PostCard } from '../post-card';
 
-/** Bảng tin công ty (kiểu Facebook): ô "Bạn đang nghĩ gì?", bài ghim, cuộn vô hạn. Tab "Bài của tôi" lọc bài mình đăng. */
+/**
+ * Bảng tin công ty (kiểu Facebook): ô "Bạn đang nghĩ gì?", bài ghim, cuộn vô hạn. Tab "Bài của tôi" lọc bài mình đăng.
+ * Vùng nội dung ≥ 96rem (màn rộng): cột bài viết ~42rem + cột phải bài ghim (dính khi cuộn), canh trái theo lề khung; hẹp hơn → một cột giữa trang.
+ */
 export function NewsPage() {
   const [tab, setTab] = useTabParam('all', ['all', 'mine']);
   const { data: me } = useMe();
@@ -44,9 +47,9 @@ export function NewsPage() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
-    <div className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4">
+    <div className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4 @min-[96rem]/content:mx-0 @min-[96rem]/content:max-w-none @min-[96rem]/content:grid-cols-[minmax(0,42rem)_minmax(0,30rem)] @min-[96rem]/content:items-start @min-[96rem]/content:gap-x-6">
       <PageHeader title="Bảng tin" />
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={setTab} className="col-span-full">
         <PageToolbar actions={<Button size="sm" onClick={() => setComposing(true)} data-testid="new-post"><PenLine /> Đăng bài</Button>}>
           <TabsList>
             <TabsTrigger value="all">Tất cả</TabsTrigger>
@@ -55,13 +58,19 @@ export function NewsPage() {
         </PageToolbar>
       </Tabs>
 
-      <Card className="flex-row items-center gap-3 p-3">
+      <Card className="flex-row items-center gap-3 p-3 @min-[96rem]/content:col-start-1">
         <AuthorAvatar author={{ userId: me?.id ?? '', employeeId: null, name: me?.fullName ?? '', departmentName: null }} className="size-10" />
         <button type="button" className="h-10 flex-1 rounded-full bg-muted/60 px-4 text-left text-sm text-muted-foreground hover:bg-muted" onClick={() => setComposing(true)} data-testid="open-composer">
           {me?.fullName ? `${me.fullName.split(' ').slice(-1)[0]} ơi, bạn muốn chia sẻ điều gì?` : 'Bạn muốn chia sẻ điều gì?'}
         </button>
       </Card>
 
+      {pinned.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 @min-[96rem]/content:sticky @min-[96rem]/content:top-20 @min-[96rem]/content:col-start-2 @min-[96rem]/content:row-span-2 @min-[96rem]/content:row-start-2 @min-[96rem]/content:max-h-[calc(100dvh-6rem)] @min-[96rem]/content:overflow-y-auto" data-testid="pinned-posts">
+          {pinned.map((p) => <PostCard key={p.id} post={p} />)}
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-4 @min-[96rem]/content:col-start-1">
       {fresh > 0 && tab === 'all' && (
         <div className="sticky top-16 z-10 flex justify-center">
           <Button size="sm" className="rounded-full shadow-md" onClick={showFresh} data-testid="fresh-posts"><ArrowUp /> {fresh} bài mới</Button>
@@ -69,7 +78,6 @@ export function NewsPage() {
       )}
       {feed.isLoading && <Spinner />}
       {feed.isError && <p className="text-center text-sm text-destructive">Không tải được bảng tin. <button type="button" className="underline" onClick={() => feed.refetch()}>Thử lại</button></p>}
-      {pinned.map((p) => <PostCard key={p.id} post={p} />)}
       {items.map((p) => <PostCard key={p.id} post={p} />)}
       {empty && (
         <div className="flex flex-col items-center gap-2 py-16 text-muted-foreground">
@@ -79,6 +87,7 @@ export function NewsPage() {
       )}
       <div ref={sentinel} className="flex h-8 items-center justify-center">
         {isFetchingNextPage && <Loader2 className="size-5 animate-spin text-muted-foreground" />}
+      </div>
       </div>
       <ComposerDialog open={composing} onOpenChange={setComposing} />
     </div>

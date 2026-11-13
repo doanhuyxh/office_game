@@ -31,7 +31,7 @@ export function FinancialsPanel({ d }: { d: IProjectDetail }) {
   const income = f.revenue + f.otherIncome;
   return (
     <div className="grid gap-4">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6 @min-[168rem]/content:grid-cols-[repeat(6,minmax(0,28rem))]">
         <Tile label="Doanh thu (gồm VAT)" value={formatMoney(f.revenue)} hint={f.otherIncome ? `+ thu khác ${formatMoney(f.otherIncome)}` : `${f.contracts.length} hợp đồng`} />
         <Tile label="VAT" value={formatMoney(f.vat)} />
         <Tile label="Nhân công" value={formatMoney(f.labor)} hint={`${days(f.manDays)} ngày công${f.hasEstimate ? ' · có tháng ước tính' : ''}`} />

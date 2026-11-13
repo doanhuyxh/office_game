@@ -157,7 +157,7 @@ export function MessageItem({ m, mine, meId, showHeader, onRecall, onEdit, onRea
   return (
     <div className={cn('group flex gap-2', mine ? 'justify-end' : 'justify-start', showHeader ? 'mt-3' : 'mt-0.5')} data-testid="chat-message" data-mentions-me={mentionsMe || undefined}>
       {!mine && (showHeader ? <PersonAvatar name={m.senderName} className="mt-0.5 size-8 shrink-0" /> : <div className="w-8 shrink-0" />)}
-      <div className={cn('flex max-w-[80%] flex-col sm:max-w-[70%]', mine ? 'items-end' : 'items-start')}>
+      <div className={cn('flex max-w-[min(80%,48rem)] flex-col sm:max-w-[min(70%,48rem)]', mine ? 'items-end' : 'items-start')}>
         {showHeader && (
           <div className="mb-0.5 flex items-baseline gap-2 px-1 text-[11px] text-muted-foreground">
             {!mine && <span className="font-medium text-foreground/80">{m.senderName}</span>}

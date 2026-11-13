@@ -32,7 +32,7 @@ export function ProjectsOverview() {
   ];
   return (
     <div className="grid gap-3">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5 @min-[140rem]/content:grid-cols-[repeat(5,minmax(0,28rem))]">
         {tiles.map((t) => (
           <button key={t.label} type="button" onClick={() => setFilter(t.key)} aria-pressed={filter === t.key}
             className={cn('rounded-xl border bg-card p-3 text-left hover:border-primary/50', filter === t.key && 'border-primary ring-1 ring-primary')}>

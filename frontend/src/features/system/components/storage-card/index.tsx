@@ -85,7 +85,7 @@ export function StorageCard() {
         <CardContent className="grid gap-5">
           {r.isLoading ? <Spinner /> : r.error ? <p className="text-sm text-destructive">{errorMessage(r.error)}</p> : data && (
             <>
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 @min-[112rem]/content:grid-cols-[repeat(4,minmax(0,28rem))]">
                 <Stat label="Tổng dung lượng" value={formatBytes(data.totalBytes)} />
                 <Stat label="Số file" value={data.totalObjects.toLocaleString('vi-VN')} hint={data.truncated ? 'Chỉ quét 200 000 file đầu' : undefined} />
                 <Stat label="Chi phí lưu trữ ước tính" value={`~$${data.estimatedUsdPerMonth.toLocaleString('en-US')}/tháng`} hint="S3 Standard ~$0,025/GB, chưa gồm request / băng thông" />

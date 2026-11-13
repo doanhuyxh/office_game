@@ -18,7 +18,7 @@ export function ReceivablesTab({ onOpenContract }: { onOpenContract: (id: string
   if (isLoading || !data) return <Spinner />;
   return (
     <div className="grid grid-cols-1 gap-4">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 @min-[112rem]/content:grid-cols-[repeat(4,minmax(0,28rem))]">
         {[
           ['Tổng còn phải thu', data.outstanding, ''],
           ['Quá hạn', data.overdue, 'text-rose-600'],

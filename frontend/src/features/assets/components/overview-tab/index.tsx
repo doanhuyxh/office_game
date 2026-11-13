@@ -24,7 +24,7 @@ export function OverviewTab() {
   const today = todayVn();
   return (
     <div className="grid grid-cols-1 gap-4" data-testid="assets-overview">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 @min-[112rem]/content:grid-cols-[repeat(4,minmax(0,28rem))]">
         <Stat label="Thiết bị" value={o.deviceTotal} hint={`Giá mua ${formatMoney(o.totalPurchaseValue)} · còn lại ${formatMoney(o.totalBookValue)}`} />
         <Stat label="Dịch vụ đang dùng" value={o.activeServices} hint={`${o.seatsInUse} ghế đang dùng`} />
         <Stat label="Chi phí dịch vụ / tháng" value={formatMoney(o.monthlyServiceCost)} />

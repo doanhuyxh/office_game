@@ -38,7 +38,7 @@ export function SettingsGroupCard({ group, icon, description, fields, testLabel 
       build={() => ({ values, secrets: Object.fromEntries(Object.entries(secrets).filter(([, s]) => s.trim())), clearSecrets: clear })}
       onSaved={() => { setSecrets({}); setClear([]); }}>
       {(errors) => (
-        <div className="grid items-start gap-4 md:grid-cols-2">
+        <div className="grid items-start gap-4 md:grid-cols-2 @min-[112rem]/content:grid-cols-3">
           {fields.map((f) => {
             if (f.kind === 'bool') return (
               <div key={f.key} className="flex items-start gap-2 md:col-span-2">
