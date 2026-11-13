@@ -74,7 +74,7 @@ export function PostEditor({ value, onChange, placeholder = 'Bạn muốn chia s
     content: value,
     autofocus: autoFocus ? 'end' : false,
     editorProps: {
-      attributes: { class: 'news-rich news-editor min-h-32 max-h-[50vh] overflow-y-auto px-3 py-2 outline-none', 'data-testid': 'post-editor' },
+      attributes: { class: 'news-rich news-editor min-h-40 max-h-[50vh] overflow-y-auto px-3 py-2 outline-none sm:min-h-32 lg:h-[clamp(16rem,50vh,40rem)] lg:max-h-none', 'data-testid': 'post-editor' },
       handleKeyDown: (_view, e) => nav.handleKey(e),
     },
     onUpdate: ({ editor: ed }) => {
@@ -85,9 +85,9 @@ export function PostEditor({ value, onChange, placeholder = 'Bạn muốn chia s
     onSelectionUpdate: ({ editor: ed }) => setMention(editorMentionQuery(ed, mentionRef.current?.query ?? null)),
   });
 
-  // Nội dung đổi từ ngoài (mở lại hộp soạn khác) → nạp lại
+  // Nội dung đổi từ ngoài (mở lại hộp soạn khác) → nạp lại. Bỏ qua editor đã huỷ (StrictMode dựng lại editor → getHTML lỗi schema null khi mở "Sửa bài")
   useEffect(() => {
-    if (editor && value !== (editor.isEmpty ? '' : editor.getHTML())) editor.commands.setContent(value, { emitUpdate: false });
+    if (editor && !editor.isDestroyed && value !== (editor.isEmpty ? '' : editor.getHTML())) editor.commands.setContent(value, { emitUpdate: false });
   }, [value, editor]);
 
   function pick(p: IMentionOption) {
@@ -130,8 +130,9 @@ function Toolbar({ editor }: { editor: Editor }) {
     if (url.trim() === '' || url.trim() === 'https://') { editor.chain().focus().unsetLink().run(); return; }
     editor.chain().focus().extendMarkRange('link').setLink({ href: /^(https?:|mailto:|tel:)/i.test(url.trim()) ? url.trim() : `https://${url.trim()}` }).run();
   }
+  // Điện thoại: một hàng cuộn ngang (không tràn hộp) · sm+: xuống dòng
   return (
-    <div className="flex flex-wrap items-center gap-0.5 border-b px-1.5 py-1">
+    <div className="flex items-center gap-0.5 overflow-x-auto border-b px-1.5 py-1 *:shrink-0 sm:flex-wrap sm:overflow-x-visible">
       {btn('In đậm', editor.isActive('bold'), () => editor.chain().focus().toggleBold().run(), <Bold />)}
       {btn('In nghiêng', editor.isActive('italic'), () => editor.chain().focus().toggleItalic().run(), <Italic />)}
       {btn('Gạch chân', editor.isActive('underline'), () => editor.chain().focus().toggleUnderline().run(), <UnderlineIcon />)}

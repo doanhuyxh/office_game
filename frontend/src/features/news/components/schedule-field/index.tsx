@@ -14,7 +14,7 @@ export function ScheduleField({ value, onChange, disabled, error }: { value: ISc
       </div>
       {value.on && (
         <div className="flex flex-wrap items-center gap-2 ps-6">
-          <Input type="date" className="w-40" value={value.date} disabled={disabled} onChange={(e) => onChange({ ...value, date: e.target.value })} aria-label="Ngày đăng" data-testid="schedule-date" />
+          <Input type="date" className="w-36" value={value.date} disabled={disabled} onChange={(e) => onChange({ ...value, date: e.target.value })} aria-label="Ngày đăng" data-testid="schedule-date" />
           <Input type="time" className="w-28" value={value.time} disabled={disabled} onChange={(e) => onChange({ ...value, time: e.target.value })} aria-label="Giờ đăng" data-testid="schedule-time" />
           <span className="text-xs text-muted-foreground">giờ Việt Nam · email / @nhắc gửi lúc đăng</span>
         </div>

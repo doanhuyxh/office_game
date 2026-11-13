@@ -1,9 +1,9 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { FileText, Film, Image as ImageIcon, Loader2, Paperclip, X } from 'lucide-react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { ChevronDown, FileText, Film, Image as ImageIcon, Loader2, Paperclip, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { Checkbox } from '@/components/common/checkbox';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { Label } from '@/components/common/label';
 import { Spinner } from '@/components/feedback/Spinner';
 import { cn } from '@/utils/cn';
@@ -53,13 +53,15 @@ export function ComposerDialog({ open, onOpenChange, post, sharing }: { open: bo
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [schedule, setSchedule] = useState<IScheduleValue>(() => initialSchedule(post));
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const phone = usePhone();
 
   // Mở lại hộp (bài khác / bài mới) → đặt lại toàn bộ
   useEffect(() => {
     if (!open) return;
     setHtml(post?.contentHtml ?? ''); setPlain(post?.plainText ?? ''); setAud(initialAudience(post)); setPending([]); setRemoved([]);
-    setSendEmail(false); setCommentsDisabled(post?.commentsDisabled ?? false); setErrors({}); setBusy(false); setSchedule(initialSchedule(post));
+    setSendEmail(false); setCommentsDisabled(post?.commentsDisabled ?? false); setErrors({}); setBusy(false); setSchedule(initialSchedule(post)); setOptionsOpen(false);
   }, [open, post]);
 
   const existing: IMedia[] = useMemo(() => (post?.media ?? []).filter((m) => !removed.includes(m.id)), [post, removed]);
@@ -117,85 +119,136 @@ export function ComposerDialog({ open, onOpenChange, post, sharing }: { open: bo
     } finally { setBusy(false); }
   }
 
+  const submitDisabled = busy || empty || tooLong || (aud.audience === 'Departments' || aud.audience === 'Custom') && targetCount === 0;
+  const submitButton = (
+    <Button type="button" size={phone ? 'sm' : 'default'} disabled={submitDisabled} onClick={submit} data-testid="submit-post">
+      {busy && <Loader2 className="animate-spin" />} {canSchedule && schedule.on ? (editing ? 'Lưu giờ hẹn' : 'Hẹn giờ') : editing ? (post?.publishAt ? 'Đăng ngay' : 'Lưu') : sharing ? 'Chia sẻ' : 'Đăng'}
+    </Button>
+  );
+  const optionCount = (!editing && sendEmail && aud.audience !== 'Private' ? 1 : 0) + (canSchedule && schedule.on ? 1 : 0) + (commentsDisabled ? 1 : 0);
+  const showOptions = optionsOpen || !!errors.publishAt;
+
   return (
     <Dialog open={open} onOpenChange={(o) => !busy && onOpenChange(o)}>
-      <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto" data-testid="composer-dialog">
-        <DialogHeader>
-          <DialogTitle>{editing ? 'Sửa bài viết' : sharing ? 'Chia sẻ bài viết' : 'Tạo bài viết'}</DialogTitle>
+      {/* Điện thoại: toàn màn hình, nút Đăng ở header · tablet: hộp một cột 2xl · PC / 2K / 4K: 2 cột, rộng tối đa 64rem (≤ 90vw); chỉ thân hộp cuộn */}
+      <DialogContent showCloseButton={false} data-testid="composer-dialog"
+        className={cn('flex flex-col gap-0 overflow-hidden p-0',
+          'top-0 left-0 h-dvh max-h-dvh w-full max-w-none translate-x-0 translate-y-0 rounded-none border-0',
+          'sm:top-[50%] sm:left-[50%] sm:h-auto sm:max-h-[92vh] sm:max-w-2xl sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border',
+          'lg:max-w-[min(64rem,90vw)]')}>
+        <DialogHeader className="flex shrink-0 flex-row items-center gap-2 border-b px-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 sm:px-6 sm:py-4">
+          <DialogClose asChild>
+            <Button type="button" variant="ghost" size="icon-sm" aria-label="Đóng" disabled={busy} className="sm:order-last"><X /></Button>
+          </DialogClose>
+          <DialogTitle className="min-w-0 flex-1 truncate text-left text-base sm:text-lg">{editing ? 'Sửa bài viết' : sharing ? 'Chia sẻ bài viết' : 'Tạo bài viết'}</DialogTitle>
           <DialogDescription className="sr-only">Soạn nội dung, chọn người xem và đính kèm tệp</DialogDescription>
+          {phone && submitButton}
         </DialogHeader>
-        <div className="grid gap-4">
-          <div className="grid gap-1.5">
-            <Suspense fallback={<div className="flex min-h-40 items-center justify-center rounded-md border"><Spinner /></div>}>
-              <PostEditor value={html} autoFocus onChange={(h, p) => { setHtml(h); setPlain(p); }} />
-            </Suspense>
-            {errors.contentHtml && <p className="text-xs text-destructive">{errors.contentHtml}</p>}
-          </div>
-          {isShare && <SharedPost post={shared} />}
 
-          {(existing.length > 0 || pending.length > 0) && (
-            <ul className="grid gap-1.5" data-testid="attachment-list">
-              {existing.map((m) => (
-                <Row key={m.id} name={m.fileName} size={m.size} kind={m.kind} url={m.kind === 'Image' ? m.url ?? undefined : undefined} onRemove={() => setRemoved((r) => [...r, m.id])} disabled={busy} />
-              ))}
-              {pending.map((p) => (
-                <Row key={p.key} name={p.file.name} size={p.file.size} kind={p.file.type.startsWith('image/') ? 'Image' : p.file.type.startsWith('video/') ? 'Video' : 'File'}
-                  url={p.preview} progress={busy ? p.progress : undefined} onRemove={() => dropPending(p.key)} disabled={busy} />
-              ))}
-            </ul>
-          )}
-          {errors.uploadIds && <p className="text-xs text-destructive">{errors.uploadIds}</p>}
-          <div>
-            <input ref={input} type="file" multiple accept={`${ACCEPT_MEDIA},*/*`} className="hidden" onChange={(e) => addFiles(e.target.files)} data-testid="file-input" />
-            <Button type="button" variant="outline" size="sm" disabled={busy || mediaCount >= MAX_MEDIA} onClick={() => input.current?.click()}>
-              <Paperclip /> Ảnh / video / tệp <span className="text-muted-foreground">({mediaCount}/{MAX_MEDIA})</span>
-            </Button>
-            <p className="mt-1 text-xs text-muted-foreground">Ảnh ≤ 10 MB · video ≤ 200 MB · tệp khác ≤ 25 MB</p>
-          </div>
-
-          <AudiencePicker value={aud} onChange={setAud} error={errors.targets} />
-          {aud.audience !== 'Company' && aud.audience !== 'Private' && targetCount === 0 && <p className="-mt-2 text-xs text-warning">Chọn ít nhất một {aud.audience === 'Departments' ? 'phòng ban' : 'người'} để đăng.</p>}
-
-          <div className="grid gap-2.5 rounded-md border p-3">
-            {!editing && (
-              <div className="flex items-start gap-2">
-                <Checkbox id="news-email" checked={sendEmail && aud.audience !== 'Private'} disabled={busy || aud.audience === 'Private'} onCheckedChange={(c) => setSendEmail(c === true)} data-testid="send-email" />
-                <Label htmlFor="news-email" className="grid gap-0.5 font-normal">
-                  <span className="font-medium">Gửi email thông báo cho người xem</span>
-                  <span className="text-xs text-muted-foreground">Chỉ gửi một lần khi đăng. Mỗi người tối đa 3 bài có email mỗi ngày (HR không giới hạn).</span>
-                </Label>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-6">
+            {/* Cột trái: nội dung + tệp */}
+            <div className="grid min-w-0 grid-cols-1 content-start gap-4">
+              <div className="grid grid-cols-1 gap-1.5">
+                <Suspense fallback={<div className="flex min-h-40 items-center justify-center rounded-md border"><Spinner /></div>}>
+                  <PostEditor value={html} autoFocus onChange={(h, p) => { setHtml(h); setPlain(p); }} />
+                </Suspense>
+                {errors.contentHtml && <p className="text-xs text-destructive">{errors.contentHtml}</p>}
               </div>
-            )}
-            {canSchedule && <ScheduleField value={schedule} onChange={setSchedule} disabled={busy} error={errors.publishAt} />}
-            {editing && post?.publishAt && !schedule.on && <p className="ps-6 text-xs text-warning">Bỏ hẹn giờ → bài được đăng ngay khi lưu.</p>}
-            <div className="flex items-center gap-2">
-              <Checkbox id="news-nocomment" checked={commentsDisabled} disabled={busy} onCheckedChange={(c) => setCommentsDisabled(c === true)} />
-              <Label htmlFor="news-nocomment" className="font-normal">Tắt bình luận</Label>
+              {isShare && <SharedPost post={shared} />}
+
+              {(existing.length > 0 || pending.length > 0) && (
+                <ul className="grid grid-cols-1 gap-1.5 lg:grid-cols-3 lg:gap-2 2xl:grid-cols-4" data-testid="attachment-list">
+                  {existing.map((m) => (
+                    <Row key={m.id} name={m.fileName} size={m.size} kind={m.kind} url={m.kind === 'Image' ? m.url ?? undefined : undefined} onRemove={() => setRemoved((r) => [...r, m.id])} disabled={busy} />
+                  ))}
+                  {pending.map((p) => (
+                    <Row key={p.key} name={p.file.name} size={p.file.size} kind={p.file.type.startsWith('image/') ? 'Image' : p.file.type.startsWith('video/') ? 'Video' : 'File'}
+                      url={p.preview} progress={busy ? p.progress : undefined} onRemove={() => dropPending(p.key)} disabled={busy} />
+                  ))}
+                </ul>
+              )}
+              {errors.uploadIds && <p className="text-xs text-destructive">{errors.uploadIds}</p>}
+            </div>
+
+            {/* Cột phải (PC) / bên dưới (tablet, điện thoại): người xem, đính kèm, tuỳ chọn */}
+            <div className="grid min-w-0 grid-cols-1 content-start gap-4">
+              <div>
+                <AudiencePicker value={aud} onChange={setAud} error={errors.targets} />
+                {aud.audience !== 'Company' && aud.audience !== 'Private' && targetCount === 0 && <p className="mt-2 text-xs text-warning">Chọn ít nhất một {aud.audience === 'Departments' ? 'phòng ban' : 'người'} để đăng.</p>}
+              </div>
+
+              <div>
+                <input ref={input} type="file" multiple accept={`${ACCEPT_MEDIA},*/*`} className="hidden" onChange={(e) => addFiles(e.target.files)} data-testid="file-input" />
+                <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto lg:w-full" disabled={busy || mediaCount >= MAX_MEDIA} onClick={() => input.current?.click()}>
+                  <Paperclip /> Ảnh / video / tệp <span className="text-muted-foreground">({mediaCount}/{MAX_MEDIA})</span>
+                </Button>
+                <p className="mt-1 text-xs text-muted-foreground">Ảnh ≤ 10 MB · video ≤ 200 MB · tệp khác ≤ 25 MB</p>
+              </div>
+
+              <div className="rounded-md border">
+                {/* Điện thoại: khối tuỳ chọn thu gọn được */}
+                <button type="button" className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium sm:hidden" aria-expanded={showOptions}
+                  onClick={() => setOptionsOpen((o) => !o)}>
+                  <span className="flex-1">Tuỳ chọn{optionCount > 0 && <span className="ms-1 font-normal text-muted-foreground">· đang bật {optionCount}</span>}</span>
+                  <ChevronDown className={cn('size-4 text-muted-foreground transition-transform', showOptions && 'rotate-180')} />
+                </button>
+                <div className={cn('grid gap-2.5 p-3 max-sm:border-t', !showOptions && 'max-sm:hidden')}>
+                  {!editing && (
+                    <div className="flex items-start gap-2">
+                      <Checkbox id="news-email" checked={sendEmail && aud.audience !== 'Private'} disabled={busy || aud.audience === 'Private'} onCheckedChange={(c) => setSendEmail(c === true)} data-testid="send-email" />
+                      <Label htmlFor="news-email" className="grid gap-0.5 font-normal">
+                        <span className="font-medium">Gửi email thông báo cho người xem</span>
+                        <span className="text-xs text-muted-foreground">Chỉ gửi một lần khi đăng. Mỗi người tối đa 3 bài có email mỗi ngày (HR không giới hạn).</span>
+                      </Label>
+                    </div>
+                  )}
+                  {canSchedule && <ScheduleField value={schedule} onChange={setSchedule} disabled={busy} error={errors.publishAt} />}
+                  {editing && post?.publishAt && !schedule.on && <p className="ps-6 text-xs text-warning">Bỏ hẹn giờ → bài được đăng ngay khi lưu.</p>}
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="news-nocomment" checked={commentsDisabled} disabled={busy} onCheckedChange={(c) => setCommentsDisabled(c === true)} />
+                    <Label htmlFor="news-nocomment" className="font-normal">Tắt bình luận</Label>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>Huỷ</Button>
-          <Button type="button" disabled={busy || empty || tooLong || (aud.audience === 'Departments' || aud.audience === 'Custom') && targetCount === 0} onClick={submit} data-testid="submit-post">
-            {busy && <Loader2 className="animate-spin" />} {canSchedule && schedule.on ? (editing ? 'Lưu giờ hẹn' : 'Hẹn giờ') : editing ? (post?.publishAt ? 'Đăng ngay' : 'Lưu') : sharing ? 'Chia sẻ' : 'Đăng'}
-          </Button>
-        </DialogFooter>
+
+        {!phone && (
+          <DialogFooter className="shrink-0 border-t px-6 py-3">
+            <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>Huỷ</Button>
+            {submitButton}
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );
 }
 
+/** Màn hình điện thoại (< sm) — nút Đăng chuyển lên header (chỉ render một nút `submit-post`). */
+const PHONE_QUERY = '(max-width: 639.98px)';
+function subscribePhone(cb: () => void) {
+  const mql = window.matchMedia(PHONE_QUERY);
+  mql.addEventListener('change', cb);
+  return () => mql.removeEventListener('change', cb);
+}
+const usePhone = () => useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE_QUERY).matches, () => false);
+
 function Row({ name, size, kind, url, progress, onRemove, disabled }: { name: string; size: number; kind: 'Image' | 'Video' | 'File'; url?: string; progress?: number; onRemove: () => void; disabled: boolean }) {
   const Icon = kind === 'Image' ? ImageIcon : kind === 'Video' ? Film : FileText;
+  // < lg: một dòng (thumbnail nhỏ + tên) · lg+: ô lưới có thumbnail lớn
   return (
-    <li className="flex items-center gap-2 rounded-md border bg-muted/30 p-1.5">
-      {url ? <img src={url} alt="" className="size-10 rounded object-cover" /> : <span className="flex size-10 items-center justify-center rounded bg-muted"><Icon className="size-5 text-muted-foreground" /></span>}
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm">{name}</p>
+    <li className="relative flex items-center gap-2 rounded-md border bg-muted/30 p-1.5 lg:flex-col lg:items-stretch lg:gap-1.5">
+      {url ? <img src={url} alt="" className="size-10 rounded object-cover lg:aspect-[4/3] lg:size-auto lg:w-full" />
+        : <span className="flex size-10 items-center justify-center rounded bg-muted lg:aspect-[4/3] lg:size-auto lg:w-full"><Icon className="size-5 text-muted-foreground lg:size-8" /></span>}
+      <div className="min-w-0 flex-1 lg:px-0.5">
+        <p className="truncate text-sm" title={name}>{name}</p>
         <p className="text-xs text-muted-foreground">{formatSize(size)}</p>
         {progress !== undefined && progress < 1 && <div className="mt-1 h-1 overflow-hidden rounded bg-muted"><div className={cn('h-full bg-primary transition-all')} style={{ width: `${Math.round(progress * 100)}%` }} /></div>}
       </div>
-      <Button type="button" variant="ghost" size="icon-sm" aria-label={`Bỏ ${name}`} disabled={disabled} onClick={onRemove}><X /></Button>
+      <Button type="button" variant="ghost" size="icon-sm" aria-label={`Bỏ ${name}`} disabled={disabled} onClick={onRemove}
+        className="lg:absolute lg:top-2.5 lg:right-2.5 lg:bg-background/80 lg:shadow-sm lg:hover:bg-background"><X /></Button>
     </li>
   );
 }

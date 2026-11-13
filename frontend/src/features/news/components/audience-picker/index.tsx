@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { Checkbox } from '@/components/common/checkbox';
 import { Input } from '@/components/common/input';
 import { Label } from '@/components/common/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/common/select';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/common/select';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useDepartments, usePeople } from '../../hooks/useNews';
 import type { PostAudience } from '../../types/news.types';
@@ -23,7 +23,8 @@ export function AudiencePicker({ value, onChange, error }: { value: IAudienceVal
       <Label htmlFor="news-audience">Ai xem được bài này?</Label>
       <Select value={value.audience} onValueChange={(a) => onChange({ ...value, audience: a as PostAudience })}>
         <SelectTrigger id="news-audience" className="w-full" data-testid="audience-select">
-          <span className="flex items-center gap-2"><Icon className="size-4" /><SelectValue /></span>
+          {/* Tự vẽ giá trị (không dùng SelectValue — nó chép cả icon của item → 2 icon) */}
+          <span className="flex min-w-0 items-center gap-2"><Icon className="size-4" /><span className="truncate">{AUDIENCE[value.audience].label}</span></span>
         </SelectTrigger>
         <SelectContent>
           {(Object.keys(AUDIENCE) as PostAudience[]).map((a) => {
