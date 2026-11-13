@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ANIM, Avatar, type AnimCode } from './avatar';
 import type { AvatarLook } from './avatarLook';
+import type { Room } from './mapTypes';
 import { buildSitSpots, type SitSpot } from './sitSpots';
 import { NavGrid } from './navGrid';
 import { OFFICE_MAP } from './officeMap';
@@ -288,8 +289,9 @@ export class OfficeScene {
   private roomSigns = new Map<string, THREE.Sprite>();
 
   /**
-   * Bảng nổi phía trên phòng họp: "Đang họp · …" (đỏ) / lịch kế tiếp (xám); null = gỡ bảng.
-   * Dữ liệu từ /api/meetings/bookings/now (OfficeView hỏi lại mỗi phút).
+   * Bảng trạng thái nhỏ ngay phía trên cửa phòng họp (TEST-87): "Đang họp · đến 15:00" (đỏ) / "Trống · 14:00 kế tiếp" (xám); null = gỡ bảng.
+   * Dữ liệu từ /api/meetings/bookings/now (OfficeView hỏi lại mỗi phút). Vẽ có depthTest → người đứng trước che bảng,
+   * renderOrder thấp hơn nhãn tên / bong bóng (10) → không đè lên avatar.
    */
   setRoomStatus(roomId: string, text: string | null, busy: boolean) {
     const old = this.roomSigns.get(roomId);
@@ -301,15 +303,16 @@ export class OfficeScene {
     }
     const room = OFFICE_MAP.rooms.find((r) => r.id === roomId);
     if (!text || !room) return;
-    const label = text.length > 48 ? `${text.slice(0, 47)}…` : text;
+    const label = text.length > 24 ? `${text.slice(0, 23)}…` : text;
     const { tex, aspect } = textTexture(label, {
-      color: '#ffffff', bg: busy ? '#dc2626' : '#475569', font: 'bold 36px Inter, system-ui, sans-serif', pad: 22,
+      color: '#ffffff', bg: busy ? 'rgba(220,38,38,.85)' : 'rgba(71,85,105,.8)', font: 'bold 30px Inter, system-ui, sans-serif', pad: 16,
     });
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-    const h = 0.42;
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    const h = 0.28;
     sprite.scale.set(h * aspect, h, 1);
-    sprite.position.set((room.x0 + room.x1) / 2, 2.7, (room.z0 + room.z1) / 2);
-    sprite.renderOrder = 10;
+    const { x, z } = doorSignSpot(room);
+    sprite.position.set(x, 2.5, z);
+    sprite.renderOrder = 5;
     this.scene.add(sprite);
     this.roomSigns.set(roomId, sprite);
   }
@@ -500,4 +503,19 @@ function disposeMeshes(root: THREE.Object3D) {
       mats.forEach((m) => { (m as THREE.MeshBasicMaterial).map?.dispose(); m.dispose(); });
     }
   });
+}
+
+/**
+ * Chỗ treo bảng trạng thái phòng: giữa cửa đầu tiên trên bản đồ, lệch 0,15 m ra phía hành lang (trên khung kính 2,2 m).
+ * Phòng không có dữ liệu cửa → giữa cạnh nam (lối vào mặc định của mặt bằng), không treo giữa phòng.
+ */
+function doorSignSpot(room: Room): { x: number; z: number } {
+  const d = room.doors?.[0] ?? { side: 's' as const, at: (room.x1 - room.x0) / 2, w: 0 };
+  const mid = d.at + d.w / 2, out = 0.15;
+  switch (d.side) {
+    case 'n': return { x: room.x0 + mid, z: room.z0 - out };
+    case 's': return { x: room.x0 + mid, z: room.z1 + out };
+    case 'w': return { x: room.x0 - out, z: room.z0 + mid };
+    case 'e': return { x: room.x1 + out, z: room.z0 + mid };
+  }
 }

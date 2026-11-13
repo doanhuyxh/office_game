@@ -34,7 +34,7 @@ Realtime AgentMeetingWatch ──mỗi 3 s GET /api/meetings/internal/live (X-Ch
 
 ## Bảng phòng (FE)
 
-`useActiveAgentSessions` (`GET /api/meetings/sessions?active=true`, 5 giây khi có phiên, không thì 15 giây) → `OfficeScene.setRoomStatus`: **"Đang họp với AI · chủ đề · lượt x/trần"** (nền đỏ), ưu tiên hơn lịch đặt phòng "Đang họp · …".
+`useActiveAgentSessions` (`GET /api/meetings/sessions?active=true`, 5 giây khi có phiên, không thì 15 giây) → `OfficeScene.setRoomStatus`: **"Đang họp với AI"** (nền đỏ, không ghi chủ đề / lượt — xem ở thanh "Họp với AI"), ưu tiên hơn lịch đặt phòng "Đang họp · …". Vị trí / kích thước bảng: [meetings.md](meetings.md).
 
 ## Kiểm thử
 

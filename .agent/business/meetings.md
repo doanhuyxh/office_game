@@ -28,4 +28,4 @@ Token AI được gọi các route này (tool `list_meeting_rooms`, `list_meetin
 ## FE
 
 - `/meetings` (menu Công việc → Phòng họp): dòng thời gian 7h–21h từng phòng (bấm chỗ trống để đặt nhanh, vạch đỏ = giờ hiện tại), danh sách lịch trong ngày, "Lịch của tôi" 14 ngày. Form gửi `vnInstant(date, time)` = `…+07:00`.
-- Văn phòng 3D: `OfficeView` hỏi `/bookings/now` mỗi phút → `OfficeScene.setRoomStatus` treo bảng nổi trên phòng: đỏ "Đang họp · tiêu đề · đến HH:mm", xám "Trống · HH:mm tiêu đề kế tiếp".
+- Văn phòng 3D: `OfficeView` hỏi `/bookings/now` mỗi phút → `OfficeScene.setRoomStatus` treo bảng nhỏ ngay **trên cửa** phòng (cửa đầu tiên trong `office-map.json`, lệch 0,15 m ra hành lang, cao 2,5 m; không có cửa → giữa cạnh nam), chỉ trạng thái ngắn ≤ 24 ký tự, không tiêu đề: đỏ "Đang họp · đến HH:mm", xám "Trống · HH:mm kế tiếp". Bảng vẽ có depthTest + renderOrder 5 (dưới nhãn tên / bong bóng 10) → không đè lên avatar (TEST-87).

@@ -56,15 +56,16 @@ export function OfficeView() {
   const hasLook = validLook(account?.avatar) !== null;
   const dismissPrompt = () => { setAvatarPrompt(false); try { localStorage.setItem(PROMPT_KEY, '1'); } catch { /* bỏ qua */ } };
 
-  // Bảng "Đang họp" trên phòng họp (lịch đặt phòng — module Meetings, làm mới mỗi phút); phiên họp agent đang họp ưu tiên hơn (TEST-76).
+  // Bảng "Đang họp" trên cửa phòng họp (lịch đặt phòng — module Meetings, làm mới mỗi phút); phiên họp agent đang họp ưu tiên hơn (TEST-76).
   useEffect(() => {
     if (!scene) return;
     const agent = new Map((agentSessions.data ?? []).map((s) => [s.roomId, s]));
     for (const r of roomsNow.data ?? []) {
       const a = agent.get(r.roomId);
-      const text = a ? `Đang họp với AI · ${a.topic} · lượt ${a.turnsUsed}/${a.maxTurns}`
-        : r.current ? `Đang họp · ${r.current.title} · đến ${formatTime(r.current.endAt)}`
-        : r.next ? `Trống · ${formatTime(r.next.startAt)} ${r.next.title}` : null;
+      // Chỉ trạng thái ngắn (≤ 24 ký tự, TEST-87) — chủ đề / tiêu đề xem ở thanh "Họp với AI" và trang Phòng họp
+      const text = a ? 'Đang họp với AI'
+        : r.current ? `Đang họp · đến ${formatTime(r.current.endAt)}`
+        : r.next ? `Trống · ${formatTime(r.next.startAt)} kế tiếp` : null;
       scene.setRoomStatus(r.roomId, text, !!a || !!r.current);
     }
   }, [scene, roomsNow.data, agentSessions.data]);
