@@ -4,7 +4,7 @@
 
 Chủ dự án duyệt 2026-11-14: bấm vào bot trong 3D → bảng giống chia sẻ màn hình: lệnh đang chạy, file đang sửa (diff), suy nghĩ, lời agent theo thời gian thực. Đã chốt: luồng **có cấu trúc** (không ảnh / video); **không lưu lịch sử** (chỉ RAM, không DB / S3); **có hiện suy nghĩ**; bong bóng trên đầu bot **giữ nhãn thô** như cũ (`/mcp/presence`, không đưa lệnh / đường dẫn lên bong bóng).
 
-TEST-92 (nền móng) = hợp đồng + đệm Realtime + endpoint nội bộ + điểm móc. TEST-94 = cửa vào Mcp `/mcp/activity`. TEST-95 = hub xem trực tiếp (`WatchBot`). TEST-96 = bot không qua runner tự phát sự kiện `tool`. FE là các việc sau. agent-runner (TEST-93 tách sự kiện, TEST-99 gửi theo lô): [agent-runner-activity.md](agent-runner-activity.md).
+TEST-92 (nền móng) = hợp đồng + đệm Realtime + endpoint nội bộ + điểm móc. TEST-94 = cửa vào Mcp `/mcp/activity`. TEST-95 = hub xem trực tiếp (`WatchBot`). TEST-96 = bot không qua runner tự phát sự kiện `tool`. TEST-97 = FE chọn bot + kết nối (mục [FE](#fe-bấm-vào-bot-để-xem-test-97)); TEST-98 = bảng hiển thị đầy đủ. agent-runner (TEST-93 tách sự kiện, TEST-99 gửi theo lô): [agent-runner-activity.md](agent-runner-activity.md).
 
 ## Nguồn sự kiện: runner / tool MCP (TEST-96)
 
@@ -72,3 +72,5 @@ Chủ dự án chốt 2026-11-14: văn phòng là không gian mở nên **ai b�
 - `UnwatchBot()` — thôi xem; ngắt kết nối cũng tự thôi.
 - Server → client `BotActivity(BotActivityDto { botId, events[], busy, task, cleared })`: sự kiện mới / cập nhật (cùng `id` + `seq` → FE thay theo `id`), **gộp ≤ 4 lần / giây** (`BotWatch.FlushEvery` 250 ms), chỉ gửi người đang xem bot đó; `busy`/`task` đổi (bot rảnh / `session_start` / `session_end`) cũng đẩy một lô (events có thể rỗng); `cleared` = đệm bị xoá vì rảnh quá lâu → FE xoá bảng.
 - Tự ngắt (`BotWatchGuard` kiểm mỗi giây như VoiceGuard, KHÔNG kiểm trên mỗi `Move`): ra ngoài phạm vi **+1 m** (7 m) hoặc đổi kênh quá **3 giây**, bot offline / người thật vào văn phòng, người xem rời hub → `BotWatchEnded(botId, reason)` với reason `range` / `offline` / `left` rồi ngừng phát.
+
+Phần FE (bấm vào bot trong 3D, phạm vi nghe ở client, hook `use-bot-watch`, bảng tạm — TEST-97): [office-bots-watch.md](office-bots-watch.md).

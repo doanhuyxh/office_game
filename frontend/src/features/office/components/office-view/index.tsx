@@ -16,7 +16,9 @@ import { VOICE_INITIAL, VoiceClient, type VoiceView } from '../../api/voiceClien
 import { ScreenView, VoicePanel } from '../voice-panel';
 import { Joystick } from '../joystick';
 import { OfficeChat } from '../office-chat';
-import type { VoiceChannelInfo } from '../../engine/voiceChannel';
+import { canHear, type VoiceChannelInfo } from '../../engine/voiceChannel';
+import { useBotWatch } from '../../hooks/use-bot-watch';
+import { BotWatchPanel } from '../bot-watch-panel';
 import { DEFAULT_LOOK, parseLook, validLook } from '../../engine/avatarLook';
 import { AvatarEditorDialog } from '../avatar-editor-dialog';
 import { filesFromDrop, UploadPanel, useSpaces, useUploadQueue, type ISpaceRef } from '@/features/documents';
@@ -86,6 +88,8 @@ export function OfficeView() {
   const [dragOver, setDragOver] = useState(false);
   const roomRef = useRef<string | null>(null);
   roomRef.current = roomCh?.id ?? null;
+  // Xem bot đang làm gì (TEST-97): bấm vào avatar bot trong phạm vi nghe được → hub WatchBot; gợi ý / lý do kết thúc qua toast.info (như onHint)
+  const botWatch = useBotWatch(connRef, conn, (t) => toast.info(t));
   const interactObj = nearAction?.startsWith('interact:') ? OBJECT_BY_ID.get(nearAction.slice('interact:'.length)) : undefined;
   /** Kho mặc định để tải lên / mở từ nút HUD: kho phòng ban đầu tiên mình vào được (thường là phòng mình), không có thì kho công ty. */
   const defaultSpace = (): ISpaceRef => {
@@ -231,6 +235,8 @@ export function OfficeView() {
       lookChanged: (id, look) => scene.setLook(id, parseLook(look)),
       nameChanged: (id, name) => scene.setName(id, name),
       botStatus: (id, st) => scene.setStatus(id, st),
+      botActivity: botWatch.onActivity,
+      botWatchEnded: botWatch.onEnded,
       screenChanged: (roomId, sc) => { if (roomId === roomRef.current) setScreen(sc); },
       kicked: (reason) => { s.kick(reason); void voice.disable(); },
       state: (st) => s.setConn(st),
@@ -241,6 +247,14 @@ export function OfficeView() {
     scene.onSeat = setSeatInfo;
     scene.onHint = (t) => toast.info(t);
     scene.onVoiceChannel = (ch) => { voice.setChannel(ch); setRoomCh(ch.id === 'open' ? null : ch); };
+    // Bấm vào bot (TEST-97): ai cũng bấm được nhưng phải đứng trong phạm vi nghe được (luật voice: cùng kênh, phòng họp cả phòng, còn lại ≤ 6 m).
+    // FE chỉ gợi ý "lại gần hơn" (không toast lỗi); server kiểm lại khi WatchBot và mỗi giây khi đang xem.
+    scene.onBotClick = (botId) => {
+      const bot = scene.botInfo(botId), mine = scene.myPosition();
+      if (!bot || !mine) return;
+      if (!canHear(OFFICE_MAP, mine.x, mine.z, bot.x, bot.z)) return scene.onHint?.(`Lại gần hơn để xem ${bot.name} đang làm gì`);
+      void botWatch.watch(botId, bot.name);
+    };
     setScene(scene);
     setVoice(voice);
     if (import.meta.env.DEV) Object.assign(window, { __officeScene: scene, __officeVoice: voice }); // chỉ để test e2e khi dev
@@ -343,6 +357,7 @@ export function OfficeView() {
               <span><kbd>M</kbd> · bật / tắt micro (voice tự kết nối, micro mặc định tắt)</span>
             </>}
             <span>Vào phòng có tường (phòng họp…) → chat có thêm tab riêng của phòng</span>
+            <span>{IS_TOUCH ? 'Chạm' : 'Bấm'} vào bot AI (nhãn tím) khi đứng gần · xem bot đang làm gì</span>
             <span>📁 Tài liệu · tủ hồ sơ / kệ thư viện / bảng tin · <kbd>E</kbd> mở kho; màn hình phòng họp · chiếu tài liệu; kéo thả file vào để tải lên</span>
             <button type="button" onClick={() => setHelp(false)}>Đã hiểu</button>
           </div>
@@ -350,6 +365,7 @@ export function OfficeView() {
         <VoicePanel voice={voice} view={voiceView} />
         <ScreenView screen={voiceView.screen} count={voiceView.screenCount} />
         <ScreenDocPanel screen={screen} onClear={clearScreen} />
+        <BotWatchPanel view={botWatch.view} onClose={botWatch.close} />
         {uploads.items.length > 0 && <div className="docs-uploads"><UploadPanel items={uploads.items} onClear={uploads.clear} /></div>}
         {dragOver && <div className="drop-hint">Thả file / thư mục để tải lên kho tài liệu</div>}
         <button className={`card checkin ${today?.checkedIn ? 'on' : ''}`} onClick={doCheck} disabled={check.isPending || noProfile}

@@ -2,7 +2,7 @@ import { HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection 
 import { MessagePackHubProtocol } from '@microsoft/signalr-protocol-msgpack';
 import { REALTIME } from '@/config/env';
 
-import type { ChatDto, PlayerDto, PositionDto, ScreenDto, WelcomeDto } from '../types/office.types';
+import type { BotActivityDto, BotWatchDto, ChatDto, PlayerDto, PositionDto, ScreenDto, WelcomeDto } from '../types/office.types';
 
 export interface OfficeHandlers {
   welcome(w: WelcomeDto): void;
@@ -19,7 +19,18 @@ export interface OfficeHandlers {
   screenChanged(roomId: string, screen: ScreenDto | null): void;
   /** Bot của tài khoản `id` đang làm gì (null = hết hoạt động). */
   botStatus(id: string, status: string | null): void;
+  /** Lô sự kiện "agent đang làm gì" của bot mình đang xem (`WatchBot`, TEST-95) — gộp ≤ 4 lần / giây, kèm đang làm / rảnh. */
+  botActivity(batch: BotActivityDto): void;
+  /** Phiên xem bot kết thúc (server tự ngắt): reason = "range" / "offline" / "left" (`BotWatchEndReason`). */
+  botWatchEnded(botId: string, reason: string): void;
   state(s: 'online' | 'reconnecting' | 'offline'): void;
+}
+
+/** SignalR bọc lỗi hub thành "…HubException: <nội dung>" → lấy câu tiếng Việt server ném; lỗi khác (đứt kết nối…) → `fallback`. */
+export function hubErrorMessage(err: unknown, fallback: string): string {
+  const raw = err instanceof Error ? err.message : String(err ?? '');
+  const i = raw.indexOf('HubException:');
+  return (i >= 0 ? raw.slice(i + 'HubException:'.length).trim() : '') || fallback;
 }
 
 // MessagePack của SignalR gửi object dạng map với key PascalCase → chuẩn hoá về camelCase.
@@ -54,6 +65,8 @@ export class OfficeConnection {
     this.conn.on('NameChanged', (id: string, name: string) => h.nameChanged(id, name));
     this.conn.on('ScreenChanged', (roomId: string, s: unknown) => h.screenChanged(roomId, s ? camel<ScreenDto>(s) : null));
     this.conn.on('BotStatus', (id: string, status: string | null) => h.botStatus(id, status ?? null));
+    this.conn.on('BotActivity', (b) => h.botActivity(camel<BotActivityDto>(b)));
+    this.conn.on('BotWatchEnded', (botId: string, reason: string) => h.botWatchEnded(botId, reason));
     this.conn.on('Kicked', (reason: string) => {
       this.kicked = true;
       h.kicked(reason);
@@ -103,6 +116,20 @@ export class OfficeConnection {
 
   clearScreen() {
     return this.conn.invoke('ClearScreen');
+  }
+
+  /**
+   * Bắt đầu xem bot `botUserId` đang làm gì (TEST-95): server kiểm bot đang hiện trong 3D + mình trong phạm vi nghe được, không thì
+   * ném HubException tiếng Việt ("Hãy lại gần hơn để xem" — lấy bằng `hubErrorMessage`). Trả đệm phiên hiện tại; sự kiện mới đến qua
+   * `botActivity`. Mỗi kết nối xem một bot — gọi với bot khác = đổi.
+   */
+  async watchBot(botUserId: string): Promise<BotWatchDto> {
+    return camel<BotWatchDto>(await this.conn.invoke('WatchBot', botUserId));
+  }
+
+  /** Thôi xem bot (đóng bảng). Ngắt kết nối thì server tự thôi — chưa kết nối thì không gọi. */
+  unwatchBot(): Promise<void> {
+    return this.conn.state === HubConnectionState.Connected ? this.conn.invoke('UnwatchBot') : Promise.resolve();
   }
 
   stop() {

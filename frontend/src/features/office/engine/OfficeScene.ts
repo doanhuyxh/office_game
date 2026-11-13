@@ -24,6 +24,12 @@ const ACTION_REACH = 1.8;
 /** Đồ vật có `interact` mà HUD xử lý (tủ hồ sơ, kệ thư viện, màn hình phòng, bảng tin) → onNearAction(`interact:<id>`). */
 const HANDLED_INTERACTS = new Set(['documents', 'library', 'screen', 'notices']);
 const INTERACTIVE = OFFICE_MAP.objects.filter((o) => o.action || (o.interact && HANDLED_INTERACTS.has(o.interact)));
+/**
+ * Vùng bấm vào bot (TEST-97): trục từ chân tới đỉnh nhãn tên (m) + nửa bề ngang thân (m) chiếu lên màn hình; không nhỏ hơn
+ * 18 px (chuột) / 28 px (chạm) để bấm trúng được cả khi thu nhỏ hết cỡ (zoom 40: 0,45 m ≈ 12 px).
+ */
+const BOT_HIT_HEIGHT = 2.1, BOT_HIT_RADIUS = 0.45, BOT_HIT_MIN_PX = 18, BOT_HIT_MIN_TOUCH_PX = 28;
+const _p = new THREE.Vector3(), _p2 = new THREE.Vector3();
 
 type Other = { avatar: Avatar; tx: number; tz: number; tr: number; name: string };
 export interface MinimapSnapshot { me: { x: number; z: number; r: number } | null; others: { x: number; z: number; name: string; anim: number }[]; target: [number, number] | null }
@@ -75,6 +81,12 @@ export class OfficeScene {
   /** Kênh voice tại vị trí của mình đổi (đi qua cửa phòng có tường). */
   onVoiceChannel?: (ch: VoiceChannelInfo) => void;
   private lastVoice = '';
+  /**
+   * Bấm / chạm vào avatar bot (TEST-97) → HUD mở bảng "bot đang làm gì" (hub WatchBot); KHÔNG đi bộ tới chỗ đó. Bấm sàn / ghế giữ
+   * hành vi cũ. Không gán → bấm bot = bấm sàn như trước (và không đổi con trỏ).
+   */
+  onBotClick?: (botId: string) => void;
+  private hoverBot = false;
 
   constructor(private host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -121,6 +133,7 @@ export class OfficeScene {
     const el = this.renderer.domElement;
     el.addEventListener('pointerdown', this.pointerDown);
     el.addEventListener('pointerup', this.pointerUp);
+    el.addEventListener('pointermove', this.pointerMove);
     el.addEventListener('wheel', this.wheel, { passive: false });
     el.addEventListener('contextmenu', (e) => e.preventDefault());
     this.resize();
@@ -280,6 +293,36 @@ export class OfficeScene {
     return o ? { x: o.avatar.root.position.x, z: o.avatar.root.position.z } : null;
   }
 
+  /** Tên + vị trí của một bot đang hiện trong văn phòng (null = không có / là người thật). */
+  botInfo(id: string) {
+    const o = this.others.get(id);
+    return o?.avatar.bot ? { name: o.name, x: o.avatar.root.position.x, z: o.avatar.root.position.z } : null;
+  }
+
+  /**
+   * Bot dưới điểm (clientX, clientY) của canvas (TEST-97): chiếu trục chân → đỉnh nhãn của từng bot lên màn hình, trúng khi cách trục
+   * ≤ nửa bề ngang thân (co theo zoom) nhưng không dưới 18 px chuột / 28 px chạm — vùng bấm đủ lớn cho cảm ứng. Nhiều bot chồng nhau →
+   * bot gần camera nhất. Dùng ma trận camera của khung hình vừa vẽ.
+   */
+  botAt(clientX: number, clientY: number, touch = false): string | null {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const px = clientX - rect.left, py = clientY - rect.top, minR = touch ? BOT_HIT_MIN_TOUCH_PX : BOT_HIT_MIN_PX;
+    let best: { id: string; depth: number } | null = null;
+    for (const [id, o] of this.others) {
+      if (!o.avatar.bot) continue;
+      const p = o.avatar.root.position;
+      // Sau lưng camera → bỏ (project() sẽ lật điểm ra phía trước)
+      if (_p.set(p.x, BOT_HIT_HEIGHT / 2, p.z).applyMatrix4(this.camera.matrixWorldInverse).z >= 0) continue;
+      const foot = _p.set(p.x, 0, p.z).project(this.camera), head = _p2.set(p.x, BOT_HIT_HEIGHT, p.z).project(this.camera);
+      const fx = ((foot.x + 1) / 2) * rect.width, fy = ((1 - foot.y) / 2) * rect.height;
+      const hx = ((head.x + 1) / 2) * rect.width, hy = ((1 - head.y) / 2) * rect.height;
+      const r = Math.max(Math.hypot(hx - fx, hy - fy) * (BOT_HIT_RADIUS / BOT_HIT_HEIGHT), minR);
+      if (distToSegment(px, py, fx, fy, hx, hy) > r) continue;
+      if (!best || foot.z < best.depth) best = { id, depth: foot.z };
+    }
+    return best?.id ?? null;
+  }
+
   /** Người đang nói (identity LiveKit = id người chơi) → vòng xanh dưới chân. */
   setSpeaking(ids: Set<string>) {
     if (this.me) this.me.speaking = ids.has(this.me.id);
@@ -359,6 +402,9 @@ export class OfficeScene {
     const d = this.downAt;
     this.downAt = null;
     if (!d || e.button !== 0 || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return;
+    // Bấm / chạm vào bot → HUD xem bot đang làm gì, không đi bộ (TEST-97); sàn / ghế giữ hành vi cũ
+    const bot = this.onBotClick ? this.botAt(e.clientX, e.clientY, e.pointerType === 'touch') : null;
+    if (bot) return this.onBotClick!(bot);
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.ray.setFromCamera(new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1), this.camera);
     const hit = this.ray.ray.intersectPlane(this.groundPlane, new THREE.Vector3());
@@ -366,6 +412,14 @@ export class OfficeScene {
     // Bấm sát một ghế → đi tới cạnh ghế rồi ngồi
     const seat = this.nearestSeat(hit.x, hit.z, 0.45);
     this.walkTo(hit.x, hit.z, seat);
+  };
+  /** Rê chuột lên bot → con trỏ bàn tay (chỉ chuột; cảm ứng không có hover). */
+  private pointerMove = (e: PointerEvent) => {
+    if (e.pointerType !== 'mouse') return;
+    const over = !!this.onBotClick && this.botAt(e.clientX, e.clientY) !== null;
+    if (over === this.hoverBot) return;
+    this.hoverBot = over;
+    this.renderer.domElement.style.cursor = over ? 'pointer' : '';
   };
   private wheel = (e: WheelEvent) => {
     e.preventDefault();
@@ -492,6 +546,13 @@ export class OfficeScene {
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
+}
+
+/** Khoảng cách (px) từ điểm (px, py) tới đoạn thẳng A–B trên màn hình. */
+function distToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number) {
+  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+  const t = l2 ? THREE.MathUtils.clamp(((px - ax) * dx + (py - ay) * dy) / l2, 0, 1) : 0;
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
 }
 
 /** Giải phóng geometry / material của một cây đối tượng (bỏ qua model GLB dùng chung — được giữ trong cache models). */

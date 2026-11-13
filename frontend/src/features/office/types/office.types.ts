@@ -17,6 +17,22 @@ export interface ScreenDto {
   /** kind = 'Markdown' (bot present_markdown): nội dung trang, url rỗng. */
   markdown?: string | null;
 }
+/** Loại sự kiện "agent đang làm gì" (BotActivityFeedRoute.Kinds, phân biệt hoa thường). */
+export type BotActivityKind = 'session_start' | 'session_end' | 'command' | 'file_edit' | 'file_write' | 'file_read' | 'search' | 'thinking' | 'say' | 'tool';
+/**
+ * Một sự kiện trong luồng xem bot (Realtime BotWatchEventDto, TEST-95). Gửi lại cùng `id` = cập nhật sự kiện cũ (giữ `seq`, `at`) →
+ * FE thay theo id. `seq` tăng dần theo bot; `at` = ISO UTC "…Z". `task` / `model` / `turns` / `costUsd` chỉ ở session_start / session_end.
+ */
+export interface BotWatchEventDto {
+  id: string; kind: BotActivityKind; title?: string | null; text?: string | null; path?: string | null; diff?: string | null; output?: string | null;
+  ok?: boolean | null; task?: string | null; model?: string | null; turns?: number | null; costUsd?: number | null; seq: number; at: string;
+}
+/** Trả về của hub `WatchBot`: đệm phiên hiện tại (≤ 200) + bot đang làm (true) / rảnh (false) / chưa rõ (null) + việc "MÃ · tên". */
+export interface BotWatchDto { botId: string; name: string; busy?: boolean | null; task?: string | null; events: BotWatchEventDto[] }
+/** Lô đẩy `BotActivity` cho người đang xem (gộp ≤ 4 lần / giây): sự kiện mới / cập nhật + trạng thái hiện tại; `cleared` = đệm bị xoá (rảnh quá lâu) → xoá bảng. */
+export interface BotActivityDto { botId: string; events: BotWatchEventDto[]; busy?: boolean | null; task?: string | null; cleared?: boolean }
+/** Lý do server kết thúc phiên xem (`BotWatchEnded`): đi ra xa / đổi kênh quá 3 giây · bot offline hoặc người thật của tài khoản vào · người xem rời hub. */
+export type BotWatchEndReason = 'range' | 'offline' | 'left';
 /** Người được @nhắc trong dòng chat (TEST-70). */
 export interface ChatMentionDto { userId: string; code: string; name: string }
 export interface ChatDto {
