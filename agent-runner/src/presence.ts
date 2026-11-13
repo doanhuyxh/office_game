@@ -129,5 +129,5 @@ export function activityLabel(action: string): string | undefined {
   if (a.startsWith('Giao việc phụ')) return 'Giao việc phụ';
   if (a.startsWith('OfficeHub ')) return 'Cập nhật OfficeHub';
   if (a.startsWith('Dùng ')) return 'Làm việc';
-  return "Không rõ thao tác"; // dòng model, dòng lạ → không đổi nhãn
+  return undefined; // dòng model, dòng lạ → không đổi nhãn
 }
