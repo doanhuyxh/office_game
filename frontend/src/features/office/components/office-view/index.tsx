@@ -3,11 +3,10 @@ import { Link } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { useCheck, useToday } from '@/features/attendance';
 import { useMe } from '@/features/auth';
-import { AgentMeetingBar, AgentMeetingDialog, useActiveAgentSessions, useRoomsNow, type AgentMeetingDraft } from '@/features/meetings';
+import { AgentMeetingDialog, useActiveAgentSessions, useRoomsNow, type AgentMeetingDraft } from '@/features/meetings';
 import { errorMessage } from '@/utils/errors';
 import { formatTime } from '@/utils/date';
-import { splitMentions } from '@/utils/mention';
-import { useOffice, type ChatLine } from '../../store/office.store';
+import { useOffice } from '../../store/office.store';
 import { PATHS } from '@/config/paths';
 import { OfficeScene } from '../../engine/OfficeScene';
 import { OfficeConnection } from '../../api/officeHub';
@@ -16,6 +15,7 @@ import { Minimap } from '../minimap';
 import { VOICE_INITIAL, VoiceClient, type VoiceView } from '../../api/voiceClient';
 import { ScreenView, VoicePanel } from '../voice-panel';
 import { Joystick } from '../joystick';
+import { OfficeChat } from '../office-chat';
 import type { VoiceChannelInfo } from '../../engine/voiceChannel';
 import { DEFAULT_LOOK, parseLook, validLook } from '../../engine/avatarLook';
 import { AvatarEditorDialog } from '../avatar-editor-dialog';
@@ -32,7 +32,7 @@ const typingTarget = (e: KeyboardEvent) => {
   return ['INPUT', 'TEXTAREA', 'SELECT'].includes(t?.tagName ?? '') || !!t?.isContentEditable || !!t?.closest?.('[role="dialog"]');
 };
 
-/** Màn hình cảm ứng (điện thoại / máy tính bảng): hiện joystick, nút zoom, chat thu gọn. */
+/** Màn hình cảm ứng (điện thoại / máy tính bảng): hiện joystick, nút zoom, chat thu gọn (`OfficeChat`). */
 const IS_TOUCH = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
 /** Đã bấm "Để sau" ở gợi ý tạo nhân vật (chỉ là tiện ích trên trình duyệt này). */
 const PROMPT_KEY = 'officehub.avatar.prompt-dismissed';
@@ -44,8 +44,7 @@ export function OfficeView() {
   const { data: account } = useMe();
   const hostRef = useRef<HTMLDivElement>(null);
   const connRef = useRef<OfficeConnection | null>(null);
-  const { me, conn, online, bots, zone, chat, kickReason } = useOffice();
-  const [text, setText] = useState('');
+  const { me, conn, online, bots, zone, kickReason } = useOffice();
   const [nearAction, setNearAction] = useState<string | null>(null);
   const [seatInfo, setSeatInfo] = useState<{ seat: SitSpot; sitting: boolean } | null>(null);
   const [scene, setScene] = useState<OfficeScene | null>(null);
@@ -72,9 +71,6 @@ export function OfficeView() {
   const [help, setHelp] = useState(true);
   // Chat: kênh toàn văn phòng + kênh phòng có tường đang đứng (đổi tự động theo vị trí)
   const [roomCh, setRoomCh] = useState<VoiceChannelInfo | null>(null);
-  const [chatTab, setChatTab] = useState<'office' | 'room'>('office');
-  const [chatOpen, setChatOpen] = useState(!IS_TOUCH);
-  const tab = roomCh ? chatTab : 'office';
   const [voice, setVoice] = useState<VoiceClient | null>(null);
   const [voiceView, setVoiceView] = useState<VoiceView>(VOICE_INITIAL);
   const [meOpen, setMeOpen] = useState(false);
@@ -262,13 +258,9 @@ export function OfficeView() {
     };
   }, [meId]);
 
-  const send = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const t = text.trim();
-    if (!t) return;
-    setText('');
+  const sendChat = (channel: 'office' | 'room', t: string) => {
     const c = connRef.current;
-    await (tab === 'room' ? c?.roomChat(t) : c?.chat(t))?.catch((err: unknown) => toast.error(errorMessage(err)));
+    void (channel === 'room' ? c?.roomChat(t) : c?.chat(t))?.catch((err: unknown) => toast.error(errorMessage(err)));
   };
 
   return (
@@ -309,32 +301,8 @@ export function OfficeView() {
           <span className={`dot ${conn}`} /> {conn === 'online' ? `${online} người online${bots ? ` · ${bots} AI` : ''}` : STATUS[conn]}
         </div>
         {zone && <div className="card zone">{zone}</div>}
-        {chatOpen ? (
-          <form className="chat" onSubmit={send} data-testid="office-chat">
-            <div className="tabs">
-              <button type="button" className={tab === 'office' ? 'on' : ''} onClick={() => setChatTab('office')}>Toàn văn phòng</button>
-              {roomCh && (
-                <button type="button" className={tab === 'room' ? 'on' : ''} onClick={() => setChatTab('room')} data-testid="office-chat-room-tab">
-                  🔒 {roomCh.name}
-                  {tab !== 'room' && chat.some((l) => l.channel === 'room' && l.roomId === roomCh.id) && <span className="dot-new" />}
-                </button>
-              )}
-              {IS_TOUCH && <button type="button" className="close" onClick={() => setChatOpen(false)} aria-label="Thu gọn chat">✕</button>}
-            </div>
-            {/* Đang đứng trong phòng họp: họp với AI (TEST-83) — nút mở (điền sẵn phòng) / trạng thái lượt nói, nút Dừng. Phòng khác: không hiện. */}
-            {roomCh && <AgentMeetingBar roomId={roomCh.id} variant="hud" className="agent-meeting" onOpen={() => setAgentDraft({ roomId: roomCh.id })} />}
-            <div className="log">
-              {chat.filter((l) => (tab === 'room' ? l.channel === 'room' && l.roomId === roomCh?.id : l.channel !== 'room')).map((l, i) => {
-                const mentionsMe = !!account?.id && l.id !== account.id && !!l.mentions?.some((x) => x.userId === account.id);
-                return <div key={i} className={mentionsMe ? 'mention-me' : undefined} data-mentions-me={mentionsMe || undefined}><b>{l.name}:</b> <HudText line={l} /></div>;
-              })}
-            </div>
-            <input value={text} onChange={(e) => setText(e.target.value)} maxLength={200}
-              placeholder={tab === 'room' ? `Chỉ người trong ${roomCh?.name} thấy…` : 'Nhập tin nhắn, Enter để gửi'} />
-          </form>
-        ) : (
-          <button type="button" className="card chat-toggle" onClick={() => setChatOpen(true)} aria-label="Mở chat">💬</button>
-        )}
+        <OfficeChat accountId={account?.id} roomCh={roomCh} touch={IS_TOUCH} onSend={sendChat}
+          onOpenAgentMeeting={(roomId) => setAgentDraft({ roomId })} />
         {IS_TOUCH && <Joystick onChange={(x, y) => scene?.setStick(x, y)} />}
         {nearAction === 'attendance.checkin' && !seatInfo?.sitting ? (
           <button type="button" className="card prompt" onClick={doAction}>Máy chấm công · {IS_TOUCH ? 'chạm' : <>bấm <kbd>E</kbd></>} để {today?.checkedIn ? 'chấm công ra' : 'chấm công vào'}</button>
@@ -411,9 +379,3 @@ const INTERACT_LABEL: Record<string, string> = { documents: '🗄 Tủ hồ sơ'
 const INTERACT_VERB: Record<string, string> = { documents: 'mở kho phòng ban', library: 'mở kho chung', screen: 'chiếu tài liệu', notices: 'xem tin & tài liệu mới' };
 const STATUS = { connecting: 'Đang kết nối…', reconnecting: 'Mất kết nối, đang thử lại…', offline: 'Mất kết nối', kicked: 'Đã đăng nhập nơi khác', online: '' };
 
-/** Chữ dòng chat HUD: "@mã" của người được nhắc → "@Họ tên" tô nổi (hover: mã). */
-function HudText({ line }: { line: ChatLine }) {
-  if (!line.mentions?.length) return <>{line.text}</>;
-  const names = new Map(line.mentions.map((x) => [x.code.toUpperCase(), x.name]));
-  return <>{splitMentions(line.text, names).map((p, i) => (typeof p === 'string' ? p : <span key={i} className="mention" title={p.code}>@{p.name}</span>))}</>;
-}

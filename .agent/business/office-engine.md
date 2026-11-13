@@ -4,7 +4,7 @@
 
 | File | Vai trò |
 |---|---|
-| `components/office-view/` | Trang `/office` (lazy). Dựng `OfficeScene`, mở `OfficeConnection`, HUD: tên, online, khu, chat 2 tab (Toàn văn phòng / phòng đang đứng — tab phòng chỉ hiện khi trong phòng có tường; thu gọn được), nút chấm công, nhắc ghế (bấm được), hướng dẫn, nút xoay camera. Thiết bị cảm ứng (`pointer: coarse`): joystick + nút zoom ＋/－ |
+| `components/office-view/` | Trang `/office` (lazy). Dựng `OfficeScene`, mở `OfficeConnection`, HUD: tên, online, khu, chat 2 tab (`components/office-chat/`: Toàn văn phòng / phòng đang đứng — tab phòng chỉ khi trong phòng có tường; thu gọn được; ⤢ nổi giữa màn hình — kéo hàng tab, tay nắm góc dưới phải đổi cỡ ≥ 280 × 220, luôn trong `visualViewport`, nhớ ở localStorage `officehub.office.chat-panel`, hook `hooks/use-floating-panel.ts`), nút chấm công, nhắc ghế (bấm được), hướng dẫn, nút xoay camera. Thiết bị cảm ứng (`pointer: coarse`): joystick + nút zoom ＋/－ |
 | `components/office-docs/` | Tài liệu trong văn phòng: hộp thoại kho / bảng tin, tủ hồ sơ → phòng ban, khung chiếu màn hình — [office-documents.md](office-documents.md) |
 | `components/minimap/` | Bản đồ nhỏ (canvas ~7 fps): mình, người khác, điểm đang tới; bấm → `scene.walkTo` |
 | `engine/OfficeScene.ts` | Điều phối (Three.js thuần, không React): camera chéo (Q / R xoay 90°, cuộn zoom 8–40), nắng + khung bóng đổ ±16 × ±12 m đi theo điểm camera nhìn (`moveSun`, vì sàn 68 × 30 m), WASD theo hướng màn hình + trượt theo tường (`nav.fits`, bán kính 0,22), bấm chuột → A*, bấm sát ghế → đi tới rồi ngồi, `toggleSit()`, gửi `Move` mỗi 100 ms, callback `onZone` / `onNearAction` / `onSeat` / `onHint`, `snapshot()` cho minimap |
