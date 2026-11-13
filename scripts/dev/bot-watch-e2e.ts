@@ -1,4 +1,5 @@
-// E2E TEST-97 + TEST-98 (mục [98]: bảng đầy đủ "Màn hình của bot" — 10 loại sự kiện, thu gọn, cuộn, Esc, theme, kéo / đổi cỡ, rỗng):
+// E2E TEST-97 + TEST-98 (mục [98]: bảng đầy đủ "Màn hình của bot" — 10 loại sự kiện, thu gọn, cuộn, Esc, theme, kéo / đổi cỡ, rỗng)
+// + TEST-100 (mục [100]: tab "File đã sửa" — gộp theo file, + / -, nhãn Mới, nội dung ẩn, mở diff, nháy, phiên mới → trống, điện thoại):
 // TEST-97: bấm vào bot trong văn phòng 3D để xem bot đang làm gì (FE): chọn avatar bot bằng chuột + chạm (vùng bấm theo màn hình),
 // kiểm phạm vi nghe ở client (xa → gợi ý "Lại gần hơn…", không gọi hub), WatchBot → bảng nhận đệm + sự kiện trực tiếp (gộp theo id,
 // session_start bỏ cũ, model / lượt / chi phí), con trỏ bàn tay khi rê lên bot, bấm sàn vẫn đi bộ, nút Đóng → UnwatchBot, đi ra xa →
@@ -374,6 +375,46 @@ await feed([{ id: 's4', kind: 'session_start', task: 'TEST-97 · Xem bot', model
 await pc.sleep(700);
 ok('[98] lệnh lỗi (ok = false): viền đỏ + nhãn lỗi', await q(pc, `const t = L('c5'); return t.classList.contains('err') && t.innerText.includes('lỗi') && /239|ef4444/.test(getComputedStyle(t).borderColor)`));
 
+// ---------- TEST-100: tab "File đã sửa" (gộp theo file trong phiên, + / -, nhãn Mới, nội dung ẩn, mở diff, nháy, phiên mới → trống) ----------
+const files = (p: typeof pc) => p.evalJs(`(() => { const P = document.querySelector('[data-testid=office-bot-watch]'); if (!P) return null;
+  return { tab: P.querySelector('[data-testid=office-bot-tab-files]')?.textContent ?? '', text: P.querySelector('[data-testid=office-bot-files]')?.innerText ?? null,
+    rows: [...P.querySelectorAll('.bot-file')].map((f) => ({ path: f.dataset.path, text: f.querySelector('.bot-file-row').innerText.replace(/\\s+/g, ' '),
+      flash: f.querySelector('.bot-file-row').classList.contains('flash'), diffs: [...f.querySelectorAll('.bot-file-diffs > div')].map((d) => d.dataset.id) })) }; })()`) as
+  Promise<{ tab: string; text: string | null; rows: { path: string; text: string; flash: boolean; diffs: string[] }[] } | null>;
+await feed([{ id: 'a1', kind: 'file_edit', path: 'src/x.ts', diff: '-a\n+b\n+c' }, { id: 'w1', kind: 'file_write', path: 'docs/n.md', diff: '+1\n+2\n+3' },
+  { id: 'a2', kind: 'file_edit', path: 'src/x.ts', diff: '--- a/src/x.ts\n+++ b/src/x.ts\n@@ -1 +1 @@\n-d\n+e' },
+  { id: 'h1', kind: 'file_edit', path: '.env', text: '(nội dung ẩn: file nhạy cảm)' }, { id: 'bad', kind: 'file_edit', path: 'src/fail.ts', diff: '-x\n+y', ok: false }]);
+await pc.sleep(700);
+let fl = await files(pc);
+ok('[100] nhãn tab có số file "File đã sửa (4)" (b.tsx, x.ts, n.md, .env — lần sửa lỗi không tính), mặc định vẫn ở tab Hoạt động', fl?.tab === 'File đã sửa (4)' && fl.text === null && (await panel(pc))!.lines.length > 0, fl);
+await q(pc, `P.querySelector('[data-testid=office-bot-tab-files]').click(); return 1`);
+await pc.sleep(300);
+fl = await files(pc);
+ok('[100] mở tab → mỗi file một dòng, file sửa gần nhất đứng đầu', fl?.rows.map((r) => r.path).join(',') === '.env,src/x.ts,docs/n.md,frontend/src/b.tsx', fl?.rows.map((r) => r.path));
+const row = (path: string) => fl?.rows.find((r) => r.path === path);
+ok('[100] sửa một file 2 lần → một dòng, cộng dồn +3 -2 (bỏ tiêu đề +++ / ---), "2 lần" + giờ', /\+3 -2/.test(row('src/x.ts')?.text ?? '') && /2 lần · \d\d:\d\d/.test(row('src/x.ts')?.text ?? ''), row('src/x.ts'));
+ok('[100] file_write → nhãn "Mới" +3 -0; file_edit thường không có nhãn', !!row('docs/n.md')?.text.includes('Mới') && /\+3 -0/.test(row('docs/n.md')!.text) && !row('src/x.ts')!.text.includes('Mới'), row('docs/n.md'));
+ok('[100] file nhạy cảm (không có diff) vẫn hiện tên + "nội dung ẩn"', !!row('.env')?.text.includes('nội dung ẩn') && !/\+\d/.test(row('.env')!.text), row('.env'));
+ok('[100] ghi chú cuối tab + mở tab không nháy dòng nào', !!fl?.text?.includes('Chỉ gồm thay đổi từ lúc bạn bắt đầu xem và 200 thao tác gần nhất') && fl.rows.every((r) => !r.flash), fl?.text);
+await q(pc, `P.querySelector('.bot-file[data-path="src/x.ts"] .bot-file-row').click(); return 1`);
+await pc.sleep(300);
+fl = await files(pc);
+ok('[100] bấm file → mở các diff của file đó theo thứ tự thời gian (a1, a2), tô màu', row('src/x.ts')?.diffs.join(',') === 'a1,a2' && await q(pc, `return P.querySelectorAll('.bot-file-diffs .bot-act-diff .add').length === 3 && P.querySelectorAll('.bot-file-diffs .bot-act-diff .del').length === 2`), row('src/x.ts'));
+await pc.shot(`${SHOTS}/desktop-files.png`);
+await feed([{ id: 'a3', kind: 'file_edit', path: 'frontend/src/b.tsx', diff: '+thêm' }]);
+await pc.sleep(700);
+fl = await files(pc);
+ok('[100] file vừa đổi nhảy lên đầu + nháy, cộng dồn +2 -1, file đang mở vẫn mở', fl?.rows[0]?.path === 'frontend/src/b.tsx' && fl.rows[0].flash && /\+2 -1/.test(fl.rows[0].text) && fl.rows.filter((r) => r.flash).length === 1 && row('src/x.ts')?.diffs.length === 2, fl?.rows);
+await feed([{ id: 's5', kind: 'session_start', task: 'TEST-100 · File đã sửa', model: 'claude-fable-5-1' }]);
+await pc.sleep(700);
+fl = await files(pc);
+ok('[100] session_start mới → danh sách trống "Chưa sửa file nào trong phiên này", nhãn tab hết số', fl?.rows.length === 0 && fl.tab === 'File đã sửa' && !!fl.text?.includes('Chưa sửa file nào trong phiên này'), fl);
+await feed([{ id: 'a4', kind: 'file_edit', path: 'src/y.ts', diff: '-1\n+2' }]);
+await q(pc, `P.querySelector('[data-testid=office-bot-tab-log]').click(); return 1`);
+await pc.sleep(700);
+v = await panel(pc);
+ok('[100] về tab Hoạt động → dòng thời gian còn nguyên (s5, a4), bám cuối', v?.lines.map((l) => l.id).join(',') === 's5,a4' && (await scroll()).gap <= 2, v?.lines.map((l) => l.id));
+
 // --- Đi ra xa (> 7 m quá 3 giây) → server ngắt: bảng đóng + "Bạn đã đi ra xa"
 const away = await walk(pc, bot.x + 9.5, bot.z + 1);
 ok('H1 đi ra xa > 7 m', !!away && dist(away, bot) > 7.3, away && dist(away, bot));
@@ -411,6 +452,14 @@ if (tp) {
   ok('chạm vào bot trên điện thoại → mở bảng', mv?.bot === B.userId, mv?.state);
   ok('…bảng nằm trong màn hình điện thoại', await pm.evalJs(`(() => { const r = document.querySelector('[data-testid=office-bot-watch]')?.getBoundingClientRect(); return !!r && r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight; })()`));
   await pm.shot(`${SHOTS}/mobile-panel.png`);
+  await pm.evalJs(`document.querySelector('[data-testid=office-bot-tab-files]')?.click()`);
+  await pm.sleep(300);
+  await pm.evalJs(`document.querySelector('.bot-file-row')?.click()`);
+  await pm.sleep(300);
+  ok('[100] điện thoại: tab "File đã sửa" có file + diff, nằm trong bảng, không tràn ngang', await pm.evalJs(`(() => { const P = document.querySelector('[data-testid=office-bot-watch]'), l = P?.querySelector('[data-testid=office-bot-files]'), d = l?.querySelector('.bot-file-diffs .bot-act-diff');
+    if (!P || !l || !d) return false; const r = P.getBoundingClientRect(), f = l.getBoundingClientRect(); return f.left >= r.left && f.right <= r.right && f.bottom <= r.bottom + 1 && l.scrollWidth <= l.clientWidth + 1; })()`));
+  await pm.shot(`${SHOTS}/mobile-files.png`);
+  await pm.evalJs(`document.querySelector('[data-testid=office-bot-tab-log]')?.click()`);
 }
 ok('hai người cùng xem một bot không chen nhau (H1 vẫn xem được)', !!(await (async () => { await walk(pc, bot.x + 1.6, bot.z + 1.4); const p = await botPixel(pc); if (p) await click(pc, p[0], p[1]); return (await waitPanel(pc, true))?.bot === B.userId; })()));
 await feed([{ id: 'c4', kind: 'command', text: 'bun test' }]);

@@ -127,6 +127,26 @@
 .office-root .bot-act-say { padding: 6px 10px; border-radius: 8px; background: var(--muted); }
 .office-root .bot-act-say > div > :first-child { margin-top: 0; }
 .office-root .bot-act-say > div > :last-child { margin-bottom: 0; }
+/* Tab "Hoạt động" / "File đã sửa" (TEST-100, bot-file-list) */
+.office-root .bot-act-tabs { flex: none; display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+.office-root .bot-act-tabs button { padding: 4px 10px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: none; color: var(--muted-foreground); font: 600 12px system-ui; cursor: pointer; }
+.office-root .bot-act-tabs button[aria-selected=true] { color: var(--foreground); border-bottom-color: var(--primary); }
+.office-root .bot-file { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 8px; }
+.office-root .bot-file-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 6px; width: 100%; padding: 6px 8px; border: 0; border-radius: 8px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.office-root .bot-file-row code { flex: 1; min-width: 0; color: var(--info); }
+.office-root .bot-file-row .caret { color: var(--muted-foreground); }
+.office-root .bot-file-new { padding: 0 6px; border-radius: 4px; background: rgba(34, 197, 94, .16); color: var(--success); font: 600 11px/16px system-ui; }
+.office-root .bot-file-stat { display: flex; align-items: baseline; gap: 6px; margin-left: auto; white-space: nowrap; font-size: 12px; }
+.office-root .bot-file-stat .add { color: var(--success); }
+.office-root .bot-file-stat .del { color: var(--destructive); }
+.office-root .bot-file small { color: var(--muted-foreground); }
+.office-root .bot-file-row.flash { animation: bot-file-flash 1.2s ease-out; }
+@keyframes bot-file-flash { from { background: rgba(250, 204, 21, .35); } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .office-root .bot-file-row.flash { animation: none; } }
+.office-root .bot-file-diffs { display: flex; flex-direction: column; gap: 6px; padding: 0 8px 8px; }
+.office-root .bot-file-diffs > div { display: flex; flex-direction: column; }
+.office-root .bot-file-hidden { font-style: italic; }
+.office-root .bot-file-note { margin-top: auto; padding-top: 6px; text-align: center; color: var(--muted-foreground); font-size: 11px; }
 .office-root .bot-act .resize { position: absolute; right: 0; bottom: 0; width: 20px; height: 20px; cursor: nwse-resize; touch-action: none; border-bottom-right-radius: 12px;
   background: linear-gradient(135deg, transparent 50%, rgba(148, 163, 184, .55) 50%, rgba(148, 163, 184, .55) 58%, transparent 58%, transparent 70%, rgba(148, 163, 184, .55) 70%, rgba(148, 163, 184, .55) 78%, transparent 78%); }
 @media (pointer: coarse) { .office-root .bot-act .resize { width: 36px; height: 36px; } }

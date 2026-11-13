@@ -1,4 +1,4 @@
-# Xem bot đang làm gì trong văn phòng 3D — front-end (TEST-97 · bảng đầy đủ TEST-98)
+# Xem bot đang làm gì trong văn phòng 3D — front-end (TEST-97 · bảng đầy đủ TEST-98 · tab File đã sửa TEST-100)
 
 > Phần FE của [office-bots-activity.md](office-bots-activity.md) (hợp đồng sự kiện, đệm RAM, hub `WatchBot` / `UnwatchBot` / `BotActivity` / `BotWatchEnded` — TEST-92…96). Engine 3D nói chung: [office-engine.md](office-engine.md). Về [README.md](README.md).
 
@@ -35,4 +35,4 @@ Code: `frontend/src/features/office/` — `engine/OfficeScene.ts` (`onBotClick`,
 - **Vị trí**: máy tính = bảng nổi (`use-floating-panel`, như chat nổi TEST-90): kéo bằng đầu bảng, đổi cỡ bằng tay nắm góc dưới phải, tối thiểu 320×240; mặc định cột bên phải sát trái bản đồ nhỏ, không lấn quá tâm màn hình + 40 px (nhân vật của mình ở giữa). Nhớ **vị trí / kích thước** ở localStorage `officehub.office.agent-screen-panel` (không chứa sự kiện — lịch sử vẫn không lưu). Điện thoại (≤ 640 px): rộng hết màn hình dưới hàng thẻ trên cùng như `ScreenDocPanel`, không kéo.
 - **Màu**: token theme app (`--background`, `--foreground`, `--muted`, `--border`, `--destructive`, `--success`, `--info`) → theo sáng / tối như `.screen-doc-md`; không dùng `color-mix()` (Safari cũ — [pitfalls.md](../pitfalls.md)).
 - `data-testid`: `office-bot-watch` (+ `data-bot`, `data-live`), `office-bot-watch-state`, `office-bot-watch-close`, `office-bot-live`, `office-bot-elapsed`, `office-bot-log`, `office-bot-empty`, `office-bot-latest`, `office-bot-fold`, `office-bot-running`, `office-bot-resize`; dòng `.bot-watch-line[data-id][data-kind]` (+ `.err`), dòng phụ `.bot-watch-meta`.
-- Chưa làm: tab "File đã sửa" (TEST-100).
+- Tab "File đã sửa" (TEST-100, `components/bot-file-list/`): [office-bots-watch-files.md](office-bots-watch-files.md).

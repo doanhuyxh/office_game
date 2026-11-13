@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { BotWatchView } from '../../hooks/use-bot-watch';
 import { useFloatingPanel, type PanelRect } from '../../hooks/use-floating-panel';
 import { BotActivityEvent, formatCost } from '../bot-activity-event';
+import { BotFileList, summarizeFiles } from '../bot-file-list';
 
 const MIN = { w: 320, h: 240 };
 /** Cách đáy ≤ bấy nhiêu px thì coi là đang ở cuối (tự cuộn theo sự kiện mới). */
@@ -39,7 +40,8 @@ function Elapsed({ from, to }: { from: string; to: string | null }) {
 /**
  * Bảng "Màn hình của bot" (TEST-98): mở khi bấm vào bot trong văn phòng 3D (`use-bot-watch`), đóng bằng ✕ / Esc / khi server ngắt
  * (`BotWatchEnded` → hook đặt `view = null`). Đầu bảng: avatar + tên, nhãn ● Trực tiếp, việc đang làm, model · thời gian · lượt · chi phí.
- * Thân: dòng thời gian tự cuộn xuống cuối; người xem cuộn lên → ngừng tự cuộn + nút "Về mới nhất". Máy tính: bảng nổi kéo (đầu bảng) /
+ * Thân: dòng thời gian tự cuộn xuống cuối; người xem cuộn lên → ngừng tự cuộn + nút "Về mới nhất"; tab thứ hai "File đã sửa" (TEST-100,
+ * `bot-file-list`) tính từ chính các sự kiện đang có. Máy tính: bảng nổi kéo (đầu bảng) /
  * đổi cỡ (góc dưới phải) bằng `use-floating-panel` như chat nổi; điện thoại: rộng hết màn hình, vị trí do CSS. Chỉ nhớ vị trí / kích thước
  * bảng trong localStorage — KHÔNG lưu sự kiện (chủ dự án: không lưu lịch sử).
  */
@@ -49,6 +51,7 @@ export function BotActivityPanel({ view, onClose }: { view: BotWatchView | null;
   const logRef = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const [behind, setBehind] = useState(false);
+  const [tab, setTab] = useState<'log' | 'files'>('log');
   const open = !!view;
   const botId = view?.botId;
 
@@ -65,15 +68,16 @@ export function BotActivityPanel({ view, onClose }: { view: BotWatchView | null;
     return () => removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  // Đổi bot → về chế độ bám cuối
-  useEffect(() => { stick.current = true; setBehind(false); }, [botId]);
+  // Đổi bot → về tab Hoạt động, chế độ bám cuối
+  useEffect(() => { stick.current = true; setBehind(false); setTab('log'); }, [botId]);
   // Có sự kiện mới / cập nhật (mảng mới) hoặc bảng đổi cỡ: đang bám cuối thì cuộn xuống, không thì giữ nguyên chỗ người xem đang đọc
   const events = view?.events;
   const { w, h } = panel.rect;
   useLayoutEffect(() => {
     const el = logRef.current;
     if (el && stick.current) el.scrollTop = el.scrollHeight;
-  }, [events, w, h, phone]);
+  }, [events, w, h, phone, tab]);
+  const files = useMemo(() => summarizeFiles(events ?? []), [events]);
 
   if (!view) return null;
 
@@ -91,6 +95,9 @@ export function BotActivityPanel({ view, onClose }: { view: BotWatchView | null;
     setBehind(false);
     el.scrollTop = el.scrollHeight;
   };
+
+  // Về tab Hoạt động: dòng thời gian được dựng lại → bám cuối như lúc mới mở
+  const pick = (t: 'log' | 'files') => { if (t === 'log') { stick.current = true; setBehind(false); } setTab(t); };
 
   const state = view.connecting ? 'Đang kết nối…'
     : view.busy === true ? `Đang làm${view.task ? ` · ${view.task}` : ''}`
@@ -121,15 +128,23 @@ export function BotActivityPanel({ view, onClose }: { view: BotWatchView | null;
           {view.costUsd != null && <span>{formatCost(view.costUsd)}</span>}
         </small>
       )}
-      <div className="bot-act-log" ref={logRef} onScroll={onScroll} data-testid="office-bot-log">
-        {view.events.length === 0 && !view.connecting && (
-          <p className="bot-act-empty" data-testid="office-bot-empty">
-            {view.busy === false ? `☕ ${view.name} đang nghỉ, chưa có việc nào đang chạy` : 'Đang chờ thao tác đầu tiên…'}
-          </p>
-        )}
-        {view.events.map((e) => <BotActivityEvent key={e.id} e={e} live={live} />)}
+      <div className="bot-act-tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={tab === 'log'} onClick={() => pick('log')} data-testid="office-bot-tab-log">Hoạt động</button>
+        <button type="button" role="tab" aria-selected={tab === 'files'} onClick={() => pick('files')} data-testid="office-bot-tab-files">
+          File đã sửa{files.length > 0 && ` (${files.length})`}
+        </button>
       </div>
-      {behind && <button type="button" className="bot-act-latest" onClick={toLatest} data-testid="office-bot-latest">↓ Về mới nhất</button>}
+      {tab === 'files' ? <BotFileList files={files} /> : (
+        <div className="bot-act-log" ref={logRef} onScroll={onScroll} data-testid="office-bot-log">
+          {view.events.length === 0 && !view.connecting && (
+            <p className="bot-act-empty" data-testid="office-bot-empty">
+              {view.busy === false ? `☕ ${view.name} đang nghỉ, chưa có việc nào đang chạy` : 'Đang chờ thao tác đầu tiên…'}
+            </p>
+          )}
+          {view.events.map((e) => <BotActivityEvent key={e.id} e={e} live={live} />)}
+        </div>
+      )}
+      {behind && tab === 'log' && <button type="button" className="bot-act-latest" onClick={toLatest} data-testid="office-bot-latest">↓ Về mới nhất</button>}
       {!phone && <span className="resize" {...panel.resizeProps} aria-hidden data-testid="office-bot-resize" />}
     </div>
   );

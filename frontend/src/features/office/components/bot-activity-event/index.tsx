@@ -43,6 +43,19 @@ function diffLine(l: string, i: number) {
   return <span key={i} className={cls}>{l || ' '}{'\n'}</span>;
 }
 
+/** Số dòng thêm / bớt của một diff unified — cùng quy tắc tô màu của `diffLine` (bỏ tiêu đề file `+++` / `---`). */
+export function diffStat(diff: string | null | undefined) {
+  let added = 0, removed = 0;
+  for (const l of diff ? diff.split('\n') : []) {
+    if (l.startsWith('+') && !l.startsWith('+++')) added++;
+    else if (l.startsWith('-') && !l.startsWith('---')) removed++;
+  }
+  return { added, removed };
+}
+
+/** Khối diff tô màu, thu gọn khi dài — dùng chung cho dòng thời gian và tab "File đã sửa" (TEST-100). */
+export const BotDiff = ({ text }: { text: string }) => <Fold text={text} className="bot-act-diff" line={diffLine} />;
+
 type Props = {
   e: BotWatchEventDto;
   /** Phiên còn chạy (bot đang làm, chưa có session_end) → lệnh chưa có kết quả hiện dấu quay. */
@@ -88,7 +101,7 @@ export const BotActivityEvent = memo(function BotActivityEvent({ e, live }: Prop
       return (
         <div className={`bot-watch-line bot-act-file${failed ? ' err' : ''}`} {...attrs}>
           <div className="bot-act-row"><span>{e.kind === 'file_edit' ? '✎' : '＋'}</span><code>{e.path ?? e.title ?? ''}</code>{err}</div>
-          {e.diff && <Fold text={e.diff} className="bot-act-diff" line={diffLine} />}
+          {e.diff && <BotDiff text={e.diff} />}
         </div>
       );
     case 'thinking':
