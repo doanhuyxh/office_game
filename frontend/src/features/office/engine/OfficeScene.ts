@@ -313,6 +313,7 @@ export class OfficeScene {
     const { x, z } = doorSignSpot(room);
     sprite.position.set(x, 2.5, z);
     sprite.renderOrder = 5;
+    sprite.name = label; // e2e room-sign-e2e.ts đọc chữ đang treo
     this.scene.add(sprite);
     this.roomSigns.set(roomId, sprite);
   }
