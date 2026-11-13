@@ -27,6 +27,19 @@ export const departmentOptions = (departments: IDepartment[], exclude?: (d: IDep
   departmentTree(departments).filter(({ dept }) => !exclude?.(dept))
     .map(({ dept, depth }) => ({ value: dept.id, label: `${'   '.repeat(depth)}${depth ? '└ ' : ''}${dept.name}` }));
 
+/** Tên các phòng cấp trên của một phòng, từ gốc xuống cha trực tiếp (vd ["Khối Kỹ thuật", "Công nghệ"]); phòng gốc → []. */
+export function departmentAncestors(departments: Pick<IDepartment, 'id' | 'name' | 'parentId'>[], id: string): string[] {
+  const byId = new Map(departments.map((d) => [d.id, d]));
+  const parentOf = (d?: { parentId?: string | null }) => (d?.parentId ? byId.get(d.parentId) : undefined);
+  const out: string[] = [];
+  const seen = new Set<string>([id]); // phòng dữ liệu vòng lặp
+  for (let p = parentOf(byId.get(id)); p && !seen.has(p.id); p = parentOf(p)) {
+    seen.add(p.id);
+    out.unshift(p.name);
+  }
+  return out;
+}
+
 /** Id phòng ban con cháu (để không chọn làm phòng ban cha). */
 export function descendantIds(departments: IDepartment[], id: string): Set<string> {
   const out = new Set<string>();

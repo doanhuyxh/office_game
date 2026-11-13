@@ -8,6 +8,10 @@ import type { SelectOption } from './SelectField';
 export interface SearchOption extends SelectOption {
   /** Chữ phụ (phòng ban…) — hiện mờ, cũng dùng để tìm. */
   hint?: string;
+  /** Cấp trong cây (phòng ban…): chưa gõ tìm → thụt lề theo cấp, danh sách giữ thứ tự cây. */
+  depth?: number;
+  /** Đường dẫn cấp trên (vd "Khối Kỹ thuật › Công nghệ"): hiện mờ trước tên khi đang tìm để không mất ngữ cảnh; cũng dùng để tìm. */
+  path?: string;
 }
 
 /** Bỏ dấu tiếng Việt + chữ thường để tìm "nguyen" ra "Nguyễn". */
@@ -39,7 +43,7 @@ export function SearchSelectField({ id, label, value, onChange, options, allowEm
 
   const matches = useMemo(() => {
     const t = fold(q.trim());
-    return t ? options.filter((o) => fold(`${o.label} ${o.hint ?? ''}`).includes(t)) : options;
+    return t ? options.filter((o) => fold(`${o.label} ${o.hint ?? ''} ${o.path ?? ''}`).includes(t)) : options;
   }, [options, q]);
   // Danh sách hiển thị: (— Không —) + tối đa `limit` kết quả
   const shown = useMemo(() => {
@@ -83,11 +87,14 @@ export function SearchSelectField({ id, label, value, onChange, options, allowEm
             <ul role="listbox" className="mt-1 grid max-h-72 grid-cols-[minmax(0,1fr)] gap-0.5 overflow-y-auto">
               {shown.map((o, i) => {
                 const isSel = o ? o.value === value : value == null;
+                const indent = q.trim() ? 0 : (o?.depth ?? 0);
                 return (
                   <li key={o?.value ?? '__none__'} role="option" aria-selected={isSel} className="min-w-0">
                     <button type="button" onClick={() => pick(o)} onMouseEnter={() => setActive(i)}
                       className={cn('flex w-full min-w-0 items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm', i === active && 'bg-accent text-accent-foreground')}>
-                      <span className="min-w-0 flex-1 truncate">
+                      <span className="min-w-0 flex-1 truncate" style={indent ? { paddingLeft: `${indent}rem` } : undefined}>
+                        {indent > 0 && <span className="text-muted-foreground">└ </span>}
+                        {o?.path && q.trim() && <span className="text-muted-foreground">{o.path} › </span>}
                         {o ? o.label : emptyLabel}
                         {o?.hint && <span className="ml-1 text-xs text-muted-foreground">{o.hint}</span>}
                       </span>
