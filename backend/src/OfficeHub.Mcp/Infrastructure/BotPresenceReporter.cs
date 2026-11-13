@@ -71,6 +71,31 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
         return await SendAsync(new BotActivity(caller.UserId, caller.Name, caller.Look, caller.Zone, activity, busy, task, FromRunner: true));
     }
 
+    /// <summary>
+    /// agent-runner gửi lô sự kiện "agent đang làm gì" (<see cref="BotActivityFeedRoute.McpPath"/>) → chuyển nguyên lô sang Realtime
+    /// (<see cref="BotActivityFeedRoute.Path"/>) kèm userId của token: null = không phải tài khoản bot; false = Realtime không nhận.
+    /// Mcp không lưu sự kiện và không ghi nội dung vào log — chỉ đếm.
+    /// </summary>
+    public async Task<bool?> ReportActivityAsync(string authorization, string? clientIp, IReadOnlyList<BotActivityEvent> events)
+    {
+        if (string.IsNullOrEmpty(chat.Value.McpRealtimeKey)) return false;
+        if (await GetCallerAsync(authorization, clientIp) is not { } caller) return null;
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, BotActivityFeedRoute.Path)
+                { Content = JsonContent.Create(new BotActivityBatch(caller.UserId, events), options: OfficeHubApi.Json) };
+            req.Headers.Add(BotActivityRoute.KeyHeader, chat.Value.McpRealtimeKey);
+            using var res = await http.CreateClient(RealtimeClientName).SendAsync(req);
+            if (res.IsSuccessStatusCode) return true;
+            log.LogWarning("Chuyển {Count} sự kiện hoạt động cho Realtime: {Status}", events.Count, (int)res.StatusCode);
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+        {
+            log.LogWarning("Chuyển sự kiện hoạt động cho Realtime thất bại: {Message}", e.Message);
+        }
+        return false;
+    }
+
     private static string? Clip(string? s, int max) =>
         string.IsNullOrWhiteSpace(s) ? null : (s = string.Join(' ', s.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))).Length > max ? s[..max] + "…" : s;
 

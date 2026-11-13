@@ -1,10 +1,10 @@
 # Luồng hoạt động bot — "xem trực tiếp agent đang làm gì"
 
-> Phần tiếp của [office-bots.md](office-bots.md) / [office-bots-work.md](office-bots-work.md). Code: `BuildingBlocks/Office/BotActivityFeed.cs` (hợp đồng), `OfficeHub.Realtime/Simulation/BotActivityFeed.cs` (đệm RAM), `Hubs/BotActivityFeedEndpoints.cs`, dọn trong `BotSweeper` (`Hubs/BotEndpoints.cs`). Test: `tests/OfficeHub.Realtime.Tests/BotActivityFeedTests.cs`.
+> Phần tiếp của [office-bots.md](office-bots.md) / [office-bots-work.md](office-bots-work.md). Code: `BuildingBlocks/Office/BotActivityFeed.cs` (hợp đồng), `OfficeHub.Realtime/Simulation/BotActivityFeed.cs` (đệm RAM), `Hubs/BotActivityFeedEndpoints.cs`, dọn trong `BotSweeper` (`Hubs/BotEndpoints.cs`); cửa vào Mcp: `OfficeHub.Mcp/Program.cs` (`/mcp/activity`), `Infrastructure/BotActivityGate.cs`, `BotPresenceReporter.ReportActivityAsync`. Test: `tests/OfficeHub.Realtime.Tests/BotActivityFeedTests.cs`, `tests/OfficeHub.Mcp.Tests/BotActivityGateTests.cs`.
 
 Chủ dự án duyệt 2026-11-14: bấm vào bot trong 3D → bảng giống chia sẻ màn hình: lệnh đang chạy, file đang sửa (diff), suy nghĩ, lời agent theo thời gian thực. Đã chốt: luồng **có cấu trúc** (không ảnh / video); **không lưu lịch sử** (chỉ RAM, không DB / S3); **có hiện suy nghĩ**; bong bóng trên đầu bot **giữ nhãn thô** như cũ (`/mcp/presence`, không đưa lệnh / đường dẫn lên bong bóng).
 
-TEST-92 (nền móng) = hợp đồng + đệm Realtime + endpoint nội bộ + điểm móc. Endpoint Mcp, hub xem, FE, agent-runner là các việc sau.
+TEST-92 (nền móng) = hợp đồng + đệm Realtime + endpoint nội bộ + điểm móc. TEST-94 = cửa vào Mcp `/mcp/activity`. Hub xem, FE, agent-runner là các việc sau.
 
 ## Hợp đồng `BotActivityEvent`
 
@@ -31,6 +31,16 @@ Làm sạch (`BotActivityFeed.Clean`): quá độ dài → **cắt** (thêm `…
 - Thiếu `userId` / `events` rỗng / > 50 sự kiện / `kind` lạ / thiếu `id` → 400 `events[i]: lý do`, **cả lô không ghi gì**.
 - OK → `{ accepted, lastSeq }`.
 - Realtime không kiểm cờ bot (không có dữ liệu tài khoản) — bên gửi (Mcp) phải xác thực token của bot và chỉ gửi cho chính bot đó.
+
+## Cửa vào Mcp `POST /mcp/activity` (TEST-94)
+
+Cho agent-runner / bên ngoài gửi sự kiện bằng **token AI của bot** (host `OfficeHub.Mcp`, sau `BearerGate` — như `/mcp/presence`). Body `{ events: BotActivityEvent[] }` (`BotActivityFeedReport` — KHÔNG có `userId`: Mcp xác thực token, lấy `userId` của chính bot rồi chuyển nguyên lô sang `/rt/internal/bot-activity-feed`; Mcp không lưu sự kiện, không ghi nội dung vào log / nhật ký AI — chỉ đếm).
+
+- Không token → 401 (`BearerGate`); token người thường (không phải bot) → 403.
+- Quá `McpMaxCallsPerSecond` (5) lần / giây cho một token → 429 (cửa sổ cố định theo giây, `BotActivityGate.Allow`).
+- Thân > `McpMaxBodyBytes` (256 KB) / JSON hỏng / thiếu `events` / > 50 sự kiện / `kind` lạ / thiếu `id` → 400, cả lô không gửi gì (`BotActivityGate.Validate` — cùng luật với `BotActivityFeed.Clean`).
+- Realtime không nhận (khoá trống, lỗi mạng, non-2xx) → 503; OK → **204**.
+- nginx container web: `location = /mcp/activity` (`client_max_body_size 256k`) trong `frontend/nginx.conf` — proxy VPS ngoài không cần đổi (chỉ proxy domain → cổng 7080).
 
 ## Vòng đời đệm (`BotActivityFeed`, singleton, thread-safe — khoá theo bot)
 

@@ -1,3 +1,6 @@
+using System.Text.Json;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Configuration;
@@ -67,6 +70,40 @@ app.MapPost(BotWork.PresencePath, async (BotPresenceReport? body, HttpContext ht
         {
             null => Results.Problem("Chỉ tài khoản bot (HR đánh dấu) mới hiện trong văn phòng 3D", statusCode: StatusCodes.Status403Forbidden),
             false => Results.Problem("Văn phòng 3D không nhận trạng thái lúc này", statusCode: StatusCodes.Status503ServiceUnavailable),
+            true => Results.NoContent(),
+        };
+    }
+    catch (HttpRequestException)
+    {
+        return Results.Problem("Máy chủ OfficeHub đang không phản hồi, thử lại sau.", statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
+
+// agent-runner gửi lô sự kiện "agent đang làm gì" (lệnh, diff, suy nghĩ — TEST-94) → chuyển sang Realtime phát cho người xem trong 3D.
+// Sau BearerGate (cùng token AI); chỉ tài khoản bot. Mcp không lưu sự kiện và không ghi nội dung vào log / nhật ký AI (chỉ đếm).
+app.MapPost(BotActivityFeedRoute.McpPath, async (HttpContext http, BotPresenceReporter reporter, IMemoryCache cache, TimeProvider clock) =>
+{
+    var authorization = http.Request.Headers.Authorization.ToString();
+    if (!BotActivityGate.Allow(cache, authorization, clock.GetUtcNow().ToUnixTimeSeconds()))
+        return Results.Problem($"Tối đa {BotActivityFeedRoute.McpMaxCallsPerSecond} lần gọi / giây cho một token — gộp sự kiện thành lô rồi gửi thưa hơn",
+            statusCode: StatusCodes.Status429TooManyRequests);
+    if (http.Request.ContentLength > BotActivityFeedRoute.McpMaxBodyBytes)
+        return Results.Problem($"Thân request tối đa {BotActivityFeedRoute.McpMaxBodyBytes / 1024} KB", statusCode: StatusCodes.Status400BadRequest);
+    if (http.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } size)
+        size.MaxRequestBodySize = BotActivityFeedRoute.McpMaxBodyBytes; // chặn cả body chunked không khai Content-Length
+    BotActivityFeedReport? body;
+    try { body = await http.Request.ReadFromJsonAsync<BotActivityFeedReport>(OfficeHubApi.Json); }
+    catch (Exception e) when (e is JsonException or BadHttpRequestException or InvalidDataException or InvalidOperationException)
+    {
+        return Results.Problem($"Body JSON không hợp lệ hoặc quá {BotActivityFeedRoute.McpMaxBodyBytes / 1024} KB", statusCode: StatusCodes.Status400BadRequest);
+    }
+    if (BotActivityGate.Validate(body?.Events) is { } err) return Results.Problem(err, statusCode: StatusCodes.Status400BadRequest);
+    try
+    {
+        return await reporter.ReportActivityAsync(authorization, http.Connection.RemoteIpAddress?.ToString(), body!.Events!) switch
+        {
+            null => Results.Problem("Chỉ tài khoản bot (HR đánh dấu) mới có luồng hoạt động trong văn phòng 3D", statusCode: StatusCodes.Status403Forbidden),
+            false => Results.Problem("Văn phòng 3D không nhận sự kiện lúc này", statusCode: StatusCodes.Status503ServiceUnavailable),
             true => Results.NoContent(),
         };
     }

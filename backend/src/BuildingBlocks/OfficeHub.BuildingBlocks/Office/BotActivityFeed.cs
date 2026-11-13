@@ -21,6 +21,9 @@ public sealed record BotActivityEvent(string Id, string Kind, string? Title = nu
 /// <summary>Body <see cref="BotActivityFeedRoute.Path"/>: ≤ <see cref="BotActivityFeedRoute.MaxEvents"/> sự kiện của một bot mỗi lần.</summary>
 public sealed record BotActivityBatch(Guid UserId, IReadOnlyList<BotActivityEvent>? Events);
 
+/// <summary>Body <see cref="BotActivityFeedRoute.McpPath"/> (TEST-94): sự kiện của chính bot gọi — userId lấy từ token, không nhận từ body.</summary>
+public sealed record BotActivityFeedReport(IReadOnlyList<BotActivityEvent>? Events);
+
 /// <summary>Hợp đồng luồng hoạt động bot (bên gửi → Realtime, khoá <c>Chat__McpToRealtimeKey</c> / <c>Chat__InternalKey</c> như <see cref="BotScreenRoute"/>).</summary>
 public static class BotActivityFeedRoute
 {
@@ -28,6 +31,16 @@ public static class BotActivityFeedRoute
     /// Không dùng <c>/rt/internal/bot-activity</c> như mô tả việc: đường đó đã là báo presence (<see cref="BotActivityRoute.Path"/>, body <see cref="BotActivity"/>).
     /// </summary>
     public const string Path = "/rt/internal/bot-activity-feed";
+
+    /// <summary>
+    /// Cửa vào công khai trên host OfficeHub.Mcp (TEST-94, sau BearerGate — token AI của bot, như <see cref="BotWork.PresencePath"/>):
+    /// body <see cref="BotActivityFeedReport"/>; Mcp xác thực bot rồi chuyển nguyên lô sang <see cref="Path"/> kèm userId của token, không lưu.
+    /// </summary>
+    public const string McpPath = "/mcp/activity";
+    /// <summary>Thân request <see cref="McpPath"/> tối đa (bytes); quá → 400.</summary>
+    public const int McpMaxBodyBytes = 256 * 1024;
+    /// <summary>Mỗi token gọi <see cref="McpPath"/> tối đa bấy nhiêu lần một giây; quá → 429 (gộp sự kiện thành lô).</summary>
+    public const int McpMaxCallsPerSecond = 5;
 
     public const string SessionStart = "session_start";
     public const string SessionEnd = "session_end";
