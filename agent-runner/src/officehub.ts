@@ -2,7 +2,7 @@ import { errText } from './log';
 
 /**
  * Gọi tool MCP của OfficeHub bằng token AI của agent (JSON-RPC qua HTTP, phản hồi JSON hoặc SSE).
- * Runner chỉ dùng vài tool đọc (get_my_profile, get_task) + comment_task để báo PR / chi phí.
+ * Runner chỉ dùng vài tool đọc (get_my_profile, get_task, list_chats) + comment_task để báo PR / chi phí.
  */
 export class OfficeHubClient {
   private id = 0;
@@ -46,6 +46,9 @@ export class OfficeHubClient {
   }
 
   getTask(task: string) { return this.callTool<any>('get_task', { task }); }
+
+  /** Hội thoại của agent (chỉ tài khoản bot): `[{ conversation, type, unread, mentionedUnread, … }]`. */
+  listChats() { return this.callTool<any>('list_chats', {}); }
 
   async comment(task: string, content: string) {
     try { await this.callTool('comment_task', { task, content }); return true; }

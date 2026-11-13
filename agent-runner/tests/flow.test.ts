@@ -17,6 +17,8 @@ const root = mkdtempSync(join(tmpdir(), 'runner-flow-'));
 const comments: { task: string; content: string }[] = [];
 let authOk = true;
 const presence: any[] = [];
+/** Kết quả MCP list_chats (TEST-81). */
+let chats: any[] = [];
 let updatesServed = false;
 const servers: { stop: () => void }[] = [];
 let runner: Runner;
@@ -63,6 +65,7 @@ beforeAll(async () => {
       const text = (o: unknown) => reply({ content: [{ type: 'text', text: JSON.stringify(o) }] });
       if (name === 'get_my_profile') return text({ employee: { id: 'emp-1', code: 'NV120', fullName: 'Bot Thử' } });
       if (name === 'get_task') return text(tasks[a.task] ?? tasks[T1]);
+      if (name === 'list_chats') return text(chats);
       if (name === 'comment_task') { comments.push({ task: a.task, content: a.content }); return text({ ok: true }); }
       return reply({ isError: true, content: [{ type: 'text', text: 'tool lạ' }] });
     },
@@ -363,6 +366,8 @@ const noneSetup = async () => {
 [ "$1" = "--version" ] && { echo "fake-biz 1.0"; exit 0; }
 cwd="$3"; prompt="$5"
 echo "$@" > "$(dirname "$prompt")/args.txt"
+cp "$prompt" "$(dirname "$prompt")/prompt-copy.md"
+[ -f "$(dirname "$0")/slow" ] && sleep 1
 cd "$cwd" || exit 3
 echo '{"session_id":"sess-biz","model":"fake-model-1","cost_usd":0.1,"summary":"cwd='$(pwd -P)' files='$(ls -A | wc -l | tr -d " ")'"}'
 `);
@@ -427,4 +432,77 @@ test('none: doctor không cần repo / git / gh; job chạy trong thư mục tr�
   expect(args).toContain(work);
   // 3D: vẫn báo đang làm → rảnh
   expect(await waitFor(() => presence.at(-1)?.state === 'idle', 3000)).toBe(true);
+}, 30000);
+
+// ---------------- chat_mention (TEST-81): người thật @nhắc bot trong chat → phiên ngắn chỉ có tool MCP ----------------
+test('chat_mention: tin Telegram → job chat trong thư mục riêng của hội thoại, không bình luận vào việc, nối phiên ≤ 24 giờ; đã đọc hết → bỏ', async () => {
+  const { r, st, dataDir } = await noneSetup();
+  const s = r.agents.get('NV120')!;
+  const C = '01a1d000-0000-7000-8000-00000000c0de';
+  const tgMsg = (o: object) => ({ message_id: 1, date: 0, chat: { id: -1001234567890, type: 'supergroup' }, text: JSON.stringify(o) }) as any;
+  const wake = tgMsg({ employee_code: 'NV120', event: 'chat_mention', conversation_id: C, message_id: '01a1d000-0000-7000-8000-00000000beef' });
+  const runNext = async () => { const job = st.claimNext(1, ['NV120'])!; await r.process(job); return st.getJob(job.id)!; };
+  const file = (job: { id: number }, name: string) => readFileSync(join(dataDir, 'jobs', String(job.id), name), 'utf8');
+
+  chats = [{ conversation: C, type: 'room', unread: 0, mentionedUnread: 0 }];
+  expect(await r.onMessage(s, wake)).toBeNull(); // không còn tin nhắc chưa đọc → không xếp hàng
+
+  chats = [{ conversation: C, type: 'room', unread: 3, mentionedUnread: 1 }];
+  const before = comments.length, presenceBefore = presence.length;
+  const id = await r.onMessage(s, wake);
+  expect(id).not.toBeNull();
+  expect(await r.onMessage(s, wake)).toBeNull(); // tin lặp khi job còn chờ → gộp
+  const job = await runNext();
+  expect(job).toMatchObject({ id: id!, kind: 'chat', status: 'done', task_id: C, cost_usd: 0.1, pr_url: null });
+  expect(comments.length).toBe(before); // không bình luận vào việc
+  const work = join(dataDir, 'work/NV120', `chat-${C}`);
+  expect(file(job, 'args.txt')).toContain(work);
+  expect(file(job, 'args.txt')).not.toContain('--session');
+  const prompt = file(job, 'prompt-copy.md');
+  expect(prompt).toContain(`read_chat ${C}`);
+  expect(prompt).not.toContain('NỐI TIẾP');
+  await Bun.sleep(300);
+  expect(presence.slice(presenceBefore).some((p) => p.state === 'working')).toBe(false); // chat không đổi trạng thái 3D
+
+  // nhắc lần nữa trong 24 giờ → nối phiên cũ của hội thoại
+  await r.onMessage(s, wake);
+  const second = await runNext();
+  expect(file(second, 'args.txt')).toContain('--session sess-biz');
+  expect(file(second, 'prompt-copy.md')).toContain('NỐI TIẾP');
+  // phiên cũ quá 24 giờ → mở phiên mới
+  st.db.run(`UPDATE task_sessions SET updated_at = ? WHERE task_id = ?`, [new Date(Date.now() - 25 * 3_600_000).toISOString(), C]);
+  await r.onMessage(s, wake);
+  expect(file(await runNext(), 'args.txt')).not.toContain('--session');
+
+  // agent đã đọc hết trước khi tới lượt chạy → job bị bỏ, không gọi CLI
+  await r.onMessage(s, wake);
+  chats = [{ conversation: C, type: 'room', unread: 0, mentionedUnread: 0 }];
+  const skipped = await runNext();
+  expect(skipped).toMatchObject({ status: 'skipped', reason: 'không còn tin nhắc chưa đọc' });
+  expect(existsSync(join(dataDir, 'jobs', String(skipped.id), 'args.txt'))).toBe(false);
+}, 30000);
+
+test('chat_mention: tin nhắc mới tới khi job cùng hội thoại đang chạy → xong thì chạy thêm một lượt; kênh office dùng "office"', async () => {
+  const { r, st, dataDir } = await noneSetup();
+  const s = r.agents.get('NV120')!;
+  const OFFICE = '01a1d000-0000-7000-8000-0000000ff1ce';
+  chats = [{ conversation: 'office', type: 'office', unread: 1, mentionedUnread: 1 }];
+  const w = { employee_code: 'NV120', conversation_id: OFFICE, message_id: '01a1d000-0000-7000-8000-00000000beef' };
+  writeFileSync(join(root, 'slow'), ''); // CLI giả chạy 1 giây
+  try {
+    const id = (await r.acceptChat(s, w))!;
+    const job = st.claimNext(1, ['NV120'])!;
+    const running = r.process(job);
+    await Bun.sleep(300);
+    expect(await r.acceptChat(s, w)).toBeNull(); // đang chạy → không xếp thêm, đánh dấu rerun
+    expect(st.getJob(id)!.rerun).toBe(1);
+    await running;
+    expect(st.getJob(id)!.status).toBe('done');
+    expect(readFileSync(join(dataDir, 'jobs', String(id), 'prompt-copy.md'), 'utf8')).toContain('read_chat office');
+    const next = st.db.query<any, [string]>(`SELECT * FROM jobs WHERE task_id = ? AND status = 'queued'`).get(OFFICE);
+    expect(next?.kind).toBe('chat'); // lượt chạy thêm đã vào hàng đợi
+    st.finish(next.id, 'skipped');
+  } finally {
+    rmSync(join(root, 'slow'), { force: true });
+  }
 }, 30000);

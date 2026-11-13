@@ -1,7 +1,13 @@
 import type { TgMessage } from './telegram';
 
-/** Dữ liệu trong tin đánh thức (TEST-42): dòng 1 nhắc tên bot, dòng 2 JSON đúng 4 trường. */
+/** Dữ liệu tin đánh thức VIỆC (TEST-42): JSON có 4 trường (+ `event` assigned / returned / ready / mentioned — runner chưa phân biệt). */
 export interface WakeData { employee_code: string; project_id: string; task_id: string; task_code: string }
+
+/** Tin `event: chat_mention` (TEST-70 / TEST-81): người thật @nhắc bot trong chat — không có task_id / nội dung tin. */
+export interface ChatWake { employee_code: string; conversation_id: string; message_id: string }
+
+/** Tin đánh thức đã phân loại theo trường `event`. */
+export type Wake = ({ kind: 'task' } & WakeData) | ({ kind: 'chat' } & ChatWake);
 
 export type Check<T> = { ok: true; value: T } | { ok: false; reason: string };
 
@@ -13,7 +19,7 @@ const KEYS = ['employee_code', 'project_id', 'task_id', 'task_code'];
  * lớp bảo vệ thật là bước 2 (hỏi lại OfficeHub bằng token của agent — việc phải đang giao cho chính agent).
  * Tin không đạt bị bỏ qua (log lý do), KHÔNG trả lời vào nhóm.
  */
-export function parseWake(msg: TgMessage, opts: { groupChatId: string; employeeCode: string }): Check<WakeData> {
+export function parseWake(msg: TgMessage, opts: { groupChatId: string; employeeCode: string }): Check<Wake> {
   if (String(msg.chat.id) !== opts.groupChatId) return { ok: false, reason: `sai nhóm (${msg.chat.id})` };
   const line = (msg.text ?? '').split('\n').map((l) => l.trim()).find((l) => l.startsWith('{'));
   if (!line) return { ok: false, reason: 'không có dòng JSON' };
@@ -21,11 +27,20 @@ export function parseWake(msg: TgMessage, opts: { groupChatId: string; employeeC
   try { data = JSON.parse(line); } catch { return { ok: false, reason: 'dòng JSON không hợp lệ' }; }
   if (!data || typeof data !== 'object' || Array.isArray(data)) return { ok: false, reason: 'JSON không phải object' };
   const d = data as Record<string, unknown>;
+  const mine = () => String(d.employee_code).toUpperCase() === opts.employeeCode;
+  const notMine = { ok: false as const, reason: `mã nhân viên ${d.employee_code} không phải của agent này` };
+  if (d.event === 'chat_mention') {
+    const keys = ['employee_code', 'conversation_id', 'message_id'];
+    if (!keys.every((k) => typeof d[k] === 'string' && (d[k] as string).length > 0)) return { ok: false, reason: `JSON thiếu trường chuỗi ${keys.join(', ')}` };
+    if (!GUID.test(d.conversation_id as string) || !GUID.test(d.message_id as string)) return { ok: false, reason: 'conversation_id / message_id không phải GUID' };
+    if (!mine()) return notMine;
+    return { ok: true, value: { kind: 'chat', employee_code: d.employee_code as string, conversation_id: (d.conversation_id as string).toLowerCase(), message_id: d.message_id as string } };
+  }
   if (!KEYS.every((k) => typeof d[k] === 'string' && (d[k] as string).length > 0)) return { ok: false, reason: `JSON thiếu trường chuỗi ${KEYS.join(', ')}` };
   if (!GUID.test(d.project_id as string) || !GUID.test(d.task_id as string)) return { ok: false, reason: 'project_id / task_id không phải GUID' };
   if (!/^[A-Z0-9]+-\d+$/i.test(d.task_code as string)) return { ok: false, reason: 'task_code sai dạng' };
-  if ((d.employee_code as string).toUpperCase() !== opts.employeeCode) return { ok: false, reason: `mã nhân viên ${d.employee_code} không phải của agent này` };
-  return { ok: true, value: { employee_code: d.employee_code as string, project_id: d.project_id as string, task_id: d.task_id as string, task_code: d.task_code as string } };
+  if (!mine()) return notMine;
+  return { ok: true, value: { kind: 'task', employee_code: d.employee_code as string, project_id: d.project_id as string, task_id: d.task_id as string, task_code: d.task_code as string } };
 }
 
 /**
@@ -43,4 +58,19 @@ export function checkTask(detail: any, wake: Pick<WakeData, 'project_id' | 'task
   const waiting = (detail.dependsOn ?? []).filter((x: any) => !x.done).map((x: any) => x.code);
   if (waiting.length) return { ok: false, reason: `việc còn chờ ${waiting.join(', ')}` };
   return { ok: true, value: { title: String(t.title ?? ''), code: String(t.code ?? '') } };
+}
+
+/**
+ * Bước 2 của tin chat_mention (MCP `list_chats` bằng token của agent, lúc nhận tin VÀ ngay trước khi chạy): hội thoại còn tin @nhắc agent chưa đọc.
+ * Đã đọc hết (agent vừa trả lời ở phiên trước / tin bị xoá) → bỏ, nên tin đánh thức lặp không chạy lại.
+ * Kênh Toàn văn phòng: `list_chats` trả `conversation: "office"` (không lộ id) → id không khớp hội thoại nào thì xét kênh office.
+ * @returns `conversation` để đưa vào prompt ("office" hoặc id).
+ */
+export function checkChat(list: any, conversationId: string): Check<{ conversation: string }> {
+  const items: any[] = Array.isArray(list) ? list : [];
+  const id = conversationId.toLowerCase();
+  const c = items.find((x) => String(x?.conversation ?? '').toLowerCase() === id) ?? items.find((x) => x?.conversation === 'office');
+  if (!c) return { ok: false, reason: 'agent không ở trong hội thoại này' };
+  if (!(Number(c.mentionedUnread) > 0)) return { ok: false, reason: 'không còn tin nhắc chưa đọc' };
+  return { ok: true, value: { conversation: String(c.conversation) } };
 }

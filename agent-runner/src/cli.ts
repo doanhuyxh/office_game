@@ -63,11 +63,14 @@ async function main() {
     case 'report': {
       const days = Number(arg('--days') ?? 1);
       const rows = store.costs(new Date(Date.now() - days * 86_400_000).toISOString());
-      for (const r of rows) console.log(`${r.agent}\t${r.jobs} việc\t$${(r.cost ?? 0).toFixed(2)}\t${r.input ?? 0} vào / ${r.output ?? 0} ra`);
+      for (const r of rows) console.log(`${r.agent}\t${r.jobs} phiên\t$${(r.cost ?? 0).toFixed(2)}\t${r.input ?? 0} vào / ${r.output ?? 0} ra`);
+      const kinds = store.costsByKind(new Date(Date.now() - days * 86_400_000).toISOString());
+      if (kinds.some((k) => k.kind !== 'task'))
+        console.log('\nTheo loại: ' + kinds.map((k) => `${k.kind === 'task' ? 'việc' : k.kind} ${k.jobs} phiên $${(k.cost ?? 0).toFixed(2)}`).join(' · '));
       const byModel = store.costsByModel(new Date(Date.now() - days * 86_400_000).toISOString());
       if (byModel.length) {
         console.log('\nTheo model (model chính của phiên):');
-        for (const r of byModel) console.log(`${r.agent}\t${r.model ?? 'không rõ'}\t${r.jobs} việc\t$${(r.cost ?? 0).toFixed(2)}\t${r.input ?? 0} vào / ${r.output ?? 0} ra`);
+        for (const r of byModel) console.log(`${r.agent}\t${r.model ?? 'không rõ'}\t${r.jobs} phiên\t$${(r.cost ?? 0).toFixed(2)}\t${r.input ?? 0} vào / ${r.output ?? 0} ra`);
       }
       return 0;
     }

@@ -8,9 +8,10 @@ import { errText, log, redact, registerSecret } from './log';
 import { OfficeHubClient } from './officehub';
 import { PresenceReporter } from './presence';
 import { buildPrompt, mcpConfig } from './prompt';
+import { chatPrompt } from './prompt/chat';
 import { Store, type Job } from './store';
 import { TelegramClient, type TgMessage } from './telegram';
-import { checkTask, parseWake, type WakeData } from './validator';
+import { checkChat, checkTask, parseWake, type ChatWake, type WakeData } from './validator';
 import { AGENT_ENV, Git, TASK_ENV, WorkspaceRefused, branchChanges, inPlaceChanges, installHooks, prepareInPlace, prepareWorktree, publish, removeHooks, sh } from './workspace';
 
 interface AgentState {
@@ -191,7 +192,26 @@ export class Runner {
       groupChatId: this.config.groupChatId, employeeCode: s.cfg.employeeCode,
     });
     if (!wake.ok) { log('info', 'bỏ qua tin Telegram', { agent: s.cfg.employeeCode, reason: wake.reason }); return null; }
-    return this.accept(s, wake.value);
+    return wake.value.kind === 'chat' ? this.acceptChat(s, wake.value) : this.accept(s, wake.value);
+  }
+
+  /**
+   * Tin chat_mention (TEST-81): hỏi lại OfficeHub (hội thoại còn tin @nhắc agent chưa đọc) rồi xếp hàng, khoá theo `conversation_id`.
+   * Hội thoại đang có job chờ → gộp (job đó sẽ đọc cả tin mới); đang chạy → đánh dấu chạy thêm một lượt sau khi xong.
+   */
+  async acceptChat(s: AgentState, w: ChatWake): Promise<number | null> {
+    const label = chatLabel(w.conversation_id);
+    if (!s.enabled || !s.employeeId) { log('warn', 'agent đang tắt — bỏ qua', { agent: s.cfg.employeeCode, task: label, problem: s.problem }); return null; }
+    try {
+      const c = checkChat(await s.hub.listChats(), w.conversation_id);
+      if (!c.ok) { log('info', 'bỏ qua tin nhắc', { agent: s.cfg.employeeCode, task: label, reason: c.reason }); return null; }
+    } catch (e) {
+      log('warn', 'không kiểm tra được hội thoại — bỏ qua', { agent: s.cfg.employeeCode, task: label, error: errText(e) });
+      return null;
+    }
+    const id = this.store.enqueue(s.cfg.employeeCode, w.conversation_id, label, '', 'chat');
+    log('info', id ? 'xếp hàng tin nhắc' : 'hội thoại đã có job đang chờ / chạy — gộp', { agent: s.cfg.employeeCode, task: label, job: id });
+    return id;
   }
 
   /** Hỏi lại OfficeHub rồi xếp hàng. Trả id job (null = bỏ qua / đã có job đang chờ cho việc này). */
@@ -235,7 +255,8 @@ export class Runner {
     this.running.set(job.id, ctl);
     log('info', 'bắt đầu job', { job: job.id, agent: job.agent, task: job.task_code });
     try {
-      await this.processTask(s, job, ctl.signal);
+      if (job.kind === 'chat') await this.processChat(s, job, ctl.signal);
+      else await this.processTask(s, job, ctl.signal);
     } catch (e) {
       this.store.finish(job.id, 'failed', { reason: errText(e) });
       log('error', 'job lỗi', { job: job.id, task: job.task_code, error: errText(e) });
@@ -284,6 +305,28 @@ export class Runner {
     });
     log(ok ? 'info' : 'warn', 'xong job', { job: job.id, task: job.task_code, ok, model: out.model, pr: f.prUrl, cost: out.costUsd, sec: out.durationSec });
     return ok;
+  }
+
+  /**
+   * Job chat (TEST-81): kiểm tra lại hội thoại → chạy CLI trong thư mục trống riêng của hội thoại, CHỈ tool MCP (tin nhắn là nội dung người khác
+   * viết) → agent tự đọc / trả lời / đánh dấu đã đọc. Dùng `executor` của agent như job việc (model, giờ, ngân sách). Nối phiên theo hội thoại
+   * trong {@link CHAT_SESSION_HOURS} giờ. Không bình luận vào việc, không báo trạng thái 3D; chi phí vẫn vào `report`.
+   */
+  private async processChat(s: AgentState, job: Job, signal: AbortSignal): Promise<void> {
+    const c = checkChat(await s.hub.listChats(), job.task_id);
+    if (!c.ok) { this.store.finish(job.id, 'skipped', { reason: c.reason }); log('info', 'bỏ job', { job: job.id, reason: c.reason }); return; }
+    const cwd = this.workDir(job.agent, `chat-${job.task_id}`);
+    mkdirSync(cwd, { recursive: true });
+    const prev = this.store.session(job.task_id);
+    const fresh = !!prev && Date.now() - Date.parse(prev.updated_at) < CHAT_SESSION_HOURS * 3_600_000;
+    const resume = fresh && prev!.agent === job.agent && prev!.session_id ? prev!.session_id : undefined;
+    const out = await this.runSession(s, job, signal, {
+      cwd, prompt: chatPrompt(job.agent, c.value.conversation, !!resume), resume, noBuiltinTools: true, presence: false,
+    });
+    this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd);
+    this.finishJob(job, out);
+    // Có tin nhắc mới tới giữa phiên → kiểm tra lại (đã đọc hết thì tự bỏ) và chạy thêm một lượt.
+    if (this.store.getJob(job.id)?.rerun) await this.acceptChat(s, { employee_code: job.agent, conversation_id: job.task_id, message_id: '' });
   }
 
   /** Job việc: kiểm tra lại việc → chuẩn bị nơi làm (worktree / in_place / none) → chạy CLI → push + PR (worktree) → bình luận kết quả. */
@@ -396,6 +439,12 @@ export function resultComment(job: Pick<Job, 'agent'>, out: RunOutcome, prUrl: s
   ];
   return parts.filter(Boolean).join('\n');
 }
+
+/** Phiên chat cũ hơn mức này (giờ) → mở phiên mới thay vì nối. */
+export const CHAT_SESSION_HOURS = 24;
+
+/** Nhãn job chat trong log / cột task_code. */
+export const chatLabel = (conversationId: string) => `chat:${conversationId.slice(0, 8)}`;
 
 /**
  * File dự án nằm ở thư mục cha của `dir` (CLAUDE.md / AGENTS.md / .git): CLI chạy trong `dir` có thể nạp hướng dẫn của repo đó

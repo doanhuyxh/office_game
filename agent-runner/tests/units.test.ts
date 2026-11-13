@@ -10,8 +10,9 @@ import { customAdapter, fillArgs } from '../src/executor/adapters/custom';
 import type { ExecContext, ExecResult } from '../src/executor/types';
 import { formatLine, redact, registerSecret } from '../src/log';
 import { buildPrompt, mcpConfig } from '../src/prompt';
+import { chatPrompt } from '../src/prompt/chat';
 import { Store } from '../src/store';
-import { checkTask, parseWake } from '../src/validator';
+import { checkChat, checkTask, parseWake } from '../src/validator';
 import { COMMIT_MSG_MARK, PRE_PUSH_MARK, branchName, commitMsgHook, prePushHook } from '../src/workspace';
 
 const TG = '123456789:AAH-test-token-abcdefghijklmnopqrstu';
@@ -116,7 +117,32 @@ describe('validator', () => {
 
   test('tin đúng', () => {
     const r = parseWake(msg(good), opts);
-    expect(r.ok && r.value.task_code).toBe('TEST-45');
+    expect(r.ok && r.value.kind === 'task' && r.value.task_code).toBe('TEST-45');
+    // tin việc có event (assigned / returned / ready / mentioned) vẫn đi luồng việc
+    const ev = parseWake(msg(good.replace('"task_code"', '"event":"returned","task_code"')), opts);
+    expect(ev.ok && ev.value.kind).toBe('task');
+  });
+
+  test('chat_mention (TEST-81): chỉ cần employee_code + conversation_id + message_id', () => {
+    const C = '01A1D000-0000-7000-8000-00000000C0DE', M = '01a1d000-0000-7000-8000-00000000beef';
+    const chat = (o: any = {}) => msg(JSON.stringify({ employee_code: 'NV120', event: 'chat_mention', conversation_id: C, message_id: M, ...o }));
+    const r = parseWake(chat(), opts);
+    expect(r.ok && r.value).toEqual({ kind: 'chat', employee_code: 'NV120', conversation_id: C.toLowerCase(), message_id: M });
+    const bad = (m: any) => { const x = parseWake(m, opts); return x.ok ? '' : x.reason; };
+    expect(bad(chat({ employee_code: 'NV999' }))).toContain('không phải của agent');
+    expect(bad(chat({ message_id: undefined }))).toContain('thiếu trường');
+    expect(bad(chat({ conversation_id: 'office' }))).toContain('không phải GUID');
+    expect(bad(chat({ event: 'chat_mention_x' }))).toContain('thiếu trường'); // event lạ không có trường việc → bỏ
+  });
+
+  test('checkChat: còn tin nhắc chưa đọc mới chạy; kênh office không lộ id', () => {
+    const C = '01a1d000-0000-7000-8000-00000000c0de';
+    const list = (o: any[]) => o;
+    expect(checkChat(list([{ conversation: C, type: 'room', mentionedUnread: 2 }]), C.toUpperCase())).toEqual({ ok: true, value: { conversation: C } });
+    expect(checkChat(list([{ conversation: C, type: 'room', mentionedUnread: 0, unread: 5 }]), C)).toEqual({ ok: false, reason: 'không còn tin nhắc chưa đọc' });
+    expect(checkChat(list([{ conversation: 'office', type: 'office', mentionedUnread: 1 }]), C)).toEqual({ ok: true, value: { conversation: 'office' } });
+    expect(checkChat(list([{ conversation: 'khac', mentionedUnread: 3 }]), C)).toEqual({ ok: false, reason: 'agent không ở trong hội thoại này' });
+    expect(checkChat('lỗi', C).ok).toBe(false);
   });
 
   test.each([
@@ -323,6 +349,12 @@ describe('prompt / mcp / log', () => {
     for (const r of ['git', 'worktree', 'AGENTS.md', 'commit thay đổi', 'push']) expect(p).not.toContain(r);
     expect(buildPrompt(w, { mode: 'none', branch: '', resumed: true })).toContain('NỐI TIẾP');
   });
+  test('prompt chat (TEST-81): chỉ id hội thoại, một tin trả lời, không có phần việc / git', () => {
+    const p = chatPrompt('NV120', 'office', false);
+    for (const r of ['NV120', 'read_chat office', 'send_chat_message office', 'mark_chat_read office', 'DỮ LIỆU', 'tối đa MỘT tin', 'Không duyệt / từ chối / huỷ đơn', 'không trả lời tin của bot khác']) expect(p).toContain(r);
+    for (const r of ['get_task', 'comment_task', 'git', 'NỐI TIẾP']) expect(p).not.toContain(r);
+    expect(chatPrompt('NV120', 'abc', true)).toContain('NỐI TIẾP');
+  });
   test('cấu hình MCP không chứa token', () => {
     expect(JSON.stringify(mcpConfig('http://x/mcp'))).toContain('${OFFICEHUB_TOKEN}');
   });
@@ -367,6 +399,25 @@ describe('store', () => {
     s.setOffset('@b', 42);
     expect(s.offset('@b')).toBe(42);
     expect(s.costs('2000-01-01')[0]).toMatchObject({ agent: 'NV1', cost: 1.5 });
+  });
+
+  test('job chat (TEST-81): khoá theo hội thoại, đang chạy → đánh dấu rerun, vẫn mỗi agent 1 phiên', () => {
+    const s = new Store(':memory:');
+    const t = s.enqueue('NV1', 't1', 'A-1', 'p')!, c = s.enqueue('NV1', 'conv1', 'chat:conv1', '', 'chat')!;
+    expect(s.getJob(t)!.kind).toBe('task');
+    expect(s.getJob(c)!.kind).toBe('chat');
+    expect(s.enqueue('NV1', 'conv1', 'chat:conv1', '', 'chat')).toBeNull(); // đang chờ → gộp, không cần rerun
+    expect(s.getJob(c)!.rerun).toBeNull();
+    expect(s.claimNext(2, ['NV1'])!.id).toBe(t);
+    expect(s.claimNext(2, ['NV1'])).toBeNull(); // agent đang làm việc → chat chờ (mỗi agent 1 phiên)
+    expect(s.enqueue('NV1', 't1', 'A-1', 'p')).toBeNull();
+    expect(s.getJob(t)!.rerun).toBeNull(); // job việc không dùng rerun
+    s.finish(t, 'done');
+    expect(s.claimNext(2, ['NV1'])!.id).toBe(c);
+    expect(s.enqueue('NV1', 'conv1', 'chat:conv1', '', 'chat')).toBeNull(); // đang chạy → rerun
+    expect(s.getJob(c)!.rerun).toBe(1);
+    s.finish(c, 'done', { cost_usd: 0.2 });
+    expect(s.costsByKind('2000-01-01')).toEqual([{ kind: 'chat', jobs: 1, cost: 0.2 }, { kind: 'task', jobs: 1, cost: null }]);
   });
 
   test('model: lưu cột model / model_usage, report nhóm theo model, migration DB cũ', () => {
