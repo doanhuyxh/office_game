@@ -25,12 +25,15 @@ export interface BotWatchView {
   model: string | null;
   turns: number | null;
   costUsd: number | null;
+  /** Thời điểm (ISO UTC) `session_start` / `session_end` gần nhất của phiên — đầu bảng tính "đã chạy"; phiên chưa xong → `endedAt` null. */
+  startedAt: string | null;
+  endedAt: string | null;
   /** Sự kiện phiên hiện tại: gộp theo `id` (cùng id = cập nhật), xếp theo `seq`, ≤ BOT_WATCH_MAX_EVENTS. */
   events: BotWatchEventDto[];
 }
 
 const fresh = (botId: string, name: string): BotWatchView =>
-  ({ botId, name, connecting: true, busy: null, task: null, model: null, turns: null, costUsd: null, events: [] });
+  ({ botId, name, connecting: true, busy: null, task: null, model: null, turns: null, costUsd: null, startedAt: null, endedAt: null, events: [] });
 
 /**
  * Gộp lô mới vào danh sách: cùng `id` → thay (server đã trộn trường null = giữ cũ, giữ `seq`); có `session_start` → bỏ mọi sự kiện có
@@ -51,8 +54,10 @@ export function mergeEvents(list: BotWatchEventDto[], incoming: BotWatchEventDto
 /** Áp một lô (snapshot của WatchBot hoặc lô BotActivity) vào trạng thái; `cleared` = server xoá đệm → bảng trống, chờ phiên mới. */
 function apply(v: BotWatchView, events: BotWatchEventDto[], busy: boolean | null | undefined, task: string | null | undefined, cleared = false): BotWatchView {
   const next: BotWatchView = { ...v, busy: busy ?? null, task: task ?? null, events: cleared ? [] : mergeEvents(v.events, events) };
+  if (cleared) Object.assign(next, { startedAt: null, endedAt: null });
   for (const e of [...events].sort((a, b) => a.seq - b.seq)) {
-    if (e.kind === 'session_start') Object.assign(next, { model: null, turns: null, costUsd: null });
+    if (e.kind === 'session_start') Object.assign(next, { model: null, turns: null, costUsd: null, startedAt: e.at, endedAt: null });
+    if (e.kind === 'session_end') next.endedAt = e.at;
     if (e.model != null) next.model = e.model;
     if (e.turns != null) next.turns = e.turns;
     if (e.costUsd != null) next.costUsd = e.costUsd;
@@ -96,9 +101,24 @@ export function useBotWatch(connRef: RefObject<OfficeConnection | null>, conn: C
     void connRef.current?.unwatchBot().catch(() => { /* đã ngắt kết nối thì server tự thôi xem */ });
   }, [connRef]);
 
-  const onActivity = useCallback((b: BotActivityDto) => {
-    setView((v) => (v && v.botId === b.botId ? apply(v, b.events ?? [], b.busy, b.task, !!b.cleared) : v));
+  // Lô BotActivity dồn dập (server gộp ≤ 4 lô / giây, nối lại có thể tới liền nhau) → xếp hàng, áp MỘT lần mỗi khung hình (TEST-98) để
+  // React không vẽ lại bảng nhiều lần trong một khung của cảnh 3D. Tab ẩn (rAF không chạy) → áp ngay, hàng đợi không phình.
+  const pending = useRef<BotActivityDto[]>([]);
+  const raf = useRef(0);
+  const flush = useCallback(() => {
+    raf.current = 0;
+    const batches = pending.current;
+    pending.current = [];
+    if (!batches.length) return;
+    setView((v) => batches.reduce<BotWatchView | null>(
+      (x, b) => (x && x.botId === b.botId ? apply(x, b.events ?? [], b.busy, b.task, !!b.cleared) : x), v));
   }, []);
+  const onActivity = useCallback((b: BotActivityDto) => {
+    pending.current.push(b);
+    if (document.visibilityState === 'hidden') { cancelAnimationFrame(raf.current); flush(); return; }
+    if (!raf.current) raf.current = requestAnimationFrame(flush);
+  }, [flush]);
+  useEffect(() => () => cancelAnimationFrame(raf.current), []);
 
   const onEnded = useCallback((botId: string, reason: string) => {
     if (viewRef.current?.botId !== botId) return;

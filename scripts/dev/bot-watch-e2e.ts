@@ -1,5 +1,6 @@
-// E2E TEST-97: bấm vào bot trong văn phòng 3D để xem bot đang làm gì (FE): chọn avatar bot bằng chuột + chạm (vùng bấm theo màn hình),
-// kiểm phạm vi nghe ở client (xa → gợi ý "Lại gần hơn…", không gọi hub), WatchBot → bảng tạm nhận đệm + sự kiện trực tiếp (gộp theo id,
+// E2E TEST-97 + TEST-98 (mục [98]: bảng đầy đủ "Màn hình của bot" — 10 loại sự kiện, thu gọn, cuộn, Esc, theme, kéo / đổi cỡ, rỗng):
+// TEST-97: bấm vào bot trong văn phòng 3D để xem bot đang làm gì (FE): chọn avatar bot bằng chuột + chạm (vùng bấm theo màn hình),
+// kiểm phạm vi nghe ở client (xa → gợi ý "Lại gần hơn…", không gọi hub), WatchBot → bảng nhận đệm + sự kiện trực tiếp (gộp theo id,
 // session_start bỏ cũ, model / lượt / chi phí), con trỏ bàn tay khi rê lên bot, bấm sàn vẫn đi bộ, nút Đóng → UnwatchBot, đi ra xa →
 // server ngắt (BotWatchEnded range), người thật của tài khoản bot vào văn phòng → ngắt (offline). Chrome headless máy tính 1440×900 + điện thoại
 // 390×844 (chạm). Dùng hook dev `window.__officeScene` (chỉ có khi chạy Vite dev). Không cần Mcp: bot online + sự kiện bơm thẳng vào Realtime
@@ -250,6 +251,128 @@ px = back ? await botPixel(pc) : null;
 if (px) await click(pc, px[0], px[1]);
 v = await waitPanel(pc, true);
 ok('mở lại → đệm hiện tại gồm c3 (s2, c2, c3)', v?.lines.map((l) => l.id).join(',') === 's2,c2,c3', v?.lines.map((l) => l.id));
+
+// ---------- TEST-98: bảng đầy đủ "Màn hình của bot" (đủ 10 loại sự kiện, thu gọn, cuộn, Esc, theme, kéo / đổi cỡ, trạng thái rỗng) ----------
+const q = (p: typeof pc, js: string) => p.evalJs(`(() => { const P = document.querySelector('[data-testid=office-bot-watch]'); if (!P) return null; const L = (id) => P.querySelector('.bot-watch-line[data-id="' + id + '"]'); ${js} })()`);
+const XSS = '<script>window.__xss = 1</script><img src=x onerror="window.__xss = 2"> <b>đậm?</b>';
+const long = (n: number, pre: string) => Array.from({ length: n }, (_, i) => `${pre} ${i + 1}`).join('\n');
+await feed([
+  { id: 's3', kind: 'session_start', title: 'Bắt đầu', task: 'TEST-98 · Bảng màn hình bot', model: 'claude-opus-5-5' },
+  { id: 'k-cmd', kind: 'command', title: 'Build front-end', text: 'bun run build' },
+  { id: 'k-edit', kind: 'file_edit', path: 'frontend/src/a.ts', diff: '@@ -1,2 +1,2 @@\n giữ nguyên\n-const a = 1;\n+const a = 2;' },
+  { id: 'k-write', kind: 'file_write', path: 'docs/new.md', diff: long(30, '+dòng') },
+  { id: 'k-read', kind: 'file_read', path: 'backend/src/Program.cs' },
+  { id: 'k-search', kind: 'search', text: 'useBotWatch', path: 'frontend/src' },
+  { id: 'k-tool', kind: 'tool', title: 'Bình luận việc', text: 'comment_task · TEST-98' },
+  { id: 'k-think', kind: 'thinking', text: `Cần sửa hook trước.\n${XSS}` },
+  { id: 'k-say', kind: 'say', text: `Đã **xong** bước 1.\n\n- mục một\n\n![theo dõi](https://tracker.invalid/p.png)\n\n${XSS}` },
+]);
+await pc.sleep(800);
+v = await panel(pc);
+ok('[98] đủ 9 dòng của phiên mới, đúng thứ tự', v?.lines.map((l) => l.id).join(',') === 's3,k-cmd,k-edit,k-write,k-read,k-search,k-tool,k-think,k-say', v?.lines.map((l) => l.id));
+ok('[98] đầu bảng: nhãn ● Trực tiếp + model + thời gian đã chạy', await q(pc, `return !!P.querySelector('[data-testid=office-bot-live]') && P.querySelector('.bot-watch-meta').textContent.includes('claude-opus-5-5') && /giây|phút/.test(P.querySelector('[data-testid=office-bot-elapsed]')?.textContent ?? '')`));
+ok('[98] vạch ngăn session_start kèm tên việc', await q(pc, `return L('s3').classList.contains('bot-act-sep') && L('s3').innerText.includes('TEST-98 · Bảng màn hình bot')`));
+ok('[98] lệnh: khối terminal nền tối, chữ mono, "$ lệnh", đang chạy có dấu quay', await q(pc, `const t = L('k-cmd'), cs = getComputedStyle(t), pre = t.querySelector('.bot-act-cmd');
+  const [r, g, b] = cs.backgroundColor.match(/\\d+/g).map(Number);
+  return r + g + b < 120 && /mono/i.test(getComputedStyle(pre).fontFamily) && pre.textContent.startsWith('$ bun run build') && !!t.querySelector('[data-testid=office-bot-running]')`));
+await feed([{ id: 'k-cmd', kind: 'command', ok: true, output: long(30, 'out') }]);
+await pc.sleep(700);
+ok('[98] kết quả lệnh về sau → cập nhật đúng khối lệnh (hết dấu quay, vẫn 9 dòng), > 12 dòng thì thu gọn còn 12 dòng cuối', await q(pc, `const t = L('k-cmd'), out = t.querySelector('.bot-act-out');
+  return P.querySelectorAll('.bot-watch-line').length === 9 && !t.querySelector('[data-testid=office-bot-running]') && out.textContent.split('\\n').length === 12 && out.textContent.endsWith('out 30') && !out.textContent.includes('out 18\\n') && !!t.querySelector('[data-testid=office-bot-fold]')`));
+ok('[98] bấm mở → hiện cả 30 dòng', await q(pc, `const t = L('k-cmd'); t.querySelector('[data-testid=office-bot-fold]').click(); return new Promise((r) => setTimeout(() => r(t.querySelector('.bot-act-out').textContent.split('\\n').length === 30), 150))`));
+ok('[98] diff: dòng - đỏ / + xanh (màu khác nhau, có nền), đường dẫn file', await q(pc, `const t = L('k-edit'), add = t.querySelector('.bot-act-diff .add'), del = t.querySelector('.bot-act-diff .del');
+  return t.innerText.includes('frontend/src/a.ts') && add.textContent.trim() === '+const a = 2;' && del.textContent.trim() === '-const a = 1;' && getComputedStyle(add).color !== getComputedStyle(del).color && getComputedStyle(add).backgroundColor !== getComputedStyle(del).backgroundColor`));
+ok('[98] file_write dài 30 dòng → thu gọn 12 dòng đầu + nút mở', await q(pc, `const t = L('k-write'); return t.querySelectorAll('.bot-act-diff span').length === 12 && t.querySelector('.bot-act-diff').textContent.startsWith('+dòng 1\\n') && !!t.querySelector('[data-testid=office-bot-fold]')`));
+ok('[98] file_read / search / tool: một dòng gọn có nội dung', await q(pc, `const h = (id) => L(id).getBoundingClientRect().height;
+  return L('k-read').innerText.includes('backend/src/Program.cs') && L('k-search').innerText.includes('useBotWatch') && L('k-tool').innerText.includes('Bình luận việc') && L('k-tool').innerText.includes('comment_task · TEST-98') && h('k-read') < 40 && h('k-search') < 40 && h('k-tool') < 40`));
+ok('[98] suy nghĩ: chữ nghiêng, có nhãn "Suy nghĩ"', await q(pc, `const t = L('k-think'); return t.innerText.includes('Suy nghĩ') && getComputedStyle(t.querySelector('.bot-act-think-text')).fontStyle === 'italic'`));
+ok('[98] lời agent: Markdown (đậm, danh sách), không tải ảnh', await q(pc, `const t = L('k-say'); return !!t.querySelector('strong') && !!t.querySelector('li') && !t.querySelector('img')`));
+ok('[98] chuỗi có thẻ HTML / script hiện nguyên văn, không chạy, không sinh thẻ', await q(pc, `return window.__xss === undefined && !P.querySelector('script, img, iframe') && L('k-think').innerText.includes('<script>window.__xss = 1</script>') && L('k-say').innerText.includes('<img src=x') && !L('k-say').querySelector('b')`));
+ok('[98] không gọi tài nguyên ngoài (tracker.invalid)', await pc.evalJs(`performance.getEntriesByType('resource').every((r) => !r.name.includes('tracker.invalid'))`));
+await pc.shot(`${SHOTS}/desktop-full-light-or-default.png`);
+
+// Theme sáng / tối: màu nền bảng theo token → đổi theo class .dark của app; khối terminal luôn tối
+const bg = async (dark: boolean) => { await pc.evalJs(`document.documentElement.classList.toggle('dark', ${dark}); document.documentElement.classList.toggle('light', ${!dark})`); await pc.sleep(200);
+  return await q(pc, `return [getComputedStyle(P).backgroundColor, getComputedStyle(L('k-cmd')).backgroundColor]`) as [string, string]; };
+const hadDark = await pc.evalJs(`document.documentElement.classList.contains('dark')`);
+const bgDark = await bg(true);
+await pc.shot(`${SHOTS}/desktop-full-dark.png`);
+const bgLight = await bg(false);
+await pc.shot(`${SHOTS}/desktop-full-light.png`);
+ok('[98] theme sáng / tối: nền bảng đổi theo theme, terminal giữ nền tối', bgDark[0] !== bgLight[0] && bgDark[1] === bgLight[1], { bgDark, bgLight });
+await bg(!!hadDark);
+
+// Cuộn: đang ở cuối → tự cuộn; người xem cuộn lên → không bị kéo xuống + nút "Về mới nhất"
+const scroll = () => q(pc, `const l = P.querySelector('[data-testid=office-bot-log]'); return { top: l.scrollTop, gap: l.scrollHeight - l.scrollTop - l.clientHeight, latest: !!P.querySelector('[data-testid=office-bot-latest]') }`) as Promise<{ top: number; gap: number; latest: boolean }>;
+await feed([{ id: 'k-say2', kind: 'say', text: 'Tin mới 1' }]);
+await pc.sleep(700);
+let sc = await scroll();
+ok('[98] đang ở cuối → sự kiện mới tự cuộn xuống cuối, không có nút "Về mới nhất"', sc.gap <= 2 && !sc.latest, sc);
+await q(pc, `P.querySelector('[data-testid=office-bot-log]').scrollTop = 40; return 1`);
+await pc.sleep(300);
+await feed([{ id: 'k-say3', kind: 'say', text: 'Tin mới 2' }, { id: 'k-cmd2', kind: 'command', text: 'dotnet test' }]);
+await pc.sleep(700);
+sc = await scroll();
+ok('[98] đã cuộn lên → sự kiện mới KHÔNG kéo xuống, hiện nút "Về mới nhất"', Math.abs(sc.top - 40) <= 1 && sc.gap > 50 && sc.latest, sc);
+await q(pc, `P.querySelector('[data-testid=office-bot-latest]').click(); return 1`);
+await pc.sleep(300);
+sc = await scroll();
+ok('[98] bấm "Về mới nhất" → xuống cuối, nút biến mất, lại tự cuộn', sc.gap <= 2 && !sc.latest, sc);
+
+// Dồn dập: 150 sự kiện trong 3 lô liền nhau → danh sách ≤ 200, vẫn bám cuối
+for (let b = 0; b < 3; b++) await feed(Array.from({ length: 50 }, (_, i) => ({ id: `burst-${b}-${i}`, kind: 'file_read', path: `src/f${b}-${i}.ts` })));
+await feed(Array.from({ length: 50 }, (_, i) => ({ id: `burst-3-${i}`, kind: 'tool', title: `Tool ${i}` })));
+await pc.sleep(1200);
+sc = await scroll();
+ok('[98] 200 sự kiện dồn dập → danh sách đúng 200 mục (bỏ cũ nhất), vẫn ở cuối', (await q(pc, `return P.querySelectorAll('.bot-watch-line').length`)) === 200 && sc.gap <= 2, sc);
+
+// Kéo (đầu bảng) + đổi cỡ (tay nắm) như chat nổi; bảng không che tâm màn hình (nhân vật của mình)
+const rectOf = () => q(pc, `const r = P.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }`) as Promise<{ x: number; y: number; w: number; h: number }>;
+const drag = async (x0: number, y0: number, dx: number, dy: number) => {
+  await pc.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0, y: y0 });
+  await pc.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y: y0, button: 'left', clickCount: 1 });
+  for (let i = 1; i <= 4; i++) await pc.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + (dx * i) / 4, y: y0 + (dy * i) / 4, button: 'left', buttons: 1 });
+  await pc.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x0 + dx, y: y0 + dy, button: 'left', clickCount: 1 });
+  await pc.sleep(200);
+};
+const r0 = await rectOf();
+ok('[98] vị trí mặc định: nổi bên phải, không che tâm màn hình (nhân vật của mình), không đè bản đồ nhỏ', r0.x > 720 + 30 && r0.x + r0.w <= 1440 - 228, r0);
+await drag(r0.x + r0.w / 2, r0.y + 16, -60, 40);
+const r1 = await rectOf();
+ok('[98] kéo đầu bảng → bảng di chuyển, giữ kích thước', Math.abs(r1.x - (r0.x - 60)) <= 2 && Math.abs(r1.y - (r0.y + 40)) <= 2 && Math.abs(r1.w - r0.w) <= 1, { r0, r1 });
+await drag(r1.x + r1.w - 6, r1.y + r1.h - 6, 50, -80);
+const r2 = await rectOf();
+ok('[98] kéo tay nắm góc → đổi kích thước', Math.abs(r2.w - (r1.w + 50)) <= 2 && Math.abs(r2.h - (r1.h - 80)) <= 2, { r1, r2 });
+ok('[98] chỉ nhớ vị trí bảng, không lưu sự kiện vào localStorage', await pc.evalJs(`Object.entries(localStorage).every(([k, val]) => !/burst-|k-cmd|dotnet test|Tin mới/.test(k + val))`));
+await pc.evalJs(`localStorage.removeItem('officehub.office.agent-screen-panel')`);
+
+// session_end: vạch tổng kết lượt + chi phí, hết "Trực tiếp", thời gian dừng đếm
+await feed([{ id: 'e3', kind: 'session_end', title: 'Xong việc', turns: 7, costUsd: 1.25 }]);
+await pc.sleep(700);
+ok('[98] session_end: vạch ngăn có lượt + chi phí, mất nhãn Trực tiếp', await q(pc, `const t = L('e3'); return t.classList.contains('bot-act-sep') && t.innerText.includes('7 lượt') && t.innerText.includes('$1.25') && !P.querySelector('[data-testid=office-bot-live]')`));
+const el1 = await q(pc, `return P.querySelector('[data-testid=office-bot-elapsed]')?.textContent`);
+await pc.sleep(2100);
+ok('[98] phiên xong → thời gian đã chạy đứng yên', !!el1 && el1 === await q(pc, `return P.querySelector('[data-testid=office-bot-elapsed]')?.textContent`), el1);
+
+// Esc đóng bảng; trạng thái rỗng: bot rảnh / đang làm nhưng chưa có sự kiện
+await pc.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+await pc.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+ok('[98] Esc → đóng bảng', (await waitPanel(pc, false, 2000)) === null);
+const idle = await internal('/rt/internal/bot-activity', { ...presence, busy: false, task: null, activity: 'Nghỉ' }); // rảnh < 60 s: bot chưa đi ra Khu nghỉ
+ok('[98] báo bot rảnh', idle.status < 300, idle);
+await pc.sleep(500);
+px = await botPixel(pc);
+if (px) await click(pc, px[0], px[1]);
+v = await waitPanel(pc, true);
+ok('[98] bot rảnh, không có sự kiện → "☕ <tên bot> đang nghỉ, chưa có việc nào đang chạy"', v?.lines.length === 0 && v.text.includes(`☕ ${B.name} đang nghỉ, chưa có việc nào đang chạy`), v?.text);
+await internal('/rt/internal/bot-activity', presence);
+let waiting = false;
+for (let t = 0; t < 4000 && !waiting; t += 250) { await pc.sleep(250); waiting = (await panel(pc))?.text.includes('Đang chờ thao tác đầu tiên…') === true; }
+ok('[98] bot chuyển sang đang làm, chưa có sự kiện → "Đang chờ thao tác đầu tiên…"', waiting, (await panel(pc))?.text);
+await feed([{ id: 's4', kind: 'session_start', task: 'TEST-97 · Xem bot', model: 'claude-fable-5-1' }, { id: 'c5', kind: 'command', title: 'Kiểm tra', text: 'git status', ok: false, output: 'fatal: <b>not</b> a git repository' },
+  { id: 'd5', kind: 'file_edit', path: 'frontend/src/b.tsx', diff: '-<div>cũ</div>\n+<div>mới</div>' }, { id: 't5', kind: 'thinking', text: 'Thư mục này chưa có git.' }, { id: 'y5', kind: 'say', text: 'Mình sẽ **khởi tạo** repo.' }]);
+await pc.sleep(700);
+ok('[98] lệnh lỗi (ok = false): viền đỏ + nhãn lỗi', await q(pc, `const t = L('c5'); return t.classList.contains('err') && t.innerText.includes('lỗi') && /239|ef4444/.test(getComputedStyle(t).borderColor)`));
 
 // --- Đi ra xa (> 7 m quá 3 giây) → server ngắt: bảng đóng + "Bạn đã đi ra xa"
 const away = await walk(pc, bot.x + 9.5, bot.z + 1);

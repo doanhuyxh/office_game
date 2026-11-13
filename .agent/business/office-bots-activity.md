@@ -52,7 +52,7 @@ Làm sạch (`BotActivityFeed.Clean`) — **cắt, không từ chối**: quá đ
 
 ## Giao diện
 
-Bấm / chạm avatar bot → kiểm phạm vi ở client (chỉ gợi ý) → `WatchBot`; bảng tạm (TEST-97) rồi bảng đầy đủ (TEST-98). Chi tiết: [office-bots-watch.md](office-bots-watch.md).
+Bấm / chạm avatar bot → kiểm phạm vi ở client (chỉ gợi ý) → `WatchBot`; bảng nổi "Màn hình của bot" (TEST-98, `components/bot-activity-panel/` + `bot-activity-event/`): đầu bảng (tên bot, ● Trực tiếp, việc, model · thời gian đã chạy · lượt · chi phí) + dòng thời gian tự cuộn — lệnh = khối terminal (dấu quay khi chưa có kết quả, `output` cùng `id` về sau gắn đúng khối), file = đường dẫn + diff `-` đỏ / `+` xanh, đọc / tìm / tool = một dòng, suy nghĩ = chữ nghiêng mờ, lời agent = Markdown `noImages`, phiên = vạch ngăn. Nội dung agent sinh ra coi là **không tin cậy**: chỉ vẽ văn bản thuần. Chi tiết: [office-bots-watch.md](office-bots-watch.md).
 
 ## Kiểm thử
 

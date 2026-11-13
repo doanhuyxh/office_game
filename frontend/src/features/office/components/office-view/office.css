@@ -66,37 +66,70 @@
 .office-root .screen video { width: 100%; border-radius: 8px; background: #000; aspect-ratio: 16 / 9; object-fit: contain; }
 .office-root .screen small { color: #cbd5e1; font-size: 12px; }
 
-/* Bảng tạm "xem bot đang làm gì" (TEST-97; bảng đầy đủ: TEST-98) — bên trái bản đồ nhỏ, không đè thẻ tài khoản / màn hình chiếu */
-.office-root .bot-watch { top: 56px; right: 240px; width: min(460px, calc(100vw - 500px)); max-height: min(60vh, 520px); display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
-.office-root .bot-watch-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.office-root .bot-watch-head > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.office-root .bot-watch-head button { flex: none; padding: 3px 8px; border: 0; border-radius: 6px; background: rgba(148, 163, 184, .2); color: inherit; font: 600 12px system-ui; cursor: pointer; }
-.office-root .bot-watch-meta { color: #94a3b8; font-size: 12px; }
-.office-root .bot-watch-log { overflow-y: auto; display: grid; align-content: start; gap: 4px; min-height: 48px; }
-.office-root .bot-watch-log > small { color: #94a3b8; }
-.office-root .bot-watch-line { background: rgba(15, 23, 42, .6); border-radius: 8px; padding: 4px 8px; }
-.office-root .bot-watch-line b { color: #c4b5fd; }
-.office-root .bot-watch-line code { color: #93c5fd; font: 12px ui-monospace, monospace; }
-.office-root .bot-watch-line.err { box-shadow: inset 0 0 0 1px rgba(239, 68, 68, .6); }
-.office-root .bot-watch-line em { color: #fca5a5; font-style: normal; }
-.office-root .bot-watch-line pre { margin: 2px 0 0; white-space: pre-wrap; word-break: break-word; font: 12px ui-monospace, monospace; color: #cbd5e1; }
-
-/* Chat: tab toàn văn phòng / phòng đang đứng */
-.office-root .chat .tabs { display: flex; gap: 4px; margin-bottom: 6px; }
-.office-root .chat .tabs button { position: relative; border: 0; border-radius: 8px; padding: 4px 10px; font: 600 12px system-ui; color: inherit;
-  background: rgba(15, 23, 42, .6); cursor: pointer; }
-.office-root .chat .tabs button.on { background: #2563eb; color: #fff; }
-.office-root .chat .tabs-end { margin-left: auto; display: flex; gap: 4px; }
-.office-root .chat .tabs-end button { padding: 4px 8px; }
-.office-root .chat .dot-new { position: absolute; top: 2px; right: 2px; width: 7px; height: 7px; border-radius: 50%; background: #f97316; }
-.office-root .chat-toggle { left: 12px; bottom: 150px; font-size: 20px; padding: 8px 12px; cursor: pointer; }
-.office-root button.prompt { color: inherit; font: inherit; font-weight: 600; cursor: pointer; }
-
-/* Joystick cảm ứng */
-.office-root .joystick { position: absolute; left: 20px; bottom: 24px; width: 120px; height: 120px; border-radius: 50%; touch-action: none;
-  background: rgba(15, 23, 42, .35); border: 2px solid rgba(148, 163, 184, .35); display: grid; place-items: center; pointer-events: auto; }
-.office-root .joystick .knob { width: 52px; height: 52px; border-radius: 50%; background: rgba(59, 130, 246, .85); box-shadow: 0 2px 10px rgba(0, 0, 0, .35); }
-
+/* Bảng "Màn hình của bot" (TEST-98, bot-activity-panel): bảng nổi — left / top / width / height do use-floating-panel đặt (kéo bằng đầu bảng,
+   đổi cỡ bằng tay nắm góc dưới phải như chat nổi). Màu theo token theme app (sáng / tối) như .screen-doc-md; riêng khối terminal luôn nền tối. */
+.office-root .bot-act { z-index: 6; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px 10px; font-size: 13px; color-scheme: light;
+  background: var(--background); color: var(--foreground); border-color: var(--border); backdrop-filter: none; box-shadow: 0 12px 32px rgba(2, 6, 23, .5); }
+.dark .office-root .bot-act { color-scheme: dark; }
+.office-root .bot-act-head { flex: none; display: flex; align-items: center; gap: 8px; cursor: move; touch-action: none; user-select: none; -webkit-user-select: none; }
+.office-root .bot-act-avatar { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font: 700 14px system-ui; color: #fff; background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+.office-root .bot-act-who { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.office-root .bot-act-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.office-root .bot-act-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.office-root .bot-act .screen-live { flex: none; padding: 0 6px; border-radius: 4px; background: #dc2626; color: #fff; font-size: 11px; font-weight: 600; }
+.office-root .bot-act-state { color: var(--muted-foreground); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.office-root .bot-act-close { flex: none; width: 28px; height: 28px; border: 0; border-radius: 8px; background: var(--muted); color: inherit; font: 600 13px system-ui; cursor: pointer; }
+.office-root .bot-act .bot-watch-meta { flex: none; display: flex; flex-wrap: wrap; color: var(--muted-foreground); font-size: 12px; }
+.office-root .bot-act .bot-watch-meta > span + span::before { content: '·'; margin: 0 6px; }
+.office-root .bot-act-log { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 6px; padding-right: 2px; }
+.office-root .bot-act-log > * { flex: none; }
+.office-root .bot-act-empty { margin: auto; padding: 16px 8px; text-align: center; color: var(--muted-foreground); }
+.office-root .bot-act-latest { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 4px 12px; border: 0; border-radius: 999px; background: var(--primary); color: var(--primary-foreground);
+  font: 600 12px system-ui; cursor: pointer; box-shadow: 0 4px 12px rgba(2, 6, 23, .35); }
+.office-root .bot-act pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.office-root .bot-act code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.office-root .bot-act-err { margin-left: 6px; padding: 0 6px; border-radius: 4px; background: rgba(239, 68, 68, .16); color: var(--destructive); font: 600 11px/16px system-ui; }
+.office-root .bot-act-more { align-self: flex-start; margin-top: 2px; padding: 1px 8px; border: 0; border-radius: 6px; background: rgba(148, 163, 184, .22); color: inherit; font: 600 11px system-ui; cursor: pointer; }
+/* Vạch ngăn phiên */
+.office-root .bot-act-sep { display: flex; align-items: center; gap: 8px; color: var(--muted-foreground); font-size: 12px; }
+.office-root .bot-act-sep::before, .office-root .bot-act-sep::after { content: ''; flex: 1; min-width: 12px; height: 1px; background: var(--border); }
+.office-root .bot-act-sep > span { min-width: 0; text-align: center; overflow-wrap: anywhere; }
+/* Lệnh: khối terminal (luôn nền tối) */
+.office-root .bot-act-term { display: flex; flex-direction: column; border-radius: 8px; padding: 6px 8px; background: #0b1220; color: #e2e8f0; border: 1px solid rgba(148, 163, 184, .25); }
+.office-root .bot-act-term.err { border-color: #ef4444; }
+.office-root .bot-act-term-title { display: flex; align-items: center; margin-bottom: 2px; color: #94a3b8; font-size: 11px; }
+.office-root .bot-act-term .bot-act-err { background: rgba(239, 68, 68, .25); color: #fca5a5; }
+.office-root .bot-act-cmd .prompt { color: #4ade80; user-select: none; }
+.office-root .bot-act-out { margin-top: 4px !important; padding-top: 4px; border-top: 1px dashed rgba(148, 163, 184, .3); color: #cbd5e1; }
+.office-root .bot-act-term .bot-act-more { margin: 4px 0 0; color: #e2e8f0; }
+.office-root .bot-act-spin { display: inline-block; width: 10px; height: 10px; margin-left: 8px; vertical-align: -1px; border-radius: 50%; border: 2px solid rgba(148, 163, 184, .4); border-top-color: #4ade80; animation: bot-act-spin .8s linear infinite; }
+@keyframes bot-act-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .office-root .bot-act-spin { animation-duration: 3s; } }
+/* File: đường dẫn + diff */
+.office-root .bot-act-file { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
+.office-root .bot-act-file.err { border-color: var(--destructive); }
+.office-root .bot-act-row { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.office-root .bot-act-row code { color: var(--info); }
+.office-root .bot-act-row .main { font-weight: 600; overflow-wrap: anywhere; }
+.office-root .bot-act-row small { color: var(--muted-foreground); overflow-wrap: anywhere; }
+.office-root div.bot-act-row { padding: 2px 8px; }
+.office-root div.bot-act-row.err { border-radius: 8px; box-shadow: inset 0 0 0 1px var(--destructive); }
+.office-root .bot-act-diff { margin-top: 4px !important; border-radius: 6px; background: var(--muted); padding: 4px 0; }
+.office-root .bot-act-diff span { display: block; padding: 0 6px; }
+.office-root .bot-act-diff .add { background: rgba(34, 197, 94, .16); color: var(--success); }
+.office-root .bot-act-diff .del { background: rgba(239, 68, 68, .14); color: var(--destructive); }
+.office-root .bot-act-diff .hunk { color: var(--muted-foreground); }
+/* Suy nghĩ: chữ nghiêng mờ */
+.office-root .bot-act-think { display: flex; flex-direction: column; padding: 2px 8px; border-left: 2px solid var(--border); color: var(--muted-foreground); }
+.office-root .bot-act-think small { font-size: 11px; font-weight: 600; }
+.office-root .bot-act-think-text { font: italic 12.5px/1.5 system-ui, sans-serif !important; }
+/* Lời agent (Markdown) */
+.office-root .bot-act-say { padding: 6px 10px; border-radius: 8px; background: var(--muted); }
+.office-root .bot-act-say > div > :first-child { margin-top: 0; }
+.office-root .bot-act-say > div > :last-child { margin-bottom: 0; }
+.office-root .bot-act .resize { position: absolute; right: 0; bottom: 0; width: 20px; height: 20px; cursor: nwse-resize; touch-action: none; border-bottom-right-radius: 12px;
+  background: linear-gradient(135deg, transparent 50%, rgba(148, 163, 184, .55) 50%, rgba(148, 163, 184, .55) 58%, transparent 58%, transparent 70%, rgba(148, 163, 184, .55) 70%, rgba(148, 163, 184, .55) 78%, transparent 78%); }
+@media (pointer: coarse) { .office-root .bot-act .resize { width: 36px; height: 36px; } }
 /* Điện thoại: thu gọn HUD để chừa chỗ cho cảnh 3D */
 @media (max-width: 640px) {
   .office-root .minimap { width: 132px; top: 52px; }
@@ -125,7 +158,9 @@
   .office-root .screen:not(.big) { top: 120px; left: 12px; transform: none; width: calc(100vw - 24px); }
   .office-root .screen.big { inset: 0; top: 0; left: 0; transform: none; width: 100vw; height: 100dvh; border-radius: 0; place-content: center; background: #000; }
   .office-root .screen.big video { aspect-ratio: auto; max-height: calc(100dvh - 40px); }
-  .office-root .bot-watch { top: 120px; left: 12px; right: 12px; width: auto; max-height: 45vh; }
+  /* Màn hình của bot: rộng hết màn hình như tài liệu chiếu, dưới hàng thẻ trên cùng; không kéo / đổi cỡ */
+  .office-root .bot-act { top: 120px; left: 12px; right: 12px; height: min(56dvh, calc(100dvh - 290px)); min-height: 200px; }
+  .office-root .bot-act-head { cursor: default; touch-action: auto; }
 }
 
 /* Tài liệu trong văn phòng: tài liệu chiếu trên màn hình phòng, hàng đợi tải lên, gợi ý thả file */

@@ -18,7 +18,7 @@ import { Joystick } from '../joystick';
 import { OfficeChat } from '../office-chat';
 import { canHear, type VoiceChannelInfo } from '../../engine/voiceChannel';
 import { useBotWatch } from '../../hooks/use-bot-watch';
-import { BotWatchPanel } from '../bot-watch-panel';
+import { BotActivityPanel } from '../bot-activity-panel';
 import { DEFAULT_LOOK, parseLook, validLook } from '../../engine/avatarLook';
 import { AvatarEditorDialog } from '../avatar-editor-dialog';
 import { filesFromDrop, UploadPanel, useSpaces, useUploadQueue, type ISpaceRef } from '@/features/documents';
@@ -365,7 +365,7 @@ export function OfficeView() {
         <VoicePanel voice={voice} view={voiceView} />
         <ScreenView screen={voiceView.screen} count={voiceView.screenCount} />
         <ScreenDocPanel screen={screen} onClear={clearScreen} />
-        <BotWatchPanel view={botWatch.view} onClose={botWatch.close} />
+        <BotActivityPanel view={botWatch.view} onClose={botWatch.close} />
         {uploads.items.length > 0 && <div className="docs-uploads"><UploadPanel items={uploads.items} onClear={uploads.clear} /></div>}
         {dragOver && <div className="drop-hint">Thả file / thư mục để tải lên kho tài liệu</div>}
         <button className={`card checkin ${today?.checkedIn ? 'on' : ''}`} onClick={doCheck} disabled={check.isPending || noProfile}
