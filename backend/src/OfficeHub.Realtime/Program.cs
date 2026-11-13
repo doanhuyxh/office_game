@@ -42,6 +42,7 @@ var mapPath = EnvLoader.ResolvePath(builder.Configuration["Realtime:MapPath"] ??
 builder.Services.AddSingleton(OfficeMap.Load(mapPath));
 builder.Services.AddSingleton<Presence>();
 builder.Services.AddSingleton<BotPresence>();
+builder.Services.AddSingleton<BotActivityFeed>(); // luồng "agent đang làm gì" (RAM, TEST-92)
 builder.Services.AddHostedService<BotSweeper>();
 builder.Services.AddHostedService<AgentMeetingWatch>(); // họp agent: bot đi vào / rời phòng họp (TEST-76)
 builder.Services.AddSingleton<OfficeHub.Realtime.Screens.RoomScreens>();
@@ -65,6 +66,7 @@ app.MapHub<OfficeRoomHub>(OfficeRoomHub.Path);
 app.MapHub<ChatHub>(ChatHub.Path);
 app.MapVoice();
 app.MapBots();
+app.MapBotActivityFeed(); // /rt/internal/bot-activity-feed (khoá nội bộ)
 app.MapBotScreens(); // bot chiếu lên TV phòng + ảnh khung mới nhất /rt/screens/…   // OfficeHub.Mcp báo bot đang làm việc (khoá nội bộ)
 
 app.Run();
