@@ -30,5 +30,8 @@ public sealed class MeetingsModule : IModule
         var g = api.MapGroup("/meetings").WithTags("Meetings").RequireAuthorization();
         BookingEndpoints.Map(g);
         AgentMeetingEndpoints.Map(g); // /sessions — phiên họp agent (TEST-74); /agent-settings — trần lượt / phút, chỉ admin
+        // Realtime hỏi phiên đang họp để bot đi vào phòng (TEST-76) — khoá nội bộ, không cookie; nginx chặn từ ngoài
+        AgentMeetingLiveEndpoints.Map(api.MapGroup("/meetings/internal").WithTags("Meetings").AllowAnonymous()
+            .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(16 * 1024)));
     }
 }

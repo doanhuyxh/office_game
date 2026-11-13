@@ -45,6 +45,15 @@ export const useRoomAgentSession = (roomId: string | null | undefined) =>
     refetchInterval: (q) => (q.state.data?.status === 'Active' ? 3_000 : 15_000),
   });
 
+/** Mọi phiên họp agent đang họp — bảng nổi trên phòng họp ở văn phòng 3D (TEST-76): lượt x / trần đổi theo tin bot → hỏi lại mỗi 5 giây. */
+export const useActiveAgentSessions = (enabled = true) =>
+  useQuery({
+    queryKey: [...meetingKeys.sessions, 'active'],
+    queryFn: () => meetingApi.sessions(undefined, true),
+    enabled,
+    refetchInterval: (q) => (q.state.data?.length ? 5_000 : 15_000),
+  });
+
 export const useAgentBots = (enabled = true) =>
   useQuery({ queryKey: meetingKeys.agentBots, queryFn: meetingApi.agentBots, enabled, staleTime: 60_000 });
 

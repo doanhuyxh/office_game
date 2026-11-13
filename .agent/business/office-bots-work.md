@@ -20,6 +20,7 @@ Chủ dự án chốt thêm 2026-11-13: **bot đang làm một việc thì việ
 - **Chỗ nghỉ** (`RestSpot`): ghế / beanbag trống ở **Khu nghỉ** (`lounge`) theo băm userId → **Pantry** (`pantry`) → đứng giữa Khu nghỉ. Không ngồi chồng bot khác / người đang ngồi. Hai khu không có tường → không vào kênh chat phòng.
 - **Vừa online**: đặt thẳng (không đi bộ) — rảnh → chỗ nghỉ, đang làm → bàn; chỗ `go_to` đã nhớ vẫn ưu tiên như cũ.
 - **`go_to`**: giữ chỗ (`Explicit`) tới khi trạng thái đổi; đổi → bỏ giữ + quên chỗ nhớ, rồi tự về bàn / chỗ nghỉ theo luật trên.
+- **Dự họp agent** (`Bot.Meeting`, TEST-76): ở phòng họp suốt phiên — luật trên không áp; hết phiên → về bàn / chỗ nghỉ ([meetings-agents-3d.md](meetings-agents-3d.md)).
 - Người thật của tài khoản đang trong văn phòng → bot không tự đi (không có avatar riêng), chỉ đổi bong bóng.
 
 ## Bong bóng (`BotPresence.Bubble`)

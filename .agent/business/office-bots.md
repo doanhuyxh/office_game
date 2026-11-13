@@ -58,7 +58,7 @@ Chủ dự án chốt 2026-11-11: **đi bộ** (không dịch chuyển), **ở l
 - Người thật của tài khoản đang trong văn phòng → 409 (không có avatar bot riêng để đi).
 - E2E: `scripts/dev/bot-walk-e2e.ts` (19 kiểm tra, người thật kết nối hub thấy bot đi từng bước). Test: `tests/OfficeHub.Realtime.Tests/BotPresenceTests.cs`.
 
-Chiếu màn hình / tài liệu lên TV phòng khi đang ở phòng họp: [office-bots-screen.md](office-bots-screen.md). Đang làm → bàn, rảnh → Khu nghỉ: [office-bots-work.md](office-bots-work.md).
+Chiếu màn hình / tài liệu lên TV phòng khi đang ở phòng họp: [office-bots-screen.md](office-bots-screen.md). Đang làm → bàn, rảnh → Khu nghỉ: [office-bots-work.md](office-bots-work.md). Họp agent (đi vào phòng họp, `go_to` bị chặn trong phiên): [meetings-agents-3d.md](meetings-agents-3d.md).
 
 ## Tin nhắn của bot
 

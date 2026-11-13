@@ -109,7 +109,11 @@ public static class HostingExtensions
         app.UseForwardedHeaders();
         app.UseExceptionHandler();
         app.UseStatusCodePages();
-        app.UseSerilogRequestLogging();
+        // Realtime hỏi phiên họp agent mỗi 3 giây (TEST-76) → không ghi log mỗi lần thành công
+        app.UseSerilogRequestLogging(o => o.GetLevel = (ctx, _, ex) =>
+            ex is not null || ctx.Response.StatusCode > 499 ? Serilog.Events.LogEventLevel.Error
+            : ctx.Request.Path.StartsWithSegments(Office.AgentMeetingLiveRoute.Path) ? Serilog.Events.LogEventLevel.Verbose
+            : Serilog.Events.LogEventLevel.Information);
         app.MapOfficeHubHealth();
         return app;
     }

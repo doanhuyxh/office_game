@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { useCheck, useToday } from '@/features/attendance';
 import { useMe } from '@/features/auth';
-import { AgentMeetingBar, AgentMeetingDialog, useRoomsNow, type AgentMeetingDraft } from '@/features/meetings';
+import { AgentMeetingBar, AgentMeetingDialog, useActiveAgentSessions, useRoomsNow, type AgentMeetingDraft } from '@/features/meetings';
 import { errorMessage } from '@/utils/errors';
 import { formatTime } from '@/utils/date';
 import { splitMentions } from '@/utils/mention';
@@ -50,20 +50,24 @@ export function OfficeView() {
   const [seatInfo, setSeatInfo] = useState<{ seat: SitSpot; sitting: boolean } | null>(null);
   const [scene, setScene] = useState<OfficeScene | null>(null);
   const roomsNow = useRoomsNow();
+  const agentSessions = useActiveAgentSessions();
   const [editorOpen, setEditorOpen] = useState(false);
   const [avatarPrompt, setAvatarPrompt] = useState(() => !promptDismissed());
   const hasLook = validLook(account?.avatar) !== null;
   const dismissPrompt = () => { setAvatarPrompt(false); try { localStorage.setItem(PROMPT_KEY, '1'); } catch { /* bỏ qua */ } };
 
-  // Bảng "Đang họp" trên phòng họp (lịch đặt phòng — module Meetings), làm mới mỗi phút.
+  // Bảng "Đang họp" trên phòng họp (lịch đặt phòng — module Meetings, làm mới mỗi phút); phiên họp agent đang họp ưu tiên hơn (TEST-76).
   useEffect(() => {
     if (!scene) return;
+    const agent = new Map((agentSessions.data ?? []).map((s) => [s.roomId, s]));
     for (const r of roomsNow.data ?? []) {
-      const text = r.current ? `Đang họp · ${r.current.title} · đến ${formatTime(r.current.endAt)}`
+      const a = agent.get(r.roomId);
+      const text = a ? `Đang họp với AI · ${a.topic} · lượt ${a.turnsUsed}/${a.maxTurns}`
+        : r.current ? `Đang họp · ${r.current.title} · đến ${formatTime(r.current.endAt)}`
         : r.next ? `Trống · ${formatTime(r.next.startAt)} ${r.next.title}` : null;
-      scene.setRoomStatus(r.roomId, text, !!r.current);
+      scene.setRoomStatus(r.roomId, text, !!a || !!r.current);
     }
-  }, [scene, roomsNow.data]);
+  }, [scene, roomsNow.data, agentSessions.data]);
   const [help, setHelp] = useState(true);
   // Chat: kênh toàn văn phòng + kênh phòng có tường đang đứng (đổi tự động theo vị trí)
   const [roomCh, setRoomCh] = useState<VoiceChannelInfo | null>(null);

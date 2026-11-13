@@ -3,5 +3,5 @@ export { MeetingsPage } from './components/meetings-page';
 export { AgentMeetingDialog, type AgentMeetingDraft } from './components/agent-meeting-dialog';
 export { AgentMeetingBar } from './components/agent-meeting-bar';
 export { AgentMeetingSettingsCard } from './components/agent-meeting-settings-card';
-export { useRoomsNow, useMeetingRooms } from './hooks/useMeetings';
+export { useRoomsNow, useMeetingRooms, useActiveAgentSessions } from './hooks/useMeetings';
 export type { IRoomNow, IBooking } from './types/meeting.types';

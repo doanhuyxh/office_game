@@ -29,9 +29,15 @@ public sealed class Bot
     public DateTimeOffset? IdleSince;
     /// <summary>Chỗ hiện tại là chỗ nghỉ (Khu nghỉ / Pantry).</summary>
     public bool AtRest;
+    /// <summary>Phiên họp agent bot đang dự (đã cho đi vào phòng họp — TEST-76); trong phiên bot được giữ ở phòng họp.</summary>
+    public BotMeeting? Meeting;
+    /// <summary>Đang giữ lượt nói trong phiên họp → bong bóng <see cref="BotPresence.SpeakingBubble"/>.</summary>
+    public bool Speaking;
     public readonly Queue<(double X, double Z)> Path = new();
     public bool Dirty;
 }
+
+public sealed record BotMeeting(Guid SessionId, string RoomId, string Topic);
 
 /// <summary>
 /// Bot "online" = gọi tool MCP trong <see cref="BotActivityRoute.OnlineMinutes"/> phút gần nhất (OfficeHub.Mcp báo qua
@@ -41,6 +47,8 @@ public sealed class Bot
 /// bàn / cạnh một người và ở lại đó; chỗ đã chọn được nhớ cả khi bot offline rồi online lại (mất khi Realtime khởi động lại).
 /// Đang làm / rảnh (2026-11-13, <see cref="BotWork"/>): đang làm → bàn; rảnh đủ <see cref="BotWork.IdleDelaySeconds"/> giây → đi bộ ra Khu nghỉ
 /// (hết chỗ → Pantry → đứng trong Khu nghỉ). Chỗ go_to giữ tới khi bot đổi giữa đang làm ↔ rảnh.
+/// Họp agent (TEST-76, <see cref="SyncMeetings"/>): phiên đang họp → bot dự họp đi bộ vào phòng họp (chưa online cũng hiện, từ lối vào), ở đó
+/// suốt phiên bất kể đang làm / rảnh; phiên kết thúc → về bàn / Khu nghỉ theo luật trên.
 /// </summary>
 public sealed class BotPresence(OfficeMap map, Presence presence)
 {
@@ -48,6 +56,7 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
     /// <summary>Chỗ nghỉ theo thứ tự ưu tiên (id phòng trong shared/office-map.json).</summary>
     public static readonly string[] RestRooms = ["lounge", "pantry"];
     public const double Speed = 4.2;
+    public const string SpeakingBubble = "🎤 Đang phát biểu";
     public static readonly TimeSpan Timeout = TimeSpan.FromMinutes(BotActivityRoute.OnlineMinutes);
     private readonly ConcurrentDictionary<string, Bot> _bots = new();
     /// <summary>Chỗ đã go_to của từng bot (giữ khi bot offline).</summary>
@@ -97,7 +106,7 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
                 else Place(bot, DeskSpot(id, a.Zone));
                 placed = true;
             }
-            else if (!bot.Explicit)
+            else if (!bot.Explicit && bot.Meeting is null)
             {
                 var zoneChanged = bot.Zone != a.Zone;
                 bot.Zone = a.Zone;
@@ -131,6 +140,9 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
     internal static string Bubble(Bot bot, string activity)
     {
         activity = activity.Length > 120 ? activity[..120] : activity;
+        if (bot.Meeting is not null)
+            return activity.StartsWith("💬") || activity.StartsWith("🖥") || activity.StartsWith("📝") ? activity
+                : bot.Path.Count > 0 && bot.Activity.StartsWith("🚶") ? bot.Activity : MeetingBubble(bot);
         if (bot.Busy == false)
             return activity.StartsWith("💬") || activity.StartsWith("🚶") || activity.StartsWith("🖥") || activity.StartsWith("📝") ? activity : BotWork.IdleBubble;
         if (bot.Busy == true && bot.Task is { Length: > 0 } task)
@@ -155,7 +167,7 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
         var moved = new List<Bot>();
         lock (_lock)
             foreach (var b in _bots.Values)
-                if (!b.Explicit && !b.AtRest && GoRestIfIdle(b, now)) moved.Add(b);
+                if (!b.Explicit && b.Meeting is null && !b.AtRest && GoRestIfIdle(b, now)) moved.Add(b);
         return moved;
     }
 
@@ -225,6 +237,8 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
         lock (_lock)
         {
             if (!_bots.TryGetValue(userId, out var bot)) return "Bot chưa có mặt trong văn phòng";
+            if (bot.Meeting is { } meet)
+                return $"Bot đang dự cuộc họp agent ở {map.Rooms.FirstOrDefault(r => r.Id == meet.RoomId)?.Name ?? meet.RoomId} — họp xong mới đi chỗ khác được";
             var spot = SpotFor(bot, place);
             if (spot is null) return $"Không còn chỗ trống ở {place.Name}";
             if (!PlanPath(bot, spot, out distance)) return $"Không có đường tới {place.Name}";
@@ -236,6 +250,83 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
             bot.Dirty = true;
             return null;
         }
+    }
+
+    /// <summary>Bong bóng khi đang dự họp (đã tới phòng): giữ lượt → <see cref="SpeakingBubble"/>, không thì "👥 Đang họp · chủ đề".</summary>
+    internal static string MeetingBubble(Bot bot) =>
+        bot.Speaking ? SpeakingBubble : Clip($"👥 Đang họp · {bot.Meeting?.Topic}", 120)!;
+
+    /// <summary>
+    /// Đồng bộ với các phiên họp agent đang họp (Realtime hỏi Api mỗi <see cref="AgentMeetingLiveRoute.PollSeconds"/> giây — TEST-76):
+    /// bot dự họp chưa vào → đi bộ vào ghế trống trong phòng họp (chưa online → hiện ở lối vào rồi đi; coi là online suốt phiên); đổi người giữ lượt
+    /// → đổi bong bóng; phiên kết thúc / bot không còn dự → bỏ giữ chỗ, đi bộ về bàn (rảnh đủ lâu → Khu nghỉ). Người thật của tài khoản đang trong
+    /// văn phòng → bỏ qua (không có avatar bot riêng, bot vẫn dự họp qua chat). Trả bot vừa được ĐẶT (client thêm avatar) và bot đổi bong bóng.
+    /// </summary>
+    public (List<Bot> Placed, List<Bot> Status) SyncMeetings(IReadOnlyList<AgentMeetingLive> live, DateTimeOffset now)
+    {
+        var placed = new List<Bot>();
+        var status = new List<Bot>();
+        lock (_lock)
+        {
+            var attending = new Dictionary<string, (AgentMeetingLive Meeting, string Name)>();
+            foreach (var m in live)
+                foreach (var b in m.Bots) attending.TryAdd(b.UserId.ToString(), (m, b.Name));
+
+            foreach (var bot in _bots.Values)
+            {
+                if (bot.Meeting is not { } meet || (attending.TryGetValue(bot.UserId, out var still) && still.Meeting.SessionId == meet.SessionId)) continue;
+                LeaveMeeting(bot, now);
+                status.Add(bot);
+            }
+
+            foreach (var (id, (m, name)) in attending)
+            {
+                if (presence.TryGet(id, out _)) continue;
+                if (map.Rooms.FirstOrDefault(r => r.Id == m.RoomId) is not { } room) continue;
+                if (!_bots.TryGetValue(id, out var bot))
+                {
+                    bot = new Bot { UserId = id, Name = name.Length > 100 ? name[..100] : name, LastAt = now };
+                    Place(bot, new BotSpot(map.Spawn.X, map.Spawn.Z, 0, false, null, "lối vào", null));
+                    _bots[id] = bot;
+                    placed.Add(bot);
+                }
+                bot.LastAt = now; // dự họp = online suốt phiên (không bị BotSweeper xoá vì 5 phút không gọi tool)
+                var speaking = m.SpeakerUserId?.ToString() == id;
+                if (bot.Meeting?.SessionId != m.SessionId)
+                {
+                    if (SpotFor(bot, new OfficePlace(room.Id, "room", room.Name)) is not { } spot || !WalkTo(bot, spot, rest: false)) continue; // thử lại lần hỏi sau
+                    bot.Meeting = new BotMeeting(m.SessionId, room.Id, m.Topic);
+                    bot.Explicit = false; // chỗ go_to cũ hết giữ — họp xong về bàn / Khu nghỉ
+                    _remembered.TryRemove(id, out _);
+                    bot.Speaking = speaking;
+                    bot.Activity = bot.Path.Count > 0 ? $"🚶 {room.Name}" : MeetingBubble(bot);
+                    status.Add(bot);
+                }
+                else if (bot.Speaking != speaking)
+                {
+                    bot.Speaking = speaking;
+                    // Vừa hết lượt: tin vừa nói ("💬 …") vẫn hiện như cũ
+                    bot.Activity = !speaking && bot.Activity.StartsWith("💬") ? bot.Activity
+                        : bot.Path.Count > 0 && !speaking ? bot.Activity : MeetingBubble(bot);
+                    status.Add(bot);
+                }
+                else if (bot.Path.Count == 0 && bot.Activity.StartsWith("🚶"))
+                {
+                    bot.Activity = MeetingBubble(bot); // vừa tới chỗ trong phòng họp
+                    status.Add(bot);
+                }
+            }
+        }
+        return (placed, status);
+    }
+
+    /// <summary>Hết phiên họp: bỏ giữ chỗ, rảnh đủ lâu → Khu nghỉ, không thì về bàn (đi bộ).</summary>
+    private void LeaveMeeting(Bot bot, DateTimeOffset now)
+    {
+        bot.Meeting = null;
+        bot.Speaking = false;
+        if (!GoRestIfIdle(bot, now)) WalkTo(bot, DeskSpot(bot.UserId, bot.Zone), rest: false);
+        bot.Activity = bot.Spot is { } s && bot.Path.Count > 0 ? $"🚶 {s.PlaceName}" : Bubble(bot, bot.Task ?? "");
     }
 
     /// <summary>

@@ -304,4 +304,116 @@ public class BotPresenceTests
         var seated = all.Where(b => b.Spot!.Sit).Select(b => b.Spot!.SpotKey).ToList();
         Assert.Equal(seated.Count, seated.Distinct().Count());
     }
+
+    // ── Họp agent (TEST-76) ──
+
+    private static AgentMeetingLive Meeting(Guid session, Guid? speaker, params Guid[] bots) =>
+        new(session, "meeting-small", "Phòng họp nhỏ", "Kế hoạch quý", 3, 30, T0.AddMinutes(30), speaker,
+            bots.Select((b, i) => new AgentMeetingLiveBot(b, $"Bot {i}")).ToList());
+
+    /// <summary>Cho mọi bot đi tới khi không còn ai đang đi (tối đa 200 giây mô phỏng).</summary>
+    private static bool WalkAll(BotPresence bots)
+    {
+        for (var i = 0; i < 2000 && bots.All.Any(b => b.Path.Count > 0); i++) bots.Step(0.1);
+        return bots.All.All(b => b.Path.Count == 0);
+    }
+
+    private sealed class FakeContext : Microsoft.AspNetCore.SignalR.HubCallerContext
+    {
+        public override string ConnectionId => "c1";
+        public override string? UserIdentifier => null;
+        public override System.Security.Claims.ClaimsPrincipal? User => null;
+        public override IDictionary<object, object?> Items { get; } = new Dictionary<object, object?>();
+        public override Microsoft.AspNetCore.Http.Features.IFeatureCollection Features { get; } = new Microsoft.AspNetCore.Http.Features.FeatureCollection();
+        public override CancellationToken ConnectionAborted => CancellationToken.None;
+        public override void Abort() { }
+    }
+
+    [Fact]
+    public void Meeting_bots_walk_into_the_room_even_when_offline_and_stay_while_the_session_runs()
+    {
+        var bots = new BotPresence(Map, new Presence());
+        var (a, b, session) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var (busy, _) = bots.Record(Work(a, true), T0);               // a đang làm ở bàn, b chưa online
+        var desk = busy.Spot!.SpotKey;
+
+        var (placed, status) = bots.SyncMeetings([Meeting(session, a, a, b)], T0);
+        Assert.True(bots.TryGet(b.ToString(), out var offline));
+        Assert.Equal([offline], placed);                              // b hiện ở lối vào rồi đi vào
+        Assert.Equal(2, status.Count);
+        Assert.Equal(1, busy.Anim);                                   // đi bộ, không dịch chuyển
+        Assert.Equal(1, offline.Anim);
+        Assert.StartsWith("🚶", offline.Activity);
+        Assert.True(WalkAll(bots));
+        Assert.True(In(busy, "meeting-small") && In(offline, "meeting-small"));
+        Assert.NotEqual(busy.Spot!.SpotKey, offline.Spot!.SpotKey);    // mỗi bot một ghế
+        Assert.Equal("meeting-small", offline.Spot.RoomId);           // tới nơi → vào kênh chat phòng
+
+        // Trong phiên: đổi đang làm ↔ rảnh, tool khác, go_to, hết 5 phút không gọi tool → vẫn ở phòng họp
+        bots.Record(Work(a, false), T0.AddMinutes(1));
+        Assert.Empty(bots.Settle(T0.AddMinutes(5)));
+        Assert.NotNull(bots.GoTo(a.ToString(), PlaceOf("lounge"), out _));
+        Assert.Empty(busy.Path);
+        bots.SyncMeetings([Meeting(session, a, a, b)], T0.AddMinutes(10));
+        Assert.Empty(bots.Expire(T0.AddMinutes(12)));
+        Assert.True(In(busy, "meeting-small") && In(offline, "meeting-small"));
+        Assert.NotEqual(desk, busy.Spot!.SpotKey);
+    }
+
+    [Fact]
+    public void Speaker_bubble_follows_the_turn_and_the_last_message_stays()
+    {
+        var bots = new BotPresence(Map, new Presence());
+        var (a, b, session) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        bots.SyncMeetings([Meeting(session, a, a, b)], T0);
+        bots.TryGet(a.ToString(), out var chair);
+        bots.TryGet(b.ToString(), out var other);
+        Assert.True(WalkAll(bots));
+        bots.SyncMeetings([Meeting(session, a, a, b)], T0);           // vừa tới chỗ → bong bóng họp
+        Assert.Equal(BotPresence.SpeakingBubble, chair.Activity);
+        Assert.Equal("👥 Đang họp · Kế hoạch quý", other.Activity);
+
+        Assert.Equal(BotPresence.SpeakingBubble, bots.Record(Work(a, true, "Xem phiên họp"), T0).Bot.Activity); // tool khác không che dấu đang nói
+        Assert.Equal("💬 Đề xuất A", bots.Record(Work(a, true, "💬 Đề xuất A"), T0).Bot.Activity);
+
+        var (_, status) = bots.SyncMeetings([Meeting(session, b, a, b)], T0.AddSeconds(3)); // lượt sang b
+        Assert.Equal(2, status.Count);
+        Assert.Equal("💬 Đề xuất A", chair.Activity);                  // tin vừa nói vẫn hiện
+        Assert.Equal(BotPresence.SpeakingBubble, other.Activity);
+    }
+
+    [Fact]
+    public void Ending_the_session_releases_bots_back_to_their_desk_or_the_lounge()
+    {
+        var bots = new BotPresence(Map, new Presence());
+        var (a, b, session) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var (busy, _) = bots.Record(Work(a, true), T0);
+        var desk = busy.Spot!.SpotKey;
+        var (idle, _) = bots.Record(Work(b, false), T0);
+        bots.SyncMeetings([Meeting(session, null, a, b)], T0);
+        Assert.True(WalkAll(bots));
+
+        var (_, status) = bots.SyncMeetings([], T0.AddMinutes(10));    // dừng / hết trần
+        Assert.Equal(2, status.Count);
+        Assert.Null(busy.Meeting);
+        Assert.StartsWith("🚶", busy.Activity);
+        Assert.True(WalkAll(bots));
+        Assert.Equal(desk, busy.Spot!.SpotKey);                       // đang làm → về bàn
+        Assert.True(In(idle, "lounge"));                              // rảnh lâu → Khu nghỉ
+        Assert.Empty(bots.SyncMeetings([], T0.AddMinutes(11)).Status);  // không lặp lại
+        Assert.Null(bots.GoTo(a.ToString(), PlaceOf("meeting-small"), out _)); // hết họp → go_to lại được
+    }
+
+    [Fact]
+    public void Bot_account_used_by_a_person_in_the_office_is_not_moved()
+    {
+        var presence = new Presence();
+        var bots = new BotPresence(Map, presence);
+        var (a, b, session) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        presence.Add(new Player { UserId = a.ToString(), Name = "Người thật", ConnectionId = "c1", Context = new FakeContext() });
+        var (placed, _) = bots.SyncMeetings([Meeting(session, a, a, b)], T0);
+        Assert.False(bots.TryGet(a.ToString(), out _));               // không tạo avatar bot thứ hai
+        Assert.Single(placed);
+        Assert.True(bots.TryGet(b.ToString(), out var other) && other.Meeting is not null);
+    }
 }
