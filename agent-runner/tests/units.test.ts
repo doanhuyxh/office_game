@@ -371,3 +371,54 @@ describe('store', () => {
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 });
+
+describe('presence (văn phòng 3D: đang làm / rảnh)', () => {
+  test('nhãn thô — không lộ lệnh / đường dẫn / lời agent', async () => {
+    const { activityLabel, presenceUrl } = await import('../src/presence');
+    expect(activityLabel('Đọc src/secret/key.ts')).toBe('Đọc code');
+    expect(activityLabel('Sửa backend/x.cs')).toBe('Sửa code');
+    expect(activityLabel('Chạy: cd backend && dotnet test')).toBe('Chạy kiểm thử');
+    expect(activityLabel('Chạy: bun run build')).toBe('Build / kiểm tra');
+    expect(activityLabel('Chạy: git commit -m "x"')).toBe('Thao tác git');
+    expect(activityLabel('Chạy: curl https://x?token=abc')).toBe('Chạy lệnh');
+    expect(activityLabel('Nói: mật khẩu là 123')).toBe('Suy nghĩ');
+    expect(activityLabel('OfficeHub update_task_status → Review')).toBe('Cập nhật OfficeHub');
+    expect(activityLabel('Model claude-x (cấu hình)')).toBeUndefined();
+    expect(presenceUrl('http://h:5200/mcp/')).toBe('http://h:5200/mcp/presence');
+  });
+
+  test('gộp theo nhịp, đổi việc / hết việc gửi ngay, 403 → ngừng báo', async () => {
+    const { PresenceReporter } = await import('../src/presence');
+    const got: any[] = [];
+    let status = 204;
+    const srv = Bun.serve({ port: 0, async fetch(req) { got.push(await req.json()); return new Response(null, { status }); } });
+    const gap = PresenceReporter.minGapMs;
+    PresenceReporter.minGapMs = 300;
+    try {
+      const p = new PresenceReporter(`http://localhost:${srv.port}/mcp`, 'ohk_x', 'NV120');
+      p.working('WEB-12', 'Sửa form');
+      await Bun.sleep(50);
+      p.activity('Đọc a.ts'); p.activity('Sửa a.ts'); p.activity('Sửa b.ts');
+      await Bun.sleep(50);
+      expect(got).toEqual([{ state: 'working', task: 'WEB-12 · Sửa form' }]);   // chưa tới nhịp
+      await Bun.sleep(400);
+      expect(got.at(-1)).toEqual({ state: 'working', task: 'WEB-12 · Sửa form', activity: 'Sửa code' }); // chỉ nhãn mới nhất
+      expect(got.length).toBe(2);
+      p.idle();
+      await Bun.sleep(50);
+      expect(got.at(-1)).toEqual({ state: 'idle' });
+      p.activity('Đọc a.ts');                                                  // rảnh → bỏ qua thao tác
+      status = 403;
+      p.working('WEB-13');
+      await Bun.sleep(50);
+      const n = got.length;
+      p.idle();
+      await Bun.sleep(50);
+      expect(got.length).toBe(n);                                              // đã ngừng báo
+      p.stop();
+    } finally {
+      PresenceReporter.minGapMs = gap;
+      srv.stop();
+    }
+  });
+});

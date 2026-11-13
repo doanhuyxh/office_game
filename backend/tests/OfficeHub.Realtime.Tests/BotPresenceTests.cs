@@ -189,4 +189,119 @@ public class BotPresenceTests
         Assert.Null(OfficePlaces.Resolve("sao hỏa", places, out var none));
         Assert.Empty(none);
     }
+
+    // ── Đang làm / rảnh (2026-11-13): đang làm → bàn, rảnh ≥ 60 s → Khu nghỉ ──
+
+    private static BotActivity Work(Guid id, bool busy, string activity = "Việc của tôi", string? task = "WEB-12 · Sửa form", bool runner = false) =>
+        new(id, "Bot", null, "dept-kd", activity, busy, busy ? task : null, runner);
+
+    /// <summary>Chỗ của bot nằm trong phòng nào (khu mở "open" phủ lên Khu nghỉ → ưu tiên phòng được hỏi).</summary>
+    private static bool In(Bot b, string roomId) => Map.Rooms.Any(r => r.Id == roomId && r.Contains(b.Spot!.X, b.Spot.Z));
+
+    [Fact]
+    public void Idle_bot_coming_online_sits_in_the_lounge_and_busy_bot_at_its_desk()
+    {
+        var bots = new BotPresence(Map, new Presence());
+        var (idle, _) = bots.Record(Work(Guid.NewGuid(), false), T0);
+        Assert.True(In(idle, "lounge"));
+        Assert.True(idle.AtRest);
+        Assert.Equal(2, idle.Anim);
+        Assert.Equal(BotWork.IdleBubble, idle.Activity);
+
+        var (busy, _) = bots.Record(Work(Guid.NewGuid(), true), T0);
+        Assert.Equal("dept-kd", SeatOf(busy).Zone);
+        Assert.Equal("🛠 WEB-12 · Việc của tôi", busy.Activity);
+    }
+
+    [Fact]
+    public void Bot_walks_to_the_lounge_only_after_being_idle_for_a_minute_and_back_to_the_desk_at_once()
+    {
+        var bots = new BotPresence(Map, new Presence());
+        var id = Guid.NewGuid();
+        var (bot, _) = bots.Record(Work(id, true), T0);
+        var desk = bot.Spot!.SpotKey;
+
+        bots.Record(Work(id, false), T0.AddSeconds(5));
+        Assert.Empty(bots.Settle(T0.AddSeconds(30)));               // chưa đủ 60 s → vẫn ở bàn
+        Assert.Equal(desk, bot.Spot!.SpotKey);
+        bots.Record(Work(id, true), T0.AddSeconds(40));               // có việc lại trước 60 s → không đi đâu
+        Assert.Empty(bots.Settle(T0.AddSeconds(120)));
+
+        bots.Record(Work(id, false), T0.AddSeconds(130));
+        Assert.Single(bots.Settle(T0.AddSeconds(200)));
+        Assert.Equal(1, bot.Anim);                                    // đi bộ, không dịch chuyển
+        Assert.True(WalkUntilArrived(bots, bot, out var valid));
+        Assert.True(valid);
+        Assert.True(In(bot, "lounge"));
+        Assert.Empty(bots.Settle(T0.AddSeconds(300)));                // đã ở chỗ nghỉ
+
+        var (_, placed) = bots.Record(Work(id, true), T0.AddSeconds(310));
+        Assert.False(placed);
+        Assert.Equal(1, bot.Anim);
+        Assert.True(WalkUntilArrived(bots, bot, out _));
+        Assert.Equal(desk, bot.Spot!.SpotKey);
+    }
+
+    [Fact]
+    public void Runner_state_wins_over_the_task_board_for_five_minutes()
+    {
+        var bots = new BotPresence(Map, new Presence());
+        var id = Guid.NewGuid();
+        var (bot, _) = bots.Record(Work(id, true, "Sửa code", runner: true), T0);
+        Assert.Equal("🛠 WEB-12 · Sửa code", bot.Activity);
+        bots.Record(Work(id, false, "Thông báo của tôi"), T0.AddMinutes(1));     // bảng việc nói rảnh → bỏ qua
+        Assert.True(bot.Busy);
+        Assert.Equal("🛠 WEB-12 · Thông báo của tôi", bot.Activity);
+        bots.Record(Work(id, false, "Thông báo của tôi"), T0.AddMinutes(7));     // runner im > 5 phút → theo bảng việc
+        Assert.False(bot.Busy);
+        Assert.Equal(BotWork.IdleBubble, bot.Activity);
+    }
+
+    [Fact]
+    public void Idle_bubble_keeps_chat_and_walking_lines()
+    {
+        var bots = new BotPresence(Map, new Presence());
+        var id = Guid.NewGuid();
+        bots.Record(Work(id, false), T0);
+        Assert.Equal("💬 Chào mọi người", bots.Record(Work(id, false, "💬 Chào mọi người"), T0).Bot.Activity);
+        Assert.Equal("Chuyển trạng thái việc · WEB-12", bots.Record(Work(id, true, "Chuyển trạng thái việc · WEB-12"), T0).Bot.Activity);
+        // Không rõ (Api lỗi) → giữ trạng thái cũ, bong bóng theo trạng thái đó
+        Assert.Equal("🛠 WEB-12 · Đọc tài liệu", bots.Record(new BotActivity(id, "Bot", null, "dept-kd", "Đọc tài liệu"), T0).Bot.Activity);
+    }
+
+    [Fact]
+    public void Go_to_spot_is_kept_until_the_bot_switches_between_working_and_idle()
+    {
+        var bots = new BotPresence(Map, new Presence());
+        var id = Guid.NewGuid();
+        var (bot, _) = bots.Record(Work(id, true), T0);
+        var desk = bot.Spot!.SpotKey;
+        Assert.Null(bots.GoTo(id.ToString(), PlaceOf("meeting-small"), out _));
+        WalkUntilArrived(bots, bot, out _);
+        bots.Record(Work(id, true, "Trình bày"), T0.AddMinutes(1));
+        Assert.True(In(bot, "meeting-small"));                   // vẫn đang làm → ở lại
+
+        bots.Record(Work(id, false), T0.AddMinutes(2));               // xong việc → hết giữ chỗ, rảnh đủ lâu → Khu nghỉ
+        Assert.False(bot.Explicit);
+        Assert.Single(bots.Settle(T0.AddMinutes(4)));
+        WalkUntilArrived(bots, bot, out _);
+        Assert.True(In(bot, "lounge"));
+
+        Assert.Null(bots.GoTo(id.ToString(), PlaceOf("meeting-small"), out _));
+        WalkUntilArrived(bots, bot, out _);
+        bots.Record(Work(id, true), T0.AddMinutes(5));                // có việc mới → về bàn ngay
+        WalkUntilArrived(bots, bot, out _);
+        Assert.Equal(desk, bot.Spot!.SpotKey);
+    }
+
+    [Fact]
+    public void Full_lounge_overflows_to_the_pantry_and_nobody_shares_a_chair()
+    {
+        var bots = new BotPresence(Map, new Presence());
+        var all = Enumerable.Range(0, 40).Select(_ => bots.Record(Work(Guid.NewGuid(), false), T0).Bot).ToList();
+        Assert.Contains(all, b => In(b, "lounge"));
+        Assert.Contains(all, b => In(b, "pantry"));
+        var seated = all.Where(b => b.Spot!.Sit).Select(b => b.Spot!.SpotKey).ToList();
+        Assert.Equal(seated.Count, seated.Distinct().Count());
+    }
 }

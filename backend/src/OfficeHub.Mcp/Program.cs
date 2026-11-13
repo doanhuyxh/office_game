@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Configuration;
+using OfficeHub.BuildingBlocks.Office;
 using OfficeHub.BuildingBlocks.Hosting;
 using OfficeHub.Mcp.Infrastructure;
 
@@ -55,6 +56,25 @@ app.MapGet(OAuthMetadata.AuthorizationServerPath, (IOptions<AppSettings> o) => R
 
 app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/mcp"), b => b.UseMiddleware<BearerGate>());
 app.MapMcp("/mcp");
+// agent-runner báo bot đang làm / rảnh (văn phòng 3D: bàn ↔ Khu nghỉ). Sau BearerGate (cùng token AI); chỉ tài khoản bot.
+app.MapPost(BotWork.PresencePath, async (BotPresenceReport? body, HttpContext http, BotPresenceReporter reporter) =>
+{
+    if (body is null || body.State is not (BotWork.Working or BotWork.Idle))
+        return Results.Problem($"state phải là \"{BotWork.Working}\" hoặc \"{BotWork.Idle}\"", statusCode: StatusCodes.Status400BadRequest);
+    try
+    {
+        return await reporter.ReportPresenceAsync(http.Request.Headers.Authorization.ToString(), http.Connection.RemoteIpAddress?.ToString(), body) switch
+        {
+            null => Results.Problem("Chỉ tài khoản bot (HR đánh dấu) mới hiện trong văn phòng 3D", statusCode: StatusCodes.Status403Forbidden),
+            false => Results.Problem("Văn phòng 3D không nhận trạng thái lúc này", statusCode: StatusCodes.Status503ServiceUnavailable),
+            true => Results.NoContent(),
+        };
+    }
+    catch (HttpRequestException)
+    {
+        return Results.Problem("Máy chủ OfficeHub đang không phản hồi, thử lại sau.", statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
 
 app.Run();
 

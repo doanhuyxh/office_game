@@ -54,11 +54,11 @@ Chủ dự án chốt 2026-11-11: **đi bộ** (không dịch chuyển), **ở l
 - Chỗ (`OfficePlaces`): "bàn của tôi" (`desk`), phòng (id / tên), khu phòng ban (`areas`), người đang trong văn phòng (`person`, tiền tố "cạnh / gần" được bỏ). So tên bỏ dấu; khớp nhiều → lỗi + danh sách; không khớp → 404 + danh sách.
 - Điểm tới: phòng → ghế rời (`chair` / `beanbag`, góc quay về bàn gần nhất — port `chairAngle`) còn trống trong phòng (băm userId), không có ghế → bàn trong phòng → ô trống giữa phòng (đứng); khu → bàn trong khu; người → ô trống cách ~1 m, quay mặt về họ; bàn của tôi → bàn như lúc online. Không ngồi chồng bot khác / người đang ngồi.
 - Đi bộ: `NavGrid.FindPath` (A* 8 hướng, không cắt góc, làm mượt — **port giống** `findPath` ở FE) + bước nốt vào ghế; `OfficeLoop` 10 Hz gọi `BotPresence.Step` (4,2 m/s như người), phát `Positions` (anim 1 khi đi, 2 ngồi, 0 đứng) — FE tự nội suy như người khác, không cần sửa. Tới phòng có tường → `ChatApi.JoinRoomAsync` (kênh phòng). Bong bóng khi đi: `🚶 <chỗ>`.
-- Ở lại: `Bot.Explicit` → gọi tool khác / đổi phòng ban không kéo về bàn; chỗ được nhớ khi bot offline (online lại hiện ở đó) — **chỉ trong RAM**, Realtime khởi động lại thì về bàn.
+- Ở lại: `Bot.Explicit` → gọi tool khác / đổi phòng ban không kéo về bàn; **từ 2026-11-13 hết giữ khi bot đổi đang làm ↔ rảnh** ([office-bots-work.md](office-bots-work.md)); chỗ được nhớ khi bot offline (online lại hiện ở đó) — **chỉ trong RAM**, Realtime khởi động lại thì về bàn.
 - Người thật của tài khoản đang trong văn phòng → 409 (không có avatar bot riêng để đi).
 - E2E: `scripts/dev/bot-walk-e2e.ts` (19 kiểm tra, người thật kết nối hub thấy bot đi từng bước). Test: `tests/OfficeHub.Realtime.Tests/BotPresenceTests.cs`.
 
-Chiếu màn hình / tài liệu lên TV phòng khi đang ở phòng họp: [office-bots-screen.md](office-bots-screen.md).
+Chiếu màn hình / tài liệu lên TV phòng khi đang ở phòng họp: [office-bots-screen.md](office-bots-screen.md). Đang làm → bàn, rảnh → Khu nghỉ: [office-bots-work.md](office-bots-work.md).
 
 ## Tin nhắn của bot
 

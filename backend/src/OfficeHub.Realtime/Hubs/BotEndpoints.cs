@@ -104,7 +104,7 @@ public static class BotEndpoints
     }
 }
 
-/// <summary>Mỗi 15 giây: bot quá hạn → offline (người thật cùng tài khoản đang trong văn phòng → chỉ gỡ dòng trạng thái).</summary>
+/// <summary>Mỗi 15 giây: bot quá hạn → offline (người thật cùng tài khoản đang trong văn phòng → chỉ gỡ dòng trạng thái); bot rảnh đủ lâu → ra Khu nghỉ.</summary>
 public sealed class BotSweeper(BotPresence bots, Presence presence, IHubContext<OfficeRoomHub, IOfficeClient> hub, TimeProvider clock,
     Screens.BotScreens shows, Screens.RoomScreens screens, OfficeMap map, ILogger<BotSweeper> log) : BackgroundService
 {
@@ -121,6 +121,8 @@ public sealed class BotSweeper(BotPresence bots, Presence presence, IHubContext<
                     if (presence.TryGet(b.UserId, out _)) await group.BotStatus(b.UserId, null);
                     else await group.PlayerLeft(b.UserId);
                 }
+                // Bot rảnh đủ lâu → đi bộ ra Khu nghỉ (OfficeLoop phát vị trí từng bước)
+                bots.Settle(clock.GetUtcNow());
                 // Màn hình bot: tắt khi bot rời phòng / offline / 10 phút không cập nhật (2026-11-11)
                 await BotScreenEndpoints.SweepAsync(shows, bots, screens, presence, map, hub, clock.GetUtcNow());
             }

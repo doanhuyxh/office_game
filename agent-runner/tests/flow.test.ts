@@ -16,6 +16,7 @@ const TOKEN = 'ohk_flowtest_secret_123456', TG = '123456789:AAH-flow-test-token-
 const root = mkdtempSync(join(tmpdir(), 'runner-flow-'));
 const comments: { task: string; content: string }[] = [];
 let authOk = true;
+const presence: any[] = [];
 let updatesServed = false;
 const servers: { stop: () => void }[] = [];
 let runner: Runner;
@@ -54,6 +55,7 @@ beforeAll(async () => {
     port: 0,
     async fetch(req) {
       if (req.headers.get('authorization') !== `Bearer ${TOKEN}`) authOk = false;
+      if (new URL(req.url).pathname === '/mcp/presence') { presence.push(await req.json()); return new Response(null, { status: 204 }); }
       const m = await req.json() as any;
       const reply = (result: unknown) => Response.json({ jsonrpc: '2.0', id: m.id, result });
       if (m.method === 'initialize') return reply({ protocolVersion: '2025-06-18', capabilities: {} });
@@ -170,6 +172,10 @@ test('tin Telegram hợp lệ → job chạy trong worktree ngoài repo → push
   expect(log).not.toContain('runner-secret-should-not-pass'); // env của runner không lọt sang CLI
   expect(log).not.toContain(TOKEN);
   expect(existsSync(join(root, 'data/jobs', String(job.id), 'mcp.json'))).toBe(false); // dọn file tạm
+  // Văn phòng 3D: báo đang làm việc TEST-45 khi bắt đầu, rảnh khi xong
+  const working = presence.findIndex((p) => p.state === 'working');
+  expect(presence[working]?.task).toStartWith('TEST-45');
+  expect(presence.slice(working + 1).some((p) => p.state === 'idle')).toBe(true);
 }, 30000);
 
 test('việc được đánh thức lại → nối phiên cũ (resume_args) trong cùng worktree', async () => {

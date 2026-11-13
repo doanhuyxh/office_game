@@ -19,6 +19,22 @@ public class TaskColumnRulesTests
         Assert.All(d, c => Assert.True(TaskColumnRules.IsValidColor(c.Color)));
     }
 
+    [Theory]
+    [InlineData("Đang làm", 1, false, false, false, 0, true)]
+    [InlineData("Testing", 2, false, false, false, 0, true)]
+    [InlineData("Cần làm", 0, false, false, false, 0, false)]     // cột đầu = chưa bắt đầu
+    [InlineData("Chờ review", 2, false, false, false, 0, false)]  // chờ người duyệt → rảnh
+    [InlineData("Review", 2, false, false, false, 0, false)]
+    [InlineData("Chờ QA", 2, false, false, false, 0, false)]
+    [InlineData("Đợi duyệt", 2, false, false, false, 0, false)]
+    [InlineData("Xong", 3, true, true, false, 0, false)]
+    [InlineData("Duyệt nội bộ", 2, false, true, false, 0, false)]
+    [InlineData("Đang làm", 1, false, false, true, 0, false)]     // đã xong
+    [InlineData("Đang làm", 1, false, false, false, 1, false)]    // còn chờ việc khác
+    [InlineData("Chống lỗi", 1, false, false, false, 0, true)]    // "chong" không phải "cho "
+    public void In_progress(string name, int position, bool isDone, bool approverOnly, bool completed, int waitingOn, bool expected) =>
+        Assert.Equal(expected, TaskColumnRules.IsInProgress(name, position, isDone, approverOnly, completed, waitingOn));
+
     [Fact]
     public void Name_rules()
     {

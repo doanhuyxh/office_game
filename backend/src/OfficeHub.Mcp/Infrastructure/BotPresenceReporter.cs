@@ -21,6 +21,10 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
 {
     public const string RealtimeClientName = "officehub-realtime";
     private const int IdentityCacheMinutes = 5;
+    /// <summary>Nhớ "đang làm việc gì" (bảng việc) bấy nhiêu giây / token; tool đổi việc thì hỏi lại ngay.</summary>
+    private const int WorkCacheSeconds = 30;
+    /// <summary>Tool có thể đổi việc đang làm của bot → bỏ bản nhớ trạng thái làm việc.</summary>
+    private static readonly HashSet<string> WorkTools = ["update_task_status", "create_task", "update_task"];
     /// <summary>Tên tham số chỉ đối tượng đang thao tác (việc, dự án, tài liệu…) — hiện sau tiêu đề tool.</summary>
     private static readonly string[] TargetArgs = ["task", "project", "document", "request", "meeting", "department", "position", "employee", "place"];
 
@@ -43,19 +47,75 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
             try
             {
                 if (await GetCallerAsync(authorization, clientIp) is not { } caller) return;
-                using var req = new HttpRequestMessage(HttpMethod.Post, BotActivityRoute.Path)
-                {
-                    Content = JsonContent.Create(new BotActivity(caller.UserId, caller.Name, caller.Look, caller.Zone, activity), options: OfficeHubApi.Json),
-                };
-                req.Headers.Add(BotActivityRoute.KeyHeader, chat.Value.McpRealtimeKey);
-                using var res = await http.CreateClient(RealtimeClientName).SendAsync(req);
-                if (!res.IsSuccessStatusCode) log.LogWarning("Báo bot online cho Realtime: {Status}", (int)res.StatusCode);
+                var (busy, task) = await WorkAsync(authorization, clientIp, WorkTools.Contains(tool));
+                await SendAsync(new BotActivity(caller.UserId, caller.Name, caller.Look, caller.Zone, activity, busy, task));
             }
             catch (Exception e)
             {
                 log.LogWarning("Báo bot online cho Realtime thất bại: {Message}", e.Message);
             }
         });
+    }
+
+    /// <summary>
+    /// agent-runner báo trạng thái (<see cref="BotWork.PresencePath"/>): null = không phải tài khoản bot; false = Realtime không nhận.
+    /// </summary>
+    public async Task<bool?> ReportPresenceAsync(string authorization, string? clientIp, BotPresenceReport body)
+    {
+        if (string.IsNullOrEmpty(chat.Value.McpRealtimeKey)) return false;
+        if (await GetCallerAsync(authorization, clientIp) is not { } caller) return null;
+        var busy = body.State == BotWork.Working;
+        var task = busy ? Clip(body.Task, BotWork.MaxTask) : null;
+        var activity = busy ? Clip(body.Activity, BotWork.MaxActivity) ?? task ?? "Đang làm việc" : BotWork.IdleBubble;
+        return await SendAsync(new BotActivity(caller.UserId, caller.Name, caller.Look, caller.Zone, activity, busy, task, FromRunner: true));
+    }
+
+    private static string? Clip(string? s, int max) =>
+        string.IsNullOrWhiteSpace(s) ? null : (s = string.Join(' ', s.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))).Length > max ? s[..max] + "…" : s;
+
+    private async Task<bool> SendAsync(BotActivity activity)
+    {
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, BotActivityRoute.Path) { Content = JsonContent.Create(activity, options: OfficeHubApi.Json) };
+            req.Headers.Add(BotActivityRoute.KeyHeader, chat.Value.McpRealtimeKey);
+            using var res = await http.CreateClient(RealtimeClientName).SendAsync(req);
+            if (res.IsSuccessStatusCode) return true;
+            log.LogWarning("Báo bot online cho Realtime: {Status}", (int)res.StatusCode);
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+        {
+            log.LogWarning("Báo bot online cho Realtime thất bại: {Message}", e.Message);
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Bot đang làm việc gì theo bảng việc: việc được giao có <c>inProgress</c> (không ở cột đầu / chờ / hoàn thành / cần duyệt) → (true, "WEB-12 · Tên").
+    /// Api lỗi → (null, null) = không rõ, Realtime giữ trạng thái cũ.
+    /// </summary>
+    private async Task<(bool? Busy, string? Task)> WorkAsync(string authorization, string? clientIp, bool refresh)
+    {
+        var key = "work:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(authorization)));
+        if (refresh) cache.Remove(key);
+        if (cache.TryGetValue(key, out (bool? Busy, string? Task) cached)) return cached;
+        if (await GetJsonAsync(http.CreateClient(OfficeHubApi.HttpClientName), "/api/projects/tasks/mine", authorization, clientIp) is not JsonArray tasks)
+            return (null, null);
+        var work = BusyFrom(tasks);
+        cache.Set(key, work, TimeSpan.FromSeconds(WorkCacheSeconds));
+        return work;
+    }
+
+    internal static (bool? Busy, string? Task) BusyFrom(JsonArray tasks)
+    {
+        foreach (var t in tasks.OfType<JsonObject>())
+        {
+            if (t["inProgress"]?.GetValue<bool>() != true) continue;
+            var code = t["code"]?.GetValue<string>() ?? "";
+            var title = t["title"]?.GetValue<string>();
+            return (true, Clip(string.IsNullOrWhiteSpace(title) ? code : $"{code} · {title}", BotWork.MaxTask));
+        }
+        return (false, null);
     }
 
     /// <summary>"Chuyển trạng thái việc · WEB-12" — tiêu đề tool + đối tượng (bỏ qua id dạng Guid, cắt 40 ký tự).</summary>

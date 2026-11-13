@@ -19,7 +19,7 @@ namespace OfficeHub.Modules.Projects.Features;
 /// <param name="Done">Đang ở cột hoàn thành.</param>
 public sealed record TaskDto(Guid Id, Guid ProjectId, string Code, string Title, string? Description, Guid ColumnId, string ColumnName, string ColumnColor, bool Done, double Rank, Guid? AssigneeEmployeeId, string? AssigneeName,
     Guid? MilestoneId, DateOnly? DueOn, decimal? EstimateDays, bool Overdue, int CommentCount, DateTimeOffset CreatedAt, string CreatedByName, DateTimeOffset? CompletedAt,
-    List<string> MediaLinks, string? ProjectName = null, bool CreatedByBot = false, int WaitingOn = 0);
+    List<string> MediaLinks, string? ProjectName = null, bool CreatedByBot = false, int WaitingOn = 0, bool InProgress = false);
 /// <summary>Việc liên quan (chờ / đang chặn) — mã, tên, đã xong chưa.</summary>
 public sealed record TaskRefDto(Guid Id, string Code, string Title, bool Done);
 /// <param name="DependsOn">Mã / id các việc phải xong trước (tối đa 10, cùng dự án) — thay toàn bộ danh sách; rỗng = bỏ hết.</param>
@@ -68,7 +68,7 @@ internal static class TaskEndpoints
             .ToDictionaryAsync(x => x.Key, x => x.N, ct);
         var projects = await db.Projects.AsNoTracking().Where(p => rows.Select(t => t.ProjectId).Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => new { p.Code, p.Name }, ct);
         var columnIds = rows.Select(t => t.ColumnId).Distinct().ToList();
-        var columns = await db.Columns.AsNoTracking().Where(c => columnIds.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => new { c.Name, c.Color }, ct);
+        var columns = await db.Columns.AsNoTracking().Where(c => columnIds.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => new { c.Name, c.Color, c.Position, c.IsDone, c.ApproverOnly }, ct);
         var emps = await access.EmployeesAsync(ct);
         var today = clock.Today;
         var waiting = await (from d in db.Dependencies.AsNoTracking()
@@ -80,7 +80,8 @@ internal static class TaskEndpoints
             columns.GetValueOrDefault(t.ColumnId)?.Name ?? "?", columns.GetValueOrDefault(t.ColumnId)?.Color ?? TaskColumnRules.DefaultColor, t.CompletedAt != null, t.Rank,
             t.AssigneeEmployeeId, t.AssigneeEmployeeId is { } a && emps.TryGetValue(a, out var e) ? e.FullName : null, t.MilestoneId, t.DueOn, t.EstimateDays,
             EffortRules.IsOverdue(t.DueOn, t.CompletedAt != null, today), counts.GetValueOrDefault(t.Id), t.CreatedAt, t.CreatedByName, t.CompletedAt, t.MediaLinks,
-            withProject ? projects[t.ProjectId].Name : null, t.CreatedByBot, waiting.GetValueOrDefault(t.Id))).ToList();
+            withProject ? projects[t.ProjectId].Name : null, t.CreatedByBot, waiting.GetValueOrDefault(t.Id),
+            columns.GetValueOrDefault(t.ColumnId) is { } col && TaskColumnRules.IsInProgress(col.Name, col.Position, col.IsDone, col.ApproverOnly, t.CompletedAt != null, waiting.GetValueOrDefault(t.Id)))).ToList();
     }
 
     private static async Task<Results<Ok<List<TaskDto>>, NotFound>> ListAsync(Guid id, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, ProjectClock clock,

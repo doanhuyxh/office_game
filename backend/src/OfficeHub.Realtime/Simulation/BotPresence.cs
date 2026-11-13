@@ -19,6 +19,16 @@ public sealed class Bot
     public BotSpot? Spot;
     /// <summary>Gọi go_to rồi → ở lại chỗ đó (kể cả đổi khu phòng ban) cho tới lần go_to kế (chủ dự án chốt 2026-11-11).</summary>
     public bool Explicit;
+    /// <summary>Đang làm (true) / rảnh (false) / chưa rõ (null) — <see cref="BotWork"/>.</summary>
+    public bool? Busy;
+    /// <summary>Việc đang làm ("WEB-12 · Tên việc"), null khi rảnh / không rõ.</summary>
+    public string? Task;
+    /// <summary>Lần cuối agent-runner báo trạng thái — trong <see cref="BotPresence.Timeout"/> thì bỏ qua trạng thái suy từ bảng việc.</summary>
+    public DateTimeOffset RunnerAt;
+    /// <summary>Rảnh từ lúc nào (null khi đang làm) — rảnh đủ <see cref="BotWork.IdleDelaySeconds"/> mới ra Khu nghỉ.</summary>
+    public DateTimeOffset? IdleSince;
+    /// <summary>Chỗ hiện tại là chỗ nghỉ (Khu nghỉ / Pantry).</summary>
+    public bool AtRest;
     public readonly Queue<(double X, double Z)> Path = new();
     public bool Dirty;
 }
@@ -29,10 +39,14 @@ public sealed class Bot
 /// Chỗ mặc định: bàn trống trong khu phòng ban (<c>seats[].zone</c> = <c>departments.MapZone</c>) → khu làm việc chung → bàn bất kỳ
 /// (thử cùng một bàn trước theo băm userId). Tool <c>go_to</c> → đi bộ (A* trên <see cref="NavGrid"/>, 4,2 m/s như người) tới phòng / khu /
 /// bàn / cạnh một người và ở lại đó; chỗ đã chọn được nhớ cả khi bot offline rồi online lại (mất khi Realtime khởi động lại).
+/// Đang làm / rảnh (2026-11-13, <see cref="BotWork"/>): đang làm → bàn; rảnh đủ <see cref="BotWork.IdleDelaySeconds"/> giây → đi bộ ra Khu nghỉ
+/// (hết chỗ → Pantry → đứng trong Khu nghỉ). Chỗ go_to giữ tới khi bot đổi giữa đang làm ↔ rảnh.
 /// </summary>
 public sealed class BotPresence(OfficeMap map, Presence presence)
 {
     public const string SharedZone = "work";
+    /// <summary>Chỗ nghỉ theo thứ tự ưu tiên (id phòng trong shared/office-map.json).</summary>
+    public static readonly string[] RestRooms = ["lounge", "pantry"];
     public const double Speed = 4.2;
     public static readonly TimeSpan Timeout = TimeSpan.FromMinutes(BotActivityRoute.OnlineMinutes);
     private readonly ConcurrentDictionary<string, Bot> _bots = new();
@@ -45,7 +59,10 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
 
     public bool TryGet(string userId, out Bot bot) => _bots.TryGetValue(userId, out bot!);
 
-    /// <summary>Ghi nhận hoạt động; trả về bot + true nếu bot vừa online (hoặc vừa đổi bàn vì đổi khu).</summary>
+    /// <summary>
+    /// Ghi nhận hoạt động; trả về bot + true nếu bot vừa được ĐẶT (online / đổi bàn vì đổi khu — client gỡ avatar rồi thêm lại).
+    /// Đổi đang làm ↔ rảnh thì bot đi bộ (Path) — không tính là "đặt".
+    /// </summary>
     public (Bot Bot, bool Placed) Record(BotActivity a, DateTimeOffset now)
     {
         var id = a.UserId.ToString();
@@ -55,8 +72,16 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
             bot ??= new Bot { UserId = id };
             bot.Name = a.Name.Length > 100 ? a.Name[..100] : a.Name;
             bot.Look = a.Look;
-            bot.Activity = a.Activity.Length > 120 ? a.Activity[..120] : a.Activity;
             bot.LastAt = now;
+            var flipped = ApplyWork(bot, a, now);
+            bot.Activity = Bubble(bot, a.Activity);
+            var leftExplicit = flipped && !isNew && bot.Explicit;
+            if (leftExplicit)
+            {
+                // Chỗ go_to giữ tới khi bot đổi giữa đang làm ↔ rảnh (chủ dự án 2026-11-13)
+                bot.Explicit = false;
+                _remembered.TryRemove(id, out _);
+            }
             var placed = false;
             if (isNew && _remembered.TryGetValue(id, out var keep) && !Taken(id, keep.SpotKey))
             {
@@ -64,15 +89,122 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
                 Place(bot, keep);
                 placed = true;
             }
-            else if (isNew || (!bot.Explicit && (bot.Zone != a.Zone || bot.Spot is null)))
+            else if (isNew)
             {
                 bot.Zone = a.Zone;
-                Place(bot, DeskSpot(id, a.Zone));
+                // Vừa online mà đang rảnh → ngồi luôn ở Khu nghỉ (không chờ, không đi bộ)
+                if (bot.Busy == false && RestSpot(id) is { } rest) { Place(bot, rest); bot.AtRest = true; }
+                else Place(bot, DeskSpot(id, a.Zone));
                 placed = true;
             }
+            else if (!bot.Explicit)
+            {
+                var zoneChanged = bot.Zone != a.Zone;
+                bot.Zone = a.Zone;
+                if (bot.Busy == true && (bot.AtRest || leftExplicit)) WalkTo(bot, DeskSpot(id, a.Zone), rest: false);
+                else if (!bot.AtRest && (zoneChanged || bot.Spot is null)) { Place(bot, DeskSpot(id, a.Zone)); placed = true; }
+                else if (!bot.AtRest) GoRestIfIdle(bot, now);
+            }
+            else bot.Zone = a.Zone;
             _bots[id] = bot;
             return (bot, placed);
         }
+    }
+
+    /// <summary>Cập nhật đang làm / rảnh. Trả true nếu vừa đổi giữa hai trạng thái đã biết (hoặc lần đầu biết).</summary>
+    private static bool ApplyWork(Bot bot, BotActivity a, DateTimeOffset now)
+    {
+        if (a.FromRunner) bot.RunnerAt = now;
+        else if (now - bot.RunnerAt <= Timeout) return false; // agent-runner vừa báo → không lấy trạng thái suy từ bảng việc
+        if (a.Busy is not { } busy) return false;
+        bot.Task = busy ? Clip(a.Task, BotWork.MaxTask) : null;
+        if (bot.Busy == busy) return false;
+        bot.Busy = busy;
+        bot.IdleSince = busy ? null : now;
+        return true;
+    }
+
+    /// <summary>
+    /// Bong bóng trên đầu: đang làm → "🛠 WEB-12 · thao tác" (thao tác đã ghi mã việc thì giữ nguyên); rảnh → "☕ Đang nghỉ"
+    /// (trừ nói chuyện / đi lại / trình chiếu — vẫn hiện như cũ); chưa rõ → thao tác.
+    /// </summary>
+    internal static string Bubble(Bot bot, string activity)
+    {
+        activity = activity.Length > 120 ? activity[..120] : activity;
+        if (bot.Busy == false)
+            return activity.StartsWith("💬") || activity.StartsWith("🚶") || activity.StartsWith("🖥") || activity.StartsWith("📝") ? activity : BotWork.IdleBubble;
+        if (bot.Busy == true && bot.Task is { Length: > 0 } task)
+        {
+            var code = task.Split(' ')[0];
+            if (activity.Contains(code, StringComparison.OrdinalIgnoreCase) || activity.StartsWith("💬") || activity.StartsWith("🚶")) return activity;
+            var line = $"🛠 {task}";
+            return string.IsNullOrWhiteSpace(activity) || activity == task ? line : Clip($"🛠 {code} · {activity}", 120)!;
+        }
+        return activity;
+    }
+
+    private static string? Clip(string? s, int max) =>
+        string.IsNullOrWhiteSpace(s) ? null : (s = s.Trim()).Length > max ? s[..max] + "…" : s;
+
+    /// <summary>
+    /// Gọi định kỳ (<c>BotSweeper</c>, 15 giây): bot rảnh đủ <see cref="BotWork.IdleDelaySeconds"/> giây mà chưa ở chỗ nghỉ → bắt đầu đi ra Khu nghỉ.
+    /// Trả các bot vừa bắt đầu đi.
+    /// </summary>
+    public List<Bot> Settle(DateTimeOffset now)
+    {
+        var moved = new List<Bot>();
+        lock (_lock)
+            foreach (var b in _bots.Values)
+                if (!b.Explicit && !b.AtRest && GoRestIfIdle(b, now)) moved.Add(b);
+        return moved;
+    }
+
+    private bool GoRestIfIdle(Bot bot, DateTimeOffset now)
+    {
+        if (bot.Busy != false || bot.IdleSince is not { } since || (now - since).TotalSeconds < BotWork.IdleDelaySeconds) return false;
+        if (presence.TryGet(bot.UserId, out _)) return false; // người thật đang dùng tài khoản → không có avatar bot để đi
+        return RestSpot(bot.UserId) is { } rest && WalkTo(bot, rest, rest: true);
+    }
+
+    /// <summary>Đi bộ tới <paramref name="spot"/> (A*). Không có đường → đứng yên, trả false.</summary>
+    private bool WalkTo(Bot bot, BotSpot spot, bool rest)
+    {
+        if (!PlanPath(bot, spot, out _)) return false;
+        bot.Spot = spot;
+        bot.AtRest = rest;
+        bot.Anim = bot.Path.Count > 0 ? (byte)1 : (spot.Sit ? (byte)2 : (byte)0);
+        bot.Dirty = true;
+        return true;
+    }
+
+    /// <summary>Đường đi từ chỗ bot tới <paramref name="spot"/> vào <see cref="Bot.Path"/>; false = không có đường.</summary>
+    private bool PlanPath(Bot bot, BotSpot spot, out double distance)
+    {
+        distance = 0;
+        var path = map.Nav.FindPath(bot.X, bot.Z, spot.X, spot.Z);
+        if (path.Count == 0 && Math.Abs(bot.X - spot.X) + Math.Abs(bot.Z - spot.Z) > 0.3) return false;
+        bot.Path.Clear();
+        foreach (var p in path) bot.Path.Enqueue(p);
+        // Ngồi bàn / ghế: điểm cuối đường đi là ô trống cạnh ghế → bước nốt vào đúng chỗ ngồi
+        if (spot.Sit && (path.Count == 0 || Math.Abs(path[^1].X - spot.X) + Math.Abs(path[^1].Z - spot.Z) > 0.01)) bot.Path.Enqueue((spot.X, spot.Z));
+        double px = bot.X, pz = bot.Z;
+        foreach (var p in bot.Path) { distance += Math.Sqrt((p.X - px) * (p.X - px) + (p.Z - pz) * (p.Z - pz)); (px, pz) = (p.X, p.Z); }
+        return true;
+    }
+
+    /// <summary>Chỗ nghỉ: ghế / beanbag trống ở Khu nghỉ → Pantry (theo băm userId) → đứng trong Khu nghỉ. null = bản đồ không có chỗ nghỉ.</summary>
+    private BotSpot? RestSpot(string userId)
+    {
+        var hash = StableHash(userId);
+        var rooms = RestRooms.Select(id => map.Rooms.FirstOrDefault(r => r.Id == id)).OfType<Room>().ToArray();
+        foreach (var room in rooms)
+        {
+            var chairs = _chairs.Where(c => room.Contains(c.X, c.Z) && !Taken(userId, c.Id)).ToArray();
+            if (chairs.Length == 0) continue;
+            var c = chairs[(int)(hash % (uint)chairs.Length)];
+            return new BotSpot(c.X, c.Z, c.Angle, true, c.Id, room.Name, room.Walls ? room.Id : null);
+        }
+        return rooms.FirstOrDefault() is { } first ? StandNear((first.X0 + first.X1) / 2, (first.Z0 + first.Z1) / 2, first.Name, first.Walls ? first.Id : null) : null;
     }
 
     /// <summary>Đặt bot ngay tại chỗ (lúc vừa online — không đi bộ).</summary>
@@ -95,16 +227,10 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
             if (!_bots.TryGetValue(userId, out var bot)) return "Bot chưa có mặt trong văn phòng";
             var spot = SpotFor(bot, place);
             if (spot is null) return $"Không còn chỗ trống ở {place.Name}";
-            var path = map.Nav.FindPath(bot.X, bot.Z, spot.X, spot.Z);
-            if (path.Count == 0 && Math.Abs(bot.X - spot.X) + Math.Abs(bot.Z - spot.Z) > 0.3) return $"Không có đường tới {place.Name}";
-            bot.Path.Clear();
-            foreach (var p in path) bot.Path.Enqueue(p);
-            // Ngồi bàn / ghế: điểm cuối đường đi là ô trống cạnh ghế → bước nốt vào đúng chỗ ngồi
-            if (spot.Sit && (path.Count == 0 || Math.Abs(path[^1].X - spot.X) + Math.Abs(path[^1].Z - spot.Z) > 0.01)) bot.Path.Enqueue((spot.X, spot.Z));
-            double px = bot.X, pz = bot.Z;
-            foreach (var p in bot.Path) { distance += Math.Sqrt((p.X - px) * (p.X - px) + (p.Z - pz) * (p.Z - pz)); (px, pz) = (p.X, p.Z); }
+            if (!PlanPath(bot, spot, out distance)) return $"Không có đường tới {place.Name}";
             bot.Spot = spot;
             bot.Explicit = true;
+            bot.AtRest = map.Rooms.Any(r => RestRooms.Contains(r.Id) && r.Contains(spot.X, spot.Z));
             _remembered[userId] = spot;
             bot.Anim = bot.Path.Count > 0 ? (byte)1 : (spot.Sit ? (byte)2 : (byte)0);
             bot.Dirty = true;

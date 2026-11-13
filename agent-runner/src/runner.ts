@@ -5,6 +5,7 @@ import { modelLine, modelMatches } from './executor/model';
 import { adapters, runExecutor, type RunOutcome } from './executor/run';
 import { errText, log, redact, registerSecret } from './log';
 import { OfficeHubClient } from './officehub';
+import { PresenceReporter } from './presence';
 import { buildPrompt, mcpConfig } from './prompt';
 import { Store, type Job } from './store';
 import { TelegramClient, type TgMessage } from './telegram';
@@ -15,6 +16,8 @@ interface AgentState {
   cfg: AgentConfig;
   hub: OfficeHubClient;
   tg: TelegramClient;
+  /** Trạng thái đang làm / rảnh trong văn phòng 3D (bàn ↔ Khu nghỉ). */
+  presence: PresenceReporter;
   employeeId?: string;
   enabled: boolean;
   problem?: string;
@@ -37,6 +40,7 @@ export class Runner {
       registerSecret(a.telegramToken);
       this.agents.set(a.employeeCode, {
         cfg: a, hub: new OfficeHubClient(config.mcpUrl, a.token), tg: new TelegramClient(config.telegramApiUrl, a.telegramToken), enabled: false,
+        presence: new PresenceReporter(config.mcpUrl, a.token, a.employeeCode),
       });
     }
   }
@@ -215,6 +219,7 @@ export class Runner {
       const detail = await s.hub.getTask(job.task_id);
       const c = checkTask(detail, w, s.employeeId!);
       if (!c.ok) { this.store.finish(job.id, 'skipped', { reason: c.reason }); log('info', 'bỏ job', { job: job.id, reason: c.reason }); return; }
+      s.presence.working(job.task_code, c.value.title);
 
       const git = this.gitFor(s.cfg);
       const inPlace = s.cfg.workspace.mode === 'in_place';
@@ -252,6 +257,7 @@ export class Runner {
 
       const onActivity = (action: string) => {
         log('info', 'agent đang làm', { job: job.id, agent: job.agent, task: job.task_code, action });
+        s.presence.activity(action);
         // activity.log: bản đọc được của phiên (output.log là stream-json thô) — mỗi thao tác một dòng kèm giờ.
         try { appendFileSync(join(jobDir, 'activity.log'), redact(`${new Date().toTimeString().slice(0, 8)}  ${action}\n`)); } catch { /* không chặn job vì log */ }
       };
@@ -301,6 +307,7 @@ export class Runner {
       log('error', 'job lỗi', { job: job.id, task: job.task_code, error: errText(e) });
     } finally {
       this.running.delete(job.id);
+      s.presence.idle();
       for (const f of ['prompt.md', 'mcp.json']) rmSync(join(jobDir, f), { force: true }); // giữ output.log để tra lỗi
     }
   }
@@ -311,12 +318,13 @@ export class Runner {
     for (const line of await this.checkAgents(undefined, true, modelCheck)) log(line.startsWith('✘') ? 'error' : line.startsWith('⚠') ? 'warn' : 'info', line);
     const enabled = [...this.agents.values()].filter((a) => a.enabled);
     if (enabled.length === 0) throw new Error('Không agent nào chạy được — xem các dòng ✘ ở trên (chạy `doctor`)');
-    for (const s of enabled) void this.listen(s);
+    for (const s of enabled) { s.presence.start(); void this.listen(s); }
     await this.schedule();
   }
 
   stop() {
     this.abort.abort();
+    for (const s of this.agents.values()) s.presence.stop();
     for (const c of this.running.values()) c.abort();
   }
 }
