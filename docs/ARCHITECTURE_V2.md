@@ -29,8 +29,8 @@
 | **LaborContracts**: hợp đồng (vô thời hạn / có thời hạn ≤ 36 tháng / thử việc ≤ 180 ngày), phụ lục, lương mã hoá AES-GCM, file S3, nhắc HR + quản lý 30 / 7 ngày; nhân viên xem của mình | ✅ |
 | **Reporting**: Excel bảng công (tổng hợp · lưới công · chi tiết giờ VN), tiền tăng ca (lương HĐ ÷ ngày công chuẩn ÷ 8 × 150/200/300%), tiền phép chưa dùng **khi nghỉ việc** | ✅ |
 | **Mẫu hợp đồng Word**: HR tải .docx có `{{Truong}}`, xuất hợp đồng điền sẵn (lương bằng chữ) | ✅ |
-| **Meetings**: đặt phòng họp, chặn trùng giờ, mời (chuông + email), bảng "Đang họp" trong văn phòng 3D | ✅ |
-| **Kết nối AI (MCP)**: host `OfficeHub.Mcp` 97 tool cho Claude / Cursor / Codex / GitHub Copilot, token cá nhân + OAuth 2.1, nhật ký AI (Audit), không hợp đồng / lương — `.agent/business/mcp.md` | ✅ |
+| **Meetings**: đặt phòng họp, chặn trùng giờ, mời (chuông + email), bảng "Đang họp" trong văn phòng 3D · **họp agent** (TEST-74..76, 82, 83, 85): người thật mở / dừng, bot chủ trì chia lượt nói, đánh thức `meeting_turn` (Telegram + webhook), trần lượt / phút, tool MCP họp, bot đi vào phòng trong 3D — `.agent/business/meetings-agents.md` | ✅ |
+| **Kết nối AI (MCP)**: host `OfficeHub.Mcp` 101 tool cho Claude / Cursor / Codex / GitHub Copilot, token cá nhân + OAuth 2.1, nhật ký AI (Audit), không hợp đồng / lương — `.agent/business/mcp.md` | ✅ |
 | **Audit**: lịch sử sửa dữ liệu nhân sự (`[Audited]` + interceptor EF, che lương) + nhật ký AI | ✅ |
 | **Nhập nhân viên từ Excel** (mẫu, xem trước lỗi từng dòng, nhập hết hoặc không) | ✅ |
 | Docker image (api, realtime, web), compose production, backup S3, CI GitHub Actions | ✅ (chưa deploy thật) |

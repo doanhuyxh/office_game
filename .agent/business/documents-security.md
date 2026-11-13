@@ -26,7 +26,7 @@ Chủ dự án chốt 2026-11-12: Hạn chế / Mật **chỉ quản trị, HR v
 - `POST /assets/text` `{spaceKind, spaceId, folderId?, docTypeId?, title, format: md|txt|csv, content ≤ 1.000.000 ký tự, description?, tags?}` → Api tự ghi file lên S3 (`documents/{yyyy}/{MM}/{guid}/…`), tạo tài liệu **Nháp, Nội bộ**, phiên bản 1 ghi chú "Tạo qua trợ lý AI" (khi gọi bằng token). Cùng quyền kho như tải lên thường. Web cũng gọi được.
 - `POST /assets/{id}/submit` bằng token: **luôn tạo đơn duyệt** (quản lý trực tiếp, không có thì HR) — bỏ qua "tự ban hành" của chức vụ (`SelfPublishDocuments`), trên web vẫn tự ban hành như cũ. Token không bao giờ duyệt đơn (quy tắc chung [agent-team.md](agent-team.md)).
 - Token route mở thêm: chỉ `POST /api/documents/assets/text` và `/assets/{id}/submit` (`AccessTokenAuth`, test `AccessTokenScopeTests`). Tải file nhị phân, sửa, xoá, lưu trữ, `protected-file`, nhật ký, quản trị vẫn 403.
-- Tool: `create_document`, `submit_document` (tổng 78 tool — [mcp.md](mcp.md)).
+- Tool: `create_document`, `submit_document` ([mcp-tools.md](mcp-tools.md)).
 
 ## Test
 

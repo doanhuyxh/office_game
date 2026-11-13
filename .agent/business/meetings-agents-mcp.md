@@ -1,6 +1,6 @@
 # Tool MCP cho cuộc họp agent (TEST-82)
 
-> Về [meetings-agents.md](meetings-agents.md) (phiên họp, lượt nói, endpoint) · danh sách tool: [mcp.md](mcp.md).
+> Về [meetings-agents.md](meetings-agents.md) (phiên họp, lượt nói, endpoint) · danh sách tool: [mcp-tools.md](mcp-tools.md).
 
 `OfficeHub.Mcp/Tools/MeetingSessionTools.cs` — chỉ tài khoản bot đang dự phiên, gọi lại REST bằng token của bot (Mcp không đọc DB). **Không có tool mở / dừng họp.**
 
