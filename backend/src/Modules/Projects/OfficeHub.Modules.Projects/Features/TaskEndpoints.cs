@@ -347,7 +347,7 @@ internal static class TaskEndpoints
         var note = ProjectEndpoints.Clean(r.Note);
         notified.AddRange(await NotifyMovedAsync(notifier, dir, telegram, p, t, cols, from, note, v, ct));
         await NotifyMembersMovedAsync(notifier, access, p, t, cols, from, note, v, notified, ct);
-        if (!wasDone && t.CompletedAt != null) await NotifyUnblockedAsync(notifier, dir, db, p, t, v, ct);
+        if (!wasDone && t.CompletedAt != null) await NotifyUnblockedAsync(notifier, dir, telegram, db, p, t, v, ct);
         return TypedResults.NoContent();
     }
 
@@ -372,7 +372,7 @@ internal static class TaskEndpoints
         var note = ProjectEndpoints.Clean(r.Note);
         var notified = await NotifyMovedAsync(notifier, dir, telegram, p, t, cols, from, note, v, ct);
         await NotifyMembersMovedAsync(notifier, access, p, t, cols, from, note, v, notified, ct);
-        if (!wasDone && t.CompletedAt != null) await NotifyUnblockedAsync(notifier, dir, db, p, t, v, ct);
+        if (!wasDone && t.CompletedAt != null) await NotifyUnblockedAsync(notifier, dir, telegram, db, p, t, v, ct);
         return TypedResults.NoContent();
     }
 
@@ -389,8 +389,8 @@ internal static class TaskEndpoints
     /// <paramref name="done"/> vừa xong → các việc đang chờ nó mà nay đã hết chờ: báo người làm (chưa giao → quản lý dự án).
     /// Chuông + webhook → agent được giao tự bắt đầu, không cần ai điều phối.
     /// </summary>
-    private static async Task NotifyUnblockedAsync(INotifier notifier, IEmployeeDirectory dir, ProjectsDbContext db, Project p, TaskItem done, ProjectViewer v,
-        CancellationToken ct)
+    private static async Task NotifyUnblockedAsync(INotifier notifier, IEmployeeDirectory dir, ITelegramWakeup telegram, ProjectsDbContext db, Project p, TaskItem done,
+        ProjectViewer v, CancellationToken ct)
     {
         var dependents = await (from d in db.Dependencies.AsNoTracking() join x in db.Tasks.AsNoTracking() on d.TaskId equals x.Id
                                 where d.DependsOnId == done.Id && x.CompletedAt == null select x).ToListAsync(ct);
@@ -402,7 +402,12 @@ internal static class TaskEndpoints
             var to = new List<Guid>();
             if (x.AssigneeEmployeeId is { } a)
             {
-                if (await UserOfAsync(dir, a, ct) is { } u) to.Add(u);
+                if (await dir.GetAsync(a, ct) is { UserId: { } u } emp)
+                {
+                    to.Add(u);
+                    // TEST-86: đánh thức bot làm việc này qua Telegram (runner chỉ nghe Telegram). Việc chưa giao → không gửi.
+                    if (u != v.UserId) await telegram.TaskReadyAsync(u, emp.Code, p.Id, x.Id, EffortRules.TaskCode(p.Code, x.Number), ct);
+                }
             }
             else
                 foreach (var m in p.Members.Where(m => m.Role == ProjectMemberRole.Manager))

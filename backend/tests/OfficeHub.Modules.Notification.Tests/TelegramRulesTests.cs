@@ -23,6 +23,20 @@ public class TelegramRulesTests
     }
 
     [Fact]
+    public void Ready_wake_message_has_same_fields_as_assigned()
+    {
+        var p = Guid.NewGuid(); var t = Guid.NewGuid();
+        var text = TelegramRules.WakeMessage("NV018", p, t, "TEST-75", TelegramRules.Ready);
+        Assert.DoesNotContain('\n', text);
+        using var doc = JsonDocument.Parse(text);
+        Assert.Equal(["employee_code", "project_id", "task_id", "task_code", "event"], doc.RootElement.EnumerateObject().Select(x => x.Name).ToArray());
+        Assert.Equal(p.ToString(), doc.RootElement.GetProperty("project_id").GetString());
+        Assert.Equal(t.ToString(), doc.RootElement.GetProperty("task_id").GetString());
+        Assert.Equal("TEST-75", doc.RootElement.GetProperty("task_code").GetString());
+        Assert.Equal("ready", doc.RootElement.GetProperty("event").GetString());
+    }
+
+    [Fact]
     public void Mention_wake_message_carries_comment_id()
     {
         var c = Guid.NewGuid();

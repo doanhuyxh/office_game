@@ -116,8 +116,8 @@ ok('Admin thấy đủ 5 kênh theo thứ tự', r.status === 200 && JSON.string
 ok('Chuông: có sẵn, hoạt động, dùng cho mọi sự kiện có chuông (từ danh mục)', by('bell').source === 'builtin' && by('bell').health === 'ok'
   && by('bell').usedBy.length >= 37 && by('bell').usedBy.some((u: any) => u.key === 'approval.requested' && u.label === 'Có đơn chờ duyệt')
   && !by('bell').usedBy.some((u: any) => u.key.startsWith('chat.')), by('bell'));
-ok('Chip "Dùng cho" lấy từ danh mục: Telegram = giao + trả lại việc + @nhắc, webhook có tin 1-1, email không có giao việc',
-  JSON.stringify(by('telegram').usedBy.map((u: any) => u.key)) === JSON.stringify(['projects.task_assigned', 'projects.task_returned', 'projects.task_mention'])
+ok('Chip "Dùng cho" lấy từ danh mục: Telegram = giao + trả lại việc + @nhắc + hết chờ + @nhắc chat, webhook có tin 1-1, email không có giao việc',
+  JSON.stringify(by('telegram').usedBy.map((u: any) => u.key)) === JSON.stringify(['projects.task_assigned', 'projects.task_returned', 'projects.task_mention', 'projects.task_ready', 'chat.mention'])
   && by('webhook').usedBy.some((u: any) => u.key === 'chat.direct') && by('push').usedBy.some((u: any) => u.key === 'chat.room')
   && by('email').usedBy.some((u: any) => u.key === 'people.account_security') && !by('email').usedBy.some((u: any) => u.key === 'projects.task_assigned'),
   { telegram: by('telegram').usedBy, email: by('email').usedBy.map((u: any) => u.key) });

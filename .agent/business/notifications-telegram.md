@@ -1,8 +1,8 @@
-# Kênh Telegram — đánh thức agent (TEST-42, @nhắc: TEST-63)
+# Kênh Telegram — đánh thức agent (TEST-42, @nhắc: TEST-63, hết chờ: TEST-86)
 
 > Về [notifications.md](notifications.md) · cấu hình lưu DB: [../env.md](../env.md#cấu-hình-lưu-trong-db-test-41) · bối cảnh agent: [agent-team.md](agent-team.md)
 
-**Mục đích:** khi một việc được **giao cho tài khoản bot** (cờ IsBot), OfficeHub gửi **đúng một tin** vào một nhóm Telegram. Bộ điều phối trên máy chạy agent đọc tin rồi cho agent làm việc đó (TEST-44). Hiện có bốn sự kiện: **giao việc**, **trả lại việc** (lùi kèm lý do), **bot được @nhắc trong bình luận việc** và **bot được @nhắc trong tin nhắn chat** (TEST-70); thông báo khác chưa đi qua Telegram. Thêm sự kiện Telegram = thêm phương thức `ITelegramWakeup` **và** dòng trong danh mục sự kiện ([notifications-catalog.md](notifications-catalog.md), test bắt buộc).
+**Mục đích:** khi một việc được **giao cho tài khoản bot** (cờ IsBot), OfficeHub gửi **đúng một tin** vào một nhóm Telegram. Bộ điều phối trên máy chạy agent đọc tin rồi cho agent làm việc đó (TEST-44). Hiện có năm sự kiện: **giao việc**, **trả lại việc** (lùi kèm lý do), **việc hết phải chờ** (TEST-86), **bot được @nhắc trong bình luận việc** và **bot được @nhắc trong tin nhắn chat** (TEST-70); thông báo khác chưa đi qua Telegram. Thêm sự kiện Telegram = thêm phương thức `ITelegramWakeup` **và** dòng trong danh mục sự kiện ([notifications-catalog.md](notifications-catalog.md), test bắt buộc).
 
 ## Cấu hình
 
@@ -15,6 +15,8 @@
 
 **Trả lại việc:** `NotifyMovedAsync` → `ITelegramWakeup.TaskReturnedAsync` khi việc lùi kèm lý do (`MoveNotice.Returned`, vd Review → Cần làm) và người làm là bot, không phải người thao tác. Tin `event: returned` (hàng đợi `Kind = task_returned`); runner kiểm tra lại việc qua MCP rồi làm lại, đọc lý do ở bình luận / chuông. Duyệt xong (Done) không gửi.
 
+**Hết chờ (TEST-86):** việc vừa sang cột hoàn thành → `NotifyUnblockedAsync` (đúng chỗ phát chuông "Sẵn sàng") → `ITelegramWakeup.TaskReadyAsync` cho mỗi việc chờ nó mà nay hết chờ, **chỉ khi việc có người làm** và người làm không phải người thao tác. Việc chưa giao (chuông đi tới quản lý dự án) / còn chờ việc khác → không gửi. Tin `event: ready` (hàng đợi `Kind = task_ready`), cùng 4 trường như giao việc → runner hiện tại nhận ngay (kiểm tra lại việc qua MCP). Một lần chuyển Xong → mỗi việc hết chờ đúng một tin; việc trước bị mở lại rồi Xong lần nữa có thể gửi lại (runner có khoá theo `task_id`).
+
 **Được @nhắc (TEST-63):** `AddCommentAsync` → `ITelegramWakeup.TaskMentionedAsync` cho mỗi thành viên dự án được `@mã-NV` (`AgentTeamRules.MentionWakeTargets`): còn làm việc, có tài khoản, **không phải người viết** (bot tự nhắc mình → không gửi); **gồm cả người làm việc** (chuông bình luận không đánh thức agent). Người thật / bot đã khoá bị bỏ trong `TelegramWakeup` như các sự kiện khác. Tin `event: mentioned` + `comment_id` (hàng đợi `Kind = task_mentioned`). Bot nhắc bot vẫn bị chặn vòng lặp bởi `StreakErrorAsync` (bình luận bị 409 → không có tin).
 
 **Được @nhắc trong chat (TEST-70):** `ChatEndpoints` (gửi / sửa tin ở Office / Room / Group) → `ITelegramWakeup.ChatMentionedAsync` cho mỗi người được nhắc (đã lọc thành viên, bỏ người gửi); bỏ hẳn khi người gửi là bot (chống vòng lặp). Tin `{"employee_code","event":"chat_mention","conversation_id","message_id"}` — **không** có task_id / nội dung (`TelegramRules.ChatWakeMessage`; hàng đợi `Kind = chat_mention`, `TaskId` trống). Agent đọc bằng MCP `read_chat`. **Runner** hiện bỏ qua tin này (validator đòi `project_id` / `task_id` GUID) — xử lý `chat_mention` do người thật sửa `agent-runner/`.
@@ -22,9 +24,10 @@
 Tin = một dòng JSON (không nhắc bot, không có tên / mô tả việc / nội dung bình luận — agent tự đọc qua MCP):
 ```
 {"employee_code":"NV012","project_id":"…","task_id":"…","task_code":"TEST-35","event":"assigned"}
+{"employee_code":"NV018","project_id":"…","task_id":"…","task_code":"TEST-75","event":"ready"}
 {"employee_code":"NV018","project_id":"…","task_id":"…","task_code":"TEST-63","event":"mentioned","comment_id":"…"}
 ```
-`event` = `assigned` / `returned` / `mentioned` (hằng `TelegramRules.Assigned/Returned/Mentioned`); tin cũ không có `event` = `assigned`. (`TelegramRules.WakeMessage`, test ở `TelegramRulesTests`.)
+`event` = `assigned` / `returned` / `ready` / `mentioned` (hằng `TelegramRules.Assigned/Returned/Ready/Mentioned`); tin cũ không có `event` = `assigned`. (`TelegramRules.WakeMessage`, test ở `TelegramRulesTests`.)
 **Runner:** `agent-runner/` hiện bỏ qua `event` / `comment_id` (chỉ đọc 4 trường) — tin `mentioned` cho bot không phải người làm bị bỏ ("việc không còn giao cho agent này"); bot là người làm thì mở phiên làm việc bình thường. Xử lý riêng `mentioned` (chỉ trả lời bằng `comment_task`) do người thật sửa runner — xem [agent-runner.md](agent-runner.md#chưa-làm-bước-sau-của-test-44).
 
 ## Gửi nền (`Infrastructure/Telegram.cs`)

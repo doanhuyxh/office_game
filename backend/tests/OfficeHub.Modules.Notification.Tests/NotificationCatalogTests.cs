@@ -90,7 +90,7 @@ public partial class NotificationCatalogTests
     {
         Assert.Equal(NotificationCatalog.Events.Count(e => e.Category is not null), NotificationCatalog.UsedBy(NotificationCatalog.Bell).Count);
         var telegram = NotificationCatalog.UsedBy(NotificationCatalog.TelegramKey).Select(u => u.Key).ToList();
-        Assert.Equal(["projects.task_assigned", "projects.task_returned", "projects.task_mention", "chat.mention"], telegram);
+        Assert.Equal(["projects.task_assigned", "projects.task_returned", "projects.task_mention", "projects.task_ready", "chat.mention"], telegram);
         Assert.Contains(NotificationCatalog.UsedBy(NotificationCatalog.Email), u => u.Key == "people.account_security");
         Assert.DoesNotContain(NotificationCatalog.UsedBy(NotificationCatalog.Email), u => u.Key == "projects.task_assigned");
     }

@@ -1,4 +1,5 @@
-// E2E TEST-42 / TEST-48 / TEST-63: kênh Telegram đánh thức agent khi việc được giao cho tài khoản bot, hoặc bot được @nhắc trong bình luận việc.
+// E2E TEST-42 / TEST-48 / TEST-63 / TEST-86: kênh Telegram đánh thức agent khi việc được giao cho tài khoản bot, bot được @nhắc trong bình luận việc,
+// hoặc việc bot làm hết phải chờ (việc trước sang Xong → event ready).
 // MÁY CHỦ TELEGRAM GIẢ trong cùng tiến trình (cổng FAKE_PORT, mặc định 5198) — không gọi Telegram thật. Api phải chạy với Telegram__ApiUrl trỏ vào đây.
 // TẠO DỮ LIỆU THẬT → CHỈ DB tạm (container như security-e2e.ts):
 //   Api (từ backend/): env ASPNETCORE_URLS=http://localhost:5185 'ConnectionStrings__Default=Host=127.0.0.1;Port=55461;Database=e2e;Username=e2e;Password=e2e'
@@ -204,6 +205,44 @@ if (MCP) {
   ok('MCP update_task giao lại bot → 1 tin', !x?.result?.isError && await until(() => wakes().length === before + 1), x?.result?.content?.[0]?.text?.slice(0, 200));
 }
 
+// ---- TEST-86: việc hết chờ (việc trước sang Xong) → event ready cho bot làm việc sau ----
+const pd = (await json(PM.cookie, 'GET', `/api/projects/${P}`)).body;
+const COLS = ['Đang làm', 'Chờ review', 'Xong'].map((n) => pd.columns.find((c: any) => c.name === n)?.id as string);
+ok('Dự án có cột Đang làm / Chờ review / Xong', COLS.every(Boolean), pd.columns?.map((c: any) => c.name));
+const mk = async (title: string, assigneeEmployeeId?: string) =>
+  (await json(PM.cookie, 'POST', `/api/projects/${P}/tasks`, { title, ...(assigneeEmployeeId ? { assigneeEmployeeId } : {}) })).body as string;
+const deps = async (id: string, dependsOn: string[]) => (await json(PM.cookie, 'PUT', `/api/projects/tasks/${id}/dependencies`, { dependsOn })).status;
+const finish = async (id: string) => { let st = 0; for (const c of COLS) st = (await json(PM.cookie, 'POST', `/api/projects/tasks/${id}/move`, { columnId: c })).status; return st; };
+const readies = () => wakes().filter((x) => wakeData(x).event === 'ready');
+// Việc trước không giao (không tự sinh tin); việc sau giao bot → tin assigned lúc tạo, đợi gửi xong rồi mới đếm.
+const A1 = await mk('Trước 1'), B1t = await mk('Sau 1 (bot)', B1.e.id);
+const A2 = await mk('Trước 2'), B2t = await mk('Sau 2 (không giao)');
+const A3 = await mk('Trước 3a'), C3 = await mk('Trước 3b'), B3t = await mk('Sau 3 (bot, còn chờ)', B2.e.id);
+const A4 = await mk('Trước 4'), B4t = await mk('Sau 4 (người thật)', HU.e.id);
+ok('Đặt việc phải chờ → 204', [await deps(B1t, [A1]), await deps(B2t, [A2]), await deps(B3t, [A3, C3]), await deps(B4t, [A4])].every((x) => x === 204));
+await sleep(4000);
+before = wakes().length;
+ok('A sang Xong → 204', (await finish(A1)) === 204);
+ok('… đúng 1 tin ready cho B (bot)', await until(() => wakes().length === before + 1) && (await sleep(3500), wakes().length === before + 1), wakes().slice(before).map((x) => x.text));
+const rd = wakeData(wakes().at(-1)!);
+ok('… JSON 5 trường, event ready, đúng bot / dự án / việc', JSON.stringify(Object.keys(rd)) === JSON.stringify(['employee_code', 'project_id', 'task_id', 'task_code', 'event'])
+  && rd.event === 'ready' && rd.employee_code === B1.code && rd.project_id === P && rd.task_id === B1t && /^TG-[A-Z0-9]+-\d+$/.test(rd.task_code), rd);
+ok('… tin không chứa tên việc', !wakes().at(-1)!.text.includes('Sau 1'));
+ok('DB: hàng đợi Kind = task_ready', (await sql(`select count(*) from notifications.telegram_messages where "Kind"='task_ready' and "TaskId"='${B1t}'`)).trim() === '1');
+before = wakes().length;
+ok('B chưa giao: A sang Xong → 204', (await finish(A2)) === 204);
+ok('B còn chờ việc khác: một việc trước sang Xong → 204', (await finish(A3)) === 204);
+ok('B giao người thật: A sang Xong → 204', (await finish(A4)) === 204);
+await sleep(4000);
+ok('… không gửi tin nào', wakes().length === before, wakes().slice(before).map((x) => x.text));
+ok('B còn chờ: việc trước cuối cùng sang Xong → 204', (await finish(C3)) === 204);
+ok('… đúng 1 tin ready cho bot 2', await until(() => wakes().length === before + 1) && (await sleep(3500), wakes().length === before + 1)
+  && wakeData(wakes().at(-1)!).event === 'ready' && wakeData(wakes().at(-1)!).employee_code === B2.code && wakeData(wakes().at(-1)!).task_id === B3t,
+  wakes().slice(before).map((x) => x.text));
+const A5 = await mk('Trước 5 (kênh tắt)'), B5t = await mk('Sau 5 (bot, kênh tắt)', B1.e.id);
+await deps(B5t, [A5]);
+await sleep(4000);
+
 // Kênh tắt
 r = await json(admin, 'PUT', '/api/system/settings/telegram', { values: { enabled: false, chatId: '-1001234567890' } });
 ok('Tắt kênh (giữ token)', r.status === 200 && r.body.values.enabled === false && r.body.secrets.botToken === true, r.body);
@@ -211,6 +250,10 @@ before = wakes().length;
 await json(PM.cookie, 'POST', `/api/projects/${P}/tasks`, { title: 'Khi kênh tắt', assigneeEmployeeId: B1.e.id });
 await sleep(4000);
 ok('Kênh tắt → không gửi', wakes().length === before);
+before = wakes().length;
+ok('Kênh tắt: việc trước sang Xong vẫn 204', (await finish(A5)) === 204);
+await sleep(4000);
+ok('… không gửi tin ready', wakes().length === before && readies().every((x) => wakeData(x).task_id !== B5t));
 
 // 429 → thử lại theo retry_after
 await json(admin, 'PUT', '/api/system/settings/telegram', { values: { enabled: true, chatId: '-1001234567890' } });

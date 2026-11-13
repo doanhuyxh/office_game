@@ -14,6 +14,10 @@ public interface ITelegramWakeup
     /// <summary>Việc bị trả lại (lùi kèm lý do) cho người làm là bot → cùng tin JSON như giao việc; agent kiểm tra lại việc qua MCP rồi làm lại.</summary>
     Task TaskReturnedAsync(Guid assigneeUserId, string employeeCode, Guid projectId, Guid taskId, string taskCode, CancellationToken ct = default);
 
+    /// <summary>Việc bot đang làm hết phải chờ (TEST-86: mọi việc trong dependsOn đã xong) → tin <c>event: ready</c>, cùng 4 trường như giao việc;
+    /// runner kiểm tra lại việc qua MCP rồi bắt đầu. Người gọi chỉ gửi khi việc có người làm và người làm không phải người vừa thao tác.</summary>
+    Task TaskReadyAsync(Guid assigneeUserId, string employeeCode, Guid projectId, Guid taskId, string taskCode, CancellationToken ct = default);
+
     /// <summary>Bot được @mã-nhân-viên trong bình luận việc (TEST-63) → tin <c>event: mentioned</c> + <c>comment_id</c>; agent đọc bình luận và chỉ trả lời bằng bình luận.
     /// Người gọi bỏ tác giả bình luận; người nhận không phải bot / đã khoá → bỏ qua.</summary>
     Task TaskMentionedAsync(Guid userId, string employeeCode, Guid projectId, Guid taskId, string taskCode, Guid commentId, CancellationToken ct = default);
@@ -32,12 +36,14 @@ public static partial class TelegramRules
 {
     /// <summary>Giá trị trường <c>event</c> của tin đánh thức (TEST-63). Tin cũ không có <c>event</c> = <see cref="Assigned"/>.</summary>
     public const string Assigned = "assigned", Returned = "returned", Mentioned = "mentioned";
+    /// <summary>Việc hết phải chờ việc khác (TEST-86).</summary>
+    public const string Ready = "ready";
     /// <summary>Bot được @nhắc trong tin nhắn chat (TEST-70) — tin không có task_id / project_id.</summary>
     public const string ChatMention = "chat_mention";
 
     /// <summary>
     /// Tin đánh thức: một dòng JSON. Agent đọc nhóm và tự nhận việc theo <c>employee_code</c> (TEST-48: không nhắc bot riêng).
-    /// Trường: employee_code, project_id, task_id, task_code, event (<see cref="Assigned"/> / <see cref="Returned"/> / <see cref="Mentioned"/>),
+    /// Trường: employee_code, project_id, task_id, task_code, event (<see cref="Assigned"/> / <see cref="Returned"/> / <see cref="Ready"/> / <see cref="Mentioned"/>),
     /// + comment_id khi có bình luận (tin nhắc). KHÔNG có tên / mô tả việc / nội dung bình luận (agent tự đọc qua MCP).
     /// </summary>
     public static string WakeMessage(string employeeCode, Guid projectId, Guid taskId, string taskCode, string @event, Guid? commentId = null)
