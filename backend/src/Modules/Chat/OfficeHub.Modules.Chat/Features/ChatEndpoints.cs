@@ -37,6 +37,7 @@ public static class ChatEndpoints
         g.MapGet("/conversations/{id}/search", SearchAsync);
         g.MapPost("/conversations/group", CreateGroupAsync);
         g.MapGet("/conversations/{id}/members", MembersAsync);
+        g.MapGet("/conversations/{id}/mention-candidates", MentionCandidatesAsync);
         g.MapPost("/conversations/{id}/members", AddMembersAsync);
         g.MapDelete("/conversations/{id}/members/me", LeaveGroupAsync);
         g.MapPost("/uploads", CreateUploadAsync);
@@ -57,6 +58,7 @@ public static class ChatEndpoints
         await store.EnsureOfficeReadAsync(me, ct);
         var convs = (await store.VisibleAsync(me, ct)).Where(c => !user.IsAccessToken() || ChatRules.BotCanUse(c.Type)).ToList();
         var unread = await store.UnreadAsync(me, convs.Select(c => c.Id).ToList(), ct);
+        var mentioned = await store.UnreadMentionsAsync(me, unread.Keys.ToList(), ct);
         var peerIds = convs.Where(c => c.Type == ConversationType.Direct).Select(c => PeerOf(c, me)).Distinct().ToList();
         var peers = peerIds.Count > 0 ? await accounts.GetManyAsync(peerIds, ct) : new Dictionary<Guid, AccountInfo>();
 
@@ -64,7 +66,7 @@ public static class ChatEndpoints
             .OrderBy(c => c.Type == ConversationType.Office ? 0 : 1)
             .ThenByDescending(c => c.LastMessageAt ?? DateTimeOffset.MinValue)
             .ThenBy(c => c.CreatedAt)
-            .Select(c => ToDto(c, me, store, peers, unread.GetValueOrDefault(c.Id)))
+            .Select(c => ToDto(c, me, store, peers, unread.GetValueOrDefault(c.Id)) with { MentionedUnread = mentioned.GetValueOrDefault(c.Id) })
             .ToList();
         return TypedResults.Ok(list);
     }
@@ -171,7 +173,7 @@ public static class ChatEndpoints
 
     private static async Task<Results<Ok<SendResultDto>, ProblemHttpResult, ValidationProblem>> SendAsync(string id, SendRequest req,
         ClaimsPrincipal user, ChatDbContext db, ChatStore store, ChatThrottle throttle, IFileStorage files, IPushSender push, IAccountService accounts,
-        IWebhookPublisher webhooks, TimeProvider clock, CancellationToken ct)
+        IWebhookPublisher webhooks, ITelegramWakeup telegram, TimeProvider clock, CancellationToken ct)
     {
         if (await AiGuardAsync(user, accounts, ct) is { } denied) return denied;
         var me = Me(user);
@@ -215,6 +217,7 @@ public static class ChatEndpoints
         {
             ConversationId = conv.Id, SenderId = me, CreatedAt = now, Text = text, ClientId = clientId, ByBot = byBot,
             SenderName = user.FindFirstValue(ClaimNames.FullName) ?? user.Identity?.Name ?? "?",
+            MentionedUserIds = await MentionsOfAsync(text, conv, me, store, ct),
         };
         foreach (var t in tickets)
         {
@@ -244,9 +247,11 @@ public static class ChatEndpoints
         await store.MarkReadAsync(conv.Id, me, msg.Seq, ct);
 
         var recipients = await store.RecipientsAsync(conv, ct);
-        // recipients == null ↔ kênh Office (toàn công ty) — không push, quá ồn; Direct/Room thì push cho người nhận (trừ người gửi).
+        // recipients == null ↔ kênh Office (toàn công ty) — không push, quá ồn; Direct/Room/Group thì push cho người nhận (trừ người gửi).
+        // Người được @nhắc nhận push riêng "… nhắc bạn" (kể cả ở Office) ở MentionNotifyAsync — không push hai lần.
         if (recipients is not null)
-            await push.PushAsync(recipients.Where(r => r != me), msg.SenderName, preview, $"/chat?c={conv.Id}", ct);
+            await push.PushAsync(recipients.Where(r => r != me && !msg.MentionedUserIds.Contains(r)), msg.SenderName, preview, $"/chat?c={conv.Id}", ct);
+        await MentionNotifyAsync(user, conv, msg, msg.MentionedUserIds, preview, store, push, accounts, webhooks, telegram, ct);
         // Tin 1-1 → webhook cá nhân của người nhận (đánh thức agent; người không đặt webhook bỏ qua). Office / kênh phòng: không (quá ồn).
         if (conv.Type == ConversationType.Direct && recipients is not null)
             await webhooks.PublishAsync(recipients.Where(r => r != me).ToList(), WebhookEvents.ChatMessage, new
@@ -283,7 +288,8 @@ public static class ChatEndpoints
 
     /// <summary>Sửa nội dung tin của chính mình trong 24 giờ (tệp đính kèm giữ nguyên). Tin không có tệp thì phải còn chữ.</summary>
     private static async Task<Results<Ok<SendResultDto>, ProblemHttpResult, ValidationProblem>> EditAsync(Guid id, EditRequest req,
-        ClaimsPrincipal user, ChatDbContext db, ChatStore store, TimeProvider clock, CancellationToken ct)
+        ClaimsPrincipal user, ChatDbContext db, ChatStore store, IPushSender push, IAccountService accounts, IWebhookPublisher webhooks,
+        ITelegramWakeup telegram, TimeProvider clock, CancellationToken ct)
     {
         var me = Me(user);
         var msg = await store.MessagesWithDetails().FirstOrDefaultAsync(m => m.Id == id && m.SenderId == me, ct);
@@ -300,14 +306,17 @@ public static class ChatEndpoints
 
         if (text != msg.Text)
         {
+            // Sửa tin → tính lại @nhắc; chỉ người MỚI được nhắc mới nhận push / đánh thức (người cũ đã nhận lúc gửi)
+            var oldMentions = msg.MentionedUserIds;
             msg.Text = text;
             msg.EditedAt = now;
+            msg.MentionedUserIds = await MentionsOfAsync(text, conv, me, store, ct);
             await db.SaveChangesAsync(ct);
+            var preview = ChatRules.Preview(text, msg.Attachments.Select(a => (a.FileName, a.IsImage)).ToList());
             if (conv.LastSeq == msg.Seq)
-            {
-                var preview = ChatRules.Preview(text, msg.Attachments.Select(a => (a.FileName, a.IsImage)).ToList());
                 await db.Conversations.Where(c => c.Id == conv.Id && c.LastSeq == msg.Seq).ExecuteUpdateAsync(s => s.SetProperty(c => c.LastPreview, preview), ct);
-            }
+            var fresh = msg.MentionedUserIds.Where(u => !oldMentions.Contains(u)).ToList();
+            await MentionNotifyAsync(user, conv, msg, fresh, preview, store, push, accounts, webhooks, telegram, ct);
         }
         return TypedResults.Ok(await ResultAsync(conv, msg, store, ct));
     }
@@ -356,6 +365,65 @@ public static class ChatEndpoints
         var items = new List<MessageDto>();
         foreach (var m in rows) items.Add(await store.ToDtoAsync(m));
         return TypedResults.Ok(items);
+    }
+
+    // ---------------- @nhắc (TEST-70) ----------------
+
+    /// <summary>Người được @mã trong tin: chỉ thành viên hội thoại (Office: mọi nhân viên đang làm), bỏ người gửi; 1-1 luôn rỗng.</summary>
+    private static async Task<List<Guid>> MentionsOfAsync(string? text, Conversation conv, Guid me, ChatStore store, CancellationToken ct)
+    {
+        if (!ChatRules.CanMention(conv.Type) || string.IsNullOrEmpty(text) || !text.Contains('@')) return [];
+        var people = await store.MentionableAsync(conv, ct);
+        return ChatRules.MentionTargets(text, people.Select(e => (e.UserId!.Value, e.Code)), me);
+    }
+
+    /// <summary>
+    /// Báo người được @nhắc: push "… nhắc bạn · nơi" (không chuông / email — chat.md). Người gửi không phải bot → thêm webhook <c>chat.mention</c>
+    /// và Telegram đánh thức tài khoản bot được nhắc; người gửi là bot (token AI hoặc tài khoản bot trên web) → không đánh thức (chống vòng lặp bot ↔ bot).
+    /// </summary>
+    private static async Task MentionNotifyAsync(ClaimsPrincipal user, Conversation conv, Message msg, IReadOnlyList<Guid> targets, string preview, ChatStore store,
+        IPushSender push, IAccountService accounts, IWebhookPublisher webhooks, ITelegramWakeup telegram, CancellationToken ct)
+    {
+        if (targets.Count == 0) return;
+        var where = conv.Type switch
+        {
+            ConversationType.Office => "Toàn văn phòng",
+            ConversationType.Room => store.RoomNameOf(conv) ?? "Phòng",
+            _ => conv.Title ?? "Nhóm",
+        };
+        var link = $"/chat?c={conv.Id}";
+        await push.PushAsync(targets, ChatRules.MentionPushTitle(msg.SenderName, where), preview, link, ct);
+
+        var senderIsBot = msg.ByBot || (await accounts.GetAsync(msg.SenderId, ct))?.IsBot == true;
+        if (senderIsBot) return;
+        await webhooks.PublishAsync(targets.ToList(), WebhookEvents.ChatMention, new
+        {
+            conversationId = conv.Id, conversationType = conv.Type.ToString(), title = where, messageId = msg.Id, seq = msg.Seq, senderId = msg.SenderId,
+            senderName = msg.SenderName, text = msg.Text, createdAt = msg.CreatedAt, link,
+        }, ct);
+        var people = await store.PeopleAsync(ct);
+        foreach (var u in targets)
+            if (people.TryGetValue(u, out var e))
+                await telegram.ChatMentionedAsync(u, e.Code, conv.Id, msg.Id, ct);
+    }
+
+    /// <summary>Gợi ý khi gõ @ (tìm không dấu theo tên / mã, tối đa <see cref="ChatRules.MaxMentionCandidates"/>): thành viên hội thoại trừ mình; 1-1 → rỗng.</summary>
+    private static async Task<Results<Ok<List<MentionCandidateDto>>, ProblemHttpResult>> MentionCandidatesAsync(string id, string? search, ClaimsPrincipal user,
+        ChatStore store, IAccountService accounts, CancellationToken ct)
+    {
+        var me = Me(user);
+        var conv = await store.ResolveAsync(id, ct);
+        if (conv is null || HiddenForAi(user, conv) || !await store.CanAccessAsync(conv, me, ct)) return Unknown();
+        var term = ChatRules.Fold(search?.Trim());
+        var found = (await store.MentionableAsync(conv, ct))
+            .Where(e => e.UserId != me)
+            .Where(e => term.Length == 0 || ChatRules.Fold(e.FullName).Contains(term) || ChatRules.Fold(e.Code).Contains(term))
+            .OrderBy(e => e.FullName, StringComparer.CurrentCultureIgnoreCase)
+            .Take(ChatRules.MaxMentionCandidates)
+            .ToList();
+        var accs = found.Count > 0 ? await accounts.GetManyAsync(found.Select(e => e.UserId!.Value).ToList(), ct) : new Dictionary<Guid, AccountInfo>();
+        return TypedResults.Ok(found.Select(e => new MentionCandidateDto(e.UserId!.Value, e.FullName, e.Code,
+            accs.TryGetValue(e.UserId!.Value, out var a) && a.IsBot, e.AvatarUrl)).ToList());
     }
 
     // ---------------- Nhóm tuỳ chọn (Group) ----------------

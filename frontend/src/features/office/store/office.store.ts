@@ -1,8 +1,13 @@
 import { create } from 'zustand';
 import type { IMe } from '@/features/auth';
+import type { ChatMentionDto } from '../types/office.types';
 
 export type ConnState = 'connecting' | 'online' | 'reconnecting' | 'offline' | 'kicked';
-export interface ChatLine { id: string; name: string; text: string; at: string; channel?: 'office' | 'room'; roomId?: string | null; roomName?: string | null }
+export interface ChatLine {
+  id: string; name: string; text: string; at: string; channel?: 'office' | 'room'; roomId?: string | null; roomName?: string | null;
+  /** Người được @nhắc — HUD thay "@mã" bằng tên, nhấn dòng nhắc mình. */
+  mentions?: ChatMentionDto[] | null;
+}
 
 /** Store dùng chung giữa React (HUD) và engine Three.js (đọc/ghi ngoài React bằng useOffice.getState()). */
 interface OfficeState {

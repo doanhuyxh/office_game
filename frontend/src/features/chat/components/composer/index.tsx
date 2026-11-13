@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react';
 import { File as FileIcon, Paperclip, X } from 'lucide-react';
 import { Button } from '@/components/common/button';
+import { MentionList, type IMentionOption } from '@/components/common/mention-list';
 import { MessageInput } from '@/components/common/message-input';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useMentionNav } from '@/hooks/useMentionNav';
 import { cn } from '@/utils/cn';
+import { mentionQuery, replaceMentionQuery } from '@/utils/mention';
+import { useMentionCandidates } from '../../hooks/useChatData';
 import { MAX_FILES, MAX_TEXT, formatBytes, isImageFile } from '../../utils/labels';
 
-/** Ô soạn tin: Enter gửi, Shift+Enter xuống dòng, đính kèm bằng nút / dán ảnh (kéo-thả xử lý ở khung chat). */
+/**
+ * Ô soạn tin: Enter gửi, Shift+Enter xuống dòng, đính kèm bằng nút / dán ảnh (kéo-thả xử lý ở khung chat).
+ * Gõ @ (trừ 1-1) → gợi ý thành viên hội thoại (server lọc không dấu theo tên / mã; bot có chip BOT), ↑↓ Enter / Tab chọn, Esc đóng.
+ * Chọn → chèn "@<mã NV>" — cùng cú pháp bình luận việc; server tách người được nhắc khi lưu tin.
+ */
 /** Bản nháp chưa gửi theo hội thoại, giữ qua reload trong tab (sessionStorage; bị chặn thì bỏ qua). */
 const readDraft = (key?: string) => { try { return (key && sessionStorage.getItem(key)) || ''; } catch { return ''; } };
 const writeDraft = (key: string | undefined, text: string) => {
@@ -14,7 +22,10 @@ const writeDraft = (key: string | undefined, text: string) => {
   try { if (text) sessionStorage.setItem(key, text); else sessionStorage.removeItem(key); } catch { /* bộ nhớ trình duyệt bị chặn */ }
 };
 
-export function Composer({ draftKey, files, onAddFiles, onRemoveFile, onSubmit }: {
+export function Composer({ conversationId, canMention, draftKey, files, onAddFiles, onRemoveFile, onSubmit }: {
+  conversationId: string;
+  /** false với 1-1 (không cần nhắc). */
+  canMention: boolean;
   draftKey?: string;
   files: File[];
   onAddFiles: (list: File[]) => void;
@@ -29,9 +40,27 @@ export function Composer({ draftKey, files, onAddFiles, onRemoveFile, onSubmit }
   useEffect(() => () => previews.forEach((u) => u && URL.revokeObjectURL(u)), [previews]);
   useEffect(() => area.current?.focus(), []);
   const isMobile = useIsMobile();
+  const [query, setQuery] = useState<string | null>(null);
+  const { data: candidates } = useMentionCandidates(conversationId, canMention ? query : null);
+  const options: IMentionOption[] = query === null || !canMention ? [] : (candidates ?? [])
+    .map((c) => ({ key: c.code, name: c.fullName, hint: c.code, avatarUrl: c.avatarUrl, isBot: c.isBot }));
+  const nav = useMentionNav(options, pick, () => setQuery(null));
+  const queryAtCaret = (value: string) => mentionQuery(value.slice(0, area.current?.selectionStart ?? value.length));
+  function change(value: string) {
+    setText(value);
+    setQuery(queryAtCaret(value));
+    nav.setActive(0);
+  }
+  function pick(o: IMentionOption) {
+    const next = replaceMentionQuery(text, area.current?.selectionStart ?? text.length, `@${o.key}`);
+    setText(next.text);
+    setQuery(null);
+    requestAnimationFrame(() => { area.current?.focus(); area.current?.setSelectionRange(next.caret, next.caret); });
+  }
   const canSend = text.trim().length > 0 || files.length > 0;
   const submit = () => {
     if (!canSend) return;
+    setQuery(null);
     onSubmit(text.trim());
     setText('');
     area.current?.focus();
@@ -65,12 +94,14 @@ export function Composer({ draftKey, files, onAddFiles, onRemoveFile, onSubmit }
       <MessageInput
         ref={area}
         value={text}
-        onChange={setText}
+        onChange={change}
         onSubmit={submit}
         canSubmit={canSend}
         maxLength={MAX_TEXT}
-        placeholder={isMobile ? 'Nhập tin nhắn…' : 'Nhập tin nhắn… (Enter để gửi, Shift+Enter xuống dòng)'}
+        placeholder={isMobile ? 'Nhập tin nhắn…' : `Nhập tin nhắn… (Enter để gửi, Shift+Enter xuống dòng${canMention ? ', @ để nhắc' : ''})`}
         onPaste={onPaste}
+        onKeyDown={(e) => { if (nav.handleKey({ key: e.key, shiftKey: e.shiftKey, isComposing: e.nativeEvent.isComposing })) e.preventDefault(); }}
+        onSelect={() => { if (area.current) setQuery(queryAtCaret(area.current.value)); }}
         inputTestId="chat-input"
         sendTestId="chat-send"
         leading={<>
@@ -81,11 +112,14 @@ export function Composer({ draftKey, files, onAddFiles, onRemoveFile, onSubmit }
             <Paperclip />
           </Button>
         </>}
-        overlay={text.length > MAX_TEXT * 0.8 && (
-          <span className={cn('pointer-events-none absolute right-2 bottom-1 text-[10px]', text.length >= MAX_TEXT ? 'text-destructive' : 'text-muted-foreground')}>
-            {text.length}/{MAX_TEXT}
-          </span>
-        )}
+        overlay={<>
+          <MentionList options={options} active={nav.active} onPick={pick} onHover={nav.setActive} className="absolute bottom-full left-0 mb-1" />
+          {text.length > MAX_TEXT * 0.8 && (
+            <span className={cn('pointer-events-none absolute right-2 bottom-1 text-[10px]', text.length >= MAX_TEXT ? 'text-destructive' : 'text-muted-foreground')}>
+              {text.length}/{MAX_TEXT}
+            </span>
+          )}
+        </>}
       />
     </div>
   );

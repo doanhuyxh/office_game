@@ -70,26 +70,31 @@ internal sealed class TelegramWakeup(NotificationDbContext db, IAccountService a
     public Task TaskMentionedAsync(Guid userId, string employeeCode, Guid projectId, Guid taskId, string taskCode, Guid commentId, CancellationToken ct = default) =>
         EnqueueAsync("task_mentioned", TelegramRules.Mentioned, userId, employeeCode, projectId, taskId, taskCode, commentId, ct);
 
-    private async Task EnqueueAsync(string kind, string @event, Guid assigneeUserId, string employeeCode, Guid projectId, Guid taskId, string taskCode, Guid? commentId,
-        CancellationToken ct)
+    public Task ChatMentionedAsync(Guid userId, string employeeCode, Guid conversationId, Guid messageId, CancellationToken ct = default) =>
+        EnqueueAsync("chat_mention", userId, null, TelegramRules.ChatWakeMessage(employeeCode, conversationId, messageId), $"tin {messageId}", ct);
+
+    private Task EnqueueAsync(string kind, string @event, Guid assigneeUserId, string employeeCode, Guid projectId, Guid taskId, string taskCode, Guid? commentId,
+        CancellationToken ct) =>
+        EnqueueAsync(kind, assigneeUserId, taskId, TelegramRules.WakeMessage(employeeCode, projectId, taskId, taskCode, @event, commentId), $"việc {taskCode}", ct);
+
+    private async Task EnqueueAsync(string kind, Guid userId, Guid? taskId, string text, string what, CancellationToken ct)
     {
         try
         {
             var cfg = runtime.Telegram;
             if (!cfg.Ready) return;
-            var acc = await accounts.GetAsync(assigneeUserId, ct);
+            var acc = await accounts.GetAsync(userId, ct);
             if (acc is not { IsBot: true, IsActive: true }) return;
             var now = clock.GetUtcNow();
             db.TelegramMessages.Add(new TelegramMessage
             {
-                Kind = kind, ChatId = cfg.ChatId!, UserId = assigneeUserId, TaskId = taskId, CreatedAt = now, NextAttemptAt = now,
-                Text = TelegramRules.WakeMessage(employeeCode, projectId, taskId, taskCode, @event, commentId),
+                Kind = kind, ChatId = cfg.ChatId!, UserId = userId, TaskId = taskId, CreatedAt = now, NextAttemptAt = now, Text = text,
             });
             await db.SaveChangesAsync(ct);
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {
-            log.LogError(ex, "Không đưa được tin Telegram đánh thức agent vào hàng đợi (việc {TaskCode})", taskCode);
+            log.LogError(ex, "Không đưa được tin Telegram đánh thức agent vào hàng đợi ({What})", what);
         }
     }
 

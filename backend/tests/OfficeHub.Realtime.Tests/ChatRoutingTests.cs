@@ -99,4 +99,16 @@ public class ChatRoutingTests
         Assert.Equal([Alice.ToString(), Bob.ToString()], r.UserIds);
         Assert.Null(ChatRouting.ToOfficeChat(dto)); // nhóm không vào HUD 3D
     }
+
+    [Fact]
+    public void Mentions_flow_to_hub_message_and_office_line()
+    {
+        var api = new SendResultDto(new ApiMessageDto(Guid.NewGuid(), 5, Guid.NewGuid(), Alice, "An", "@NV018 đâu?", "2026-11-13T03:00:00Z", false, [], null,
+            Mentions: [new ApiMentionDto(Bob, "NV018", "Dev Full-Stack")]), "Office", null, null, null);
+        var dto = ChatRouting.ToHubMessage(api);
+        var mention = Assert.Single(dto.Mentions!);
+        Assert.Equal((Bob.ToString(), "NV018", "Dev Full-Stack"), (mention.UserId, mention.Code, mention.Name));
+        Assert.Single(ChatRouting.ToOfficeChat(dto)!.Mentions!);
+        Assert.Null(ChatRouting.ToOfficeChat(Msg())!.Mentions);
+    }
 }

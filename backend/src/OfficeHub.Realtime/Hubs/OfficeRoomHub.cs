@@ -24,7 +24,9 @@ public sealed record WelcomeDto(string SelfId, string MapName, PlayerDto[] Playe
 /// At = ISO 8601 UTC 'Z' (Instants.Format) — MessagePack không có kiểu thời điểm chuẩn cho JS.
 /// Channel = "office" (toàn văn phòng) | "room" (chỉ người đang đứng trong phòng có tường RoomId / RoomName).
 /// </summary>
-public sealed record ChatDto(string Id, string Name, string Text, string At, string Channel = "office", string? RoomId = null, string? RoomName = null);
+/// <param name="Mentions">Người được @nhắc (TEST-70) — HUD thay "@mã" bằng tên, nhấn dòng có nhắc mình. Tin gõ trong HUD 3D (SendChat) đi qua Api nên cũng có.</param>
+public sealed record ChatDto(string Id, string Name, string Text, string At, string Channel = "office", string? RoomId = null, string? RoomName = null,
+    OfficeHub.Realtime.Chat.ChatMentionDto[]? Mentions = null);
 
 /// <summary>Các hàm server gọi xuống client.</summary>
 public interface IOfficeClient

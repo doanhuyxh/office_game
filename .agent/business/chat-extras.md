@@ -1,4 +1,4 @@
-# Tin nhắn: sửa tin, cảm xúc, tìm, nhóm tuỳ chọn (TEST-54)
+# Tin nhắn: sửa tin, cảm xúc, tìm, nhóm tuỳ chọn (TEST-54), @nhắc (TEST-70)
 
 > Phần mở rộng của [chat.md](chat.md) (kiến trúc, quyền, schema gốc). Code: `backend/src/Modules/Chat/` (`ChatEndpoints` — EditAsync / ReactAsync / SearchAsync / *Group*), `OfficeHub.Realtime/Hubs/ChatHub.cs` (`Edit`, `React`), `frontend/src/features/chat/`.
 
@@ -31,6 +31,16 @@ Lưu ở `conversations` (`Title`, `CreatedBy`) + thành viên ở `room_members
 
 Hub `/rt/hub/chat`: `Edit(messageId, text)` và `React(messageId, emoji)` gọi Api bằng cookie kết nối rồi phát **`MessageUpdated(ChatMessageDto)`** cho người nhận (Office: mọi kết nối; còn lại: thành viên + người thao tác). `ChatMessageDto` thêm `EditedAt`, `Reactions[]`. Client thay tin cùng `id` trong cache; hub chưa nối → REST (người khác thấy khi tải lại). HUD 3D không đổi.
 
+## @nhắc trong tin (TEST-70)
+
+Cú pháp **`@<mã NV>`** như bình luận việc (regex chung `BuildingBlocks/Text/MentionCodes`, FE `utils/mention.ts`). Có ở Office / Room / Group; **1-1 không** (`ChatRules.CanMention`).
+- **Lưu**: gửi / sửa tin → `ChatRules.MentionTargets` giữ mã khớp **thành viên hội thoại** (Office = mọi nhân viên đang làm có tài khoản; Room / Group = `room_members`), bỏ người gửi, bỏ trùng, ≤ **10** người → cột `messages.MentionedUserIds uuid[]` (migration `ChatMentions`). `MessageDto.mentions = [{userId, code, name}]` (tên hiện tại; người đã nghỉ bị bỏ → FE hiện chữ thường). Sửa tin tính lại; chỉ người **mới** được nhắc nhận thông báo.
+- **Gợi ý**: `GET /conversations/{id}/mention-candidates?search=` → `[{userId, fullName, code, isBot, avatarUrl}]` ≤ 8, tìm không dấu theo tên / mã, trừ mình; 1-1 → `[]`; người ngoài → 404; không trong route token AI (403).
+- **Đếm**: `ConversationDto.mentionedUnread` = số tin chưa đọc nhắc tới tôi (FE chấm "@" cạnh số chưa đọc; MCP `list_chats`).
+- **Thông báo** (vẫn **không chuông / email**): push FCM "… nhắc bạn · nơi" cho người được nhắc, **kể cả Office** (Room / Group: thay push thường, không đẩy hai lần). Người gửi **không phải bot** → thêm webhook `chat.mention` + Telegram `event: chat_mention` (chỉ tài khoản bot nhận — [notifications-telegram.md](notifications-telegram.md)). Người gửi là bot (token AI **hoặc** tài khoản bot trên web) → không webhook / Telegram (chống vòng lặp bot ↔ bot; vẫn lưu mentions + push).
+- **FE**: `composer` gõ @ → `MentionList` + `useMentionNav` (BOT chip), chọn chèn `@MÃ`; `message-item` thay `@mã` → `@Họ tên` tô nổi, tin nhắc mình nền / viền `warning` (`data-mentions-me`); HUD 3D (`ChatDto.mentions` qua Realtime) tô tên + nhấn dòng nhắc mình.
+- Chuông in-app cho @nhắc chat: **chưa thêm** (task hỏi chủ dự án, mặc định không).
+
 ## Test
 
-`OfficeHub.Modules.Chat.Tests/ChatEditReactGroupTests.cs`, `OfficeHub.Realtime.Tests/ChatRoutingTests.cs`; e2e `scripts/dev/chat-extra-e2e.ts` (51 kiểm tra, có phần Realtime khi đặt `RT_URL`) — [e2e.md](../e2e.md).
+`OfficeHub.Modules.Chat.Tests/ChatMentionTests.cs`, `OfficeHub.Modules.Chat.Tests/ChatEditReactGroupTests.cs`, `OfficeHub.Realtime.Tests/ChatRoutingTests.cs`; e2e `scripts/dev/chat-extra-e2e.ts` (51 kiểm tra, có phần Realtime khi đặt `RT_URL`), `scripts/dev/chat-mention-e2e.ts` (TEST-70) — [e2e.md](../e2e.md).

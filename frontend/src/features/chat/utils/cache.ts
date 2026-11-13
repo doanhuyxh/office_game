@@ -53,14 +53,20 @@ export function sortConversations(list: IConversation[]): IConversation[] {
   });
 }
 
+/** Tin có @nhắc tới người dùng này không. */
+export const mentionsUser = (m: IMessage, userId: string | undefined) => !!userId && !!m.mentions?.some((x) => x.userId === userId);
+
 /** Cập nhật dòng hội thoại khi có tin mới; trả false nếu danh sách đã tải mà chưa có hội thoại này (cần tải lại). */
-export function touchConversation(qc: QueryClient, m: IMessage, addUnread: boolean): boolean {
+export function touchConversation(qc: QueryClient, m: IMessage, addUnread: boolean, mentionsMe = false): boolean {
   const list = qc.getQueryData<IConversation[]>(chatKeys.conversations);
   if (!list) return true;
   if (!list.some((c) => c.id === m.conversationId)) return false;
   qc.setQueryData<IConversation[]>(chatKeys.conversations, sortConversations(list.map((c) =>
     c.id === m.conversationId
-      ? { ...c, lastMessageAt: m.createdAt, lastPreview: previewOf(m), unread: c.unread + (addUnread ? 1 : 0) }
+      ? {
+        ...c, lastMessageAt: m.createdAt, lastPreview: previewOf(m), unread: c.unread + (addUnread ? 1 : 0),
+        mentionedUnread: (c.mentionedUnread ?? 0) + (addUnread && mentionsMe ? 1 : 0),
+      }
       : c)));
   return true;
 }

@@ -30,7 +30,8 @@ public static class ChatRouting
             m.SenderId.ToString(), m.SenderName, m.Text, Iso(m.CreatedAt), m.Deleted,
             (m.Attachments ?? []).Select(a => new ChatAttachmentDto(a.Id.ToString(), a.FileName, a.ContentType, a.Size, a.IsImage, a.Url)).ToArray(),
             m.ClientId, m.ByBot, m.EditedAt is null ? null : Iso(m.EditedAt),
-            (m.Reactions ?? []).Select(x => new ChatReactionDto(x.Emoji, (x.UserIds ?? []).Select(u => u.ToString()).ToArray())).ToArray());
+            (m.Reactions ?? []).Select(x => new ChatReactionDto(x.Emoji, (x.UserIds ?? []).Select(u => u.ToString()).ToArray())).ToArray(),
+            (m.Mentions ?? []).Select(x => new ChatMentionDto(x.UserId.ToString(), x.Code, x.Name)).ToArray());
     }
 
     /// <summary>Tin hiện trong HUD chat của văn phòng 3D: chỉ kênh Office / Room, bỏ tin đã thu hồi (null = không gửi vào 3D).</summary>
@@ -41,7 +42,8 @@ public static class ChatRouting
         if (!room && m.ConversationType != "Office") return null;
         var text = OfficeText(m);
         if (text.Length == 0) return null;
-        return new ChatDto(m.SenderId, m.SenderName, text, m.CreatedAt, room ? "room" : "office", room ? m.RoomId : null, room ? m.RoomName : null);
+        return new ChatDto(m.SenderId, m.SenderName, text, m.CreatedAt, room ? "room" : "office", room ? m.RoomId : null, room ? m.RoomName : null,
+            m.Mentions is { Length: > 0 } ms ? ms : null);
     }
 
     /// <summary>Nội dung cho HUD 3D (chỉ có chữ): tin chỉ có tệp → "[Ảnh] tên" / "[Tệp] tên".</summary>

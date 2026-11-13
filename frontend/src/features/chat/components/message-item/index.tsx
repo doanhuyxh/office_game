@@ -1,4 +1,4 @@
-import { Fragment, useState, type KeyboardEvent } from 'react';
+import { Fragment, useMemo, useState, type KeyboardEvent } from 'react';
 import { AlertCircle, File as FileIcon, Loader2, MoreHorizontal, Pencil, RotateCcw, SmilePlus, Undo2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
@@ -9,8 +9,10 @@ import { PersonAvatar } from '@/components/common/PersonAvatar';
 import { formatTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
 import { cn } from '@/utils/cn';
+import { splitMentions } from '@/utils/mention';
 import { chatApi } from '../../api/chat.api';
-import type { IAttachment, IMessage } from '../../types/chat.types';
+import type { IAttachment, IMention, IMessage } from '../../types/chat.types';
+import { mentionsUser } from '../../utils/cache';
 import { MAX_TEXT, formatBytes } from '../../utils/labels';
 import { EmojiDialog, QUICK_EMOJIS } from '../emoji-dialog';
 import { ReactionBar } from '../reaction-bar';
@@ -31,6 +33,20 @@ function Linkified({ text }: { text: string }) {
         ) : (
           <Fragment key={i}>{part}</Fragment>
         ))}
+    </>
+  );
+}
+
+/** Chữ của tin: "@mã" của người được nhắc (server trả `mentions`) → "@Họ tên" tô nổi (hover: mã); phần còn lại tự nhận link. */
+function MessageText({ text, mentions, mine }: { text: string; mentions?: IMention[]; mine: boolean }) {
+  const names = useMemo(() => new Map((mentions ?? []).map((x) => [x.code.toUpperCase(), x.name])), [mentions]);
+  if (names.size === 0) return <Linkified text={text} />;
+  return (
+    <>
+      {splitMentions(text, names).map((part, i) =>
+        typeof part === 'string' ? <Linkified key={i} text={part} />
+          : <span key={i} title={part.code} data-testid="chat-mention"
+            className={cn('font-semibold', mine ? 'underline underline-offset-2' : 'rounded bg-primary/10 px-0.5 text-primary')}>@{part.name}</span>)}
     </>
   );
 }
@@ -129,8 +145,9 @@ export function MessageItem({ m, mine, meId, showHeader, onRecall, onEdit, onRea
   const local = m.local;
   const [editing, setEditing] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const mentionsMe = !mine && !m.deleted && mentionsUser(m, meId);
   return (
-    <div className={cn('group flex gap-2', mine ? 'justify-end' : 'justify-start', showHeader ? 'mt-3' : 'mt-0.5')} data-testid="chat-message">
+    <div className={cn('group flex gap-2', mine ? 'justify-end' : 'justify-start', showHeader ? 'mt-3' : 'mt-0.5')} data-testid="chat-message" data-mentions-me={mentionsMe || undefined}>
       {!mine && (showHeader ? <PersonAvatar name={m.senderName} className="mt-0.5 size-8 shrink-0" /> : <div className="w-8 shrink-0" />)}
       <div className={cn('flex max-w-[80%] flex-col sm:max-w-[70%]', mine ? 'items-end' : 'items-start')}>
         {showHeader && (
@@ -148,6 +165,7 @@ export function MessageItem({ m, mine, meId, showHeader, onRecall, onEdit, onRea
             className={cn(
               'min-w-0 rounded-2xl px-3 py-2 text-sm leading-relaxed',
               mine ? 'bg-primary text-primary-foreground' : 'bg-muted',
+              mentionsMe && 'bg-warning/15 ring-1 ring-warning/60',
               m.deleted && 'bg-transparent text-muted-foreground italic ring-1 ring-border',
               local?.status === 'sending' && 'opacity-70',
               local?.status === 'failed' && 'ring-1 ring-destructive',
@@ -157,7 +175,7 @@ export function MessageItem({ m, mine, meId, showHeader, onRecall, onEdit, onRea
               'Tin nhắn đã thu hồi'
             ) : (
               <>
-                {m.text && <p className="break-words whitespace-pre-wrap"><Linkified text={m.text} /></p>}
+                {m.text && <p className="break-words whitespace-pre-wrap"><MessageText text={m.text} mentions={m.mentions} mine={mine} /></p>}
                 {m.editedAt && <span className="text-[10px] opacity-70" title={`Sửa lúc ${formatTime(m.editedAt)}`} data-testid="chat-edited">(đã sửa)</span>}
                 <Attachments items={m.attachments} local={!!local} onPreview={onPreview} />
               </>

@@ -38,6 +38,36 @@ public static class ChatRules
     public const int MinSearchLength = 2;
     public const int MaxSearchResults = 50;
 
+    // ---------------- @nhắc trong tin (TEST-70) ----------------
+
+    /// <summary>Tối đa số người được nhắc trong một tin (như bình luận việc).</summary>
+    public const int MaxMentions = 10;
+    /// <summary>Số gợi ý tối đa khi gõ @ trong ô soạn tin.</summary>
+    public const int MaxMentionCandidates = 8;
+
+    /// <summary>1-1 không cần @nhắc (người kia đã nhận tin) — mọi loại hội thoại khác có.</summary>
+    public static bool CanMention(ConversationType type) => type != ConversationType.Direct;
+
+    /// <summary>
+    /// Người được nhắc: mã @ trong <paramref name="text"/> (cú pháp chung <see cref="OfficeHub.BuildingBlocks.Text.MentionCodes"/>) khớp (không phân biệt hoa thường)
+    /// một <paramref name="candidates"/> (thành viên hội thoại có tài khoản); bỏ người gửi, bỏ trùng, giữ thứ tự xuất hiện, tối đa <see cref="MaxMentions"/>.
+    /// Mã không phải thành viên (người ngoài kênh phòng / nhóm) bị bỏ qua.
+    /// </summary>
+    public static List<Guid> MentionTargets(string? text, IEnumerable<(Guid UserId, string Code)> candidates, Guid senderId)
+    {
+        var codes = OfficeHub.BuildingBlocks.Text.MentionCodes.Parse(text, MaxMentions * 2);
+        if (codes.Count == 0) return [];
+        var byCode = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (userId, code) in candidates) byCode.TryAdd(code, userId);
+        var list = new List<Guid>();
+        foreach (var code in codes)
+            if (byCode.TryGetValue(code, out var u) && u != senderId && !list.Contains(u) && list.Count < MaxMentions) list.Add(u);
+        return list;
+    }
+
+    /// <summary>Tiêu đề push cho người được nhắc: "Tên nhắc bạn · Toàn văn phòng" / tên phòng / tên nhóm.</summary>
+    public static string MentionPushTitle(string senderName, string where) => $"{senderName} nhắc bạn · {where}";
+
     public static bool CanEdit(DateTimeOffset createdAt, DateTimeOffset now) => now - createdAt <= EditWindow;
 
     /// <summary>

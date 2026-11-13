@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+using OfficeHub.BuildingBlocks.Text;
 
 namespace OfficeHub.Modules.Projects.Domain;
 
@@ -24,7 +24,7 @@ public readonly record struct TaskEvent(DateTimeOffset At, bool ByBot, bool Coun
 /// Hai giới hạn do quản trị viên chỉnh ở trang Hệ thống (TEST-36, bảng <c>projects.agent_settings</c>); chưa chỉnh → <see cref="AgentLimits.Default"/>.
 /// Hàm thuần — test: tests/OfficeHub.Modules.Projects.Tests/AgentTeamRulesTests.cs.
 /// </summary>
-public static partial class AgentTeamRules
+public static class AgentTeamRules
 {
     public const int MaxMentions = 10;
     public const int TasksPerDayMin = 1, TasksPerDayMax = 500;
@@ -59,24 +59,9 @@ public static partial class AgentTeamRules
     /// <summary>Bot được thao tác thêm một lần nữa trên việc không.</summary>
     public static bool StreakAllows(int streak, int limit) => streak < limit;
 
-    [GeneratedRegex(@"(?<![\p{L}\p{N}_.@])@([\p{L}\p{N}_.\-]{2,40})", RegexOptions.CultureInvariant)]
-    private static partial Regex MentionRegex();
-
     /// <summary>Mã được nhắc bằng @ trong nội dung (không phân biệt hoa thường, bỏ trùng, giữ thứ tự, tối đa <see cref="MaxMentions"/>).
-    /// Bỏ dấu chấm / gạch cuối (vd "@NV012." cuối câu). Email (a@b.c) không tính vì trước @ là chữ.</summary>
-    public static IReadOnlyList<string> MentionedCodes(string? content)
-    {
-        if (string.IsNullOrEmpty(content)) return [];
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var list = new List<string>();
-        foreach (Match m in MentionRegex().Matches(content))
-        {
-            var code = m.Groups[1].Value.TrimEnd('.', '-');
-            if (code.Length >= 2 && seen.Add(code)) list.Add(code);
-            if (list.Count == MaxMentions) break;
-        }
-        return list;
-    }
+    /// Cú pháp dùng chung với chat — <see cref="MentionCodes"/>.</summary>
+    public static IReadOnlyList<string> MentionedCodes(string? content) => MentionCodes.Parse(content, MaxMentions);
 
     /// <summary>Người nhận chuông "… nhắc bạn trong việc …": chỉ thành viên dự án còn làm việc, có tài khoản, mã khớp (không phân biệt hoa thường);
     /// bỏ người viết và người làm việc (đã nhận chuông bình luận). Trả UserId, bỏ trùng, giữ thứ tự danh sách thành viên.</summary>

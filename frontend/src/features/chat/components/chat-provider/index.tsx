@@ -10,7 +10,7 @@ import { ChatConnection } from '../../api/chatHub';
 import { ChatContext, type IChatContext } from '../../context/chat-context';
 import { useChatUnread } from '../../hooks/useChatData';
 import type { ChatLinkState, IChatMessage, IConversation, IMessage } from '../../types/chat.types';
-import { addLocal, adjustUnread, markDeleted, patchLocal, removeLocal, touchConversation, upsertMessage } from '../../utils/cache';
+import { addLocal, adjustUnread, markDeleted, mentionsUser, patchLocal, removeLocal, touchConversation, upsertMessage } from '../../utils/cache';
 import { isImageFile } from '../../utils/labels';
 import { putToS3 } from '../../utils/upload';
 
@@ -66,7 +66,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     const list = qc.getQueryData<IConversation[]>(chatKeys.conversations);
     const was = list?.find((c) => c.id === conversationId)?.unread ?? 0;
     if (list && was > 0) {
-      qc.setQueryData<IConversation[]>(chatKeys.conversations, list.map((c) => (c.id === conversationId ? { ...c, unread: 0 } : c)));
+      qc.setQueryData<IConversation[]>(chatKeys.conversations, list.map((c) => (c.id === conversationId ? { ...c, unread: 0, mentionedUnread: 0 } : c)));
       adjustUnread(qc, -was);
     }
     chatApi.markRead(conversationId)
@@ -95,7 +95,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     const mine = m.senderId === meRef.current.id;
     const viewing = active.current === m.conversationId && document.visibilityState === 'visible';
     const addUnread = !mine && !viewing;
-    if (!touchConversation(qc, m, addUnread)) void qc.invalidateQueries({ queryKey: chatKeys.conversations });
+    if (!touchConversation(qc, m, addUnread, mentionsUser(m, meRef.current.id))) void qc.invalidateQueries({ queryKey: chatKeys.conversations });
     if (mine) return;
     if (viewing) markRead(m.conversationId);
     else {

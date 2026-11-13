@@ -48,6 +48,8 @@ public sealed class ChatDbContext(DbContextOptions<ChatDbContext> options) : DbC
             e.Property(x => x.SenderName).HasMaxLength(200);
             e.Property(x => x.Text).HasMaxLength(ChatRules.MaxTextLength);
             e.Property(x => x.ClientId).HasMaxLength(64);
+            // @nhắc (TEST-70): uuid[] — lọc "tin chưa đọc nhắc tôi" sau khi đã thu hẹp theo hội thoại + Seq (không cần chỉ mục riêng)
+            e.Property(x => x.MentionedUserIds).HasDefaultValueSql("'{}'::uuid[]");
             e.HasIndex(x => x.Seq).IsUnique().HasDatabaseName("ux_messages_seq");
             e.HasIndex(x => new { x.ConversationId, x.Seq }).HasDatabaseName("ix_messages_conversation_seq");
             // Hạn mức bot: đếm tin của bot trong 1 giờ qua (chỉ dòng ByBot — chỉ mục nhỏ).

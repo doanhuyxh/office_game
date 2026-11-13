@@ -18,6 +18,11 @@ public interface ITelegramWakeup
     /// Người gọi bỏ tác giả bình luận; người nhận không phải bot / đã khoá → bỏ qua.</summary>
     Task TaskMentionedAsync(Guid userId, string employeeCode, Guid projectId, Guid taskId, string taskCode, Guid commentId, CancellationToken ct = default);
 
+    /// <summary>Bot được @mã-nhân-viên trong tin nhắn chat (TEST-70: kênh phòng / Toàn văn phòng / nhóm) → tin <c>event: chat_mention</c> +
+    /// <c>conversation_id</c> / <c>message_id</c>; agent đọc bằng MCP read_chat rồi trả lời bằng send_chat_message.
+    /// Người gọi bỏ người gửi và bỏ hẳn khi người gửi là bot (chống vòng lặp bot ↔ bot); người nhận không phải bot / đã khoá → bỏ qua.</summary>
+    Task ChatMentionedAsync(Guid userId, string employeeCode, Guid conversationId, Guid messageId, CancellationToken ct = default);
+
     /// <summary>Nút "Gửi thử": gửi ngay (không qua hàng đợi) một tin thử vào nhóm. Trả (thành công, thông điệp).</summary>
     Task<(bool Ok, string Message)> SendTestAsync(CancellationToken ct = default);
 }
@@ -27,6 +32,8 @@ public static partial class TelegramRules
 {
     /// <summary>Giá trị trường <c>event</c> của tin đánh thức (TEST-63). Tin cũ không có <c>event</c> = <see cref="Assigned"/>.</summary>
     public const string Assigned = "assigned", Returned = "returned", Mentioned = "mentioned";
+    /// <summary>Bot được @nhắc trong tin nhắn chat (TEST-70) — tin không có task_id / project_id.</summary>
+    public const string ChatMention = "chat_mention";
 
     /// <summary>
     /// Tin đánh thức: một dòng JSON. Agent đọc nhóm và tự nhận việc theo <c>employee_code</c> (TEST-48: không nhắc bot riêng).
@@ -42,6 +49,14 @@ public static partial class TelegramRules
         if (commentId is { } c) d["comment_id"] = c.ToString();
         return JsonSerializer.Serialize(d);
     }
+
+    /// <summary>Tin đánh thức khi bot được @nhắc trong chat (TEST-70): employee_code, event = <see cref="ChatMention"/>, conversation_id, message_id.
+    /// KHÔNG có nội dung tin (agent tự đọc qua MCP read_chat).</summary>
+    public static string ChatWakeMessage(string employeeCode, Guid conversationId, Guid messageId) =>
+        JsonSerializer.Serialize(new Dictionary<string, string>
+        {
+            ["employee_code"] = employeeCode, ["event"] = ChatMention, ["conversation_id"] = conversationId.ToString(), ["message_id"] = messageId.ToString(),
+        });
 
     /// <summary>Chat id: số (nhóm / siêu nhóm "-100…", người dùng) hoặc "@tenkenh".</summary>
     [GeneratedRegex("^(-?[0-9]{1,20}|@[A-Za-z][A-Za-z0-9_]{4,31})$")]

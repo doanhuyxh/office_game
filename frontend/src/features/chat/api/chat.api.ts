@@ -1,5 +1,5 @@
 import { http, httpPost } from '@/services/api-client';
-import type { IConversation, IGroupMember, IMessage, IMessagePage, IPerson, ISendResult, IUploadTicket } from '../types/chat.types';
+import type { IConversation, IGroupMember, IMentionCandidate, IMessage, IMessagePage, IPerson, ISendResult, IUploadTicket } from '../types/chat.types';
 
 const base = '/api/chat';
 
@@ -10,6 +10,7 @@ export const chatKeys = {
   messages: (conversationId: string) => ['chat', 'messages', conversationId] as const,
   people: (search: string) => ['chat', 'people', search] as const,
   members: (conversationId: string) => ['chat', 'members', conversationId] as const,
+  mentionCandidates: (conversationId: string, search: string) => ['chat', 'mention-candidates', conversationId, search] as const,
   search: (conversationId: string, q: string) => ['chat', 'search', conversationId, q] as const,
 };
 
@@ -30,6 +31,9 @@ export const chatApi = {
   search: (conversationId: string, q: string) => http<IMessage[]>(`${base}/conversations/${conversationId}/search?q=${encodeURIComponent(q)}`),
   createGroup: (title: string, userIds: string[]) => httpPost<IConversation>(`${base}/conversations/group`, { title, userIds }),
   members: (conversationId: string) => http<IGroupMember[]>(`${base}/conversations/${conversationId}/members`),
+  /** Gợi ý @nhắc: thành viên hội thoại (trừ mình), tìm không dấu theo tên / mã. */
+  mentionCandidates: (conversationId: string, search: string) =>
+    http<IMentionCandidate[]>(`${base}/conversations/${conversationId}/mention-candidates?search=${encodeURIComponent(search)}`),
   addMembers: (conversationId: string, userIds: string[]) => httpPost<void>(`${base}/conversations/${conversationId}/members`, { userIds }),
   leaveGroup: (conversationId: string) => http<void>(`${base}/conversations/${conversationId}/members/me`, { method: 'DELETE' }),
   markRead: (conversationId: string) => httpPost<void>(`${base}/conversations/${conversationId}/read`),

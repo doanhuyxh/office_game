@@ -17,4 +17,9 @@ export interface ScreenDto {
   /** kind = 'Markdown' (bot present_markdown): nội dung trang, url rỗng. */
   markdown?: string | null;
 }
-export interface ChatDto { id: string; name: string; text: string; at: string; channel?: 'office' | 'room'; roomId?: string | null; roomName?: string | null }
+/** Người được @nhắc trong dòng chat (TEST-70). */
+export interface ChatMentionDto { userId: string; code: string; name: string }
+export interface ChatDto {
+  id: string; name: string; text: string; at: string; channel?: 'office' | 'room'; roomId?: string | null; roomName?: string | null;
+  mentions?: ChatMentionDto[] | null;
+}

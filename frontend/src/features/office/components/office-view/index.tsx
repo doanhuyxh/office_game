@@ -6,7 +6,8 @@ import { useMe } from '@/features/auth';
 import { useRoomsNow } from '@/features/meetings';
 import { errorMessage } from '@/utils/errors';
 import { formatTime } from '@/utils/date';
-import { useOffice } from '../../store/office.store';
+import { splitMentions } from '@/utils/mention';
+import { useOffice, type ChatLine } from '../../store/office.store';
 import { PATHS } from '@/config/paths';
 import { OfficeScene } from '../../engine/OfficeScene';
 import { OfficeConnection } from '../../api/officeHub';
@@ -315,9 +316,10 @@ export function OfficeView() {
               {IS_TOUCH && <button type="button" className="close" onClick={() => setChatOpen(false)} aria-label="Thu gọn chat">✕</button>}
             </div>
             <div className="log">
-              {chat.filter((l) => (tab === 'room' ? l.channel === 'room' && l.roomId === roomCh?.id : l.channel !== 'room')).map((l, i) => (
-                <div key={i}><b>{l.name}:</b> {l.text}</div>
-              ))}
+              {chat.filter((l) => (tab === 'room' ? l.channel === 'room' && l.roomId === roomCh?.id : l.channel !== 'room')).map((l, i) => {
+                const mentionsMe = !!account?.id && l.id !== account.id && !!l.mentions?.some((x) => x.userId === account.id);
+                return <div key={i} className={mentionsMe ? 'mention-me' : undefined} data-mentions-me={mentionsMe || undefined}><b>{l.name}:</b> <HudText line={l} /></div>;
+              })}
             </div>
             <input value={text} onChange={(e) => setText(e.target.value)} maxLength={200}
               placeholder={tab === 'room' ? `Chỉ người trong ${roomCh?.name} thấy…` : 'Nhập tin nhắn, Enter để gửi'} />
@@ -399,3 +401,10 @@ export function OfficeView() {
 const INTERACT_LABEL: Record<string, string> = { documents: '🗄 Tủ hồ sơ', library: '📚 Thư viện', screen: '📺 Màn hình', notices: '📌 Bảng tin' };
 const INTERACT_VERB: Record<string, string> = { documents: 'mở kho phòng ban', library: 'mở kho chung', screen: 'chiếu tài liệu', notices: 'xem tin & tài liệu mới' };
 const STATUS = { connecting: 'Đang kết nối…', reconnecting: 'Mất kết nối, đang thử lại…', offline: 'Mất kết nối', kicked: 'Đã đăng nhập nơi khác', online: '' };
+
+/** Chữ dòng chat HUD: "@mã" của người được nhắc → "@Họ tên" tô nổi (hover: mã). */
+function HudText({ line }: { line: ChatLine }) {
+  if (!line.mentions?.length) return <>{line.text}</>;
+  const names = new Map(line.mentions.map((x) => [x.code.toUpperCase(), x.name]));
+  return <>{splitMentions(line.text, names).map((p, i) => (typeof p === 'string' ? p : <span key={i} className="mention" title={p.code}>@{p.name}</span>))}</>;
+}

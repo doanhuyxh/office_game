@@ -74,8 +74,14 @@ export function ConversationList({ conversations, loading, selectedId, onSelect,
               <div className="flex items-center gap-2">
                 <span className={cn('truncate text-xs', c.unread > 0 ? 'text-foreground' : 'text-muted-foreground')}>{c.lastPreview ?? 'Chưa có tin nhắn'}</span>
                 {c.unread > 0 && (
-                  <span className="ms-auto flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-white" data-testid="chat-conversation-unread">
-                    {c.unread > 99 ? '99+' : c.unread}
+                  <span className="ms-auto flex shrink-0 items-center gap-1">
+                    {(c.mentionedUnread ?? 0) > 0 && (
+                      <span className="flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground"
+                        title="Có tin nhắc tới bạn" aria-label="Có tin nhắc tới bạn" data-testid="chat-conversation-mention">@</span>
+                    )}
+                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-white" data-testid="chat-conversation-unread">
+                      {c.unread > 99 ? '99+' : c.unread}
+                    </span>
                   </span>
                 )}
               </div>

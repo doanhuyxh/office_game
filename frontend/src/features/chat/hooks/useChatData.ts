@@ -56,6 +56,16 @@ export function useOpenDirect() {
   });
 }
 
+/** Gợi ý khi gõ @ (query = null → không tải). Giữ kết quả cũ trong lúc gõ tiếp để danh sách không nháy. */
+export const useMentionCandidates = (conversationId: string, query: string | null) =>
+  useQuery({
+    queryKey: chatKeys.mentionCandidates(conversationId, query ?? ''),
+    queryFn: () => chatApi.mentionCandidates(conversationId, query ?? ''),
+    enabled: query !== null,
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  });
+
 export const useGroupMembers = (conversationId: string, enabled: boolean) =>
   useQuery({ queryKey: chatKeys.members(conversationId), queryFn: () => chatApi.members(conversationId), enabled, staleTime: 30_000 });
 

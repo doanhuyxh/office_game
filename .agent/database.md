@@ -64,7 +64,7 @@ Quy tắc ghi:
 
 ## Schema `approval`, `leave`, `notifications`
 
-Xem [database-workflow.md](database-workflow.md) (đơn, duyệt, nghỉ phép, thông báo, hợp đồng + mẫu Word, phòng họp). `notifications.telegram_messages` (migration `TelegramMessages`, TEST-42): hàng đợi tin Telegram (`Kind`, `ChatId`, `Text` ≤ 4096, `UserId?`, `TaskId?`, `Status` Pending / Sent / Failed, `Attempts`, `NextAttemptAt`, `SentAt`, `ResponseStatus`, `Error` ≤ 500; index lọc `ix_telegram_messages_due`, `ix_telegram_messages_created`; giữ 30 ngày) — [business/notifications-telegram.md](business/notifications-telegram.md).
+Xem [database-workflow.md](database-workflow.md) (đơn, duyệt, nghỉ phép, thông báo, hợp đồng + mẫu Word, phòng họp). `notifications.telegram_messages` (migration `TelegramMessages`, TEST-42): hàng đợi tin Telegram (`Kind` task_assigned / task_returned / task_mentioned / chat_mention, `ChatId`, `Text` ≤ 4096, `UserId?`, `TaskId?`, `Status` Pending / Sent / Failed, `Attempts`, `NextAttemptAt`, `SentAt`, `ResponseStatus`, `Error` ≤ 500; index lọc `ix_telegram_messages_due`, `ix_telegram_messages_created`; giữ 30 ngày) — [business/notifications-telegram.md](business/notifications-telegram.md).
 
 ## Dữ liệu seed khi khởi động
 

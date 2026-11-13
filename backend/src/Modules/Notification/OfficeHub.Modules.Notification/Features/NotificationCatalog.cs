@@ -120,7 +120,11 @@ internal static class NotificationCatalog
         new("finance.expense_paid", "finance", "Đã chi tiền", "Người đề nghị khi kế toán đã chi.", NotificationCategories.ExpensePaid),
 
         new("chat.direct", "chat", "Tin nhắn 1-1", "Người nhận tin nhắn 1-1 (không có chuông).", null, Push: true, WebhookEvent: WebhookEvents.ChatMessage),
-        new("chat.room", "chat", "Tin nhắn kênh phòng", "Thành viên kênh phòng (không có chuông). Kênh Office toàn công ty không đẩy.", null, Push: true),
+        new("chat.room", "chat", "Tin nhắn kênh phòng", "Thành viên kênh phòng / nhóm (không có chuông). Kênh Office toàn công ty không đẩy.", null, Push: true),
+        new("chat.mention", "chat", "Được nhắc trong tin nhắn",
+            "Người được @mã-nhân-viên trong tin kênh phòng / Toàn văn phòng / nhóm (phải là thành viên; không chuông). Webhook + Telegram: chỉ khi người gửi không phải bot " +
+            "(Telegram: chỉ tài khoản bot).",
+            null, Telegram: nameof(ITelegramWakeup.ChatMentionedAsync), Push: true, WebhookEvent: WebhookEvents.ChatMention),
 
         new("system.ai_alert", "system", "Cảnh báo trợ lý AI", "Mọi admin khi trợ lý AI / bot hoạt động bất thường (bị chặn nhiều, lỗi liên tục, ghi dồn dập, bot duyệt đơn).",
             NotificationCategories.AiAlert, EmailMode.Conditional, "Chỉ khi bot duyệt / từ chối đơn"),

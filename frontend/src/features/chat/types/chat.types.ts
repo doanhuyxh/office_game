@@ -11,6 +11,24 @@ export interface IConversation {
   unread: number;
   /** 1-1 với tài khoản bot AI — tin nhắn được gửi tới trợ lý AI bên ngoài. */
   peerIsBot?: boolean;
+  /** Số tin chưa đọc có @nhắc tới tôi → hiện "@" cạnh số chưa đọc. */
+  mentionedUnread?: number;
+}
+
+/** Người được @nhắc trong tin: "@code" trong chữ hiện thành tên (tô nổi). */
+export interface IMention {
+  userId: string;
+  code: string;
+  name: string;
+}
+
+/** Gợi ý khi gõ @ trong ô soạn tin (thành viên hội thoại; Toàn văn phòng: mọi nhân viên). */
+export interface IMentionCandidate {
+  userId: string;
+  fullName: string;
+  code: string;
+  isBot: boolean;
+  avatarUrl: string | null;
 }
 
 export interface IAttachment {
@@ -53,6 +71,8 @@ export interface IMessage {
   /** Lần sửa gần nhất (null = chưa sửa) — hiện "đã sửa". */
   editedAt?: string | null;
   reactions?: IReaction[];
+  /** Người được @nhắc (server tách từ "@mã" trong chữ, chỉ thành viên hội thoại). */
+  mentions?: IMention[];
   local?: ILocalState;
 }
 

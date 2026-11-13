@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using OfficeHub.BuildingBlocks.Storage;
 using OfficeHub.Modules.Chat.Domain;
 using OfficeHub.Modules.Chat.Features;
+using OfficeHub.Modules.Organization.Contracts;
 
 namespace OfficeHub.Modules.Chat.Infrastructure;
 
@@ -25,8 +26,40 @@ public sealed class ChatThrottle(TimeProvider clock)
 }
 
 /// <summary>Truy cập hội thoại / tin nhắn dùng chung cho các endpoint: tra hội thoại, kiểm tra quyền, người nhận, quy đổi DTO, đếm chưa đọc.</summary>
-public sealed class ChatStore(ChatDbContext db, ChatRooms rooms, IFileStorage files, TimeProvider clock)
+public sealed class ChatStore(ChatDbContext db, ChatRooms rooms, IFileStorage files, IEmployeeDirectory dir, TimeProvider clock)
 {
+    private Dictionary<Guid, EmployeeRef>? _people;
+
+    /// <summary>Nhân viên đang làm việc có tài khoản, theo UserId — nạp một lần mỗi request (tên người được @nhắc, gợi ý @).</summary>
+    public async Task<IReadOnlyDictionary<Guid, EmployeeRef>> PeopleAsync(CancellationToken ct = default) =>
+        _people ??= (await dir.ListActiveAsync(ct)).Where(e => e.UserId is not null).GroupBy(e => e.UserId!.Value).ToDictionary(g => g.Key, g => g.First());
+
+    /// <summary>
+    /// Người có thể được @nhắc trong hội thoại (TEST-70): Office → mọi nhân viên đang làm có tài khoản; Room / Group → thành viên (đang làm);
+    /// Direct → không ai (1-1 không cần nhắc).
+    /// </summary>
+    public async Task<List<EmployeeRef>> MentionableAsync(Conversation c, CancellationToken ct)
+    {
+        if (!ChatRules.CanMention(c.Type)) return [];
+        var people = await PeopleAsync(ct);
+        if (c.Type == ConversationType.Office) return people.Values.ToList();
+        var members = await db.RoomMembers.AsNoTracking().Where(m => m.ConversationId == c.Id).Select(m => m.UserId).ToListAsync(ct);
+        return members.Select(u => people.GetValueOrDefault(u)).OfType<EmployeeRef>().ToList();
+    }
+
+    /// <summary>Số tin chưa đọc có @nhắc tới <paramref name="userId"/> theo hội thoại (cùng điều kiện "chưa đọc" như <see cref="UnreadAsync"/>).</summary>
+    public async Task<Dictionary<Guid, int>> UnreadMentionsAsync(Guid userId, IReadOnlyCollection<Guid> conversationIds, CancellationToken ct)
+    {
+        var rows = await (from m in db.Messages.AsNoTracking()
+                          where conversationIds.Contains(m.ConversationId) && m.SenderId != userId && m.DeletedAt == null && m.MentionedUserIds.Contains(userId)
+                          join r in db.ReadStates.Where(r => r.UserId == userId) on m.ConversationId equals r.ConversationId into rs
+                          from r in rs.DefaultIfEmpty()
+                          where m.Seq > (r == null ? 0L : r.LastReadSeq)
+                          group m by m.ConversationId into g
+                          select new { Id = g.Key, N = g.Count() }).ToListAsync(ct);
+        return rows.ToDictionary(x => x.Id, x => x.N);
+    }
+
     /// <summary>Id hội thoại là Guid thật, "office" hoặc "room:&lt;id phòng&gt;" (Realtime dùng hai dạng chuỗi để khỏi tra id).</summary>
     public async Task<Conversation?> ResolveAsync(string? idOrAlias, CancellationToken ct)
     {
@@ -73,8 +106,16 @@ public sealed class ChatStore(ChatDbContext db, ChatRooms rooms, IFileStorage fi
         // Cảm xúc theo thứ tự lần đầu được thả; tin thu hồi không còn cảm xúc
         var reactions = deleted ? [] : m.Reactions.OrderBy(r => r.CreatedAt).GroupBy(r => r.Emoji)
             .Select(g => new ReactionDto(g.Key, g.Select(r => r.UserId).ToList())).ToList();
+        // @nhắc: tên hiện tại (đổi tên → hiện tên mới); người đã nghỉ việc bị bỏ (FE hiện chữ "@mã" thường)
+        List<MentionDto> mentions = [];
+        if (!deleted && m.MentionedUserIds.Count > 0)
+        {
+            var people = await PeopleAsync();
+            mentions = m.MentionedUserIds.Select(u => people.GetValueOrDefault(u)).OfType<EmployeeRef>()
+                .Select(e => new MentionDto(e.UserId!.Value, e.Code, e.FullName)).ToList();
+        }
         return new MessageDto(m.Id, m.Seq, m.ConversationId, m.SenderId, m.SenderName, deleted ? null : m.Text, m.CreatedAt, deleted, atts, m.ClientId, m.ByBot,
-            m.EditedAt, reactions);
+            m.EditedAt, reactions, mentions);
     }
 
     /// <summary>Office chưa có dòng đã đọc → khởi tạo ở tin mới nhất (người mới / lần đầu mở chat không bị "hàng nghìn tin chưa đọc").</summary>

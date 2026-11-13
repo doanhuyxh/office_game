@@ -54,6 +54,8 @@ public sealed class Message
     public string? ClientId { get; set; }
     /// <summary>Gửi bằng token AI (chỉ tài khoản bot, qua MCP) → hiện nhãn BOT.</summary>
     public bool ByBot { get; set; }
+    /// <summary>Tài khoản được @mã-nhân-viên trong tin (TEST-70): chỉ thành viên hội thoại, bỏ người gửi, tối đa <see cref="ChatRules.MaxMentions"/>; 1-1 luôn rỗng.</summary>
+    public List<Guid> MentionedUserIds { get; set; } = [];
     public List<MessageAttachment> Attachments { get; set; } = [];
     public List<MessageReaction> Reactions { get; set; } = [];
 }

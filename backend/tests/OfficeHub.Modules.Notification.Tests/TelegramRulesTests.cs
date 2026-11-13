@@ -34,6 +34,19 @@ public class TelegramRulesTests
         Assert.Equal("returned", TelegramRules.Returned);
     }
 
+    [Fact]
+    public void Chat_mention_wake_message_has_conversation_and_message_but_no_task()
+    {
+        var c = Guid.NewGuid(); var m = Guid.NewGuid();
+        var text = TelegramRules.ChatWakeMessage("NV018", c, m);
+        Assert.DoesNotContain('\n', text);
+        using var doc = JsonDocument.Parse(text);
+        Assert.Equal(["employee_code", "event", "conversation_id", "message_id"], doc.RootElement.EnumerateObject().Select(x => x.Name).ToArray());
+        Assert.Equal("chat_mention", doc.RootElement.GetProperty("event").GetString());
+        Assert.Equal(c.ToString(), doc.RootElement.GetProperty("conversation_id").GetString());
+        Assert.Equal(m.ToString(), doc.RootElement.GetProperty("message_id").GetString());
+    }
+
     [Theory]
     [InlineData("-1001234567890", true)]
     [InlineData("123456", true)]
