@@ -1,8 +1,9 @@
 // E2E: module Sales — khách hàng (quyền xem theo người phụ trách / quản lý / quyền Xem tài chính, MST trùng), người liên hệ, chăm sóc + việc hẹn,
 // cơ hội (xác suất theo giai đoạn, lý do thua), hợp đồng bán (VAT, lịch thu, số trùng, từ cơ hội → Thắng), công nợ (quá hạn, sắp đến hạn, tuổi nợ),
-// ghi nhận thu → dòng THU ở sổ Finance, kế toán huỷ dòng sổ → tự trừ, huỷ / thêm đợt thu, token AI bị chặn.
+// ghi nhận thu → dòng THU ở sổ Finance, kế toán huỷ dòng sổ → tự trừ, huỷ / thêm đợt thu, token AI chỉ đọc (TEST-77: GET theo quyền người xem, ghi / export / settings → 403; MCP thật khi có MCP_URL).
 // TẠO DỮ LIỆU THẬT → CHỈ chạy trên DB tạm (Api :5180 trỏ DB tạm, `dotnet run --no-launch-profile`).
 //   E2E_LOCAL_DB=1 API_URL=http://localhost:5180 ADMIN_LOGIN=e2e.admin@officehub.test ADMIN_PASSWORD='E2e-Admin-2026!' bun scripts/dev/sales-e2e.ts
+//   MCP tuỳ chọn: MCP_URL=http://localhost:5200/mcp (host Mcp chạy Mcp__ApiBaseUrl=http://localhost:5180 ASPNETCORE_URLS=http://localhost:5200).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { totp } from './totp';
@@ -191,9 +192,69 @@ ok('Danh sách HĐ: đã thu 60.5M, còn 49.5M, không quá hạn', lst.find((x)
 ok('Kết thúc HĐ → không thêm đợt (409)', (await json(S1.cookie, 'PUT', `/api/sales/contracts/${K1}`, { title: 'Thiết kế web bán hàng', status: 'Completed' })).status === 204
   && (await json(S1.cookie, 'POST', `/api/sales/contracts/${K1}/installments`, { title: 'x', dueOn: today, amount: 1 })).status === 409);
 
-// ---------- Token AI ----------
-const tok = (await json(D.cookie, 'POST', '/api/auth/access-tokens', { name: `e2e sales ${stamp}`, expiresInDays: 30 })).body?.token as string;
-ok('Token AI không gọi được /api/sales → 403', (await fetch(`${API}/api/sales/customers?page=1`, { headers: { authorization: `Bearer ${tok}` } })).status === 403);
+// ---------- Token AI: chỉ đọc (TEST-77) ----------
+const mkTok = async (c: string, who: string) => (await json(c, 'POST', '/api/auth/access-tokens', { name: `e2e sales ${who} ${stamp}`, expiresInDays: 30 })).body?.token as string;
+const tS1 = await mkTok(S1.cookie, 's1'), tO = await mkTok(O.cookie, 'out');
+const tGet = async (t: string, path: string) => {
+  const r = await fetch(API + path, { headers: { authorization: `Bearer ${t}` } });
+  return { status: r.status, body: await r.json().catch(() => null) as any };
+};
+const tCall = async (t: string, method: string, path: string, body: unknown = {}) =>
+  (await fetch(API + path, { method, headers: { authorization: `Bearer ${t}`, 'content-type': 'application/json' }, body: JSON.stringify(body) })).status;
+ok('Token tạo được (S1, người ngoài)', !!tS1 && !!tO);
+const tl = await tGet(tS1, `/api/sales/customers?page=1&search=${stamp}`);
+ok('Token người phụ trách: danh sách khách chỉ có khách của mình', tl.status === 200 && tl.body.items.some((x: any) => x.id === C1) && !tl.body.items.some((x: any) => x.id === C2), tl);
+ok('Token người phụ trách: chi tiết khách mình 200, khách người khác 404', (await tGet(tS1, `/api/sales/customers/${C1}`)).status === 200 && (await tGet(tS1, `/api/sales/customers/${C2}`)).status === 404);
+ok('Token người ngoài: khách / HĐ → 404, danh sách trống', (await tGet(tO, `/api/sales/customers/${C1}`)).status === 404 && (await tGet(tO, `/api/sales/contracts/${K1}`)).status === 404
+  && (await tGet(tO, `/api/sales/customers?page=1&search=${stamp}`)).body?.items?.length === 0);
+ok('Token đọc HĐ, cơ hội, công nợ, việc hẹn, báo giá (200)', (await tGet(tS1, `/api/sales/contracts/${K1}`)).body?.contract?.id === K1
+  && (await tGet(tS1, `/api/sales/contracts?page=1&search=${stamp}`)).status === 200
+  && ((await tGet(tS1, `/api/sales/opportunities?customerId=${C1}`)).body as any[]).some((x) => x.id === op.body)
+  && (await tGet(tS1, '/api/sales/receivables')).status === 200
+  && ((await tGet(tS1, '/api/sales/activities/upcoming')).body as any[]).some((x) => x.id === act.body)
+  && (await tGet(tS1, '/api/sales/quotes?page=1')).status === 200);
+const writes: [string, string][] = [
+  ['POST', '/api/sales/customers'], ['PUT', `/api/sales/customers/${C1}`], ['POST', `/api/sales/customers/${C1}/contacts`], ['DELETE', `/api/sales/contacts/${k2.body}`],
+  ['POST', `/api/sales/customers/${C1}/activities`], ['POST', '/api/sales/opportunities'], ['PUT', `/api/sales/opportunities/${op.body}`], ['POST', '/api/sales/contracts'],
+  ['PUT', `/api/sales/contracts/${K1}`], ['POST', `/api/sales/contracts/${K1}/installments`], ['POST', `/api/sales/installments/${inst1}/collect`], ['POST', `/api/sales/installments/${inst2}/cancel`],
+  ['POST', '/api/sales/quotes'], ['PUT', '/api/sales/settings'],
+];
+const ws = await Promise.all(writes.map(([m, p]) => tCall(tS1, m, p)));
+ok('Token: mọi POST / PUT / DELETE /api/sales → 403', ws.every((x) => x === 403), writes.map((w, i) => `${w[0]} ${w[1]} ${ws[i]}`));
+ok('Token: /settings + export.docx → 403', (await tGet(tS1, '/api/sales/settings')).status === 403
+  && (await tGet(tS1, '/api/sales/quotes/0193a000-0000-7000-8000-000000000000/export.docx')).status === 403);
+ok('Token ghi không đổi dữ liệu (khách C1 giữ tên)', (await json(S1.cookie, 'GET', `/api/sales/customers/${C1}`)).body.customer.name === `Cty Alpha ${stamp}`);
+
+if (process.env.MCP_URL) {
+  let rid = 0;
+  const rpc = async (method: string, params: unknown, t: string) => {
+    const res = await fetch(process.env.MCP_URL!, { method: 'POST', headers: { authorization: `Bearer ${t}`, 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: ++rid, method, params }) });
+    const text = await res.text();
+    const data = text.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5)).pop() ?? text;
+    try { return JSON.parse(data); } catch { return text as any; }
+  };
+  const call = async (name: string, args: Record<string, unknown>, t = tS1) => {
+    const r = await rpc('tools/call', { name, arguments: args }, t);
+    const text = r?.result?.content?.[0]?.text ?? '';
+    try { return { err: !!r?.result?.isError, j: JSON.parse(text) as any }; } catch { return { err: true, j: text as any }; }
+  };
+  await rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'e2e', version: '1' } }, tS1);
+  const tools = ((await rpc('tools/list', {}, tS1))?.result?.tools ?? []) as any[];
+  const salesTools = ['search_customers', 'get_customer', 'list_sales_followups', 'list_opportunities', 'list_quotes', 'get_quote', 'list_sales_contracts', 'get_sales_contract', 'list_receivables'];
+  ok('MCP tools/list có 9 tool Kinh doanh, đều readOnly', salesTools.every((n) => tools.find((t) => t.name === n)?.annotations?.readOnlyHint === true), tools.map((t) => t.name));
+  const sc = await call('search_customers', { search: stamp });
+  ok('MCP search_customers: chỉ khách của mình', !sc.err && sc.j.items.some((x: any) => x.id === C1) && !sc.j.items.some((x: any) => x.id === C2), sc.j);
+  const gc = await call('get_customer', { customerId: C1 });
+  ok('MCP get_customer: có liên hệ + HĐ', !gc.err && gc.j.customer.id === C1 && gc.j.contracts.some((x: any) => x.id === K1), gc.j);
+  ok('MCP get_customer khách người khác → lỗi', (await call('get_customer', { customerId: C2 })).err);
+  ok('MCP get_sales_contract, list_receivables, list_opportunities, list_sales_followups, list_quotes, list_sales_contracts',
+    !(await call('get_sales_contract', { contractId: K1 })).err && !(await call('list_receivables', { state: 'overdue' })).err
+    && !(await call('list_opportunities', { customerId: C1, stage: 'won' })).err && !(await call('list_sales_followups', {})).err
+    && !(await call('list_quotes', {})).err && !(await call('list_sales_contracts', { search: stamp, status: 'completed' })).err);
+  ok('MCP giai đoạn lạ → lỗi tiếng Việt', String((await call('list_opportunities', { stage: 'abc' })).j).includes('Giai đoạn'));
+  ok('MCP người ngoài: get_sales_contract → lỗi', (await call('get_sales_contract', { contractId: K1 }, tO)).err);
+}
 
 console.log(`\n${pass} đạt, ${fail} lỗi`);
 process.exit(fail ? 1 : 0);

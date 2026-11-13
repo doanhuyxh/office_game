@@ -12,7 +12,7 @@ namespace OfficeHub.Modules.Sales;
 
 /// <summary>
 /// Kinh doanh (CRM): khách hàng, người liên hệ, chăm sóc, cơ hội bán, hợp đồng bán, lịch thu + công nợ. Tiền thu ghi vào sổ module Finance.
-/// Người thấy = người phụ trách + quản lý của họ + người có quyền Xem tài chính theo chức vụ. Không mở cho token AI.
+/// Người thấy = người phụ trách + quản lý của họ + người có quyền Xem tài chính theo chức vụ. Token AI: chỉ các GET đọc trong <c>AccessTokenAuth</c> (TEST-77), ghi chỉ trên web.
 /// </summary>
 public sealed class SalesModule : IModule
 {

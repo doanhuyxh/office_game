@@ -119,6 +119,10 @@ public static class AccessTokenAuth
         ("GET", Exact("/api/chat/(conversations|unread-count)")),
         ("GET", Exact($"/api/chat/conversations/(office|{Id})/messages")),
         ("POST", Exact($"/api/chat/conversations/(office|{Id})/(messages|read)")),
+        // Kinh doanh (TEST-77): CHỈ ĐỌC — khách, việc đã hẹn, cơ hội, báo giá, HĐ bán, công nợ. Api tự lọc theo người xem (SalesAccess, không thấy → 404).
+        //   Không có: mọi POST / PUT / DELETE, export.docx (file Word báo giá), /settings*, phụ lục, đợt thu / ghi nhận thu.
+        ("GET", Exact("/api/sales/(customers|opportunities|quotes|contracts|receivables|activities/upcoming)/?")),
+        ("GET", Exact($"/api/sales/(customers|quotes|contracts)/{Id}")),
     ];
 
     private static System.Text.RegularExpressions.Regex Exact(string pattern) =>

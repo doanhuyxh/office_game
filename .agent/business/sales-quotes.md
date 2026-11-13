@@ -20,7 +20,7 @@ Nháp → **Chốt**: trong ngưỡng → *Sẵn sàng*; vượt ngưỡng → *
 
 ## Quyền
 
-Như khách hàng ([sales.md](sales.md)): thấy = người phụ trách khách + quản lý của họ + Xem tài chính; tạo / sửa / đổi trạng thái = `SalesViewer.CanEdit`. Người không thấy → 404. Token AI: `/api/sales/*` ngoài allowlist → 403.
+Như khách hàng ([sales.md](sales.md)): thấy = người phụ trách khách + quản lý của họ + Xem tài chính; tạo / sửa / đổi trạng thái = `SalesViewer.CanEdit`. Người không thấy → 404. Token AI (TEST-77): chỉ `GET /quotes`, `/quotes/{id}` (`list_quotes`, `get_quote`); ghi, `export.docx`, `/settings*` → 403.
 
 ## API (`/api/sales`)
 

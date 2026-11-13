@@ -138,11 +138,6 @@ public sealed class DocumentTools
     private static string SpaceIdQs(string kind, Guid? spaceId) =>
         kind == "Company" ? "" : "&spaceId=" + (spaceId ?? throw new McpException("Kho phòng ban / dự án cần spaceId (từ list_document_spaces)"));
 
-    /// <summary>So khớp không phân biệt hoa thường với danh sách giá trị enum của Api.</summary>
-    private static string Pick(string? value, string label, params string[] allowed) =>
-        allowed.FirstOrDefault(a => string.Equals(a, value?.Trim(), StringComparison.OrdinalIgnoreCase))
-        ?? throw new McpException($"{label} phải là một trong: {string.Join(" / ", allowed)}");
-
     /// <summary>Id / mã TL-… / số hiệu → Id (tìm trong mọi kho người dùng vào được, khớp đúng mã hoặc số hiệu).</summary>
     internal static async Task<Guid> ResolveDocumentAsync(OfficeHubApi api, string document, CancellationToken ct)
     {

@@ -30,7 +30,7 @@
 | **Reporting**: Excel bảng công (tổng hợp · lưới công · chi tiết giờ VN), tiền tăng ca (lương HĐ ÷ ngày công chuẩn ÷ 8 × 150/200/300%), tiền phép chưa dùng **khi nghỉ việc** | ✅ |
 | **Mẫu hợp đồng Word**: HR tải .docx có `{{Truong}}`, xuất hợp đồng điền sẵn (lương bằng chữ) | ✅ |
 | **Meetings**: đặt phòng họp, chặn trùng giờ, mời (chuông + email), bảng "Đang họp" trong văn phòng 3D | ✅ |
-| **Kết nối AI (MCP)**: host `OfficeHub.Mcp` 34 tool cho Claude / Cursor / Codex / GitHub Copilot, token cá nhân + OAuth 2.1, nhật ký AI (Audit), không hợp đồng / lương — `.agent/business/mcp.md` | ✅ |
+| **Kết nối AI (MCP)**: host `OfficeHub.Mcp` 87 tool cho Claude / Cursor / Codex / GitHub Copilot, token cá nhân + OAuth 2.1, nhật ký AI (Audit), không hợp đồng / lương — `.agent/business/mcp.md` | ✅ |
 | **Audit**: lịch sử sửa dữ liệu nhân sự (`[Audited]` + interceptor EF, che lương) + nhật ký AI | ✅ |
 | **Nhập nhân viên từ Excel** (mẫu, xem trước lỗi từng dòng, nhập hết hoặc không) | ✅ |
 | Docker image (api, realtime, web), compose production, backup S3, CI GitHub Actions | ✅ (chưa deploy thật) |
@@ -785,7 +785,7 @@ Trước đó (tới 2026-11-05) dùng bucket chung `finsplit` + IAM user `finsp
 | **Phê duyệt + Nghỉ phép + Giải trình** ✅ | Luồng duyệt quản lý → HR, quỹ phép năm, đơn nghỉ, lịch nghỉ, giải trình chấm công; khoá tài khoản hiệu lực ngay | Xin nghỉ, giải trình bằng hệ thống |
 | **Tăng ca** ✅ | Đơn tăng ca, duyệt quản lý → HR, giờ theo hệ số loại ngày, cảnh báo giới hạn | Tăng ca có trên bảng công |
 | **Thông báo** ✅ | Chuông in-app + email cho luồng duyệt | Người duyệt biết ngay có đơn |
-| **Kết nối AI** ✅ | MCP (34 tool), token cá nhân + OAuth 2.1, nhật ký AI, HR thu hồi, giới hạn tần suất | Nhân viên làm việc với hệ thống qua trợ lý AI |
+| **Kết nối AI** ✅ | MCP (87 tool), token cá nhân + OAuth 2.1, nhật ký AI, HR thu hồi, giới hạn tần suất | Nhân viên làm việc với hệ thống qua trợ lý AI |
 | **Nhân sự hằng ngày** ✅ | Nhắc quên chấm ra; Audit lịch sử sửa; nhập nhân viên từ Excel | Đủ quy trình nhân sự hằng ngày |
 | **Văn phòng 3D** — giai đoạn 1 ✅ · 2 bỏ · 3 ✅ (voice) · 4 ✅ | Engine mới, mặt bằng v2, va chạm, ngồi, bản đồ nhỏ ✅. Bỏ (chủ dự án): gán chỗ ngồi, trạng thái "Nghỉ phép" / vắng trên avatar. Voice theo khoảng cách / phòng họp ✅. Chat theo phòng, hạ tầng model GLB (chờ bộ Kenney), joystick / zoom cảm ứng ✅ | Văn phòng 3D giống thật |
 | **Hợp đồng lao động** ✅ | Hợp đồng, phụ lục, lương mã hoá, file S3, nhắc 30 / 7 ngày | HR quản lý hợp đồng trên hệ thống |

@@ -28,4 +28,9 @@ internal static class ToolHelpers
     }
 
     public static string Q(string value) => Uri.EscapeDataString(value);
+
+    /// <summary>So khớp không phân biệt hoa thường với danh sách giá trị enum của Api.</summary>
+    public static string Pick(string? value, string label, params string[] allowed) =>
+        allowed.FirstOrDefault(a => string.Equals(a, value?.Trim(), StringComparison.OrdinalIgnoreCase))
+        ?? throw new McpException($"{label} phải là một trong: {string.Join(" / ", allowed)}");
 }

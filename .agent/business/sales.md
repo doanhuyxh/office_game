@@ -18,7 +18,7 @@ Theo **người phụ trách** (`OwnerEmployeeId`) — không theo vai trò admi
 
 Nghiệm thu mốc dự án gắn đợt thu → `ISalesContractsLookup.MarkAcceptedAsync` (Sales.Contracts) kéo hạn đợt về ngày nghiệm thu + báo — [projects.md](projects.md). Một dự án có nhiều HĐ, một HĐ chỉ một dự án; `ISalesRevenueLookup` (có tiền, chỉ sau kiểm tra quyền) cho lãi / lỗ dự án — [projects-finance.md](projects-finance.md).
 
-Không thấy → **404** (không lộ sự tồn tại). Thấy nhưng không sửa → 403. **Ghi nhận thu** chỉ người có quyền **Ghi sổ**. Giao người phụ trách: chỉ cho chính mình / cấp dưới (hoặc Quản trị tài chính) — sai → 400 `ownerEmployeeId`. Token AI: `/api/sales/*` ngoài allowlist → 403.
+Không thấy → **404** (không lộ sự tồn tại). Thấy nhưng không sửa → 403. **Ghi nhận thu** chỉ người có quyền **Ghi sổ**. Giao người phụ trách: chỉ cho chính mình / cấp dưới (hoặc Quản trị tài chính) — sai → 400 `ownerEmployeeId`. Token AI (TEST-77): chỉ GET đọc (khách, việc hẹn, cơ hội, báo giá, HĐ bán, công nợ — tool MCP nhóm Kinh doanh, [mcp.md](mcp.md)); mọi POST / PUT / DELETE, `export.docx`, `/settings*` → 403.
 
 ## API (`/api/sales`, đăng nhập)
 

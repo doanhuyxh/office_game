@@ -26,7 +26,7 @@ Không làm (giữ ranh giới):
 - **Không phát hành hoá đơn điện tử VAT** (phải qua nhà cung cấp được cấp phép) — chỉ ghi số hoá đơn, thuế suất.
 - **Không thay sổ sách kế toán theo luật / báo cáo thuế.** Hệ thống là **sổ quản trị nội bộ**; xuất Excel cho kế toán dịch vụ / kế toán thuế dùng.
 - Không lưu mật khẩu kênh / tài khoản của khách (cùng quy tắc module Tài sản).
-- Không mở tool tiền cho AI (MCP) ở các giai đoạn đầu.
+- Không mở tool tiền cho AI (MCP) ở các giai đoạn đầu. ✅ Cập nhật 2026-11-13 (TEST-77): Kinh doanh mở **chỉ đọc** (khách, cơ hội, báo giá, HĐ bán, công nợ — theo quyền xem của người dùng); không tool ghi Sales, không Finance.
 
 ## 1. Quyền tài chính theo chức vụ (nền tảng, làm đầu tiên)
 

@@ -259,6 +259,61 @@ public class DepartmentAdminScopeTests
     }
 }
 
+/// <summary>TEST-77: Kinh doanh chỉ đọc — đúng từng route GET, không ghi, không export Word, không cài đặt.</summary>
+public class SalesScopeTests
+{
+    private const string G = "0193a000-0000-7000-8000-000000000000";
+
+    [Theory]
+    [InlineData("GET", "/api/sales/customers")]
+    [InlineData("GET", "/api/sales/customers/" + G)]
+    [InlineData("GET", "/api/sales/activities/upcoming")]
+    [InlineData("GET", "/api/sales/opportunities")]
+    [InlineData("GET", "/api/sales/quotes")]
+    [InlineData("GET", "/api/sales/quotes/" + G)]
+    [InlineData("GET", "/api/sales/contracts")]
+    [InlineData("GET", "/api/sales/contracts/" + G)]
+    [InlineData("GET", "/api/sales/receivables")]
+    public void Sales_reads_allowed(string method, string path) => Assert.True(AccessTokenAuth.IsAllowed(method, path));
+
+    [Theory]
+    [InlineData("POST", "/api/sales/customers")]
+    [InlineData("PUT", "/api/sales/customers/" + G)]
+    [InlineData("POST", "/api/sales/customers/" + G + "/contacts")]
+    [InlineData("POST", "/api/sales/customers/" + G + "/activities")]
+    [InlineData("PUT", "/api/sales/contacts/" + G)]
+    [InlineData("DELETE", "/api/sales/contacts/" + G)]
+    [InlineData("POST", "/api/sales/opportunities")]
+    [InlineData("PUT", "/api/sales/opportunities/" + G)]
+    [InlineData("POST", "/api/sales/quotes")]
+    [InlineData("PUT", "/api/sales/quotes/" + G)]
+    [InlineData("POST", "/api/sales/quotes/" + G + "/submit")]
+    [InlineData("POST", "/api/sales/quotes/" + G + "/sent")]
+    [InlineData("POST", "/api/sales/quotes/" + G + "/result")]
+    [InlineData("POST", "/api/sales/quotes/" + G + "/revise")]
+    [InlineData("POST", "/api/sales/quotes/" + G + "/cancel")]
+    [InlineData("GET", "/api/sales/quotes/" + G + "/export.docx")]
+    [InlineData("POST", "/api/sales/contracts")]
+    [InlineData("PUT", "/api/sales/contracts/" + G)]
+    [InlineData("POST", "/api/sales/contracts/" + G + "/installments")]
+    [InlineData("POST", "/api/sales/contracts/" + G + "/appendices")]
+    [InlineData("POST", "/api/sales/appendices/" + G + "/cancel")]
+    [InlineData("POST", "/api/sales/installments/" + G + "/cancel")]
+    [InlineData("POST", "/api/sales/installments/" + G + "/collect")]
+    [InlineData("GET", "/api/sales/settings")]
+    [InlineData("PUT", "/api/sales/settings")]
+    [InlineData("GET", "/api/sales/settings/quote-template/fields")]
+    [InlineData("GET", "/api/sales/settings/quote-template/default")]
+    [InlineData("POST", "/api/sales/settings/quote-template")]
+    [InlineData("DELETE", "/api/sales/settings/quote-template")]
+    [InlineData("GET", "/api/sales/activities")]
+    [InlineData("GET", "/api/sales/customers/not-a-guid")]
+    [InlineData("GET", "/api/sales/customers/" + G + "/x")]
+    [InlineData("GET", "/api/sales/opportunities/" + G)]
+    [InlineData("GET", "/api/sales")]
+    public void Sales_writes_export_and_settings_blocked(string method, string path) => Assert.False(AccessTokenAuth.IsAllowed(method, path));
+}
+
 public class MeetingToolTests
 {
     [Fact]

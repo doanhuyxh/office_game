@@ -162,7 +162,9 @@ const Q3 = (await json(S.cookie, 'POST', '/api/sales/quotes', { ...body, title: 
 ok('Huỷ nháp → 204; huỷ lần hai → 409; báo giá đã đồng ý không huỷ (409)', (await json(S.cookie, 'POST', `/api/sales/quotes/${Q3}/cancel`, {})).status === 204
   && (await json(S.cookie, 'POST', `/api/sales/quotes/${Q3}/cancel`, {})).status === 409 && (await json(S.cookie, 'POST', `/api/sales/quotes/${Q2}/cancel`, {})).status === 409);
 const tok = (await json(S.cookie, 'POST', '/api/auth/access-tokens', { name: `e2e bg ${stamp}`, expiresInDays: 30 })).body?.token as string;
-ok('Token AI không gọi được báo giá → 403', (await fetch(`${API}/api/sales/quotes`, { headers: { authorization: `Bearer ${tok}` } })).status === 403);
+ok('Token AI đọc được báo giá (TEST-77), không tạo / xuất Word → 403', (await fetch(`${API}/api/sales/quotes?page=1`, { headers: { authorization: `Bearer ${tok}` } })).status === 200
+  && (await fetch(`${API}/api/sales/quotes`, { method: 'POST', headers: { authorization: `Bearer ${tok}`, 'content-type': 'application/json' }, body: '{}' })).status === 403
+  && (await fetch(`${API}/api/sales/quotes/${Q2}/export.docx`, { headers: { authorization: `Bearer ${tok}` } })).status === 403);
 
 console.log(`\n${pass} đạt, ${fail} lỗi`);
 process.exit(fail ? 1 : 0);
