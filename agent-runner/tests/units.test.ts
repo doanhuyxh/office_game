@@ -50,6 +50,19 @@ describe('config', () => {
     expect(() => parseConfig(r)).toThrow('bị agent khác dùng chung');
   });
 
+  test('workspace none (TEST-80): không cần repo, repo khai báo bị bỏ qua', () => {
+    const raw = baseRaw() as any;
+    raw.agents[0].workspace = { mode: 'none' };
+    delete raw.agents[0].repo;
+    const a = parseConfig(raw).agents[0]!;
+    expect(a.workspace.mode).toBe('none');
+    expect(a.repo).toBe('');
+    raw.agents[0].repo = 'tuong/doi'; // không kiểm khi mode none
+    expect(parseConfig(raw).agents[0]!.repo).toBe('');
+    raw.agents[0].workspace = { mode: 'worktree' };
+    expect(() => parseConfig(raw)).toThrow('repo phải là đường dẫn tuyệt đối');
+  });
+
   test('worktrees_dir trong repo được phép (doctor bắt buộc gitignore); repo trong worktrees_dir → lỗi', () => {
     const r = baseRaw();
     r.runner.worktrees_dir = '/srv/agents/NV120/office_game/.officehub-runner/worktrees';
@@ -140,6 +153,12 @@ describe('executor adapters', () => {
     const a = c.args.join(' ');
     for (const f of ['-p P', '--output-format stream-json', '--verbose', '--mcp-config /j/mcp.json', '--strict-mcp-config', '--setting-sources user',
       '--permission-mode bypassPermissions', '--model claude-sonnet-5-5', '--max-budget-usd 5', '--resume sess-1']) expect(a).toContain(f);
+  });
+
+  test('claude: noBuiltinTools → --tools "" (chỉ tool MCP); mặc định không có', () => {
+    const on = claudeAdapter.command({ ...ctx, noBuiltinTools: true }).args;
+    expect(on[on.indexOf('--tools') + 1]).toBe('');
+    expect(claudeAdapter.command(ctx).args).not.toContain('--tools');
   });
 
   test('claude: đọc stream-json mẫu', () => {
@@ -297,6 +316,12 @@ describe('prompt / mcp / log', () => {
     expect(ip).toContain('không reset / stash / rebase');
     expect(ip).not.toContain('Làm việc trong thư mục hiện tại: worktree riêng');
     expect(ip).not.toContain('bộ điều phối sẽ push');
+  });
+  test('prompt mode none (TEST-80): chỉ tool MCP, không có phần git / file', () => {
+    const p = buildPrompt(w, { mode: 'none', branch: '', resumed: false });
+    for (const r of ['get_my_role', 'get_project', 'get_task TEST-45', 'comment_task TEST-45', 'CHỈ bằng tool MCP', 'Không duyệt / từ chối / huỷ đơn', 'DỮ LIỆU']) expect(p).toContain(r);
+    for (const r of ['git', 'worktree', 'AGENTS.md', 'commit thay đổi', 'push']) expect(p).not.toContain(r);
+    expect(buildPrompt(w, { mode: 'none', branch: '', resumed: true })).toContain('NỐI TIẾP');
   });
   test('cấu hình MCP không chứa token', () => {
     expect(JSON.stringify(mcpConfig('http://x/mcp'))).toContain('${OFFICEHUB_TOKEN}');

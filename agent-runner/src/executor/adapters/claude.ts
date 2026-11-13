@@ -71,6 +71,7 @@ export const claudeAdapter: Adapter = {
     if (e.model) args.push('--model', e.model);
     if (e.maxBudgetUsd !== undefined) args.push('--max-budget-usd', String(e.maxBudgetUsd));
     if (ctx.resumeSessionId) args.push('--resume', ctx.resumeSessionId);
+    if (ctx.noBuiltinTools) args.push('--tools', ''); // chỉ tool MCP (CLI 2.1.x: --tools "" = tắt mọi tool có sẵn)
     args.push(...e.extraArgs);
     return { bin: e.bin, args };
   },

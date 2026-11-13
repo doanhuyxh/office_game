@@ -9,6 +9,11 @@ export interface ExecContext {
   mcpConfigFile: string;
   resumeSessionId?: string;
   exec: ExecutorConfig;
+  /**
+   * Tắt mọi công cụ có sẵn của CLI (Bash, đọc / ghi file…) — chỉ còn tool MCP. Dùng cho mode none (agent nghiệp vụ), chat, họp:
+   * nội dung người khác viết không dẫn tới chạy lệnh trên máy. Adapter `custom` không ép được — CLI tự khai báo phải tự giới hạn.
+   */
+  noBuiltinTools?: boolean;
   /** Gọi mỗi khi agent làm một thao tác (đọc / sửa file, chạy lệnh, gọi MCP, nhận định) — để runner log tiến độ. */
   onActivity?: (message: string) => void;
 }

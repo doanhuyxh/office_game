@@ -16,8 +16,11 @@ export interface ExecutorConfig {
   outputFormat: 'text' | 'json';
 }
 
-/** Nơi agent làm việc: worktree riêng + push + PR (mặc định) | in_place = ngay trong `repo`, commit vào nhánh đang checkout, KHÔNG push / PR. */
-export type WorkspaceMode = 'worktree' | 'in_place';
+/**
+ * Nơi agent làm việc: worktree riêng + push + PR (mặc định) | in_place = ngay trong `repo`, commit vào nhánh đang checkout, KHÔNG push / PR
+ * | none = agent nghiệp vụ (TEST-80): không repo / git / PR, CLI chạy trong thư mục trống dưới `data_dir`, chỉ có tool MCP.
+ */
+export type WorkspaceMode = 'worktree' | 'in_place' | 'none';
 
 export interface WorkspaceConfig {
   mode: WorkspaceMode;
@@ -32,6 +35,7 @@ export interface AgentConfig {
   telegramBot: string;
   telegramToken: string;
   token: string;
+  /** Bản clone của agent. Mode none không dùng → chuỗi rỗng. */
   repo: string;
   envFile?: string;
   workspace: WorkspaceConfig;
@@ -106,17 +110,19 @@ export function parseConfig(raw: unknown): RunnerConfig {
     if (!tgToken || !/^\d{5,15}:[A-Za-z0-9_-]{30,}$/.test(tgToken)) p.push(`${at}.telegram_token không đúng dạng 123456789:AA…`);
     const token = str(a?.token);
     if (!token || !token.startsWith('ohk_')) p.push(`${at}.token phải là token AI của OfficeHub (ohk_…)`);
-    const repo = str(a?.repo);
-    if (!repo || !isAbsolute(repo)) p.push(`${at}.repo phải là đường dẫn tuyệt đối`);
-    else if (worktreesDir && isInside(repo, worktreesDir))
-      p.push(`${at}: repo không được nằm trong runner.worktrees_dir`);
+    const w = a?.workspace ?? {};
+    const mode = w.mode ?? 'worktree';
+    if (mode !== 'worktree' && mode !== 'in_place' && mode !== 'none') p.push(`${at}.workspace.mode là worktree, in_place hoặc none`);
+    // Mode none (agent nghiệp vụ) không cần repo; có khai báo cũng bỏ qua.
+    const repo = mode === 'none' ? undefined : str(a?.repo);
+    if (mode !== 'none') {
+      if (!repo || !isAbsolute(repo)) p.push(`${at}.repo phải là đường dẫn tuyệt đối`);
+      else if (worktreesDir && isInside(repo, worktreesDir)) p.push(`${at}: repo không được nằm trong runner.worktrees_dir`);
+    }
     // worktrees_dir NẰM TRONG repo được phép (vd .officehub-runner/worktrees): EnvLoader dừng ở gốc worktree (.git) nên không đọc .env của
     // repo chính; `doctor` / khởi động bắt buộc thư mục đó đã gitignore.
     const envFile = str(a?.env_file);
     if (envFile && !isAbsolute(envFile)) p.push(`${at}.env_file phải là đường dẫn tuyệt đối`);
-    const w = a?.workspace ?? {};
-    const mode = w.mode ?? 'worktree';
-    if (mode !== 'worktree' && mode !== 'in_place') p.push(`${at}.workspace.mode là worktree hoặc in_place`);
     for (const k of ['allow_base_branch', 'allow_env_files'])
       if (w[k] !== undefined && typeof w[k] !== 'boolean') p.push(`${at}.workspace.${k} là true / false`);
     const e = a?.executor ?? {};
@@ -134,9 +140,9 @@ export function parseConfig(raw: unknown): RunnerConfig {
     if (fmt !== 'text' && fmt !== 'json') p.push(`${at}.executor.output.format là text hoặc json`);
     if (code) seenCodes.add(code);
     if (bot) seenBots.add(normalizeBot(bot));
-    if (code && bot && tgToken && token && repo && bin && (kind === 'claude' || kind === 'custom'))
+    if (code && bot && tgToken && token && (repo || mode === 'none') && bin && (kind === 'claude' || kind === 'custom'))
       agents.push({
-        employeeCode: code, telegramBot: normalizeBot(bot), telegramToken: tgToken, token, repo: resolve(repo), envFile,
+        employeeCode: code, telegramBot: normalizeBot(bot), telegramToken: tgToken, token, repo: repo ? resolve(repo) : '', envFile,
         workspace: { mode, allowBaseBranch: w.allow_base_branch === true, allowEnvFiles: w.allow_env_files === true },
         executor: {
           kind, bin, model: str(e.model), home: str(e.home), timeoutMin, maxBudgetUsd: budget, extraArgs: strList(e.extra_args) ?? [],

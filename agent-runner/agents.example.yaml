@@ -32,6 +32,9 @@ agents:
     #                                            #   · không dùng chung repo với agent khác; nên là bản clone RIÊNG của agent
     #   allow_base_branch: false                 # true = cho chạy khi đang ở main / master / base
     #   allow_env_files: false                   # true = cho repo có .env ở gốc (CLI đọc được file đó!) — mặc định doctor tắt agent
+    #   mode: none                               # none = agent NGHIỆP VỤ (Kinh doanh, Tài chính, Nhân sự…): không cần `repo`, không git / PR.
+    #                                            #   · CLI chạy trong thư mục trống {data_dir}/work/<mã NV>/<mã việc>, CHỈ có tool MCP của OfficeHub
+    #                                            #     (adapter claude: tắt Bash / đọc ghi file; adapter custom phải tự giới hạn) — xem agent NV130 bên dưới
     executor:
       kind: claude                               # claude | custom
       bin: /usr/local/bin/claude
@@ -54,3 +57,17 @@ agents:
       args: ["run", "--cwd", "{cwd}", "--model", "{model}", "--mcp", "{mcp_config}", "--prompt-file", "{prompt_file}"]
       resume_args: ["--session", "{session_id}"]  # tuỳ chọn
       output: { format: text }                    # text | json (dòng JSON cuối có session_id / cost_usd / summary)
+
+  - employee_code: NV130                         # agent nghiệp vụ: chỉ làm việc với OfficeHub qua MCP
+    telegram_bot: "@agent_sales01_bot"
+    telegram_token: "555555555:AA…"
+    token: "ohk_zzzzzzzzzzzzzzzz"
+    workspace:
+      mode: none                                 # không có `repo`; runner.data_dir nên nằm ngoài mọi repo (doctor cảnh báo nếu không)
+    executor:
+      kind: claude
+      bin: /usr/local/bin/claude
+      model: claude-sonnet-5-5
+      home: /srv/agents/NV130/home
+      timeout_min: 30
+      max_budget_usd: 2

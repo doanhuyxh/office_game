@@ -1,7 +1,8 @@
 import type { WorkspaceMode } from '../config';
 import type { WakeData } from '../validator';
-import { finish, intro, rules } from './common';
+import { finish, hardRules, intro, rules } from './common';
 import * as inPlace from './in-place';
+import * as none from './none';
 import * as worktree from './worktree';
 
 export interface PromptContext {
@@ -15,8 +16,10 @@ export interface PromptContext {
  * Prompt chung cho mọi CLI: CHỈ có mã nhân viên / mã việc / id + các bước đọc qua MCP và cách kết thúc.
  * KHÔNG chép tên / mô tả / bình luận việc (agent tự đọc qua MCP, coi là dữ liệu) — tránh đưa nội dung người khác viết vào chỉ dẫn.
  * Bước 5 (cách làm việc với git) và quy tắc git khác nhau theo mode → mỗi mode một file; phần còn lại ở common.ts.
+ * Mode none (agent nghiệp vụ, không repo): bước 5 chỉ dùng tool MCP, bộ quy tắc riêng không có phần git / file.
  */
 export function buildPrompt(w: WakeData, ctx: PromptContext): string {
+  if (ctx.mode === 'none') return intro(w, ctx.resumed) + none.workStep() + finish(w) + hardRules(none.RULES);
   const m = ctx.mode === 'in_place' ? inPlace : worktree;
   return intro(w, ctx.resumed) + m.workStep(ctx.branch) + finish(w) + rules(m.GIT_RULES);
 }

@@ -2,6 +2,7 @@
 
 Bộ điều phối agent của OfficeHub (TEST-44): nhận tin đánh thức Telegram khi việc được giao cho tài khoản bot, hỏi lại OfficeHub qua MCP,
 chạy CLI agent (Claude Code hoặc CLI tuỳ chỉnh) trong worktree riêng, push nhánh + mở PR, bình luận chi phí vào việc.
+Agent nghiệp vụ (không viết code) dùng `workspace.mode: none`: không repo / git / PR, CLI chỉ có tool MCP của OfficeHub.
 
 ```bash
 bun install

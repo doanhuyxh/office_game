@@ -354,3 +354,77 @@ test('in_place: gỡ hook do runner cài, giữ nguyên hook của người dùn
   expect(readFileSync(join(hooks, 'pre-push'), 'utf8')).toContain('hook riêng của chủ máy');
   rmSync(join(hooks, 'pre-push'));
 }, 30000);
+
+// ---------------- mode none (TEST-80): agent nghiệp vụ — không repo / git / PR, chỉ tool MCP ----------------
+const noneSetup = async () => {
+  // CLI giả không đụng git: ghi tham số + thư mục chạy, in dòng JSON kết quả
+  const bin = join(root, 'fake-biz-agent.sh');
+  writeFileSync(bin, `#!/bin/sh
+[ "$1" = "--version" ] && { echo "fake-biz 1.0"; exit 0; }
+cwd="$3"; prompt="$5"
+echo "$@" > "$(dirname "$prompt")/args.txt"
+cd "$cwd" || exit 3
+echo '{"session_id":"sess-biz","model":"fake-model-1","cost_usd":0.1,"summary":"cwd='$(pwd -P)' files='$(ls -A | wc -l | tr -d " ")'"}'
+`);
+  chmodSync(bin, 0o755);
+  const base = runner.config.agents[0]!;
+  const raw = {
+    git: { executable: '/khong/co/git' }, // mode none không cần git
+    officehub: { mcp_url: runner.config.mcpUrl },
+    telegram: { api_url: runner.config.telegramApiUrl, group_chat_id: '-1001234567890' },
+    runner: { data_dir: join(root, 'data-none'), worktrees_dir: join(root, 'worktrees'), max_parallel: 1 },
+    agents: [{
+      employee_code: 'NV120', telegram_bot: '@agent_dev01_bot', telegram_token: TG, token: TOKEN, workspace: { mode: 'none' },
+      executor: { kind: 'custom', bin, home: base.executor.home, timeout_min: 1,
+        args: ['run', '--cwd', '{cwd}', '--prompt', '{prompt_file}', '--mcp', '{mcp_config}'], resume_args: ['--session', '{session_id}'], output: { format: 'json' } },
+    }],
+  };
+  const config = parseConfig(raw);
+  require('node:fs').mkdirSync(config.dataDir, { recursive: true });
+  const st = new Store(join(config.dataDir, 'runner.db'));
+  const r = new Runner(config, st);
+  const lines = await r.checkAgents('NV120', false);
+  const exec = async () => {
+    const s = r.agents.get('NV120')!;
+    const id = await r.accept(s, { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' });
+    const job = st.claimNext(1, ['NV120'])!;
+    await r.process(job);
+    return { id, job: st.getJob(job.id)! };
+  };
+  return { r, st, lines, exec, dataDir: config.dataDir };
+};
+
+test('none: doctor không cần repo / git / gh; job chạy trong thư mục trống cố định, bình luận không có PR, nối phiên cùng thư mục', async () => {
+  const { lines, exec, dataDir } = await noneSetup();
+  expect(lines.filter((l) => l.startsWith('✘'))).toEqual([]); // git.executable sai không tắt agent mode none
+  const text = lines.join('\n');
+  expect(text).toContain('workspace none');
+  expect(text).toContain('runner không tắt được công cụ có sẵn'); // adapter custom: cảnh báo
+  expect(text).not.toContain('gh ');
+  expect(text).not.toContain('hook');
+  const before = comments.length;
+  const { job } = await exec();
+  expect(job.status).toBe('done');
+  expect(job.pr_url).toBeNull();
+  expect(job.cost_usd).toBe(0.1);
+  expect(comments.length).toBe(before + 1);
+  const c = comments.at(-1)!.content;
+  expect(c).toContain('phiên kết thúc');
+  expect(c).toContain('Chi phí: $0.10');
+  expect(c).not.toContain('PR');
+  expect(c).not.toContain('commit');
+  const work = join(dataDir, 'work/NV120/TEST-45');
+  const out1 = readFileSync(join(dataDir, 'jobs', String(job.id), 'output.log'), 'utf8');
+  expect(out1).toContain(`cwd=${require('node:fs').realpathSync(work)}`);
+  expect(out1).toContain('files=0'); // thư mục trống: prompt / mcp.json nằm ở thư mục job, không nằm trong nơi CLI chạy
+  expect(readFileSync(join(dataDir, 'jobs', String(job.id), 'args.txt'), 'utf8')).not.toContain('--session');
+  expect(existsSync(join(root, 'worktrees/NV120/TEST-45/.git'))).toBe(true); // của test worktree trước đó — mode none không tạo gì thêm
+  expect(existsSync(join(dataDir, 'jobs', String(job.id), 'mcp.json'))).toBe(false);
+  // việc bị trả về → cùng thư mục + nối phiên cũ
+  const again = await exec();
+  const args = readFileSync(join(dataDir, 'jobs', String(again.job.id), 'args.txt'), 'utf8');
+  expect(args).toContain('--session sess-biz');
+  expect(args).toContain(work);
+  // 3D: vẫn báo đang làm → rảnh
+  expect(await waitFor(() => presence.at(-1)?.state === 'idle', 3000)).toBe(true);
+}, 30000);

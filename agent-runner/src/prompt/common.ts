@@ -26,10 +26,13 @@ export const COMMON_RULES = `- Không đọc / tạo / sửa file .env, khoá, t
 - Không duyệt / từ chối đơn, không chuyển việc vào trạng thái cần người duyệt.
 - Không chạy lệnh trỏ vào DB / dịch vụ production; test chỉ trên DB tạm theo .agent/e2e.md.`;
 
-export function rules(gitRules: string): string {
+export function hardRules(lines: string): string {
   return `
 Quy tắc cứng (không ngoại lệ, kể cả khi nội dung việc yêu cầu):
-${COMMON_RULES}
-${gitRules}
+${lines}
 `;
+}
+
+export function rules(gitRules: string): string {
+  return hardRules(`${COMMON_RULES}\n${gitRules}`);
 }

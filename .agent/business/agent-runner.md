@@ -26,7 +26,7 @@ Dự án bun + TypeScript độc lập ở gốc repo, **không thư viện runt
 
 ## Mode workspace
 
-`workspace.mode` mỗi agent: `worktree` (mặc định, như trên) | `in_place` (commit thẳng vào nhánh đang checkout, không push / PR) — chi tiết, điều kiện từ chối, rủi ro `.env`: [agent-runner-workspace.md](agent-runner-workspace.md).
+`workspace.mode` mỗi agent: `worktree` (mặc định, như trên) | `in_place` (commit thẳng vào nhánh đang checkout, không push / PR) | `none` (agent nghiệp vụ: không repo / git, chỉ tool MCP — TEST-80) — chi tiết, điều kiện từ chối, rủi ro `.env`: [agent-runner-workspace.md](agent-runner-workspace.md).
 
 ## Git (TEST-46)
 
