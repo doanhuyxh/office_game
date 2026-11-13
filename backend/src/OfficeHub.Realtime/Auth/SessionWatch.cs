@@ -5,7 +5,7 @@ using OfficeHub.Realtime.Simulation;
 
 namespace OfficeHub.Realtime.Auth;
 
-/// <summary>Định kỳ kiểm tra lại phiên của mọi người đang online; phiên hết hiệu lực (bị khoá, nghỉ việc…) → đẩy ra.</summary>
+/// <summary>Định kỳ kiểm tra lại phiên của mọi người đang online; phiên hết hiệu lực (bị khoá, nghỉ việc…) → đẩy ra; họ tên đổi → NameChanged.</summary>
 public sealed class SessionWatch(Presence presence, SessionValidator validator, IHubContext<OfficeRoomHub, IOfficeClient> hub,
     IOptions<RealtimeSettings> options, ILogger<SessionWatch> log) : BackgroundService
 {
@@ -18,8 +18,15 @@ public sealed class SessionWatch(Presence presence, SessionValidator validator, 
         {
             foreach (var p in presence.All.ToList())
             {
-                var state = await validator.CheckAsync(p.AuthCookie, ct);
+                var (state, _, name) = await validator.CheckWithProfileAsync(p.AuthCookie, ct);
                 log.LogDebug("Kiểm tra phiên {User}: {State}", p.Name, state);
+                if (state == SessionState.Valid && name is not null && name != p.Name)
+                {
+                    // HR đổi họ tên (TEST-69) → cập nhật nhãn cho mọi người đang online, không cần vào lại văn phòng
+                    log.LogInformation("Đổi tên trong văn phòng: {Old} → {New}", p.Name, name);
+                    p.Name = name;
+                    await hub.Clients.Group(OfficeRoomHub.OfficeGroup).NameChanged(p.UserId, name);
+                }
                 if (state != SessionState.Invalid) continue;
                 log.LogInformation("Đẩy {User} khỏi văn phòng: phiên hết hiệu lực", p.Name);
                 await hub.Clients.Client(p.ConnectionId).Kicked(ExpiredReason);

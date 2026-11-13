@@ -67,7 +67,7 @@ public static class VoiceEndpoints
             grants.CanPublishSources.AddRange(sources);
             var token = new AccessToken(cfg.ApiKey!, cfg.ApiSecret!)
                 .WithIdentity(userId)
-                .WithName(user.FindFirstValue(ClaimNames.FullName) ?? user.Identity?.Name ?? "?")
+                .WithName(p.Name) // họ tên hiện tại (Presence, SessionWatch cập nhật) — claim cookie có thể còn tên cũ (TEST-69)
                 .WithGrants(grants)
                 .WithTtl(TimeSpan.FromSeconds(60)) // TEST-22: chỉ cần còn hạn lúc vào room (LiveKit tự gia hạn trong phiên) — token lộ ra cũng hết hạn nhanh
                 .ToJwt();

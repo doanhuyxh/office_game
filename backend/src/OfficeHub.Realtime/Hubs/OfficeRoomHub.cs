@@ -38,6 +38,8 @@ public interface IOfficeClient
     Task Kicked(string reason);
     /// <summary>Người chơi đổi nhân vật (look = JSON, null = mặc định).</summary>
     Task LookChanged(string id, string? look);
+    /// <summary>Người chơi được đổi họ tên (HR sửa hồ sơ) — cập nhật nhãn tên, phát cho cả văn phòng kể cả chính người đó.</summary>
+    Task NameChanged(string id, string name);
     /// <summary>Màn hình phòng <paramref name="roomId"/> đổi tài liệu đang chiếu (null = tắt) — chỉ gửi người đang ở trong phòng.</summary>
     Task ScreenChanged(string roomId, ScreenDto? screen);
     /// <summary>Bot của tài khoản <paramref name="id"/> đang làm gì (null = hết hoạt động) — gắn lên avatar bot hoặc avatar người thật.</summary>
@@ -73,14 +75,15 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
         }
         // Cookie còn hạn chưa đủ: hỏi Api xem tài khoản còn hoạt động không (bị khoá / nghỉ việc → từ chối ngay).
         var authCookie = SessionValidator.AuthCookieHeader(Context.GetHttpContext()?.Request.Headers.Cookie.ToString());
-        var (state, look) = await sessions.CheckWithLookAsync(authCookie, Context.ConnectionAborted);
+        var (state, look, freshName) = await sessions.CheckWithProfileAsync(authCookie, Context.ConnectionAborted);
         if (state == SessionState.Invalid)
         {
             await Clients.Caller.Kicked(SessionWatch.ExpiredReason);
             Context.Abort();
             return;
         }
-        var name = Context.User?.FindFirstValue(ClaimNames.FullName) ?? Context.User?.Identity?.Name ?? "?";
+        // Họ tên hiện tại từ Api (TEST-69): claim trong cookie có thể còn tên cũ nếu trình duyệt chưa gọi Api từ lúc HR đổi tên
+        var name = freshName ?? Context.User?.FindFirstValue(ClaimNames.FullName) ?? Context.User?.Identity?.Name ?? "?";
         var p = new Player
         {
             UserId = UserId, Name = name, ConnectionId = Context.ConnectionId, Context = Context, AuthCookie = authCookie, Look = look,
@@ -176,7 +179,7 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
         var now = clock.GetUtcNow();
         if (now - p.LastLookAt < TimeSpan.FromSeconds(2)) throw new HubException("Đổi nhân vật chậm lại một chút");
         p.LastLookAt = now;
-        var (state, look) = await sessions.CheckWithLookAsync(p.AuthCookie, Context.ConnectionAborted);
+        var (state, look, _) = await sessions.CheckWithProfileAsync(p.AuthCookie, Context.ConnectionAborted);
         if (state != SessionState.Valid) throw new HubException("Chưa tải được nhân vật mới, thử lại sau");
         p.Look = look;
         await Clients.Group(Room).LookChanged(p.UserId, look);

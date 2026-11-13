@@ -30,26 +30,33 @@ public sealed class SessionValidator(IHttpClientFactory http, ILogger<SessionVal
             .Where(c => c.StartsWith(AuthCookie.CookieName, StringComparison.Ordinal))) is { Length: > 0 } s ? s : null;
 
     public async Task<SessionState> CheckAsync(string? authCookie, CancellationToken ct = default) =>
-        (await CheckWithLookAsync(authCookie, ct)).State;
+        (await CheckWithProfileAsync(authCookie, ct)).State;
 
-    /// <summary>Như <see cref="CheckAsync"/>, kèm ngoại hình nhân vật (trường <c>avatar</c> của /api/auth/me, JSON gọn; null = mặc định).</summary>
-    public async Task<(SessionState State, string? Look)> CheckWithLookAsync(string? authCookie, CancellationToken ct = default)
+    /// <summary>
+    /// Như <see cref="CheckAsync"/>, kèm ngoại hình nhân vật (trường <c>avatar</c> của /api/auth/me, JSON gọn; null = mặc định)
+    /// và họ tên hiện tại (<c>fullName</c> — đọc từ DB mỗi lần, không tin claim trong cookie cũ; null = không đọc được).
+    /// </summary>
+    public async Task<SessionProfile> CheckWithProfileAsync(string? authCookie, CancellationToken ct = default)
     {
-        if (authCookie is null) return (SessionState.Invalid, null);
+        if (authCookie is null) return new(SessionState.Invalid, null, null);
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");
             req.Headers.Add("Cookie", authCookie);
             using var res = await http.CreateClient(HttpClientName).SendAsync(req, ct);
-            if (res.IsSuccessStatusCode) return (SessionState.Valid, LookFromMe(await res.Content.ReadAsStringAsync(ct)));
-            if ((int)res.StatusCode is 401 or 403) return (SessionState.Invalid, null);
+            if (res.IsSuccessStatusCode)
+            {
+                var body = await res.Content.ReadAsStringAsync(ct);
+                return new(SessionState.Valid, LookFromMe(body), NameFromMe(body));
+            }
+            if ((int)res.StatusCode is 401 or 403) return new(SessionState.Invalid, null, null);
             log.LogWarning("Kiểm tra phiên: Api trả {Status}", (int)res.StatusCode);
-            return (SessionState.Unknown, null);
+            return new(SessionState.Unknown, null, null);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             log.LogWarning("Kiểm tra phiên: không gọi được Api ({Message})", ex.Message);
-            return (SessionState.Unknown, null);
+            return new(SessionState.Unknown, null, null);
         }
     }
 
@@ -68,4 +75,23 @@ public sealed class SessionValidator(IHttpClientFactory http, ILogger<SessionVal
         }
         catch (JsonException) { return null; }
     }
+
+    /// <summary>Tối đa 200 ký tự như họ tên nhân viên.</summary>
+    public const int MaxNameLength = 200;
+
+    /// <summary>Lấy <c>fullName</c> từ body /api/auth/me; thiếu / trống / lỗi → null (bên gọi giữ tên đang có hoặc dùng claim).</summary>
+    public static string? NameFromMe(string body)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            if (!doc.RootElement.TryGetProperty("fullName", out var n) || n.ValueKind != JsonValueKind.String) return null;
+            var name = n.GetString()!.Trim();
+            return name.Length == 0 ? null : name.Length > MaxNameLength ? name[..MaxNameLength] : name;
+        }
+        catch (JsonException) { return null; }
+    }
 }
+
+/// <summary>Kết quả kiểm tra phiên: Look = ngoại hình (null = mặc định), Name = họ tên hiện tại (null = không đọc được).</summary>
+public sealed record SessionProfile(SessionState State, string? Look, string? Name);

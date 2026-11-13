@@ -3,11 +3,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OfficeHub.Modules.Identity.Contracts;
 using OfficeHub.Modules.Organization.Domain;
 
 namespace OfficeHub.Modules.Organization.Infrastructure;
 
-/// <summary>Chạy migration schema "org" khi khởi động (nếu Database__MigrateOnStartup=true), rồi chuẩn hoá thang cấp bậc.</summary>
+/// <summary>Chạy migration schema "org" khi khởi động (nếu Database__MigrateOnStartup=true), rồi chuẩn hoá thang cấp bậc + đồng bộ họ tên tài khoản.</summary>
 internal sealed class OrgMigrator(IServiceProvider sp, IConfiguration config, TimeProvider clock, ILogger<OrgMigrator> log) : IHostedService
 {
     public async Task StartAsync(CancellationToken ct)
@@ -17,6 +18,26 @@ internal sealed class OrgMigrator(IServiceProvider sp, IConfiguration config, Ti
         var db = scope.ServiceProvider.GetRequiredService<OrgDbContext>();
         await db.Database.MigrateAsync(ct);
         await EnsurePositionLadderAsync(db, clock, log, ct);
+        await SyncAccountNamesAsync(db, scope.ServiceProvider.GetRequiredService<IAccountService>(), log, ct);
+    }
+
+    /// <summary>
+    /// TEST-69: trước đây sửa họ tên nhân viên không đổi họ tên tài khoản (nhãn 3D, tên người gửi chat… vẫn tên cũ).
+    /// Mỗi lần khởi động: tài khoản nào lệch họ tên với hồ sơ nhân viên thì sửa theo hồ sơ. Idempotent, lỗi chỉ ghi log.
+    /// </summary>
+    internal static async Task SyncAccountNamesAsync(OrgDbContext db, IAccountService accounts, ILogger log, CancellationToken ct)
+    {
+        try
+        {
+            var names = await db.Employees.Where(e => e.UserId != null)
+                .Select(e => new { UserId = e.UserId!.Value, e.FullName }).ToDictionaryAsync(x => x.UserId, x => x.FullName, ct);
+            var changed = await accounts.SyncFullNamesAsync(names, ct);
+            if (changed > 0) log.LogInformation("Đồng bộ họ tên tài khoản theo hồ sơ nhân viên: {Count} tài khoản", changed);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            log.LogWarning(ex, "Chưa đồng bộ được họ tên tài khoản theo hồ sơ nhân viên");
+        }
     }
 
     /// <summary>

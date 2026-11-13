@@ -2,7 +2,7 @@ using OfficeHub.Realtime.Auth;
 
 namespace OfficeHub.Realtime.Tests;
 
-/// <summary>Realtime lấy ngoại hình nhân vật từ body /api/auth/me (trường avatar) để phát cho cả văn phòng.</summary>
+/// <summary>Realtime lấy ngoại hình nhân vật (avatar) + họ tên hiện tại (fullName) từ body /api/auth/me để phát cho cả văn phòng.</summary>
 public class SessionLookTests
 {
     [Fact]
@@ -25,4 +25,20 @@ public class SessionLookTests
         var big = new string('x', SessionValidator.MaxLookLength);
         Assert.Null(SessionValidator.LookFromMe($"{{\"avatar\":{{\"pad\":\"{big}\"}}}}"));
     }
+
+    // TEST-69: họ tên lấy từ /api/auth/me (DB), không tin claim cookie cũ
+    [Fact]
+    public void Reads_current_full_name() =>
+        Assert.Equal("Đoàn Quang Huy", SessionValidator.NameFromMe("{\"id\":\"1\",\"fullName\":\"  Đoàn Quang Huy \"}"));
+
+    [Theory]
+    [InlineData("{\"id\":\"1\"}")]
+    [InlineData("{\"fullName\":\"   \"}")]
+    [InlineData("{\"fullName\":null}")]
+    [InlineData("không phải json")]
+    public void Missing_or_blank_name_is_null(string body) => Assert.Null(SessionValidator.NameFromMe(body));
+
+    [Fact]
+    public void Overlong_name_is_cut() =>
+        Assert.Equal(SessionValidator.MaxNameLength, SessionValidator.NameFromMe($"{{\"fullName\":\"{new string('a', 300)}\"}}")!.Length);
 }

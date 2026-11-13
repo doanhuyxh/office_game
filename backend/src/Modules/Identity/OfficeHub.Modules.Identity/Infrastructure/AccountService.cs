@@ -139,6 +139,30 @@ internal sealed class AccountService(
         return true;
     }
 
+    public async Task<bool> SetFullNameAsync(Guid userId, string fullName, CancellationToken ct = default)
+    {
+        if (!await db.Users.AnyAsync(u => u.Id == userId, ct)) return false;
+        await SyncFullNamesAsync(new Dictionary<Guid, string> { [userId] = fullName }, ct);
+        return true;
+    }
+
+    public async Task<int> SyncFullNamesAsync(IReadOnlyDictionary<Guid, string> names, CancellationToken ct = default)
+    {
+        if (names.Count == 0) return 0;
+        var ids = names.Keys.ToList();
+        var changed = 0;
+        // Ghi qua EF (AppUser [Audited] → có trong lịch sử sửa). Không đổi security stamp: không đăng xuất ai.
+        foreach (var u in await db.Users.Where(u => ids.Contains(u.Id)).ToListAsync(ct))
+        {
+            var name = names[u.Id].Trim();
+            if (name.Length == 0 || u.FullName == name) continue;
+            u.FullName = name;
+            changed++;
+        }
+        if (changed > 0) await db.SaveChangesAsync(ct);
+        return changed;
+    }
+
     public async Task<AccountInfo?> GetAsync(Guid userId, CancellationToken ct = default) =>
         (await GetManyAsync([userId], ct)).GetValueOrDefault(userId);
 

@@ -42,3 +42,12 @@
 Đổi vai trò có hiệu lực khi người đó đăng nhập lại (security stamp đổi); được cấp admin / hr mà chưa bật 2FA → bị buộc bật ([auth-2fa.md](auth-2fa.md)).
 
 Đặt lại 2FA (`IAccountService.ResetTwoFactorAsync`): tắt 2FA, xoá khoá + mã dự phòng, mở khoá đăng nhập, đăng xuất mọi phiên; gửi người đó thông báo `account_security` (chuông + email, `INotifier`). Admin / hr bị buộc bật lại ở lần đăng nhập sau, token AI của họ ngừng tới khi bật. `AccountSummary.twoFactorEnabled` cho cột Tài khoản ("· 2FA") và menu "Đặt lại 2FA".
+
+## Họ tên tài khoản theo hồ sơ (TEST-69)
+
+`AppUser.FullName` (Identity) là nguồn của claim `FullName` — dùng cho tên người gửi chat / bảng tin, người duyệt, người cập nhật, lịch sử sửa, nhãn 3D… Nó phải luôn khớp `Employee.FullName`:
+
+- HR sửa nhân viên (`PUT /employees/{id}`) có tài khoản → `IAccountService.SetFullNameAsync` (chỉ ghi khi khác). Không đổi security stamp: cookie được dựng lại claim ở mọi request (`ValidationInterval = 0`) nên tên mới có hiệu lực ngay, **không ai bị đăng xuất**; token AI cũng dựng claim mỗi request. Người đang trong 3D nhận `NameChanged` trong ≤ 1 nhịp `SessionWatch` ([office.md](office.md)).
+- Chỗ khác đổi họ tên: không có (yêu cầu sửa hồ sơ không gồm họ tên; nhập Excel chỉ tạo mới; thao tác hàng loạt không đổi tên). Thêm đường đổi tên mới → phải gọi `SetFullNameAsync`.
+- Khởi động Api: `OrgMigrator.SyncAccountNamesAsync` → `IAccountService.SyncFullNamesAsync` sửa mọi tài khoản đang lệch theo hồ sơ (idempotent, ghi qua EF → có lịch sử sửa nguồn system; lỗi chỉ ghi log `WRN`).
+- Bot MCP: tên bot trong 3D lấy từ `/api/auth/me` nhưng `OfficeHub.Mcp` nhớ danh tính vài phút (`IdentityCacheMinutes`) → tên bot đổi sau khi hết hạn nhớ.

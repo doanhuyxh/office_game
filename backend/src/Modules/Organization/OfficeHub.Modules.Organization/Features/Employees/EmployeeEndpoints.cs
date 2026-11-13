@@ -109,6 +109,8 @@ internal static class EmployeeEndpoints
         e.Code = code;
         Apply(e, req);
         await db.SaveChangesAsync(ct);
+        // Họ tên tài khoản (claim FullName → nhãn 3D, tên người gửi chat, người duyệt…) theo hồ sơ — có hiệu lực ngay, không cần đăng nhập lại
+        if (e.UserId is { } uid) await accounts.SetFullNameAsync(uid, e.FullName, ct);
         return TypedResults.Ok(await ToDetailAsync(e, true, db, accounts, ct));
     }
 

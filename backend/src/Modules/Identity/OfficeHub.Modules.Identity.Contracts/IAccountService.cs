@@ -38,6 +38,15 @@ public interface IAccountService
     /// <summary>Đánh dấu / bỏ đánh dấu tài khoản là bot (hiện trong văn phòng 3D khi gọi MCP). false = không tìm thấy tài khoản.</summary>
     Task<bool> SetBotAsync(Guid userId, bool isBot, CancellationToken ct = default);
 
+    /// <summary>
+    /// Đổi họ tên hiển thị của tài khoản theo hồ sơ nhân viên (HR sửa họ tên). Không đổi security stamp: cookie được dựng lại claim
+    /// ở mọi request (ValidationInterval = 0) nên tên mới có hiệu lực ngay, không đăng xuất ai. false = không tìm thấy tài khoản.
+    /// </summary>
+    Task<bool> SetFullNameAsync(Guid userId, string fullName, CancellationToken ct = default);
+
+    /// <summary>Đồng bộ họ tên hàng loạt (userId → họ tên nhân viên): chỉ ghi tài khoản đang lệch, trả về số tài khoản đã sửa. Idempotent.</summary>
+    Task<int> SyncFullNamesAsync(IReadOnlyDictionary<Guid, string> names, CancellationToken ct = default);
+
     Task<AccountInfo?> GetAsync(Guid userId, CancellationToken ct = default);
 
     Task<IReadOnlyDictionary<Guid, AccountInfo>> GetManyAsync(IReadOnlyCollection<Guid> userIds, CancellationToken ct = default);

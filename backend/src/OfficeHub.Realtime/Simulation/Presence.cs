@@ -6,7 +6,8 @@ namespace OfficeHub.Realtime.Simulation;
 public sealed class Player
 {
     public required string UserId { get; init; }
-    public required string Name { get; init; }
+    /// <summary>Họ tên hiển thị — SessionWatch đọc lại từ Api định kỳ (HR đổi tên → NameChanged).</summary>
+    public required string Name { get; set; }
     public required string ConnectionId { get; init; }
     public required HubCallerContext Context { get; init; }
     /// <summary>Cookie đăng nhập lúc kết nối — dùng để kiểm tra lại phiên định kỳ (SessionWatch).</summary>

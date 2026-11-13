@@ -179,6 +179,17 @@ export class OfficeScene {
     else this.others.get(id)?.avatar.setLook(look);
   }
 
+  /** Đổi nhãn tên của một người (mình hoặc người khác) — sự kiện NameChanged (HR sửa họ tên). */
+  setName(id: string, name: string) {
+    if (this.me?.id === id) this.me.setName(name);
+    else {
+      const o = this.others.get(id);
+      if (!o) return;
+      o.name = name;
+      o.avatar.setName(name);
+    }
+  }
+
   removeOther(id: string) {
     const o = this.others.get(id);
     if (!o) return;

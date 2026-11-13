@@ -21,6 +21,7 @@ Mặt bằng **68 × 30 m (2 040 m²)** = lõi 50 × 30 m chủ dự án duyệt
 | server → client | `Welcome` | `{ selfId, mapName, players[] }` |
 | | `PlayerJoined` / `PlayerLeft` | `PlayerDto { id, name, x, z, r, anim, look }` / `id` (`look` = nhân vật, [office-avatar.md](office-avatar.md)) |
 | | `LookChanged` | `(id, look)` — ai đó đổi nhân vật |
+| | `NameChanged` | `(id, name)` — HR đổi họ tên (TEST-69), phát cả văn phòng kể cả chính người đó → FE thay nhãn tên |
 | | `Positions` | `PositionDto[]` — chỉ người đã đổi, phát mỗi 100ms (`Simulation/OfficeLoop.cs`) |
 | | `Chat` | `{ id, name, text, at, channel: "office"\|"room", roomId?, roomName? }` |
 | | `Teleport` | `(x, z)` — kéo về vị trí hợp lệ |
@@ -49,8 +50,10 @@ Realtime không đọc được dữ liệu tài khoản (ranh giới module) n�
 | Khi | Kết quả |
 |---|---|
 | Kết nối hub, xin token voice | Api 401/403 → từ chối (voice trả 401) |
-| `SessionWatch` mỗi `Realtime__SessionCheckSeconds` (30s) cho mọi người online | 401/403 → `Kicked("Phiên đăng nhập đã hết hiệu lực. Vui lòng đăng nhập lại.")`, `Abort` sau 500ms |
+| `SessionWatch` mỗi `Realtime__SessionCheckSeconds` (30s) cho mọi người online | 401/403 → `Kicked("Phiên đăng nhập đã hết hiệu lực. Vui lòng đăng nhập lại.")`, `Abort` sau 500ms; `fullName` khác `Player.Name` → cập nhật + `NameChanged` |
 | Api không trả lời / 5xx | `Unknown` → **cho qua** (ghi log `WRN`), để Api restart không đá cả văn phòng |
+
+**Họ tên hiển thị** (nhãn 3D, tên voice LiveKit) lấy từ `fullName` của `/api/auth/me` (`SessionValidator.CheckWithProfileAsync`), **không** từ claim `FullName` trong cookie (cookie cũ có thể còn tên trước khi HR sửa); Api không trả được → dùng claim. Voice dùng `Player.Name`.
 
 Bot (agent AI qua MCP) cũng hiện trong văn phòng (`PlayerDto.bot` / `status`, sự kiện `BotStatus`) → [office-bots.md](office-bots.md).
 

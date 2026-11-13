@@ -67,6 +67,8 @@ export class Avatar {
   private look: AvatarLook = DEFAULT_LOOK;
   private lookToken = 0;
   private label: THREE.Sprite;
+  private readonly isMe: boolean;
+  private name: string;
   private t = Math.random() * 10;
   private talk: THREE.Mesh;
   private ring: THREE.Mesh | null = null;
@@ -91,18 +93,38 @@ export class Avatar {
     this.talk.position.y = 0.02;
     this.talk.visible = false;
     this.root.add(this.talk);
-    const shown = name.length > 22 ? name.slice(0, 21) + '…' : name;
-    const { tex, aspect } = textTexture(bot ? `AI · ${shown}` : shown, {
-      color: '#ffffff', bg: isMe ? 'rgba(37,99,235,.92)' : bot ? 'rgba(124,58,237,.92)' : 'rgba(15,23,42,.78)',
-      font: 'bold 34px Inter, system-ui, sans-serif', pad: 22,
-    });
-    this.label = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-    this.label.scale.set(0.3 * aspect, 0.3, 1);
-    this.label.position.y = 1.95;
-    this.label.renderOrder = 10;
+    this.isMe = isMe;
+    this.name = name;
+    this.label = this.makeLabel(name);
     this.label.visible = labelVisible;
     this.root.add(this.label);
     this.applyLook(look, true);
+  }
+
+  private makeLabel(name: string) {
+    const shown = name.length > 22 ? name.slice(0, 21) + '…' : name;
+    const { tex, aspect } = textTexture(this.bot ? `AI · ${shown}` : shown, {
+      color: '#ffffff', bg: this.isMe ? 'rgba(37,99,235,.92)' : this.bot ? 'rgba(124,58,237,.92)' : 'rgba(15,23,42,.78)',
+      font: 'bold 34px Inter, system-ui, sans-serif', pad: 22,
+    });
+    const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+    label.scale.set(0.3 * aspect, 0.3, 1);
+    label.position.y = 1.95;
+    label.renderOrder = 10;
+    return label;
+  }
+
+  /** Đổi nhãn tên tại chỗ (HR sửa họ tên → sự kiện `NameChanged`). */
+  setName(name: string) {
+    if (name === this.name) return;
+    this.name = name;
+    const old = this.label;
+    this.label = this.makeLabel(name);
+    this.label.visible = old.visible;
+    this.root.remove(old);
+    old.material.map?.dispose();
+    old.material.dispose();
+    this.root.add(this.label);
   }
 
   get currentLook() { return this.look; }

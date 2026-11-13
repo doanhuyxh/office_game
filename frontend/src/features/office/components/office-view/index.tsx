@@ -226,6 +226,7 @@ export function OfficeView() {
       chat: (m) => s.pushChat(m),
       teleport: (x, z) => scene.teleportMe(x, z),
       lookChanged: (id, look) => scene.setLook(id, parseLook(look)),
+      nameChanged: (id, name) => scene.setName(id, name),
       botStatus: (id, st) => scene.setStatus(id, st),
       screenChanged: (roomId, sc) => { if (roomId === roomRef.current) setScreen(sc); },
       kicked: (reason) => { s.kick(reason); void voice.disable(); },
