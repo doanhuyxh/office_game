@@ -1,5 +1,5 @@
 // E2E: bot đang làm / rảnh trong văn phòng 3D (2026-11-13) — agent-runner báo POST /mcp/presence (token AI, chỉ tài khoản bot);
-// không có runner thì OfficeHub.Mcp suy từ bảng việc (inProgress). Đang làm → ngồi bàn, bong bóng "🛠 việc · thao tác"; rảnh ≥ 60 s → đi bộ ra Khu nghỉ.
+// không có runner thì OfficeHub.Mcp: bot vừa gọi tool trên một việc (15 phút) = đang làm việc đó, việc ở cột nào cũng vậy. Đang làm → ngồi bàn, bong bóng "🛠 việc · thao tác"; rảnh ≥ 60 s → đi bộ ra Khu nghỉ.
 // Người thật kết nối hub văn phòng để quan sát (PlayerJoined / BotStatus / Positions). Chờ ~75 s một lần (bot rảnh đủ lâu + nhịp quét 15 s).
 // CHỈ DB tạm. Api :5180, Realtime :5190 (Realtime__ApiBaseUrl=http://localhost:5180), Mcp :5200 (Mcp__ApiBaseUrl=…5180, Mcp__RealtimeBaseUrl=…5190),
 // cùng Chat__InternalKey cho cả ba.
@@ -97,15 +97,6 @@ const T = (await json(H.cookie, 'POST', `/api/projects/${P}/tasks`, { title: 'Vi
 const TCODE = ((await json(H.cookie, 'GET', `/api/projects/tasks/${T}`)).body?.task?.code ?? '') as string;
 ok('dự án + việc giao cho bot K (Cần làm)', !!P && !!T && !!TCODE, { P, T, TCODE });
 
-// ---------- inProgress trên /api/projects/tasks/mine ----------
-const mine = async () => ((await json(K.cookie, 'GET', '/api/projects/tasks/mine')).body as any[]).find((t) => t.id === T);
-ok('Cần làm → inProgress = false', (await mine())?.inProgress === false);
-await json(H.cookie, 'POST', `/api/projects/tasks/${T}/move`, { columnId: col('Đang làm') });
-ok('Đang làm → inProgress = true', (await mine())?.inProgress === true);
-await json(H.cookie, 'POST', `/api/projects/tasks/${T}/move`, { columnId: col('Chờ review') });
-ok('Chờ review → inProgress = false (đang chờ người duyệt)', (await mine())?.inProgress === false);
-ok('đặt lại Cần làm (chuyển lùi kèm lý do)', (await json(H.cookie, 'POST', `/api/projects/tasks/${T}/move`, { columnId: col('Cần làm'), note: 'Làm lại từ đầu' })).status === 204);
-
 // ---------- Người thật vào văn phòng 3D để quan sát ----------
 type Pos = { id: string; x: number; z: number; r: number; anim: number };
 const joined: any[] = [], moves: Pos[] = [], status: { id: string; s: string | null }[] = [];
@@ -149,7 +140,7 @@ const rAt = await waitArrive(R.userId);
 ok('bot R đi bộ về bàn (nhiều bước, bước ≤ 0,5 m) rồi ngồi ngoài Khu nghỉ', rWalk.length >= 1 && !!rAt && rAt.anim === 2 && !atRest(rAt.x, rAt.z)
   && moves.filter((m) => m.id === R.userId && m.anim === 1).every((m, i, a) => i === 0 || Math.hypot(m.x - a[i - 1].x, m.z - a[i - 1].z) <= 0.5), rAt);
 
-// ---------- Không có runner: Mcp suy từ bảng việc ----------
+// ---------- Không có runner: bot vừa thao tác trên một việc = đang làm việc đó (cột nào cũng vậy) ----------
 let rid = 0;
 const rpc = async (token: string, method: string, params: unknown = {}) => {
   const res = await fetch(MCP, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
@@ -165,35 +156,41 @@ const call = async (token: string, name: string, args: Record<string, unknown> =
 await call(K.token, 'list_my_tasks');
 await Bun.sleep(1500);
 const kj = joined.find((p) => p.id === K.userId);
-ok('bot K (việc ở Cần làm) online → Khu nghỉ, "☕ Đang nghỉ"', !!kj && atRest(kj.x, kj.z) && lastStatus(K.userId) === '☕ Đang nghỉ', { kj, s: lastStatus(K.userId) });
+ok('bot K chưa đụng việc nào → online ở Khu nghỉ, "☕ Đang nghỉ"', !!kj && atRest(kj.x, kj.z) && lastStatus(K.userId) === '☕ Đang nghỉ', { kj, s: lastStatus(K.userId) });
 
 moves.length = 0;
-const st = await call(K.token, 'update_task_status', { task: TCODE, state: 'Đang làm' });
-ok('K chuyển việc sang Đang làm qua MCP', !st.err, st.text);
+const g = await call(K.token, 'get_task', { task: TCODE });
+ok('K đọc việc (đang ở cột Cần làm) qua MCP', !g.err, g.text.slice(0, 200));
 await Bun.sleep(1500);
-ok(`bong bóng K ghi mã việc ${TCODE}`, (lastStatus(K.userId) ?? '').includes(TCODE), lastStatus(K.userId));
+ok(`việc ở Cần làm vẫn tính đang làm: bong bóng K có ${TCODE}`, (lastStatus(K.userId) ?? '').includes(TCODE), lastStatus(K.userId));
 const kAt = await waitArrive(K.userId);
 ok('bot K đi bộ về bàn ngay (không chờ)', moves.some((m) => m.id === K.userId && m.anim === 1) && !!kAt && kAt.anim === 2 && !atRest(kAt.x, kAt.z), kAt);
 
-await call(R.token, 'list_my_tasks'); // bảng việc của R: không có việc → nhưng runner vừa báo đang làm → giữ
+for (const state of ['Đang làm', 'Chờ review']) {
+  const st = await call(K.token, 'update_task_status', { task: TCODE, state });
+  ok(`K chuyển việc sang ${state}`, !st.err, st.text);
+}
+await call(K.token, 'list_chats');
 await Bun.sleep(1500);
-ok('runner ưu tiên hơn bảng việc: R vẫn "🛠 WEB-12 · …"', (lastStatus(R.userId) ?? '').startsWith('🛠 WEB-12'), lastStatus(R.userId));
+ok(`việc ở Chờ review + gọi tool khác: K vẫn đang làm "🛠 ${TCODE} · …"`, (lastStatus(K.userId) ?? '').startsWith(`🛠 ${TCODE} · `), lastStatus(K.userId));
 
-// ---------- Rảnh: chờ ≥ 60 s rồi mới ra Khu nghỉ ----------
-const st2 = await call(K.token, 'update_task_status', { task: TCODE, state: 'Chờ review' });
-ok('K gửi việc sang Chờ review', !st2.err, st2.text);
+await call(R.token, 'list_my_tasks'); // không có runner thì R rảnh — nhưng runner vừa báo đang làm → giữ
+await Bun.sleep(1500);
+ok('runner ưu tiên: R vẫn "🛠 WEB-12 · …"', (lastStatus(R.userId) ?? '').startsWith('🛠 WEB-12'), lastStatus(R.userId));
+
+// ---------- Runner hết việc: chờ ≥ 60 s rồi mới ra Khu nghỉ; K (vừa đụng việc) ở lại bàn ----------
 ok('runner R báo hết việc', await presence(R.token, { state: 'idle' }) === 204);
 await Bun.sleep(1500);
-ok('bong bóng K + R → "☕ Đang nghỉ"', lastStatus(K.userId) === '☕ Đang nghỉ' && lastStatus(R.userId) === '☕ Đang nghỉ', [lastStatus(K.userId), lastStatus(R.userId)]);
+ok('bong bóng R → "☕ Đang nghỉ"', lastStatus(R.userId) === '☕ Đang nghỉ', lastStatus(R.userId));
 moves.length = 0;
 await Bun.sleep(20000);
-ok('20 s sau vẫn ngồi bàn (chưa đủ 60 s)', !moves.some((m) => (m.id === K.userId || m.id === R.userId) && m.anim === 1));
-// giữ bot online trong lúc chờ (như runner gửi nhịp còn sống)
+ok('20 s sau R vẫn ngồi bàn (chưa đủ 60 s)', !moves.some((m) => m.id === R.userId && m.anim === 1));
+// giữ bot online trong lúc chờ (runner gửi nhịp còn sống, K hỏi tin nhắn)
 for (let i = 0; i < 6; i++) { await Bun.sleep(10000); await presence(R.token, { state: 'idle' }); await call(K.token, 'list_chats'); }
-const kRest = await waitArrive(K.userId, 20000), rRest = await waitArrive(R.userId, 20000);
-ok('sau ~60 s: K và R đi bộ ra Khu nghỉ / Pantry và ngồi', !!kRest && !!rRest && atRest(kRest.x, kRest.z) && atRest(rRest.x, rRest.z) && kRest.anim === 2 && rRest.anim === 2
-  && moves.filter((m) => m.id === K.userId && m.anim === 1).length >= 3, { kRest, rRest });
-ok('hai bot không ngồi chung ghế', !!kRest && !!rRest && Math.hypot(kRest.x - rRest.x, kRest.z - rRest.z) > 0.3);
+const rRest = await waitArrive(R.userId, 20000);
+ok('sau ~60 s: R đi bộ ra Khu nghỉ / Pantry và ngồi', !!rRest && atRest(rRest.x, rRest.z) && rRest.anim === 2
+  && moves.filter((m) => m.id === R.userId && m.anim === 1).length >= 3, rRest);
+ok(`K vẫn ở bàn (đụng việc chưa quá 15 phút)`, !moves.some((m) => m.id === K.userId && m.anim === 1) && (lastStatus(K.userId) ?? '').includes(TCODE), lastStatus(K.userId));
 
 await hub.stop();
 console.log(`\n${pass} đạt, ${fail} lỗi`);

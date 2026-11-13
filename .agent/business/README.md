@@ -33,7 +33,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Kết nối AI: OAuth 2.1 (DCR, PKCE, refresh), nhật ký AI (Audit), HR thu hồi, giới hạn / công tắc tắt | [mcp-oauth.md](mcp-oauth.md) |
 | Giám sát agent / bot: nội dung lệnh ghi (7 ngày), cảnh báo bất thường gửi admin | [ai-monitoring.md](ai-monitoring.md) |
 | Bot chiếu ảnh màn hình đang làm việc / tài liệu lên TV phòng họp (`present_screen`) | [office-bots-screen.md](office-bots-screen.md) |
-| Bot đang làm → ngồi bàn, rảnh → Khu nghỉ / Pantry; agent-runner báo trạng thái (`/mcp/presence`) hoặc suy từ bảng việc (`inProgress`) | [office-bots-work.md](office-bots-work.md) |
+| Bot đang làm → ngồi bàn, rảnh → Khu nghỉ / Pantry; agent-runner báo trạng thái (`/mcp/presence`) hoặc theo việc bot vừa thao tác (15 phút, cột nào cũng tính) | [office-bots-work.md](office-bots-work.md) |
 | Đội agent tự phối hợp: rào chắn (không duyệt qua token, giới hạn việc / ngày + chuỗi bot do admin đặt), @nhắc, webhook cá nhân, việc phụ thuộc | [agent-team.md](agent-team.md) |
 | Bộ điều phối agent `agent-runner/`: Telegram → kiểm tra lại qua MCP → CLI trong worktree riêng → PR + bình luận chi phí · mode `in_place` (commit thẳng vào nhánh đang checkout, không push / PR) | [agent-runner.md](agent-runner.md) · [agent-runner-workspace.md](agent-runner-workspace.md) · model thật agent dùng (log, bình luận chi phí, `doctor` chạy thử, `report` theo model): [agent-runner-model.md](agent-runner-model.md) |
 | Hồ sơ cá nhân (tự sửa liên hệ / ảnh; CCCD, ngân hàng, ngày sinh qua HR duyệt; mã hoá; không ra MCP) | [profile.md](profile.md) |

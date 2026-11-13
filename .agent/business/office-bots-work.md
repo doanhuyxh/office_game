@@ -1,18 +1,17 @@
 # Bot đang làm / rảnh trong văn phòng 3D
 
-> Nguồn sự thật là code: `BuildingBlocks/Office/BotActivity.cs` (`BotWork`, `BotPresenceReport`), `OfficeHub.Realtime/Simulation/BotPresence.cs` (`Record`, `Settle`, `RestSpot`, `Bubble`), `OfficeHub.Mcp/Infrastructure/BotPresenceReporter.cs` (`WorkAsync`, `ReportPresenceAsync`), `OfficeHub.Mcp/Program.cs` (`/mcp/presence`), `agent-runner/src/presence.ts`. Về [office-bots.md](office-bots.md) · runner: [agent-runner.md](agent-runner.md).
+> Nguồn sự thật là code: `BuildingBlocks/Office/BotActivity.cs` (`BotWork`, `BotPresenceReport`), `OfficeHub.Realtime/Simulation/BotPresence.cs` (`Record`, `Settle`, `RestSpot`, `Bubble`), `OfficeHub.Mcp/Infrastructure/BotPresenceReporter.cs` (`WorkAsync`, `TaskLabelAsync`, `ReportPresenceAsync`), `OfficeHub.Mcp/Program.cs` (`/mcp/presence`), `agent-runner/src/presence.ts`. Về [office-bots.md](office-bots.md) · runner: [agent-runner.md](agent-runner.md).
 
 Chủ dự án yêu cầu 2026-11-13: bot online **đang làm việc → ngồi bàn được xếp**, bong bóng trên đầu như cũ; **chưa có việc → ra chỗ nghỉ**.
-Hai điểm chưa được trả lời, đang dùng mặc định tự chọn (có thể đổi): cột chờ duyệt tính là **rảnh**; chỗ `go_to` giữ **tới khi bot đổi đang làm ↔ rảnh** (trước đây: tới lần `go_to` kế).
+Chủ dự án chốt thêm 2026-11-13: **bot đang làm một việc thì việc ở cột nào cũng tính là đang làm** — không suy từ cột (bỏ `inProgress`). Điểm còn là mặc định tự chọn: chỗ `go_to` giữ **tới khi bot đổi đang làm ↔ rảnh** (trước đây: tới lần `go_to` kế).
 
 ## Nguồn trạng thái
 
 | Ưu tiên | Nguồn | Cách |
 |---|---|---|
 | 1 | **agent-runner** | `POST /mcp/presence` (host Mcp, sau `BearerGate`, token AI) `{ state: "working" \| "idle", task?, activity? }` → 204; không phải bot 403, state lạ 400, Realtime không nhận 503. Còn hiệu lực 5 phút (`BotActivityRoute.OnlineMinutes`) — trong thời gian đó trạng thái suy từ bảng việc bị bỏ qua |
-| 2 | **Bảng việc** (bot không chạy qua runner) | Mỗi tool MCP: Mcp gọi `/api/projects/tasks/mine` bằng token của bot (nhớ 30 giây / token; `update_task_status` / `create_task` / `update_task` hỏi lại ngay) → có việc `inProgress` → đang làm, task = "MÃ · tên" của việc đầu tiên. Api lỗi → không rõ (giữ trạng thái cũ) |
+| 2 | **Việc bot vừa đụng tới** (bot không chạy qua runner) | Tool MCP trên một việc (`get_task`, `update_task_status`, `update_task`, `comment_task`, `list_task_comments` — tham số `task`) → đang làm việc đó, **ở cột nào cũng vậy**; nhớ "MÃ · tên" (id → hỏi chi tiết việc; mã → tìm tên trong việc của tôi) theo token **15 phút** (`BotWork.TaskWindowMinutes`), mỗi lần đụng việc tính lại. Tool khác không đổi; hết 15 phút không đụng việc nào → rảnh. Mcp khởi động lại → quên (rảnh tới lần đụng việc kế) |
 
-`TaskDto.inProgress` (`TaskColumnRules.IsInProgress`): không ở cột đầu (position 0), không ở cột hoàn thành / cần duyệt, không còn việc phải chờ (`waitingOn`), và tên cột (bỏ dấu) không có `review` / `duyet` / `nghiem thu`, không bắt đầu bằng `cho ` — cột chờ (vd "Chờ review") = phần người làm đã xong → **rảnh**.
 
 ## Chỗ ngồi + đi lại (`BotPresence`)
 
@@ -39,4 +38,4 @@ Hai điểm chưa được trả lời, đang dùng mặc định tự chọn (c
 
 ## Kiểm thử
 
-`tests/OfficeHub.Realtime.Tests/BotPresenceTests.cs` (6 test bận / rảnh), `TaskColumnRulesTests.In_progress`, `BotPresenceReporterTests.Busy_from_task_board…`, `agent-runner/tests` (nhãn, gộp, 403, luồng job báo working → idle). E2E `scripts/dev/bot-presence-e2e.ts` — 26/26 (2026-11-13).
+`tests/OfficeHub.Realtime.Tests/BotPresenceTests.cs` (6 test bận / rảnh), `BotPresenceReporterTests.Task_label_is_code_and_title`, `agent-runner/tests` (nhãn, gộp, 403, luồng job báo working → idle). E2E `scripts/dev/bot-presence-e2e.ts` — 24/24 (2026-11-13, sau khi bỏ suy từ cột).

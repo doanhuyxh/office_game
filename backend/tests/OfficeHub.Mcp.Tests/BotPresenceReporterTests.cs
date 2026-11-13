@@ -46,15 +46,11 @@ public class BotPresenceReporterTests
         Assert.Equal("📝 Đang trình bày", BotPresenceReporter.Describe("present_markdown", Args("content", "# Bí mật dài")));
 
     [Fact]
-    public void Busy_from_task_board_picks_first_in_progress_task()
+    public void Task_label_is_code_and_title()
     {
-        var tasks = System.Text.Json.Nodes.JsonNode.Parse("""
-            [{ "code": "WEB-3", "title": "Chờ duyệt", "inProgress": false },
-             { "code": "WEB-12", "title": "Sửa form đăng nhập", "inProgress": true },
-             { "code": "WEB-13", "title": "Khác", "inProgress": true }]
-            """)!.AsArray();
-        Assert.Equal((true, "WEB-12 · Sửa form đăng nhập"), BotPresenceReporter.BusyFrom(tasks));
-        Assert.Equal((false, null), BotPresenceReporter.BusyFrom(System.Text.Json.Nodes.JsonNode.Parse("""[{ "code": "WEB-3", "inProgress": false }]""")!.AsArray()));
-        Assert.Equal((false, null), BotPresenceReporter.BusyFrom([]));
+        var t = System.Text.Json.Nodes.JsonNode.Parse("""{ "code": "WEB-12", "title": "Sửa form đăng nhập", "columnName": "Lưu trữ" }""")!.AsObject();
+        Assert.Equal("WEB-12 · Sửa form đăng nhập", BotPresenceReporter.LabelOf(t));
+        Assert.Equal("WEB-3", BotPresenceReporter.LabelOf(System.Text.Json.Nodes.JsonNode.Parse("""{ "code": "WEB-3" }""")!.AsObject()));
+        Assert.Null(BotPresenceReporter.LabelOf(null));
     }
 }

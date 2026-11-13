@@ -21,10 +21,11 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
 {
     public const string RealtimeClientName = "officehub-realtime";
     private const int IdentityCacheMinutes = 5;
-    /// <summary>Nhớ "đang làm việc gì" (bảng việc) bấy nhiêu giây / token; tool đổi việc thì hỏi lại ngay.</summary>
-    private const int WorkCacheSeconds = 30;
-    /// <summary>Tool có thể đổi việc đang làm của bot → bỏ bản nhớ trạng thái làm việc.</summary>
-    private static readonly HashSet<string> WorkTools = ["update_task_status", "create_task", "update_task"];
+    /// <summary>
+    /// Tool thao tác trên MỘT việc (tham số <c>task</c>) → bot đang làm việc đó, việc ở cột nào cũng vậy (chủ dự án chốt 2026-11-13).
+    /// Không đụng việc nào trong <see cref="BotWork.TaskWindowMinutes"/> phút → rảnh.
+    /// </summary>
+    private static readonly HashSet<string> TaskTools = ["get_task", "update_task_status", "update_task", "comment_task", "list_task_comments"];
     /// <summary>Tên tham số chỉ đối tượng đang thao tác (việc, dự án, tài liệu…) — hiện sau tiêu đề tool.</summary>
     private static readonly string[] TargetArgs = ["task", "project", "document", "request", "meeting", "department", "position", "employee", "place"];
 
@@ -47,7 +48,7 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
             try
             {
                 if (await GetCallerAsync(authorization, clientIp) is not { } caller) return;
-                var (busy, task) = await WorkAsync(authorization, clientIp, WorkTools.Contains(tool));
+                var (busy, task) = await WorkAsync(authorization, clientIp, tool, args);
                 await SendAsync(new BotActivity(caller.UserId, caller.Name, caller.Look, caller.Zone, activity, busy, task));
             }
             catch (Exception e)
@@ -91,31 +92,48 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
     }
 
     /// <summary>
-    /// Bot đang làm việc gì theo bảng việc: việc được giao có <c>inProgress</c> (không ở cột đầu / chờ / hoàn thành / cần duyệt) → (true, "WEB-12 · Tên").
-    /// Api lỗi → (null, null) = không rõ, Realtime giữ trạng thái cũ.
+    /// Bot đang làm việc gì: vừa gọi tool trên một việc → nhớ "MÃ · tên" <see cref="BotWork.TaskWindowMinutes"/> phút (mỗi lần đụng việc thì tính lại) → đang làm;
+    /// hết hạn → rảnh. Theo token (một tài khoản bot = một agent).
     /// </summary>
-    private async Task<(bool? Busy, string? Task)> WorkAsync(string authorization, string? clientIp, bool refresh)
+    private async Task<(bool? Busy, string? Task)> WorkAsync(string authorization, string? clientIp, string tool, IDictionary<string, JsonElement>? args)
     {
         var key = "work:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(authorization)));
-        if (refresh) cache.Remove(key);
-        if (cache.TryGetValue(key, out (bool? Busy, string? Task) cached)) return cached;
-        if (await GetJsonAsync(http.CreateClient(OfficeHubApi.HttpClientName), "/api/projects/tasks/mine", authorization, clientIp) is not JsonArray tasks)
-            return (null, null);
-        var work = BusyFrom(tasks);
-        cache.Set(key, work, TimeSpan.FromSeconds(WorkCacheSeconds));
-        return work;
+        if (TaskTools.Contains(tool) && args is not null && args.TryGetValue("task", out var v) && v.ValueKind == JsonValueKind.String
+            && v.GetString()?.Trim() is { Length: > 0 } task)
+        {
+            var label = cache.TryGetValue(key, out string? prev) && prev is not null && SameTask(prev, task) ? prev : await TaskLabelAsync(authorization, clientIp, task);
+            cache.Set(key, label, TimeSpan.FromMinutes(BotWork.TaskWindowMinutes));
+            return (true, label);
+        }
+        return cache.TryGetValue(key, out string? current) ? (true, current) : (false, null);
     }
 
-    internal static (bool? Busy, string? Task) BusyFrom(JsonArray tasks)
+    private static bool SameTask(string label, string task) =>
+        label.StartsWith(task, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>"WEB-12 · Tên việc" — id → hỏi Api chi tiết việc; mã → tìm tên trong việc của tôi (không thấy thì chỉ mã). Api lỗi → mã / "Việc".</summary>
+    private async Task<string> TaskLabelAsync(string authorization, string? clientIp, string task)
     {
-        foreach (var t in tasks.OfType<JsonObject>())
+        var api = http.CreateClient(OfficeHubApi.HttpClientName);
+        try
         {
-            if (t["inProgress"]?.GetValue<bool>() != true) continue;
-            var code = t["code"]?.GetValue<string>() ?? "";
-            var title = t["title"]?.GetValue<string>();
-            return (true, Clip(string.IsNullOrWhiteSpace(title) ? code : $"{code} · {title}", BotWork.MaxTask));
+            if (Guid.TryParse(task, out var id))
+                return LabelOf((await GetJsonAsync(api, $"/api/projects/tasks/{id}", authorization, clientIp))?["task"] as JsonObject) ?? "Việc";
+            var code = task.ToUpperInvariant();
+            var mine = await GetJsonAsync(api, "/api/projects/tasks/mine", authorization, clientIp) as JsonArray;
+            return LabelOf(mine?.OfType<JsonObject>().FirstOrDefault(t => string.Equals(t["code"]?.GetValue<string>(), code, StringComparison.OrdinalIgnoreCase))) ?? code;
         }
-        return (false, null);
+        catch (HttpRequestException)
+        {
+            return Guid.TryParse(task, out _) ? "Việc" : task.ToUpperInvariant();
+        }
+    }
+
+    internal static string? LabelOf(JsonObject? t)
+    {
+        if (t?["code"]?.GetValue<string>() is not { Length: > 0 } code) return null;
+        var title = t["title"]?.GetValue<string>();
+        return Clip(string.IsNullOrWhiteSpace(title) ? code : $"{code} · {title}", BotWork.MaxTask);
     }
 
     /// <summary>"Chuyển trạng thái việc · WEB-12" — tiêu đề tool + đối tượng (bỏ qua id dạng Guid, cắt 40 ký tự).</summary>

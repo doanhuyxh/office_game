@@ -28,18 +28,6 @@ public static partial class TaskColumnRules
         new() { ProjectId = projectId, Name = "Xong", Position = 3, Color = "#22c55e", IsDone = true, ApproverOnly = true },
     ];
 
-    /// <summary>
-    /// Việc "đang làm" (bot ngồi bàn trong văn phòng 3D, 2026-11-13): không ở cột đầu (chưa bắt đầu), không ở cột hoàn thành / cần duyệt,
-    /// không còn việc phải chờ, và cột không phải cột chờ — tên (bỏ dấu) có "review" / "duyet" / "nghiem thu" hoặc bắt đầu bằng "cho "
-    /// (vd "Chờ review": phần của người làm đã xong, đang chờ người duyệt → tính là rảnh).
-    /// </summary>
-    public static bool IsInProgress(string columnName, int position, bool isDone, bool approverOnly, bool completed, int waitingOn)
-    {
-        if (position == 0 || isDone || approverOnly || completed || waitingOn > 0) return false;
-        var n = OfficeHub.BuildingBlocks.Text.PersonSearch.Fold(columnName).Trim();
-        return !(n.Contains("review") || n.Contains("duyet") || n.Contains("nghiem thu") || n.StartsWith("cho ") || n == "cho");
-    }
-
     [GeneratedRegex("^#[0-9a-fA-F]{6}$")]
     private static partial Regex HexColor();
 

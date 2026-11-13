@@ -18,8 +18,9 @@ public sealed record BotActivity(Guid UserId, string Name, string? Look, string?
 
 /// <summary>
 /// Bot đang làm / rảnh (chủ dự án yêu cầu 2026-11-13): đang làm → ngồi bàn trong khu phòng ban, bong bóng "🛠 việc · thao tác";
-/// rảnh → đi bộ ra Khu nghỉ (hết chỗ → Pantry), bong bóng "☕ Đang nghỉ". Nguồn: agent-runner báo qua <see cref="PresencePath"/> (ưu tiên),
-/// không có thì OfficeHub.Mcp suy từ bảng việc (<c>/api/projects/tasks/mine</c> → <c>inProgress</c>).
+/// rảnh → đi bộ ra Khu nghỉ (hết chỗ → Pantry), bong bóng "☕ Đang nghỉ". Nguồn: agent-runner báo qua <see cref="PresencePath"/> (đang chạy job = đang làm, ưu tiên);
+/// không có thì OfficeHub.Mcp: bot vừa gọi tool trên một việc (get_task, update_task_status, comment_task…) trong <see cref="TaskWindowMinutes"/> phút
+/// → đang làm việc đó — việc ở cột nào cũng vậy (chủ dự án chốt 2026-11-13, không suy từ cột).
 /// </summary>
 public static class BotWork
 {
@@ -31,6 +32,8 @@ public static class BotWork
     /// <summary>Rảnh liên tục bấy nhiêu giây mới đi ra Khu nghỉ (chống đi qua đi lại giữa hai việc). Có việc → về bàn ngay.</summary>
     public const int IdleDelaySeconds = 60;
     public const int MaxTask = 80;
+    /// <summary>Bot không có runner: không đụng việc nào bấy nhiêu phút → rảnh.</summary>
+    public const int TaskWindowMinutes = 15;
     public const int MaxActivity = 60;
 }
 
