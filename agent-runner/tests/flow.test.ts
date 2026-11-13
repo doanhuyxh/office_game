@@ -453,7 +453,7 @@ test('chat_mention: tin Telegram → job chat trong thư mục riêng của hộ
   expect(id).not.toBeNull();
   expect(await r.onMessage(s, wake)).toBeNull(); // tin lặp khi job còn chờ → gộp
   const job = await runNext();
-  expect(job).toMatchObject({ id: id!, kind: 'chat', status: 'done', task_id: C, cost_usd: 0.1, pr_url: null });
+  expect(job).toMatchObject({ id: id!, kind: 'chat', status: 'done', task_id: `NV120:${C}`, cost_usd: 0.1, pr_url: null });
   expect(comments.length).toBe(before); // không bình luận vào việc
   const work = join(dataDir, 'work/NV120', `chat-${C}`);
   expect(file(job, 'args.txt')).toContain(work);
@@ -470,7 +470,7 @@ test('chat_mention: tin Telegram → job chat trong thư mục riêng của hộ
   expect(file(second, 'args.txt')).toContain('--session sess-biz');
   expect(file(second, 'prompt-copy.md')).toContain('NỐI TIẾP');
   // phiên cũ quá 24 giờ → mở phiên mới
-  st.db.run(`UPDATE task_sessions SET updated_at = ? WHERE task_id = ?`, [new Date(Date.now() - 25 * 3_600_000).toISOString(), C]);
+  st.db.run(`UPDATE task_sessions SET updated_at = ? WHERE task_id = ?`, [new Date(Date.now() - 25 * 3_600_000).toISOString(), `NV120:${C}`]);
   await r.onMessage(s, wake);
   expect(file(await runNext(), 'args.txt')).not.toContain('--session');
 
@@ -499,7 +499,7 @@ test('chat_mention: tin nhắc mới tới khi job cùng hội thoại đang ch�
     await running;
     expect(st.getJob(id)!.status).toBe('done');
     expect(readFileSync(join(dataDir, 'jobs', String(id), 'prompt-copy.md'), 'utf8')).toContain('read_chat office');
-    const next = st.db.query<any, [string]>(`SELECT * FROM jobs WHERE task_id = ? AND status = 'queued'`).get(OFFICE);
+    const next = st.db.query<any, [string]>(`SELECT * FROM jobs WHERE task_id = ? AND status = 'queued'`).get(`NV120:${OFFICE}`);
     expect(next?.kind).toBe('chat'); // lượt chạy thêm đã vào hàng đợi
     st.finish(next.id, 'skipped');
   } finally {

@@ -15,7 +15,8 @@ git:
 runner:
   data_dir: /var/lib/officehub-runner            # SQLite (hàng đợi, phiên, chi phí) + thư mục tạm của từng job
   worktrees_dir: /srv/agents/worktrees           # PHẢI nằm ngoài mọi repo (tránh đọc nhầm .env của repo chính)
-  max_parallel: 2                                # tổng số phiên chạy cùng lúc trên máy (mỗi agent tối đa 1)
+  max_parallel: 2                                # tổng số phiên chạy cùng lúc trên máy (mỗi agent tối đa 1 — kể cả phiên chat / họp)
+                                                 # tin chat_mention / meeting_turn: phiên ngắn chỉ có tool MCP, dùng `executor` của agent; đang họp thì việc chờ
   base_branch: main
   # log_format: auto                            # auto (terminal → dòng dễ đọc có màu; systemd / pipe → JSON) | json | pretty; hoặc env RUNNER_LOG_FORMAT
 

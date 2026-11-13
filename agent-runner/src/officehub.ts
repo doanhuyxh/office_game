@@ -2,7 +2,8 @@ import { errText } from './log';
 
 /**
  * Gọi tool MCP của OfficeHub bằng token AI của agent (JSON-RPC qua HTTP, phản hồi JSON hoặc SSE).
- * Runner chỉ dùng vài tool đọc (get_my_profile, get_task, list_chats) + comment_task để báo PR / chi phí.
+ * Runner chỉ dùng vài tool đọc (get_my_profile, get_task, list_chats, get_my_meeting) + comment_task để báo PR / chi phí + pass_turn khi agent
+ * không dùng được lượt nói trong cuộc họp.
  */
 export class OfficeHubClient {
   private id = 0;
@@ -49,6 +50,12 @@ export class OfficeHubClient {
 
   /** Hội thoại của agent (chỉ tài khoản bot): `[{ conversation, type, unread, mentionedUnread, … }]`. */
   listChats() { return this.callTool<any>('list_chats', {}); }
+
+  /** Cuộc họp agent đang dự (chỉ tài khoản bot): `{ inMeeting, sessionId, isMyTurn, isChair, … }`. */
+  myMeeting() { return this.callTool<any>('get_my_meeting', {}); }
+
+  /** Bỏ lượt nói đang giữ (runner gọi thay khi agent không dùng được lượt — cuộc họp không đứng chờ hết hạn). */
+  passTurn() { return this.callTool<any>('pass_turn', {}); }
 
   async comment(task: string, content: string) {
     try { await this.callTool('comment_task', { task, content }); return true; }

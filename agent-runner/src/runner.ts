@@ -9,9 +9,10 @@ import { OfficeHubClient } from './officehub';
 import { PresenceReporter } from './presence';
 import { buildPrompt, mcpConfig } from './prompt';
 import { chatPrompt } from './prompt/chat';
+import { meetingPrompt } from './prompt/meeting';
 import { Store, type Job } from './store';
 import { TelegramClient, type TgMessage } from './telegram';
-import { checkChat, checkTask, parseWake, type ChatWake, type WakeData } from './validator';
+import { checkChat, checkMeeting, checkTask, parseWake, type ChatWake, type MeetingWake, type WakeData } from './validator';
 import { AGENT_ENV, Git, TASK_ENV, WorkspaceRefused, branchChanges, inPlaceChanges, installHooks, prepareInPlace, prepareWorktree, publish, removeHooks, sh } from './workspace';
 
 interface AgentState {
@@ -192,7 +193,48 @@ export class Runner {
       groupChatId: this.config.groupChatId, employeeCode: s.cfg.employeeCode,
     });
     if (!wake.ok) { log('info', 'bỏ qua tin Telegram', { agent: s.cfg.employeeCode, reason: wake.reason }); return null; }
+    if (wake.value.kind === 'meeting') return this.acceptMeeting(s, wake.value);
     return wake.value.kind === 'chat' ? this.acceptChat(s, wake.value) : this.accept(s, wake.value);
+  }
+
+  /**
+   * Tin meeting_turn (TEST-84): hỏi lại OfficeHub (đúng phiên, đang giữ lượt) rồi xếp hàng, khoá theo `session_id`; job họp được lấy trước job khác.
+   * Mỗi agent một phiên tại một thời điểm: agent đang chạy job VIỆC thì không dự họp được → runner bỏ lượt ngay (`pass_turn`) để cuộc họp
+   * không đứng chờ hết hạn nói. Đang chạy job chat (ngắn) → xếp hàng, chạy ngay sau đó.
+   */
+  async acceptMeeting(s: AgentState, w: MeetingWake): Promise<number | null> {
+    const label = meetingLabel(w.session_id), ctx = { agent: s.cfg.employeeCode, task: label };
+    if (!s.enabled || !s.employeeId) { log('warn', 'agent đang tắt — bỏ qua', { ...ctx, problem: s.problem }); return null; }
+    try {
+      const c = checkMeeting(await s.hub.myMeeting(), w.session_id);
+      if (!c.ok) { log('info', 'bỏ qua lượt họp', { ...ctx, reason: c.reason }); return null; }
+      const busy = this.store.runningJob(s.cfg.employeeCode);
+      if (busy && (busy.kind ?? 'task') === 'task') {
+        await s.hub.passTurn();
+        log('warn', 'agent đang làm việc — bỏ lượt họp', { ...ctx, busy: busy.task_code });
+        return null;
+      }
+    } catch (e) {
+      log('warn', 'không kiểm tra được cuộc họp — bỏ qua', { ...ctx, error: errText(e) });
+      return null;
+    }
+    const id = this.store.enqueue(s.cfg.employeeCode, lightKey(s.cfg.employeeCode, w.session_id), label, '', 'meeting');
+    log('info', id ? 'xếp hàng lượt họp' : 'cuộc họp đã có job đang chờ / chạy — gộp', { ...ctx, job: id });
+    return id;
+  }
+
+  /**
+   * Agent đang dự cuộc họp agent → job việc / chat chưa chạy (mỗi agent một phiên; lượt nói có thể tới bất cứ lúc nào): hoãn
+   * {@link MEETING_HOLD_SEC} giây rồi kiểm tra lại. Không hỏi được (tài khoản không phải bot, OfficeHub bản cũ) → coi như không họp.
+   */
+  private async heldByMeeting(s: AgentState, job: Job): Promise<boolean> {
+    let m: any;
+    try { m = await s.hub.myMeeting(); } catch { return false; }
+    if (!m?.inMeeting) return false;
+    const reason = 'agent đang họp — chờ hết cuộc họp';
+    if (job.reason !== reason) log('info', 'hoãn job', { job: job.id, agent: job.agent, task: job.task_code, reason });
+    this.store.hold(job.id, new Date(Date.now() + MEETING_HOLD_SEC * 1000).toISOString(), reason);
+    return true;
   }
 
   /**
@@ -209,7 +251,7 @@ export class Runner {
       log('warn', 'không kiểm tra được hội thoại — bỏ qua', { agent: s.cfg.employeeCode, task: label, error: errText(e) });
       return null;
     }
-    const id = this.store.enqueue(s.cfg.employeeCode, w.conversation_id, label, '', 'chat');
+    const id = this.store.enqueue(s.cfg.employeeCode, lightKey(s.cfg.employeeCode, w.conversation_id), label, '', 'chat');
     log('info', id ? 'xếp hàng tin nhắc' : 'hội thoại đã có job đang chờ / chạy — gộp', { agent: s.cfg.employeeCode, task: label, job: id });
     return id;
   }
@@ -253,9 +295,12 @@ export class Runner {
     const s = this.agents.get(job.agent)!;
     const ctl = new AbortController();
     this.running.set(job.id, ctl);
-    log('info', 'bắt đầu job', { job: job.id, agent: job.agent, task: job.task_code });
     try {
-      if (job.kind === 'chat') await this.processChat(s, job, ctl.signal);
+      // Agent đang họp → việc / chat chờ (kiểm tra trước khi ghi log bắt đầu: job hoãn được hỏi lại mỗi 30 giây).
+      if (job.kind !== 'meeting' && await this.heldByMeeting(s, job)) return;
+      log('info', 'bắt đầu job', { job: job.id, agent: job.agent, task: job.task_code });
+      if (job.kind === 'meeting') await this.processMeeting(s, job, ctl.signal);
+      else if (job.kind === 'chat') await this.processChat(s, job, ctl.signal);
       else await this.processTask(s, job, ctl.signal);
     } catch (e) {
       this.store.finish(job.id, 'failed', { reason: errText(e) });
@@ -313,9 +358,10 @@ export class Runner {
    * trong {@link CHAT_SESSION_HOURS} giờ. Không bình luận vào việc, không báo trạng thái 3D; chi phí vẫn vào `report`.
    */
   private async processChat(s: AgentState, job: Job, signal: AbortSignal): Promise<void> {
-    const c = checkChat(await s.hub.listChats(), job.task_id);
+    const conv = lightId(job);
+    const c = checkChat(await s.hub.listChats(), conv);
     if (!c.ok) { this.store.finish(job.id, 'skipped', { reason: c.reason }); log('info', 'bỏ job', { job: job.id, reason: c.reason }); return; }
-    const cwd = this.workDir(job.agent, `chat-${job.task_id}`);
+    const cwd = this.workDir(job.agent, `chat-${conv}`);
     mkdirSync(cwd, { recursive: true });
     const prev = this.store.session(job.task_id);
     const fresh = !!prev && Date.now() - Date.parse(prev.updated_at) < CHAT_SESSION_HOURS * 3_600_000;
@@ -326,7 +372,50 @@ export class Runner {
     this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd);
     this.finishJob(job, out);
     // Có tin nhắc mới tới giữa phiên → kiểm tra lại (đã đọc hết thì tự bỏ) và chạy thêm một lượt.
-    if (this.store.getJob(job.id)?.rerun) await this.acceptChat(s, { employee_code: job.agent, conversation_id: job.task_id, message_id: '' });
+    if (this.store.getJob(job.id)?.rerun) await this.acceptChat(s, { employee_code: job.agent, conversation_id: conv, message_id: '' });
+  }
+
+  /**
+   * Job họp (TEST-84) = MỘT lượt nói: kiểm tra lại (đúng phiên, còn giữ lượt) → chạy CLI trong thư mục trống riêng của cuộc họp, CHỉ tool MCP,
+   * tối đa {@link MEETING_TURN_MAX_MIN} phút (server tự chuyển lượt sau 3 phút) → agent tự `speak_in_meeting` / `pass_turn`.
+   * Nối phiên theo cuộc họp (agent nhớ diễn biến, không đọc lại từ đầu). Không bình luận vào việc, không báo trạng thái 3D (bot đang được giữ
+   * ở phòng họp); chi phí vào `report`. Sau phiên mà agent VẪN giữ lượt (CLI lỗi / hết giờ / không nói) → runner bỏ lượt thay.
+   */
+  private async processMeeting(s: AgentState, job: Job, signal: AbortSignal): Promise<void> {
+    const session = lightId(job);
+    const c = checkMeeting(await s.hub.myMeeting(), session);
+    if (!c.ok) { this.store.finish(job.id, 'skipped', { reason: c.reason }); log('info', 'bỏ job', { job: job.id, reason: c.reason }); return; }
+    const cwd = this.workDir(job.agent, `meeting-${session}`);
+    mkdirSync(cwd, { recursive: true });
+    const prev = this.store.session(job.task_id);
+    const resume = prev?.agent === job.agent && prev.session_id ? prev.session_id : undefined;
+    const exec = { ...s.cfg.executor, timeoutMin: Math.min(s.cfg.executor.timeoutMin, MEETING_TURN_MAX_MIN) };
+    try {
+      const out = await this.runSession(s, job, signal, {
+        cwd, prompt: meetingPrompt(job.agent, session, !!resume), resume, exec, noBuiltinTools: true, presence: false,
+      });
+      this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd);
+      this.finishJob(job, out);
+    } finally {
+      await this.afterMeetingTurn(s, job).catch((e) => log('warn', 'không kiểm tra được lượt họp sau phiên', { job: job.id, agent: job.agent, error: errText(e) }));
+    }
+  }
+
+  /**
+   * Sau một lượt họp: agent còn giữ lượt của phiên đó không?
+   * - Có tin meeting_turn mới tới giữa phiên (`rerun`) → đó là lượt MỚI → xếp thêm một job.
+   * - Không → agent chưa dùng lượt vừa rồi → bỏ lượt thay, cuộc họp đi tiếp ngay thay vì chờ hết hạn nói.
+   */
+  private async afterMeetingTurn(s: AgentState, job: Job): Promise<void> {
+    const session = lightId(job);
+    if (!checkMeeting(await s.hub.myMeeting(), session).ok) return;
+    const done = this.store.getJob(job.id);
+    if (done?.rerun && done.status !== 'running') {
+      await this.acceptMeeting(s, { employee_code: job.agent, session_id: session, conversation_id: '' });
+      return;
+    }
+    await s.hub.passTurn();
+    log('warn', 'agent không dùng lượt họp — runner bỏ lượt thay', { job: job.id, agent: job.agent, task: job.task_code });
   }
 
   /** Job việc: kiểm tra lại việc → chuẩn bị nơi làm (worktree / in_place / none) → chạy CLI → push + PR (worktree) → bình luận kết quả. */
@@ -442,6 +531,23 @@ export function resultComment(job: Pick<Job, 'agent'>, out: RunOutcome, prUrl: s
 
 /** Phiên chat cũ hơn mức này (giờ) → mở phiên mới thay vì nối. */
 export const CHAT_SESSION_HOURS = 24;
+
+/** Thời gian tối đa của một lượt họp (phút) — dưới hạn nói 3 phút của OfficeHub (`AgentMeetingTurnRules.TurnTimeout`) để runner kịp bỏ lượt thay. */
+export const MEETING_TURN_MAX_MIN = 2.5;
+
+/** Agent đang họp: job việc / chat hoãn từng nhịp này (giây) rồi kiểm tra lại. */
+export const MEETING_HOLD_SEC = 30;
+
+/**
+ * Khoá của job chat / họp (`jobs.task_id`, cũng là khoá nối phiên): RIÊNG từng agent — nhiều bot cùng một hội thoại / cuộc họp mỗi bot một job,
+ * một phiên CLI (job việc khoá theo id việc vì việc chỉ có một người làm).
+ */
+export const lightKey = (agent: string, id: string) => `${agent}:${id}`;
+/** Id hội thoại / phiên họp của job chat / họp (bỏ tiền tố agent của {@link lightKey}). */
+export const lightId = (job: Pick<Job, 'task_id'>) => job.task_id.slice(job.task_id.indexOf(':') + 1);
+
+/** Nhãn job họp trong log / cột task_code. */
+export const meetingLabel = (sessionId: string) => `meeting:${sessionId.slice(0, 8)}`;
 
 /** Nhãn job chat trong log / cột task_code. */
 export const chatLabel = (conversationId: string) => `chat:${conversationId.slice(0, 8)}`;

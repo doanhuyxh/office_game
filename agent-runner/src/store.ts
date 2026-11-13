@@ -2,13 +2,13 @@ import { Database } from 'bun:sqlite';
 
 export type JobStatus = 'queued' | 'running' | 'done' | 'failed' | 'skipped';
 
-/** Loại job: việc (mặc định, DB cũ = null) | chat (tin @nhắc trong một hội thoại, TEST-81). */
-export type JobKind = 'task' | 'chat';
+/** Loại job: việc (mặc định, DB cũ = null) | chat (tin @nhắc trong một hội thoại, TEST-81) | meeting (một lượt nói trong cuộc họp agent, TEST-84). */
+export type JobKind = 'task' | 'chat' | 'meeting';
 
 export interface Job {
   id: number;
   agent: string;
-  /** Khoá của job: id việc; job chat = id hội thoại. Một khoá chỉ một job đang chờ / chạy. */
+  /** Khoá của job: id việc; job chat = `<mã NV>:<id hội thoại>`; job họp = `<mã NV>:<id phiên họp>` (riêng từng agent). Một khoá chỉ một job đang chờ / chạy. */
   task_id: string;
   /** Mã việc; job chat = nhãn hiển thị trong log (`chat:<8 ký tự đầu>`). */
   task_code: string;
@@ -30,10 +30,12 @@ export interface Job {
   kind: JobKind | null;
   /** 1 = có tin đánh thức mới cho cùng khoá trong lúc job đang chạy → xong thì runner kiểm tra lại và chạy thêm một lượt. */
   rerun: number | null;
+  /** Job bị hoãn (agent đang họp): chưa tới giờ này thì chưa lấy ra chạy. */
+  not_before: string | null;
 }
 
 /** Cột thêm sau khi bảng đã có trong runner.db cũ → `ALTER TABLE … ADD COLUMN` lúc mở (migration nhẹ, không mất dữ liệu). */
-const JOB_COLUMNS_ADDED: [string, string][] = [['model', 'TEXT'], ['model_usage', 'TEXT'], ['kind', 'TEXT'], ['rerun', 'INTEGER']];
+const JOB_COLUMNS_ADDED: [string, string][] = [['model', 'TEXT'], ['model_usage', 'TEXT'], ['kind', 'TEXT'], ['rerun', 'INTEGER'], ['not_before', 'TEXT']];
 
 /**
  * SQLite của runner (`{data_dir}/runner.db`): hàng đợi job, khoá theo task_id (một task chỉ một job đang chờ / chạy — index unique có điều kiện),
@@ -50,7 +52,7 @@ export class Store {
         id INTEGER PRIMARY KEY AUTOINCREMENT, agent TEXT NOT NULL, task_id TEXT NOT NULL, task_code TEXT NOT NULL, project_id TEXT NOT NULL,
         status TEXT NOT NULL, reason TEXT, created_at TEXT NOT NULL, started_at TEXT, finished_at TEXT,
         session_id TEXT, cost_usd REAL, input_tokens INTEGER, output_tokens INTEGER, turns INTEGER, pr_url TEXT, model TEXT, model_usage TEXT,
-        kind TEXT, rerun INTEGER);
+        kind TEXT, rerun INTEGER, not_before TEXT);
       CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_active ON jobs(task_id) WHERE status IN ('queued', 'running');
       CREATE TABLE IF NOT EXISTS task_sessions (
         task_id TEXT PRIMARY KEY, agent TEXT NOT NULL, session_id TEXT, branch TEXT NOT NULL, worktree TEXT NOT NULL, updated_at TEXT NOT NULL);
@@ -85,7 +87,8 @@ export class Store {
   }
 
   /**
-   * Lấy job kế (FIFO) cho một slot trống: tổng job đang chạy < maxParallel, agent của job chưa có job nào đang chạy.
+   * Lấy job kế cho một slot trống: tổng job đang chạy < maxParallel, agent của job chưa có job nào đang chạy (mỗi agent 1 phiên, mọi loại).
+   * Job họp lấy trước (người đang chờ trong phòng, lượt nói có hạn), còn lại FIFO; job đang hoãn (`not_before` chưa tới) bị bỏ qua.
    * Đánh dấu running trong cùng transaction.
    */
   claimNext(maxParallel: number, enabledAgents: string[]): Job | null {
@@ -94,14 +97,22 @@ export class Store {
       if (running >= maxParallel || enabledAgents.length === 0) return null;
       const marks = enabledAgents.map(() => '?').join(',');
       const job = this.db.query<Job, string[]>(`
-        SELECT * FROM jobs WHERE status = 'queued' AND agent IN (${marks})
+        SELECT * FROM jobs WHERE status = 'queued' AND agent IN (${marks}) AND (not_before IS NULL OR not_before <= ?)
           AND agent NOT IN (SELECT agent FROM jobs WHERE status = 'running')
-        ORDER BY id LIMIT 1`).get(...enabledAgents);
+        ORDER BY CASE WHEN kind = 'meeting' THEN 0 ELSE 1 END, id LIMIT 1`).get(...enabledAgents, this.now());
       if (!job) return null;
       this.db.run(`UPDATE jobs SET status = 'running', started_at = ? WHERE id = ?`, [this.now(), job.id]);
       return { ...job, status: 'running' as const };
     })();
   }
+
+  /** Hoãn job đang chạy dở khâu chuẩn bị (agent đang họp): về hàng đợi, tới `untilIso` mới được lấy lại. */
+  hold(id: number, untilIso: string, reason: string) {
+    this.db.run(`UPDATE jobs SET status = 'queued', started_at = NULL, not_before = ?, reason = ? WHERE id = ?`, [untilIso, reason, id]);
+  }
+
+  /** Job đang chạy của một agent (mỗi agent tối đa 1). */
+  runningJob(agent: string) { return this.db.query<Job, [string]>(`SELECT * FROM jobs WHERE status = 'running' AND agent = ?`).get(agent); }
 
   finish(id: number, status: Exclude<JobStatus, 'queued' | 'running'>,
     f: Partial<Pick<Job, 'reason' | 'session_id' | 'cost_usd' | 'input_tokens' | 'output_tokens' | 'turns' | 'pr_url' | 'model' | 'model_usage'>> = {}) {
@@ -138,7 +149,7 @@ export class Store {
       FROM jobs WHERE finished_at >= ? GROUP BY agent ORDER BY agent`).all(sinceIso);
   }
 
-  /** Chi phí theo loại job (việc / chat) — lệnh `report`. */
+  /** Chi phí theo loại job (việc / chat / họp) — lệnh `report`. */
   costsByKind(sinceIso: string) {
     return this.db.query<{ kind: string; jobs: number; cost: number | null }, [string]>(`
       SELECT COALESCE(kind, 'task') kind, COUNT(*) jobs, SUM(cost_usd) cost FROM jobs WHERE finished_at >= ? GROUP BY 1 ORDER BY 1`).all(sinceIso);

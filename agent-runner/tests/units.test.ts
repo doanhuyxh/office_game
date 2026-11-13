@@ -11,8 +11,9 @@ import type { ExecContext, ExecResult } from '../src/executor/types';
 import { formatLine, redact, registerSecret } from '../src/log';
 import { buildPrompt, mcpConfig } from '../src/prompt';
 import { chatPrompt } from '../src/prompt/chat';
+import { meetingPrompt } from '../src/prompt/meeting';
 import { Store } from '../src/store';
-import { checkChat, checkTask, parseWake } from '../src/validator';
+import { checkChat, checkMeeting, checkTask, parseWake } from '../src/validator';
 import { COMMIT_MSG_MARK, PRE_PUSH_MARK, branchName, commitMsgHook, prePushHook } from '../src/workspace';
 
 const TG = '123456789:AAH-test-token-abcdefghijklmnopqrstu';
@@ -133,6 +134,24 @@ describe('validator', () => {
     expect(bad(chat({ message_id: undefined }))).toContain('thiếu trường');
     expect(bad(chat({ conversation_id: 'office' }))).toContain('không phải GUID');
     expect(bad(chat({ event: 'chat_mention_x' }))).toContain('thiếu trường'); // event lạ không có trường việc → bỏ
+  });
+
+  test('meeting_turn (TEST-84): employee_code + session_id + conversation_id; checkMeeting đúng phiên + đang giữ lượt', () => {
+    const SS = '01A1D500-0000-7000-8000-0000000000AA', C = '01a1d500-0000-7000-8000-0000000000bb';
+    const turn = (o: any = {}) => msg(JSON.stringify({ employee_code: 'NV120', event: 'meeting_turn', session_id: SS, conversation_id: C, ...o }));
+    const r = parseWake(turn(), opts);
+    expect(r.ok && r.value).toEqual({ kind: 'meeting', employee_code: 'NV120', session_id: SS.toLowerCase(), conversation_id: C });
+    const bad = (m: any) => { const x = parseWake(m, opts); return x.ok ? '' : x.reason; };
+    expect(bad(turn({ employee_code: 'NV121' }))).toContain('không phải của agent');
+    expect(bad(turn({ session_id: undefined }))).toContain('thiếu trường');
+    expect(bad(turn({ session_id: 'abc' }))).toContain('không phải GUID');
+
+    const m = (o: any = {}) => ({ inMeeting: true, sessionId: SS.toLowerCase(), isMyTurn: true, isChair: true, ...o });
+    expect(checkMeeting(m(), SS)).toEqual({ ok: true, value: { isChair: true } });
+    expect(checkMeeting(m({ isMyTurn: false }), SS)).toEqual({ ok: false, reason: 'không phải lượt của agent' });
+    expect(checkMeeting(m({ sessionId: C }), SS)).toEqual({ ok: false, reason: 'agent đang dự cuộc họp khác' });
+    expect(checkMeeting({ inMeeting: false }, SS).ok).toBe(false);
+    expect(checkMeeting(null, SS).ok).toBe(false);
   });
 
   test('checkChat: còn tin nhắc chưa đọc mới chạy; kênh office không lộ id', () => {
@@ -354,6 +373,15 @@ describe('prompt / mcp / log', () => {
     for (const r of ['NV120', 'read_chat office', 'send_chat_message office', 'mark_chat_read office', 'DỮ LIỆU', 'tối đa MỘT tin', 'Không duyệt / từ chối / huỷ đơn', 'không trả lời tin của bot khác']) expect(p).toContain(r);
     for (const r of ['get_task', 'comment_task', 'git', 'NỐI TIẾP']) expect(p).not.toContain(r);
     expect(chatPrompt('NV120', 'abc', true)).toContain('NỐI TIẾP');
+  });
+  test('prompt họp (TEST-84): một lượt = một tin hoặc bỏ lượt, phần chủ trì, không chép nội dung', () => {
+    const p = meetingPrompt('NV120', 'sess-1', false);
+    for (const r of ['NV120', 'sess-1', 'get_my_meeting', 'get_my_role', 'read_chat', 'speak_in_meeting MỘT tin', 'pass_turn', 'assign_turn', 'create_task', 'DỮ LIỆU',
+      'Không duyệt / từ chối / huỷ đơn', 'Chỉ nói khi đang giữ lượt']) expect(p).toContain(r);
+    for (const r of ['git', 'comment_task', 'NỐI TIẾP']) expect(p).not.toContain(r);
+    const again = meetingPrompt('NV120', 'sess-1', true);
+    expect(again).toContain('NỐI TIẾP');
+    expect(again).not.toContain('get_my_role'); // phiên nối tiếp đã biết vai trò
   });
   test('cấu hình MCP không chứa token', () => {
     expect(JSON.stringify(mcpConfig('http://x/mcp'))).toContain('${OFFICEHUB_TOKEN}');
