@@ -82,12 +82,24 @@ export class PresenceReporter {
       if (res.status === 401 || res.status === 403) {
         this.disabled = true;
         log('warn', 'OfficeHub không nhận trạng thái văn phòng 3D — ngừng báo (tài khoản chưa được HR đánh dấu là bot?)', { agent: this.agent, status: res.status });
-      } else if (!res.ok) log('info', 'báo trạng thái văn phòng 3D lỗi', { agent: this.agent, status: res.status });
+      } else if (res.status === 404 || res.status === 405) {
+        // Máy chủ chưa có /mcp/presence (OfficeHub chưa deploy bản mới / reverse proxy chưa chuyển tiếp) — vẫn thử theo nhịp, tự chạy lại khi có
+        this.fail(`status=${res.status}`, 'OfficeHub chưa có endpoint trạng thái văn phòng 3D — deploy bản mới + nginx `location = /mcp/presence`; runner vẫn thử lại theo nhịp');
+      } else if (!res.ok) this.fail(`status=${res.status}`, 'báo trạng thái văn phòng 3D lỗi');
+      else if (this.lastError) { log('info', 'báo trạng thái văn phòng 3D đã chạy lại', { agent: this.agent }); this.lastError = undefined; }
     } catch (e) {
-      log('info', 'báo trạng thái văn phòng 3D lỗi', { agent: this.agent, error: errText(e) });
+      this.fail(errText(e), 'báo trạng thái văn phòng 3D lỗi');
     } finally {
       this.sending = false;
     }
+  }
+
+  /** Lỗi giống lần trước → không ghi lại (nhịp còn sống 2 phút không làm đầy log). */
+  private lastError?: string;
+  private fail(key: string, msg: string) {
+    if (key === this.lastError) return;
+    this.lastError = key;
+    log('warn', msg, { agent: this.agent, error: key });
   }
 }
 

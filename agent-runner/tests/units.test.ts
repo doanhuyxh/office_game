@@ -422,3 +422,25 @@ describe('presence (văn phòng 3D: đang làm / rảnh)', () => {
     }
   });
 });
+
+test('presence: máy chủ chưa có endpoint (405) → ghi log một lần, vẫn thử lại, có lại thì báo chạy lại', async () => {
+  const { PresenceReporter } = await import('../src/presence');
+  let status = 405, hits = 0;
+  const srv = Bun.serve({ port: 0, async fetch() { hits++; return new Response(null, { status }); } });
+  const logs: string[] = [];
+  const orig = console.log, origErr = console.error;
+  console.log = console.error = (...a: unknown[]) => { logs.push(a.join(' ')); };
+  try {
+    const p = new PresenceReporter(`http://localhost:${srv.port}/mcp`, 'ohk_x', 'NV018');
+    for (const s of ['a', 'b', 'c']) { p.working(s); await Bun.sleep(30); }
+    expect(hits).toBe(3);                                                   // không bị tắt như 403
+    expect(logs.filter((l) => l.includes('chưa có endpoint')).length).toBe(1);
+    status = 204;
+    p.idle(); await Bun.sleep(30);
+    expect(logs.some((l) => l.includes('đã chạy lại'))).toBe(true);
+    p.stop();
+  } finally {
+    console.log = orig; console.error = origErr;
+    srv.stop();
+  }
+});
