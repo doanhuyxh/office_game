@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { useCheck, useToday } from '@/features/attendance';
 import { useMe } from '@/features/auth';
-import { useRoomsNow } from '@/features/meetings';
+import { AgentMeetingBar, AgentMeetingDialog, useRoomsNow, type AgentMeetingDraft } from '@/features/meetings';
 import { errorMessage } from '@/utils/errors';
 import { formatTime } from '@/utils/date';
 import { splitMentions } from '@/utils/mention';
@@ -80,6 +80,7 @@ export function OfficeView() {
   const uploads = useUploadQueue();
   const cabinetDept = useCabinetDepartment();
   const [docs, setDocs] = useState<DocsMode | null>(null);
+  const [agentDraft, setAgentDraft] = useState<AgentMeetingDraft | null>(null);
   const [screen, setScreen] = useState<ScreenDto | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const roomRef = useRef<string | null>(null);
@@ -315,6 +316,8 @@ export function OfficeView() {
               )}
               {IS_TOUCH && <button type="button" className="close" onClick={() => setChatOpen(false)} aria-label="Thu gọn chat">✕</button>}
             </div>
+            {/* Đang đứng trong phòng họp: họp với AI (TEST-83) — nút mở (điền sẵn phòng) / trạng thái lượt nói, nút Dừng. Phòng khác: không hiện. */}
+            {roomCh && <AgentMeetingBar roomId={roomCh.id} variant="hud" className="agent-meeting" onOpen={() => setAgentDraft({ roomId: roomCh.id })} />}
             <div className="log">
               {chat.filter((l) => (tab === 'room' ? l.channel === 'room' && l.roomId === roomCh?.id : l.channel !== 'room')).map((l, i) => {
                 const mentionsMe = !!account?.id && l.id !== account.id && !!l.mentions?.some((x) => x.userId === account.id);
@@ -382,6 +385,7 @@ export function OfficeView() {
           {today?.day.firstIn && <small>Vào {formatTime(today.day.firstIn)}</small>}
         </button>
       </div>
+      <AgentMeetingDialog draft={agentDraft} onClose={() => setAgentDraft(null)} />
       <OfficeDocsDialog mode={docs} onClose={() => setDocs(null)} onPresent={roomCh ? present : undefined} />
       <AvatarEditorDialog open={editorOpen} onOpenChange={setEditorOpen}
         onSaved={(look) => {

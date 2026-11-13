@@ -30,3 +30,37 @@ export function useCancelBooking() {
   const invalidate = useInvalidate();
   return useMutation({ mutationFn: meetingApi.cancel, onSuccess: invalidate });
 }
+
+// ── Phiên họp agent (TEST-83) ──
+
+/**
+ * Phiên họp agent mới nhất của phòng (đang họp hoặc vừa kết thúc). Lượt nói đổi theo tin bot gửi → đang họp thì hỏi lại mỗi 3 giây,
+ * không thì 15 giây (để thấy phiên người khác vừa mở). roomId null = không hỏi.
+ */
+export const useRoomAgentSession = (roomId: string | null | undefined) =>
+  useQuery({
+    queryKey: meetingKeys.roomSession(roomId ?? ''),
+    queryFn: async () => (await meetingApi.sessions(roomId!))[0] ?? null,
+    enabled: !!roomId,
+    refetchInterval: (q) => (q.state.data?.status === 'Active' ? 3_000 : 15_000),
+  });
+
+export const useAgentBots = (enabled = true) =>
+  useQuery({ queryKey: meetingKeys.agentBots, queryFn: meetingApi.agentBots, enabled, staleTime: 60_000 });
+
+export const useAgentMeetingSettings = () => useQuery({ queryKey: meetingKeys.agentSettings, queryFn: meetingApi.agentSettings });
+
+export function useOpenAgentMeeting() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: meetingApi.openSession, onSuccess: () => qc.invalidateQueries({ queryKey: meetingKeys.sessions }) });
+}
+
+export function useStopAgentMeeting() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: meetingApi.stopSession, onSuccess: () => qc.invalidateQueries({ queryKey: meetingKeys.sessions }) });
+}
+
+export function useSaveAgentMeetingSettings() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: meetingApi.saveAgentSettings, onSuccess: (d) => qc.setQueryData(meetingKeys.agentSettings, d) });
+}

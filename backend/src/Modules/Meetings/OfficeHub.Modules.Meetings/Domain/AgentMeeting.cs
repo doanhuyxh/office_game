@@ -237,6 +237,11 @@ public static class AgentMeetingTurnRules
     public static bool TimedOut(AgentMeeting m, DateTimeOffset now) =>
         m.Status == AgentMeetingStatus.Active && m.TurnStartedAt is { } t && now - t >= TurnTimeout;
 
+    /// <summary>Tin hệ thống báo mở họp trong kênh phòng (TEST-83): người mở, chủ đề, bot chủ trì, trần đã chụp.</summary>
+    public static string OpenNotice(AgentMeeting m) =>
+        $"{m.OpenedByName} mở cuộc họp agent \"{m.Topic}\" — chủ trì: {m.Bots.FirstOrDefault(b => b.EmployeeId == m.ChairEmployeeId)?.Name ?? "bot chủ trì"}, " +
+        $"{m.Bots.Count} bot dự, tối đa {m.MaxTurns} lượt / {m.MaxMinutes} phút.";
+
     /// <summary>Tin hệ thống báo kết thúc trong kênh phòng.</summary>
     public static string EndNotice(AgentMeeting m) => $"Cuộc họp agent \"{m.Topic}\" đã kết thúc: " + m.EndReason switch
     {

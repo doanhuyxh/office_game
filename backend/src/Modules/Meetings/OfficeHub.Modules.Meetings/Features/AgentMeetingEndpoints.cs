@@ -37,6 +37,8 @@ public sealed record MyAgentMeetingDto(AgentMeetingDto? Session, Guid? Conversat
 public sealed record AgentMeetingSettingsDto(int MaxTurns, int MaxMinutes, bool IsDefault, DateTimeOffset? UpdatedAt, string? UpdatedByName,
     int DefaultMaxTurns, int DefaultMaxMinutes, int TurnsMin, int TurnsMax, int MinutesMin, int MinutesMax);
 public sealed record UpdateAgentMeetingSettings(int MaxTurns, int MaxMinutes);
+/// <summary>Tài khoản bot chọn được khi mở họp (TEST-83): nhân viên còn làm, tài khoản đang hoạt động gắn cờ bot.</summary>
+public sealed record AgentMeetingBotOptionDto(Guid EmployeeId, string Code, string Name, string? DepartmentName, string? PositionName, string? AvatarUrl);
 
 /// <summary>
 /// Phiên họp agent (TEST-74): người thật mở / dừng, bot chỉ xem phiên mình dự. Mở / dừng / cài đặt KHÔNG nằm trong allowlist token AI
@@ -57,6 +59,7 @@ internal static class AgentMeetingEndpoints
         s.MapPost("/{id:guid}/stop", StopAsync);
         s.MapPost("/{id:guid}/pass", PassAsync);     // TEST-75: bot giữ lượt bỏ lượt
         s.MapPost("/{id:guid}/assign", AssignAsync); // TEST-75: bot chủ trì (đang giữ lượt) chỉ định người nói kế
+        g.MapGet("/agent-bots", BotOptionsAsync);    // TEST-83: danh sách bot cho hộp thoại "Họp với AI" (ngoài allowlist token AI)
 
         var cfg = g.MapGroup("/agent-settings").RequireAuthorization(AuthPolicies.Admin);
         cfg.MapGet("", GetSettingsAsync);
@@ -129,6 +132,22 @@ internal static class AgentMeetingEndpoints
             attendees.Add(new(b.EmployeeId, emp?.Code ?? "", b.Name, emp?.DepartmentName, pos?.Name, b.IsChair, b.IsSpeaking, b.QueuePosition));
         }
         return TypedResults.Ok(new MyAgentMeetingDto(dto, await channel.ConversationIdAsync(m.RoomId, ct), me.EmployeeId == m.ChairEmployeeId, attendees));
+    }
+
+    /// <summary>
+    /// Bot chọn được khi mở họp (TEST-83): nhân viên còn làm + tài khoản đang hoạt động gắn cờ bot, kèm phòng ban / chức vụ. Như mở họp: chỉ người thật
+    /// trên web (token AI → 403; route cũng ngoài allowlist). Kiểm tra lại đầy đủ khi mở (<see cref="AgentMeetingRules.ValidateOpen"/>).
+    /// </summary>
+    private static async Task<Results<Ok<List<AgentMeetingBotOptionDto>>, ProblemHttpResult>> BotOptionsAsync(ClaimsPrincipal user,
+        IEmployeeDirectory dir, IAccountService accounts, CancellationToken ct)
+    {
+        if (user.IsAccessToken()) return TypedResults.Problem(AiForbidden, statusCode: StatusCodes.Status403Forbidden);
+        var emps = (await dir.ListActiveAsync(ct)).Where(e => e.UserId is not null).ToList();
+        var accs = await accounts.GetManyAsync(emps.Select(e => e.UserId!.Value).ToList(), ct);
+        var list = new List<AgentMeetingBotOptionDto>();
+        foreach (var e in emps.Where(e => accs.GetValueOrDefault(e.UserId!.Value) is { IsBot: true, IsActive: true }).OrderBy(e => e.FullName))
+            list.Add(new(e.Id, e.Code, e.FullName, e.DepartmentName, (await dir.GetPositionAsync(e.Id, ct))?.Name, e.AvatarUrl));
+        return TypedResults.Ok(list);
     }
 
     /// <summary>Lượt nói chỉ dành cho tài khoản bot: người thật (token AI hay cookie) → 403, không lộ phiên.</summary>

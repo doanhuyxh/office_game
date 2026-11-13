@@ -1,17 +1,21 @@
 import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useState } from 'react';
-import { CalendarClock, ChevronLeft, ChevronRight, Plus, Users } from 'lucide-react';
+import { useNavigate } from '@tanstack/react-router';
+import { Bot, CalendarClock, ChevronLeft, ChevronRight, Plus, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
 import { Input } from '@/components/common/input';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { PATHS } from '@/config/paths';
+import { useMe } from '@/features/auth';
 import { addDays, formatDate, formatTime, parseInstant, todayVn, toVnDate } from '@/utils/date';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errors';
 import { useCancelBooking, useDayBookings, useMeetingRooms, useMyBookings } from '../../hooks/useMeetings';
 import type { IBooking } from '../../types/meeting.types';
+import { AgentMeetingDialog, type AgentMeetingDraft } from '../agent-meeting-dialog';
 import { BookingDialog, type BookingDraft } from '../booking-dialog';
 
 /** Khung giờ hiển thị trên dòng thời gian (giờ VN). */
@@ -52,6 +56,9 @@ export function MeetingsPage() {
   const mine = useMyBookings(today);
   const cancel = useCancelBooking();
   const [draft, setDraft] = useState<BookingDraft | null>(null);
+  const [agentDraft, setAgentDraft] = useState<AgentMeetingDraft | null>(null);
+  const { data: account } = useMe();
+  const navigate = useNavigate();
   const now = Date.now();
   const hours = Array.from({ length: DAY_END - DAY_START + 1 }, (_, i) => DAY_START + i);
 
@@ -78,12 +85,16 @@ export function MeetingsPage() {
             <CardTitle className="text-base">Lịch ngày {formatDate(date)}</CardTitle>
             <CardDescription>Bấm vào chỗ trống trên dòng thời gian để đặt nhanh.</CardDescription>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             <Button size="icon" variant="outline" aria-label="Ngày trước" onClick={() => setDate(addDays(date, -1))}><ChevronLeft className="size-4" /></Button>
             <Input type="date" required className="w-40" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Chọn ngày" />
             <Button size="icon" variant="outline" aria-label="Ngày sau" onClick={() => setDate(addDays(date, 1))}><ChevronRight className="size-4" /></Button>
             {date !== today && <Button variant="ghost" onClick={() => setDate(today)}>Hôm nay</Button>}
             <Button className="ms-1" onClick={() => setDraft({ date })}><Plus className="size-4" /> Đặt phòng</Button>
+            {/* Tài khoản bot không mở được họp (back-end 403) → ẩn nút cho gọn */}
+            {account && !account.isBot && (
+              <Button variant="outline" onClick={() => setAgentDraft({})} data-testid="agent-meeting-new"><Bot className="size-4" /> Họp với AI</Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -154,6 +165,9 @@ export function MeetingsPage() {
       </Card>
 
       <BookingDialog draft={draft} onClose={() => setDraft(null)} />
+      {/* Mở xong → sang kênh chat của phòng để theo dõi lượt nói / dừng họp */}
+      <AgentMeetingDialog draft={agentDraft} onClose={() => setAgentDraft(null)}
+        onOpened={(m) => void navigate({ to: PATHS.chat, search: { room: m.roomId } as never })} />
     </div>
   );
 }

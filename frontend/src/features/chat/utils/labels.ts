@@ -49,3 +49,7 @@ export const dayKey = (iso: string) => toVnDate(iso);
 
 /** Bỏ dấu + hạ chữ thường để tìm không dấu. */
 export const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+
+const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
+/** Tin hệ thống trong kênh phòng (mở / kết thúc họp với AI): back-end ghi người gửi "OfficeHub", senderId rỗng. */
+export const isSystemMessage = (m: { senderId: string }) => m.senderId === EMPTY_GUID;

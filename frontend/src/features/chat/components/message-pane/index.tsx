@@ -9,6 +9,7 @@ import { Button } from '@/components/common/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/common/dialog';
 import { Spinner } from '@/components/feedback/Spinner';
 import { useMe } from '@/features/auth';
+import { AgentMeetingBar, AgentMeetingDialog, type AgentMeetingDraft } from '@/features/meetings';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errors';
 import { useChat } from '../../hooks/useChat';
@@ -40,6 +41,7 @@ export function MessagePane({ conversation, onBack, onLeft }: { conversation: IC
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [searching, setSearching] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [agentDraft, setAgentDraft] = useState<AgentMeetingDraft | null>(null);
 
   const box = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
@@ -174,6 +176,11 @@ export function MessagePane({ conversation, onBack, onLeft }: { conversation: IC
         )}
       </div>
 
+      {conversation.type === 'Room' && (
+        // Kênh phòng họp: thanh "Họp với AI" (TEST-83). Mở / kết thúc → tải lại tin để thấy tin hệ thống (chưa phát realtime).
+        <AgentMeetingBar roomId={conversation.roomId} onOpen={() => setAgentDraft({ roomId: conversation.roomId })} onChange={() => void refetch()} />
+      )}
+
       {searching && <MessageSearch conversationId={conversation.id} onClose={() => setSearching(false)} />}
 
       <div ref={box} onScroll={onScroll} className={cn('min-h-0 flex-1 overflow-y-auto px-3 py-2', searching && 'hidden')} data-testid="chat-messages">
@@ -206,6 +213,7 @@ export function MessagePane({ conversation, onBack, onLeft }: { conversation: IC
       {conversation.type === 'Group' && (
         <GroupMembersDialog conversation={conversation} open={membersOpen} onOpenChange={setMembersOpen} onLeft={onLeft} />
       )}
+      {conversation.type === 'Room' && <AgentMeetingDialog draft={agentDraft} onClose={() => setAgentDraft(null)} />}
 
       <Composer conversationId={conversation.id} canMention={conversation.type !== 'Direct'} draftKey={`chat-draft:${conversation.id}`} files={files} onAddFiles={addFiles} onRemoveFile={(i) => setFiles((cur) => cur.filter((_, j) => j !== i))} onSubmit={submit} />
 

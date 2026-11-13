@@ -13,7 +13,7 @@ import { splitMentions } from '@/utils/mention';
 import { chatApi } from '../../api/chat.api';
 import type { IAttachment, IMention, IMessage } from '../../types/chat.types';
 import { mentionsUser } from '../../utils/cache';
-import { MAX_TEXT, formatBytes } from '../../utils/labels';
+import { MAX_TEXT, formatBytes, isSystemMessage } from '../../utils/labels';
 import { EmojiDialog, QUICK_EMOJIS } from '../emoji-dialog';
 import { ReactionBar } from '../reaction-bar';
 
@@ -146,6 +146,14 @@ export function MessageItem({ m, mine, meId, showHeader, onRecall, onEdit, onRea
   const [editing, setEditing] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const mentionsMe = !mine && !m.deleted && mentionsUser(m, meId);
+  // Tin hệ thống (mở / kết thúc họp với AI — người gửi OfficeHub, senderId rỗng): dòng giữa khung, không bong bóng, không menu
+  if (isSystemMessage(m)) return (
+    <div className="my-2 flex justify-center" data-testid="chat-system-message">
+      <div className="max-w-[90%] rounded-full bg-info/10 px-3 py-1 text-center text-xs text-muted-foreground">
+        <span className="font-medium text-info">{m.senderName}</span> · {formatTime(m.createdAt)} · {m.text}
+      </div>
+    </div>
+  );
   return (
     <div className={cn('group flex gap-2', mine ? 'justify-end' : 'justify-start', showHeader ? 'mt-3' : 'mt-0.5')} data-testid="chat-message" data-mentions-me={mentionsMe || undefined}>
       {!mine && (showHeader ? <PersonAvatar name={m.senderName} className="mt-0.5 size-8 shrink-0" /> : <div className="w-8 shrink-0" />)}

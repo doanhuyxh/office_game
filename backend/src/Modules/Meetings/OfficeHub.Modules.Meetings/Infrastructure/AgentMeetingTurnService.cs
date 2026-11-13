@@ -80,11 +80,13 @@ internal sealed class AgentMeetingTurnService(MeetingsDbContext db, IMeetingRoom
             return AgentMeetingTurnRules.TimedOut(m, now) ? AgentMeetingTurnRules.Passed(m, m.CurrentSpeakerEmployeeId!.Value, now) : TurnChange.None;
         }, ct);
 
-    /// <summary>Phiên vừa mở (đã lưu, lượt đầu thuộc bot chủ trì): cho bot dự họp vào kênh phòng rồi đánh thức bot chủ trì.</summary>
+    /// <summary>Phiên vừa mở (đã lưu, lượt đầu thuộc bot chủ trì): cho bot dự họp + người mở vào kênh phòng, tin hệ thống báo mở họp, rồi đánh thức bot chủ trì.</summary>
     public async Task OpenedAsync(AgentMeeting m, CancellationToken ct)
     {
-        try { await channel.EnsureMembersAsync(m.RoomId, m.Bots.Select(b => b.UserId).ToList(), ct); }
+        // Người mở cũng vào kênh phòng (TEST-83): mở từ trang Phòng họp mà chưa từng đi vào phòng ở 3D vẫn theo dõi / nhắn xen trên trang Tin nhắn
+        try { await channel.EnsureMembersAsync(m.RoomId, m.Bots.Select(b => b.UserId).Append(m.OpenedByUserId).ToList(), ct); }
         catch (Exception ex) when (!ct.IsCancellationRequested) { log.LogError(ex, "Không thêm được bot dự họp vào kênh phòng {Room}", m.RoomId); }
+        await channel.PostSystemAsync(m.RoomId, AgentMeetingTurnRules.OpenNotice(m), ct);
         await WakeAsync(m, m.ChairEmployeeId, ct);
     }
 

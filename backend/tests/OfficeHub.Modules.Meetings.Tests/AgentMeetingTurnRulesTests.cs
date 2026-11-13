@@ -220,4 +220,14 @@ public class AgentMeetingTurnRulesTests
         Assert.Equal(TurnChange.None, AgentMeetingTurnRules.HumanSpoke(m, [B], Now));
         Assert.Contains("Người mở dừng", AgentMeetingTurnRules.EndNotice(m));
     }
+
+    [Fact]
+    public void Open_notice_names_chair_and_limits()
+    {
+        var m = Meeting();
+        var notice = AgentMeetingTurnRules.OpenNotice(m);
+        Assert.Contains(m.Topic, notice);
+        Assert.Contains($"{m.MaxTurns} lượt / {m.MaxMinutes} phút", notice);
+        Assert.Contains(m.Bots.First(b => b.EmployeeId == m.ChairEmployeeId).Name, notice);
+    }
 }

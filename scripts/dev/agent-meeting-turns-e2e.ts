@@ -162,7 +162,7 @@ ok('bot không dự họp nhắn vào kênh phòng → 409', outsider.status ===
 ok('bot dự họp không giữ lượt bỏ lượt → 409', (await tk(B2.token, 'POST', `/api/meetings/sessions/${M.id}/pass`)).status === 409);
 ok('bot không phải chủ trì chỉ định → 409', (await tk(B2.token, 'POST', `/api/meetings/sessions/${M.id}/assign`, { employeeId: B3.e.id })).status === 409);
 ok('bot không dự họp bỏ lượt → 404', (await tk(B4.token, 'POST', `/api/meetings/sessions/${M.id}/pass`)).status === 404);
-ok('người thật (cookie) bỏ lượt → 404', (await json(H.cookie, 'POST', `/api/meetings/sessions/${M.id}/pass`)).status === 404);
+ok('người thật (cookie) bỏ lượt → 403 (TEST-82: không phải tài khoản bot → 403 trước mọi kiểm tra)', (await json(H.cookie, 'POST', `/api/meetings/sessions/${M.id}/pass`)).status === 403);
 
 // ---------- Chủ trì @nhắc → bot đó nói ----------
 const s1 = await say(B1, `Mở đầu cuộc họp. @${B2.code} trình bày số liệu kinh doanh.`);
@@ -244,7 +244,7 @@ const last = await say(B1, 'Kết luận');
 S = await session(M2.id);
 ok('đủ 3 lượt → phiên tự kết thúc TurnLimit', last.status === 200 && S.status === 'Ended' && S.endReason === 'TurnLimit' && S.turnsUsed === 3, S);
 msgs = await lastMessages();
-ok('… tin hệ thống "hết 3 lượt"', msgs?.some((x) => x.senderName === 'OfficeHub' && x.text?.includes('3 lượt')), msgs?.map((x) => x.text));
+ok('… tin hệ thống "hết 3 lượt"', msgs?.some((x) => x.senderName === 'OfficeHub' && x.text?.includes('dùng hết 3 lượt')), msgs?.map((x) => x.text));
 await json(admin, 'PUT', '/api/meetings/agent-settings', { maxTurns: 30, maxMinutes: 30 });
 
 // ---------- Người dừng → tin hệ thống ----------

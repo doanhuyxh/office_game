@@ -3,7 +3,7 @@
 > Nguồn sự thật là code: `backend/src/Modules/Meetings/` (`Domain/AgentMeeting.cs`, `Features/AgentMeetingEndpoints.cs`, `Infrastructure/AgentMeetingExpiryJob.cs`, `Infrastructure/AgentMeetingTurnService.cs`, hợp đồng `OfficeHub.Modules.Meetings.Contracts`). Về [README.md](README.md) · đặt phòng: [meetings.md](meetings.md) · bot trong 3D: [office-bots.md](office-bots.md).
 
 Chủ dự án chốt 2026-11-13 (chuỗi TEST-74..78 "Họp agent"): nhiều agent nghiệp vụ trao đổi với nhau **trong phiên họp** ở phòng họp. Ngoài phiên họp giữ luật cũ: bot không trả lời bot.
-TEST-74 làm phần nền (bảng, API mở / dừng / xem, trần, job hết giờ). TEST-75 chia lượt nói (mục [Lượt nói](#lượt-nói-test-75)); TEST-82 tool MCP ([meetings-agents-mcp.md](meetings-agents-mcp.md)), 3D 4/5, giao diện 5/5.
+TEST-74 làm phần nền (bảng, API mở / dừng / xem, trần, job hết giờ). TEST-75 chia lượt nói (mục [Lượt nói](#lượt-nói-test-75)); TEST-82 tool MCP ([meetings-agents-mcp.md](meetings-agents-mcp.md)), 3D 4/5, giao diện TEST-83 ([meetings-agents-ui.md](meetings-agents-ui.md): nút "Họp với AI", thanh trạng thái, thẻ cấu hình, `GET /agent-bots`, tin hệ thống mở họp, người mở vào kênh phòng).
 
 - **Chỉ người thật mở và dừng.** Token AI (người hay bot) gọi mở / dừng → 403 (route ngoài allowlist `AccessTokenAuth`, endpoint còn tự kiểm `IsAccessToken()`); tài khoản bot đăng nhập web cũng 403 khi mở. Người mở cần hồ sơ nhân viên (409 nếu không).
 - **Dừng**: người mở hoặc HR / admin (`IsHr`). Phiên đã kết thúc → 409.

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { MessageSquare } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -12,17 +12,27 @@ import { NewChatDialog } from '../new-chat-dialog';
 
 /**
  * Trang /chat: trái danh sách hội thoại (kênh văn phòng, kênh phòng, tin 1-1, nhóm), phải khung chat. Điện thoại: hai màn hình có nút quay lại.
- * Hội thoại đang mở lưu trên URL (`?c=<id>`) → reload / gửi link vẫn mở đúng cuộc trò chuyện.
+ * Hội thoại đang mở lưu trên URL (`?c=<id>`) → reload / gửi link vẫn mở đúng cuộc trò chuyện. `?room=<roomId>` mở kênh của phòng đó
+ * (vd vừa mở "Họp với AI" từ trang Phòng họp) rồi đổi thành `?c=`.
  */
 export function ChatPage() {
   const isMobile = useIsMobile();
-  const { data: conversations, isLoading } = useConversations();
-  const search = useSearch({ strict: false }) as { c?: unknown };
+  const { data: conversations, isLoading, refetch } = useConversations();
+  const search = useSearch({ strict: false }) as { c?: unknown; room?: unknown };
   const navigate = useNavigate();
   const selectedId = typeof search.c === 'string' && search.c ? search.c : null;
   const setSelectedId = useCallback((id: string | null) => {
-    void navigate({ to: '.', search: ((prev: Record<string, unknown>) => ({ ...prev, c: id ?? undefined })) as never, replace: true });
+    void navigate({ to: '.', search: ((prev: Record<string, unknown>) => ({ ...prev, c: id ?? undefined, room: undefined })) as never, replace: true });
   }, [navigate]);
+  const roomParam = typeof search.room === 'string' && search.room ? search.room : null;
+  const roomRefetched = useRef(false);
+  useEffect(() => {
+    if (!roomParam || !conversations) return;
+    const room = conversations.find((c) => c.type === 'Room' && c.roomId === roomParam);
+    // Vừa được thêm vào kênh phòng (người mở họp) mà danh sách còn bản cũ → tải lại một lần trước khi bỏ qua
+    if (!room && !roomRefetched.current) { roomRefetched.current = true; void refetch(); return; }
+    setSelectedId(room?.id ?? selectedId);
+  }, [roomParam, conversations, selectedId, setSelectedId, refetch]);
   const [opened, setOpened] = useState<IConversation | null>(null); // hội thoại vừa mở từ "Tin nhắn mới" khi danh sách chưa kịp tải lại
   const [newOpen, setNewOpen] = useState(false);
 
@@ -30,9 +40,9 @@ export function ChatPage() {
 
   // Màn hình rộng: chưa chọn (hoặc id trên URL không còn trong danh sách) → mở hội thoại đầu tiên (kênh toàn văn phòng).
   useEffect(() => {
-    if (isMobile || !conversations?.length || selected) return;
+    if (isMobile || !conversations?.length || selected || roomParam) return;
     setSelectedId(conversations[0].id);
-  }, [isMobile, conversations, selected, setSelectedId]);
+  }, [isMobile, conversations, selected, roomParam, setSelectedId]);
   // Điện thoại: id trên URL không còn (bị xoá khỏi kênh…) → về danh sách.
   useEffect(() => {
     if (isMobile && selectedId && conversations && !selected) setSelectedId(null);
