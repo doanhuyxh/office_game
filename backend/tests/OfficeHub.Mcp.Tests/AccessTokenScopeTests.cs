@@ -355,6 +355,42 @@ public class FinanceScopeTests
     public void Finance_writes_export_and_attachments_blocked(string method, string path) => Assert.False(AccessTokenAuth.IsAllowed(method, path));
 }
 
+/// <summary>TEST-79: Nhân sự chỉ đọc — hồ sơ cơ bản (DTO riêng), quỹ phép một người, giải trình / tăng ca đang chờ; hồ sơ nhạy cảm vẫn chặn.</summary>
+public class HrReadScopeTests
+{
+    private const string G = "0193a000-0000-7000-8000-000000000000";
+
+    [Theory]
+    [InlineData("GET", "/api/org/employees")]
+    [InlineData("GET", "/api/org/employees/")]
+    [InlineData("GET", "/api/org/employees/me")]
+    [InlineData("GET", "/api/org/employees/me/role")]
+    [InlineData("GET", "/api/org/employees/" + G + "/summary")]
+    [InlineData("GET", "/api/leave/employees/" + G + "/balance")]
+    [InlineData("GET", "/api/attendance/corrections/pending")]
+    [InlineData("GET", "/api/attendance/overtime/pending")]
+    public void Hr_reads_allowed(string method, string path) => Assert.True(AccessTokenAuth.IsAllowed(method, path));
+
+    [Theory]
+    [InlineData("GET", "/api/org/employees/" + G)]                  // chi tiết đầy đủ (ngày sinh, ghi chú, tài khoản) — chỉ web
+    [InlineData("GET", "/api/org/employees/export")]                // Excel HR
+    [InlineData("GET", "/api/org/employees/import-template")]
+    [InlineData("GET", "/api/org/employees/next-code")]
+    [InlineData("GET", "/api/org/employees/" + G + "/summary/x")]
+    [InlineData("GET", "/api/org/employees/abc/summary")]
+    [InlineData("POST", "/api/org/employees/" + G + "/summary")]
+    [InlineData("GET", "/api/org/profile/me")]
+    [InlineData("GET", "/api/org/profile/employees/" + G)]         // CCCD / ngân hàng / địa chỉ
+    [InlineData("GET", "/api/contracts")]
+    [InlineData("GET", "/api/contracts/" + G)]
+    [InlineData("GET", "/api/payroll/periods")]
+    [InlineData("GET", "/api/leave/balances")]
+    [InlineData("GET", "/api/leave/employees/" + G)]
+    [InlineData("GET", "/api/leave/adjustments")]
+    [InlineData("POST", "/api/leave/employees/" + G + "/balance")]
+    public void Sensitive_and_unlisted_blocked(string method, string path) => Assert.False(AccessTokenAuth.IsAllowed(method, path));
+}
+
 public class MeetingToolTests
 {
     [Fact]

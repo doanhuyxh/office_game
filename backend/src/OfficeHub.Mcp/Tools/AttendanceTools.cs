@@ -104,6 +104,20 @@ public sealed class AttendanceTools
         [Description("Tháng dạng yyyy-MM; bỏ trống = tháng hiện tại")] string? month = null, CancellationToken ct = default) =>
         Out(await api.GetAsync("/api/attendance/report" + (OptionalMonth(month) is { } m ? $"?month={Q(m)}" : ""), ct));
 
+    [McpServerTool(Name = "list_pending_corrections", Title = "Giải trình chấm công đang chờ duyệt", ReadOnly = true, OpenWorld = false)]
+    [Description("(Quản lý / HR) Đơn giải trình chấm công ĐANG CHỜ DUYỆT của những người tôi được xem (quản lý: bản thân + cấp dưới; HR: tất cả): " +
+                 "nhân viên, ngày, giờ vào / ra bổ sung, hình thức, lý do, approvalRequestId. Gồm cả đơn đang chờ bước khác (vd chờ HR) — " +
+                 "list_approval_inbox chỉ có đơn chờ chính tôi quyết. Chỉ xem: duyệt / từ chối không tự làm.")]
+    public static async Task<string> ListPendingCorrections(OfficeHubApi api, CancellationToken ct) =>
+        Out(await api.GetAsync("/api/attendance/corrections/pending", ct));
+
+    [McpServerTool(Name = "list_pending_overtime", Title = "Tăng ca đang chờ duyệt", ReadOnly = true, OpenWorld = false)]
+    [Description("(Quản lý / HR) Đơn tăng ca ĐANG CHỜ DUYỆT của những người tôi được xem (quản lý: bản thân + cấp dưới; HR: tất cả): " +
+                 "nhân viên, ngày, giờ, số phút, loại ngày + hệ số %, lý do, approvalRequestId (không có tiền). Gồm cả đơn đang chờ bước khác — " +
+                 "list_approval_inbox chỉ có đơn chờ chính tôi quyết. Chỉ xem: duyệt / từ chối không tự làm.")]
+    public static async Task<string> ListPendingOvertime(OfficeHubApi api, CancellationToken ct) =>
+        Out(await api.GetAsync("/api/attendance/overtime/pending", ct));
+
     [McpServerTool(Name = "get_employee_timesheet", Title = "Bảng công của một nhân viên", ReadOnly = true, OpenWorld = false)]
     [Description("(Quản lý / HR) Bảng công tháng của một nhân viên (employeeId lấy từ search_colleagues). Quản lý chỉ xem được cấp dưới.")]
     public static async Task<string> GetEmployeeTimesheet(OfficeHubApi api,

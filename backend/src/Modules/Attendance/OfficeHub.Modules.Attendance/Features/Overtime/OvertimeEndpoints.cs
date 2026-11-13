@@ -5,10 +5,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.Modules.Approval.Contracts;
 using OfficeHub.Modules.Attendance.Domain;
 using OfficeHub.Modules.Attendance.Features.Check;
+using OfficeHub.Modules.Attendance.Features.Timesheets;
 using OfficeHub.Modules.Attendance.Infrastructure;
 using OfficeHub.Modules.Organization.Contracts;
 
@@ -24,6 +26,8 @@ public sealed record OvertimeDto(Guid Id, DateOnly WorkDate, string StartTime, s
 /// <summary>Xem trước khi gửi: số phút, loại ngày, tổng tháng / năm (đã duyệt + đang chờ, chưa tính đơn này), cảnh báo vượt giới hạn.</summary>
 public sealed record OvertimePreviewDto(int Minutes, string Kind, int Percent, int MonthMinutes, int YearMinutes, IReadOnlyList<string> Warnings);
 
+public sealed record TeamOvertimeDto(EmployeeBrief Employee, OvertimeDto Overtime);
+
 public sealed record OvertimeCreatedDto(OvertimeDto Overtime, IReadOnlyList<string> Warnings);
 
 internal static class OvertimeEndpoints
@@ -33,6 +37,7 @@ internal static class OvertimeEndpoints
         g.MapGet("/overtime/preview", PreviewAsync);
         g.MapPost("/overtime", CreateAsync);
         g.MapGet("/overtime/my", MyAsync);
+        g.MapGet("/overtime/pending", PendingAsync).RequireAuthorization(AuthPolicies.Manager);
     }
 
     private sealed record Checked(EmployeeRef Me, TimeOnly Start, TimeOnly End, int Minutes, OvertimeKind Kind, int MonthBefore, int YearBefore);
@@ -147,6 +152,26 @@ internal static class OvertimeEndpoints
         }
         if (paged is null) return TypedResults.Ok(dtos);
         return TypedResults.Ok(paged.With(dtos));
+    }
+
+    /// <summary>
+    /// Đơn tăng ca đang chờ duyệt (TEST-79, tool list_pending_overtime) của người tôi được xem: HR → mọi người đang làm,
+    /// quản lý → bản thân + cấp dưới. Gồm cả đơn đang chờ bước khác — khác hộp duyệt chỉ có đơn chờ tôi. Không có tiền (chỉ phút + hệ số).
+    /// </summary>
+    private static async Task<Ok<List<TeamOvertimeDto>>> PendingAsync(ClaimsPrincipal user, IEmployeeDirectory dir, AttendanceDbContext db,
+        CancellationToken ct)
+    {
+        var emps = (await TimesheetEndpoints.VisibleEmployeesAsync(user, dir, ct)).ToDictionary(e => e.Id);
+        var ids = emps.Keys.ToList();
+        var rows = await db.Overtime.AsNoTracking().Where(o => o.Status == OvertimeStatus.Pending && ids.Contains(o.EmployeeId))
+            .OrderBy(o => o.WorkDate).ThenBy(o => o.StartTime).Take(500).ToListAsync(ct);
+        if (rows.Count == 0) return TypedResults.Ok(new List<TeamOvertimeDto>());
+        var (from, to) = (rows.Min(r => r.WorkDate), rows.Max(r => r.WorkDate));
+        var holidays = (await db.Holidays.AsNoTracking().Where(h => h.Date >= from && h.Date <= to).Select(h => h.Date).ToListAsync(ct)).ToHashSet();
+        var owners = rows.Select(r => r.EmployeeId).Distinct().ToList();
+        var schedules = await db.Schedules.AsNoTracking().Where(s => s.EmployeeId == null || owners.Contains(s.EmployeeId.Value)).ToListAsync(ct);
+        return TypedResults.Ok(rows.Select(o => new TeamOvertimeDto(DtoMap.Brief(emps[o.EmployeeId]), ToDto(o, OvertimeRules.Classify(holidays.Contains(o.WorkDate),
+            AttendanceService.ShiftIdForDate(schedules, o.EmployeeId, o.WorkDate) is not null)))).ToList());
     }
 
     private static bool TryTime(string? s, out TimeOnly t) =>

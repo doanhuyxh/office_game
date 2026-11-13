@@ -12,6 +12,7 @@ Mọi route dưới `/api/org` yêu cầu đăng nhập. Ghi = policy `AuthPolic
 | GET | `/employees/me` | đăng nhập | 404 nếu tài khoản chưa gắn hồ sơ |
 | GET | `/employees/next-code` | HR | `NV` + số lớn nhất + 1, 3 chữ số (`NV001`) |
 | GET | `/employees/{id}` | đăng nhập | `account`, `dateOfBirth`, `note` chỉ HR / chính chủ; `status` / `joinedAt` như danh sách; người đã nghỉ → 404 với người không phải HR |
+| GET | `/employees/{id}/summary` | HR / quản lý | Hồ sơ cơ bản cho trợ lý AI (TEST-79, `get_employee`): DTO riêng `EmployeeSummary` (mã, họ tên, phòng ban, chức vụ + cấp, chức danh, quản lý, `joinedAt` / `leftAt`, `status`) — **không** CCCD / ngân hàng / địa chỉ / ngày sinh / ghi chú / tài khoản. HR mọi người; khác: chính mình + cấp dưới (`HrFieldsVisibilityAsync`), còn lại 403; người đã nghỉ → 404 với người không phải HR |
 | POST | `/employees` | HR | 201 `EmployeeDetail`. `code` trống → tự sinh; mã được chuyển chữ HOA |
 | PUT | `/employees/{id}` | HR | 200 `EmployeeDetail` |
 | POST | `/employees/{id}/resign` | HR | `{ leftAt }` → 204 |

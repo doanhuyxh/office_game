@@ -5,10 +5,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.Modules.Approval.Contracts;
 using OfficeHub.Modules.Attendance.Domain;
 using OfficeHub.Modules.Attendance.Features.Check;
+using OfficeHub.Modules.Attendance.Features.Timesheets;
 using OfficeHub.Modules.Attendance.Infrastructure;
 using OfficeHub.Modules.Organization.Contracts;
 
@@ -18,6 +20,7 @@ namespace OfficeHub.Modules.Attendance.Features.Corrections;
 public sealed record CreateCorrectionRequest(DateOnly WorkDate, string Type, string Time, string WorkMode, string Reason);
 public sealed record CorrectionDto(Guid Id, DateOnly WorkDate, string Type, string Time, string WorkMode, string Reason, string Status,
     string? RejectReason, Guid? ApprovalRequestId, DateTimeOffset CreatedAt);
+public sealed record TeamCorrectionDto(EmployeeBrief Employee, CorrectionDto Correction);
 
 internal static class CorrectionEndpoints
 {
@@ -28,6 +31,7 @@ internal static class CorrectionEndpoints
     {
         g.MapPost("/corrections", CreateAsync);
         g.MapGet("/corrections/my", MyAsync);
+        g.MapGet("/corrections/pending", PendingAsync).RequireAuthorization(AuthPolicies.Manager);
     }
 
     /// <summary>Thứ tự (giữ nguyên): validate → lưu Pending → gửi luồng duyệt (quản lý → HR) → lưu ApprovalRequestId; gửi lỗi thì xoá.</summary>
@@ -86,6 +90,20 @@ internal static class CorrectionEndpoints
             q = q.Where(c => c.WorkDate >= m && c.WorkDate < m.AddMonths(1));
         var rows = await q.OrderByDescending(c => c.WorkDate).ThenByDescending(c => c.CreatedAt).Take(200).ToListAsync(ct);
         return TypedResults.Ok(rows.Select(ToDto).ToList());
+    }
+
+    /// <summary>
+    /// Giải trình đang chờ duyệt (TEST-79, tool list_pending_corrections) của người tôi được xem: HR → mọi người đang làm,
+    /// quản lý → bản thân + cấp dưới. Gồm cả đơn đang chờ bước khác (vd quản lý đã duyệt, chờ HR) — khác hộp duyệt chỉ có đơn chờ tôi.
+    /// </summary>
+    private static async Task<Ok<List<TeamCorrectionDto>>> PendingAsync(ClaimsPrincipal user, IEmployeeDirectory dir, AttendanceDbContext db,
+        CancellationToken ct)
+    {
+        var emps = (await TimesheetEndpoints.VisibleEmployeesAsync(user, dir, ct)).ToDictionary(e => e.Id);
+        var ids = emps.Keys.ToList();
+        var rows = await db.Corrections.AsNoTracking().Where(c => c.Status == CorrectionStatus.Pending && ids.Contains(c.EmployeeId))
+            .OrderBy(c => c.CreatedAt).Take(500).ToListAsync(ct);
+        return TypedResults.Ok(rows.Select(c => new TeamCorrectionDto(DtoMap.Brief(emps[c.EmployeeId]), ToDto(c))).ToList());
     }
 
     private static CorrectionDto ToDto(AttendanceCorrection c) => new(c.Id, c.WorkDate, c.Type.ToString(), c.Time.ToString("HH:mm"),

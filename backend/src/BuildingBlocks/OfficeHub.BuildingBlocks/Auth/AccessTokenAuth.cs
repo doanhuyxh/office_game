@@ -44,7 +44,6 @@ public static class AccessTokenAuth
     private static readonly (string Method, string Path)[] Allowed =
     [
         ("GET", "/api/auth/me"),
-        ("GET", "/api/org/employees"),
         ("GET", "/api/org/departments"),
         ("GET", "/api/org/positions"),
         ("GET", "/api/attendance/today"),
@@ -58,6 +57,7 @@ public static class AccessTokenAuth
         ("GET", "/api/attendance/overtime"),
         ("POST", "/api/attendance/overtime"),
         ("GET", "/api/attendance/corrections/my"),
+        ("GET", "/api/attendance/corrections/pending"), // TEST-79: quản lý / HR — giải trình đang chờ trong phạm vi (Api kiểm)
         ("POST", "/api/attendance/corrections"),
         ("GET", "/api/leave/types"),
         ("GET", "/api/leave/balance"),
@@ -126,6 +126,13 @@ public static class AccessTokenAuth
         // Tài chính (TEST-78): CHỈ ĐỌC — tổng quan, quỹ, mảng, danh mục, khoá sổ, sổ thu chi, đề nghị chi. Api giữ quyền theo chức vụ (RequireFinance → 403).
         //   Không có: mọi POST / PUT, huỷ dòng sổ, chi theo đề nghị (/pay), entries/export.xlsx, chứng từ đính kèm (/attachments, file S3), /projects.
         ("GET", Exact("/api/finance/(overview|accounts|lines|categories|lock|entries|expenses)/?")),
+        // Nhân sự (TEST-79): danh bạ, hồ sơ của tôi + vai trò, hồ sơ cơ bản một người (DTO riêng: không CCCD / ngân hàng / địa chỉ / lương / HĐ;
+        //   HR mọi người, quản lý bản thân + cấp dưới), quỹ phép một người (HR / quản lý). Khớp nguyên path — KHÔNG mở GET /employees/{id}
+        //   (ngày sinh, ghi chú, tài khoản), /employees/export (Excel HR), /import-template, /next-code.
+        ("GET", Exact("/api/org/employees/?")),
+        ("GET", Exact("/api/org/employees/me(/role)?")),
+        ("GET", Exact($"/api/org/employees/{Id}/summary")),
+        ("GET", Exact($"/api/leave/employees/{Id}/balance")),
     ];
 
     private static System.Text.RegularExpressions.Regex Exact(string pattern) =>

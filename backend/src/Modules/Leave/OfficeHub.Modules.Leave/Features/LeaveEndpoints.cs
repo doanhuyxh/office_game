@@ -34,6 +34,7 @@ internal static class LeaveEndpoints
         g.MapGet("/types", TypesAsync);
         g.MapGet("/balance", MyBalanceAsync);
         g.MapGet("/balances", AllBalancesAsync).RequireAuthorization(AuthPolicies.Hr);
+        g.MapGet("/employees/{employeeId:guid}/balance", EmployeeBalanceAsync).RequireAuthorization(AuthPolicies.Manager);
         g.MapGet("/preview", PreviewAsync);
         g.MapPost("/requests", CreateAsync);
         g.MapGet("/requests/my", MyRequestsAsync);
@@ -74,6 +75,17 @@ internal static class LeaveEndpoints
         }
         var b = await balances.ComputeAsync(emps, ct);
         return TypedResults.Ok(emps.Select(e => new EmployeeBalanceDto(Brief(e), b[e.Id])).ToList());
+    }
+
+    /// <summary>Quỹ phép năm của một nhân viên (TEST-79, tool get_employee_leave_balance): HR → mọi người đang làm; quản lý → bản thân + cấp dưới, còn lại 403.</summary>
+    private static async Task<Results<Ok<EmployeeBalanceDto>, NotFound, ProblemHttpResult>> EmployeeBalanceAsync(Guid employeeId, ClaimsPrincipal user,
+        IEmployeeDirectory dir, LeaveBalanceService balances, CancellationToken ct)
+    {
+        if (await dir.GetAsync(employeeId, ct) is not { IsActive: true } emp) return TypedResults.NotFound();
+        if (!user.IsHr() && (await MeAsync(user, dir, ct) is not { } me
+                             || me.Id != emp.Id && !(await dir.GetSubordinateIdsAsync(me.Id, ct)).Contains(emp.Id)))
+            return TypedResults.Problem("Chỉ HR hoặc quản lý của nhân viên này được xem quỹ phép", statusCode: StatusCodes.Status403Forbidden);
+        return TypedResults.Ok(new EmployeeBalanceDto(Brief(emp), (await balances.ComputeAsync([emp], ct))[emp.Id]));
     }
 
     /// <summary>Đếm trước số ngày nghỉ (FE hiện khi chọn ngày).</summary>

@@ -12,6 +12,14 @@ public sealed record EmployeeListItem(
     Guid? ManagerId, string? ManagerName, string? Status, DateOnly? JoinedAt, DateOnly? LeftAt,
     Guid? UserId, AccountSummary? Account, string? AvatarUrl = null);
 
+/// <summary>
+/// Hồ sơ cơ bản (GET /employees/{id}/summary — trợ lý AI): DTO riêng, cố ý không có CCCD, ngân hàng, địa chỉ, ngày sinh, ghi chú,
+/// lương, hợp đồng, thông tin tài khoản. Status = Probation / Active / Resigned.
+/// </summary>
+public sealed record EmployeeSummary(Guid Id, string Code, string FullName, Guid? DepartmentId, string? DepartmentName,
+    string? PositionName, int? PositionLevel, string? JobTitle, Guid? ManagerId, string? ManagerCode, string? ManagerName,
+    DateOnly JoinedAt, DateOnly? LeftAt, string Status);
+
 /// <summary>Tóm tắt tài khoản đăng nhập (chỉ HR / chính chủ thấy).</summary>
 public sealed record AccountSummary(string UserName, IReadOnlyList<string> Roles, bool IsActive, bool MustChangePassword,
     bool InvitePending, DateTimeOffset? LastLoginAt, bool TwoFactorEnabled = false, bool IsBot = false)

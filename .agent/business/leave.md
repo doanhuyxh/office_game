@@ -58,6 +58,7 @@ Ngày quá khứ được phép (nghỉ ốm khai sau). Được xin phép năm 
 | GET | `/requests/my?year=` | nhân viên | 200 đơn mới nhất · `?page=&pageSize=` → trang ([conventions](../conventions.md)) |
 | GET | `/requests?from&to` | Manager policy | đơn `Pending` + `Approved` trong khoảng; HR: tất cả, manager: bản thân + cấp dưới · `?page=&pageSize=` → trang ([conventions](../conventions.md)) |
 | GET | `/balances` | HR | số dư mọi người đang làm; có `page` → chỉ tính cho nhân viên của trang |
+| GET | `/employees/{employeeId}/balance` | HR / quản lý | `{ employee, balance }` của một người đang làm (TEST-79, MCP `get_employee_leave_balance`): HR mọi người; quản lý bản thân + cấp dưới, khác 403; không có / đã nghỉ → 404 |
 | GET / POST | `/adjustments` | HR | `{ employeeId, days, reason }`: ≠ 0, \|days\| ≤ 365, bội số 0.5, lý do bắt buộc. **Không sửa / xoá** — sai thì thêm điều chỉnh ngược |
 
 `ILeaveCalendar.GetApprovedAsync` trả từng ngày (kể cả ngày nghỉ cuối tuần trong khoảng) của đơn `Approved`: `Fraction` 1 hoặc 0.5, `Half` Morning/Afternoon.

@@ -10,6 +10,7 @@ Nhân viên quên chấm hoặc chấm sai → khai **một** lần chấm (vào
 |---|---|---|
 | POST | `/corrections` | `{ workDate, type: "In"\|"Out", time: "HH:mm", workMode: "Onsite"\|"Remote", reason }` → `CorrectionDto` |
 | GET | `/corrections/my?month=yyyy-MM` | 200 dòng mới nhất |
+| GET | `/corrections/pending` | (Quản lý / HR, TEST-79 — MCP `list_pending_corrections`) mọi giải trình **Pending** của người được xem (HR: mọi người đang làm; quản lý: bản thân + cấp dưới), cũ nhất trước, ≤ 500 → `[{ employee, correction }]`; gồm cả đơn đang chờ bước khác (khác hộp duyệt) |
 
 Không có API sửa / xoá giải trình; huỷ qua `/api/approval/{id}/cancel`.
 

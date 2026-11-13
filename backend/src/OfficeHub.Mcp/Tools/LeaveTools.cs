@@ -66,6 +66,13 @@ public sealed class LeaveTools
         CancellationToken ct = default) =>
         Out(await api.GetAsync($"/api/leave/requests?from={Date(from, "Từ ngày")}&to={Date(to, "Đến ngày")}", ct));
 
+    [McpServerTool(Name = "get_employee_leave_balance", Title = "Quỹ phép của một nhân viên", ReadOnly = true, OpenWorld = false)]
+    [Description("(Quản lý / HR) Quỹ phép năm của một nhân viên đang làm: được hưởng năm nay, đã tích luỹ, chuyển từ năm trước, đã dùng, " +
+                 "đang chờ duyệt, còn lại (available). HR xem mọi người; quản lý xem bản thân + cấp dưới; người khác → 403.")]
+    public static async Task<string> GetEmployeeLeaveBalance(OfficeHubApi api,
+        [Description("Nhân viên: mã (vd NV012), email, họ tên hoặc id (từ search_colleagues)")] string employee, CancellationToken ct = default) =>
+        Out(await api.GetAsync($"/api/leave/employees/{await EmployeeIdAsync(api, employee, ct)}/balance", ct));
+
     private static async Task<Guid> ResolveTypeAsync(OfficeHubApi api, string leaveType, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(leaveType)) throw new McpException("Thiếu loại nghỉ (leaveType)");

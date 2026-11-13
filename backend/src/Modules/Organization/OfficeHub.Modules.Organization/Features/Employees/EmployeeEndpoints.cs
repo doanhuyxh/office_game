@@ -22,6 +22,7 @@ internal static class EmployeeEndpoints
         g.MapGet("/me", MeAsync);
         g.MapGet("/next-code", GetNextCodeAsync).RequireAuthorization(AuthPolicies.Hr);
         g.MapGet("/{id:guid}", GetAsync);
+        g.MapGet("/{id:guid}/summary", SummaryAsync);
         g.MapPost("/", CreateAsync).RequireAuthorization(AuthPolicies.Hr);
         g.MapPut("/{id:guid}", UpdateAsync).RequireAuthorization(AuthPolicies.Hr);
         g.MapPost("/{id:guid}/resign", ResignAsync).RequireAuthorization(AuthPolicies.Hr);
@@ -69,6 +70,27 @@ internal static class EmployeeEndpoints
         var visible = await HrFieldsVisibilityAsync(user, db, dir, ct);
         if (e.Status == EmployeeStatus.Resigned && !user.IsHr() && !self) return TypedResults.NotFound(); // người đã nghỉ: chỉ HR xem
         return TypedResults.Ok(await ToDetailAsync(e, user.IsHr() || self, db, accounts, ct, visible(e)));
+    }
+
+    /// <summary>
+    /// Hồ sơ cơ bản cho trợ lý AI (TEST-79, tool get_employee): chỉ trường công việc, KHÔNG CCCD / ngân hàng / địa chỉ / ngày sinh /
+    /// lương / hợp đồng / tài khoản đăng nhập. HR → mọi người (kể cả đã nghỉ); người khác → chính mình + cấp dưới (trực tiếp / gián tiếp), còn lại 403.
+    /// </summary>
+    private static async Task<Results<Ok<EmployeeSummary>, NotFound, ProblemHttpResult>> SummaryAsync(
+        Guid id, ClaimsPrincipal user, OrgDbContext db, IEmployeeDirectory dir, CancellationToken ct)
+    {
+        var e = await db.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (e is null) return TypedResults.NotFound();
+        if (!(await HrFieldsVisibilityAsync(user, db, dir, ct))(e))
+            return TypedResults.Problem("Chỉ HR hoặc quản lý của nhân viên này được xem hồ sơ", statusCode: StatusCodes.Status403Forbidden);
+        if (e.Status == EmployeeStatus.Resigned && !user.IsHr() && e.UserId != user.GetUserId()) return TypedResults.NotFound();
+        var dept = e.DepartmentId is { } d ? await db.Departments.AsNoTracking().Where(x => x.Id == d).Select(x => x.Name).FirstOrDefaultAsync(ct) : null;
+        var pos = e.PositionId is { } p
+            ? await db.Positions.IgnoreQueryFilters().AsNoTracking().Where(x => x.Id == p).Select(x => new { x.Name, x.Level }).FirstOrDefaultAsync(ct) : null;
+        var manager = e.ManagerId is { } m
+            ? await db.Employees.AsNoTracking().Where(x => x.Id == m).Select(x => new { x.Code, x.FullName }).FirstOrDefaultAsync(ct) : null;
+        return TypedResults.Ok(new EmployeeSummary(e.Id, e.Code, e.FullName, e.DepartmentId, dept, pos?.Name, pos?.Level, e.JobTitle,
+            e.ManagerId, manager?.Code, manager?.FullName, e.JoinedAt, e.LeftAt, e.Status.ToString()));
     }
 
     /// <summary>Hồ sơ của người đang đăng nhập. 404 nếu tài khoản chưa gắn hồ sơ nhân viên (ví dụ admin hệ thống).</summary>

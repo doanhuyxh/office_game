@@ -89,7 +89,7 @@ internal static class TimesheetEndpoints
     }
 
     /// <summary>HR thấy tất cả; quản lý thấy cấp dưới (trực tiếp + gián tiếp) và chính mình.</summary>
-    private static async Task<List<EmployeeRef>> VisibleEmployeesAsync(ClaimsPrincipal user, IEmployeeDirectory dir, CancellationToken ct)
+    internal static async Task<List<EmployeeRef>> VisibleEmployeesAsync(ClaimsPrincipal user, IEmployeeDirectory dir, CancellationToken ct)
     {
         var all = await dir.ListActiveAsync(ct);
         if (user.IsHr()) return [.. all];

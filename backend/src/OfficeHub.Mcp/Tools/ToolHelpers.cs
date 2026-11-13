@@ -29,6 +29,14 @@ internal static class ToolHelpers
 
     public static string Q(string value) => Uri.EscapeDataString(value);
 
+    /// <summary>Id nhân viên từ id, mã, email hoặc họ tên (tìm qua danh bạ — <see cref="MeetingTools.ResolveEmployeeAsync"/>).</summary>
+    public static async Task<Guid> EmployeeIdAsync(OfficeHubApi api, string? employee, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(employee)) throw new McpException("Thiếu nhân viên (mã, email, họ tên hoặc id)");
+        var key = employee.Trim();
+        return Guid.TryParse(key, out var id) ? id : await MeetingTools.ResolveEmployeeAsync(api, key, ct);
+    }
+
     /// <summary>So khớp không phân biệt hoa thường với danh sách giá trị enum của Api.</summary>
     public static string Pick(string? value, string label, params string[] allowed) =>
         allowed.FirstOrDefault(a => string.Equals(a, value?.Trim(), StringComparison.OrdinalIgnoreCase))
