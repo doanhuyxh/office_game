@@ -337,7 +337,8 @@ export class Runner {
     };
     // Dòng đầu job ghi model: adapter claude tự báo từ sự kiện system/init; adapter khác chỉ biết model cấu hình.
     if (!adapters[exec.kind]?.activity) onActivity(`Model ${exec.model ? `${exec.model} (cấu hình)` : 'mặc định của CLI'}`);
-    // Người đứng gần bot trong 3D xem trực tiếp: bắt đầu phiên → từng thao tác → kết thúc phiên (gửi nốt, chờ tối đa 3 giây).
+    // Người đứng gần bot trong 3D xem trực tiếp: bắt đầu phiên → từng thao tác → kết thúc phiên. Bộ gửi chạy ở nền: job KHÔNG chờ nó
+    // và lỗi của nó không tới được đây (lỗi 2026-11-14: chờ gửi nốt ở cuối job làm runner treo, không ghi kết quả / bình luận chi phí).
     s.activity.push(sessionStart(o.label, exec.model));
     let out: RunOutcome | undefined;
     try {
@@ -346,7 +347,7 @@ export class Runner {
     } finally {
       const failed = !out || out.exitCode !== 0 || out.timedOut;
       s.activity.push(sessionEnd(out ? { ...out, isError: out.isError || failed } : { isError: true }, o.label));
-      await s.activity.drain();
+      s.activity.flushNow();
     }
     if (out.model && !out.modelFromConfig && !modelMatches(exec.model, out.model))
       log('warn', 'model thật khác cấu hình', { job: job.id, agent: job.agent, task: job.task_code, model: out.model, configured: exec.model });

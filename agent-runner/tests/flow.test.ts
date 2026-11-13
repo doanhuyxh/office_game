@@ -19,6 +19,8 @@ let authOk = true;
 const presence: any[] = [];
 /** Sự kiện xem trực tiếp runner gửi tới /mcp/activity (TEST-99), theo thứ tự nhận. */
 const activity: any[] = [];
+/** true = /mcp/activity nhận request rồi im lặng (máy chủ treo) — job vẫn phải xong. */
+let activityHang = false;
 /** Kết quả MCP list_chats (TEST-81). */
 let chats: any[] = [];
 let updatesServed = false;
@@ -60,6 +62,7 @@ beforeAll(async () => {
     async fetch(req) {
       if (req.headers.get('authorization') !== `Bearer ${TOKEN}`) authOk = false;
       if (new URL(req.url).pathname === '/mcp/presence') { presence.push(await req.json()); return new Response(null, { status: 204 }); }
+      if (new URL(req.url).pathname === '/mcp/activity' && activityHang) { await Bun.sleep(20_000); return new Response(null, { status: 503 }); }
       if (new URL(req.url).pathname === '/mcp/activity') { activity.push(...(await req.json() as any).events); return new Response(null, { status: 204 }); }
       const m = await req.json() as any;
       const reply = (result: unknown) => Response.json({ jsonrpc: '2.0', id: m.id, result });
@@ -182,10 +185,12 @@ test('tin Telegram hợp lệ → job chạy trong worktree ngoài repo → push
   const working = presence.findIndex((p) => p.state === 'working');
   expect(presence[working]?.task).toStartWith('TEST-45');
   expect(presence.slice(working + 1).some((p) => p.state === 'idle')).toBe(true);
-  // Xem trực tiếp (TEST-99): bắt đầu phiên kèm tên việc → kết thúc phiên kèm chi phí + model thật; đã gửi xong trước khi job kết thúc
+  // Xem trực tiếp (TEST-99): bắt đầu phiên kèm tên việc → kết thúc phiên kèm chi phí + model thật
   const start = activity.findIndex((e) => e.kind === 'session_start');
   expect(activity[start]).toMatchObject({ id: 'session', kind: 'session_start' }); // agent thử không cấu hình model → model thật chỉ có ở session_end
   expect(activity[start].task).toStartWith('TEST-45 · ');
+  // Bộ gửi chạy ở nền (job không chờ nó) → kết thúc phiên tới ngay sau, không nhất thiết trước bình luận
+  expect(await waitFor(() => activity.slice(start + 1).some((e) => e.kind === 'session_end'), 3000)).toBe(true);
   const end = activity.slice(start + 1).find((e) => e.kind === 'session_end');
   expect(end).toMatchObject({ id: 'session-end', ok: true, costUsd: 0.42, model: 'fake-model-1' });
   expect(JSON.stringify(activity)).not.toContain(TOKEN);
@@ -194,9 +199,17 @@ test('tin Telegram hợp lệ → job chạy trong worktree ngoài repo → push
 test('việc được đánh thức lại → nối phiên cũ (resume_args) trong cùng worktree', async () => {
   const s = runner.agents.get('NV120')!;
   const before = comments.length;
+  // Lỗi 2026-11-14 (job TEST-97): bộ gửi "xem trực tiếp" làm runner treo ở cuối job → không ghi kết quả, không bình luận chi phí.
+  // Ở đây /mcp/activity treo hẳn: job vẫn phải xong, ghi kết quả và bình luận như thường (bộ gửi không nằm trên đường đi của job).
+  activityHang = true;
+  const t0 = Date.now();
   const id = await runner.accept(s, { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' });
   expect(id).not.toBeNull();
   expect(await waitFor(() => comments.length > before)).toBe(true);
+  expect(await waitFor(() => store.getJob(id!)?.status === 'done', 3000)).toBe(true);
+  expect(Date.now() - t0).toBeLessThan(10_000);
+  expect(comments.at(-1)!.content).toContain('Chi phí: $0.42');
+  activityHang = false;
   const args = readFileSync(join(root, 'data/jobs', String(id), 'args.txt'), 'utf8');
   expect(args).toContain('--session sess-xyz');
   expect(args).toContain(join(root, 'worktrees/NV120/TEST-45'));

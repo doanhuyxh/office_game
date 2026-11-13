@@ -46,7 +46,8 @@ Khớp `BotActivityEvent` (`backend/.../BuildingBlocks/Office/BotActivityFeed.cs
 
 `POST <officehub.mcp_url>/activity` `{ events: [...] }`, token AI của agent → 204. Mỗi agent một bộ gửi (mỗi agent tối đa 1 phiên).
 
-- **Vòng đời phiên** (`runSession`, chung cho job việc / chat / họp): `session_start` → sự kiện của adapter → `session_end` (trong `finally`, cả khi CLI lỗi / hết giờ) → `drain` gửi nốt, chờ tối đa **3 giây**. Nhãn phiên: việc = "MÃ · tên việc"; chat = "Trả lời tin nhắn"; họp = "Phát biểu trong cuộc họp" (không có nội dung / id hội thoại).
+- **Vòng đời phiên** (`runSession`, chung cho job việc / chat / họp): `session_start` → sự kiện của adapter → `session_end` (trong `finally`, cả khi CLI lỗi / hết giờ) → `flushNow()` gửi ngay ở nền. Nhãn phiên: việc = "MÃ · tên việc"; chat = "Trả lời tin nhắn"; họp = "Phát biểu trong cuộc họp" (không có nội dung / id hội thoại).
+- **Bộ gửi không nằm trên đường đi của job**: runner chỉ gọi `push` / `flushNow` (không `await`, không ném lỗi) → ghi kết quả + bình luận chi phí không phụ thuộc OfficeHub có nhận sự kiện hay không. `drain()` (chờ tối đa 3 giây) chỉ dùng ở `cli run` sau khi job đã ghi xong, trước khi tiến trình thoát. **Đừng thêm `await` vào bộ gửi trong `runSession`** — sự cố 2026-11-14 (job TEST-97): cờ "đang gửi" kẹt làm `await drain()` cuối job lặp vô hạn, runner treo 100% CPU, không bình luận chi phí, việc sau đứng theo.
 - **Gom lô**: mỗi **1 giây** hoặc ngay khi đủ **50** sự kiện; thân ≤ 240 KB (máy chủ nhận 256 KB) → chia lô; mỗi lúc một request, giữ thứ tự (máy chủ giới hạn 5 lần / giây / token).
 - **Hàng chờ** ≤ 500 sự kiện; đầy → bỏ cũ nhất (ghi log số đã bỏ).
 - **Lỗi**: mạng / 5xx / 429 → thử lại lô đó 1 lần (sau 0,5 giây) rồi bỏ; 400 / 404 / lỗi khác → bỏ lô; lỗi giống lần trước không ghi log lại. **401 / 403 → ngừng gửi** cho agent đó tới khi khởi động lại runner. Không bao giờ ném lỗi ra job.

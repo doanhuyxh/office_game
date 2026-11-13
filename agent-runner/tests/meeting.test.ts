@@ -150,6 +150,7 @@ test('hai agent nói lần lượt: mỗi lượt một phiên ngắn chỉ tool
   // Xem trực tiếp (TEST-99): mỗi lượt nói là một phiên có nhãn chung, không có nội dung cuộc họp
   expect(activity.filter((e) => e.kind === 'session_start').map((e) => `${e.agent} ${e.task}`))
     .toEqual(['NV120 Phát biểu trong cuộc họp', 'NV121 Phát biểu trong cuộc họp', 'NV120 Phát biểu trong cuộc họp']);
+  for (let i = 0; i < 30 && activity.filter((e) => e.kind === 'session_end').length < 3; i++) await Bun.sleep(100); // bộ gửi chạy ở nền
   expect(activity.filter((e) => e.kind === 'session_end').length).toBe(3);
   expect(store.costsByKind('2000-01-01')).toEqual([{ kind: 'meeting', jobs: 3, cost: 0.15000000000000002 }]);
 }, 30000);

@@ -10,7 +10,9 @@ import { errText, log } from './log';
  * - Hàng chờ tối đa {@link ActivitySender.maxQueue}; đầy → bỏ sự kiện cũ nhất (người xem trực tiếp cần cái mới nhất, không chặn job).
  * - Lỗi mạng / 5xx / 429 → thử lại lô đó 1 lần rồi bỏ; lỗi khác (400, 404…) → bỏ lô. Chỉ ghi log, không bao giờ ném lỗi ra job.
  * - 401 / 403 (token sai / tài khoản không phải bot) → ngừng gửi cho agent đó.
- * - {@link drain} cuối job: gửi nốt hàng chờ, chờ tối đa {@link ActivitySender.drainMs}.
+ * - KHÔNG BAO GIỜ nằm trên đường đi của job: runner chỉ gọi {@link push} / {@link flushNow} (không chờ, không ném lỗi). Job ghi kết quả +
+ *   bình luận chi phí mà không đợi bộ gửi (lỗi 2026-11-14: `await drain()` cuối job lặp vô hạn → runner treo, không bình luận).
+ * - {@link drain} (chờ tối đa {@link ActivitySender.drainMs}) chỉ dùng khi tiến trình sắp thoát (`cli run`), SAU khi job đã ghi xong.
  */
 export class ActivitySender {
   static intervalMs = 1_000;
@@ -37,18 +39,38 @@ export class ActivitySender {
   get active(): boolean { return this.enabled && !this.disabled; }
   get pending(): number { return this.queue.length; }
 
+  /** Xếp một sự kiện vào hàng chờ. Không bao giờ ném lỗi (người xem trực tiếp không được làm hỏng job). */
   push(e: ActivityEvent) {
-    if (!this.active) return;
-    this.queue.push(e);
-    if (this.queue.length > ActivitySender.maxQueue) {
-      this.dropped += this.queue.length - ActivitySender.maxQueue;
-      this.queue.splice(0, this.queue.length - ActivitySender.maxQueue);
+    try {
+      if (!this.active) return;
+      this.queue.push(e);
+      if (this.queue.length > ActivitySender.maxQueue) {
+        this.dropped += this.queue.length - ActivitySender.maxQueue;
+        this.queue.splice(0, this.queue.length - ActivitySender.maxQueue);
+      }
+      if (this.queue.length >= ActivitySender.maxBatch) this.flushNow();
+      else this.timer ??= setTimeout(() => { this.timer = undefined; this.kick(); }, ActivitySender.intervalMs);
+    } catch (err) {
+      this.fail('push', `gửi hoạt động xem trực tiếp lỗi nội bộ: ${errText(err)}`, 0);
     }
-    if (this.queue.length >= ActivitySender.maxBatch) { this.clearTimer(); void this.flush(); }
-    else this.timer ??= setTimeout(() => { this.timer = undefined; void this.flush(); }, ActivitySender.intervalMs);
   }
 
-  /** Gửi nốt hàng chờ (cuối job); quá `timeoutMs` thì bỏ phần còn lại — không giữ job vì người xem. */
+  /** Gửi ngay hàng chờ, KHÔNG chờ kết quả, không ném lỗi — gọi ở cuối phiên để `session_end` đi liền thay vì đợi nhịp. */
+  flushNow() {
+    this.clearTimer();
+    this.kick();
+  }
+
+  /** Khởi động một lượt gửi ở nền; lỗi bất ngờ chỉ ghi log (không để thành unhandled rejection làm sập runner). */
+  private kick() {
+    try { void this.flush().catch((err) => this.fail('flush', `gửi hoạt động xem trực tiếp lỗi nội bộ: ${errText(err)}`, 0)); }
+    catch (err) { this.fail('flush', `gửi hoạt động xem trực tiếp lỗi nội bộ: ${errText(err)}`, 0); }
+  }
+
+  /**
+   * Chờ gửi nốt hàng chờ, tối đa `timeoutMs`, rồi bỏ phần còn lại. CHỈ dùng khi tiến trình sắp thoát và job đã ghi xong kết quả —
+   * không gọi trên đường đi của job.
+   */
   async drain(timeoutMs = ActivitySender.drainMs): Promise<void> {
     this.clearTimer();
     let timeout: ReturnType<typeof setTimeout> | undefined;

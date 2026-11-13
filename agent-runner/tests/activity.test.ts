@@ -179,6 +179,21 @@ describe('gửi hoạt động xem trực tiếp (TEST-99)', () => {
     expect(ids()).toEqual([['e1']]);
   });
 
+  test('flushNow: gửi ngay không chờ nhịp, không chặn người gọi kể cả khi máy chủ treo', async () => {
+    ActivitySender.intervalMs = 60_000;
+    const s = new ActivitySender(url, 't', 'NV120');
+    s.push(ev(1));
+    s.flushNow();
+    await sleep(100);
+    expect(ids()).toEqual([['e1']]);
+    replies = ['hang'];
+    s.push(ev(2));
+    const t = Date.now();
+    s.flushNow(); s.flushNow();            // đồng bộ, trả về ngay
+    expect(Date.now() - t).toBeLessThan(50);
+    s.stop();
+  });
+
   test('activity_stream: false → không gửi gì', async () => {
     const s = new ActivitySender(url, 't', 'NV120', false);
     expect(s.active).toBe(false);

@@ -56,6 +56,7 @@ async function main() {
       const job = store.claimNext(1, [code]);
       if (!job) { console.error('Agent đang có job khác chạy'); return 1; }
       await runner.process(job);
+      await s.activity.drain(); // chạy một lần rồi thoát: job đã ghi xong, chờ tối đa 3 giây để người xem nhận nốt "kết thúc phiên"
       const done = store.getJob(job.id)!;
       console.log(JSON.stringify({ status: done.status, reason: done.reason, pr: done.pr_url, model: done.model, cost: done.cost_usd }, null, 2));
       return done.status === 'done' ? 0 : 1;
