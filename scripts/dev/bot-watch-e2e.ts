@@ -1,5 +1,8 @@
 // E2E TEST-97 + TEST-98 (mục [98]: bảng đầy đủ "Màn hình của bot" — 10 loại sự kiện, thu gọn, cuộn, Esc, theme, kéo / đổi cỡ, rỗng)
 // + TEST-100 (mục [100]: tab "File đã sửa" — gộp theo file, + / -, nhãn Mới, nội dung ẩn, mở diff, nháy, phiên mới → trống, điện thoại):
+// + TEST-102 (mục [102]: kéo đổi vị trí + đổi kích thước bảng — ra 4 mép không lọt, nhỏ nhất 320 × 220 / to nhất vừa màn hình, nội dung không tràn,
+//   nhấn-kéo trên nút Đóng / tab / chọn chữ / lăn chuột không di chuyển bảng, nhân vật + camera đứng yên, nhớ vị trí khi đóng mở lại / bot khác / tải lại,
+//   thu cửa sổ tự vào lại, điện thoại rộng hết màn hình + chạm kéo không đổi):
 // TEST-97: bấm vào bot trong văn phòng 3D để xem bot đang làm gì (FE): chọn avatar bot bằng chuột + chạm (vùng bấm theo màn hình),
 // kiểm phạm vi nghe ở client (xa → gợi ý "Lại gần hơn…", không gọi hub), WatchBot → bảng nhận đệm + sự kiện trực tiếp (gộp theo id,
 // session_start bỏ cũ, model / lượt / chi phí), con trỏ bàn tay khi rê lên bot, bấm sàn vẫn đi bộ, nút Đóng → UnwatchBot, đi ra xa →
@@ -104,6 +107,11 @@ ok('3 tài khoản, B là bot', [H1, H2, B].every((x) => !!x.userId));
 const presence = { userId: B.userId, name: B.name, look: null, zone: null, activity: 'Sửa code', busy: true, task: 'TEST-97 · Xem bot', fromRunner: true };
 const online = await internal('/rt/internal/bot-activity', presence);
 ok('bot online qua /rt/internal/bot-activity', online.status < 300, online);
+// Bot thứ hai (TEST-102: mở bot khác vẫn dùng vị trí / kích thước bảng đã nhớ)
+const B2 = await mkEmp('Bot Thứ Hai', `e2e.bw.b2.${stamp}`);
+await json(admin, 'PUT', `/api/org/employees/${B2.e.id}/account/bot`, { isBot: true });
+const online2 = await internal('/rt/internal/bot-activity', { ...presence, userId: B2.userId, name: B2.name, task: 'TEST-102 · Bot khác' });
+ok('[102] bot thứ hai online', online2.status < 300, online2);
 const feed = (events: any[]) => internal('/rt/internal/bot-activity-feed', { userId: B.userId, events });
 const first = await feed([{ id: 's1', kind: 'session_start', title: 'Bắt đầu', task: 'TEST-97 · Xem bot', model: 'claude-fable-5-1' },
   { id: 'c1', kind: 'command', title: 'Chạy lệnh', text: 'bun run build' }]);
@@ -112,20 +120,23 @@ ok('bơm 2 sự kiện đầu (đệm phiên)', first.status === 200 && first.bo
 // ---------- Chrome máy tính ----------
 const sig = await import(new URL('../../frontend/node_modules/@microsoft/signalr/dist/esm/index.js', import.meta.url).href) as typeof import('../../frontend/node_modules/@microsoft/signalr');
 const pc = await launch(9341, `${tmpdir()}/bw-chrome-h1-${stamp}`, 1440, 900);
-const enter = async (p: typeof pc, who: { user: string }) => {
-  const st = await p.login(who.user, PW);
-  if (st !== 200) throw new Error(`Đăng nhập ${who.user} → ${st}`);
-  await p.go(`${BASE}/office`, 2500);
+/** Chờ cảnh 3D sẵn sàng (đã vào, hub online, thấy bot B) rồi tắt thẻ Hướng dẫn (che một mảng màn hình — nhất là trên điện thoại) để bấm tới được canvas. */
+const ready = async (p: typeof pc) => {
   for (let i = 0; i < 60; i++) {
-    const ready = await p.evalJs(`!!(window.__officeScene && window.__officeScene.myPosition() && document.querySelector('.office-root .status .dot.online') && window.__officeScene.botInfo(${JSON.stringify(B.userId)}))`);
-    if (ready) {
-      // Tắt thẻ Hướng dẫn (che một mảng màn hình — nhất là trên điện thoại) để bấm tới được canvas
+    const ok = await p.evalJs(`!!(window.__officeScene && window.__officeScene.myPosition() && document.querySelector('.office-root .status .dot.online') && window.__officeScene.botInfo(${JSON.stringify(B.userId)}))`);
+    if (ok) {
       await p.evalJs(`document.querySelector('[data-testid=office-help] button')?.click()`);
       return true;
     }
     await p.sleep(500);
   }
   return false;
+};
+const enter = async (p: typeof pc, who: { user: string }) => {
+  const st = await p.login(who.user, PW);
+  if (st !== 200) throw new Error(`Đăng nhập ${who.user} → ${st}`);
+  await p.go(`${BASE}/office`, 2500);
+  return ready(p);
 };
 ok('H1 vào văn phòng 3D, thấy bot', await enter(pc, H1));
 const bot = await pc.evalJs(`window.__officeScene.botInfo(${JSON.stringify(B.userId)})`) as { name: string; x: number; z: number };
@@ -147,7 +158,7 @@ const walk = async (p: typeof pc, x: number, z: number, timeoutMs = 25_000) => {
  * Điểm màn hình trúng bot: quét lưới 6 px bằng chính hàm botAt của engine, chỉ lấy điểm không bị thẻ HUD che (elementFromPoint = canvas),
  * trả TÂM các điểm trúng (điểm ở mép có thể trượt khi camera còn trôi vài px sau khi dừng); null = bot không trên màn hình.
  */
-const botPixel = (p: typeof pc, touch = false) => p.evalJs(`(() => { const s = window.__officeScene, W = innerWidth, H = innerHeight, id = ${JSON.stringify(B.userId)};
+const botPixel = (p: typeof pc, touch = false, id = B.userId) => p.evalJs(`(() => { const s = window.__officeScene, W = innerWidth, H = innerHeight, id = ${JSON.stringify(id)};
   const hit = (x, y) => s.botAt(x, y, ${touch}) === id && document.elementFromPoint(x, y)?.tagName === 'CANVAS';
   let sx = 0, sy = 0, n = 0, first = null;
   for (let y = 0; y < H; y += 6) for (let x = 0; x < W; x += 6) if (hit(x, y)) { sx += x; sy += y; n++; first ??= [x, y]; }
@@ -345,7 +356,104 @@ await drag(r1.x + r1.w - 6, r1.y + r1.h - 6, 50, -80);
 const r2 = await rectOf();
 ok('[98] kéo tay nắm góc → đổi kích thước', Math.abs(r2.w - (r1.w + 50)) <= 2 && Math.abs(r2.h - (r1.h - 80)) <= 2, { r1, r2 });
 ok('[98] chỉ nhớ vị trí bảng, không lưu sự kiện vào localStorage', await pc.evalJs(`Object.entries(localStorage).every(([k, val]) => !/burst-|k-cmd|dotnet test|Tin mới/.test(k + val))`));
-await pc.evalJs(`localStorage.removeItem('officehub.office.agent-screen-panel')`);
+
+// ---------- TEST-102: kéo đổi vị trí + đổi kích thước — luôn trong màn hình, không lọt xuống canvas 3D (phần nhớ vị trí: sau mục [100]) ----------
+let rM102 = { x: 0, y: 0, w: 0, h: 0 }; // vị trí + kích thước đã đặt, dùng lại ở phần nhớ vị trí (sau mục [100])
+{
+  const W = 1440, H = 900, M = 8; // lề của use-floating-panel
+  type R = { x: number; y: number; w: number; h: number };
+  const near = (a: number, b: number, tol = 2) => Math.abs(a - b) <= tol;
+  const inside = (r: R, w = W, h = H) => r.x >= M - 0.5 && r.y >= M - 0.5 && r.x + r.w <= w - M + 0.5 && r.y + r.h <= h - M + 0.5;
+  const sameRect = (a: R, b: R) => near(a.x, b.x) && near(a.y, b.y) && near(a.w, b.w) && near(a.h, b.h);
+  const dragTo = (x0: number, y0: number, x1: number, y1: number) => drag(x0, y0, x1 - x0, y1 - y0);
+  const head = async () => { const r = await rectOf(); return { x: r.x + r.w / 2, y: r.y + 14 }; };
+  const grip = async () => { const r = await rectOf(); return { x: r.x + r.w - 5, y: r.y + r.h - 5 }; };
+  type Scene = { x: number; z: number; az: number; dist: number; target: unknown };
+  const scene = () => pc.evalJs(`(() => { const s = window.__officeScene, m = s.snapshot().me; return { x: m.x, z: m.z, az: s.azimuth, dist: s.distance, target: s.snapshot().target }; })()`) as Promise<Scene>;
+  const sameScene = (a: Scene, b: Scene) => near(a.x, b.x, 0.01) && near(a.z, b.z, 0.01) && near(a.az, b.az, 0.001) && near(a.dist, b.dist, 0.001) && b.target === null;
+  const s0 = await scene();
+
+  // Kéo ra 4 mép → không lọt khỏi màn hình (lề 8 px), giữ kích thước
+  let r = await rectOf();
+  const size = { w: r.w, h: r.h };
+  for (const [tx, ty, name] of [[2, 2, 'trên trái'], [W - 2, 2, 'trên phải'], [W - 2, H - 2, 'dưới phải'], [2, H - 2, 'dưới trái']] as const) {
+    const g = await head();
+    await dragTo(g.x, g.y, tx, ty);
+    r = await rectOf();
+    ok(`[102] kéo bảng ra mép ${name} → không lọt khỏi màn hình, giữ kích thước`, inside(r) && near(r.w, size.w) && near(r.h, size.h), r);
+  }
+  ok('[102] ở mép dưới trái: sát lề 8 px (không bị đẩy về chỗ mặc định)', near(r.x, M) && near(r.y + r.h, H - M), r);
+
+  // Đổi cỡ: nhỏ hết cỡ → 320 × 220, nội dung không tràn, vẫn bám cuối; to hết cỡ → vừa màn hình trừ lề
+  let g = await grip();
+  await dragTo(g.x, g.y, r.x + 10, r.y + 10);
+  r = await rectOf();
+  ok('[102] kéo tay nắm nhỏ hết cỡ → 320 × 220', near(r.w, 320) && near(r.h, 220), r);
+  const fitIn = () => q(pc, `const P0 = P.getBoundingClientRect(), l = P.querySelector('[data-testid=office-bot-log]'), L0 = l.getBoundingClientRect();
+    const blocks = [...l.querySelectorAll('.bot-act-term, .bot-act-file, .bot-act-diff, .bot-act-say')];
+    return { log: L0.left >= P0.left && L0.right <= P0.right + 0.5 && L0.bottom <= P0.bottom + 0.5 && l.scrollWidth <= l.clientWidth + 1, blocks: blocks.every((b) => b.getBoundingClientRect().right <= P0.right + 0.5),
+      logH: L0.height, tabs: P.querySelector('.bot-act-tabs').getBoundingClientRect().bottom <= P0.bottom, gap: l.scrollHeight - l.scrollTop - l.clientHeight }`) as Promise<{ log: boolean; blocks: boolean; logH: number; tabs: boolean; gap: number }>;
+  let f = await fitIn();
+  ok('[102] bảng nhỏ nhất: thân cuộn nằm trong bảng, không tràn ngang, hàng tab còn thấy', f.log && f.blocks && f.tabs && f.logH > 60, f);
+  ok('[102] …đổi cỡ khi đang ở cuối → vẫn bám cuối', f.gap <= 2, f);
+  await pc.shot(`${SHOTS}/desktop-102-min.png`);
+  g = await head();
+  await dragTo(g.x, g.y, 2, 2);
+  g = await grip();
+  await dragTo(g.x, g.y, W - 1, H - 1);
+  r = await rectOf();
+  ok('[102] kéo tay nắm to hết cỡ → vừa màn hình trừ lề 8 px', near(r.w, W - 2 * M) && near(r.h, H - 2 * M) && inside(r), r);
+  f = await fitIn();
+  ok('[102] bảng to nhất: thân giãn theo bảng (> 600 px), nội dung trong bảng', f.log && f.blocks && f.logH > 600, f);
+  await pc.shot(`${SHOTS}/desktop-102-max.png`);
+
+  // Cỡ / vị trí giữa chừng để thử nhớ; đã cuộn lên rồi đổi cỡ → chỗ đang đọc đứng yên
+  g = await grip();
+  await dragTo(g.x, g.y, r.x + 520 - 5, r.y + 420 - 5); // tay nắm cách mép 5 px
+  g = await head();
+  await dragTo(g.x, g.y, 600, 180);
+  const rM = await rectOf();
+  rM102 = rM;
+  ok('[102] đặt bảng ~520 × 420 ở giữa màn hình', near(rM.w, 520) && near(rM.h, 420) && inside(rM), rM);
+  await q(pc, `P.querySelector('[data-testid=office-bot-log]').scrollTop = 60; return 1`);
+  await pc.sleep(250);
+  g = await grip();
+  await dragTo(g.x, g.y, g.x + 40, g.y + 40);
+  const top = await q(pc, `return P.querySelector('[data-testid=office-bot-log]').scrollTop`) as number;
+  ok('[102] đã cuộn lên rồi đổi cỡ → chỗ đang đọc đứng yên (scrollTop ≈ 60), có nút "Về mới nhất"', near(top, 60, 1) && !!(await q(pc, `return !!P.querySelector('[data-testid=office-bot-latest]')`)), top);
+  await q(pc, `P.querySelector('[data-testid=office-bot-latest]').click(); return 1`);
+  g = await grip();
+  await dragTo(g.x, g.y, g.x - 40, g.y - 40);
+  ok('[102] trả cỡ về ~520 × 420', sameRect(await rectOf(), rM), { r: await rectOf(), rM });
+
+  // Nhấn-kéo trên nút Đóng / tab, chọn chữ và lăn chuột trong thân: không di chuyển bảng, không đóng nhầm, không lọt xuống canvas
+  const center = (sel: string) => q(pc, `const b = P.querySelector('${sel}').getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }`) as Promise<{ x: number; y: number }>;
+  let b = await center('[data-testid=office-bot-watch-close]');
+  await dragTo(b.x, b.y, b.x - 150, b.y + 150);
+  ok('[102] nhấn trên nút Đóng rồi kéo ra ngoài → bảng không di chuyển, không đóng', !!(await panel(pc)) && sameRect(await rectOf(), rM), await rectOf());
+  b = await center('[data-testid=office-bot-tab-files]');
+  await dragTo(b.x, b.y, b.x + 12, b.y + 2);
+  ok('[102] nhấn-kéo nhẹ trên tab "File đã sửa" → đổi tab, bảng không di chuyển', (await q(pc, `return P.querySelector('[data-testid=office-bot-tab-files]').getAttribute('aria-selected')`)) === 'true' && sameRect(await rectOf(), rM), await rectOf());
+  await q(pc, `P.querySelector('[data-testid=office-bot-tab-log]').click(); return 1`);
+  await pc.sleep(200);
+  const line = await q(pc, `const l = P.querySelector('[data-testid=office-bot-log]'), L0 = l.getBoundingClientRect();
+    const el = [...l.querySelectorAll('.bot-watch-line')].find((n) => { const b = n.getBoundingClientRect(); return b.top >= L0.top && b.bottom <= L0.bottom && b.height > 14; }); if (!el) return null;
+    const b = el.getBoundingClientRect(); return { x: b.left + 6, y: b.top + 6, x1: Math.min(b.right - 6, b.left + 160), y1: Math.min(L0.bottom - 4, b.bottom + 20) }`) as { x: number; y: number; x1: number; y1: number } | null;
+  if (line) await dragTo(line.x, line.y, line.x1, line.y1);
+  const sel = await pc.evalJs(`getSelection().toString().length`) as number;
+  ok('[102] kéo trong thân (chọn chữ) → bảng không di chuyển', !!line && sameRect(await rectOf(), rM), { line, r: await rectOf() });
+  ok('[102] …và chọn được chữ như thường', sel > 0, sel);
+  await pc.evalJs(`getSelection().removeAllRanges()`);
+  const d0 = (await scene()).dist;
+  const lg = await center('[data-testid=office-bot-log]');
+  await pc.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: lg.x, y: lg.y, deltaX: 0, deltaY: -120 });
+  await pc.sleep(300);
+  const gap = await q(pc, `const l = P.querySelector('[data-testid=office-bot-log]'); return l.scrollHeight - l.scrollTop - l.clientHeight`) as number;
+  ok('[102] lăn chuột trong thân → thân cuộn, camera 3D không zoom', gap > 20 && near((await scene()).dist, d0, 0.001), { gap, d0, d1: (await scene()).dist });
+  await q(pc, `P.querySelector('[data-testid=office-bot-latest]')?.click(); return 1`);
+  ok('[102] sau mọi thao tác kéo / đổi cỡ: nhân vật đứng yên, camera không xoay / zoom, không có điểm đến', sameScene(s0, await scene()), [s0, await scene()]);
+
+}
 
 // session_end: vạch tổng kết lượt + chi phí, hết "Trực tiếp", thời gian dừng đếm
 await feed([{ id: 'e3', kind: 'session_end', title: 'Xong việc', turns: 7, costUsd: 1.25 }]);
@@ -415,6 +523,64 @@ await pc.sleep(700);
 v = await panel(pc);
 ok('[100] về tab Hoạt động → dòng thời gian còn nguyên (s5, a4), bám cuối', v?.lines.map((l) => l.id).join(',') === 's5,a4' && (await scroll()).gap <= 2, v?.lines.map((l) => l.id));
 
+// ---------- TEST-102 (tiếp): nhớ vị trí + kích thước — đóng mở lại, mở bot khác, tải lại trang; thu nhỏ cửa sổ → tự vào lại. Đặt sau [98] / [100]
+// vì đóng / mở lại hoặc tải lại sau > 200 sự kiện làm mất model / thời gian của phiên (session_start đã rơi khỏi đệm — hành vi có sẵn của TEST-98) ----------
+{
+  const W = 1440, H = 900, M = 8;
+  type R = { x: number; y: number; w: number; h: number };
+  const near = (a: number, b: number, tol = 2) => Math.abs(a - b) <= tol;
+  const inside = (r: R, w: number, h: number) => r.x >= M - 0.5 && r.y >= M - 0.5 && r.x + r.w <= w - M + 0.5 && r.y + r.h <= h - M + 0.5;
+  const sameRect = (a: R, b: R) => near(a.x, b.x) && near(a.y, b.y) && near(a.w, b.w) && near(a.h, b.h);
+  const rM = rM102;
+  let r: R;
+  // Nhớ vị trí + kích thước: đóng mở lại, mở bot khác; localStorage chỉ có vị trí
+  await pc.evalJs(`document.querySelector('[data-testid=office-bot-watch-close]')?.click()`);
+  await waitPanel(pc, false, 2000);
+  px = await botPixel(pc);
+  if (px) await click(pc, px[0], px[1]);
+  v = await waitPanel(pc, true);
+  ok('[102] đóng rồi mở lại → đúng vị trí + kích thước cũ', v?.bot === B.userId && sameRect(await rectOf(), rM), await rectOf());
+  await pc.evalJs(`document.querySelector('[data-testid=office-bot-watch-close]')?.click()`);
+  await waitPanel(pc, false, 2000);
+  const bot2 = await pc.evalJs(`window.__officeScene.botInfo(${JSON.stringify(B2.userId)})`) as { x: number; z: number } | null;
+  ok('[102] thấy bot thứ hai trong 3D', !!bot2, bot2);
+  if (bot2) {
+    await walk(pc, bot2.x + 1.6, bot2.z + 1.4);
+    px = await botPixel(pc, false, B2.userId);
+    if (px) await click(pc, px[0], px[1]);
+    v = await waitPanel(pc, true);
+    ok('[102] mở bot khác → bảng của bot đó, vẫn ở vị trí + kích thước đã nhớ', v?.bot === B2.userId && v.state.includes('TEST-102 · Bot khác') && sameRect(await rectOf(), rM), { state: v?.state, r: await rectOf() });
+    await pc.evalJs(`document.querySelector('[data-testid=office-bot-watch-close]')?.click()`);
+    await waitPanel(pc, false, 2000);
+  }
+  // Về cạnh bot đầu và mở lại bảng (các kiểm tra [98] / [100] phía sau cần bảng của B đang mở)
+  await walk(pc, bot.x + 1.6, bot.z + 1.4);
+  px = await botPixel(pc);
+  if (px) await click(pc, px[0], px[1]);
+  v = await waitPanel(pc, true);
+  ok('[102] về cạnh bot đầu, mở lại → vẫn đúng vị trí + kích thước', v?.bot === B.userId && sameRect(await rectOf(), rM), await rectOf());
+  const stored = await pc.evalJs(`JSON.parse(localStorage.getItem('officehub.office.agent-screen-panel') || 'null')`) as { floating?: boolean; rect?: R } | null;
+  ok('[102] localStorage chỉ có vị trí / kích thước (không sự kiện, không tên bot)', !!stored?.rect && Object.keys(stored).sort().join(',') === 'floating,rect' && near(stored.rect.w, rM.w) && near(stored.rect.h, rM.h), stored);
+  await pc.go(`${BASE}/office`, 2500);
+  ok('[102] tải lại trang', await ready(pc));
+  await walk(pc, bot.x + 1.6, bot.z + 1.4);
+  px = await botPixel(pc);
+  if (px) await click(pc, px[0], px[1]);
+  v = await waitPanel(pc, true);
+  ok('[102] tải lại trang → mở bảng vẫn đúng vị trí + kích thước', v?.bot === B.userId && sameRect(await rectOf(), rM), await rectOf());
+
+  // Thu nhỏ cửa sổ → bảng tự vào lại; cửa sổ rộng lại → về chỗ đã nhớ
+  await pc.send('Emulation.setDeviceMetricsOverride', { width: 700, height: 500, deviceScaleFactor: 1, mobile: false });
+  await pc.sleep(500);
+  r = await rectOf();
+  ok('[102] thu nhỏ cửa sổ 700 × 500 → bảng tự vào trong màn hình', inside(r, 700, 500), r);
+  await pc.shot(`${SHOTS}/desktop-102-small-window.png`);
+  await pc.send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
+  await pc.sleep(500);
+  ok('[102] cửa sổ rộng lại → về vị trí + kích thước đã nhớ', sameRect(await rectOf(), rM), await rectOf());
+}
+await pc.evalJs(`localStorage.removeItem('officehub.office.agent-screen-panel')`);
+
 // --- Đi ra xa (> 7 m quá 3 giây) → server ngắt: bảng đóng + "Bạn đã đi ra xa"
 const away = await walk(pc, bot.x + 9.5, bot.z + 1);
 ok('H1 đi ra xa > 7 m', !!away && dist(away, bot) > 7.3, away && dist(away, bot));
@@ -452,6 +618,16 @@ if (tp) {
   ok('chạm vào bot trên điện thoại → mở bảng', mv?.bot === B.userId, mv?.state);
   ok('…bảng nằm trong màn hình điện thoại', await pm.evalJs(`(() => { const r = document.querySelector('[data-testid=office-bot-watch]')?.getBoundingClientRect(); return !!r && r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight; })()`));
   await pm.shot(`${SHOTS}/mobile-panel.png`);
+  const prect = () => pm.evalJs(`(() => { const r = document.querySelector('[data-testid=office-bot-watch]').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height, grip: !!document.querySelector('[data-testid=office-bot-resize]') }; })()`) as Promise<{ x: number; y: number; w: number; h: number; grip: boolean }>;
+  const pr = await prect();
+  ok('[102] điện thoại: bảng rộng hết màn hình (lề 12 px), không có tay nắm đổi cỡ', Math.abs(pr.x - 12) <= 1 && Math.abs(pr.x + pr.w - (390 - 12)) <= 1 && !pr.grip, pr);
+  const hd = await pm.evalJs(`(() => { const r = document.querySelector('[data-testid=office-bot-drag]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`) as { x: number; y: number };
+  await pm.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: hd.x, y: hd.y }] });
+  for (let i = 1; i <= 6; i++) await pm.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: hd.x - 20 * i, y: hd.y + 40 * i }] });
+  await pm.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await pm.sleep(300);
+  const pr2 = await prect();
+  ok('[102] điện thoại: chạm kéo đầu bảng → bảng không di chuyển / đổi cỡ', Math.abs(pr2.x - pr.x) <= 1 && Math.abs(pr2.y - pr.y) <= 1 && Math.abs(pr2.w - pr.w) <= 1 && Math.abs(pr2.h - pr.h) <= 1, { pr, pr2 });
   await pm.evalJs(`document.querySelector('[data-testid=office-bot-tab-files]')?.click()`);
   await pm.sleep(300);
   await pm.evalJs(`document.querySelector('.bot-file-row')?.click()`);

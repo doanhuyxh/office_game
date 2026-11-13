@@ -4,7 +4,7 @@ import { useFloatingPanel, type PanelRect } from '../../hooks/use-floating-panel
 import { BotActivityEvent, formatCost } from '../bot-activity-event';
 import { BotFileList, summarizeFiles } from '../bot-file-list';
 
-const MIN = { w: 320, h: 240 };
+const MIN = { w: 320, h: 220 };
 /** Cách đáy ≤ bấy nhiêu px thì coi là đang ở cuối (tự cuộn theo sự kiện mới). */
 const STICK_PX = 32;
 const PHONE = '(max-width: 640px)';
@@ -41,9 +41,12 @@ function Elapsed({ from, to }: { from: string; to: string | null }) {
  * Bảng "Màn hình của bot" (TEST-98): mở khi bấm vào bot trong văn phòng 3D (`use-bot-watch`), đóng bằng ✕ / Esc / khi server ngắt
  * (`BotWatchEnded` → hook đặt `view = null`). Đầu bảng: avatar + tên, nhãn ● Trực tiếp, việc đang làm, model · thời gian · lượt · chi phí.
  * Thân: dòng thời gian tự cuộn xuống cuối; người xem cuộn lên → ngừng tự cuộn + nút "Về mới nhất"; tab thứ hai "File đã sửa" (TEST-100,
- * `bot-file-list`) tính từ chính các sự kiện đang có. Máy tính: bảng nổi kéo (đầu bảng) /
- * đổi cỡ (góc dưới phải) bằng `use-floating-panel` như chat nổi; điện thoại: rộng hết màn hình, vị trí do CSS. Chỉ nhớ vị trí / kích thước
- * bảng trong localStorage — KHÔNG lưu sự kiện (chủ dự án: không lưu lịch sử).
+ * `bot-file-list`) tính từ chính các sự kiện đang có. Máy tính (> 640 px): bảng nổi dùng chung hook `use-floating-panel` với chat nổi (TEST-102):
+ * kéo bằng thanh đầu bảng (nút Đóng không khởi động kéo; hàng tab / thân nằm ngoài vùng kéo nên bấm / cuộn / chọn chữ như thường), đổi cỡ bằng
+ * tay nắm góc dưới phải (nhỏ nhất 320 × 220, to nhất = vùng nhìn trừ lề 8 px), luôn nằm trong vùng nhìn (đổi cỡ cửa sổ / xoay / bàn phím ảo →
+ * `fit` của hook); pointer capture giữ sự kiện trên bảng nên kéo không làm nhân vật đi / camera xoay. Nhớ vị trí + kích thước theo trình duyệt ở
+ * localStorage `officehub.office.agent-screen-panel` (mở bot khác / tải lại vẫn dùng) — KHÔNG lưu sự kiện (chủ dự án: không lưu lịch sử).
+ * Điện thoại (≤ 640 px): rộng hết màn hình, vị trí do CSS, không kéo / đổi cỡ.
  */
 export function BotActivityPanel({ view, onClose }: { view: BotWatchView | null; onClose: () => void }) {
   const phone = useSyncExternalStore(subscribePhone, () => matchMedia(PHONE).matches);
@@ -109,7 +112,7 @@ export function BotActivityPanel({ view, onClose }: { view: BotWatchView | null;
   return (
     <div className="card bot-act" data-testid="office-bot-watch" data-bot={view.botId} data-live={live ? '' : undefined}
       style={phone ? undefined : { left: panel.rect.x, top: panel.rect.y, width: w, height: h }}>
-      <div className="bot-act-head" {...(phone ? {} : panel.dragProps)}>
+      <div className="bot-act-head" data-testid="office-bot-drag" {...(phone ? {} : panel.dragProps)}>
         <span className="bot-act-avatar" aria-hidden>{initial}</span>
         <div className="bot-act-who">
           <div className="bot-act-name">
