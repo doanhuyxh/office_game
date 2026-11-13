@@ -12,7 +12,7 @@ File này chỉ là bộ định tuyến. Tài liệu thật nằm trong `.agent
 | Chạy dev, build, test, migration, CI, deploy · biến `.env` (S3 / SMTP / FCM / IP văn phòng sửa được trên trang Hệ thống → Cấu hình, ưu tiên hơn `.env`) · trang Hệ thống → Vận hành (phiên bản, sao lưu, email, job nền) | [.agent/commands.md](.agent/commands.md) · [.agent/env.md](.agent/env.md) · [.agent/ops.md](.agent/ops.md) |
 | Script e2e, test trên DB tạm (+ Mailpit đọc email) | [.agent/e2e.md](.agent/e2e.md) |
 | Viết code đúng chuẩn: module BE, validation, đặt tên | [.agent/conventions.md](.agent/conventions.md) |
-| Front-end: feature, shadcn/ui, theme sáng/tối, layout sidebar/header · trang lỗi, lỗi tải chunk sau deploy, trang bảo trì khi API tắt | [.agent/frontend.md](.agent/frontend.md) · [.agent/frontend-errors.md](.agent/frontend-errors.md) |
+| Front-end: cây thư mục, cấu trúc feature, quy tắc import / API / ngày giờ · form, bảng (nút "Cột"), modal, xác nhận, màu token, shadcn/ui · layout sidebar/header, theme sáng/tối, PWA, mobile · trang lỗi, lỗi tải chunk sau deploy, trang bảo trì khi API tắt | [.agent/frontend.md](.agent/frontend.md) · [.agent/frontend-ui.md](.agent/frontend-ui.md) · [.agent/frontend-layout.md](.agent/frontend-layout.md) · [.agent/frontend-errors.md](.agent/frontend-errors.md) |
 | Luồng request, cookie Api ↔ Realtime, cache | [.agent/architecture.md](.agent/architecture.md) |
 | Tiền tố `/api/*` → module, danh sách trang FE + guard | [.agent/routes.md](.agent/routes.md) |
 | Thêm/sửa bảng, index, migration, quy tắc ghi dữ liệu | [.agent/database.md](.agent/database.md) (schema approval / leave / notifications / contracts / documents: [.agent/database-workflow.md](.agent/database-workflow.md)) |

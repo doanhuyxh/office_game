@@ -61,7 +61,7 @@ src/Modules/<M>/
 
 ## Front-end
 
-Quy ước FE (cây thư mục, feature, shadcn/ui, theme, layout): xem [frontend.md](frontend.md).
+Quy ước FE (cây thư mục, feature, shadcn/ui, theme, layout): xem [frontend.md](frontend.md) · [frontend-ui.md](frontend-ui.md) · [frontend-layout.md](frontend-layout.md).
 
 ## Code cũ / không bắt chước
 
