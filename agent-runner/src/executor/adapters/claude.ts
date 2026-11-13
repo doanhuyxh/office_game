@@ -1,5 +1,6 @@
 import { mainModel, readModelUsage } from '../model';
 import type { Adapter, ExecContext, ProbeResult } from '../types';
+import { claudeEvents } from './claude-events';
 
 /**
  * Claude Code CLI không giao diện (kiểm với 2.1.x: `claude --help`):
@@ -83,6 +84,7 @@ export const claudeAdapter: Adapter = {
     if (m?.type !== 'assistant' || !Array.isArray(m.message?.content)) return [];
     return m.message.content.map((b: any) => describeBlock(b, cwd)).filter((x: string | undefined): x is string => !!x);
   },
+  events: claudeEvents,
   parseLine(line, r) {
     let m: any;
     try { m = JSON.parse(line); } catch { return; }

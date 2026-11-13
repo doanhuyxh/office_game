@@ -1,0 +1,18 @@
+{"type":"system","subtype":"init","session_id":"s1","model":"claude-sonnet-5-5"}
+{"type":"assistant","message":{"id":"msg_1","role":"assistant","content":[{"type":"thinking","thinking":"Cần xem file cấu hình trước rồi mới sửa.","signature":"abc"}]},"session_id":"s1"}
+{"type":"assistant","message":{"id":"msg_1","role":"assistant","content":[{"type":"text","text":"Tôi sẽ đọc file rồi chạy test."}]},"session_id":"s1"}
+{"type":"assistant","message":{"id":"msg_1","role":"assistant","content":[{"type":"tool_use","id":"toolu_read1","name":"Read","input":{"file_path":"/w/src/a.ts"}}]},"session_id":"s1"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_read1","content":"     1\tconst SECRET_FILE_BODY = 1;\n"}]},"session_id":"s1"}
+{"type":"assistant","message":{"id":"msg_2","role":"assistant","content":[{"type":"tool_use","id":"toolu_grep1","name":"Grep","input":{"pattern":"useBotWatch","path":"/w/src"}}]},"session_id":"s1"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_grep1","content":"src/a.ts:3: grep hit body"}]},"session_id":"s1"}
+{"type":"assistant","message":{"id":"msg_3","role":"assistant","content":[{"type":"tool_use","id":"toolu_edit1","name":"Edit","input":{"file_path":"/w/src/a.ts","old_string":"const a = 1;\nconst b = 2;","new_string":"const a = 10;\nconst b = 2;\nconst c = 3;"}}]},"session_id":"s1"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_edit1","content":"The file /w/src/a.ts has been updated."}]},"session_id":"s1"}
+{"type":"assistant","message":{"id":"msg_4","role":"assistant","content":[{"type":"tool_use","id":"toolu_write1","name":"Write","input":{"file_path":"/w/docs/new.md","content":"# Tiêu đề\nDòng 2\n"}}]},"session_id":"s1"}
+{"type":"assistant","message":{"id":"msg_5","role":"assistant","content":[{"type":"tool_use","id":"toolu_bash1","name":"Bash","input":{"command":"bun test","description":"Chạy kiểm thử"}}]},"session_id":"s1"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_bash1","content":[{"type":"text","text":"12 pass\n0 fail"}],"is_error":false}]},"session_id":"s1"}
+{"type":"assistant","message":{"id":"msg_6","role":"assistant","content":[{"type":"tool_use","id":"toolu_bash2","name":"Bash","input":{"command":"dotnet build"}}]},"session_id":"s1"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_bash2","content":"error CS1002: ; expected","is_error":true}]},"session_id":"s1"}
+{"type":"assistant","message":{"id":"msg_7","role":"assistant","content":[{"type":"tool_use","id":"toolu_mcp1","name":"mcp__officehub__comment_task","input":{"task":"TEST-45","content":"Nội dung bình luận nội bộ"}}]},"session_id":"s1"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_mcp1","content":"{\"ok\":true,\"salary\":123}"}]},"session_id":"s1"}
+not json line
+{"type":"result","subtype":"success","is_error":false,"num_turns":9,"result":"Xong.","session_id":"s1","total_cost_usd":0.42}

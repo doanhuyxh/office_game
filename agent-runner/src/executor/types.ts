@@ -1,4 +1,5 @@
 import type { ExecutorConfig } from '../config';
+import type { ActivityEvent } from './events';
 
 /** Ngữ cảnh một lần chạy CLI. File MCP + prompt nằm trong thư mục tạm của job (ngoài worktree), xoá khi job xong. */
 export interface ExecContext {
@@ -16,6 +17,8 @@ export interface ExecContext {
   noBuiltinTools?: boolean;
   /** Gọi mỗi khi agent làm một thao tác (đọc / sửa file, chạy lệnh, gọi MCP, nhận định) — để runner log tiến độ. */
   onActivity?: (message: string) => void;
+  /** Gọi với từng sự kiện có cấu trúc (lệnh + kết quả, diff, suy nghĩ…) đã che bí mật — để gửi lên OfficeHub cho người xem trực tiếp (TEST-93). */
+  onEvent?: (event: ActivityEvent) => void;
 }
 
 export interface Command { bin: string; args: string[] }
@@ -48,6 +51,11 @@ export interface Adapter {
   parseLine(line: string, r: ExecResult): void;
   /** Mô tả ngắn các thao tác agent vừa làm trong dòng stdout này (rỗng nếu không có). Không bắt buộc. */
   activity?(line: string, cwd: string): string[];
+  /**
+   * Bộ tách sự kiện có cấu trúc cho MỘT lần chạy (có trạng thái: ghép kết quả lệnh vào đúng lệnh). Không bắt buộc — adapter không có
+   * (vd `custom`) thì người xem chỉ thấy bắt đầu / kết thúc phiên do runner gửi.
+   */
+  events?(cwd: string): (line: string) => ActivityEvent[];
   /**
    * Chạy thử nhẹ để biết model thật (`start` / `doctor`, bỏ qua bằng --no-model-check vì tốn token). Không bắt buộc.
    * `parseProbe` đọc stdout của lệnh đó.

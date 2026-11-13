@@ -23,6 +23,7 @@ export function runExecutor(ctx: ExecContext, env: Record<string, string>, signa
   const r: ExecResult = {};
   const logFile = createWriteStream(join(ctx.jobDir, 'output.log'));
   let tail = '';
+  const extract = ctx.onEvent ? adapter.events?.(ctx.cwd) : undefined;
   return new Promise((resolveRun, reject) => {
     const child = spawn(cmd.bin, cmd.args, { cwd: ctx.cwd, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
     let timedOut = false;
@@ -39,6 +40,10 @@ export function runExecutor(ctx: ExecContext, env: Record<string, string>, signa
       tail = (tail + line + '\n').slice(-4000);
       adapter.parseLine(line, r);
       if (ctx.onActivity && adapter.activity) for (const a of adapter.activity(line, ctx.cwd)) ctx.onActivity(a);
+      if (extract) {
+        // Lỗi khi tách / gửi sự kiện xem trực tiếp không được làm hỏng job
+        try { for (const e of extract(line)) ctx.onEvent!(e); } catch { /* bỏ qua */ }
+      }
     });
     child.stderr!.on('data', (d: Buffer) => logFile.write('[stderr] ' + redact(d.toString())));
     child.on('error', (e) => { clearTimeout(timer); logFile.end(); reject(e); });
