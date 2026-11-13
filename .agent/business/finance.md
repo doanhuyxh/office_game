@@ -32,7 +32,7 @@ Ghi / Duyệt / Quản trị **bao hàm Xem**. Mọi người đăng nhập đ�
 | POST | `/expenses` | có hồ sơ nhân viên | `{ amount, reason, payee?, categoryId? (loại Chi), businessLineId?, neededBy? (≥ hôm nay) }` → gửi duyệt |
 | POST | `/expenses/{id}/pay` | Ghi sổ | `{ accountId, date, invoiceNumber? }` → sinh dòng chi |
 
-Token AI **không** gọi được `/api/finance/*` (ngoài allowlist `AccessTokenAuth`).
+Token AI (TEST-78, chủ dự án chốt 2026-11-13 — giai đoạn đầu **chỉ đọc**): chỉ `GET /overview`, `/accounts`, `/lines`, `/categories`, `/lock`, `/entries`, `/expenses` (tool MCP nhóm Tài chính — [mcp.md](mcp.md)); quyền vẫn theo chức vụ như trên web (không Xem → 403). Mọi POST / PUT (ghi / huỷ dòng, tạo / chi đề nghị, quỹ, mảng, danh mục, khoá sổ), `entries/export.xlsx`, `/attachments*`, `/projects` → 403. **Tài khoản bot kế toán**: HR chỉ gán chức vụ có quyền **Xem** (không Ghi sổ / Duyệt chi / Quản trị) — dù có bit ghi, token vẫn không gọi được route ghi.
 
 **Cho module khác** (`OfficeHub.Modules.Finance.Contracts`): `IFinanceLedger.RecordIncomeAsync(LedgerIncome)` ghi một dòng THU (cùng `ValidateAsync` với màn ghi sổ; lỗi trả theo field, không ném; một nguồn chỉ một dòng hiệu lực) và `ActiveSourcesAsync(sourceType, ids)` cho biết dòng nào còn hiệu lực. Đang dùng: Sales ghi nhận thu (`sales_collection`) — [sales.md](sales.md). `ProjectTotalsAsync` (thu / chi gắn dự án theo tháng × danh mục) cho lãi / lỗ dự án. **Gắn dự án** (`ProjectId` trên dòng sổ + đề nghị chi, `GET /projects`, `/entries?projectId=`): [projects-finance.md](projects-finance.md).
 

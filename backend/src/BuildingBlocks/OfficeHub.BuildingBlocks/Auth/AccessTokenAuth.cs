@@ -123,6 +123,9 @@ public static class AccessTokenAuth
         //   Không có: mọi POST / PUT / DELETE, export.docx (file Word báo giá), /settings*, phụ lục, đợt thu / ghi nhận thu.
         ("GET", Exact("/api/sales/(customers|opportunities|quotes|contracts|receivables|activities/upcoming)/?")),
         ("GET", Exact($"/api/sales/(customers|quotes|contracts)/{Id}")),
+        // Tài chính (TEST-78): CHỈ ĐỌC — tổng quan, quỹ, mảng, danh mục, khoá sổ, sổ thu chi, đề nghị chi. Api giữ quyền theo chức vụ (RequireFinance → 403).
+        //   Không có: mọi POST / PUT, huỷ dòng sổ, chi theo đề nghị (/pay), entries/export.xlsx, chứng từ đính kèm (/attachments, file S3), /projects.
+        ("GET", Exact("/api/finance/(overview|accounts|lines|categories|lock|entries|expenses)/?")),
     ];
 
     private static System.Text.RegularExpressions.Regex Exact(string pattern) =>

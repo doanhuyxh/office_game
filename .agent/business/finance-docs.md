@@ -21,7 +21,7 @@ Quy tắc (`AttachmentRules`): PDF, ảnh (png / jpg / webp / heic), Excel, Word
 | Dòng sổ | Xem tài chính | Ghi sổ, dòng còn hiệu lực | như thêm, **trừ kỳ đã khoá** (kỳ khoá vẫn thêm được) |
 | Đề nghị chi | người gửi, **quản lý trực tiếp** của người gửi, Xem tài chính | người gửi khi Chờ duyệt / Đã duyệt; Ghi sổ luôn | như thêm |
 
-Dòng sổ chi theo đề nghị (`SourceType = expense_request`): danh sách chứng từ của dòng **kèm chứng từ của đề nghị** (`ownerType = Expense`, `canDelete = false` ở đó). `attachmentCount` trên `EntryDto` (gồm của đề nghị) và `ExpenseDto`. Người không thấy chủ → 404. Token AI: `/api/finance/*` ngoài allowlist → 403.
+Dòng sổ chi theo đề nghị (`SourceType = expense_request`): danh sách chứng từ của dòng **kèm chứng từ của đề nghị** (`ownerType = Expense`, `canDelete = false` ở đó). `attachmentCount` trên `EntryDto` (gồm của đề nghị) và `ExpenseDto`. Người không thấy chủ → 404. Token AI: `/attachments*` và `export.xlsx` ngoài allowlist → 403 (TEST-78 chỉ mở GET đọc sổ / đề nghị chi, không chứng từ, không Excel).
 
 ## Excel (`GET /api/finance/entries/export.xlsx`, quyền Xem tài chính)
 

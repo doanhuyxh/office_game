@@ -14,6 +14,7 @@ namespace OfficeHub.Modules.Finance;
 /// <summary>
 /// Sổ thu chi nội bộ: quỹ tiền mặt / ngân hàng, giao dịch, đề nghị chi qua luồng duyệt, khoá sổ. Quyền theo chức vụ (<c>IFinanceAccess</c>).
 /// Là sổ QUẢN TRỊ — không phát hành hoá đơn điện tử, không thay sổ sách kế toán theo luật.
+/// Token AI: chỉ các GET đọc trong <c>AccessTokenAuth</c> (TEST-78), ghi / Excel / chứng từ chỉ trên web.
 /// </summary>
 public sealed class FinanceModule : IModule
 {

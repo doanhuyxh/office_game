@@ -1,7 +1,9 @@
 // E2E: module Finance — quyền tài chính theo chức vụ (HR không đổi được, admin không tự có quyền xem tiền), quỹ + số dư (thu / chi / chuyển),
-// kiểm tra dữ liệu, huỷ giao dịch, khoá sổ, đề nghị chi qua luồng duyệt [quản lý → Duyệt chi], không tự duyệt, chi tiền + chống chi trùng, huỷ chi → duyệt lại.
+// kiểm tra dữ liệu, huỷ giao dịch, khoá sổ, đề nghị chi qua luồng duyệt [quản lý → Duyệt chi], không tự duyệt, chi tiền + chống chi trùng, huỷ chi → duyệt lại,
+// token AI chỉ đọc (TEST-78: GET theo quyền chức vụ, ghi / Excel / chứng từ → 403; MCP thật khi có MCP_URL).
 // TẠO NHÂN VIÊN / DỮ LIỆU TIỀN THẬT → CHỈ chạy trên DB tạm (Api :5180 trỏ DB tạm).
 //   E2E_LOCAL_DB=1 API_URL=http://localhost:5180 ADMIN_LOGIN=e2e.admin@officehub.test ADMIN_PASSWORD='E2e-Admin-2026!' bun scripts/dev/finance-e2e.ts
+//   MCP tuỳ chọn: MCP_URL=http://localhost:5200/mcp (host Mcp chạy Mcp__ApiBaseUrl=http://localhost:5180 ASPNETCORE_URLS=http://localhost:5200).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { totp } from './totp';
@@ -217,7 +219,7 @@ const e4 = await mkExp(D.cookie, 400_000);
 const apr4 = (await myExp(D.cookie)).find((x) => x.id === e4.body).approvalRequestId;
 ok('Giám đốc không tự duyệt đề nghị của chính mình → 403', (await json(D.cookie, 'POST', `/api/approval/${apr4}/approve`, {})).status === 403);
 
-// ---------- Token AI: không mở tiền cho AI ----------
+// ---------- Token AI: CHỈ ĐỌC (TEST-78) ----------
 const e5 = await mkExp(S.cookie, 600_000);
 const apr5 = (await myExp(S.cookie)).find((x) => x.id === e5.body).approvalRequestId;
 await json(M.cookie, 'POST', `/api/approval/${apr5}/approve`, {});
@@ -227,7 +229,29 @@ const ai = async (method: string, path: string, body?: unknown) => {
   return { status: r.status, body: await r.json().catch(() => null) as any };
 };
 ok('Tạo token AI cho giám đốc', !!tok?.startsWith('ohk_'));
-ok('Token AI không gọi được /api/finance (ngoài allowlist) → 403', (await ai('GET', '/api/finance/overview')).status === 403 && (await ai('GET', '/api/finance/expenses?page=1')).status === 403);
+const readPaths = ['/api/finance/overview', '/api/finance/accounts', '/api/finance/lines', '/api/finance/categories', '/api/finance/lock', '/api/finance/entries?page=1', '/api/finance/expenses?scope=all&page=1'];
+const readSt = await Promise.all(readPaths.map(async (p) => (await ai('GET', p)).status));
+ok('Token AI (người có Xem tài chính) đọc được 7 route GET', readSt.every((x) => x === 200), readSt);
+ok('Token AI: sổ thu chi có dòng của lần chạy này', ((await ai('GET', `/api/finance/entries?page=1&search=${encodeURIComponent(`đợt 1 ${stamp}`)}`)).body?.items ?? []).length === 1);
+// Token của người có quyền ghi (Quản trị / Ghi sổ) vẫn KHÔNG ghi được qua AI.
+const tokA = (await json(A.cookie, 'POST', '/api/auth/access-tokens', { name: `e2e a ${stamp}`, expiresInDays: 30 })).body?.token as string;
+const aiA = async (method: string, path: string, body?: unknown) =>
+  (await fetch(API + path, { method, headers: { authorization: `Bearer ${tokA}`, 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })).status;
+const writeSt = [
+  (await ai('POST', '/api/finance/accounts', { name: `AI ${stamp}`, kind: 'Cash', openingBalance: 0, openingDate: '2026-01-01' })).status,
+  (await ai('PUT', `/api/finance/accounts/${cashId}`, { name: `AI ${stamp}`, kind: 'Cash', openingBalance: 0, openingDate: '2026-01-01' })).status,
+  (await ai('POST', '/api/finance/lines', { code: `AI${stamp}`, name: 'AI' })).status,
+  (await ai('POST', '/api/finance/categories', { name: `AI ${stamp}`, kind: 'Expense' })).status,
+  (await ai('PUT', '/api/finance/lock', { lockedThrough: null })).status,
+  await aiA('POST', '/api/finance/entries', { kind: 'Income', date: today, amount: 1, accountId: cashId }),
+  await aiA('POST', `/api/finance/entries/${paidEntry}/void`, { reason: 'AI' }),
+  await aiA('POST', `/api/finance/expenses/${e5.body}/pay`, { accountId: cashId, date: today }),
+  (await ai('POST', '/api/finance/expenses', { amount: 1000, reason: 'AI' })).status,
+];
+ok('Token AI: mọi POST / PUT /api/finance/* → 403 (kể cả Quản trị / Ghi sổ)', writeSt.every((x) => x === 403), writeSt);
+ok('Token AI: export.xlsx, chứng từ, /projects → 403', [(await ai('GET', '/api/finance/entries/export.xlsx')).status, (await ai('GET', `/api/finance/attachments?ownerType=Entry&ownerId=${paidEntry}`)).status,
+  (await ai('POST', '/api/finance/attachments', {})).status, (await ai('GET', '/api/finance/projects')).status].every((x) => x === 403));
+ok('Dòng sổ / đề nghị không đổi sau các lệnh ghi bằng token', (await myExp(S.cookie)).find((x) => x.id === e1.body).status === 'Paid' && (await myExp(S.cookie)).find((x) => x.id === e5.body).status === 'Pending');
 ok('Hộp duyệt qua AI KHÔNG thấy đề nghị chi (web thì thấy)', !((await ai('GET', '/api/approval/inbox')).body as any[]).some((x) => x.id === apr5) && (await inboxOf(D.cookie)).some((x) => x.id === apr5));
 ok('AI xem chi tiết đề nghị chi → 404', (await ai('GET', `/api/approval/${apr5}`)).status === 404);
 ok('AI duyệt / từ chối đề nghị chi → 403; đơn vẫn chờ', (await ai('POST', `/api/approval/${apr5}/approve`, {})).status === 403 && (await ai('POST', `/api/approval/${apr5}/reject`, { comment: 'x' })).status === 403
@@ -236,6 +260,49 @@ const tokS = (await json(S.cookie, 'POST', '/api/auth/access-tokens', { name: `e
 const aiS = (method: string, path: string) => fetch(API + path, { method, headers: { authorization: `Bearer ${tokS}` } });
 ok('AI của người gửi: "đơn của tôi" ẩn đề nghị chi, không huỷ được → 403', !((await (await aiS('GET', '/api/approval/mine')).json()) as any[]).some((x) => x.id === apr5)
   && (await aiS('POST', `/api/approval/${apr5}/cancel`)).status === 403);
+ok('Token AI người không có quyền tài chính: tổng quan / quỹ / sổ / khoá sổ / tất cả đề nghị → 403 như web',
+  (await Promise.all(['/api/finance/overview', '/api/finance/accounts', '/api/finance/entries?page=1', '/api/finance/lock', '/api/finance/expenses?scope=all&page=1']
+    .map(async (p) => (await aiS('GET', p)).status))).every((x) => x === 403));
+ok('Token AI người không có quyền: mảng, danh mục, đề nghị của mình → 200', (await aiS('GET', '/api/finance/lines')).status === 200 && (await aiS('GET', '/api/finance/categories')).status === 200
+  && ((await (await aiS('GET', '/api/finance/expenses?page=1')).json()) as any).items.some((x: any) => x.id === e5.body));
+// Bot kế toán: chức vụ chỉ Xem tài chính → đọc được qua token.
+const pView = await mkPos('Bot KT', 6, VIEW);
+const V = await mkEmp(`FV${stamp}`, 'Bot Kế Toán E2E', pView.body, null, `e2e.fin.bot.${stamp}`, ['employee']);
+const tokV = (await json(V.cookie, 'POST', '/api/auth/access-tokens', { name: `e2e v ${stamp}`, expiresInDays: 30 })).body?.token as string;
+const aiV = (method: string, path: string) => fetch(API + path, { method, headers: { authorization: `Bearer ${tokV}` } });
+ok('Token bot chỉ Xem tài chính: đọc tổng quan + sổ, ghi → 403', (await aiV('GET', '/api/finance/overview')).status === 200 && (await aiV('GET', '/api/finance/entries?page=1')).status === 200
+  && (await aiV('POST', '/api/finance/entries')).status === 403);
+
+if (process.env.MCP_URL) {
+  let rid = 0;
+  const rpc = async (method: string, params: unknown, t: string) => {
+    const res = await fetch(process.env.MCP_URL!, { method: 'POST', headers: { authorization: `Bearer ${t}`, 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: ++rid, method, params }) });
+    const text = await res.text();
+    const data = text.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5)).pop() ?? text;
+    try { return JSON.parse(data); } catch { return text as any; }
+  };
+  const call = async (name: string, args: Record<string, unknown>, t = tokV) => {
+    const r = await rpc('tools/call', { name, arguments: args }, t);
+    const text = r?.result?.content?.[0]?.text ?? '';
+    try { return { err: !!r?.result?.isError, j: JSON.parse(text) as any }; } catch { return { err: true, j: text as any }; }
+  };
+  await rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'e2e', version: '1' } }, tokV);
+  const tools = ((await rpc('tools/list', {}, tokV))?.result?.tools ?? []) as any[];
+  const finTools = ['get_finance_overview', 'list_fund_accounts', 'list_ledger_entries', 'list_finance_categories', 'list_expense_requests', 'get_finance_lock'];
+  ok('MCP tools/list có 6 tool Tài chính, đều readOnly', finTools.every((n) => tools.find((t) => t.name === n)?.annotations?.readOnlyHint === true), tools.map((t) => t.name));
+  const o = await call('get_finance_overview', {});
+  ok('MCP get_finance_overview: có quỹ của lần chạy này', !o.err && (o.j.accounts as any[]).some((a) => a.id === cashId), o.j);
+  ok('MCP list_fund_accounts, get_finance_lock', !(await call('list_fund_accounts', {})).err && (await call('get_finance_lock', {})).j?.lockedThrough === null);
+  const c = await call('list_finance_categories', {});
+  ok('MCP list_finance_categories: danh mục + mảng', !c.err && c.j.categories.length > 0 && c.j.businessLines.some((l: any) => l.code === 'CHUNG'), c.j);
+  const le = await call('list_ledger_entries', { kind: 'income', search: `đợt 1 ${stamp}`, from: '2026-01-01', to: today });
+  ok('MCP list_ledger_entries: lọc loại + tìm + khoảng ngày', !le.err && le.j.items.length === 1, le.j);
+  ok('MCP list_ledger_entries: ngày sai định dạng → lỗi tiếng Việt', String((await call('list_ledger_entries', { from: '13/11/2026' })).j).includes('yyyy-MM-dd'));
+  ok('MCP list_expense_requests scope=all, status=pending', !(await call('list_expense_requests', { scope: 'all', status: 'pending' })).err);
+  ok('MCP người không có quyền: get_finance_overview → lỗi; đề nghị của mình → được', (await call('get_finance_overview', {}, tokS)).err
+    && ((await call('list_expense_requests', {}, tokS)).j.items as any[]).some((x) => x.id === e5.body));
+}
 
 console.log(`\n${pass} đạt, ${fail} lỗi`);
 process.exit(fail ? 1 : 0);

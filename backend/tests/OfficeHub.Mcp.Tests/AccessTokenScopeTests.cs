@@ -314,6 +314,47 @@ public class SalesScopeTests
     public void Sales_writes_export_and_settings_blocked(string method, string path) => Assert.False(AccessTokenAuth.IsAllowed(method, path));
 }
 
+/// <summary>TEST-78: Tài chính chỉ đọc — đúng từng route GET, không ghi, không Excel, không chứng từ (S3).</summary>
+public class FinanceScopeTests
+{
+    private const string G = "0193a000-0000-7000-8000-000000000000";
+
+    [Theory]
+    [InlineData("GET", "/api/finance/overview")]
+    [InlineData("GET", "/api/finance/accounts")]
+    [InlineData("GET", "/api/finance/lines")]
+    [InlineData("GET", "/api/finance/categories")]
+    [InlineData("GET", "/api/finance/lock")]
+    [InlineData("GET", "/api/finance/entries")]
+    [InlineData("GET", "/api/finance/expenses")]
+    public void Finance_reads_allowed(string method, string path) => Assert.True(AccessTokenAuth.IsAllowed(method, path));
+
+    [Theory]
+    [InlineData("POST", "/api/finance/accounts")]
+    [InlineData("PUT", "/api/finance/accounts/" + G)]
+    [InlineData("POST", "/api/finance/lines")]
+    [InlineData("PUT", "/api/finance/lines/" + G)]
+    [InlineData("POST", "/api/finance/categories")]
+    [InlineData("PUT", "/api/finance/categories/" + G)]
+    [InlineData("PUT", "/api/finance/lock")]
+    [InlineData("POST", "/api/finance/entries")]
+    [InlineData("POST", "/api/finance/entries/" + G + "/void")]
+    [InlineData("GET", "/api/finance/entries/export.xlsx")]
+    [InlineData("POST", "/api/finance/expenses")]
+    [InlineData("POST", "/api/finance/expenses/" + G + "/pay")]
+    [InlineData("GET", "/api/finance/attachments")]
+    [InlineData("POST", "/api/finance/attachments")]
+    [InlineData("POST", "/api/finance/attachments/" + G + "/confirm")]
+    [InlineData("GET", "/api/finance/attachments/" + G + "/url")]
+    [InlineData("DELETE", "/api/finance/attachments/" + G)]
+    [InlineData("GET", "/api/finance/projects")]
+    [InlineData("GET", "/api/finance/accounts/" + G)]
+    [InlineData("GET", "/api/finance/entries/" + G)]
+    [InlineData("GET", "/api/finance/overview/x")]
+    [InlineData("GET", "/api/finance")]
+    public void Finance_writes_export_and_attachments_blocked(string method, string path) => Assert.False(AccessTokenAuth.IsAllowed(method, path));
+}
+
 public class MeetingToolTests
 {
     [Fact]
