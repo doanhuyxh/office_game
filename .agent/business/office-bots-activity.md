@@ -1,10 +1,18 @@
 # Luồng hoạt động bot — "xem trực tiếp agent đang làm gì"
 
-> Phần tiếp của [office-bots.md](office-bots.md) / [office-bots-work.md](office-bots-work.md). Code: `BuildingBlocks/Office/BotActivityFeed.cs` (hợp đồng), `OfficeHub.Realtime/Simulation/BotActivityFeed.cs` (đệm RAM), `Hubs/BotActivityFeedEndpoints.cs`, dọn trong `BotSweeper` (`Hubs/BotEndpoints.cs`); hub xem trực tiếp: `Simulation/BotWatch.cs` + `WatchBot` / `UnwatchBot` trong `Hubs/OfficeRoomHub.cs`; cửa vào Mcp: `OfficeHub.Mcp/Program.cs` (`/mcp/activity`), `Infrastructure/BotActivityGate.cs`, `BotPresenceReporter.ReportActivityAsync`. Test: `tests/OfficeHub.Realtime.Tests/BotActivityFeedTests.cs`, `BotWatchTests.cs`, `tests/OfficeHub.Mcp.Tests/BotActivityGateTests.cs`.
+> Phần tiếp của [office-bots.md](office-bots.md) / [office-bots-work.md](office-bots-work.md). Code: `BuildingBlocks/Office/BotActivityFeed.cs` (hợp đồng), `OfficeHub.Realtime/Simulation/BotActivityFeed.cs` (đệm RAM), `Hubs/BotActivityFeedEndpoints.cs`, dọn trong `BotSweeper` (`Hubs/BotEndpoints.cs`); hub xem trực tiếp: `Simulation/BotWatch.cs` + `WatchBot` / `UnwatchBot` trong `Hubs/OfficeRoomHub.cs`; cửa vào Mcp: `OfficeHub.Mcp/Program.cs` (`/mcp/activity`), `Infrastructure/BotActivityGate.cs`, `BotPresenceReporter.ReportActivityAsync`; bot không qua runner: `Infrastructure/BotToolFeed.cs`. Test: `tests/OfficeHub.Realtime.Tests/BotActivityFeedTests.cs`, `BotWatchTests.cs`, `tests/OfficeHub.Mcp.Tests/BotActivityGateTests.cs`, `BotToolFeedTests.cs`.
 
 Chủ dự án duyệt 2026-11-14: bấm vào bot trong 3D → bảng giống chia sẻ màn hình: lệnh đang chạy, file đang sửa (diff), suy nghĩ, lời agent theo thời gian thực. Đã chốt: luồng **có cấu trúc** (không ảnh / video); **không lưu lịch sử** (chỉ RAM, không DB / S3); **có hiện suy nghĩ**; bong bóng trên đầu bot **giữ nhãn thô** như cũ (`/mcp/presence`, không đưa lệnh / đường dẫn lên bong bóng).
 
-TEST-92 (nền móng) = hợp đồng + đệm Realtime + endpoint nội bộ + điểm móc. TEST-94 = cửa vào Mcp `/mcp/activity`. TEST-95 = hub xem trực tiếp (`WatchBot`). FE là các việc sau. agent-runner (TEST-93 tách sự kiện, TEST-99 gửi theo lô): [agent-runner-activity.md](agent-runner-activity.md).
+TEST-92 (nền móng) = hợp đồng + đệm Realtime + endpoint nội bộ + điểm móc. TEST-94 = cửa vào Mcp `/mcp/activity`. TEST-95 = hub xem trực tiếp (`WatchBot`). TEST-96 = bot không qua runner tự phát sự kiện `tool`. FE là các việc sau. agent-runner (TEST-93 tách sự kiện, TEST-99 gửi theo lô): [agent-runner-activity.md](agent-runner-activity.md).
+
+## Nguồn sự kiện: runner / tool MCP (TEST-96)
+
+- **Agent chạy qua agent-runner**: runner dựng sự kiện có cấu trúc (lệnh, diff, suy nghĩ…) từ stream của CLI agent và gửi lô qua `POST /mcp/activity` — nguồn chính, chi tiết nhất.
+- **Bot kết nối MCP trực tiếp (không qua runner)**: host Mcp tự phát (`BotToolFeed` + móc trong `BotPresenceReporter.Report`, chạy nền — lỗi chỉ ghi log, không làm hỏng lời gọi tool):
+  - Mỗi lần tài khoản bot gọi tool → sự kiện `kind: "tool"`: `title` = tiêu đề tiếng Việt của tool (thuộc tính Title, như bong bóng), `text` = tên tool + mã việc nếu tham số có `task` (`TaskCodeOf`; tham số là id → suy mã từ nhãn BotWork đã biết), `ok` = tool thành công / lỗi. **Không** gửi tham số khác / kết quả tool (có thể chứa dữ liệu nhân sự / tài chính). Người thường gọi tool → không phát (không phải bot).
+  - Lần gọi tool đầu sau khi rảnh → tự phát `session_start` (`task` = việc đang đụng theo `BotWork`, nếu có); quá `BotWork.TaskWindowMinutes` (15) phút không gọi tool → `session_end` (sweeper `BotToolFeedSweeper`, quét mỗi phút).
+  - **Tránh trùng với runner**: bot có presence runner còn hiệu lực (`/mcp/presence`, 5 phút = `BotActivityRoute.OnlineMinutes`) hoặc vừa gửi `/mcp/activity` trong 5 phút → không tự phát; phiên tự mở bị quên luôn (không `session_end` — đệm giờ là của runner).
 
 ## Hợp đồng `BotActivityEvent`
 

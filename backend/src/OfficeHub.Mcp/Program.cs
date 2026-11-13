@@ -25,6 +25,9 @@ builder.Services.AddOptions<ChatSettings>().Bind(builder.Configuration.GetSectio
 var realtimeBase = builder.Configuration.GetSection(McpSettings.Section).Get<McpSettings>()?.RealtimeBaseUrl ?? new McpSettings().RealtimeBaseUrl;
 builder.Services.AddHttpClient(BotPresenceReporter.RealtimeClientName, c => { c.BaseAddress = new Uri(realtimeBase); c.Timeout = TimeSpan.FromSeconds(5); });
 builder.Services.AddSingleton<BotPresenceReporter>();
+// Bot không chạy qua agent-runner: tự phát sự kiện "tool" / session vào luồng hoạt động (TEST-96); sweeper gửi session_end khi bot rảnh.
+builder.Services.AddSingleton<BotToolFeed>();
+builder.Services.AddHostedService<BotToolFeedSweeper>();
 builder.Services.AddSingleton<ChatRelay>(); // bot gửi tin chat → Realtime phát ngay (cùng khoá nội bộ)
 
 builder.Services.AddMcpServer(o =>
@@ -41,8 +44,10 @@ builder.Services.AddMcpServer(o =>
         OfficeHubApi.CurrentTool.Value = name;
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
         var result = await next(ctx, ct);
-        if (result.IsError != true && ctx.Services?.GetService<IHttpContextAccessor>()?.HttpContext is { } http)
-            ctx.Services.GetRequiredService<BotPresenceReporter>().Report(http.Request.Headers.Authorization.ToString(), http.Connection.RemoteIpAddress?.ToString(), name, ctx.Params?.Arguments);
+        if (ctx.Services?.GetService<IHttpContextAccessor>()?.HttpContext is { } http)
+            ctx.Services.GetRequiredService<BotPresenceReporter>().Report(http.Request.Headers.Authorization.ToString(), http.Connection.RemoteIpAddress?.ToString(), name, ctx.Params?.Arguments,
+                ok: result.IsError != true); // tool lỗi vẫn phát sự kiện "tool" (ok=false) vào luồng hoạt động; bong bóng / presence thì chỉ khi thành công
+
         ctx.Services?.GetRequiredService<ILogger<OfficeHubApi>>().LogInformation("MCP tool {Tool} {Outcome} trong {Ms} ms",
             name, result.IsError == true ? "lỗi" : "xong", (int)System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds);
         return result;

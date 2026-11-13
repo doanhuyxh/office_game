@@ -17,7 +17,7 @@ namespace OfficeHub.Mcp.Infrastructure;
 /// trong văn phòng 3D (ngồi ở khu phòng ban + dòng "đang làm gì"). Chạy nền, lỗi chỉ ghi log — không bao giờ làm hỏng tool.
 /// Thông tin người gọi (bot?, tên, nhân vật, khu) nhớ <see cref="IdentityCacheMinutes"/> phút theo token.
 /// </summary>
-public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache cache, IOptions<ChatSettings> chat, ILogger<BotPresenceReporter> log)
+public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache cache, IOptions<ChatSettings> chat, BotToolFeed toolFeed, ILogger<BotPresenceReporter> log)
 {
     public const string RealtimeClientName = "officehub-realtime";
     private const int IdentityCacheMinutes = 5;
@@ -39,7 +39,7 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
     private sealed record Caller(Guid UserId, string Name, string? Look, string? Zone);
 
     /// <summary>Gọi từ call-tool filter; trả ngay (không chờ). Header Authorization phải đọc trước khi request kết thúc.</summary>
-    public void Report(string? authorization, string? clientIp, string? tool, IDictionary<string, JsonElement>? args)
+    public void Report(string? authorization, string? clientIp, string? tool, IDictionary<string, JsonElement>? args, bool ok)
     {
         if (string.IsNullOrEmpty(authorization) || string.IsNullOrEmpty(tool) || string.IsNullOrEmpty(chat.Value.McpRealtimeKey)) return;
         var activity = Describe(tool, args);
@@ -48,8 +48,12 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
             try
             {
                 if (await GetCallerAsync(authorization, clientIp) is not { } caller) return;
-                var (busy, task) = await WorkAsync(authorization, clientIp, tool, args);
-                await SendAsync(new BotActivity(caller.UserId, caller.Name, caller.Look, caller.Zone, activity, busy, task));
+                var (busy, task) = await WorkAsync(authorization, clientIp, tool, args, touch: ok);
+                if (ok) await SendAsync(new BotActivity(caller.UserId, caller.Name, caller.Look, caller.Zone, activity, busy, task));
+                // Bot không chạy qua runner: tự phát sự kiện "tool" vào luồng hoạt động (TEST-96) — cả khi tool lỗi (ok=false).
+                // Tool lỗi → nhãn trong cache có thể là của việc trước đó: không dùng để suy mã từ id.
+                if (toolFeed.OnToolCall(caller.UserId, tool, Titles.GetValueOrDefault(tool, tool), task, TaskCodeOf(tool, args, ok ? task : null), ok) is { } events)
+                    await SendFeedAsync(caller.UserId, events);
             }
             catch (Exception e)
             {
@@ -65,6 +69,7 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
     {
         if (string.IsNullOrEmpty(chat.Value.McpRealtimeKey)) return false;
         if (await GetCallerAsync(authorization, clientIp) is not { } caller) return null;
+        toolFeed.RunnerSeen(caller.UserId); // runner làm chủ luồng hoạt động → Mcp thôi tự phát sự kiện "tool" (TEST-96)
         var busy = body.State == BotWork.Working;
         var task = busy ? Clip(body.Task, BotWork.MaxTask) : null;
         var activity = busy ? Clip(body.Activity, BotWork.MaxActivity) ?? task ?? "Đang làm việc" : BotWork.IdleBubble;
@@ -80,10 +85,18 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
     {
         if (string.IsNullOrEmpty(chat.Value.McpRealtimeKey)) return false;
         if (await GetCallerAsync(authorization, clientIp) is not { } caller) return null;
+        toolFeed.RunnerSeen(caller.UserId); // runner làm chủ luồng hoạt động → Mcp thôi tự phát sự kiện "tool" (TEST-96)
+        return await SendFeedAsync(caller.UserId, events);
+    }
+
+    /// <summary>Gửi lô sự kiện vào luồng hoạt động của bot <paramref name="userId"/> (<see cref="BotActivityFeedRoute.Path"/>); false = Realtime không nhận.</summary>
+    internal async Task<bool> SendFeedAsync(Guid userId, IReadOnlyList<BotActivityEvent> events)
+    {
+        if (string.IsNullOrEmpty(chat.Value.McpRealtimeKey)) return false;
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Post, BotActivityFeedRoute.Path)
-                { Content = JsonContent.Create(new BotActivityBatch(caller.UserId, events), options: OfficeHubApi.Json) };
+                { Content = JsonContent.Create(new BotActivityBatch(userId, events), options: OfficeHubApi.Json) };
             req.Headers.Add(BotActivityRoute.KeyHeader, chat.Value.McpRealtimeKey);
             using var res = await http.CreateClient(RealtimeClientName).SendAsync(req);
             if (res.IsSuccessStatusCode) return true;
@@ -120,10 +133,10 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
     /// Bot đang làm việc gì: vừa gọi tool trên một việc → nhớ "MÃ · tên" <see cref="BotWork.TaskWindowMinutes"/> phút (mỗi lần đụng việc thì tính lại) → đang làm;
     /// hết hạn → rảnh. Theo token (một tài khoản bot = một agent).
     /// </summary>
-    private async Task<(bool? Busy, string? Task)> WorkAsync(string authorization, string? clientIp, string tool, IDictionary<string, JsonElement>? args)
+    private async Task<(bool? Busy, string? Task)> WorkAsync(string authorization, string? clientIp, string tool, IDictionary<string, JsonElement>? args, bool touch)
     {
         var key = "work:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(authorization)));
-        if (TaskTools.Contains(tool) && args is not null && args.TryGetValue("task", out var v) && v.ValueKind == JsonValueKind.String
+        if (touch && TaskTools.Contains(tool) && args is not null && args.TryGetValue("task", out var v) && v.ValueKind == JsonValueKind.String
             && v.GetString()?.Trim() is { Length: > 0 } task)
         {
             var label = cache.TryGetValue(key, out string? prev) && prev is not null && SameTask(prev, task) ? prev : await TaskLabelAsync(authorization, clientIp, task);
@@ -135,6 +148,19 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
 
     private static bool SameTask(string label, string task) =>
         label.StartsWith(task, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Mã việc cho sự kiện "tool" (TEST-96), CHỈ khi tham số lần gọi này có <c>task</c>: tham số là mã → mã viết hoa;
+    /// là id → lấy mã từ nhãn "MÃ · tên" đã biết (chưa biết / nhãn mặc định "Việc" → null). Không gửi tham số nào khác.
+    /// </summary>
+    internal static string? TaskCodeOf(string tool, IDictionary<string, JsonElement>? args, string? taskLabel)
+    {
+        if (!TaskTools.Contains(tool) || args is null || !args.TryGetValue("task", out var v) || v.ValueKind != JsonValueKind.String
+            || v.GetString()?.Trim() is not { Length: > 0 } s) return null;
+        if (!Guid.TryParse(s, out _)) return s.ToUpperInvariant();
+        var code = taskLabel?.Split(" · ", 2)[0];
+        return code is null || code == "Việc" || Guid.TryParse(code, out _) ? null : code;
+    }
 
     /// <summary>"WEB-12 · Tên việc" — id → hỏi Api chi tiết việc; mã → tìm tên trong việc của tôi (không thấy thì chỉ mã). Api lỗi → mã / "Việc".</summary>
     private async Task<string> TaskLabelAsync(string authorization, string? clientIp, string task)
