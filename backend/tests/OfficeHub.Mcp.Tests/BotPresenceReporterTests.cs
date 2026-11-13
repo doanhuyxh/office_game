@@ -31,6 +31,7 @@ public class BotPresenceReporterTests
         Assert.Equal("💬 " + new string('a', 80) + "…", BotPresenceReporter.Describe("send_chat_message", Args("text", longText)));
         Assert.Equal("Gửi tin nhắn", BotPresenceReporter.Describe("send_chat_message", Args("text", " ")));
         Assert.Equal("Danh sách tin nhắn", BotPresenceReporter.Describe("list_chats", null));
+        Assert.Equal("💬 Doanh thu tháng 11 đạt 80%", BotPresenceReporter.Describe("speak_in_meeting", Args("text", "Doanh thu tháng 11 đạt 80%")));
     }
 
     [Fact]

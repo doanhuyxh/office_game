@@ -3,7 +3,7 @@
 > Nguồn sự thật là code: `backend/src/Modules/Meetings/` (`Domain/AgentMeeting.cs`, `Features/AgentMeetingEndpoints.cs`, `Infrastructure/AgentMeetingExpiryJob.cs`, `Infrastructure/AgentMeetingTurnService.cs`, hợp đồng `OfficeHub.Modules.Meetings.Contracts`). Về [README.md](README.md) · đặt phòng: [meetings.md](meetings.md) · bot trong 3D: [office-bots.md](office-bots.md).
 
 Chủ dự án chốt 2026-11-13 (chuỗi TEST-74..78 "Họp agent"): nhiều agent nghiệp vụ trao đổi với nhau **trong phiên họp** ở phòng họp. Ngoài phiên họp giữ luật cũ: bot không trả lời bot.
-TEST-74 làm phần nền (bảng, API mở / dừng / xem, trần, job hết giờ). TEST-75 chia lượt nói (mục [Lượt nói](#lượt-nói-test-75)); tool MCP 3/5, 3D 4/5, giao diện 5/5.
+TEST-74 làm phần nền (bảng, API mở / dừng / xem, trần, job hết giờ). TEST-75 chia lượt nói (mục [Lượt nói](#lượt-nói-test-75)); TEST-82 tool MCP ([meetings-agents-mcp.md](meetings-agents-mcp.md)), 3D 4/5, giao diện 5/5.
 
 - **Chỉ người thật mở và dừng.** Token AI (người hay bot) gọi mở / dừng → 403 (route ngoài allowlist `AccessTokenAuth`, endpoint còn tự kiểm `IsAccessToken()`); tài khoản bot đăng nhập web cũng 403 khi mở. Người mở cần hồ sơ nhân viên (409 nếu không).
 - **Dừng**: người mở hoặc HR / admin (`IsHr`). Phiên đã kết thúc → 409.
@@ -23,9 +23,11 @@ TEST-74 làm phần nền (bảng, API mở / dừng / xem, trần, job hết gi
 | POST | `/sessions/{id}/stop` | Người mở / HR / admin, cookie |
 | GET / PUT | `/agent-settings` | `{ maxTurns, maxMinutes }` + mặc định / khoảng cho phép, `isDefault`. **Chỉ `AuthPolicies.Admin`**, ngoài allowlist token AI; `[Audited]` |
 
+| GET | `/sessions/mine` | **TEST-82** — phiên Đang họp tài khoản bot gọi đang dự: `{ session, conversationId, isChair, attendees[] }` (attendee: mã, tên, phòng ban, chức vụ, `isSpeaking`, `queuePosition`); không dự → `session = null`. Không phải tài khoản bot → 403 |
 | POST | `/sessions/{id}/pass` | **Bot dự họp đang giữ lượt** bỏ lượt (token AI được — allowlist). Không giữ lượt / phiên đã kết thúc → 409; không dự → 404 |
 | POST | `/sessions/{id}/assign` | `{ employeeId }` — **bot chủ trì đang giữ lượt** chỉ định bot dự họp khác nói kế. Tự chỉ định / bot ngoài họp / không phải chủ trì / không giữ lượt → 409 |
 
+`pass` / `assign` / `mine`: tài khoản không phải bot (token AI của người thật hay cookie) → **403** trước mọi kiểm tra khác.
 DTO phiên có thêm `currentSpeakerEmployeeId`, `turnDeadline` (quá giờ này chưa nói = bỏ lượt), `isMyTurn` (người gọi đang giữ lượt); `bots[]` có `isSpeaking`, `queuePosition` (1 = kế tiếp).
 Enum trả dạng chữ (`Active` / `Ended`, `Stopped` …). Allowlist token AI cho Meetings giờ liệt kê từng nhánh GET (`/rooms`, `/bookings`, `/sessions`) thay cho cả tiền tố `/api/meetings` — để `/agent-settings` không lọt.
 
@@ -44,3 +46,4 @@ Chủ dự án chốt 2026-11-13: **bot chủ trì chỉ định** người nói
 - Chiều phụ thuộc: Chat → `Meetings.Contracts.IAgentMeetingTurns` (Meetings cài); Meetings → `IMeetingRoomChannel` (Chat cài: id kênh phòng, thêm thành viên, tin hệ thống) — cùng project Contracts, không vòng tham chiếu.
 
 E2E: `scripts/dev/agent-meeting-turns-e2e.ts` (Telegram + webhook giả) — 50/50 (2026-11-13).
+

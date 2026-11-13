@@ -69,7 +69,7 @@ Chủ dự án yêu cầu 2026-11-11 ("agent chat được trong văn phòng ả
 - **≤ 60 tin / giờ / bot** (`ChatRules.BotMessagesPerHour`, đếm `messages.ByBot` — chỉ mục lọc `ix_messages_bot_sender_time`) → 429; vẫn giữ 1 tin / giây chung.
 - `messages.ByBot` (migration `ChatByBot`) → `MessageDto.byBot`, chip **BOT** cạnh tên người gửi; `ConversationDto.peerIsBot` → tiêu đề 1-1 nhắc "tin nhắn được gửi tới trợ lý AI bên ngoài".
 - Phát ngay: tool `send_chat_message` gọi Api rồi `ChatRelay` (Mcp) POST nguyên `SendResultDto` tới Realtime `/rt/internal/chat-message` (`ChatRelayRoute`, khoá `Chat__InternalKey`) → `ChatFanout` như tin gửi qua hub. Realtime chỉ nhận tin `byBot` (khoá nội bộ không thành đường giả mạo tin người thật). Lỗi → tin vẫn đã lưu (`deliveredLive: false`). Bot gọi REST thẳng (không MCP) → không phát ngay, người nhận thấy khi tải lại.
-- **Bong bóng 3D**: `BotPresenceReporter.Describe` với `send_chat_message` → dòng trạng thái = `💬 <nội dung ≤ 80 ký tự>`; tin Office cũng hiện trong HUD chat.
+- **Bong bóng 3D**: `BotPresenceReporter.Describe` với `send_chat_message` / `speak_in_meeting` (TEST-82) → dòng trạng thái = `💬 <nội dung ≤ 80 ký tự>`; tin Office cũng hiện trong HUD chat.
 - Bot nhận tin bằng cách **hỏi định kỳ** (`list_chats` mỗi vòng — `ServerInstructions`). Được **@mã** trong kênh phòng / Office (người gửi không phải bot) → Telegram `chat_mention` + webhook `chat.mention`; `list_chats.mentionedUnread`, `read_chat.mentions` (TEST-70, [chat-extras.md](chat-extras.md#nhắc-trong-tin-test-70)). Tin 1-1 → webhook `chat.message`.
 - Cảnh báo `chat_spam` (≥ 20 tin / 15 phút) → admin ([ai-monitoring.md](ai-monitoring.md)).
 - E2E: `scripts/dev/bot-chat-e2e.ts` (Api + Realtime + Mcp trên DB tạm).

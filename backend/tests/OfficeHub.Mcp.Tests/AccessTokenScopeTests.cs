@@ -406,6 +406,7 @@ public class MeetingToolTests
     [InlineData("GET", "/api/meetings/bookings/now")]
     [InlineData("GET", "/api/meetings/sessions")]
     [InlineData("GET", "/api/meetings/sessions/0193a000-0000-7000-8000-000000000000")]
+    [InlineData("GET", "/api/meetings/sessions/mine")] // TEST-82: get_my_meeting
     [InlineData("POST", "/api/meetings/sessions/0193a000-0000-7000-8000-000000000000/pass")]
     [InlineData("POST", "/api/meetings/sessions/0193a000-0000-7000-8000-000000000000/assign")]
     [InlineData("POST", "/api/meetings/bookings")]

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.Modules.Identity.Contracts;
+using OfficeHub.Modules.Meetings.Contracts;
 using OfficeHub.Modules.Meetings.Domain;
 using OfficeHub.Modules.Meetings.Infrastructure;
 using OfficeHub.Modules.Organization.Contracts;
@@ -25,6 +26,13 @@ public sealed record AgentMeetingDto(Guid Id, string RoomId, string RoomName, st
     DateTimeOffset StartedAt, DateTimeOffset ExpiresAt, DateTimeOffset? EndedAt, string? EndedByName, bool CanStop,
     Guid? CurrentSpeakerEmployeeId = null, DateTimeOffset? TurnDeadline = null, bool IsMyTurn = false);
 
+/// <summary>Bot dự họp kèm mã / phòng ban / chức vụ — cho bot biết ai đang ngồi cùng (TEST-82, tool get_my_meeting).</summary>
+public sealed record AgentMeetingAttendeeDto(Guid EmployeeId, string Code, string Name, string? DepartmentName, string? PositionName, bool IsChair,
+    bool IsSpeaking, int? QueuePosition);
+/// <summary>Phiên đang họp mà bot gọi đang dự (TEST-82). <paramref name="Session"/> null = không trong cuộc họp nào.</summary>
+/// <param name="ConversationId">Kênh chat của phòng họp (nơi phát biểu, read_chat); null = phòng chưa có kênh.</param>
+public sealed record MyAgentMeetingDto(AgentMeetingDto? Session, Guid? ConversationId, bool IsChair, IReadOnlyList<AgentMeetingAttendeeDto> Attendees);
+
 /// <param name="IsDefault">Chưa ai chỉnh — đang dùng giá trị mặc định.</param>
 public sealed record AgentMeetingSettingsDto(int MaxTurns, int MaxMinutes, bool IsDefault, DateTimeOffset? UpdatedAt, string? UpdatedByName,
     int DefaultMaxTurns, int DefaultMaxMinutes, int TurnsMin, int TurnsMax, int MinutesMin, int MinutesMax);
@@ -37,11 +45,13 @@ public sealed record UpdateAgentMeetingSettings(int MaxTurns, int MaxMinutes);
 internal static class AgentMeetingEndpoints
 {
     private const string AiForbidden = "Chỉ người thật mở / dừng cuộc họp agent trên web";
+    private const string BotOnly = "Chỉ tài khoản bot (HR đánh dấu) dự họp agent — người thật theo dõi cuộc họp trên web";
 
     public static void Map(RouteGroupBuilder g)
     {
         var s = g.MapGroup("/sessions");
         s.MapGet("", ListAsync);
+        s.MapGet("/mine", MineAsync);                // TEST-82: phiên bot đang dự (tool MCP get_my_meeting)
         s.MapGet("/{id:guid}", GetAsync);
         s.MapPost("", OpenAsync);
         s.MapPost("/{id:guid}/stop", StopAsync);
@@ -95,6 +105,36 @@ internal static class AgentMeetingEndpoints
         var me = await MeAsync(user, dir, ct);
         return TypedResults.Ok(ToDto(m, rooms, me?.Id, user));
     }
+
+    /// <summary>
+    /// Phiên ĐANG HỌP mà tài khoản bot gọi đang dự (TEST-82): phiên + id kênh phòng + bot dự họp (mã, phòng ban, chức vụ). Không dự phiên nào →
+    /// <c>session = null</c>. Tài khoản không phải bot → 403.
+    /// </summary>
+    private static async Task<Results<Ok<MyAgentMeetingDto>, ProblemHttpResult>> MineAsync(ClaimsPrincipal user, MeetingsDbContext db, MeetingRooms rooms,
+        IEmployeeDirectory dir, IAccountService accounts, IMeetingRoomChannel channel, CancellationToken ct)
+    {
+        if (await BotGuardAsync(user, accounts, ct) is { } denied) return denied;
+        var uid = user.GetUserId() ?? Guid.Empty;
+        var m = await db.AgentMeetings.AsNoTracking().Include(x => x.Bots)
+            .Where(x => x.Status == AgentMeetingStatus.Active && x.Bots.Any(b => b.UserId == uid))
+            .OrderByDescending(x => x.StartedAt).FirstOrDefaultAsync(ct);
+        if (m is null) return TypedResults.Ok(new MyAgentMeetingDto(null, null, false, []));
+        var me = m.Bots.First(b => b.UserId == uid);
+        var dto = ToDto(m, rooms, me.EmployeeId, user);
+        var attendees = new List<AgentMeetingAttendeeDto>();
+        foreach (var b in dto.Bots)
+        {
+            var emp = await dir.GetAsync(b.EmployeeId, ct);
+            var pos = await dir.GetPositionAsync(b.EmployeeId, ct);
+            attendees.Add(new(b.EmployeeId, emp?.Code ?? "", b.Name, emp?.DepartmentName, pos?.Name, b.IsChair, b.IsSpeaking, b.QueuePosition));
+        }
+        return TypedResults.Ok(new MyAgentMeetingDto(dto, await channel.ConversationIdAsync(m.RoomId, ct), me.EmployeeId == m.ChairEmployeeId, attendees));
+    }
+
+    /// <summary>Lượt nói chỉ dành cho tài khoản bot: người thật (token AI hay cookie) → 403, không lộ phiên.</summary>
+    private static async Task<ProblemHttpResult?> BotGuardAsync(ClaimsPrincipal user, IAccountService accounts, CancellationToken ct) =>
+        user.GetUserId() is { } uid && (await accounts.GetAsync(uid, ct))?.IsBot == true
+            ? null : TypedResults.Problem(BotOnly, statusCode: StatusCodes.Status403Forbidden);
 
     private static async Task<Results<Ok<AgentMeetingDto>, ValidationProblem, ProblemHttpResult>> OpenAsync(OpenAgentMeetingRequest req,
         ClaimsPrincipal user, MeetingsDbContext db, MeetingRooms rooms, IEmployeeDirectory dir, IAccountService accounts, AgentMeetingTurnService turns,
@@ -197,8 +237,9 @@ internal static class AgentMeetingEndpoints
     /// Không giữ lượt → 409. Tính 1 lượt.
     /// </summary>
     private static async Task<Results<Ok<AgentMeetingDto>, NotFound, ProblemHttpResult>> PassAsync(Guid id, ClaimsPrincipal user, MeetingsDbContext db,
-        MeetingRooms rooms, AgentMeetingTurnService turns, CancellationToken ct)
+        MeetingRooms rooms, IAccountService accounts, AgentMeetingTurnService turns, CancellationToken ct)
     {
+        if (await BotGuardAsync(user, accounts, ct) is { } denied) return denied;
         var (m, bot) = await MySessionAsync(id, user, db, ct);
         if (m is null || bot is null) return TypedResults.NotFound();
         string? error = "Cuộc họp đã kết thúc"; // ApplyAsync không gọi hàm khi phiên đã kết thúc
@@ -211,8 +252,9 @@ internal static class AgentMeetingEndpoints
 
     /// <summary>Bot chủ trì đang giữ lượt chỉ định bot dự họp khác nói kế (TEST-75) — như @nhắc trong tin nhưng không cần nói. Tính 1 lượt.</summary>
     private static async Task<Results<Ok<AgentMeetingDto>, NotFound, ProblemHttpResult>> AssignAsync(Guid id, AssignTurnRequest req, ClaimsPrincipal user,
-        MeetingsDbContext db, MeetingRooms rooms, AgentMeetingTurnService turns, CancellationToken ct)
+        MeetingsDbContext db, MeetingRooms rooms, IAccountService accounts, AgentMeetingTurnService turns, CancellationToken ct)
     {
+        if (await BotGuardAsync(user, accounts, ct) is { } denied) return denied;
         var (m, bot) = await MySessionAsync(id, user, db, ct);
         if (m is null || bot is null) return TypedResults.NotFound();
         string? error = "Cuộc họp đã kết thúc";

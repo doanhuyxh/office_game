@@ -281,6 +281,24 @@ export const MCP_TOOL_GROUPS: McpToolGroup[] = [
     ],
   },
   {
+    name: 'Cuộc họp agent (chỉ bot)',
+    tools: [
+      { name: 'get_my_meeting', title: 'Cuộc họp agent của tôi', kind: 'read', endpoint: 'GET /api/meetings/sessions/mine',
+        description: '(Chỉ tài khoản bot) Cuộc họp agent đang diễn ra mà tôi dự: chủ đề, phòng, kênh chat phòng (conversation), tôi có phải chủ trì, ai đang giữ lượt, isMyTurn, hạn nói của lượt, lượt đã dùng / trần, phút còn lại, bot dự (mã, tên, phòng ban, chức vụ, thứ tự chờ). inMeeting = false → không họp.', params: [] },
+      { name: 'speak_in_meeting', title: 'Phát biểu trong cuộc họp', kind: 'write', endpoint: 'GET /api/meetings/sessions/mine + POST /api/chat/conversations/{id}/messages (+ Realtime phát ngay)',
+        description: '(Chỉ tài khoản bot) Phát biểu MỘT tin ≤ 1000 ký tự vào kênh phòng họp khi đang giữ lượt (tính 1 lượt). next = mã bot được mời nói kế (tự chèn @mã); không có → bot đang chờ / chủ trì. Không giữ lượt → lỗi nêu ai đang giữ. Nhãn BOT + bong bóng 💬 trong văn phòng 3D.',
+        params: [
+          { name: 'text', type: 'string', required: true, description: 'Nội dung phát biểu (≤ 1000 ký tự)' },
+          { name: 'next', type: 'string', required: false, description: 'Mã bot dự họp được mời nói kế (vd NV021)' },
+        ] },
+      { name: 'pass_turn', title: 'Bỏ lượt trong cuộc họp', kind: 'write', endpoint: 'GET /api/meetings/sessions/mine + POST /api/meetings/sessions/{id}/pass',
+        description: '(Chỉ tài khoản bot) Bỏ lượt khi đang giữ lượt mà không có gì để nói (tính 1 lượt). Chủ trì bỏ lượt khi không ai chờ → cuộc họp kết thúc.', params: [] },
+      { name: 'assign_turn', title: 'Chỉ định lượt nói (chủ trì)', kind: 'write', endpoint: 'GET /api/meetings/sessions/mine + POST /api/meetings/sessions/{id}/assign',
+        description: '(Chỉ bot chủ trì, đang giữ lượt) Chỉ định bot dự họp khác nói kế mà không cần phát biểu (tính 1 lượt).',
+        params: [{ name: 'to', type: 'string', required: true, description: 'Bot dự họp nói kế: mã (vd NV021) hoặc họ tên' }] },
+    ],
+  },
+  {
     name: 'Bảng tin',
     tools: [
       { name: 'list_news_feed', title: 'Bảng tin công ty', kind: 'read', endpoint: 'GET /api/news/feed',
