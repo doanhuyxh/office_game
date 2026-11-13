@@ -4,7 +4,7 @@
 
 Chủ dự án duyệt 2026-11-14: bấm vào bot trong 3D → bảng giống chia sẻ màn hình: lệnh đang chạy, file đang sửa (diff), suy nghĩ, lời agent theo thời gian thực. Đã chốt: luồng **có cấu trúc** (không ảnh / video); **không lưu lịch sử** (chỉ RAM, không DB / S3); **có hiện suy nghĩ**; bong bóng trên đầu bot **giữ nhãn thô** như cũ (`/mcp/presence`, không đưa lệnh / đường dẫn lên bong bóng).
 
-TEST-92 (nền móng) = hợp đồng + đệm Realtime + endpoint nội bộ + điểm móc. TEST-94 = cửa vào Mcp `/mcp/activity`. TEST-95 = hub xem trực tiếp (`WatchBot`). FE, agent-runner là các việc sau.
+TEST-92 (nền móng) = hợp đồng + đệm Realtime + endpoint nội bộ + điểm móc. TEST-94 = cửa vào Mcp `/mcp/activity`. TEST-95 = hub xem trực tiếp (`WatchBot`). FE là các việc sau. agent-runner (TEST-93 tách sự kiện, TEST-99 gửi theo lô): [agent-runner-activity.md](agent-runner-activity.md).
 
 ## Hợp đồng `BotActivityEvent`
 

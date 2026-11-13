@@ -17,6 +17,8 @@ const root = mkdtempSync(join(tmpdir(), 'runner-flow-'));
 const comments: { task: string; content: string }[] = [];
 let authOk = true;
 const presence: any[] = [];
+/** Sự kiện xem trực tiếp runner gửi tới /mcp/activity (TEST-99), theo thứ tự nhận. */
+const activity: any[] = [];
 /** Kết quả MCP list_chats (TEST-81). */
 let chats: any[] = [];
 let updatesServed = false;
@@ -58,6 +60,7 @@ beforeAll(async () => {
     async fetch(req) {
       if (req.headers.get('authorization') !== `Bearer ${TOKEN}`) authOk = false;
       if (new URL(req.url).pathname === '/mcp/presence') { presence.push(await req.json()); return new Response(null, { status: 204 }); }
+      if (new URL(req.url).pathname === '/mcp/activity') { activity.push(...(await req.json() as any).events); return new Response(null, { status: 204 }); }
       const m = await req.json() as any;
       const reply = (result: unknown) => Response.json({ jsonrpc: '2.0', id: m.id, result });
       if (m.method === 'initialize') return reply({ protocolVersion: '2025-06-18', capabilities: {} });
@@ -179,6 +182,13 @@ test('tin Telegram hợp lệ → job chạy trong worktree ngoài repo → push
   const working = presence.findIndex((p) => p.state === 'working');
   expect(presence[working]?.task).toStartWith('TEST-45');
   expect(presence.slice(working + 1).some((p) => p.state === 'idle')).toBe(true);
+  // Xem trực tiếp (TEST-99): bắt đầu phiên kèm tên việc → kết thúc phiên kèm chi phí + model thật; đã gửi xong trước khi job kết thúc
+  const start = activity.findIndex((e) => e.kind === 'session_start');
+  expect(activity[start]).toMatchObject({ id: 'session', kind: 'session_start' }); // agent thử không cấu hình model → model thật chỉ có ở session_end
+  expect(activity[start].task).toStartWith('TEST-45 · ');
+  const end = activity.slice(start + 1).find((e) => e.kind === 'session_end');
+  expect(end).toMatchObject({ id: 'session-end', ok: true, costUsd: 0.42, model: 'fake-model-1' });
+  expect(JSON.stringify(activity)).not.toContain(TOKEN);
 }, 30000);
 
 test('việc được đánh thức lại → nối phiên cũ (resume_args) trong cùng worktree', async () => {
@@ -448,7 +458,7 @@ test('chat_mention: tin Telegram → job chat trong thư mục riêng của hộ
   expect(await r.onMessage(s, wake)).toBeNull(); // không còn tin nhắc chưa đọc → không xếp hàng
 
   chats = [{ conversation: C, type: 'room', unread: 3, mentionedUnread: 1 }];
-  const before = comments.length, presenceBefore = presence.length;
+  const before = comments.length, presenceBefore = presence.length, activityBefore = activity.length;
   const id = await r.onMessage(s, wake);
   expect(id).not.toBeNull();
   expect(await r.onMessage(s, wake)).toBeNull(); // tin lặp khi job còn chờ → gộp
@@ -463,6 +473,8 @@ test('chat_mention: tin Telegram → job chat trong thư mục riêng của hộ
   expect(prompt).not.toContain('NỐI TIẾP');
   await Bun.sleep(300);
   expect(presence.slice(presenceBefore).some((p) => p.state === 'working')).toBe(false); // chat không đổi trạng thái 3D
+  // Xem trực tiếp: phiên chat chỉ có nhãn chung, không có nội dung / id hội thoại
+  expect(activity.slice(activityBefore).filter((e) => e.kind === 'session_start').map((e) => e.task)).toEqual(['Trả lời tin nhắn']);
 
   // nhắc lần nữa trong 24 giờ → nối phiên cũ của hội thoại
   await r.onMessage(s, wake);

@@ -21,7 +21,7 @@ let runner: Runner, store: Store;
 
 /** Trạng thái cuộc họp trên "OfficeHub": ai dự, ai giữ lượt; `next` = thứ tự nhận lượt sau mỗi lần nói / bỏ lượt. */
 let meeting: { active: boolean; bots: string[]; speaker: string | null; next: (string | null)[] };
-let spoken: string[], passes: string[], comments: string[], presence: any[];
+let spoken: string[], passes: string[], comments: string[], presence: any[], activity: any[];
 const advance = () => { meeting.speaker = meeting.next.shift() ?? null; };
 
 beforeAll(async () => {
@@ -38,6 +38,7 @@ beforeAll(async () => {
       const who = TOKENS[(req.headers.get('authorization') ?? '').replace('Bearer ', '')];
       if (!who) return new Response(null, { status: 401 });
       if (url.pathname === '/mcp/presence') { presence.push({ agent: who.code, ...(await req.json() as object) }); return new Response(null, { status: 204 }); }
+      if (url.pathname === '/mcp/activity') { activity.push(...(await req.json() as any).events.map((e: any) => ({ agent: who.code, ...e }))); return new Response(null, { status: 204 }); }
       const m = await req.json() as any;
       const reply = (result: unknown) => Response.json({ jsonrpc: '2.0', id: m.id, result });
       if (m.method === 'initialize') return reply({ protocolVersion: '2025-06-18', capabilities: {} });
@@ -95,7 +96,7 @@ echo '{"session_id":"sess-'$OFFICEHUB_AGENT'","model":"fake-model-1","cost_usd":
 
 beforeEach(() => {
   meeting = { active: true, bots: ['NV120', 'NV121'], speaker: 'NV120', next: [] };
-  spoken = []; passes = []; comments = []; presence = [];
+  spoken = []; passes = []; comments = []; presence = []; activity = [];
   for (const f of ['speak', 'slow']) rmSync(join(root, f), { force: true });
   store.db.run(`DELETE FROM jobs`);
   store.db.run(`DELETE FROM task_sessions`);
@@ -146,6 +147,10 @@ test('hai agent nói lần lượt: mỗi lượt một phiên ngắn chỉ tool
   expect(comments).toEqual([]);
   await Bun.sleep(200);
   expect(presence.some((p) => p.state === 'working')).toBe(false);
+  // Xem trực tiếp (TEST-99): mỗi lượt nói là một phiên có nhãn chung, không có nội dung cuộc họp
+  expect(activity.filter((e) => e.kind === 'session_start').map((e) => `${e.agent} ${e.task}`))
+    .toEqual(['NV120 Phát biểu trong cuộc họp', 'NV121 Phát biểu trong cuộc họp', 'NV120 Phát biểu trong cuộc họp']);
+  expect(activity.filter((e) => e.kind === 'session_end').length).toBe(3);
   expect(store.costsByKind('2000-01-01')).toEqual([{ kind: 'meeting', jobs: 3, cost: 0.15000000000000002 }]);
 }, 30000);
 

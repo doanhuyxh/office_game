@@ -52,6 +52,8 @@ export interface RunnerConfig {
   baseBranch: string;
   /** Định dạng log của runner: auto (terminal → pretty, còn lại json) | json | pretty. */
   logFormat: 'auto' | 'json' | 'pretty';
+  /** Gửi sự kiện "agent đang làm gì" lên OfficeHub cho người xem trực tiếp trong 3D (TEST-99). Mặc định bật. */
+  activityStream: boolean;
   /** File chạy git (TEST-46). Không đặt = "git" trong PATH. */
   gitBin: string;
   agents: AgentConfig[];
@@ -91,6 +93,8 @@ export function parseConfig(raw: unknown): RunnerConfig {
   if (!worktreesDir || !isAbsolute(worktreesDir)) p.push('runner.worktrees_dir phải là đường dẫn tuyệt đối');
   const logFormat = rn.log_format ?? 'auto';
   if (!['auto', 'json', 'pretty'].includes(logFormat)) p.push('runner.log_format là auto, json hoặc pretty');
+  if (rn.activity_stream !== undefined && typeof rn.activity_stream !== 'boolean') p.push('runner.activity_stream là true hoặc false');
+  const activityStream = rn.activity_stream !== false;
   const maxParallel = num(rn.max_parallel) ?? 2;
   if (maxParallel < 1 || maxParallel > 10) p.push('runner.max_parallel từ 1 đến 10');
 
@@ -157,7 +161,7 @@ export function parseConfig(raw: unknown): RunnerConfig {
   return {
     mcpUrl: mcpUrl!, telegramApiUrl: (str(tg.api_url) ?? 'https://api.telegram.org').replace(/\/$/, ''), groupChatId: groupChatId!,
     dataDir: resolve(dataDir!), worktreesDir: resolve(worktreesDir!), maxParallel,
-    baseBranch: str(rn.base_branch) ?? 'main', gitBin: gitBin ?? 'git', logFormat, agents,
+    baseBranch: str(rn.base_branch) ?? 'main', gitBin: gitBin ?? 'git', logFormat, activityStream, agents,
   };
 }
 

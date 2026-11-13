@@ -18,6 +18,7 @@ runner:
   max_parallel: 2                                # tổng số phiên chạy cùng lúc trên máy (mỗi agent tối đa 1 — kể cả phiên chat / họp)
                                                  # tin chat_mention / meeting_turn: phiên ngắn chỉ có tool MCP, dùng `executor` của agent; đang họp thì việc chờ
   base_branch: main
+  # activity_stream: true                       # gửi lệnh / diff / suy nghĩ của agent lên OfficeHub để người đứng gần bot trong 3D xem trực tiếp (đã che bí mật); false = tắt
   # log_format: auto                            # auto (terminal → dòng dễ đọc có màu; systemd / pipe → JSON) | json | pretty; hoặc env RUNNER_LOG_FORMAT
 
 agents:

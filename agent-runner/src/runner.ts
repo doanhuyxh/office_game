@@ -6,6 +6,8 @@ import { adapters, runExecutor, type RunOutcome } from './executor/run';
 import type { ExecutorConfig } from './config';
 import { errText, log, redact, registerSecret } from './log';
 import { OfficeHubClient } from './officehub';
+import { ActivitySender } from './activity';
+import { sessionEnd, sessionStart } from './executor/events';
 import { PresenceReporter } from './presence';
 import { buildPrompt, mcpConfig } from './prompt';
 import { chatPrompt } from './prompt/chat';
@@ -21,6 +23,8 @@ interface AgentState {
   tg: TelegramClient;
   /** Trạng thái đang làm / rảnh trong văn phòng 3D (bàn ↔ Khu nghỉ). */
   presence: PresenceReporter;
+  /** Luồng "agent đang làm gì" cho người xem trực tiếp trong 3D (TEST-99). */
+  activity: ActivitySender;
   employeeId?: string;
   enabled: boolean;
   problem?: string;
@@ -44,6 +48,7 @@ export class Runner {
       this.agents.set(a.employeeCode, {
         cfg: a, hub: new OfficeHubClient(config.mcpUrl, a.token), tg: new TelegramClient(config.telegramApiUrl, a.telegramToken), enabled: false,
         presence: new PresenceReporter(config.mcpUrl, a.token, a.employeeCode),
+        activity: new ActivitySender(config.mcpUrl, a.token, a.employeeCode, config.activityStream),
       });
     }
   }
@@ -314,9 +319,10 @@ export class Runner {
   /**
    * Chạy CLI của agent cho một job: ghi prompt + cấu hình MCP vào thư mục tạm của job, env riêng (không kế thừa env runner), log từng thao tác.
    * `presence` = có báo thao tác lên văn phòng 3D không; `noBuiltinTools` = chỉ tool MCP.
+   * `label` = tên phiên người xem trực tiếp thấy ("MÃ · tên việc"; chat / họp: nhãn chung, không có nội dung tin).
    */
   private async runSession(s: AgentState, job: Job, signal: AbortSignal,
-    o: { cwd: string; prompt: string; resume?: string; exec?: ExecutorConfig; noBuiltinTools?: boolean; presence: boolean }): Promise<RunOutcome> {
+    o: { cwd: string; prompt: string; resume?: string; exec?: ExecutorConfig; noBuiltinTools?: boolean; presence: boolean; label: string }): Promise<RunOutcome> {
     const jobDir = this.jobDir(job), exec = o.exec ?? s.cfg.executor;
     mkdirSync(jobDir, { recursive: true });
     const promptFile = join(jobDir, 'prompt.md'), mcpFile = join(jobDir, 'mcp.json');
@@ -331,8 +337,17 @@ export class Runner {
     };
     // Dòng đầu job ghi model: adapter claude tự báo từ sự kiện system/init; adapter khác chỉ biết model cấu hình.
     if (!adapters[exec.kind]?.activity) onActivity(`Model ${exec.model ? `${exec.model} (cấu hình)` : 'mặc định của CLI'}`);
-    const out = await runExecutor({ cwd: o.cwd, jobDir, promptFile, prompt: o.prompt, mcpConfigFile: mcpFile, resumeSessionId: o.resume, exec,
-      noBuiltinTools: o.noBuiltinTools, onActivity }, env, signal);
+    // Người đứng gần bot trong 3D xem trực tiếp: bắt đầu phiên → từng thao tác → kết thúc phiên (gửi nốt, chờ tối đa 3 giây).
+    s.activity.push(sessionStart(o.label, exec.model));
+    let out: RunOutcome | undefined;
+    try {
+      out = await runExecutor({ cwd: o.cwd, jobDir, promptFile, prompt: o.prompt, mcpConfigFile: mcpFile, resumeSessionId: o.resume, exec,
+        noBuiltinTools: o.noBuiltinTools, onActivity, onEvent: s.activity.active ? (e) => s.activity.push(e) : undefined }, env, signal);
+    } finally {
+      const failed = !out || out.exitCode !== 0 || out.timedOut;
+      s.activity.push(sessionEnd(out ? { ...out, isError: out.isError || failed } : { isError: true }, o.label));
+      await s.activity.drain();
+    }
     if (out.model && !out.modelFromConfig && !modelMatches(exec.model, out.model))
       log('warn', 'model thật khác cấu hình', { job: job.id, agent: job.agent, task: job.task_code, model: out.model, configured: exec.model });
     return out;
@@ -367,7 +382,7 @@ export class Runner {
     const fresh = !!prev && Date.now() - Date.parse(prev.updated_at) < CHAT_SESSION_HOURS * 3_600_000;
     const resume = fresh && prev!.agent === job.agent && prev!.session_id ? prev!.session_id : undefined;
     const out = await this.runSession(s, job, signal, {
-      cwd, prompt: chatPrompt(job.agent, c.value.conversation, !!resume), resume, noBuiltinTools: true, presence: false,
+      cwd, prompt: chatPrompt(job.agent, c.value.conversation, !!resume), resume, noBuiltinTools: true, presence: false, label: 'Trả lời tin nhắn',
     });
     this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd);
     this.finishJob(job, out);
@@ -392,7 +407,7 @@ export class Runner {
     const exec = { ...s.cfg.executor, timeoutMin: Math.min(s.cfg.executor.timeoutMin, MEETING_TURN_MAX_MIN) };
     try {
       const out = await this.runSession(s, job, signal, {
-        cwd, prompt: meetingPrompt(job.agent, session, !!resume), resume, exec, noBuiltinTools: true, presence: false,
+        cwd, prompt: meetingPrompt(job.agent, session, !!resume), resume, exec, noBuiltinTools: true, presence: false, label: 'Phát biểu trong cuộc họp',
       });
       this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd);
       this.finishJob(job, out);
@@ -461,7 +476,8 @@ export class Runner {
       const prev = this.store.session(job.task_id);
       const resume = prev?.agent === job.agent && prev.session_id ? prev.session_id : undefined;
       const prompt = buildPrompt(w, { mode, branch: ws.branch, resumed: ws.reused || !!resume });
-      const out = await this.runSession(s, job, signal, { cwd: ws.path, prompt, resume, noBuiltinTools: mode === 'none', presence: true });
+      const out = await this.runSession(s, job, signal, { cwd: ws.path, prompt, resume, noBuiltinTools: mode === 'none', presence: true,
+        label: `${job.task_code} · ${c.value.title}` });
       this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, ws.branch, ws.path);
 
       let prUrl: string | undefined, note = '';
@@ -508,7 +524,7 @@ export class Runner {
 
   stop() {
     this.abort.abort();
-    for (const s of this.agents.values()) s.presence.stop();
+    for (const s of this.agents.values()) { s.presence.stop(); s.activity.stop(); }
     for (const c of this.running.values()) c.abort();
   }
 }
