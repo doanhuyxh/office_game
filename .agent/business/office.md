@@ -30,6 +30,7 @@ Mặt bằng **68 × 30 m (2 040 m²)** = lõi 50 × 30 m chủ dự án duyệt
 | | `SendChat(text)` / `SendRoomChat(text)` | toàn văn phòng / chỉ phòng có tường đang đứng |
 | | `RefreshLook()` | vừa lưu nhân vật → server đọc lại từ Api rồi phát `LookChanged` (1 lần / 2 s) |
 | | `PinScreen` / `ClearScreen` / `GetScreen` ↔ `ScreenChanged` | chiếu tài liệu lên màn hình phòng: [office-documents.md](office-documents.md) |
+| | `WatchBot(botUserId)` / `UnwatchBot()` ↔ `BotActivity`, `BotWatchEnded` | xem trực tiếp bot đang làm gì (TEST-95) — chỉ trong phạm vi nghe được (luật voice, server kiểm): [office-bots-activity.md](office-bots-activity.md) |
 
 Quy tắc server:
 

@@ -54,6 +54,22 @@ public sealed record OfficeMap(int Version, string Name, double Grid, Rect Floor
         Rooms.FirstOrDefault(r => r.Walls && r.Contains(x, z)) is { } room
             ? new VoiceChannel(room.Id, room.Voice == "room")
             : new VoiceChannel(VoiceChannel.Open, false);
+
+    /// <summary>Ngưỡng nghe theo khoảng cách (m) — PHẢI khớp VOICE_FAR ở FE (engine/voiceChannel.ts: voiceVolume tắt hẳn từ 6 m).</summary>
+    public const double HearRange = 6;
+
+    /// <summary>
+    /// Hai vị trí nghe được nhau (luật voice — TEST-95 dùng cho phạm vi xem bot): phải cùng kênh (<see cref="VoiceAt"/>);
+    /// phòng <c>voice: "room"</c> (họp) → cả phòng; còn lại (khu mở, phòng có tường khác) → cách nhau ≤ <see cref="HearRange"/> + <paramref name="slack"/>.
+    /// </summary>
+    public bool CanHear(double x1, double z1, double x2, double z2, double slack = 0)
+    {
+        var channel = VoiceAt(x1, z1);
+        if (channel.Id != VoiceAt(x2, z2).Id) return false;
+        if (channel.Meeting) return true;
+        double dx = x1 - x2, dz = z1 - z2, range = HearRange + slack;
+        return dx * dx + dz * dz <= range * range;
+    }
 }
 
 /// <summary>Kênh voice. <c>Meeting</c> = phòng có <c>voice: "room"</c>: cả phòng nghe rõ như nhau.</summary>

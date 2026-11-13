@@ -1,10 +1,10 @@
 # Luồng hoạt động bot — "xem trực tiếp agent đang làm gì"
 
-> Phần tiếp của [office-bots.md](office-bots.md) / [office-bots-work.md](office-bots-work.md). Code: `BuildingBlocks/Office/BotActivityFeed.cs` (hợp đồng), `OfficeHub.Realtime/Simulation/BotActivityFeed.cs` (đệm RAM), `Hubs/BotActivityFeedEndpoints.cs`, dọn trong `BotSweeper` (`Hubs/BotEndpoints.cs`); cửa vào Mcp: `OfficeHub.Mcp/Program.cs` (`/mcp/activity`), `Infrastructure/BotActivityGate.cs`, `BotPresenceReporter.ReportActivityAsync`. Test: `tests/OfficeHub.Realtime.Tests/BotActivityFeedTests.cs`, `tests/OfficeHub.Mcp.Tests/BotActivityGateTests.cs`.
+> Phần tiếp của [office-bots.md](office-bots.md) / [office-bots-work.md](office-bots-work.md). Code: `BuildingBlocks/Office/BotActivityFeed.cs` (hợp đồng), `OfficeHub.Realtime/Simulation/BotActivityFeed.cs` (đệm RAM), `Hubs/BotActivityFeedEndpoints.cs`, dọn trong `BotSweeper` (`Hubs/BotEndpoints.cs`); hub xem trực tiếp: `Simulation/BotWatch.cs` + `WatchBot` / `UnwatchBot` trong `Hubs/OfficeRoomHub.cs`; cửa vào Mcp: `OfficeHub.Mcp/Program.cs` (`/mcp/activity`), `Infrastructure/BotActivityGate.cs`, `BotPresenceReporter.ReportActivityAsync`. Test: `tests/OfficeHub.Realtime.Tests/BotActivityFeedTests.cs`, `BotWatchTests.cs`, `tests/OfficeHub.Mcp.Tests/BotActivityGateTests.cs`.
 
 Chủ dự án duyệt 2026-11-14: bấm vào bot trong 3D → bảng giống chia sẻ màn hình: lệnh đang chạy, file đang sửa (diff), suy nghĩ, lời agent theo thời gian thực. Đã chốt: luồng **có cấu trúc** (không ảnh / video); **không lưu lịch sử** (chỉ RAM, không DB / S3); **có hiện suy nghĩ**; bong bóng trên đầu bot **giữ nhãn thô** như cũ (`/mcp/presence`, không đưa lệnh / đường dẫn lên bong bóng).
 
-TEST-92 (nền móng) = hợp đồng + đệm Realtime + endpoint nội bộ + điểm móc. TEST-94 = cửa vào Mcp `/mcp/activity`. Hub xem, FE, agent-runner là các việc sau.
+TEST-92 (nền móng) = hợp đồng + đệm Realtime + endpoint nội bộ + điểm móc. TEST-94 = cửa vào Mcp `/mcp/activity`. TEST-95 = hub xem trực tiếp (`WatchBot`). FE, agent-runner là các việc sau.
 
 ## Hợp đồng `BotActivityEvent`
 
@@ -49,7 +49,18 @@ Cho agent-runner / bên ngoài gửi sự kiện bằng **token AI của bot** (
 - `BotSweeper` (15 s): bot offline (`BotPresence.Expire`, 5 phút không gọi tool) → `Clear`; đệm không có sự kiện mới quá 5 phút (`BotActivityFeed.Idle`) → xoá.
 - `Snapshot(userId)` — bản sao đệm cho người mới mở bảng.
 
-## Điểm móc cho hub xem (việc sau)
+## Điểm móc cho hub xem
 
-- `event Appended(userId, BotActivityEvent)` — sự kiện mới / cập nhật (cập nhật giữ `seq` → client thay theo `id`), gồm cả `session_end`. Gọi **trong khoá của bot** để giữ đúng thứ tự `seq`: người nghe chỉ được xếp hàng gửi (không `await`, không chặn).
+- `event Appended(userId, BotActivityEvent)` — sự kiện mới / cập nhật (cập nhật giữ `seq` → client thay theo `id`), gồm cả `session_end`. Gọi **trong khoá của bot** để giữ đúng thứ tự `seq`: người nghe chỉ được xếp hàng gửi (không `await`, không chặn). `BotWatch` nghe cả hai móc theo đúng luật này.
 - `event Cleared(userId)` — đệm bị xoá do offline / rảnh (chỉ phát khi đệm còn sự kiện).
+
+## Hub xem trực tiếp (TEST-95 — `Simulation/BotWatch.cs`, hub `/rt/hub/office`)
+
+Chủ dự án chốt 2026-11-14: văn phòng là không gian mở nên **ai bấm vào bot cũng xem được**, nhưng phải **đứng trong phạm vi nghe được** — kiểm ở back-end, không tin client.
+
+**Phạm vi nghe được** (`OfficeMap.CanHear`, dùng lại luật voice): người xem và bot **cùng kênh voice** (`OfficeMap.VoiceAt`); phòng `voice: "room"` (họp / gọi) → cả phòng; còn lại (khu mở, phòng có tường khác) → cách nhau ≤ `OfficeMap.HearRange` = **6 m** (hằng số dùng chung, PHẢI khớp `VOICE_FAR` ở FE `engine/voiceChannel.ts`).
+
+- `WatchBot(botUserId)` (client → server): người gọi phải đang trong hub; bot phải đang hiện trong 3D (người thật của tài khoản đang trong văn phòng → không xem được); ngoài phạm vi → `HubException("Hãy lại gần hơn để xem")`. Trả `BotWatchDto { botId, name, busy, task, events[] }` = đệm phiên hiện tại (≤ 200). Mỗi kết nối xem **một** bot — gọi `WatchBot` khác = đổi.
+- `UnwatchBot()` — thôi xem; ngắt kết nối cũng tự thôi.
+- Server → client `BotActivity(BotActivityDto { botId, events[], busy, task, cleared })`: sự kiện mới / cập nhật (cùng `id` + `seq` → FE thay theo `id`), **gộp ≤ 4 lần / giây** (`BotWatch.FlushEvery` 250 ms), chỉ gửi người đang xem bot đó; `busy`/`task` đổi (bot rảnh / `session_start` / `session_end`) cũng đẩy một lô (events có thể rỗng); `cleared` = đệm bị xoá vì rảnh quá lâu → FE xoá bảng.
+- Tự ngắt (`BotWatchGuard` kiểm mỗi giây như VoiceGuard, KHÔNG kiểm trên mỗi `Move`): ra ngoài phạm vi **+1 m** (7 m) hoặc đổi kênh quá **3 giây**, bot offline / người thật vào văn phòng, người xem rời hub → `BotWatchEnded(botId, reason)` với reason `range` / `offline` / `left` rồi ngừng phát.

@@ -43,6 +43,8 @@ builder.Services.AddSingleton(OfficeMap.Load(mapPath));
 builder.Services.AddSingleton<Presence>();
 builder.Services.AddSingleton<BotPresence>();
 builder.Services.AddSingleton<BotActivityFeed>(); // luồng "agent đang làm gì" (RAM, TEST-92)
+builder.Services.AddSingleton<BotWatch>();        // ai đang xem bot nào qua hub WatchBot (TEST-95)
+builder.Services.AddHostedService<BotWatchGuard>();
 builder.Services.AddHostedService<BotSweeper>();
 builder.Services.AddHostedService<AgentMeetingWatch>(); // họp agent: bot đi vào / rời phòng họp (TEST-76)
 builder.Services.AddSingleton<OfficeHub.Realtime.Screens.RoomScreens>();

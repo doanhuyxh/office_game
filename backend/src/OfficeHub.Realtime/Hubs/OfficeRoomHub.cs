@@ -46,11 +46,15 @@ public interface IOfficeClient
     Task ScreenChanged(string roomId, ScreenDto? screen);
     /// <summary>Bot của tài khoản <paramref name="id"/> đang làm gì (null = hết hoạt động) — gắn lên avatar bot hoặc avatar người thật.</summary>
     Task BotStatus(string id, string? status);
+    /// <summary>Lô sự kiện "agent đang làm gì" cho NGƯỜI ĐANG XEM bot đó (WatchBot, TEST-95) — gộp ≤ 4 lần / giây, kèm trạng thái đang làm / rảnh.</summary>
+    Task BotActivity(BotActivityDto batch);
+    /// <summary>Phiên xem bot kết thúc: reason = <see cref="BotWatch.EndedRange"/> / <see cref="BotWatch.EndedOffline"/> / <see cref="BotWatch.EndedLeft"/>.</summary>
+    Task BotWatchEnded(string botId, string reason);
 }
 
 [Authorize]
 public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap map, SessionValidator sessions, VoiceGuard voice, RoomScreens screens, BotScreens botScreens,
-    ChatApi chatApi, ChatFanout chatFanout, TimeProvider clock, ILogger<OfficeRoomHub> log) : Hub<IOfficeClient>
+    BotWatch botWatch, ChatApi chatApi, ChatFanout chatFanout, TimeProvider clock, ILogger<OfficeRoomHub> log) : Hub<IOfficeClient>
 {
     public const string Path = "/rt/hub/office";
     /// <summary>Group SignalR của mọi người trong văn phòng 3D (chat kênh Office phát vào đây).</summary>
@@ -112,6 +116,7 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
+        botWatch.Stop(Context.ConnectionId); // đang xem bot thì thôi xem (trước các early-return bên dưới)
         if (Context.UserIdentifier is not { } uid || !presence.TryGet(uid, out var p) || !presence.Remove(uid, Context.ConnectionId)) return;
         // Rời văn phòng (đóng tab, bị khoá tài khoản…) → rời luôn voice. Mở tab mới thì không vào đây (kết nối cũ không còn là kết nối hiện tại).
         if (p.VoiceRoom is { } voiceRoom) voice.Kick(voiceRoom, uid);
@@ -278,6 +283,20 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
         if (botScreens.Get(room.Id) is { } bot) botScreens.End(room.Id, bot); // TEST-18: tắt là hết ngay, không đợi BotSweeper (link ảnh hết hiệu lực)
         if (screens.Clear(room.Id)) await Clients.Clients(InRoom(room.Id)).ScreenChanged(room.Id, null);
     }
+
+    /// <summary>
+    /// Xem trực tiếp bot đang làm gì (TEST-95): phải đứng trong phạm vi nghe được của bot (<see cref="OfficeMap.CanHear"/> — luật voice,
+    /// server kiểm, không tin client). Trả đệm phiên hiện tại + trạng thái; sự kiện mới đẩy qua <see cref="IOfficeClient.BotActivity"/>.
+    /// Mỗi kết nối xem một bot — gọi với bot khác = đổi. Ra ngoài phạm vi quá 3 giây / bot offline → <see cref="IOfficeClient.BotWatchEnded"/>.
+    /// </summary>
+    public BotWatchDto WatchBot(string botUserId)
+    {
+        var (result, error) = botWatch.Start(Context.ConnectionId, UserId, (botUserId ?? "").Trim());
+        return result ?? throw new HubException(error ?? "Chưa xem được bot này");
+    }
+
+    /// <summary>Thôi xem bot (đóng bảng xem).</summary>
+    public void UnwatchBot() => botWatch.Stop(Context.ConnectionId);
 
     private List<string> InRoom(string roomId) => presence.All.Where(o => RoomOf(o)?.Id == roomId).Select(o => o.ConnectionId).ToList();
 
