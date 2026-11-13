@@ -54,6 +54,7 @@
     <Project Path="src/Modules/Leave/OfficeHub.Modules.Leave/OfficeHub.Modules.Leave.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Meetings/">
+    <Project Path="src/Modules/Meetings/OfficeHub.Modules.Meetings.Contracts/OfficeHub.Modules.Meetings.Contracts.csproj" />
     <Project Path="src/Modules/Meetings/OfficeHub.Modules.Meetings/OfficeHub.Modules.Meetings.csproj" />
   </Folder>
   <Folder Name="/src/Modules/News/">

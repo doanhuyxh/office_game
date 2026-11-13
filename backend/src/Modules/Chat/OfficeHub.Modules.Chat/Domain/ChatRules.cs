@@ -12,6 +12,8 @@ public static class ChatRules
     public const long MaxFileSize = 25L * 1024 * 1024;
     public const int MaxPreviewLength = 80;
     public const string DeletedPreview = "Tin nhắn đã thu hồi";
+    /// <summary>Người gửi tin hệ thống (SenderId rỗng) — vd báo kết thúc họp agent trong kênh phòng (TEST-75).</summary>
+    public const string SystemSenderName = "OfficeHub";
     /// <summary>Tối đa số tin một bot (token AI) gửi trong 1 giờ — chặn vòng lặp / spam (chủ dự án chốt 2026-11-11).</summary>
     public const int BotMessagesPerHour = 60;
     public static readonly TimeSpan BotQuotaWindow = TimeSpan.FromHours(1);

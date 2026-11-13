@@ -27,6 +27,11 @@ public interface ITelegramWakeup
     /// Người gọi bỏ người gửi và bỏ hẳn khi người gửi là bot (chống vòng lặp bot ↔ bot); người nhận không phải bot / đã khoá → bỏ qua.</summary>
     Task ChatMentionedAsync(Guid userId, string employeeCode, Guid conversationId, Guid messageId, CancellationToken ct = default);
 
+    /// <summary>Bot dự họp agent vừa nhận lượt nói (TEST-75) → tin <c>event: meeting_turn</c> + <c>session_id</c> / <c>conversation_id</c> (kênh phòng);
+    /// agent đọc kênh bằng MCP read_chat rồi nói đúng một tin (hoặc bỏ / chỉ định lượt). Người gọi chỉ gửi cho bot vừa nhận lượt — trường hợp DUY NHẤT
+    /// tin của bot đánh thức bot khác; người nhận không phải bot / đã khoá → bỏ qua.</summary>
+    Task MeetingTurnAsync(Guid userId, string employeeCode, Guid sessionId, Guid conversationId, CancellationToken ct = default);
+
     /// <summary>Nút "Gửi thử": gửi ngay (không qua hàng đợi) một tin thử vào nhóm. Trả (thành công, thông điệp).</summary>
     Task<(bool Ok, string Message)> SendTestAsync(CancellationToken ct = default);
 }
@@ -40,6 +45,8 @@ public static partial class TelegramRules
     public const string Ready = "ready";
     /// <summary>Bot được @nhắc trong tin nhắn chat (TEST-70) — tin không có task_id / project_id.</summary>
     public const string ChatMention = "chat_mention";
+    /// <summary>Bot dự họp agent tới lượt nói (TEST-75) — tin không có task_id / project_id / nội dung.</summary>
+    public const string MeetingTurn = "meeting_turn";
 
     /// <summary>
     /// Tin đánh thức: một dòng JSON. Agent đọc nhóm và tự nhận việc theo <c>employee_code</c> (TEST-48: không nhắc bot riêng).
@@ -62,6 +69,14 @@ public static partial class TelegramRules
         JsonSerializer.Serialize(new Dictionary<string, string>
         {
             ["employee_code"] = employeeCode, ["event"] = ChatMention, ["conversation_id"] = conversationId.ToString(), ["message_id"] = messageId.ToString(),
+        });
+
+    /// <summary>Tin đánh thức khi bot dự họp agent tới lượt nói (TEST-75): employee_code, event = <see cref="MeetingTurn"/>, session_id, conversation_id.
+    /// KHÔNG có nội dung (agent tự đọc kênh phòng qua MCP read_chat).</summary>
+    public static string MeetingWakeMessage(string employeeCode, Guid sessionId, Guid conversationId) =>
+        JsonSerializer.Serialize(new Dictionary<string, string>
+        {
+            ["employee_code"] = employeeCode, ["event"] = MeetingTurn, ["session_id"] = sessionId.ToString(), ["conversation_id"] = conversationId.ToString(),
         });
 
     /// <summary>Chat id: số (nhóm / siêu nhóm "-100…", người dùng) hoặc "@tenkenh".</summary>

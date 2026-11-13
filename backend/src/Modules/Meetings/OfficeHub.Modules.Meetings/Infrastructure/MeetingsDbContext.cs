@@ -51,6 +51,8 @@ public sealed class MeetingsDbContext(DbContextOptions<MeetingsDbContext> option
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(10);
             e.Property(x => x.EndReason).HasConversion<string>().HasMaxLength(20);
             e.Ignore(x => x.ExpiresAt);
+            e.Ignore(x => x.TurnDeadline);
+            e.Property(x => x.QueuedSpeakerIds).HasDefaultValueSql("'{}'::uuid[]"); // hàng chờ lượt nói (TEST-75)
             // Mỗi phòng tối đa một phiên đang họp — chốt chặn cuối sau khoá theo phòng khi mở.
             e.HasIndex(x => x.RoomId).IsUnique().HasFilter("\"Status\" = 'Active'").HasDatabaseName("ux_agent_sessions_room_active");
             e.HasIndex(x => new { x.Status, x.StartedAt }).HasDatabaseName("ix_agent_sessions_status_started");

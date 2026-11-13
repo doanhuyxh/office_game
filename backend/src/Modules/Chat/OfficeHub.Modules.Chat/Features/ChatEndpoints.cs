@@ -11,6 +11,7 @@ using OfficeHub.BuildingBlocks.Text;
 using OfficeHub.Modules.Chat.Domain;
 using OfficeHub.Modules.Chat.Infrastructure;
 using OfficeHub.Modules.Identity.Contracts;
+using OfficeHub.Modules.Meetings.Contracts;
 using OfficeHub.Modules.Notification.Contracts;
 using OfficeHub.Modules.Organization.Contracts;
 
@@ -99,6 +100,10 @@ public static class ChatEndpoints
         return acc?.IsBot == true ? null : TypedResults.Problem(ChatRules.AiNotBotMessage, statusCode: StatusCodes.Status403Forbidden);
     }
 
+    /// <summary>Người gửi là bot: token AI hoặc tài khoản gắn cờ bot đăng nhập web.</summary>
+    private static async Task<bool> SenderIsBotAsync(ClaimsPrincipal user, Guid me, IAccountService accounts, CancellationToken ct) =>
+        user.IsAccessToken() || (await accounts.GetAsync(me, ct))?.IsBot == true;
+
     /// <summary>Bot không thấy kênh phòng (như không tồn tại).</summary>
     private static bool HiddenForAi(ClaimsPrincipal user, Conversation conv) => user.IsAccessToken() && !ChatRules.BotCanUse(conv.Type);
 
@@ -172,7 +177,7 @@ public static class ChatEndpoints
 
     private static async Task<Results<Ok<SendResultDto>, ProblemHttpResult, ValidationProblem>> SendAsync(string id, SendRequest req,
         ClaimsPrincipal user, ChatDbContext db, ChatStore store, ChatThrottle throttle, IFileStorage files, IPushSender push, IAccountService accounts,
-        IWebhookPublisher webhooks, ITelegramWakeup telegram, TimeProvider clock, CancellationToken ct)
+        IWebhookPublisher webhooks, ITelegramWakeup telegram, IAgentMeetingTurns meetings, TimeProvider clock, CancellationToken ct)
     {
         if (await AiGuardAsync(user, accounts, ct) is { } denied) return denied;
         var me = Me(user);
@@ -205,6 +210,10 @@ public static class ChatEndpoints
                 return TypedResults.Problem($"Bot đã gửi {ChatRules.BotMessagesPerHour} tin trong 1 giờ qua — đợi rồi gửi tiếp",
                     statusCode: StatusCodes.Status429TooManyRequests);
         }
+        // Họp agent (TEST-75): kênh phòng đang họp → bot dự họp chỉ nói khi giữ lượt, bot khác không nhắn vào; người thật nhắn tự do
+        var gate = conv.Type == ConversationType.Room && conv.RoomId is { } meetingRoom ? await meetings.GateAsync(meetingRoom, me, ct) : null;
+        if (gate is { IsAttendee: true, Denied: { } notYourTurn }) return Problems.Conflict(notYourTurn);
+        if (gate is { IsAttendee: false } && await SenderIsBotAsync(user, me, accounts, ct)) return Problems.Conflict(AgentMeetingTurnsText.NotAttendee);
         if (!throttle.TryAcquire(me)) return TypedResults.Problem("Gửi chậm lại một chút", statusCode: StatusCodes.Status429TooManyRequests);
 
         var tickets = uploadIds.Count == 0 ? [] : await db.UploadTickets.Where(t => uploadIds.Contains(t.Id) && t.UserId == me && t.ConversationId == conv.Id).ToListAsync(ct);
@@ -250,7 +259,9 @@ public static class ChatEndpoints
         // Người được @nhắc nhận push riêng "… nhắc bạn" (kể cả ở Office) ở MentionNotifyAsync — không push hai lần.
         if (recipients is not null)
             await push.PushAsync(recipients.Where(r => r != me && !msg.MentionedUserIds.Contains(r)), msg.SenderName, preview, $"/chat?c={conv.Id}", ct);
-        await MentionNotifyAsync(user, conv, msg, msg.MentionedUserIds, preview, store, push, accounts, webhooks, telegram, ct);
+        // Đổi lượt sau khi lưu; bot vừa nhận lượt đã được đánh thức bằng meeting_turn → bỏ chat_mention trùng
+        var woken = gate is null ? [] : await meetings.OnMessageAsync(conv.RoomId!, conv.Id, me, msg.MentionedUserIds, ct);
+        await MentionNotifyAsync(user, conv, msg, msg.MentionedUserIds, preview, store, push, accounts, webhooks, telegram, ct, woken);
         // Tin 1-1 → webhook cá nhân của người nhận (đánh thức agent; người không đặt webhook bỏ qua). Office / kênh phòng: không (quá ồn).
         if (conv.Type == ConversationType.Direct && recipients is not null)
             await webhooks.PublishAsync(recipients.Where(r => r != me).ToList(), WebhookEvents.ChatMessage, new
@@ -288,13 +299,17 @@ public static class ChatEndpoints
     /// <summary>Sửa nội dung tin của chính mình trong 24 giờ (tệp đính kèm giữ nguyên). Tin không có tệp thì phải còn chữ.</summary>
     private static async Task<Results<Ok<SendResultDto>, ProblemHttpResult, ValidationProblem>> EditAsync(Guid id, EditRequest req,
         ClaimsPrincipal user, ChatDbContext db, ChatStore store, IPushSender push, IAccountService accounts, IWebhookPublisher webhooks,
-        ITelegramWakeup telegram, TimeProvider clock, CancellationToken ct)
+        ITelegramWakeup telegram, IAgentMeetingTurns meetings, TimeProvider clock, CancellationToken ct)
     {
         var me = Me(user);
         var msg = await store.MessagesWithDetails().FirstOrDefaultAsync(m => m.Id == id && m.SenderId == me, ct);
         if (msg is null || msg.DeletedAt is not null) return Problems.NotFound("tin nhắn");
         var conv = await db.Conversations.FirstAsync(c => c.Id == msg.ConversationId, ct);
         if (!await store.CanAccessAsync(conv, me, ct)) return Problems.NotFound("tin nhắn");
+        // Họp agent (TEST-75): sửa tin không qua lượt nói (đổi @nhắc) → bot không sửa tin trong kênh phòng đang họp
+        if (conv.Type == ConversationType.Room && conv.RoomId is { } meetingRoom && await meetings.GateAsync(meetingRoom, me, ct) is not null
+            && await SenderIsBotAsync(user, me, accounts, ct))
+            return Problems.Conflict(AgentMeetingTurnsText.EditBlocked);
 
         var now = clock.GetUtcNow();
         if (!ChatRules.CanEdit(msg.CreatedAt, now)) return Problems.Conflict(ChatRules.EditExpiredMessage);
@@ -380,8 +395,9 @@ public static class ChatEndpoints
     /// Báo người được @nhắc: push "… nhắc bạn · nơi" (không chuông / email — chat.md). Người gửi không phải bot → thêm webhook <c>chat.mention</c>
     /// và Telegram đánh thức tài khoản bot được nhắc; người gửi là bot (token AI hoặc tài khoản bot trên web) → không đánh thức (chống vòng lặp bot ↔ bot).
     /// </summary>
+    /// <param name="woken">Bot vừa được đánh thức bằng <c>meeting_turn</c> (họp agent) — vẫn nhận push, bỏ webhook / Telegram <c>chat_mention</c> trùng.</param>
     private static async Task MentionNotifyAsync(ClaimsPrincipal user, Conversation conv, Message msg, IReadOnlyList<Guid> targets, string preview, ChatStore store,
-        IPushSender push, IAccountService accounts, IWebhookPublisher webhooks, ITelegramWakeup telegram, CancellationToken ct)
+        IPushSender push, IAccountService accounts, IWebhookPublisher webhooks, ITelegramWakeup telegram, CancellationToken ct, IReadOnlyList<Guid>? woken = null)
     {
         if (targets.Count == 0) return;
         var where = conv.Type switch
@@ -395,6 +411,8 @@ public static class ChatEndpoints
 
         var senderIsBot = msg.ByBot || (await accounts.GetAsync(msg.SenderId, ct))?.IsBot == true;
         if (senderIsBot) return;
+        if (woken is { Count: > 0 }) targets = targets.Where(t => !woken.Contains(t)).ToList();
+        if (targets.Count == 0) return;
         await webhooks.PublishAsync(targets.ToList(), WebhookEvents.ChatMention, new
         {
             conversationId = conv.Id, conversationType = conv.Type.ToString(), title = where, messageId = msg.Id, seq = msg.Seq, senderId = msg.SenderId,

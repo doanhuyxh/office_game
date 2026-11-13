@@ -2,7 +2,7 @@
 
 > Về [notifications.md](notifications.md) · cấu hình lưu DB: [../env.md](../env.md#cấu-hình-lưu-trong-db-test-41) · bối cảnh agent: [agent-team.md](agent-team.md)
 
-**Mục đích:** khi một việc được **giao cho tài khoản bot** (cờ IsBot), OfficeHub gửi **đúng một tin** vào một nhóm Telegram. Bộ điều phối trên máy chạy agent đọc tin rồi cho agent làm việc đó (TEST-44). Hiện có năm sự kiện: **giao việc**, **trả lại việc** (lùi kèm lý do), **việc hết phải chờ** (TEST-86), **bot được @nhắc trong bình luận việc** và **bot được @nhắc trong tin nhắn chat** (TEST-70); thông báo khác chưa đi qua Telegram. Thêm sự kiện Telegram = thêm phương thức `ITelegramWakeup` **và** dòng trong danh mục sự kiện ([notifications-catalog.md](notifications-catalog.md), test bắt buộc).
+**Mục đích:** khi một việc được **giao cho tài khoản bot** (cờ IsBot), OfficeHub gửi **đúng một tin** vào một nhóm Telegram. Bộ điều phối trên máy chạy agent đọc tin rồi cho agent làm việc đó (TEST-44). Hiện có sáu sự kiện: **giao việc**, **trả lại việc** (lùi kèm lý do), **việc hết phải chờ** (TEST-86), **bot được @nhắc trong bình luận việc**, **bot được @nhắc trong tin nhắn chat** (TEST-70) và **bot tới lượt nói trong họp agent** (TEST-75); thông báo khác chưa đi qua Telegram. Thêm sự kiện Telegram = thêm phương thức `ITelegramWakeup` **và** dòng trong danh mục sự kiện ([notifications-catalog.md](notifications-catalog.md), test bắt buộc).
 
 ## Cấu hình
 
@@ -20,6 +20,8 @@
 **Được @nhắc (TEST-63):** `AddCommentAsync` → `ITelegramWakeup.TaskMentionedAsync` cho mỗi thành viên dự án được `@mã-NV` (`AgentTeamRules.MentionWakeTargets`): còn làm việc, có tài khoản, **không phải người viết** (bot tự nhắc mình → không gửi); **gồm cả người làm việc** (chuông bình luận không đánh thức agent). Người thật / bot đã khoá bị bỏ trong `TelegramWakeup` như các sự kiện khác. Tin `event: mentioned` + `comment_id` (hàng đợi `Kind = task_mentioned`). Bot nhắc bot vẫn bị chặn vòng lặp bởi `StreakErrorAsync` (bình luận bị 409 → không có tin).
 
 **Được @nhắc trong chat (TEST-70):** `ChatEndpoints` (gửi / sửa tin ở Office / Room / Group) → `ITelegramWakeup.ChatMentionedAsync` cho mỗi người được nhắc (đã lọc thành viên, bỏ người gửi); bỏ hẳn khi người gửi là bot (chống vòng lặp). Tin `{"employee_code","event":"chat_mention","conversation_id","message_id"}` — **không** có task_id / nội dung (`TelegramRules.ChatWakeMessage`; hàng đợi `Kind = chat_mention`, `TaskId` trống). Agent đọc bằng MCP `read_chat`. **Runner** hiện bỏ qua tin này (validator đòi `project_id` / `task_id` GUID) — xử lý `chat_mention` do người thật sửa `agent-runner/`.
+
+**Tới lượt nói trong họp agent (TEST-75):** `AgentMeetingTurnService` → `ITelegramWakeup.MeetingTurnAsync` chỉ cho bot vừa nhận lượt ([meetings-agents.md](meetings-agents.md#lượt-nói-test-75)). Tin `{"employee_code","event":"meeting_turn","session_id","conversation_id"}` (`TelegramRules.MeetingWakeMessage`; hàng đợi `Kind = meeting_turn`, `TaskId` trống) — không nội dung; agent đọc kênh phòng bằng `read_chat`. Runner hiện bỏ qua như `chat_mention`.
 
 Tin = một dòng JSON (không nhắc bot, không có tên / mô tả việc / nội dung bình luận — agent tự đọc qua MCP):
 ```

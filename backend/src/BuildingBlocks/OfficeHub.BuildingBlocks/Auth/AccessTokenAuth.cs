@@ -102,6 +102,8 @@ public static class AccessTokenAuth
         ("POST", Exact($"/api/projects/tasks/{Id}/(move|comments)")),
         ("PUT", Exact($"/api/projects/tasks/{Id}/dependencies")), // việc phải chờ (2026-11-11, đội agent chuyền việc)
         ("PUT", Exact($"/api/projects/{Id}/guide")),               // hướng dẫn làm việc (quản lý dự án / HR — Api kiểm)
+        // Họp agent (TEST-75): bot giữ lượt bỏ lượt / bot chủ trì chỉ định người nói kế — Api kiểm bot dự họp + đang giữ lượt. Mở / dừng vẫn chỉ người thật.
+        ("POST", Exact($"/api/meetings/sessions/{Id}/(pass|assign)")),
         // Phòng ban (HR — Api tự yêu cầu AuthPolicies.Hr): tạo / sửa / xoá mềm.
         ("POST", Exact("/api/org/departments/?")),
         ("PUT", Exact($"/api/org/departments/{Id}")),

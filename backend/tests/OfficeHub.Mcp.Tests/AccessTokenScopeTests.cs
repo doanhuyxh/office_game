@@ -406,6 +406,8 @@ public class MeetingToolTests
     [InlineData("GET", "/api/meetings/bookings/now")]
     [InlineData("GET", "/api/meetings/sessions")]
     [InlineData("GET", "/api/meetings/sessions/0193a000-0000-7000-8000-000000000000")]
+    [InlineData("POST", "/api/meetings/sessions/0193a000-0000-7000-8000-000000000000/pass")]
+    [InlineData("POST", "/api/meetings/sessions/0193a000-0000-7000-8000-000000000000/assign")]
     [InlineData("POST", "/api/meetings/bookings")]
     [InlineData("DELETE", "/api/meetings/bookings/0193a000-0000-7000-8000-000000000000")]
     public void Meetings_routes_allowed_for_ai(string method, string path) => Assert.True(AccessTokenAuth.IsAllowed(method, path));
@@ -424,6 +426,8 @@ public class MeetingToolTests
     [InlineData("GET", "/api/meetings/agent-settings")]
     [InlineData("PUT", "/api/meetings/agent-settings")]
     [InlineData("GET", "/api/meetings")]
+    [InlineData("POST", "/api/meetings/sessions/abc/pass")]
+    [InlineData("POST", "/api/meetings/sessions/0193a000-0000-7000-8000-000000000000/pass/x")]
     public void Agent_meeting_open_stop_and_settings_blocked_for_ai(string method, string path) =>
         Assert.False(AccessTokenAuth.IsAllowed(method, path));
 }

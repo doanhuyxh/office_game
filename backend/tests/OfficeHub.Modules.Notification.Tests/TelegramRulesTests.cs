@@ -61,6 +61,19 @@ public class TelegramRulesTests
         Assert.Equal(m.ToString(), doc.RootElement.GetProperty("message_id").GetString());
     }
 
+    [Fact]
+    public void Meeting_turn_wake_message_has_session_and_conversation_only()
+    {
+        var sid = Guid.NewGuid(); var c = Guid.NewGuid();
+        var text = TelegramRules.MeetingWakeMessage("NV018", sid, c);
+        Assert.DoesNotContain('\n', text);
+        using var doc = JsonDocument.Parse(text);
+        Assert.Equal(["employee_code", "event", "session_id", "conversation_id"], doc.RootElement.EnumerateObject().Select(x => x.Name).ToArray());
+        Assert.Equal("meeting_turn", doc.RootElement.GetProperty("event").GetString());
+        Assert.Equal(sid.ToString(), doc.RootElement.GetProperty("session_id").GetString());
+        Assert.Equal(c.ToString(), doc.RootElement.GetProperty("conversation_id").GetString());
+    }
+
     [Theory]
     [InlineData("-1001234567890", true)]
     [InlineData("123456", true)]

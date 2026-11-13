@@ -14,10 +14,16 @@ using OfficeHub.Modules.Organization.Contracts;
 namespace OfficeHub.Modules.Meetings.Features;
 
 public sealed record OpenAgentMeetingRequest(string RoomId, string Topic, Guid ChairEmployeeId, Guid[]? BotIds);
-public sealed record AgentMeetingBotDto(Guid EmployeeId, string Name, bool IsChair);
+public sealed record AssignTurnRequest(Guid EmployeeId);
+/// <param name="IsSpeaking">Đang giữ lượt nói.</param>
+/// <param name="QueuePosition">Thứ tự trong hàng chờ lượt (1 = kế tiếp), null = không chờ.</param>
+public sealed record AgentMeetingBotDto(Guid EmployeeId, string Name, bool IsChair, bool IsSpeaking = false, int? QueuePosition = null);
+/// <param name="CurrentSpeakerEmployeeId">Bot đang giữ lượt (TEST-75); <paramref name="TurnDeadline"/> = quá giờ này chưa nói → coi như bỏ lượt.</param>
+/// <param name="IsMyTurn">Người gọi (token bot) đang giữ lượt.</param>
 public sealed record AgentMeetingDto(Guid Id, string RoomId, string RoomName, string Topic, AgentMeetingStatus Status, AgentMeetingEndReason? EndReason,
     Guid OpenedByEmployeeId, string OpenedByName, Guid ChairEmployeeId, IReadOnlyList<AgentMeetingBotDto> Bots, int TurnsUsed, int MaxTurns, int MaxMinutes,
-    DateTimeOffset StartedAt, DateTimeOffset ExpiresAt, DateTimeOffset? EndedAt, string? EndedByName, bool CanStop);
+    DateTimeOffset StartedAt, DateTimeOffset ExpiresAt, DateTimeOffset? EndedAt, string? EndedByName, bool CanStop,
+    Guid? CurrentSpeakerEmployeeId = null, DateTimeOffset? TurnDeadline = null, bool IsMyTurn = false);
 
 /// <param name="IsDefault">Chưa ai chỉnh — đang dùng giá trị mặc định.</param>
 public sealed record AgentMeetingSettingsDto(int MaxTurns, int MaxMinutes, bool IsDefault, DateTimeOffset? UpdatedAt, string? UpdatedByName,
@@ -39,6 +45,8 @@ internal static class AgentMeetingEndpoints
         s.MapGet("/{id:guid}", GetAsync);
         s.MapPost("", OpenAsync);
         s.MapPost("/{id:guid}/stop", StopAsync);
+        s.MapPost("/{id:guid}/pass", PassAsync);     // TEST-75: bot giữ lượt bỏ lượt
+        s.MapPost("/{id:guid}/assign", AssignAsync); // TEST-75: bot chủ trì (đang giữ lượt) chỉ định người nói kế
 
         var cfg = g.MapGroup("/agent-settings").RequireAuthorization(AuthPolicies.Admin);
         cfg.MapGet("", GetSettingsAsync);
@@ -52,9 +60,12 @@ internal static class AgentMeetingEndpoints
         new(m.Id, m.RoomId, rooms.Find(m.RoomId)?.Name ?? m.RoomId, m.Topic, m.Status, m.EndReason, m.OpenedByEmployeeId, m.OpenedByName,
             m.ChairEmployeeId,
             m.Bots.OrderByDescending(b => b.EmployeeId == m.ChairEmployeeId).ThenBy(b => b.Name)
-                .Select(b => new AgentMeetingBotDto(b.EmployeeId, b.Name, b.EmployeeId == m.ChairEmployeeId)).ToList(),
+                .Select(b => new AgentMeetingBotDto(b.EmployeeId, b.Name, b.EmployeeId == m.ChairEmployeeId, b.EmployeeId == m.CurrentSpeakerEmployeeId,
+                    m.QueuedSpeakerIds.IndexOf(b.EmployeeId) is >= 0 and var i ? i + 1 : null)).ToList(),
             m.TurnsUsed, m.MaxTurns, m.MaxMinutes, m.StartedAt, m.ExpiresAt, m.EndedAt, m.EndedByName,
-            CanStop: m.Status == AgentMeetingStatus.Active && !user.IsAccessToken() && (m.OpenedByEmployeeId == meEmployeeId || user.IsHr()));
+            CanStop: m.Status == AgentMeetingStatus.Active && !user.IsAccessToken() && (m.OpenedByEmployeeId == meEmployeeId || user.IsHr()),
+            m.CurrentSpeakerEmployeeId, m.TurnDeadline,
+            IsMyTurn: meEmployeeId is { } me && m.CurrentSpeakerEmployeeId == me);
 
     /// <summary>Token AI chỉ thấy phiên mình là bot dự; người thật (cookie) thấy mọi phiên.</summary>
     private static IQueryable<AgentMeeting> Visible(IQueryable<AgentMeeting> q, ClaimsPrincipal user)
@@ -86,8 +97,8 @@ internal static class AgentMeetingEndpoints
     }
 
     private static async Task<Results<Ok<AgentMeetingDto>, ValidationProblem, ProblemHttpResult>> OpenAsync(OpenAgentMeetingRequest req,
-        ClaimsPrincipal user, MeetingsDbContext db, MeetingRooms rooms, IEmployeeDirectory dir, IAccountService accounts, TimeProvider clock,
-        CancellationToken ct)
+        ClaimsPrincipal user, MeetingsDbContext db, MeetingRooms rooms, IEmployeeDirectory dir, IAccountService accounts, AgentMeetingTurnService turns,
+        TimeProvider clock, CancellationToken ct)
     {
         if (user.IsAccessToken()) return TypedResults.Problem(AiForbidden, statusCode: StatusCodes.Status403Forbidden);
         if (await MeAsync(user, dir, ct) is not { } me)
@@ -129,14 +140,16 @@ internal static class AgentMeetingEndpoints
             StartedAt = now,
             Bots = botIds.Select(id => lookup[id]).Select(c => new AgentMeetingBot { EmployeeId = c.EmployeeId, UserId = c.UserId!.Value, Name = c.Name }).ToList(),
         };
+        AgentMeetingTurnRules.Start(meeting, now); // lượt đầu thuộc bot chủ trì
+        AgentMeeting? stale = null;
 
         // Khoá theo phòng: hai người mở cùng lúc không cùng lọt qua bước kiểm tra (index unique một phần là chốt chặn cuối).
         await using (var tx = await db.Database.BeginTransactionAsync(ct))
         {
-            await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtext({"meetings:agent:" + room.Id}))", ct);
+            await AgentMeetingTurnService.LockRoomAsync(db, room.Id, ct);
             var running = await db.AgentMeetings.Where(m => m.RoomId == room.Id && m.Status == AgentMeetingStatus.Active).FirstOrDefaultAsync(ct);
             if (running is not null && AgentMeetingRules.LimitReached(running, now) is { } reason)
-                running.End(reason, now); // phiên quá hạn job chưa kịp đóng → đóng luôn rồi mở phiên mới
+                (stale = running).End(reason, now); // phiên quá hạn job chưa kịp đóng → đóng luôn rồi mở phiên mới
             else if (running is not null)
                 return TypedResults.Problem($"{room.Name} đang có cuộc họp agent \"{running.Topic}\" do {running.OpenedByName} mở",
                     statusCode: StatusCodes.Status409Conflict);
@@ -144,12 +157,14 @@ internal static class AgentMeetingEndpoints
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
         }
+        if (stale is not null) await turns.AnnounceEndAsync(stale, ct);
+        await turns.OpenedAsync(meeting, ct); // bot dự họp vào kênh phòng + đánh thức bot chủ trì (meeting_turn)
         return TypedResults.Ok(ToDto(meeting, rooms, me.Id, user));
     }
 
     /// <summary>Người mở hoặc HR / admin; phiên đã kết thúc → 409.</summary>
     private static async Task<Results<Ok<AgentMeetingDto>, NotFound, ProblemHttpResult>> StopAsync(Guid id, ClaimsPrincipal user, MeetingsDbContext db,
-        MeetingRooms rooms, IEmployeeDirectory dir, TimeProvider clock, CancellationToken ct)
+        MeetingRooms rooms, IEmployeeDirectory dir, AgentMeetingTurnService turns, TimeProvider clock, CancellationToken ct)
     {
         if (user.IsAccessToken()) return TypedResults.Problem(AiForbidden, statusCode: StatusCodes.Status403Forbidden);
         var m = await db.AgentMeetings.Include(x => x.Bots).FirstOrDefaultAsync(x => x.Id == id, ct);
@@ -158,9 +173,54 @@ internal static class AgentMeetingEndpoints
         if (m.OpenedByEmployeeId != me?.Id && !user.IsHr())
             return TypedResults.Problem("Chỉ người mở cuộc họp hoặc HR / admin được dừng", statusCode: StatusCodes.Status403Forbidden);
         if (m.Status != AgentMeetingStatus.Active) return TypedResults.Problem("Cuộc họp đã kết thúc", statusCode: StatusCodes.Status409Conflict);
-        m.End(AgentMeetingEndReason.Stopped, clock.GetUtcNow(), me?.FullName ?? user.FindFirstValue(ClaimNames.FullName) ?? user.Identity?.Name);
-        await db.SaveChangesAsync(ct);
-        return TypedResults.Ok(ToDto(m, rooms, me?.Id, user));
+        var byName = me?.FullName ?? user.FindFirstValue(ClaimNames.FullName) ?? user.Identity?.Name;
+        var (ended, change) = await turns.ApplyAsync(m.Id, (x, now) =>
+        {
+            x.End(AgentMeetingEndReason.Stopped, now, byName);
+            return new TurnChange(null, AgentMeetingEndReason.Stopped); // → tin hệ thống trong kênh phòng
+        }, ct);
+        // Vừa hết trần / hết lượt cùng lúc → ApplyAsync không chạy (phiên đã kết thúc)
+        if (ended is null || change.Ended is null) return TypedResults.Problem("Cuộc họp đã kết thúc", statusCode: StatusCodes.Status409Conflict);
+        return TypedResults.Ok(ToDto(ended, rooms, me?.Id, user));
+    }
+
+    /// <summary>Bot dự họp của người gọi (theo tài khoản) trong phiên — null = không dự (404, không lộ phiên).</summary>
+    private static async Task<(AgentMeeting? M, AgentMeetingBot? Me)> MySessionAsync(Guid id, ClaimsPrincipal user, MeetingsDbContext db, CancellationToken ct)
+    {
+        var uid = user.GetUserId() ?? Guid.Empty;
+        var m = await db.AgentMeetings.AsNoTracking().Include(x => x.Bots).FirstOrDefaultAsync(x => x.Id == id, ct);
+        return (m, m?.Bots.FirstOrDefault(b => b.UserId == uid));
+    }
+
+    /// <summary>
+    /// Bot giữ lượt bỏ lượt (TEST-75): lượt sang bot kế trong hàng chờ, hết hàng → bot chủ trì; bot chủ trì bỏ lượt khi không còn ai chờ → kết thúc (AllPassed).
+    /// Không giữ lượt → 409. Tính 1 lượt.
+    /// </summary>
+    private static async Task<Results<Ok<AgentMeetingDto>, NotFound, ProblemHttpResult>> PassAsync(Guid id, ClaimsPrincipal user, MeetingsDbContext db,
+        MeetingRooms rooms, AgentMeetingTurnService turns, CancellationToken ct)
+    {
+        var (m, bot) = await MySessionAsync(id, user, db, ct);
+        if (m is null || bot is null) return TypedResults.NotFound();
+        string? error = "Cuộc họp đã kết thúc"; // ApplyAsync không gọi hàm khi phiên đã kết thúc
+        var (after, _) = await turns.ApplyAsync(id, (x, now) =>
+            (error = AgentMeetingTurnRules.CanAct(x, bot.EmployeeId)) is null ? AgentMeetingTurnRules.Passed(x, bot.EmployeeId, now) : TurnChange.None, ct);
+        if (after is null) return TypedResults.NotFound();
+        if (error is not null) return TypedResults.Problem(error, statusCode: StatusCodes.Status409Conflict);
+        return TypedResults.Ok(ToDto(after, rooms, bot.EmployeeId, user));
+    }
+
+    /// <summary>Bot chủ trì đang giữ lượt chỉ định bot dự họp khác nói kế (TEST-75) — như @nhắc trong tin nhưng không cần nói. Tính 1 lượt.</summary>
+    private static async Task<Results<Ok<AgentMeetingDto>, NotFound, ProblemHttpResult>> AssignAsync(Guid id, AssignTurnRequest req, ClaimsPrincipal user,
+        MeetingsDbContext db, MeetingRooms rooms, AgentMeetingTurnService turns, CancellationToken ct)
+    {
+        var (m, bot) = await MySessionAsync(id, user, db, ct);
+        if (m is null || bot is null) return TypedResults.NotFound();
+        string? error = "Cuộc họp đã kết thúc";
+        var (after, _) = await turns.ApplyAsync(id, (x, now) =>
+            (error = AgentMeetingTurnRules.CanAssign(x, bot.EmployeeId, req.EmployeeId)) is null ? AgentMeetingTurnRules.Assigned(x, req.EmployeeId, now) : TurnChange.None, ct);
+        if (after is null) return TypedResults.NotFound();
+        if (error is not null) return TypedResults.Problem(error, statusCode: StatusCodes.Status409Conflict);
+        return TypedResults.Ok(ToDto(after, rooms, bot.EmployeeId, user));
     }
 
     private static AgentMeetingSettingsDto SettingsDto(AgentMeetingSettings? row) =>

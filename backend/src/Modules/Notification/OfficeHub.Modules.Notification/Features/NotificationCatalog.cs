@@ -88,6 +88,10 @@ internal static class NotificationCatalog
 
         new("meetings.invited", "meetings", "Mời họp", "Người được mời khi có lịch họp mới.", NotificationCategories.MeetingInvited, EmailMode.Optional),
         new("meetings.cancelled", "meetings", "Huỷ họp", "Người được mời khi lịch họp bị huỷ.", NotificationCategories.MeetingCancelled, EmailMode.Optional),
+        new("meetings.agent_turn", "meetings", "Tới lượt nói trong họp agent",
+            "Bot dự họp agent vừa nhận lượt nói: mở họp (bot chủ trì), được bot giữ lượt / người thật @nhắc, được chủ trì chỉ định, lượt quay về chủ trì. " +
+            "Chỉ bot vừa nhận lượt; không chuông (Telegram: chỉ tài khoản bot).",
+            null, Telegram: nameof(ITelegramWakeup.MeetingTurnAsync), WebhookEvent: WebhookEvents.MeetingTurn),
 
         new("documents.retention", "documents", "Hạn lưu trữ tài liệu", "HR + người phụ trách khi tài liệu sắp / đã hết hạn lưu trữ.",
             NotificationCategories.DocumentRetention, EmailMode.Optional),

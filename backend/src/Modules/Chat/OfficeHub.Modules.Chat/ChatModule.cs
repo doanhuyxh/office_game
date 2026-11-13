@@ -26,6 +26,7 @@ public sealed class ChatModule : IModule
         services.AddSingleton<ChatRooms>();
         services.AddSingleton<ChatThrottle>();
         services.AddScoped<ChatStore>();
+        services.AddScoped<OfficeHub.Modules.Meetings.Contracts.IMeetingRoomChannel, MeetingRoomChannel>(); // họp agent (TEST-75): kênh phòng cho Meetings
         services.AddHostedService<ChatMigrator>();
     }
 

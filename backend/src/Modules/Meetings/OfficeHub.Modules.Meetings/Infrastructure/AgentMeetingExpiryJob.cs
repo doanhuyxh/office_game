@@ -7,7 +7,10 @@ using OfficeHub.Modules.Meetings.Domain;
 
 namespace OfficeHub.Modules.Meetings.Infrastructure;
 
-/// <summary>Mỗi phút kết thúc phiên họp agent đã quá trần phút (lý do <see cref="AgentMeetingEndReason.TimeLimit"/>). Chỉ chạy trong host Api.</summary>
+/// <summary>
+/// Mỗi phút: kết thúc phiên họp agent đã quá trần (lý do <see cref="AgentMeetingEndReason.TimeLimit"/>) + tin hệ thống trong kênh phòng;
+/// bot giữ lượt quá <see cref="AgentMeetingTurnRules.TurnTimeout"/> chưa nói → coi như bỏ lượt (TEST-75). Chỉ chạy trong host Api.
+/// </summary>
 internal sealed class AgentMeetingExpiryJob(IServiceScopeFactory scopes, TimeProvider clock, ILogger<AgentMeetingExpiryJob> log, JobMonitor monitor)
     : BackgroundService
 {
@@ -28,12 +31,12 @@ internal sealed class AgentMeetingExpiryJob(IServiceScopeFactory scopes, TimePro
     {
         using var scope = scopes.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<MeetingsDbContext>();
+        var turns = scope.ServiceProvider.GetRequiredService<AgentMeetingTurnService>();
         var now = clock.GetUtcNow();
-        var active = await db.AgentMeetings.Where(m => m.Status == AgentMeetingStatus.Active).ToListAsync(ct);
+        var active = await db.AgentMeetings.AsNoTracking().Where(m => m.Status == AgentMeetingStatus.Active).ToListAsync(ct);
         var ended = 0;
-        foreach (var m in active)
-            if (AgentMeetingRules.LimitReached(m, now) is { } reason) { m.End(reason, now); ended++; }
-        if (ended > 0) await db.SaveChangesAsync(ct);
+        foreach (var m in active.Where(m => AgentMeetingRules.LimitReached(m, now) is not null || AgentMeetingTurnRules.TimedOut(m, now)))
+            if ((await turns.SweepAsync(m.Id, ct)).Change.Ended is not null) ended++;
         return ended;
     }
 }

@@ -21,6 +21,8 @@ public sealed class MeetingsModule : IModule
         services.AddSingleton<MeetingRooms>();
         services.AddHostedService<MeetingsMigrator>();
         services.AddHostedService<AgentMeetingExpiryJob>();
+        services.AddScoped<AgentMeetingTurnService>();
+        services.AddScoped<OfficeHub.Modules.Meetings.Contracts.IAgentMeetingTurns>(sp => sp.GetRequiredService<AgentMeetingTurnService>());
     }
 
     public void MapEndpoints(IEndpointRouteBuilder api)

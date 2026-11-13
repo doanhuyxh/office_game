@@ -17,5 +17,7 @@ public static class WebhookEvents
     public const string ChatMessage = "chat.message";
     /// <summary>Được @nhắc trong tin kênh phòng / Toàn văn phòng / nhóm (TEST-70) — 1-1 đã có <see cref="ChatMessage"/>.</summary>
     public const string ChatMention = "chat.mention";
+    /// <summary>Bot dự họp agent vừa nhận lượt nói (TEST-75) — chỉ gửi cho bot đó.</summary>
+    public const string MeetingTurn = "meeting.turn";
     public const string Ping = "ping";
 }
