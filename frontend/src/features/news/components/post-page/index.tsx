@@ -18,7 +18,7 @@ export function PostPage() {
   if (isLoading) return <Spinner />;
   if (!data) return error instanceof ApiError && error.status !== 404 ? <p className="text-center text-sm text-destructive">Không tải được bài viết.</p> : <NotFoundPage />;
   return (
-    <div className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4 @min-[96rem]/content:mx-0">
+    <div className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4">
       <PageHeader title="Bài viết" />
       <PageToolbar>
         <Button asChild variant="ghost" size="sm"><Link to={PATHS.news}><ArrowLeft /> Bảng tin</Link></Button>

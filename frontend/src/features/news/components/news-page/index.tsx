@@ -7,6 +7,7 @@ import { Spinner } from '@/components/feedback/Spinner';
 import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
 import { useMe } from '@/features/auth';
 import { useTabParam } from '@/hooks/useTabParam';
+import { cn } from '@/utils/cn';
 import { useFeed, useMarkSeen, useNewsUnseenLive } from '../../hooks/useNews';
 import { AuthorAvatar } from '../author-avatar';
 import { ComposerDialog } from '../composer-dialog';
@@ -14,7 +15,8 @@ import { PostCard } from '../post-card';
 
 /**
  * Bảng tin công ty (kiểu Facebook): ô "Bạn đang nghĩ gì?", bài ghim, cuộn vô hạn. Tab "Bài của tôi" lọc bài mình đăng.
- * Vùng nội dung ≥ 96rem (màn rộng): cột bài viết ~42rem + cột phải bài ghim (dính khi cuộn), canh trái theo lề khung; hẹp hơn → một cột giữa trang.
+ * Luôn canh giữa vùng nội dung. Có bài ghim và vùng ≥ 96rem: cột bài viết ~42rem + cột phải bài ghim (dính khi cuộn), cả khối canh giữa;
+ * không có bài ghim hoặc hẹp hơn → một cột max-w-2xl giữa trang.
  */
 export function NewsPage() {
   const [tab, setTab] = useTabParam('all', ['all', 'mine']);
@@ -47,7 +49,11 @@ export function NewsPage() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
-    <div className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-4 @min-[96rem]/content:mx-0 @min-[96rem]/content:max-w-none @min-[96rem]/content:grid-cols-[minmax(0,42rem)_minmax(0,30rem)] @min-[96rem]/content:items-start @min-[96rem]/content:gap-x-6">
+    <div className={cn(
+      'mx-auto grid w-full max-w-2xl grid-cols-1 gap-4',
+      // Có bài ghim + vùng ≥ 96rem: khối 2 cột (42rem + 30rem + khe 1.5rem = 73.5rem) vẫn canh giữa
+      pinned.length > 0 && '@min-[96rem]/content:max-w-[73.5rem] @min-[96rem]/content:grid-cols-[minmax(0,42rem)_minmax(0,30rem)] @min-[96rem]/content:items-start @min-[96rem]/content:gap-x-6',
+    )}>
       <PageHeader title="Bảng tin" />
       <Tabs value={tab} onValueChange={setTab} className="col-span-full">
         <PageToolbar actions={<Button size="sm" onClick={() => setComposing(true)} data-testid="new-post"><PenLine /> Đăng bài</Button>}>
