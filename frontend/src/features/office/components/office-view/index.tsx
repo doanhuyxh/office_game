@@ -300,6 +300,9 @@ export function OfficeView() {
             <Link to={PATHS.dashboard} className="act">🏢 Cổng nhân sự</Link>
             <button type="button" className="act" onClick={() => setEditorOpen(true)} data-testid="office-avatar">👤 Nhân vật</button>
             <button type="button" className="act" onClick={() => setDocs({ kind: 'browse', space: defaultSpace(), title: '📁 Tài liệu', present: !!roomCh })} data-testid="office-docs-open">📁 Tài liệu</button>
+            {/* Mở tab mới để văn phòng ảo giữ kết nối; quyền xem do API của trang kiểm tra (TEST-108) */}
+            <Link to={PATHS.projects} target="_blank" rel="noopener" className="act" data-testid="office-projects-open">📋 Dự án</Link>
+            <Link to={PATHS.approvals} target="_blank" rel="noopener" className="act" data-testid="office-approvals-open">✅ Phê duyệt</Link>
           </div>
         </div>
         {account && !hasLook && avatarPrompt && conn === 'online' && (

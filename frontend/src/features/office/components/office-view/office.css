@@ -182,6 +182,7 @@
   .office-root .me-avatar { width: 32px; height: 32px; font-size: 14px; }
   .office-root .me-roles { display: none; }
   .office-root .me:not(.open) .me-actions { display: none; }
+  .office-root .me.open .me-actions { max-height: calc(100dvh - 90px); overflow-y: auto; }
   .office-root .me.open { z-index: 6; }
   /* Thẻ voice gọn: nút chỉ còn biểu tượng, bỏ dòng mô tả */
   .office-root .voice { width: auto; max-width: calc(100vw - 168px); padding: 6px 8px; gap: 4px; }
