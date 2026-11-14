@@ -73,3 +73,20 @@ agents:
       home: /srv/agents/NV130/home
       timeout_min: 30
       max_budget_usd: 2
+
+  - employee_code: NV140                         # agent THIẾT KẾ giao diện: OfficeHub + Stitch + Figma, không repo
+    telegram_bot: "@agent_design01_bot"
+    telegram_token: "666666666:AA…"
+    token: "ohk_dddddddddddddddd"
+    env_file: /etc/officehub-runner/NV140.env    # chmod 600, một dòng: STITCH_API_KEY=… (tạo khoá trong Stitch → Settings)
+    workspace:
+      mode: none                                 # tắt Bash / đọc ghi file; tool MCP (OfficeHub, Stitch, Figma) vẫn dùng được
+    executor:
+      kind: claude
+      bin: /usr/local/bin/claude
+      model: claude-sonnet-5-5
+      home: /srv/agents/NV140/home               # Figma chỉ đăng nhập OAuth: đăng nhập tay MỘT lần với HOME này (.agent/business/agent-runner-workspace.md)
+      timeout_min: 45
+      max_budget_usd: 4
+      # MCP thêm ngoài OfficeHub: chép design-mcp.example.json ra ngoài repo; khoá lấy từ env_file qua ${STITCH_API_KEY}, không ghi vào file
+      extra_args: ["--mcp-config", "/etc/officehub-runner/design-mcp.json"]

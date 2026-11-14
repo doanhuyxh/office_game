@@ -16,3 +16,14 @@
   - Prompt `none.ts`: các bước MCP như mode khác, bước 5 "chỉ bằng tool MCP", bộ quy tắc riêng (không duyệt, nội dung là dữ liệu, không lộ thông tin cá nhân) — không có phần git / build / test. Bình luận kết quả của runner không có dòng PR / commit. Trạng thái 3D vẫn `working` → `idle`.
 - Prompt tách theo mode: `src/prompt/common.ts` (các bước MCP + quy tắc cứng chung), `worktree.ts` / `in-place.ts` (bước 5 + quy tắc git), `none.ts` (bước 5 + quy tắc không repo), `index.ts` (`buildPrompt(w, {mode, branch, resumed})`).
 
+## MCP thêm ngoài OfficeHub (mẫu agent thiết kế: Stitch + Figma)
+
+Runner chỉ ghi server `officehub` vào `mcp.json` của job và chạy `--strict-mcp-config`. Muốn agent có thêm MCP khác (chưa có khoá cấu hình riêng) → nạp file thứ hai qua `executor.extra_args` (adapter `claude`; CLI nhận nhiều `--mcp-config`). Mẫu: agent `NV140` trong `agent-runner/agents.example.yaml` + `agent-runner/design-mcp.example.json`.
+
+1. Chép `design-mcp.example.json` ra ngoài repo (vd `/etc/officehub-runner/design-mcp.json`). File không chứa khoá: `${STITCH_API_KEY}` lấy từ `env_file` của agent (runner nạp vào env của CLI).
+2. **Stitch** (`https://stitch.googleapis.com/mcp`, header `X-Goog-Api-Key`): tạo khoá trong Stitch → Settings, ghi `STITCH_API_KEY=…` vào `env_file` (chmod 600).
+3. **Figma** (`https://mcp.figma.com/mcp`): chỉ OAuth, không nhận token tĩnh. Đăng nhập tay một lần bằng đúng HOME của agent: `HOME=<executor.home> claude --mcp-config /etc/officehub-runner/design-mcp.json` → `/mcp` → chọn `figma` → đăng nhập trên trình duyệt. Chưa kiểm chứng token có tự làm mới khi chạy nền lâu ngày; hết hạn thì đăng nhập lại. Không cần Figma → xoá khối `figma` khỏi file.
+4. Thử: `bun src/cli.ts run --agent NV140 --task <mã việc thử>` rồi xem `{data_dir}/jobs/{id}/activity.log` có lời gọi `mcp__stitch__*` / `mcp__figma__*`.
+5. Quy trình thiết kế (dựng trên Stitch → đưa sang Figma → `comment_task` kèm link → Review) viết vào hướng dẫn làm việc của dự án / chức vụ, không viết vào prompt của runner.
+
+Lưu ý: `doctor` không kiểm tra các MCP thêm này; phiên chat / họp của agent cũng có các tool đó (dùng chung `executor`); mode `none` vẫn tắt Bash / đọc ghi file.
