@@ -73,3 +73,14 @@ export function touchConversation(qc: QueryClient, m: IMessage, addUnread: boole
 
 export const adjustUnread = (qc: QueryClient, delta: number) =>
   qc.setQueryData<{ count: number }>(chatKeys.unread, (u) => (u ? { count: Math.max(0, u.count + delta) } : u));
+
+/** Tổng chưa đọc của danh sách hội thoại — badge header / sidebar phải bằng số này (TEST-110). */
+export const sumUnread = (list: IConversation[]) => list.reduce((s, c) => s + c.unread, 0);
+
+/**
+ * Đếm số lần cache chưa đọc đổi ngoài lượt tải (hub đẩy tin, đã đọc xong trên server). Lượt tải danh sách thấy số này đổi giữa chừng
+ * thì kết quả có thể cũ hơn cache → tải lại thêm một lần, tránh ghi đè mất +1 / −N (TEST-110).
+ */
+let unreadEpoch = 0;
+export const bumpUnreadEpoch = () => { unreadEpoch++; };
+export const currentUnreadEpoch = () => unreadEpoch;

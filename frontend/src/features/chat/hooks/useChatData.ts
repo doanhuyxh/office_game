@@ -1,15 +1,41 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { chatApi, chatKeys } from '../api/chat.api';
 import type { IMessageThread } from '../types/chat.types';
-import { mergeItems } from '../utils/cache';
+import { currentUnreadEpoch, mergeItems, sumUnread } from '../utils/cache';
 
-/** Danh sách hội thoại (Office đầu, còn lại theo tin mới nhất). Hub cập nhật trực tiếp vào cache; refetch khi vào lại trang. */
-export const useConversations = () =>
-  useQuery({ queryKey: chatKeys.conversations, queryFn: chatApi.conversations, staleTime: 30_000 });
+/**
+ * Danh sách hội thoại (Office đầu, còn lại theo tin mới nhất). Hub cập nhật trực tiếp vào cache; refetch khi vào lại trang.
+ * Tải xong → badge tổng = tổng các dòng (cùng một lần đọc server, TEST-110). Cache chưa đọc đổi trong lúc tải (hub / đã đọc) → tải lại một lần nữa.
+ */
+export function useConversations() {
+  const qc = useQueryClient();
+  return useQuery({
+    queryKey: chatKeys.conversations,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const epoch = currentUnreadEpoch();
+      const list = await chatApi.conversations();
+      if (currentUnreadEpoch() !== epoch) setTimeout(() => void qc.invalidateQueries({ queryKey: chatKeys.conversations }), 0);
+      else qc.setQueryData(chatKeys.unread, { count: sumUnread(list) });
+      return list;
+    },
+  });
+}
 
 /** Tổng số tin chưa đọc (badge header / sidebar). Hub cộng dồn vào cache, đánh dấu đã đọc thì trừ. */
 export function useChatUnread(): number {
-  const { data } = useQuery({ queryKey: chatKeys.unread, queryFn: chatApi.unreadCount, staleTime: 60_000 });
+  const qc = useQueryClient();
+  const { data } = useQuery({
+    queryKey: chatKeys.unread,
+    staleTime: 60_000,
+    queryFn: async () => {
+      // Hub cộng / đã đọc trong lúc tải → kết quả có thể cũ hơn cache → tải lại một lần nữa (TEST-110)
+      const epoch = currentUnreadEpoch();
+      const r = await chatApi.unreadCount();
+      if (currentUnreadEpoch() !== epoch) setTimeout(() => void qc.invalidateQueries({ queryKey: chatKeys.unread }), 0);
+      return r;
+    },
+  });
   return data?.count ?? 0;
 }
 

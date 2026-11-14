@@ -10,7 +10,7 @@ import { ChatConnection } from '../../api/chatHub';
 import { ChatContext, type IChatContext } from '../../context/chat-context';
 import { useChatUnread } from '../../hooks/useChatData';
 import type { ChatLinkState, IChatMessage, IConversation, IMessage } from '../../types/chat.types';
-import { addLocal, adjustUnread, markDeleted, mentionsUser, patchLocal, removeLocal, touchConversation, upsertMessage } from '../../utils/cache';
+import { addLocal, adjustUnread, bumpUnreadEpoch, markDeleted, mentionsUser, patchLocal, removeLocal, touchConversation, upsertMessage } from '../../utils/cache';
 import { isImageFile } from '../../utils/labels';
 import { putToS3 } from '../../utils/upload';
 
@@ -69,8 +69,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       qc.setQueryData<IConversation[]>(chatKeys.conversations, list.map((c) => (c.id === conversationId ? { ...c, unread: 0, mentionedUnread: 0 } : c)));
       adjustUnread(qc, -was);
     }
+    bumpUnreadEpoch();
+    const listAt = qc.getQueryState(chatKeys.conversations)?.dataUpdatedAt ?? 0;
+    // Luôn lấy lại số tổng từ server sau khi đọc: badge có thể đang lệch (đọc ở tab / thiết bị khác). Danh sách được tải lại trong lúc
+    // server chưa ghi "đã đọc" → dòng đó hiện lại số cũ → tải lại danh sách (TEST-110).
     chatApi.markRead(conversationId)
-      .then(() => { if (!list || was === 0) void qc.invalidateQueries({ queryKey: chatKeys.unread }); })
+      .then(() => {
+        bumpUnreadEpoch();
+        void qc.invalidateQueries({ queryKey: chatKeys.unread });
+        if ((qc.getQueryState(chatKeys.conversations)?.dataUpdatedAt ?? 0) > listAt) void qc.invalidateQueries({ queryKey: chatKeys.conversations });
+      })
       .catch(() => undefined);
   }, [qc]);
 
@@ -79,12 +87,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     if (conversationId) markRead(conversationId);
   }, [markRead]);
 
-  // Quay lại tab đang mở hội thoại → coi như đã đọc các tin tới lúc tab ẩn.
+  // Quay lại tab: đang mở hội thoại → coi như đã đọc các tin tới lúc tab ẩn; làm mới số tổng + danh sách để bắt các lần đọc
+  // ở tab / thiết bị khác (không có sự kiện "đã đọc" qua hub) — TEST-110.
   useEffect(() => {
-    const onVisible = () => document.visibilityState === 'visible' && active.current && markRead(active.current);
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (active.current) markRead(active.current);
+      void qc.invalidateQueries({ queryKey: chatKeys.unread });
+      void qc.invalidateQueries({ queryKey: chatKeys.conversations });
+    };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [markRead]);
+  }, [markRead, qc]);
 
   /** Tin do hub đẩy (của người khác, hoặc của chính mình từ tab / thiết bị khác). */
   const onIncoming = useCallback((m: IChatMessage) => {
@@ -92,6 +106,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     seen.current.add(m.id);
     if (seen.current.size > 500) seen.current = new Set([...seen.current].slice(-200));
     upsertMessage(qc, m);
+    bumpUnreadEpoch();
     const mine = m.senderId === meRef.current.id;
     const viewing = active.current === m.conversationId && document.visibilityState === 'visible';
     const addUnread = !mine && !viewing;
