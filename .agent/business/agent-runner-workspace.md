@@ -3,6 +3,7 @@
 > Về [agent-runner.md](agent-runner.md) · [README](README.md)
 
 - **`worktree`**: như mô tả ở trên — worktree riêng + push + PR; hook `pre-push` / `commit-msg` được kiểm tra và tạo lại thiếu trước mỗi job.
+- **Cảnh báo repo đang ở `main` / `master`** (`Runner.mainBranchWarning`, không chặn): dòng ⚠ ở `doctor` / khởi động + log `warn` đầu mỗi job — `worktree`: nhắc PR merge vào `base_branch`; `in_place` + `allow_base_branch`: nhắc commit push THẲNG lên nhánh đó.
 - **`in_place`**: CLI chạy NGAY trong `repo`, commit vào **nhánh đang checkout**; runner không fetch / tạo nhánh / worktree, **không PR**. Sau phiên, có commit mới → runner **push nhánh đó lên origin** (`pushInPlace`: `git push origin <nhánh>`, không `--force`, không đổi upstream) — với `allow_base_branch` là push THẲNG lên main, không qua review. Agent không tự push (prompt). Comment kết quả ghi "N commit mới trên nhánh X (đã push lên origin)" + hash.
   - **Không push** (comment ghi "CHƯA push", commit vẫn ở máy, người thật xử lý rồi tự push): agent chạm `agent-runner/`; agent tự đổi nhánh; `git push` lỗi (remote đã có commit khác / thiếu quyền — runner không pull / rebase, lỗi ghi trong comment). Lần chạy sau push được thì các commit cũ lên theo.
   - Từ chối (job `skipped`, comment "KHÔNG chạy: …" vào việc): repo còn thay đổi chưa commit (kể cả file mới), đang ở main / master / nhánh base (trừ `allow_base_branch`), detached HEAD.

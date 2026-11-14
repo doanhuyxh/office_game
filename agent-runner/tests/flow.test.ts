@@ -150,6 +150,7 @@ test('doctor: CLI, token đúng nhân viên, repo + hook, bot Telegram', async (
   expect(lines.join('\n')).toContain('model: mặc định của CLI');
   expect(lines.join('\n')).toContain('commit đứng tên Chu Du An <owner@example.vn>');
   expect(lines[0]).toContain(`(${gitBin})`);
+  expect(lines.join('\n')).toContain('⚠ NV120: repo đang ở nhánh main — nhánh việc tách từ origin/main và PR merge vào main'); // cảnh báo, không chặn
   expect(existsSync(join(root, 'agent-repo/.git/hooks/commit-msg'))).toBe(true);
   expect(readFileSync(join(root, 'agent-repo/.git/hooks/pre-push'), 'utf8')).toContain('officehub-agent-runner');
 }, 30000);

@@ -114,6 +114,8 @@ export class Runner {
             for (const w of hookWarns) out.push(`⚠ ${code}: ${w}`);
             out.push(`✔ ${code}: repo ${s.cfg.repo}, hook pre-push (chặn main / force push / agent-runner/) + commit-msg (trailer) đã cài`);
           }
+          const onMain = await this.mainBranchWarning(git, s.cfg);
+          if (onMain) out.push(`⚠ ${code}: ${onMain}`);
           if (s.cfg.workspace.mode === 'in_place') {
             // CLI chạy thẳng trong repo → đọc được .env ở gốc repo (worktree ngoài repo thì không). Mặc định từ chối.
             const envFiles = readdirSync(s.cfg.repo).filter((f) => f === '.env' || (f.startsWith('.env.') && !/\.(example|sample|template)$/.test(f)));
@@ -187,6 +189,19 @@ export class Runner {
 
   /** Git với HOME / PATH của agent (credential helper, SSH key, user.name của HOME đó). */
   gitFor(a: AgentConfig) { return this.git.withEnv(this.baseEnv(a)); }
+
+  /**
+   * Repo của agent đang đứng trên main / master → câu cảnh báo (KHÔNG chặn; in ở `doctor` / khởi động và log đầu mỗi job). Nhánh khác / detached HEAD → ''.
+   * in_place chưa bật allow_base_branch đã bị từ chối + cảnh báo riêng nên bỏ qua ở đây.
+   */
+  async mainBranchWarning(git: Git, a: AgentConfig): Promise<string> {
+    if (a.workspace.mode === 'none') return '';
+    const cur = (await git.run(a.repo, 'symbolic-ref', '--short', '-q', 'HEAD')).out;
+    if (cur !== 'main' && cur !== 'master') return '';
+    if (a.workspace.mode === 'in_place')
+      return a.workspace.allowBaseBranch ? `repo đang ở nhánh ${cur} — commit của agent sẽ được push THẲNG lên ${cur}, không qua PR` : '';
+    return `repo đang ở nhánh ${cur} — nhánh việc tách từ origin/${this.config.baseBranch} và PR merge vào ${this.config.baseBranch}`;
+  }
 
   // ---------------- Listener ----------------
 
@@ -467,6 +482,8 @@ export class Runner {
         ws = { path: this.workDir(job.agent, job.task_code.toUpperCase()), branch: '', reused: false };
         mkdirSync(ws.path, { recursive: true });
       } else {
+        const onMain = await this.mainBranchWarning(git, s.cfg);
+        if (onMain) log('warn', 'repo đang ở main / master', { job: job.id, agent: job.agent, task: job.task_code, message: onMain });
         if (mode === 'in_place') {
           // in_place không dùng hook → gỡ hook của runner nếu còn (hook của người dùng giữ nguyên).
           const removed = await removeHooks(git, s.cfg.repo);
