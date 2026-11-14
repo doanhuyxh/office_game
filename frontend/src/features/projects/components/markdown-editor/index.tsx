@@ -8,7 +8,7 @@ import { Textarea } from '@/components/common/textarea';
  * để tự chọn khi mở hộp thoại; không sửa được (`editable=false`) → luôn xem. Nhấp đúp vùng xem → chuyển sang viết.
  */
 export function MarkdownEditor({ id, label, value, onChange, preview, onPreviewChange, editable = true, rows = 10, maxLength, placeholder, error,
-  emptyText = 'Chưa có nội dung.', minHeightClass = '' }: {
+  emptyText = 'Chưa có nội dung.', minHeightClass = '', fill = false }: {
   id: string;
   label: ReactNode;
   value: string;
@@ -23,9 +23,12 @@ export function MarkdownEditor({ id, label, value, onChange, preview, onPreviewC
   emptyText?: string;
   /** Chiều cao tối thiểu cho cả ô viết lẫn vùng xem (Textarea tự co theo nội dung nên `rows` không giữ chiều cao). */
   minHeightClass?: string;
+  /** Từ lg: ô viết / vùng xem cao lấp phần còn lại của cha (cha là flex dọc), nội dung dài thì cuộn bên trong. */
+  fill?: boolean;
 }) {
+  const grow = fill ? 'lg:flex-1 lg:overflow-y-auto' : '';
   return (
-    <div className="grid grid-cols-1 gap-2">
+    <div className={fill ? 'flex flex-col gap-2 lg:flex-1' : 'grid grid-cols-1 gap-2'}>
       <div className="flex items-center justify-between gap-2">
         <Label htmlFor={id}>{label}</Label>
         {editable && <div className="flex shrink-0 rounded-md border p-0.5 text-xs">
@@ -35,10 +38,10 @@ export function MarkdownEditor({ id, label, value, onChange, preview, onPreviewC
         </div>}
       </div>
       {preview || !editable
-        ? <div className={`min-h-20 rounded-md border px-3 py-2 wrap-anywhere ${minHeightClass}`} onDoubleClick={() => editable && onPreviewChange(false)}>
+        ? <div className={`min-h-20 rounded-md border px-3 py-2 wrap-anywhere ${minHeightClass} ${grow}`} onDoubleClick={() => editable && onPreviewChange(false)}>
             {value.trim() ? <Markdown text={value} /> : <p className="text-sm text-muted-foreground">{emptyText}</p>}
           </div>
-        : <Textarea id={id} rows={rows} maxLength={maxLength} className={`font-mono text-xs ${minHeightClass}`} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />}
+        : <Textarea id={id} rows={rows} maxLength={maxLength} className={`font-mono text-xs ${minHeightClass} ${fill ? `${grow} lg:field-sizing-fixed` : ''}`} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
