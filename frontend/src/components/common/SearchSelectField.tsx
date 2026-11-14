@@ -61,24 +61,25 @@ export function SearchSelectField({ id, label, value, onChange, options, allowEm
     else if (e.key === 'Enter') { e.preventDefault(); if (shown.length) pick(shown[Math.min(active, shown.length - 1)]); }
   };
 
+  const triggerText = selected ? selected.label : value == null && allowEmpty ? emptyLabel : (placeholder ?? 'Chọn…');
+
+  // grid-cols-[minmax(0,1fr)] + min-w-0: cột ngầm định `auto` không co hẹp hơn tên dài (truncate = nowrap) → ô tràn khỏi khung cha (TEST-106).
   return (
-    <div className="grid min-w-0 gap-2">
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2">
       {label && <Label htmlFor={id}>{label}</Label>}
       <PopoverPrimitive.Root open={open} onOpenChange={(o) => { setOpen(o); if (o) { setQ(''); setActive(0); } }}>
         <PopoverPrimitive.Trigger asChild>
-          <button id={id} type="button" aria-invalid={!!error}
-            className={cn('flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-left text-sm shadow-xs outline-none',
+          <button id={id} type="button" aria-invalid={!!error} title={selected ? triggerText : undefined}
+            className={cn('flex h-9 w-full min-w-0 items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-left text-sm shadow-xs outline-none',
               'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50')}>
-            <span className={cn('truncate', !selected && 'text-muted-foreground')}>
-              {selected ? selected.label : value == null && allowEmpty ? emptyLabel : (placeholder ?? 'Chọn…')}
-            </span>
+            <span className={cn('min-w-0 flex-1 truncate', !selected && 'text-muted-foreground')}>{triggerText}</span>
             <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
           </button>
         </PopoverPrimitive.Trigger>
         <PopoverPrimitive.Portal>
           <PopoverPrimitive.Content align="start" sideOffset={4} onOpenAutoFocus={(e) => { e.preventDefault(); inputRef.current?.focus(); }}
             collisionPadding={8}
-            className="z-50 w-(--radix-popover-trigger-width) min-w-[min(16rem,var(--radix-popover-content-available-width))] max-w-(--radix-popover-content-available-width) rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
+            className="z-50 w-(--radix-popover-trigger-width) min-w-[min(24rem,var(--radix-popover-content-available-width))] max-w-(--radix-popover-content-available-width) rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
             <div className="flex items-center gap-2 border-b px-2 pb-1">
               <Search className="size-4 shrink-0 text-muted-foreground" />
               <input ref={inputRef} value={q} onChange={(e) => { setQ(e.target.value); setActive(0); }} onKeyDown={onKey}
@@ -91,6 +92,7 @@ export function SearchSelectField({ id, label, value, onChange, options, allowEm
                 return (
                   <li key={o?.value ?? '__none__'} role="option" aria-selected={isSel} className="min-w-0">
                     <button type="button" onClick={() => pick(o)} onMouseEnter={() => setActive(i)}
+                      title={o ? [o.path, o.label].filter(Boolean).join(' › ') + (o.hint ? ` · ${o.hint}` : '') : emptyLabel}
                       className={cn('flex w-full min-w-0 items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm', i === active && 'bg-accent text-accent-foreground')}>
                       <span className="min-w-0 flex-1 truncate" style={indent ? { paddingLeft: `${indent}rem` } : undefined}>
                         {indent > 0 && <span className="text-muted-foreground">└ </span>}
