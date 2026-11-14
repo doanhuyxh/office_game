@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Bot } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/common/button';
+import { SettingsFormFooter } from '@/components/common/settings-form-footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
 import { FormField } from '@/components/common/FormField';
 import { Spinner } from '@/components/feedback/Spinner';
@@ -32,25 +32,23 @@ export function AgentLimitsCard() {
         <CardDescription>Áp dụng cho mọi thao tác qua token AI / MCP (người dùng Claude và tài khoản bot). Lưu xong có hiệu lực ngay.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="grid max-w-xl gap-4" onSubmit={(e) => {
+        <form className="grid gap-4" onSubmit={(e) => {
           e.preventDefault();
           save.mutate(f, {
             onSuccess: () => toast.success('Đã lưu giới hạn'),
             onError: (err) => !Object.keys(fieldErrors(err)).length && toast.error(errorMessage(err)),
           });
         }}>
-          <FormField id="agent-tasks" label="Số việc một tài khoản được tạo mỗi ngày" type="number" required min={data.tasksPerDayMin} max={data.tasksPerDayMax} step={1}
-            value={f.maxBotTasksPerDay || ''} onChange={(e) => setF((x) => ({ ...x, maxBotTasksPerDay: num(e.target.value) }))} error={errors.maxBotTasksPerDay}
-            hint={`Từ ${data.tasksPerDayMin} đến ${data.tasksPerDayMax}, mặc định ${data.defaultTasksPerDay}. Vượt → bot nhận lỗi, chờ hôm sau hoặc tạo trên web.`} />
-          <FormField id="agent-streak" label="Số lần liên tiếp một việc qua tay bot" type="number" required min={data.streakMin} max={data.streakMax} step={1}
-            value={f.maxBotStreak || ''} onChange={(e) => setF((x) => ({ ...x, maxBotStreak: num(e.target.value) }))} error={errors.maxBotStreak}
-            hint={`Từ ${data.streakMin} đến ${data.streakMax}, mặc định ${data.defaultStreak}. Đủ số lần (chuyển trạng thái / giao / bình luận) mà chưa có người thật xem → bot bị chặn trên việc đó.`} />
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" disabled={save.isPending || !dirty}>Lưu</Button>
-            <span className="text-xs text-muted-foreground" data-testid="agent-limits-updated">
-              {data.isDefault ? 'Đang dùng giá trị mặc định.' : `Sửa lần cuối ${data.updatedAt ? formatDateTime(data.updatedAt) : ''}${data.updatedByName ? ` bởi ${data.updatedByName}` : ''}.`}
-            </span>
+          <div className="grid max-w-xl gap-4">
+            <FormField id="agent-tasks" label="Số việc một tài khoản được tạo mỗi ngày" type="number" required min={data.tasksPerDayMin} max={data.tasksPerDayMax} step={1}
+              value={f.maxBotTasksPerDay || ''} onChange={(e) => setF((x) => ({ ...x, maxBotTasksPerDay: num(e.target.value) }))} error={errors.maxBotTasksPerDay}
+              hint={`Từ ${data.tasksPerDayMin} đến ${data.tasksPerDayMax}, mặc định ${data.defaultTasksPerDay}. Vượt → bot nhận lỗi, chờ hôm sau hoặc tạo trên web.`} />
+            <FormField id="agent-streak" label="Số lần liên tiếp một việc qua tay bot" type="number" required min={data.streakMin} max={data.streakMax} step={1}
+              value={f.maxBotStreak || ''} onChange={(e) => setF((x) => ({ ...x, maxBotStreak: num(e.target.value) }))} error={errors.maxBotStreak}
+              hint={`Từ ${data.streakMin} đến ${data.streakMax}, mặc định ${data.defaultStreak}. Đủ số lần (chuyển trạng thái / giao / bình luận) mà chưa có người thật xem → bot bị chặn trên việc đó.`} />
           </div>
+          <SettingsFormFooter saveDisabled={save.isPending || !dirty} noteTestId="agent-limits-updated"
+            note={data.isDefault ? 'Đang dùng giá trị mặc định.' : `Sửa lần cuối ${data.updatedAt ? formatDateTime(data.updatedAt) : ''}${data.updatedByName ? ` bởi ${data.updatedByName}` : ''}.`} />
         </form>
       </CardContent>
     </Card>

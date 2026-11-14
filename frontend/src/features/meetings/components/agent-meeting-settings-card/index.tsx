@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Bot } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/common/button';
+import { SettingsFormFooter } from '@/components/common/settings-form-footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
 import { FormField } from '@/components/common/FormField';
 import { Spinner } from '@/components/feedback/Spinner';
@@ -30,25 +30,23 @@ export function AgentMeetingSettingsCard() {
         <CardDescription>Trần mỗi phiên họp agent trong phòng họp — hết lượt hoặc hết giờ, phiên tự kết thúc. Áp dụng cho phiên mở sau khi lưu; phiên đang họp giữ trần lúc mở.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="grid max-w-xl gap-4" onSubmit={(e) => {
+        <form className="grid gap-4" onSubmit={(e) => {
           e.preventDefault();
           save.mutate(f, {
             onSuccess: () => toast.success('Đã lưu trần cuộc họp với AI'),
             onError: (err) => !Object.keys(fieldErrors(err)).length && toast.error(errorMessage(err)),
           });
         }}>
-          <FormField id="agent-meeting-turns" label="Số lượt phát biểu tối đa" type="number" required min={data.turnsMin} max={data.turnsMax} step={1}
-            value={f.maxTurns || ''} onChange={(e) => setF((x) => ({ ...x, maxTurns: num(e.target.value) }))} error={errors.maxTurns}
-            hint={`Từ ${data.turnsMin} đến ${data.turnsMax}, mặc định ${data.defaultMaxTurns}. Lượt của bot chủ trì, bỏ lượt, chỉ định đều tính.`} />
-          <FormField id="agent-meeting-minutes" label="Số phút tối đa" type="number" required min={data.minutesMin} max={data.minutesMax} step={1}
-            value={f.maxMinutes || ''} onChange={(e) => setF((x) => ({ ...x, maxMinutes: num(e.target.value) }))} error={errors.maxMinutes}
-            hint={`Từ ${data.minutesMin} đến ${data.minutesMax}, mặc định ${data.defaultMaxMinutes}.`} />
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" disabled={save.isPending || !dirty}>Lưu</Button>
-            <span className="text-xs text-muted-foreground" data-testid="agent-meeting-limits-updated">
-              {data.isDefault ? 'Đang dùng giá trị mặc định.' : `Sửa lần cuối ${data.updatedAt ? formatDateTime(data.updatedAt) : ''}${data.updatedByName ? ` bởi ${data.updatedByName}` : ''}.`}
-            </span>
+          <div className="grid max-w-xl gap-4">
+            <FormField id="agent-meeting-turns" label="Số lượt phát biểu tối đa" type="number" required min={data.turnsMin} max={data.turnsMax} step={1}
+              value={f.maxTurns || ''} onChange={(e) => setF((x) => ({ ...x, maxTurns: num(e.target.value) }))} error={errors.maxTurns}
+              hint={`Từ ${data.turnsMin} đến ${data.turnsMax}, mặc định ${data.defaultMaxTurns}. Lượt của bot chủ trì, bỏ lượt, chỉ định đều tính.`} />
+            <FormField id="agent-meeting-minutes" label="Số phút tối đa" type="number" required min={data.minutesMin} max={data.minutesMax} step={1}
+              value={f.maxMinutes || ''} onChange={(e) => setF((x) => ({ ...x, maxMinutes: num(e.target.value) }))} error={errors.maxMinutes}
+              hint={`Từ ${data.minutesMin} đến ${data.minutesMax}, mặc định ${data.defaultMaxMinutes}.`} />
           </div>
+          <SettingsFormFooter saveDisabled={save.isPending || !dirty} noteTestId="agent-meeting-limits-updated"
+            note={data.isDefault ? 'Đang dùng giá trị mặc định.' : `Sửa lần cuối ${data.updatedAt ? formatDateTime(data.updatedAt) : ''}${data.updatedByName ? ` bởi ${data.updatedByName}` : ''}.`} />
         </form>
       </CardContent>
     </Card>

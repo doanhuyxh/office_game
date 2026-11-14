@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FileCheck2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/common/button';
+import { SettingsFormFooter } from '@/components/common/settings-form-footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
 import { Checkbox } from '@/components/common/checkbox';
 import { Spinner } from '@/components/feedback/Spinner';
@@ -32,23 +32,21 @@ export function DocumentSettingsCard() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="grid max-w-xl gap-4" onSubmit={(e) => {
+        <form className="grid gap-4" onSubmit={(e) => {
           e.preventDefault();
           save.mutate(on, {
             onSuccess: () => toast.success(on ? 'Đã bật duyệt trước khi ban hành' : 'Đã tắt duyệt — tải lên là ban hành luôn'),
             onError: (err) => toast.error(errorMessage(err)),
           });
         }}>
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox id="doc-require-approval" checked={on} onCheckedChange={(v) => setOn(v === true)} />
-            Bắt buộc duyệt trước khi ban hành tài liệu
-          </label>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" disabled={save.isPending || on === data.requirePublishApproval}>Lưu</Button>
-            <span className="text-xs text-muted-foreground" data-testid="document-settings-updated">
-              {data.isDefault ? 'Đang dùng mặc định (tắt).' : `Sửa lần cuối ${data.updatedAt ? formatDateTime(data.updatedAt) : ''}${data.updatedByName ? ` bởi ${data.updatedByName}` : ''}.`}
-            </span>
+          <div className="grid max-w-xl gap-4">
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox id="doc-require-approval" checked={on} onCheckedChange={(v) => setOn(v === true)} />
+              Bắt buộc duyệt trước khi ban hành tài liệu
+            </label>
           </div>
+          <SettingsFormFooter saveDisabled={save.isPending || on === data.requirePublishApproval} noteTestId="document-settings-updated"
+            note={data.isDefault ? 'Đang dùng mặc định (tắt).' : `Sửa lần cuối ${data.updatedAt ? formatDateTime(data.updatedAt) : ''}${data.updatedByName ? ` bởi ${data.updatedByName}` : ''}.`} />
         </form>
       </CardContent>
     </Card>

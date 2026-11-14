@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { confirmDialog } from '@/components/common/confirm-dialog';
 import { Input } from '@/components/common/input';
 import { Label } from '@/components/common/label';
+import { SettingsFormFooter } from '@/components/common/settings-form-footer';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { useMe } from '@/features/auth';
 import { formatDateTime } from '@/utils/date';
@@ -70,11 +71,9 @@ export function SettingsCardShell({ group, icon: Icon, description, dirty, build
               </p>
             </div>
           )}
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="submit" disabled={busy || !dirty}>Lưu</Button>
-            <Button type="button" variant="outline" disabled={busy || test.isPending} onClick={() => test.mutate(isSmtp ? { to: testTo.trim() || undefined } : {})} data-testid={`settings-${group.group}-test`}>
-              <FlaskConical /> {testLabel}
-            </Button>
+          <SettingsFormFooter saveDisabled={busy || !dirty} note={group.source === 'db'
+            ? `Sửa lần cuối ${group.updatedAt ? formatDateTime(group.updatedAt) : ''}${group.updatedBy ? ` bởi ${group.updatedBy}` : ''}.`
+            : noEnv ? 'Chưa cấu hình.' : 'Chưa lưu trên trang — Lưu để chuyển sang dùng cấu hình này.'}>
             {group.source === 'db' && (
               <Button type="button" variant="ghost" disabled={busy} onClick={async () => {
                 if (!(await confirmDialog(noEnv
@@ -86,12 +85,10 @@ export function SettingsCardShell({ group, icon: Icon, description, dirty, build
                 <RotateCcw /> {noEnv ? 'Xoá cấu hình' : 'Dùng lại .env'}
               </Button>
             )}
-            <span className="text-xs text-muted-foreground">
-              {group.source === 'db'
-                ? `Sửa lần cuối ${group.updatedAt ? formatDateTime(group.updatedAt) : ''}${group.updatedBy ? ` bởi ${group.updatedBy}` : ''}.`
-                : noEnv ? 'Chưa cấu hình.' : 'Chưa lưu trên trang — Lưu để chuyển sang dùng cấu hình này.'}
-            </span>
-          </div>
+            <Button type="button" variant="outline" disabled={busy || test.isPending} onClick={() => test.mutate(isSmtp ? { to: testTo.trim() || undefined } : {})} data-testid={`settings-${group.group}-test`}>
+              <FlaskConical /> {testLabel}
+            </Button>
+          </SettingsFormFooter>
           {(test.data || (test.error && !testErrors.to)) && (
             <p className={`text-sm ${test.data?.ok ? 'text-success' : 'text-destructive'}`} data-testid={`settings-${group.group}-result`}>
               {test.data ? test.data.message : errorMessage(test.error)}
