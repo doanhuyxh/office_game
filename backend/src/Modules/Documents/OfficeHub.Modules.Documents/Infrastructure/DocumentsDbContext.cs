@@ -19,6 +19,11 @@ public sealed class DocumentsDbContext(DbContextOptions<DocumentsDbContext> opti
     public DbSet<AccessLog> AccessLogs => Set<AccessLog>();
     public DbSet<UploadTicket> UploadTickets => Set<UploadTicket>();
     public DbSet<Sequence> Sequences => Set<Sequence>();
+    public DbSet<DocumentSettings> Settings => Set<DocumentSettings>();
+
+    /// <summary>Cấu hình "Duyệt trước khi ban hành tài liệu" (chưa có dòng → tắt).</summary>
+    public async Task<bool> RequirePublishApprovalAsync(CancellationToken ct) =>
+        await Settings.AsNoTracking().Where(x => x.Id == DocumentSettings.SingletonId).Select(x => x.RequirePublishApproval).FirstOrDefaultAsync(ct);
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -109,6 +114,12 @@ public sealed class DocumentsDbContext(DbContextOptions<DocumentsDbContext> opti
             e.Property(x => x.FileName).HasMaxLength(300);
             e.Property(x => x.ContentType).HasMaxLength(150);
             e.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_upload_tickets_created");
+        });
+        b.Entity<DocumentSettings>(e =>
+        {
+            e.ToTable("settings");
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.UpdatedByName).HasMaxLength(200);
         });
         b.Entity<Sequence>(e =>
         {

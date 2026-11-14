@@ -117,6 +117,11 @@ public sealed class Asset
     /// <summary>Người bấm gửi duyệt (có thể là trưởng phòng gửi giúp) — người duyệt tính theo người này.</summary>
     public Guid? SubmittedByEmployeeId { get; set; }
     public string? RejectReason { get; set; }
+    /// <summary>
+    /// Ban hành tự động (cấu hình "Duyệt trước khi ban hành" đang tắt — TEST-111): không ai duyệt nội dung nên người tạo / phụ trách / quản lý kho
+    /// vẫn thay file (giữ số hiệu) và chuyển thùng rác được. Ban hành qua duyệt / tự ban hành theo chức vụ → false.
+    /// </summary>
+    public bool AutoPublished { get; set; }
 
     /// <summary>Hết hạn lưu trữ (ngày theo lịch VN); null = vĩnh viễn.</summary>
     public DateOnly? RetentionUntil { get; set; }
@@ -125,7 +130,7 @@ public sealed class Asset
     public string? DestroyReason { get; set; }
     public string? DestroyedByName { get; set; }
 
-    /// <summary>Thùng rác (chỉ tài liệu nháp); quá 30 ngày thì xoá hẳn.</summary>
+    /// <summary>Thùng rác (tài liệu nháp, hoặc đã ban hành tự động); quá 30 ngày thì xoá hẳn.</summary>
     public DateTimeOffset? DeletedAt { get; set; }
     public string? DeletedByName { get; set; }
 
@@ -178,4 +183,18 @@ public sealed class Sequence
 {
     public required string Scope { get; set; }
     public int Value { get; set; }
+}
+
+/// <summary>
+/// Cấu hình kho tài liệu do admin chỉnh (bảng một dòng <see cref="SingletonId"/>; chưa có dòng → mặc định). TEST-111:
+/// <see cref="RequirePublishApproval"/> = false (mặc định) → tải lên là Ban hành ngay; true → Nháp → gửi duyệt → Ban hành như trước.
+/// </summary>
+[Audited]
+public sealed class DocumentSettings
+{
+    public const int SingletonId = 1;
+    public int Id { get; set; } = SingletonId;
+    public bool RequirePublishApproval { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+    public string? UpdatedByName { get; set; }
 }

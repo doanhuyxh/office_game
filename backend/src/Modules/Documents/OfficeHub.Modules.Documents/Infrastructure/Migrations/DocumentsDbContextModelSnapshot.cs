@@ -72,6 +72,9 @@ namespace OfficeHub.Modules.Documents.Infrastructure.Migrations
                     b.Property<Guid?>("ApprovalRequestId")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("AutoPublished")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Classification")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -293,6 +296,26 @@ namespace OfficeHub.Modules.Documents.Infrastructure.Migrations
                         .HasDatabaseName("ux_doc_types_code");
 
                     b.ToTable("doc_types", "documents");
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Documents.Domain.DocumentSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("RequirePublishApproval")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("settings", "documents");
                 });
 
             modelBuilder.Entity("OfficeHub.Modules.Documents.Domain.Folder", b =>

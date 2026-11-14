@@ -1,5 +1,6 @@
 import { BellRing, HardDrive, Mail, Send } from 'lucide-react';
 import { Spinner } from '@/components/feedback/Spinner';
+import { DocumentSettingsCard } from '@/features/documents';
 import { AgentMeetingSettingsCard } from '@/features/meetings';
 import { AgentLimitsCard } from '@/features/projects';
 import { errorMessage } from '@/utils/errors';
@@ -41,7 +42,7 @@ const TELEGRAM_FIELDS: ISettingsField[] = [
   { key: 'botToken', label: 'Bot token (bot thông báo của OfficeHub)', kind: 'secret', placeholder: '123456789:AA…', hint: 'Lấy từ @BotFather.' },
 ];
 
-/** Tab Cấu hình của trang Hệ thống: giới hạn bot (TEST-36) + trần cuộc họp với AI (TEST-83) + cấu hình S3 / SMTP / FCM / IP văn phòng lưu trong DB (TEST-41) + Telegram đánh thức agent (TEST-42). */
+/** Tab Cấu hình của trang Hệ thống: giới hạn bot (TEST-36) + trần cuộc họp với AI (TEST-83) + duyệt trước khi ban hành tài liệu (TEST-111) + cấu hình S3 / SMTP / FCM / IP văn phòng lưu trong DB (TEST-41) + Telegram đánh thức agent (TEST-42). */
 export function ConfigTab() {
   const { data, isLoading, error } = useSystemSettings();
   const by = (g: string) => data?.find((x) => x.group === g);
@@ -50,6 +51,7 @@ export function ConfigTab() {
     <div className="grid gap-4">
       <AgentLimitsCard />
       <AgentMeetingSettingsCard />
+      <DocumentSettingsCard />
       {isLoading ? <Spinner /> : error || !data ? <p className="text-sm text-destructive">{errorMessage(error)}</p> : (
         <>
           <p className="text-sm text-muted-foreground">

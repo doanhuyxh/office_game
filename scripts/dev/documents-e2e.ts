@@ -1,7 +1,9 @@
 // E2E: kho tài liệu (module Documents) — kho / quyền, thư mục, tải lên thẳng S3 (vé + presigned PUT), phiên bản, xem / tải (presigned GET,
 // nhật ký), tìm kiếm, thùng rác, gửi duyệt ban hành → số hiệu, lưu trữ, huỷ, hạn lưu trữ, dự án + thành viên, bàn giao, thống kê, CORS S3.
+// TEST-111: cấu hình "Duyệt trước khi ban hành" (mặc định tắt → tải lên là ban hành ngay; chỉ admin đổi). Phần quy trình cũ chạy với cấu hình BẬT.
 // TẠO NHÂN VIÊN THẬT → CHỈ chạy trên DB tạm (Api :5180 trỏ DB tạm). File S3 thật: cuối bài huỷ / xoá hết.
 //   E2E_LOCAL_DB=1 API_URL=http://localhost:5180 ADMIN_LOGIN=… ADMIN_PASSWORD=… bun scripts/dev/documents-e2e.ts
+// Có ADMIN_LOGIN + ADMIN_PASSWORD → không đọc .env.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { totp } from './totp';
@@ -9,7 +11,7 @@ import { totp } from './totp';
 if (process.env.E2E_LOCAL_DB !== '1') throw new Error('Chỉ chạy với DB tạm: đặt E2E_LOCAL_DB=1');
 const API = process.env.API_URL ?? 'http://localhost:5180';
 const ORIGIN = process.env.APP_ORIGIN ?? 'http://localhost:5173';
-const env = Object.fromEntries((await Bun.file(new URL('../../.env', import.meta.url)).text()).split('\n')
+const env: Record<string, string> = process.env.ADMIN_LOGIN && process.env.ADMIN_PASSWORD ? {} : Object.fromEntries((await Bun.file(new URL('../../.env', import.meta.url)).text()).split('\n')
   .filter((l) => /^[A-Za-z_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim()]));
 let pass = 0, fail = 0;
 const ok = (name: string, cond: boolean, extra?: unknown) => {
@@ -72,6 +74,20 @@ await json(admin, 'PUT', `/api/org/departments/${tech}`, { name: 'Công nghệ E
 const staff = await mkEmp('NV981', 'Nhân Viên Tài Liệu', tech, head.e.id, 'e2e.doc.staff', ['employee']);
 const outsider = await mkEmp('NV982', 'Người Phòng Khác', acct, null, 'e2e.doc.out', ['employee']);
 ok('3 nhân viên đăng nhập', !!head.cookie && !!staff.cookie && !!outsider.cookie);
+
+// ---------- TEST-111: cấu hình "Duyệt trước khi ban hành tài liệu" — quyền ----------
+const st0 = await json(staff.cookie, 'GET', '/api/documents/settings');
+ok('[111] mặc định: tắt duyệt (chưa lưu lần nào), nhân viên đọc được', st0.status === 200 && st0.body.requirePublishApproval === false && st0.body.isDefault === true, st0);
+const hrUser = await mkEmp('NV984', 'HR Tài Liệu', acct, null, 'e2e.doc.hr', ['employee', 'hr']);
+ok('[111] nhân viên đổi cấu hình → 403', (await json(staff.cookie, 'PUT', '/api/documents/settings', { requirePublishApproval: true })).status === 403);
+ok('[111] HR đổi cấu hình → 403 (chỉ admin)', (await json(hrUser.cookie, 'PUT', '/api/documents/settings', { requirePublishApproval: true })).status === 403);
+ok('[111] chưa đăng nhập → 401', (await fetch(`${API}/api/documents/settings`, { method: 'PUT', headers: { 'content-type': 'application/json' },
+  body: '{"requirePublishApproval":true}' })).status === 401);
+const st1 = await json(admin, 'PUT', '/api/documents/settings', { requirePublishApproval: true });
+ok('[111] admin bật duyệt → lưu, có người / lúc sửa', st1.status === 200 && st1.body.requirePublishApproval === true && st1.body.isDefault === false && !!st1.body.updatedAt, st1);
+const aud = (await json(admin, 'GET', '/api/audit/changes?entity=DocumentSettings&take=20')).body as any[];
+ok('[111] lịch sử thay đổi ghi lần bật', Array.isArray(aud) && aud.some((c) => c.changes.some((f: any) => f.field === 'RequirePublishApproval')), aud);
+// Từ đây tới mục [111] cuối bài: quy trình cũ (Nháp → gửi duyệt → Ban hành) với cấu hình BẬT.
 
 const created: string[] = [];
 const T = { kind: 'Department', id: tech };
@@ -270,6 +286,73 @@ const desD = (await json(admin, 'GET', `/api/documents/assets/${A.id}`)).body;
 ok('huỷ: xoá file S3, giữ hồ sơ làm biên bản', des.status === 204 && desD.asset.status === 'Destroyed' && desD.destroyReason === 'Hết hạn lưu trữ (E2E)'
   && desD.versions.every((v: any) => !v.available) && (await json(admin, 'GET', `/api/documents/assets/${A.id}/file`)).status === 410
   && [403, 404].includes((await fetch(v1Url)).status), desD);
+
+// ---------- TEST-111: cấu hình TẮT → tải lên là ban hành ngay ----------
+// Đơn đang chờ duyệt lúc đổi cấu hình: vẫn duyệt / từ chối bình thường, không thành "tự động".
+const pend = await createAsset(staff.cookie, 'cho-duyet.txt', 'Chờ duyệt khi đổi cấu hình', T);
+await json(staff.cookie, 'POST', `/api/documents/assets/${pend.body.asset.id}/submit`);
+const pend2 = await createAsset(staff.cookie, 'cho-tu-choi.txt', 'Chờ từ chối khi đổi cấu hình', T);
+await json(staff.cookie, 'POST', `/api/documents/assets/${pend2.body.asset.id}/submit`);
+const draftOld = await createAsset(staff.cookie, 'nhap-cu.txt', 'Nháp tạo khi đang bật duyệt', T);
+const offR = await json(admin, 'PUT', '/api/documents/settings', { requirePublishApproval: false });
+ok('[111] admin tắt duyệt', offR.status === 200 && offR.body.requirePublishApproval === false, offR);
+ok('[111] đổi cấu hình không đụng tài liệu đã có: đơn vẫn Chờ duyệt, nháp vẫn Nháp',
+  (await json(staff.cookie, 'GET', `/api/documents/assets/${pend.body.asset.id}`)).body.asset.status === 'PendingApproval'
+  && (await json(staff.cookie, 'GET', `/api/documents/assets/${draftOld.body.asset.id}`)).body.asset.status === 'Draft');
+const inbox111 = (await json(head.cookie, 'GET', '/api/approval/inbox')).body as any[];
+const rq1 = inbox111.find((x) => x.subjectId === pend.body.asset.id), rq2 = inbox111.find((x) => x.subjectId === pend2.body.asset.id);
+await json(head.cookie, 'POST', `/api/approval/${rq1?.id}/approve`, { comment: 'OK' });
+await json(head.cookie, 'POST', `/api/approval/${rq2?.id}/reject`, { comment: 'Chưa đạt' });
+const pendD = (await json(staff.cookie, 'GET', `/api/documents/assets/${pend.body.asset.id}`)).body;
+const pend2D = (await json(staff.cookie, 'GET', `/api/documents/assets/${pend2.body.asset.id}`)).body;
+ok('[111] đơn chờ từ trước: duyệt → Ban hành (không tính tự động), từ chối → Nháp', pendD.asset.status === 'Published' && pendD.autoPublished === false
+  && pend2D.asset.status === 'Draft' && pend2D.rejectReason === 'Chưa đạt', [pendD.asset.status, pendD.autoPublished, pend2D.asset.status]);
+ok('[111] tài liệu ban hành qua duyệt vẫn khoá: không thay file / không xoá (409)',
+  (await json(staff.cookie, 'POST', `/api/documents/assets/${pend.body.asset.id}/versions`, { ticketId: crypto.randomUUID() })).status === 409
+  && (await json(staff.cookie, 'DELETE', `/api/documents/assets/${pend.body.asset.id}`)).status === 409);
+
+const auto = await createAsset(staff.cookie, 'Bien ban hop.txt', 'Biên bản họp', T);
+const AU = auto.body?.asset;
+const numRe = new RegExp(`^\\d{3}/${year}/VB-CNE2$`);
+ok('[111] tắt: tải lên → Ban hành ngay, số hiệu xxx/năm/VB-CNE2, hạn lưu trữ 5 năm, cờ tự động',
+  auto.status === 200 && AU.status === 'Published' && numRe.test(AU.documentNumber ?? '') && !!auto.body.publishedAt
+  && AU.retentionUntil?.startsWith(String(Number(year) + 5)) && auto.body.autoPublished === true && !auto.body.approvalRequestId, auto.body);
+ok('[111] không tạo đơn duyệt nào', !(await json(head.cookie, 'GET', '/api/approval/inbox')).body.some((x: any) => x.subjectId === AU.id));
+ok('[111] quyền: thay file + xoá được, không gửi duyệt', auto.body.can.changeFile === true && auto.body.can.delete === true && auto.body.can.submit === false, auto.body.can);
+const conf = await createAsset(staff.cookie, 'mat.txt', 'Tài liệu mật', T, { classification: 'Confidential' });
+ok('[111] tài liệu Mật cũng ban hành ngay', conf.status === 200 && conf.body.asset.status === 'Published' && conf.body.asset.classification === 'Confidential', conf.body?.asset);
+// Tải cả thư mục: ensure thư mục + nhiều file song song → mỗi file một số hiệu
+const fo = await json(staff.cookie, 'POST', '/api/documents/folders/ensure', { spaceKind: 'Department', spaceId: tech, parentId: null, path: 'Nhập thư mục 111/con' });
+const fa = await Promise.all(['a.txt', 'b.txt', 'c.txt'].map((n) => createAsset(staff.cookie, n, `nội dung ${n}`, T, { folderId: fo.body.id })));
+const nums = fa.map((r) => r.body?.asset?.documentNumber);
+ok('[111] tải thư mục (3 file song song): đều Ban hành, số hiệu riêng không trùng', fa.every((r) => r.status === 200 && r.body.asset.status === 'Published')
+  && new Set(nums).size === 3 && nums.every((n) => !!n), nums);
+// Tải nhầm file: thay file (giữ số hiệu) + chuyển thùng rác / khôi phục
+const u111 = await upload(staff.cookie, 'Bien ban hop (dung).txt', 'Biên bản họp — bản đúng');
+const nv = await json(staff.cookie, 'POST', `/api/documents/assets/${AU.id}/versions`, { ticketId: u111.ticket.body.ticketId, note: 'Tải nhầm file' });
+ok('[111] ban hành tự động: thay file → v2, giữ số hiệu + trạng thái', nv.status === 200 && nv.body.asset.currentVersion === 2
+  && nv.body.asset.documentNumber === AU.documentNumber && nv.body.asset.status === 'Published', nv.body?.asset);
+ok('[111] người phòng khác không thay file (404)', (await json(outsider.cookie, 'POST', `/api/documents/assets/${AU.id}/versions`, { ticketId: crypto.randomUUID() })).status === 404);
+ok('[111] ban hành tự động: chuyển thùng rác + khôi phục', (await json(staff.cookie, 'DELETE', `/api/documents/assets/${AU.id}`)).status === 204
+  && (await json(staff.cookie, 'GET', '/api/documents/trash?page=1')).body.items.some((x: any) => x.id === AU.id)
+  && (await json(staff.cookie, 'POST', `/api/documents/assets/${AU.id}/restore`)).status === 204
+  && (await json(staff.cookie, 'GET', `/api/documents/assets/${AU.id}`)).body.asset.status === 'Published');
+// Nháp có sẵn: "Ban hành ngay" (web) → ban hành luôn, không tạo đơn
+const apOff = await json(staff.cookie, 'GET', `/api/documents/assets/${draftOld.body.asset.id}/approvers`);
+ok('[111] nháp có sẵn: khung người duyệt báo không bắt buộc duyệt', apOff.body?.step === 'Self' && apOff.body.note.includes('không bắt buộc duyệt'), apOff.body);
+const subOff = await json(staff.cookie, 'POST', `/api/documents/assets/${draftOld.body.asset.id}/submit`);
+ok('[111] nháp có sẵn: bấm ban hành → Published + số hiệu, không tạo đơn', subOff.status === 200 && subOff.body.asset.status === 'Published'
+  && !!subOff.body.asset.documentNumber && !subOff.body.approvalRequestId && subOff.body.autoPublished === true, subOff.body);
+// Tài liệu chữ (POST /assets/text — đường của trợ lý AI) vẫn tạo Nháp
+const txt = await json(staff.cookie, 'POST', '/api/documents/assets/text', { spaceKind: 'Department', spaceId: tech, title: 'Ghi chú 111', format: 'md', content: '# Ghi chú' });
+if (txt.status === 200) created.push(txt.body.asset.id);
+ok('[111] tài liệu chữ (đường trợ lý AI) vẫn tạo Nháp', txt.status === 200 && txt.body.asset.status === 'Draft', txt);
+// Bật lại → tải lên là Nháp như cũ; tài liệu đã ban hành tự động giữ nguyên
+await json(admin, 'PUT', '/api/documents/settings', { requirePublishApproval: true });
+const onAgain = await createAsset(staff.cookie, 'bat-lai.txt', 'Bật lại duyệt', T);
+ok('[111] bật lại: tải lên → Nháp, tài liệu ban hành tự động trước đó không đổi', onAgain.body?.asset?.status === 'Draft'
+  && (await json(staff.cookie, 'GET', `/api/documents/assets/${AU.id}`)).body.autoPublished === true, onAgain.body?.asset);
+await json(admin, 'PUT', '/api/documents/settings', { requirePublishApproval: false });
 
 // ---------- CORS S3 (trình duyệt PUT thẳng lên bucket) ----------
 const probe = await upload(staff.cookie, 'cors.txt', 'cors');

@@ -130,6 +130,16 @@ export interface IAssetDetail {
   deletedByName: string | null;
   versions: IVersion[];
   can: IAssetPermissions;
+  /** Ban hành tự động khi tải lên (không qua duyệt) → vẫn thay file / chuyển thùng rác được. TEST-111. */
+  autoPublished: boolean;
+}
+
+/** Cấu hình kho tài liệu (TEST-111) — chỉ admin sửa; isDefault = chưa lưu lần nào (mặc định tắt duyệt). */
+export interface IDocumentSettings {
+  requirePublishApproval: boolean;
+  isDefault: boolean;
+  updatedAt: string | null;
+  updatedByName: string | null;
 }
 
 /** Người duyệt ban hành (GET /assets/{id}/approvers). step: Manager | Hr | None (không gửi được — xem note). */

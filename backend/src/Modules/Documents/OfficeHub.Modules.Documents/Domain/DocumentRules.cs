@@ -121,8 +121,10 @@ public static class DocumentRules
         return c.Length == 0 ? (kind == SpaceKind.Project ? "DA" : "PB") : c.Length > 12 ? c[..12] : c;
     }
 
-    public static bool CanChangeFile(AssetStatus s) => s == AssetStatus.Draft;
-    public static bool CanTrash(AssetStatus s) => s == AssetStatus.Draft;
+    /// <summary>Thay file: nháp, hoặc đã ban hành TỰ ĐỘNG (không ai duyệt nội dung — sửa được file tải nhầm, giữ số hiệu). TEST-111.</summary>
+    public static bool CanChangeFile(AssetStatus s, bool autoPublished = false) => s == AssetStatus.Draft || (autoPublished && s == AssetStatus.Published);
+    /// <summary>Chuyển thùng rác: nháp, hoặc đã ban hành tự động. Ban hành qua duyệt chỉ lưu trữ / huỷ theo hạn.</summary>
+    public static bool CanTrash(AssetStatus s, bool autoPublished = false) => s == AssetStatus.Draft || (autoPublished && s == AssetStatus.Published);
     public static bool CanSubmit(AssetStatus s) => s == AssetStatus.Draft;
     public static bool CanArchive(AssetStatus s) => s == AssetStatus.Published;
     public static bool CanDestroy(AssetStatus s) => s is AssetStatus.Draft or AssetStatus.Published or AssetStatus.Archived;

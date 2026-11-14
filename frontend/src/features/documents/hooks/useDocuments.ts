@@ -22,6 +22,7 @@ export const useRecentPublished = (enabled = true) => useQuery({ queryKey: docum
 export const useDocStats = () => useQuery({ queryKey: documentKeys.stats, queryFn: documentApi.stats });
 export const useRetentionDue = (q: IPageQuery) => useQuery({ queryKey: documentKeys.retention(q), queryFn: () => documentApi.retention(q), ...keep });
 export const useOrphans = () => useQuery({ queryKey: documentKeys.orphans, queryFn: documentApi.orphans });
+export const useDocumentSettings = () => useQuery({ queryKey: documentKeys.settings, queryFn: documentApi.settings });
 
 /** Mọi thao tác ghi làm mới toàn bộ cache kho tài liệu (dữ liệu nhỏ, đơn giản hơn chọn từng key). */
 export function useDocMutation<A, R>(fn: (a: A) => Promise<R>) {

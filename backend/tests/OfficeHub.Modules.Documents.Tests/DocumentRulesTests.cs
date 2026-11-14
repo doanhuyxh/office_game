@@ -17,6 +17,20 @@ public class DocumentRulesTests
     public void KindOf_uses_mime_then_extension(string mime, string name, AssetKind expected) =>
         Assert.Equal(expected, DocumentRules.KindOf(mime, name));
 
+    [Theory]
+    [InlineData(AssetStatus.Draft, false, true)]
+    [InlineData(AssetStatus.Draft, true, true)]
+    [InlineData(AssetStatus.Published, true, true)]   // ban hành tự động (TEST-111): sửa được file tải nhầm
+    [InlineData(AssetStatus.Published, false, false)] // ban hành qua duyệt: khoá
+    [InlineData(AssetStatus.PendingApproval, false, false)]
+    [InlineData(AssetStatus.Archived, true, false)]
+    [InlineData(AssetStatus.Destroyed, true, false)]
+    public void Auto_published_assets_can_change_file_and_be_trashed(AssetStatus status, bool auto, bool expected)
+    {
+        Assert.Equal(expected, DocumentRules.CanChangeFile(status, auto));
+        Assert.Equal(expected, DocumentRules.CanTrash(status, auto));
+    }
+
     [Fact]
     public void SafeKeyName_strips_vietnamese_marks_and_unsafe_chars()
     {

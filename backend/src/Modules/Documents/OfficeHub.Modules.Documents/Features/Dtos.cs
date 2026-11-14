@@ -53,7 +53,7 @@ public sealed record AssetPermissions(bool Edit, bool ChangeFile, bool Delete, b
 
 public sealed record AssetDetailDto(AssetRowDto Asset, string? Description, string SpaceName, string? FolderPath, Guid? CustodianEmployeeId,
     DateTimeOffset? PublishedAt, Guid? ApprovalRequestId, string? RejectReason, DateTimeOffset? DestroyedAt, string? DestroyReason,
-    string? DestroyedByName, string? DeletedByName, IReadOnlyList<VersionDto> Versions, AssetPermissions Can);
+    string? DestroyedByName, string? DeletedByName, IReadOnlyList<VersionDto> Versions, AssetPermissions Can, bool AutoPublished = false);
 
 /// <summary>
 /// Ai duyệt ban hành: <see cref="Step"/> = "Self" (chức vụ được tự ban hành) | "Manager" (quản lý trực tiếp của người gửi) | "Hr" (HR; không có HR khác người gửi → admin) | "None"
@@ -80,3 +80,7 @@ internal static class Http
     public static ProblemHttpResult NoProfile() => TypedResults.Problem(
         "Tài khoản chưa gắn hồ sơ nhân viên nên chưa gửi duyệt được. Liên hệ HR.", statusCode: StatusCodes.Status409Conflict, title: "no_employee_profile");
 }
+
+/// <summary>Cấu hình kho tài liệu (TEST-111). IsDefault = chưa lưu lần nào (đang dùng mặc định: tắt duyệt).</summary>
+public sealed record DocumentSettingsDto(bool RequirePublishApproval, bool IsDefault, DateTimeOffset? UpdatedAt, string? UpdatedByName);
+public sealed record UpdateDocumentSettingsRequest(bool RequirePublishApproval);

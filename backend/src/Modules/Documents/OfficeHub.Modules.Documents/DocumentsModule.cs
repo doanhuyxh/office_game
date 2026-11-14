@@ -37,5 +37,6 @@ public sealed class DocumentsModule : IModule
         SpaceEndpoints.Map(g);
         AssetEndpoints.Map(g);
         AdminEndpoints.Map(g);
+        SettingsEndpoints.Map(g);
     }
 }

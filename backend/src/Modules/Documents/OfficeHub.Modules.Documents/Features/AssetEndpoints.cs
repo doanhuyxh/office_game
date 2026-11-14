@@ -212,8 +212,12 @@ internal static class AssetEndpoints
         return TypedResults.Ok(await DetailAsync(a, v, access, db, dir, ct));
     }
 
+    /// <summary>
+    /// Đăng ký file đã PUT lên S3. Cấu hình "Duyệt trước khi ban hành" tắt (mặc định, TEST-111) → ban hành ngay (số hiệu, hạn lưu trữ từ
+    /// ngày ban hành, <see cref="Asset.AutoPublished"/>); bật → Nháp như trước.
+    /// </summary>
     private static async Task<Results<Ok<AssetDetailDto>, ValidationProblem, ProblemHttpResult>> CreateAsync(CreateAssetRequest req, ClaimsPrincipal user,
-        DocumentAccess access, DocumentsDbContext db, IFileStorage files, IEmployeeDirectory dir, DocClock clock, CancellationToken ct)
+        DocumentAccess access, DocumentsDbContext db, IFileStorage files, IEmployeeDirectory dir, AssetPublisher publisher, DocClock clock, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         if (await access.SpaceAsync(req.SpaceKind, req.SpaceId, ct) is not { } space) return Problems.NotFound("kho tài liệu");
@@ -251,6 +255,12 @@ internal static class AssetEndpoints
         db.Assets.Add(a);
         db.UploadTickets.Remove(t);
         await db.SaveChangesAsync(ct);
+        if (!await db.RequirePublishApprovalAsync(ct))
+        {
+            a.SubmittedByEmployeeId = v.Employee?.Id;
+            a.AutoPublished = true;
+            await publisher.PublishAsync(a, ct);
+        }
         return TypedResults.Ok(await DetailAsync(a, v, access, db, dir, ct));
     }
 
@@ -294,14 +304,14 @@ internal static class AssetEndpoints
         return TypedResults.Ok(await DetailAsync(a, v, access, db, dir, ct));
     }
 
-    /// <summary>Phiên bản mới (chỉ khi còn nháp — đã ban hành thì khoá nội dung). Bản cũ vẫn giữ trên S3.</summary>
+    /// <summary>Phiên bản mới (khi còn nháp, hoặc đã ban hành tự động — giữ số hiệu; ban hành qua duyệt thì khoá nội dung). Bản cũ vẫn giữ trên S3.</summary>
     private static async Task<Results<Ok<AssetDetailDto>, ProblemHttpResult>> AddVersionAsync(Guid id, NewVersionRequest req, ClaimsPrincipal user,
         DocumentAccess access, DocumentsDbContext db, IFileStorage files, IEmployeeDirectory dir, DocClock clock, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var a = await db.Assets.Include(x => x.Versions).FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct);
         if (a is null || !DocumentAccess.CanView(v, a)) return Problems.NotFound("tài liệu");
-        if (!DocumentRules.CanChangeFile(a.Status)) return Problems.Conflict("Tài liệu đã gửi duyệt / ban hành — không thay file được");
+        if (!DocumentRules.CanChangeFile(a.Status, a.AutoPublished)) return Problems.Conflict("Tài liệu đã gửi duyệt / ban hành qua duyệt — không thay file được");
         if (!await access.CanActAsync(v, a, ct)) return Http.Forbidden("Chỉ người tạo / phụ trách tài liệu hoặc quản lý kho được thay file");
         var (t, size, err) = await ClaimTicketAsync(req.TicketId, v, db, files, ct);
         if (err is not null) return err;
@@ -359,8 +369,8 @@ internal static class AssetEndpoints
         var write = a.Status != AssetStatus.Destroyed && a.DeletedAt is null && (owner || manage);
         var can = new AssetPermissions(
             Edit: write,
-            ChangeFile: write && DocumentRules.CanChangeFile(a.Status),
-            Delete: a.DeletedAt is null && DocumentRules.CanTrash(a.Status) && (owner || manage),
+            ChangeFile: write && DocumentRules.CanChangeFile(a.Status, a.AutoPublished),
+            Delete: a.DeletedAt is null && DocumentRules.CanTrash(a.Status, a.AutoPublished) && (owner || manage),
             Restore: a.DeletedAt is not null && (owner || manage),
             Purge: a.DeletedAt is not null && (owner || manage),
             Submit: a.DeletedAt is null && DocumentRules.CanSubmit(a.Status) && (owner || manage) && v.Employee is not null,
@@ -370,7 +380,7 @@ internal static class AssetEndpoints
         var versions = a.Versions.OrderByDescending(x => x.Number)
             .Select(x => new VersionDto(x.Number, x.FileName, x.ContentType, x.Size, x.Note, x.UploadedByName, x.UploadedAt, x.FileKey is not null)).ToList();
         return new AssetDetailDto(Row(a, types), a.Description, space?.Name ?? "?", path, a.CustodianEmployeeId, a.PublishedAt, a.ApprovalRequestId,
-            a.RejectReason, a.DestroyedAt, a.DestroyReason, a.DestroyedByName, a.DeletedByName, versions, can);
+            a.RejectReason, a.DestroyedAt, a.DestroyReason, a.DestroyedByName, a.DeletedByName, versions, can, a.AutoPublished);
     }
 
     /// <summary>
@@ -464,7 +474,8 @@ internal static class AssetEndpoints
         var v = await access.ViewerAsync(user, ct);
         var a = await db.Assets.FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, ct);
         if (a is null || !DocumentAccess.CanView(v, a)) return Problems.NotFound("tài liệu");
-        if (!DocumentRules.CanTrash(a.Status)) return Problems.Conflict("Chỉ xoá được tài liệu nháp — tài liệu đã ban hành chỉ lưu trữ hoặc huỷ theo hạn");
+        if (!DocumentRules.CanTrash(a.Status, a.AutoPublished))
+            return Problems.Conflict("Chỉ xoá được tài liệu nháp / ban hành tự động — tài liệu ban hành qua duyệt chỉ lưu trữ hoặc huỷ theo hạn");
         if (!await access.CanActAsync(v, a, ct)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho được xoá");
         a.DeletedAt = clock.Now;
         a.DeletedByName = v.Name;
@@ -565,6 +576,9 @@ internal static class AssetEndpoints
             return TypedResults.Ok(new ApproversDto("None", pending, null,
                 pending ? "Không xác định được người gửi." : "Tài khoản của bạn chưa gắn hồ sơ nhân viên nên chưa gửi duyệt được — liên hệ HR.", []));
 
+        if (!pending && !user.IsAccessToken() && !await db.RequirePublishApprovalAsync(ct))
+            return TypedResults.Ok(new ApproversDto("Self", false, requester.FullName,
+                "Công ty không bắt buộc duyệt tài liệu — bấm \"Ban hành ngay\" là tài liệu có số hiệu luôn.", []));
         if (!pending && await dir.GetPositionAsync(requester.Id, ct) is { SelfPublishDocuments: true } pos)
             return TypedResults.Ok(new ApproversDto("Self", false, requester.FullName,
                 $"Chức vụ {pos.Name} được tự ban hành — bấm \"Ban hành ngay\" là tài liệu có số hiệu luôn, không cần ai duyệt.", []));
@@ -600,6 +614,14 @@ internal static class AssetEndpoints
         if (!DocumentRules.CanSubmit(a.Status)) return Problems.Conflict("Chỉ gửi duyệt được tài liệu nháp");
         if (!await access.CanActAsync(v, a, ct)) return Http.Forbidden("Chỉ người phụ trách / quản lý kho được gửi duyệt");
         if (v.Employee is not { } me) return Http.NoProfile();
+        // Cấu hình "Duyệt trước khi ban hành" tắt (TEST-111) → web ban hành luôn (vd nháp tạo trước khi đổi cấu hình). Token AI vẫn tạo đơn bên dưới.
+        if (!user.IsAccessToken() && !await db.RequirePublishApprovalAsync(ct))
+        {
+            a.SubmittedByEmployeeId = me.Id;
+            a.AutoPublished = true;
+            await publisher.PublishAsync(a, ct);
+            return TypedResults.Ok(await DetailAsync(a, v, access, db, dir, ct));
+        }
         // Chức vụ được tự ban hành (cấp Chuyên viên trở lên, HR bật ở tab Chức vụ) → ban hành ngay, không tạo đơn duyệt.
         // Qua trợ lý AI (token) LUÔN tạo đơn cho người duyệt — chủ dự án chốt 2026-11-12 (TEST-54).
         if (!user.IsAccessToken() && (await dir.GetPositionAsync(me.Id, ct))?.SelfPublishDocuments == true)

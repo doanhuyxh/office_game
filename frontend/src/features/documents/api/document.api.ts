@@ -1,7 +1,7 @@
 import { http, httpPost, pageQs } from '@/services/api-client';
 import type { IPaged, IPageQuery } from '@/types/api';
 import type {
-  IAccessLog, IApprovers, IAssetDetail, IAssetFilter, IAssetRow, IDocType, IFileUrl, IFolder, IOrphan, ISpace, ISpaceRef, IStats,
+  IAccessLog, IApprovers, IAssetDetail, IAssetFilter, IAssetRow, IDocType, IDocumentSettings, IFileUrl, IFolder, IOrphan, ISpace, ISpaceRef, IStats,
   IUpdateAsset, IUploadTicket,
 } from '../types/document.types';
 
@@ -23,6 +23,7 @@ export const documentKeys = {
   stats: ['documents', 'stats'] as const,
   retention: (q: IPageQuery) => ['documents', 'retention', q] as const,
   orphans: ['documents', 'orphans'] as const,
+  settings: ['documents', 'settings'] as const,
 };
 
 export const documentApi = {
@@ -77,4 +78,8 @@ export const documentApi = {
   destroy: (id: string, reason: string) => httpPost<void>(`${base}/admin/assets/${id}/destroy`, { reason }),
   orphans: () => http<IOrphan[]>(`${base}/admin/orphans`),
   handover: (fromEmployeeId: string, toEmployeeId: string) => httpPost<number>(`${base}/admin/handover`, { fromEmployeeId, toEmployeeId }),
+
+  /** Cấu hình "Duyệt trước khi ban hành tài liệu" — đọc: mọi người; sửa: chỉ admin (back-end chặn). */
+  settings: () => http<IDocumentSettings>(`${base}/settings`),
+  saveSettings: (requirePublishApproval: boolean) => http<IDocumentSettings>(`${base}/settings`, json('PUT', { requirePublishApproval })),
 };

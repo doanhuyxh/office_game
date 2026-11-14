@@ -15,6 +15,8 @@ interface Item {
   size: number;
   progress: number;
   state: 'queued' | 'uploading' | 'done' | 'error';
+  /** Tài liệu tạo xong đã Ban hành luôn (cấu hình "Duyệt trước khi ban hành" tắt — TEST-111) hay còn Nháp. */
+  published?: boolean;
   error?: string;
 }
 
@@ -56,9 +58,9 @@ export function useUploadQueue() {
         patch(job.key, { state: 'uploading' });
         try {
           const ticketId = await uploadToStorage(job.file, (r) => patch(job.key, { progress: r }));
-          await documentApi.create({ ticketId, spaceKind: space.kind, spaceId: space.id, folderId: folderOf.get(job.dir) ?? null,
+          const created = await documentApi.create({ ticketId, spaceKind: space.kind, spaceId: space.id, folderId: folderOf.get(job.dir) ?? null,
             docTypeId: null, title: null, description: null, tags: [] });
-          patch(job.key, { state: 'done', progress: 1 });
+          patch(job.key, { state: 'done', progress: 1, published: created.asset.status === 'Published' });
         } catch (err) {
           patch(job.key, { state: 'error', error: errorMessage(err) });
         }
@@ -95,6 +97,7 @@ export function UploadPanel({ items, onClear }: { items: Item[]; onClear: () => 
                   : <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />}
               <span className="min-w-0 flex-1 truncate">{i.path ? <span className="text-muted-foreground">{i.path}/</span> : null}{i.name}</span>
               <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                {i.state === 'done' ? `${i.published ? 'Đã ban hành' : 'Nháp'} · ` : ''}
                 {i.state === 'uploading' ? `${Math.round(i.progress * 100)}% · ` : ''}{formatSize(i.size)}
               </span>
             </div>

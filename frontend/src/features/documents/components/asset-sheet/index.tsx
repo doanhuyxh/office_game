@@ -146,7 +146,7 @@ function Detail({ d, onClose, onPresent }: { d: IAssetDetail; onClose: () => voi
         <dt className="text-muted-foreground">Dung lượng</dt><dd>{formatSize(a.size)}{a.currentVersion > 1 ? ` (tất cả ${a.currentVersion} phiên bản: ${formatSize(a.totalSize)})` : ''}</dd>
         <dt className="text-muted-foreground">Người tạo</dt><dd>{a.createdByName ?? '—'} · {formatDateTime(a.createdAt)}</dd>
         <dt className="text-muted-foreground">Phụ trách</dt><dd><Custodian d={d} /></dd>
-        {d.publishedAt && <><dt className="text-muted-foreground">Ban hành</dt><dd>{formatDate(d.publishedAt)}</dd></>}
+        {d.publishedAt && <><dt className="text-muted-foreground">Ban hành</dt><dd>{formatDate(d.publishedAt)}{d.autoPublished ? ' · tự động khi tải lên (không qua duyệt)' : ''}</dd></>}
         <dt className="text-muted-foreground">Lưu đến</dt><dd>{a.retentionUntil ? formatDate(a.retentionUntil) : 'Vĩnh viễn'}</dd>
       </dl>
 
