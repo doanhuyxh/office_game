@@ -507,6 +507,12 @@ export const MCP_TOOL_GROUPS: McpToolGroup[] = [
           { name: 'project', type: 'string', required: true, description: 'Id hoặc mã dự án' },
           { name: 'guide', type: 'string', required: true, description: 'Hướng dẫn mới, Markdown — thay toàn bộ ("none" = xoá)' },
         ] },
+      { name: 'update_project_description', title: 'Sửa mô tả dự án', kind: 'write', idempotent: true, endpoint: 'PUT /api/projects/{id}/description',
+        description: '(Quản lý dự án / HR) Sửa mô tả (≤ 2.000 ký tự, thay toàn bộ: mục tiêu, phạm vi, khách hàng…) của dự án đang chạy — hiện ở get_project → project.description. Chỉ đổi mô tả, không đổi tên / trạng thái / thành viên. "none" = xoá. AI xem bản hiện tại, cho người dùng xem bản mới và chờ đồng ý. Trả trước / sau.',
+        params: [
+          { name: 'project', type: 'string', required: true, description: 'Id hoặc mã dự án' },
+          { name: 'description', type: 'string', required: true, description: 'Mô tả mới — thay toàn bộ, ≤ 2.000 ký tự ("none" = xoá)' },
+        ] },
     ],
   },
   {

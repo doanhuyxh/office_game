@@ -32,6 +32,9 @@ public sealed record ProjectDto(Guid Id, string Code, string Name, string? Descr
 /// <param name="WorkGuide">Hướng dẫn làm việc mới (Markdown, thay toàn bộ); null / "" = xoá.</param>
 public sealed record UpdateProjectGuide(string? WorkGuide);
 public sealed record ProjectGuideDto(string? WorkGuide);
+/// <param name="Description">Mô tả dự án mới (thay toàn bộ, ≤ 2000); null / "" = xoá.</param>
+public sealed record UpdateProjectDescription(string? Description);
+public sealed record ProjectDescriptionDto(string? Description);
 /// <param name="MyAccess">Quyền của người xem trong dự án (khoá của <see cref="ProjectPermissions"/>: view, work, manage, columns, effort, finance, documents).</param>
 public sealed record ProjectDetail(ProjectDto Project, List<MemberDto> Members, List<MilestoneDto> Milestones, string? WorkGuide, List<TaskColumnDto> Columns,
     List<string>? MyAccess = null);
@@ -51,6 +54,9 @@ public sealed record EffortDto(List<DateOnly> Months, List<MemberDto> Members, L
 /// <summary>Dự án, thành viên, phân bổ %, ngày công (theo chấm công), chọn hợp đồng bán để gắn. Không có số tiền.</summary>
 internal static class ProjectEndpoints
 {
+    /// <summary>Độ dài tối đa mô tả dự án — chung cho PUT /{id} và PUT /{id}/description.</summary>
+    public const int MaxDescription = 2000;
+
     public static void Map(RouteGroupBuilder g)
     {
         g.MapGet("/", ListAsync);
@@ -58,6 +64,7 @@ internal static class ProjectEndpoints
         g.MapPost("/", CreateAsync);
         g.MapPut("/{id:guid}", UpdateAsync);
         g.MapPut("/{id:guid}/guide", UpdateGuideAsync);
+        g.MapPut("/{id:guid}/description", UpdateDescriptionAsync);
         g.MapPost("/{id:guid}/members", AddMembersAsync);
         g.MapPut("/{id:guid}/members/{employeeId:guid}", ChangeRoleAsync);
         g.MapDelete("/{id:guid}/members/{employeeId:guid}", RemoveMemberAsync);
@@ -187,7 +194,7 @@ internal static class ProjectEndpoints
         var code = r.Code?.Trim().ToUpperInvariant();
         var v = new Validation().Required(code, "code", "Mã dự án").MaxLength(code, 30, "code", "Mã dự án")
             .When(code is { Length: > 0 } c && !c.All(ch => char.IsAsciiLetterOrDigit(ch) || ch is '-' or '_'), "code", "Mã chỉ gồm chữ không dấu, số, - và _")
-            .Required(r.Name, "name", "Tên dự án").MaxLength(r.Name, 200, "name", "Tên dự án").MaxLength(r.Description, 2000, "description", "Mô tả")
+            .Required(r.Name, "name", "Tên dự án").MaxLength(r.Name, 200, "name", "Tên dự án").MaxLength(r.Description, MaxDescription, "description", "Mô tả")
             .MaxLength(r.WorkGuide, TaskRules.MaxDescription, "workGuide", "Hướng dẫn làm việc")
             .When(r.EndOn is { } e && r.StartOn is { } s && e < s, "endOn", "Ngày kết thúc trước ngày bắt đầu")
             .When(r.BudgetManDays is < 0 or > 100_000, "budgetManDays", "Ngân sách ngày công không hợp lệ")
@@ -352,6 +359,31 @@ internal static class ProjectEndpoints
             await NotifyChangedAsync(notifier, access, db, p, v, user, [$"{ProjectChangeRules.GuideField}: đã sửa"], ct);
         }
         return TypedResults.Ok(new ProjectGuideDto(p.WorkGuide));
+    }
+
+    /// <summary>
+    /// Chỉ sửa mô tả dự án (tool MCP update_project_description, TEST-103 — không phải gửi lại cả dự án như PUT /{id}). Quyền như /guide: quản lý dự án / HR,
+    /// dự án đang chạy; ≤ 2000 như PUT /{id}; null / "" = xoá. Project có [Audited] → lịch sử sửa ghi như sửa trên web; qua token → nhật ký AI + nhãn BOT.
+    /// </summary>
+    private static async Task<Results<Ok<ProjectDescriptionDto>, NotFound, ValidationProblem, ProblemHttpResult>> UpdateDescriptionAsync(Guid id,
+        UpdateProjectDescription r, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, INotifier notifier, ProjectClock clock, CancellationToken ct)
+    {
+        var v = await access.ViewerAsync(user, ct);
+        var p = await db.Projects.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (p is null || !v.CanSee(id)) return TypedResults.NotFound();
+        if (!v.CanManage(id)) return Forbidden("Chỉ quản lý dự án hoặc HR được sửa mô tả dự án");
+        if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
+        var val = new Validation().MaxLength(r.Description, MaxDescription, "description", "Mô tả");
+        if (val.Failed) return val.Problem();
+        var description = Clean(r.Description);
+        if (description != p.Description)
+        {
+            p.Description = description;
+            p.UpdatedAt = clock.Now;
+            await db.SaveChangesAsync(ct);
+            await NotifyChangedAsync(notifier, access, db, p, v, user, [$"{ProjectChangeRules.DescriptionField}: đã sửa"], ct);
+        }
+        return TypedResults.Ok(new ProjectDescriptionDto(p.Description));
     }
 
     private static async Task NotifyAddedAsync(INotifier notifier, IEmployeeDirectory dir, Project p, IEnumerable<Guid> employeeIds, ProjectViewer v, CancellationToken ct)

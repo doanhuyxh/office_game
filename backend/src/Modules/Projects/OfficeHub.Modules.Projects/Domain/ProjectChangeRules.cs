@@ -16,6 +16,7 @@ public sealed record ProjectSnapshot(string Name, ProjectKind Kind, ProjectStatu
 public static class ProjectChangeRules
 {
     public const string GuideField = "Hướng dẫn làm việc";
+    public const string DescriptionField = "Mô tả";
 
     private static string Kind(ProjectKind k) => k == ProjectKind.Client ? "Làm cho khách" : "Nội bộ";
     private static string Status(ProjectStatus s) => s == ProjectStatus.Closed ? "Đã đóng" : "Đang chạy";
@@ -30,7 +31,7 @@ public static class ProjectChangeRules
         if (a.Name != b.Name) c.Add($"Tên: \"{a.Name}\" → \"{b.Name}\"");
         if (a.Kind != b.Kind) c.Add($"Loại: {Kind(a.Kind)} → {Kind(b.Kind)}");
         if (a.Status != b.Status) c.Add($"Trạng thái: {Status(a.Status)} → {Status(b.Status)}");
-        if ((a.Description ?? "") != (b.Description ?? "")) c.Add("Mô tả: đã sửa");
+        if ((a.Description ?? "") != (b.Description ?? "")) c.Add($"{DescriptionField}: đã sửa");
         if (a.Department != b.Department) c.Add($"Phòng ban tham gia: {Text(a.Department)} → {Text(b.Department)}");
         if (a.BusinessLineId != b.BusinessLineId) c.Add("Mảng kinh doanh: đã đổi");
         var added = b.Contracts.Except(a.Contracts).Order().ToList();

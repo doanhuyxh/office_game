@@ -273,6 +273,36 @@ public sealed class ProjectTools
         return g;
     }
 
+    /// <summary>Khớp ProjectEndpoints.MaxDescription ở module Projects (Api vẫn kiểm tra lại).</summary>
+    internal const int DescriptionMax = 2_000;
+
+    [McpServerTool(Name = "update_project_description", Title = "Sửa mô tả dự án", Destructive = false, Idempotent = true, OpenWorld = false)]
+    [Description("(Quản lý dự án / HR) Sửa mô tả (≤ 2.000 ký tự: mục tiêu, phạm vi, khách hàng…) của một dự án đang chạy — " +
+                 "hiện ở get_project → project.description và trang dự án. Chỉ đổi mô tả, không đổi tên / trạng thái / thành viên. " +
+                 "Bản mới THAY THẾ TOÀN BỘ bản cũ; \"none\" = xoá. Gọi get_project xem bản hiện tại, cho người dùng xem bản mới và chờ đồng ý trước khi gọi. " +
+                 "Không ghi mật khẩu, thông tin cá nhân. Trả before / after.")]
+    public static async Task<string> UpdateProjectDescription(OfficeHubApi api,
+        [Description("Dự án: id hoặc mã dự án")] string project,
+        [Description("Mô tả mới (thay toàn bộ, ≤ 2.000 ký tự); \"none\" = xoá")] string description,
+        CancellationToken ct = default)
+    {
+        var next = DescriptionValue(description);
+        var id = await ResolveProjectAsync(api, project, ct);
+        var before = (await api.GetAsync($"/api/projects/{id}", ct))?["project"]?["description"]?.DeepClone();
+        var saved = await api.PutAsync($"/api/projects/{id}/description", new { description = next }, ct);
+        return Out(new JsonObject { ["before"] = before, ["after"] = saved?["description"]?.DeepClone() });
+    }
+
+    /// <summary>Tham số description → nội dung gửi Api: "none" / "không" = xoá (null); trống hoặc quá dài → McpException.</summary>
+    internal static string? DescriptionValue(string? description)
+    {
+        var d = description?.Trim() ?? "";
+        if (d.Length == 0) throw new McpException("Thiếu nội dung mô tả — muốn xoá thì truyền \"none\"");
+        if (d.ToLowerInvariant() is "none" or "không") return null;
+        if (d.Length > DescriptionMax) throw new McpException($"Mô tả tối đa {DescriptionMax:N0} ký tự (đang {d.Length:N0}) — rút gọn bớt");
+        return d;
+    }
+
     // ---------------- Helpers ----------------
 
     /// <summary>Trạng thái (cột) của dự án: id, tên (không phân biệt hoa thường / dấu), hoặc bí danh "todo" = cột đầu, "done" / "xong" = cột hoàn thành đầu tiên.</summary>

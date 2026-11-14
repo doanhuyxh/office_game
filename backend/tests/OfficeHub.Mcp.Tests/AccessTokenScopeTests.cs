@@ -148,6 +148,7 @@ public class ProjectDocumentScopeTests
     [InlineData("POST", "/api/projects/tasks/" + G + "/move")]
     [InlineData("POST", "/api/projects/tasks/" + G + "/comments")]
     [InlineData("PUT", "/api/projects/" + G + "/guide")]                  // chỉ hướng dẫn làm việc (TEST-35)
+    [InlineData("PUT", "/api/projects/" + G + "/description")]            // chỉ mô tả dự án (TEST-103)
     [InlineData("GET", "/api/documents/spaces")]
     [InlineData("GET", "/api/documents/folders")]
     [InlineData("GET", "/api/documents/assets")]
@@ -171,6 +172,9 @@ public class ProjectDocumentScopeTests
     [InlineData("PUT", "/api/projects/agent-settings")]
     [InlineData("GET", "/api/projects/" + G + "/guide")]
     [InlineData("PUT", "/api/projects/" + G + "/guide/x")]
+    [InlineData("GET", "/api/projects/" + G + "/description")]
+    [InlineData("POST", "/api/projects/" + G + "/description")]
+    [InlineData("PUT", "/api/projects/" + G + "/description/x")]
     [InlineData("POST", "/api/projects/" + G + "/members")]
     [InlineData("PUT", "/api/projects/" + G + "/allocations")]
     [InlineData("POST", "/api/projects/" + G + "/milestones")]
