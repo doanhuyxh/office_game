@@ -357,10 +357,10 @@ describe('prompt / mcp / log', () => {
     expect(wt).not.toContain('workspace THẬT');
     expect(ip).toContain('workspace THẬT');
     expect(ip).toContain('KHÔNG checkout');
-    expect(ip).toContain('Không git push');
+    expect(ip).toContain('Không tự git push');
+    expect(ip).toContain('bộ điều phối sẽ push nhánh agent/nv120/test-45 lên origin');
     expect(ip).toContain('không reset / stash / rebase');
     expect(ip).not.toContain('Làm việc trong thư mục hiện tại: worktree riêng');
-    expect(ip).not.toContain('bộ điều phối sẽ push');
   });
   test('prompt mode none (TEST-80): chỉ tool MCP, không có phần git / file', () => {
     const p = buildPrompt(w, { mode: 'none', branch: '', resumed: false });

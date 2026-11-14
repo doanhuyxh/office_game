@@ -16,7 +16,7 @@ import { meetingPrompt } from './prompt/meeting';
 import { Store, type Job } from './store';
 import { TelegramClient, type TgMessage } from './telegram';
 import { checkChat, checkMeeting, checkTask, parseWake, type ChatWake, type MeetingWake, type WakeData } from './validator';
-import { AGENT_ENV, Git, TASK_ENV, WorkspaceRefused, branchChanges, inPlaceChanges, installHooks, prepareInPlace, prepareWorktree, publish, removeHooks, sh } from './workspace';
+import { AGENT_ENV, Git, TASK_ENV, WorkspaceRefused, branchChanges, inPlaceChanges, installHooks, prepareInPlace, prepareWorktree, publish, pushInPlace, removeHooks, sh } from './workspace';
 
 /** Biến Windows tiến trình con cần để chạy bình thường (không chứa bí mật). */
 const WINDOWS_ENV = [
@@ -121,7 +121,7 @@ export class Runner {
             if (envFiles.length) out.push(`⚠ ${code}: repo có ${envFiles.join(', ')} và CLI đọc được (allow_env_files)`);
             const cur = (await git.run(s.cfg.repo, 'symbolic-ref', '--short', '-q', 'HEAD')).out;
             const dirty = (await git.run(s.cfg.repo, 'status', '--porcelain')).out;
-            out.push(`✔ ${code}: workspace in_place — commit thẳng vào nhánh đang checkout, KHÔNG push / PR (hiện: ${cur || 'detached HEAD'})`);
+            out.push(`✔ ${code}: workspace in_place — commit thẳng vào nhánh đang checkout rồi runner push nhánh đó lên origin, KHÔNG PR (hiện: ${cur || 'detached HEAD'})`);
             if (!cur || (!s.cfg.workspace.allowBaseBranch && [this.config.baseBranch, 'main', 'master'].includes(cur))) out.push(`⚠ ${code}: nhánh hiện tại không dùng được cho in_place — việc sẽ bị từ chối cho tới khi chuyển nhánh`);
             if (dirty) out.push(`⚠ ${code}: repo đang có thay đổi chưa commit — việc sẽ bị từ chối cho tới khi sạch`);
           }
@@ -450,7 +450,7 @@ export class Runner {
     log('warn', 'agent không dùng lượt họp — runner bỏ lượt thay', { job: job.id, agent: job.agent, task: job.task_code });
   }
 
-  /** Job việc: kiểm tra lại việc → chuẩn bị nơi làm (worktree / in_place / none) → chạy CLI → push + PR (worktree) → bình luận kết quả. */
+  /** Job việc: kiểm tra lại việc → chuẩn bị nơi làm (worktree / in_place / none) → chạy CLI → push + PR (worktree) / push nhánh đang checkout (in_place) → bình luận kết quả. */
   private async processTask(s: AgentState, job: Job, signal: AbortSignal): Promise<void> {
     const w: WakeData = { employee_code: job.agent, project_id: job.project_id, task_id: job.task_id, task_code: job.task_code };
     try {
@@ -501,13 +501,19 @@ export class Runner {
       if (mode === 'none') {
         // Không có gì để push: kết quả nằm trên OfficeHub (agent tự bình luận), runner chỉ báo thời gian / chi phí.
       } else if (mode === 'in_place') {
-        // in_place: chỉ commit trong workspace — KHÔNG push, KHÔNG PR. Người thật xem lại commit rồi tự push.
+        // in_place: commit trong workspace rồi runner push thẳng nhánh đang checkout lên origin — KHÔNG PR.
+        // Không push khi agent chạm agent-runner/ hoặc tự đổi nhánh (người thật xem lại trên máy).
         const ch = await inPlaceChanges(git, ws.path, startHead, ws.branch);
-        note = ch.ahead > 0
-          ? `${ch.ahead} commit mới trên nhánh \`${ch.branchNow || ws.branch}\` (CHƯA push): ${ch.commits.slice(0, 5).map((c) => `\`${c}\``).join(', ')}${ch.ahead > 5 ? ', …' : ''}`
-          : 'Phiên kết thúc, không có commit mới.';
-        if (ch.touchesProtected) note += ' ⚠ Có thay đổi trong `agent-runner/` — người thật xem lại / bỏ commit đó trước khi push.';
-        if (ch.branchChanged) note += ` ⚠ Agent đã đổi nhánh (${ws.branch} → ${ch.branchNow || 'detached HEAD'}) trái quy tắc — kiểm tra repo.`;
+        if (ch.ahead > 0) {
+          let pushed = 'CHƯA push';
+          if (!ch.touchesProtected && !ch.branchChanged) {
+            try { await pushInPlace(git, ws.path, ws.branch); pushed = 'đã push lên origin'; }
+            catch (e) { pushed = `⚠ CHƯA push — git push lỗi: ${errText(e).slice(0, 300)}`; }
+          }
+          note = `${ch.ahead} commit mới trên nhánh \`${ch.branchNow || ws.branch}\` (${pushed}): ${ch.commits.slice(0, 5).map((c) => `\`${c}\``).join(', ')}${ch.ahead > 5 ? ', …' : ''}`;
+        } else note = 'Phiên kết thúc, không có commit mới.';
+        if (ch.touchesProtected) note += ' ⚠ Có thay đổi trong `agent-runner/` — runner KHÔNG push; người thật xem lại / bỏ commit đó rồi tự push.';
+        if (ch.branchChanged) note += ` ⚠ Agent đã đổi nhánh (${ws.branch} → ${ch.branchNow || 'detached HEAD'}) trái quy tắc — runner KHÔNG push, kiểm tra repo.`;
         if (ch.dirty) note += ' Còn thay đổi chưa commit trong workspace.';
       } else {
         const ch = await branchChanges(git, ws.path, this.config.baseBranch);

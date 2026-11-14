@@ -17,7 +17,7 @@ export interface ExecutorConfig {
 }
 
 /**
- * Nơi agent làm việc: worktree riêng + push + PR (mặc định) | in_place = ngay trong `repo`, commit vào nhánh đang checkout, KHÔNG push / PR
+ * Nơi agent làm việc: worktree riêng + push + PR (mặc định) | in_place = ngay trong `repo`, commit vào nhánh đang checkout rồi runner push nhánh đó lên origin, KHÔNG PR
  * | none = agent nghiệp vụ (TEST-80): không repo / git / PR, CLI chạy trong thư mục trống dưới `data_dir`, chỉ có tool MCP.
  */
 export type WorkspaceMode = 'worktree' | 'in_place' | 'none';

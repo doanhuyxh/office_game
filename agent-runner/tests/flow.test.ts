@@ -106,7 +106,7 @@ echo "$@" > "$(dirname "$prompt")/args.txt"
 [ -n "$OFFICEHUB_TOKEN" ] && grep -q 'OFFICEHUB_TOKEN' "$mcp" && tok=yes || tok=no
 cd "$cwd" || exit 3
 case "$cwd" in
-  *TEST-46) mkdir -p agent-runner && echo hack > agent-runner/x.ts && f=agent-runner/x.ts ;;
+  *TEST-46|*-prot) mkdir -p agent-runner && echo hack > agent-runner/x.ts && f=agent-runner/x.ts ;;
   *) f=note-$(date +%s%N).txt && echo "đã sửa" > "$f" ;;
 esac
 git add "$f" && git commit -qm "agent commit" || exit 4
@@ -270,17 +270,17 @@ test('agent sửa agent-runner/ → runner không push, hook pre-push cũng ch�
   expect(main.code).not.toBe(0);
 }, 30000);
 
-// ---------------- mode in_place: commit thẳng vào nhánh đang checkout, không push / PR ----------------
-const inPlaceSetup = async () => {
-  const repo = join(root, 'agent-repo-ip');
+// ---------------- mode in_place: commit thẳng vào nhánh đang checkout, runner push nhánh đó — không PR ----------------
+const inPlaceSetup = async (name = 'agent-repo-ip', branch = 'work') => {
+  const repo = join(root, name);
   if (!existsSync(repo)) {
     await run(['git', 'clone', join(root, 'origin.git'), repo], root);
     await run(['git', 'config', 'user.name', 'Chu Du An'], repo);
     await run(['git', 'config', 'user.email', 'owner@example.vn'], repo);
-    await run(['git', 'checkout', '-b', 'work'], repo);
+    await run(['git', 'checkout', '-b', branch], repo);
   }
   const base = runner.config.agents[0]!;
-  const config: RunnerConfig = { ...runner.config, dataDir: join(root, 'data-ip'), agents: [{ ...base, repo, workspace: { mode: 'in_place', allowBaseBranch: false, allowEnvFiles: false } }] };
+  const config: RunnerConfig = { ...runner.config, dataDir: join(root, `data-${name}`), agents: [{ ...base, repo, workspace: { mode: 'in_place', allowBaseBranch: false, allowEnvFiles: false } }] };
   require('node:fs').mkdirSync(config.dataDir, { recursive: true });
   const st = new Store(join(config.dataDir, 'runner.db'));
   const r = new Runner(config, st);
@@ -295,7 +295,7 @@ const inPlaceSetup = async () => {
   return { repo, r, st, lines, exec };
 };
 
-test('in_place: commit vào nhánh đang checkout, KHÔNG push / PR / worktree / hook', async () => {
+test('in_place: commit vào nhánh đang checkout → runner push nhánh đó lên origin, KHÔNG PR / worktree / hook', async () => {
   const { repo, lines, exec } = await inPlaceSetup();
   expect(lines.filter((l) => l.startsWith('✘'))).toEqual([]);
   expect(lines.join('\n')).toContain('workspace in_place');
@@ -305,14 +305,16 @@ test('in_place: commit vào nhánh đang checkout, KHÔNG push / PR / worktree /
   expect(job.status).toBe('done');
   expect(job.pr_url).toBeNull();
   expect(comments.length).toBe(before + 1);
-  expect(comments.at(-1)!.content).toContain('CHƯA push');
+  expect(comments.at(-1)!.content).toContain('đã push lên origin');
+  expect(comments.at(-1)!.content).not.toContain('CHƯA push');
   expect(comments.at(-1)!.content).toContain('`work`');
   expect(await run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], repo)).toBe('work'); // vẫn nhánh cũ
   expect(await run(['git', 'rev-list', '--count', `${headBefore}..HEAD`], repo)).toBe('1');
   const msg = await run(['git', 'log', '-1', '--format=%an <%ae>%n%B'], repo);
   expect(msg).toContain('Chu Du An <owner@example.vn>');
   expect(msg).not.toContain('Agent: NV120'); // không có hook commit-msg → không có trailer
-  expect((await run(['git', 'ls-remote', '--heads', 'origin', 'work'], repo))).toBe(''); // không có gì lên remote
+  // runner đã push đúng commit của agent lên origin/work
+  expect(await run(['git', 'ls-remote', '--heads', 'origin', 'work'], repo)).toStartWith(await run(['git', 'rev-parse', 'HEAD'], repo));
   expect((await run(['git', 'worktree', 'list'], repo)).split('\n').length).toBe(1); // không tạo worktree
   // in_place không dùng hook: runner không cài hook nào trong repo này
   expect(existsSync(join(repo, '.git/hooks/pre-push'))).toBe(false);
@@ -339,6 +341,35 @@ test('in_place: đang ở nhánh main hoặc detached HEAD → từ chối', asy
   await run(['git', 'checkout', '-q', '--detach'], repo);
   expect((await exec()).job.reason).toContain('detached HEAD');
   await run(['git', 'checkout', '-q', 'work'], repo);
+}, 30000);
+
+test('in_place: remote đã có commit khác → không push được, báo trong việc, commit vẫn ở máy (không force)', async () => {
+  const { repo, exec } = await inPlaceSetup();
+  // người khác đẩy commit lên origin/work sau lần push trước
+  const other = join(root, 'other-clone');
+  await run(['git', 'clone', '-q', '-b', 'work', join(root, 'origin.git'), other], root);
+  writeFileSync(join(other, 'cua-nguoi-khac.txt'), 'x');
+  await run(['git', 'add', '.'], other);
+  await run(['git', 'commit', '-qm', 'người khác'], other);
+  await run(['git', 'push', '-q', 'origin', 'work'], other);
+  const remoteHead = await run(['git', 'rev-parse', 'HEAD'], other);
+  const { job } = await exec();
+  expect(job.status).toBe('done');
+  expect(comments.at(-1)!.content).toContain('CHƯA push — git push lỗi');
+  expect(await run(['git', 'ls-remote', '--heads', 'origin', 'work'], repo)).toStartWith(remoteHead); // remote không bị đè
+  // người thật xử lý (pull --rebase) → lần sau push lại được cả commit cũ
+  await run(['git', 'pull', '-q', '--rebase', 'origin', 'work'], repo);
+  await exec();
+  expect(comments.at(-1)!.content).toContain('đã push lên origin');
+}, 30000);
+
+test('in_place: agent chạm agent-runner/ → runner KHÔNG push', async () => {
+  const { repo, exec } = await inPlaceSetup('agent-repo-prot', 'work-prot');
+  const { job } = await exec();
+  expect(job.status).toBe('done');
+  expect(comments.at(-1)!.content).toContain('agent-runner/');
+  expect(comments.at(-1)!.content).toContain('runner KHÔNG push');
+  expect(await run(['git', 'ls-remote', '--heads', 'origin', 'work-prot'], repo)).toBe('');
 }, 30000);
 
 test('in_place: repo có .env ở gốc → doctor tắt agent (trừ allow_env_files)', async () => {

@@ -122,7 +122,7 @@ export async function installHooks(git: Git, repo: string, baseBranch: string): 
 }
 
 /**
- * Mode in_place không dùng hook (runner không push, commit không cần trailer) → gỡ hook DO RUNNER cài (có dấu PRE_PUSH_MARK / COMMIT_MSG_MARK).
+ * Mode in_place không dùng hook (runner push thẳng nhánh đang checkout — kể cả main khi allow_base_branch — nên hook pre-push của runner sẽ chặn nhầm) → gỡ hook DO RUNNER cài (có dấu PRE_PUSH_MARK / COMMIT_MSG_MARK).
  * Hook khác của người dùng (không có dấu) giữ nguyên. Trả tên các hook đã gỡ.
  */
 export async function removeHooks(git: Git, repo: string): Promise<string[]> {
@@ -173,6 +173,15 @@ export async function publish(git: Git, worktree: string, branch: string, baseBr
   const pr = await sh(['gh', 'pr', 'create', '--base', baseBranch, '--head', branch, '--title', title, '--body', body], worktree, env);
   if (pr.code !== 0) throw new Error(`gh pr create lỗi: ${pr.err || pr.out}`);
   return pr.out.split('\n').pop()!;
+}
+
+/**
+ * Mode in_place: push nhánh đang checkout lên origin (không bao giờ --force, không mở PR, không đổi upstream của nhánh).
+ * Remote đã có commit khác (non-fast-forward) / thiếu quyền → ném lỗi; commit vẫn nằm trên máy.
+ */
+export async function pushInPlace(git: Git, repo: string, branch: string) {
+  const push = await git.run(repo, 'push', '--quiet', 'origin', `refs/heads/${branch}:refs/heads/${branch}`);
+  if (push.code !== 0) throw new Error(push.err || push.out);
 }
 
 /** Workspace không đủ điều kiện để agent làm việc (in_place) — không phải lỗi hệ thống: job bị bỏ + báo lại trong việc. */
