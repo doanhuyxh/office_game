@@ -1,4 +1,5 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { isInside, readEnvFile, type AgentConfig, type RunnerConfig } from './config';
 import { modelLine, modelMatches } from './executor/model';
@@ -16,6 +17,13 @@ import { Store, type Job } from './store';
 import { TelegramClient, type TgMessage } from './telegram';
 import { checkChat, checkMeeting, checkTask, parseWake, type ChatWake, type MeetingWake, type WakeData } from './validator';
 import { AGENT_ENV, Git, TASK_ENV, WorkspaceRefused, branchChanges, inPlaceChanges, installHooks, prepareInPlace, prepareWorktree, publish, removeHooks, sh } from './workspace';
+
+/** Biến Windows tiến trình con cần để chạy bình thường (không chứa bí mật). */
+const WINDOWS_ENV = [
+  'SystemRoot', 'SystemDrive', 'windir', 'ComSpec', 'PATHEXT', 'TEMP', 'TMP', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH',
+  'APPDATA', 'LOCALAPPDATA', 'ProgramData', 'ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432', 'CommonProgramFiles',
+  'USERNAME', 'USERDOMAIN', 'COMPUTERNAME', 'OS', 'PROCESSOR_ARCHITECTURE', 'NUMBER_OF_PROCESSORS',
+];
 
 interface AgentState {
   cfg: AgentConfig;
@@ -161,7 +169,15 @@ export class Runner {
   baseEnv(a: AgentConfig): Record<string, string> {
     const env: Record<string, string> = {};
     for (const k of ['PATH', 'LANG', 'LC_ALL', 'TERM', 'TMPDIR', 'USER', 'SHELL', 'DOTNET_ROOT']) if (process.env[k]) env[k] = process.env[k]!;
-    env.HOME = a.executor.home ?? process.env.HOME ?? '/tmp';
+    if (process.platform === 'win32') {
+      // Windows: không có HOME (dùng USERPROFILE); thiếu SystemRoot / APPDATA… thì git, gh, claude.exe lỗi mạng / không thấy cấu hình.
+      const pick = (k: string) => Object.keys(process.env).find((x) => x.toLowerCase() === k.toLowerCase());
+      for (const k of WINDOWS_ENV) { const x = pick(k); if (x && process.env[x]) env[k] = process.env[x]!; }
+      env.HOME = a.executor.home ?? process.env.HOME ?? homedir();
+      env.USERPROFILE = a.executor.home ?? env.USERPROFILE ?? homedir();
+    } else {
+      env.HOME = a.executor.home ?? process.env.HOME ?? homedir();
+    }
     for (const k of ['SSH_AUTH_SOCK']) if (process.env[k]) env[k] = process.env[k]!; // SSH key sẵn có của máy (ssh-agent)
     if (a.envFile && existsSync(a.envFile)) Object.assign(env, readEnvFile(a.envFile));
     env.PATH = this.git.pathWithGit(env.PATH); // CLI agent / gh / hook gọi đúng git cấu hình

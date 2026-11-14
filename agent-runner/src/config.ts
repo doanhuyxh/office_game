@@ -169,7 +169,7 @@ export function parseConfig(raw: unknown): RunnerConfig {
 export function loadConfig(path: string): { config: RunnerConfig; warnings: string[] } {
   if (!existsSync(path)) throw new ConfigError([`Không thấy file cấu hình ${path}`]);
   const warnings: string[] = [];
-  if ((statSync(path).mode & 0o077) !== 0) warnings.push(`${path} đang cho nhóm / người khác đọc — nên chmod 600 (file có token)`);
+  if (process.platform !== 'win32' && (statSync(path).mode & 0o077) !== 0) warnings.push(`${path} đang cho nhóm / người khác đọc — nên chmod 600 (file có token)`);
   return { config: parseConfig(Bun.YAML.parse(readFileSync(path, 'utf8'))), warnings };
 }
 
