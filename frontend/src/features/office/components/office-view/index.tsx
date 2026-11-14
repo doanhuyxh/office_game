@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { useCheck, useToday } from '@/features/attendance';
 import { useMe } from '@/features/auth';
+import { NotificationBell, usePushForeground } from '@/features/notifications';
 import { AgentMeetingDialog, useActiveAgentSessions, useRoomsNow, type AgentMeetingDraft } from '@/features/meetings';
 import { errorMessage } from '@/utils/errors';
 import { formatTime } from '@/utils/date';
@@ -44,6 +45,7 @@ import './office.css';
 /** Văn phòng 3D. Route /_protected/office đã kiểm tra đăng nhập trước khi tải trang này. */
 export function OfficeView() {
   const { data: account } = useMe();
+  usePushForeground({ quiet: true }); // push FCM khi tab mở → làm mới chuông ngay (TEST-109)
   const hostRef = useRef<HTMLDivElement>(null);
   const connRef = useRef<OfficeConnection | null>(null);
   const { me, conn, online, bots, zone, kickReason } = useOffice();
@@ -316,6 +318,8 @@ export function OfficeView() {
         )}
         <div className="card status">
           <span className={`dot ${conn}`} /> {conn === 'online' ? `${online} người online${bots ? ` · ${bots} AI` : ''}` : STATUS[conn]}
+          {/* Chuông thông báo ngay trong văn phòng (TEST-109): mở link ở tab mới, toast khi có thông báo mới */}
+          <NotificationBell office triggerClassName="office-bell" />
         </div>
         {zone && <div className="card zone">{zone}</div>}
         <OfficeChat accountId={account?.id} roomCh={roomCh} touch={IS_TOUCH} onSend={sendChat}

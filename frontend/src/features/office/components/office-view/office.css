@@ -23,6 +23,9 @@
 .office-root .avatar-prompt button { padding: 6px 12px; border-radius: 8px; border: 0; background: rgba(148, 163, 184, .2); color: inherit; font: 600 13px system-ui; cursor: pointer; }
 .office-root .avatar-prompt button.primary { background: #2563eb; color: #fff; }
 .office-root .status { top: 12px; right: 12px; display: flex; gap: 8px; align-items: center; }
+/* Chuông thông báo trong thẻ trạng thái (TEST-109) — nút ghost của shadcn tô lại cho nền tối của HUD */
+.office-root .status .office-bell { width: 28px; height: 28px; margin: -4px -6px -4px 2px; color: #e2e8f0; }
+.office-root .status .office-bell:hover { background: rgba(148, 163, 184, .2); color: #fff; }
 .office-root .dot { width: 9px; height: 9px; border-radius: 50%; background: #94a3b8; }
 .office-root .dot.online { background: #22c55e; }
 .office-root .dot.reconnecting, .office-root .dot.connecting { background: #f59e0b; }

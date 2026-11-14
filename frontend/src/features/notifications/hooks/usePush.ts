@@ -2,7 +2,8 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { clearPushToken, currentPushTokenIfGranted, onForegroundPush, pushAvailable, requestPushToken } from '@/services/firebase';
-import { notificationApi } from '../api/notification.api';
+import { useQueryClient } from '@tanstack/react-query';
+import { notificationApi, notificationKeys } from '../api/notification.api';
 import { linkTarget } from '../utils/labels';
 import { playNotificationSound } from '../utils/sound';
 import { getPushSnapshot, setPushEnabledFlag, subscribePush } from '../utils/push';
@@ -42,16 +43,19 @@ export async function syncPushTokenIfEnabled() {
 /**
  * Mount một lần (MainLayout): đồng bộ token lúc mở app (nếu đã bật trước) + lắng nghe push khi tab đang mở
  * (không qua Service Worker) → phát âm chuông + toast, bấm vào thì điều hướng như chuông thường.
+ * `quiet` (văn phòng ảo, TEST-109): push chỉ làm mới chuông ngay — âm + toast do `NotificationBell office` lo, tránh báo trùng.
  */
-export function usePushForeground() {
+export function usePushForeground({ quiet = false }: { quiet?: boolean } = {}) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   useEffect(() => {
     void syncPushTokenIfEnabled();
     let unsub: (() => void) | undefined;
     void onForegroundPush((title, body, link) => {
+      if (quiet) { void qc.invalidateQueries({ queryKey: notificationKeys.list }); return; }
       playNotificationSound();
       toast.info(title, { description: body, action: link ? { label: 'Xem', onClick: () => void navigate(linkTarget(link)) } : undefined });
     }).then((u) => (unsub = u));
     return () => unsub?.();
-  }, [navigate]);
+  }, [navigate, qc, quiet]);
 }

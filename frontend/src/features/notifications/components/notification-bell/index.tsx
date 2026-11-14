@@ -6,14 +6,18 @@ import { Button } from '@/components/common/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/common/dropdown-menu';
 import { PATHS } from '@/config/paths';
 import { cn } from '@/utils/cn';
+import { useNewNotificationToasts } from '../../hooks/useNewNotificationToasts';
 import { useNotificationSound } from '../../hooks/useNotificationSound';
 import { useMarkAllRead, useMarkRead, useNotifications } from '../../hooks/useNotifications';
 import { usePush } from '../../hooks/usePush';
 import type { INotification } from '../../types/notification.types';
 import { CATEGORY, FALLBACK, linkTarget, timeAgo } from '../../utils/labels';
 
-/** Chuông thông báo trên header: badge số chưa đọc, danh sách 20 thông báo mới nhất + "Xem tất cả" → /notifications. Bấm một thông báo → đánh dấu đã đọc + mở link. */
-export function NotificationBell() {
+/**
+ * Chuông thông báo trên header: badge số chưa đọc, danh sách 20 thông báo mới nhất + "Xem tất cả" → /notifications. Bấm một thông báo → đánh dấu đã đọc + mở link.
+ * `office` (HUD văn phòng ảo, TEST-109): mở link ở tab mới để văn phòng giữ kết nối + toast khi có thông báo mới; `triggerClassName` để HUD tự tô nút.
+ */
+export function NotificationBell({ office = false, triggerClassName }: { office?: boolean; triggerClassName?: string } = {}) {
   const { data } = useNotifications();
   const markRead = useMarkRead();
   const markAll = useMarkAllRead();
@@ -32,15 +36,20 @@ export function NotificationBell() {
     setAlignOffset(r && window.innerWidth < 640 ? Math.min(0, r.right - window.innerWidth + 8) : 0);
   };
 
+  const go = (link: string) => {
+    if (office) window.open(link, '_blank', 'noopener');
+    else void navigate(linkTarget(link));
+  };
   const open = (n: INotification) => {
     if (!n.read) markRead.mutate(n.id);
-    if (n.link) void navigate(linkTarget(n.link));
+    if (n.link) go(n.link);
   };
+  useNewNotificationToasts(data, office, open, () => go(PATHS.notifications));
 
   return (
     <DropdownMenu modal={false} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
-        <Button ref={triggerRef} variant="ghost" size="icon" className="relative rounded-full" aria-label={`Thông báo${unread ? ` (${unread} chưa đọc)` : ''}`} data-testid="notification-bell">
+        <Button ref={triggerRef} variant="ghost" size="icon" className={cn('relative rounded-full', triggerClassName)} aria-label={`Thông báo${unread ? ` (${unread} chưa đọc)` : ''}`} data-testid="notification-bell">
           <Bell className="size-[1.2rem]" />
           {unread > 0 && (
             <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-white" data-testid="notification-unread">
@@ -96,7 +105,7 @@ export function NotificationBell() {
           })}
         </div>
         <DropdownMenuSeparator className="m-0" />
-        <DropdownMenuItem onSelect={() => void navigate({ to: PATHS.notifications })} className="justify-center rounded-none py-2 text-sm text-primary" data-testid="notification-all">
+        <DropdownMenuItem onSelect={() => go(PATHS.notifications)} className="justify-center rounded-none py-2 text-sm text-primary" data-testid="notification-all">
           Xem tất cả thông báo
         </DropdownMenuItem>
       </DropdownMenuContent>
