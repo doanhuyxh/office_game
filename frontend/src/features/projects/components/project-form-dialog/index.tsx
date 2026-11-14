@@ -69,7 +69,7 @@ export function ProjectFormDialog({ open, project, workGuide, onClose, onCreated
   const pick = (next: ISalesContractRef[]) => { setPicked(next); set('salesContractIds', next.map((c) => c.id)); };
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="flex max-h-[92vh] w-[96vw] max-w-none flex-col gap-0 p-0 sm:max-w-[min(96vw,1400px)]">
+      <DialogContent className="flex max-h-[92vh] w-[96vw] max-w-none flex-col gap-0 p-0 sm:max-w-[min(96vw,1400px)] lg:h-[92vh] lg:max-w-[min(90vw,1920px)]">
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={(e) => {
           e.preventDefault();
           save.mutate({ ...f, startOn: f.startOn || null, endOn: f.endOn || null, description: f.description || null, salesContractIds: f.kind === 'Client' ? f.salesContractIds : [],
@@ -82,8 +82,8 @@ export function ProjectFormDialog({ open, project, workGuide, onClose, onCreated
             <DialogTitle>{project ? `Sửa dự án ${project.code}` : 'Dự án mới'}</DialogTitle>
             <DialogDescription>Mỗi dự án có kho tài liệu riêng cho thành viên. Người tạo là quản lý dự án.</DialogDescription>
           </DialogHeader>
-          {/* Mobile: 1 cột, cả thân cuộn chung; từ lg: trái = các ô thông tin (26rem), phải = mô tả + hướng dẫn (phần còn lại, hướng dẫn cao lấp cột), mỗi cột cuộn riêng */}
-          <div className="grid min-h-0 flex-1 grid-cols-1 content-start overflow-y-auto lg:grid-cols-[26rem_minmax(0,1fr)] lg:content-stretch lg:overflow-hidden">
+          {/* Mobile: 1 cột, cả thân cuộn chung; từ lg: trái = các ô thông tin (28rem), phải = mô tả + hướng dẫn (phần còn lại, hướng dẫn cao lấp cột), mỗi cột cuộn riêng */}
+          <div className="grid min-h-0 flex-1 grid-cols-1 content-start overflow-y-auto lg:grid-cols-[28rem_minmax(0,1fr)] lg:content-stretch lg:overflow-hidden">
             <div className="grid min-w-0 grid-cols-1 content-start gap-6 px-6 py-5 lg:min-h-0 lg:overflow-y-auto" data-testid="pj-col-fields">
               <Section title="Thông tin chung">
                 <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
