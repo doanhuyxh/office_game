@@ -300,11 +300,6 @@ export function OfficeView() {
     };
   }, [meId]);
 
-  const sendChat = (channel: 'office' | 'room', t: string) => {
-    const c = connRef.current;
-    void (channel === 'room' ? c?.roomChat(t) : c?.chat(t))?.catch((err: unknown) => toast.error(errorMessage(err)));
-  };
-
   return (
     <div className={`office-root ${dragOver ? 'drag-over' : ''}`}
       onDragOver={(e) => { if (e.dataTransfer.types.includes('Files') && !docs) { e.preventDefault(); setDragOver(true); } }}
@@ -352,7 +347,7 @@ export function OfficeView() {
           <NotificationBell office triggerClassName="office-bell" />
         </div>
         {zone && <div className="card zone">{zone}</div>}
-        <OfficeChat accountId={account?.id} roomCh={roomCh} touch={IS_TOUCH} onSend={sendChat}
+        <OfficeChat accountId={account?.id} roomCh={roomCh} touch={IS_TOUCH}
           onOpenAgentMeeting={(roomId) => setAgentDraft({ roomId })} />
         {IS_TOUCH && <Joystick onChange={(x, y) => scene?.setStick(x, y)} />}
         {nearAction === 'attendance.checkin' && !seatInfo?.sitting ? (

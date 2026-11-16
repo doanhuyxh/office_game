@@ -7,8 +7,8 @@ Chủ dự án chốt 2026-11-07 (đừng hỏi lại): chat ra ngoài 3D, **đ�
 ## Kiến trúc
 
 ```
-Trình duyệt ──WS /rt/hub/chat──▶ Realtime (ChatHub: chuyển tiếp + phát) ──/api/chat/… (cookie người dùng)──▶ Api · module Chat (lưu DB, quyền)
-HUD 3D (OfficeRoomHub.SendChat / SendRoomChat) ──cùng đường ChatApi → ChatFanout──▶ ChatHub + HUD 3D
+Trình duyệt (/chat + HUD 3D) ──WS /rt/hub/chat──▶ Realtime (ChatHub: chuyển tiếp + phát) ──/api/chat/… (cookie người dùng)──▶ Api · module Chat (lưu DB, quyền)
+OfficeRoomHub.SendChat / SendRoomChat (FE không còn gọi từ TEST-125; giữ cho e2e cũ) ──cùng đường ChatApi → ChatFanout──▶ ChatHub + HUD 3D
 Realtime ──POST /api/chat/internal/rooms/{id}/members (X-Chat-Key)──▶ Api   (chỉ cấp thành viên kênh phòng)
 ```
 
@@ -61,7 +61,7 @@ Thành viên phòng: Realtime báo khi người chơi **bước vào** phòng c�
 
 ## Front-end (`features/chat/`)
 
-`ChatProvider` (trong `MainLayout`, không ở `/office`) giữ một kết nối, tự nối lại và bù tin lỡ; gửi lạc quan bằng `clientId`; hub chưa nối thì gửi qua REST. Trang `/chat`: danh sách + khung chat, "Tin nhắn mới", kéo-thả / dán ảnh, xem ảnh lớn, "Thu hồi", mobile hai màn hình; hội thoại đang mở nằm trên URL `?c=<id>` (reload / gửi link giữ nguyên), bản nháp chưa gửi giữ theo hội thoại trong `sessionStorage` (`chat-draft:<id>`); nút có badge ở `Header` + mục "Tin nhắn" ở sidebar. **Badge = tổng các dòng** (TEST-110): tải danh sách xong → số tổng = tổng `unread`; `markRead` / quay lại tab tải lại số tổng (+ danh sách khi tab hiện); hub / đã đọc trong lúc tải (`bumpUnreadEpoch`) → tải lại. **Âm báo** dùng lại `playNotificationSound` ([notifications.md](notifications.md)): tin người khác khi hội thoại không đang mở / hiển thị → phát; mở app mà còn chưa đọc → phát **một lần** mỗi phiên trình duyệt.
+`ChatProvider` (bọc `MainLayout` và trang `/office` qua `features/office/components/office-page` — TEST-125; đã có provider ở trên → chỉ trả children, không mở kết nối thứ hai) giữ một kết nối, tự nối lại và bù tin lỡ; gửi lạc quan bằng `clientId`; hub chưa nối thì gửi qua REST; `send` nhận Guid hoặc bí danh `office` / `room:<id>` (bản lạc quan ở cache bí danh được gỡ khi server trả tin) và trả `Promise<boolean>`; kênh phòng lỗi → chờ 1,5 giây thử lại **một lần** (thành viên phòng do `Move` cấp nền, gửi ngay sau khi bước vào có thể chưa kịp). Trang `/chat`: danh sách + khung chat, "Tin nhắn mới", kéo-thả / dán ảnh, xem ảnh lớn, "Thu hồi", mobile hai màn hình; hội thoại đang mở nằm trên URL `?c=<id>` (reload / gửi link giữ nguyên), bản nháp chưa gửi giữ theo hội thoại trong `sessionStorage` (`chat-draft:<id>`); nút có badge ở `Header` + mục "Tin nhắn" ở sidebar. **Badge = tổng các dòng** (TEST-110): tải danh sách xong → số tổng = tổng `unread`; `markRead` / quay lại tab tải lại số tổng (+ danh sách khi tab hiện); hub / đã đọc trong lúc tải (`bumpUnreadEpoch`) → tải lại. **Âm báo** dùng lại `playNotificationSound` ([notifications.md](notifications.md)): tin người khác khi hội thoại không đang mở / hiển thị → phát; mở app mà còn chưa đọc → phát **một lần** mỗi phiên trình duyệt.
 
 ## Test
 

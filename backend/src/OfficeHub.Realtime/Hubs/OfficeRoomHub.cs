@@ -228,6 +228,10 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
     private static string? TaskLink(Guid? projectId, Guid? taskId) =>
         projectId is { } p && taskId is { } t && p != Guid.Empty && t != Guid.Empty ? $"/projects/{p}?task={t}" : null;
 
+    /// <summary>
+    /// Chat kênh Toàn văn phòng từ hub văn phòng (cắt 200 ký tự). FE không còn gọi (TEST-125: HUD 3D gửi qua hub chat <c>/rt/hub/chat</c>,
+    /// có lịch sử, ≤ 1000 ký tự); giữ cho script e2e cũ / client khác. Sự kiện <see cref="IOfficeClient.Chat"/> vẫn phát qua <see cref="ChatFanout"/>.
+    /// </summary>
     public async Task SendChat(string text)
     {
         if (!presence.TryGet(UserId, out var p) || p.ConnectionId != Context.ConnectionId) return; // TEST-22: chỉ kết nối hiện tại (như Move)
@@ -246,6 +250,7 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
     /// <summary>
     /// Chat trong phòng có tường đang đứng (phòng họp, phòng riêng): chỉ người đang ở trong phòng đó nhận.
     /// Phòng do SERVER xác định theo vị trí (cùng quy tắc kênh voice) — client không chọn phòng được.
+    /// FE không còn gọi (TEST-125: HUD gửi <c>room:&lt;id&gt;</c> qua hub chat, thành viên do <see cref="Move"/> cấp nền, FE thử lại một lần); giữ cho e2e cũ.
     /// </summary>
     public async Task SendRoomChat(string text)
     {

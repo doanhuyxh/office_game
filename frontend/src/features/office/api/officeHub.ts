@@ -91,15 +91,6 @@ export class OfficeConnection {
     if (this.conn.state === HubConnectionState.Connected) void this.conn.send('Move', x, z, r, anim);
   }
 
-  chat(text: string) {
-    return this.conn.invoke('SendChat', text);
-  }
-
-  /** Chat chỉ trong phòng có tường đang đứng (server tự xác định phòng theo vị trí). */
-  roomChat(text: string) {
-    return this.conn.invoke('SendRoomChat', text);
-  }
-
   /** Vừa lưu nhân vật qua REST → server tự đọc lại từ Api rồi phát LookChanged cho cả văn phòng. */
   refreshLook() {
     return this.conn.state === HubConnectionState.Connected ? this.conn.invoke('RefreshLook') : Promise.resolve();

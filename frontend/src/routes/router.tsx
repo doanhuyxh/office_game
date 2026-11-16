@@ -83,7 +83,7 @@ const protectedRoute = createRoute({
 const office = createRoute({
   getParentRoute: () => protectedRoute,
   path: PATHS.office,
-  component: lazyRouteComponent(() => import('@/features/office/page'), 'OfficeView'),
+  component: lazyRouteComponent(() => import('@/features/office/page'), 'OfficePage'),
 });
 
 // Trang đồng ý cấp quyền cho ứng dụng AI (OAuth) — toàn màn hình. Tham số OAuth đọc thẳng từ URL.

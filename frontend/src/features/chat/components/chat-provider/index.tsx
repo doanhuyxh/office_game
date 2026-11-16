@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useMe } from '@/features/auth';
@@ -37,11 +37,21 @@ function takeStartupSound(): boolean {
   }
 }
 
+/** Gửi kênh phòng lỗi → chờ rồi thử lại một lần: thành viên kênh do Realtime cấp nền khi bước vào phòng (OfficeRoomHub.Move), có thể chưa kịp. */
+const ROOM_RETRY_MS = 1500;
+
 /**
- * Giữ MỘT kết nối hub chat cho cả ứng dụng (đặt trong MainLayout; trang /office toàn màn hình không dùng). Nhận tin đẩy → cập nhật cache
+ * Giữ MỘT kết nối hub chat cho cả ứng dụng: bọc `MainLayout` và trang văn phòng 3D `/office` (toàn màn hình, TEST-125). Đã có
+ * ChatProvider ở trên (vd sau này /office vào chung layout) → chỉ trả children, không mở kết nối thứ hai. Nhận tin đẩy → cập nhật cache
  * tin / danh sách hội thoại / số chưa đọc, phát âm khi tin của người khác tới mà hội thoại đó không đang mở. Gửi, thu hồi, đọc đi qua đây.
  */
 export function ChatProvider({ children }: { children: ReactNode }) {
+  const parent = useContext(ChatContext);
+  if (parent) return <>{children}</>;
+  return <ChatProviderRoot>{children}</ChatProviderRoot>;
+}
+
+function ChatProviderRoot({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
   const { data: me } = useMe();
   const [link, setLink] = useState<ChatLinkState>('connecting');
@@ -169,9 +179,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     pending.current.delete(clientId);
   }, []);
 
-  const run = useCallback(async (clientId: string) => {
+  const isRoom = useCallback((conversationId: string) => conversationId.startsWith('room:')
+    || qc.getQueryData<IConversation[]>(chatKeys.conversations)?.find((c) => c.id === conversationId)?.type === 'Room', [qc]);
+
+  const run = useCallback(async (clientId: string, attempt = 0): Promise<boolean> => {
     const p = pending.current.get(clientId);
-    if (!p) return;
+    if (!p) return false;
     const { conversationId } = p;
     patchLocal(qc, conversationId, clientId, { status: 'sending', progress: 0, error: undefined });
     try {
@@ -188,13 +201,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         ? await conn.current.send(conversationId, text, ids, clientId)
         : (await chatApi.send(conversationId, text, ids, clientId)).message;
       seen.current.add(msg.id);
+      // Gửi bằng bí danh ("office" / "room:<id>") → tin thật nằm ở cache theo Guid; gỡ bản lạc quan ở cache bí danh
+      if (msg.conversationId !== conversationId) removeLocal(qc, conversationId, clientId);
       upsertMessage(qc, { ...msg, clientId: msg.clientId ?? clientId });
       if (!touchConversation(qc, msg, false)) void qc.invalidateQueries({ queryKey: chatKeys.conversations });
       finishPending(clientId);
+      return true;
     } catch (e) {
+      // Kênh phòng ngay sau khi bước vào: Realtime cấp thành viên chạy nền (OfficeRoomHub.Move) nên có thể chưa kịp → chờ rồi thử lại một lần
+      if (attempt === 0 && isRoom(conversationId)) {
+        await new Promise((r) => setTimeout(r, ROOM_RETRY_MS));
+        if (pending.current.has(clientId)) return run(clientId, 1);
+      }
       patchLocal(qc, conversationId, clientId, { status: 'failed', error: e instanceof ApiError ? errorMessage(e) : e instanceof Error ? e.message : 'Gửi không được, thử lại sau' });
+      return false;
     }
-  }, [qc, finishPending]);
+  }, [qc, finishPending, isRoom]);
 
   const send = useCallback((conversationId: string, text: string, files: File[]) => {
     const clientId = crypto.randomUUID();
@@ -211,10 +233,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       text: text || null, createdAt: new Date().toISOString(), deleted: false, attachments, clientId,
       local: { status: 'sending', progress: 0 },
     });
-    void run(clientId);
+    return run(clientId);
   }, [qc, run]);
 
-  const retry = useCallback((_conversationId: string, clientId: string) => void run(clientId), [run]);
+  const retry = useCallback((_conversationId: string, clientId: string) => void run(clientId, 1), [run]);
 
   const discard = useCallback((conversationId: string, clientId: string) => {
     removeLocal(qc, conversationId, clientId);

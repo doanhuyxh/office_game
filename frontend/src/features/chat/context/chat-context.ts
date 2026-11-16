@@ -5,8 +5,11 @@ export interface IChatContext {
   link: ChatLinkState;
   /** Hội thoại đang mở trên màn hình (null = không xem chat) — quyết định có cộng "chưa đọc" / phát âm hay không. */
   setActive(conversationId: string | null): void;
-  /** Gửi lạc quan: hiện ngay ở trạng thái "đang gửi", tải tệp (nếu có) rồi gửi qua hub. */
-  send(conversationId: string, text: string, files: File[]): void;
+  /**
+   * Gửi lạc quan: hiện ngay ở trạng thái "đang gửi", tải tệp (nếu có) rồi gửi qua hub (chưa nối → REST). `conversationId` = Guid hoặc
+   * bí danh "office" / "room:<id>". Kênh phòng lỗi → tự thử lại một lần sau 1,5 giây. Kết quả: true = đã lưu, false = lỗi (tin ở trạng thái failed).
+   */
+  send(conversationId: string, text: string, files: File[]): Promise<boolean>;
   retry(conversationId: string, clientId: string): void;
   discard(conversationId: string, clientId: string): void;
   /** Thu hồi tin của mình (xoá mềm). */

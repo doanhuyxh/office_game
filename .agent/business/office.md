@@ -27,7 +27,7 @@ Mặt bằng **68 × 30 m (2 040 m²)** = lõi 50 × 30 m chủ dự án duyệt
 | | `Teleport` | `(x, z)` — kéo về vị trí hợp lệ |
 | | `Kicked` | `reason` |
 | client → server | `Move(x, z, r, anim)` | |
-| | `SendChat(text)` / `SendRoomChat(text)` | toàn văn phòng / chỉ phòng có tường đang đứng |
+| | `SendChat(text)` / `SendRoomChat(text)` | toàn văn phòng / chỉ phòng có tường đang đứng — **FE không còn gọi** (TEST-125: HUD gửi qua hub chat `/rt/hub/chat`, [chat.md](chat.md)); giữ cho e2e cũ / client khác |
 | | `RefreshLook()` | vừa lưu nhân vật → server đọc lại từ Api rồi phát `LookChanged` (1 lần / 2 s) |
 | | `PinScreen` / `ClearScreen` / `GetScreen` ↔ `ScreenChanged` | chiếu tài liệu lên màn hình phòng: [office-documents.md](office-documents.md) |
 | | `WatchBot(botUserId)` / `UnwatchBot()` ↔ `BotActivity`, `BotWatchEnded` | xem trực tiếp bot đang làm gì (TEST-95) — chỉ trong phạm vi nghe được (luật voice, server kiểm): [office-bots-activity.md](office-bots-activity.md) |
