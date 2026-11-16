@@ -33,7 +33,13 @@ Chủ dự án chốt thêm 2026-11-13: **bot đang làm một việc thì việ
 
 ## Bot cần chú ý (lỗi / chờ người)
 
-Bot lỗi hoặc có việc chờ người **không ra Khu nghỉ** (ngồi bàn), bong bóng `⚠` / `⏳`, sự kiện hub `BotAlert` — [office-bots-attention.md](office-bots-attention.md).
+Chi tiết: [office-bots-attention.md](office-bots-attention.md). Tóm tắt:
+- **Nguồn**: lỗi = runner báo `/mcp/presence` `state: "error"` (giữ tới khi runner báo `working` / `idle`, Mcp gọi tool không xoá); chờ người = Realtime (`BotWaitingWatch`) hỏi Api `POST /api/projects/internal/bot-waiting` (đường nội bộ, khoá `X-Chat-Key`, nginx web 404) **mỗi 30 giây** cho các bot online.
+- **Luật chờ**: thao tác cuối trên việc (bình luận / chuyển / giao) là của chính bot làm việc, chưa có người thật thao tác lại; không dựa vào cột. `approval` khi cột kế tiếp là cột cần duyệt, còn lại `reply`; việc còn `dependsOn` chưa xong không tính; bot đang làm việc nào thì việc đó không tính chờ.
+- **Chỗ ngồi**: không ra Khu nghỉ; đang ở chỗ nghỉ → đi bộ về bàn (trừ giữ chỗ `go_to`, đang họp, người thật cùng tài khoản trong văn phòng); hết cần chú ý + rảnh ≥ 60 s → ra Khu nghỉ như cũ.
+- **Bong bóng** khi rảnh: `⚠ MÃ · loại lỗi` · `⏳ MÃ · Chờ duyệt` / `Chờ phản hồi` · `⏳ N việc chờ duyệt` / `chờ người`. **Hub** `BotAlert(id, alert | null)` + `PlayerDto.alert`.
+- **Mặc định tự chọn** (chủ dự án chưa chốt riêng, có thể đổi): loại lỗi ≤ 40 ký tự (`BotWork.MaxError`), chu kỳ 30 s (`BotWaitingRoute.PollSeconds`), ≤ 10 việc / bot (`MaxTasks`), ≤ 200 bot / lần hỏi.
+- E2E `scripts/dev/bot-attention-e2e.ts`.
 
 ## agent-runner (`src/presence.ts`)
 

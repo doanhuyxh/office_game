@@ -22,6 +22,10 @@ Chủ dự án chốt 2026-11-16, các việc nối tiếp (Mcp, Projects, Realt
 - **Hub** (`OfficeRoomHub`): `BotAlertDto(Kind "error" | "waiting", Text = như bong bóng ⚠ / ⏳, Items)`, `BotAlertItemDto(Kind "error" | "approval" | "reply", Code, Title, Link = /projects/{projectId}?task={taskId} | null)`; có lỗi → `Kind = "error"`, mục lỗi đứng đầu rồi các việc chờ. `PlayerDto.Alert` (null = không) điền cho avatar bot và avatar người thật cùng tài khoản. `IOfficeClient.BotAlert(id, alert | null)` phát khi: `/rt/internal/bot-activity` làm đổi lỗi (avatar vừa đặt lại thì `PlayerJoined` đã kèm), `BotWaitingWatch` thấy bot đổi việc chờ (kèm `BotStatus`), `BotSweeper` gỡ bot quá hạn khi người thật cùng tài khoản đang trong văn phòng (`null`). FE hiển thị: mục dưới.
 - Test: `tests/OfficeHub.Realtime.Tests/BotPresenceTests.cs` (5 test TEST-120: lỗi ở bàn + ⚠ + runner báo working hết lỗi; lỗi khi đang nghỉ → về bàn, idle → Khu nghỉ; việc chờ kéo về bàn, hết chờ + 60 s → Khu nghỉ, ⏳ 1 / N việc; việc đang làm không tính chờ; bot dự họp / giữ chỗ go_to / người thật cùng tài khoản không bị kéo).
 
+## E2E (TEST-123)
+
+`scripts/dev/bot-attention-e2e.ts` — xuyên Api + Realtime + Mcp trên DB tạm (runner giả bằng `/mcp/presence`, bot thao tác bằng token AI, người xem trên hub): lỗi → bàn + ⚠ + `BotAlert` error, giữ qua nhịp lại, `working` hết lỗi, `idle` → Khu nghỉ 60–75 s; chờ duyệt / chờ phản hồi ≤ 35 s, bot đi bộ từ Khu nghỉ về bàn, người thật bình luận hết chờ, việc còn phụ thuộc không tính; lỗi + chờ (mục lỗi trước); đường nội bộ 401 / 400 / nginx 404 — 41/41 (2026-11-16). Chi tiết: [../e2e.md](../e2e.md).
+
 ## Front-end (TEST-122) — `frontend/src/features/office/`
 
 - **Kiểu / hub**: `types/office.types.ts` (`BotAlertDto`, `BotAlertItemDto`, `PlayerDto.alert`), `api/officeHub.ts` handler `botAlert(id, alert | null)`.

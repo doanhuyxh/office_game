@@ -58,6 +58,7 @@ Kiểm tra ghi lần trước (trước 34 commit sau `6cea7c6`): `dotnet build 
 
 > **2026-11-12 (chưa commit)** — Bot chiếu màn hình lên TV phòng họp (cách 1 — ảnh chụp cập nhật ≤ 1 / 3 giây, RAM): tool `present_screen` / `present_document` / `stop_presenting` (nay 75 tool), nhãn "● Trực tiếp"; nginx `/mcp` `client_max_body_size 4m`. Không migration. Build / test / `bun run build` ✔, `bot-screen-e2e.ts` 20/20, ảnh Chrome. Chi tiết [office-bots-screen.md](business/office-bots-screen.md).
 > **2026-11-12 (chưa commit)** — `present_markdown` (trang Markdown live trên TV phòng họp, ≥ 1 giây / lần, ≤ 20.000 ký tự, 75 tool): ảnh base64 qua LLM quá đắt nên agent thực tế chỉ gửi 1 khung tĩnh. Build / test / `bun run build` ✔, `bot-screen-e2e.ts` 28/28. Tiếp theo (chờ chủ dự án chốt): chương trình chụp màn hình chạy cạnh agent đẩy khung 1–2 / giây (token ngắn hạn), LiveKit nếu cần mượt.
+> **2026-11-16 (TEST-117 → TEST-123)** — Bot cần chú ý trong văn phòng 3D (lỗi job / việc chờ người duyệt hoặc trả lời → ngồi bàn, bong bóng ⚠ / ⏳, vòng đỏ / vàng dưới chân, bản đồ nhỏ, thanh trạng thái + bảng danh sách, hub `BotAlert`, Realtime hỏi `/api/projects/internal/bot-waiting` mỗi 30 giây). Không migration, không biến `.env` mới. E2E `bot-attention-e2e.ts` 41/41 — [business/office-bots-attention.md](business/office-bots-attention.md).
 
 ## Quyết định đã chốt gần đây (đừng hỏi / đề xuất lại)
 
