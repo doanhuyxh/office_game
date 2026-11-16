@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ANIM, Avatar, type AnimCode } from './avatar';
+import { ANIM, Avatar, type AlertKind, type AnimCode } from './avatar';
 import type { AvatarLook } from './avatarLook';
 import type { Room } from './mapTypes';
 import { buildSitSpots, type SitSpot } from './sitSpots';
@@ -31,8 +31,13 @@ const INTERACTIVE = OFFICE_MAP.objects.filter((o) => o.action || (o.interact && 
 const BOT_HIT_HEIGHT = 2.1, BOT_HIT_RADIUS = 0.45, BOT_HIT_MIN_PX = 18, BOT_HIT_MIN_TOUCH_PX = 28;
 const _p = new THREE.Vector3(), _p2 = new THREE.Vector3();
 
-type Other = { avatar: Avatar; tx: number; tz: number; tr: number; name: string };
-export interface MinimapSnapshot { me: { x: number; z: number; r: number } | null; others: { x: number; z: number; name: string; anim: number }[]; target: [number, number] | null }
+type Other = { avatar: Avatar; tx: number; tz: number; tr: number; name: string; alert: AlertKind | null };
+/** others[].bot = avatar bot; alert = bot cần chú ý (TEST-122) — bản đồ nhỏ tô màu theo đó. */
+export interface MinimapSnapshot {
+  me: { x: number; z: number; r: number } | null;
+  others: { x: number; z: number; name: string; anim: number; bot: boolean; alert: AlertKind | null }[];
+  target: [number, number] | null;
+}
 
 export class OfficeScene {
   readonly nav = new NavGrid(OFFICE_MAP);
@@ -159,11 +164,14 @@ export class OfficeScene {
   }
 
   /** `bot` = avatar bot (ngồi yên ở bàn, nhãn AI); `status` = đang làm gì (bot) — undefined = giữ nguyên. */
-  upsertOther(id: string, name: string, x: number, z: number, r: number, anim = 0, look?: AvatarLook, bot = false, status?: string | null) {
+  /** `alert` = bot cần chú ý (TEST-122) — undefined = giữ nguyên (avatar dựng lại vẫn giữ). */
+  upsertOther(id: string, name: string, x: number, z: number, r: number, anim = 0, look?: AvatarLook, bot = false, status?: string | null,
+    alert?: AlertKind | null) {
+    const prevAlert = this.others.get(id)?.alert ?? null;
     let o = this.others.get(id);
     if (o && o.avatar.bot !== bot) { this.removeOther(id); o = undefined; }
     if (!o) {
-      o = { avatar: new Avatar(id, name, false, look, true, bot), tx: x, tz: z, tr: r, name };
+      o = { avatar: new Avatar(id, name, false, look, true, bot), tx: x, tz: z, tr: r, name, alert: null };
       o.avatar.root.rotation.y = r;
       o.avatar.root.position.set(x, 0, z);
       this.scene.add(o.avatar.root);
@@ -172,6 +180,25 @@ export class OfficeScene {
     Object.assign(o, { tx: x, tz: z, tr: r });
     o.avatar.anim = anim as AnimCode;
     if (status !== undefined) o.avatar.setStatus(status);
+    o.alert = alert === undefined ? prevAlert : alert;
+    o.avatar.setAlert(o.alert);
+  }
+
+  /** Bot của tài khoản `id` cần chú ý (BotAlert, TEST-122) — như `setStatus`: avatar bot hoặc avatar người thật cùng tài khoản (kể cả mình). */
+  setAlert(id: string, kind: AlertKind | null) {
+    if (this.me?.id === id) return this.me.setAlert(kind);
+    const o = this.others.get(id);
+    if (!o) return;
+    o.alert = kind;
+    o.avatar.setAlert(kind);
+  }
+
+  /** Đi bộ tới cạnh người / bot `id` (bảng bot cần chú ý). Trả false khi không còn trong văn phòng. */
+  walkToPlayer(id: string): boolean {
+    const p = this.positionOf(id);
+    if (!p) return false;
+    this.walkTo(p.x, p.z);
+    return true;
   }
 
   /** Bot của tài khoản `id` đang làm gì (BotStatus) — gắn lên avatar bot hoặc avatar người thật (kể cả mình). */
@@ -278,7 +305,9 @@ export class OfficeScene {
     const p = this.me?.root.position;
     return {
       me: p ? { x: p.x, z: p.z, r: this.me!.root.rotation.y } : null,
-      others: [...this.others.values()].map((o) => ({ x: o.avatar.root.position.x, z: o.avatar.root.position.z, name: o.name, anim: o.avatar.anim })),
+      others: [...this.others.values()].map((o) => ({
+        x: o.avatar.root.position.x, z: o.avatar.root.position.z, name: o.name, anim: o.avatar.anim, bot: o.avatar.bot, alert: o.alert,
+      })),
       target: this.marker.visible ? [this.marker.position.x, this.marker.position.z] : null,
     };
   }

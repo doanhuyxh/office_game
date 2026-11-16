@@ -2,9 +2,18 @@
 // Sau này sinh tự động bằng TypedSignalR.Client.TypeScript.
 /** look = ngoại hình nhân vật (chuỗi JSON, null = mặc định) — parse bằng engine/avatarLook.parseLook. */
 /** bot = avatar của tài khoản bot đang làm việc qua MCP (ngồi yên ở bàn); status = bot đang làm gì. */
+/** alert = bot cần chú ý (lỗi job / việc chờ người, TEST-120) — cả trên avatar người thật cùng tài khoản; null / thiếu = không. */
 export interface PlayerDto {
   id: string; name: string; x: number; z: number; r: number; anim: number; look?: string | null; bot?: boolean; status?: string | null;
+  alert?: BotAlertDto | null;
 }
+/** Một mục cần chú ý: lỗi job hoặc việc chờ người duyệt (approval) / phản hồi (reply). link = /projects/{id}?task={id} (null = không rõ việc). */
+export interface BotAlertItemDto { kind: 'error' | 'approval' | 'reply'; code?: string | null; title: string; link?: string | null }
+/**
+ * Bot cần chú ý (Realtime BotAlertDto, TEST-120): kind "error" (job lỗi — có thể kèm việc chờ, mục lỗi đứng đầu) | "waiting" (chỉ việc chờ người);
+ * text = dòng ngắn như bong bóng ⚠ / ⏳. title / text là dữ liệu người dùng → chỉ render văn bản thuần.
+ */
+export interface BotAlertDto { kind: 'error' | 'waiting'; text: string; items: BotAlertItemDto[] }
 export interface PositionDto { id: string; x: number; z: number; r: number; anim: number }
 export interface WelcomeDto { selfId: string; mapName: string; players: PlayerDto[] }
 /** at = ISO 8601 UTC "…Z" (server). channel: "office" toàn văn phòng | "room" chỉ người trong phòng roomId. */

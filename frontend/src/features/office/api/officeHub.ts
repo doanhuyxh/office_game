@@ -2,7 +2,7 @@ import { HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection 
 import { MessagePackHubProtocol } from '@microsoft/signalr-protocol-msgpack';
 import { REALTIME } from '@/config/env';
 
-import type { BotActivityDto, BotWatchDto, ChatDto, PlayerDto, PositionDto, ScreenDto, WelcomeDto } from '../types/office.types';
+import type { BotActivityDto, BotAlertDto, BotWatchDto, ChatDto, PlayerDto, PositionDto, ScreenDto, WelcomeDto } from '../types/office.types';
 
 export interface OfficeHandlers {
   welcome(w: WelcomeDto): void;
@@ -19,6 +19,8 @@ export interface OfficeHandlers {
   screenChanged(roomId: string, screen: ScreenDto | null): void;
   /** Bot của tài khoản `id` đang làm gì (null = hết hoạt động). */
   botStatus(id: string, status: string | null): void;
+  /** Bot của tài khoản `id` cần chú ý (lỗi / việc chờ người, TEST-120) — null = hết. */
+  botAlert(id: string, alert: BotAlertDto | null): void;
   /** Lô sự kiện "agent đang làm gì" của bot mình đang xem (`WatchBot`, TEST-95) — gộp ≤ 4 lần / giây, kèm đang làm / rảnh. */
   botActivity(batch: BotActivityDto): void;
   /** Phiên xem bot kết thúc (server tự ngắt): reason = "range" / "offline" / "left" (`BotWatchEndReason`). */
@@ -65,6 +67,7 @@ export class OfficeConnection {
     this.conn.on('NameChanged', (id: string, name: string) => h.nameChanged(id, name));
     this.conn.on('ScreenChanged', (roomId: string, s: unknown) => h.screenChanged(roomId, s ? camel<ScreenDto>(s) : null));
     this.conn.on('BotStatus', (id: string, status: string | null) => h.botStatus(id, status ?? null));
+    this.conn.on('BotAlert', (id: string, a: unknown) => h.botAlert(id, a ? camel<BotAlertDto>(a) : null));
     this.conn.on('BotActivity', (b) => h.botActivity(camel<BotActivityDto>(b)));
     this.conn.on('BotWatchEnded', (botId: string, reason: string) => h.botWatchEnded(botId, reason));
     this.conn.on('Kicked', (reason: string) => {

@@ -20,6 +20,7 @@ import { OfficeChat } from '../office-chat';
 import { canHear, type VoiceChannelInfo } from '../../engine/voiceChannel';
 import { useBotWatch } from '../../hooks/use-bot-watch';
 import { BotActivityPanel } from '../bot-activity-panel';
+import { BotAttentionStatus } from '../bot-attention';
 import { DEFAULT_LOOK, parseLook, validLook } from '../../engine/avatarLook';
 import { AvatarEditorDialog } from '../avatar-editor-dialog';
 import { filesFromDrop, UploadPanel, useSpaces, useUploadQueue, type ISpaceRef } from '@/features/documents';
@@ -218,7 +219,11 @@ export function OfficeView() {
     /** Id các avatar bot (tài khoản bot đang làm việc qua MCP) — đếm riêng với người online. */
     const bots = new Set<string>();
     const count = () => s.setOnline(players.size - bots.size, bots.size);
-    const track = (p: PlayerDto) => { players.set(p.id, p.name); if (p.bot) bots.add(p.id); else bots.delete(p.id); };
+    const track = (p: PlayerDto) => {
+      players.set(p.id, p.name);
+      if (p.bot) bots.add(p.id); else bots.delete(p.id);
+      s.setAlert(p.id, p.name, p.alert ?? null); // bot cần chú ý (TEST-122): PlayerDto kèm cảnh báo của bot / người thật cùng tài khoản
+    };
     const voice = new VoiceClient({ me: () => scene.myPosition(), of: (id) => scene.positionOf(id) });
     voice.onChange = setVoiceView;
     voice.onSpeaking = (ids) => scene.setSpeaking(ids);
@@ -226,12 +231,14 @@ export function OfficeView() {
     const c = new OfficeConnection({
       welcome: (w) => {
         s.setConn('online');
+        s.clearAlerts();
         for (const p of w.players) {
           track(p);
           if (p.id === w.selfId) {
             scene.spawnMe(p.id, p.name, p.x, p.z, parseLook(p.look));
             scene.setStatus(p.id, p.status ?? null);
-          } else scene.upsertOther(p.id, p.name, p.x, p.z, p.r, p.anim, parseLook(p.look), !!p.bot, p.status ?? null);
+            scene.setAlert(p.id, p.alert?.kind ?? null);
+          } else scene.upsertOther(p.id, p.name, p.x, p.z, p.r, p.anim, parseLook(p.look), !!p.bot, p.status ?? null, p.alert?.kind ?? null);
         }
         count();
         void voice.enable(); // vào văn phòng = vào voice để nghe (micro mặc định tắt)
@@ -239,12 +246,13 @@ export function OfficeView() {
       playerJoined: (p) => {
         if (p.id === me.id) return;
         track(p);
-        scene.upsertOther(p.id, p.name, p.x, p.z, p.r, p.anim, parseLook(p.look), !!p.bot, p.status ?? null);
+        scene.upsertOther(p.id, p.name, p.x, p.z, p.r, p.anim, parseLook(p.look), !!p.bot, p.status ?? null, p.alert?.kind ?? null);
         count();
       },
       playerLeft: (id) => {
         players.delete(id);
         bots.delete(id);
+        s.setAlert(id, '', null);
         scene.removeOther(id);
         count();
       },
@@ -252,8 +260,9 @@ export function OfficeView() {
       chat: (m) => s.pushChat(m),
       teleport: (x, z) => scene.teleportMe(x, z),
       lookChanged: (id, look) => scene.setLook(id, parseLook(look)),
-      nameChanged: (id, name) => scene.setName(id, name),
+      nameChanged: (id, name) => { scene.setName(id, name); s.renameAlert(id, name); },
       botStatus: (id, st) => scene.setStatus(id, st),
+      botAlert: (id, a) => { scene.setAlert(id, a?.kind ?? null); s.setAlert(id, players.get(id) ?? '', a); },
       botActivity: botWatch.onActivity,
       botWatchEnded: botWatch.onEnded,
       screenChanged: (roomId, sc) => { if (roomId === roomRef.current) setScreen(sc); },
@@ -337,6 +346,8 @@ export function OfficeView() {
         )}
         <div className="card status">
           <span className={`dot ${conn}`} /> {conn === 'online' ? `${online} người online${bots ? ` · ${bots} AI` : ''}` : STATUS[conn]}
+          {/* Bot cần chú ý (TEST-122): "· 1 lỗi · 2 chờ duyệt" → bảng danh sách (đi tới bot / mở việc ở tab mới) */}
+          {conn === 'online' && <BotAttentionStatus scene={scene} />}
           {/* Chuông thông báo ngay trong văn phòng (TEST-109): mở link ở tab mới, toast khi có thông báo mới */}
           <NotificationBell office triggerClassName="office-bell" />
         </div>
@@ -384,6 +395,7 @@ export function OfficeView() {
             </>}
             <span>Vào phòng có tường (phòng họp…) → chat có thêm tab riêng của phòng</span>
             <span>{IS_TOUCH ? 'Chạm' : 'Bấm'} vào bot AI (nhãn tím) khi đứng gần · xem bot đang làm gì</span>
+            <span>Vòng đỏ nhấp nháy dưới chân bot · job lỗi; vòng vàng · có việc chờ người duyệt / phản hồi (bấm "lỗi" / "chờ" trên thanh trạng thái để xem)</span>
             <span>📁 Tài liệu · tủ hồ sơ / kệ thư viện / bảng tin · <kbd>E</kbd> mở kho; màn hình phòng họp · chiếu tài liệu; kéo thả file vào để tải lên</span>
             <button type="button" onClick={() => setHelp(false)}>Đã hiểu</button>
           </div>

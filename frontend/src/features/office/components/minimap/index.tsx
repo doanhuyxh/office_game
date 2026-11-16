@@ -26,7 +26,13 @@ function drawStatic(ctx: CanvasRenderingContext2D) {
   wall(f, false, m.outerDoors);
 }
 
-/** Bản đồ nhỏ góc phải: mình (xanh, có hướng), người khác (cam), điểm đang đi tới. Bấm vào bản đồ → đi tới đó. */
+/** Màu chấm người khác (TEST-122): người thật cam, bot tím, bot chờ người vàng, bot lỗi đỏ (to hơn, nhấp nháy). */
+const DOT = { person: '#f97316', bot: '#a855f7', waiting: '#f59e0b', error: '#ef4444' } as const;
+
+/**
+ * Bản đồ nhỏ góc phải: mình (xanh, có hướng), người thật (cam), bot (tím / chờ người vàng / lỗi đỏ nhấp nháy), điểm đang đi tới.
+ * Bấm vào bản đồ → đi tới đó. Vẽ bot cần chú ý sau cùng để không bị chấm khác che.
+ */
 export function Minimap({ scene }: { scene: OfficeScene | null }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const f = OFFICE_MAP.floor;
@@ -47,8 +53,14 @@ export function Minimap({ scene }: { scene: OfficeScene | null }) {
       const s = scene.snapshot();
       ctx.drawImage(base, 0, 0);
       const X = (x: number) => (x - f.x0) * SCALE, Z = (z: number) => (z - f.z0) * SCALE;
-      ctx.fillStyle = '#f97316';
-      for (const o of s.others) { ctx.beginPath(); ctx.arc(X(o.x), Z(o.z), 3.5, 0, Math.PI * 2); ctx.fill(); }
+      const blink = Math.floor(t / 450) % 2 === 0;
+      const dot = (x: number, z: number, r: number, color: string) => { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(X(x), Z(z), r, 0, Math.PI * 2); ctx.fill(); };
+      for (const o of s.others) if (!o.alert) dot(o.x, o.z, 3.5, o.bot ? DOT.bot : DOT.person);
+      for (const o of s.others) if (o.alert === 'waiting') dot(o.x, o.z, 4.5, DOT.waiting);
+      for (const o of s.others) if (o.alert === 'error') {
+        dot(o.x, o.z, blink ? 6 : 4.5, DOT.error);
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(X(o.x), Z(o.z), blink ? 6 : 4.5, 0, Math.PI * 2); ctx.stroke();
+      }
       if (s.target) { ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(X(s.target[0]), Z(s.target[1]), 4, 0, Math.PI * 2); ctx.stroke(); }
       if (s.me) {
         const { x, z, r } = s.me;

@@ -10,6 +10,17 @@ export type AnimCode = (typeof ANIM)[keyof typeof ANIM];
 const PANTS = 0x334155;
 /** Nhãn tên / bong bóng bot (TEST-89: thu nhỏ) — chiều cao sprite (m) và độ cao tâm nhãn tên. */
 const LABEL_H = 0.24, STATUS_H = 0.17, LABEL_Y = 1.95;
+/** Bong bóng cần chú ý (⚠ lỗi / ⏳ chờ người, TEST-122): to hơn + dài hơn để đọc được khi zoom xa. */
+const ALERT_H = 0.21, ALERT_CHARS = 32;
+/** Bot cần chú ý: đỏ nhấp nháy (lỗi) / vàng đứng yên (chờ người). */
+export type AlertKind = 'error' | 'waiting';
+const ALERT_COLOR: Record<AlertKind, number> = { error: 0xef4444, waiting: 0xf59e0b };
+/** Màu bong bóng theo ký hiệu đầu dòng do server đặt (BotPresence.Bubble): ⚠ lỗi → đỏ, ⏳ chờ người → vàng chữ tối, còn lại tím. */
+function bubbleStyle(text: string) {
+  if (text.startsWith('⚠')) return { color: '#ffffff', bg: 'rgba(220,38,38,.92)', h: ALERT_H, max: ALERT_CHARS };
+  if (text.startsWith('⏳')) return { color: '#1c1917', bg: 'rgba(245,158,11,.95)', h: ALERT_H, max: ALERT_CHARS };
+  return { color: '#ffffff', bg: 'rgba(124,58,237,.8)', h: STATUS_H, max: 24 };
+}
 const m = (color: THREE.ColorRepresentation) => new THREE.MeshStandardMaterial({ color, roughness: 0.8, flatShading: true });
 
 /** Màu cho nhân vật khối dự phòng: theo bảng màu đã chọn, null = màu gần giống model gốc. */
@@ -74,6 +85,9 @@ export class Avatar {
   private t = Math.random() * 10;
   private talk: THREE.Mesh;
   private ring: THREE.Mesh | null = null;
+  /** Vòng cần chú ý dưới chân (ngoài vòng "của tôi" / "đang nói" — không đè lên). */
+  private alertRing: THREE.Mesh;
+  private alertKind: AlertKind | null = null;
   /** Dòng "đang làm gì" phía trên nhãn tên (bot đang làm việc qua MCP); null = không hiện. */
   private status: THREE.Sprite | null = null;
   private statusText: string | null = null;
@@ -95,6 +109,11 @@ export class Avatar {
     this.talk.position.y = 0.02;
     this.talk.visible = false;
     this.root.add(this.talk);
+    this.alertRing = new THREE.Mesh(new THREE.RingGeometry(0.56, 0.68, 40), new THREE.MeshBasicMaterial({ color: ALERT_COLOR.error, transparent: true, opacity: 0.85, depthWrite: false }));
+    this.alertRing.rotation.x = -Math.PI / 2;
+    this.alertRing.position.y = 0.018;
+    this.alertRing.visible = false;
+    this.root.add(this.alertRing);
     this.isMe = isMe;
     this.name = name;
     this.label = this.makeLabel(name);
@@ -131,7 +150,21 @@ export class Avatar {
 
   get currentLook() { return this.look; }
 
-  /** Bot đang làm gì ("Chuyển trạng thái việc · WEB-12") — bong bóng tím nhỏ sát trên tên (≤ 24 ký tự, TEST-89); null = gỡ. */
+  /** Bot cần chú ý (TEST-122): vòng dưới chân đỏ nhấp nháy (lỗi) / vàng đứng yên (chờ người); null = gỡ. */
+  setAlert(kind: AlertKind | null) {
+    if (kind === this.alertKind) return;
+    this.alertKind = kind;
+    this.alertRing.visible = !!kind;
+    if (!kind) return;
+    const mat = this.alertRing.material as THREE.MeshBasicMaterial;
+    mat.color.setHex(ALERT_COLOR[kind]);
+    mat.opacity = 0.85;
+  }
+
+  /**
+   * Bot đang làm gì ("Chuyển trạng thái việc · WEB-12") — bong bóng nhỏ sát trên tên (TEST-89): tím ≤ 24 ký tự; dòng cần chú ý (TEST-122)
+   * "⚠ …" nền đỏ / "⏳ …" nền vàng chữ tối, to hơn, ≤ 32 ký tự. null = gỡ.
+   */
   setStatus(text: string | null) {
     if (text === this.statusText) return;
     this.statusText = text;
@@ -142,14 +175,15 @@ export class Avatar {
       this.status = null;
     }
     if (!text) return;
-    const { tex, aspect } = textTexture(text.length > 24 ? `${text.slice(0, 23)}…` : text, {
-      color: '#ffffff', bg: 'rgba(124,58,237,.8)', font: '500 30px Inter, system-ui, sans-serif', pad: 18,
+    const st = bubbleStyle(text);
+    const { tex, aspect } = textTexture(text.length > st.max ? `${text.slice(0, st.max - 1)}…` : text, {
+      color: st.color, bg: st.bg, font: '500 30px Inter, system-ui, sans-serif', pad: 18,
     });
     this.status = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-    this.status.scale.set(STATUS_H * aspect, STATUS_H, 1);
+    this.status.scale.set(st.h * aspect, st.h, 1);
     // Neo cùng điểm với nhãn tên, đẩy lên theo chiều dọc màn hình (center) → luôn sát ngay trên nhãn, không che nhãn ở mọi góc camera
     this.status.position.y = LABEL_Y;
-    this.status.center.set(0.5, -(LABEL_H / 2 + 0.015) / STATUS_H);
+    this.status.center.set(0.5, -(LABEL_H / 2 + 0.015) / st.h);
     this.status.renderOrder = 10;
     this.status.visible = this.label.visible;
     this.root.add(this.status);
@@ -201,6 +235,7 @@ export class Avatar {
     this.t += dt;
     this.talk.visible = this.speaking;
     if (this.speaking) this.talk.scale.setScalar(1 + Math.sin(this.t * 9) * 0.07);
+    if (this.alertKind === 'error') (this.alertRing.material as THREE.MeshBasicMaterial).opacity = 0.35 + 0.6 * Math.abs(Math.sin(this.t * 4));
     if (this.rig) return this.updateRig(dt);
     if (!this.blocks) return;
     const { body, legL, legR, armL, armR } = this.blocks;
@@ -245,7 +280,7 @@ export class Avatar {
     if (this.blocks) disposeOwned(this.blocks.body);
     // Model GLB: geometry + vật liệu dùng chung (cache trong character.ts) → không dispose; chỉ dừng animation.
     if (this.rig) { this.rig.mixer.stopAllAction(); this.rig.mixer.uncacheRoot(this.rig.model); }
-    for (const o of [this.talk, this.ring]) { o?.geometry.dispose(); (o?.material as THREE.Material | undefined)?.dispose(); }
+    for (const o of [this.talk, this.ring, this.alertRing]) { o?.geometry.dispose(); (o?.material as THREE.Material | undefined)?.dispose(); }
     this.label.material.map?.dispose();
     this.label.material.dispose();
     this.setStatus(null);
