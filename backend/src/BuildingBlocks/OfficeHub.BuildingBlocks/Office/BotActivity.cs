@@ -14,7 +14,16 @@ namespace OfficeHub.BuildingBlocks.Office;
 /// <param name="Busy">Có việc đang làm không (true → ngồi bàn, false → ra Khu nghỉ, null = không rõ → giữ như cũ). Xem <see cref="BotWork"/>.</param>
 /// <param name="Task">Việc đang làm: "WEB-12 · Tên việc" (≤ 80 ký tự), null = không có / không rõ.</param>
 /// <param name="FromRunner">true = agent-runner báo (<see cref="BotWork.PresencePath"/>) — ưu tiên hơn trạng thái suy từ bảng việc trong <see cref="BotActivityRoute.OnlineMinutes"/> phút.</param>
-public sealed record BotActivity(Guid UserId, string Name, string? Look, string? Zone, string Activity, bool? Busy = null, string? Task = null, bool FromRunner = false);
+/// <param name="Error">Lỗi job gần nhất runner báo (<see cref="BotWork.Error"/>, TEST-117) — chỉ có nghĩa khi <paramref name="FromRunner"/>; null = hết lỗi.
+/// Xem luật giữ lỗi ở <see cref="BotWaitingRoute"/>.</param>
+public sealed record BotActivity(Guid UserId, string Name, string? Look, string? Zone, string Activity, bool? Busy = null, string? Task = null, bool FromRunner = false,
+    BotError? Error = null);
+
+/// <summary>Lỗi job của bot (TEST-117): bong bóng 3D chỉ hiện <see cref="Text"/> (loại lỗi ngắn, ≤ <see cref="BotWork.MaxError"/> ký tự — cả công ty thấy);
+/// chi tiết vẫn ở bảng "Màn hình của bot" cho người đứng gần.</summary>
+/// <param name="Text">Loại lỗi ngắn, ví dụ "Build lỗi", "Hết thời gian".</param>
+/// <param name="Task">Việc đang làm khi lỗi: "WEB-12 · Tên việc", null = không gắn việc.</param>
+public sealed record BotError(string Text, string? Task, Guid? TaskId, Guid? ProjectId);
 
 /// <summary>
 /// Bot đang làm / rảnh (chủ dự án yêu cầu 2026-11-13): đang làm → ngồi bàn trong khu phòng ban, bong bóng "🛠 việc · thao tác";
@@ -28,6 +37,8 @@ public static class BotWork
     public const string PresencePath = "/mcp/presence";
     public const string Working = "working";
     public const string Idle = "idle";
+    /// <summary>Job lỗi (TEST-117): runner báo kèm <see cref="BotPresenceReport.Error"/>; lỗi giữ tới khi runner báo trạng thái khác.</summary>
+    public const string Error = "error";
     public const string IdleBubble = "☕ Đang nghỉ";
     /// <summary>Rảnh liên tục bấy nhiêu giây mới đi ra Khu nghỉ (chống đi qua đi lại giữa hai việc). Có việc → về bàn ngay.</summary>
     public const int IdleDelaySeconds = 60;
@@ -35,12 +46,17 @@ public static class BotWork
     /// <summary>Bot không có runner: không đụng việc nào bấy nhiêu phút → rảnh.</summary>
     public const int TaskWindowMinutes = 15;
     public const int MaxActivity = 60;
+    /// <summary>Độ dài tối đa loại lỗi ngắn hiện trên bong bóng (<see cref="BotError.Text"/>).</summary>
+    public const int MaxError = 40;
 }
 
-/// <param name="State"><see cref="BotWork.Working"/> | <see cref="BotWork.Idle"/>.</param>
+/// <param name="State"><see cref="BotWork.Working"/> | <see cref="BotWork.Idle"/> | <see cref="BotWork.Error"/>.</param>
 /// <param name="Task">Mã việc (+ tên) đang làm, ví dụ "WEB-12 · Sửa form đăng nhập".</param>
 /// <param name="Activity">Nhãn thô thao tác hiện tại ("Sửa code", "Chạy lệnh"…) — không gửi lệnh / đường dẫn file / lời agent.</param>
-public sealed record BotPresenceReport(string State, string? Task = null, string? Activity = null);
+/// <param name="Error">Loại lỗi ngắn khi <paramref name="State"/> = <see cref="BotWork.Error"/> (≤ <see cref="BotWork.MaxError"/> ký tự), null = không lỗi.</param>
+/// <param name="TaskId">Id việc đang làm / lỗi (null = không rõ) — để bấm mở việc.</param>
+/// <param name="ProjectId">Id dự án của việc đó.</param>
+public sealed record BotPresenceReport(string State, string? Task = null, string? Activity = null, string? Error = null, Guid? TaskId = null, Guid? ProjectId = null);
 
 /// <summary>
 /// OfficeHub.Mcp → OfficeHub.Realtime: bot vừa gửi tin chat qua Api (tool send_chat_message) → Realtime phát tới client chat + HUD 3D,

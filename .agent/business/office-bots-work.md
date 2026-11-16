@@ -31,6 +31,12 @@ Chủ dự án chốt thêm 2026-11-13: **bot đang làm một việc thì việ
 | Rảnh | `☕ Đang nghỉ`; trừ `💬` (chat), `🚶` (đi lại), `🖥` / `📝` (trình chiếu) |
 | Không rõ | tiêu đề tool như trước |
 
+## Bot cần chú ý — hợp đồng (TEST-117, chưa có hành vi)
+
+Chủ dự án chốt 2026-11-16, các việc nối tiếp (Mcp, Projects, Realtime, FE, runner) dùng chung `BuildingBlocks/Office`:
+- **Lỗi**: `BotWork.Error = "error"`, `BotPresenceReport` thêm `Error` / `TaskId` / `ProjectId` (null mặc định); `BotActivity.Error` (`BotError(Text, Task, TaskId, ProjectId)`, chỉ khi `FromRunner`, null = hết lỗi). Bong bóng chỉ loại lỗi ngắn ≤ `BotWork.MaxError` (40); lỗi giữ tới khi runner báo trạng thái khác.
+- **Chờ người** (`BotAttention.cs`): Realtime POST `BotWaitingRoute.Path` (`/api/projects/internal/bot-waiting`, khoá `X-Chat-Key` như `/api/meetings/internal/live`) mỗi 30 giây, ≤ 200 bot, ≤ 10 việc / bot; `Kind` = `approval` | `reply`. Nhận biết theo thao tác cuối trên việc là của chính bot, chưa có người thật thao tác lại — không dựa vào cột.
+
 ## agent-runner (`src/presence.ts`)
 
 - Khởi động: báo `idle` + **nhịp còn sống 2 phút** (bot rảnh vẫn hiện ở Khu nghỉ thay vì biến mất sau 5 phút).
