@@ -1,5 +1,4 @@
 // Public API của module Tài liệu (kho tài sản số).
-export { DocumentsPage } from './components/documents-page';
 export { DocumentsBrowser } from './components/documents-browser';
 export { AssetSheet } from './components/asset-sheet';
 export { AssetTable } from './components/asset-table';

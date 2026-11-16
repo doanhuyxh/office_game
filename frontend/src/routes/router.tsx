@@ -18,8 +18,9 @@ import { ErrorPage } from '@/components/feedback/error-page';
 import { canAccessPage, PAGE_ROLES } from '@/config/access';
 
 /**
- * Định tuyến. Mỗi màn hình là một feature trong src/features/<feature> — route import qua barrel '@/features/<feature>'.
- * Thêm màn hình mới: tạo features/<x> (+ index.ts) → thêm 1 dòng `page(...)` bên dưới → thêm menu ở components/layout/navigation.ts.
+ * Định tuyến. Mỗi màn hình là một feature trong src/features/<feature> — route import trang qua '@/features/<feature>/page'
+ * (page.ts chỉ export trang; index.ts không export trang, để layout import hook từ barrel không kéo trang vào bundle chính — TEST-113).
+ * Thêm màn hình mới: tạo features/<x> (+ index.ts, page.ts) → thêm 1 dòng `page(...)` bên dưới → thêm menu ở components/layout/navigation.ts.
  * Các feature được lazy load: mỗi màn hình một file JS, chỉ tải khi mở (văn phòng 3D kéo theo Three.js).
  */
 
@@ -82,14 +83,14 @@ const protectedRoute = createRoute({
 const office = createRoute({
   getParentRoute: () => protectedRoute,
   path: PATHS.office,
-  component: lazyRouteComponent(() => import('@/features/office'), 'OfficeView'),
+  component: lazyRouteComponent(() => import('@/features/office/page'), 'OfficeView'),
 });
 
 // Trang đồng ý cấp quyền cho ứng dụng AI (OAuth) — toàn màn hình. Tham số OAuth đọc thẳng từ URL.
 const oauthAuthorize = createRoute({
   getParentRoute: () => protectedRoute,
   path: PATHS.oauthAuthorize,
-  component: lazyRouteComponent(() => import('@/features/ai-access'), 'OAuthConsentPage'),
+  component: lazyRouteComponent(() => import('@/features/ai-access/page'), 'OAuthConsentPage'),
 });
 
 // Các màn hình nhân sự: dùng chung sidebar.
@@ -121,7 +122,7 @@ const newsPost = createRoute({
   getParentRoute: () => main,
   path: '/news/$postId',
   validateSearch: (s: Record<string, unknown>): { comment?: string } => ({ comment: typeof s.comment === 'string' ? s.comment : undefined }),
-  component: lazyRouteComponent(() => import('@/features/news'), 'PostPage'),
+  component: lazyRouteComponent(() => import('@/features/news/page'), 'PostPage'),
 });
 
 // Chi tiết dự án (link từ chuông giao việc / thêm thành viên): /projects/<id>?tab=tasks|milestones|members|effort
@@ -131,7 +132,7 @@ const projectDetail = createRoute({
   getParentRoute: () => main,
   path: '/projects/$projectId',
   validateSearch: (s: Record<string, unknown>): { tab?: string; task?: string; comment?: string } => ({ tab: str(s.tab), task: str(s.task), comment: str(s.comment) }),
-  component: lazyRouteComponent(() => import('@/features/projects'), 'ProjectDetailPage'),
+  component: lazyRouteComponent(() => import('@/features/projects/page'), 'ProjectDetailPage'),
 });
 
 const routeTree = root.addChildren([
@@ -145,32 +146,32 @@ const routeTree = root.addChildren([
     office,
     oauthAuthorize,
     main.addChildren([
-      page(PATHS.dashboard, () => import('@/features/dashboard'), 'Dashboard'),
-      page(PATHS.attendance, () => import('@/features/attendance'), 'AttendancePage'),
-      page(PATHS.leave, () => import('@/features/leave'), 'LeavePage'),
-      page(PATHS.approvals, () => import('@/features/approvals'), 'ApprovalsPage'),
-      page(PATHS.meetings, () => import('@/features/meetings'), 'MeetingsPage'),
-      page(PATHS.documents, () => import('@/features/documents'), 'DocumentsPage'),
-      page(PATHS.assets, () => import('@/features/assets'), 'AssetsPage'),
-      page(PATHS.social, () => import('@/features/social'), 'SocialPage'),
-      page(PATHS.finance, () => import('@/features/finance'), 'FinancePage'),
-      page(PATHS.sales, () => import('@/features/sales'), 'SalesPage'),
-      page(PATHS.projects, () => import('@/features/projects'), 'ProjectsPage'),
-      page(PATHS.employees, () => import('@/features/employees'), 'EmployeesPage'),
-      page(PATHS.contracts, () => import('@/features/contracts'), 'ContractsPage'),
-      page(PATHS.reports, () => import('@/features/reports'), 'ReportsPage'),
-      page(PATHS.audit, () => import('@/features/audit'), 'AuditPage'),
-      page(PATHS.payroll, () => import('@/features/payroll'), 'PayrollPage'),
-      page(PATHS.payslips, () => import('@/features/payroll'), 'PayslipsPage'),
-      page(PATHS.profile, () => import('@/features/profile'), 'ProfilePage'),
-      page(PATHS.notifications, () => import('@/features/notifications'), 'NotificationsPage'),
-      page(PATHS.chat, () => import('@/features/chat'), 'ChatPage'),
-      page(PATHS.news, () => import('@/features/news'), 'NewsPage'),
+      page(PATHS.dashboard, () => import('@/features/dashboard/page'), 'Dashboard'),
+      page(PATHS.attendance, () => import('@/features/attendance/page'), 'AttendancePage'),
+      page(PATHS.leave, () => import('@/features/leave/page'), 'LeavePage'),
+      page(PATHS.approvals, () => import('@/features/approvals/page'), 'ApprovalsPage'),
+      page(PATHS.meetings, () => import('@/features/meetings/page'), 'MeetingsPage'),
+      page(PATHS.documents, () => import('@/features/documents/page'), 'DocumentsPage'),
+      page(PATHS.assets, () => import('@/features/assets/page'), 'AssetsPage'),
+      page(PATHS.social, () => import('@/features/social/page'), 'SocialPage'),
+      page(PATHS.finance, () => import('@/features/finance/page'), 'FinancePage'),
+      page(PATHS.sales, () => import('@/features/sales/page'), 'SalesPage'),
+      page(PATHS.projects, () => import('@/features/projects/page'), 'ProjectsPage'),
+      page(PATHS.employees, () => import('@/features/employees/page'), 'EmployeesPage'),
+      page(PATHS.contracts, () => import('@/features/contracts/page'), 'ContractsPage'),
+      page(PATHS.reports, () => import('@/features/reports/page'), 'ReportsPage'),
+      page(PATHS.audit, () => import('@/features/audit/page'), 'AuditPage'),
+      page(PATHS.payroll, () => import('@/features/payroll/page'), 'PayrollPage'),
+      page(PATHS.payslips, () => import('@/features/payroll/page'), 'PayslipsPage'),
+      page(PATHS.profile, () => import('@/features/profile/page'), 'ProfilePage'),
+      page(PATHS.notifications, () => import('@/features/notifications/page'), 'NotificationsPage'),
+      page(PATHS.chat, () => import('@/features/chat/page'), 'ChatPage'),
+      page(PATHS.news, () => import('@/features/news/page'), 'NewsPage'),
       newsPost,
       projectDetail,
-      page(PATHS.aiAccess, () => import('@/features/ai-access'), 'AiAccessPage'),
-      page(PATHS.mcpTools, () => import('@/features/mcp-tools'), 'McpToolsPage'),
-      page(PATHS.system, () => import('@/features/system'), 'SystemPage'),
+      page(PATHS.aiAccess, () => import('@/features/ai-access/page'), 'AiAccessPage'),
+      page(PATHS.mcpTools, () => import('@/features/mcp-tools/page'), 'McpToolsPage'),
+      page(PATHS.system, () => import('@/features/system/page'), 'SystemPage'),
     ]),
   ]),
 ]);

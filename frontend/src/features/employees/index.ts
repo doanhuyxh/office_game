@@ -1,5 +1,4 @@
 // Public API của module nhân sự (Organization).
-export { EmployeesPage } from './components/employees-page';
 export { MyRoleCard } from './components/my-role-card';
 export { useEmployees, useDepartments, usePositions, useMyFinanceAccess } from './hooks/useOrg';
 export { employeesApi, orgKeys } from './api/org.api';
