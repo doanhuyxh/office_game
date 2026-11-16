@@ -1,9 +1,12 @@
 // Chrome headless qua DevTools Protocol (không cần Playwright, chỉ cần Google Chrome trên macOS). Mỗi phiên một profile riêng → cookie riêng.
 /** Gốc FE (đổi khi chạy Vite ở cổng khác): BASE_URL=http://localhost:5174 */
 export const BASE = process.env.BASE_URL ?? 'http://localhost:5173';
+/** Đường dẫn Chrome: `CHROME_PATH` (Windows / Linux), mặc định Chrome trên macOS; Windows có Chrome ở chỗ cài chuẩn thì tự dùng. */
+const CHROME = process.env.CHROME_PATH
+  ?? (process.platform === 'win32' ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' : '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
 
 export async function launch(port: number, profile: string, width = 1440, height = 900, extraArgs: string[] = []) {
-  const chrome = Bun.spawn(['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '--headless=new', `--remote-debugging-port=${port}`,
+  const chrome = Bun.spawn([CHROME, '--headless=new', `--remote-debugging-port=${port}`,
     `--user-data-dir=${profile}`, `--window-size=${width},${height}`, '--hide-scrollbars', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', ...extraArgs, 'about:blank'],
     { stdout: 'ignore', stderr: 'ignore' });
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

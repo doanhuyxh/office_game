@@ -294,3 +294,24 @@
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
   .office-root .chat-panel.docked { left: 160px; right: 160px; width: auto; top: 12px; bottom: 12px; height: auto; min-height: 0; }
 }
+/* Menu bấm vào nhân vật (TEST-127, mockup 03): neo cạnh avatar bằng transform (AvatarMenu tính mỗi khung hình) */
+.office-root .avatar-menu { position: fixed; left: 0; top: 0; z-index: 30; width: 240px; padding: 10px; display: grid; gap: 6px; border-radius: 12px;
+  background: rgba(15, 23, 42, .94); border: 1px solid rgba(148, 163, 184, .3); box-shadow: 0 14px 32px rgba(2, 6, 23, .4); backdrop-filter: blur(8px); }
+.office-root .avatar-menu-head { display: flex; align-items: center; gap: 8px; padding: 2px 4px 6px; border-bottom: 1px solid rgba(148, 163, 184, .2); }
+.office-root .avatar-menu-ava { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; background: #2563eb; }
+.office-root .avatar-menu-ava.bot { background: #7c3aed; }
+.office-root .avatar-menu-who { min-width: 0; display: grid; }
+.office-root .avatar-menu-who b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.office-root .avatar-menu-who > span { font-size: 12px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.office-root .avatar-menu-chip { margin-left: 6px; padding: 0 5px; border-radius: 4px; background: rgba(124, 58, 237, .3); color: #ddd6fe; font-size: 10px; font-weight: 700; vertical-align: 1px; }
+.office-root .avatar-menu [role=menuitem] { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; border: 0; border-radius: 8px;
+  background: rgba(148, 163, 184, .16); color: #e2e8f0; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.office-root .avatar-menu [role=menuitem] svg { width: 15px; height: 15px; flex: none; }
+.office-root .avatar-menu [role=menuitem]:hover { background: rgba(148, 163, 184, .26); }
+.office-root .avatar-menu [role=menuitem].primary { background: #2563eb; color: #fff; font-weight: 600; }
+.office-root .avatar-menu [role=menuitem].primary:hover { background: #1d4ed8; }
+.office-root .avatar-menu [role=menuitem].bot { background: #7c3aed; color: #fff; font-weight: 600; }
+.office-root .avatar-menu [role=menuitem].bot:hover { background: #6d28d9; }
+.office-root .avatar-menu [role=menuitem]:focus-visible { outline: 2px solid #93c5fd; outline-offset: 1px; }
+.office-root .avatar-menu [role=menuitem]:disabled { opacity: .6; cursor: progress; }
+@media (pointer: coarse) { .office-root .avatar-menu [role=menuitem] { height: 44px; } }

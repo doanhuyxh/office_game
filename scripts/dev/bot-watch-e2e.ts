@@ -1,4 +1,6 @@
-// E2E TEST-97 + TEST-98 (mục [98]: bảng đầy đủ "Màn hình của bot" — 10 loại sự kiện, thu gọn, cuộn, Esc, theme, kéo / đổi cỡ, rỗng)
+// E2E TEST-97 + TEST-98 + TEST-127 (mục [127]: bấm nhân vật → menu — bot: Xem bot / Nhắn tin riêng; người: Nhắn tin riêng / Đi tới cạnh;
+//   Esc, bấm ra ngoài, phím không đi, ↓, điện thoại ≥ 44 px, người rời → đóng)
+// (mục [98]: bảng đầy đủ "Màn hình của bot" — 10 loại sự kiện, thu gọn, cuộn, Esc, theme, kéo / đổi cỡ, rỗng)
 // + TEST-100 (mục [100]: tab "File đã sửa" — gộp theo file, + / -, nhãn Mới, nội dung ẩn, mở diff, nháy, phiên mới → trống, điện thoại):
 // + TEST-102 (mục [102]: kéo đổi vị trí + đổi kích thước bảng — ra 4 mép không lọt, nhỏ nhất 320 × 220 / to nhất vừa màn hình, nội dung không tràn,
 //   nhấn-kéo trên nút Đóng / tab / chọn chữ / lăn chuột không di chuyển bảng, nhân vật + camera đứng yên, nhớ vị trí khi đóng mở lại / bot khác / tải lại,
@@ -170,6 +172,40 @@ const click = async (p: typeof pc, x: number, y: number) => {
   await p.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 });
   await p.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
 };
+/** Điểm màn hình trúng avatar `id` bất kỳ (người / bot — TEST-127), như `botPixel`. */
+const avatarPixel = (p: typeof pc, id: string, touch = false) => p.evalJs(`(() => { const s = window.__officeScene, W = innerWidth, H = innerHeight, id = ${JSON.stringify(id)};
+  const hit = (x, y) => s.avatarAt(x, y, ${touch})?.id === id && document.elementFromPoint(x, y)?.tagName === 'CANVAS';
+  let sx = 0, sy = 0, n = 0, first = null;
+  for (let y = 0; y < H; y += 6) for (let x = 0; x < W; x += 6) if (hit(x, y)) { sx += x; sy += y; n++; first ??= [x, y]; }
+  if (!n) return null;
+  const c = [Math.round(sx / n), Math.round(sy / n)];
+  return hit(c[0], c[1]) ? c : first; })()`) as Promise<[number, number] | null>;
+const tap = async (p: typeof pc, x: number, y: number) => {
+  await p.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+  await p.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+};
+type Menu = { id: string; bot: boolean; text: string; sub: string; focus: string; items: { t: string; label: string; x: number; y: number; h: number }[]; rect: { x: number; y: number; w: number; h: number } };
+/** Menu bấm nhân vật đang mở (TEST-127) — null = không có / chưa neo xong. */
+const menu = (p: typeof pc) => p.evalJs(`(() => { const m = document.querySelector('[data-testid=avatar-menu]'); if (!m || m.style.visibility === 'hidden') return null;
+  const r = m.getBoundingClientRect();
+  return { id: m.dataset.avatar, bot: m.dataset.bot === '1', text: m.innerText, sub: m.querySelector('[data-testid=avatar-menu-sub]')?.textContent ?? '',
+    focus: document.activeElement?.dataset?.testid ?? '', rect: { x: r.left, y: r.top, w: r.width, h: r.height },
+    items: [...m.querySelectorAll('[role=menuitem]')].map((b) => { const q = b.getBoundingClientRect(); return { t: b.dataset.testid, label: b.innerText.trim(), x: q.left + q.width / 2, y: q.top + q.height / 2, h: q.height }; }) }; })()`) as Promise<Menu | null>;
+const waitMenu = async (p: typeof pc, want: boolean, ms = 3000) => {
+  for (let t = 0; t < ms; t += 100) { const m = await menu(p); if (want ? !!m : !m) return m; await p.sleep(100); }
+  return await menu(p);
+};
+/** Bấm / chạm avatar ở (x, y) → chờ menu → bấm mục `item` (data-testid). Trả menu vừa mở (null = không mở / không có mục). */
+const pickMenu = async (p: typeof pc, x: number, y: number, item: string, touch = false) => {
+  await (touch ? tap(p, x, y) : click(p, x, y));
+  const m = await waitMenu(p, true);
+  const it = m?.items.find((i) => i.t === item);
+  if (!it) return null;
+  await (touch ? tap(p, it.x, it.y) : click(p, it.x, it.y));
+  return m;
+};
+/** TEST-127: bấm bot giờ mở menu → "Xem bot đang làm gì" (hành vi cũ của TEST-97). */
+const clickBot = (p: typeof pc, x: number, y: number, touch = false) => pickMenu(p, x, y, 'avatar-menu-watch', touch);
 const panel = (p: typeof pc) => p.evalJs(`(() => { const el = document.querySelector('[data-testid=office-bot-watch]'); if (!el) return null;
   return { bot: el.dataset.bot, text: el.innerText, state: el.querySelector('[data-testid=office-bot-watch-state]')?.textContent ?? '',
     lines: [...el.querySelectorAll('.bot-watch-line')].map((l) => ({ id: l.dataset.id, kind: l.dataset.kind, err: l.classList.contains('err'), text: l.innerText })),
@@ -194,7 +230,7 @@ ok('H1 đi tới chỗ cách bot > 7 m', !!far && dist(far, bot) > 7, far && dis
 let px = await botPixel(pc);
 ok('bot hiện trên màn hình khi đứng xa (có điểm bấm)', !!px, px);
 if (px) {
-  await click(pc, px[0], px[1]);
+  await clickBot(pc, px[0], px[1]);
   ok('bấm bot từ xa → gợi ý "Lại gần hơn để xem <tên bot> đang làm gì"', await toastHas(pc, `Lại gần hơn để xem ${B.name} đang làm gì`));
   ok('…và không mở bảng', (await waitPanel(pc, true, 1200)) === null);
   const snap = await pc.evalJs('window.__officeScene.snapshot().target');
@@ -209,11 +245,24 @@ ok('có điểm bấm trúng bot (chuột, bán kính ≥ 18 px)', !!px, px);
 await pc.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: px![0], y: px![1] });
 await pc.sleep(100);
 ok('rê chuột lên bot → con trỏ bàn tay', (await pc.evalJs(`document.querySelector('.office-root .scene canvas').style.cursor`)) === 'pointer');
-await pc.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 40, y: innerFloor(900) });
+// Điểm sàn không bị HUD che (khung chat ghim góc dưới trái từ TEST-126 che điểm cũ (40, 600)) và không trúng avatar nào
+const bare = await pc.evalJs(`(() => { const s = window.__officeScene; for (let y = innerHeight - 120; y > 200; y -= 16) for (let x = 200; x < innerWidth - 300; x += 16)
+  if (!s.avatarAt(x, y) && document.elementFromPoint(x, y)?.tagName === 'CANVAS') return [x, y]; return null; })()`) as [number, number];
+await pc.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: bare[0], y: bare[1] });
 await pc.sleep(100);
 ok('rê ra sàn → con trỏ thường', (await pc.evalJs(`document.querySelector('.office-root .scene canvas').style.cursor`)) === '');
-function innerFloor(h: number) { return h - 300; }
+// TEST-127: bấm bot → menu cạnh avatar (chip BOT, việc đang làm, Xem bot + Nhắn tin riêng), chưa mở bảng
 await click(pc, px![0], px![1]);
+const bm = await waitMenu(pc, true);
+ok('[127] bấm bot → menu đúng bot, role=menu, chip BOT + bong bóng đang làm', bm?.id === B.userId && bm.bot && bm.text.includes(B.name) && bm.text.includes('BOT') && !!bm.sub, bm);
+ok('[127] menu bot: "Xem bot đang làm gì" rồi "Nhắn tin riêng", focus mục đầu', bm?.items.map((i) => i.t).join(',') === 'avatar-menu-watch,avatar-menu-chat' && bm.focus === 'avatar-menu-watch', bm?.items);
+ok('[127] menu neo cạnh avatar (cách điểm bấm < 300 px), chưa mở bảng', !!bm && Math.hypot(bm.rect.x - px![0], bm.rect.y - px![1]) < 300 && (await panel(pc)) === null, bm?.rect);
+await pc.shot(`${SHOTS}/desktop-127-bot-menu.png`);
+await pc.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+await pc.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+ok('[127] Esc → đóng menu', (await waitMenu(pc, false, 1500)) === null);
+await clickBot(pc, px![0], px![1]);
+ok('[127] chọn "Xem bot đang làm gì" → menu đóng', (await waitMenu(pc, false, 1500)) === null);
 let v = await waitPanel(pc, true);
 ok('bấm bot khi đứng gần → mở bảng xem bot đúng bot', v?.bot === B.userId, v);
 ok('bảng: tên bot + "Đang làm · TEST-97 · Xem bot" (busy / task từ WatchBot)', !!v && v.text.includes(B.name) && v.state === 'Đang làm · TEST-97 · Xem bot', v?.state);
@@ -245,7 +294,7 @@ ok('…meta đổi theo phiên mới (model mới, không còn chi phí cũ)', !
 
 // --- Bấm sàn vẫn đi bộ như cũ (bảng vẫn mở)
 const floor = await pc.evalJs(`(() => { const s = window.__officeScene; for (let y = innerHeight - 120; y > 200; y -= 16) for (let x = 200; x < innerWidth - 300; x += 16)
-  if (!s.botAt(x, y) && document.elementFromPoint(x, y)?.tagName === 'CANVAS') return [x, y]; return null; })()`) as [number, number] | null;
+  if (!s.avatarAt(x, y) && document.elementFromPoint(x, y)?.tagName === 'CANVAS') return [x, y]; return null; })()`) as [number, number] | null;
 await click(pc, floor![0], floor![1]);
 await pc.sleep(150);
 const walking = await pc.evalJs('window.__officeScene.snapshot().target !== null');
@@ -260,7 +309,7 @@ await pc.sleep(600);
 ok('…đã đóng thì không hiện lại khi có sự kiện mới (UnwatchBot)', (await panel(pc)) === null);
 const back = await walk(pc, bot.x + 1.6, bot.z + 1.4);
 px = back ? await botPixel(pc) : null;
-if (px) await click(pc, px[0], px[1]);
+if (px) await clickBot(pc, px[0], px[1]);
 v = await waitPanel(pc, true);
 ok('mở lại → đệm hiện tại gồm c3 (s2, c2, c3)', v?.lines.map((l) => l.id).join(',') === 's2,c2,c3', v?.lines.map((l) => l.id));
 
@@ -471,7 +520,7 @@ const idle = await internal('/rt/internal/bot-activity', { ...presence, busy: fa
 ok('[98] báo bot rảnh', idle.status < 300, idle);
 await pc.sleep(500);
 px = await botPixel(pc);
-if (px) await click(pc, px[0], px[1]);
+if (px) await clickBot(pc, px[0], px[1]);
 v = await waitPanel(pc, true);
 ok('[98] bot rảnh, không có sự kiện → "☕ <tên bot> đang nghỉ, chưa có việc nào đang chạy"', v?.lines.length === 0 && v.text.includes(`☕ ${B.name} đang nghỉ, chưa có việc nào đang chạy`), v?.text);
 await internal('/rt/internal/bot-activity', presence);
@@ -537,7 +586,7 @@ ok('[100] về tab Hoạt động → dòng thời gian còn nguyên (s5, a4), b
   await pc.evalJs(`document.querySelector('[data-testid=office-bot-watch-close]')?.click()`);
   await waitPanel(pc, false, 2000);
   px = await botPixel(pc);
-  if (px) await click(pc, px[0], px[1]);
+  if (px) await clickBot(pc, px[0], px[1]);
   v = await waitPanel(pc, true);
   ok('[102] đóng rồi mở lại → đúng vị trí + kích thước cũ', v?.bot === B.userId && sameRect(await rectOf(), rM), await rectOf());
   await pc.evalJs(`document.querySelector('[data-testid=office-bot-watch-close]')?.click()`);
@@ -547,7 +596,7 @@ ok('[100] về tab Hoạt động → dòng thời gian còn nguyên (s5, a4), b
   if (bot2) {
     await walk(pc, bot2.x + 1.6, bot2.z + 1.4);
     px = await botPixel(pc, false, B2.userId);
-    if (px) await click(pc, px[0], px[1]);
+    if (px) await clickBot(pc, px[0], px[1]);
     v = await waitPanel(pc, true);
     ok('[102] mở bot khác → bảng của bot đó, vẫn ở vị trí + kích thước đã nhớ', v?.bot === B2.userId && v.state.includes('TEST-102 · Bot khác') && sameRect(await rectOf(), rM), { state: v?.state, r: await rectOf() });
     await pc.evalJs(`document.querySelector('[data-testid=office-bot-watch-close]')?.click()`);
@@ -556,7 +605,7 @@ ok('[100] về tab Hoạt động → dòng thời gian còn nguyên (s5, a4), b
   // Về cạnh bot đầu và mở lại bảng (các kiểm tra [98] / [100] phía sau cần bảng của B đang mở)
   await walk(pc, bot.x + 1.6, bot.z + 1.4);
   px = await botPixel(pc);
-  if (px) await click(pc, px[0], px[1]);
+  if (px) await clickBot(pc, px[0], px[1]);
   v = await waitPanel(pc, true);
   ok('[102] về cạnh bot đầu, mở lại → vẫn đúng vị trí + kích thước', v?.bot === B.userId && sameRect(await rectOf(), rM), await rectOf());
   const stored = await pc.evalJs(`JSON.parse(localStorage.getItem('officehub.office.agent-screen-panel') || 'null')`) as { floating?: boolean; rect?: R } | null;
@@ -565,7 +614,7 @@ ok('[100] về tab Hoạt động → dòng thời gian còn nguyên (s5, a4), b
   ok('[102] tải lại trang', await ready(pc));
   await walk(pc, bot.x + 1.6, bot.z + 1.4);
   px = await botPixel(pc);
-  if (px) await click(pc, px[0], px[1]);
+  if (px) await clickBot(pc, px[0], px[1]);
   v = await waitPanel(pc, true);
   ok('[102] tải lại trang → mở bảng vẫn đúng vị trí + kích thước', v?.bot === B.userId && sameRect(await rectOf(), rM), await rectOf());
 
@@ -590,7 +639,7 @@ ok('…kèm gợi ý "Bạn đã đi ra xa"', await toastHas(pc, 'Bạn đã đi
 // --- Người thật của tài khoản bot vào văn phòng → bot không còn hiện → ngắt "Bot đã offline"
 await walk(pc, bot.x + 1.6, bot.z + 1.4);
 px = await botPixel(pc);
-if (px) await click(pc, px[0], px[1]);
+if (px) await clickBot(pc, px[0], px[1]);
 ok('mở lại bảng lần 3', (await waitPanel(pc, true))?.bot === B.userId);
 const botHub = new sig.HubConnectionBuilder().withUrl(`${RT}/rt/hub/office`, { headers: { cookie: B.cookie }, transport: sig.HttpTransportType.WebSockets, skipNegotiation: true })
   .configureLogging(sig.LogLevel.Warning).build();
@@ -612,8 +661,8 @@ ok('H2 đi tới cạnh bot', !!(await walk(pm, bot.x - 1.4, bot.z + 1.4)));
 const tp = await botPixel(pm, true);
 ok('có điểm chạm trúng bot (bán kính ≥ 28 px)', !!tp, tp);
 if (tp) {
-  await pm.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: tp[0], y: tp[1] }] });
-  await pm.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  const tm = await clickBot(pm, tp[0], tp[1], true);
+  ok('[127] chạm bot trên điện thoại → menu, mục cao ≥ 44 px, nằm trong màn hình', !!tm && tm.items.every((i) => i.h >= 44) && tm.rect.x >= 0 && tm.rect.x + tm.rect.w <= 390, tm);
   const mv = await waitPanel(pm, true);
   ok('chạm vào bot trên điện thoại → mở bảng', mv?.bot === B.userId, mv?.state);
   ok('…bảng nằm trong màn hình điện thoại', await pm.evalJs(`(() => { const r = document.querySelector('[data-testid=office-bot-watch]')?.getBoundingClientRect(); return !!r && r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight; })()`));
@@ -637,10 +686,108 @@ if (tp) {
   await pm.shot(`${SHOTS}/mobile-files.png`);
   await pm.evalJs(`document.querySelector('[data-testid=office-bot-tab-log]')?.click()`);
 }
-ok('hai người cùng xem một bot không chen nhau (H1 vẫn xem được)', !!(await (async () => { await walk(pc, bot.x + 1.6, bot.z + 1.4); const p = await botPixel(pc); if (p) await click(pc, p[0], p[1]); return (await waitPanel(pc, true))?.bot === B.userId; })()));
+ok('hai người cùng xem một bot không chen nhau (H1 vẫn xem được)', !!(await (async () => { await walk(pc, bot.x + 1.6, bot.z + 1.4); const p = await botPixel(pc); if (p) await clickBot(pc, p[0], p[1]); return (await waitPanel(pc, true))?.bot === B.userId; })()));
 await feed([{ id: 'c4', kind: 'command', text: 'bun test' }]);
 await sleep(800);
 ok('sự kiện mới tới cả 2 người xem', (await panel(pc))?.lines.some((l) => l.id === 'c4') === true && (await panel(pm))?.lines.some((l) => l.id === 'c4') === true);
+
+// ---------- TEST-127: bấm vào người → menu "Nhắn tin riêng" / "Đi tới cạnh"; bot → "Nhắn tin riêng" ----------
+{
+  await pc.evalJs(`document.querySelector('[data-testid=office-bot-watch-close]')?.click()`);
+  await waitPanel(pc, false, 2000);
+  ok('[127] avatar của chính mình không bấm được (avatarInfo null)', (await pc.evalJs(`window.__officeScene.avatarInfo(${JSON.stringify(H1.userId)})`)) === null);
+  let hp = await avatarPixel(pc, H2.userId);
+  ok('[127] thấy avatar H2 trên màn hình H1', !!hp, hp);
+  if (hp) {
+    await pc.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: hp[0], y: hp[1] });
+    await pc.sleep(100);
+    ok('[127] rê chuột lên người → con trỏ bàn tay', (await pc.evalJs(`document.querySelector('.office-root .scene canvas').style.cursor`)) === 'pointer');
+    await click(pc, hp[0], hp[1]);
+    let pm1 = await waitMenu(pc, true);
+    // Phòng ban · mã tải sau (/api/chat/people) — chờ tối đa 3 giây
+    for (let t = 0; t < 3000 && pm1 && !pm1.sub; t += 150) { await pc.sleep(150); pm1 = await menu(pc); }
+    ok('[127] bấm người → menu: tên, phòng ban · mã NV, không chip BOT', pm1?.id === H2.userId && !pm1.bot && pm1.text.includes(H2.name) && pm1.sub.includes(`Xem bot ${stamp}`) && pm1.sub.includes(H2.e.code) && !pm1.text.includes('BOT'), pm1);
+    ok('[127] menu người: "Nhắn tin riêng" rồi "Đi tới cạnh", focus mục đầu', pm1?.items.map((i) => i.t).join(',') === 'avatar-menu-chat,avatar-menu-walk' && pm1.focus === 'avatar-menu-chat', pm1?.items);
+    ok('[127] bấm người không đi bộ tới đó', (await pc.evalJs('window.__officeScene.snapshot().target')) === null);
+    await pc.shot(`${SHOTS}/desktop-127-person-menu.png`);
+    const before = await pc.evalJs('window.__officeScene.myPosition()') as { x: number; z: number };
+    await pc.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'w', code: 'KeyW', text: 'w', windowsVirtualKeyCode: 87 });
+    await pc.sleep(600);
+    await pc.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'w', code: 'KeyW', windowsVirtualKeyCode: 87 });
+    const after = await pc.evalJs('window.__officeScene.myPosition()') as { x: number; z: number };
+    ok('[127] menu mở: giữ phím W → nhân vật không đi', dist(before, after) < 0.05, { before, after });
+    await pc.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowDown', code: 'ArrowDown', windowsVirtualKeyCode: 40 });
+    await pc.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowDown', code: 'ArrowDown', windowsVirtualKeyCode: 40 });
+    ok('[127] ↓ → focus "Đi tới cạnh"', (await menu(pc))?.focus === 'avatar-menu-walk');
+    // Bấm ra ngoài (thẻ trạng thái HUD) → đóng
+    const st = await pc.evalJs(`(() => { const r = document.querySelector('.office-root .card.status').getBoundingClientRect(); return [r.left + 6, r.top + r.height / 2]; })()`) as [number, number];
+    await click(pc, st[0], st[1]);
+    ok('[127] bấm ra ngoài menu → đóng', (await waitMenu(pc, false, 1500)) === null);
+    // Đi tới cạnh
+    hp = await avatarPixel(pc, H2.userId);
+    const wm = hp ? await pickMenu(pc, hp[0], hp[1], 'avatar-menu-walk') : null;
+    await pc.sleep(150);
+    const me1 = await pc.evalJs('window.__officeScene.myPosition()') as { x: number; z: number };
+    const h2a = await pc.evalJs(`window.__officeScene.positionOf(${JSON.stringify(H2.userId)})`) as { x: number; z: number };
+    const tgt = await pc.evalJs('window.__officeScene.snapshot().target');
+    ok('[127] "Đi tới cạnh" → menu đóng, có điểm đến (hoặc đã đứng sát)', !!wm && (await menu(pc)) === null && (tgt !== null || dist(me1, h2a) < 1.2), { tgt, d: dist(me1, h2a) });
+    let arrived = false;
+    for (let t = 0; t < 15000 && !arrived; t += 300) { await pc.sleep(300); arrived = (await pc.evalJs('window.__officeScene.snapshot().target')) === null; }
+    const me2 = await pc.evalJs('window.__officeScene.myPosition()') as { x: number; z: number };
+    const h2p = await pc.evalJs(`window.__officeScene.positionOf(${JSON.stringify(H2.userId)})`) as { x: number; z: number };
+    ok('[127] …tới nơi đứng cạnh H2 (≤ 1,6 m, không giẫm lên)', arrived && dist(me2, h2p) <= 1.6 && dist(me2, h2p) >= 0.3, { me2, h2p, d: dist(me2, h2p) });
+    // Nhắn tin riêng → mở khung chat ở hội thoại 1-1 với H2 (tạo mới)
+    const directs = async (peer: string) => (await pc.evalJs(`fetch('/api/chat/conversations').then((r) => r.json())`) as any[]).filter((c) => c.type === 'Direct' && c.peerUserId === peer);
+    ok('[127] chưa có hội thoại 1-1 H1 ↔ H2', (await directs(H2.userId)).length === 0);
+    hp = await avatarPixel(pc, H2.userId);
+    if (hp) await pickMenu(pc, hp[0], hp[1], 'avatar-menu-chat');
+    const convOpen = async (peer: string) => {
+      for (let t = 0; t < 5000; t += 250) {
+        const id = await pc.evalJs(`document.querySelector('[data-testid=office-chat]')?.dataset.conversation ?? null`) as string | null;
+        const d = await directs(peer);
+        if (id && d.length === 1 && d[0].id === id) return true;
+        await pc.sleep(250);
+      }
+      return false;
+    };
+    ok('[127] "Nhắn tin riêng" → tạo 1-1 với H2 + khung chat mở đúng hội thoại', await convOpen(H2.userId));
+    ok('[127] …menu đã đóng', (await menu(pc)) === null);
+    await pc.shot(`${SHOTS}/desktop-127-chat.png`);
+    await pc.evalJs(`document.querySelector('[data-testid=office-chat-close]')?.click()`);
+    await pc.sleep(300);
+    hp = await avatarPixel(pc, H2.userId);
+    if (hp) await pickMenu(pc, hp[0], hp[1], 'avatar-menu-chat');
+    ok('[127] bấm lại → mở lại đúng hội thoại cũ (vẫn 1)', await convOpen(H2.userId));
+    await pc.evalJs(`document.querySelector('[data-testid=office-chat-close]')?.click()`);
+    await pc.sleep(300);
+  }
+  // Bot → Nhắn tin riêng (1-1 với bot)
+  const bp = await avatarPixel(pc, B.userId);
+  if (bp) await pickMenu(pc, bp[0], bp[1], 'avatar-menu-chat');
+  let botChat = false;
+  for (let t = 0; t < 5000 && !botChat; t += 250) {
+    await pc.sleep(250);
+    const id = await pc.evalJs(`document.querySelector('[data-testid=office-chat]')?.dataset.conversation ?? null`) as string | null;
+    const d = (await pc.evalJs(`fetch('/api/chat/conversations').then((r) => r.json())`) as any[]).find((c) => c.type === 'Direct' && c.peerUserId === B.userId);
+    botChat = !!id && d?.id === id;
+  }
+  ok('[127] bot → "Nhắn tin riêng" mở 1-1 với bot', botChat, bp);
+  await pc.evalJs(`document.querySelector('[data-testid=office-chat-close]')?.click()`);
+  // Điện thoại chạm vào người → menu, mục ≥ 44 px
+  await pm.evalJs(`document.querySelector('[data-testid=office-bot-watch-close]')?.click()`);
+  await pm.sleep(300);
+  const hq = await avatarPixel(pm, H1.userId, true);
+  if (hq) await tap(pm, hq[0], hq[1]);
+  const mm = await waitMenu(pm, true);
+  ok('[127] điện thoại: chạm người → menu, mục ≥ 44 px, trong màn hình', mm?.id === H1.userId && mm.items.every((i) => i.h >= 44) && mm.rect.x >= 0 && mm.rect.x + mm.rect.w <= 390 && mm.rect.y >= 0, mm ?? hq);
+  await pm.shot(`${SHOTS}/mobile-127-person-menu.png`);
+  // Người kia rời văn phòng → menu tự đóng
+  hp = await avatarPixel(pc, H2.userId);
+  if (hp) await click(pc, hp[0], hp[1]);
+  ok('[127] mở lại menu H2', (await waitMenu(pc, true))?.id === H2.userId);
+  await pm.go('about:blank', 500);
+  ok('[127] H2 rời văn phòng → menu tự đóng', (await waitMenu(pc, false, 6000)) === null);
+}
 
 const noise = (errs: string[]) => errs.filter((e) => !/livekit|voice|7880|net::ERR|Failed to load resource/i.test(e));
 ok('không lỗi console (máy tính)', noise(pc.errors).length === 0, noise(pc.errors));

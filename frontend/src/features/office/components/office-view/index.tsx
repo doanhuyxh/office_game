@@ -22,6 +22,7 @@ import { canHear, type VoiceChannelInfo } from '../../engine/voiceChannel';
 import { useBotWatch } from '../../hooks/use-bot-watch';
 import { BotActivityPanel } from '../bot-activity-panel';
 import { BotAttentionStatus } from '../bot-attention';
+import { AvatarMenu, type AvatarMenuTarget } from '../avatar-menu';
 import { DEFAULT_LOOK, parseLook, validLook } from '../../engine/avatarLook';
 import { AvatarEditorDialog } from '../avatar-editor-dialog';
 import { filesFromDrop, UploadPanel, useSpaces, useUploadQueue, type ISpaceRef } from '@/features/documents';
@@ -95,6 +96,16 @@ export function OfficeView() {
   roomRef.current = roomCh?.id ?? null;
   // Xem bot đang làm gì (TEST-97): bấm vào avatar bot trong phạm vi nghe được → hub WatchBot; gợi ý / lý do kết thúc qua toast.info (như onHint)
   const botWatch = useBotWatch(connRef, conn, (t) => toast.info(t));
+  /** Menu bấm vào nhân vật (TEST-127): avatar đang mở menu; null = đóng. */
+  const [avatarMenu, setAvatarMenu] = useState<AvatarMenuTarget | null>(null);
+  // "Xem bot đang làm gì" (TEST-97): ai cũng xem được nhưng phải đứng trong phạm vi nghe được (luật voice: cùng kênh, phòng họp cả phòng,
+  // còn lại ≤ 6 m). FE chỉ gợi ý "lại gần hơn" (không toast lỗi); server kiểm lại khi WatchBot và mỗi giây khi đang xem.
+  const watchBot = (botId: string) => {
+    const bot = scene?.botInfo(botId), mine = scene?.myPosition();
+    if (!bot || !mine) return;
+    if (!canHear(OFFICE_MAP, mine.x, mine.z, bot.x, bot.z)) return toast.info(`Lại gần hơn để xem ${bot.name} đang làm gì`);
+    void botWatch.watch(botId, bot.name);
+  };
   const interactObj = nearAction?.startsWith('interact:') ? OBJECT_BY_ID.get(nearAction.slice('interact:'.length)) : undefined;
   /** Kho mặc định để tải lên / mở từ nút HUD: kho phòng ban đầu tiên mình vào được (thường là phòng mình), không có thì kho công ty. */
   const defaultSpace = (): ISpaceRef => {
@@ -274,14 +285,8 @@ export function OfficeView() {
     scene.onSeat = setSeatInfo;
     scene.onHint = (t) => toast.info(t);
     scene.onVoiceChannel = (ch) => { voice.setChannel(ch); setRoomCh(ch.id === 'open' ? null : ch); };
-    // Bấm vào bot (TEST-97): ai cũng bấm được nhưng phải đứng trong phạm vi nghe được (luật voice: cùng kênh, phòng họp cả phòng, còn lại ≤ 6 m).
-    // FE chỉ gợi ý "lại gần hơn" (không toast lỗi); server kiểm lại khi WatchBot và mỗi giây khi đang xem.
-    scene.onBotClick = (botId) => {
-      const bot = scene.botInfo(botId), mine = scene.myPosition();
-      if (!bot || !mine) return;
-      if (!canHear(OFFICE_MAP, mine.x, mine.z, bot.x, bot.z)) return scene.onHint?.(`Lại gần hơn để xem ${bot.name} đang làm gì`);
-      void botWatch.watch(botId, bot.name);
-    };
+    // Bấm vào nhân vật người khác (TEST-127) → menu cạnh avatar (Nhắn tin riêng / Đi tới cạnh / Xem bot đang làm gì)
+    scene.onAvatarClick = (hit) => setAvatarMenu(hit);
     setScene(scene);
     setVoice(voice);
     if (import.meta.env.DEV) Object.assign(window, { __officeScene: scene, __officeVoice: voice }); // chỉ để test e2e khi dev
@@ -389,7 +394,7 @@ export function OfficeView() {
               <span><kbd>M</kbd> · bật / tắt micro (voice tự kết nối, micro mặc định tắt)</span>
             </>}
             <span>Vào phòng có tường (phòng họp…) → khung chat tự mở kênh của phòng</span>
-            <span>{IS_TOUCH ? 'Chạm' : 'Bấm'} vào bot AI (nhãn tím) khi đứng gần · xem bot đang làm gì</span>
+            <span>{IS_TOUCH ? 'Chạm' : 'Bấm'} vào nhân vật · nhắn tin riêng, đi tới cạnh; bot AI (nhãn tím) · xem bot đang làm gì khi đứng gần</span>
             <span>Vòng đỏ nhấp nháy dưới chân bot · job lỗi; vòng vàng · có việc chờ người duyệt / phản hồi (bấm "lỗi" / "chờ" trên thanh trạng thái để xem)</span>
             <span>📁 Tài liệu · tủ hồ sơ / kệ thư viện / bảng tin · <kbd>E</kbd> mở kho; màn hình phòng họp · chiếu tài liệu; kéo thả file vào để tải lên</span>
             <button type="button" onClick={() => setHelp(false)}>Đã hiểu</button>
@@ -399,6 +404,9 @@ export function OfficeView() {
         <ScreenView screen={voiceView.screen} count={voiceView.screenCount} />
         <ScreenDocPanel screen={screen} onClear={clearScreen} />
         <BotActivityPanel view={botWatch.view} onClose={botWatch.close} />
+        {scene && avatarMenu && (
+          <AvatarMenu key={avatarMenu.id} scene={scene} target={avatarMenu} onClose={() => setAvatarMenu(null)} onWatchBot={watchBot} />
+        )}
         {uploads.items.length > 0 && <div className="docs-uploads"><UploadPanel items={uploads.items} onClear={uploads.clear} /></div>}
         {dragOver && <div className="drop-hint">Thả file / thư mục để tải lên kho tài liệu</div>}
         <button className={`card checkin ${today?.checkedIn ? 'on' : ''}`} onClick={doCheck} disabled={check.isPending || noProfile}

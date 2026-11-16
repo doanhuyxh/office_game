@@ -91,6 +91,8 @@ export class Avatar {
   /** Dòng "đang làm gì" phía trên nhãn tên (bot đang làm việc qua MCP); null = không hiện. */
   private status: THREE.Sprite | null = null;
   private statusText: string | null = null;
+  /** Chữ bong bóng "đang làm gì" hiện tại (menu bấm vào bot — TEST-127); null = không có. */
+  get statusLine() { return this.statusText; }
   private disposed = false;
   anim: AnimCode = ANIM.idle;
   /** Đang nói (voice) → vòng xanh lá nhấp nháy dưới chân. */

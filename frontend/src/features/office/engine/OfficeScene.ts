@@ -32,10 +32,10 @@ export const TYPING_SCOPES = '[role="dialog"], [role="alertdialog"], [role="menu
 const HANDLED_INTERACTS = new Set(['documents', 'library', 'screen', 'notices']);
 const INTERACTIVE = OFFICE_MAP.objects.filter((o) => o.action || (o.interact && HANDLED_INTERACTS.has(o.interact)));
 /**
- * Vùng bấm vào bot (TEST-97): trục từ chân tới đỉnh nhãn tên (m) + nửa bề ngang thân (m) chiếu lên màn hình; không nhỏ hơn
- * 18 px (chuột) / 28 px (chạm) để bấm trúng được cả khi thu nhỏ hết cỡ (zoom 40: 0,45 m ≈ 12 px).
+ * Vùng bấm vào avatar (TEST-97 bot, TEST-127 mọi người): trục từ chân tới đỉnh nhãn tên (m) + nửa bề ngang thân (m) chiếu lên màn hình;
+ * không nhỏ hơn 18 px (chuột) / 28 px (chạm) để bấm trúng được cả khi thu nhỏ hết cỡ (zoom 40: 0,45 m ≈ 12 px).
  */
-const BOT_HIT_HEIGHT = 2.1, BOT_HIT_RADIUS = 0.45, BOT_HIT_MIN_PX = 18, BOT_HIT_MIN_TOUCH_PX = 28;
+const HIT_HEIGHT = 2.1, HIT_RADIUS = 0.45, HIT_MIN_PX = 18, HIT_MIN_TOUCH_PX = 28;
 const _p = new THREE.Vector3(), _p2 = new THREE.Vector3();
 
 type Other = { avatar: Avatar; tx: number; tz: number; tr: number; name: string; alert: AlertKind | null };
@@ -94,11 +94,12 @@ export class OfficeScene {
   onVoiceChannel?: (ch: VoiceChannelInfo) => void;
   private lastVoice = '';
   /**
-   * Bấm / chạm vào avatar bot (TEST-97) → HUD mở bảng "bot đang làm gì" (hub WatchBot); KHÔNG đi bộ tới chỗ đó. Bấm sàn / ghế giữ
-   * hành vi cũ. Không gán → bấm bot = bấm sàn như trước (và không đổi con trỏ).
+   * Bấm / chạm vào avatar người khác (TEST-127; trước là chỉ bot — TEST-97) → HUD mở menu nhỏ cạnh avatar (Nhắn tin riêng / Đi tới cạnh /
+   * Xem bot đang làm gì); KHÔNG đi bộ tới chỗ đó. Bấm sàn / ghế giữ hành vi cũ. Không gán → bấm avatar = bấm sàn (và không đổi con trỏ).
+   * `bot` = avatar bot (người thật cùng tài khoản bot là avatar người → false). Avatar của chính mình không bấm được.
    */
-  onBotClick?: (botId: string) => void;
-  private hoverBot = false;
+  onAvatarClick?: (hit: { id: string; bot: boolean }) => void;
+  private hoverAvatar = false;
 
   constructor(private host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -349,28 +350,64 @@ export class OfficeScene {
     return o?.avatar.bot ? { name: o.name, x: o.avatar.root.position.x, z: o.avatar.root.position.z } : null;
   }
 
+  /** Tên, bot hay người, bong bóng "đang làm gì" của một avatar người khác (menu bấm nhân vật — TEST-127); null = không còn trong văn phòng. */
+  avatarInfo(id: string) {
+    const o = this.others.get(id);
+    return o ? { name: o.name, bot: o.avatar.bot, status: o.avatar.statusLine } : null;
+  }
+
   /**
-   * Bot dưới điểm (clientX, clientY) của canvas (TEST-97): chiếu trục chân → đỉnh nhãn của từng bot lên màn hình, trúng khi cách trục
-   * ≤ nửa bề ngang thân (co theo zoom) nhưng không dưới 18 px chuột / 28 px chạm — vùng bấm đủ lớn cho cảm ứng. Nhiều bot chồng nhau →
-   * bot gần camera nhất. Dùng ma trận camera của khung hình vừa vẽ.
+   * Avatar người khác dưới điểm (clientX, clientY) của canvas (TEST-127, tổng quát từ `botAt` TEST-97): chiếu trục chân → đỉnh nhãn của
+   * từng avatar lên màn hình, trúng khi cách trục ≤ nửa bề ngang thân (co theo zoom) nhưng không dưới 18 px chuột / 28 px chạm. Nhiều avatar
+   * chồng nhau → avatar gần camera nhất. Không gồm avatar của mình. Dùng ma trận camera của khung hình vừa vẽ.
    */
-  botAt(clientX: number, clientY: number, touch = false): string | null {
+  avatarAt(clientX: number, clientY: number, touch = false): { id: string; bot: boolean } | null {
     const rect = this.renderer.domElement.getBoundingClientRect();
-    const px = clientX - rect.left, py = clientY - rect.top, minR = touch ? BOT_HIT_MIN_TOUCH_PX : BOT_HIT_MIN_PX;
-    let best: { id: string; depth: number } | null = null;
+    const px = clientX - rect.left, py = clientY - rect.top, minR = touch ? HIT_MIN_TOUCH_PX : HIT_MIN_PX;
+    let best: { id: string; bot: boolean; depth: number } | null = null;
     for (const [id, o] of this.others) {
-      if (!o.avatar.bot) continue;
-      const p = o.avatar.root.position;
-      // Sau lưng camera → bỏ (project() sẽ lật điểm ra phía trước)
-      if (_p.set(p.x, BOT_HIT_HEIGHT / 2, p.z).applyMatrix4(this.camera.matrixWorldInverse).z >= 0) continue;
-      const foot = _p.set(p.x, 0, p.z).project(this.camera), head = _p2.set(p.x, BOT_HIT_HEIGHT, p.z).project(this.camera);
-      const fx = ((foot.x + 1) / 2) * rect.width, fy = ((1 - foot.y) / 2) * rect.height;
-      const hx = ((head.x + 1) / 2) * rect.width, hy = ((1 - head.y) / 2) * rect.height;
-      const r = Math.max(Math.hypot(hx - fx, hy - fy) * (BOT_HIT_RADIUS / BOT_HIT_HEIGHT), minR);
+      const axis = this.projectAxis(o, rect);
+      if (!axis) continue;
+      const { fx, fy, hx, hy, depth } = axis;
+      const r = Math.max(Math.hypot(hx - fx, hy - fy) * (HIT_RADIUS / HIT_HEIGHT), minR);
       if (distToSegment(px, py, fx, fy, hx, hy) > r) continue;
-      if (!best || foot.z < best.depth) best = { id, depth: foot.z };
+      if (!best || depth < best.depth) best = { id, bot: o.avatar.bot, depth };
     }
-    return best?.id ?? null;
+    return best ? { id: best.id, bot: best.bot } : null;
+  }
+
+  /** Bot dưới điểm (clientX, clientY) — giữ cho script e2e cũ; HUD dùng `avatarAt`. */
+  botAt(clientX: number, clientY: number, touch = false): string | null {
+    const hit = this.avatarAt(clientX, clientY, touch);
+    return hit?.bot ? hit.id : null;
+  }
+
+  /**
+   * Toạ độ màn hình (client px) của avatar `id` để neo menu (TEST-127): đỉnh nhãn tên + chân + nửa bề ngang thân. null = không còn trong
+   * văn phòng, sau lưng camera hoặc ra khỏi khung canvas (menu tự đóng).
+   */
+  screenAnchor(id: string): { x: number; top: number; bottom: number; half: number } | null {
+    const o = this.others.get(id);
+    if (!o) return null;
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const axis = this.projectAxis(o, rect);
+    if (!axis) return null;
+    const { fx, fy, hx, hy } = axis;
+    if (fx < 0 || fx > rect.width || Math.max(fy, hy) < 0 || Math.min(fy, hy) > rect.height) return null;
+    const half = Math.max(Math.hypot(hx - fx, hy - fy) * (HIT_RADIUS / HIT_HEIGHT), HIT_MIN_PX);
+    return { x: rect.left + (fx + hx) / 2, top: rect.top + Math.min(fy, hy), bottom: rect.top + Math.max(fy, hy), half };
+  }
+
+  /** Trục chân → đỉnh nhãn của avatar chiếu lên canvas (px trong rect) + độ sâu NDC của chân; null = sau lưng camera. */
+  private projectAxis(o: Other, rect: DOMRect) {
+    const p = o.avatar.root.position;
+    // Sau lưng camera → bỏ (project() sẽ lật điểm ra phía trước)
+    if (_p.set(p.x, HIT_HEIGHT / 2, p.z).applyMatrix4(this.camera.matrixWorldInverse).z >= 0) return null;
+    const foot = _p.set(p.x, 0, p.z).project(this.camera), head = _p2.set(p.x, HIT_HEIGHT, p.z).project(this.camera);
+    return {
+      fx: ((foot.x + 1) / 2) * rect.width, fy: ((1 - foot.y) / 2) * rect.height,
+      hx: ((head.x + 1) / 2) * rect.width, hy: ((1 - head.y) / 2) * rect.height, depth: foot.z,
+    };
   }
 
   /** Người đang nói (identity LiveKit = id người chơi) → vòng xanh dưới chân. */
@@ -452,9 +489,9 @@ export class OfficeScene {
     const d = this.downAt;
     this.downAt = null;
     if (!d || e.button !== 0 || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return;
-    // Bấm / chạm vào bot → HUD xem bot đang làm gì, không đi bộ (TEST-97); sàn / ghế giữ hành vi cũ
-    const bot = this.onBotClick ? this.botAt(e.clientX, e.clientY, e.pointerType === 'touch') : null;
-    if (bot) return this.onBotClick!(bot);
+    // Bấm / chạm vào avatar người khác → HUD mở menu nhân vật, không đi bộ (TEST-127); sàn / ghế giữ hành vi cũ
+    const avatar = this.onAvatarClick ? this.avatarAt(e.clientX, e.clientY, e.pointerType === 'touch') : null;
+    if (avatar) return this.onAvatarClick!(avatar);
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.ray.setFromCamera(new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1), this.camera);
     const hit = this.ray.ray.intersectPlane(this.groundPlane, new THREE.Vector3());
@@ -463,12 +500,12 @@ export class OfficeScene {
     const seat = this.nearestSeat(hit.x, hit.z, 0.45);
     this.walkTo(hit.x, hit.z, seat);
   };
-  /** Rê chuột lên bot → con trỏ bàn tay (chỉ chuột; cảm ứng không có hover). */
+  /** Rê chuột lên avatar người khác → con trỏ bàn tay (chỉ chuột; cảm ứng không có hover). */
   private pointerMove = (e: PointerEvent) => {
     if (e.pointerType !== 'mouse') return;
-    const over = !!this.onBotClick && this.botAt(e.clientX, e.clientY) !== null;
-    if (over === this.hoverBot) return;
-    this.hoverBot = over;
+    const over = !!this.onAvatarClick && this.avatarAt(e.clientX, e.clientY) !== null;
+    if (over === this.hoverAvatar) return;
+    this.hoverAvatar = over;
     this.renderer.domElement.style.cursor = over ? 'pointer' : '';
   };
   private wheel = (e: WheelEvent) => {

@@ -84,6 +84,15 @@ export function useChatPeer(c: IConversation | null | undefined): IPerson | unde
   return direct ? people.data?.find((p) => p.userId === c.peerUserId) : undefined;
 }
 
+/**
+ * Một người theo id tài khoản (phòng ban, mã) — menu bấm nhân vật trong văn phòng 3D (TEST-127). Như `useChatPeer`: tìm theo tên hiện trên
+ * avatar qua `/chat/people` rồi khớp đúng `userId`; không thấy → undefined (menu chỉ hiện tên).
+ */
+export function useChatPerson(userId: string | null, name: string): IPerson | undefined {
+  const people = usePeople(userId ? name : '', !!userId && !!name);
+  return userId ? people.data?.find((p) => p.userId === userId) : undefined;
+}
+
 export function useOpenDirect() {
   const qc = useQueryClient();
   return useMutation({
