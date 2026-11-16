@@ -47,7 +47,7 @@ export function AgentLimitsCard() {
               value={f.maxBotStreak || ''} onChange={(e) => setF((x) => ({ ...x, maxBotStreak: num(e.target.value) }))} error={errors.maxBotStreak}
               hint={`Từ ${data.streakMin} đến ${data.streakMax}, mặc định ${data.defaultStreak}. Đủ số lần (chuyển trạng thái / giao / bình luận) mà chưa có người thật xem → bot bị chặn trên việc đó.`} />
           </div>
-          <SettingsFormFooter saveDisabled={save.isPending || !dirty} noteTestId="agent-limits-updated"
+          <SettingsFormFooter saveDisabled={!dirty} saving={save.isPending} noteTestId="agent-limits-updated"
             note={data.isDefault ? 'Đang dùng giá trị mặc định.' : `Sửa lần cuối ${data.updatedAt ? formatDateTime(data.updatedAt) : ''}${data.updatedByName ? ` bởi ${data.updatedByName}` : ''}.`} />
         </form>
       </CardContent>

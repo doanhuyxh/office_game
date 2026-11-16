@@ -71,7 +71,7 @@ export function SettingsCardShell({ group, icon: Icon, description, dirty, build
               </p>
             </div>
           )}
-          <SettingsFormFooter saveDisabled={busy || !dirty} note={group.source === 'db'
+          <SettingsFormFooter saveDisabled={reset.isPending || !dirty} saving={save.isPending} note={group.source === 'db'
             ? `Sửa lần cuối ${group.updatedAt ? formatDateTime(group.updatedAt) : ''}${group.updatedBy ? ` bởi ${group.updatedBy}` : ''}.`
             : noEnv ? 'Chưa cấu hình.' : 'Chưa lưu trên trang — Lưu để chuyển sang dùng cấu hình này.'}>
             {group.source === 'db' && (

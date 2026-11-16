@@ -45,7 +45,7 @@ export function AgentMeetingSettingsCard() {
               value={f.maxMinutes || ''} onChange={(e) => setF((x) => ({ ...x, maxMinutes: num(e.target.value) }))} error={errors.maxMinutes}
               hint={`Từ ${data.minutesMin} đến ${data.minutesMax}, mặc định ${data.defaultMaxMinutes}.`} />
           </div>
-          <SettingsFormFooter saveDisabled={save.isPending || !dirty} noteTestId="agent-meeting-limits-updated"
+          <SettingsFormFooter saveDisabled={!dirty} saving={save.isPending} noteTestId="agent-meeting-limits-updated"
             note={data.isDefault ? 'Đang dùng giá trị mặc định.' : `Sửa lần cuối ${data.updatedAt ? formatDateTime(data.updatedAt) : ''}${data.updatedByName ? ` bởi ${data.updatedByName}` : ''}.`} />
         </form>
       </CardContent>

@@ -45,7 +45,7 @@ export function DocumentSettingsCard() {
               Bắt buộc duyệt trước khi ban hành tài liệu
             </label>
           </div>
-          <SettingsFormFooter saveDisabled={save.isPending || on === data.requirePublishApproval} noteTestId="document-settings-updated"
+          <SettingsFormFooter saveDisabled={on === data.requirePublishApproval} saving={save.isPending} noteTestId="document-settings-updated"
             note={data.isDefault ? 'Đang dùng mặc định (tắt).' : `Sửa lần cuối ${data.updatedAt ? formatDateTime(data.updatedAt) : ''}${data.updatedByName ? ` bởi ${data.updatedByName}` : ''}.`} />
         </form>
       </CardContent>
