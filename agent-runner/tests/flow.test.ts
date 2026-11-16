@@ -185,7 +185,10 @@ test('tin Telegram hợp lệ → job chạy trong worktree ngoài repo → push
   // Văn phòng 3D: báo đang làm việc TEST-45 khi bắt đầu, rảnh khi xong
   const working = presence.findIndex((p) => p.state === 'working');
   expect(presence[working]?.task).toStartWith('TEST-45');
-  expect(presence.slice(working + 1).some((p) => p.state === 'idle')).toBe(true);
+  // TEST-121: push được nhưng gh không tạo được PR (origin là repo bare, không phải GitHub) → ⚠ "Không tạo được PR" thay vì rảnh
+  const after = presence.slice(working + 1);
+  if (job.pr_url) expect(after.some((p) => p.state === 'idle')).toBe(true);
+  else expect(after.at(-1)).toEqual({ state: 'error', task: 'TEST-45 · Sửa nút lưu', error: 'Không tạo được PR', taskId: T1, projectId: P });
   // Xem trực tiếp (TEST-99): bắt đầu phiên kèm tên việc → kết thúc phiên kèm chi phí + model thật
   const start = activity.findIndex((e) => e.kind === 'session_start');
   expect(activity[start]).toMatchObject({ id: 'session', kind: 'session_start' }); // agent thử không cấu hình model → model thật chỉ có ở session_end
@@ -332,6 +335,7 @@ test('in_place: repo còn thay đổi chưa commit → không chạy agent, báo
   expect(comments.length).toBe(before + 1);
   expect(comments.at(-1)!.content).toContain('KHÔNG chạy');
   expect(await run(['git', 'rev-parse', 'HEAD'], repo)).toBe(head); // agent không chạy → không có commit
+  expect(await waitFor(() => presence.at(-1)?.error === 'Không chạy được', 3000)).toBe(true); // TEST-121
   rmSync(join(repo, 'dang-lam-do.txt'));
 }, 30000);
 
@@ -357,6 +361,7 @@ test('in_place: remote đã có commit khác → không push được, báo tron
   const { job } = await exec();
   expect(job.status).toBe('done');
   expect(comments.at(-1)!.content).toContain('CHƯA push — git push lỗi');
+  expect(await waitFor(() => presence.at(-1)?.error === 'Không push được', 3000)).toBe(true); // TEST-121
   expect(await run(['git', 'ls-remote', '--heads', 'origin', 'work'], repo)).toStartWith(remoteHead); // remote không bị đè
   // người thật xử lý (pull --rebase) → lần sau push lại được cả commit cũ
   await run(['git', 'pull', '-q', '--rebase', 'origin', 'work'], repo);
@@ -370,6 +375,7 @@ test('in_place: agent chạm agent-runner/ → runner KHÔNG push', async () => 
   expect(job.status).toBe('done');
   expect(comments.at(-1)!.content).toContain('agent-runner/');
   expect(comments.at(-1)!.content).toContain('runner KHÔNG push');
+  expect(await waitFor(() => presence.at(-1)?.error === 'Không push được', 3000)).toBe(true); // TEST-121
   expect(await run(['git', 'ls-remote', '--heads', 'origin', 'work-prot'], repo)).toBe('');
 }, 30000);
 
@@ -487,6 +493,34 @@ test('none: doctor không cần repo / git / gh; job chạy trong thư mục tr�
   expect(args).toContain(work);
   // 3D: vẫn báo đang làm → rảnh
   expect(await waitFor(() => presence.at(-1)?.state === 'idle', 3000)).toBe(true);
+}, 30000);
+
+test('job hết giờ → văn phòng 3D báo lỗi "Hết giờ" (không bị finally ghi đè bằng rảnh); job kế → đang làm rồi rảnh (TEST-121)', async () => {
+  const { r, exec } = await noneSetup();
+  const ex = r.agents.get('NV120')!.cfg.executor;
+  const min = ex.timeoutMin;
+  writeFileSync(join(root, 'slow'), '');
+  ex.timeoutMin = 0.005; // 300 ms < sleep 1 của CLI giả
+  try {
+    const before = presence.length;
+    const { job } = await exec();
+    expect(job.status).toBe('failed');
+    expect(job.reason).toBe('hết giờ');
+    expect(await waitFor(() => presence.at(-1)?.state === 'error', 3000)).toBe(true);
+    expect(presence.at(-1)).toEqual({ state: 'error', task: 'TEST-45 · Sửa nút lưu', error: 'Hết giờ', taskId: T1, projectId: P });
+    expect(presence.slice(before).some((p) => p.state === 'working')).toBe(true);
+    await Bun.sleep(200);
+    expect(presence.at(-1)?.state).toBe('error'); // finally gọi idle() không xoá lỗi
+  } finally {
+    rmSync(join(root, 'slow'), { force: true });
+    ex.timeoutMin = min;
+  }
+  const before = presence.length;
+  const { job } = await exec();
+  expect(job.status).toBe('done');
+  expect(await waitFor(() => presence.at(-1)?.state === 'idle', 3000)).toBe(true);
+  expect(presence.slice(before).map((p) => p.state)).toEqual(['working', 'idle']); // job kế xoá lỗi
+  r.stop();
 }, 30000);
 
 // ---------------- chat_mention (TEST-81): người thật @nhắc bot trong chat → phiên ngắn chỉ có tool MCP ----------------

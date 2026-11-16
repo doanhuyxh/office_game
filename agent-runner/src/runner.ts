@@ -468,11 +468,14 @@ export class Runner {
   /** Job việc: kiểm tra lại việc → chuẩn bị nơi làm (worktree / in_place / none) → chạy CLI → push + PR (worktree) / push nhánh đang checkout (in_place) → bình luận kết quả. */
   private async processTask(s: AgentState, job: Job, signal: AbortSignal): Promise<void> {
     const w: WakeData = { employee_code: job.agent, project_id: job.project_id, task_id: job.task_id, task_code: job.task_code };
+    // Văn phòng 3D (TEST-121): job hỏng → `error` kèm loại lỗi ngắn (giữ tới job kế), còn lại → rảnh.
+    let task = job.task_code, failure: string | undefined;
     try {
       const detail = await s.hub.getTask(job.task_id);
       const c = checkTask(detail, w, s.employeeId!);
       if (!c.ok) { this.store.finish(job.id, 'skipped', { reason: c.reason }); log('info', 'bỏ job', { job: job.id, reason: c.reason }); return; }
       s.presence.working(job.task_code, c.value.title);
+      if (c.value.title?.trim()) task = `${job.task_code} · ${c.value.title.trim()}`;
 
       const mode = s.cfg.workspace.mode;
       const git = this.gitFor(s.cfg);
@@ -502,6 +505,7 @@ export class Runner {
           if (!(e instanceof WorkspaceRefused)) throw e;
           // Workspace chưa sẵn sàng (đang bẩn / sai nhánh…) — không chạy agent, báo lại trong việc để người xử lý rồi giao lại.
           this.store.finish(job.id, 'skipped', { reason: e.message });
+          failure = 'Không chạy được';
           await s.hub.comment(job.task_id, `**🤖 agent-runner** (${job.agent}) — KHÔNG chạy: ${e.message}`).catch(() => undefined);
           log('warn', 'bỏ job — workspace chưa sẵn sàng', { job: job.id, task: job.task_code, reason: e.message });
           return;
@@ -525,8 +529,8 @@ export class Runner {
           let pushed = 'CHƯA push';
           if (!ch.touchesProtected && !ch.branchChanged) {
             try { await pushInPlace(git, ws.path, ws.branch); pushed = 'đã push lên origin'; }
-            catch (e) { pushed = `⚠ CHƯA push — git push lỗi: ${errText(e).slice(0, 300)}`; }
-          }
+            catch (e) { pushed = `⚠ CHƯA push — git push lỗi: ${errText(e).slice(0, 300)}`; failure = 'Không push được'; }
+          } else failure = 'Không push được';
           note = `${ch.ahead} commit mới trên nhánh \`${ch.branchNow || ws.branch}\` (${pushed}): ${ch.commits.slice(0, 5).map((c) => `\`${c}\``).join(', ')}${ch.ahead > 5 ? ', …' : ''}`;
         } else note = 'Phiên kết thúc, không có commit mới.';
         if (ch.touchesProtected) note += ' ⚠ Có thay đổi trong `agent-runner/` — runner KHÔNG push; người thật xem lại / bỏ commit đó rồi tự push.';
@@ -534,21 +538,31 @@ export class Runner {
         if (ch.dirty) note += ' Còn thay đổi chưa commit trong workspace.';
       } else {
         const ch = await branchChanges(git, ws.path, this.config.baseBranch);
-        if (ch.touchesProtected) note = '⚠ Nhánh có thay đổi trong `agent-runner/` — runner KHÔNG push. Người thật kiểm tra worktree trên máy agent.';
-        else if (ch.ahead > 0) {
+        if (ch.touchesProtected) {
+          note = '⚠ Nhánh có thay đổi trong `agent-runner/` — runner KHÔNG push. Người thật kiểm tra worktree trên máy agent.';
+          failure = 'Không push được';
+        } else if (ch.ahead > 0) {
           try {
             prUrl = await publish(git, ws.path, ws.branch, this.config.baseBranch, `${job.task_code}: ${c.value.title}`.slice(0, 200),
               `Việc OfficeHub **${job.task_code}** — agent ${job.agent}, tạo tự động bởi agent-runner (TEST-44). Người thật review trước khi merge.`);
-          } catch (e) { note = `⚠ Không push / tạo được PR: ${errText(e)}`; }
+          } catch (e) {
+            note = `⚠ Không push / tạo được PR: ${errText(e)}`;
+            failure = errText(e).startsWith('git push lỗi') ? 'Không push được' : 'Không tạo được PR';
+          }
         } else note = 'Phiên kết thúc, nhánh không có commit mới.';
         if (ch.dirty) note += (note ? ' ' : '') + 'Còn thay đổi chưa commit trong worktree.';
       }
 
       const ok = out.exitCode === 0 && !out.timedOut && !out.isError;
+      if (!ok) failure = presenceFailure(out);
       await s.hub.comment(job.task_id, resultComment(job, out, prUrl, note, ok, s.cfg.executor.model));
       this.finishJob(job, out, { note, prUrl });
+    } catch (e) {
+      failure = 'Runner lỗi'; // process() ghi failed + log
+      throw e;
     } finally {
-      s.presence.idle();
+      if (failure) s.presence.error(failure, { task, taskId: job.task_id, projectId: job.project_id });
+      else s.presence.idle();
     }
   }
 
@@ -573,6 +587,11 @@ export class Runner {
  * Bình luận runner gửi vào việc sau mỗi phiên: PR, thời gian, model (TEST-64), chi phí, token, trạng thái.
  * Không chép output của CLI (agent tự báo kết quả).
  */
+/** Loại lỗi ngắn của phiên hỏng cho bong bóng 3D (TEST-121) — không lộ stderr / lời agent. */
+export function presenceFailure(out: Pick<RunOutcome, 'exitCode' | 'timedOut' | 'isError'>): string {
+  return out.timedOut ? 'Hết giờ' : out.isError ? 'CLI báo lỗi' : `Mã thoát ${out.exitCode}`;
+}
+
 export function resultComment(job: Pick<Job, 'agent'>, out: RunOutcome, prUrl: string | undefined, note: string, ok: boolean, configuredModel?: string): string {
   const parts = [
     `**🤖 agent-runner** (${job.agent}) — ${ok ? 'phiên kết thúc' : out.timedOut ? 'HẾT GIỜ, đã dừng phiên' : 'phiên lỗi'}`,

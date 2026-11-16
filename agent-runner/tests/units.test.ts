@@ -527,6 +527,73 @@ describe('presence (văn phòng 3D: đang làm / rảnh)', () => {
   });
 });
 
+test('presence: lỗi job → error gửi ngay, giữ qua idle() và nhịp còn sống, job kế / start() xoá; 400 (máy chủ cũ) → gửi idle (TEST-121)', async () => {
+  const { PresenceReporter } = await import('../src/presence');
+  const got: any[] = [];
+  let rejectError = false;
+  const srv = Bun.serve({ port: 0, async fetch(req) {
+    const b = await req.json() as any;
+    got.push(b);
+    return new Response(null, { status: rejectError && b.state === 'error' ? 400 : 204 });
+  } });
+  const beat = PresenceReporter.heartbeatMs;
+  PresenceReporter.heartbeatMs = 150;
+  const logs: string[] = [];
+  const orig = console.log, origErr = console.error;
+  console.log = console.error = (...a: unknown[]) => { logs.push(a.join(' ')); };
+  try {
+    const p = new PresenceReporter(`http://localhost:${srv.port}/mcp`, 'ohk_x', 'NV018');
+    p.working('WEB-12', 'Sửa form');
+    await Bun.sleep(30);
+    p.error('Hết giờ  ', { task: 'WEB-12 · Sửa form', taskId: 't1', projectId: 'p1' });
+    await Bun.sleep(30);
+    const err = { state: 'error' as const, task: 'WEB-12 · Sửa form', error: 'Hết giờ', taskId: 't1', projectId: 'p1' };
+    expect(got.at(-1)).toEqual(err);
+    p.idle();                                                                  // finally của job
+    p.activity('Đọc a.ts');
+    await Bun.sleep(30);
+    expect(got.at(-1)).toEqual(err);
+    expect(p.state).toEqual(err);
+    p.start();                                                                 // khởi động: báo rảnh + nhịp
+    await Bun.sleep(30);
+    expect(got.at(-1)).toEqual({ state: 'idle' });
+    p.error('x'.repeat(100));                                                  // chỉ loại lỗi ngắn
+    await Bun.sleep(30);
+    expect(got.at(-1)).toEqual({ state: 'error', error: 'x'.repeat(40) });
+    const n = got.length;
+    await Bun.sleep(200);                                                      // nhịp còn sống gửi lại lỗi
+    expect(got.length).toBeGreaterThan(n);
+    expect(got.at(-1)).toEqual({ state: 'error', error: 'x'.repeat(40) });
+    p.working('WEB-13');                                                       // job kế → hết lỗi
+    await Bun.sleep(30);
+    expect(got.at(-1)).toEqual({ state: 'working', task: 'WEB-13' });
+    p.error('Lỗi'); await Bun.sleep(30);
+    p.clearError(); await Bun.sleep(30);
+    expect(got.at(-1)).toEqual({ state: 'idle' });
+
+    rejectError = true;                                                        // máy chủ bản cũ
+    p.error('Hết giờ'); await Bun.sleep(50);
+    expect(got.slice(-2)).toEqual([{ state: 'error', error: 'Hết giờ' }, { state: 'idle' }]);
+    expect(p.state).toEqual({ state: 'idle' });
+    p.working('WEB-14'); await Bun.sleep(30);
+    p.error('Mã thoát 1'); await Bun.sleep(50);
+    expect(got.at(-1)).toEqual({ state: 'idle' });                             // vẫn báo trạng thái
+    expect(logs.filter((l) => l.includes('chưa nhận trạng thái lỗi')).length).toBe(1);
+    p.stop();
+  } finally {
+    PresenceReporter.heartbeatMs = beat;
+    console.log = orig; console.error = origErr;
+    srv.stop();
+  }
+});
+
+test('presenceFailure: loại lỗi ngắn theo kết quả phiên', async () => {
+  const { presenceFailure } = await import('../src/runner');
+  expect(presenceFailure({ exitCode: 0, timedOut: true, isError: false })).toBe('Hết giờ');
+  expect(presenceFailure({ exitCode: 1, timedOut: false, isError: true })).toBe('CLI báo lỗi');
+  expect(presenceFailure({ exitCode: 3, timedOut: false, isError: false })).toBe('Mã thoát 3');
+});
+
 test('presence: máy chủ chưa có endpoint (405) → ghi log một lần, vẫn thử lại, có lại thì báo chạy lại', async () => {
   const { PresenceReporter } = await import('../src/presence');
   let status = 405, hits = 0;

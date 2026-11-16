@@ -6,9 +6,18 @@ import { errText, log } from './log';
  * - Gộp: tối đa 1 lần / {@link PresenceReporter.minGapMs} (gửi trạng thái mới nhất); nhịp "còn sống" mỗi {@link PresenceReporter.heartbeatMs}
  *   (OfficeHub coi bot offline sau 5 phút im lặng).
  * - Chỉ gửi nhãn thô ({@link activityLabel}) — không gửi lệnh bash, đường dẫn file hay lời agent (cả công ty thấy bong bóng).
+ * - Job việc hỏng (TEST-121) → `error` kèm loại lỗi ngắn ("Hết giờ", "Không push được"…) — bot ngồi bàn, bong bóng ⚠. Lỗi giữ qua nhịp còn sống
+ *   cho tới job kế ({@link PresenceReporter.working}) hoặc runner khởi động lại ({@link PresenceReporter.start}); `idle()` không xoá lỗi.
+ *   Máy chủ bản cũ trả 400 cho `error` → ghi log một lần, gửi `idle` thay.
  * - Lỗi chỉ ghi log, không bao giờ làm hỏng job. 401 / 403 (không phải tài khoản bot / token sai) → ngừng báo cho agent đó.
  */
-export type PresenceState = { state: 'working'; task: string; activity?: string } | { state: 'idle' };
+export type PresenceState =
+  | { state: 'working'; task: string; activity?: string }
+  | { state: 'idle' }
+  | { state: 'error'; task?: string; error: string; taskId?: string; projectId?: string };
+
+/** Độ dài tối đa của loại lỗi gửi lên (cả công ty thấy — chỉ nhãn ngắn, không lệnh / đường dẫn / stderr). */
+export const PRESENCE_ERROR_MAX = 40;
 
 export class PresenceReporter {
   static minGapMs = 10_000;
@@ -18,6 +27,7 @@ export class PresenceReporter {
   private timer?: ReturnType<typeof setTimeout>;
   private beat?: ReturnType<typeof setInterval>;
   private disabled = false;
+  private errorUnsupportedLogged = false;
   private sending = false;
   readonly url: string;
 
@@ -52,9 +62,24 @@ export class PresenceReporter {
     this.set({ ...this.current, activity: label }, false);
   }
 
-  /** Hết job → rảnh, gửi ngay. */
+  /** Hết job → rảnh, gửi ngay. Đang báo lỗi → giữ lỗi (`finally` của job không xoá). */
   idle() {
+    if (this.current.state === 'error') return;
     this.set({ state: 'idle' }, true);
+  }
+
+  /** Job việc hỏng → báo lỗi ngay; `error` = loại lỗi ngắn (cắt {@link PRESENCE_ERROR_MAX} ký tự). */
+  error(error: string, ref: { task?: string; taskId?: string; projectId?: string } = {}) {
+    const s: PresenceState = { state: 'error', error: error.trim().slice(0, PRESENCE_ERROR_MAX) };
+    if (ref.task?.trim()) s.task = ref.task.trim();
+    if (ref.taskId) s.taskId = ref.taskId;
+    if (ref.projectId) s.projectId = ref.projectId;
+    this.set(s, true);
+  }
+
+  /** Bỏ trạng thái lỗi → rảnh (không đang lỗi thì không làm gì). */
+  clearError() {
+    if (this.current.state === 'error') this.set({ state: 'idle' }, true);
   }
 
   get state(): PresenceState { return this.current; }
@@ -72,6 +97,7 @@ export class PresenceReporter {
     this.sending = true;
     this.lastSent = Date.now();
     const body = this.current;
+    let resend = false;
     try {
       const res = await fetch(this.url, {
         method: 'POST',
@@ -85,6 +111,13 @@ export class PresenceReporter {
       } else if (res.status === 404 || res.status === 405) {
         // Máy chủ chưa có /mcp/presence (OfficeHub chưa deploy bản mới / reverse proxy chưa chuyển tiếp) — vẫn thử theo nhịp, tự chạy lại khi có
         this.fail(`status=${res.status}`, 'OfficeHub chưa có endpoint trạng thái văn phòng 3D — deploy bản mới + nginx `location = /mcp/presence`; runner vẫn thử lại theo nhịp');
+      } else if (res.status === 400 && body.state === 'error') {
+        // Máy chủ chưa nhận state "error" (bản trước TEST-118) → báo rảnh thay, không tắt báo trạng thái
+        if (!this.errorUnsupportedLogged) {
+          this.errorUnsupportedLogged = true;
+          log('warn', 'OfficeHub chưa nhận trạng thái lỗi của văn phòng 3D — báo rảnh thay (deploy bản mới để hiện ⚠)', { agent: this.agent });
+        }
+        if (this.current === body) { this.current = { state: 'idle' }; resend = true; }
       } else if (!res.ok) this.fail(`status=${res.status}`, 'báo trạng thái văn phòng 3D lỗi');
       else if (this.lastError) { log('info', 'báo trạng thái văn phòng 3D đã chạy lại', { agent: this.agent }); this.lastError = undefined; }
     } catch (e) {
@@ -92,6 +125,7 @@ export class PresenceReporter {
     } finally {
       this.sending = false;
     }
+    if (resend) await this.flush();
   }
 
   /** Lỗi giống lần trước → không ghi lại (nhịp còn sống 2 phút không làm đầy log). */
