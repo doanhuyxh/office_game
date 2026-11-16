@@ -24,8 +24,12 @@ const writeDraft = (key: string | undefined, text: string) => {
   try { if (text) sessionStorage.setItem(key, text); else sessionStorage.removeItem(key); } catch { /* bộ nhớ trình duyệt bị chặn */ }
 };
 
-export function Composer({ conversationId, canMention, draftKey, files, onAddFiles, onRemoveFile, onSubmit }: {
+export function Composer({ conversationId, canMention, draftKey, files, onAddFiles, onRemoveFile, onSubmit, placeholder, autoFocus = true }: {
   conversationId: string;
+  /** Thay chữ gợi ý mặc định (vd kênh phòng trong văn phòng 3D: "Chỉ người trong … thấy"). */
+  placeholder?: string;
+  /** false = không tự focus ô soạn khi mở (văn phòng 3D tự đổi sang kênh phòng khi bước vào — đang đi bằng phím thì không cướp focus). */
+  autoFocus?: boolean;
   /** false với 1-1 (không cần nhắc). */
   canMention: boolean;
   draftKey?: string;
@@ -40,7 +44,7 @@ export function Composer({ conversationId, canMention, draftKey, files, onAddFil
   const area = useRef<HTMLTextAreaElement>(null);
   const previews = useMemo(() => files.map((f) => (isImageFile(f) ? URL.createObjectURL(f) : null)), [files]);
   useEffect(() => () => previews.forEach((u) => u && URL.revokeObjectURL(u)), [previews]);
-  useEffect(() => area.current?.focus(), []);
+  useEffect(() => { if (autoFocus) area.current?.focus(); }, []); // chỉ lúc mở hội thoại
   const isMobile = useIsMobile();
   const [query, setQuery] = useState<string | null>(null);
   const term = useDebounce(query ?? '', 200);
@@ -105,7 +109,7 @@ export function Composer({ conversationId, canMention, draftKey, files, onAddFil
         onSubmit={submit}
         canSubmit={canSend}
         maxLength={MAX_TEXT}
-        placeholder={isMobile ? 'Nhập tin nhắn…' : `Nhập tin nhắn… (Enter để gửi, Shift+Enter xuống dòng${canMention ? ', @ để nhắc' : ''})`}
+        placeholder={placeholder ?? (isMobile ? 'Nhập tin nhắn…' : `Nhập tin nhắn… (Enter để gửi, Shift+Enter xuống dòng${canMention ? ', @ để nhắc' : ''})`)}
         onPaste={onPaste}
         onKeyDown={(e) => { if (nav.handleKey({ key: e.key, shiftKey: e.shiftKey, isComposing: e.nativeEvent.isComposing })) e.preventDefault(); }}
         onSelect={() => { if (area.current) setQuery(queryAtCaret(area.current.value)); }}

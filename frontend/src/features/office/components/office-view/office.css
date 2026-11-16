@@ -34,27 +34,6 @@
 .office-root .dot.reconnecting, .office-root .dot.connecting { background: #f59e0b; }
 .office-root .dot.offline, .office-root .dot.kicked { background: #ef4444; }
 .office-root .zone { top: 12px; left: 50%; transform: translateX(-50%); font-weight: 600; }
-.office-root .chat { position: absolute; left: 12px; bottom: 12px; width: min(340px, calc(100vw - 24px)); }
-.office-root .chat .log { max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
-.office-root .chat .log div { background: rgba(15, 23, 42, .6); border-radius: 8px; padding: 3px 8px; width: fit-content; max-width: 100%; }
-.office-root .chat .log b { color: #93c5fd; }
-.office-root .chat .log .mention { color: #fcd34d; font-weight: 600; }
-.office-root .chat .log div.mention-me { background: rgba(180, 83, 9, .55); box-shadow: inset 0 0 0 1px rgba(252, 211, 77, .7); }
-.office-root .chat .log div.sending { opacity: .6; }
-.office-root .chat .log div.failed { box-shadow: inset 0 0 0 1px rgba(248, 113, 113, .7); }
-.office-root .chat .log .failed-actions { color: #fca5a5; font-size: 12px; }
-.office-root .chat .log .failed-actions button { border: 0; padding: 0; background: none; color: #93c5fd; font: inherit; text-decoration: underline; cursor: pointer; }
-.office-root .chat .log .bot-chip { margin-left: 4px; padding: 0 4px; border-radius: 4px; background: #7c3aed; color: #fff; font: 700 10px system-ui; vertical-align: 1px; }
-.office-root .chat input { width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(148, 163, 184, .25); background: rgba(15, 23, 42, .85); color: inherit; outline: none; font: inherit; }
-/* Chat: tab toàn văn phòng / phòng đang đứng (khôi phục ở TEST-102 — 3afc295 lỡ xoá cùng bảng tạm .bot-watch) */
-.office-root .chat .tabs { display: flex; gap: 4px; margin-bottom: 6px; }
-.office-root .chat .tabs button { position: relative; border: 0; border-radius: 8px; padding: 4px 10px; font: 600 12px system-ui; color: inherit;
-  background: rgba(15, 23, 42, .6); cursor: pointer; }
-.office-root .chat .tabs button.on { background: #2563eb; color: #fff; }
-.office-root .chat .tabs-end { margin-left: auto; display: flex; gap: 4px; }
-.office-root .chat .tabs-end button { padding: 4px 8px; }
-.office-root .chat .dot-new { position: absolute; top: 2px; right: 2px; width: 7px; height: 7px; border-radius: 50%; background: #f97316; }
-.office-root .chat-toggle { left: 12px; bottom: 150px; font-size: 20px; padding: 8px 12px; cursor: pointer; }
 .office-root button.prompt { color: inherit; font: inherit; font-weight: 600; cursor: pointer; }
 
 /* Joystick cảm ứng (khôi phục ở TEST-102, như trên) */
@@ -181,8 +160,6 @@
 @media (max-width: 640px) {
   .office-root .minimap { width: 132px; top: 52px; }
   .office-root .camera { top: auto; bottom: 156px; right: 12px; }
-  .office-root .chat { bottom: 156px; width: calc(100vw - 24px); }
-  .office-root .chat .log { max-height: 110px; }
   .office-root .zone { display: none; }
   .office-root .prompt { bottom: 160px; max-width: calc(100vw - 32px); }
   .office-root .help { left: 12px; right: 12px; width: auto; }
@@ -243,20 +220,6 @@
 .office-root .screen-doc-md { max-height: 60vh; overflow: auto; padding: 10px 12px; border-radius: 8px; background: var(--background); color: var(--foreground); }
 .office-root .screen-doc.big .screen-doc-md { max-height: none; height: 100%; }
 @media (max-width: 768px) { .office-root .screen-doc-md { max-height: 40vh; } }
-.office-root .chat .agent-meeting { margin-bottom: 6px; background: rgba(15, 23, 42, .8); box-shadow: inset 0 0 0 1px rgba(147, 197, 253, .35); }
-
-/* Chat nổi (TEST-90): kéo bằng hàng tab, đổi cỡ bằng tay nắm góc dưới phải; left / top / width / height do use-floating-panel đặt (luôn trong vùng nhìn) */
-.office-root .chat.floating { bottom: auto; z-index: 7; display: flex; flex-direction: column; padding: 8px; box-shadow: 0 12px 32px rgba(2, 6, 23, .5); }
-.office-root .chat.floating .tabs { flex: none; cursor: move; touch-action: none; user-select: none; -webkit-user-select: none; }
-.office-root .chat.floating .tabs button { cursor: pointer; }
-.office-root .chat.floating .agent-meeting { flex: none; }
-.office-root .chat.floating .log { flex: 1; min-height: 0; max-height: none; }
-.office-root .chat.floating .log div { white-space: pre-wrap; overflow-wrap: anywhere; }
-.office-root .chat.floating input { flex: none; margin-right: 14px; width: calc(100% - 14px); }
-.office-root .chat .resize { position: absolute; right: 0; bottom: 0; width: 20px; height: 20px; cursor: nwse-resize; touch-action: none; border-bottom-right-radius: 12px;
-  background: linear-gradient(135deg, transparent 50%, rgba(148, 163, 184, .55) 50%, rgba(148, 163, 184, .55) 58%, transparent 58%, transparent 70%, rgba(148, 163, 184, .55) 70%, rgba(148, 163, 184, .55) 78%, transparent 78%); }
-@media (pointer: coarse) { .office-root .chat .resize { width: 36px; height: 36px; } .office-root .chat.floating input { margin-right: 30px; width: calc(100% - 30px); } }
-@media (max-width: 640px) { .office-root .chat.floating { bottom: auto; width: auto; } .office-root .chat.floating .log { max-height: none; } }
 
 /* Bot cần chú ý (TEST-122): "· N lỗi · M chờ duyệt" trên thanh trạng thái + bảng danh sách (văn bản thuần) */
 .office-root .bot-attn { position: relative; display: inline-flex; }
@@ -291,4 +254,43 @@
 /* Điện thoại: bảng rộng hết màn hình dưới hàng thẻ trên cùng như bảng nổi (màn hình của bot / tài liệu chiếu) */
 @media (max-width: 640px) {
   .office-root .bot-attn-panel { position: fixed; top: 120px; left: 12px; right: 12px; width: auto; max-height: calc(100dvh - 300px); min-height: 160px; }
+}
+
+/* Khung chat HUD (TEST-126, mockup design/mockups/office-chat/): dùng lại ConversationList / MessagePane của /chat nên màu theo token theme app
+   (sáng / tối) như .bot-act — .office-root đặt color-scheme: dark nên khung tự đặt lại. Ghim góc dưới trái (.docked, kích thước do CSS) hoặc nổi
+   (.floating — left / top / width / height do use-floating-panel đặt, kéo bằng đầu khung, đổi cỡ bằng tay nắm góc dưới phải). */
+.office-root .chat-panel { position: absolute; z-index: 6; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border);
+  border-radius: 12px; background: var(--background); color: var(--foreground); color-scheme: light; box-shadow: 0 12px 32px rgba(2, 6, 23, .5); }
+.dark .office-root .chat-panel { color-scheme: dark; }
+.office-root .chat-panel.docked { left: 12px; bottom: 12px; width: min(400px, calc(100vw - 24px)); height: min(460px, calc(100dvh - 260px)); min-height: 320px; }
+.office-root .chat-panel.floating { z-index: 7; }
+.office-root .chat-panel-head { flex: none; display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 12px; border-bottom: 1px solid var(--border);
+  background: var(--muted); font-size: 13px; }
+.office-root .chat-panel.floating .chat-panel-head { cursor: move; touch-action: none; user-select: none; -webkit-user-select: none; }
+.office-root .chat-panel.floating .chat-panel-head button { cursor: pointer; }
+.office-root .chat-panel-body { flex: 1; min-height: 0; display: flex; }
+.office-root .chat-panel .resize { position: absolute; z-index: 2; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; touch-action: none; border-bottom-right-radius: 12px;
+  background: linear-gradient(135deg, transparent 50%, rgba(148, 163, 184, .55) 50%, rgba(148, 163, 184, .55) 58%, transparent 58%, transparent 70%, rgba(148, 163, 184, .55) 70%, rgba(148, 163, 184, .55) 78%, transparent 78%); }
+@media (pointer: coarse) { .office-root .chat-panel .resize { width: 28px; height: 28px; } .office-root .chat-panel-head button { width: 44px; height: 44px; } }
+/* Chat đóng: nút "Tin nhắn" góc dưới trái (số chưa đọc + "N hội thoại chưa đọc"); cảm ứng: trên joystick */
+.office-root .chat-toggle { left: 12px; bottom: 12px; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 14px 8px 10px; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.office-root .chat-toggle-icon { position: relative; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: #2563eb; color: #fff; }
+.office-root .chat-toggle-text { display: grid; line-height: 1.2; }
+.office-root .chat-toggle-text small { color: #fcd34d; font-size: 11px; }
+.office-root .chat-badge { position: absolute; top: -5px; right: -7px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #ef4444; color: #fff;
+  font: 700 10px/16px system-ui; text-align: center; }
+@media (pointer: coarse) { .office-root .chat-toggle { bottom: 156px; } }
+/* Nút chat trên thẻ trạng thái */
+.office-root .office-chat-btn { position: relative; display: grid; place-items: center; width: 28px; height: 28px; margin: -4px -2px -4px 2px; border: 0; border-radius: 8px;
+  background: transparent; color: #e2e8f0; cursor: pointer; }
+.office-root .office-chat-btn:hover, .office-root .office-chat-btn[aria-pressed="true"] { background: rgba(148, 163, 184, .2); color: #fff; }
+.office-root .office-chat-btn .chat-badge { top: -4px; right: -6px; }
+@media (pointer: coarse) { .office-root .office-chat-btn { width: 36px; height: 36px; } }
+/* Điện thoại: khung ~92% rộng, chừa ~200 px dưới cho joystick / nút zoom (mockup 04, 05) */
+@media (max-width: 640px) {
+  .office-root .chat-panel.docked { left: 4vw; width: 92vw; bottom: 200px; height: calc(100dvh - 272px); min-height: 280px; }
+}
+/* Cảm ứng xoay ngang: chừa joystick bên trái / nút camera bên phải */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  .office-root .chat-panel.docked { left: 160px; right: 160px; width: auto; top: 12px; bottom: 12px; height: auto; min-height: 0; }
 }

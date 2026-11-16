@@ -23,7 +23,7 @@ Mặt bằng **68 × 30 m (2 040 m²)** = lõi 50 × 30 m chủ dự án duyệt
 | | `LookChanged` | `(id, look)` — ai đó đổi nhân vật |
 | | `NameChanged` | `(id, name)` — HR đổi họ tên (TEST-69), phát cả văn phòng kể cả chính người đó → FE thay nhãn tên |
 | | `Positions` | `PositionDto[]` — chỉ người đã đổi, phát mỗi 100ms (`Simulation/OfficeLoop.cs`) |
-| | `Chat` | `{ id, name, text, at, channel: "office"\|"room", roomId?, roomName? }` |
+| | `Chat` | `{ id, name, text, at, channel: "office"\|"room", roomId?, roomName? }` — FE đăng ký rỗng, không dùng từ TEST-126 (khung chat 3D đọc qua hub chat) |
 | | `Teleport` | `(x, z)` — kéo về vị trí hợp lệ |
 | | `Kicked` | `reason` |
 | client → server | `Move(x, z, r, anim)` | |

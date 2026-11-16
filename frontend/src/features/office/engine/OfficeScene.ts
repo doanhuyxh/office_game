@@ -21,6 +21,13 @@ const SPEED = 4.2; // m/s — server cho tối đa 7 m/s
 const RADIUS = 0.22; // bán kính va chạm của avatar
 const SEAT_REACH = 1.2;
 const ACTION_REACH = 1.8;
+/** Khoảng đứng cách người khi "Đi tới" từ khung chat (m). */
+const NEAR_GAP = 1;
+/**
+ * Phím bấm trong các vùng này không dành cho văn phòng (đi, E, M, Q, R): hộp thoại, menu (… của tin nhắn), danh sách gợi ý (@nhắc)
+ * — cùng với ô nhập / textarea / contentEditable. Dùng chung cho `OfficeScene` và phím tắt HUD (`office-view`).
+ */
+export const TYPING_SCOPES = '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]';
 /** Đồ vật có `interact` mà HUD xử lý (tủ hồ sơ, kệ thư viện, màn hình phòng, bảng tin) → onNearAction(`interact:<id>`). */
 const HANDLED_INTERACTS = new Set(['documents', 'library', 'screen', 'notices']);
 const INTERACTIVE = OFFICE_MAP.objects.filter((o) => o.action || (o.interact && HANDLED_INTERACTS.has(o.interact)));
@@ -198,6 +205,20 @@ export class OfficeScene {
     const p = this.positionOf(id);
     if (!p) return false;
     this.walkTo(p.x, p.z);
+    return true;
+  }
+
+  /**
+   * Đi bộ tới ô trống cạnh người `id` (nút "Đi tới" ở khung chat 1-1 — TEST-126): đích lùi ~1 m về phía mình để không giẫm lên họ,
+   * tìm đường tự lấy ô đi được gần nhất; không có đường → `onHint` "Không có đường tới chỗ đó". Trả false khi họ không còn trong văn phòng.
+   */
+  walkNear(id: string): boolean {
+    const p = this.positionOf(id), me = this.myPosition();
+    if (!p) return false;
+    if (!me) return this.walkToPlayer(id);
+    const dx = me.x - p.x, dz = me.z - p.z, d = Math.hypot(dx, dz);
+    if (d < 1.2) return true; // đã đứng cạnh
+    this.walkTo(p.x + (dx / d) * NEAR_GAP, p.z + (dz / d) * NEAR_GAP);
     return true;
   }
 
@@ -411,7 +432,7 @@ export class OfficeScene {
   /** Đang gõ chữ hoặc thao tác trong hộp thoại / sheet (kho tài liệu…) → không điều khiển nhân vật. */
   private isTyping = (e: Event) => {
     const t = e.target as HTMLElement | null;
-    return ['INPUT', 'TEXTAREA', 'SELECT'].includes(t?.tagName ?? '') || !!t?.isContentEditable || !!t?.closest?.('[role="dialog"]');
+    return ['INPUT', 'TEXTAREA', 'SELECT'].includes(t?.tagName ?? '') || !!t?.isContentEditable || !!t?.closest?.(TYPING_SCOPES);
   };
 
   private keyDown = (e: KeyboardEvent) => {

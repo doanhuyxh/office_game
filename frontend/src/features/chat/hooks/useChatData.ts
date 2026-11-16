@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { chatApi, chatKeys } from '../api/chat.api';
-import type { IMessageThread } from '../types/chat.types';
+import type { IConversation, IMessageThread, IPerson } from '../types/chat.types';
 import { currentUnreadEpoch, mergeItems, sumUnread } from '../utils/cache';
 
 /**
@@ -73,6 +73,16 @@ export async function loadOlderMessages(qc: QueryClient, conversationId: string)
 
 export const usePeople = (search: string, enabled: boolean) =>
   useQuery({ queryKey: chatKeys.people(search), queryFn: () => chatApi.people(search), enabled, staleTime: 30_000, placeholderData: (prev) => prev });
+
+/**
+ * Người kia của hội thoại 1-1 (phòng ban, mã, chức danh) — đầu khung chat văn phòng 3D (TEST-126). Tìm theo tên qua `/chat/people`
+ * (cùng dữ liệu hộp "Tin nhắn mới") rồi khớp đúng `peerUserId`; không thấy (nghỉ việc, trùng tên quá nhiều) → undefined.
+ */
+export function useChatPeer(c: IConversation | null | undefined): IPerson | undefined {
+  const direct = c?.type === 'Direct' && !!c.peerUserId;
+  const people = usePeople(direct ? c.title : '', direct);
+  return direct ? people.data?.find((p) => p.userId === c.peerUserId) : undefined;
+}
 
 export function useOpenDirect() {
   const qc = useQueryClient();

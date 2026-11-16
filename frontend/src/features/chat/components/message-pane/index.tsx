@@ -25,8 +25,26 @@ import { MessageSearch } from '../message-search';
 const GROUP_GAP_MS = 5 * 60 * 1000;
 const NEAR_BOTTOM_PX = 120;
 
+/** Tuỳ biến khi nhúng ngoài trang /chat (khung chat văn phòng 3D — TEST-126). */
+export interface MessagePaneExtras {
+  /** Nút quay lại danh sách: 'mobile' (mặc định) = chỉ màn hình < md; 'always' = luôn hiện (khung hẹp); 'none' = ẩn. */
+  back?: 'mobile' | 'always' | 'none';
+  /** Dòng phụ dưới tên (thay mô tả mặc định theo loại hội thoại). */
+  subtitle?: ReactNode;
+  /** Nút thêm ở đầu khung, trước nút tìm (vd "Đi tới"). */
+  headerActions?: ReactNode;
+  /** Dòng báo ngay dưới đầu khung (vd "Bạn vừa vào phòng … — đã mở kênh của phòng"). */
+  notice?: ReactNode;
+  /** Chữ gợi ý ô soạn. */
+  placeholder?: string;
+  /** false = không tự focus ô soạn khi mở. */
+  autoFocus?: boolean;
+}
+
 /** Khung chat bên phải: tiêu đề, danh sách tin (cuộn, tải tin cũ), kéo-thả tệp, ô soạn. Đặt `key={conversation.id}` để đổi hội thoại là làm mới trạng thái. */
-export function MessagePane({ conversation, onBack, onLeft }: { conversation: IConversation; onBack: () => void; onLeft: () => void }) {
+export function MessagePane({ conversation, onBack, onLeft, back = 'mobile', subtitle, headerActions, notice, placeholder, autoFocus }: {
+  conversation: IConversation; onBack: () => void; onLeft: () => void;
+} & MessagePaneExtras) {
   const qc = useQueryClient();
   const chat = useChat();
   const { data: me } = useMe();
@@ -155,16 +173,19 @@ export function MessagePane({ conversation, onBack, onLeft }: { conversation: IC
   return (
     <div className="relative flex h-full min-h-0 flex-col" onDragEnter={onDragEnter} onDragOver={(e) => hasFiles(e) && e.preventDefault()} onDragLeave={onDragLeave} onDrop={onDrop}>
       <div className="flex items-center gap-3 border-b px-3 py-2.5">
-        <Button variant="ghost" size="icon" className="md:hidden" aria-label="Quay lại danh sách" onClick={onBack}><ArrowLeft /></Button>
+        {back !== 'none' && (
+          <Button variant="ghost" size="icon" className={cn('shrink-0', back === 'mobile' && 'md:hidden')} aria-label="Quay lại danh sách" onClick={onBack} data-testid="chat-back"><ArrowLeft /></Button>
+        )}
         <ConversationIcon c={conversation} className="size-9" />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-semibold" data-testid="chat-title">{conversation.title}</div>
-          <div className="truncate text-[11px] text-muted-foreground">
-            {conversation.type === 'Office' ? 'Kênh chung cho cả văn phòng' : conversation.type === 'Room' ? 'Kênh phòng — người từng vào phòng này'
+          <div className="truncate text-[11px] text-muted-foreground" data-testid="chat-subtitle">
+            {subtitle ?? (conversation.type === 'Office' ? 'Kênh chung cho cả văn phòng' : conversation.type === 'Room' ? 'Kênh phòng — người từng vào phòng này'
               : conversation.type === 'Group' ? 'Nhóm chat'
-              : conversation.peerIsBot ? 'Bot AI — tin nhắn được gửi tới trợ lý AI bên ngoài công ty, đừng gửi thông tin nhạy cảm' : 'Tin nhắn riêng'}
+              : conversation.peerIsBot ? 'Bot AI — tin nhắn được gửi tới trợ lý AI bên ngoài công ty, đừng gửi thông tin nhạy cảm' : 'Tin nhắn riêng')}
           </div>
         </div>
+        {headerActions}
         <Button variant="ghost" size="icon" aria-label="Tìm trong tin nhắn" aria-pressed={searching} onClick={() => setSearching((v) => !v)} data-testid="chat-search-toggle"><Search /></Button>
         {conversation.type === 'Group' && (
           <Button variant="ghost" size="icon" aria-label="Thành viên nhóm" onClick={() => setMembersOpen(true)} data-testid="chat-group-members"><Users /></Button>
@@ -175,6 +196,8 @@ export function MessagePane({ conversation, onBack, onLeft }: { conversation: IC
           </span>
         )}
       </div>
+
+      {notice}
 
       {conversation.type === 'Room' && (
         // Kênh phòng họp: thanh "Họp với AI" (TEST-83). Mở / kết thúc → tải lại tin để thấy tin hệ thống (chưa phát realtime).
@@ -215,7 +238,7 @@ export function MessagePane({ conversation, onBack, onLeft }: { conversation: IC
       )}
       {conversation.type === 'Room' && <AgentMeetingDialog draft={agentDraft} onClose={() => setAgentDraft(null)} />}
 
-      <Composer conversationId={conversation.id} canMention={conversation.type !== 'Direct'} draftKey={`chat-draft:${conversation.id}`} files={files} onAddFiles={addFiles} onRemoveFile={(i) => setFiles((cur) => cur.filter((_, j) => j !== i))} onSubmit={submit} />
+      <Composer conversationId={conversation.id} canMention={conversation.type !== 'Direct'} draftKey={`chat-draft:${conversation.id}`} placeholder={placeholder} autoFocus={autoFocus} files={files} onAddFiles={addFiles} onRemoveFile={(i) => setFiles((cur) => cur.filter((_, j) => j !== i))} onSubmit={submit} />
 
       <div className={cn('pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] border-2 border-dashed border-primary bg-background/80 transition-opacity', dragging ? 'opacity-100' : 'opacity-0')}>
         <div className="flex items-center gap-2 text-sm font-medium text-primary"><Upload className="size-5" /> Thả tệp / ảnh để đính kèm</div>

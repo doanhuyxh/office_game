@@ -2,14 +2,13 @@ import { HubConnectionBuilder, HubConnectionState, LogLevel, type HubConnection 
 import { MessagePackHubProtocol } from '@microsoft/signalr-protocol-msgpack';
 import { REALTIME } from '@/config/env';
 
-import type { BotActivityDto, BotAlertDto, BotWatchDto, ChatDto, PlayerDto, PositionDto, ScreenDto, WelcomeDto } from '../types/office.types';
+import type { BotActivityDto, BotAlertDto, BotWatchDto, PlayerDto, PositionDto, ScreenDto, WelcomeDto } from '../types/office.types';
 
 export interface OfficeHandlers {
   welcome(w: WelcomeDto): void;
   playerJoined(p: PlayerDto): void;
   playerLeft(id: string): void;
   positions(list: PositionDto[]): void;
-  chat(m: ChatDto): void;
   teleport(x: number, z: number): void;
   kicked(reason: string): void;
   lookChanged(id: string, look: string | null): void;
@@ -61,7 +60,8 @@ export class OfficeConnection {
     this.conn.on('PlayerJoined', (p) => h.playerJoined(camel(p)));
     this.conn.on('PlayerLeft', (id: string) => h.playerLeft(id));
     this.conn.on('Positions', (l) => h.positions(camel(l)));
-    this.conn.on('Chat', (m) => h.chat(camel(m)));
+    // Sự kiện `Chat` (ChatFanout) vẫn phát cho client cũ / script e2e; HUD đọc tin qua hub chat (TEST-125/126) → bỏ qua, đăng ký rỗng để SignalR không cảnh báo
+    this.conn.on('Chat', () => undefined);
     this.conn.on('Teleport', (x: number, z: number) => h.teleport(x, z));
     this.conn.on('LookChanged', (id: string, look: string | null) => h.lookChanged(id, look ?? null));
     this.conn.on('NameChanged', (id: string, name: string) => h.nameChanged(id, name));

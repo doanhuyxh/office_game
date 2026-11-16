@@ -1,5 +1,8 @@
 import { createContext } from 'react';
-import type { ChatLinkState, IMessage } from '../types/chat.types';
+import type { ChatLinkState, IChatMessage, IMessage } from '../types/chat.types';
+
+/** Nghe tin mới của NGƯỜI KHÁC do hub đẩy; `viewing` = hội thoại đó đang mở trên màn hình (tab đang hiện). */
+export type IncomingListener = (message: IChatMessage, viewing: boolean) => void;
 
 export interface IChatContext {
   link: ChatLinkState;
@@ -19,6 +22,8 @@ export interface IChatContext {
   /** Thả / gỡ cảm xúc (bấm lại cùng emoji = gỡ). */
   react(message: IMessage, emoji: string): void;
   markRead(conversationId: string): void;
+  /** Đăng ký nghe tin mới của người khác (vd toast "X nhắn bạn" trong văn phòng 3D — TEST-126); trả hàm huỷ. Âm báo vẫn do provider phát. */
+  subscribe(listener: IncomingListener): () => void;
 }
 
 export const ChatContext = createContext<IChatContext | null>(null);

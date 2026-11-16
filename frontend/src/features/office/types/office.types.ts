@@ -16,7 +16,6 @@ export interface BotAlertItemDto { kind: 'error' | 'approval' | 'reply'; code?: 
 export interface BotAlertDto { kind: 'error' | 'waiting'; text: string; items: BotAlertItemDto[] }
 export interface PositionDto { id: string; x: number; z: number; r: number; anim: number }
 export interface WelcomeDto { selfId: string; mapName: string; players: PlayerDto[] }
-/** at = ISO 8601 UTC "…Z" (server). channel: "office" toàn văn phòng | "room" chỉ người trong phòng roomId. */
 /** Tài liệu đang chiếu trên màn hình một phòng có tường (Realtime ScreenDto). url = link qua Realtime /rt/screens/doc/… (chỉ người trong phòng, tự làm mới link S3 30 phút — TEST-30); bot / màn hình live có url riêng. */
 export interface ScreenDto {
   roomId: string; roomName: string; assetId: string; title: string; fileName: string; contentType: string;
@@ -42,9 +41,3 @@ export interface BotWatchDto { botId: string; name: string; busy?: boolean | nul
 export interface BotActivityDto { botId: string; events: BotWatchEventDto[]; busy?: boolean | null; task?: string | null; cleared?: boolean }
 /** Lý do server kết thúc phiên xem (`BotWatchEnded`): đi ra xa / đổi kênh quá 3 giây · bot offline hoặc người thật của tài khoản vào · người xem rời hub. */
 export type BotWatchEndReason = 'range' | 'offline' | 'left';
-/** Người được @nhắc trong dòng chat (TEST-70). */
-export interface ChatMentionDto { userId: string; code: string; name: string }
-export interface ChatDto {
-  id: string; name: string; text: string; at: string; channel?: 'office' | 'room'; roomId?: string | null; roomName?: string | null;
-  mentions?: ChatMentionDto[] | null;
-}

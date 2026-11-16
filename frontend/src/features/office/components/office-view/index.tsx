@@ -4,12 +4,12 @@ import { toast } from 'sonner';
 import { useCheck, useToday } from '@/features/attendance';
 import { useMe } from '@/features/auth';
 import { NotificationBell, usePushForeground } from '@/features/notifications';
-import { AgentMeetingDialog, useActiveAgentSessions, useRoomsNow, type AgentMeetingDraft } from '@/features/meetings';
+import { useActiveAgentSessions, useRoomsNow } from '@/features/meetings';
 import { errorMessage } from '@/utils/errors';
 import { formatTime } from '@/utils/date';
 import { useOffice } from '../../store/office.store';
 import { PATHS } from '@/config/paths';
-import { OfficeScene } from '../../engine/OfficeScene';
+import { OfficeScene, TYPING_SCOPES } from '../../engine/OfficeScene';
 import { OfficeConnection } from '../../api/officeHub';
 import type { SitSpot } from '../../engine/sitSpots';
 import { Minimap } from '../minimap';
@@ -17,6 +17,7 @@ import { VOICE_INITIAL, VoiceClient, type VoiceView } from '../../api/voiceClien
 import { ScreenView, VoicePanel } from '../voice-panel';
 import { Joystick } from '../joystick';
 import { OfficeChat } from '../office-chat';
+import { OfficeChatButton } from '../office-chat-button';
 import { canHear, type VoiceChannelInfo } from '../../engine/voiceChannel';
 import { useBotWatch } from '../../hooks/use-bot-watch';
 import { BotActivityPanel } from '../bot-activity-panel';
@@ -33,7 +34,7 @@ const OBJECT_BY_ID = new Map(OFFICE_MAP.objects.map((o) => [o.id, o]));
 /** Đang gõ / thao tác trong hộp thoại → phím E, M không dành cho văn phòng. */
 const typingTarget = (e: KeyboardEvent) => {
   const t = e.target as HTMLElement | null;
-  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(t?.tagName ?? '') || !!t?.isContentEditable || !!t?.closest?.('[role="dialog"]');
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(t?.tagName ?? '') || !!t?.isContentEditable || !!t?.closest?.(TYPING_SCOPES);
 };
 
 /** Màn hình cảm ứng (điện thoại / máy tính bảng): hiện joystick, nút zoom, chat thu gọn (`OfficeChat`). */
@@ -88,7 +89,6 @@ export function OfficeView() {
   const uploads = useUploadQueue();
   const cabinetDept = useCabinetDepartment();
   const [docs, setDocs] = useState<DocsMode | null>(null);
-  const [agentDraft, setAgentDraft] = useState<AgentMeetingDraft | null>(null);
   const [screen, setScreen] = useState<ScreenDto | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const roomRef = useRef<string | null>(null);
@@ -257,7 +257,6 @@ export function OfficeView() {
         count();
       },
       positions: (list) => list.forEach((p) => p.id !== me.id && scene.moveOther(p.id, p.x, p.z, p.r, p.anim)),
-      chat: (m) => s.pushChat(m),
       teleport: (x, z) => scene.teleportMe(x, z),
       lookChanged: (id, look) => scene.setLook(id, parseLook(look)),
       nameChanged: (id, name) => { scene.setName(id, name); s.renameAlert(id, name); },
@@ -343,12 +342,13 @@ export function OfficeView() {
           <span className={`dot ${conn}`} /> {conn === 'online' ? `${online} người online${bots ? ` · ${bots} AI` : ''}` : STATUS[conn]}
           {/* Bot cần chú ý (TEST-122): "· 1 lỗi · 2 chờ duyệt" → bảng danh sách (đi tới bot / mở việc ở tab mới) */}
           {conn === 'online' && <BotAttentionStatus scene={scene} />}
+          {/* Tin nhắn (TEST-126): số chưa đọc, bấm mở / đóng khung chat */}
+          <OfficeChatButton />
           {/* Chuông thông báo ngay trong văn phòng (TEST-109): mở link ở tab mới, toast khi có thông báo mới */}
           <NotificationBell office triggerClassName="office-bell" />
         </div>
         {zone && <div className="card zone">{zone}</div>}
-        <OfficeChat accountId={account?.id} roomCh={roomCh} touch={IS_TOUCH}
-          onOpenAgentMeeting={(roomId) => setAgentDraft({ roomId })} />
+        <OfficeChat roomCh={roomCh} touch={IS_TOUCH} scene={scene} />
         {IS_TOUCH && <Joystick onChange={(x, y) => scene?.setStick(x, y)} />}
         {nearAction === 'attendance.checkin' && !seatInfo?.sitting ? (
           <button type="button" className="card prompt" onClick={doAction}>Máy chấm công · {IS_TOUCH ? 'chạm' : <>bấm <kbd>E</kbd></>} để {today?.checkedIn ? 'chấm công ra' : 'chấm công vào'}</button>
@@ -380,7 +380,7 @@ export function OfficeView() {
               <span>Kéo joystick góc dưới trái · đi</span>
               <span>Chạm lên sàn / bản đồ nhỏ · tự đi tới</span>
               <span>Chạm khung gợi ý · ngồi / đứng, chấm công ở máy</span>
-              <span>⟲ ⟳ xoay góc nhìn · ＋ － zoom · 💬 chat</span>
+              <span>⟲ ⟳ xoay góc nhìn · ＋ － zoom · Tin nhắn góc dưới trái</span>
             </> : <>
               <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / mũi tên · đi</span>
               <span>Bấm chuột lên sàn / bản đồ nhỏ · tự đi tới</span>
@@ -388,7 +388,7 @@ export function OfficeView() {
               <span><kbd>Q</kbd> <kbd>R</kbd> · xoay góc nhìn · cuộn chuột · zoom</span>
               <span><kbd>M</kbd> · bật / tắt micro (voice tự kết nối, micro mặc định tắt)</span>
             </>}
-            <span>Vào phòng có tường (phòng họp…) → chat có thêm tab riêng của phòng</span>
+            <span>Vào phòng có tường (phòng họp…) → khung chat tự mở kênh của phòng</span>
             <span>{IS_TOUCH ? 'Chạm' : 'Bấm'} vào bot AI (nhãn tím) khi đứng gần · xem bot đang làm gì</span>
             <span>Vòng đỏ nhấp nháy dưới chân bot · job lỗi; vòng vàng · có việc chờ người duyệt / phản hồi (bấm "lỗi" / "chờ" trên thanh trạng thái để xem)</span>
             <span>📁 Tài liệu · tủ hồ sơ / kệ thư viện / bảng tin · <kbd>E</kbd> mở kho; màn hình phòng họp · chiếu tài liệu; kéo thả file vào để tải lên</span>
@@ -407,7 +407,6 @@ export function OfficeView() {
           {today?.day.firstIn && <small>Vào {formatTime(today.day.firstIn)}</small>}
         </button>
       </div>
-      <AgentMeetingDialog draft={agentDraft} onClose={() => setAgentDraft(null)} />
       <OfficeDocsDialog mode={docs} onClose={() => setDocs(null)} onPresent={roomCh ? present : undefined} />
       <AvatarEditorDialog open={editorOpen} onOpenChange={setEditorOpen}
         onSaved={(look) => {

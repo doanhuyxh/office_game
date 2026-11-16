@@ -7,7 +7,7 @@ import { ApiError } from '@/services/api-client';
 import { errorMessage } from '@/utils/errors';
 import { chatApi, chatKeys } from '../../api/chat.api';
 import { ChatConnection } from '../../api/chatHub';
-import { ChatContext, type IChatContext } from '../../context/chat-context';
+import { ChatContext, type IChatContext, type IncomingListener } from '../../context/chat-context';
 import { useChatUnread } from '../../hooks/useChatData';
 import type { ChatLinkState, IChatMessage, IConversation, IMessage } from '../../types/chat.types';
 import { addLocal, adjustUnread, bumpUnreadEpoch, markDeleted, mentionsUser, patchLocal, removeLocal, touchConversation, upsertMessage } from '../../utils/cache';
@@ -59,6 +59,7 @@ function ChatProviderRoot({ children }: { children: ReactNode }) {
   const active = useRef<string | null>(null);
   const pending = useRef(new Map<string, Pending>());
   const seen = useRef(new Set<string>());
+  const listeners = useRef(new Set<IncomingListener>());
   const meRef = useRef({ id: me?.id ?? '', name: me?.fullName ?? '' });
   useEffect(() => { meRef.current = { id: me?.id ?? '', name: me?.fullName ?? '' }; }, [me?.id, me?.fullName]);
 
@@ -127,7 +128,13 @@ function ChatProviderRoot({ children }: { children: ReactNode }) {
       adjustUnread(qc, 1);
       playNotificationSound();
     }
+    listeners.current.forEach((fn) => { try { fn(m, viewing); } catch { /* lỗi của người nghe không chặn luồng tin */ } });
   }, [qc, markRead]);
+
+  const subscribe = useCallback((fn: IncomingListener) => {
+    listeners.current.add(fn);
+    return () => { listeners.current.delete(fn); };
+  }, []);
 
   /** Tin bị sửa / đổi cảm xúc (hub đẩy, hoặc kết quả thao tác của chính mình). */
   const onUpdated = useCallback((m: IMessage) => {
@@ -276,7 +283,7 @@ function ChatProviderRoot({ children }: { children: ReactNode }) {
     })();
   }, [onUpdated]);
 
-  const value = useMemo<IChatContext>(() => ({ link, setActive, send, retry, discard, recall, edit, react, markRead }),
-    [link, setActive, send, retry, discard, recall, edit, react, markRead]);
+  const value = useMemo<IChatContext>(() => ({ link, setActive, send, retry, discard, recall, edit, react, markRead, subscribe }),
+    [link, setActive, send, retry, discard, recall, edit, react, markRead, subscribe]);
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 }
