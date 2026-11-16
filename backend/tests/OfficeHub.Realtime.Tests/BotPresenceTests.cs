@@ -1,4 +1,5 @@
 using OfficeHub.BuildingBlocks.Office;
+using OfficeHub.Realtime.Hubs;
 using OfficeHub.Realtime.Simulation;
 
 namespace OfficeHub.Realtime.Tests;
@@ -415,5 +416,157 @@ public class BotPresenceTests
         Assert.False(bots.TryGet(a.ToString(), out _));               // không tạo avatar bot thứ hai
         Assert.Single(placed);
         Assert.True(bots.TryGet(b.ToString(), out var other) && other.Meeting is not null);
+    }
+
+    // ── Bot cần chú ý (TEST-120) ──
+
+    private static readonly Guid ErrTask = Guid.NewGuid(), ErrProject = Guid.NewGuid();
+
+    /// <summary>Runner báo job lỗi (Mcp đã đổi thành rảnh + bong bóng "⚠ MÃ · lỗi" — TEST-118).</summary>
+    private static BotActivity Fail(Guid id, string error = "Hết giờ") =>
+        new(id, "Bot", null, "dept-kd", $"⚠ WEB-12 · {error}", false, null, true, new BotError(error, "WEB-12 · Sửa form", ErrTask, ErrProject));
+
+    private static BotWaitingTask WaitTask(string code, string kind = BotWaitingRoute.Approval) =>
+        new(Guid.NewGuid(), ErrProject, code, $"Việc {code}", "Chờ review", kind, T0);
+
+    private static BotWaiting Waits(Guid id, params BotWaitingTask[] tasks) => new(id, tasks);
+
+    [Fact]
+    public void Failed_bot_stays_at_its_desk_with_a_warning_until_the_runner_reports_work()
+    {
+        var bots = new BotPresence(Map, new Presence());
+        var id = Guid.NewGuid();
+        var (bot, _) = bots.Record(Work(id, true, "Sửa code", runner: true), T0);
+        var desk = bot.Spot!.SpotKey;
+
+        bots.Record(Fail(id), T0.AddSeconds(5));
+        Assert.True(bot.NeedsAttention);
+        Assert.False(bot.Busy);
+        Assert.Equal("⚠ WEB-12 · Hết giờ", bot.Activity);
+        Assert.Empty(bots.Settle(T0.AddMinutes(3)));                  // rảnh lâu vẫn ngồi bàn
+        Assert.Equal(desk, bot.Spot!.SpotKey);
+
+        bots.Record(Work(id, false, "Thông báo của tôi"), T0.AddMinutes(3)); // báo của Mcp (không phải runner) → không đụng lỗi
+        Assert.NotNull(bot.Error);
+        Assert.Equal("⚠ WEB-12 · Hết giờ", bot.Activity);
+        var alert = OfficeRoomHub.AlertOf(bot)!;
+        Assert.Equal("error", alert.Kind);
+        Assert.Equal("⚠ WEB-12 · Hết giờ", alert.Text);
+        var item = Assert.Single(alert.Items);
+        Assert.Equal(("error", "WEB-12", "WEB-12 · Sửa form"), (item.Kind, item.Code, item.Title));
+        Assert.Equal($"/projects/{ErrProject}?task={ErrTask}", item.Link);
+
+        bots.Record(Work(id, true, "Sửa code", "WEB-13 · Việc mới", runner: true), T0.AddMinutes(4)); // job kế → hết lỗi
+        Assert.Null(bot.Error);
+        Assert.Null(OfficeRoomHub.AlertOf(bot));
+        Assert.Equal("🛠 WEB-13 · Sửa code", bot.Activity);
+    }
+
+    [Fact]
+    public void Error_while_resting_walks_the_bot_to_its_desk_and_idle_sends_it_back_to_the_lounge()
+    {
+        var bots = new BotPresence(Map, new Presence());
+        var id = Guid.NewGuid();
+        var (bot, _) = bots.Record(Work(id, false, runner: true), T0);
+        Assert.True(bot.AtRest);
+
+        bots.Record(Fail(id), T0.AddSeconds(10));
+        Assert.False(bot.AtRest);
+        Assert.Equal(1, bot.Anim);                                    // đi bộ về bàn
+        Assert.True(WalkUntilArrived(bots, bot, out _));
+        Assert.Equal("dept-kd", SeatOf(bot).Zone);
+
+        bots.Record(Work(id, false, runner: true), T0.AddMinutes(1)); // runner báo idle → hết lỗi
+        Assert.Null(bot.Error);
+        Assert.Equal(BotWork.IdleBubble, bot.Activity);
+        Assert.True(bot.AtRest);                                      // rảnh đã lâu → đi ngay ra Khu nghỉ
+        Assert.True(WalkUntilArrived(bots, bot, out _));
+        Assert.True(In(bot, "lounge"));
+    }
+
+    [Fact]
+    public void Waiting_task_brings_a_resting_bot_to_its_desk_and_it_rests_again_when_nothing_waits()
+    {
+        var bots = new BotPresence(Map, new Presence());
+        var id = Guid.NewGuid();
+        var (bot, _) = bots.Record(Work(id, false), T0);
+        Assert.True(bot.AtRest);
+
+        Assert.Equal([bot], bots.SyncWaiting([Waits(id, WaitTask("WEB-12"))]));
+        Assert.Equal("⏳ WEB-12 · Chờ duyệt", bot.Activity);
+        Assert.False(bot.AtRest);
+        Assert.True(WalkUntilArrived(bots, bot, out _));
+        Assert.Equal("dept-kd", SeatOf(bot).Zone);
+        Assert.Empty(bots.SyncWaiting([Waits(id, [.. bot.Waiting])]));  // không đổi → không phát lại
+        Assert.Empty(bots.Settle(T0.AddMinutes(5)));                    // còn chờ người → không ra Khu nghỉ
+
+        bots.SyncWaiting([Waits(id, WaitTask("WEB-12"), WaitTask("WEB-14", BotWaitingRoute.Reply))]);
+        Assert.Equal("⏳ 2 việc chờ người", bot.Activity);
+        var alert = OfficeRoomHub.AlertOf(bot)!;
+        Assert.Equal("waiting", alert.Kind);
+        Assert.Equal(["approval", "reply"], alert.Items.Select(i => i.Kind));
+        Assert.All(alert.Items, i => Assert.StartsWith($"/projects/{ErrProject}?task=", i.Link));
+        bots.SyncWaiting([Waits(id, WaitTask("WEB-12"), WaitTask("WEB-15"))]);
+        Assert.Equal("⏳ 2 việc chờ duyệt", bot.Activity);
+        bots.SyncWaiting([Waits(id, WaitTask("WEB-16", BotWaitingRoute.Reply))]);
+        Assert.Equal("⏳ WEB-16 · Chờ phản hồi", bot.Activity);
+
+        Assert.Single(bots.SyncWaiting([]));                            // không còn ai phải trả lời
+        Assert.Null(OfficeRoomHub.AlertOf(bot));
+        Assert.Equal(BotWork.IdleBubble, bot.Activity);
+        Assert.Single(bots.Settle(T0.AddMinutes(6)));                   // rảnh > 60 s → Khu nghỉ như cũ
+        Assert.True(WalkUntilArrived(bots, bot, out _));
+        Assert.True(In(bot, "lounge"));
+    }
+
+    [Fact]
+    public void Task_in_progress_is_not_counted_as_waiting_and_unasked_bots_keep_their_list()
+    {
+        var bots = new BotPresence(Map, new Presence());
+        var (id, other) = (Guid.NewGuid(), Guid.NewGuid());
+        var (bot, _) = bots.Record(Work(id, true), T0);                 // đang làm WEB-12
+        Assert.Empty(bots.SyncWaiting([Waits(id, WaitTask("WEB-12"))]));
+        Assert.False(bot.NeedsAttention);
+
+        bots.SyncWaiting([Waits(id, WaitTask("web-12"), WaitTask("WEB-13", BotWaitingRoute.Reply))]);
+        Assert.Equal("WEB-13", Assert.Single(bot.Waiting).Code);
+        Assert.StartsWith("🛠 WEB-12", bot.Activity);                    // đang làm → bong bóng như cũ
+
+        var (idle, _) = bots.Record(Work(other, false), T0);
+        bots.SyncWaiting([Waits(other, WaitTask("WEB-20"))]);           // bot id không có trong danh sách → hết chờ
+        Assert.Empty(bot.Waiting);
+        bots.SyncWaiting([], [id.ToString()]);                          // chỉ hỏi bot id → bot other giữ nguyên
+        Assert.Single(idle.Waiting);
+    }
+
+    [Fact]
+    public void Meeting_bot_go_to_spot_and_account_used_by_a_person_are_not_pulled_to_the_desk()
+    {
+        var presence = new Presence();
+        var bots = new BotPresence(Map, presence);
+        var (a, b, c, session) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        bots.Record(Work(a, false), T0);
+        bots.SyncMeetings([Meeting(session, null, a)], T0);
+        Assert.True(WalkAll(bots));
+        bots.SyncMeetings([Meeting(session, null, a)], T0);
+        Assert.True(bots.TryGet(a.ToString(), out var inMeeting));
+
+        var (gone, _) = bots.Record(Work(b, false), T0);
+        Assert.Null(bots.GoTo(b.ToString(), PlaceOf("lounge"), out _));
+        Assert.True(WalkAll(bots));
+
+        var (person, _) = bots.Record(Work(c, false), T0);
+        Assert.True(person.AtRest);
+        presence.Add(new Player { UserId = c.ToString(), Name = "Người thật", ConnectionId = "c1", Context = new FakeContext() });
+
+        Assert.Equal(3, bots.SyncWaiting([Waits(a, WaitTask("WEB-1")), Waits(b, WaitTask("WEB-2")), Waits(c, WaitTask("WEB-3"))]).Count);
+        Assert.Empty(inMeeting.Path);
+        Assert.True(In(inMeeting, "meeting-small"));
+        Assert.Equal(BotPresence.InMeetingBubble, inMeeting.Activity);
+        Assert.Empty(gone.Path);
+        Assert.True(In(gone, "lounge"));
+        Assert.Equal("⏳ WEB-2 · Chờ duyệt", gone.Activity);
+        Assert.Empty(person.Path);
+        Assert.True(person.AtRest);
     }
 }

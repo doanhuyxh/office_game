@@ -27,6 +27,9 @@ builder.Services.AddSingleton<SessionValidator>();
 // Hỏi phiên họp agent mỗi 3 giây (TEST-76): client riêng, không ghi log từng request
 builder.Services.AddHttpClient(AgentMeetingWatch.HttpClientName, c => { c.BaseAddress = new Uri(apiBase); c.Timeout = TimeSpan.FromSeconds(5); })
     .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { UseCookies = false }).RemoveAllLoggers();
+// Việc bot đang chờ người mỗi 30 giây (TEST-120): client riêng, không ghi log từng request
+builder.Services.AddHttpClient(BotWaitingWatch.HttpClientName, c => { c.BaseAddress = new Uri(apiBase); c.Timeout = TimeSpan.FromSeconds(10); })
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { UseCookies = false }).RemoveAllLoggers();
 builder.Services.AddHostedService<SessionWatch>();
 
 // Chat (tin nhắn): Api lưu, Realtime chỉ chuyển tiếp + phát. Khoá nội bộ để báo "ai vừa vào phòng nào".
@@ -47,6 +50,7 @@ builder.Services.AddSingleton<BotWatch>();        // ai đang xem bot nào qua h
 builder.Services.AddHostedService<BotWatchGuard>();
 builder.Services.AddHostedService<BotSweeper>();
 builder.Services.AddHostedService<AgentMeetingWatch>(); // họp agent: bot đi vào / rời phòng họp (TEST-76)
+builder.Services.AddHostedService<BotWaitingWatch>();  // bot có việc chờ người → ngồi bàn, BotAlert (TEST-120)
 builder.Services.AddSingleton<OfficeHub.Realtime.Screens.RoomScreens>();
 builder.Services.AddSingleton<OfficeHub.Realtime.Screens.BotScreens>(); // bot chiếu màn hình (RAM)
 builder.Services.AddHostedService<OfficeLoop>();

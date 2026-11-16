@@ -28,16 +28,12 @@ Chủ dự án chốt thêm 2026-11-13: **bot đang làm một việc thì việ
 | Trạng thái | Hiện |
 |---|---|
 | Đang làm, có task | `🛠 WEB-12 · <thao tác>` (thao tác runner gửi hoặc tiêu đề tool); thao tác đã có mã việc / `💬` / `🚶` → giữ nguyên |
-| Rảnh | `☕ Đang nghỉ`; trừ `💬` (chat), `🚶` (đi lại), `🖥` / `📝` (trình chiếu) |
+| Rảnh | `☕ Đang nghỉ`; trừ `💬` (chat), `🚶` (đi lại), `🖥` / `📝` (trình chiếu); cần chú ý → `⚠` / `⏳` ([office-bots-attention.md](office-bots-attention.md)) |
 | Không rõ | tiêu đề tool như trước |
 
-## Bot cần chú ý — hợp đồng (TEST-117, chưa có hành vi)
+## Bot cần chú ý (lỗi / chờ người)
 
-Chủ dự án chốt 2026-11-16, các việc nối tiếp (Mcp, Projects, Realtime, FE, runner) dùng chung `BuildingBlocks/Office`:
-- **Lỗi**: `BotWork.Error = "error"`, `BotPresenceReport` thêm `Error` / `TaskId` / `ProjectId` (null mặc định); `BotActivity.Error` (`BotError(Text, Task, TaskId, ProjectId)`, chỉ khi `FromRunner`, null = hết lỗi). Bong bóng chỉ loại lỗi ngắn ≤ `BotWork.MaxError` (40); lỗi giữ tới khi runner báo trạng thái khác.
-- **Chờ người** (`BotAttention.cs`): Realtime POST `BotWaitingRoute.Path` (`/api/projects/internal/bot-waiting`, khoá `X-Chat-Key` như `/api/meetings/internal/live`) mỗi 30 giây, ≤ 200 bot, ≤ 10 việc / bot; `Kind` = `approval` | `reply`. Nhận biết theo thao tác cuối trên việc là của chính bot, chưa có người thật thao tác lại — không dựa vào cột.
-  - **Api (TEST-119)**: `Projects/Features/BotWaitingEndpoints.cs` (`AllowAnonymous` + kiểm khoá, sai / thiếu → 401; > 200 userId → 400; ≤ 16 KB; nginx 404 từ ngoài `location ^~ /api/projects/internal/`). userId → nhân viên đang làm (`IEmployeeDirectory.ListActiveAsync`); việc giao cho họ, chưa xong, dự án `Active`, không còn việc phụ thuộc chưa xong. Chỉ trả bot có việc chờ, việc mới nhất trước.
-  - **Luật** (`Domain/BotWaitRules.cs`, hàm thuần + test): lịch sử + bình luận duyệt mới → cũ; người thật (kể cả sửa nội dung / đổi hạn / xoá bình luận) → không chờ; sự kiện bot không tính (`Created` / `Edited` / `DueChanged` / `Depends` / `CommentDeleted`) → bỏ qua; sự kiện bot có tính (`Moved` / `Assigned` / bình luận) → chờ từ lúc đó nếu do chính người làm việc, bot khác → không chờ. `approval` khi cột ngay sau cột hiện tại là cột cần duyệt, còn lại `reply`.
+Bot lỗi hoặc có việc chờ người **không ra Khu nghỉ** (ngồi bàn), bong bóng `⚠` / `⏳`, sự kiện hub `BotAlert` — [office-bots-attention.md](office-bots-attention.md).
 
 ## agent-runner (`src/presence.ts`)
 

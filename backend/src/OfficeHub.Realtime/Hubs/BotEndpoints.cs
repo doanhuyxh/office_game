@@ -91,6 +91,7 @@ public static class BotEndpoints
         if (body.UserId == Guid.Empty || string.IsNullOrWhiteSpace(body.Name) || string.IsNullOrWhiteSpace(body.Activity))
             return Results.Problem("Thiếu userId / name / activity", statusCode: StatusCodes.Status400BadRequest);
 
+        var errorBefore = bots.TryGet(body.UserId.ToString(), out var known) ? known.Error : null;
         var (bot, placed) = bots.Record(body, clock.GetUtcNow());
         var group = hub.Clients.Group(OfficeRoomHub.OfficeGroup);
         if (!presence.TryGet(bot.UserId, out _) && placed)
@@ -100,6 +101,8 @@ public static class BotEndpoints
             await group.PlayerJoined(OfficeRoomHub.ToDto(bot, map));
         }
         await group.BotStatus(bot.UserId, bot.Activity);
+        // Lỗi job đổi (runner báo error / hết lỗi — TEST-120); avatar bot vừa đặt lại thì PlayerJoined đã kèm Alert
+        if (!Equals(errorBefore, bot.Error) && !(placed && !presence.TryGet(bot.UserId, out _))) await group.BotAlert(bot.UserId, OfficeRoomHub.AlertOf(bot));
         return Results.NoContent();
     }
 }
@@ -122,7 +125,7 @@ public sealed class BotSweeper(BotPresence bots, Presence presence, IHubContext<
                 {
                     feed.Clear(b.UserId);
                     var group = hub.Clients.Group(OfficeRoomHub.OfficeGroup);
-                    if (presence.TryGet(b.UserId, out _)) await group.BotStatus(b.UserId, null);
+                    if (presence.TryGet(b.UserId, out _)) { await group.BotStatus(b.UserId, null); await group.BotAlert(b.UserId, null); }
                     else await group.PlayerLeft(b.UserId);
                 }
                 // Bot rảnh đủ lâu → đi bộ ra Khu nghỉ (OfficeLoop phát vị trí từng bước)

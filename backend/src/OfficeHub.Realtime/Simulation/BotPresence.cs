@@ -33,6 +33,12 @@ public sealed class Bot
     public BotMeeting? Meeting;
     /// <summary>Đang giữ lượt nói trong phiên họp → bong bóng <see cref="BotPresence.SpeakingBubble"/>.</summary>
     public bool Speaking;
+    /// <summary>Lỗi job gần nhất agent-runner báo (TEST-120) — giữ tới khi runner báo working / idle; báo của Mcp (không phải runner) không đụng tới.</summary>
+    public BotError? Error;
+    /// <summary>Việc đang chờ người (duyệt / trả lời) — <see cref="BotPresence.SyncWaiting"/> cập nhật mỗi <see cref="BotWaitingRoute.PollSeconds"/> giây.</summary>
+    public IReadOnlyList<BotWaitingTask> Waiting = [];
+    /// <summary>Bot lỗi hoặc có việc chờ người → không ra Khu nghỉ, ngồi bàn cho mọi người thấy (TEST-120).</summary>
+    public bool NeedsAttention => Error is not null || Waiting.Count > 0;
     public readonly Queue<(double X, double Z)> Path = new();
     public bool Dirty;
 }
@@ -84,6 +90,7 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
             bot.Name = a.Name.Length > 100 ? a.Name[..100] : a.Name;
             bot.Look = a.Look;
             bot.LastAt = now;
+            if (a.FromRunner) bot.Error = a.Error; // null = hết lỗi
             var flipped = ApplyWork(bot, a, now);
             bot.Activity = Bubble(bot, a.Activity);
             var leftExplicit = flipped && !isNew && bot.Explicit;
@@ -104,7 +111,7 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
             {
                 bot.Zone = a.Zone;
                 // Vừa online mà đang rảnh → ngồi luôn ở Khu nghỉ (không chờ, không đi bộ)
-                if (bot.Busy == false && RestSpot(id) is { } rest) { Place(bot, rest); bot.AtRest = true; }
+                if (bot.Busy == false && !bot.NeedsAttention && RestSpot(id) is { } rest) { Place(bot, rest); bot.AtRest = true; }
                 else Place(bot, DeskSpot(id, a.Zone));
                 placed = true;
             }
@@ -113,6 +120,7 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
                 var zoneChanged = bot.Zone != a.Zone;
                 bot.Zone = a.Zone;
                 if (bot.Busy == true && (bot.AtRest || leftExplicit)) WalkTo(bot, DeskSpot(id, a.Zone), rest: false);
+                else if (bot.NeedsAttention && (bot.AtRest || leftExplicit) && !presence.TryGet(id, out _)) WalkTo(bot, DeskSpot(id, a.Zone), rest: false);
                 else if (!bot.AtRest && (zoneChanged || bot.Spot is null)) { Place(bot, DeskSpot(id, a.Zone)); placed = true; }
                 else if (!bot.AtRest) GoRestIfIdle(bot, now);
             }
@@ -136,8 +144,8 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
     }
 
     /// <summary>
-    /// Bong bóng trên đầu: đang làm → "🛠 WEB-12 · thao tác" (thao tác đã ghi mã việc thì giữ nguyên); rảnh → "☕ Đang nghỉ"
-    /// (trừ nói chuyện / đi lại / trình chiếu — vẫn hiện như cũ); chưa rõ → thao tác.
+    /// Bong bóng trên đầu: đang làm → "🛠 WEB-12 · thao tác" (thao tác đã ghi mã việc thì giữ nguyên); rảnh → nói chuyện / đi lại / trình chiếu
+    /// hiện như cũ, rồi cần chú ý (<see cref="AttentionBubble"/>), còn lại "☕ Đang nghỉ"; chưa rõ → thao tác.
     /// </summary>
     internal static string Bubble(Bot bot, string activity)
     {
@@ -146,7 +154,8 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
             return activity.StartsWith("💬") || activity.StartsWith("🖥") || activity.StartsWith("📝") ? activity
                 : bot.Path.Count > 0 && bot.Activity.StartsWith("🚶") ? bot.Activity : MeetingBubble(bot);
         if (bot.Busy == false)
-            return activity.StartsWith("💬") || activity.StartsWith("🚶") || activity.StartsWith("🖥") || activity.StartsWith("📝") ? activity : BotWork.IdleBubble;
+            return activity.StartsWith("💬") || activity.StartsWith("🚶") || activity.StartsWith("🖥") || activity.StartsWith("📝") ? activity
+                : AttentionBubble(bot) ?? BotWork.IdleBubble;
         if (bot.Busy == true && bot.Task is { Length: > 0 } task)
         {
             var code = task.Split(' ')[0];
@@ -156,6 +165,27 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
         }
         return activity;
     }
+
+    /// <summary>
+    /// Bong bóng bot cần chú ý (TEST-120): lỗi → "⚠ WEB-12 · Hết giờ" (không gắn việc → "⚠ Hết giờ"); một việc chờ → "⏳ WEB-12 · Chờ duyệt" /
+    /// "Chờ phản hồi"; nhiều việc → "⏳ N việc chờ duyệt" (đều chờ duyệt) / "⏳ N việc chờ người"; không cần chú ý → null.
+    /// </summary>
+    public static string? AttentionBubble(Bot bot) => AttentionBubble(bot.Error, bot.Waiting);
+
+    public static string? AttentionBubble(BotError? error, IReadOnlyList<BotWaitingTask> waiting)
+    {
+        if (error is { } err)
+            return CodeOf(err.Task) is { } code ? Clip($"⚠ {code} · {err.Text}", 120) : Clip($"⚠ {err.Text}", 120);
+        if (waiting.Count == 1)
+            return $"⏳ {waiting[0].Code} · {(waiting[0].Kind == BotWaitingRoute.Approval ? "Chờ duyệt" : "Chờ phản hồi")}";
+        if (waiting.Count > 1)
+            return waiting.All(w => w.Kind == BotWaitingRoute.Approval) ? $"⏳ {waiting.Count} việc chờ duyệt" : $"⏳ {waiting.Count} việc chờ người";
+        return null;
+    }
+
+    /// <summary>Mã việc ở đầu nhãn "WEB-12 · Tên việc"; null khi không có.</summary>
+    public static string? CodeOf(string? task) =>
+        string.IsNullOrWhiteSpace(task) ? null : task.Trim().Split(' ')[0];
 
     private static string? Clip(string? s, int max) =>
         string.IsNullOrWhiteSpace(s) ? null : (s = s.Trim()).Length > max ? s[..max] + "…" : s;
@@ -175,7 +205,7 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
 
     private bool GoRestIfIdle(Bot bot, DateTimeOffset now)
     {
-        if (bot.Busy != false || bot.IdleSince is not { } since || (now - since).TotalSeconds < BotWork.IdleDelaySeconds) return false;
+        if (bot.Busy != false || bot.NeedsAttention || bot.IdleSince is not { } since || (now - since).TotalSeconds < BotWork.IdleDelaySeconds) return false;
         if (presence.TryGet(bot.UserId, out _)) return false; // người thật đang dùng tài khoản → không có avatar bot để đi
         return RestSpot(bot.UserId) is { } rest && WalkTo(bot, rest, rest: true);
     }
@@ -322,6 +352,43 @@ public sealed class BotPresence(OfficeMap map, Presence presence)
             }
         }
         return (placed, status);
+    }
+
+    /// <summary>
+    /// Đồng bộ việc chờ người (<see cref="BotWaitingWatch"/> hỏi Api mỗi <see cref="BotWaitingRoute.PollSeconds"/> giây — TEST-120). Bot đang làm
+    /// không tính việc trùng mã với việc đang làm; bot không có trong <paramref name="list"/> → không chờ việc nào. <paramref name="asked"/> = các bot
+    /// đã hỏi (null = tất cả) — bot ngoài danh sách hỏi giữ nguyên. Vừa cần chú ý khi đang ở chỗ nghỉ (không giữ chỗ go_to, không dự họp, không có
+    /// người thật cùng tài khoản trong văn phòng) → đi bộ về bàn; hết cần chú ý mà rảnh → <see cref="Settle"/> cho ra Khu nghỉ như cũ.
+    /// Trả các bot đổi việc chờ (để phát <c>BotStatus</c> + <c>BotAlert</c>).
+    /// </summary>
+    public List<Bot> SyncWaiting(IReadOnlyList<BotWaiting> list, IReadOnlyCollection<string>? asked = null)
+    {
+        var byUser = new Dictionary<string, List<BotWaitingTask>>();
+        foreach (var w in list)
+        {
+            var key = w.UserId.ToString();
+            if (!byUser.TryGetValue(key, out var tasks)) byUser[key] = tasks = [];
+            tasks.AddRange(w.Tasks ?? []);
+        }
+        var askedSet = asked is null ? null : asked as ISet<string> ?? asked.ToHashSet();
+        var changed = new List<Bot>();
+        lock (_lock)
+        {
+            foreach (var bot in _bots.Values)
+            {
+                if (askedSet is not null && !askedSet.Contains(bot.UserId)) continue;
+                IReadOnlyList<BotWaitingTask> tasks = byUser.TryGetValue(bot.UserId, out var found) ? found : [];
+                if (bot.Busy == true && CodeOf(bot.Task) is { } working)
+                    tasks = tasks.Where(t => !string.Equals(t.Code, working, StringComparison.OrdinalIgnoreCase)).ToList();
+                if (bot.Waiting.SequenceEqual(tasks)) continue;
+                bot.Waiting = tasks.Count == 0 ? [] : tasks;
+                if (bot.Busy == false && bot.Meeting is null) bot.Activity = Bubble(bot, bot.Activity);
+                if (bot.NeedsAttention && bot.AtRest && !bot.Explicit && bot.Meeting is null && !presence.TryGet(bot.UserId, out _))
+                    WalkTo(bot, DeskSpot(bot.UserId, bot.Zone), rest: false);
+                changed.Add(bot);
+            }
+        }
+        return changed;
     }
 
     /// <summary>Hết phiên họp: bỏ giữ chỗ, rảnh đủ lâu → Khu nghỉ, không thì về bàn (đi bộ).</summary>

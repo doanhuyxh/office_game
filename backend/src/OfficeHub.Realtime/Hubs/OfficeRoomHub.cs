@@ -15,9 +15,16 @@ namespace OfficeHub.Realtime.Hubs;
 // ---- Dữ liệu gửi qua SignalR (MessagePack). FE sinh type TS từ đây. ----
 /// <summary>
 /// Look = ngoại hình nhân vật (chuỗi JSON, null = mặc định) — client tự parse theo shared/avatar-catalog.json.
-/// Bot = avatar của tài khoản bot đang làm việc qua MCP (ngồi yên ở bàn, nhãn "AI"); Status = bot đang làm gì (null = không có).
+/// Bot = avatar của tài khoản bot đang làm việc qua MCP (ngồi yên ở bàn, nhãn "AI"); Status = bot đang làm gì (null = không có);
+/// Alert = bot cần chú ý (lỗi / việc chờ người, TEST-120; null = không) — cả trên avatar người thật cùng tài khoản như Status.
 /// </summary>
-public sealed record PlayerDto(string Id, string Name, float X, float Z, float R, byte Anim, string? Look = null, bool Bot = false, string? Status = null);
+public sealed record PlayerDto(string Id, string Name, float X, float Z, float R, byte Anim, string? Look = null, bool Bot = false, string? Status = null,
+    BotAlertDto? Alert = null);
+/// <summary>Bot cần chú ý (TEST-120). Kind = "error" (job lỗi — có thể kèm việc chờ) | "waiting" (chỉ việc chờ người); Text = dòng ngắn như bong bóng.</summary>
+public sealed record BotAlertDto(string Kind, string Text, BotAlertItemDto[] Items);
+/// <param name="Kind">"error" | "approval" | "reply".</param>
+/// <param name="Link">Mở việc trên web: <c>/projects/{projectId}?task={taskId}</c>; null khi không rõ việc.</param>
+public sealed record BotAlertItemDto(string Kind, string? Code, string Title, string? Link);
 public sealed record PositionDto(string Id, float X, float Z, float R, byte Anim);
 public sealed record WelcomeDto(string SelfId, string MapName, PlayerDto[] Players);
 /// <summary>
@@ -46,6 +53,8 @@ public interface IOfficeClient
     Task ScreenChanged(string roomId, ScreenDto? screen);
     /// <summary>Bot của tài khoản <paramref name="id"/> đang làm gì (null = hết hoạt động) — gắn lên avatar bot hoặc avatar người thật.</summary>
     Task BotStatus(string id, string? status);
+    /// <summary>Bot của tài khoản <paramref name="id"/> cần chú ý (lỗi / việc chờ người — TEST-120); null = hết. Gắn lên avatar bot hoặc người thật như BotStatus.</summary>
+    Task BotAlert(string id, BotAlertDto? alert);
     /// <summary>Lô sự kiện "agent đang làm gì" cho NGƯỜI ĐANG XEM bot đó (WatchBot, TEST-95) — gộp ≤ 4 lần / giây, kèm trạng thái đang làm / rảnh.</summary>
     Task BotActivity(BotActivityDto batch);
     /// <summary>Phiên xem bot kết thúc: reason = <see cref="BotWatch.EndedRange"/> / <see cref="BotWatch.EndedOffline"/> / <see cref="BotWatch.EndedLeft"/>.</summary>
@@ -193,10 +202,31 @@ public sealed class OfficeRoomHub(Presence presence, BotPresence bots, OfficeMap
     }
 
     private PlayerDto ToDto(Player p) =>
-        new(p.UserId, p.Name, p.X, p.Z, p.R, p.Anim, p.Look, Status: bots.TryGet(p.UserId, out var b) ? b.Activity : null);
+        bots.TryGet(p.UserId, out var b)
+            ? new(p.UserId, p.Name, p.X, p.Z, p.R, p.Anim, p.Look, Status: b.Activity, Alert: AlertOf(b))
+            : new(p.UserId, p.Name, p.X, p.Z, p.R, p.Anim, p.Look);
 
     /// <summary>Bot ngồi ở bàn được xếp (anim 2); hết bàn → đứng ở điểm vào văn phòng.</summary>
-    internal static PlayerDto ToDto(Bot b, OfficeMap map) => new(b.UserId, b.Name, b.X, b.Z, b.R, b.Anim, b.Look, true, b.Activity);
+    internal static PlayerDto ToDto(Bot b, OfficeMap map) => new(b.UserId, b.Name, b.X, b.Z, b.R, b.Anim, b.Look, true, b.Activity, AlertOf(b));
+
+    /// <summary>
+    /// Bot cần chú ý → <see cref="BotAlertDto"/> (TEST-120): có lỗi → "error" (mục lỗi trước, rồi các việc chờ); chỉ việc chờ → "waiting";
+    /// không → null. Text = bong bóng cần chú ý (<see cref="BotPresence.AttentionBubble"/>).
+    /// </summary>
+    public static BotAlertDto? AlertOf(Bot b)
+    {
+        var (error, waiting) = (b.Error, b.Waiting);
+        if (error is null && waiting.Count == 0) return null;
+        var items = new List<BotAlertItemDto>(waiting.Count + 1);
+        if (error is not null)
+            items.Add(new BotAlertItemDto("error", BotPresence.CodeOf(error.Task), error.Task ?? error.Text, TaskLink(error.ProjectId, error.TaskId)));
+        foreach (var w in waiting) items.Add(new BotAlertItemDto(w.Kind, w.Code, w.Title, TaskLink(w.ProjectId, w.TaskId)));
+        var text = BotPresence.AttentionBubble(error, waiting) ?? "";
+        return new BotAlertDto(error is not null ? "error" : "waiting", text, [.. items]);
+    }
+
+    private static string? TaskLink(Guid? projectId, Guid? taskId) =>
+        projectId is { } p && taskId is { } t && p != Guid.Empty && t != Guid.Empty ? $"/projects/{p}?task={t}" : null;
 
     public async Task SendChat(string text)
     {
