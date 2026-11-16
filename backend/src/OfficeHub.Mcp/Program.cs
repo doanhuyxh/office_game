@@ -64,11 +64,11 @@ app.MapGet(OAuthMetadata.AuthorizationServerPath, (IOptions<AppSettings> o) => R
 
 app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/mcp"), b => b.UseMiddleware<BearerGate>());
 app.MapMcp("/mcp");
-// agent-runner báo bot đang làm / rảnh (văn phòng 3D: bàn ↔ Khu nghỉ). Sau BearerGate (cùng token AI); chỉ tài khoản bot.
+// agent-runner báo bot đang làm / rảnh / lỗi (văn phòng 3D: bàn ↔ Khu nghỉ; lỗi — TEST-118). Sau BearerGate (cùng token AI); chỉ tài khoản bot.
 app.MapPost(BotWork.PresencePath, async (BotPresenceReport? body, HttpContext http, BotPresenceReporter reporter) =>
 {
-    if (body is null || body.State is not (BotWork.Working or BotWork.Idle))
-        return Results.Problem($"state phải là \"{BotWork.Working}\" hoặc \"{BotWork.Idle}\"", statusCode: StatusCodes.Status400BadRequest);
+    if (body is null || !BotPresenceReporter.IsPresenceState(body.State))
+        return Results.Problem($"state phải là \"{BotWork.Working}\", \"{BotWork.Idle}\" hoặc \"{BotWork.Error}\"", statusCode: StatusCodes.Status400BadRequest);
     try
     {
         return await reporter.ReportPresenceAsync(http.Request.Headers.Authorization.ToString(), http.Connection.RemoteIpAddress?.ToString(), body) switch

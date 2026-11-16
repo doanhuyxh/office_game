@@ -70,11 +70,37 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
         if (string.IsNullOrEmpty(chat.Value.McpRealtimeKey)) return false;
         if (await GetCallerAsync(authorization, clientIp) is not { } caller) return null;
         toolFeed.RunnerSeen(caller.UserId); // runner làm chủ luồng hoạt động → Mcp thôi tự phát sự kiện "tool" (TEST-96)
+        var (busy, task, activity, error) = Presence(body);
+        return await SendAsync(new BotActivity(caller.UserId, caller.Name, caller.Look, caller.Zone, activity, busy, task, FromRunner: true, Error: error));
+    }
+
+    /// <summary>State hợp lệ của <see cref="BotWork.PresencePath"/>: <see cref="BotWork.Working"/> | <see cref="BotWork.Idle"/> | <see cref="BotWork.Error"/>.</summary>
+    internal static bool IsPresenceState(string? state) => state is BotWork.Working or BotWork.Idle or BotWork.Error;
+
+    /// <summary>
+    /// Báo cáo của runner → trạng thái gửi Realtime. <see cref="BotWork.Working"/> / <see cref="BotWork.Idle"/>: Error = null (hết lỗi).
+    /// <see cref="BotWork.Error"/> (TEST-118): rảnh (Busy = false, Task = null), Error = loại lỗi một dòng ≤ <see cref="BotWork.MaxError"/> ký tự
+    /// + việc / id; bong bóng "⚠ MÃ · lỗi" (không có việc → "⚠ lỗi"). Nội dung lỗi không ghi log.
+    /// </summary>
+    internal static (bool Busy, string? Task, string Activity, BotError? Error) Presence(BotPresenceReport body)
+    {
+        if (body.State == BotWork.Error)
+        {
+            var text = Clip(OneLine(body.Error), BotWork.MaxError) ?? "Lỗi";
+            var errTask = Clip(OneLine(body.Task), BotWork.MaxTask);
+            var code = errTask?.Split(" · ", 2)[0];
+            var bubble = Clip(code is null ? $"⚠ {text}" : $"⚠ {code} · {text}", BotWork.MaxActivity)!;
+            return (false, null, bubble, new BotError(text, errTask, body.TaskId, body.ProjectId));
+        }
         var busy = body.State == BotWork.Working;
         var task = busy ? Clip(body.Task, BotWork.MaxTask) : null;
         var activity = busy ? Clip(body.Activity, BotWork.MaxActivity) ?? task ?? "Đang làm việc" : BotWork.IdleBubble;
-        return await SendAsync(new BotActivity(caller.UserId, caller.Name, caller.Look, caller.Zone, activity, busy, task, FromRunner: true));
+        return (busy, task, activity, null);
     }
+
+    /// <summary>Ký tự điều khiển (xuống dòng, tab, ESC…) → khoảng trắng; Clip gộp khoảng trắng thành một dòng.</summary>
+    private static string? OneLine(string? s) =>
+        s is null ? null : string.Create(s.Length, s, static (span, src) => { for (var i = 0; i < src.Length; i++) span[i] = char.IsControl(src[i]) ? ' ' : src[i]; });
 
     /// <summary>
     /// agent-runner gửi lô sự kiện "agent đang làm gì" (<see cref="BotActivityFeedRoute.McpPath"/>) → chuyển nguyên lô sang Realtime

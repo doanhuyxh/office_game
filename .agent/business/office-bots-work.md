@@ -9,7 +9,7 @@ Chủ dự án chốt thêm 2026-11-13: **bot đang làm một việc thì việ
 
 | Ưu tiên | Nguồn | Cách |
 |---|---|---|
-| 1 | **agent-runner** | `POST /mcp/presence` (host Mcp, sau `BearerGate`, token AI) `{ state: "working" \| "idle", task?, activity? }` → 204; không phải bot 403, state lạ 400, Realtime không nhận 503. Còn hiệu lực 5 phút (`BotActivityRoute.OnlineMinutes`) — trong thời gian đó trạng thái suy từ bảng việc bị bỏ qua |
+| 1 | **agent-runner** | `POST /mcp/presence` (host Mcp, sau `BearerGate`, token AI) `{ state: "working" \| "idle" \| "error", task?, activity?, error?, taskId?, projectId? }` → 204; không phải bot 403, state lạ 400, Realtime không nhận 503. `error` (TEST-118): rảnh (`Busy=false`, `Task=null`), `BotActivity.Error = BotError(loại lỗi một dòng — bỏ ký tự điều khiển, cắt 40 ký tự + "…", trống → "Lỗi"; task; taskId; projectId)`, bong bóng `⚠ MÃ · lỗi` (không có việc → `⚠ lỗi`); `working` / `idle` → `Error=null` (hết lỗi). Nội dung lỗi không ghi log / nhật ký AI. Còn hiệu lực 5 phút (`BotActivityRoute.OnlineMinutes`) — trong thời gian đó trạng thái suy từ bảng việc bị bỏ qua |
 | 2 | **Việc bot vừa đụng tới** (bot không chạy qua runner) | Tool MCP trên một việc (`get_task`, `update_task_status`, `update_task`, `comment_task`, `list_task_comments` — tham số `task`) → đang làm việc đó, **ở cột nào cũng vậy**; nhớ "MÃ · tên" (id → hỏi chi tiết việc; mã → tìm tên trong việc của tôi) theo token **15 phút** (`BotWork.TaskWindowMinutes`), mỗi lần đụng việc tính lại. Tool khác không đổi; hết 15 phút không đụng việc nào → rảnh. Mcp khởi động lại → quên (rảnh tới lần đụng việc kế) |
 
 

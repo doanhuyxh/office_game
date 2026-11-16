@@ -1,4 +1,5 @@
 using System.Text.Json;
+using OfficeHub.BuildingBlocks.Office;
 using OfficeHub.Mcp.Infrastructure;
 
 namespace OfficeHub.Mcp.Tests;
@@ -53,5 +54,61 @@ public class BotPresenceReporterTests
         Assert.Equal("WEB-12 · Sửa form đăng nhập", BotPresenceReporter.LabelOf(t));
         Assert.Equal("WEB-3", BotPresenceReporter.LabelOf(System.Text.Json.Nodes.JsonNode.Parse("""{ "code": "WEB-3" }""")!.AsObject()));
         Assert.Null(BotPresenceReporter.LabelOf(null));
+    }
+
+    [Theory]
+    [InlineData("working", true)]
+    [InlineData("idle", true)]
+    [InlineData("error", true)]
+    [InlineData("ERROR", false)]
+    [InlineData("crashed", false)]
+    [InlineData(null, false)]
+    public void Presence_state_accepts_working_idle_error_only(string? state, bool ok) =>
+        Assert.Equal(ok, BotPresenceReporter.IsPresenceState(state)); // false → endpoint trả 400
+
+    [Fact]
+    public void Error_report_is_not_busy_and_carries_one_line_clipped_error()
+    {
+        var taskId = Guid.NewGuid();
+        var projectId = Guid.NewGuid();
+        var (busy, task, activity, error) = BotPresenceReporter.Presence(new BotPresenceReport(BotWork.Error,
+            Task: "WEB-12 · Sửa form đăng nhập", Activity: "bỏ qua", Error: "Hết hạn\r\n token\u001b[31m " + new string('x', 60), TaskId: taskId, ProjectId: projectId));
+        Assert.False(busy);
+        Assert.Null(task);
+        Assert.NotNull(error);
+        Assert.DoesNotContain(error.Text, c => char.IsControl(c));
+        Assert.Equal(BotWork.MaxError + 1, error.Text.Length); // 40 ký tự + "…"
+        Assert.StartsWith("Hết hạn token [31m x", error.Text);
+        Assert.EndsWith("…", error.Text);
+        Assert.Equal("WEB-12 · Sửa form đăng nhập", error.Task);
+        Assert.Equal(taskId, error.TaskId);
+        Assert.Equal(projectId, error.ProjectId);
+        Assert.StartsWith("⚠ WEB-12 · Hết hạn token", activity);
+        Assert.True(activity.Length <= BotWork.MaxActivity + 1);
+    }
+
+    [Fact]
+    public void Error_report_without_task_or_text_falls_back()
+    {
+        var (busy, task, activity, error) = BotPresenceReporter.Presence(new BotPresenceReport(BotWork.Error, Error: "  \n "));
+        Assert.False(busy);
+        Assert.Null(task);
+        Assert.Equal("⚠ Lỗi", activity);
+        Assert.Equal(new BotError("Lỗi", null, null, null), error);
+    }
+
+    [Fact]
+    public void Working_or_idle_clears_error()
+    {
+        var working = BotPresenceReporter.Presence(new BotPresenceReport(BotWork.Working, Task: "WEB-12 · Sửa form", Error: "cũ"));
+        Assert.True(working.Busy);
+        Assert.Equal("WEB-12 · Sửa form", working.Task);
+        Assert.Equal("WEB-12 · Sửa form", working.Activity);
+        Assert.Null(working.Error);
+
+        var idle = BotPresenceReporter.Presence(new BotPresenceReport(BotWork.Idle, Error: "cũ"));
+        Assert.False(idle.Busy);
+        Assert.Equal(BotWork.IdleBubble, idle.Activity);
+        Assert.Null(idle.Error);
     }
 }
