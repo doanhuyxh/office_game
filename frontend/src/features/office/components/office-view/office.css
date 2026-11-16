@@ -6,7 +6,15 @@
 .office-root .hud { position: absolute; inset: 0; pointer-events: none; }
 .office-root .hud > * { pointer-events: auto; }
 .office-root .card { position: absolute; background: rgba(15, 23, 42, .85); border: 1px solid rgba(148, 163, 184, .25); border-radius: 12px; padding: 8px 12px; backdrop-filter: blur(8px); }
-.office-root .me { top: 12px; left: 12px; display: grid; gap: 10px; padding: 10px; width: 232px; border-radius: 14px; box-shadow: 0 8px 24px rgba(2, 6, 23, .35); }
+/* Góc trên trái: thẻ tài khoản + nút "Hướng dẫn" (bảng hiện ngay dưới nút, TEST-129) */
+.office-root .top-left { position: absolute; top: 12px; left: 12px; display: flex; align-items: flex-start; gap: 8px; pointer-events: none; }
+.office-root .top-left > * { pointer-events: auto; }
+.office-root .help-anchor { position: relative; }
+.office-root .help-btn { position: static; display: grid; place-items: center; width: 32px; height: 32px; margin-top: 14px; padding: 0; border-radius: 50%; color: #e2e8f0; cursor: pointer; box-shadow: 0 8px 24px rgba(2, 6, 23, .35); }
+.office-root .help-btn:hover, .office-root .help-btn[aria-expanded=true] { background: rgba(59, 130, 246, .35); color: #fff; }
+.office-root .help-btn:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+@media (pointer: coarse) { .office-root .help-btn { width: 44px; height: 44px; margin-top: 8px; } }
+.office-root .me { position: relative; display: grid; gap: 10px; padding: 10px; width: 232px; border-radius: 14px; box-shadow: 0 8px 24px rgba(2, 6, 23, .35); }
 @media (min-width: 641px) { .office-root .me:not(.open) { width: auto; max-width: 232px; } }
 .office-root .me-head { display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .office-root .me-caret { flex: none; margin-left: auto; font-size: 12px; color: #94a3b8; }
@@ -54,7 +62,7 @@
 .office-root .camera { top: 206px; right: 12px; display: flex; gap: 4px; padding: 4px; }
 .office-root .camera button { width: 32px; height: 30px; border: 0; border-radius: 8px; background: rgba(148, 163, 184, .18); color: inherit; font: 700 15px system-ui; cursor: pointer; }
 .office-root .camera button:hover { background: rgba(148, 163, 184, .35); }
-.office-root .help { top: 76px; left: 12px; display: grid; gap: 4px; font-size: 13px; max-width: 290px; }
+.office-root .help { top: calc(100% + 8px); left: 0; z-index: 8; display: grid; gap: 4px; font-size: 13px; width: 290px; max-width: calc(100vw - 24px); }
 .office-root .help button { justify-self: start; margin-top: 4px; padding: 4px 10px; border: 0; border-radius: 8px; background: #3b82f6; color: #fff; font: 600 12px system-ui; cursor: pointer; }
 .office-root .help kbd { margin-right: 2px; }
 .office-root .voice { right: 12px; bottom: 76px; display: grid; gap: 6px; width: 260px; font-size: 13px; }
@@ -162,8 +170,12 @@
   .office-root .camera { top: auto; bottom: 156px; right: 12px; }
   .office-root .zone { display: none; }
   .office-root .prompt { bottom: 160px; max-width: calc(100vw - 32px); }
-  .office-root .help { left: 12px; right: 12px; width: auto; }
-  .office-root .avatar-prompt { top: 80px; left: 12px; transform: none; width: calc(100vw - 168px); }
+  /* Hàng trên đã chật (thẻ tên + thẻ trạng thái) → nút "Hướng dẫn" xuống ngay dưới thẻ tên */
+  .office-root .top-left { flex-direction: column; gap: 6px; }
+  .office-root .help-btn { margin-top: 0; }
+  /* Bảng phủ ngang màn hình ngay dưới nút (12 + thẻ tên 46 + 6 + nút 44 + 8) */
+  .office-root .help { position: fixed; top: 116px; left: 12px; right: 12px; width: auto; max-width: none; }
+  .office-root .avatar-prompt { top: 116px; left: 12px; transform: none; width: calc(100vw - 168px); }
   /* Thẻ tài khoản thu gọn: avatar + tên, chạm để mở menu */
   .office-root .me { width: auto; max-width: calc(100vw - 180px); padding: 6px 10px 6px 6px; gap: 6px; }
   .office-root .me-head { gap: 8px; }

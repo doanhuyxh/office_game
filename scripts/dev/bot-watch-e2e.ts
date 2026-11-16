@@ -122,12 +122,11 @@ ok('bơm 2 sự kiện đầu (đệm phiên)', first.status === 200 && first.bo
 // ---------- Chrome máy tính ----------
 const sig = await import(new URL('../../frontend/node_modules/@microsoft/signalr/dist/esm/index.js', import.meta.url).href) as typeof import('../../frontend/node_modules/@microsoft/signalr');
 const pc = await launch(9341, `${tmpdir()}/bw-chrome-h1-${stamp}`, 1440, 900);
-/** Chờ cảnh 3D sẵn sàng (đã vào, hub online, thấy bot B) rồi tắt thẻ Hướng dẫn (che một mảng màn hình — nhất là trên điện thoại) để bấm tới được canvas. */
+/** Chờ cảnh 3D sẵn sàng (đã vào, hub online, thấy bot B). Bảng Hướng dẫn mặc định đóng (TEST-129) nên không cần tắt trước khi bấm canvas. */
 const ready = async (p: typeof pc) => {
   for (let i = 0; i < 60; i++) {
     const ok = await p.evalJs(`!!(window.__officeScene && window.__officeScene.myPosition() && document.querySelector('.office-root .status .dot.online') && window.__officeScene.botInfo(${JSON.stringify(B.userId)}))`);
     if (ok) {
-      await p.evalJs(`document.querySelector('[data-testid=office-help] button')?.click()`);
       return true;
     }
     await p.sleep(500);

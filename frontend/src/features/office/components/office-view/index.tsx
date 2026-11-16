@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { toast } from 'sonner';
+import { CircleHelp } from 'lucide-react';
 import { useCheck, useToday } from '@/features/attendance';
 import { useMe } from '@/features/auth';
 import { NotificationBell, usePushForeground } from '@/features/notifications';
@@ -75,7 +76,9 @@ export function OfficeView() {
       scene.setRoomStatus(r.roomId, text, !!a || !!r.current);
     }
   }, [scene, roomsNow.data, agentSessions.data]);
-  const [help, setHelp] = useState(true);
+  // Bảng hướng dẫn "Điều khiển": mặc định đóng, mở bằng nút cạnh thẻ tài khoản / phím H, ? (TEST-129); không lưu trạng thái
+  const [help, setHelp] = useState(false);
+  const helpRef = useRef<HTMLDivElement>(null);
   // Chat: kênh toàn văn phòng + kênh phòng có tường đang đứng (đổi tự động theo vị trí)
   const [roomCh, setRoomCh] = useState<VoiceChannelInfo | null>(null);
   const [voice, setVoice] = useState<VoiceClient | null>(null);
@@ -204,6 +207,31 @@ export function OfficeView() {
     return () => { removeEventListener('pointerdown', onDown, true); removeEventListener('keydown', onKey); };
   }, [meOpen]);
 
+  // Phím H / ?: bật / tắt bảng hướng dẫn khi không đang gõ (TEST-129)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || typingTarget(e)) return;
+      if (e.key.toLowerCase() !== 'h' && e.key !== '?') return;
+      setHelp((h) => !h);
+    };
+    addEventListener('keydown', onKey);
+    return () => removeEventListener('keydown', onKey);
+  }, []);
+
+  // Bảng hướng dẫn đang mở → đóng khi bấm ra ngoài (nút + bảng) hoặc Esc (như thẻ tài khoản: bỏ qua khi có hộp thoại / đang gõ)
+  useEffect(() => {
+    if (!help) return;
+    const onDown = (e: PointerEvent) => { if (!helpRef.current?.contains(e.target as Node | null)) setHelp(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || typingTarget(e)) return;
+      if (document.querySelector('[role=dialog], [role=alertdialog]')) return;
+      setHelp(false);
+    };
+    addEventListener('pointerdown', onDown, true);
+    addEventListener('keydown', onKey);
+    return () => { removeEventListener('pointerdown', onDown, true); removeEventListener('keydown', onKey); };
+  }, [help]);
+
   // Phím M: bật / tắt micro khi đang trong voice
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -311,27 +339,59 @@ export function OfficeView() {
       onDrop={(e) => void onDrop(e)}>
       <div ref={hostRef} className="scene" />
       <div className="hud">
-        <div ref={meRef} className={`card me ${meOpen ? 'open' : ''}`}>
-          {/* Thu gọn chỉ còn avatar + tên + mũi tên, bấm / Enter để mở chip vai trò + các nút (CSS ẩn khi chưa .open, TEST-116) */}
-          <div className="me-head" role="button" tabIndex={0} aria-expanded={meOpen} onClick={() => setMeOpen((o) => !o)}
-            onKeyDown={(e) => { if (e.key === 'Enter') setMeOpen((o) => !o); }}>
-            <span className="me-avatar" aria-hidden>{(me?.fullName ?? '?').trim().split(/\s+/).slice(-1)[0]?.charAt(0).toUpperCase()}</span>
-            <div className="me-info">
-              <b>{me?.fullName ?? '…'}</b>
-              <div className="me-roles">
-                {me?.roles.map((r) => <span key={r} className="chip">{r}</span>)}
+        <div className="top-left">
+          <div ref={meRef} className={`card me ${meOpen ? 'open' : ''}`}>
+            {/* Thu gọn chỉ còn avatar + tên + mũi tên, bấm / Enter để mở chip vai trò + các nút (CSS ẩn khi chưa .open, TEST-116) */}
+            <div className="me-head" role="button" tabIndex={0} aria-expanded={meOpen} onClick={() => setMeOpen((o) => !o)}
+              onKeyDown={(e) => { if (e.key === 'Enter') setMeOpen((o) => !o); }}>
+              <span className="me-avatar" aria-hidden>{(me?.fullName ?? '?').trim().split(/\s+/).slice(-1)[0]?.charAt(0).toUpperCase()}</span>
+              <div className="me-info">
+                <b>{me?.fullName ?? '…'}</b>
+                <div className="me-roles">
+                  {me?.roles.map((r) => <span key={r} className="chip">{r}</span>)}
+                </div>
               </div>
+              <span className="me-caret" aria-hidden>{meOpen ? '▴' : '▾'}</span>
             </div>
-            <span className="me-caret" aria-hidden>{meOpen ? '▴' : '▾'}</span>
+            {/* Chọn một mục → thu gọn thẻ (click nổi bọt lên đây sau khi nút đã xử lý) */}
+            <div className="me-actions" onClick={(e) => { if ((e.target as HTMLElement).closest('.act')) setMeOpen(false); }}>
+              <Link to={PATHS.dashboard} className="act">🏢 Cổng nhân sự</Link>
+              <button type="button" className="act" onClick={() => setEditorOpen(true)} data-testid="office-avatar">👤 Nhân vật</button>
+              <button type="button" className="act" onClick={() => setDocs({ kind: 'browse', space: defaultSpace(), title: '📁 Tài liệu', present: !!roomCh })} data-testid="office-docs-open">📁 Tài liệu</button>
+              {/* Mở tab mới để văn phòng ảo giữ kết nối; quyền xem do API của trang kiểm tra (TEST-108) */}
+              <Link to={PATHS.projects} target="_blank" rel="noopener" className="act" data-testid="office-projects-open">📋 Dự án</Link>
+              <Link to={PATHS.approvals} target="_blank" rel="noopener" className="act" data-testid="office-approvals-open">✅ Phê duyệt</Link>
+            </div>
           </div>
-          {/* Chọn một mục → thu gọn thẻ (click nổi bọt lên đây sau khi nút đã xử lý) */}
-          <div className="me-actions" onClick={(e) => { if ((e.target as HTMLElement).closest('.act')) setMeOpen(false); }}>
-            <Link to={PATHS.dashboard} className="act">🏢 Cổng nhân sự</Link>
-            <button type="button" className="act" onClick={() => setEditorOpen(true)} data-testid="office-avatar">👤 Nhân vật</button>
-            <button type="button" className="act" onClick={() => setDocs({ kind: 'browse', space: defaultSpace(), title: '📁 Tài liệu', present: !!roomCh })} data-testid="office-docs-open">📁 Tài liệu</button>
-            {/* Mở tab mới để văn phòng ảo giữ kết nối; quyền xem do API của trang kiểm tra (TEST-108) */}
-            <Link to={PATHS.projects} target="_blank" rel="noopener" className="act" data-testid="office-projects-open">📋 Dự án</Link>
-            <Link to={PATHS.approvals} target="_blank" rel="noopener" className="act" data-testid="office-approvals-open">✅ Phê duyệt</Link>
+          {/* Nút "Hướng dẫn" cạnh thẻ tài khoản; bảng hiện ngay dưới nút (TEST-129) */}
+          <div ref={helpRef} className="help-anchor">
+            <button type="button" className="card help-btn" onClick={() => setHelp((h) => !h)} aria-label="Hướng dẫn điều khiển"
+              aria-expanded={help} title="Hướng dẫn điều khiển (H)" data-testid="office-help-open">
+              <CircleHelp size={18} aria-hidden />
+            </button>
+            {help && (
+              <div className="card help" data-testid="office-help">
+                <b>Điều khiển</b>
+                {IS_TOUCH ? <>
+                  <span>Kéo joystick góc dưới trái · đi</span>
+                  <span>Chạm lên sàn / bản đồ nhỏ · tự đi tới</span>
+                  <span>Chạm khung gợi ý · ngồi / đứng, chấm công ở máy</span>
+                  <span>⟲ ⟳ xoay góc nhìn · ＋ － zoom · Tin nhắn góc dưới trái</span>
+                </> : <>
+                  <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / mũi tên · đi</span>
+                  <span>Bấm chuột lên sàn / bản đồ nhỏ · tự đi tới</span>
+                  <span><kbd>E</kbd> · ngồi / đứng, chấm công ở máy</span>
+                  <span><kbd>Q</kbd> <kbd>R</kbd> · xoay góc nhìn · cuộn chuột · zoom</span>
+                  <span><kbd>M</kbd> · bật / tắt micro (voice tự kết nối, micro mặc định tắt)</span>
+                  <span><kbd>H</kbd> / <kbd>?</kbd> · bật / tắt bảng hướng dẫn này · <kbd>Esc</kbd> · đóng</span>
+                </>}
+                <span>Vào phòng có tường (phòng họp…) → khung chat tự mở kênh của phòng</span>
+                <span>{IS_TOUCH ? 'Chạm' : 'Bấm'} vào nhân vật · nhắn tin riêng, đi tới cạnh; bot AI (nhãn tím) · xem bot đang làm gì khi đứng gần</span>
+                <span>Vòng đỏ nhấp nháy dưới chân bot · job lỗi; vòng vàng · có việc chờ người duyệt / phản hồi (bấm "lỗi" / "chờ" trên thanh trạng thái để xem)</span>
+                <span>📁 Tài liệu · tủ hồ sơ / kệ thư viện / bảng tin · <kbd>E</kbd> mở kho; màn hình phòng họp · chiếu tài liệu; kéo thả file vào để tải lên</span>
+                <button type="button" onClick={() => setHelp(false)}>Đã hiểu</button>
+              </div>
+            )}
           </div>
         </div>
         {account && !hasLook && avatarPrompt && conn === 'online' && (
@@ -376,30 +436,7 @@ export function OfficeView() {
             <button type="button" onClick={() => scene?.zoom(-1)} title="Phóng to">＋</button>
             <button type="button" onClick={() => scene?.zoom(1)} title="Thu nhỏ">－</button>
           </>}
-          <button type="button" onClick={() => setHelp((h) => !h)} title="Hướng dẫn">?</button>
         </div>
-        {help && (
-          <div className="card help" data-testid="office-help">
-            <b>Điều khiển</b>
-            {IS_TOUCH ? <>
-              <span>Kéo joystick góc dưới trái · đi</span>
-              <span>Chạm lên sàn / bản đồ nhỏ · tự đi tới</span>
-              <span>Chạm khung gợi ý · ngồi / đứng, chấm công ở máy</span>
-              <span>⟲ ⟳ xoay góc nhìn · ＋ － zoom · Tin nhắn góc dưới trái</span>
-            </> : <>
-              <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / mũi tên · đi</span>
-              <span>Bấm chuột lên sàn / bản đồ nhỏ · tự đi tới</span>
-              <span><kbd>E</kbd> · ngồi / đứng, chấm công ở máy</span>
-              <span><kbd>Q</kbd> <kbd>R</kbd> · xoay góc nhìn · cuộn chuột · zoom</span>
-              <span><kbd>M</kbd> · bật / tắt micro (voice tự kết nối, micro mặc định tắt)</span>
-            </>}
-            <span>Vào phòng có tường (phòng họp…) → khung chat tự mở kênh của phòng</span>
-            <span>{IS_TOUCH ? 'Chạm' : 'Bấm'} vào nhân vật · nhắn tin riêng, đi tới cạnh; bot AI (nhãn tím) · xem bot đang làm gì khi đứng gần</span>
-            <span>Vòng đỏ nhấp nháy dưới chân bot · job lỗi; vòng vàng · có việc chờ người duyệt / phản hồi (bấm "lỗi" / "chờ" trên thanh trạng thái để xem)</span>
-            <span>📁 Tài liệu · tủ hồ sơ / kệ thư viện / bảng tin · <kbd>E</kbd> mở kho; màn hình phòng họp · chiếu tài liệu; kéo thả file vào để tải lên</span>
-            <button type="button" onClick={() => setHelp(false)}>Đã hiểu</button>
-          </div>
-        )}
         <VoicePanel voice={voice} view={voiceView} />
         <ScreenView screen={voiceView.screen} count={voiceView.screenCount} />
         <ScreenDocPanel screen={screen} onClear={clearScreen} />
