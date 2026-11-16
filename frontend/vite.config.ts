@@ -2,7 +2,7 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
-import { legacyColorFallback } from './scripts/legacy-color-fallback';
+import { legacyColorFallback } from './scripts/legacy-color-fallback.ts';
 
 const shared = fileURLToPath(new URL('../shared', import.meta.url));
 
