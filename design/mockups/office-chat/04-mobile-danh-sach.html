@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="vi">
+<!-- Mockup tĩnh (2026-11-16) — chat đầy đủ trong văn phòng 3D. Xem README.md. Cảnh 3D chỉ là nền vẽ đơn giản; phần chat / HUD là thiết kế cần làm. -->
+<head>
+<meta charset="utf-8">
+<title>Điện thoại — danh sách hội thoại</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{margin:0}
+a{color:#93c5fd}a:hover{color:#bfdbfe}
+</style>
+</head>
+<body>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.45; color: #e2e8f0; background-color: #e9eef5; background-image: linear-gradient(rgba(148,163,184,.2) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,.2) 1px, transparent 1px); background-size: 40px 40px">
+
+  <div aria-hidden="true" style="position: absolute; left: 30px; top: 690px; width: 90px; height: 40px; border-radius: 6px; background: #e8c79d"></div>
+  <div aria-hidden="true" style="position: absolute; left: 260px; top: 680px; width: 90px; height: 40px; border-radius: 6px; background: #e8c79d"></div>
+
+  <div style="position: absolute; top: 12px; left: 12px; right: 12px; display: flex; align-items: center; gap: 8px">
+    <div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px 6px 6px; border-radius: 12px; background: rgba(15,23,42,.85); border: 1px solid rgba(148,163,184,.25)">
+      <span style="width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #ffffff; background: #2563eb; font-size: 13px">C</span>
+      <b style="font-size: 13px">CTHDQT</b>
+    </div>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 12px; background: rgba(15,23,42,.85); border: 1px solid rgba(148,163,184,.25); font-size: 12px">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: #22c55e"></span>12 · 3 AI
+    </div>
+  </div>
+
+  <section aria-label="Tin nhắn" style="position: absolute; left: 16px; right: 16px; top: 60px; height: 520px; display: flex; flex-direction: column; border-radius: 16px; background: rgba(15,23,42,.95); border: 1px solid rgba(148,163,184,.25); box-shadow: 0 16px 40px rgba(2,6,23,.4); overflow: hidden">
+    <header style="flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 14px; border-bottom: 1px solid rgba(148,163,184,.18)">
+      <b style="font-size: 15px">Tin nhắn</b>
+      <span style="margin-left: auto; display: flex; gap: 6px">
+        <button type="button" aria-label="Tin nhắn mới / tạo nhóm" style="width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 10px; background: #2563eb; color: #ffffff"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></button>
+        <button type="button" aria-label="Thu gọn chat" style="width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 10px; background: rgba(148,163,184,.16); color: #e2e8f0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg></button>
+      </span>
+    </header>
+    <div style="flex: none; padding: 10px 12px 6px">
+      <label style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 10px; background: rgba(30,41,59,.9); border: 1px solid rgba(148,163,184,.22); color: #94a3b8">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+        <input type="text" placeholder="Tìm người, nhóm…" aria-label="Tìm hội thoại" style="width: 100%; border: 0; outline: none; background: transparent; color: #e2e8f0; font: inherit">
+      </label>
+    </div>
+    <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 0 6px 8px; display: flex; flex-direction: column; gap: 2px">
+      
+        <a href="05-mobile-hoi-thoai.html" style="display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px; border-radius: 10px; color: inherit; text-decoration: none">
+          <span style="flex: none; position: relative; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #ffffff; background: #334155">PH</span>
+          <span style="flex: 1; min-width: 0; display: grid; gap: 1px">
+            <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+              <b style="font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Phòng họp nhỏ</b>
+              <span style="flex: none; padding: 0 6px; border-radius: 4px; background: rgba(34,197,94,.2); color: #86efac; font-size: 10px; font-weight: 700">ĐANG Ở ĐÂY</span>
+              <span style="margin-left: auto; flex: none; font-size: 11px; color: #94a3b8">17:08</span>
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+              <span style="flex: 1; min-width: 0; font-size: 13px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Phạm Thu Hà: @CTHDQT anh xem giúp em…</span>
+              <span style="flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: #2563eb; color: #ffffff; font-size: 11px; font-weight: 700; line-height: 20px; text-align: center">1</span>
+            </span>
+          </span>
+        </a>
+      
+        <a href="05-mobile-hoi-thoai.html" style="display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px; border-radius: 10px; color: inherit; text-decoration: none">
+          <span style="flex: none; position: relative; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #ffffff; background: #475569">VP</span>
+          <span style="flex: 1; min-width: 0; display: grid; gap: 1px">
+            <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+              <b style="font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Toàn văn phòng</b>
+              
+              <span style="margin-left: auto; flex: none; font-size: 11px; color: #94a3b8">16:58</span>
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+              <span style="flex: 1; min-width: 0; font-size: 13px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Lê Hoàng Nam: 3h họp toàn công ty nhé</span>
+              <span style="flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: #2563eb; color: #ffffff; font-size: 11px; font-weight: 700; line-height: 20px; text-align: center">2</span>
+            </span>
+          </span>
+        </a>
+      
+        <a href="05-mobile-hoi-thoai.html" style="display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px; border-radius: 10px; color: inherit; text-decoration: none">
+          <span style="flex: none; position: relative; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #ffffff; background: #db2777">MA</span>
+          <span style="flex: 1; min-width: 0; display: grid; gap: 1px">
+            <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+              <b style="font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Trần Minh Anh</b>
+              
+              <span style="margin-left: auto; flex: none; font-size: 11px; color: #94a3b8">17:05</span>
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+              <span style="flex: 1; min-width: 0; font-size: 13px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Dạ ok anh, em sửa ngay.</span>
+              
+            </span>
+          </span>
+        </a>
+      
+        <a href="05-mobile-hoi-thoai.html" style="display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px; border-radius: 10px; color: inherit; text-decoration: none">
+          <span style="flex: none; position: relative; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #ffffff; background: #0d9488">TK</span>
+          <span style="flex: 1; min-width: 0; display: grid; gap: 1px">
+            <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+              <b style="font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Nhóm Thiết kế web</b>
+              
+              <span style="margin-left: auto; flex: none; font-size: 11px; color: #94a3b8">16:40</span>
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+              <span style="flex: 1; min-width: 0; font-size: 13px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Phạm Thu Hà: Đã cập nhật mockup</span>
+              <span style="flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: #2563eb; color: #ffffff; font-size: 11px; font-weight: 700; line-height: 20px; text-align: center">3</span>
+            </span>
+          </span>
+        </a>
+      
+        <a href="05-mobile-hoi-thoai.html" style="display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px; border-radius: 10px; color: inherit; text-decoration: none">
+          <span style="flex: none; position: relative; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #ffffff; background: #7c3aed">DF</span>
+          <span style="flex: 1; min-width: 0; display: grid; gap: 1px">
+            <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+              <b style="font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Dev Full-Stack</b>
+              
+              <span style="margin-left: auto; flex: none; font-size: 11px; color: #94a3b8">Hôm qua</span>
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+              <span style="flex: 1; min-width: 0; font-size: 13px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Đã xong TEST-117, đang chờ review</span>
+              <span style="flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: #2563eb; color: #ffffff; font-size: 11px; font-weight: 700; line-height: 20px; text-align: center">1</span>
+            </span>
+          </span>
+        </a>
+      
+        <a href="05-mobile-hoi-thoai.html" style="display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px; border-radius: 10px; color: inherit; text-decoration: none">
+          <span style="flex: none; position: relative; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #ffffff; background: #ea580c">QB</span>
+          <span style="flex: 1; min-width: 0; display: grid; gap: 1px">
+            <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+              <b style="font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Nguyễn Quốc Bảo</b>
+              
+              <span style="margin-left: auto; flex: none; font-size: 11px; color: #94a3b8">Thứ 6</span>
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+              <span style="flex: 1; min-width: 0; font-size: 13px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Cảm ơn anh!</span>
+              
+            </span>
+          </span>
+        </a>
+      
+        <a href="05-mobile-hoi-thoai.html" style="display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px; border-radius: 10px; color: inherit; text-decoration: none">
+          <span style="flex: none; position: relative; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #ffffff; background: #0891b2">HN</span>
+          <span style="flex: 1; min-width: 0; display: grid; gap: 1px">
+            <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+              <b style="font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Lê Hoàng Nam</b>
+              
+              <span style="margin-left: auto; flex: none; font-size: 11px; color: #94a3b8">12/11</span>
+            </span>
+            <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+              <span style="flex: 1; min-width: 0; font-size: 13px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Bạn: Ok</span>
+              
+            </span>
+          </span>
+        </a>
+      
+    </div>
+  </section>
+
+  <div aria-hidden="true" style="position: absolute; left: 20px; bottom: 28px; width: 120px; height: 120px; border-radius: 50%; background: rgba(15,23,42,.35); border: 2px solid rgba(148,163,184,.45); display: grid; place-items: center">
+    <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(59,130,246,.85)"></div>
+  </div>
+  <div style="position: absolute; right: 16px; bottom: 40px; display: grid; gap: 8px">
+    <button type="button" aria-label="Phóng to" style="width: 48px; height: 48px; border: 0; border-radius: 12px; background: rgba(15,23,42,.85); color: #e2e8f0; font: 700 20px system-ui">+</button>
+    <button type="button" aria-label="Thu nhỏ" style="width: 48px; height: 48px; border: 0; border-radius: 12px; background: rgba(15,23,42,.85); color: #e2e8f0; font: 700 20px system-ui">−</button>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="vi">
+<!-- Mockup tĩnh (2026-11-16) — chat đầy đủ trong văn phòng 3D. Xem README.md. Cảnh 3D chỉ là nền vẽ đơn giản; phần chat / HUD là thiết kế cần làm. -->
+<head>
+<meta charset="utf-8">
+<title>Văn phòng 3D — chat 1-1</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{margin:0}
+a{color:#93c5fd}a:hover{color:#bfdbfe}
+</style>
+</head>
+<body>
+<div style="position: relative; width: 100%; height: 900px; overflow: hidden; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.45; color: #e2e8f0; background: #e4ebf3">
+
+  <!-- Cảnh 3D (giả lập) -->
+  <div aria-hidden="true" style="position: absolute; inset: 0; background-color: #e9eef5; background-image: linear-gradient(rgba(148,163,184,.18) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,.18) 1px, transparent 1px); background-size: 48px 48px">
+    <div style="position: absolute; left: 0; right: 0; top: 0; height: 190px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-bottom: 5px solid #60a5fa">
+      <div style="border-right: 5px solid #60a5fa; background: rgba(219,234,254,.55)"></div>
+      <div style="border-right: 5px solid #60a5fa; background: rgba(219,234,254,.55)"></div>
+      <div style="border-right: 5px solid #60a5fa; background: rgba(219,234,254,.55)"></div>
+      <div style="background: rgba(219,234,254,.55)"></div>
+    </div>
+    
+      <div style="position: absolute; left: 880px; top: 300px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 1010px; top: 300px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 1140px; top: 300px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 1270px; top: 300px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 880px; top: 470px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 1010px; top: 470px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 1140px; top: 470px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 1270px; top: 470px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 880px; top: 640px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 1010px; top: 640px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 1140px; top: 640px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 1270px; top: 640px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+    
+      <div style="position: absolute; left: 1030px; top: 250px; display: flex; flex-direction: column; align-items: center">
+        <div style="width: 26px; height: 26px; border-radius: 50%; background: #db2777; border: 2px solid #ffffff; box-shadow: 0 3px 6px rgba(15,23,42,.3)"></div>
+        <div style="margin-top: 4px; padding: 1px 8px; border-radius: 999px; background: rgba(15,23,42,.78); color: #ffffff; font-size: 11px; font-weight: 600; white-space: nowrap">Trần Minh Anh</div>
+      </div>
+    
+      <div style="position: absolute; left: 1190px; top: 420px; display: flex; flex-direction: column; align-items: center">
+        <div style="width: 26px; height: 26px; border-radius: 50%; background: #0891b2; border: 2px solid #ffffff; box-shadow: 0 3px 6px rgba(15,23,42,.3)"></div>
+        <div style="margin-top: 4px; padding: 1px 8px; border-radius: 999px; background: rgba(15,23,42,.78); color: #ffffff; font-size: 11px; font-weight: 600; white-space: nowrap">Lê Hoàng Nam</div>
+      </div>
+    
+      <div style="position: absolute; left: 960px; top: 560px; display: flex; flex-direction: column; align-items: center">
+        <div style="width: 26px; height: 26px; border-radius: 50%; background: #2563eb; border: 2px solid #ffffff; box-shadow: 0 3px 6px rgba(15,23,42,.3)"></div>
+        <div style="margin-top: 4px; padding: 1px 8px; border-radius: 999px; background: rgba(37,99,235,.92); color: #ffffff; font-size: 11px; font-weight: 600; white-space: nowrap">CTHDQT</div>
+      </div>
+    
+      <div style="position: absolute; left: 1300px; top: 590px; display: flex; flex-direction: column; align-items: center">
+        <div style="width: 26px; height: 26px; border-radius: 50%; background: #7c3aed; border: 2px solid #ffffff; box-shadow: 0 3px 6px rgba(15,23,42,.3)"></div>
+        <div style="margin-top: 4px; padding: 1px 8px; border-radius: 999px; background: rgba(124,58,237,.92); color: #ffffff; font-size: 11px; font-weight: 600; white-space: nowrap">AI · Dev Full-Stack</div>
+      </div>
+    
+      <div style="position: absolute; left: 880px; top: 120px; display: flex; flex-direction: column; align-items: center">
+        <div style="width: 26px; height: 26px; border-radius: 50%; background: #16a34a; border: 2px solid #ffffff; box-shadow: 0 3px 6px rgba(15,23,42,.3)"></div>
+        <div style="margin-top: 4px; padding: 1px 8px; border-radius: 999px; background: rgba(15,23,42,.78); color: #ffffff; font-size: 11px; font-weight: 600; white-space: nowrap">Phạm Thu Hà</div>
+      </div>
+    
+  </div>
+
+  <!-- HUD: thẻ của tôi -->
+  <div style="position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: rgba(15,23,42,.85); border: 1px solid rgba(148,163,184,.25)">
+    <div style="width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #ffffff; background: #2563eb">C</div>
+    <b style="font-size: 14px">CTHDQT</b>
+  </div>
+  <div style="position: absolute; top: 12px; left: 50%; transform: translateX(-50%); padding: 8px 14px; border-radius: 12px; background: rgba(15,23,42,.85); border: 1px solid rgba(148,163,184,.25); font-weight: 600">Khu làm việc chung</div>
+
+  <!-- HUD: trạng thái + chuông + nút chat có số chưa đọc -->
+  <div style="position: absolute; top: 12px; right: 12px; display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 12px; border-radius: 12px; background: rgba(15,23,42,.85); border: 1px solid rgba(148,163,184,.25)">
+    <span style="width: 9px; height: 9px; border-radius: 50%; background: #22c55e"></span>
+    <span>12 người online · 3 AI</span>
+    <button type="button" aria-label="Thông báo" style="width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: #e2e8f0">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+    </button>
+    <button type="button" aria-label="Tin nhắn, 6 chưa đọc" style="position: relative; width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 8px; background: rgba(37,99,235,.35); color: #ffffff">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+      <span style="position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #ef4444; color: #ffffff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center">6</span>
+    </button>
+  </div>
+  <div aria-hidden="true" style="position: absolute; top: 64px; right: 12px; width: 216px; height: 96px; border-radius: 10px; background: #f1f5f9; border: 1px solid rgba(148,163,184,.5)">
+    <div style="position: absolute; left: 0; right: 0; top: 0; height: 26px; background: #dbe7f5; border-bottom: 2px solid #334155"></div>
+    <div style="position: absolute; left: 92px; top: 52px; width: 8px; height: 8px; border-radius: 50%; background: #2563eb"></div>
+    <div style="position: absolute; left: 140px; top: 46px; width: 7px; height: 7px; border-radius: 50%; background: #f97316"></div>
+    <div style="position: absolute; left: 60px; top: 70px; width: 7px; height: 7px; border-radius: 50%; background: #f97316"></div>
+    <div style="position: absolute; left: 172px; top: 72px; width: 7px; height: 7px; border-radius: 50%; background: #7c3aed"></div>
+  </div>
+  <button type="button" style="position: absolute; right: 12px; bottom: 12px; padding: 10px 16px; border: 0; border-radius: 12px; background: #2563eb; color: #ffffff; font: inherit; font-weight: 700; text-align: left">Chấm vào<br><small style="font-weight: 500; opacity: .85">Ca 08:30 – 17:30</small></button>
+
+  <!-- KHUNG CHAT NỔI (mới) -->
+  <section aria-label="Tin nhắn" style="position: absolute; left: 24px; bottom: 24px; width: 780px; height: 560px; display: flex; flex-direction: column; border-radius: 14px; background: rgba(15,23,42,.94); border: 1px solid rgba(148,163,184,.25); box-shadow: 0 20px 48px rgba(2,6,23,.45); overflow: hidden">
+    <header style="flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid rgba(148,163,184,.18); cursor: move">
+      <b style="font-size: 14px">Tin nhắn</b>
+      <span style="font-size: 12px; color: #94a3b8">kéo để di chuyển</span>
+      <span style="margin-left: auto; display: flex; gap: 4px">
+        <button type="button" aria-label="Thu gọn danh sách" style="width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px; background: rgba(148,163,184,.16); color: #e2e8f0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M9 3v18"></path></svg></button>
+        <button type="button" aria-label="Thu về góc" style="width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px; background: rgba(148,163,184,.16); color: #e2e8f0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14h6v6"></path><path d="M20 10h-6V4"></path><path d="M14 10l7-7"></path><path d="M3 21l7-7"></path></svg></button>
+        <button type="button" aria-label="Đóng chat" style="width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px; background: rgba(148,163,184,.16); color: #e2e8f0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg></button>
+      </span>
+    </header>
+    <div style="flex: 1; min-height: 0; display: flex">
+
+      <!-- Danh sách hội thoại -->
+      <aside style="flex: none; width: 272px; display: flex; flex-direction: column; border-right: 1px solid rgba(148,163,184,.18)">
+        <div style="flex: none; display: flex; gap: 6px; padding: 10px">
+          <label style="flex: 1; display: flex; align-items: center; gap: 6px; padding: 0 10px; height: 34px; border-radius: 9px; background: rgba(30,41,59,.9); border: 1px solid rgba(148,163,184,.22); color: #94a3b8">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+            <input type="text" placeholder="Tìm người, nhóm…" aria-label="Tìm hội thoại" style="width: 100%; border: 0; outline: none; background: transparent; color: #e2e8f0; font: inherit; font-size: 13px">
+          </label>
+          <button type="button" aria-label="Tin nhắn mới / tạo nhóm" style="flex: none; width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 9px; background: #2563eb; color: #ffffff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></button>
+        </div>
+        <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 0 6px 8px; display: flex; flex-direction: column; gap: 2px">
+          
+            <button type="button" style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 0; border-radius: 10px; color: inherit; font: inherit; cursor: pointer; background: transparent">
+              <span style="flex: none; position: relative; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #ffffff; background: #475569">VP</span>
+              <span style="flex: 1; min-width: 0; display: grid; gap: 1px; text-align: left">
+                <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+                  <b style="font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Toàn văn phòng</b>
+                  
+                  <span style="margin-left: auto; flex: none; font-size: 11px; color: #94a3b8">16:58</span>
+                </span>
+                <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+                  <span style="flex: 1; min-width: 0; font-size: 12px; color: #e2e8f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Lê Hoàng Nam: @CTHDQT 3h họp toàn công ty nhé</span>
+                  <span style="flex: none; width: 18px; height: 18px; border-radius: 50%; background: #f59e0b; color: #1f2937; font-size: 11px; font-weight: 800; line-height: 18px; text-align: center">@</span>
+                  <span style="flex: none; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #2563eb; color: #ffffff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center">2</span>
+                </span>
+              </span>
+            </button>
+          
+            <button type="button" style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 0; border-radius: 10px; color: inherit; font: inherit; cursor: pointer; background: rgba(37,99,235,.28)">
+              <span style="flex: none; position: relative; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #ffffff; background: #db2777">MA<span style="position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; background: #22c55e; border: 2px solid #0f172a"></span></span>
+              <span style="flex: 1; min-width: 0; display: grid; gap: 1px; text-align: left">
+                <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+                  <b style="font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Trần Minh Anh</b>
+                  
+                  <span style="margin-left: auto; flex: none; font-size: 11px; color: #94a3b8">17:05</span>
+                </span>
+                <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+                  <span style="flex: 1; min-width: 0; font-size: 12px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Dạ ok anh, em sửa ngay.</span>
+                  
+                  
+                </span>
+              </span>
+            </button>
+          
+            <button type="button" style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 0; border-radius: 10px; color: inherit; font: inherit; cursor: pointer; background: transparent">
+              <span style="flex: none; position: relative; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #ffffff; background: #0d9488">TK</span>
+              <span style="flex: 1; min-width: 0; display: grid; gap: 1px; text-align: left">
+                <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+                  <b style="font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Nhóm Thiết kế web</b>
+                  
+                  <span style="margin-left: auto; flex: none; font-size: 11px; color: #94a3b8">16:40</span>
+                </span>
+                <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+                  <span style="flex: 1; min-width: 0; font-size: 12px; color: #e2e8f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Phạm Thu Hà: Đã cập nhật mockup trang chủ</span>
+                  
+                  <span style="flex: none; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #2563eb; color: #ffffff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center">3</span>
+                </span>
+              </span>
+            </button>
+          
+            <button type="button" style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 0; border-radius: 10px; color: inherit; font: inherit; cursor: pointer; background: transparent">
+              <span style="flex: none; position: relative; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #ffffff; background: #334155">PH</span>
+              <span style="flex: 1; min-width: 0; display: grid; gap: 1px; text-align: left">
+                <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+                  <b style="font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Phòng họp lớn</b>
+                  
+                  <span style="margin-left: auto; flex: none; font-size: 11px; color: #94a3b8">11:20</span>
+                </span>
+                <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+                  <span style="flex: 1; min-width: 0; font-size: 12px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Bạn: Tóm tắt buổi họp sáng em gửi ở đây</span>
+                  
+                  
+                </span>
+              </span>
+            </button>
+          
+            <button type="button" style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 0; border-radius: 10px; color: inherit; font: inherit; cursor: pointer; background: transparent">
+              <span style="flex: none; position: relative; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #ffffff; background: #7c3aed">DF<span style="position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; background: #22c55e; border: 2px solid #0f172a"></span></span>
+              <span style="flex: 1; min-width: 0; display: grid; gap: 1px; text-align: left">
+                <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+                  <b style="font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Dev Full-Stack</b>
+                  <span style="flex: none; padding: 0 5px; border-radius: 4px; background: rgba(124,58,237,.3); color: #ddd6fe; font-size: 10px; font-weight: 700">BOT</span>
+                  <span style="margin-left: auto; flex: none; font-size: 11px; color: #94a3b8">Hôm qua</span>
+                </span>
+                <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+                  <span style="flex: 1; min-width: 0; font-size: 12px; color: #e2e8f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Đã xong TEST-117, đang chờ review</span>
+                  
+                  <span style="flex: none; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #2563eb; color: #ffffff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center">1</span>
+                </span>
+              </span>
+            </button>
+          
+            <button type="button" style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 0; border-radius: 10px; color: inherit; font: inherit; cursor: pointer; background: transparent">
+              <span style="flex: none; position: relative; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #ffffff; background: #ea580c">QB</span>
+              <span style="flex: 1; min-width: 0; display: grid; gap: 1px; text-align: left">
+                <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+                  <b style="font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Nguyễn Quốc Bảo</b>
+                  
+                  <span style="margin-left: auto; flex: none; font-size: 11px; color: #94a3b8">Thứ 6</span>
+                </span>
+                <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+                  <span style="flex: 1; min-width: 0; font-size: 12px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Cảm ơn anh!</span>
+                  
+                  
+                </span>
+              </span>
+            </button>
+          
+            <button type="button" style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 0; border-radius: 10px; color: inherit; font: inherit; cursor: pointer; background: transparent">
+              <span style="flex: none; position: relative; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #ffffff; background: #0891b2">HN<span style="position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; background: #22c55e; border: 2px solid #0f172a"></span></span>
+              <span style="flex: 1; min-width: 0; display: grid; gap: 1px; text-align: left">
+                <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+                  <b style="font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Lê Hoàng Nam</b>
+                  
+                  <span style="margin-left: auto; flex: none; font-size: 11px; color: #94a3b8">12/11</span>
+                </span>
+                <span style="display: flex; align-items: center; gap: 6px; min-width: 0">
+                  <span style="flex: 1; min-width: 0; font-size: 12px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Bạn: Ok</span>
+                  
+                  
+                </span>
+              </span>
+            </button>
+          
+        </div>
+      </aside>
+
+      <!-- Khung hội thoại 1-1 -->
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+        <div style="flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid rgba(148,163,184,.18)">
+          <span style="flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #ffffff; background: #db2777">MA</span>
+          <span style="flex: 1; min-width: 0; display: grid">
+            <b>Trần Minh Anh</b>
+            <span style="font-size: 12px; color: #94a3b8">Kinh doanh · đang trong văn phòng · cách bạn 8 m</span>
+          </span>
+          <button type="button" style="flex: none; display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: rgba(148,163,184,.16); color: #e2e8f0; font: inherit; font-size: 12px; font-weight: 600"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>Đi tới</button>
+          <button type="button" aria-label="Tìm trong hội thoại" style="flex: none; width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px; background: rgba(148,163,184,.16); color: #e2e8f0"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg></button>
+        </div>
+
+        <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+          <div style="align-self: center; padding: 2px 10px; border-radius: 999px; background: rgba(148,163,184,.16); color: #94a3b8; font-size: 11px; font-weight: 600">Hôm nay</div>
+
+          <div style="display: flex; gap: 8px; max-width: 78%">
+            <span style="flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #ffffff; background: #db2777">MA</span>
+            <div style="display: grid; gap: 4px">
+              <div style="padding: 8px 12px; border-radius: 14px 14px 14px 4px; background: #1e293b">Anh ơi, báo giá cho khách bên dự án SHOP-01 em làm xong rồi ạ. Anh xem giúp em trước 5h nhé.</div>
+              <span style="font-size: 11px; color: #94a3b8">16:52</span>
+            </div>
+          </div>
+
+          <div style="align-self: flex-end; display: grid; gap: 4px; justify-items: end; max-width: 72%">
+            <div style="padding: 8px 12px; border-radius: 14px 14px 4px 14px; background: #2563eb; color: #ffffff">Ok em, gửi anh file luôn nhé.</div>
+            <span style="font-size: 11px; color: #94a3b8">16:53 · Đã xem</span>
+          </div>
+
+          <div style="display: flex; gap: 8px; max-width: 78%">
+            <span style="flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #ffffff; background: #db2777">MA</span>
+            <div style="display: grid; gap: 6px">
+              <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #1e293b; border: 1px solid rgba(148,163,184,.22)">
+                <span style="flex: none; width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; background: rgba(34,197,94,.18); color: #4ade80"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg></span>
+                <span style="display: grid"><b style="font-size: 13px">bao-gia-shop-01-v2.xlsx</b><span style="font-size: 12px; color: #94a3b8">84 KB · Tải về</span></span>
+              </div>
+              <div role="img" aria-label="Ảnh đính kèm: chụp màn hình bảng giá" style="width: 260px; height: 150px; border-radius: 12px; background: linear-gradient(135deg, #334155, #1e293b); border: 1px solid rgba(148,163,184,.22); display: grid; place-items: center; color: #94a3b8; font-size: 12px">anh-bang-gia.png</div>
+              <span style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #94a3b8">16:58
+                <span style="padding: 1px 8px; border-radius: 999px; background: rgba(37,99,235,.25); border: 1px solid rgba(96,165,250,.5); color: #dbeafe; font-size: 12px">👍 1</span>
+              </span>
+            </div>
+          </div>
+
+          <div style="align-self: flex-end; display: grid; gap: 4px; justify-items: end; max-width: 72%">
+            <div style="padding: 8px 12px; border-radius: 14px 14px 4px 14px; background: #2563eb; color: #ffffff">Nhận rồi. Mục 3 em chỉnh chiết khấu về 8% giúp anh, xong mình chốt gửi khách.</div>
+            <span style="font-size: 11px; color: #94a3b8">17:04 · đã sửa</span>
+          </div>
+
+          <div style="display: flex; gap: 8px; max-width: 78%">
+            <span style="flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #ffffff; background: #db2777">MA</span>
+            <div style="display: grid; gap: 4px">
+              <div style="padding: 8px 12px; border-radius: 14px 14px 14px 4px; background: #1e293b">Dạ ok anh, em sửa ngay.</div>
+              <span style="font-size: 11px; color: #94a3b8">17:05</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ô soạn tin -->
+        <div style="flex: none; display: flex; align-items: flex-end; gap: 6px; padding: 10px 12px; border-top: 1px solid rgba(148,163,184,.18)">
+          <button type="button" aria-label="Đính kèm ảnh / tệp" style="flex: none; width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 9px; background: rgba(148,163,184,.16); color: #e2e8f0"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.4 11.1l-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"></path></svg></button>
+          <button type="button" aria-label="Chèn biểu tượng cảm xúc" style="flex: none; width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 9px; background: rgba(148,163,184,.16); color: #e2e8f0"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><path d="M9 9h.01"></path><path d="M15 9h.01"></path></svg></button>
+          <label style="flex: 1; display: block">
+            <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Nội dung tin nhắn</span>
+            <textarea rows="1" placeholder="Nhắn cho Trần Minh Anh… (Enter để gửi, Shift+Enter xuống dòng)" style="display: block; width: 100%; box-sizing: border-box; min-height: 36px; resize: none; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(148,163,184,.25); background: rgba(30,41,59,.9); color: #e2e8f0; font: inherit; outline: none"></textarea>
+          </label>
+          <button type="button" aria-label="Gửi" style="flex: none; width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 9px; background: #2563eb; color: #ffffff"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"></path><path d="M22 2l-7 20-4-9-9-4z"></path></svg></button>
+        </div>
+      </div>
+    </div>
+    <span aria-hidden="true" style="position: absolute; right: 3px; bottom: 3px; width: 14px; height: 14px; background: linear-gradient(135deg, transparent 50%, rgba(148,163,184,.6) 50%, rgba(148,163,184,.6) 60%, transparent 60%, transparent 75%, rgba(148,163,184,.6) 75%, rgba(148,163,184,.6) 85%, transparent 85%)"></span>
+  </section>
+</div>
+</body>
+</html>

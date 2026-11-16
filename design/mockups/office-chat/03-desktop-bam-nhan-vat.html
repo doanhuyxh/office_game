@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="vi">
+<!-- Mockup tĩnh (2026-11-16) — chat đầy đủ trong văn phòng 3D. Xem README.md. Cảnh 3D chỉ là nền vẽ đơn giản; phần chat / HUD là thiết kế cần làm. -->
+<head>
+<meta charset="utf-8">
+<title>Văn phòng 3D — bấm nhân vật để nhắn riêng</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{margin:0}
+a{color:#93c5fd}a:hover{color:#bfdbfe}
+</style>
+</head>
+<body>
+<div style="position: relative; width: 100%; height: 900px; overflow: hidden; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.45; color: #e2e8f0; background: #e4ebf3">
+
+  <div aria-hidden="true" style="position: absolute; inset: 0; background-color: #e9eef5; background-image: linear-gradient(rgba(148,163,184,.18) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,.18) 1px, transparent 1px); background-size: 48px 48px">
+    <div style="position: absolute; left: 0; right: 0; top: 0; height: 170px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 5px solid #60a5fa">
+      <div style="border-right: 5px solid #60a5fa; background: rgba(219,234,254,.55)"></div>
+      <div style="border-right: 5px solid #60a5fa; background: rgba(219,234,254,.55)"></div>
+      <div style="border-right: 5px solid #60a5fa; background: rgba(219,234,254,.55)"></div>
+      <div style="background: rgba(219,234,254,.55)"></div>
+    </div>
+    
+      <div style="position: absolute; left: 240px; top: 260px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 380px; top: 260px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 520px; top: 260px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 900px; top: 260px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 1040px; top: 260px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 240px; top: 430px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 380px; top: 430px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 520px; top: 430px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 900px; top: 430px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 1040px; top: 430px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 240px; top: 600px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 380px; top: 600px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 520px; top: 600px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 900px; top: 600px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+      <div style="position: absolute; left: 1040px; top: 600px; width: 104px; height: 80px">
+        <div style="position: absolute; left: 0; right: 0; top: 0; height: 46px; border-radius: 6px; background: #e8c79d; box-shadow: 0 6px 10px rgba(15,23,42,.12)"></div>
+        <div style="position: absolute; left: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+        <div style="position: absolute; right: 18px; top: 54px; width: 26px; height: 22px; border-radius: 6px; background: #ef8f8f"></div>
+      </div>
+    
+    <div style="position: absolute; left: 610px; top: 400px; display: flex; flex-direction: column; align-items: center">
+      <div style="width: 26px; height: 26px; border-radius: 50%; background: #2563eb; border: 2px solid #ffffff"></div>
+      <div style="margin-top: 4px; padding: 1px 8px; border-radius: 999px; background: rgba(37,99,235,.92); color: #ffffff; font-size: 11px; font-weight: 600">CTHDQT</div>
+    </div>
+    <div style="position: absolute; left: 800px; top: 330px; display: flex; flex-direction: column; align-items: center">
+      <div style="width: 26px; height: 26px; border-radius: 50%; background: #db2777; border: 2px solid #ffffff; box-shadow: 0 0 0 4px rgba(37,99,235,.55)"></div>
+      <div style="margin-top: 4px; padding: 1px 8px; border-radius: 999px; background: rgba(15,23,42,.78); color: #ffffff; font-size: 11px; font-weight: 600">Trần Minh Anh</div>
+    </div>
+    <div style="position: absolute; left: 1080px; top: 610px; display: flex; flex-direction: column; align-items: center">
+      <div style="width: 26px; height: 26px; border-radius: 50%; background: #7c3aed; border: 2px solid #ffffff; box-shadow: 0 0 0 4px rgba(124,58,237,.45)"></div>
+      <div style="margin-top: 4px; padding: 1px 8px; border-radius: 999px; background: rgba(124,58,237,.92); color: #ffffff; font-size: 11px; font-weight: 600">AI · Dev Full-Stack</div>
+    </div>
+    <div style="position: absolute; left: 420px; top: 620px; display: flex; flex-direction: column; align-items: center">
+      <div style="width: 26px; height: 26px; border-radius: 50%; background: #0891b2; border: 2px solid #ffffff"></div>
+      <div style="margin-top: 4px; padding: 1px 8px; border-radius: 999px; background: rgba(15,23,42,.78); color: #ffffff; font-size: 11px; font-weight: 600">Lê Hoàng Nam</div>
+    </div>
+  </div>
+
+  <!-- Menu khi bấm vào người -->
+  <div role="menu" aria-label="Trần Minh Anh" style="position: absolute; left: 850px; top: 300px; width: 230px; padding: 10px; border-radius: 12px; background: rgba(15,23,42,.94); border: 1px solid rgba(148,163,184,.3); box-shadow: 0 14px 32px rgba(2,6,23,.4); display: grid; gap: 6px">
+    <div style="display: flex; align-items: center; gap: 8px; padding: 2px 4px 6px; border-bottom: 1px solid rgba(148,163,184,.2)">
+      <span style="flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #ffffff; background: #db2777">MA</span>
+      <span style="display: grid"><b style="font-size: 13px">Trần Minh Anh</b><span style="font-size: 12px; color: #94a3b8">Kinh doanh · NV014</span></span>
+    </div>
+    <button type="button" role="menuitem" style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; border: 0; border-radius: 8px; background: #2563eb; color: #ffffff; font: inherit; font-size: 13px; font-weight: 600; text-align: left"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>Nhắn tin riêng</button>
+    <button type="button" role="menuitem" style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; border: 0; border-radius: 8px; background: rgba(148,163,184,.16); color: #e2e8f0; font: inherit; font-size: 13px; text-align: left"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>Đi tới cạnh</button>
+  </div>
+
+  <!-- Menu khi bấm vào bot -->
+  <div role="menu" aria-label="Dev Full-Stack" style="position: absolute; left: 1130px; top: 560px; width: 240px; padding: 10px; border-radius: 12px; background: rgba(15,23,42,.94); border: 1px solid rgba(148,163,184,.3); box-shadow: 0 14px 32px rgba(2,6,23,.4); display: grid; gap: 6px">
+    <div style="display: flex; align-items: center; gap: 8px; padding: 2px 4px 6px; border-bottom: 1px solid rgba(148,163,184,.2)">
+      <span style="flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #ffffff; background: #7c3aed">DF</span>
+      <span style="display: grid"><b style="font-size: 13px">Dev Full-Stack <span style="padding: 0 5px; border-radius: 4px; background: rgba(124,58,237,.3); color: #ddd6fe; font-size: 10px; font-weight: 700">BOT</span></b><span style="font-size: 12px; color: #94a3b8">Đang làm TEST-118</span></span>
+    </div>
+    <button type="button" role="menuitem" style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; border: 0; border-radius: 8px; background: #7c3aed; color: #ffffff; font: inherit; font-size: 13px; font-weight: 600; text-align: left"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"></rect><path d="M8 21h8"></path><path d="M12 17v4"></path></svg>Xem bot đang làm gì</button>
+    <button type="button" role="menuitem" style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; border: 0; border-radius: 8px; background: rgba(148,163,184,.16); color: #e2e8f0; font: inherit; font-size: 13px; text-align: left"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>Nhắn tin riêng</button>
+  </div>
+
+  <div style="position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: rgba(15,23,42,.85); border: 1px solid rgba(148,163,184,.25)">
+    <div style="width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #ffffff; background: #2563eb">C</div>
+    <b>CTHDQT</b>
+  </div>
+  <div style="position: absolute; top: 12px; right: 12px; display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 12px; border-radius: 12px; background: rgba(15,23,42,.85); border: 1px solid rgba(148,163,184,.25)">
+    <span style="width: 9px; height: 9px; border-radius: 50%; background: #22c55e"></span>
+    <span>12 người online · 3 AI</span>
+    <button type="button" aria-label="Thông báo" style="width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: #e2e8f0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg></button>
+  </div>
+
+  <!-- Toast tin 1-1 mới khi khung chat đóng -->
+  <div role="status" style="position: absolute; top: 64px; right: 12px; width: 340px; display: flex; gap: 10px; padding: 12px; border-radius: 12px; background: rgba(15,23,42,.95); border: 1px solid rgba(148,163,184,.3); box-shadow: 0 14px 32px rgba(2,6,23,.35)">
+    <span style="flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #ffffff; background: #ea580c">QB</span>
+    <span style="flex: 1; min-width: 0; display: grid; gap: 2px">
+      <b style="font-size: 13px">Nguyễn Quốc Bảo nhắn bạn</b>
+      <span style="font-size: 13px; color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Anh ơi, chiều nay anh rảnh lúc nào ạ?</span>
+      <span style="display: flex; gap: 6px; margin-top: 6px">
+        <button type="button" style="height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: #2563eb; color: #ffffff; font: inherit; font-size: 12px; font-weight: 700">Trả lời</button>
+        <button type="button" style="height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: rgba(148,163,184,.18); color: #e2e8f0; font: inherit; font-size: 12px">Để sau</button>
+      </span>
+    </span>
+  </div>
+
+  <!-- Chat đóng: nút có số chưa đọc + xem nhanh tin cuối -->
+  <button type="button" aria-label="Mở tin nhắn, 7 chưa đọc" style="position: absolute; left: 24px; bottom: 24px; display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 16px 0 12px; border-radius: 14px; background: rgba(15,23,42,.92); border: 1px solid rgba(148,163,184,.3); color: #e2e8f0; font: inherit; box-shadow: 0 10px 24px rgba(2,6,23,.3)">
+    <span style="position: relative; display: grid; place-items: center">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+      <span style="position: absolute; top: -8px; right: -10px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #ef4444; color: #ffffff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center">7</span>
+    </span>
+    <span style="font-weight: 600">Tin nhắn</span>
+    <span style="font-size: 12px; color: #94a3b8">3 hội thoại chưa đọc</span>
+  </button>
+</div>
+</body>
+</html>
