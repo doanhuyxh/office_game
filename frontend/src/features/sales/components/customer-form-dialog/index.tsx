@@ -61,7 +61,7 @@ export function CustomerFormDialog({ open, detail, onClose, onCreated }: { open:
           </div>
           <FormField id="cu-note" label="Ghi chú" maxLength={2000} value={f.note ?? ''} onChange={(e) => set('note', e.target.value)} error={errors.note} />
           {detail && <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.isActive ?? true} onCheckedChange={(c) => set('isActive', c === true)} /> Đang giao dịch (bỏ chọn = ngừng, ẩn khỏi danh sách)</label>}
-          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" disabled={save.isPending}>Lưu</Button></DialogFooter>
+          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" loading={save.isPending} loadingText="Đang lưu…">Lưu</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

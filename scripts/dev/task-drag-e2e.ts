@@ -166,7 +166,7 @@ try {
   await br.evalJs(`(() => { const t = document.querySelector('[role="alertdialog"] textarea, [role="dialog"] textarea');
     Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(t, 'Làm lại'); t.dispatchEvent(new Event('input', { bubbles: true })); })()`);
   await br.sleep(100);
-  await br.evalJs(`[...document.querySelectorAll('[role="alertdialog"] button, [role="dialog"] button')].find((b) => b.textContent.trim() === 'Chuyển')?.click()`);
+  await br.evalJs(`document.querySelector('[data-testid=confirm-dialog-ok]')?.click()`);
   ok('xác nhận lý do → thẻ về cột trước', await until(async () => (await colOf('Việc kéo một')) === cols[0].name, 3000));
   ok('… server ghi lý do thành bình luận', await until(async () => (await json(PM.cookie, 'GET', `/api/projects/tasks/${T1}`)).body.comments.some((c: any) => c.content.includes('Làm lại')), 3000));
   await br.sleep(800);

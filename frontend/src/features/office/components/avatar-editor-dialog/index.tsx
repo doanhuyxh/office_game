@@ -118,13 +118,13 @@ export function AvatarEditorDialog({ open, onOpenChange, onSaved }: {
         <DialogFooter className="gap-2 sm:justify-between">
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={() => setLook(randomLook())}>Ngẫu nhiên</Button>
-            <Button type="button" variant="ghost" disabled={save.isPending || (!saved && sameLook(look, DEFAULT_LOOK))}
+            <Button type="button" variant="ghost" loading={save.isPending} disabled={(!saved && sameLook(look, DEFAULT_LOOK))}
               onClick={() => (saved ? submit(null) : setLook(DEFAULT_LOOK))}>Về mặc định</Button>
           </div>
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
-            <Button type="button" disabled={save.isPending || (saved && !changed)} onClick={() => submit(look)} data-testid="avatar-save">
-              {save.isPending ? 'Đang lưu…' : 'Lưu nhân vật'}
+            <Button type="button" loading={save.isPending} disabled={(saved && !changed)} loadingText="Đang lưu…" onClick={() => submit(look)} data-testid="avatar-save">
+              Lưu nhân vật
             </Button>
           </div>
         </DialogFooter>

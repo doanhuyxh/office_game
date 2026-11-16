@@ -26,9 +26,9 @@ export function PendingReviewsCard() {
             </div>
             {i.decision !== 'Pending' && <StatusBadge tone={DECISION[i.decision].tone}>{DECISION[i.decision].label}</StatusBadge>}
             <div className="flex gap-1">
-              <Button size="sm" variant={i.decision === 'Keep' ? 'default' : 'outline'} disabled={decide.isPending}
+              <Button size="sm" variant={i.decision === 'Keep' ? 'default' : 'outline'} loading={decide.isPending && decide.variables?.id === i.id && decide.variables.decision === 'Keep'} disabled={decide.isPending}
                 onClick={() => decide.mutate({ id: i.id, decision: 'Keep' }, { onError: (e) => toast.error(errorMessage(e)) })}>Giữ</Button>
-              <Button size="sm" variant={i.decision === 'Revoke' ? 'destructive' : 'outline'} disabled={decide.isPending}
+              <Button size="sm" variant={i.decision === 'Revoke' ? 'destructive' : 'outline'} loading={decide.isPending && decide.variables?.id === i.id && decide.variables.decision === 'Revoke'} disabled={decide.isPending}
                 onClick={() => decide.mutate({ id: i.id, decision: 'Revoke' }, { onError: (e) => toast.error(errorMessage(e)) })}>Thu hồi</Button>
             </div>
           </li>

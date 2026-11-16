@@ -116,7 +116,7 @@ function Contacts({ d }: { d: ICustomerDetail }) {
             {x.title && <span className="text-muted-foreground"> · {x.title}</span>}<span className="block text-xs text-muted-foreground">{[x.phone, x.email].filter(Boolean).join(' · ') || '—'}</span></span>
           {d.canEdit && <span className="flex">
             <Button variant="ghost" size="icon" aria-label="Sửa" onClick={() => { save.reset(); setForm({ ...x, title: x.title ?? '', phone: x.phone ?? '', email: x.email ?? '' }); }}><Pencil /></Button>
-            <Button variant="ghost" size="icon" aria-label="Xoá" onClick={async () => await confirmDialog({ title: `Xoá liên hệ ${x.name}?`, confirmText: 'Xoá', destructive: true }) && remove.mutate(x.id, { onError: onErr })}><Trash2 /></Button>
+            <Button variant="ghost" size="icon" aria-label="Xoá" onClick={async () => await confirmDialog({ title: `Xoá liên hệ ${x.name}?`, confirmText: 'Xoá', destructive: true, onConfirm: () => remove.mutateAsync(x.id) })}><Trash2 /></Button>
           </span>}
         </div>
       ))}
@@ -129,7 +129,7 @@ function Contacts({ d }: { d: ICustomerDetail }) {
             <FormField id="ct-email" label="Email" value={form.email ?? ''} onChange={(e) => setForm({ ...form, email: e.target.value })} error={errors.email} />
           </div>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!form.isPrimary} onChange={(e) => setForm({ ...form, isPrimary: e.target.checked })} /> Liên hệ chính</label>
-          <div className="flex justify-end gap-2"><Button type="button" variant="outline" size="sm" onClick={() => setForm(null)}>Huỷ</Button><Button type="submit" size="sm" disabled={save.isPending}>Lưu</Button></div>
+          <div className="flex justify-end gap-2"><Button type="button" variant="outline" size="sm" onClick={() => setForm(null)}>Huỷ</Button><Button type="submit" size="sm" loading={save.isPending} loadingText="Đang lưu…">Lưu</Button></div>
         </form>
       )}
     </Section>
@@ -156,7 +156,7 @@ function Activities({ d }: { d: ICustomerDetail }) {
             <FormField id="ac-next" label="Việc tiếp theo" placeholder="Gửi báo giá…" maxLength={300} value={f.nextAction ?? ''} onChange={(e) => setF({ ...f, nextAction: e.target.value })} error={errors.nextAction} />
             <FormField id="ac-next-on" label="Hẹn ngày" type="date" min={todayVn()} value={f.nextActionOn ?? ''} onChange={(e) => setF({ ...f, nextActionOn: e.target.value })} />
           </div>
-          <div className="flex justify-end gap-2"><Button type="button" variant="outline" size="sm" onClick={() => setF(null)}>Huỷ</Button><Button type="submit" size="sm" disabled={save.isPending}>Lưu</Button></div>
+          <div className="flex justify-end gap-2"><Button type="button" variant="outline" size="sm" onClick={() => setF(null)}>Huỷ</Button><Button type="submit" size="sm" loading={save.isPending} loadingText="Đang lưu…">Lưu</Button></div>
         </form>
       )}
       {d.activities.length === 0 && !f && <p className="text-sm text-muted-foreground">Chưa có nhật ký chăm sóc</p>}

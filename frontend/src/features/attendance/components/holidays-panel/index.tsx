@@ -30,14 +30,14 @@ export function HolidaysPanel() {
       <form onSubmit={add} className="flex flex-wrap gap-2">
         <Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} className="w-44" aria-label="Ngày" />
         <Input required placeholder="Tên ngày lễ (vd: Quốc khánh)" value={name} onChange={(e) => setName(e.target.value)} className="min-w-56 flex-1" />
-        <Button type="submit" disabled={create.isPending}>Thêm</Button>
+        <Button type="submit" loading={create.isPending}>Thêm</Button>
       </form>
       <ul className="divide-y rounded-xl border bg-card">
         {holidays.length === 0 && <li className="p-4 text-center text-sm text-muted-foreground">Chưa có ngày lễ</li>}
         {holidays.map((h) => (
           <li key={h.id} className="flex items-center justify-between px-4 py-2 text-sm">
             <span><span className="mr-3 font-mono">{formatDate(h.date)}</span>{h.name}</span>
-            <Button variant="ghost" size="icon" aria-label="Xoá" onClick={() => remove.mutate(h.id)}><Trash2 /></Button>
+            <Button variant="ghost" size="icon" aria-label="Xoá" loading={remove.isPending && remove.variables === h.id} disabled={remove.isPending} onClick={() => remove.mutate(h.id)}><Trash2 /></Button>
           </li>
         ))}
       </ul>

@@ -91,7 +91,7 @@ export function GuideDialog({ target, onClose }: { target: GuideTarget; onClose:
         )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Đóng</Button>
-          {canEdit && <Button onClick={submit} disabled={save.isPending}>Lưu</Button>}
+          {canEdit && <Button onClick={submit} loading={save.isPending} loadingText="Đang lưu…">Lưu</Button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

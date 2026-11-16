@@ -72,7 +72,7 @@ function TerminateDialog({ contract, onClose }: { contract: IContract | null; on
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" variant="destructive" disabled={terminate.isPending}>Chấm dứt</Button>
+            <Button type="submit" variant="destructive" loading={terminate.isPending}>Chấm dứt</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -155,13 +155,13 @@ function AllContracts() {
                       <DropdownMenuItem onSelect={() => setViewing(c.id)}>Xem chi tiết</DropdownMenuItem>
                       <DropdownMenuItem onSelect={() => setEditing(c)}>Sửa</DropdownMenuItem>
                       <DropdownMenuItem onSelect={() => setGenerating(c)}>Xuất từ mẫu…</DropdownMenuItem>
-                      <DropdownMenuItem disabled={!c.file?.name.toLowerCase().endsWith('.pdf')} onSelect={async () => await confirmDialog({ title: `Gửi ${c.employee.fullName} ký điện tử hợp đồng ${c.number}?`, description: 'Nhân viên nhận thông báo, xác thực bằng OTP email.', confirmText: 'Gửi ký' }) &&
-                        sendSign.mutate(c.id, { onSuccess: () => toast.success('Đã gửi yêu cầu ký'), onError: (e) => toast.error(errorMessage(e)) })}>
+                      <DropdownMenuItem disabled={!c.file?.name.toLowerCase().endsWith('.pdf')} onSelect={async () => await confirmDialog({ title: `Gửi ${c.employee.fullName} ký điện tử hợp đồng ${c.number}?`, description: 'Nhân viên nhận thông báo, xác thực bằng OTP email.', confirmText: 'Gửi ký', onConfirm: () => sendSign.mutateAsync(c.id) }) &&
+                        toast.success('Đã gửi yêu cầu ký')}>
                         Gửi ký điện tử{!c.file?.name.toLowerCase().endsWith('.pdf') && ' (cần file PDF)'}</DropdownMenuItem>
                       {!c.terminatedOn && c.status !== 'Expired' && <DropdownMenuItem onSelect={() => setTerminating(c)}>Chấm dứt…</DropdownMenuItem>}
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem variant="destructive" onSelect={async () => await confirmDialog({ title: `Xoá hợp đồng ${c.number}?`, description: 'Chỉ dùng khi nhập nhầm.', confirmText: 'Xoá', destructive: true }) &&
-                        remove.mutate(c.id, { onSuccess: () => toast.success('Đã xoá'), onError: (e) => toast.error(errorMessage(e)) })}>Xoá (nhập nhầm)</DropdownMenuItem>
+                      <DropdownMenuItem variant="destructive" onSelect={async () => await confirmDialog({ title: `Xoá hợp đồng ${c.number}?`, description: 'Chỉ dùng khi nhập nhầm.', confirmText: 'Xoá', destructive: true, onConfirm: () => remove.mutateAsync(c.id) }) &&
+                        toast.success('Đã xoá')}>Xoá (nhập nhầm)</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

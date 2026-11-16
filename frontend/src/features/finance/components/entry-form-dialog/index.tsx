@@ -61,7 +61,7 @@ export function EntryFormDialog({ open, onClose }: { open: boolean; onClose: () 
           {!transfer && <FormField id="e-inv" label="Số hoá đơn (nếu có)" maxLength={50} value={f.invoiceNumber ?? ''} onChange={(e) => set('invoiceNumber', e.target.value)} error={errors.invoiceNumber} />}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={save.isPending}>Ghi sổ</Button>
+            <Button type="submit" loading={save.isPending}>Ghi sổ</Button>
           </DialogFooter>
         </form>
       </DialogContent>

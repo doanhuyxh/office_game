@@ -6,7 +6,6 @@ import { confirmDialog } from '@/components/common/confirm-dialog';
 import { useMe } from '@/features/auth';
 import { cn } from '@/utils/cn';
 import { formatTime, parseInstant } from '@/utils/date';
-import { errorMessage } from '@/utils/errors';
 import { useMeetingRooms, useRoomAgentSession, useStopAgentMeeting } from '../../hooks/useMeetings';
 import { endReasonText, remaining } from '../../utils/labels';
 
@@ -60,8 +59,7 @@ export function AgentMeetingBar({ roomId, onOpen, onChange, variant = 'web', cla
   if (active && session) {
     const speaker = session.bots.find((b) => b.isSpeaking);
     const askStop = async () => {
-      if (!(await confirmDialog({ title: `Dừng cuộc họp "${session.topic}"?`, description: 'Các bot ngừng phát biểu ngay; trong kênh phòng có tin báo kết thúc.', confirmText: 'Dừng họp', cancelText: 'Không', destructive: true }))) return;
-      stop.mutate(session.id, { onSuccess: () => toast.success('Đã dừng cuộc họp'), onError: (e) => toast.error(errorMessage(e)) });
+      if (await confirmDialog({ title: `Dừng cuộc họp "${session.topic}"?`, description: 'Các bot ngừng phát biểu ngay; trong kênh phòng có tin báo kết thúc.', confirmText: 'Dừng họp', cancelText: 'Không', destructive: true, onConfirm: () => stop.mutateAsync(session.id) })) toast.success('Đã dừng cuộc họp');
     };
     return (
       <div className={box} data-testid="agent-meeting-bar" data-status="active">
@@ -70,7 +68,7 @@ export function AgentMeetingBar({ roomId, onOpen, onChange, variant = 'web', cla
         <span data-testid="agent-meeting-turns">Lượt {session.turnsUsed} / {session.maxTurns}</span>
         <span title={`Kết thúc lúc ${formatTime(session.expiresAt)}`}>Còn {remaining(session.expiresAt, now)}</span>
         {session.canStop && (
-          <Button type="button" size="sm" variant="destructive" className="ms-auto h-6 px-2 text-xs" disabled={stop.isPending} onClick={() => void askStop()}
+          <Button type="button" size="sm" variant="destructive" className="ms-auto h-6 px-2 text-xs" loading={stop.isPending} onClick={() => void askStop()}
             data-testid="agent-meeting-stop">
             <Square className="size-3" /> Dừng họp
           </Button>

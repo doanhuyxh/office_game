@@ -71,7 +71,7 @@ export function CreateTokenDialog({ open, onOpenChange, onCreated }: {
                 hint="Token có quyền như tài khoản của bạn nên cần xác nhận lại danh tính." />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => close(false)}>Huỷ</Button>
-                <Button type="submit" disabled={create.isPending || !name.trim() || !confirm}>{create.isPending ? 'Đang tạo…' : 'Tạo token'}</Button>
+                <Button type="submit" loading={create.isPending} disabled={!name.trim() || !confirm} loadingText="Đang tạo…">Tạo token</Button>
               </DialogFooter>
             </form>
           </>

@@ -40,8 +40,8 @@ function Overview({ p }: { p: IMyProfile }) {
           <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" data-testid="avatar-input"
             onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) upload.mutate(f, { onSuccess: () => toast.success('Đã cập nhật ảnh đại diện'), onError: (x) => toast.error(errorMessage(x)) }); }} />
           <div className="flex gap-1">
-            <Button size="sm" variant="outline" disabled={upload.isPending} onClick={() => input.current?.click()}><Camera className="size-4" /> {p.avatarUrl ? 'Đổi ảnh' : 'Tải ảnh'}</Button>
-            {p.avatarUrl && <Button size="icon" variant="ghost" className="size-8" aria-label="Xoá ảnh" disabled={remove.isPending}
+            <Button size="sm" variant="outline" loading={upload.isPending} onClick={() => input.current?.click()}><Camera className="size-4" /> {p.avatarUrl ? 'Đổi ảnh' : 'Tải ảnh'}</Button>
+            {p.avatarUrl && <Button size="icon" variant="ghost" className="size-8" aria-label="Xoá ảnh" loading={remove.isPending}
               onClick={() => remove.mutate(undefined, { onSuccess: () => toast.success('Đã xoá ảnh'), onError: (x) => toast.error(errorMessage(x)) })}><Trash2 className="size-4" /></Button>}
           </div>
           <span className="text-[11px] text-muted-foreground">JPG / PNG / WebP, tối đa 2 MB</span>
@@ -88,7 +88,7 @@ export function ContactForm({ value, onSave, saving, error }: { value: IContact;
             onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
         </div>
       ))}
-      <div className="sm:col-span-2"><Button type="submit" disabled={!dirty || saving}>Lưu thông tin liên hệ</Button></div>
+      <div className="sm:col-span-2"><Button type="submit" loading={saving} disabled={!dirty} loadingText="Đang lưu…">Lưu thông tin liên hệ</Button></div>
     </form>
   );
 }
@@ -157,7 +157,7 @@ function RequestDialog({ open, onClose, current }: { open: boolean; onClose: () 
           {errors.change && <p className="text-sm text-destructive sm:col-span-2">{errors.change}</p>}
           <DialogFooter className="sm:col-span-2">
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={count === 0 || submit.isPending}><Send className="size-4" /> Gửi yêu cầu{count ? ` (${count} mục)` : ''}</Button>
+            <Button type="submit" loading={submit.isPending} disabled={count === 0} loadingText="Đang gửi…"><Send className="size-4" /> Gửi yêu cầu{count ? ` (${count} mục)` : ''}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -196,7 +196,7 @@ function SensitiveCard({ p }: { p: IMyProfile }) {
           <div className="grid gap-1">
             <div className="flex items-center gap-1 text-sm font-medium"><Clock className="size-4 text-warning" /> Yêu cầu đang chờ</div>
             <RequestSummary r={p.pending} cancelling={cancel.isPending}
-              onCancel={async () => await confirmDialog({ title: 'Huỷ yêu cầu cập nhật này?', confirmText: 'Huỷ yêu cầu', cancelText: 'Không', destructive: true }) && cancel.mutate(p.pending!.id, { onSuccess: () => toast.success('Đã huỷ yêu cầu'), onError: (x) => toast.error(errorMessage(x)) })} />
+              onCancel={async () => await confirmDialog({ title: 'Huỷ yêu cầu cập nhật này?', confirmText: 'Huỷ yêu cầu', cancelText: 'Không', destructive: true, onConfirm: () => cancel.mutateAsync(p.pending!.id) }) && toast.success('Đã huỷ yêu cầu')} />
           </div>
         )}
         {!p.pending && p.lastDecided && <RequestSummary r={p.lastDecided} />}

@@ -75,7 +75,7 @@ function StartDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
           <FormField id="sk-title" label="Tên đợt *" value={title} error={errors.title} onChange={(e) => setTitle(e.target.value)} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={!title.trim() || start.isPending}>Bắt đầu</Button>
+            <Button type="submit" loading={start.isPending} disabled={!title.trim()}>Bắt đầu</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -116,9 +116,9 @@ function StocktakeSheet({ id, onClose }: { id: string | null; onClose: () => voi
                             <StatusBadge tone={CHECK_RESULT[i.result].tone}>{CHECK_RESULT[i.result].label}</StatusBadge>
                             {open && (
                               <>
-                                <Button size="sm" variant="outline" disabled={check.isPending || i.result === 'Found'}
+                                <Button size="sm" variant="outline" loading={check.isPending && check.variables?.id === i.id && check.variables.result === 'Found'} disabled={check.isPending || i.result === 'Found'}
                                   onClick={() => check.mutate({ id: i.id, result: 'Found' }, { onError: (x) => toast.error(errorMessage(x)) })}>Có</Button>
-                                <Button size="sm" variant="outline" disabled={check.isPending || i.result === 'Missing'}
+                                <Button size="sm" variant="outline" loading={check.isPending && check.variables?.id === i.id && check.variables.result === 'Missing'} disabled={check.isPending || i.result === 'Missing'}
                                   onClick={() => check.mutate({ id: i.id, result: 'Missing' }, { onError: (x) => toast.error(errorMessage(x)) })}>Không thấy</Button>
                               </>
                             )}
@@ -143,7 +143,7 @@ function StocktakeSheet({ id, onClose }: { id: string | null; onClose: () => voi
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setClosing(false)}>Huỷ</Button>
-                  <Button disabled={close.isPending}
+                  <Button loading={close.isPending} loadingText="Đang xử lý…"
                     onClick={() => close.mutate(undefined, { onSuccess: () => { toast.success('Đã đóng đợt kiểm kê'); setClosing(false); }, onError: (x) => toast.error(errorMessage(x)) })}>Đóng đợt</Button>
                 </DialogFooter>
               </DialogContent>

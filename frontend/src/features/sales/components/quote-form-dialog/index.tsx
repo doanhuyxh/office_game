@@ -91,7 +91,7 @@ export function QuoteFormDialog({ open, quote, customerId, onClose, onCreated }:
           <div className="grid gap-2"><Label htmlFor="q-terms">Điều khoản (thanh toán, tiến độ, bảo hành…)</Label>
             <Textarea id="q-terms" rows={3} maxLength={4000} value={f.terms ?? ''} onChange={(e) => set('terms', e.target.value)} /></div>
           <FormField id="q-note" label="Ghi chú" maxLength={2000} value={f.note ?? ''} onChange={(e) => set('note', e.target.value)} />
-          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" disabled={save.isPending || !f.customerId}>Lưu nháp</Button></DialogFooter>
+          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" loading={save.isPending} disabled={!f.customerId} loadingText="Đang lưu…">Lưu nháp</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

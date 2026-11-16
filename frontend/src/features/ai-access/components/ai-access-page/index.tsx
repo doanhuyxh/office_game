@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AppWindow, Ban, Check, KeyRound, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from '@/components/common/alert-dialog';
 import { Button } from '@/components/common/button';
@@ -52,9 +52,8 @@ function useRevoke() {
     if (!target) return;
     const m = target.kind === 'token' ? revokeToken : revokeGrant;
     m.mutate(target.id, {
-      onSuccess: () => toast.success(`Đã thu hồi "${target.name}"`),
       onError: (err) => toast.error(errorMessage(err)),
-      onSettled: () => setTarget(null),
+      onSuccess: () => { toast.success(`Đã thu hồi "${target.name}"`); setTarget(null); },
     });
   };
   const dialog = (
@@ -65,8 +64,8 @@ function useRevoke() {
           <AlertDialogDescription>Trợ lý AI đang dùng sẽ mất kết nối ngay. Không hoàn tác được.</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Huỷ</AlertDialogCancel>
-          <AlertDialogAction onClick={confirm} disabled={pending}>Thu hồi</AlertDialogAction>
+          <AlertDialogCancel disabled={pending}>Huỷ</AlertDialogCancel>
+          <Button variant="destructive" onClick={confirm} loading={pending} loadingText="Đang xử lý…">Thu hồi</Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -41,7 +41,7 @@ export function ChangePasswordForm() {
         <FormField id="again" label="Nhập lại mật khẩu mới" type="password" required
           value={form.again} onChange={(e) => setForm({ ...form, again: e.target.value })} />
         {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button type="submit" disabled={change.isPending}>Lưu mật khẩu</Button>
+        <Button type="submit" loading={change.isPending} loadingText="Đang lưu…">Lưu mật khẩu</Button>
       </form>
     </AuthShell>
   );

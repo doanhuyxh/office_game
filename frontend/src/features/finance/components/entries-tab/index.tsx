@@ -108,7 +108,7 @@ function VoidDialog({ entry, onClose }: { entry: IEntry | null; onClose: () => v
         <FormField id="void-reason" label="Lý do *" autoFocus maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} error={errors.reason} />
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Đóng</Button>
-          <Button variant="destructive" disabled={run.isPending || !reason.trim()} onClick={() => entry && run.mutate({ id: entry.id, reason }, {
+          <Button variant="destructive" loading={run.isPending} disabled={!reason.trim()} onClick={() => entry && run.mutate({ id: entry.id, reason }, {
             onSuccess: () => { toast.success('Đã huỷ giao dịch'); setReason(''); onClose(); },
             onError: (err) => !Object.keys(fieldErrors(err)).length && toast.error(errorMessage(err)),
           })}>Huỷ giao dịch</Button>

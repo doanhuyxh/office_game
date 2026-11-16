@@ -36,12 +36,10 @@ export function GroupMembersDialog({ conversation, open, onOpenChange, onLeft }:
       description: 'Bạn sẽ không xem / nhận tin của nhóm này nữa. Muốn quay lại phải nhờ một thành viên thêm vào.',
       confirmText: 'Rời nhóm',
       destructive: true,
+      onConfirm: () => leave.mutateAsync(undefined),
     });
     if (!ok) return;
-    leave.mutate(undefined, {
-      onSuccess: () => { onOpenChange(false); onLeft(); toast.success('Đã rời nhóm'); },
-      onError: (e) => toast.error(errorMessage(e, 'Không rời nhóm được')),
-    });
+    onOpenChange(false); onLeft(); toast.success('Đã rời nhóm');
   };
 
   return (
@@ -56,7 +54,7 @@ export function GroupMembersDialog({ conversation, open, onOpenChange, onLeft }:
               <PeoplePicker selected={picked} onChange={setPicked} exclude={new Set(members.data?.map((m) => m.userId))} enabled={open && adding} />
               <div className="flex justify-end gap-2">
                 <Button variant="ghost" onClick={() => { setAdding(false); setPicked([]); }}>Huỷ</Button>
-                <Button disabled={picked.length === 0 || add.isPending} onClick={submitAdd} data-testid="chat-group-add-submit">Thêm {picked.length || ''}</Button>
+                <Button loading={add.isPending} disabled={picked.length === 0} onClick={submitAdd} data-testid="chat-group-add-submit">Thêm {picked.length || ''}</Button>
               </div>
             </div>
           ) : (

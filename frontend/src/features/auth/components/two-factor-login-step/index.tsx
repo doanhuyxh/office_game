@@ -37,7 +37,7 @@ export function TwoFactorLoginStep({ onSuccess, onBack }: { onSuccess: (me: IMe)
           value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d ]/g, ''))} />
       )}
       {error && <p className="text-sm text-destructive">{error}</p>}
-      <Button type="submit" disabled={verify.isPending}>{verify.isPending ? 'Đang kiểm tra…' : 'Xác nhận'}</Button>
+      <Button type="submit" loading={verify.isPending} loadingText="Đang kiểm tra…">Xác nhận</Button>
       <div className="flex justify-between text-sm">
         <button type="button" className="text-muted-foreground hover:text-primary hover:underline" onClick={() => onBack()}>← Đăng nhập lại</button>
         <button type="button" className="text-muted-foreground hover:text-primary hover:underline"

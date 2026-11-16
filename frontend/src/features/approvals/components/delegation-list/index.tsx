@@ -4,7 +4,6 @@ import { Button } from '@/components/common/button';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { formatDate, formatDateTime } from '@/utils/date';
-import { errorMessage } from '@/utils/errors';
 import { useRevokeDelegation } from '../../hooks/useApprovals';
 import type { IDelegation, IPersonBrief } from '../../types/approval.types';
 import { DELEGATION_STATUS } from '../../utils/labels';
@@ -20,8 +19,7 @@ export function DelegationList({ items, loading, empty, show }: {
 }) {
   const revoke = useRevokeDelegation();
   const onRevoke = async (d: IDelegation) => {
-    if (!(await confirmDialog({ title: `Thu hồi uỷ quyền cho ${d.delegate.fullName}?`, description: `Uỷ quyền ${formatDate(d.fromDate)} – ${formatDate(d.toDate)} sẽ hết hiệu lực ngay.`, confirmText: 'Thu hồi', destructive: true }))) return;
-    revoke.mutate(d.id, { onSuccess: () => toast.success('Đã thu hồi uỷ quyền'), onError: (e) => toast.error(errorMessage(e)) });
+    if (await confirmDialog({ title: `Thu hồi uỷ quyền cho ${d.delegate.fullName}?`, description: `Uỷ quyền ${formatDate(d.fromDate)} – ${formatDate(d.toDate)} sẽ hết hiệu lực ngay.`, confirmText: 'Thu hồi', destructive: true, onConfirm: () => revoke.mutateAsync(d.id) })) toast.success('Đã thu hồi uỷ quyền');
   };
   if (loading) return <p className="text-sm text-muted-foreground">Đang tải…</p>;
   if (items.length === 0) return <p className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground">{empty}</p>;
@@ -56,7 +54,7 @@ export function DelegationList({ items, loading, empty, show }: {
               </TableCell>
               <TableCell>
                 {d.canRevoke && (
-                  <Button size="sm" variant="outline" disabled={revoke.isPending} onClick={() => onRevoke(d)}>Thu hồi</Button>
+                  <Button size="sm" variant="outline" loading={revoke.isPending && revoke.variables === d.id} disabled={revoke.isPending} onClick={() => onRevoke(d)}>Thu hồi</Button>
                 )}
               </TableCell>
             </TableRow>

@@ -63,8 +63,7 @@ export function PositionsPanel({ canEdit }: { canEdit: boolean }) {
     });
   };
   const onDelete = async (p: IPosition) => {
-    if (!(await confirmDialog({ title: `Xoá chức vụ "${p.name}"?`, confirmText: 'Xoá', destructive: true }))) return;
-    remove.mutate(p.id, { onSuccess: () => toast.success('Đã xoá'), onError: (err) => toast.error(errorMessage(err)) });
+    if (await confirmDialog({ title: `Xoá chức vụ "${p.name}"?`, confirmText: 'Xoá', destructive: true, onConfirm: () => remove.mutateAsync(p.id) })) toast.success('Đã xoá');
   };
 
   return (
@@ -152,7 +151,7 @@ export function PositionsPanel({ canEdit }: { canEdit: boolean }) {
             )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditing(undefined)}>Huỷ</Button>
-              <Button type="submit" disabled={save.isPending}>Lưu</Button>
+              <Button type="submit" loading={save.isPending} loadingText="Đang lưu…">Lưu</Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -135,7 +135,7 @@ export function CreateAccountDialog({ open, onOpenChange, employee, onTempPasswo
             <RolePicker value={roles} onChange={setRoles} />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
-              <Button type="submit" disabled={create.isPending}>{create.isPending ? 'Đang tạo…' : 'Cấp tài khoản'}</Button>
+              <Button type="submit" loading={create.isPending} loadingText="Đang tạo…">Cấp tài khoản</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -166,7 +166,7 @@ export function RolesDialog({ open, onOpenChange, employee }: { open: boolean; o
         <RolePicker value={roles} onChange={setRoles} />
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
-          <Button onClick={submit} disabled={setRolesM.isPending}>Lưu</Button>
+          <Button onClick={submit} loading={setRolesM.isPending} loadingText="Đang lưu…">Lưu</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -194,7 +194,7 @@ export function ResignDialog({ open, onOpenChange, employee, onConfirm, pending 
         <Suspense fallback={null}><EmployeeHoldings employeeId={open ? employee.id : null} warn /></Suspense>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
-          <Button variant="destructive" disabled={!leftAt || pending} onClick={() => onConfirm(leftAt)}>Xác nhận nghỉ việc</Button>
+          <Button variant="destructive" loading={pending} disabled={!leftAt} loadingText="Đang xử lý…" onClick={() => onConfirm(leftAt)}>Xác nhận nghỉ việc</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

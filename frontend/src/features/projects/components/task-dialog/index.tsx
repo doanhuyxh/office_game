@@ -140,9 +140,9 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <span className="min-w-0 flex-1">{c.authorName}{c.byBot && <BotBadge className="ml-1" />} · {fmtTime(c.createdAt)}</span>
                       {c.canDelete && <Button type="button" size="icon" variant="ghost" className="size-6 shrink-0 text-muted-foreground hover:text-destructive" aria-label="Xoá bình luận"
-                        disabled={deleteComment.isPending}
-                        onClick={async () => await confirmDialog({ title: 'Xoá bình luận?', description: 'Bình luận bị xoá hẳn; lịch sử việc ghi lại là đã xoá một bình luận.', confirmText: 'Xoá', destructive: true })
-                          && deleteComment.mutate(c.id, { onSuccess: () => toast.success('Đã xoá bình luận'), onError: (err) => toast.error(errorMessage(err)) })}>
+                        loading={deleteComment.isPending && deleteComment.variables === c.id} disabled={deleteComment.isPending}
+                        onClick={async () => await confirmDialog({ title: 'Xoá bình luận?', description: 'Bình luận bị xoá hẳn; lịch sử việc ghi lại là đã xoá một bình luận.', confirmText: 'Xoá', destructive: true, onConfirm: () => deleteComment.mutateAsync(c.id) })
+                          && toast.success('Đã xoá bình luận')}>
                         <Trash2 className="size-3.5" /></Button>}
                     </div>
                     <Markdown text={c.content} mentions={mentionNames} /></div>)}
@@ -172,10 +172,12 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
             </div>
           </div>
           <DialogFooter className="shrink-0 items-center border-t px-6 py-4">
-            {task && canDelete && <Button type="button" variant="ghost" className="mr-auto text-destructive" onClick={async () => await confirmDialog({ title: `Xoá việc ${task.code}?`, confirmText: 'Xoá', destructive: true }) && remove.mutate(task.id, {
-              onSuccess: () => { toast.success('Đã xoá'); onClose(); }, onError: (err) => toast.error(errorMessage(err)) })}><Trash2 /> Xoá</Button>}
+            {task && canDelete && <Button type="button" variant="ghost" className="mr-auto text-destructive" onClick={async () => {
+              if (!(await confirmDialog({ title: `Xoá việc ${task.code}?`, confirmText: 'Xoá', destructive: true, onConfirm: () => remove.mutateAsync(task.id) }))) return;
+              toast.success('Đã xoá'); onClose();
+            }}><Trash2 /> Xoá</Button>}
             <Button type="button" variant="outline" onClick={onClose}>Đóng</Button>
-            {canWork && <Button type="submit" disabled={save.isPending}>Lưu</Button>}
+            {canWork && <Button type="submit" loading={save.isPending} loadingText="Đang lưu…">Lưu</Button>}
           </DialogFooter>
         </form>
       </DialogContent>

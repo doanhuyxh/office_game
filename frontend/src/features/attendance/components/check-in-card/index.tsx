@@ -66,10 +66,10 @@ export function CheckInCard({ className }: { className?: string }) {
         {error && !noProfile && <p className="text-sm text-destructive">{errorMessage(error)}</p>}
         {today && (
           <>
-            <Button size="lg" onClick={onCheck} disabled={check.isPending} data-testid="check-button"
+            <Button size="lg" onClick={onCheck} loading={check.isPending} loadingText="Đang chấm…" data-testid="check-button"
               className={cn('h-12 text-base', today.checkedIn && 'bg-warning text-warning-foreground hover:bg-warning/90')}>
               {today.checkedIn ? <LogOut /> : <LogIn />}
-              {check.isPending ? 'Đang chấm…' : today.checkedIn ? 'Chấm công ra' : 'Chấm công vào'}
+              {today.checkedIn ? 'Chấm công ra' : 'Chấm công vào'}
             </Button>
             <p className="text-center text-xs text-muted-foreground">
               Sẽ ghi nhận: {WORK_MODE[today.currentWorkMode]} (theo mạng đang dùng)

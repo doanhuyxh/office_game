@@ -74,7 +74,7 @@ export function SocialAccountFormDialog({ open, onOpenChange, account, onCreated
           </div>
           <DialogFooter className="sm:col-span-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
-            <Button type="submit" disabled={save.isPending}>{save.isPending ? 'Đang kiểm tra…' : 'Lưu'}</Button>
+            <Button type="submit" loading={save.isPending} loadingText="Đang kiểm tra…">Lưu</Button>
           </DialogFooter>
         </form>
       </DialogContent>

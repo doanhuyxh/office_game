@@ -115,8 +115,8 @@ export function AgentMeetingDialog({ draft, onClose, onOpened }: {
             options={pickedBots.map((b) => ({ value: b.employeeId, label: `${b.name} · ${b.code}` }))} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={open.isPending || !roomId || !topic.trim() || !chairId || tooFew || tooMany}>
-              {open.isPending ? 'Đang mở…' : 'Bắt đầu họp'}
+            <Button type="submit" loading={open.isPending} disabled={!roomId || !topic.trim() || !chairId || tooFew || tooMany} loadingText="Đang mở…">
+              Bắt đầu họp
             </Button>
           </DialogFooter>
         </form>

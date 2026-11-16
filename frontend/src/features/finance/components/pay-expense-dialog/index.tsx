@@ -38,7 +38,7 @@ export function PayExpenseDialog({ expense, onClose }: { expense: IExpense | nul
           <FormField id="p-inv" label="Số hoá đơn (nếu có)" maxLength={50} value={f.invoiceNumber ?? ''} onChange={(e) => setF({ ...f, invoiceNumber: e.target.value })} error={errors.invoiceNumber} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={pay.isPending || !f.accountId}>Xác nhận đã chi</Button>
+            <Button type="submit" loading={pay.isPending} disabled={!f.accountId}>Xác nhận đã chi</Button>
           </DialogFooter>
         </form>
       </DialogContent>

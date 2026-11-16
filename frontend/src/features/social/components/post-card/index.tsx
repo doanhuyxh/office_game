@@ -29,9 +29,9 @@ export function PostCard({ post }: { post: ISocialPost }) {
         <div className="flex items-center gap-2">
           <StatusBadge tone={s.tone}>{s.label}</StatusBadge>
           {post.canCancel && (
-            <Button size="sm" variant="ghost" disabled={cancel.isPending} onClick={async () => {
-              if (!(await confirmDialog({ title: 'Huỷ đăng bài?', description: 'Các trang chưa đăng sẽ không đăng nữa. Trang đã đăng giữ nguyên.', confirmText: 'Huỷ đăng', destructive: true }))) return;
-              cancel.mutate(undefined, { onSuccess: () => toast.success('Đã huỷ'), onError: (x) => toast.error(errorMessage(x)) });
+            <Button size="sm" variant="ghost" loading={cancel.isPending} onClick={async () => {
+              if (await confirmDialog({ title: 'Huỷ đăng bài?', description: 'Các trang chưa đăng sẽ không đăng nữa. Trang đã đăng giữ nguyên.', confirmText: 'Huỷ đăng', destructive: true,
+                onConfirm: () => cancel.mutateAsync(undefined) })) toast.success('Đã huỷ');
             }}><XCircle /> Huỷ</Button>
           )}
         </div>
@@ -58,7 +58,7 @@ export function PostCard({ post }: { post: ISocialPost }) {
                 </a>
               )}
               {t.canRetry && (
-                <Button size="sm" variant="outline" disabled={retry.isPending}
+                <Button size="sm" variant="outline" loading={retry.isPending && retry.variables === t.id} disabled={retry.isPending}
                   onClick={() => retry.mutate(t.id, { onSuccess: () => toast.success('Đang đăng lại'), onError: (x) => toast.error(errorMessage(x)) })}>
                   <RotateCcw /> Đăng lại
                 </Button>

@@ -83,7 +83,7 @@ export function LeaveRequestDialog({ open, onOpenChange }: { open: boolean; onOp
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
-            <Button type="submit" disabled={create.isPending || !typeId || preview.data?.days === 0}>{create.isPending ? 'Đang gửi…' : 'Gửi đơn'}</Button>
+            <Button type="submit" loading={create.isPending} disabled={!typeId || preview.data?.days === 0} loadingText="Đang gửi…">Gửi đơn</Button>
           </DialogFooter>
         </form>
       </DialogContent>

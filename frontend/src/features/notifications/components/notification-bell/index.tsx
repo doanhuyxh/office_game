@@ -63,7 +63,7 @@ export function NotificationBell({ office = false, triggerClassName }: { office?
           <DropdownMenuLabel className="p-0 text-sm">Thông báo</DropdownMenuLabel>
           <div className="flex items-center gap-1">
             {unread > 0 && (
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={markAll.isPending}
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" loading={markAll.isPending}
                 onClick={(e) => { e.preventDefault(); markAll.mutate(); }}>
                 <CheckCheck /> Đánh dấu đã đọc
               </Button>

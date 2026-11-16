@@ -117,7 +117,7 @@ export function ContractFormDialog({ open, customerId, opportunities = [], fromQ
             {errors.installments && <p className="text-xs text-destructive">{errors.installments}</p>}
           </div>
           <FormField id="k-note" label="Ghi chú" maxLength={2000} value={f.note ?? ''} onChange={(e) => set('note', e.target.value)} />
-          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" disabled={save.isPending || !f.customerId}>Tạo hợp đồng</Button></DialogFooter>
+          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" loading={save.isPending} disabled={!f.customerId} loadingText="Đang tạo…">Tạo hợp đồng</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

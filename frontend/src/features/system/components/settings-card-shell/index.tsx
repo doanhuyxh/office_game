@@ -76,16 +76,17 @@ export function SettingsCardShell({ group, icon: Icon, description, dirty, build
             : noEnv ? 'Chưa cấu hình.' : 'Chưa lưu trên trang — Lưu để chuyển sang dùng cấu hình này.'}>
             {group.source === 'db' && (
               <Button type="button" variant="ghost" disabled={busy} onClick={async () => {
-                if (!(await confirmDialog(noEnv
-                  ? { title: `Xoá cấu hình ${group.name}?`, description: 'Kênh bị tắt và xoá cả giá trị bí mật đã lưu.', destructive: true, confirmText: 'Xoá' }
-                  : { title: `Dùng lại .env cho ${group.name}?`, description: 'Cấu hình lưu trên trang bị xoá, hệ thống đọc lại biến trong .env ngay.', destructive: true, confirmText: 'Dùng .env' }))) return;
-                test.reset();
-                reset.mutate(undefined, { onSuccess: () => { onSaved(); toast.success(noEnv ? 'Đã xoá cấu hình' : 'Đã chuyển về đọc .env'); }, onError: (err) => toast.error(errorMessage(err)) });
+                if (!(await confirmDialog({
+                  ...(noEnv ? { title: `Xoá cấu hình ${group.name}?`, description: 'Kênh bị tắt và xoá cả giá trị bí mật đã lưu.', destructive: true, confirmText: 'Xoá' }
+                    : { title: `Dùng lại .env cho ${group.name}?`, description: 'Cấu hình lưu trên trang bị xoá, hệ thống đọc lại biến trong .env ngay.', destructive: true, confirmText: 'Dùng .env' }),
+                  onConfirm: () => { test.reset(); return reset.mutateAsync(undefined); },
+                }))) return;
+                onSaved(); toast.success(noEnv ? 'Đã xoá cấu hình' : 'Đã chuyển về đọc .env');
               }}>
                 <RotateCcw /> {noEnv ? 'Xoá cấu hình' : 'Dùng lại .env'}
               </Button>
             )}
-            <Button type="button" variant="outline" disabled={busy || test.isPending} onClick={() => test.mutate(isSmtp ? { to: testTo.trim() || undefined } : {})} data-testid={`settings-${group.group}-test`}>
+            <Button type="button" variant="outline" loading={test.isPending} disabled={busy} onClick={() => test.mutate(isSmtp ? { to: testTo.trim() || undefined } : {})} data-testid={`settings-${group.group}-test`}>
               <FlaskConical /> {testLabel}
             </Button>
           </SettingsFormFooter>

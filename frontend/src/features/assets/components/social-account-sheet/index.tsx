@@ -65,9 +65,9 @@ export function SocialAccountSheet({ accountId, onClose }: { accountId: string |
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" onClick={() => setEditing(true)}><Pencil /> Sửa</Button>
                 {a.hasToken && (
-                  <Button size="sm" variant="outline" disabled={sync.isPending}
+                  <Button size="sm" variant="outline" loading={sync.isPending}
                     onClick={() => sync.mutate(undefined, { onSuccess: tokenToast, onError: (x) => toast.error(errorMessage(x)) })}>
-                    <RefreshCw className={sync.isPending ? 'animate-spin' : undefined} /> Đồng bộ trang
+                    <RefreshCw /> Đồng bộ trang
                   </Button>
                 )}
                 {active
@@ -75,10 +75,11 @@ export function SocialAccountSheet({ accountId, onClose }: { accountId: string |
                     if (!(await confirmDialog({
                       title: `Ngừng dùng ${a.name}?`, destructive: true, confirmText: 'Ngừng dùng',
                       description: 'Không ai đăng bài lên các trang của BM này được nữa; mọi bài hẹn giờ chưa đăng sẽ bị huỷ. Có thể dùng lại sau.',
+                      onConfirm: () => setStatus.mutateAsync('Disabled'),
                     }))) return;
-                    setStatus.mutate('Disabled', { onSuccess: () => toast.success('Đã ngừng dùng BM'), onError: (x) => toast.error(errorMessage(x)) });
+                    toast.success('Đã ngừng dùng BM');
                   }}><Pause /> Ngừng dùng</Button>
-                  : <Button size="sm" variant="outline" disabled={setStatus.isPending}
+                  : <Button size="sm" variant="outline" loading={setStatus.isPending}
                     onClick={() => setStatus.mutate('Active', { onSuccess: () => toast.success('Đã dùng lại BM'), onError: (x) => toast.error(errorMessage(x)) })}>
                     <Play /> Dùng lại</Button>}
               </div>
@@ -105,7 +106,7 @@ export function SocialAccountSheet({ accountId, onClose }: { accountId: string |
                     placeholder={a.hasToken ? 'Token đã lưu (mã hoá, không hiển thị lại). Dán token mới để thay.' : 'EAAG…'}
                     onChange={(e) => setToken(e.target.value)} />
                   {tokenErrors.token && <p className="text-xs text-destructive">{tokenErrors.token}</p>}
-                  <div><Button type="submit" size="sm" disabled={!token.trim() || saveToken.isPending}>{saveToken.isPending ? 'Đang kiểm tra…' : 'Lưu và kiểm tra'}</Button></div>
+                  <div><Button type="submit" size="sm" loading={saveToken.isPending} disabled={!token.trim()} loadingText="Đang kiểm tra…">Lưu và kiểm tra</Button></div>
                   <SocialTokenGuide />
                 </form>
               </section>
@@ -120,8 +121,9 @@ export function SocialAccountSheet({ accountId, onClose }: { accountId: string |
                       if (!(await confirmDialog({
                         title: `Thu hồi ${a.name} từ ${a.holderName}?`, destructive: true, confirmText: 'Thu hồi',
                         description: 'Người này không đăng bài lên các trang của BM được nữa; bài hẹn giờ chưa đăng của họ sẽ bị huỷ.',
+                        onConfirm: () => giveBack.mutateAsync(undefined),
                       }))) return;
-                      giveBack.mutate(undefined, { onSuccess: () => toast.success('Đã thu hồi BM'), onError: (x) => toast.error(errorMessage(x)) });
+                      toast.success('Đã thu hồi BM');
                     }}>Thu hồi</Button>
                   </div>
                 ) : active ? (
@@ -135,7 +137,7 @@ export function SocialAccountSheet({ accountId, onClose }: { accountId: string |
                     <SearchSelectField id="sa-emp" label="Bàn giao cho *" value={employeeId} onChange={setEmployeeId} options={employeeOptions(employees.data)}
                       error={assignErrors.employeeId} />
                     <FormField id="sa-assign-note" label="Ghi chú" value={note} error={assignErrors.note} onChange={(e) => setNote(e.target.value)} />
-                    <div className="sm:col-span-2"><Button type="submit" size="sm" disabled={!employeeId || assign.isPending}><UserPlus /> Bàn giao</Button></div>
+                    <div className="sm:col-span-2"><Button type="submit" size="sm" loading={assign.isPending} disabled={!employeeId}><UserPlus /> Bàn giao</Button></div>
                   </form>
                 ) : <p className="text-sm text-muted-foreground">BM đã ngừng dùng.</p>}
               </section>

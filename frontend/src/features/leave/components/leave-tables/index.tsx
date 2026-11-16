@@ -49,8 +49,9 @@ export function MyLeavesTable() {
               <TableCell><StatusBadge s={r.status} /></TableCell>
               <TableCell>
                 {r.status === 'Pending' && r.approvalRequestId && (
-                  <Button size="sm" variant="ghost" disabled={cancel.isPending} onClick={async () => await confirmDialog({ title: 'Huỷ đơn nghỉ này?', confirmText: 'Huỷ đơn', cancelText: 'Không', destructive: true }) &&
-                    cancel.mutate(r.approvalRequestId!, { onSuccess: () => toast.success('Đã huỷ đơn'), onError: (e) => toast.error(errorMessage(e)) })}>Huỷ</Button>
+                  <Button size="sm" variant="ghost" loading={cancel.isPending && cancel.variables === r.approvalRequestId} disabled={cancel.isPending} onClick={async () => await confirmDialog({ title: 'Huỷ đơn nghỉ này?', confirmText: 'Huỷ đơn', cancelText: 'Không', destructive: true,
+                    onConfirm: () => cancel.mutateAsync(r.approvalRequestId!) }) &&
+                    toast.success('Đã huỷ đơn')}>Huỷ</Button>
                 )}
               </TableCell>
             </TableRow>
@@ -162,7 +163,7 @@ export function BalancesTable() {
               placeholder="Vd: Số dư chuyển từ Excel năm 2025" />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setTarget(null)}>Huỷ</Button>
-              <Button type="submit" disabled={adjust.isPending}>Lưu</Button>
+              <Button type="submit" loading={adjust.isPending} loadingText="Đang lưu…">Lưu</Button>
             </DialogFooter>
           </form>
         </DialogContent>

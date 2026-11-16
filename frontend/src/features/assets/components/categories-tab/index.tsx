@@ -83,7 +83,7 @@ function CategoryDialog({ open, category, onClose }: { open: boolean; category: 
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={!form.code.trim() || !form.name.trim() || save.isPending}>Lưu</Button>
+            <Button type="submit" loading={save.isPending} disabled={!form.code.trim() || !form.name.trim()} loadingText="Đang lưu…">Lưu</Button>
           </DialogFooter>
         </form>
       </DialogContent>

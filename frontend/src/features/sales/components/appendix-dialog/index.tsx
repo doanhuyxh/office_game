@@ -88,7 +88,7 @@ export function AppendixDialog({ d, open, onClose }: { d: IContractDetail; open:
             </div>
           )}
           <FormField id="ap-note" label="Ghi chú" maxLength={2000} value={f.note ?? ''} onChange={(e) => setF({ ...f, note: e.target.value })} />
-          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" disabled={save.isPending || !f.valueBeforeTaxDelta}>Lập phụ lục</Button></DialogFooter>
+          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" loading={save.isPending} disabled={!f.valueBeforeTaxDelta}>Lập phụ lục</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

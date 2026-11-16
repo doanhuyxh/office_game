@@ -71,8 +71,8 @@ export function DeviceAttachments({ deviceId }: { deviceId: string }) {
               <div className="flex shrink-0 gap-1">
                 <Button variant="ghost" size="icon" aria-label="Xem" onClick={() => void open(a.id, false)}><Eye /></Button>
                 <Button variant="ghost" size="icon" aria-label="Tải về" onClick={() => void open(a.id, true)}><Download /></Button>
-                <Button variant="ghost" size="icon" aria-label="Xoá tệp" onClick={async () => await confirmDialog({ title: `Xoá "${a.fileName}"?`, confirmText: 'Xoá', destructive: true })
-                  && remove.mutate(a.id, { onSuccess: () => toast.success('Đã xoá'), onError: (e) => toast.error(errorMessage(e)) })}><Trash2 /></Button>
+                <Button variant="ghost" size="icon" aria-label="Xoá tệp" onClick={async () => await confirmDialog({ title: `Xoá "${a.fileName}"?`, confirmText: 'Xoá', destructive: true, onConfirm: () => remove.mutateAsync(a.id) })
+                  && toast.success('Đã xoá')}><Trash2 /></Button>
               </div>
             </li>
           ))}

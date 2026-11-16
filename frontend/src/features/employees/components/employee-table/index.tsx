@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { MoreHorizontal, Plus, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from '@/components/common/alert-dialog';
 import { Badge } from '@/components/common/badge';
@@ -319,10 +319,10 @@ export function EmployeeTable({ canEdit, resigned = false }: { canEdit: boolean;
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Huỷ</AlertDialogCancel>
-            <AlertDialogAction disabled={reset2fa.isPending} onClick={() => dialog?.kind === 'reset2fa' && reset2fa.mutate(dialog.employee.id, {
+            <AlertDialogCancel disabled={reset2fa.isPending}>Huỷ</AlertDialogCancel>
+            <Button loading={reset2fa.isPending} loadingText="Đang xử lý…" onClick={() => dialog?.kind === 'reset2fa' && reset2fa.mutate(dialog.employee.id, {
               onSuccess: () => { toast.success('Đã đặt lại xác thực 2 lớp'); close(); }, onError,
-            })}>Đặt lại</AlertDialogAction>
+            })}>Đặt lại</Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

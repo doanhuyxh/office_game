@@ -31,7 +31,7 @@ export function QuoteSettingsDialog({ open, onClose }: { open: boolean; onClose:
           <div className="flex items-end gap-2">
             <FormField id="qs-limit" label="Ngưỡng chiết khấu cần duyệt (%)" type="number" min={0} max={100} step="0.01" disabled={!s.canEditLimit}
               value={limit} onChange={(e) => setLimit(e.target.value)} error={errs.quoteDiscountLimitPercent} />
-            {s.canEditLimit && <Button className="mb-1" disabled={saveLimit.isPending} onClick={() => saveLimit.mutate(Number(limit), {
+            {s.canEditLimit && <Button className="mb-1" loading={saveLimit.isPending} loadingText="Đang lưu…" onClick={() => saveLimit.mutate(Number(limit), {
               onSuccess: () => toast.success('Đã lưu ngưỡng'), onError: (e) => !Object.keys(fieldErrors(e)).length && toast.error(errorMessage(e)) })}>Lưu</Button>}
           </div>
           {!s.canEditLimit && <p className="-mt-3 text-xs text-muted-foreground">Chỉ người có quyền Quản trị tài chính đổi ngưỡng.</p>}
@@ -43,8 +43,8 @@ export function QuoteSettingsDialog({ open, onClose }: { open: boolean; onClose:
               {s.canEditTemplate && <>
                 <input ref={input} type="file" accept=".docx" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload.mutate(f, {
                   onSuccess: () => toast.success('Đã dùng mẫu mới'), onError: (er) => !Object.keys(fieldErrors(er)).length && toast.error(errorMessage(er)) }); e.target.value = ''; }} />
-                <Button size="sm" disabled={upload.isPending} onClick={() => input.current?.click()}><Upload /> Tải mẫu riêng (.docx)</Button>
-                {s.quoteTemplateName && <Button size="sm" variant="ghost" onClick={async () => await confirmDialog({ title: 'Quay về mẫu mặc định?', description: 'Mẫu báo giá riêng sẽ bị bỏ.', confirmText: 'Bỏ mẫu riêng', destructive: true }) && remove.mutate(undefined, { onError: (er) => toast.error(errorMessage(er)) })}><Trash2 /> Bỏ mẫu riêng</Button>}
+                <Button size="sm" loading={upload.isPending} onClick={() => input.current?.click()}><Upload /> Tải mẫu riêng (.docx)</Button>
+                {s.quoteTemplateName && <Button size="sm" variant="ghost" onClick={async () => await confirmDialog({ title: 'Quay về mẫu mặc định?', description: 'Mẫu báo giá riêng sẽ bị bỏ.', confirmText: 'Bỏ mẫu riêng', destructive: true, onConfirm: () => remove.mutateAsync(undefined) })}><Trash2 /> Bỏ mẫu riêng</Button>}
               </>}
             </div>
             {errs.file && <p className="text-xs text-destructive">{errs.file}</p>}

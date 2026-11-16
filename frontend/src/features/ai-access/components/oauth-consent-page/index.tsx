@@ -26,11 +26,11 @@ export function OAuthConsentPage() {
     return Object.fromEntries(PARAM_NAMES.flatMap((k) => (q.has(k) ? [[k, q.get(k) ?? '']] : [])));
   }, []);
   const info = useQuery({ queryKey: ['oauth', 'authorize', params], queryFn: () => accessTokenApi.authorizeInfo(params), retry: false });
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<'allow' | 'deny' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const decide = async (approve: boolean) => {
-    setBusy(true);
+    setBusy(approve ? 'allow' : 'deny');
     setError(null);
     try {
       const r = await accessTokenApi.authorize(params, approve);
@@ -38,7 +38,7 @@ export function OAuthConsentPage() {
     } catch (err) {
       const e = asAuthorizeError(err);
       if (e?.redirectTo) window.location.assign(e.redirectTo);
-      else { setError(e?.message ?? errorMessage(err)); setBusy(false); }
+      else { setError(e?.message ?? errorMessage(err)); setBusy(null); }
     }
   };
 
@@ -84,8 +84,8 @@ export function OAuthConsentPage() {
           </div>
         )}
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="outline" disabled={busy} onClick={() => decide(false)}>Từ chối</Button>
-          <Button disabled={busy} onClick={() => decide(true)}>{busy ? 'Đang chuyển…' : 'Cho phép'}</Button>
+          <Button variant="outline" loading={busy === 'deny'} disabled={!!busy} onClick={() => decide(false)}>Từ chối</Button>
+          <Button loading={busy === 'allow'} disabled={!!busy} loadingText="Đang chuyển…" onClick={() => decide(true)}>Cho phép</Button>
         </div>
       </div>
     </AuthShell>

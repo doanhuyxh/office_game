@@ -36,7 +36,7 @@ bun run dev                                   # http://localhost:5173, proxy /ap
 | Build BE (như CI) | `dotnet build -warnaserror` | `backend/` |
 | Test BE | `dotnet test` (mọi project `tests/*`: Architecture, từng module, Mcp, Realtime) | `backend/` |
 | Typecheck FE | `bun run typecheck` (`tsc -b`) | `frontend/` |
-| Build FE | `bun run build` (`tsc -b && vite build`) | `frontend/` |
+| Build FE | `bun run build` (`bun scripts/check-button-loading.ts && tsc -b && vite build` — kiểm tra nút thiếu `loading`, [frontend-buttons.md](frontend-buttons.md)) | `frontend/` |
 | Sinh type từ OpenAPI | `bun run api:generate` (Orval → `src/types/generated/`, thư mục **chưa tồn tại** tới khi chạy lần đầu; cần Api đang chạy) | `frontend/` |
 | Sửa bản đồ văn phòng 3D | sửa `shared/office-map.json` → `bun design/tools/render-plan.ts` (vẽ `design/floor-plan.svg`, ghi `shared/office-map.grid.txt`, kiểm tra; lỗi → exit 1) | gốc repo |
 | Tạo lại tài khoản / hợp đồng thử, e2e văn phòng 3D | `TEST_PASSWORD=… [BASE_URL=http://localhost:5173] bun scripts/dev/<seed-org|seed-contracts|office-e2e|voice-e2e>.ts` (xem [progress.md](progress.md)) | gốc repo |
@@ -44,7 +44,7 @@ bun run dev                                   # http://localhost:5173, proxy /ap
 | E2E khác (MCP, OAuth, chat phòng, lương / ký, bot trong 3D: `bot-*-e2e.ts`…) | xem [e2e.md](e2e.md) | gốc repo |
 | Thêm / cập nhật component shadcn | `bun run ui:add <tên…> [--overwrite]` → vào `src/components/common/` (**không** gọi `bunx shadcn add` trực tiếp) | `frontend/` |
 
-FE **không có lint/test runner** (không có ESLint, Vitest). Kiểm tra = `bun run build`.
+FE **không có lint/test runner** (không có ESLint, Vitest). Kiểm tra = `bun run build` (gồm `bun run check:buttons`).
 
 ## Migration EF Core
 

@@ -19,7 +19,7 @@ export function ReasonDialog({ open, title, description, confirmLabel, busy, onC
         <Textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} placeholder="Lý do (bắt buộc)" data-testid="reason-input" autoFocus />
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-          <Button type="button" variant="destructive" disabled={busy || reason.trim().length === 0} onClick={() => onConfirm(reason.trim())} data-testid="reason-confirm">{confirmLabel}</Button>
+          <Button type="button" variant="destructive" loading={busy} disabled={reason.trim().length === 0} loadingText="Đang xử lý…" onClick={() => onConfirm(reason.trim())} data-testid="reason-confirm">{confirmLabel}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

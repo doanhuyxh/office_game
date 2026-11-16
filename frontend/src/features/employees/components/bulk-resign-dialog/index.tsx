@@ -45,7 +45,7 @@ export function BulkResignDialog({ employees, open, onOpenChange, onDone }: {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
-          <Button variant="destructive" disabled={!leftAt || n === 0 || confirm.trim() !== String(n) || resign.isPending}
+          <Button variant="destructive" loading={resign.isPending} disabled={!leftAt || n === 0 || confirm.trim() !== String(n)}
             onClick={() => resign.mutate({ ids: targets.map((e) => e.id), leftAt }, {
               onSuccess: (r) => { toast.success(`Đã cho ${r.affected} nhân viên nghỉ việc và khoá tài khoản`); onDone(); onOpenChange(false); },
               onError: (err) => toast.error(errorMessage(err)),

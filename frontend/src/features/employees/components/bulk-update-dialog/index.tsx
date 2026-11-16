@@ -75,7 +75,7 @@ export function BulkUpdateDialog({ ids, open, onOpenChange, onDone }: {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
-          <Button disabled={save.isPending || !(on.department || on.position || on.manager)} onClick={submit}>Lưu</Button>
+          <Button loading={save.isPending} disabled={!(on.department || on.position || on.manager)} loadingText="Đang lưu…" onClick={submit}>Lưu</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -65,7 +65,7 @@ function ShiftDialog({ shift, onClose }: { shift: IShift | null | undefined; onC
           <FormField id="s-be" label="Kết thúc nghỉ trưa" type="time" value={f.breakEnd ?? ''} onChange={(e) => set('breakEnd', e.target.value)} error={err.breakEnd} />
           <DialogFooter className="sm:col-span-2">
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={save.isPending}>Lưu</Button>
+            <Button type="submit" loading={save.isPending} loadingText="Đang lưu…">Lưu</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -96,8 +96,8 @@ export function ShiftsPanel() {
                 <TableCell>{formatMinutes(s.plannedMinutes)}</TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon" aria-label="Sửa" onClick={() => setEditing(s)}><Pencil /></Button>
-                  <Button variant="ghost" size="icon" aria-label="Xoá" onClick={async () => await confirmDialog({ title: `Xoá ca "${s.name}"?`, confirmText: 'Xoá', destructive: true }) &&
-                    remove.mutate(s.id, { onSuccess: () => toast.success('Đã xoá ca'), onError: (e) => toast.error(errorMessage(e)) })}><Trash2 /></Button>
+                  <Button variant="ghost" size="icon" aria-label="Xoá" onClick={async () => await confirmDialog({ title: `Xoá ca "${s.name}"?`, confirmText: 'Xoá', destructive: true, onConfirm: () => remove.mutateAsync(s.id) }) &&
+                    toast.success('Đã xoá ca')}><Trash2 /></Button>
                 </TableCell>
               </TableRow>
             ))}

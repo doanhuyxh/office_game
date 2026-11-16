@@ -57,8 +57,8 @@ export function AttachmentsDialog({ owner, title, canUpload, onClose }: {
                 <div className="flex shrink-0 gap-1">
                   <Button variant="ghost" size="icon" aria-label="Xem" onClick={() => void open(a.id, false)}><Eye /></Button>
                   <Button variant="ghost" size="icon" aria-label="Tải về" onClick={() => void open(a.id, true)}><Download /></Button>
-                  {a.canDelete && <Button variant="ghost" size="icon" aria-label="Xoá chứng từ" onClick={async () => await confirmDialog({ title: `Xoá chứng từ "${a.fileName}"?`, confirmText: 'Xoá', destructive: true })
-                    && remove.mutate(a.id, { onSuccess: () => toast.success('Đã xoá'), onError: (e) => toast.error(errorMessage(e)) })}><Trash2 /></Button>}
+                  {a.canDelete && <Button variant="ghost" size="icon" aria-label="Xoá chứng từ" onClick={async () => await confirmDialog({ title: `Xoá chứng từ "${a.fileName}"?`, confirmText: 'Xoá', destructive: true, onConfirm: () => remove.mutateAsync(a.id) })
+                    && toast.success('Đã xoá')}><Trash2 /></Button>}
                 </div>
               </div>
             ))}
@@ -66,7 +66,7 @@ export function AttachmentsDialog({ owner, title, canUpload, onClose }: {
               <>
                 <input ref={input} type="file" multiple className="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp,.heic,.xlsx,.xls,.csv,.docx,.doc,.xml,.zip,.txt"
                   onChange={(e) => void onFiles(e.target.files)} data-testid="attachment-input" />
-                <Button variant="outline" disabled={busy} onClick={() => input.current?.click()}><Upload /> {busy ? 'Đang tải…' : 'Thêm chứng từ'}</Button>
+                <Button variant="outline" loading={busy} loadingText="Đang tải…" onClick={() => input.current?.click()}><Upload /> Thêm chứng từ</Button>
               </>
             )}
           </div>

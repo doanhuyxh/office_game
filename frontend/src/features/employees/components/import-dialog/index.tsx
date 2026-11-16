@@ -107,7 +107,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         )}
         <DialogFooter>
           <Button variant="outline" onClick={() => close(false)}>Đóng</Button>
-          <Button disabled={!ok || busy} onClick={commit}><FileSpreadsheet className="size-4" /> Nhập {preview?.validCount ?? 0} nhân viên</Button>
+          <Button loading={busy} disabled={!ok} loadingText="Đang nhập…" onClick={commit}><FileSpreadsheet className="size-4" /> Nhập {preview?.validCount ?? 0} nhân viên</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

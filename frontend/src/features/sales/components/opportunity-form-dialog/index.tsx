@@ -60,7 +60,7 @@ export function OpportunityFormDialog({ opportunity, customerId, onClose }: { op
           </div>
           <SelectField id="op-line" label="Mảng kinh doanh" allowEmpty value={f.businessLineId ?? null} onChange={(v) => set('businessLineId', v)} options={lines.map((l) => ({ value: l.id, label: l.name }))} />
           {f.stage === 'Lost' && <FormField id="op-lost" label="Lý do thua *" required maxLength={500} value={f.lostReason ?? ''} onChange={(e) => set('lostReason', e.target.value)} error={errors.lostReason} />}
-          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" disabled={save.isPending || !f.customerId}>Lưu</Button></DialogFooter>
+          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" loading={save.isPending} disabled={!f.customerId} loadingText="Đang lưu…">Lưu</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

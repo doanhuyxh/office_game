@@ -37,7 +37,7 @@ export function NotificationsPage() {
       <Tabs value={filter} onValueChange={setFilter}>
         <PageToolbar
           actions={unread > 0 && (
-            <Button variant="outline" size="sm" disabled={markAll.isPending} onClick={() => markAll.mutate()}>
+            <Button variant="outline" size="sm" loading={markAll.isPending} onClick={() => markAll.mutate()}>
               <CheckCheck /> Đánh dấu tất cả đã đọc
             </Button>
           )}>
@@ -65,7 +65,7 @@ export function NotificationsPage() {
                     <span className="text-xs text-muted-foreground/80" title={formatDateTime(n.createdAt)}>{timeAgo(n.createdAt)}</span>
                   </button>
                   {!n.read && (
-                    <Button variant="ghost" size="icon-sm" aria-label="Đánh dấu đã đọc" title="Đánh dấu đã đọc" disabled={markRead.isPending}
+                    <Button variant="ghost" size="icon-sm" aria-label="Đánh dấu đã đọc" title="Đánh dấu đã đọc" loading={markRead.isPending && markRead.variables === n.id} disabled={markRead.isPending}
                       onClick={() => markRead.mutate(n.id)}>
                       <Check />
                     </Button>

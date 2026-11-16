@@ -267,7 +267,7 @@ function EditForm({ d }: { d: IAssetDetail }) {
         <Label htmlFor="as-tags">Thẻ (cách nhau bằng dấu phẩy)</Label>
         <Input id="as-tags" value={tagText} onChange={(e) => setTagText(e.target.value)} placeholder="Vd: khách hàng A, logo, 2026" />
       </div>
-      <div className="flex justify-end"><Button type="submit" size="sm" disabled={save.isPending || !form.title.trim()}>{save.isPending ? 'Đang lưu…' : 'Lưu thông tin'}</Button></div>
+      <div className="flex justify-end"><Button type="submit" size="sm" loading={save.isPending} disabled={!form.title.trim()} loadingText="Đang lưu…">Lưu thông tin</Button></div>
     </form>
   );
 }

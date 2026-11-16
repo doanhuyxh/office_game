@@ -55,7 +55,7 @@ export function SetPasswordForm({ mode }: { mode: 'invite' | 'reset' }) {
         <FormField id="again" label="Nhập lại mật khẩu" type="password" required autoComplete="new-password"
           value={form.again} onChange={(e) => setForm({ ...form, again: e.target.value })} />
         {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button type="submit" disabled={reset.isPending}>{reset.isPending ? 'Đang lưu…' : 'Lưu mật khẩu'}</Button>
+        <Button type="submit" loading={reset.isPending} loadingText="Đang lưu…">Lưu mật khẩu</Button>
       </form>
     </AuthShell>
   );

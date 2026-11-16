@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { CalendarClock, Eye, EyeOff, Megaphone, MessageCircle, MoreHorizontal, Pencil, Pin, PinOff, Share2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/common/alert-dialog';
 import { Button } from '@/components/common/button';
 import { Card } from '@/components/common/card';
@@ -160,8 +160,8 @@ export function PostCard({ post, expanded, focusComment }: { post: IPost; expand
             <AlertDialogDescription>Bài viết và bình luận sẽ không còn hiển thị với mọi người.{post.canDelete && !post.canEdit ? ' Tác giả sẽ được báo.' : ''}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Huỷ</AlertDialogCancel>
-            <AlertDialogAction onClick={() => del.mutate(post.id, { onSuccess: () => toast.success('Đã xoá bài'), onError: fail })} data-testid="confirm-delete">Xoá</AlertDialogAction>
+            <AlertDialogCancel disabled={del.isPending}>Huỷ</AlertDialogCancel>
+            <Button variant="destructive" loading={del.isPending} loadingText="Đang xử lý…" onClick={() => del.mutate(post.id, { onSuccess: () => { toast.success('Đã xoá bài'); setConfirmDelete(false); }, onError: fail })} data-testid="confirm-delete">Xoá</Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

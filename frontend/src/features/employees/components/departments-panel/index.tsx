@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { BookOpen, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from '@/components/common/alert-dialog';
 import { Button } from '@/components/common/button';
@@ -53,7 +53,7 @@ function DepartmentDialog({ open, onOpenChange, dept }: { open: boolean; onOpenC
             options={MAP_ZONES.map((z) => ({ value: z.id, label: z.name }))} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
-            <Button type="submit" disabled={save.isPending}>Lưu</Button>
+            <Button type="submit" loading={save.isPending} loadingText="Đang lưu…">Lưu</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -116,10 +116,10 @@ export function DepartmentsPanel({ canEdit }: { canEdit: boolean }) {
             <AlertDialogDescription>Chỉ xoá được khi phòng ban không còn nhân viên và không có phòng ban con.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Huỷ</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleting && remove.mutate(deleting.id, {
-              onSuccess: () => toast.success('Đã xoá phòng ban'), onError: (err) => toast.error(errorMessage(err)),
-            })}>Xoá</AlertDialogAction>
+            <AlertDialogCancel disabled={remove.isPending}>Huỷ</AlertDialogCancel>
+            <Button variant="destructive" loading={remove.isPending} loadingText="Đang xử lý…" onClick={() => deleting && remove.mutate(deleting.id, {
+              onSuccess: () => { toast.success('Đã xoá phòng ban'); setDeleting(null); }, onError: (err) => toast.error(errorMessage(err)),
+            })}>Xoá</Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

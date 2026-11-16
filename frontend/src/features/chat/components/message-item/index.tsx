@@ -123,7 +123,7 @@ function EditBox({ m, onSave, onCancel }: { m: IMessage; onSave: (text: string) 
       <Textarea autoFocus value={text} maxLength={MAX_TEXT} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} rows={3} className="bg-background text-foreground" data-testid="chat-edit-input" />
       <div className="flex justify-end gap-1.5">
         <Button size="sm" variant="ghost" onClick={onCancel} disabled={saving}>Huỷ</Button>
-        <Button size="sm" onClick={() => void save()} disabled={saving} data-testid="chat-edit-save">{saving && <Loader2 className="animate-spin" />} Lưu</Button>
+        <Button size="sm" onClick={() => void save()} loading={saving} loadingText="Đang lưu…" data-testid="chat-edit-save">Lưu</Button>
       </div>
     </div>
   );

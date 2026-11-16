@@ -31,10 +31,9 @@ export function HandoverTemplateCard() {
           if (f) upload.mutate(f, { onSuccess: () => toast.success('Đã dùng mẫu mới'), onError: (er) => !Object.keys(fieldErrors(er)).length && toast.error(errorMessage(er)) });
           e.target.value = '';
         }} />
-        <Button size="sm" disabled={upload.isPending} onClick={() => input.current?.click()}><Upload /> Tải mẫu riêng (.docx)</Button>
+        <Button size="sm" loading={upload.isPending} onClick={() => input.current?.click()}><Upload /> Tải mẫu riêng (.docx)</Button>
         {s?.handoverTemplateName && (
-          <Button size="sm" variant="ghost" onClick={async () => await confirmDialog({ title: 'Quay về mẫu mặc định?', description: 'Mẫu biên bản riêng sẽ bị bỏ.', confirmText: 'Bỏ mẫu riêng', destructive: true })
-            && remove.mutate(undefined, { onError: (er) => toast.error(errorMessage(er)) })}><Trash2 /> Bỏ mẫu riêng</Button>
+          <Button size="sm" variant="ghost" onClick={async () => await confirmDialog({ title: 'Quay về mẫu mặc định?', description: 'Mẫu biên bản riêng sẽ bị bỏ.', confirmText: 'Bỏ mẫu riêng', destructive: true, onConfirm: () => remove.mutateAsync(undefined) })}><Trash2 /> Bỏ mẫu riêng</Button>
         )}
       </div>
       {errs.file && <p className="text-xs text-destructive">{errs.file}</p>}

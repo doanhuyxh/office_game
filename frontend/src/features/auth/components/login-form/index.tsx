@@ -58,8 +58,8 @@ export function LoginForm() {
         <FormField id="password" label="Mật khẩu" type="password" autoComplete="current-password" required
           value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
         {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button type="submit" disabled={login.isPending}>
-          {login.isPending ? 'Đang đăng nhập…' : 'Đăng nhập'}
+        <Button type="submit" loading={login.isPending} loadingText="Đang đăng nhập…">
+          Đăng nhập
         </Button>
         <Link to={PATHS.forgotPassword} className="text-center text-sm text-muted-foreground hover:text-primary hover:underline">
           Quên mật khẩu?

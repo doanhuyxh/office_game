@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "bun scripts/check-button-loading.ts && tsc -b && vite build",
+    "check:buttons": "bun scripts/check-button-loading.ts",
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "api:generate": "orval --config orval.config.ts",

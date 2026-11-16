@@ -163,7 +163,7 @@ function HandoverDialog({ from, onClose }: { from: IOrphan | null; onClose: () =
           options={(employees.data ?? []).filter((e) => e.status !== 'Resigned').map((e) => ({ value: e.id, label: `${e.fullName} (${e.code}${e.departmentName ? ` · ${e.departmentName}` : ''})` }))} />
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Huỷ</Button>
-          <Button disabled={!to || run.isPending}
+          <Button loading={run.isPending} disabled={!to}
             onClick={() => run.mutate(undefined, { onSuccess: (n) => { toast.success(`Đã bàn giao ${n} tài liệu`); onClose(); }, onError: (e) => toast.error(errorMessage(e)) })}>
             Bàn giao
           </Button>
@@ -234,7 +234,7 @@ function DocTypeDialog({ type, next, onClose }: { type: IDocType | 'new' | null;
           <label className="flex items-center gap-2 text-sm"><Checkbox checked={form.isActive} onCheckedChange={(c) => setForm({ ...form, isActive: c === true })} /> Đang dùng</label>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={save.isPending || !form.code.trim() || !form.name.trim()}>Lưu</Button>
+            <Button type="submit" loading={save.isPending} disabled={!form.code.trim() || !form.name.trim()} loadingText="Đang lưu…">Lưu</Button>
           </DialogFooter>
         </form>
       </DialogContent>

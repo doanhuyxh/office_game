@@ -46,7 +46,7 @@ export function CollectDialog({ installment, contractCode, onClose }: { installm
           <SelectField id="cl-cat" label="Danh mục thu" allowEmpty value={f.categoryId ?? null} onChange={(v) => setF({ ...f, categoryId: v })} options={categories.map((c) => ({ value: c.id, label: c.name }))} error={errors.categoryId} />
           <FormField id="cl-inv" label="Số hoá đơn VAT (nếu đã xuất)" maxLength={50} value={f.invoiceNumber ?? ''} onChange={(e) => setF({ ...f, invoiceNumber: e.target.value })} />
           {errors.businessLineId && <p className="text-xs text-destructive">{errors.businessLineId}</p>}
-          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" disabled={run.isPending || !f.accountId}>Ghi nhận</Button></DialogFooter>
+          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" loading={run.isPending} disabled={!f.accountId}>Ghi nhận</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

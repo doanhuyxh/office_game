@@ -141,7 +141,7 @@ function Detail({ d, onOpenCustomer }: { d: IContractDetail; onOpenCustomer: (id
               <Input aria-label="Số tiền" inputMode="numeric" value={groupDigits(adding.amount)} onChange={(e) => setAdding({ ...adding, amount: parseMoney(e.target.value) })} />
             </div>
             {Object.values(addErrors).map((m) => <p key={m} className="text-xs text-destructive">{m}</p>)}
-            <div className="flex justify-end gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setAdding(null)}>Huỷ</Button><Button type="submit" size="sm" disabled={add.isPending}>Thêm đợt</Button></div>
+            <div className="flex justify-end gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setAdding(null)}>Huỷ</Button><Button type="submit" size="sm" loading={add.isPending}>Thêm đợt</Button></div>
           </form>
         ) : (
           <div className="flex flex-wrap items-end justify-between gap-2">

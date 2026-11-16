@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pencil, RotateCcw, Trash2, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/common/alert-dialog';
 import { Button } from '@/components/common/button';
 import { Label } from '@/components/common/label';
@@ -50,9 +50,11 @@ function Detail({ d, onClose }: { d: IDeviceDetail; onClose: () => void }) {
   const [status, setStatus] = useState<DeviceStatus | null>(null);
   const [reason, setReason] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const run = useAssetMutation((f: () => Promise<unknown>) => f());
-  const act = (f: () => Promise<unknown>, ok: string, after?: () => void) =>
-    run.mutate(f, { onSuccess: () => { toast.success(ok); after?.(); }, onError: (e) => toast.error(errorMessage(e)) });
+  // `key` = nút đang chạy (chỉ nút đó xoay, các nút khác vẫn khoá).
+  const run = useAssetMutation((a: { key: 'assign' | 'return' | 'status' | 'delete'; f: () => Promise<unknown> }) => a.f());
+  const busy = (key: 'assign' | 'return' | 'status' | 'delete') => run.isPending && run.variables?.key === key;
+  const act = (key: 'assign' | 'return' | 'status' | 'delete', f: () => Promise<unknown>, ok: string, after?: () => void) =>
+    run.mutate({ key, f }, { onSuccess: () => { toast.success(ok); after?.(); }, onError: (e) => toast.error(errorMessage(e)) });
   const st = DEVICE_STATUS[v.status];
   const closed = v.status === 'Retired' || v.status === 'Lost';
   const needReason = status === 'Retired' || status === 'Lost';
@@ -87,8 +89,8 @@ function Detail({ d, onClose }: { d: IDeviceDetail; onClose: () => void }) {
             <SearchSelectField id="dv-assign-emp" label="Nhân viên nhận *" value={employeeId} onChange={setEmployeeId} options={employeeOptions(employees.data)} />
             <div className="grid gap-2"><Label htmlFor="dv-assign-note">Tình trạng, phụ kiện kèm theo (ghi vào biên bản)</Label><Textarea id="dv-assign-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></div>
             <p className="text-xs text-muted-foreground">Hệ thống lập biên bản bàn giao, nhân viên nhận thông báo và bấm xác nhận trong app.</p>
-            <Button className="justify-self-start" disabled={!employeeId || run.isPending}
-              onClick={() => act(() => assetApi.assign(v.id, employeeId!, note.trim() || null), 'Đã cấp thiết bị', () => { setEmployeeId(null); setNote(''); })}>
+            <Button className="justify-self-start" loading={busy('assign')} disabled={run.isPending || !employeeId}
+              onClick={() => act('assign', () => assetApi.assign(v.id, employeeId!, note.trim() || null), 'Đã cấp thiết bị', () => { setEmployeeId(null); setNote(''); })}>
               <UserPlus /> Cấp phát
             </Button>
           </section>
@@ -97,8 +99,8 @@ function Detail({ d, onClose }: { d: IDeviceDetail; onClose: () => void }) {
           <section className="grid gap-3 rounded-lg border p-3">
             <h4 className="text-sm font-semibold">Thu hồi</h4>
             <div className="grid gap-2"><Label htmlFor="dv-return-note">Tình trạng khi trả (ghi vào biên bản thu hồi)</Label><Textarea id="dv-return-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></div>
-            <Button className="justify-self-start" variant="outline" disabled={run.isPending}
-              onClick={() => act(() => assetApi.returnDevice(v.id, note.trim() || null), 'Đã thu hồi thiết bị', () => setNote(''))}>
+            <Button className="justify-self-start" variant="outline" loading={busy('return')} disabled={run.isPending}
+              onClick={() => act('return', () => assetApi.returnDevice(v.id, note.trim() || null), 'Đã thu hồi thiết bị', () => setNote(''))}>
               <RotateCcw /> Thu hồi về kho
             </Button>
           </section>
@@ -110,8 +112,8 @@ function Detail({ d, onClose }: { d: IDeviceDetail; onClose: () => void }) {
               options={STATUS_TARGETS.filter((s) => s !== v.status).map((s) => ({ value: s, label: DEVICE_STATUS[s].label }))} />
             {needReason && <div className="grid gap-2"><Label htmlFor="dv-reason">Lý do *</Label><Textarea id="dv-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} /></div>}
             {v.status === 'InUse' && <p className="text-xs text-muted-foreground">Thiết bị đang có người dùng: chỉ đánh dấu "Mất" được; muốn bảo trì / thanh lý hãy thu hồi trước.</p>}
-            <Button className="justify-self-start" variant="outline" disabled={!status || (needReason && !reason.trim()) || run.isPending}
-              onClick={() => act(() => assetApi.setStatus(v.id, status!, reason.trim() || null), 'Đã đổi trạng thái', () => { setStatus(null); setReason(''); })}>
+            <Button className="justify-self-start" variant="outline" loading={busy('status')} disabled={run.isPending || !status || (needReason && !reason.trim())}
+              onClick={() => act('status', () => assetApi.setStatus(v.id, status!, reason.trim() || null), 'Đã đổi trạng thái', () => { setStatus(null); setReason(''); })}>
               Áp dụng
             </Button>
           </section>
@@ -152,8 +154,9 @@ function Detail({ d, onClose }: { d: IDeviceDetail; onClose: () => void }) {
             <AlertDialogDescription>Chỉ xoá được thiết bị chưa từng cấp phát. Đã dùng rồi thì hãy chuyển sang "Thanh lý".</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Huỷ</AlertDialogCancel>
-            <AlertDialogAction onClick={() => act(() => assetApi.deleteDevice(v.id), 'Đã xoá thiết bị', onClose)}>Xoá</AlertDialogAction>
+            <AlertDialogCancel disabled={busy('delete')}>Huỷ</AlertDialogCancel>
+            <Button variant="destructive" loading={busy('delete')} disabled={run.isPending} loadingText="Đang xử lý…"
+              onClick={() => act('delete', () => assetApi.deleteDevice(v.id), 'Đã xoá thiết bị', () => { setConfirmDelete(false); onClose(); })}>Xoá</Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

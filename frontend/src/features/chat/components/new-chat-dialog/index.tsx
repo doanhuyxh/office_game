@@ -53,7 +53,7 @@ export function NewChatDialog({ open, onOpenChange, onOpened }: {
             <PeoplePicker selected={picked} onChange={setPicked} enabled={open} />
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setMode('direct')}>Quay lại</Button>
-              <Button disabled={!title.trim() || picked.length === 0 || createGroup.isPending} onClick={submitGroup} data-testid="chat-group-create">Tạo nhóm</Button>
+              <Button loading={createGroup.isPending} disabled={!title.trim() || picked.length === 0} loadingText="Đang tạo…" onClick={submitGroup} data-testid="chat-group-create">Tạo nhóm</Button>
             </div>
           </div>
         ) : (

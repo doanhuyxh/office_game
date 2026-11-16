@@ -111,8 +111,7 @@ function EmailCard({ e }: { e: IEmailQueue }) {
   const retry = useMutation({
     mutationFn: systemApi.retryEmails,
     onSuccess: (r) => { toast.success(r.count ? `Đã đưa ${r.count} email vào hàng đợi lại` : 'Không có email nào cần gửi lại'); void qc.invalidateQueries({ queryKey: systemKeys.ops }); },
-    onError: (x) => toast.error(errorMessage(x)),
-  });
+  }); // lỗi: confirmDialog (onConfirm) tự toast
   const stuck = e.oldestPendingAt && Date.now() - new Date(e.oldestPendingAt).getTime() > 2 * 3600_000;
   const tone: StatusTone = e.failed > 0 || stuck ? 'danger' : e.retrying > 0 ? 'warning' : 'success';
   return (
@@ -129,8 +128,8 @@ function EmailCard({ e }: { e: IEmailQueue }) {
           <Stat label="Bỏ qua (địa chỉ thử)" value={e.skipped30d} />
         </div>
         {e.failed > 0 && (
-          <Button size="sm" variant="outline" className="justify-self-start" disabled={retry.isPending}
-            onClick={async () => await confirmDialog({ title: `Gửi lại ${e.failed} email đã bỏ cuộc?`, description: 'Chỉ nên gửi lại sau khi đã sửa cấu hình SMTP / địa chỉ nhận.', confirmText: 'Gửi lại' }) && retry.mutate()}>
+          <Button size="sm" variant="outline" className="justify-self-start" loading={retry.isPending} loadingText="Đang gửi…"
+            onClick={async () => await confirmDialog({ title: `Gửi lại ${e.failed} email đã bỏ cuộc?`, description: 'Chỉ nên gửi lại sau khi đã sửa cấu hình SMTP / địa chỉ nhận.', confirmText: 'Gửi lại', onConfirm: () => retry.mutateAsync() })}>
             <RotateCcw /> Gửi lại email lỗi
           </Button>
         )}

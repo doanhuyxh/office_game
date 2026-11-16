@@ -107,7 +107,7 @@ export function TwoFactorSetupPage() {
             className="text-center font-mono text-lg tracking-[0.4em]" error={errors.code}
             value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d ]/g, ''))} />
           {enable.error && !errors.code && <p className="text-sm text-destructive">{errorMessage(enable.error)}</p>}
-          <Button type="submit" disabled={enable.isPending || !setup.data}>{enable.isPending ? 'Đang kiểm tra…' : 'Bật xác thực 2 lớp'}</Button>
+          <Button type="submit" loading={enable.isPending} disabled={!setup.data} loadingText="Đang kiểm tra…">Bật xác thực 2 lớp</Button>
         </form>
         <div className="flex justify-between text-sm">
           {mandatory

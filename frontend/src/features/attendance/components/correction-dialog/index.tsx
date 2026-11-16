@@ -57,7 +57,7 @@ export function CorrectionDialog({ day, onClose }: { day: IDay | null; onClose: 
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={create.isPending}>Gửi giải trình</Button>
+            <Button type="submit" loading={create.isPending} loadingText="Đang gửi…">Gửi giải trình</Button>
           </DialogFooter>
         </form>
       </DialogContent>

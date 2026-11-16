@@ -41,7 +41,7 @@ export function MilestonesPanel({ d }: { d: IProjectDetail }) {
           {canEdit && m.status === 'Open' && <div className="flex gap-1">
             <Button size="sm" onClick={() => setAccepting(m)}><CheckCircle2 /> Nghiệm thu</Button>
             <Button size="icon" variant="ghost" aria-label="Sửa mốc" onClick={() => setEdit(m)}><Pencil /></Button>
-            <Button size="icon" variant="ghost" aria-label="Xoá mốc" onClick={async () => await confirmDialog({ title: `Xoá mốc "${m.title}"?`, confirmText: 'Xoá', destructive: true }) && remove.mutate(m.id, { onError: onErr })}><Trash2 /></Button>
+            <Button size="icon" variant="ghost" aria-label="Xoá mốc" onClick={async () => await confirmDialog({ title: `Xoá mốc "${m.title}"?`, confirmText: 'Xoá', destructive: true, onConfirm: () => remove.mutateAsync(m.id) })}><Trash2 /></Button>
           </div>}
         </div>
       ))}
@@ -70,7 +70,7 @@ function MilestoneDialog({ projectId, contracts, milestone, used, onClose }: { p
           {contracts.length > 0 && <SelectField id="ms-inst" label="Đợt thu gắn với mốc" allowEmpty emptyLabel="— Không gắn —" value={f.installmentId ?? null} onChange={(v) => setF({ ...f, installmentId: v })}
             options={installments.map((i) => ({ value: i.id, label: `${contracts.length > 1 ? `HĐ ${code(i.contractId)} · ` : ''}${i.title} (hạn ${fmtDate(i.dueOn)})` }))} error={errors.installmentId} />}
           <FormField id="ms-note" label="Ghi chú" maxLength={1000} value={f.note ?? ''} onChange={(e) => setF({ ...f, note: e.target.value })} />
-          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" disabled={save.isPending}>Lưu</Button></DialogFooter>
+          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" loading={save.isPending} loadingText="Đang lưu…">Lưu</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -93,7 +93,7 @@ function AcceptDialog({ milestone, onClose }: { milestone: IMilestone | null; on
         <FormField id="ac-date" label="Ngày nghiệm thu *" type="date" max={todayVn()} value={date} onChange={(e) => setDate(e.target.value)} error={errors.acceptedOn} />
         <FormField id="ac-note" label="Ghi chú (biên bản…)" maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} />
         <DialogFooter><Button variant="outline" onClick={onClose}>Huỷ</Button>
-          <Button disabled={run.isPending || !date} onClick={() => milestone && run.mutate({ id: milestone.id }, { onSuccess: () => { toast.success('Đã nghiệm thu'); onClose(); }, onError: onErr })}>Xác nhận nghiệm thu</Button>
+          <Button loading={run.isPending} disabled={!date} onClick={() => milestone && run.mutate({ id: milestone.id }, { onSuccess: () => { toast.success('Đã nghiệm thu'); onClose(); }, onError: onErr })}>Xác nhận nghiệm thu</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

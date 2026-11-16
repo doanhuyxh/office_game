@@ -91,7 +91,7 @@ function OvertimeDialog({ open, onClose }: { open: boolean; onClose: () => void 
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={create.isPending}>Gửi đơn</Button>
+            <Button type="submit" loading={create.isPending} loadingText="Đang gửi…">Gửi đơn</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -153,8 +153,9 @@ export function OvertimeTab() {
                 <TableCell><StatusBadge tone={OVERTIME_STATUS[r.status].tone}>{OVERTIME_STATUS[r.status].label}</StatusBadge></TableCell>
                 <TableCell>
                   {r.status === 'Pending' && r.approvalRequestId && (
-                    <Button size="sm" variant="ghost" disabled={cancel.isPending} onClick={async () => await confirmDialog({ title: 'Huỷ đơn tăng ca này?', confirmText: 'Huỷ đơn', cancelText: 'Không', destructive: true }) &&
-                      cancel.mutate(r.approvalRequestId!, { onSuccess: () => toast.success('Đã huỷ đơn'), onError: (e) => toast.error(errorMessage(e)) })}>Huỷ</Button>
+                    <Button size="sm" variant="ghost" loading={cancel.isPending && cancel.variables === r.approvalRequestId} disabled={cancel.isPending} onClick={async () => await confirmDialog({ title: 'Huỷ đơn tăng ca này?', confirmText: 'Huỷ đơn', cancelText: 'Không', destructive: true,
+                    onConfirm: () => cancel.mutateAsync(r.approvalRequestId!) }) &&
+                      toast.success('Đã huỷ đơn')}>Huỷ</Button>
                   )}
                 </TableCell>
               </TableRow>

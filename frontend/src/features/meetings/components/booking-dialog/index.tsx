@@ -107,7 +107,7 @@ export function BookingDialog({ draft, onClose }: { draft: BookingDraft | null; 
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={create.isPending || !roomId || !title.trim()}>{create.isPending ? 'Đang đặt…' : 'Đặt phòng'}</Button>
+            <Button type="submit" loading={create.isPending} disabled={!roomId || !title.trim()} loadingText="Đang đặt…">Đặt phòng</Button>
           </DialogFooter>
         </form>
       </DialogContent>

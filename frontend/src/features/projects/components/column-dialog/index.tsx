@@ -41,8 +41,9 @@ export function ColumnDialog({ projectId, column, columns, onClose }: {
     if (column.taskCount > 0 && !moveTo) { toast.error('Chọn trạng thái để chuyển việc sang trước khi xoá'); return; }
     const target = others.find((c) => c.id === moveTo)?.name;
     if (!(await confirmDialog({ title: `Xoá trạng thái "${column.name}"?`, destructive: true, confirmText: 'Xoá',
-      description: column.taskCount > 0 ? `${column.taskCount} việc sẽ chuyển sang "${target}".` : undefined }))) return;
-    remove.mutate({ id: column.id, moveTo }, { onSuccess: () => { toast.success('Đã xoá trạng thái'); onClose(); }, onError: (err) => toast.error(errorMessage(err)) });
+      description: column.taskCount > 0 ? `${column.taskCount} việc sẽ chuyển sang "${target}".` : undefined,
+      onConfirm: () => remove.mutateAsync({ id: column.id, moveTo }) }))) return;
+    toast.success('Đã xoá trạng thái'); onClose();
   };
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -95,10 +96,10 @@ export function ColumnDialog({ projectId, column, columns, onClose }: {
             </div>
           )}
           <DialogFooter className="items-center">
-            {column && <Button type="button" variant="ghost" className="mr-auto text-destructive" disabled={remove.isPending || others.length === 0 || lastDone}
+            {column && <Button type="button" variant="ghost" className="mr-auto text-destructive" loading={remove.isPending} disabled={others.length === 0 || lastDone} loadingText="Đang xử lý…"
               title={lastDone ? 'Không xoá trạng thái hoàn thành cuối cùng' : undefined} onClick={() => void del()}><Trash2 /> Xoá</Button>}
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={save.isPending}>{column ? 'Lưu' : 'Thêm'}</Button>
+            <Button type="submit" loading={save.isPending}>{column ? 'Lưu' : 'Thêm'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

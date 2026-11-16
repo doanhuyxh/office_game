@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ImagePlus, Loader2, SendHorizontal, X } from 'lucide-react';
+import { ImagePlus, SendHorizontal, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { MentionList, type IMentionOption } from '@/components/common/mention-list';
@@ -93,8 +93,8 @@ export function CommentInput({ placeholder = 'Viết bình luận…', initial =
             <Button type="button" variant="ghost" size="icon-sm" aria-label="Đính kèm ảnh" disabled={busy} onClick={() => file.current?.click()}><ImagePlus /></Button>
           </>
         )}
-        <Button type="button" size="icon-sm" variant="ghost" aria-label={submitLabel} title={submitLabel} disabled={busy || (!text.trim() && !image)} onClick={() => void submit()} data-testid="comment-send">
-          {busy ? <Loader2 className="animate-spin" /> : <SendHorizontal />}
+        <Button type="button" size="icon-sm" variant="ghost" aria-label={submitLabel} title={submitLabel} loading={busy} disabled={!text.trim() && !image} onClick={() => void submit()} data-testid="comment-send">
+          <SendHorizontal />
         </Button>
       </div>
       {image && (

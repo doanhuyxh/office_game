@@ -71,7 +71,7 @@ export function TaskDependencies({ projectId, taskId, dependsOn, blocks, canWork
                         </div>
                         <span className={`truncate text-sm ${t.done ? 'text-muted-foreground line-through' : ''}`} title={t.title}>{t.title}</span>
                       </div>
-                      <Button type="button" size="sm" variant="ghost" className="h-7 shrink-0" disabled={save.isPending} aria-label={`Thêm chờ ${t.code}`}
+                      <Button type="button" size="sm" variant="ghost" className="h-7 shrink-0" loading={save.isPending} aria-label={`Thêm chờ ${t.code}`}
                         onClick={() => apply([...current, t.id])}><Plus /> Thêm</Button>
                     </li>
                   ))}

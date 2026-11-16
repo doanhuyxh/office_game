@@ -137,7 +137,7 @@ export function SignDialog({ request, onClose }: { request: ISignRequest | null;
             <div className="grid gap-2">
               <Label>2. Nhận mã xác nhận</Label>
               <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" variant="outline" disabled={sendOtp.isPending} onClick={() => sendOtp.mutate(request.id, { onError: (e) => toast.error(errorMessage(e)) })}>
+                <Button type="button" variant="outline" loading={sendOtp.isPending} onClick={() => sendOtp.mutate(request.id, { onError: (e) => toast.error(errorMessage(e)) })}>
                   <Mail className="size-4" /> {sent ? 'Gửi lại mã' : 'Gửi mã qua email'}
                 </Button>
                 {sent && <span className="text-sm text-muted-foreground">Đã gửi tới <b>{sent.sentTo}</b>, hết hạn lúc {formatDateTime(sent.expiresAt)}</span>}
@@ -156,8 +156,8 @@ export function SignDialog({ request, onClose }: { request: ISignRequest | null;
             {!viewed && <p className="text-xs text-warning">Hãy mở và đọc hợp đồng trước khi ký.</p>}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose}>Để sau</Button>
-              <Button type="submit" disabled={sign.isPending || otp.length !== 6 || !signature || !agree} data-testid="sign-submit">
-                <ShieldCheck className="size-4" /> {sign.isPending ? 'Đang ký…' : 'Ký hợp đồng'}
+              <Button type="submit" loading={sign.isPending} disabled={otp.length !== 6 || !signature || !agree} loadingText="Đang ký…" data-testid="sign-submit">
+                <ShieldCheck className="size-4" /> Ký hợp đồng
               </Button>
             </DialogFooter>
           </form>
@@ -204,8 +204,8 @@ export function SignRequestList({ contractId, isHr }: { contractId: string; isHr
           </span>
           {r.status === 'Signed' && <Button size="sm" variant="link" className="h-auto p-0" onClick={() => openDocument(r.id, true)}>Bản đã ký</Button>}
           {isHr && r.status === 'Pending' && (
-            <Button size="sm" variant="ghost" className="h-7 text-destructive" disabled={cancel.isPending}
-              onClick={async () => await confirmDialog({ title: 'Huỷ yêu cầu ký này?', confirmText: 'Huỷ yêu cầu', cancelText: 'Không', destructive: true }) && cancel.mutate(r.id, { onSuccess: () => toast.success('Đã huỷ yêu cầu ký'), onError: (e) => toast.error(errorMessage(e)) })}>
+            <Button size="sm" variant="ghost" className="h-7 text-destructive" loading={cancel.isPending && cancel.variables === r.id} disabled={cancel.isPending}
+              onClick={async () => await confirmDialog({ title: 'Huỷ yêu cầu ký này?', confirmText: 'Huỷ yêu cầu', cancelText: 'Không', destructive: true, onConfirm: () => cancel.mutateAsync(r.id) }) && toast.success('Đã huỷ yêu cầu ký')}>
               <X className="size-3.5" /> Huỷ
             </Button>
           )}

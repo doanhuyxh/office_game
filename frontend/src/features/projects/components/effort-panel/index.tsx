@@ -73,7 +73,7 @@ export function EffortPanel({ d }: { d: IProjectDetail }) {
               </label>); })}
           </div>
           {Object.values(errs).map((m) => <p key={m} className="text-xs text-destructive">{m}</p>)}
-          <div className="flex justify-end"><Button size="sm" disabled={save.isPending || Object.keys(draft).length === 0} onClick={() => save.mutate(
+          <div className="flex justify-end"><Button size="sm" loading={save.isPending} disabled={Object.keys(draft).length === 0} loadingText="Đang lưu…" onClick={() => save.mutate(
             Object.entries(draft).map(([employeeId, v]) => ({ employeeId, percent: v === '' ? null : Number(v) })),
             { onSuccess: () => { toast.success('Đã lưu phân bổ'); setDraft({}); }, onError: (err) => !Object.keys(fieldErrors(err)).length && toast.error(errorMessage(err)) })}>Lưu phân bổ</Button></div>
         </div>

@@ -93,7 +93,7 @@ export function ContractFormDialog({ open, onClose, contract, employeeId }: {
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={save.isPending}>{contract ? 'Lưu' : 'Thêm hợp đồng'}</Button>
+            <Button type="submit" loading={save.isPending}>{contract ? 'Lưu' : 'Thêm hợp đồng'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

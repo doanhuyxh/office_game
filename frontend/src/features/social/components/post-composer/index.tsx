@@ -161,7 +161,7 @@ export function PostComposer({ pages }: { pages: ISocialPage[] }) {
       </div>
 
       <div className="flex justify-end">
-        <Button type="submit" disabled={create.isPending || uploading || selected.length === 0}>
+        <Button type="submit" loading={create.isPending} disabled={uploading || selected.length === 0}>
           <Send /> {schedule ? 'Hẹn giờ đăng' : `Đăng${selected.length > 1 ? ` lên ${selected.length} trang` : ''}`}
         </Button>
       </div>

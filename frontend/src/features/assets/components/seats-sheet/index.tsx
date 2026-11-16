@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pencil, Plus, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/common/alert-dialog';
 import { Button } from '@/components/common/button';
 import { FormField } from '@/components/common/FormField';
@@ -64,7 +64,7 @@ export function SeatsSheet({ serviceId, onClose }: { serviceId: string | null; o
                   <SearchSelectField id="st-emp" label="Nhân viên *" value={employeeId} onChange={setEmployeeId} options={employeeOptions(employees.data)} error={errors.employeeId} />
                   <FormField id="st-login" label="Tên đăng nhập / email *" value={login} error={errors.accountLogin} onChange={(e) => setLogin(e.target.value)} />
                   <FormField id="st-role" label="Vai trò trên dịch vụ" value={role} error={errors.role} onChange={(e) => setRole(e.target.value)} />
-                  <div className="flex items-end"><Button type="submit" disabled={!employeeId || !login.trim() || grant.isPending}><Plus /> Cấp ghế</Button></div>
+                  <div className="flex items-end"><Button type="submit" loading={grant.isPending} disabled={!employeeId || !login.trim()}><Plus /> Cấp ghế</Button></div>
                 </form>
               )}
               <div className="rounded-lg border">
@@ -82,7 +82,7 @@ export function SeatsSheet({ serviceId, onClose }: { serviceId: string | null; o
                         </TableCell>
                         <TableCell className="text-right">
                           {!s.revokedAt && (
-                            <Button size="sm" variant="outline" disabled={revoke.isPending}
+                            <Button size="sm" variant="outline" loading={revoke.isPending && revoke.variables === s.id} disabled={revoke.isPending}
                               onClick={() => revoke.mutate(s.id, { onSuccess: () => toast.success('Đã thu hồi ghế'), onError: (x) => toast.error(errorMessage(x)) })}>Thu hồi</Button>
                           )}
                         </TableCell>
@@ -100,8 +100,9 @@ export function SeatsSheet({ serviceId, onClose }: { serviceId: string | null; o
                   <AlertDialogDescription>Mọi ghế đang dùng sẽ bị thu hồi và người giữ nhận thông báo. Không hoàn tác được.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Không</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => cancel.mutate(undefined, { onSuccess: () => toast.success('Đã huỷ dịch vụ'), onError: (x) => toast.error(errorMessage(x)) })}>Huỷ dịch vụ</AlertDialogAction>
+                  <AlertDialogCancel disabled={cancel.isPending}>Không</AlertDialogCancel>
+                  <Button variant="destructive" loading={cancel.isPending} loadingText="Đang xử lý…"
+                    onClick={() => cancel.mutate(undefined, { onSuccess: () => { toast.success('Đã huỷ dịch vụ'); setConfirmCancel(false); }, onError: (x) => toast.error(errorMessage(x)) })}>Huỷ dịch vụ</Button>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>

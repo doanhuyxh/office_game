@@ -64,7 +64,7 @@ export function ApprovalCard({ item, showRequester }: { item: IApproval; showReq
           <div className="flex flex-wrap gap-2">
             {item.canDecide && (
               <>
-                <Button size="sm" disabled={approve.isPending}
+                <Button size="sm" loading={approve.isPending} loadingText="Đang xử lý…"
                   onClick={() => approve.mutate({ id: item.id }, { onSuccess: () => toast.success('Đã duyệt'), onError })}>
                   {item.decideOnBehalfOfName ? 'Duyệt thay' : 'Duyệt'}
                 </Button>
@@ -72,8 +72,8 @@ export function ApprovalCard({ item, showRequester }: { item: IApproval; showReq
               </>
             )}
             {item.canCancel && (
-              <Button size="sm" variant="ghost" disabled={cancel.isPending}
-                onClick={async () => await confirmDialog({ title: 'Huỷ đơn này?', confirmText: 'Huỷ đơn', cancelText: 'Không', destructive: true }) && cancel.mutate(item.id, { onSuccess: () => toast.success('Đã huỷ đơn'), onError })}>Huỷ đơn</Button>
+              <Button size="sm" variant="ghost" loading={cancel.isPending}
+                onClick={async () => await confirmDialog({ title: 'Huỷ đơn này?', confirmText: 'Huỷ đơn', cancelText: 'Không', destructive: true, onConfirm: () => cancel.mutateAsync(item.id) }) && toast.success('Đã huỷ đơn')}>Huỷ đơn</Button>
             )}
           </div>
         )}
@@ -90,7 +90,7 @@ export function ApprovalCard({ item, showRequester }: { item: IApproval; showReq
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejecting(false)}>Huỷ</Button>
-            <Button variant="destructive" disabled={!comment.trim() || reject.isPending}
+            <Button variant="destructive" loading={reject.isPending} disabled={!comment.trim()} loadingText="Đang xử lý…"
               onClick={() => reject.mutate({ id: item.id, comment }, { onSuccess: () => { toast.success('Đã từ chối'); setRejecting(false); }, onError })}>
               Từ chối
             </Button>

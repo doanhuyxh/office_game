@@ -57,7 +57,7 @@ export function ExpenseFormDialog({ open, onClose, onCreated }: { open: boolean;
           <FormField id="x-needed" label="Cần chi trước ngày" type="date" min={todayVn()} value={f.neededBy ?? ''} onChange={(e) => set('neededBy', e.target.value)} error={errors.neededBy} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={save.isPending}>Gửi đề nghị</Button>
+            <Button type="submit" loading={save.isPending} loadingText="Đang gửi…">Gửi đề nghị</Button>
           </DialogFooter>
         </form>
       </DialogContent>

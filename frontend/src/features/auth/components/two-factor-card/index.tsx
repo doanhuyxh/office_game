@@ -42,7 +42,7 @@ function RegenerateDialog({ open, onClose }: { open: boolean; onClose: () => voi
               value={code} onChange={(e) => setCode(digits(e.target.value))} />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={close}>Huỷ</Button>
-              <Button type="submit" disabled={regen.isPending}>Tạo mã mới</Button>
+              <Button type="submit" loading={regen.isPending} loadingText="Đang tạo…">Tạo mã mới</Button>
             </DialogFooter>
           </form>
         )}
@@ -77,7 +77,7 @@ function DisableDialog({ open, onClose }: { open: boolean; onClose: () => void }
             value={f.code} onChange={(e) => setF({ ...f, code: digits(e.target.value) })} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={close}>Huỷ</Button>
-            <Button type="submit" variant="destructive" disabled={disable.isPending}>Tắt</Button>
+            <Button type="submit" variant="destructive" loading={disable.isPending}>Tắt</Button>
           </DialogFooter>
         </form>
       </DialogContent>

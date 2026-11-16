@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/common/alert-dialog';
 import { Button } from '@/components/common/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
@@ -89,7 +89,7 @@ function StartReviewDialog({ open, onClose }: { open: boolean; onClose: () => vo
             options={services.filter((s) => s.status === 'Active').map((s) => ({ value: s.id, label: s.name }))} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={!title.trim() || !dueDate || start.isPending}>Bắt đầu</Button>
+            <Button type="submit" loading={start.isPending} disabled={!title.trim() || !dueDate}>Bắt đầu</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -129,9 +129,9 @@ function ReviewSheet({ id, onClose }: { id: string | null; onClose: () => void }
                             <StatusBadge tone={DECISION[i.decision].tone}>{DECISION[i.decision].label}</StatusBadge>
                             {open && (
                               <>
-                                <Button size="sm" variant="outline" disabled={decide.isPending || i.decision === 'Keep'}
+                                <Button size="sm" variant="outline" loading={decide.isPending && decide.variables?.id === i.id && decide.variables.decision === 'Keep'} disabled={decide.isPending || i.decision === 'Keep'}
                                   onClick={() => decide.mutate({ id: i.id, decision: 'Keep' }, { onError: (x) => toast.error(errorMessage(x)) })}>Giữ</Button>
-                                <Button size="sm" variant="outline" disabled={decide.isPending || i.decision === 'Revoke'}
+                                <Button size="sm" variant="outline" loading={decide.isPending && decide.variables?.id === i.id && decide.variables.decision === 'Revoke'} disabled={decide.isPending || i.decision === 'Revoke'}
                                   onClick={() => decide.mutate({ id: i.id, decision: 'Revoke' }, { onError: (x) => toast.error(errorMessage(x)) })}>Thu hồi</Button>
                               </>
                             )}
@@ -151,8 +151,9 @@ function ReviewSheet({ id, onClose }: { id: string | null; onClose: () => void }
                   <AlertDialogDescription>{r.toRevoke} ghế được chọn "Thu hồi" sẽ bị thu hồi ngay và người giữ nhận thông báo. Mục chưa quyết coi như giữ.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Không</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => close.mutate(undefined, { onSuccess: () => toast.success('Đã đóng đợt rà soát'), onError: (x) => toast.error(errorMessage(x)) })}>Đóng đợt</AlertDialogAction>
+                  <AlertDialogCancel disabled={close.isPending}>Không</AlertDialogCancel>
+                  <Button loading={close.isPending} loadingText="Đang xử lý…"
+                    onClick={() => close.mutate(undefined, { onSuccess: () => { toast.success('Đã đóng đợt rà soát'); setConfirm(false); }, onError: (x) => toast.error(errorMessage(x)) })}>Đóng đợt</Button>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>

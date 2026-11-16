@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useLayoutEffect, useRef, type ClipboardEvent, type KeyboardEvent, type ReactNode } from 'react';
-import { Loader2, SendHorizontal } from 'lucide-react';
+import { SendHorizontal } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { Textarea } from '@/components/common/textarea';
 import { cn } from '@/utils/cn';
@@ -84,8 +84,8 @@ export const MessageInput = forwardRef<HTMLTextAreaElement, {
         />
         {overlay}
       </div>
-      <Button type="button" size="icon" className="shrink-0" aria-label={sendLabel} aria-busy={pending} disabled={!enabled} onClick={submit} data-testid={sendTestId}>
-        {pending ? <Loader2 className="animate-spin" /> : <SendHorizontal />}
+      <Button type="button" size="icon" className="shrink-0" aria-label={sendLabel} loading={pending} disabled={!enabled} onClick={submit} data-testid={sendTestId}>
+        <SendHorizontal />
       </Button>
     </div>
   );

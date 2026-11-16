@@ -72,7 +72,7 @@ export function DeviceFormDialog({ open, onOpenChange, device }: { open: boolean
           </div>
           <DialogFooter className="sm:col-span-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Huỷ</Button>
-            <Button type="submit" disabled={save.isPending}>Lưu</Button>
+            <Button type="submit" loading={save.isPending} loadingText="Đang lưu…">Lưu</Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -101,8 +101,8 @@ function LockCard({ canEdit }: { canEdit: boolean }) {
       </div>
       {canEdit && <>
         <div className="w-44"><FormField id="lock-date" label="Khoá đến hết ngày" type="date" max={todayVn()} value={date} onChange={(e) => setDate(e.target.value)} error={errors.lockedThrough} /></div>
-        <Button disabled={save.isPending || !date || date === lock?.lockedThrough} onClick={() => save.mutate(date, { onSuccess: () => toast.success('Đã khoá sổ'), onError: onErr })}>Lưu</Button>
-        {lock?.lockedThrough && <Button variant="outline" disabled={save.isPending} onClick={async () => await confirmDialog({ title: 'Mở khoá sổ?', description: 'Giao dịch các kỳ trước sẽ sửa / huỷ được.', confirmText: 'Mở khoá' }) && save.mutate(null, { onSuccess: () => toast.success('Đã mở khoá sổ'), onError: onErr })}>Mở khoá</Button>}
+        <Button loading={save.isPending} disabled={!date || date === lock?.lockedThrough} loadingText="Đang lưu…" onClick={() => save.mutate(date, { onSuccess: () => toast.success('Đã khoá sổ'), onError: onErr })}>Lưu</Button>
+        {lock?.lockedThrough && <Button variant="outline" loading={save.isPending} onClick={async () => await confirmDialog({ title: 'Mở khoá sổ?', description: 'Giao dịch các kỳ trước sẽ sửa / huỷ được.', confirmText: 'Mở khoá', onConfirm: () => save.mutateAsync(null) }) && toast.success('Đã mở khoá sổ')}>Mở khoá</Button>}
       </>}
     </div>
   );
@@ -133,7 +133,7 @@ function AccountDialog({ account, onClose }: { account: IAccount | null | undefi
             <FormField id="a-date" label="Ngày đầu kỳ" type="date" required value={f.openingDate} onChange={(e) => setF({ ...f, openingDate: e.target.value })} error={errors.openingDate} />
           </div>
           <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.isActive} onCheckedChange={(c) => setF({ ...f, isActive: c === true })} /> Đang dùng (bỏ chọn = đóng quỹ, không ghi thêm giao dịch)</label>
-          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" disabled={save.isPending}>Lưu</Button></DialogFooter>
+          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" loading={save.isPending} loadingText="Đang lưu…">Lưu</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -153,7 +153,7 @@ function LineDialog({ line, onClose }: { line: ILine | null | undefined; onClose
           <FormField id="l-code" label="Mã *" required maxLength={20} value={f.code} onChange={(e) => setF({ ...f, code: e.target.value.toUpperCase() })} error={errors.code} />
           <FormField id="l-name" label="Tên *" required maxLength={100} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} error={errors.name} />
           <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.isActive} onCheckedChange={(c) => setF({ ...f, isActive: c === true })} /> Đang dùng</label>
-          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" disabled={save.isPending}>Lưu</Button></DialogFooter>
+          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" loading={save.isPending} loadingText="Đang lưu…">Lưu</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -173,7 +173,7 @@ function CategoryDialog({ category, onClose }: { category: ICategory | null | un
           <FormField id="c-name" label="Tên *" required maxLength={100} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} error={errors.name} />
           <SelectField id="c-kind" label="Loại" value={f.kind} onChange={(v) => setF({ ...f, kind: (v ?? 'Expense') as CategoryKind })} options={[{ value: 'Income', label: 'Thu' }, { value: 'Expense', label: 'Chi' }]} />
           <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.isActive} onCheckedChange={(c) => setF({ ...f, isActive: c === true })} /> Đang dùng</label>
-          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" disabled={save.isPending}>Lưu</Button></DialogFooter>
+          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" loading={save.isPending} loadingText="Đang lưu…">Lưu</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

@@ -36,8 +36,9 @@ export function ContractStatusBadge({ c }: { c: IContract }) {
   );
 }
 
-function FileButton({ file, canUpload, onOpen, onUpload, busy }: {
-  file: IStoredFile | null; canUpload: boolean; onOpen: () => void; onUpload: (f: File) => void; busy: boolean;
+function FileButton({ file, canUpload, onOpen, onUpload, busy, loading }: {
+  /** busy: đang tải file bất kỳ (khoá nút); loading: đang tải file của chính nút này (vòng xoay). */
+  file: IStoredFile | null; canUpload: boolean; onOpen: () => void; onUpload: (f: File) => void; busy: boolean; loading: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   return (
@@ -50,7 +51,7 @@ function FileButton({ file, canUpload, onOpen, onUpload, busy }: {
       {canUpload && (
         <>
           <input ref={input} type="file" accept={ACCEPT_FILES} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); e.target.value = ''; }} />
-          <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={busy} onClick={() => input.current?.click()}>
+          <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" loading={loading} disabled={busy} loadingText="Đang tải…" onClick={() => input.current?.click()}>
             <Upload /> {file ? 'Thay file' : 'Tải file lên'}
           </Button>
         </>
@@ -100,7 +101,7 @@ function AmendmentDialog({ contract, open, onClose }: { contract: IContract; ope
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={add.isPending}>Thêm phụ lục</Button>
+            <Button type="submit" loading={add.isPending}>Thêm phụ lục</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -131,7 +132,7 @@ export function ContractDetails({ contract: c, canEdit }: { contract: IContract;
         </Row>
         {c.note && <Row label="Ghi chú"><span className="whitespace-pre-line">{c.note}</span></Row>}
         <Row label="File hợp đồng">
-          <FileButton file={c.file} canUpload={canEdit} busy={upload.isPending} onOpen={() => openFile(c.id)} onUpload={(f) => doUpload(f)} />
+          <FileButton file={c.file} canUpload={canEdit} busy={upload.isPending} loading={upload.isPending && !upload.variables?.amendmentId} onOpen={() => openFile(c.id)} onUpload={(f) => doUpload(f)} />
         </Row>
       </dl>
 
@@ -146,8 +147,8 @@ export function ContractDetails({ contract: c, canEdit }: { contract: IContract;
             <div className="flex flex-wrap items-center justify-between gap-2">
               <b>{a.number} · hiệu lực {formatDate(a.effectiveDate)}</b>
               {canEdit && (
-                <Button size="icon" variant="ghost" className="size-7" aria-label="Xoá phụ lục" disabled={removeAmendment.isPending}
-                  onClick={async () => await confirmDialog({ title: `Xoá phụ lục ${a.number}?`, confirmText: 'Xoá', destructive: true }) && removeAmendment.mutate({ id: c.id, amendmentId: a.id }, { onError: (e) => toast.error(errorMessage(e)) })}>
+                <Button size="icon" variant="ghost" className="size-7" aria-label="Xoá phụ lục" loading={removeAmendment.isPending && removeAmendment.variables?.amendmentId === a.id} disabled={removeAmendment.isPending}
+                  onClick={() => void confirmDialog({ title: `Xoá phụ lục ${a.number}?`, confirmText: 'Xoá', destructive: true, onConfirm: () => removeAmendment.mutateAsync({ id: c.id, amendmentId: a.id }) })}>
                   <Trash2 />
                 </Button>
               )}
@@ -156,7 +157,7 @@ export function ContractDetails({ contract: c, canEdit }: { contract: IContract;
             {(a.salary != null || a.allowance != null) && (
               <p>Lương: {formatMoney(a.salary ?? c.salary)}{a.allowance != null && ` · phụ cấp ${formatMoney(a.allowance)}`}</p>
             )}
-            <FileButton file={a.file} canUpload={canEdit} busy={upload.isPending} onOpen={() => openFile(c.id, a.id)} onUpload={(f) => doUpload(f, a.id)} />
+            <FileButton file={a.file} canUpload={canEdit} busy={upload.isPending} loading={upload.isPending && upload.variables?.amendmentId === a.id} onOpen={() => openFile(c.id, a.id)} onUpload={(f) => doUpload(f, a.id)} />
           </div>
         ))}
       </div>

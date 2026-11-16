@@ -27,7 +27,7 @@ export function ForgotPasswordForm() {
         <form onSubmit={submit} className="grid gap-4">
           <FormField id="email" label="Email" type="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} />
           {forgot.isError && <p className="text-sm text-destructive">Không kết nối được máy chủ</p>}
-          <Button type="submit" disabled={forgot.isPending}>{forgot.isPending ? 'Đang gửi…' : 'Gửi link đặt lại mật khẩu'}</Button>
+          <Button type="submit" loading={forgot.isPending} loadingText="Đang gửi…">Gửi link đặt lại mật khẩu</Button>
           <Link to={PATHS.login} className="text-center text-sm text-muted-foreground hover:underline">← Về trang đăng nhập</Link>
         </form>
       )}

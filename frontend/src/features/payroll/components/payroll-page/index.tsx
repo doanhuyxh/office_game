@@ -70,6 +70,7 @@ function PayslipDialog({ slip, periodId, locked, onClose }: { slip: IPayslip | n
                 <span>{a.label} <span className="text-xs text-muted-foreground">{a.taxable ? 'chịu thuế' : 'không chịu thuế'} · {a.createdByName}</span></span>
                 <span className="flex items-center gap-2 tabular-nums">{formatMoney(a.amount)}
                   {!locked && <Button size="icon" variant="ghost" className="size-7 text-destructive" aria-label="Xoá"
+                    loading={del.isPending && del.variables === a.id} disabled={del.isPending}
                     onClick={() => del.mutate(a.id, { onSuccess: () => toast.success('Đã xoá'), onError: (e) => toast.error(errorMessage(e)) })}><Trash2 className="size-4" /></Button>}
                 </span>
               </div>
@@ -78,7 +79,7 @@ function PayslipDialog({ slip, periodId, locked, onClose }: { slip: IPayslip | n
               <form onSubmit={submit} className="grid gap-3 rounded-md border p-3 sm:grid-cols-[1fr_160px_auto] sm:items-end">
                 <FormField id="adj-label" label="Nội dung" required value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Vd: Thưởng dự án / Trừ tạm ứng" error={errors.label} />
                 <MoneyField id="adj-amount" label="Số tiền (âm = trừ)" required allowNegative value={amount} onValueChange={setAmount} placeholder="2.000.000" error={errors.amount} />
-                <Button type="submit" disabled={add.isPending}><Plus className="size-4" /> Thêm</Button>
+                <Button type="submit" loading={add.isPending}><Plus className="size-4" /> Thêm</Button>
                 <label className="flex items-center gap-2 text-sm sm:col-span-3">
                   <Checkbox checked={taxable} onCheckedChange={(c) => setTaxable(c === true)} /> Tính vào thu nhập chịu thuế (thưởng: có; tạm ứng / hoàn ứng: không)
                 </label>
@@ -115,10 +116,10 @@ function PeriodsTab() {
       <div className="flex flex-wrap items-end gap-2">
         <div className="grid gap-2"><Label htmlFor="pr-month">Tạo kỳ lương</Label>
           <Input id="pr-month" type="month" className="w-44" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} /></div>
-        <Button disabled={create.isPending} onClick={() => create.mutate(month, {
+        <Button loading={create.isPending} loadingText="Đang tính…" onClick={() => create.mutate(month, {
           onSuccess: (r) => { toast.success(`Đã tạo kỳ ${monthLabel(r.month)} (${r.employees} phiếu)`); setSelected(r.id); },
           onError: (e) => toast.error(errorMessage(e)),
-        })}><Plus className="size-4" /> {create.isPending ? 'Đang tính…' : 'Tạo & tính'}</Button>
+        })}><Plus className="size-4" /> Tạo & tính</Button>
         <div className="ms-auto flex flex-wrap gap-1">
           {periods.data?.map((x) => (
             <Button key={x.id} size="sm" variant={x.id === selected ? 'default' : 'outline'} onClick={() => setSelected(x.id)}>
@@ -143,11 +144,11 @@ function PeriodsTab() {
             </div>
             <div className="flex flex-wrap gap-2">
               <ColumnsMenu state={cols} className="h-9" />
-              {!locked && <Button variant="outline" disabled={action.isPending} onClick={() => run('compute', 'Đã tính lại')}><Calculator className="size-4" /> Tính lại</Button>}
+              {!locked && <Button variant="outline" loading={action.isPending && action.variables?.action === 'compute'} disabled={action.isPending} onClick={() => run('compute', 'Đã tính lại')}><Calculator className="size-4" /> Tính lại</Button>}
               <Button variant="outline" onClick={() => downloadUrl(payrollApi.exportUrl(p.id))}><FileSpreadsheet className="size-4" /> Excel</Button>
               {locked
-                ? <Button variant="outline" disabled={action.isPending} onClick={async () => await confirmDialog({ title: 'Mở lại kỳ lương để sửa?', description: 'Nhân viên sẽ tạm không thấy phiếu kỳ này.', confirmText: 'Mở lại' }) && run('unlock', 'Đã mở lại')}><Unlock className="size-4" /> Mở lại</Button>
-                : <Button disabled={action.isPending} onClick={async () => await confirmDialog({ title: `Chốt kỳ lương ${monthLabel(p.month)}?`, description: 'Hệ thống tính lại lần cuối rồi gửi phiếu lương cho nhân viên.', confirmText: 'Chốt kỳ' }) && run('lock', 'Đã chốt và gửi phiếu lương')}><Lock className="size-4" /> Chốt kỳ</Button>}
+                ? <Button variant="outline" loading={action.isPending && action.variables?.action === 'unlock'} disabled={action.isPending} onClick={async () => await confirmDialog({ title: 'Mở lại kỳ lương để sửa?', description: 'Nhân viên sẽ tạm không thấy phiếu kỳ này.', confirmText: 'Mở lại', onConfirm: () => action.mutateAsync({ id: p.id, action: 'unlock' }) }) && toast.success('Đã mở lại')}><Unlock className="size-4" /> Mở lại</Button>
+                : <Button loading={action.isPending && action.variables?.action === 'lock'} disabled={action.isPending} onClick={async () => await confirmDialog({ title: `Chốt kỳ lương ${monthLabel(p.month)}?`, description: 'Hệ thống tính lại lần cuối rồi gửi phiếu lương cho nhân viên.', confirmText: 'Chốt kỳ', onConfirm: () => action.mutateAsync({ id: p.id, action: 'lock' }) }) && toast.success('Đã chốt và gửi phiếu lương')}><Lock className="size-4" /> Chốt kỳ</Button>}
             </div>
           </CardHeader>
           <CardContent>
@@ -215,7 +216,7 @@ function ProfileRow({ p }: { p: IPayProfile }) {
         options={[{ value: 'true', label: 'Có đóng' }, { value: 'false', label: 'Không đóng' }]} /></TableCell>
       <TableCell><Input className="w-36" value={tax} maxLength={20} onChange={(e) => setTax(e.target.value)} placeholder="Mã số thuế" aria-label="Mã số thuế" /></TableCell>
       <TableCell>
-        <Button size="sm" variant={dirty ? 'default' : 'ghost'} disabled={!dirty || save.isPending} onClick={() => save.mutate(
+        <Button size="sm" variant={dirty ? 'default' : 'ghost'} loading={save.isPending} disabled={!dirty} loadingText="Đang lưu…" onClick={() => save.mutate(
           { employeeId: p.employeeId, dependents: Number(dep) || 0, insured: ins === null ? null : ins === 'true', taxCode: tax || null, note: p.note },
           { onSuccess: () => toast.success(`Đã lưu ${p.fullName}`), onError: (e) => toast.error(errorMessage(e)) })}>Lưu</Button>
       </TableCell>
@@ -311,7 +312,7 @@ function SettingsTab() {
           {errors.rules && <p className="text-sm text-destructive">{errors.rules}</p>}
           <div className="flex flex-wrap items-end gap-3">
             <FormField id="r-from" label="Hiệu lực từ" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-            <Button disabled={save.isPending} onClick={() => save.mutate({ effectiveFrom: from, rules }, {
+            <Button loading={save.isPending} loadingText="Đang lưu…" onClick={() => save.mutate({ effectiveFrom: from, rules }, {
               onSuccess: () => toast.success('Đã lưu thông số'), onError: (e) => !Object.keys(fieldErrors(e)).length && toast.error(errorMessage(e)),
             })}>Lưu thông số</Button>
           </div>

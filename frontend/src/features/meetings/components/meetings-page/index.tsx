@@ -12,7 +12,6 @@ import { PATHS } from '@/config/paths';
 import { useMe } from '@/features/auth';
 import { addDays, formatDate, formatTime, parseInstant, todayVn, toVnDate } from '@/utils/date';
 import { cn } from '@/utils/cn';
-import { errorMessage } from '@/utils/errors';
 import { useCancelBooking, useDayBookings, useMeetingRooms, useMyBookings } from '../../hooks/useMeetings';
 import type { IBooking } from '../../types/meeting.types';
 import { AgentMeetingDialog, type AgentMeetingDraft } from '../agent-meeting-dialog';
@@ -63,8 +62,7 @@ export function MeetingsPage() {
   const hours = Array.from({ length: DAY_END - DAY_START + 1 }, (_, i) => DAY_START + i);
 
   const askCancel = async (b: IBooking) => {
-    if (!(await confirmDialog({ title: `Huỷ lịch "${b.title}" (${formatTime(b.startAt)}–${formatTime(b.endAt)})?`, description: 'Người được mời sẽ nhận thông báo.', confirmText: 'Huỷ lịch', cancelText: 'Không', destructive: true }))) return;
-    cancel.mutate(b.id, { onSuccess: () => toast.success('Đã huỷ lịch'), onError: (e) => toast.error(errorMessage(e)) });
+    if (await confirmDialog({ title: `Huỷ lịch "${b.title}" (${formatTime(b.startAt)}–${formatTime(b.endAt)})?`, description: 'Người được mời sẽ nhận thông báo.', confirmText: 'Huỷ lịch', cancelText: 'Không', destructive: true, onConfirm: () => cancel.mutateAsync(b.id) })) toast.success('Đã huỷ lịch');
   };
 
   /** Bấm vào dòng thời gian → mở form đặt từ giờ tròn gần nhất (1 tiếng). */

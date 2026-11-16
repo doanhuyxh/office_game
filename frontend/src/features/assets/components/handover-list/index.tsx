@@ -4,7 +4,6 @@ import { Button } from '@/components/common/button';
 import { confirmDialog } from '@/components/common/confirm-dialog';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { formatDateTime } from '@/utils/date';
-import { errorMessage } from '@/utils/errors';
 import { downloadUrl } from '@/utils/money';
 import { assetApi } from '../../api/asset.api';
 import { useAssetMutation } from '../../hooks/useAssets';
@@ -27,8 +26,9 @@ export function HandoverList({ items, show, canConfirm = false, empty = 'Chưa c
         ? `Bạn xác nhận đã nhận thiết bị ${h.deviceCode} · ${h.deviceName}${h.serialNumber ? ` (serial ${h.serialNumber})` : ''} đúng như biên bản.`
         : `Bạn xác nhận đã trả thiết bị ${h.deviceCode} · ${h.deviceName} cho công ty.`,
       confirmText: 'Xác nhận',
+      onConfirm: () => confirm.mutateAsync(h.id),
     });
-    if (ok) confirm.mutate(h.id, { onSuccess: () => toast.success('Đã xác nhận biên bản'), onError: (e) => toast.error(errorMessage(e)) });
+    if (ok) toast.success('Đã xác nhận biên bản');
   };
   if (items.length === 0) return <p className="text-sm text-muted-foreground">{empty}</p>;
   return (
@@ -55,7 +55,7 @@ export function HandoverList({ items, show, canConfirm = false, empty = 'Chưa c
             </div>
             <div className="flex shrink-0 gap-1">
               {canConfirm && pending && (
-                <Button size="sm" disabled={confirm.isPending} onClick={() => void onConfirm(h)} data-testid="handover-confirm"><CheckCircle2 /> Xác nhận</Button>
+                <Button size="sm" loading={confirm.isPending && confirm.variables === h.id} disabled={confirm.isPending} onClick={() => void onConfirm(h)} data-testid="handover-confirm"><CheckCircle2 /> Xác nhận</Button>
               )}
               <Button size="sm" variant="ghost" aria-label="Tải biên bản Word" onClick={() => downloadUrl(assetApi.handoverDocxUrl(h.id))}><FileDown /> Word</Button>
             </div>

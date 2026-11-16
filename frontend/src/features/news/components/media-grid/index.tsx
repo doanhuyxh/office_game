@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, FileText, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/common/dialog';
@@ -53,8 +53,8 @@ export function MediaGrid({ media }: { media: IMedia[] }) {
             <p className="truncate text-sm font-medium">{f.fileName}</p>
             <p className="text-xs text-muted-foreground">{formatSize(f.size)}</p>
           </div>
-          <Button type="button" variant="outline" size="sm" disabled={busy === f.id} onClick={() => download(f)}>
-            {busy === f.id ? <Loader2 className="animate-spin" /> : <Download />} Tải về
+          <Button type="button" variant="outline" size="sm" loading={busy === f.id} onClick={() => download(f)}>
+            <Download /> Tải về
           </Button>
         </div>
       ))}

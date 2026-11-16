@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { ChevronDown, FileText, Film, Image as ImageIcon, Loader2, Paperclip, X } from 'lucide-react';
+import { ChevronDown, FileText, Film, Image as ImageIcon, Paperclip, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { Checkbox } from '@/components/common/checkbox';
@@ -119,10 +119,10 @@ export function ComposerDialog({ open, onOpenChange, post, sharing }: { open: bo
     } finally { setBusy(false); }
   }
 
-  const submitDisabled = busy || empty || tooLong || (aud.audience === 'Departments' || aud.audience === 'Custom') && targetCount === 0;
+  const submitDisabled = empty || tooLong || (aud.audience === 'Departments' || aud.audience === 'Custom') && targetCount === 0;
   const submitButton = (
-    <Button type="button" size={phone ? 'sm' : 'default'} disabled={submitDisabled} onClick={submit} data-testid="submit-post">
-      {busy && <Loader2 className="animate-spin" />} {canSchedule && schedule.on ? (editing ? 'Lưu giờ hẹn' : 'Hẹn giờ') : editing ? (post?.publishAt ? 'Đăng ngay' : 'Lưu') : sharing ? 'Chia sẻ' : 'Đăng'}
+    <Button type="button" size={phone ? 'sm' : 'default'} loading={busy} disabled={submitDisabled} onClick={submit} data-testid="submit-post">
+      {canSchedule && schedule.on ? (editing ? 'Lưu giờ hẹn' : 'Hẹn giờ') : editing ? (post?.publishAt ? 'Đăng ngay' : 'Lưu') : sharing ? 'Chia sẻ' : 'Đăng'}
     </Button>
   );
   const optionCount = (!editing && sendEmail && aud.audience !== 'Private' ? 1 : 0) + (canSchedule && schedule.on ? 1 : 0) + (commentsDisabled ? 1 : 0);

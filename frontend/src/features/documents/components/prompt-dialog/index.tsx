@@ -56,8 +56,8 @@ export function PromptDialog({ spec, onClose }: { spec: PromptSpec | null; onClo
           {error && <p className="text-sm text-destructive">{error}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" variant={spec.destructive ? 'destructive' : 'default'} disabled={busy || (!!spec.required && !value.trim())}>
-              {busy ? 'Đang xử lý…' : spec.confirm}
+            <Button type="submit" variant={spec.destructive ? 'destructive' : 'default'} loading={busy} disabled={!!spec.required && !value.trim()} loadingText="Đang xử lý…">
+              {spec.confirm}
             </Button>
           </DialogFooter>
         </form>

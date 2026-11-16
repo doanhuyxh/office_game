@@ -168,7 +168,7 @@ export function ProjectFormDialog({ open, project, workGuide, onClose, onCreated
           </div>
           <DialogFooter className="shrink-0 border-t px-6 py-4">
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={save.isPending}>Lưu</Button>
+            <Button type="submit" loading={save.isPending} loadingText="Đang lưu…">Lưu</Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -58,10 +58,10 @@ export function ChangeRequestsPanel({ d }: { d: IProjectDetail }) {
             </div>
             {canEdit && editable(c.status) && (
               <div className="flex flex-wrap gap-1">
-                {c.status === 'Draft' && <Button size="sm" variant="outline" onClick={() => move.mutate({ id: c.id, status: 'Sent' }, { onSuccess: () => toast.success('Đã đánh dấu gửi khách'), onError: onErr })}>Đã gửi khách</Button>}
+                {c.status === 'Draft' && <Button size="sm" variant="outline" loading={move.isPending && move.variables?.id === c.id} disabled={move.isPending} onClick={() => move.mutate({ id: c.id, status: 'Sent' }, { onSuccess: () => toast.success('Đã đánh dấu gửi khách'), onError: onErr })}>Đã gửi khách</Button>}
                 <Button size="sm" onClick={() => setDeciding({ cr: c, status: 'Approved' })}>Khách đồng ý</Button>
                 <Button size="sm" variant="outline" onClick={() => setDeciding({ cr: c, status: 'Rejected' })}>Từ chối</Button>
-                <Button size="sm" variant="ghost" onClick={async () => await confirmDialog({ title: `Huỷ yêu cầu ${c.code}?`, confirmText: 'Huỷ yêu cầu', cancelText: 'Không', destructive: true }) && move.mutate({ id: c.id, status: 'Cancelled' }, { onError: onErr })}>Huỷ</Button>
+                <Button size="sm" variant="ghost" onClick={async () => await confirmDialog({ title: `Huỷ yêu cầu ${c.code}?`, confirmText: 'Huỷ yêu cầu', cancelText: 'Không', destructive: true, onConfirm: () => move.mutateAsync({ id: c.id, status: 'Cancelled' }) })}>Huỷ</Button>
                 <Button size="icon" variant="ghost" aria-label="Sửa" onClick={() => setEdit(c)}><Pencil /></Button>
               </div>
             )}
@@ -104,7 +104,7 @@ function CrDialog({ projectId, cr, hasContracts, onClose }: { projectId: string;
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.billable} onChange={(e) => setF({ ...f, billable: e.target.checked })} />
             Tính tiền khách (cần phụ lục hợp đồng){!hasContracts && ' — dự án chưa gắn hợp đồng bán'}</label>
           {errors.billable && <p className="text-xs text-destructive">{errors.billable}</p>}
-          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" disabled={save.isPending}>Lưu</Button></DialogFooter>
+          <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Huỷ</Button><Button type="submit" loading={save.isPending} loadingText="Đang lưu…">Lưu</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -130,7 +130,7 @@ function DecideDialog({ value, onClose }: { value: { cr: IChangeRequest; status:
         <FormField id="cr-on" label="Ngày khách trả lời" type="date" max={todayVn()} value={date} onChange={(e) => setDate(e.target.value)} error={errors.decidedOn} />
         <FormField id="cr-note" label="Ghi chú (email / biên bản…)" maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} />
         <DialogFooter><Button variant="outline" onClick={onClose}>Huỷ</Button>
-          <Button disabled={run.isPending} onClick={() => value && run.mutate({ id: value.cr.id, status: value.status },
+          <Button loading={run.isPending} onClick={() => value && run.mutate({ id: value.cr.id, status: value.status },
             { onSuccess: () => { toast.success('Đã ghi nhận'); onClose(); }, onError: onErr })}>Xác nhận</Button></DialogFooter>
       </DialogContent>
     </Dialog>

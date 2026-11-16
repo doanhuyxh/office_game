@@ -89,7 +89,7 @@ export function DelegationDialog({ open, onClose, isHr, myEmployeeId, canDelegat
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={create.isPending || !f.delegateEmployeeId || !f.toDate || (isHr && !f.delegatorEmployeeId)}>Uỷ quyền</Button>
+            <Button type="submit" loading={create.isPending} disabled={!f.delegateEmployeeId || !f.toDate || (isHr && !f.delegatorEmployeeId)}>Uỷ quyền</Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -72,7 +72,7 @@ export function TemplatesPanel() {
                 {errors.file && <p className="text-xs text-destructive">{errors.file}</p>}
               </div>
               <div className="sm:col-span-2">
-                <Button type="submit" disabled={!file || !name.trim() || upload.isPending}><Upload className="size-4" /> {upload.isPending ? 'Đang tải…' : 'Tải mẫu lên'}</Button>
+                <Button type="submit" loading={upload.isPending} disabled={!file || !name.trim()} loadingText="Đang tải…"><Upload className="size-4" /> Tải mẫu lên</Button>
               </div>
             </form>
           </CardContent>
@@ -108,7 +108,7 @@ export function TemplatesPanel() {
                         <TableCell className="whitespace-nowrap">
                           <Button size="icon" variant="ghost" className="size-8" aria-label="Tải file mẫu gốc" onClick={() => openOriginal(t.id)}><Download className="size-4" /></Button>
                           <Button size="icon" variant="ghost" className="size-8 text-destructive" aria-label="Xoá mẫu"
-                            onClick={async () => await confirmDialog({ title: `Xoá mẫu "${t.name}"?`, confirmText: 'Xoá', destructive: true }) && remove.mutate(t.id, { onSuccess: () => toast.success('Đã xoá mẫu'), onError: (e) => toast.error(errorMessage(e)) })}>
+                            onClick={async () => await confirmDialog({ title: `Xoá mẫu "${t.name}"?`, confirmText: 'Xoá', destructive: true, onConfirm: () => remove.mutateAsync(t.id) }) && toast.success('Đã xoá mẫu')}>
                             <Trash2 className="size-4" />
                           </Button>
                         </TableCell>

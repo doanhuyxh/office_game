@@ -65,7 +65,7 @@ export function WebhookCard() {
               <Label htmlFor="webhook-url">URL nhận sự kiện</Label>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Input id="webhook-url" placeholder="https://agent.cong-ty.vn/officehub" value={url} onChange={(e) => setUrl(e.target.value)} />
-                <Button onClick={() => save.mutate()} disabled={!url.trim() || save.isPending}>{data?.configured ? 'Lưu' : 'Tạo webhook'}</Button>
+                <Button onClick={() => save.mutate()} loading={save.isPending} disabled={!url.trim()}>{data?.configured ? 'Lưu' : 'Tạo webhook'}</Button>
               </div>
               {data?.configured && (
                 <label className="flex items-center gap-2 text-sm">
@@ -93,9 +93,9 @@ export function WebhookCard() {
                   {data.lastError && <span className="text-destructive">Lỗi gần nhất: {data.lastError}</span>}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={() => test.mutate()} disabled={test.isPending || !data.enabled}><Send className="size-4" /> Gửi thử</Button>
-                  <Button variant="outline" size="sm" onClick={() => rotate.mutate()} disabled={rotate.isPending}>Đổi khoá ký</Button>
-                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => remove.mutate()} disabled={remove.isPending}>
+                  <Button variant="outline" size="sm" onClick={() => test.mutate()} loading={test.isPending} disabled={!data.enabled} loadingText="Đang gửi…"><Send className="size-4" /> Gửi thử</Button>
+                  <Button variant="outline" size="sm" onClick={() => rotate.mutate()} loading={rotate.isPending}>Đổi khoá ký</Button>
+                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => remove.mutate()} loading={remove.isPending} loadingText="Đang xử lý…">
                     <Trash2 className="size-4" /> Xoá webhook
                   </Button>
                 </div>
