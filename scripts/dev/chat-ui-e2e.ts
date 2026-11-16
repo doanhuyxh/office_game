@@ -1,7 +1,8 @@
 // E2E giao diện Chat (3 Chrome): A, B ở trang web (/chat, header, sidebar), C trong văn phòng 3D.
-// Kiểm tra: chat 1-1 realtime, badge + âm thanh khi nhận tin, đánh dấu đã đọc, kênh Office ĐỒNG BỘ HAI CHIỀU với HUD chat 3D, tin trong phòng 3D
+// Kiểm tra: chat 1-1 realtime, badge + âm thanh khi nhận tin, đánh dấu đã đọc, kênh Office ĐỒNG BỘ HAI CHIỀU với khung chat 3D (TEST-126: dùng chung
+// ConversationList / MessagePane — cùng data-testid `chat-*` trong `[data-testid=office-chat]`), tin trong phòng 3D
 // được lưu và chỉ người từng ở phòng thấy kênh, ảnh đính kèm (S3 thật), thu hồi. Tạo nhân viên + 1 ảnh nhỏ lên S3 thật → CHỈ chạy trên DB tạm.
-// Cần Api :5180 (DB tạm), Realtime :5190 (Realtime__ApiBaseUrl=http://localhost:5180), Vite :5174 (VITE_API_TARGET, VITE_RT_TARGET) — xem chat-e2e.ts / e2e.md:
+// Cần Api (DB tạm), Realtime (Realtime__ApiBaseUrl trỏ Api), Vite (VITE_API_TARGET, VITE_RT_TARGET) — dựng như đầu office-chat-full-e2e.ts / e2e.md:
 //   (Vite phải ở :5173 — CORS bucket S3 chỉ cho localhost:5173 nên tải ảnh lên từ trình duyệt mới chạy được)
 //   E2E_LOCAL_DB=1 API_URL=http://localhost:5180 BASE_URL=http://localhost:5173 ADMIN_LOGIN=… ADMIN_PASSWORD=… bun scripts/dev/chat-ui-e2e.ts [<tiền-tố-profile-chrome>]
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -11,10 +12,9 @@ import { totp } from './totp';
 if (process.env.E2E_LOCAL_DB !== '1') throw new Error('Chỉ chạy với DB tạm: đặt E2E_LOCAL_DB=1');
 const API = process.env.API_URL ?? 'http://localhost:5180';
 const [prof = `${tmpdir()}/chat-ui-e2e`] = process.argv.slice(2);
-const envFile = Bun.file(new URL('../../.env', import.meta.url));
-const env: Record<string, string> = (await envFile.exists()) ? Object.fromEntries((await envFile.text()).split('\n')
-  .filter((l) => /^[A-Za-z_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim()])) : {};
-const ADMIN_LOGIN = process.env.ADMIN_LOGIN ?? env.Seed__AdminEmail, ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? env.Seed__AdminPassword;
+// Admin seed của Api tạm (Seed__AdminEmail / Seed__AdminPassword lúc chạy Api) — không đọc `.env`
+const ADMIN_LOGIN = process.env.ADMIN_LOGIN, ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+if (!ADMIN_LOGIN || !ADMIN_PASSWORD) throw new Error('Thiếu ADMIN_LOGIN / ADMIN_PASSWORD (admin seed của Api tạm)');
 let pass = 0, fail = 0;
 const check = (name: string, cond: boolean, extra?: unknown) => {
   cond ? pass++ : fail++;
@@ -89,14 +89,23 @@ const typeAndSend = async (b: Br, text: string) => {
   await q(b, `document.querySelector('[data-testid=chat-send]').click()`);
 };
 const bell = (b: Br) => q(b, `document.querySelector('[data-testid=chat-unread]')?.textContent ?? ''`) as Promise<string>;
+/** Gọi Api bằng phiên của trình duyệt: mỗi lần đăng nhập đổi security stamp nên cookie REST lấy trước đó đã hết hiệu lực. */
+const api = (b: Br, path: string) => b.evalJs(`fetch(${JSON.stringify(path)}).then(async (r) => ({ status: r.status, body: await r.json().catch(() => null) }))`) as Promise<{ status: number; body: any }>;
 const sendGap = () => sleep(1250); // giới hạn 1 tin / giây / tài khoản
+/** Gửi tin trong khung chat 3D của C (cùng Composer với /chat). */
+const say3d = async (text: string) => {
+  await q(bc, `(() => { const i = document.querySelector('[data-testid=office-chat] [data-testid=chat-input]'); const proto = i.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(proto, 'value').set.call(i, ${JSON.stringify(text)}); i.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
+  await sleep(150);
+  await q(bc, `document.querySelector('[data-testid=office-chat] [data-testid=chat-send]').click()`);
+};
 
 try {
   check('đăng nhập 3 trình duyệt', (await ba.login(A.user, PW)) === 200 && (await bb.login(B.user, PW)) === 200 && (await bc.login(C.user, PW)) === 200);
 
   // C vào văn phòng 3D trước để nhận tin Office; B đứng ở trang tổng quan (chưa mở chat) để thử badge + âm thanh
   await bc.go(`${BASE}/office`, 6000);
-  await q(bc, "[...document.querySelectorAll('button')].find(x=>x.textContent.includes('Đã hiểu'))?.click()");
+  check('C: khung chat 3D mở sẵn ở kênh Toàn văn phòng', await waitFor(bc, `document.querySelector('[data-testid=office-chat] [data-testid=chat-title]')?.textContent === 'Toàn văn phòng'`, 15000));
   await bb.go(`${BASE}/`, 3500);
   await ba.go(`${BASE}/chat`, 3500);
 
@@ -134,29 +143,26 @@ try {
   await sleep(500);
   await sendGap();
   await typeAndSend(ba, 'A nói với cả văn phòng');
-  const c3d = () => q(bc, `[...document.querySelectorAll('[data-testid=office-chat] .log div')].map(d => d.textContent).join('|')`) as Promise<string>;
-  check('C (đang ở 3D) nhận tin Office gửi từ web', await waitFor(bc, `[...document.querySelectorAll('[data-testid=office-chat] .log div')].some(d => d.textContent.includes('A nói với cả văn phòng'))`), await c3d());
+  const c3d = () => q(bc, `[...document.querySelectorAll('[data-testid=office-chat] [data-testid=chat-message]')].map(d => d.textContent).join('|')`) as Promise<string>;
+  check('C (đang ở 3D) nhận tin Office gửi từ web', await waitFor(bc, `[...document.querySelectorAll('[data-testid=office-chat] [data-testid=chat-message]')].some(d => d.textContent.includes('A nói với cả văn phòng'))`), await c3d());
   check('B (đang mở hội thoại khác) thấy Office có tin chưa đọc', await waitFor(bb, `[...document.querySelectorAll('[data-testid=chat-conversation]')].some(e => e.textContent.includes('Toàn văn phòng') && !!e.querySelector('[data-testid=chat-conversation-unread]'))`));
-  await q(bc, `(() => { const f = document.querySelector('[data-testid=office-chat]'); const i = f.querySelector('input');
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i, 'C nói từ văn phòng 3D'); i.dispatchEvent(new Event('input',{bubbles:true})); f.requestSubmit(); return true; })()`);
+  await say3d('C nói từ văn phòng 3D');
   check('A (đang ở web, kênh Office) thấy tin gửi từ 3D', await waitFor(ba, `[...document.querySelectorAll('[data-testid=chat-message]')].some(e => e.textContent.includes('C nói từ văn phòng 3D'))`), await thread(ba));
   check('tin gửi từ 3D đã LƯU: B mở lại thấy lịch sử', await (async () => { await openConv(bb, 'Toàn văn phòng'); return waitFor(bb, `[...document.querySelectorAll('[data-testid=chat-message]')].some(e => e.textContent.includes('C nói từ văn phòng 3D')) && [...document.querySelectorAll('[data-testid=chat-message]')].some(e => e.textContent.includes('A nói với cả văn phòng'))`); })());
 
   // ---------- Phòng có tường trong 3D: lưu + kênh phòng chỉ cho người từng vào ----------
   await q(bc, 'window.__officeScene.walkTo(25, 6.5)');
   await sleep(9500);
-  check('C vào Phòng họp lớn (3D có tab chat phòng)', await q(bc, "!!document.querySelector('[data-testid=office-chat-room-tab]')"));
-  await q(bc, "document.querySelector('[data-testid=office-chat-room-tab]').click()");
-  await sleep(300);
+  check('C vào Phòng họp lớn → khung chat 3D tự mở kênh phòng', await waitFor(bc, `!!document.querySelector('[data-testid=office-chat-room-notice]')
+    && document.querySelector('[data-testid=office-chat] [data-testid=chat-title]')?.textContent === 'Phòng họp lớn'`, 10000));
   await sleep(1300);
-  await q(bc, `(() => { const f = document.querySelector('[data-testid=office-chat]'); const i = f.querySelector('input');
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i, 'họp kín lúc 10h'); i.dispatchEvent(new Event('input',{bubbles:true})); f.requestSubmit(); return true; })()`);
+  await say3d('họp kín lúc 10h');
   await sleep(2000);
-  const cConvs = (await rest(C.cookie, 'GET', '/api/chat/conversations')).body as any[];
+  const cConvs = (await api(bc, '/api/chat/conversations')).body as any[];
   const cRoom = cConvs.find((c) => c.type === 'Room');
   check('C là thành viên kênh "Phòng họp lớn", tin phòng 3D được lưu', cRoom?.roomId === 'meeting-large' && cRoom.lastPreview === 'họp kín lúc 10h', cConvs);
   check('A, B (chưa vào phòng) không thấy kênh phòng; không đọc được', !(await convTitles(ba)).some((t) => t.includes('Phòng họp lớn'))
-    && (await rest(A.cookie, 'GET', '/api/chat/conversations/room:meeting-large/messages')).status === 404);
+    && (await api(ba, '/api/chat/conversations/room:meeting-large/messages')).status === 404);
   await bc.go(`${BASE}/chat`, 3500);
   check('C mở /chat: thấy kênh "Phòng họp lớn" với tin vừa nhắn trong 3D', (await convTitles(bc)).some((t) => t.includes('Phòng họp lớn') && t.includes('họp kín lúc 10h')), await convTitles(bc));
   await openConv(bc, 'Phòng họp lớn');

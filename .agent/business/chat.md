@@ -1,6 +1,6 @@
 # Tin nhắn (module Chat)
 
-> Nguồn sự thật là code: `backend/src/Modules/Chat/`, `backend/src/OfficeHub.Realtime/Chat/` + `Hubs/ChatHub.cs`, `frontend/src/features/chat/`. Về [README.md](README.md). Khung chat trong 3D (dùng chung component, TEST-126): [chat-office.md](chat-office.md).
+> Nguồn sự thật là code: `backend/src/Modules/Chat/`, `backend/src/OfficeHub.Realtime/Chat/` + `Hubs/ChatHub.cs`, `frontend/src/features/chat/`. Về [README.md](README.md). Khung chat trong 3D (dùng chung component, TEST-126): [chat-office.md](chat-office.md) · e2e xuyên 3D ↔ `/chat`: `office-chat-full-e2e.ts` (TEST-128).
 
 Chủ dự án chốt 2026-11-07 (đừng hỏi lại): chat ra ngoài 3D, **đồng bộ** với chat 3D, thêm chat 1-1; lưu **vĩnh viễn**, thu hồi = **xoá mềm**; admin / HR **không** đọc tin 1-1; tệp ở thư mục S3 riêng; chỉ badge + âm báo, **không chuông / email** (quyết định chống spam, vẫn giữ); **không** mở cho AI — *đổi 2026-11-11*: **tài khoản bot** được nhắn Toàn văn phòng + 1-1 người khác mở, nhãn BOT ([office-bots.md](office-bots.md#tin-nhắn-của-bot)); người thật dùng token vẫn 403. Có **push FCM** (chốt 2026-11-08) cho Direct / Room, không cho Office (trừ người được @nhắc — TEST-70) — [notifications.md](notifications.md#push-fcm).
 
@@ -8,7 +8,7 @@ Chủ dự án chốt 2026-11-07 (đừng hỏi lại): chat ra ngoài 3D, **đ�
 
 ```
 Trình duyệt (/chat + HUD 3D) ──WS /rt/hub/chat──▶ Realtime (ChatHub: chuyển tiếp + phát) ──/api/chat/… (cookie người dùng)──▶ Api · module Chat (lưu DB, quyền)
-OfficeRoomHub.SendChat / SendRoomChat (FE không còn gọi từ TEST-125; giữ cho e2e cũ) ──cùng đường ChatApi → ChatFanout──▶ ChatHub + HUD 3D
+OfficeRoomHub.SendChat / SendRoomChat (FE không còn gọi từ TEST-125; giữ cho client khác / script cũ) ──cùng đường ChatApi → ChatFanout──▶ ChatHub + HUD 3D
 Realtime ──POST /api/chat/internal/rooms/{id}/members (X-Chat-Key)──▶ Api   (chỉ cấp thành viên kênh phòng)
 ```
 

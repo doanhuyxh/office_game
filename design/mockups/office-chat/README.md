@@ -2,6 +2,8 @@
 
 Chủ dự án yêu cầu 2026-11-16: ngoài kênh Toàn văn phòng và kênh phòng, văn phòng 3D phải có **chat 1-1 giữa hai người** như trang `/chat`, tức đưa toàn bộ tính năng chat vào văn phòng ảo. Các việc trên bảng dự án TEST trỏ tới thư mục này.
 
+> **Đã làm** (TEST-125 → TEST-128, 2026-11-16): cả 5 màn hình đã có trong `/office` — mô tả hành vi thật ở [.agent/business/chat-office.md](../../../.agent/business/chat-office.md), e2e `scripts/dev/office-chat-full-e2e.ts`. Khác mockup: khung ghim góc dưới trái là mặc định (⤢ để nổi ~780 × 560).
+
 Mở từng file `.html` bằng trình duyệt. File tĩnh, tự chạy, không cần build. Cảnh 3D phía sau chỉ vẽ đơn giản để làm nền; phần **chat / HUD** mới là thiết kế cần làm. Màu và kiểu khung lấy theo HUD hiện có (`frontend/src/features/office/components/office-view/office.css`: nền kính `rgba(15,23,42,.85–.95)`, viền `rgba(148,163,184,.25)`, xanh `#2563eb`, BOT tím `#7c3aed`, @nhắc vàng `#fcd34d`). Biểu tượng là SVG nét (dùng `lucide-react` tương ứng khi làm thật).
 
 | File | Màn hình | Điểm chính |
