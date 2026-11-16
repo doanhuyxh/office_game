@@ -43,5 +43,8 @@ public sealed class ProjectsModule : IModule
         ChangeRequestEndpoints.Map(g);
         ProjectAppendixEndpoints.Map(g); // /{id}/appendix — tab Phụ lục (TEST-40)
         ProjectEndpoints.Map(g);
+        // Realtime hỏi việc bot đang chờ người (TEST-119) — khoá nội bộ, không cookie; nginx chặn từ ngoài
+        BotWaitingEndpoints.Map(api.MapGroup("/projects/internal").WithTags("Projects").AllowAnonymous()
+            .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(16 * 1024)));
     }
 }
