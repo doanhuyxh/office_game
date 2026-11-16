@@ -7,8 +7,11 @@
 .office-root .hud > * { pointer-events: auto; }
 .office-root .card { position: absolute; background: rgba(15, 23, 42, .85); border: 1px solid rgba(148, 163, 184, .25); border-radius: 12px; padding: 8px 12px; backdrop-filter: blur(8px); }
 .office-root .me { top: 12px; left: 12px; display: grid; gap: 10px; padding: 10px; width: 232px; border-radius: 14px; box-shadow: 0 8px 24px rgba(2, 6, 23, .35); }
-.office-root .me-head { display: flex; align-items: center; gap: 10px; }
-@media (min-width: 641px) { .office-root .me-head { cursor: default; } }
+@media (min-width: 641px) { .office-root .me:not(.open) { width: auto; max-width: 232px; } }
+.office-root .me-head { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.office-root .me-caret { flex: none; margin-left: auto; font-size: 12px; color: #94a3b8; }
+/* Thu gọn mặc định trên mọi màn hình: ẩn chip vai trò + các nút tới khi bấm mở (TEST-116) */
+.office-root .me:not(.open) .me-roles, .office-root .me:not(.open) .me-actions { display: none; }
 .office-root .me-avatar { flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font: 700 16px system-ui; color: #fff; background: linear-gradient(135deg, #3b82f6, #7c3aed); }
 .office-root .me-info { min-width: 0; display: grid; gap: 3px; }
 .office-root .me-info b { font-size: 14px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -181,10 +184,9 @@
   .office-root .avatar-prompt { top: 80px; left: 12px; transform: none; width: calc(100vw - 168px); }
   /* Thẻ tài khoản thu gọn: avatar + tên, chạm để mở menu */
   .office-root .me { width: auto; max-width: calc(100vw - 180px); padding: 6px 10px 6px 6px; gap: 6px; }
-  .office-root .me-head { cursor: pointer; gap: 8px; }
+  .office-root .me-head { gap: 8px; }
   .office-root .me-avatar { width: 32px; height: 32px; font-size: 14px; }
   .office-root .me-roles { display: none; }
-  .office-root .me:not(.open) .me-actions { display: none; }
   .office-root .me.open .me-actions { max-height: calc(100dvh - 90px); overflow-y: auto; }
   .office-root .me.open { z-index: 6; }
   /* Thẻ voice gọn: nút chỉ còn biểu tượng, bỏ dòng mô tả */

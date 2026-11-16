@@ -77,7 +77,9 @@ export function OfficeView() {
   const [roomCh, setRoomCh] = useState<VoiceChannelInfo | null>(null);
   const [voice, setVoice] = useState<VoiceClient | null>(null);
   const [voiceView, setVoiceView] = useState<VoiceView>(VOICE_INITIAL);
+  // Thẻ người dùng góc trái: mặc định thu gọn (avatar + tên) trên mọi màn hình, không lưu localStorage (TEST-116)
   const [meOpen, setMeOpen] = useState(false);
+  const meRef = useRef<HTMLDivElement>(null);
   const { data: today, noProfile } = useToday();
   const check = useCheck();
   // Tài liệu: hộp thoại kho / bảng tin, kéo thả tải lên, màn hình phòng đang chiếu
@@ -174,6 +176,21 @@ export function OfficeView() {
     addEventListener('keydown', resume, { once: true });
     return () => { removeEventListener('pointerdown', resume); removeEventListener('keydown', resume); };
   }, [voice, voiceView.needsAudioClick]);
+
+  // Thẻ người dùng đang mở → tự đóng khi bấm ra ngoài thẻ (cảnh 3D / HUD khác) hoặc nhấn Esc. Esc không preventDefault / chặn lan,
+  // bỏ qua khi đang có hộp thoại (Esc thuộc về hộp thoại) hoặc đang gõ — các xử lý Esc khác vẫn chạy như cũ.
+  useEffect(() => {
+    if (!meOpen) return;
+    const onDown = (e: PointerEvent) => { if (!meRef.current?.contains(e.target as Node | null)) setMeOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || typingTarget(e)) return;
+      if (document.querySelector('[role=dialog], [role=alertdialog]')) return;
+      setMeOpen(false);
+    };
+    addEventListener('pointerdown', onDown, true);
+    addEventListener('keydown', onKey);
+    return () => { removeEventListener('pointerdown', onDown, true); removeEventListener('keydown', onKey); };
+  }, [meOpen]);
 
   // Phím M: bật / tắt micro khi đang trong voice
   useEffect(() => {
@@ -286,8 +303,8 @@ export function OfficeView() {
       onDrop={(e) => void onDrop(e)}>
       <div ref={hostRef} className="scene" />
       <div className="hud">
-        <div className={`card me ${meOpen ? 'open' : ''}`}>
-          {/* Điện thoại: thẻ thu gọn chỉ còn avatar + tên, chạm để mở các nút (CSS ẩn .me-actions khi chưa .open) */}
+        <div ref={meRef} className={`card me ${meOpen ? 'open' : ''}`}>
+          {/* Thu gọn chỉ còn avatar + tên + mũi tên, bấm / Enter để mở chip vai trò + các nút (CSS ẩn khi chưa .open, TEST-116) */}
           <div className="me-head" role="button" tabIndex={0} aria-expanded={meOpen} onClick={() => setMeOpen((o) => !o)}
             onKeyDown={(e) => { if (e.key === 'Enter') setMeOpen((o) => !o); }}>
             <span className="me-avatar" aria-hidden>{(me?.fullName ?? '?').trim().split(/\s+/).slice(-1)[0]?.charAt(0).toUpperCase()}</span>
@@ -297,8 +314,10 @@ export function OfficeView() {
                 {me?.roles.map((r) => <span key={r} className="chip">{r}</span>)}
               </div>
             </div>
+            <span className="me-caret" aria-hidden>{meOpen ? '▴' : '▾'}</span>
           </div>
-          <div className="me-actions">
+          {/* Chọn một mục → thu gọn thẻ (click nổi bọt lên đây sau khi nút đã xử lý) */}
+          <div className="me-actions" onClick={(e) => { if ((e.target as HTMLElement).closest('.act')) setMeOpen(false); }}>
             <Link to={PATHS.dashboard} className="act">🏢 Cổng nhân sự</Link>
             <button type="button" className="act" onClick={() => setEditorOpen(true)} data-testid="office-avatar">👤 Nhân vật</button>
             <button type="button" className="act" onClick={() => setDocs({ kind: 'browse', space: defaultSpace(), title: '📁 Tài liệu', present: !!roomCh })} data-testid="office-docs-open">📁 Tài liệu</button>
