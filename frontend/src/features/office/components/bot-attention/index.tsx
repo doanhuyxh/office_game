@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { OfficeScene } from '../../engine/OfficeScene';
 import { useOffice, type BotAttention } from '../../store/office.store';
 import type { BotAlertDto, BotAlertItemDto } from '../../types/office.types';
@@ -36,11 +37,15 @@ export function countAttention(alerts: Record<string, BotAttention>) {
  * Bot cần chú ý trên thanh trạng thái (TEST-122): "· 1 lỗi · 2 chờ duyệt" (chỉ phần > 0, đỏ / vàng) — bấm mở bảng nhỏ liệt kê bot: tên,
  * ⚠ / ⏳, các việc (mã · tên · Chờ duyệt / Chờ phản hồi / loại lỗi). Bấm tên bot → đi bộ tới cạnh bot; bấm việc → mở việc ở tab mới (văn phòng
  * giữ kết nối, như chuông TEST-109). Nội dung tên / việc là dữ liệu người dùng → chỉ render văn bản thuần. Đóng bằng ✕ / Esc / bấm ra ngoài.
+ * TEST-130: bảng render vào `.hud` (portal — thẻ trạng thái có backdrop-filter nên con fixed / absolute bị neo theo thẻ) và mở sang trái cột
+ * bản đồ nhỏ / camera, không che; bấm bản đồ nhỏ / nút camera khi bảng mở không đóng bảng (vừa xem danh sách vừa bấm bản đồ đi tới).
  */
 export function BotAttentionStatus({ scene }: { scene: OfficeScene | null }) {
   const alerts = useOffice((s) => s.alerts);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [host, setHost] = useState<HTMLElement | null>(null);
   const { errors, waiting, waitingLabel } = useMemo(() => countAttention(alerts), [alerts]);
   const list = useMemo(() => Object.entries(alerts).sort(([, a], [, b]) =>
     (a.alert.kind === b.alert.kind ? 0 : a.alert.kind === 'error' ? -1 : 1) || a.name.localeCompare(b.name, 'vi')), [alerts]);
@@ -49,7 +54,12 @@ export function BotAttentionStatus({ scene }: { scene: OfficeScene | null }) {
   useEffect(() => { if (!any) setOpen(false); }, [any]);
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node | null)) setOpen(false); };
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Node | null;
+      if (ref.current?.contains(t) || panelRef.current?.contains(t)) return;
+      if (t instanceof Element && t.closest('.minimap, .camera')) return;
+      setOpen(false);
+    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.defaultPrevented) return;
       if (document.querySelector('[role=dialog], [role=alertdialog]')) return;
@@ -61,19 +71,23 @@ export function BotAttentionStatus({ scene }: { scene: OfficeScene | null }) {
   }, [open]);
 
   if (!any) return null;
+  const portal = (node: React.ReactNode) => (host ? createPortal(node, host) : node);
   const goTo = (id: string) => {
     if (scene?.walkToPlayer(id)) setOpen(false);
   };
 
   return (
     <span ref={ref} className="bot-attn">
-      <button type="button" className="bot-attn-toggle" aria-expanded={open} onClick={() => setOpen((o) => !o)} data-testid="office-bot-attention"
+      <button type="button" className="bot-attn-toggle" aria-expanded={open} onClick={(e) => {
+          setHost(e.currentTarget.closest<HTMLElement>('.hud'));
+          setOpen((o) => !o);
+        }} data-testid="office-bot-attention"
         title="Bot cần chú ý">
         {errors > 0 && <span className="err">· {errors} lỗi</span>}
         {waiting > 0 && <span className="wait">· {waiting} {waitingLabel}</span>}
       </button>
-      {open && (
-        <div className="card bot-attn-panel" role="region" aria-label="Bot cần chú ý" data-testid="office-bot-attention-panel">
+      {open && portal(
+        <div ref={panelRef} className={`card bot-attn-panel${errors > 0 ? ' error' : ''}`} role="region" aria-label="Bot cần chú ý" data-testid="office-bot-attention-panel">
           <div className="bot-attn-head">
             <b>Bot cần chú ý</b>
             <button type="button" onClick={() => setOpen(false)} aria-label="Đóng">✕</button>
@@ -102,7 +116,7 @@ export function BotAttentionStatus({ scene }: { scene: OfficeScene | null }) {
               </li>
             ))}
           </ul>
-        </div>
+        </div>,
       )}
     </span>
   );
