@@ -9,6 +9,19 @@ export interface ISmtpInfo { host: string; port: number; useSsl: boolean; userna
 export interface ISystemInfo {
   environment: string; version: string; serverTime: string; timeZone: string; startedAt: string;
   seqEnabled: boolean; sentryEnabled: boolean; links: ISystemLink[]; smtp: ISmtpInfo; health: IHealthItem[];
+  resources: IServerResources;
+}
+
+/** Mức cảnh báo do back-end tính: < 80% ok, 80–90% warn, ≥ 90% danger. */
+export type ResourceLevel = 'ok' | 'warn' | 'danger';
+/** CPU / RAM / ổ cứng của máy chạy container Api (TEST-124); null = không đọc được (dev Windows / macOS…). Byte. */
+export interface IServerResources {
+  cpu: { cores: number; percent: number | null; level: ResourceLevel | null; load: number[] | null };
+  memory: {
+    totalBytes: number | null; usedBytes: number | null; availableBytes: number | null; percent: number | null; level: ResourceLevel | null;
+    processBytes: number; containerLimitBytes: number | null;
+  };
+  disks: { path: string; totalBytes: number; usedBytes: number; freeBytes: number; percent: number; level: ResourceLevel }[];
 }
 
 /** Báo cáo dung lượng S3 (GET /api/system/storage). Bytes = byte; prefix nhóm tính sau KeyPrefix. */

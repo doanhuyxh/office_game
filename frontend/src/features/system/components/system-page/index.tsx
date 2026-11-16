@@ -17,6 +17,7 @@ import { useSystemInfo } from '../../hooks/useSystem';
 import { ConfigTab } from '../config-tab';
 import { NotificationChannelsTab } from '../notification-channels-tab';
 import { OpsTab } from '../ops-tab';
+import { ServerResourceRows } from '../server-resources';
 import { StorageCard } from '../storage-card';
 import type { IHealthItem, ISystemLink, SettingsGroupKey } from '../../types/system.types';
 
@@ -168,6 +169,10 @@ export function SystemPage() {
                     <Row label="Khởi động lúc">{formatDateTime(data.startedAt)}</Row>
                     <Row label="Gửi log Seq">{data.seqEnabled ? 'Bật' : 'Tắt'}</Row>
                     <Row label="Sentry">{data.sentryEnabled ? 'Bật' : 'Tắt'}</Row>
+                    <ServerResourceRows resources={data.resources} />
+                    <p className="pt-3 text-xs text-muted-foreground">
+                      Số liệu của máy chạy container Api. Nếu PostgreSQL hay S3 nằm ở máy khác (<code className="rounded bg-muted px-1">POSTGRES_HOST</code> trỏ ra ngoài) thì dung lượng của chúng không nằm trong số này.
+                    </p>
                   </CardContent>
                 </Card>
               </div>

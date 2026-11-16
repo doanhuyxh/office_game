@@ -11,6 +11,15 @@ Tab **Vận hành** (`GET /api/system/ops`, chỉ admin, `OfficeHub.Api/OpsRepor
 - **Job nền**: `BuildingBlocks/Hosting/JobMonitor` (singleton, trong bộ nhớ của tiến trình). Job mới: `monitor.Register(key, tên, chu kỳ)` đầu `ExecuteAsync`, bọc mỗi lần chạy
   `await job.RunAsync(() => RunOnceAsync(stop))` → hiện lần chạy cuối, lỗi; quá 2 chu kỳ chưa chạy xong = "Trễ". Job của Realtime không có ở đây.
 
+## Tổng quan → "Thông tin máy chủ": CPU, RAM, ổ cứng
+
+`GET /api/system/info` (chỉ admin, ngoài allowlist token AI) trả thêm `resources` (TEST-124, `OfficeHub.Api/ServerResources.cs`; FE `features/system/components/server-resources`). Chỉ đo khi có request (mở trang / "Kiểm tra lại"), không job nền, không tự làm mới.
+- **CPU** cả máy: % bận = chênh lệch hai lần đọc `/proc/stat` cách ~200 ms (idle + iowait là rảnh); số nhân = dòng `cpuN`; load 1 / 5 / 15 phút từ `/proc/loadavg`.
+- **RAM** cả máy từ `/proc/meminfo`: đã dùng = `MemTotal − MemAvailable`; RAM riêng tiến trình Api (`WorkingSet64`); giới hạn container `/sys/fs/cgroup/memory.max` (`max` = không giới hạn → null).
+- **Ổ cứng**: phân vùng `/` (`DriveInfo`) + phân vùng chứa `DataProtection__KeysPath` (volume `keys`) nếu khác (khác tổng / còn trống). % = đã dùng / (đã dùng + còn dùng được) như `df`.
+- Mức: < 80% `ok` (xanh), 80–90% `warn` (vàng), ≥ 90% `danger` (đỏ) — back-end tính, FE chỉ tô màu token.
+- Không đọc được (dev Windows / macOS, file thiếu, định dạng lạ) → mục đó `null`, FE hiện "—", trang không lỗi. Container Api thấy `/proc` của máy chủ (không cần sửa `docker-compose.yml`). Postgres / S3 ở máy khác thì không nằm trong số này. Test: `Architecture.Tests/ServerResourcesTests`.
+
 ## Xoay khoá mã hoá trường
 
 `Encryption__Key` (AES-256-GCM cho lương, CCCD, số tài khoản, token MXH, secret webhook) xoay được (TEST-17, `BuildingBlocks/Security/FieldEncryptor.cs`):

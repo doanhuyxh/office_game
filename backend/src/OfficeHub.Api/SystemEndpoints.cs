@@ -14,11 +14,12 @@ public sealed record SystemLinkDto(string Key, string Name, string? Url, string 
 public sealed record HealthItemDto(string Name, string Status, string? Detail, double DurationMs);
 public sealed record SmtpInfoDto(string Host, int Port, bool UseSsl, string? Username, string FromEmail, string FromName);
 public sealed record SystemInfoDto(string Environment, string Version, DateTimeOffset ServerTime, string TimeZone, DateTimeOffset StartedAt,
-    bool SeqEnabled, bool SentryEnabled, IReadOnlyList<SystemLinkDto> Links, SmtpInfoDto Smtp, IReadOnlyList<HealthItemDto> Health);
+    bool SeqEnabled, bool SentryEnabled, IReadOnlyList<SystemLinkDto> Links, SmtpInfoDto Smtp, IReadOnlyList<HealthItemDto> Health,
+    ServerResourcesDto Resources);
 
 /// <summary>
 /// Trang "Hệ thống" cho quản trị viên (role admin): đường dẫn tài liệu API, log (Seq), hộp thư / mail server, cấu hình SMTP và tình trạng
-/// Postgres / S3 / SMTP. Prefix /api/system CỐ Ý ngoài allowlist token AI (AccessTokenAuth).
+/// Postgres / S3 / SMTP, CPU / RAM / ổ cứng của máy chạy Api (ServerResources.cs). Prefix /api/system CỐ Ý ngoài allowlist token AI (AccessTokenAuth).
 /// Link log / mail lấy từ SystemTools__LogsUrl / SystemTools__MailUrl (trống: Development dùng Seq :5341 / Mailpit :8025, Production ẩn link).
 /// </summary>
 internal static class SystemEndpoints
@@ -71,6 +72,10 @@ internal static class SystemEndpoints
             new("mail", "Hộp thư / mail server", mailUrl, mailNote),
         };
 
+        // CPU cần 2 lần đọc /proc/stat cách ~200 ms → chạy song song với kiểm tra link / health
+        var resourcesTask = ServerResources.ReadAsync(
+            BuildingBlocks.Configuration.EnvLoader.ResolvePath(cfg["DataProtection:KeysPath"] ?? ".keys", env.ContentRootPath), ct);
+
         // Kiểm tra song song từng link có nhúng được vào trang không (nút "Xem trong trang")
         var checks = await Task.WhenAll(links.Select(l => EmbedCheck.CheckAsync(l.Url, cfg["App:BaseUrl"], clock, ct)));
         links = [.. links.Select((l, i) => l with { Embeddable = checks[i].Embeddable, EmbedNote = checks[i].Note })];
@@ -85,7 +90,8 @@ internal static class SystemEndpoints
         return new SystemInfoDto(env.EnvironmentName, version, clock.GetUtcNow(), office.Value.TimeZone,
             new DateTimeOffset(Process.GetCurrentProcess().StartTime.ToUniversalTime(), TimeSpan.Zero),
             seqEnabled, !string.IsNullOrWhiteSpace(cfg["Sentry:Dsn"]), links,
-            new SmtpInfoDto(s.Host, s.Port, s.UseSsl, string.IsNullOrWhiteSpace(s.Username) ? null : s.Username, s.FromEmail, s.FromName), items);
+            new SmtpInfoDto(s.Host, s.Port, s.UseSsl, string.IsNullOrWhiteSpace(s.Username) ? null : s.Username, s.FromEmail, s.FromName), items,
+            await resourcesTask);
     }
 
     /// <summary>
