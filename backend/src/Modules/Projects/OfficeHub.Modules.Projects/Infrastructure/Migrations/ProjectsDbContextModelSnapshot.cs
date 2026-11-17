@@ -154,6 +154,91 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.ToTable("change_requests", "projects");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.CommentAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CommentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("FileKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<bool>("IsImage")
+                        .HasColumnType("boolean");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CommentId")
+                        .HasDatabaseName("ix_comment_attachments_comment");
+
+                    b.ToTable("comment_attachments", "projects");
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.CommentUploadTicket", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("ByBot")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FileKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_comment_upload_tickets_created");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .HasDatabaseName("ix_comment_upload_tickets_user");
+
+                    b.ToTable("comment_upload_tickets", "projects");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.Milestone", b =>
                 {
                     b.Property<Guid>("Id")
@@ -587,6 +672,15 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.CommentAttachment", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Projects.Domain.TaskComment", null)
+                        .WithMany("Attachments")
+                        .HasForeignKey("CommentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.Milestone", b =>
                 {
                     b.HasOne("OfficeHub.Modules.Projects.Domain.Project", null)
@@ -690,6 +784,11 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.Navigation("Departments");
 
                     b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.TaskComment", b =>
+                {
+                    b.Navigation("Attachments");
                 });
 #pragma warning restore 612, 618
         }

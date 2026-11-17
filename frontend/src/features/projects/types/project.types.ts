@@ -62,8 +62,12 @@ export interface ITask {
 }
 /** Việc liên quan (phải chờ / đang chặn). */
 export interface ITaskRef { id: string; code: string; title: string; done: boolean }
+/** Ảnh / tệp đính kèm bình luận việc (TEST-153). url = link presigned (hạn 60 phút): ảnh mở trực tiếp, tệp khác tải về. */
+export interface ICommentAttachment { id: string; fileName: string; contentType: string; size: number; isImage: boolean; url: string }
 /** canDelete: back-end tính theo người xem — chỉ chính người viết, trên web, dự án đang chạy. */
-export interface IComment { id: string; content: string; authorName: string; createdAt: string; byBot: boolean; canDelete: boolean }
+export interface IComment { id: string; content: string; authorName: string; createdAt: string; byBot: boolean; canDelete: boolean; attachments?: ICommentAttachment[] }
+/** POST /tasks/{id}/uploads → vé tải lên: PUT tệp thẳng lên `url` với header Content-Type = `contentType`. */
+export interface ICommentUploadTicket { id: string; url: string; contentType: string; expiresAt: string }
 export type TaskActivityKind = 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited' | 'Depends' | 'CommentDeleted';
 export interface ITaskActivity { id: string; kind: TaskActivityKind; from: string | null; to: string | null; note: string | null; actorName: string; byBot: boolean; at: string }
 /** GET /tasks/{id}: việc + bình luận + lịch sử. canApprove = được chuyển vào / kéo lùi ra cột cần người duyệt. */

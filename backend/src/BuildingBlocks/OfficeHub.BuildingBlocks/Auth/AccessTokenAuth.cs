@@ -100,6 +100,10 @@ public static class AccessTokenAuth
         ("PUT", Exact($"/api/projects/tasks/{Id}")),
         ("POST", Exact($"/api/projects/{Id}/tasks")),
         ("POST", Exact($"/api/projects/tasks/{Id}/(move|comments)")),
+        // TEST-153: tệp đính kèm bình luận việc — xin vé PUT presigned (thành viên dự án đang chạy, ≤ 30 tệp / giờ qua token) + xem tệp (thông tin + link
+        //   hạn ngắn, ảnh thu nhỏ) — Api kiểm quyền xem dự án.
+        ("POST", Exact($"/api/projects/tasks/{Id}/uploads")),
+        ("GET", Exact($"/api/projects/comment-attachments/{Id}(/preview)?")),
         ("PUT", Exact($"/api/projects/tasks/{Id}/dependencies")), // việc phải chờ (2026-11-11, đội agent chuyền việc)
         ("PUT", Exact($"/api/projects/{Id}/(guide|description)")), // hướng dẫn làm việc / mô tả dự án (quản lý dự án / HR — Api kiểm)
         // Họp agent (TEST-75): bot giữ lượt bỏ lượt / bot chủ trì chỉ định người nói kế — Api kiểm bot dự họp + đang giữ lượt. Mở / dừng vẫn chỉ người thật.

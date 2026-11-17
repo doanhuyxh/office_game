@@ -80,6 +80,41 @@ public class ViewAttachmentToolTests
         Assert.Equal("Không tìm thấy tệp", e.Message);
     }
 
+    [Fact]
+    public async Task Task_comment_source_uses_projects_routes()
+    {
+        var handler = new FakeApi(path => path.EndsWith("/preview")
+            ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(Jpeg) { Headers = { ContentType = new("image/jpeg") } } }
+            : Json(Info(true)));
+
+        var r = await ChatTools.ViewAttachment(Api(handler), Id, "task-comment");
+
+        Assert.Equal([$"/api/projects/comment-attachments/{Id}", $"/api/projects/comment-attachments/{Id}/preview"], handler.Paths);
+        Assert.IsType<ImageContentBlock>(r.Content[1]);
+    }
+
+    [Fact]
+    public async Task Rejects_unknown_source_without_calling_api()
+    {
+        var handler = new FakeApi(_ => throw new InvalidOperationException("không được gọi Api"));
+        await Assert.ThrowsAsync<McpException>(() => ChatTools.ViewAttachment(Api(handler), Id, "documents"));
+        Assert.Empty(handler.Paths);
+    }
+
+    [Fact]
+    public void Task_comment_attachments_drop_presigned_url()
+    {
+        var comments = (System.Text.Json.Nodes.JsonArray)System.Text.Json.Nodes.JsonNode.Parse(
+            $$"""[{"id":"c1","content":"x","attachments":[{{Info(true)}}]},{"id":"c2","content":"y","attachments":[]}]""")!;
+
+        ProjectTools.StripAttachmentUrls(comments);
+
+        var json = comments.ToJsonString();
+        Assert.DoesNotContain("s3.test", json);
+        Assert.Contains("anh.png", json);
+        Assert.Null(comments[1]!["attachments"]);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("../auth/me")]

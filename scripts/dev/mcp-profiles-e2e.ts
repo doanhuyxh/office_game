@@ -105,8 +105,9 @@ ok('chat: có read_chat / send_chat_message / create_task / go_to, không approv
 ok('meeting: có get_my_meeting / speak_in_meeting / pass_turn / tool đọc nghiệp vụ, không send_chat_message / update_task_status',
   ['get_my_meeting', 'speak_in_meeting', 'pass_turn', 'get_finance_overview'].every((n) => meeting.names.includes(n))
   && !['send_chat_message', 'update_task_status', 'approve_request'].some((n) => meeting.names.includes(n)), meeting.names.length);
-ok('task: 87 tool, không tool họp / chat / duyệt / chấm công',
-  task.names.length === 87 && !['speak_in_meeting', 'read_chat', 'approve_request', 'check_in_out'].some((n) => task.names.includes(n)), task.names.length);
+ok('task: 89 tool (có create_upload / view_attachment — TEST-153), không tool họp / chat / duyệt / chấm công',
+  task.names.length === 89 && ['create_upload', 'view_attachment'].every((n) => task.names.includes(n))
+  && !['speak_in_meeting', 'read_chat', 'approve_request', 'check_in_out'].some((n) => task.names.includes(n)), task.names.length);
 ok('schema mỗi hồ sơ nhỏ hơn đủ tool', [chat, meeting, task].every((p) => p.bytes < all.bytes));
 // Không phải lớp bảo mật: tool ngoài hồ sơ vẫn gọi được, quyền do Api
 const outside = await call('meeting', 'list_my_tasks');

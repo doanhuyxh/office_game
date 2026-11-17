@@ -243,6 +243,34 @@ public sealed class TaskComment
     /// <summary>Viết qua token AI / MCP (nhãn BOT).</summary>
     public bool ByBot { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    /// <summary>Ảnh / tệp đính kèm (TEST-153) — xoá bình luận / việc thì xoá cả file trên S3.</summary>
+    public List<CommentAttachment> Attachments { get; set; } = [];
+}
+
+/// <summary>Tệp đính kèm bình luận việc (TEST-153): chỉ lưu khoá S3 (<see cref="CommentFileRules.FileKey"/>), không lưu nội dung.</summary>
+public sealed class CommentAttachment
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid CommentId { get; set; }
+    public required string FileKey { get; set; }
+    public required string FileName { get; set; }
+    public required string ContentType { get; set; }
+    public long Size { get; set; }
+    public bool IsImage { get; set; }
+}
+
+/// <summary>Vé tải lên tệp bình luận: đã xin presigned PUT nhưng chưa gắn vào bình luận nào (quá 24 giờ → dọn cả file mồ côi).</summary>
+public sealed class CommentUploadTicket
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid TaskId { get; set; }
+    public Guid UserId { get; set; }
+    public bool ByBot { get; set; }
+    public required string FileKey { get; set; }
+    public required string FileName { get; set; }
+    public required string ContentType { get; set; }
+    public long Size { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
 }
 
 /// <summary>

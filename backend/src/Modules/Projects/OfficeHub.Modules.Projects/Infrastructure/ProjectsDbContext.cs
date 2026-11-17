@@ -24,6 +24,8 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
     public DbSet<TaskColumn> Columns => Set<TaskColumn>();
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
     public DbSet<TaskComment> Comments => Set<TaskComment>();
+    public DbSet<CommentAttachment> CommentAttachments => Set<CommentAttachment>();
+    public DbSet<CommentUploadTicket> CommentUploadTickets => Set<CommentUploadTicket>();
     public DbSet<TaskActivity> Activities => Set<TaskActivity>();
     public DbSet<TaskDependency> Dependencies => Set<TaskDependency>();
     public DbSet<AgentSettings> AgentSettings => Set<AgentSettings>();
@@ -146,6 +148,24 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.HasIndex(x => new { x.TaskId, x.CreatedAt }).HasDatabaseName("ix_task_comments_task");
             e.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_task_comments_time"); // luồng thay đổi (/activity)
             e.HasOne<TaskItem>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Attachments).WithOne().HasForeignKey(a => a.CommentId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<CommentAttachment>(e =>
+        {
+            e.ToTable("comment_attachments");
+            e.Property(x => x.FileKey).HasMaxLength(500);
+            e.Property(x => x.FileName).HasMaxLength(300);
+            e.Property(x => x.ContentType).HasMaxLength(150);
+            e.HasIndex(x => x.CommentId).HasDatabaseName("ix_comment_attachments_comment");
+        });
+        b.Entity<CommentUploadTicket>(e =>
+        {
+            e.ToTable("comment_upload_tickets");
+            e.Property(x => x.FileKey).HasMaxLength(500);
+            e.Property(x => x.FileName).HasMaxLength(300);
+            e.Property(x => x.ContentType).HasMaxLength(150);
+            e.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_comment_upload_tickets_created");
+            e.HasIndex(x => new { x.UserId, x.CreatedAt }).HasDatabaseName("ix_comment_upload_tickets_user");
         });
         b.Entity<TaskDependency>(e =>
         {

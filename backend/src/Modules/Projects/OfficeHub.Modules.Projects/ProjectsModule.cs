@@ -36,6 +36,7 @@ public sealed class ProjectsModule : IModule
     {
         var g = api.MapGroup("/projects").WithTags("Projects").RequireAuthorization();
         TaskEndpoints.Map(g);       // trước ProjectEndpoints: "/tasks/mine" không bị "/{id:guid}" nuốt (guid constraint đã chặn, giữ thứ tự cho rõ)
+        CommentFileEndpoints.Map(g); // tệp đính kèm bình luận việc (TEST-153)
         TaskColumnEndpoints.Map(g);
         ActivityFeedEndpoints.Map(g); // /activity — bảng việc tự cập nhật + toast
         AgentSettingsEndpoints.Map(g); // /agent-settings — giới hạn bot, chỉ admin

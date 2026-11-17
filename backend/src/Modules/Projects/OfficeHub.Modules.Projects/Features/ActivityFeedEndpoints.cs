@@ -57,7 +57,7 @@ internal static class ActivityFeedEndpoints
                               where c.CreatedAt > since && (me == null ? c.AuthorName != v.Name || c.ByBot : c.AuthorEmployeeId != me || c.ByBot)
                               orderby c.CreatedAt descending
                               select new { c.Id, t.ProjectId, TaskId = t.Id, t.Number, t.Title, Kind = "Commented", From = (string?)null, To = (string?)null,
-                                  Text = (string?)c.Content, ActorName = c.AuthorName, c.ByBot, At = c.CreatedAt })
+                                  Text = (string?)(c.Content == "" ? "[Ảnh / tệp đính kèm]" : c.Content), ActorName = c.AuthorName, c.ByBot, At = c.CreatedAt })
             .Take(MaxItems).ToListAsync(ct);
         // Lý do khi chuyển lùi vừa là lịch sử Moved vừa là bình luận (cùng thời điểm) → bỏ bình luận trùng.
         var movedAt = acts.Where(a => a.Kind == nameof(TaskActivityKind.Moved) && a.Text != null).Select(a => (a.TaskId, a.At)).ToHashSet();

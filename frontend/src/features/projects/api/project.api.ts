@@ -1,6 +1,6 @@
 import { http, httpPost } from '@/services/api-client';
 import type {
-  IComment, IEffort, ITaskDetail, IInstallmentRef, IMilestoneRequest, IProject, IProjectDetail, IProjectFinancials, IProjectRequest, ISalesContractRef, ITask, ITaskRequest, MemberRole,
+  IComment, ICommentUploadTicket, IEffort, ITaskDetail, IInstallmentRef, IMilestoneRequest, IProject, IProjectDetail, IProjectFinancials, IProjectRequest, ISalesContractRef, ITask, ITaskRequest, MemberRole,
   ProjectStatus, ITaskColumnRequest, ChangeRequestStatus, IChangeRequest, IChangeRequestRequest, IProjectActivityFeed, IAgentSettings, IAgentSettingsRequest, IProjectAppendix,
 } from '../types/project.types';
 
@@ -59,7 +59,12 @@ export const projectApi = {
   task: (tid: string) => http<ITaskDetail>(`${base}/tasks/${tid}`),
   deleteTask: (tid: string) => send<void>('DELETE', `${base}/tasks/${tid}`),
   comments: (tid: string) => http<IComment[]>(`${base}/tasks/${tid}/comments`),
-  addComment: (tid: string, content: string) => httpPost<string>(`${base}/tasks/${tid}/comments`, { content }),
+  /** Bình luận có thể chỉ có tệp (content rỗng) khi có uploadIds; tối đa 5 tệp. */
+  addComment: (tid: string, content: string, uploadIds: string[] = []) =>
+    httpPost<string>(`${base}/tasks/${tid}/comments`, uploadIds.length ? { content, uploadIds } : { content }),
+  /** Xin vé tải tệp đính kèm bình luận (rồi PUT tệp lên url — `putToS3` ở utils/attachments). */
+  createUpload: (tid: string, file: File) =>
+    httpPost<ICommentUploadTicket>(`${base}/tasks/${tid}/uploads`, { fileName: file.name, contentType: file.type || null, size: file.size }),
   deleteComment: (commentId: string) => send<void>('DELETE', `${base}/comments/${commentId}`),
   activity: (after: string | null) => http<IProjectActivityFeed>(`${base}/activity${after ? `?after=${encodeURIComponent(after)}` : ''}`),
   setDependencies: (tid: string, dependsOn: string[]) => send<void>('PUT', `${base}/tasks/${tid}/dependencies`, { dependsOn }),

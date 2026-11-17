@@ -4,6 +4,7 @@ namespace OfficeHub.Modules.Projects.Domain;
 public static class TaskRules
 {
     public const int MaxDescription = 20000;
+    public const int MaxComment = 3000;
     public const int MaxMediaLinks = 20;
     public const int MaxLinkLength = 1000;
 

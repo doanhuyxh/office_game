@@ -66,7 +66,7 @@ public class ToolProfilesTests
     public void Task_profile()
     {
         var task = Of(ToolProfiles.Task);
-        foreach (var n in new[] { "get_task", "update_task_status", "comment_task", "create_document", "present_screen", "go_to" })
+        foreach (var n in new[] { "get_task", "update_task_status", "comment_task", "create_document", "present_screen", "go_to", "create_upload", "view_attachment" })
             Assert.Contains(n, task);
         foreach (var n in ToolProfiles.TaskExcluded) Assert.DoesNotContain(n, task);
         Assert.Equal(104 - ToolProfiles.TaskExcluded.Count, task.Length);

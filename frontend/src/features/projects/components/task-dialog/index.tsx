@@ -18,6 +18,8 @@ import { useProjectMutation, useTaskDetail } from '../../hooks/useProjects';
 import type { IMember, IMilestone, ITask, ITaskActivity, ITaskColumn, ITaskRequest } from '../../types/project.types';
 import { ACTIVITY_LABEL, createColumns, needsMoveNote, stateLabel } from '../../utils/labels';
 import { isHttpUrl } from '../../utils/media';
+import { MAX_COMMENT_FILES, fileProblem, putToS3 } from '../../utils/attachments';
+import { CommentAttachments } from '../comment-attachments';
 import { MarkdownEditor } from '../markdown-editor';
 import { TaskCommentInput } from '../task-comment-input';
 import { TaskDependencies } from '../task-dependencies';
@@ -57,11 +59,21 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
   const open = task !== undefined;
   const [f, setF] = useState<ITaskRequest>({ title: '', columnId: null });
   const [comment, setComment] = useState('');
+  const [commentFiles, setCommentFiles] = useState<File[]>([]);
   const [preview, setPreview] = useState(false);
   const [links, setLinks] = useState<string[]>([]);
   const save = useProjectMutation((b: ITaskRequest): Promise<unknown> => (task ? projectApi.updateTask(task.id, b) : projectApi.createTask(projectId, b)));
   const remove = useProjectMutation(projectApi.deleteTask);
-  const addComment = useProjectMutation((c: string) => projectApi.addComment(task!.id, c));
+  // Gửi bình luận = tải từng tệp đính kèm (xin vé → PUT lên S3) rồi đăng; isPending bao cả hai bước (nút gửi xoay suốt).
+  const addComment = useProjectMutation(async ({ content, files }: { content: string; files: File[] }) => {
+    const ids: string[] = [];
+    for (const file of files) {
+      const ticket = await projectApi.createUpload(task!.id, file);
+      await putToS3(ticket, file);
+      ids.push(ticket.id);
+    }
+    return projectApi.addComment(task!.id, content, ids);
+  });
   const deleteComment = useProjectMutation(projectApi.deleteComment);
   const detail = useTaskDetail(task?.id ?? null).data;
   const comments = detail?.comments ?? [];
@@ -76,7 +88,7 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
   const createCols = createColumns(columns, sequential, canDelete);
   useEffect(() => {
     if (!open) return;
-    save.reset(); setComment(''); setShowHistory(false);
+    save.reset(); setComment(''); setCommentFiles([]); setShowHistory(false);
     setPreview(!!task?.description); // việc đã có mô tả → mở ở chế độ xem Markdown
     setLinks(task?.mediaLinks.length ? [...task.mediaLinks] : []);
     setF(task ? { title: task.title, description: task.description ?? '', columnId: task.columnId, assigneeEmployeeId: task.assigneeEmployeeId, milestoneId: task.milestoneId,
@@ -85,7 +97,23 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
   }, [open, task?.id]);
   const errors = fieldErrors(save.error);
   const set = <K extends keyof ITaskRequest>(k: K, v: ITaskRequest[K]) => setF((x) => ({ ...x, [k]: v }));
-  const postComment = () => { if (comment.trim() && !addComment.isPending) addComment.mutate(comment, { onSuccess: () => setComment(''), onError: (err) => toast.error(errorMessage(err)) }); };
+  const postComment = () => {
+    if ((!comment.trim() && !commentFiles.length) || addComment.isPending) return;
+    addComment.mutate({ content: comment.trim() ? comment : '', files: commentFiles }, {
+      onSuccess: () => { setComment(''); setCommentFiles([]); },
+      onError: (err) => toast.error(errorMessage(err, 'Không gửi được bình luận')),
+    });
+  };
+  const addCommentFiles = (list: File[]) => {
+    const accepted = list.filter((file) => {
+      const problem = fileProblem(file);
+      if (problem) toast.error(problem);
+      return !problem;
+    });
+    const room = MAX_COMMENT_FILES - commentFiles.length;
+    if (accepted.length > room) toast.error(`Mỗi bình luận đính kèm tối đa ${MAX_COMMENT_FILES} tệp`);
+    if (room > 0 && accepted.length) setCommentFiles([...commentFiles, ...accepted.slice(0, room)]);
+  };
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="flex h-[92vh] w-[96vw] max-w-none flex-col gap-0 p-0 sm:max-w-none">
@@ -145,8 +173,10 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
                           && toast.success('Đã xoá bình luận')}>
                         <Trash2 className="size-3.5" /></Button>}
                     </div>
-                    <Markdown text={c.content} mentions={mentionNames} /></div>)}
-                  {canWork && <TaskCommentInput members={members} value={comment} onChange={setComment} onSubmit={postComment} pending={addComment.isPending} />}
+                    {c.content && <Markdown text={c.content} mentions={mentionNames} />}
+                    {!!c.attachments?.length && <CommentAttachments attachments={c.attachments} caption={`${c.authorName} · ${fmtTime(c.createdAt)}`} />}</div>)}
+                  {canWork && <TaskCommentInput members={members} value={comment} onChange={setComment} onSubmit={postComment} pending={addComment.isPending}
+                    files={commentFiles} onAddFiles={addCommentFiles} onRemoveFile={(i) => setCommentFiles((x) => x.filter((_, j) => j !== i))} />}
                   <p className="text-xs text-muted-foreground">Tạo bởi {task.createdByName}{task.createdByBot && <BotBadge className="ml-1" />} · {fmtTime(task.createdAt)}{task.completedAt && ` · xong ${fmtTime(task.completedAt)}`}
                     {activities.length > 0 && <button type="button" className="ml-2 underline" onClick={() => setShowHistory((x) => !x)}>{showHistory ? 'Ẩn lịch sử' : `Lịch sử (${activities.length})`}</button>}</p>
                   {showHistory && <ul className="grid gap-1 rounded-md border p-2" data-testid="task-history">{[...activities].reverse().map((a) => <ActivityLine key={a.id} a={a} />)}</ul>}

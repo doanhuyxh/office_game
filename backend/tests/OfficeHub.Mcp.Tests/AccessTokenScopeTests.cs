@@ -151,6 +151,9 @@ public class ProjectDocumentScopeTests
     [InlineData("POST", "/api/projects/" + G + "/tasks")]
     [InlineData("POST", "/api/projects/tasks/" + G + "/move")]
     [InlineData("POST", "/api/projects/tasks/" + G + "/comments")]
+    [InlineData("POST", "/api/projects/tasks/" + G + "/uploads")]                // TEST-153: tệp đính kèm bình luận việc
+    [InlineData("GET", "/api/projects/comment-attachments/" + G)]
+    [InlineData("GET", "/api/projects/comment-attachments/" + G + "/preview")]
     [InlineData("PUT", "/api/projects/" + G + "/guide")]                  // chỉ hướng dẫn làm việc (TEST-35)
     [InlineData("PUT", "/api/projects/" + G + "/description")]            // chỉ mô tả dự án (TEST-103)
     [InlineData("GET", "/api/documents/spaces")]
@@ -164,6 +167,8 @@ public class ProjectDocumentScopeTests
     public void Allows_project_tasks_and_document_reads(string method, string path) => Assert.True(AccessTokenAuth.IsAllowed(method, path));
 
     [Theory]
+    [InlineData("GET", "/api/projects/comment-attachments/" + G + "/url")]
+    [InlineData("GET", "/api/projects/comment-attachments/not-a-guid")]
     [InlineData("GET", "/api/projects/financials")]                       // lãi / lỗ: không bao giờ ra MCP
     [InlineData("GET", "/api/projects/" + G + "/financials")]
     [InlineData("GET", "/api/projects/" + G + "/installments")]

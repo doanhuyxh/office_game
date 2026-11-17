@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Http;
+using OfficeHub.BuildingBlocks.Storage;
 using OfficeHub.Modules.Notification.Contracts;
 using OfficeHub.Modules.Organization.Contracts;
 using OfficeHub.Modules.Projects.Contracts;
@@ -30,8 +31,12 @@ public sealed record UpsertTask(string Title, string? Description = null, Guid? 
     DateOnly? DueOn = null, decimal? EstimateDays = null, List<string>? MediaLinks = null, string? Note = null);
 public sealed record MoveTask(Guid ColumnId, double? Rank = null, string? Note = null);
 /// <param name="CanDelete">Người xem được xoá (chỉ chính người viết, trên web, dự án đang chạy — TEST-39).</param>
-public sealed record CommentDto(Guid Id, string Content, string AuthorName, DateTimeOffset CreatedAt, bool ByBot, bool CanDelete = false);
-public sealed record NewComment(string Content);
+/// <param name="Attachments">Ảnh / tệp đính kèm (TEST-153) — link presigned cấp mỗi lần đọc.</param>
+public sealed record CommentDto(Guid Id, string Content, string AuthorName, DateTimeOffset CreatedAt, bool ByBot, bool CanDelete = false,
+    List<CommentAttachmentDto>? Attachments = null);
+/// <param name="Content">Bỏ trống được khi có <paramref name="UploadIds"/>.</param>
+/// <param name="UploadIds">Vé từ <c>POST /tasks/{tid}/uploads</c> (đã PUT file xong), ≤ <see cref="CommentFileRules.MaxAttachments"/>.</param>
+public sealed record NewComment(string? Content, List<Guid>? UploadIds = null);
 public sealed record TaskActivityDto(Guid Id, TaskActivityKind Kind, string? From, string? To, string? Note, string ActorName, bool ByBot, DateTimeOffset At);
 /// <param name="Sequential">Dự án đi lần lượt (tiến từng cột, lùi phải có lý do).</param>
 /// <param name="CanApprove">Người xem được chuyển việc vào / lùi ra khỏi cột cần người duyệt (quản lý dự án / HR).</param>
@@ -104,7 +109,7 @@ internal static class TaskEndpoints
 
     /// <summary>Một việc + bình luận + lịch sử (hộp thoại việc trên web, tool MCP get_task).</summary>
     private static async Task<Results<Ok<TaskDetailDto>, NotFound>> DetailAsync(Guid tid, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, ProjectClock clock,
-        CancellationToken ct)
+        IFileStorage files, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var t = await db.Tasks.AsNoTracking().FirstOrDefaultAsync(x => x.Id == tid, ct);
@@ -112,7 +117,7 @@ internal static class TaskEndpoints
         var proj = await db.Projects.Where(p => p.Id == t.ProjectId).Select(p => new { p.Sequential, p.Status }).FirstAsync(ct);
         var sequential = proj.Sequential;
         var dto = (await ToDtosAsync([t], db, access, clock, ct, withProject: true))[0];
-        var comments = await CommentListAsync(db, tid, CommentDeleter(v, user, proj.Status), ct);
+        var comments = await CommentListAsync(db, files, tid, CommentDeleter(v, user, proj.Status), ct);
         var activities = await db.Activities.AsNoTracking().Where(a => a.TaskId == tid).OrderBy(a => a.At)
             .Select(a => new TaskActivityDto(a.Id, a.Kind, a.From, a.To, a.Note, a.ActorName, a.ByBot, a.At)).ToListAsync(ct);
         var code = dto.Code[..dto.Code.LastIndexOf('-')];
@@ -449,7 +454,8 @@ internal static class TaskEndpoints
         return TypedResults.NoContent();
     }
 
-    private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteAsync(Guid tid, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, CancellationToken ct)
+    private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteAsync(Guid tid, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
+        IFileStorage files, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var (t, p) = await LoadAsync(tid, db, ct);
@@ -463,34 +469,45 @@ internal static class TaskEndpoints
             if (!v.CanWork(p.Id) || v.Employee?.Id is not { } me || creator != me)
                 return ProjectEndpoints.Forbidden("Chỉ người tạo việc hoặc quản lý dự án được xoá");
         }
+        // TEST-153: bình luận + tệp xoá theo cascade trong DB → xoá file S3 sau khi lưu
+        var keys = await (from a in db.CommentAttachments.AsNoTracking() join c in db.Comments.AsNoTracking() on a.CommentId equals c.Id
+                          where c.TaskId == t.Id select a.FileKey).ToListAsync(ct);
         db.Tasks.Remove(t);
         await db.SaveChangesAsync(ct);
+        await CommentFileEndpoints.DeleteFilesAsync(files, keys, ct);
         return TypedResults.NoContent();
     }
 
-    private static async Task<Results<Ok<List<CommentDto>>, NotFound>> CommentsAsync(Guid tid, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, CancellationToken ct)
+    private static async Task<Results<Ok<List<CommentDto>>, NotFound>> CommentsAsync(Guid tid, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
+        IFileStorage files, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var t = await db.Tasks.AsNoTracking().FirstOrDefaultAsync(x => x.Id == tid, ct);
         if (t is null || !v.CanSee(t.ProjectId)) return TypedResults.NotFound();
         var status = await db.Projects.Where(p => p.Id == t.ProjectId).Select(p => p.Status).FirstAsync(ct);
-        return TypedResults.Ok(await CommentListAsync(db, tid, CommentDeleter(v, user, status), ct));
+        return TypedResults.Ok(await CommentListAsync(db, files, tid, CommentDeleter(v, user, status), ct));
     }
 
     /// <summary>Nhân viên được xoá bình luận CỦA CHÍNH MÌNH (null = không xoá được gì): trên web (không qua token AI), dự án đang chạy.</summary>
     private static Guid? CommentDeleter(ProjectViewer v, ClaimsPrincipal user, ProjectStatus status) =>
         status == ProjectStatus.Active && !user.IsAccessToken() ? v.Employee?.Id : null;
 
-    private static Task<List<CommentDto>> CommentListAsync(ProjectsDbContext db, Guid tid, Guid? deleter, CancellationToken ct) =>
-        db.Comments.AsNoTracking().Where(c => c.TaskId == tid).OrderBy(c => c.CreatedAt)
-            .Select(c => new CommentDto(c.Id, c.Content, c.AuthorName, c.CreatedAt, c.ByBot, deleter != null && c.AuthorEmployeeId == deleter)).ToListAsync(ct);
+    private static async Task<List<CommentDto>> CommentListAsync(ProjectsDbContext db, IFileStorage files, Guid tid, Guid? deleter, CancellationToken ct)
+    {
+        var rows = await db.Comments.AsNoTracking().Include(c => c.Attachments).Where(c => c.TaskId == tid).OrderBy(c => c.CreatedAt).ToListAsync(ct);
+        var list = new List<CommentDto>(rows.Count);
+        foreach (var c in rows)
+            list.Add(new CommentDto(c.Id, c.Content, c.AuthorName, c.CreatedAt, c.ByBot, deleter != null && c.AuthorEmployeeId == deleter,
+                await CommentFileEndpoints.DtosAsync(c.Attachments, files)));
+        return list;
+    }
 
     /// <summary>
     /// TEST-39: chỉ chính người viết xoá được bình luận (so <c>AuthorEmployeeId</c>) — không ngoại lệ cho quản lý dự án / HR / admin. Bình luận viết qua token AI
     /// của mình thì chủ token xoá được trên web; token AI không gọi được (ngoài allowlist). Xoá cứng + ghi lịch sử CommentDeleted (không chép nội dung).
     /// </summary>
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteCommentAsync(Guid cid, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
-        ProjectClock clock, CancellationToken ct)
+        ProjectClock clock, IFileStorage files, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var c = await db.Comments.FirstOrDefaultAsync(x => x.Id == cid, ct);
@@ -499,27 +516,57 @@ internal static class TaskEndpoints
         if (user.IsAccessToken()) return ProjectEndpoints.Forbidden("Xoá bình luận chỉ làm trên web");
         if (v.Employee?.Id is not { } me || c.AuthorEmployeeId != me) return ProjectEndpoints.Forbidden("Chỉ người viết được xoá bình luận");
         if (await db.Projects.Where(p => p.Id == t.ProjectId).Select(p => p.Status).FirstAsync(ct) != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
+        var keys = await db.CommentAttachments.Where(a => a.CommentId == c.Id).Select(a => a.FileKey).ToListAsync(ct);
         db.Comments.Remove(c);
         db.Activities.Add(Activity(t, TaskActivityKind.CommentDeleted, v, user, clock.Now));
         await db.SaveChangesAsync(ct);
+        await CommentFileEndpoints.DeleteFilesAsync(files, keys, ct); // TEST-153: xoá bình luận → xoá file S3
         return TypedResults.NoContent();
     }
 
     private static async Task<Results<Created<Guid>, NotFound, ValidationProblem, ProblemHttpResult>> AddCommentAsync(Guid tid, NewComment r, ClaimsPrincipal user,
-        ProjectsDbContext db, ProjectAccess access, IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, ProjectClock clock, CancellationToken ct)
+        ProjectsDbContext db, ProjectAccess access, IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, ProjectClock clock, IFileStorage files,
+        CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var (t, p) = await LoadAsync(tid, db, ct);
         if (t is null || p is null || !v.CanSee(p.Id)) return TypedResults.NotFound();
         if (!v.CanWork(p.Id)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được bình luận");
-        var val = new Validation().Required(r.Content, "content", "Nội dung").MaxLength(r.Content, 3000, "content", "Nội dung");
+        var uploadIds = (r.UploadIds ?? []).Where(u => u != Guid.Empty).Distinct().ToList();
+        var val = new Validation();
+        foreach (var (field, message) in CommentFileRules.ValidateComment(r.Content, uploadIds.Count)) val.Add(field, message);
         if (val.Failed) return val.Problem();
+        if (uploadIds.Count > 0 && p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
         if (await StreakErrorAsync(user, t.Id, db, ct) is { } streakErr) return Problems.Conflict(streakErr);
-        var c = new TaskComment { TaskId = tid, Content = r.Content.Trim(), AuthorEmployeeId = v.Employee?.Id, AuthorName = v.Name, ByBot = user.IsAccessToken(), CreatedAt = clock.Now };
+        var tickets = uploadIds.Count == 0 ? []
+            : await db.CommentUploadTickets.Where(x => uploadIds.Contains(x.Id) && x.UserId == v.UserId && x.TaskId == tid).ToListAsync(ct);
+        if (tickets.Count != uploadIds.Count)
+            return new Validation().Add("uploadIds", "Tệp đính kèm không hợp lệ hoặc đã hết hạn — tải lại tệp").Problem();
+        var c = new TaskComment
+        {
+            TaskId = tid, Content = r.Content?.Trim() ?? "", AuthorEmployeeId = v.Employee?.Id, AuthorName = v.Name, ByBot = user.IsAccessToken(), CreatedAt = clock.Now,
+        };
+        foreach (var x in tickets.OrderBy(x => uploadIds.IndexOf(x.Id)))
+        {
+            // Chép key tạm → key chính + kiểm chữ ký đầu file trên bản đã chép (TEST-13)
+            var check = await files.PromoteUploadAsync(x.FileKey, x.FileName, ct);
+            if (check.Error is { } bad) return new Validation().Add("uploadIds", $"Tệp \"{x.FileName}\": {bad}").Problem();
+            if (check.Size is not { } size) return Problems.Conflict($"Tệp \"{x.FileName}\" chưa tải lên xong — thử lại");
+            if (size <= 0 || size > CommentFileRules.MaxSizeOf(x.ContentType))
+            {
+                await files.DeleteAsync(x.FileKey, ct);
+                return new Validation().Add("uploadIds", $"Tệp \"{x.FileName}\" vượt giới hạn dung lượng").Problem();
+            }
+            c.Attachments.Add(new CommentAttachment
+            {
+                CommentId = c.Id, FileKey = x.FileKey, FileName = x.FileName, ContentType = x.ContentType, Size = size, IsImage = CommentFileRules.IsImage(x.ContentType),
+            });
+        }
         db.Comments.Add(c);
+        db.CommentUploadTickets.RemoveRange(tickets);
         await db.SaveChangesAsync(ct);
         var code = EffortRules.TaskCode(p.Code, t.Number);
-        var preview = c.Content.Length > 200 ? c.Content[..200] + "…" : c.Content;
+        var preview = CommentFileRules.Preview(c.Content, c.Attachments.Select(a => (a.FileName, a.IsImage)).ToList());
         var notified = new List<Guid>();
         if (t.AssigneeEmployeeId is { } a && a != v.Employee?.Id && (await dir.GetAsync(a, ct))?.UserId is { } uid)
         {
