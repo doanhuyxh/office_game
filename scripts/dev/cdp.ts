@@ -15,9 +15,13 @@ export async function launch(port: number, profile: string, width = 1440, height
   const ws = new WebSocket(targets.find((t) => t.type === 'page').webSocketDebuggerUrl);
   await new Promise((r) => (ws.onopen = r));
   let id = 0; const pending = new Map<number, (v: any) => void>(); const errors: string[] = [];
+  /** Nghe sự kiện CDP (vd `Fetch.requestPaused`) — thêm cho TEST-148 (ảnh trả chậm). */
+  const listeners = new Map<string, ((params: any) => void)[]>();
+  const on = (method: string, fn: (params: any) => void) => { listeners.set(method, [...(listeners.get(method) ?? []), fn]); };
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data as string);
     if (m.id && pending.has(m.id)) { pending.get(m.id)!(m); pending.delete(m.id); }
+    if (m.method) for (const fn of listeners.get(m.method) ?? []) fn(m.params);
     if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails?.exception?.description ?? m.params.exceptionDetails?.text);
     if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') errors.push(m.params.args.map((a: any) => a.value ?? a.description).join(' '));
   };
@@ -37,5 +41,5 @@ export async function launch(port: number, profile: string, width = 1440, height
     await go(`${BASE}/login`, 1500);
     return evalJs(`fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({login:${JSON.stringify(user)},password:${JSON.stringify(password)}})}).then(r=>r.status)`);
   };
-  return { send, evalJs, shot, go, key, login, sleep, errors, close: () => { ws.close(); chrome.kill(); } };
+  return { send, on, evalJs, shot, go, key, login, sleep, errors, close: () => { ws.close(); chrome.kill(); } };
 }

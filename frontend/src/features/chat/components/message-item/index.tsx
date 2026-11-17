@@ -56,7 +56,7 @@ function ImageAttachments({ items, onPreview, className }: { items: IAttachment[
     <div className="flex flex-wrap gap-1.5" data-testid="chat-images">
       {items.map((a) => (
         <button key={a.id} type="button" className={cn('overflow-hidden rounded-xl', className)} onClick={() => onPreview(a)} aria-label={`Xem ảnh ${a.fileName}`}>
-          <img src={a.url} alt={a.fileName} loading="lazy" className="block max-h-56 max-w-full object-cover sm:max-w-72" />
+          <img src={a.url} alt={a.fileName} className="block max-h-56 max-w-full object-cover sm:max-w-72" />
         </button>
       ))}
     </div>

@@ -84,8 +84,20 @@ export function MessagePane({ conversation, onBack, onLeft, back = 'mobile', sub
     if (snap.current) {
       el.scrollTop = el.scrollHeight - snap.current.height + snap.current.top;
       snap.current = null;
+      stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
     } else if (stick.current) scrollToBottom();
   }, [items.length, last?.id, last?.local?.status, isLoading]);
+
+  // Nội dung cao lên SAU khi vẽ (ảnh tải xong, thêm hàng cảm xúc, tin sửa dài hơn — TEST-148): đang ở cuối thì bám xuống cuối;
+  // đang cuộn lên đọc tin cũ (stick = false) hoặc đang giữ vị trí khi tải tin cũ (snap) thì để nguyên.
+  const content = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = content.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => { if (stick.current && !snap.current) scrollToBottom(); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const loadOlder = useCallback(async () => {
     const el = box.current;
@@ -217,30 +229,33 @@ export function MessagePane({ conversation, onBack, onLeft, back = 'mobile', sub
       {searching && <MessageSearch conversationId={conversation.id} onClose={() => setSearching(false)} />}
 
       <div ref={box} onScroll={onScroll} className={cn('min-h-0 flex-1 overflow-y-auto px-3 py-2', searching && 'hidden')} data-testid="chat-messages">
-        {isLoading && <Spinner />}
-        {isError && (
-          <div className="flex flex-col items-center gap-2 py-10 text-sm text-muted-foreground">
-            Không tải được tin nhắn.
-            <Button size="sm" variant="outline" onClick={() => void refetch()}>Thử lại</Button>
-          </div>
-        )}
-        {!isLoading && !isError && (
-          <>
-            {hasMore && (
-              <div className="flex justify-center py-2">
-                <Button size="sm" variant="ghost" disabled={loadingOlder} onClick={() => void loadOlder()}>
-                  {loadingOlder && <Loader2 className="animate-spin" />} Tải tin cũ
-                </Button>
-              </div>
-            )}
-            {items.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center gap-2 py-16 text-center text-sm text-muted-foreground">
-                <MessageSquareDashed className="size-10" />
-                {conversation.type === 'Direct' ? `Chưa có tin nhắn nào với ${conversation.title}. Hãy gửi lời chào!` : 'Chưa có tin nhắn nào. Hãy là người đầu tiên!'}
-              </div>
-            ) : rows}
-          </>
-        )}
+        {/* Thẻ con để ResizeObserver đo chiều cao nội dung; chỉ flex khi hiện ô trống (giữ gộp lề dọc giữa các tin như cũ). */}
+        <div ref={content} className={cn('min-h-full', !isLoading && !isError && items.length === 0 && 'flex flex-col')}>
+          {isLoading && <Spinner />}
+          {isError && (
+            <div className="flex flex-col items-center gap-2 py-10 text-sm text-muted-foreground">
+              Không tải được tin nhắn.
+              <Button size="sm" variant="outline" onClick={() => void refetch()}>Thử lại</Button>
+            </div>
+          )}
+          {!isLoading && !isError && (
+            <>
+              {hasMore && (
+                <div className="flex justify-center py-2">
+                  <Button size="sm" variant="ghost" disabled={loadingOlder} onClick={() => void loadOlder()}>
+                    {loadingOlder && <Loader2 className="animate-spin" />} Tải tin cũ
+                  </Button>
+                </div>
+              )}
+              {items.length === 0 ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-2 py-16 text-center text-sm text-muted-foreground">
+                  <MessageSquareDashed className="size-10" />
+                  {conversation.type === 'Direct' ? `Chưa có tin nhắn nào với ${conversation.title}. Hãy gửi lời chào!` : 'Chưa có tin nhắn nào. Hãy là người đầu tiên!'}
+                </div>
+              ) : rows}
+            </>
+          )}
+        </div>
       </div>
 
       {conversation.type === 'Group' && (

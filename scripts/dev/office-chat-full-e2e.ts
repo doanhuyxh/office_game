@@ -25,6 +25,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { BASE, launch } from './cdp';
 import { checkImageViewer, makePng } from './image-viewer-checks';
+import { checkLoadOlderKeepsPosition, checkSlowImageScroll, fillMessages, slowImages } from './chat-scroll-checks';
 import { totp } from './totp';
 
 if (process.env.E2E_LOCAL_DB !== '1') throw new Error('Chỉ chạy với DB tạm: đặt E2E_LOCAL_DB=1');
@@ -377,6 +378,31 @@ try {
     && (await api(pc, `/api/chat/conversations/${encodeURIComponent(roomRest?.id ?? 'room:meeting-large')}/messages`)).status === 404);
   await walk(pa, outside.x, outside.z);
   ok('ra khỏi phòng → quay lại 1-1 với B, dòng báo biến mất', await waitFor(pa, `${P3}?.dataset.conversation === ${JSON.stringify(dmId)} && !${P3}.querySelector('[data-testid=office-chat-room-notice]')`, 8000), await conv(pa));
+
+  // ---------- TEST-148: khung chat 3D của B — tin cuối là ảnh tải chậm (ảnh của B trả chậm 2 giây) → vẫn cuộn hết xuống cuối ----------
+  {
+    await fillMessages([pa, pb], dmId!, 52, `tin đệm ${stamp}`); // > 50 tin → còn trang tin cũ
+    const fast = await slowImages(pb, 2000);
+    await enterOffice(pb); // tin đệm gửi qua REST → tải lại để B có đủ 50 tin mới nhất
+    await pickConv(pb, A.name);
+    await hasMsg(pb, `tin đệm ${stamp} 52`);
+    await sleep(800);
+    const aSendImage = async (seed: number) => {
+      const path = `${tmpdir()}/ocf-e2e-${stamp}-s${seed}.png`;
+      await Bun.write(path, makePng(900, 600, 10 + seed));
+      const d = await pa.send('DOM.getDocument', { depth: 1 });
+      const nd = await pa.send('DOM.querySelector', { nodeId: d.result.root.nodeId, selector: '[data-testid=office-chat] [data-testid=chat-file-input]' });
+      await pa.send('DOM.setFileInputFiles', { nodeId: nd.result.nodeId, files: [path] });
+      await waitFor(pa, `!!${P3}.querySelector('[data-testid=chat-files]')`);
+      await sleep(1500); // tải lên S3
+      await sendGap();
+      await pa.evalJs(`${P3}.querySelector('[data-testid=chat-send]').click()`);
+    };
+    await checkSlowImageScroll(pb, ok, { scope: P3, label: 'khung chat 3D', sendImage: aSendImage,
+      reopen: async () => { await enterOffice(pb); await pickConv(pb, A.name); } }); // tải lại trang: ảnh không lấy từ bộ nhớ đệm của trang
+    await checkLoadOlderKeepsPosition(pb, ok, { scope: P3, label: 'khung chat 3D' });
+    await fast();
+  }
 
   for (const [n, p] of [['A', pa], ['B', pb], ['C', pc]] as const)
     ok(`không lỗi console ${n}`, p.errors.filter((e) => !/livekit|voice|ICE|WebSocket|getUserMedia|NotAllowed|favicon/i.test(e)).length === 0, p.errors.slice(0, 3));

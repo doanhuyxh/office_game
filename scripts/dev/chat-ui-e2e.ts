@@ -9,6 +9,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { BASE, launch } from './cdp';
 import { checkImageViewer, checkNewsViewer, makePng } from './image-viewer-checks';
+import { checkLoadOlderKeepsPosition, checkSlowImageScroll, fillMessages, slowImages } from './chat-scroll-checks';
 import { totp } from './totp';
 if (process.env.E2E_LOCAL_DB !== '1') throw new Error('Chỉ chạy với DB tạm: đặt E2E_LOCAL_DB=1');
 const API = process.env.API_URL ?? 'http://localhost:5180';
@@ -204,6 +205,31 @@ try {
     await checkImageViewer(ba, check, { scope: 'document', label: 'trình xem /chat', sender: 'Trần Bảo Bình', shot: `${tmpdir()}/chat-ui-e2e-viewer.png` });
     await checkNewsViewer(ba, check, BASE, stamp, `${tmpdir()}/chat-ui-e2e-news-viewer.png`);
     await ba.go(`${BASE}/chat`, 3500);
+  }
+
+  // ---------- TEST-148: tin cuối là ảnh tải chậm (ảnh của A trả chậm 2 giây) → khung vẫn cuộn hết xuống cuối ----------
+  {
+    const dm = ((await api(ba, '/api/chat/conversations')).body as any[]).find((c) => c.type === 'Direct' && c.title === 'Trần Bảo Bình');
+    await fillMessages([ba, bb], dm.id, 52, `tin đệm ${stamp}`); // > 50 tin → còn trang tin cũ
+    const fast = await slowImages(ba, 2000);
+    await openConv(ba, 'Trần Bảo Bình');
+    await waitFor(ba, `[...document.querySelectorAll('[data-testid=chat-message]')].some(e => e.textContent.includes('tin đệm ${stamp} 52'))`);
+    await sleep(800);
+    const bSendImage = async (seed: number) => {
+      const path = `${tmpdir()}/chat-ui-e2e-${stamp}-s${seed}.png`;
+      await Bun.write(path, makePng(900, 600, 10 + seed));
+      const d = await bb.send('DOM.getDocument', { depth: 1 });
+      const nd = await bb.send('DOM.querySelector', { nodeId: d.result.root.nodeId, selector: '[data-testid=chat-file-input]' });
+      await bb.send('DOM.setFileInputFiles', { nodeId: nd.result.nodeId, files: [path] });
+      await waitFor(bb, `!!document.querySelector('[data-testid=chat-files]')`);
+      await sleep(1500); // tải lên S3
+      await sendGap();
+      await q(bb, `document.querySelector('[data-testid=chat-send]').click()`);
+    };
+    await checkSlowImageScroll(ba, check, { scope: 'document', label: '/chat', sendImage: bSendImage,
+      reopen: async () => { await ba.go(`${BASE}/chat`, 3500); await openConv(ba, 'Trần Bảo Bình'); } });
+    await checkLoadOlderKeepsPosition(ba, check, { scope: 'document', label: '/chat' });
+    await fast();
   }
 
   // ---------- Thu hồi ----------
