@@ -138,18 +138,31 @@ export async function removeHooks(git: Git, repo: string): Promise<string[]> {
 
 /**
  * Worktree riêng cho việc: {worktreesDir}/{mã NV}/{mã việc}. Đã có (việc bị trả về) → dùng lại, nhánh giữ nguyên.
- * Chưa có → fetch rồi tạo nhánh mới từ origin/{base}.
+ * Chưa có worktree:
+ * - nhánh `agent/<nv>/<việc>` có ở local → gắn worktree vào nhánh đó;
+ * - không có ở local nhưng CÓ trên origin (máy mới / data bị xoá, TEST-142) → fetch rồi tạo nhánh local từ origin/<nhánh> — làm tiếp phần đã push,
+ *   không tạo lại từ base (trước đây mất phần việc cũ, lần push sau còn bị hook chặn vì không fast-forward);
+ * - không có ở đâu → nhánh mới từ origin/{base}.
+ * `existing` = nhánh đã có từ trước (local / origin) → việc là làm tiếp.
  */
-export async function prepareWorktree(git: Git, repo: string, worktreesDir: string, employeeCode: string, taskCode: string, baseBranch: string) {
+export async function prepareWorktree(git: Git, repo: string, worktreesDir: string, employeeCode: string, taskCode: string, baseBranch: string)
+  : Promise<{ path: string; branch: string; reused: boolean; existing?: 'local' | 'origin' }> {
   const path = join(worktreesDir, employeeCode, taskCode.toUpperCase());
   if (isInside(repo, path)) throw new Error('repo không được nằm trong worktree');
   const branch = branchName(employeeCode, taskCode);
   await git.out(repo, 'fetch', '--quiet', 'origin', baseBranch);
-  if (existsSync(join(path, '.git'))) return { path, branch, reused: true };
+  if (existsSync(join(path, '.git'))) return { path, branch, reused: true, existing: 'local' };
   mkdirSync(join(worktreesDir, employeeCode), { recursive: true });
-  const exists = (await git.run(repo, 'rev-parse', '--verify', '--quiet', `refs/heads/${branch}`)).code === 0;
-  if (exists) await git.out(repo, 'worktree', 'add', path, branch);
-  else await git.out(repo, 'worktree', 'add', '-b', branch, path, `origin/${baseBranch}`);
+  if ((await git.run(repo, 'rev-parse', '--verify', '--quiet', `refs/heads/${branch}`)).code === 0) {
+    await git.out(repo, 'worktree', 'add', path, branch);
+    return { path, branch, reused: false, existing: 'local' };
+  }
+  if ((await git.run(repo, 'ls-remote', '--exit-code', '--heads', 'origin', branch)).code === 0) {
+    await git.out(repo, 'fetch', '--quiet', 'origin', `+refs/heads/${branch}:refs/remotes/origin/${branch}`);
+    await git.out(repo, 'worktree', 'add', '-b', branch, path, `origin/${branch}`);
+    return { path, branch, reused: false, existing: 'origin' };
+  }
+  await git.out(repo, 'worktree', 'add', '-b', branch, path, `origin/${baseBranch}`);
   return { path, branch, reused: false };
 }
 

@@ -110,6 +110,7 @@ beforeAll(async () => {
 [ "$1" = "--version" ] && { echo "fake-agent 1.0"; exit 0; }
 cwd="$3"; prompt="$5"; mcp="$7"
 echo "$@" > "$(dirname "$prompt")/args.txt"
+cp "$prompt" "$(dirname "$prompt")/prompt-copy.md"
 [ -n "$OFFICEHUB_TOKEN" ] && grep -q 'OFFICEHUB_TOKEN' "$mcp" && tok=yes || tok=no
 cd "$cwd" || exit 3
 case "$cwd" in
@@ -232,7 +233,49 @@ test('việc được đánh thức lại → nối phiên cũ (resume_args) tro
   const args = readFileSync(join(root, 'data/jobs', String(id), 'args.txt'), 'utf8');
   expect(args).toContain('--session sess-xyz');
   expect(args).toContain(join(root, 'worktrees/NV120/TEST-45'));
+  // TEST-142: nối phiên → bỏ đọc lại vai trò / dự án; prompt luôn đòi mục Bàn giao
+  const prompt = readFileSync(join(root, 'data/jobs', String(id), 'prompt-copy.md'), 'utf8');
+  expect(prompt).toContain('NỐI TIẾP');
+  expect(prompt).not.toContain('1. get_my_role');
+  expect(prompt).toContain('**Bàn giao**');
 }, 30000);
+
+test('TEST-142: lần trước cách > 10 phút → phiên mới + đọc Bàn giao; máy mới (mất worktree, nhánh local, runner.db) → lấy nhánh việc từ origin, làm tiếp, push fast-forward', async () => {
+  const s = runner.agents.get('NV120')!;
+  const repo = join(root, 'agent-repo'), wt = join(root, 'worktrees/NV120/TEST-45'), branch = 'agent/nv120/test-45';
+  const runTask = async () => {
+    const id = await runner.accept(s, { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' });
+    expect(id).not.toBeNull();
+    expect(await waitFor(() => ['done', 'failed'].includes(store.getJob(id!)?.status ?? ''), 15000)).toBe(true);
+    const dir = join(root, 'data/jobs', String(id));
+    return { job: store.getJob(id!)!, args: readFileSync(join(dir, 'args.txt'), 'utf8'), prompt: readFileSync(join(dir, 'prompt-copy.md'), 'utf8') };
+  };
+  const remoteHead = async () => (await sh(['git', 'ls-remote', '--heads', 'origin', branch], repo)).out.split(/\s/)[0]!;
+
+  // 1) cách 11 phút → không nối phiên (cache đã hết), prompt bảo đọc Bàn giao + lịch sử nhánh
+  store.db.run(`UPDATE task_sessions SET updated_at = ? WHERE task_id = ?`, [new Date(Date.now() - 11 * 60_000).toISOString(), T1]);
+  const gap = await runTask();
+  expect(gap.args).not.toContain('--session');
+  expect(gap.prompt).toContain('ĐÃ TỪNG LÀM');
+  expect(gap.prompt).toContain('1. get_my_role');
+  expect(store.session(T1)!.resumes).toBe(0);
+
+  // 2) máy mới: xoá worktree + nhánh local + bảng phiên; nhánh vẫn còn trên origin (đã push ở các job trước)
+  const before = await remoteHead();
+  expect(before).toMatch(/^[0-9a-f]{40}$/);
+  await run(['git', 'worktree', 'remove', '--force', wt], repo);
+  await run(['git', 'branch', '-D', branch], repo);
+  store.db.run(`DELETE FROM task_sessions`);
+  const fresh = await runTask();
+  expect(fresh.args).not.toContain('--session');
+  expect(fresh.prompt).toContain('ĐÃ TỪNG LÀM'); // nhánh có trên origin → làm tiếp
+  // worktree dựng lại từ origin/<nhánh>: có commit cũ, commit mới nằm trên, push được (fast-forward, hook không chặn)
+  expect((await sh(['git', 'merge-base', '--is-ancestor', before, 'HEAD'], wt)).code).toBe(0);
+  const after = await remoteHead();
+  expect(after).not.toBe(before);
+  expect((await sh(['git', 'merge-base', '--is-ancestor', before, after], repo)).code).toBe(0);
+  expect(comments.at(-1)!.content).not.toContain('git push lỗi'); // (gh không đăng nhập trên máy test → chỉ phần tạo PR báo lỗi)
+}, 60000);
 
 test('việc không còn giao cho agent → bỏ, không chạy', async () => {
   tasks['x'] = null;
@@ -539,7 +582,7 @@ test('job hết giờ → văn phòng 3D báo lỗi "Hết giờ" (không bị f
 }, 30000);
 
 // ---------------- chat_mention (TEST-81): người thật @nhắc bot trong chat → phiên ngắn chỉ có tool MCP ----------------
-test('chat_mention: tin Telegram → job chat trong thư mục riêng của hội thoại, không bình luận vào việc, nối phiên ≤ 24 giờ; đã đọc hết → bỏ', async () => {
+test('chat_mention: tin Telegram → job chat trong thư mục riêng của hội thoại, không bình luận vào việc, nối phiên ≤ 10 phút; đã đọc hết → bỏ', async () => {
   const { r, st, dataDir } = await noneSetup();
   const s = r.agents.get('NV120')!;
   const C = '01a1d000-0000-7000-8000-00000000c0de';
@@ -578,13 +621,13 @@ test('chat_mention: tin Telegram → job chat trong thư mục riêng của hộ
   expect(u.taskId).toBeUndefined();
   expect(u.taskCode).toBeUndefined();
 
-  // nhắc lần nữa trong 24 giờ → nối phiên cũ của hội thoại
+  // nhắc lần nữa trong 10 phút → nối phiên cũ của hội thoại
   await r.onMessage(s, wake);
   const second = await runNext();
   expect(file(second, 'args.txt')).toContain('--session sess-biz');
   expect(file(second, 'prompt-copy.md')).toContain('NỐI TIẾP');
-  // phiên cũ quá 24 giờ → mở phiên mới
-  st.db.run(`UPDATE task_sessions SET updated_at = ? WHERE task_id = ?`, [new Date(Date.now() - 25 * 3_600_000).toISOString(), `NV120:${C}`]);
+  // phiên cũ quá 10 phút (TEST-142) → mở phiên mới
+  st.db.run(`UPDATE task_sessions SET updated_at = ? WHERE task_id = ?`, [new Date(Date.now() - 11 * 60_000).toISOString(), `NV120:${C}`]);
   await r.onMessage(s, wake);
   expect(file(await runNext(), 'args.txt')).not.toContain('--session');
 

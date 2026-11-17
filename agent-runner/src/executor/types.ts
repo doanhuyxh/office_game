@@ -71,6 +71,11 @@ export interface Adapter {
    * `parseProbe` đọc stdout của lệnh đó.
    */
   probe?(exec: ExecutorConfig): Command;
+  /**
+   * Transcript của phiên còn ở máy không (TEST-142) — không còn thì `--resume` lỗi / vô ích → runner mở phiên mới.
+   * Không có hàm này (adapter `custom`) → runner chỉ xét khoảng cách thời gian.
+   */
+  hasSession?(home: string, cwd: string, sessionId: string): boolean;
   parseProbe?(stdout: string): ProbeResult;
   /** Sau khi tiến trình thoát (vd output text: lấy phần cuối làm tóm tắt). */
   finish?(stdoutTail: string, r: ExecResult): void;

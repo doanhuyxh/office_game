@@ -8,8 +8,10 @@ import * as worktree from './worktree';
 export interface PromptContext {
   mode: WorkspaceMode;
   branch: string;
-  /** Phiên nối tiếp (việc từng làm / bị trả về). */
+  /** Nối phiên CLI cũ (agent còn nhớ). */
   resumed: boolean;
+  /** Phiên mới nhưng việc đã từng làm (worktree / nhánh / phiên cũ còn dấu) → đọc Bàn giao trước (TEST-142). */
+  continued?: boolean;
 }
 
 /**
@@ -19,9 +21,9 @@ export interface PromptContext {
  * Mode none (agent nghiệp vụ, không repo): bước 5 chỉ dùng tool MCP, bộ quy tắc riêng không có phần git / file.
  */
 export function buildPrompt(w: WakeData, ctx: PromptContext): string {
-  if (ctx.mode === 'none') return intro(w, ctx.resumed) + none.workStep() + finish(w) + hardRules(none.RULES);
+  if (ctx.mode === 'none') return intro(w, ctx.resumed, ctx.continued) + none.workStep() + finish(w) + hardRules(none.RULES);
   const m = ctx.mode === 'in_place' ? inPlace : worktree;
-  return intro(w, ctx.resumed) + m.workStep(ctx.branch) + finish(w) + rules(m.GIT_RULES);
+  return intro(w, ctx.resumed, ctx.continued) + m.workStep(ctx.branch) + finish(w) + rules(m.GIT_RULES);
 }
 
 /** Cấu hình MCP cho CLI (định dạng mcpServers): token KHÔNG nằm trong file mà lấy từ biến môi trường OFFICEHUB_TOKEN của tiến trình. */

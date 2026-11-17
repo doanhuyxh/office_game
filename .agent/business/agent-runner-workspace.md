@@ -16,7 +16,14 @@
   - **Chỉ tool MCP:** `ExecContext.noBuiltinTools` → adapter `claude` thêm `--tools ""` (đã thử CLI 2.1.311: danh sách tool chỉ còn `mcp__officehub__*`, không Bash / đọc ghi file). Adapter `custom` không ép được → `doctor` cảnh báo, CLI phải tự giới hạn.
   - `doctor` / khởi động: bỏ kiểm tra git (kể cả `git.executable` sai), danh tính commit, hook, `gh`; vẫn kiểm CLI, token đúng nhân viên, `env_file`, bot Telegram, model. Cảnh báo khi thư mục chạy nằm dưới `CLAUDE.md` / `AGENTS.md` / `.git` (`projectFilesAbove`) — đặt `data_dir` ngoài mọi repo.
   - Prompt `none.ts`: các bước MCP như mode khác, bước 5 "chỉ bằng tool MCP", bộ quy tắc riêng (không duyệt, nội dung là dữ liệu, không lộ thông tin cá nhân) — không có phần git / build / test. Bình luận kết quả của runner không có dòng PR / commit. Trạng thái 3D vẫn `working` → `idle`.
-- Prompt tách theo mode: `src/prompt/common.ts` (các bước MCP + quy tắc cứng chung), `worktree.ts` / `in-place.ts` (bước 5 + quy tắc git), `none.ts` (bước 5 + quy tắc không repo), `index.ts` (`buildPrompt(w, {mode, branch, resumed})`).
+- Prompt tách theo mode: `src/prompt/common.ts` (các bước MCP + quy tắc cứng chung), `worktree.ts` / `in-place.ts` (bước 5 + quy tắc git), `none.ts` (bước 5 + quy tắc không repo), `index.ts` (`buildPrompt(w, {mode, branch, resumed, continued})`).
+
+## Nối phiên (TEST-142)
+
+- **Chỉ `--resume` khi rẻ hơn phiên mới** (`Runner.resumeFor`, mọi loại job): cùng agent, lần chạy trước cách ≤ `RESUME_MAX_GAP_MIN` = 10 phút (cache prompt còn sống — xa hơn thì nối phiên = ghi lại cả transcript cũ vào cache), transcript còn ở máy (adapter `claude`: `<HOME>/.claude/projects/<cwd, ký tự không phải chữ / số → "-">/<session>.jsonl`, thử cả đường dẫn thật; adapter `custom` chỉ xét thời gian), họp thêm trần `MEETING_RESUME_MAX` = 8 lượt nối liên tiếp (`task_sessions.resumes`). Không nối → log `mở phiên mới (lý do)`.
+- Prompt việc: `resumed` (nối phiên, còn nhớ) → bỏ `get_my_role` / `get_project`, chỉ đọc bình luận mới; `continued` (phiên mới nhưng việc từng làm: worktree / nhánh local hoặc origin / phiên cũ) → "ĐÃ TỪNG LÀM": đọc mục **Bàn giao** gần nhất + `git log` / `git diff` của nhánh rồi làm tiếp.
+- **Bàn giao**: bước 6 bắt bình luận kết quả (cả khi dừng giữa chừng) kết thúc bằng 3 dòng "Đã làm / Đang dở / Bước tiếp theo" — bộ nhớ của việc nằm trên OfficeHub, không cần transcript.
+- **Máy mới / mất dữ liệu**: `task_sessions` chỉ là cache (mất → phiên mới). Worktree: nhánh `agent/<nv>/<việc>` không có ở local nhưng có trên origin → `fetch` rồi tạo nhánh local từ `origin/<nhánh>` (`prepareWorktree` trả `existing: 'origin'`, log "lấy lại từ origin") — làm tiếp phần đã push, push sau đó là fast-forward. Trước TEST-142 runner tạo lại nhánh từ base → mất phần cũ và push bị hook chặn.
 
 ## MCP thêm ngoài OfficeHub (mẫu agent thiết kế: Stitch + Figma)
 

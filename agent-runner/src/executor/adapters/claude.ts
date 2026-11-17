@@ -1,3 +1,5 @@
+import { existsSync, realpathSync } from 'node:fs';
+import { join } from 'node:path';
 import { mainModel, readModelUsage } from '../model';
 import type { Adapter, ExecContext, ProbeResult } from '../types';
 import { claudeEvents } from './claude-events';
@@ -62,6 +64,19 @@ export function parseProbe(stdout: string): ProbeResult {
   return { model: invalidModel ? undefined : model, error: text, invalidModel };
 }
 
+/**
+ * Thư mục transcript của Claude Code cho một cwd: `<HOME>/.claude/projects/<cwd, mọi ký tự không phải chữ / số → "-">` (kiểm với 2.1.x, vd
+ * `/private/tmp/a_b` → `-private-tmp-a-b`). Định dạng nội bộ của CLI — sai / đổi thì runner chỉ mở phiên mới (an toàn).
+ */
+export const claudeProjectDir = (home: string, cwd: string) => join(home, '.claude', 'projects', cwd.replace(/[^a-zA-Z0-9]/g, '-'));
+
+/** Transcript `<session>.jsonl` có ở thư mục của cwd (hoặc đường dẫn thật của cwd — macOS /tmp → /private/tmp) không. */
+export function claudeHasSession(home: string, cwd: string, sessionId: string): boolean {
+  const dirs = [cwd];
+  try { dirs.push(realpathSync(cwd)); } catch { /* cwd đã bị xoá */ }
+  return dirs.some((d) => existsSync(join(claudeProjectDir(home, d), `${sessionId}.jsonl`)));
+}
+
 export const claudeAdapter: Adapter = {
   kind: 'claude',
   caps: { resume: true, cost: true, budget: true },
@@ -110,5 +125,6 @@ export const claudeAdapter: Adapter = {
     if (r.isError) r.errorKind = typeof m.api_error_status === 'number' ? `${m.terminal_reason ?? 'api_error'} ${m.api_error_status}` : m.subtype;
   },
   probe(exec) { return { bin: exec.bin, args: probeArgs(exec.model) }; },
+  hasSession: claudeHasSession,
   parseProbe,
 };

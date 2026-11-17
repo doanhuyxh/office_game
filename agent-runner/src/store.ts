@@ -65,6 +65,13 @@ export interface KindCost {
   cache_read: number | null; cache_write: number | null; input_with_cache: number | null;
 }
 
+/** Phiên CLI gần nhất của một khoá (`task_sessions`). */
+export interface SessionRow {
+  task_id: string; agent: string; session_id: string | null; branch: string; worktree: string; updated_at: string;
+  /** Số lần nối liên tiếp (TEST-142); null = DB cũ. */
+  resumes: number | null;
+}
+
 /** Kết quả phiên ghi vào job khi xong. */
 export type JobResult = Partial<Pick<Job, 'reason' | 'session_id' | 'cost_usd' | 'input_tokens' | 'output_tokens' | 'cache_read_tokens' | 'cache_write_tokens'
   | 'turns' | 'pr_url' | 'model' | 'model_usage' | 'executor' | 'cli_ran'>>;
@@ -94,6 +101,9 @@ export class Store {
     const have = new Set(this.db.query<{ name: string }, []>(`PRAGMA table_info(jobs)`).all().map((c) => c.name));
     for (const [col, type] of JOB_COLUMNS_ADDED) if (!have.has(col)) this.db.exec(`ALTER TABLE jobs ADD COLUMN ${col} ${type}`);
     if (!have.has('cli_ran')) this.db.run(`UPDATE jobs SET cli_ran = 2 WHERE ${LEGACY_CLI_RAN}`);
+    // TEST-142: số lần nối liên tiếp của phiên (họp: quá trần → phiên mới)
+    const sessCols = new Set(this.db.query<{ name: string }, []>(`PRAGMA table_info(task_sessions)`).all().map((c) => c.name));
+    if (!sessCols.has('resumes')) this.db.exec(`ALTER TABLE task_sessions ADD COLUMN resumes INTEGER`);
     this.db.exec(`CREATE INDEX IF NOT EXISTS ix_jobs_usage_pending ON jobs(agent, id) WHERE cli_ran IS NOT NULL AND usage_sent_at IS NULL`);
   }
 
@@ -198,15 +208,19 @@ export class Store {
   getJob(id: number) { return this.db.query<Job, [number]>(`SELECT * FROM jobs WHERE id = ?`).get(id); }
 
   session(taskId: string) {
-    return this.db.query<{ task_id: string; agent: string; session_id: string | null; branch: string; worktree: string; updated_at: string }, [string]>(
-      `SELECT * FROM task_sessions WHERE task_id = ?`).get(taskId);
+    return this.db.query<SessionRow, [string]>(`SELECT * FROM task_sessions WHERE task_id = ?`).get(taskId);
   }
 
-  saveSession(taskId: string, agent: string, sessionId: string | null, branch: string, worktree: string) {
-    this.db.run(`INSERT INTO task_sessions (task_id, agent, session_id, branch, worktree, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+  /**
+   * Ghi phiên CLI của một khoá (việc / hội thoại / cuộc họp) sau mỗi lần chạy. `resumed` = lần này nối phiên cũ → `resumes` + 1; phiên mới → 0.
+   * Bảng này chỉ là cache: mất (máy mới) thì lần sau mở phiên mới, không lỗi (TEST-142).
+   */
+  saveSession(taskId: string, agent: string, sessionId: string | null, branch: string, worktree: string, resumed = false) {
+    this.db.run(`INSERT INTO task_sessions (task_id, agent, session_id, branch, worktree, updated_at, resumes) VALUES (?, ?, ?, ?, ?, ?, 0)
       ON CONFLICT(task_id) DO UPDATE SET agent = excluded.agent, session_id = COALESCE(excluded.session_id, task_sessions.session_id),
-        branch = excluded.branch, worktree = excluded.worktree, updated_at = excluded.updated_at`,
-      [taskId, agent, sessionId, branch, worktree, this.now()]);
+        branch = excluded.branch, worktree = excluded.worktree, updated_at = excluded.updated_at,
+        resumes = CASE WHEN ? THEN COALESCE(task_sessions.resumes, 0) + 1 ELSE 0 END`,
+      [taskId, agent, sessionId, branch, worktree, this.now(), resumed ? 1 : 0]);
   }
 
   offset(bot: string) { return this.db.query<{ next_offset: number }, [string]>(`SELECT next_offset FROM tg_offsets WHERE bot = ?`).get(bot)?.next_offset ?? 0; }

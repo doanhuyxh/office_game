@@ -11,6 +11,7 @@ import { ActivitySender } from './activity';
 import { sessionEnd, sessionStart } from './executor/events';
 import { PresenceReporter } from './presence';
 import { buildPrompt, mcpConfig } from './prompt';
+import { RESUME_MAX_GAP_MIN } from './prompt/common';
 import { chatPrompt } from './prompt/chat';
 import { meetingPrompt } from './prompt/meeting';
 import { MCP_SYSTEM_PROMPT } from './prompt/system';
@@ -406,6 +407,25 @@ export class Runner {
   }
 
   /**
+   * Nối phiên CLI cũ của khoá job không (TEST-142) — chỉ khi RẺ hơn mở phiên mới:
+   * cùng agent, lần chạy trước cách ≤ {@link RESUME_MAX_GAP_MIN} phút (cache prompt còn sống; xa hơn thì nối phiên = ghi lại cả transcript cũ
+   * vào cache, đắt hơn phiên mới đọc lại từ OfficeHub), transcript còn ở máy (adapter có `hasSession`), chưa nối quá `maxResumes` lần liên tiếp.
+   * `task_sessions` mất (máy mới) → phiên mới, không lỗi.
+   */
+  private resumeFor(s: AgentState, job: Job, cwd: string, maxResumes?: number): string | undefined {
+    const prev = this.store.session(job.task_id);
+    if (!prev?.session_id || prev.agent !== job.agent) return undefined;
+    const why = (reason: string) => { log('info', `mở phiên mới (${reason})`, { job: job.id, agent: job.agent, task: job.task_code }); return undefined; };
+    const gapMin = (Date.now() - Date.parse(prev.updated_at)) / 60_000;
+    if (!(gapMin <= RESUME_MAX_GAP_MIN)) return why(`lần chạy trước cách ${Math.round(gapMin)} phút > ${RESUME_MAX_GAP_MIN}`);
+    if (maxResumes !== undefined && (prev.resumes ?? 0) >= maxResumes) return why(`đã nối ${prev.resumes} lần liên tiếp`);
+    const adapter = adapters[s.cfg.executor.kind];
+    if (!adapter?.caps.resume) return undefined;
+    if (adapter.hasSession && !adapter.hasSession(this.baseEnv(s.cfg).HOME!, cwd, prev.session_id)) return why('không còn transcript ở máy');
+    return prev.session_id;
+  }
+
+  /**
    * Ghi kết quả phiên vào hàng đợi (trạng thái, chi phí, token, model) rồi gửi mức dùng AI lên OfficeHub ở nền (TEST-135 — lỗi không ảnh hưởng job,
    * phiên chưa gửi được gửi lại theo nhịp {@link USAGE_RETRY_MS}). Trả `ok`.
    */
@@ -428,7 +448,7 @@ export class Runner {
   /**
    * Job chat (TEST-81): kiểm tra lại hội thoại → chạy CLI trong thư mục trống riêng của hội thoại, CHỈ tool MCP (tin nhắn là nội dung người khác
    * viết) → agent tự đọc / trả lời / đánh dấu đã đọc. Dùng `executor` của agent như job việc (model, giờ, ngân sách). Nối phiên theo hội thoại
-   * trong {@link CHAT_SESSION_HOURS} giờ. Không bình luận vào việc, không báo trạng thái 3D; chi phí vẫn vào `report`.
+   * khi lần trước cách ≤ {@link RESUME_MAX_GAP_MIN} phút (TEST-142). Không bình luận vào việc, không báo trạng thái 3D; chi phí vẫn vào `report`.
    */
   private async processChat(s: AgentState, job: Job, signal: AbortSignal): Promise<void> {
     const conv = lightId(job);
@@ -436,14 +456,12 @@ export class Runner {
     if (!c.ok) { this.store.finish(job.id, 'skipped', { reason: c.reason }); log('info', 'bỏ job', { job: job.id, reason: c.reason }); return; }
     const cwd = this.workDir(job.agent, `chat-${conv}`);
     mkdirSync(cwd, { recursive: true });
-    const prev = this.store.session(job.task_id);
-    const fresh = !!prev && Date.now() - Date.parse(prev.updated_at) < CHAT_SESSION_HOURS * 3_600_000;
-    const resume = fresh && prev!.agent === job.agent && prev!.session_id ? prev!.session_id : undefined;
+    const resume = this.resumeFor(s, job, cwd);
     const out = await this.runSession(s, job, signal, {
       cwd, prompt: chatPrompt(job.agent, c.value.conversation, !!resume), resume, exec: lightExecutor(s.cfg.executor), noBuiltinTools: true, presence: false,
       label: 'Trả lời tin nhắn',
     });
-    this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd);
+    this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd, !!resume);
     this.finishJob(s, job, out);
     // Có tin nhắc mới tới giữa phiên → kiểm tra lại (đã đọc hết thì tự bỏ) và chạy thêm một lượt.
     if (this.store.getJob(job.id)?.rerun) await this.acceptChat(s, { employee_code: job.agent, conversation_id: conv, message_id: '' });
@@ -461,14 +479,13 @@ export class Runner {
     if (!c.ok) { this.store.finish(job.id, 'skipped', { reason: c.reason }); log('info', 'bỏ job', { job: job.id, reason: c.reason }); return; }
     const cwd = this.workDir(job.agent, `meeting-${session}`);
     mkdirSync(cwd, { recursive: true });
-    const prev = this.store.session(job.task_id);
-    const resume = prev?.agent === job.agent && prev.session_id ? prev.session_id : undefined;
+    const resume = this.resumeFor(s, job, cwd, MEETING_RESUME_MAX);
     const exec = { ...lightExecutor(s.cfg.executor), timeoutMin: Math.min(s.cfg.executor.timeoutMin, MEETING_TURN_MAX_MIN) };
     try {
       const out = await this.runSession(s, job, signal, {
         cwd, prompt: meetingPrompt(job.agent, session, !!resume), resume, exec, noBuiltinTools: true, presence: false, label: 'Phát biểu trong cuộc họp',
       });
-      this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd);
+      this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd, !!resume);
       this.finishJob(s, job, out);
     } finally {
       await this.afterMeetingTurn(s, job).catch((e) => log('warn', 'không kiểm tra được lượt họp sau phiên', { job: job.id, agent: job.agent, error: errText(e) }));
@@ -506,7 +523,7 @@ export class Runner {
 
       const mode = s.cfg.workspace.mode;
       const git = this.gitFor(s.cfg);
-      let ws: { path: string; branch: string; reused: boolean }, startHead = '';
+      let ws: { path: string; branch: string; reused: boolean; existing?: 'local' | 'origin' }, startHead = '';
       if (mode === 'none') {
         // Agent nghiệp vụ: không git. Thư mục trống cố định theo việc (nối phiên khi việc bị trả về).
         ws = { path: this.workDir(job.agent, job.task_code.toUpperCase()), branch: '', reused: false };
@@ -539,11 +556,14 @@ export class Runner {
         }
       }
       const prev = this.store.session(job.task_id);
-      const resume = prev?.agent === job.agent && prev.session_id ? prev.session_id : undefined;
-      const prompt = buildPrompt(w, { mode, branch: ws.branch, resumed: ws.reused || !!resume });
+      const resume = this.resumeFor(s, job, ws.path);
+      // Phiên mới nhưng việc đã từng làm (worktree / nhánh local hoặc origin / phiên cũ) → prompt bảo đọc Bàn giao trước
+      const continued = !resume && (ws.reused || !!ws.existing || !!prev);
+      if (ws.existing === 'origin') log('info', 'máy chưa có nhánh việc — lấy lại từ origin để làm tiếp', { job: job.id, agent: job.agent, branch: ws.branch });
+      const prompt = buildPrompt(w, { mode, branch: ws.branch, resumed: !!resume, continued });
       const out = await this.runSession(s, job, signal, { cwd: ws.path, prompt, resume, noBuiltinTools: mode === 'none', presence: true,
         label: `${job.task_code} · ${c.value.title}` });
-      this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, ws.branch, ws.path);
+      this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, ws.branch, ws.path, !!resume);
 
       let prUrl: string | undefined, note = '';
       if (mode === 'none') {
@@ -636,8 +656,8 @@ export function resultComment(job: Pick<Job, 'agent'>, out: RunOutcome, prUrl: s
   return parts.filter(Boolean).join('\n');
 }
 
-/** Phiên chat cũ hơn mức này (giờ) → mở phiên mới thay vì nối. */
-export const CHAT_SESSION_HOURS = 24;
+/** Họp: nối phiên tối đa ngần này lượt liên tiếp rồi mở phiên mới (transcript dài dần, mỗi lượt đọc lại cả cuộc họp) — TEST-142. */
+export const MEETING_RESUME_MAX = 8;
 
 /** Thời gian tối đa của một lượt họp (phút) — dưới hạn nói 3 phút của OfficeHub (`AgentMeetingTurnRules.TurnTimeout`) để runner kịp bỏ lượt thay. */
 export const MEETING_TURN_MAX_MIN = 2.5;

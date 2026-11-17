@@ -5,7 +5,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseConfig } from '../src/config';
-import { MEETING_TURN_MAX_MIN, Runner } from '../src/runner';
+import { MEETING_RESUME_MAX, MEETING_TURN_MAX_MIN, Runner } from '../src/runner';
 import { Store } from '../src/store';
 
 const S = '01a1d500-0000-7000-8000-0000000000aa', ROOM = '01a1d500-0000-7000-8000-0000000000bb';
@@ -262,4 +262,23 @@ test('lượt mới tới khi job họp của cùng phiên đang chạy → xong
   expect(passes).toEqual([]); // lượt mới không bị runner bỏ
   const next = store.db.query<any, [string]>(`SELECT * FROM jobs WHERE task_id = ? AND status = 'queued'`).get(`NV120:${S}`);
   expect(next?.kind).toBe('meeting');
+}, 30000);
+
+test('TEST-142: họp nối phiên tối đa MEETING_RESUME_MAX lượt liên tiếp rồi mở phiên mới; lượt trước cách > 10 phút → phiên mới', async () => {
+  writeFileSync(join(root, 'speak'), '');
+  const key = `NV120:${S}`;
+  const turn = async () => {
+    meeting.speaker = 'NV120';
+    meeting.next = [null];
+    expect(await runner.onMessage(agentOf('NV120'), turnMsg('NV120'))).not.toBeNull();
+    return file(await runNext(), 'args.txt');
+  };
+  expect(await turn()).not.toContain('--session'); // lượt đầu
+  expect(await turn()).toContain('--session sess-NV120'); // nối
+  expect(store.session(key)!.resumes).toBe(1);
+  store.db.run(`UPDATE task_sessions SET resumes = ? WHERE task_id = ?`, [MEETING_RESUME_MAX, key]);
+  expect(await turn()).not.toContain('--session'); // đủ trần → phiên mới, đếm lại
+  expect(store.session(key)!.resumes).toBe(0);
+  store.db.run(`UPDATE task_sessions SET updated_at = ? WHERE task_id = ?`, [new Date(Date.now() - 11 * 60_000).toISOString(), key]);
+  expect(await turn()).not.toContain('--session'); // cách > 10 phút
 }, 30000);

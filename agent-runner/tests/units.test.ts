@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigError, isInside, lightExecutor, parseConfig } from '../src/config';
-import { claudeAdapter, parseProbe, probeArgs } from '../src/executor/adapters/claude';
+import { claudeAdapter, claudeHasSession, claudeProjectDir, parseProbe, probeArgs } from '../src/executor/adapters/claude';
 import { mainModel, modelLine, modelMatches, readModelUsage } from '../src/executor/model';
 import { resultComment } from '../src/runner';
 import { customAdapter, fillArgs } from '../src/executor/adapters/custom';
@@ -443,6 +443,50 @@ describe('prompt / mcp / log', () => {
     const again = meetingPrompt('NV120', 'sess-1', true);
     expect(again).toContain('NỐI TIẾP');
     expect(again).not.toContain('get_my_role'); // phiên nối tiếp đã biết vai trò
+  });
+  test('prompt việc (TEST-142): nối phiên / làm tiếp ở phiên mới / mới hẳn; luôn đòi mục Bàn giao', () => {
+    const w = { employee_code: 'NV120', project_id: 'p', task_id: 't', task_code: 'TEST-45' };
+    const fresh = buildPrompt(w, { mode: 'worktree', branch: 'b', resumed: false });
+    const cont = buildPrompt(w, { mode: 'worktree', branch: 'b', resumed: false, continued: true });
+    const res = buildPrompt(w, { mode: 'worktree', branch: 'b', resumed: true, continued: true });
+    for (const p of [fresh, cont, res]) for (const r of ['**Bàn giao**', 'Đã làm:', 'Đang dở:', 'Bước tiếp theo:', 'get_task TEST-45']) expect(p).toContain(r);
+    for (const r of ['NỐI TIẾP', 'ĐÃ TỪNG LÀM']) expect(fresh).not.toContain(r);
+    expect(fresh).toContain('1. get_my_role');
+    expect(cont).toContain('ĐÃ TỪNG LÀM');
+    expect(cont).toContain('git log');
+    expect(cont).toContain('1. get_my_role'); // phiên mới: không nhớ gì → đọc lại vai trò / dự án
+    expect(res).toContain('NỐI TIẾP');
+    expect(res).not.toContain('ĐÃ TỪNG LÀM');
+    expect(res).not.toContain('1. get_my_role'); // còn nhớ → bỏ đọc lại
+    expect(buildPrompt(w, { mode: 'none', branch: '', resumed: false, continued: true })).toContain('ĐÃ TỪNG LÀM');
+  });
+  test('claudeHasSession (TEST-142): transcript ở <HOME>/.claude/projects/<cwd đổi ký tự lạ thành "-">/<session>.jsonl', () => {
+    const home = mkdtempSync(join(tmpdir(), 'cc-home-')), cwd = mkdtempSync(join(tmpdir(), 'cc_work.x-'));
+    try {
+      expect(claudeProjectDir('/h', '/srv/a_b/TEST-45')).toBe('/h/.claude/projects/-srv-a-b-TEST-45');
+      expect(claudeHasSession(home, cwd, 's1')).toBe(false);
+      // CLI ghi theo đường dẫn thật (macOS: /var → /private/var) — runner thử cả hai
+      const dir = claudeProjectDir(home, realpathSync(cwd));
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 's1.jsonl'), '{}\n');
+      expect(claudeHasSession(home, cwd, 's1')).toBe(true);
+      expect(claudeHasSession(home, cwd, 's2')).toBe(false);
+      expect(claudeHasSession(home, join(cwd, 'đã-xoá'), 's1')).toBe(false); // cwd không còn → không lỗi
+    } finally { rmSync(home, { recursive: true, force: true }); rmSync(cwd, { recursive: true, force: true }); }
+  });
+  test('store.saveSession (TEST-142): đếm số lần nối liên tiếp, phiên mới → 0', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'sess-'));
+    try {
+      const s = new Store(join(dir, 'r.db'));
+      s.saveSession('k', 'NV1', 'a', '', '/w');
+      expect(s.session('k')!.resumes).toBe(0);
+      s.saveSession('k', 'NV1', 'a', '', '/w', true);
+      s.saveSession('k', 'NV1', 'a', '', '/w', true);
+      expect(s.session('k')!.resumes).toBe(2);
+      s.saveSession('k', 'NV1', 'b', '', '/w', false);
+      expect(s.session('k')).toMatchObject({ resumes: 0, session_id: 'b' });
+      s.db.close();
+    } finally { rmSync(dir, { recursive: true, force: true }); }
   });
   test('cấu hình MCP không chứa token', () => {
     expect(JSON.stringify(mcpConfig('http://x/mcp'))).toContain('${OFFICEHUB_TOKEN}');
