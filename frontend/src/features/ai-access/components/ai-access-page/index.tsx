@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
-import { AppWindow, Ban, Check, KeyRound, Plus, X } from 'lucide-react';
+import { AppWindow, Ban, Check, KeyRound, Plus, RefreshCw, X } from 'lucide-react';
+import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -19,6 +20,8 @@ import { errorMessage } from '@/utils/errors';
 import {
   useAccessTokens, useAiConnectionsPage, useGrants, useRevokeAccessToken, useRevokeGrant,
 } from '../../hooks/useAccessTokens';
+import { accessTokenKeys } from '../../api/accessToken.api';
+import { aiUsageKeys } from '../../api/aiUsage.api';
 import { TOKEN_STATUS } from '../../utils/labels';
 import { ActivityTable } from '../activity-table';
 import { ConnectGuide } from '../connect-guide';
@@ -293,11 +296,20 @@ export function AiAccessPage() {
   const createButton = <Button variant="outline" onClick={() => setCreating(true)}><Plus className="size-4" /> Tạo token</Button>;
 
   const [tab, setTab] = useTabParam('me', isHr ? ['me', 'usage', 'company'] : ['me', 'usage']);
+  // "Làm mới": tải lại số liệu của tab đang mở, giữ nguyên bộ lọc / trang (nằm trên URL / state, không bị reset).
+  const qc = useQueryClient();
+  const reloadKey = tab === 'usage' ? aiUsageKeys.all : accessTokenKeys.all;
+  const reloading = useIsFetching({ queryKey: reloadKey }) > 0;
+  const reloadButton = (
+    <Button variant="outline" onClick={() => void qc.invalidateQueries({ queryKey: reloadKey })} disabled={reloading} data-testid="ai-access-reload">
+      <RefreshCw className={reloading ? 'size-4 animate-spin' : 'size-4'} /> Làm mới
+    </Button>
+  );
   return (
     <div className="grid grid-cols-1 gap-6">
       <PageHeader title="Kết nối AI" />
       <Tabs value={tab} onValueChange={setTab}>
-        <PageToolbar actions={tab === 'usage' ? undefined : createButton}>
+        <PageToolbar actions={<>{reloadButton}{tab !== 'usage' && createButton}</>}>
           <TabsList>
             <TabsTrigger value="me">Của tôi</TabsTrigger>
             <TabsTrigger value="usage" data-testid="ai-usage-tab-trigger">Mức dùng AI</TabsTrigger>
