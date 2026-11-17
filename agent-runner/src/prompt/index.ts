@@ -21,7 +21,8 @@ export interface PromptContext {
  * Mode none (agent nghiệp vụ, không repo): bước 5 chỉ dùng tool MCP, bộ quy tắc riêng không có phần git / file.
  */
 export function buildPrompt(w: WakeData, ctx: PromptContext): string {
-  if (ctx.mode === 'none') return intro(w, ctx.resumed, ctx.continued) + none.workStep() + finish(w) + hardRules(none.RULES);
+  if (ctx.mode === 'none')
+    return intro(w, ctx.resumed, ctx.continued) + none.workStep() + finish(w) + hardRules(none.RULES);
   const m = ctx.mode === 'in_place' ? inPlace : worktree;
   return intro(w, ctx.resumed, ctx.continued) + m.workStep(ctx.branch) + finish(w) + rules(m.GIT_RULES);
 }
@@ -35,6 +36,12 @@ export type McpProfile = 'task' | 'chat' | 'meeting';
  */
 export function mcpConfig(url: string, profile?: McpProfile) {
   let full = url;
-  if (profile) { const u = new URL(url); u.searchParams.set('profile', profile); full = u.toString(); }
-  return { mcpServers: { officehub: { type: 'http', url: full, headers: { Authorization: 'Bearer ${OFFICEHUB_TOKEN}' } } } };
+  if (profile) {
+    const u = new URL(url);
+    u.searchParams.set('profile', profile);
+    full = u.toString();
+  }
+  return {
+    mcpServers: { officehub: { type: 'http', url: full, headers: { Authorization: 'Bearer ${OFFICEHUB_TOKEN}' } } },
+  };
 }

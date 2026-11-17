@@ -1,4 +1,14 @@
-import { type ActivityEvent, HIDDEN, HIDDEN_OUTPUT, diffOf, displayPath, isSensitiveCommand, isSensitivePath, oneLine, sanitize } from '../events';
+import {
+  type ActivityEvent,
+  HIDDEN,
+  HIDDEN_OUTPUT,
+  diffOf,
+  displayPath,
+  isSensitiveCommand,
+  isSensitivePath,
+  oneLine,
+  sanitize,
+} from '../events';
 
 /**
  * stream-json của Claude Code → sự kiện có cấu trúc (TEST-93). Có trạng thái theo từng lần chạy CLI: nhớ `tool_use` đã thấy để ghép
@@ -22,33 +32,75 @@ export function claudeEvents(cwd: string): (line: string) => ActivityEvent[] {
     const str = (v: unknown) => (typeof v === 'string' ? v : '');
     const path = displayPath(str(i.file_path) || str(i.notebook_path), cwd);
     const secret = !!path && isSensitivePath(path);
-    const remember = (e: ActivityEvent, output = false, hidden = false) => { pending.set(id, { kind: e.kind, output, hidden }); return e; };
+    const remember = (e: ActivityEvent, output = false, hidden = false) => {
+      pending.set(id, { kind: e.kind, output, hidden });
+      return e;
+    };
     switch (b.name) {
       case 'Bash': {
         const command = str(i.command);
         const hidden = isSensitiveCommand(command);
-        return remember({ id, kind: 'command', title: str(i.description) || 'Chạy lệnh', text: command }, !hidden, hidden);
+        return remember(
+          { id, kind: 'command', title: str(i.description) || 'Chạy lệnh', text: command },
+          !hidden,
+          hidden,
+        );
       }
       case 'Edit':
-        return remember({ id, kind: 'file_edit', title: `Sửa ${path}`, path, ...(secret ? { text: HIDDEN } : { diff: diffOf(str(i.old_string), str(i.new_string)) }) });
+        return remember({
+          id,
+          kind: 'file_edit',
+          title: `Sửa ${path}`,
+          path,
+          ...(secret ? { text: HIDDEN } : { diff: diffOf(str(i.old_string), str(i.new_string)) }),
+        });
       case 'MultiEdit': {
         const edits: any[] = Array.isArray(i.edits) ? i.edits : [];
-        const diff = edits.map((e) => diffOf(str(e?.old_string), str(e?.new_string))).filter(Boolean).join('\n');
-        return remember({ id, kind: 'file_edit', title: `Sửa ${path}`, path, ...(secret ? { text: HIDDEN } : { diff }) });
+        const diff = edits
+          .map((e) => diffOf(str(e?.old_string), str(e?.new_string)))
+          .filter(Boolean)
+          .join('\n');
+        return remember({
+          id,
+          kind: 'file_edit',
+          title: `Sửa ${path}`,
+          path,
+          ...(secret ? { text: HIDDEN } : { diff }),
+        });
       }
       case 'NotebookEdit':
-        return remember({ id, kind: 'file_edit', title: `Sửa ${path}`, path, ...(secret ? { text: HIDDEN } : { diff: diffOf('', str(i.new_source)) }) });
+        return remember({
+          id,
+          kind: 'file_edit',
+          title: `Sửa ${path}`,
+          path,
+          ...(secret ? { text: HIDDEN } : { diff: diffOf('', str(i.new_source)) }),
+        });
       case 'Write':
-        return remember({ id, kind: 'file_write', title: `Ghi ${path}`, path, ...(secret ? { text: HIDDEN } : { diff: diffOf('', str(i.content)) }) });
+        return remember({
+          id,
+          kind: 'file_write',
+          title: `Ghi ${path}`,
+          path,
+          ...(secret ? { text: HIDDEN } : { diff: diffOf('', str(i.content)) }),
+        });
       case 'Read':
         return remember({ id, kind: 'file_read', title: `Đọc ${path}`, path });
-      case 'Grep': case 'Glob': {
+      case 'Grep':
+      case 'Glob': {
         const where = displayPath(str(i.path), cwd);
-        return remember({ id, kind: 'search', title: b.name === 'Glob' ? 'Tìm file' : 'Tìm trong code', text: str(i.pattern), ...(where ? { path: where } : {}) });
+        return remember({
+          id,
+          kind: 'search',
+          title: b.name === 'Glob' ? 'Tìm file' : 'Tìm trong code',
+          text: str(i.pattern),
+          ...(where ? { path: where } : {}),
+        });
       }
       case 'TodoWrite':
         return remember({ id, kind: 'tool', title: 'Cập nhật danh sách việc cần làm' });
-      case 'Task': case 'Agent':
+      case 'Task':
+      case 'Agent':
         return remember({ id, kind: 'tool', title: 'Giao việc phụ', text: oneLine(str(i.description), 200) });
       default: {
         const name = String(b.name ?? '');
@@ -74,15 +126,21 @@ export function claudeEvents(cwd: string): (line: string) => ActivityEvent[] {
   return (line) => {
     if (!line.startsWith('{')) return [];
     let m: any;
-    try { m = JSON.parse(line); } catch { return []; }
+    try {
+      m = JSON.parse(line);
+    } catch {
+      return [];
+    }
     const content = m?.message?.content;
     if (!Array.isArray(content)) return [];
     const out: ActivityEvent[] = [];
     for (const b of content) {
       let e: ActivityEvent | undefined;
       if (m.type === 'assistant') {
-        if (b?.type === 'thinking' && typeof b.thinking === 'string' && b.thinking.trim()) e = { id: `think-${++seq}`, kind: 'thinking', title: 'Suy nghĩ', text: b.thinking.trim() };
-        else if (b?.type === 'text' && typeof b.text === 'string' && b.text.trim()) e = { id: `say-${++seq}`, kind: 'say', title: 'Nói', text: b.text.trim() };
+        if (b?.type === 'thinking' && typeof b.thinking === 'string' && b.thinking.trim())
+          e = { id: `think-${++seq}`, kind: 'thinking', title: 'Suy nghĩ', text: b.thinking.trim() };
+        else if (b?.type === 'text' && typeof b.text === 'string' && b.text.trim())
+          e = { id: `say-${++seq}`, kind: 'say', title: 'Nói', text: b.text.trim() };
         else if (b?.type === 'tool_use') e = fromTool(b);
       } else if (m.type === 'user' && b?.type === 'tool_result') e = fromResult(b);
       if (e) out.push(sanitize(e));
@@ -95,5 +153,8 @@ export function claudeEvents(cwd: string): (line: string) => ActivityEvent[] {
 function resultText(content: unknown): string {
   if (typeof content === 'string') return content;
   if (!Array.isArray(content)) return '';
-  return content.map((c: any) => (c?.type === 'text' && typeof c.text === 'string' ? c.text : '')).filter(Boolean).join('\n');
+  return content
+    .map((c: any) => (c?.type === 'text' && typeof c.text === 'string' ? c.text : ''))
+    .filter(Boolean)
+    .join('\n');
 }

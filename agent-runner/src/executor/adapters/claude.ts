@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { mainModel, readModelUsage } from '../model';
 import type { Adapter, ExecContext, ProbeResult } from '../types';
 import { claudeEvents } from './claude-events';
+import { userClaudeExtras } from './claude-home';
 
 /**
  * Claude Code CLI không giao diện (kiểm với 2.1.x: `claude --help`):
@@ -11,22 +12,41 @@ import { claudeEvents } from './claude-events';
  * CLI từ chối khi chạy bằng root → runner phải chạy bằng user thường) · --max-budget-usd · --resume khi việc bị trả về.
  * CLAUDE.md / AGENTS.md của repo vẫn được đọc (hướng dẫn dự án).
  */
-const clip = (t: string, n = 200) => { const one = t.replace(/\s+/g, ' ').trim(); return one.length > n ? one.slice(0, n) + '…' : one; };
+const clip = (t: string, n = 200) => {
+  const one = t.replace(/\s+/g, ' ').trim();
+  return one.length > n ? one.slice(0, n) + '…' : one;
+};
 
 /** Một khối trong message `assistant` của stream-json → câu tiếng Việt ngắn mô tả việc agent đang làm. */
 export function describeBlock(b: any, cwd: string): string | undefined {
   if (b?.type === 'text') return typeof b.text === 'string' && b.text.trim() ? `Nói: ${clip(b.text)}` : undefined;
   if (b?.type !== 'tool_use') return undefined;
   const i = b.input ?? {};
-  const file = typeof i.file_path === 'string' ? (i.file_path.startsWith(cwd + '/') ? i.file_path.slice(cwd.length + 1) : i.file_path) : '';
+  const file =
+    typeof i.file_path === 'string'
+      ? i.file_path.startsWith(cwd + '/')
+        ? i.file_path.slice(cwd.length + 1)
+        : i.file_path
+      : '';
   switch (b.name) {
-    case 'Read': return `Đọc ${file}`;
-    case 'Edit': case 'MultiEdit': case 'NotebookEdit': return `Sửa ${file || i.notebook_path}`;
-    case 'Write': return `Ghi ${file}`;
-    case 'Bash': return `Chạy: ${clip(String(i.command ?? ''))}`;
-    case 'Grep': case 'Glob': return `Tìm: ${clip(String(i.pattern ?? ''), 100)}`;
-    case 'TodoWrite': return 'Cập nhật danh sách việc cần làm';
-    case 'Task': case 'Agent': return `Giao việc phụ: ${clip(String(i.description ?? ''), 100)}`;
+    case 'Read':
+      return `Đọc ${file}`;
+    case 'Edit':
+    case 'MultiEdit':
+    case 'NotebookEdit':
+      return `Sửa ${file || i.notebook_path}`;
+    case 'Write':
+      return `Ghi ${file}`;
+    case 'Bash':
+      return `Chạy: ${clip(String(i.command ?? ''))}`;
+    case 'Grep':
+    case 'Glob':
+      return `Tìm: ${clip(String(i.pattern ?? ''), 100)}`;
+    case 'TodoWrite':
+      return 'Cập nhật danh sách việc cần làm';
+    case 'Task':
+    case 'Agent':
+      return `Giao việc phụ: ${clip(String(i.description ?? ''), 100)}`;
     default: {
       const mcp = /^mcp__officehub__(.+)$/.exec(String(b.name));
       if (mcp) return `OfficeHub ${mcp[1]}${i.status ? ` → ${i.status}` : ''}`;
@@ -37,8 +57,22 @@ export function describeBlock(b: any, cwd: string): string | undefined {
 
 /** Lệnh chạy thử model (TEST-64): không tool, không MCP, system prompt ngắn → vài trăm token. */
 export function probeArgs(model: string | undefined): string[] {
-  const args = ['-p', 'ok', '--output-format', 'stream-json', '--verbose', '--max-turns', '1', '--strict-mcp-config', '--setting-sources', 'user',
-    '--tools', '', '--system-prompt', 'Reply with: ok'];
+  const args = [
+    '-p',
+    'ok',
+    '--output-format',
+    'stream-json',
+    '--verbose',
+    '--max-turns',
+    '1',
+    '--strict-mcp-config',
+    '--setting-sources',
+    'user',
+    '--tools',
+    '',
+    '--system-prompt',
+    'Reply with: ok',
+  ];
   if (model) args.push('--model', model);
   return args;
 }
@@ -52,14 +86,19 @@ export function parseProbe(stdout: string): ProbeResult {
   for (const line of stdout.split('\n')) {
     if (!line.startsWith('{')) continue;
     let m: any;
-    try { m = JSON.parse(line); } catch { continue; }
+    try {
+      m = JSON.parse(line);
+    } catch {
+      continue;
+    }
     if (m?.type === 'system' && m.subtype === 'init' && typeof m.model === 'string') init = m.model;
     if (m?.type === 'result') res = m;
   }
   if (!res) return { model: init, error: 'CLI không trả sự kiện result' };
   const model = mainModel(init, readModelUsage(res.modelUsage));
   if (res.is_error !== true && res.subtype === 'success') return { model };
-  const text = typeof res.result === 'string' ? res.result.replace(/\s+/g, ' ').slice(0, 200) : String(res.subtype ?? 'lỗi');
+  const text =
+    typeof res.result === 'string' ? res.result.replace(/\s+/g, ' ').slice(0, 200) : String(res.subtype ?? 'lỗi');
   const invalidModel = res.api_error_status === 404 || /selected model|model.*(not exist|not found|access)/i.test(text);
   return { model: invalidModel ? undefined : model, error: text, invalidModel };
 }
@@ -68,22 +107,52 @@ export function parseProbe(stdout: string): ProbeResult {
  * Thư mục transcript của Claude Code cho một cwd: `<HOME>/.claude/projects/<cwd, mọi ký tự không phải chữ / số → "-">` (kiểm với 2.1.x, vd
  * `/private/tmp/a_b` → `-private-tmp-a-b`). Định dạng nội bộ của CLI — sai / đổi thì runner chỉ mở phiên mới (an toàn).
  */
-export const claudeProjectDir = (home: string, cwd: string) => join(home, '.claude', 'projects', cwd.replace(/[^a-zA-Z0-9]/g, '-'));
+export const claudeProjectDir = (home: string, cwd: string) =>
+  join(home, '.claude', 'projects', cwd.replace(/[^a-zA-Z0-9]/g, '-'));
 
 /** Transcript `<session>.jsonl` có ở thư mục của cwd (hoặc đường dẫn thật của cwd — macOS /tmp → /private/tmp) không. */
 export function claudeHasSession(home: string, cwd: string, sessionId: string): boolean {
   const dirs = [cwd];
-  try { dirs.push(realpathSync(cwd)); } catch { /* cwd đã bị xoá */ }
+  try {
+    dirs.push(realpathSync(cwd));
+  } catch {
+    /* cwd đã bị xoá */
+  }
   return dirs.some((d) => existsSync(join(claudeProjectDir(home, d), `${sessionId}.jsonl`)));
 }
 
 export const claudeAdapter: Adapter = {
   kind: 'claude',
-  caps: { resume: true, cost: true, budget: true },
+  caps: { resume: true, toolRestriction: true },
+  // TEST-140: cấu hình cấp user trong HOME của agent được nạp vào mọi phiên (--setting-sources user) → tốn token / đổi hành vi
+  homeWarnings(exec, home) {
+    const warnings: string[] = [];
+    if (!exec.home)
+      warnings.push(`chưa đặt executor.home — CLI dùng HOME của runner (${home}); nên dùng HOME riêng, sạch cho agent`);
+    const extras = userClaudeExtras(home);
+    if (extras.length)
+      warnings.push(
+        `HOME ${home} có ${extras.join(', ')} — nạp vào mọi phiên của agent (tốn token, có thể đổi hành vi); nên để HOME riêng chỉ có đăng nhập CLI`,
+      );
+    return warnings;
+  },
+  transcriptFile: (home, cwd, sessionId) => join(claudeProjectDir(home, cwd), `${sessionId}.jsonl`),
   command(ctx: ExecContext) {
     const e = ctx.exec;
-    const args = ['-p', ctx.prompt, '--output-format', 'stream-json', '--verbose',
-      '--mcp-config', ctx.mcpConfigFile, '--strict-mcp-config', '--setting-sources', 'user', '--permission-mode', 'bypassPermissions'];
+    const args = [
+      '-p',
+      ctx.prompt,
+      '--output-format',
+      'stream-json',
+      '--verbose',
+      '--mcp-config',
+      ctx.mcpConfigFile,
+      '--strict-mcp-config',
+      '--setting-sources',
+      'user',
+      '--permission-mode',
+      'bypassPermissions',
+    ];
     if (e.model) args.push('--model', e.model);
     if (e.maxBudgetUsd !== undefined) args.push('--max-budget-usd', String(e.maxBudgetUsd));
     if (e.maxTurns !== undefined) args.push('--max-turns', String(e.maxTurns));
@@ -96,7 +165,11 @@ export const claudeAdapter: Adapter = {
   activity(line, cwd) {
     if (!line.startsWith('{')) return [];
     let m: any;
-    try { m = JSON.parse(line); } catch { return []; }
+    try {
+      m = JSON.parse(line);
+    } catch {
+      return [];
+    }
     if (m?.type === 'system' && m.subtype === 'init' && typeof m.model === 'string') return [`Model ${m.model}`];
     if (m?.type !== 'assistant' || !Array.isArray(m.message?.content)) return [];
     return m.message.content.map((b: any) => describeBlock(b, cwd)).filter((x: string | undefined): x is string => !!x);
@@ -104,12 +177,19 @@ export const claudeAdapter: Adapter = {
   events: claudeEvents,
   parseLine(line, r) {
     let m: any;
-    try { m = JSON.parse(line); } catch { return; }
+    try {
+      m = JSON.parse(line);
+    } catch {
+      return;
+    }
     if (m?.session_id && !r.sessionId) r.sessionId = m.session_id;
     if (m?.type === 'system' && m.subtype === 'init' && typeof m.model === 'string') r.model = m.model;
     if (m?.type !== 'result') return;
     const usage = readModelUsage(m.modelUsage);
-    if (usage) { r.modelUsage = usage; r.model = mainModel(r.model, usage); }
+    if (usage) {
+      r.modelUsage = usage;
+      r.model = mainModel(r.model, usage);
+    }
     r.sessionId = m.session_id ?? r.sessionId;
     if (typeof m.total_cost_usd === 'number') r.costUsd = m.total_cost_usd;
     if (typeof m.num_turns === 'number') r.turns = m.num_turns;
@@ -122,9 +202,15 @@ export const claudeAdapter: Adapter = {
     if (typeof m.result === 'string') r.summary = m.result;
     r.isError = m.is_error === true || (typeof m.subtype === 'string' && m.subtype !== 'success');
     // Lỗi API (vd model sai: subtype vẫn là success, terminal_reason api_error, api_error_status 404).
-    if (r.isError) r.errorKind = typeof m.api_error_status === 'number' ? `${m.terminal_reason ?? 'api_error'} ${m.api_error_status}` : m.subtype;
+    if (r.isError)
+      r.errorKind =
+        typeof m.api_error_status === 'number'
+          ? `${m.terminal_reason ?? 'api_error'} ${m.api_error_status}`
+          : m.subtype;
   },
-  probe(exec) { return { bin: exec.bin, args: probeArgs(exec.model) }; },
+  probe(exec) {
+    return { bin: exec.bin, args: probeArgs(exec.model) };
+  },
   hasSession: claudeHasSession,
   parseProbe,
 };

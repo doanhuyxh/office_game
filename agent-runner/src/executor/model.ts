@@ -12,11 +12,16 @@ export function readModelUsage(u: unknown): Record<string, ModelUse> | undefined
   for (const [name, v] of Object.entries(u as Record<string, any>)) {
     if (!v || typeof v !== 'object') continue;
     const num = (x: unknown) => (typeof x === 'number' ? x : undefined);
-    const input = num(v.inputTokens), read = num(v.cacheReadInputTokens), write = num(v.cacheCreationInputTokens);
+    const input = num(v.inputTokens),
+      read = num(v.cacheReadInputTokens),
+      write = num(v.cacheCreationInputTokens);
     const use: ModelUse = {
       costUsd: num(v.costUSD),
       // Tổng gồm cả cache; không trường nào có → không biết (undefined, không phải 0)
-      inputTokens: input === undefined && read === undefined && write === undefined ? undefined : (input ?? 0) + (read ?? 0) + (write ?? 0),
+      inputTokens:
+        input === undefined && read === undefined && write === undefined
+          ? undefined
+          : (input ?? 0) + (read ?? 0) + (write ?? 0),
       outputTokens: num(v.outputTokens),
     };
     if (read !== undefined) use.cacheReadTokens = read;
@@ -27,16 +32,23 @@ export function readModelUsage(u: unknown): Record<string, ModelUse> | undefined
 }
 
 /** Model chính: model lúc init nếu có trong usage; không thì model tốn nhiều nhất (rồi nhiều token nhất); usage rỗng → model lúc init. */
-export function mainModel(initModel: string | undefined, usage: Record<string, ModelUse> | undefined): string | undefined {
+export function mainModel(
+  initModel: string | undefined,
+  usage: Record<string, ModelUse> | undefined,
+): string | undefined {
   const names = Object.keys(usage ?? {});
   if (names.length === 0) return initModel;
   if (initModel && names.includes(initModel)) return initModel;
-  const score = (n: string) => [usage![n]!.costUsd ?? 0, (usage![n]!.inputTokens ?? 0) + (usage![n]!.outputTokens ?? 0)] as const;
+  const score = (n: string) =>
+    [usage![n]!.costUsd ?? 0, (usage![n]!.inputTokens ?? 0) + (usage![n]!.outputTokens ?? 0)] as const;
   return names.sort((a, b) => score(b)[0] - score(a)[0] || score(b)[1] - score(a)[1])[0];
 }
 
 /** Các model phụ (khác model chính) trong phiên. */
-export function sideModels(main: string | undefined, usage: Record<string, ModelUse> | undefined): [string, ModelUse][] {
+export function sideModels(
+  main: string | undefined,
+  usage: Record<string, ModelUse> | undefined,
+): [string, ModelUse][] {
   return Object.entries(usage ?? {}).filter(([n]) => n !== main);
 }
 
@@ -46,17 +58,27 @@ export function sideModels(main: string | undefined, usage: Record<string, Model
  */
 export function modelMatches(configured: string | undefined, actual: string | undefined): boolean {
   if (!configured || !actual) return true;
-  const c = configured.replace(/\[.*\]$/, '').trim().toLowerCase();
-  const a = actual.replace(/\[.*\]$/, '').trim().toLowerCase();
+  const c = configured
+    .replace(/\[.*\]$/, '')
+    .trim()
+    .toLowerCase();
+  const a = actual
+    .replace(/\[.*\]$/, '')
+    .trim()
+    .toLowerCase();
   return !c || a === c || a.includes(c);
 }
 
 /** Một dòng mô tả model cho bình luận / log: `claude-opus-5-5 · phụ: claude-haiku-5-5 ($0.01)`. */
-export function modelLine(r: { model?: string; modelFromConfig?: boolean; modelUsage?: Record<string, ModelUse> }, configured?: string): string {
+export function modelLine(
+  r: { model?: string; modelFromConfig?: boolean; modelUsage?: Record<string, ModelUse> },
+  configured?: string,
+): string {
   if (!r.model) return configured ? `${configured} (cấu hình)` : 'không rõ (mặc định của CLI)';
   let s = r.model + (r.modelFromConfig ? ' (cấu hình)' : '');
   const side = sideModels(r.model, r.modelUsage);
-  if (side.length) s += ` · phụ: ${side.map(([n, u]) => (u.costUsd !== undefined ? `${n} ($${u.costUsd.toFixed(2)})` : n)).join(', ')}`;
+  if (side.length)
+    s += ` · phụ: ${side.map(([n, u]) => (u.costUsd !== undefined ? `${n} ($${u.costUsd.toFixed(2)})` : n)).join(', ')}`;
   if (!r.modelFromConfig && !modelMatches(configured, r.model)) s += ` ⚠ khác cấu hình (${configured})`;
   return s;
 }

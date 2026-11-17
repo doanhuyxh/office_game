@@ -11,7 +11,16 @@ import type { ExecResult } from './types';
  * nội dung file được đọc và tham số tool OfficeHub không bao giờ gửi.
  */
 export type ActivityKind =
-  | 'session_start' | 'session_end' | 'command' | 'file_edit' | 'file_write' | 'file_read' | 'search' | 'thinking' | 'say' | 'tool';
+  | 'session_start'
+  | 'session_end'
+  | 'command'
+  | 'file_edit'
+  | 'file_write'
+  | 'file_read'
+  | 'search'
+  | 'thinking'
+  | 'say'
+  | 'tool';
 
 export interface ActivityEvent {
   id: string;
@@ -29,7 +38,17 @@ export interface ActivityEvent {
 }
 
 /** Giới hạn độ dài — khớp `BotActivityFeedRoute` (server cắt lại; cắt ở đây để không gửi thừa). */
-export const LIMITS = { id: 64, title: 200, text: 4_000, path: 400, diffLines: 200, diffChars: 16_000, output: 4_000, task: 200, model: 100 } as const;
+export const LIMITS = {
+  id: 64,
+  title: 200,
+  text: 4_000,
+  path: 400,
+  diffLines: 200,
+  diffChars: 16_000,
+  output: 4_000,
+  task: 200,
+  model: 100,
+} as const;
 
 export const HIDDEN = '(nội dung ẩn: file nhạy cảm)';
 export const HIDDEN_OUTPUT = '(kết quả ẩn: lệnh đụng tới file / biến bí mật)';
@@ -48,11 +67,15 @@ export function mask(text: string): string {
     .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,}/gi, '$1 ***')
     .replace(/\b(\d{6,}:[A-Za-z0-9_-]{30,})\b/g, '***') // token bot Telegram
     .replace(/(:\/\/[^\s:/@]+:)[^\s@/]+@/g, '$1***@') // user:pass@host
-    .replace(/(?<![A-Za-z0-9])((?:pass(?:word|wd)?|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|credential)[A-Za-z0-9_]*["']?\s*[=:]\s*)("[^"\n]*"|'[^'\n]*'|[^\s"',;]+)/gi, '$1***');
+    .replace(
+      /(?<![A-Za-z0-9])((?:pass(?:word|wd)?|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|credential)[A-Za-z0-9_]*["']?\s*[=:]\s*)("[^"\n]*"|'[^'\n]*'|[^\s"',;]+)/gi,
+      '$1***',
+    );
   // Mẫu cuối che cả code vô hại kiểu `token: string` — chấp nhận: thà che nhầm còn hơn lộ.
 }
 
-const SENSITIVE_NAME = /^(\.env(\..*)?|.*\.env|.*\.(pem|key|p12|pfx|jks|keystore)|agents\.ya?ml|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|\.npmrc|\.netrc|\.pgpass|credentials(\.json)?|secrets?\.(json|ya?ml))$/i;
+const SENSITIVE_NAME =
+  /^(\.env(\..*)?|.*\.env|.*\.(pem|key|p12|pfx|jks|keystore)|agents\.ya?ml|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|\.npmrc|\.netrc|\.pgpass|credentials(\.json)?|secrets?\.(json|ya?ml))$/i;
 
 /** File không được lộ nội dung: `.env*`, khoá (`*.pem`, `*.key`, `id_rsa*`…), `agents.yaml` của runner, file thông tin đăng nhập. */
 export function isSensitivePath(path: string): boolean {
@@ -62,7 +85,8 @@ export function isSensitivePath(path: string): boolean {
 
 /** Lệnh bash có đụng tới file / biến bí mật không (→ ẩn kết quả lệnh): tên file nhạy cảm trong lệnh, hoặc in biến môi trường. */
 export function isSensitiveCommand(command: string): boolean {
-  if (/(^|[\s;|&(`])(env|printenv|export|set)(\s*($|[|;&>)]))/.test(command) || /\bprintenv\b/.test(command)) return true;
+  if (/(^|[\s;|&(`])(env|printenv|export|set)(\s*($|[|;&>)]))/.test(command) || /\bprintenv\b/.test(command))
+    return true;
   return command.split(/[\s"'`=;|&<>()]+/).some((w) => w.length > 1 && isSensitivePath(w));
 }
 
@@ -93,7 +117,13 @@ export function tail(t: string, max: number): string {
 
 /** Diff dạng dòng `-` / `+`, tối đa {@link LIMITS.diffLines} dòng / {@link LIMITS.diffChars} ký tự (dòng cuối `…` nếu bị cắt). */
 export function diffOf(removed: string, added: string): string {
-  const lines = (s: string, sign: string) => (s === '' ? [] : s.replace(/\n$/, '').split('\n').map((l) => sign + l));
+  const lines = (s: string, sign: string) =>
+    s === ''
+      ? []
+      : s
+          .replace(/\n$/, '')
+          .split('\n')
+          .map((l) => sign + l);
   return cutDiff([...lines(removed, '-'), ...lines(added, '+')]);
 }
 
@@ -131,6 +161,14 @@ export function sessionStart(task: string, model?: string): ActivityEvent {
 
 /** Hết job: số lượt, chi phí, model thật — đọc từ kết quả CLI (adapter nào cũng có, kể cả `custom`). */
 export function sessionEnd(r: ExecResult, task?: string): ActivityEvent {
-  return sanitize({ id: SESSION_END_ID, kind: 'session_end', title: r.isError ? 'Kết thúc (lỗi)' : 'Kết thúc', ok: !r.isError,
-    task, model: r.model, turns: r.turns, costUsd: r.costUsd });
+  return sanitize({
+    id: SESSION_END_ID,
+    kind: 'session_end',
+    title: r.isError ? 'Kết thúc (lỗi)' : 'Kết thúc',
+    ok: !r.isError,
+    task,
+    model: r.model,
+    turns: r.turns,
+    costUsd: r.costUsd,
+  });
 }

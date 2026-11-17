@@ -1,6 +1,6 @@
 # Bot đang làm / rảnh trong văn phòng 3D
 
-> Nguồn sự thật là code: `BuildingBlocks/Office/BotActivity.cs` (`BotWork`, `BotPresenceReport`), `OfficeHub.Realtime/Simulation/BotPresence.cs` (`Record`, `Settle`, `RestSpot`, `Bubble`), `OfficeHub.Mcp/Infrastructure/BotPresenceReporter.cs` (`WorkAsync`, `TaskLabelAsync`, `ReportPresenceAsync`), `OfficeHub.Mcp/Program.cs` (`/mcp/presence`), `agent-runner/src/presence.ts`. Về [office-bots.md](office-bots.md) · runner: [agent-runner.md](agent-runner.md) · bong bóng chỉ nhãn thô; lệnh / diff / suy nghĩ chi tiết đi luồng riêng cho người đứng gần: [office-bots-activity.md](office-bots-activity.md).
+> Nguồn sự thật là code: `BuildingBlocks/Office/BotActivity.cs` (`BotWork`, `BotPresenceReport`), `OfficeHub.Realtime/Simulation/BotPresence.cs` (`Record`, `Settle`, `RestSpot`, `Bubble`), `OfficeHub.Mcp/Infrastructure/BotPresenceReporter.cs` (`WorkAsync`, `TaskLabelAsync`, `ReportPresenceAsync`), `OfficeHub.Mcp/Program.cs` (`/mcp/presence`), `agent-runner/src/hub/presence.ts`. Về [office-bots.md](office-bots.md) · runner: [agent-runner.md](agent-runner.md) · bong bóng chỉ nhãn thô; lệnh / diff / suy nghĩ chi tiết đi luồng riêng cho người đứng gần: [office-bots-activity.md](office-bots-activity.md).
 
 Chủ dự án yêu cầu 2026-11-13: bot online **đang làm việc → ngồi bàn được xếp**, bong bóng trên đầu như cũ; **chưa có việc → ra chỗ nghỉ**.
 Chủ dự án chốt thêm 2026-11-13: **bot đang làm một việc thì việc ở cột nào cũng tính là đang làm** — không suy từ cột (bỏ `inProgress`). Điểm còn là mặc định tự chọn: chỗ `go_to` giữ **tới khi bot đổi đang làm ↔ rảnh** (trước đây: tới lần `go_to` kế).
@@ -41,7 +41,7 @@ Chi tiết: [office-bots-attention.md](office-bots-attention.md). Tóm tắt:
 - **Mặc định tự chọn** (chủ dự án chưa chốt riêng, có thể đổi): loại lỗi ≤ 40 ký tự (`BotWork.MaxError`), chu kỳ 30 s (`BotWaitingRoute.PollSeconds`), ≤ 10 việc / bot (`MaxTasks`), ≤ 200 bot / lần hỏi.
 - E2E `scripts/dev/bot-attention-e2e.ts`.
 
-## agent-runner (`src/presence.ts`)
+## agent-runner (`src/hub/presence.ts`)
 
 - Khởi động: báo `idle` + **nhịp còn sống 2 phút** (bot rảnh vẫn hiện ở Khu nghỉ thay vì biến mất sau 5 phút).
 - Bắt đầu job: `working` + `MÃ · tên việc` (gửi ngay). Thao tác của agent (`onActivity`, chỉ adapter claude có) → **nhãn thô** (`activityLabel`): Đọc code / Sửa code / Chạy kiểm thử / Build / kiểm tra / Thao tác git / Chạy lệnh / Tìm trong code / Suy nghĩ / Lên kế hoạch / Cập nhật OfficeHub — **không gửi lệnh bash, đường dẫn file, lời agent** (cả công ty thấy bong bóng). Gộp tối đa 1 lần / 10 giây. Hết job (`finally`) → `idle` ngay.

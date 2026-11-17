@@ -1,7 +1,8 @@
 import { hostname } from 'node:os';
-import { errText, log } from './log';
-import type { Job, Store } from './store';
-import type { ModelUse } from './executor/types';
+import { log } from '../log';
+import type { Job, Store } from '../store';
+import { FailureLog, failureKey, HubEndpoint, hubUrl } from './endpoint';
+import type { ModelUse } from '../executor/types';
 
 /**
  * Gửi mức dùng AI (chi phí / token) của từng phiên agent lên OfficeHub (TEST-135) — xem theo ngày / tháng / năm, theo model ở
@@ -15,26 +16,48 @@ import type { ModelUse } from './executor/types';
 
 /** Giới hạn của máy chủ (`AiUsageRoute`). */
 export const USAGE_MAX_SESSIONS = 50;
-const MAX_MODELS = 20, MAX_MODEL = 100, MAX_TASK_CODE = 50, MAX_EXECUTOR = 30;
+const MAX_MODELS = 20,
+  MAX_MODEL = 100,
+  MAX_TASK_CODE = 50,
+  MAX_EXECUTOR = 30;
 
 /** Nhịp gửi lại phiên chưa gửi (máy chủ tạm lỗi / chưa có bản mới). */
 export const USAGE_RETRY_MS = 5 * 60_000;
 
 export interface AiUsageModel {
-  model: string | null; inputTokens: number | null; outputTokens: number | null;
-  cacheReadTokens: number | null; cacheWriteTokens: number | null; costUsd: number | null;
+  model: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cacheReadTokens: number | null;
+  cacheWriteTokens: number | null;
+  costUsd: number | null;
 }
 
 export interface AiUsageSession {
-  sourceId: string; kind: 'task' | 'chat' | 'meeting' | 'other'; taskId?: string; projectId?: string; taskCode?: string; executor?: string;
-  status: 'done' | 'failed'; startedAt: string; finishedAt: string; turns: number | null; costUsd: number | null; models?: AiUsageModel[];
+  sourceId: string;
+  kind: 'task' | 'chat' | 'meeting' | 'other';
+  taskId?: string;
+  projectId?: string;
+  taskCode?: string;
+  executor?: string;
+  status: 'done' | 'failed';
+  startedAt: string;
+  finishedAt: string;
+  turns: number | null;
+  costUsd: number | null;
+  models?: AiUsageModel[];
 }
 
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Tên máy trong `sourceId`: bỏ dấu `:` (ngăn cách), tối đa 40 ký tự. */
 export function sourceHost(name = hostname()): string {
-  return name.trim().replace(/[:\s]+/g, '-').slice(0, 40) || 'runner';
+  return (
+    name
+      .trim()
+      .replace(/[:\s]+/g, '-')
+      .slice(0, 40) || 'runner'
+  );
 }
 
 /** `<máy>:<mã runner.db>:<mã NV>:<id job>` — duy nhất theo tài khoản bot; DB mới (máy bị xoá) có mã khác → không ghi đè phiên cũ. */
@@ -43,39 +66,57 @@ export function sourceId(job: Pick<Job, 'id' | 'agent'>, host: string, dbId: str
 }
 
 const num = (x: unknown): number | null => (typeof x === 'number' && Number.isFinite(x) ? x : null);
-const tokens = (x: unknown): number | null => { const n = num(x); return n === null ? null : Math.max(0, Math.round(n)); };
+const tokens = (x: unknown): number | null => {
+  const n = num(x);
+  return n === null ? null : Math.max(0, Math.round(n));
+};
 
 /** Tổng token vào (gồm cache) + phần cache → token vào không cache / đọc cache / ghi cache (thiếu cache → giữ tổng, cache null). */
 export function splitInput(total: number | null, read: number | null, write: number | null) {
   if (read === null && write === null) return { inputTokens: total, cacheReadTokens: null, cacheWriteTokens: null };
-  return { inputTokens: total === null ? null : Math.max(0, total - (read ?? 0) - (write ?? 0)), cacheReadTokens: read, cacheWriteTokens: write };
+  return {
+    inputTokens: total === null ? null : Math.max(0, total - (read ?? 0) - (write ?? 0)),
+    cacheReadTokens: read,
+    cacheWriteTokens: write,
+  };
 }
 
 /** Model của phiên: `model_usage` (mọi model) → từng dòng; không có → một dòng = model chính với số tổng của phiên; không rõ model → không gửi (máy chủ ghi "không rõ"). */
 export function usageModels(job: Job): AiUsageModel[] | undefined {
   let usage: Record<string, ModelUse> | undefined;
-  try { usage = job.model_usage ? JSON.parse(job.model_usage) : undefined; } catch { usage = undefined; }
-  const rows = Object.entries(usage ?? {}).filter(([n]) => n.trim()).slice(0, MAX_MODELS).map(([name, u]): AiUsageModel => ({
-    model: name.trim().slice(0, MAX_MODEL),
-    ...splitInput(tokens(u?.inputTokens), tokens(u?.cacheReadTokens), tokens(u?.cacheWriteTokens)),
-    outputTokens: tokens(u?.outputTokens),
-    costUsd: num(u?.costUsd),
-  }));
+  try {
+    usage = job.model_usage ? JSON.parse(job.model_usage) : undefined;
+  } catch {
+    usage = undefined;
+  }
+  const rows = Object.entries(usage ?? {})
+    .filter(([n]) => n.trim())
+    .slice(0, MAX_MODELS)
+    .map(
+      ([name, u]): AiUsageModel => ({
+        model: name.trim().slice(0, MAX_MODEL),
+        ...splitInput(tokens(u?.inputTokens), tokens(u?.cacheReadTokens), tokens(u?.cacheWriteTokens)),
+        outputTokens: tokens(u?.outputTokens),
+        costUsd: num(u?.costUsd),
+      }),
+    );
   if (rows.length) return rows;
   // `jobs.model` có thể kèm " (cấu hình)" (CLI không báo model → model cấu hình) — gửi tên model
   const model = job.model?.replace(/\s*\(cấu hình\)$/, '').trim();
   if (!model) return undefined;
-  return [{
-    model: model.slice(0, MAX_MODEL),
-    ...splitInput(tokens(job.input_tokens), tokens(job.cache_read_tokens), tokens(job.cache_write_tokens)),
-    outputTokens: tokens(job.output_tokens),
-    costUsd: num(job.cost_usd),
-  }];
+  return [
+    {
+      model: model.slice(0, MAX_MODEL),
+      ...splitInput(tokens(job.input_tokens), tokens(job.cache_read_tokens), tokens(job.cache_write_tokens)),
+      outputTokens: tokens(job.output_tokens),
+      costUsd: num(job.cost_usd),
+    },
+  ];
 }
 
 /** Job đã xong → một phiên theo hợp đồng `AiUsageSession`. `executor` của job cũ (trước TEST-135) lấy từ cấu hình agent hiện tại. */
 export function usageSession(job: Job, host: string, dbId: string, fallbackExecutor?: string): AiUsageSession {
-  const kind = job.kind ?? 'task';
+  const kind = job.kind;
   const s: AiUsageSession = {
     sourceId: sourceId(job, host, dbId),
     kind,
@@ -87,9 +128,9 @@ export function usageSession(job: Job, host: string, dbId: string, fallbackExecu
   };
   if (kind === 'task') {
     // Chat / họp: task_id là khoá `<mã NV>:<id>`, task_code là nhãn log — không phải việc
-    if (GUID.test(job.task_id)) s.taskId = job.task_id;
+    if (GUID.test(job.key)) s.taskId = job.key;
     if (GUID.test(job.project_id)) s.projectId = job.project_id;
-    if (job.task_code.trim()) s.taskCode = job.task_code.trim().slice(0, MAX_TASK_CODE);
+    if (job.label.trim()) s.taskCode = job.label.trim().slice(0, MAX_TASK_CODE);
   }
   const executor = (job.executor ?? fallbackExecutor)?.trim();
   if (executor) s.executor = executor.slice(0, MAX_EXECUTOR);
@@ -99,9 +140,7 @@ export function usageSession(job: Job, host: string, dbId: string, fallbackExecu
 }
 
 /** `http://host/mcp` → `http://host/mcp/usage`. */
-export function usageUrl(mcpUrl: string): string {
-  return mcpUrl.replace(/\/+$/, '') + '/usage';
-}
+export const usageUrl = (mcpUrl: string) => hubUrl(mcpUrl, 'usage');
 
 export interface UsageFlushResult {
   sent: number;
@@ -121,15 +160,27 @@ export class UsageReporter {
   private disabled = false;
   private sending?: Promise<UsageFlushResult>;
   private again = false;
-  private lastError?: string;
-  readonly url: string;
+  private readonly endpoint: HubEndpoint;
+  private readonly failures: FailureLog;
 
-  constructor(mcpUrl: string, private readonly token: string, readonly agent: string, private readonly store: Store,
-    private readonly source: { host: string; dbId: string; executor?: string }) {
-    this.url = usageUrl(mcpUrl);
+  constructor(
+    mcpUrl: string,
+    token: string,
+    readonly agent: string,
+    private readonly store: Store,
+    private readonly source: { host: string; dbId: string; executor?: string },
+  ) {
+    this.endpoint = new HubEndpoint(mcpUrl, 'usage', token);
+    this.failures = new FailureLog(agent);
   }
 
-  get isDisabled() { return this.disabled; }
+  get url(): string {
+    return this.endpoint.url;
+  }
+
+  get isDisabled() {
+    return this.disabled;
+  }
 
   /**
    * Gửi phiên chưa gửi. Đang gửi dở → chờ lượt đó rồi gửi thêm một lượt (phiên vừa xong không phải chờ nhịp 5 phút).
@@ -148,7 +199,9 @@ export class UsageReporter {
         total = { sent: total.sent + r.sent, rejected: total.rejected + r.rejected, stopped: r.stopped };
       } while (this.again && !total.stopped);
       return total;
-    })().finally(() => { this.sending = undefined; });
+    })().finally(() => {
+      this.sending = undefined;
+    });
     return this.sending;
   }
 
@@ -156,74 +209,97 @@ export class UsageReporter {
     const out: UsageFlushResult = { sent: 0, rejected: 0 };
     let afterId = 0;
     while (!this.disabled) {
-      const jobs = this.store.pendingUsage(this.agent, { afterId, limit: USAGE_MAX_SESSIONS, all: o.all, sinceIso: o.sinceIso });
+      const jobs = this.store.pendingUsage(this.agent, {
+        afterId,
+        limit: USAGE_MAX_SESSIONS,
+        all: o.all,
+        sinceIso: o.sinceIso,
+      });
       if (!jobs.length) break;
       afterId = jobs.at(-1)!.id;
       const r = await this.send(jobs);
-      if (r.status === 'ok') { this.store.markUsageSent(jobs.map((j) => j.id)); out.sent += jobs.length; continue; }
-      if (r.status !== 'invalid') { out.stopped = r.detail; break; }
+      if (r.status === 'ok') {
+        this.store.markUsageSent(jobs.map((j) => j.id));
+        out.sent += jobs.length;
+        continue;
+      }
+      if (r.status !== 'invalid') {
+        out.stopped = r.detail;
+        break;
+      }
       // Lô bị từ chối → từng phiên một để chỉ bỏ phiên sai
       for (const j of jobs) {
         const one = jobs.length === 1 ? r : await this.send([j]);
-        if (one.status === 'ok') { this.store.markUsageSent([j.id]); out.sent++; continue; }
-        if (one.status !== 'invalid') { out.stopped = one.detail; return out; }
+        if (one.status === 'ok') {
+          this.store.markUsageSent([j.id]);
+          out.sent++;
+          continue;
+        }
+        if (one.status !== 'invalid') {
+          out.stopped = one.detail;
+          return out;
+        }
         this.store.markUsageRejected(j.id, one.detail);
         out.rejected++;
-        log('warn', 'OfficeHub từ chối mức dùng AI của phiên — bỏ qua (usage push để thử lại)', { agent: this.agent, job: j.id, error: one.detail });
+        log('warn', 'OfficeHub từ chối mức dùng AI của phiên — bỏ qua (usage push để thử lại)', {
+          agent: this.agent,
+          job: j.id,
+          error: one.detail,
+        });
       }
     }
-    if (out.sent && this.lastError) { log('info', 'gửi mức dùng AI đã chạy lại', { agent: this.agent }); this.lastError = undefined; }
+    if (out.sent) this.failures.recovered('gửi mức dùng AI đã chạy lại');
     return out;
   }
 
-  private async send(jobs: Job[]): Promise<{ status: 'ok' | 'invalid' | 'retry' | 'denied'; detail: string }> {
-    const body = { sessions: jobs.map((j) => usageSession(j, this.source.host, this.source.dbId, this.source.executor)) };
-    let res: Response;
-    try {
-      res = await fetch(this.url, {
-        method: 'POST',
-        headers: { authorization: `Bearer ${this.token}`, 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(20_000),
+  private async send(jobs: Job[]): Promise<SendResult> {
+    const body = {
+      sessions: jobs.map((j) => usageSession(j, this.source.host, this.source.dbId, this.source.executor)),
+    };
+    const outcome = await this.endpoint.post(body, SEND_TIMEOUT_MS);
+    if (outcome.status === 'ok') {
+      const accepted = (await outcome.response.json().catch(() => undefined)) as
+        | { accepted?: number; created?: number; updated?: number }
+        | undefined;
+      log('info', 'đã gửi mức dùng AI', {
+        agent: this.agent,
+        sessions: jobs.length,
+        created: accepted?.created,
+        updated: accepted?.updated,
       });
-    } catch (e) {
-      return this.fail(errText(e), 'gửi mức dùng AI lỗi — thử lại sau');
-    }
-    if (res.ok) {
-      const a = await res.json().catch(() => undefined) as { accepted?: number; created?: number; updated?: number } | undefined;
-      log('info', 'đã gửi mức dùng AI', { agent: this.agent, sessions: jobs.length, created: a?.created, updated: a?.updated });
       return { status: 'ok', detail: '' };
     }
-    const detail = await problemDetail(res);
-    if (res.status === 400 || res.status === 413) return { status: 'invalid', detail: `${res.status} ${detail}`.trim() };
-    if (res.status === 401 || res.status === 403) {
+    const codeAndDetail = `${outcome.code ?? ''} ${outcome.detail}`.trim();
+    if (outcome.status === 'invalid') return { status: 'invalid', detail: codeAndDetail };
+    if (outcome.status === 'denied') {
       this.disabled = true;
-      log('warn', 'OfficeHub không nhận mức dùng AI — ngừng gửi cho agent này (token sai / tài khoản chưa được HR đánh dấu là bot?)',
-        { agent: this.agent, status: res.status, error: detail });
-      return { status: 'denied', detail: `${res.status} ${detail}`.trim() };
+      log(
+        'warn',
+        'OfficeHub không nhận mức dùng AI — ngừng gửi cho agent này (token sai / tài khoản chưa được HR đánh dấu là bot?)',
+        { agent: this.agent, status: outcome.code, error: outcome.detail },
+      );
+      return { status: 'denied', detail: codeAndDetail };
     }
-    if (res.status === 404 || res.status === 405)
-      return this.fail(`status=${res.status}`, 'OfficeHub chưa có endpoint mức dùng AI — deploy bản mới + nginx `location = /mcp/usage`; runner giữ phiên và thử lại sau');
-    return this.fail(`status=${res.status} ${detail}`.trim(), 'gửi mức dùng AI lỗi — thử lại sau');
+    if (outcome.status === 'missing')
+      return this.retryLater(
+        failureKey(outcome),
+        'OfficeHub chưa có endpoint mức dùng AI — deploy bản mới + nginx `location = /mcp/usage`; runner giữ phiên và thử lại sau',
+      );
+    const key = outcome.code === undefined ? outcome.detail : `${failureKey(outcome)} ${outcome.detail}`.trim();
+    return this.retryLater(key, 'gửi mức dùng AI lỗi — thử lại sau');
   }
 
-  /** Lỗi giống lần trước → không ghi lại (nhịp 5 phút không làm đầy log). */
-  private fail(key: string, msg: string): { status: 'retry'; detail: string } {
-    if (key !== this.lastError) {
-      this.lastError = key;
-      log('warn', msg, { agent: this.agent, error: key });
-    }
+  /** Giữ phiên, thử lại ở nhịp sau; lỗi giống lần trước không ghi lại (nhịp 5 phút không làm đầy log). */
+  private retryLater(key: string, message: string): SendResult {
+    this.failures.warn(key, message);
     return { status: 'retry', detail: key };
   }
 }
 
-/** Câu lỗi `detail` của ProblemDetails (máy chủ trả tiếng Việt), không có → rỗng. */
-async function problemDetail(res: Response): Promise<string> {
-  try {
-    const text = await res.text();
-    const d = JSON.parse(text)?.detail;
-    return typeof d === 'string' ? d.slice(0, 300) : text.slice(0, 200);
-  } catch {
-    return '';
-  }
+interface SendResult {
+  status: 'ok' | 'invalid' | 'retry' | 'denied';
+  detail: string;
 }
+
+/** Hạn gửi một lô phiên. */
+const SEND_TIMEOUT_MS = 20_000;

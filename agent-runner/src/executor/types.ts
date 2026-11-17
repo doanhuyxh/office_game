@@ -23,14 +23,23 @@ export interface ExecContext {
   onEvent?: (event: ActivityEvent) => void;
 }
 
-export interface Command { bin: string; args: string[] }
+export interface Command {
+  bin: string;
+  args: string[];
+}
 
 /**
  * Chi phí / token của một model trong phiên (Claude Code: `modelUsage` của sự kiện `result`).
  * `inputTokens` = TỔNG token vào, gồm cả phần đọc / ghi cache (cách tính cũ của `report` / bình luận); TEST-135 tách thêm
  * `cacheReadTokens` / `cacheWriteTokens` (không có = CLI không báo) — gửi lên OfficeHub thì token vào = tổng − cache.
  */
-export interface ModelUse { costUsd?: number; inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheWriteTokens?: number }
+export interface ModelUse {
+  costUsd?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+}
 
 /** Kết quả đọc từ output CLI (trường nào CLI không có thì undefined). */
 export interface ExecResult {
@@ -55,7 +64,21 @@ export interface ExecResult {
 
 export interface Adapter {
   kind: string;
-  caps: { resume: boolean; cost: boolean; budget: boolean };
+  caps: {
+    /** Nối được phiên cũ. */
+    resume: boolean;
+    /** Runner tắt được công cụ có sẵn của CLI (`noBuiltinTools`) — không thì CLI phải tự giới hạn (mode none, chat, họp). */
+    toolRestriction: boolean;
+  };
+  /** Lỗi trong phần `executor` của cấu hình riêng adapter này (câu không kèm tiền tố `agents[i].executor.`). */
+  configProblems?(exec: ExecutorConfig): string[];
+  /** Cảnh báo `doctor` về HOME của CLI (thứ CLI tự nạp vào mọi phiên…). */
+  homeWarnings?(exec: ExecutorConfig, home: string): string[];
+  /**
+   * Đường dẫn file transcript của một phiên chạy ở `cwd` (dù file có tồn tại hay không). Có hàm này → runner gửi transcript lên cloud và
+   * khôi phục lại khi máy mất file (TEST-144).
+   */
+  transcriptFile?(home: string, cwd: string, sessionId: string): string;
   command(ctx: ExecContext): Command;
   /** Đọc từng dòng stdout, cập nhật kết quả. */
   parseLine(line: string, r: ExecResult): void;
@@ -82,4 +105,8 @@ export interface Adapter {
 }
 
 /** Kết quả chạy thử model: model thật, lỗi; `invalidModel` = CLI báo model không tồn tại / không có quyền → agent tắt. */
-export interface ProbeResult { model?: string; error?: string; invalidModel?: boolean }
+export interface ProbeResult {
+  model?: string;
+  error?: string;
+  invalidModel?: boolean;
+}

@@ -6,25 +6,38 @@ export interface TgMessage {
   text?: string;
   date: number;
 }
-export interface TgUpdate { update_id: number; message?: TgMessage }
+export interface TgUpdate {
+  update_id: number;
+  message?: TgMessage;
+}
 
 export class TelegramClient {
-  constructor(private readonly apiUrl: string, private readonly token: string) {}
+  constructor(
+    private readonly apiUrl: string,
+    private readonly token: string,
+  ) {}
 
   private async call<T>(method: string, body: Record<string, unknown>, timeoutMs = 30_000): Promise<T> {
     const res = await fetch(`${this.apiUrl}/bot${this.token}/${method}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs),
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
     });
-    const data = await res.json().catch(() => ({})) as any;
+    const data = (await res.json().catch(() => ({}))) as any;
     if (!res.ok || !data.ok) {
-      const err = new Error(`Telegram ${method} lỗi ${res.status}${data?.description ? `: ${data.description}` : ''}`) as Error & { retryAfter?: number };
+      const err = new Error(
+        `Telegram ${method} lỗi ${res.status}${data?.description ? `: ${data.description}` : ''}`,
+      ) as Error & { retryAfter?: number };
       err.retryAfter = data?.parameters?.retry_after;
       throw err;
     }
     return data.result as T;
   }
 
-  getMe() { return this.call<{ id: number; username: string; is_bot: boolean }>('getMe', {}); }
+  getMe() {
+    return this.call<{ id: number; username: string; is_bot: boolean }>('getMe', {});
+  }
 
   /** Long polling 50 giây; chỉ nhận message. */
   getUpdates(offset: number) {

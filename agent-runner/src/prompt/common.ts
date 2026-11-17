@@ -4,15 +4,15 @@ import type { WakeData } from '../validator';
 
 /**
  * Mở đầu + bước 1–4 (TEST-142):
- * - `resumed` = nối phiên CLI cũ (agent còn nhớ, vừa chạy ≤ {@link RESUME_MAX_GAP_MIN} phút trước) → bỏ đọc lại vai trò / dự án, chỉ đọc phần mới.
+ * - `resumed` = nối phiên CLI cũ (agent còn nhớ, vừa chạy ≤ `RESUME_MAX_GAP_MIN` phút trước) → bỏ đọc lại vai trò / dự án, chỉ đọc phần mới.
  * - `continued` = phiên MỚI nhưng việc đã từng làm (worktree / nhánh / phiên cũ còn dấu) → đọc bản Bàn giao + lịch sử nhánh trước khi làm tiếp.
  */
 export function intro(w: WakeData, resumed: boolean, continued = false): string {
   const note = resumed
     ? '\nĐây là phiên NỐI TIẾP (bạn còn nhớ phiên trước): việc có thể vừa bị trả về / có bình luận mới — chỉ đọc phần MỚI để biết lý do trước khi sửa.\n'
     : continued
-      ? '\nViệc này ĐÃ TỪNG LÀM nhưng đây là phiên MỚI (bạn không nhớ phiên trước): đọc kỹ bình luận gần nhất, nhất là mục **Bàn giao** của lần trước'
-        + ' (đã làm / đang dở / bước tiếp theo), và lịch sử nhánh (git log / git diff so với nhánh gốc) nếu có repo — rồi làm tiếp, không làm lại từ đầu.\n'
+      ? '\nViệc này ĐÃ TỪNG LÀM nhưng đây là phiên MỚI (bạn không nhớ phiên trước): đọc kỹ bình luận gần nhất, nhất là mục **Bàn giao** của lần trước' +
+        ' (đã làm / đang dở / bước tiếp theo), và lịch sử nhánh (git log / git diff so với nhánh gốc) nếu có repo — rồi làm tiếp, không làm lại từ đầu.\n'
       : '';
   const read = resumed
     ? `1–2. (Đã đọc ở phiên trước — bỏ qua get_my_role / get_project trừ khi cần xem lại.)
@@ -28,9 +28,6 @@ ${read}
 4. update_task_status → trạng thái đang làm theo quy trình của dự án.
 `;
 }
-
-/** Nối phiên CLI cũ chỉ khi lần chạy trước cách ≤ ngần này phút (cache prompt còn sống) — xa hơn thì phiên mới + bản Bàn giao rẻ hơn (TEST-142). */
-export const RESUME_MAX_GAP_MIN = 10;
 
 export function finish(w: WakeData): string {
   return `6. Xong: comment_task ${w.task_code} báo kết quả (đã làm gì, kiểm tra gì, còn gì), rồi chuyển việc sang trạng thái ngay trước trạng thái cần duyệt

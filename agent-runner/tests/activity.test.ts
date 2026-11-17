@@ -1,8 +1,8 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
-import { ActivitySender, activityUrl } from '../src/activity';
+import { ActivitySender, activityUrl } from '../src/hub/activity';
 import type { ActivityEvent } from '../src/executor/events';
 import { parseConfig } from '../src/config';
-import { baseRaw } from './units.test';
+import { baseRaw } from './fixtures/config';
 
 /** Máy chủ giả /mcp/activity: ghi từng lô, trả theo kịch bản `replies` (hết kịch bản → 204). */
 const batches: ActivityEvent[][] = [];
@@ -12,18 +12,28 @@ let auth: string | null = null;
 let onRequest: (() => void) | undefined;
 let server: ReturnType<typeof Bun.serve>;
 let url = '';
-const defaults = { intervalMs: ActivitySender.intervalMs, maxBatch: ActivitySender.maxBatch, maxBytes: ActivitySender.maxBytes,
-  maxQueue: ActivitySender.maxQueue, retryDelayMs: ActivitySender.retryDelayMs, drainMs: ActivitySender.drainMs };
+const defaults = {
+  intervalMs: ActivitySender.intervalMs,
+  maxBatch: ActivitySender.maxBatch,
+  maxBytes: ActivitySender.maxBytes,
+  maxQueue: ActivitySender.maxQueue,
+  retryDelayMs: ActivitySender.retryDelayMs,
+  drainMs: ActivitySender.drainMs,
+};
 
 beforeAll(() => {
   server = Bun.serve({
     port: 0,
     async fetch(req) {
       auth = req.headers.get('authorization');
-      onRequest?.(); onRequest = undefined;
-      const body = await req.json() as { events: ActivityEvent[] };
+      onRequest?.();
+      onRequest = undefined;
+      const body = (await req.json()) as { events: ActivityEvent[] };
       const r = replies.shift() ?? 204;
-      if (r === 'hang') { await new Promise((ok) => setTimeout(ok, 2_000)); return new Response(null, { status: 204 }); }
+      if (r === 'hang') {
+        await new Promise((ok) => setTimeout(ok, 2_000));
+        return new Response(null, { status: 204 });
+      }
       if (r === 204) batches.push(body.events);
       return new Response(null, { status: r });
     },
@@ -31,9 +41,18 @@ beforeAll(() => {
   url = `http://localhost:${server.port}/mcp`;
 });
 afterAll(() => server.stop(true));
-afterEach(() => { batches.length = 0; replies = []; Object.assign(ActivitySender, defaults); });
+afterEach(() => {
+  batches.length = 0;
+  replies = [];
+  Object.assign(ActivitySender, defaults);
+});
 
-const ev = (n: number, extra: Partial<ActivityEvent> = {}): ActivityEvent => ({ id: `e${n}`, kind: 'say', text: `tin ${n}`, ...extra });
+const ev = (n: number, extra: Partial<ActivityEvent> = {}): ActivityEvent => ({
+  id: `e${n}`,
+  kind: 'say',
+  text: `tin ${n}`,
+  ...extra,
+});
 const ids = () => batches.map((b) => b.map((e) => e.id));
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -50,7 +69,9 @@ describe('gửi hoạt động xem trực tiếp (TEST-99)', () => {
   test('gom theo thời gian: nhiều sự kiện trong một nhịp → một lô, đúng thứ tự', async () => {
     ActivitySender.intervalMs = 60;
     const s = new ActivitySender(url, 't', 'NV120');
-    s.push(ev(1)); s.push(ev(2)); s.push(ev(3));
+    s.push(ev(1));
+    s.push(ev(2));
+    s.push(ev(3));
     expect(batches.length).toBe(0); // chưa tới nhịp
     await sleep(150);
     expect(ids()).toEqual([['e1', 'e2', 'e3']]);
@@ -64,7 +85,7 @@ describe('gửi hoạt động xem trực tiếp (TEST-99)', () => {
     ActivitySender.intervalMs = 60_000;
     const s = new ActivitySender(url, 't', 'NV120');
     for (let i = 0; i < 120; i++) s.push(ev(i));
-    await sleep(200);                                               // nhịp 60 giây chưa tới mà đã gửi hết: lượt gửi đang chạy lấy luôn phần còn lại
+    await sleep(200); // nhịp 60 giây chưa tới mà đã gửi hết: lượt gửi đang chạy lấy luôn phần còn lại
     expect(batches.map((b) => b.length)).toEqual([50, 50, 20]);
     expect(batches.flat().map((e) => e.id)).toEqual(Array.from({ length: 120 }, (_, i) => `e${i}`));
   });
@@ -79,7 +100,9 @@ describe('gửi hoạt động xem trực tiếp (TEST-99)', () => {
   });
 
   test('hàng chờ đầy → bỏ sự kiện cũ nhất', async () => {
-    ActivitySender.maxQueue = 10; ActivitySender.maxBatch = 100; ActivitySender.intervalMs = 60_000;
+    ActivitySender.maxQueue = 10;
+    ActivitySender.maxBatch = 100;
+    ActivitySender.intervalMs = 60_000;
     const s = new ActivitySender(url, 't', 'NV120');
     for (let i = 0; i < 25; i++) s.push(ev(i));
     expect(s.pending).toBe(10);
@@ -104,15 +127,15 @@ describe('gửi hoạt động xem trực tiếp (TEST-99)', () => {
   test('5xx / 429 → thử lại lô đó 1 lần; vẫn lỗi → bỏ lô, lô sau vẫn gửi', async () => {
     ActivitySender.retryDelayMs = 10;
     const s = new ActivitySender(url, 't', 'NV120');
-    replies = [503];             // lần đầu lỗi, thử lại được
+    replies = [503]; // lần đầu lỗi, thử lại được
     s.push(ev(1));
     await s.drain();
     expect(ids()).toEqual([['e1']]);
-    replies = [429, 500];        // lỗi cả hai lần → bỏ
+    replies = [429, 500]; // lỗi cả hai lần → bỏ
     s.push(ev(2));
     await s.drain();
     expect(ids()).toEqual([['e1']]);
-    s.push(ev(3));               // vẫn hoạt động
+    s.push(ev(3)); // vẫn hoạt động
     await s.drain();
     expect(ids()).toEqual([['e1'], ['e3']]);
     expect(s.active).toBe(true);
@@ -156,15 +179,15 @@ describe('gửi hoạt động xem trực tiếp (TEST-99)', () => {
     // drain cuối job lặp vô hạn, runner treo 100% CPU, không bình luận chi phí.
     ActivitySender.intervalMs = 40;
     const s = new ActivitySender(url, 't', 'NV120');
-    onRequest = () => s.push(ev(2));       // e2 vào hàng chờ khi lô [e1] đang trên đường → đặt nhịp mới
+    onRequest = () => s.push(ev(2)); // e2 vào hàng chờ khi lô [e1] đang trên đường → đặt nhịp mới
     s.push(ev(1));
-    await sleep(200);                      // lô e1, rồi lô e2 (cùng lượt gửi); nhịp của e2 chạy khi hàng chờ đã rỗng
+    await sleep(200); // lô e1, rồi lô e2 (cùng lượt gửi); nhịp của e2 chạy khi hàng chờ đã rỗng
     expect(ids()).toEqual([['e1'], ['e2']]);
     expect((s as any).sending).toBeUndefined();
     const t = Date.now();
     await s.drain();
     expect(Date.now() - t).toBeLessThan(500);
-    s.push(ev(3));                         // vẫn gửi tiếp được
+    s.push(ev(3)); // vẫn gửi tiếp được
     await s.drain();
     expect(ids()).toEqual([['e1'], ['e2'], ['e3']]);
   });
@@ -172,9 +195,11 @@ describe('gửi hoạt động xem trực tiếp (TEST-99)', () => {
   test('drain trên bộ gửi chưa có gì / gọi nhiều lần liên tiếp → xong ngay', async () => {
     const s = new ActivitySender(url, 't', 'NV120');
     const t = Date.now();
-    await s.drain(); await s.drain();
+    await s.drain();
+    await s.drain();
     s.push(ev(1));
-    await s.drain(); await s.drain();
+    await s.drain();
+    await s.drain();
     expect(Date.now() - t).toBeLessThan(1_000);
     expect(ids()).toEqual([['e1']]);
   });
@@ -189,7 +214,8 @@ describe('gửi hoạt động xem trực tiếp (TEST-99)', () => {
     replies = ['hang'];
     s.push(ev(2));
     const t = Date.now();
-    s.flushNow(); s.flushNow();            // đồng bộ, trả về ngay
+    s.flushNow();
+    s.flushNow(); // đồng bộ, trả về ngay
     expect(Date.now() - t).toBeLessThan(50);
     s.stop();
   });
@@ -204,9 +230,11 @@ describe('gửi hoạt động xem trực tiếp (TEST-99)', () => {
 
   test('config: runner.activity_stream mặc định bật, chỉ nhận true / false', () => {
     expect(parseConfig(baseRaw()).activityStream).toBe(true);
-    const off = baseRaw() as any; off.runner.activity_stream = false;
+    const off = baseRaw() as any;
+    off.runner.activity_stream = false;
     expect(parseConfig(off).activityStream).toBe(false);
-    const bad = baseRaw() as any; bad.runner.activity_stream = 'no';
+    const bad = baseRaw() as any;
+    bad.runner.activity_stream = 'no';
     expect(() => parseConfig(bad)).toThrow(/activity_stream/);
   });
 });

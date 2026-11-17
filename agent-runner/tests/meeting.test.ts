@@ -5,11 +5,15 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseConfig } from '../src/config';
-import { MEETING_RESUME_MAX, MEETING_TURN_MAX_MIN, Runner } from '../src/runner';
+import { MEETING_RESUME_MAX, MEETING_TURN_MAX_MIN } from '../src/policy';
+import { Runner } from '../src/runner';
+import { formatFinding } from '../src/doctor/finding';
 import { Store } from '../src/store';
 
-const S = '01a1d500-0000-7000-8000-0000000000aa', ROOM = '01a1d500-0000-7000-8000-0000000000bb';
-const P = '01a1cb11-4644-716a-bf4d-8ab17b2f159b', T1 = '01a1ced9-0a22-713a-b89d-cbd02c09c92d';
+const S = '01a1d500-0000-7000-8000-0000000000aa',
+  ROOM = '01a1d500-0000-7000-8000-0000000000bb';
+const P = '01a1cb11-4644-716a-bf4d-8ab17b2f159b',
+  T1 = '01a1ced9-0a22-713a-b89d-cbd02c09c92d';
 const TOKENS: Record<string, { id: string; code: string }> = {
   ohk_meeting_secret_agent_120: { id: 'emp-1', code: 'NV120' },
   ohk_meeting_secret_agent_121: { id: 'emp-2', code: 'NV121' },
@@ -24,7 +28,9 @@ let meeting: { active: boolean; bots: string[]; speaker: string | null; next: (s
 let spoken: string[], passes: string[], comments: string[], presence: any[], activity: any[];
 /** Phiên mức dùng AI runner gửi (TEST-135) — không reset giữa các test. */
 const usage: any[] = [];
-const advance = () => { meeting.speaker = meeting.next.shift() ?? null; };
+const advance = () => {
+  meeting.speaker = meeting.next.shift() ?? null;
+};
 
 beforeAll(async () => {
   server = Bun.serve({
@@ -34,42 +40,77 @@ beforeAll(async () => {
       // CLI giả "phát biểu": chỉ nhận khi đúng lượt (như Api chặn 409)
       if (url.pathname === '/ctl/speak') {
         const agent = url.searchParams.get('agent')!;
-        if (meeting.active && meeting.speaker === agent) { spoken.push(agent); advance(); return new Response('ok'); }
+        if (meeting.active && meeting.speaker === agent) {
+          spoken.push(agent);
+          advance();
+          return new Response('ok');
+        }
         return new Response('không phải lượt', { status: 409 });
       }
       const who = TOKENS[(req.headers.get('authorization') ?? '').replace('Bearer ', '')];
       if (!who) return new Response(null, { status: 401 });
-      if (url.pathname === '/mcp/presence') { presence.push({ agent: who.code, ...(await req.json() as object) }); return new Response(null, { status: 204 }); }
-      if (url.pathname === '/mcp/activity') { activity.push(...(await req.json() as any).events.map((e: any) => ({ agent: who.code, ...e }))); return new Response(null, { status: 204 }); }
+      if (url.pathname === '/mcp/presence') {
+        presence.push({ agent: who.code, ...((await req.json()) as object) });
+        return new Response(null, { status: 204 });
+      }
+      if (url.pathname === '/mcp/activity') {
+        activity.push(...((await req.json()) as any).events.map((e: any) => ({ agent: who.code, ...e })));
+        return new Response(null, { status: 204 });
+      }
       if (url.pathname === '/mcp/usage') {
-        const b = await req.json() as any;
+        const b = (await req.json()) as any;
         usage.push(...b.sessions.map((s: any) => ({ agent: who.code, ...s })));
         return Response.json({ accepted: b.sessions.length, created: b.sessions.length, updated: 0 });
       }
-      const m = await req.json() as any;
+      const m = (await req.json()) as any;
       const reply = (result: unknown) => Response.json({ jsonrpc: '2.0', id: m.id, result });
       if (m.method === 'initialize') return reply({ protocolVersion: '2025-06-18', capabilities: {} });
       const { name, arguments: a } = m.params;
       const text = (o: unknown) => reply({ content: [{ type: 'text', text: JSON.stringify(o) }] });
-      if (name === 'get_my_profile') return text({ employee: { id: who.id, code: who.code, fullName: `Bot ${who.code}` } });
+      if (name === 'get_my_profile')
+        return text({ employee: { id: who.id, code: who.code, fullName: `Bot ${who.code}` } });
       if (name === 'get_my_meeting') {
         if (!meeting.active || !meeting.bots.includes(who.code)) return text({ inMeeting: false });
-        return text({ inMeeting: true, sessionId: S, conversation: ROOM, isChair: who.code === 'NV120', isMyTurn: meeting.speaker === who.code });
+        return text({
+          inMeeting: true,
+          sessionId: S,
+          conversation: ROOM,
+          isChair: who.code === 'NV120',
+          isMyTurn: meeting.speaker === who.code,
+        });
       }
       if (name === 'pass_turn') {
-        if (meeting.speaker !== who.code) return reply({ isError: true, content: [{ type: 'text', text: 'Chưa tới lượt của bạn' }] });
-        passes.push(who.code); advance();
+        if (meeting.speaker !== who.code)
+          return reply({ isError: true, content: [{ type: 'text', text: 'Chưa tới lượt của bạn' }] });
+        passes.push(who.code);
+        advance();
         return text({ ok: true });
       }
-      if (name === 'get_task') return text({ task: { id: T1, projectId: P, assigneeEmployeeId: who.id, done: false, title: 'Lập báo giá', code: 'TEST-45' }, dependsOn: [] });
-      if (name === 'comment_task') { comments.push(a.content); return text({ ok: true }); }
+      if (name === 'get_task')
+        return text({
+          task: {
+            id: T1,
+            projectId: P,
+            assigneeEmployeeId: who.id,
+            done: false,
+            title: 'Lập báo giá',
+            code: 'TEST-45',
+          },
+          dependsOn: [],
+        });
+      if (name === 'comment_task') {
+        comments.push(a.content);
+        return text({ ok: true });
+      }
       return reply({ isError: true, content: [{ type: 'text', text: 'tool lạ' }] });
     },
   });
 
   // CLI giả: ghi tham số + prompt; có file "speak" → phát biểu; có file "slow" → chạy 1 giây
   const bin = join(root, 'fake-agent.sh');
-  writeFileSync(bin, `#!/bin/sh
+  writeFileSync(
+    bin,
+    `#!/bin/sh
 [ "$1" = "--version" ] && { echo "fake 1.0"; exit 0; }
 cwd="$3"; prompt="$5"; dir="$(dirname "$prompt")"
 echo "$@" > "$dir/args.txt"
@@ -79,16 +120,30 @@ cp "$7" "$dir/mcp-copy.json"
 [ -f "$(dirname "$0")/speak" ] && curl -s -o /dev/null "$FAKE_CTL/speak?agent=$OFFICEHUB_AGENT"
 cd "$cwd" || exit 3
 echo '{"session_id":"sess-'$OFFICEHUB_AGENT'","model":"fake-model-1","cost_usd":0.05,"summary":"xong"}'
-`);
+`,
+  );
   chmodSync(bin, 0o755);
   const envFile = join(root, 'agent.env');
   writeFileSync(envFile, `FAKE_CTL=http://localhost:${server.port}/ctl\n`);
   const agent = (code: string, n: number) => ({
-    employee_code: code, telegram_bot: `@agent_biz0${n}_bot`, telegram_token: `12345678${n}:AAH-meeting-test-token-abcdefghijklmn`,
-    token: Object.keys(TOKENS)[n - 1], env_file: envFile, workspace: { mode: 'none' },
+    employee_code: code,
+    telegram_bot: `@agent_biz0${n}_bot`,
+    telegram_token: `12345678${n}:AAH-meeting-test-token-abcdefghijklmn`,
+    token: Object.keys(TOKENS)[n - 1],
+    env_file: envFile,
+    workspace: { mode: 'none' },
     // TEST-141: model chính cho việc, `light.model` cho lượt họp ({model} ở cuối args — CLI giả đọc tham số theo vị trí)
-    executor: { kind: 'custom', bin, home: join(root, 'home'), timeout_min: 60, model: 'big-model', light: { model: 'small-model' },
-      args: ['run', '--cwd', '{cwd}', '--prompt', '{prompt_file}', '--mcp', '{mcp_config}', '--model', '{model}'], resume_args: ['--session', '{session_id}'], output: { format: 'json' } },
+    executor: {
+      kind: 'custom',
+      bin,
+      home: join(root, 'home'),
+      timeout_min: 60,
+      model: 'big-model',
+      light: { model: 'small-model' },
+      args: ['run', '--cwd', '{cwd}', '--prompt', '{prompt_file}', '--mcp', '{mcp_config}', '--model', '{model}'],
+      resume_args: ['--session', '{session_id}'],
+      output: { format: 'json' },
+    },
   });
   const config = parseConfig({
     officehub: { mcp_url: `http://localhost:${server.port}/mcp` },
@@ -99,13 +154,17 @@ echo '{"session_id":"sess-'$OFFICEHUB_AGENT'","model":"fake-model-1","cost_usd":
   mkdirSync(dataDir, { recursive: true });
   store = new Store(join(dataDir, 'runner.db'));
   runner = new Runner(config, store);
-  const lines = await runner.checkAgents(undefined, false);
+  const lines = (await runner.checkAgents({ telegram: false })).map(formatFinding);
   expect(lines.filter((l) => l.startsWith('✘'))).toEqual([]);
 });
 
 beforeEach(() => {
   meeting = { active: true, bots: ['NV120', 'NV121'], speaker: 'NV120', next: [] };
-  spoken = []; passes = []; comments = []; presence = []; activity = [];
+  spoken = [];
+  passes = [];
+  comments = [];
+  presence = [];
+  activity = [];
   for (const f of ['speak', 'slow']) rmSync(join(root, f), { force: true });
   store.db.run(`DELETE FROM jobs`);
   store.db.run(`DELETE FROM task_sessions`);
@@ -118,11 +177,18 @@ afterAll(() => {
 });
 
 const agentOf = (code: string) => runner.agents.get(code)!;
-const turnMsg = (code: string, session = S) => ({
-  message_id: 1, date: 0, chat: { id: -1001234567890, type: 'supergroup' },
-  text: JSON.stringify({ employee_code: code, event: 'meeting_turn', session_id: session, conversation_id: ROOM }),
-}) as any;
-const runNext = async () => { const job = store.claimNext(2, ['NV120', 'NV121'])!; await runner.process(job); return store.getJob(job.id)!; };
+const turnMsg = (code: string, session = S) =>
+  ({
+    message_id: 1,
+    date: 0,
+    chat: { id: -1001234567890, type: 'supergroup' },
+    text: JSON.stringify({ employee_code: code, event: 'meeting_turn', session_id: session, conversation_id: ROOM }),
+  }) as any;
+const runNext = async () => {
+  const job = store.claimNext(2, ['NV120', 'NV121'])!;
+  await runner.process(job);
+  return store.getJob(job.id)!;
+};
 const file = (job: { id: number }, name: string) => readFileSync(join(dataDir, 'jobs', String(job.id), name), 'utf8');
 
 test('hai agent nói lần lượt: mỗi lượt một phiên ngắn chỉ tool MCP, nối phiên theo cuộc họp, không bình luận / không đổi trạng thái 3D', async () => {
@@ -135,7 +201,14 @@ test('hai agent nói lần lượt: mỗi lượt một phiên ngắn chỉ tool
   const id = await runner.onMessage(agentOf('NV120'), turnMsg('NV120'));
   expect(id).not.toBeNull();
   const first = await runNext();
-  expect(first).toMatchObject({ id: id!, agent: 'NV120', kind: 'meeting', status: 'done', task_id: `NV120:${S}`, cost_usd: 0.05 });
+  expect(first).toMatchObject({
+    id: id!,
+    agent: 'NV120',
+    kind: 'meeting',
+    status: 'done',
+    key: `NV120:${S}`,
+    cost_usd: 0.05,
+  });
   expect(spoken).toEqual(['NV120']);
   expect(file(first, 'args.txt')).toContain(join(dataDir, 'work/NV120', `meeting-${S}`));
   expect(file(first, 'args.txt')).not.toContain('--session');
@@ -147,7 +220,7 @@ test('hai agent nói lần lượt: mỗi lượt một phiên ngắn chỉ tool
 
   // lượt 2: NV121; lượt 3: NV120 nối phiên cũ của chính cuộc họp này
   await runner.onMessage(agentOf('NV121'), turnMsg('NV121'));
-  expect(await runNext()).toMatchObject({ agent: 'NV121', task_id: `NV121:${S}`, status: 'done' }); // khoá riêng từng agent: không giẫm job / phiên của NV120
+  expect(await runNext()).toMatchObject({ agent: 'NV121', key: `NV121:${S}`, status: 'done' }); // khoá riêng từng agent: không giẫm job / phiên của NV120
   await runner.onMessage(agentOf('NV120'), turnMsg('NV120'));
   const third = await runNext();
   expect(spoken).toEqual(['NV120', 'NV121', 'NV120']);
@@ -159,15 +232,24 @@ test('hai agent nói lần lượt: mỗi lượt một phiên ngắn chỉ tool
   await Bun.sleep(200);
   expect(presence.some((p) => p.state === 'working')).toBe(false);
   // Xem trực tiếp (TEST-99): mỗi lượt nói là một phiên có nhãn chung, không có nội dung cuộc họp
-  expect(activity.filter((e) => e.kind === 'session_start').map((e) => `${e.agent} ${e.task}`))
-    .toEqual(['NV120 Phát biểu trong cuộc họp', 'NV121 Phát biểu trong cuộc họp', 'NV120 Phát biểu trong cuộc họp']);
+  expect(activity.filter((e) => e.kind === 'session_start').map((e) => `${e.agent} ${e.task}`)).toEqual([
+    'NV120 Phát biểu trong cuộc họp',
+    'NV121 Phát biểu trong cuộc họp',
+    'NV120 Phát biểu trong cuộc họp',
+  ]);
   for (let i = 0; i < 30 && activity.filter((e) => e.kind === 'session_end').length < 3; i++) await Bun.sleep(100); // bộ gửi chạy ở nền
   expect(activity.filter((e) => e.kind === 'session_end').length).toBe(3);
   expect(store.costsByKind('2000-01-01')).toMatchObject([{ kind: 'meeting', jobs: 3, cost: 0.15000000000000002 }]);
   // Mức dùng AI (TEST-135): mỗi lượt nói một phiên kind meeting, gửi bằng token của đúng bot, không có id / mã việc
   for (let i = 0; i < 30 && usage.length < 3; i++) await Bun.sleep(100);
-  expect(usage.map((u) => `${u.agent} ${u.kind} ${u.status} ${u.costUsd}`)).toEqual(['NV120 meeting done 0.05', 'NV121 meeting done 0.05', 'NV120 meeting done 0.05']);
-  expect(usage.every((u) => u.taskId === undefined && u.taskCode === undefined && u.sourceId.includes(`:${u.agent}:`))).toBe(true);
+  expect(usage.map((u) => `${u.agent} ${u.kind} ${u.status} ${u.costUsd}`)).toEqual([
+    'NV120 meeting done 0.05',
+    'NV121 meeting done 0.05',
+    'NV120 meeting done 0.05',
+  ]);
+  expect(
+    usage.every((u) => u.taskId === undefined && u.taskCode === undefined && u.sourceId.includes(`:${u.agent}:`)),
+  ).toBe(true);
 }, 30000);
 
 test('agent không nói trong lượt → runner bỏ lượt thay; lượt đã qua / họp đã dừng → bỏ job, không gọi CLI', async () => {
@@ -208,7 +290,13 @@ test('một lượt họp tối đa 2,5 phút dù executor.timeout_min dài hơn
 
 test('đang họp thì không chạy việc: job việc hoãn tới khi cuộc họp kết thúc', async () => {
   meeting.speaker = 'NV121'; // NV120 dự họp nhưng chưa tới lượt
-  const id = (await runner.accept(agentOf('NV120'), { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' }))!;
+  const id = (await runner.accept(agentOf('NV120'), {
+    kind: 'task',
+    employee_code: 'NV120',
+    project_id: P,
+    task_id: T1,
+    task_code: 'TEST-45',
+  }))!;
   const held = await runNext();
   expect(held).toMatchObject({ id, status: 'queued', reason: 'agent đang họp — chờ hết cuộc họp' });
   expect(Date.parse(held.not_before!)).toBeGreaterThan(Date.now() + 20_000);
@@ -237,7 +325,13 @@ test('đang họp thì không chạy việc: job việc hoãn tới khi cuộc h
 test('agent đang chạy job việc mà tới lượt họp → runner bỏ lượt ngay, không xếp hàng', async () => {
   meeting.active = false; // việc bắt đầu khi chưa có cuộc họp
   writeFileSync(join(root, 'slow'), '');
-  await runner.accept(agentOf('NV120'), { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' });
+  await runner.accept(agentOf('NV120'), {
+    kind: 'task',
+    employee_code: 'NV120',
+    project_id: P,
+    task_id: T1,
+    task_code: 'TEST-45',
+  });
   const job = store.claimNext(2, ['NV120'])!;
   const running = runner.process(job);
   await Bun.sleep(300);
@@ -254,16 +348,30 @@ test('lượt mới tới khi job họp của cùng phiên đang chạy → xong
   writeFileSync(join(root, 'speak'), '');
   writeFileSync(join(root, 'slow'), '');
   meeting.next = ['NV120', null]; // nói xong lượt lại quay về NV120 (vd chủ trì, không ai chờ)
-  const id = (await runner.acceptMeeting(agentOf('NV120'), { employee_code: 'NV120', session_id: S, conversation_id: ROOM }))!;
+  const id = (await runner.accept(agentOf('NV120'), {
+    kind: 'meeting',
+    employee_code: 'NV120',
+    session_id: S,
+    conversation_id: ROOM,
+  }))!;
   const job = store.claimNext(2, ['NV120'])!;
   const running = runner.process(job);
   await Bun.sleep(300);
-  expect(await runner.acceptMeeting(agentOf('NV120'), { employee_code: 'NV120', session_id: S, conversation_id: ROOM })).toBeNull();
+  expect(
+    await runner.accept(agentOf('NV120'), {
+      kind: 'meeting',
+      employee_code: 'NV120',
+      session_id: S,
+      conversation_id: ROOM,
+    }),
+  ).toBeNull();
   expect(store.getJob(id)!.rerun).toBe(1);
   await running;
   expect(spoken).toEqual(['NV120']);
   expect(passes).toEqual([]); // lượt mới không bị runner bỏ
-  const next = store.db.query<any, [string]>(`SELECT * FROM jobs WHERE task_id = ? AND status = 'queued'`).get(`NV120:${S}`);
+  const next = store.db
+    .query<any, [string]>(`SELECT * FROM jobs WHERE task_id = ? AND status = 'queued'`)
+    .get(`NV120:${S}`);
   expect(next?.kind).toBe('meeting');
 }, 30000);
 
@@ -282,6 +390,9 @@ test('TEST-142: họp nối phiên tối đa MEETING_RESUME_MAX lượt liên ti
   store.db.run(`UPDATE task_sessions SET resumes = ? WHERE task_id = ?`, [MEETING_RESUME_MAX, key]);
   expect(await turn()).not.toContain('--session'); // đủ trần → phiên mới, đếm lại
   expect(store.session(key)!.resumes).toBe(0);
-  store.db.run(`UPDATE task_sessions SET updated_at = ? WHERE task_id = ?`, [new Date(Date.now() - 11 * 60_000).toISOString(), key]);
+  store.db.run(`UPDATE task_sessions SET updated_at = ? WHERE task_id = ?`, [
+    new Date(Date.now() - 11 * 60_000).toISOString(),
+    key,
+  ]);
   expect(await turn()).not.toContain('--session'); // cách > 10 phút
 }, 30000);

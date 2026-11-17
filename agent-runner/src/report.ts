@@ -12,11 +12,14 @@ const n = (x: number) => x.toLocaleString('en');
  */
 export function kindReportLines(rows: KindCost[]): string[] {
   return rows.map((r) => {
-    const read = r.cache_read ?? 0, write = r.cache_write ?? 0;
+    const read = r.cache_read ?? 0,
+      write = r.cache_write ?? 0;
     const plain = Math.max(0, (r.input ?? 0) - read - write);
     const avg = r.costed ? `$${((r.cost ?? 0) / r.costed).toFixed(3)} / phiên` : 'chi phí không rõ';
     const hit = r.input_with_cache ? `${Math.round((read / r.input_with_cache) * 100)}%` : '—';
-    return `${KIND_LABEL[r.kind] ?? r.kind}\t${r.jobs} phiên\t$${(r.cost ?? 0).toFixed(2)} (${avg})`
-      + `\tvào ${n(plain)} · ghi cache ${n(write)} · đọc cache ${n(read)} · ra ${n(r.output ?? 0)}\tđọc cache ${hit}`;
+    return (
+      `${KIND_LABEL[r.kind] ?? r.kind}\t${r.jobs} phiên\t$${(r.cost ?? 0).toFixed(2)} (${avg})` +
+      `\tvào ${n(plain)} · ghi cache ${n(write)} · đọc cache ${n(read)} · ra ${n(r.output ?? 0)}\tđọc cache ${hit}`
+    );
   });
 }

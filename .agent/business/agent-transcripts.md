@@ -9,7 +9,7 @@ runner ─POST/GET /mcp/transcripts (token AI bot)─▶ Mcp (chỉ bot, gắn u
   Api: audit.agent_transcripts (metadata, bản bàn giao mã hoá) + S3 {S3__KeyPrefix}files/agent-transcripts/{userId}/{id}.enc (nội dung mã hoá)
 ```
 
-## Runner (`agent-runner/src/transcript.ts`)
+## Runner (`agent-runner/src/hub/transcript.ts`)
 
 - Chỉ adapter có transcript (`claude`: `<HOME>/.claude/projects/<cwd mã hoá>/<session>.jsonl`). Adapter `custom` không gửi.
 - Sau mỗi phiên (việc / chat / họp): `task_sessions.transcript_pending = 1` + `kind` + `summary` (câu cuối của agent) → `TranscriptReporter.flush()` ở nền; nhịp 5 phút gửi lại hàng chờ (chung nhịp mức dùng AI); `run` chờ gửi trước khi thoát.
