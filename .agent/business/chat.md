@@ -47,6 +47,7 @@ Thành viên phòng: Realtime báo khi người chơi **bước vào** phòng c�
 | POST | `/conversations/{id}/messages` `{text?, uploadIds?, clientId?}` | `SendResultDto` (`message, conversationType, roomId, roomName, recipients`) |
 | DELETE | `/messages/{id}` · POST `/conversations/{id}/read` | thu hồi (chỉ người gửi; lặp lại = 200) · đã đọc → 204 |
 | POST | `/uploads` · GET `/attachments/{id}/url?download=` | vé + presigned PUT 30 phút · link tải mới (404 nếu tin thu hồi / không phải thành viên) |
+| GET | `/attachments/{id}` · `/attachments/{id}/preview?max=` | TEST-151 (cho MCP `view_attachment`, token AI chỉ tài khoản bot): `AttachmentDto` + link 10 phút · ảnh → JPEG cạnh dài ≤ 1280 (`BuildingBlocks/Imaging/ImageThumbnail`, SkiaSharp; không lưu bản thu nhỏ), không phải ảnh 400, hỏng / > 40 MP 422. Quyền như `/url` |
 | POST | `/internal/rooms/{roomId}/members` | `AllowAnonymous` + `X-Chat-Key`, 204 idempotent, sai khoá 401 |
 
 `id` hội thoại: Guid, `office` hoặc `room:<id>`. Quy tắc (`Domain/ChatRules.cs`): trim, ≤ **1000** ký tự, cần chữ hoặc ≥ 1 tệp, ≤ **5** tệp; < 1 giây → **429**; gửi lại cùng `clientId` → trả tin cũ. **Chưa đọc** = tin người khác, chưa thu hồi, `Seq` > `LastReadSeq`; Office khởi tạo ở tin mới nhất khi xem lần đầu, Room khi vào phòng, Direct bắt đầu từ 0. **Thu hồi**: API ẩn chữ + tệp (`deleted: true`) nhưng dòng và file S3 vẫn giữ. Sửa tin (24 giờ), cảm xúc, tìm: [chat-extras.md](chat-extras.md).

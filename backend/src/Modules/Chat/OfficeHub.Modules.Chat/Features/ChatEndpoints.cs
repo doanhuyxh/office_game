@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Http;
+using OfficeHub.BuildingBlocks.Imaging;
 using OfficeHub.BuildingBlocks.Storage;
 using OfficeHub.BuildingBlocks.Text;
 using OfficeHub.Modules.Chat.Domain;
@@ -44,6 +45,8 @@ public static class ChatEndpoints
         g.MapDelete("/conversations/{id}/members/me", LeaveGroupAsync);
         g.MapPost("/uploads", CreateUploadAsync);
         g.MapGet("/attachments/{id:guid}/url", AttachmentUrlAsync);
+        g.MapGet("/attachments/{id:guid}", AttachmentInfoAsync);
+        g.MapGet("/attachments/{id:guid}/preview", AttachmentPreviewAsync);
     }
 
     private static Guid Me(ClaimsPrincipal user) => user.GetUserId() ?? throw new InvalidOperationException("Thiếu tài khoản");
@@ -587,12 +590,54 @@ public static class ChatEndpoints
     private static async Task<Results<Ok<UrlDto>, ProblemHttpResult>> AttachmentUrlAsync(Guid id, bool? download, ClaimsPrincipal user,
         ChatDbContext db, ChatStore store, IFileStorage files, CancellationToken ct)
     {
-        var me = Me(user);
+        var att = await VisibleAttachmentAsync(id, user, db, store, ct);
+        if (att is null) return Problems.NotFound("tệp");
+        var url = await files.GetDownloadUrlAsync(att.FileKey, att.FileName, inline: att.IsImage && download != true, ChatRules.AttachmentUrlTtl);
+        return TypedResults.Ok(new UrlDto(url));
+    }
+
+    /// <summary>
+    /// Thông tin một tệp + link presigned hạn ngắn (<see cref="ChatRules.AiAttachmentUrlTtl"/>) — cho tool MCP view_attachment (TEST-151).
+    /// Cùng quyền như <c>/url</c>: thành viên hội thoại, tin chưa thu hồi; token AI phải là tài khoản bot.
+    /// </summary>
+    private static async Task<Results<Ok<AttachmentDto>, ProblemHttpResult>> AttachmentInfoAsync(Guid id, ClaimsPrincipal user,
+        ChatDbContext db, ChatStore store, IFileStorage files, IAccountService accounts, CancellationToken ct)
+    {
+        if (await AiGuardAsync(user, accounts, ct) is { } denied) return denied;
+        var att = await VisibleAttachmentAsync(id, user, db, store, ct);
+        if (att is null) return Problems.NotFound("tệp");
+        var url = await files.GetDownloadUrlAsync(att.FileKey, att.FileName, inline: att.IsImage, ChatRules.AiAttachmentUrlTtl);
+        return TypedResults.Ok(new AttachmentDto(att.Id, att.FileName, att.ContentType, att.Size, att.IsImage, url));
+    }
+
+    /// <summary>
+    /// Ảnh đính kèm thu nhỏ thành JPEG cạnh dài ≤ <paramref name="max"/> (mặc định / tối đa <see cref="ChatRules.PreviewMaxSide"/>) — trợ lý AI
+    /// nhìn trực tiếp qua MCP (TEST-151). Quyền như <see cref="AttachmentInfoAsync"/>. Tệp không phải ảnh → 400; ảnh hỏng / quá lớn → 422.
+    /// Không lưu ảnh thu nhỏ (thu nhỏ mỗi lần gọi; DB chỉ giữ khoá S3).
+    /// </summary>
+    private static async Task<Results<FileContentHttpResult, ProblemHttpResult>> AttachmentPreviewAsync(Guid id, int? max, ClaimsPrincipal user,
+        HttpContext http, ChatDbContext db, ChatStore store, IFileStorage files, IAccountService accounts, CancellationToken ct)
+    {
+        if (await AiGuardAsync(user, accounts, ct) is { } denied) return denied;
+        var att = await VisibleAttachmentAsync(id, user, db, store, ct);
+        if (att is null) return Problems.NotFound("tệp");
+        if (!att.IsImage)
+            return TypedResults.Problem("Tệp không phải ảnh — dùng link tải về", statusCode: StatusCodes.Status400BadRequest);
+        await using var src = await files.OpenReadAsync(att.FileKey, ct);
+        var thumb = ImageThumbnail.ToJpeg(src, Math.Clamp(max ?? ChatRules.PreviewMaxSide, ChatRules.PreviewMinSide, ChatRules.PreviewMaxSide));
+        if (thumb is null)
+            return TypedResults.Problem("Không đọc được ảnh (hỏng hoặc quá lớn)", statusCode: StatusCodes.Status422UnprocessableEntity);
+        http.Response.Headers.CacheControl = "private, no-store";
+        return TypedResults.File(thumb.Data, thumb.ContentType);
+    }
+
+    /// <summary>Tệp của tin chưa thu hồi trong hội thoại tôi xem được (bot: chỉ loại hội thoại bot dùng được); không → null (trả 404).</summary>
+    private static async Task<MessageAttachment?> VisibleAttachmentAsync(Guid id, ClaimsPrincipal user, ChatDbContext db, ChatStore store, CancellationToken ct)
+    {
         var att = await db.Attachments.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id, ct);
         var msg = att is null ? null : await db.Messages.AsNoTracking().FirstOrDefaultAsync(m => m.Id == att.MessageId && m.DeletedAt == null, ct);
         var conv = msg is null ? null : await db.Conversations.AsNoTracking().FirstOrDefaultAsync(c => c.Id == msg.ConversationId, ct);
-        if (att is null || conv is null || !await store.CanAccessAsync(conv, me, ct)) return Problems.NotFound("tệp");
-        var url = await files.GetDownloadUrlAsync(att.FileKey, att.FileName, inline: att.IsImage && download != true, ChatRules.AttachmentUrlTtl);
-        return TypedResults.Ok(new UrlDto(url));
+        if (conv is null || HiddenForAi(user, conv) || !await store.CanAccessAsync(conv, Me(user), ct)) return null;
+        return att;
     }
 }

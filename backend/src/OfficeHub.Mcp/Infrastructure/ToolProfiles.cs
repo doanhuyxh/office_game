@@ -38,6 +38,7 @@ public static class ToolProfiles
     {
         "speak_in_meeting", "pass_turn", "assign_turn", "get_my_meeting",
         "list_chats", "read_chat", "send_chat_message", "mark_chat_read",
+        "view_attachment", // TEST-151: hiện chỉ xem tệp chat — mở cho task khi thêm tệp đính kèm bình luận việc
         // TEST-152: tải tệp hiện chỉ để gửi kèm tin chat (không có trong phiên task) — TEST-153 mở lại khi comment_task nhận tệp
         "create_upload",
         "approve_request", "reject_request", "cancel_my_request",
