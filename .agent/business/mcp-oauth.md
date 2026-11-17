@@ -41,7 +41,7 @@ API ứng dụng đã kết nối: `GET /api/oauth/grants` (của tôi), `DELETE
 
 - `GET /api/auth/ai-connections` (HR; `?page=&pageSize=` → trang): token cá nhân + ứng dụng đang hoạt động của cả công ty. HR thu hồi hộ bằng `DELETE /api/auth/access-tokens/{id}` / `DELETE /api/oauth/grants/{id}`.
 - `AccessTokens__Enabled=false` → mọi token / ứng dụng AI bị 401, `/api/oauth/token` trả `access_denied` (công tắc toàn công ty, cần khởi động lại Api).
-- `AccessTokens__RequestsPerMinute` (mặc định 120): `GlobalLimiter` theo `access_token_id` → 429 (MCP báo "Gọi quá nhiều lần"). Cookie web không bị giới hạn này.
+- `AccessTokens__RequestsPerMinute` (mặc định 120): `GlobalLimiter` theo `access_token_id` → 429 (problem chỉ có title "Too Many Requests" → MCP báo "Gọi quá nhiều lần … đợi khoảng 1 phút"; `ProblemMessage` bỏ title chỉ là tên mã HTTP — TEST-155). Cookie web không bị giới hạn này.
 
 ## FE
 

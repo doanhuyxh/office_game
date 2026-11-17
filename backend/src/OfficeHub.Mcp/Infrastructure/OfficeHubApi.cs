@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.AspNetCore.WebUtilities;
 using ModelContextProtocol;
 using OfficeHub.BuildingBlocks.Auth;
 
@@ -97,7 +98,9 @@ public sealed class OfficeHubApi(HttpClient http, IHttpContextAccessor ctx)
                     foreach (var (field, msgs) in errors)
                         if (msgs is JsonArray arr) parts.AddRange(arr.Select(m => $"{field}: {m}"));
                 if (parts.Count == 0 && o["detail"]?.GetValue<string>() is { Length: > 0 } d) parts.Add(d);
-                if (parts.Count == 0 && o["title"]?.GetValue<string>() is { Length: > 0 } t) parts.Add(t);
+                // Tiêu đề chỉ là tên mã HTTP ("Too Many Requests" của bộ giới hạn tần suất…) → dùng câu tiếng Việt bên dưới (TEST-155)
+                if (parts.Count == 0 && o["title"]?.GetValue<string>() is { Length: > 0 } t
+                    && !string.Equals(t, ReasonPhrases.GetReasonPhrase((int)status), StringComparison.OrdinalIgnoreCase)) parts.Add(t);
             }
         }
         catch (JsonException) { /* body không phải JSON */ }
@@ -108,7 +111,7 @@ public sealed class OfficeHubApi(HttpClient http, IHttpContextAccessor ctx)
             HttpStatusCode.Unauthorized => "Token không hợp lệ hoặc đã bị thu hồi. Tạo token mới ở trang Kết nối AI.",
             HttpStatusCode.Forbidden => "Bạn không có quyền thực hiện thao tác này.",
             HttpStatusCode.NotFound => "Không tìm thấy dữ liệu.",
-            HttpStatusCode.TooManyRequests => "Gọi quá nhiều lần, thử lại sau ít phút.",
+            HttpStatusCode.TooManyRequests => "Gọi quá nhiều lần trong thời gian ngắn (giới hạn số request / phút của token AI) — đợi khoảng 1 phút rồi thử lại.",
             _ => $"OfficeHub trả lỗi {(int)status}.",
         };
     }

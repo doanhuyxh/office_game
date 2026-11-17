@@ -42,6 +42,7 @@ bun run dev                                   # http://localhost:5173, proxy /ap
 | Tạo lại tài khoản / hợp đồng thử, e2e văn phòng 3D | `TEST_PASSWORD=… [BASE_URL=http://localhost:5173] bun scripts/dev/<seed-org|seed-contracts|office-e2e|voice-e2e>.ts` (xem [progress.md](progress.md)) | gốc repo |
 | Icon PWA · nhập model GLB văn phòng 3D | `bun scripts/dev/make-icons.ts` · `bun scripts/dev/import-furniture.ts <kenney.zip\|thư-mục>` (ghi `frontend/public/models/furniture/` + manifest) · nhân vật: `bun scripts/dev/import-characters.ts <dir có men/ women/ .gltf>` (ghi `public/models/characters/` + `shared/avatar-catalog.json`) | gốc repo |
 | E2E khác (MCP, OAuth, chat phòng, lương / ký, bot trong 3D: `bot-*-e2e.ts`…) | xem [e2e.md](e2e.md) | gốc repo |
+| E2E hai bot trao đổi ảnh (chat + bình luận việc, TEST-155) | `E2E_LOCAL_DB=1 API_URL=… MCP_URL=…/mcp PG_URL=postgres://…@127.0.0.1:…/… ADMIN_LOGIN=… ADMIN_PASSWORD=… bun scripts/dev/agent-image-exchange-e2e.ts` — chỉ DB + S3 tạm, dựng theo đầu file | gốc repo |
 | Thêm / cập nhật component shadcn | `bun run ui:add <tên…> [--overwrite]` → vào `src/components/common/` (**không** gọi `bunx shadcn add` trực tiếp) | `frontend/` |
 
 FE **không có lint/test runner** (không có ESLint, Vitest). Kiểm tra = `bun run build` (gồm `bun run check:buttons`).

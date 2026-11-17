@@ -127,6 +127,17 @@ public class ApiErrorTests
         Assert.Contains("Token", OfficeHubApi.ProblemMessage(HttpStatusCode.Unauthorized, ""));
 
     [Fact]
+    public void Generic_reason_phrase_title_falls_back_to_vietnamese_message()
+    {
+        // Bộ giới hạn tần suất của Api trả problem chỉ có title = tên mã HTTP → agent cần câu rõ ràng, không phải "Too Many Requests"
+        var msg = OfficeHubApi.ProblemMessage(HttpStatusCode.TooManyRequests, """{"title":"Too Many Requests","status":429}""");
+        Assert.Contains("1 phút", msg);
+        Assert.Equal("Bot đã tải 30 tệp trong 1 giờ qua — đợi rồi gửi tiếp",
+            OfficeHubApi.ProblemMessage(HttpStatusCode.TooManyRequests, """{"title":"Too Many Requests","detail":"Bot đã tải 30 tệp trong 1 giờ qua — đợi rồi gửi tiếp"}"""));
+        Assert.Equal("Dự án đã đóng", OfficeHubApi.ProblemMessage(HttpStatusCode.Conflict, """{"title":"Dự án đã đóng"}"""));
+    }
+
+    [Fact]
     public void Dates_and_months_are_validated()
     {
         Assert.Equal("2026-11-06", ToolHelpers.Date(" 2026-11-06 ", "Ngày"));
