@@ -44,6 +44,11 @@ agents:
       home: /srv/agents/NV120/home               # HOME riêng (đăng nhập CLI, gh auth login, ~/.claude)
       timeout_min: 60                            # hết giờ → kill cả process group
       max_budget_usd: 5                          # claude: --max-budget-usd
+      # max_turns: 200                           # claude: --max-turns (số vòng gọi tool tối đa mỗi phiên); bỏ trống = không giới hạn
+      # light:                                   # tuỳ chọn — phiên chat_mention / meeting_turn (ngắn, chỉ tool MCP); trường nào bỏ trống thì theo executor
+      #   model: claude-haiku-5-5                #   model nhỏ cho trả lời tin nhắn / phát biểu trong họp (doctor chạy thử cả model này)
+      #   max_budget_usd: 0.2
+      #   max_turns: 8
       extra_args: []
 
   - employee_code: NV121

@@ -233,8 +233,8 @@ export class Store {
 
   /** Chi phí theo agent + model chính (TEST-64, lệnh `report`); job không rõ model → model null. */
   costsByModel(sinceIso: string) {
-    return this.db.query<{ agent: string; model: string | null; jobs: number; cost: number | null; input: number | null; output: number | null }, [string]>(`
-      SELECT agent, model, COUNT(*) jobs, SUM(cost_usd) cost, SUM(input_tokens) input, SUM(output_tokens) output
-      FROM jobs WHERE finished_at >= ? GROUP BY agent, model ORDER BY agent, cost DESC`).all(sinceIso);
+    return this.db.query<{ agent: string; kind: string; model: string | null; jobs: number; cost: number | null; input: number | null; output: number | null }, [string]>(`
+      SELECT agent, COALESCE(kind, 'task') kind, model, COUNT(*) jobs, SUM(cost_usd) cost, SUM(input_tokens) input, SUM(output_tokens) output
+      FROM jobs WHERE finished_at >= ? GROUP BY agent, 2, model ORDER BY agent, 2, cost DESC`).all(sinceIso);
   }
 }

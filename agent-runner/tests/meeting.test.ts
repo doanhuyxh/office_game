@@ -85,8 +85,9 @@ echo '{"session_id":"sess-'$OFFICEHUB_AGENT'","model":"fake-model-1","cost_usd":
   const agent = (code: string, n: number) => ({
     employee_code: code, telegram_bot: `@agent_biz0${n}_bot`, telegram_token: `12345678${n}:AAH-meeting-test-token-abcdefghijklmn`,
     token: Object.keys(TOKENS)[n - 1], env_file: envFile, workspace: { mode: 'none' },
-    executor: { kind: 'custom', bin, home: join(root, 'home'), timeout_min: 60,
-      args: ['run', '--cwd', '{cwd}', '--prompt', '{prompt_file}', '--mcp', '{mcp_config}'], resume_args: ['--session', '{session_id}'], output: { format: 'json' } },
+    // TEST-141: model chính cho việc, `light.model` cho lượt họp ({model} ở cuối args — CLI giả đọc tham số theo vị trí)
+    executor: { kind: 'custom', bin, home: join(root, 'home'), timeout_min: 60, model: 'big-model', light: { model: 'small-model' },
+      args: ['run', '--cwd', '{cwd}', '--prompt', '{prompt_file}', '--mcp', '{mcp_config}', '--model', '{model}'], resume_args: ['--session', '{session_id}'], output: { format: 'json' } },
   });
   const config = parseConfig({
     officehub: { mcp_url: `http://localhost:${server.port}/mcp` },
@@ -137,6 +138,7 @@ test('hai agent nói lần lượt: mỗi lượt một phiên ngắn chỉ tool
   expect(spoken).toEqual(['NV120']);
   expect(file(first, 'args.txt')).toContain(join(dataDir, 'work/NV120', `meeting-${S}`));
   expect(file(first, 'args.txt')).not.toContain('--session');
+  expect(file(first, 'args.txt')).toContain('--model small-model'); // TEST-141: lượt họp dùng executor.light
   const prompt = file(first, 'prompt-copy.md');
   for (const r of ['get_my_meeting', 'speak_in_meeting', 'pass_turn', 'get_my_role', S]) expect(prompt).toContain(r);
   expect(prompt).not.toContain('NỐI TIẾP');
@@ -225,6 +227,7 @@ test('đang họp thì không chạy việc: job việc hoãn tới khi cuộc h
   store.db.run(`UPDATE jobs SET not_before = ? WHERE id = ?`, [new Date(Date.now() - 1000).toISOString(), id]);
   const done = await runNext();
   expect(done).toMatchObject({ id, status: 'done', kind: 'task' });
+  expect(file(done, 'args.txt')).toContain('--model big-model'); // TEST-141: job việc vẫn dùng model chính
   expect(comments.length).toBe(1);
 }, 30000);
 

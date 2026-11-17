@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ConfigError, isInside, parseConfig } from '../src/config';
+import { ConfigError, isInside, lightExecutor, parseConfig } from '../src/config';
 import { claudeAdapter, parseProbe, probeArgs } from '../src/executor/adapters/claude';
 import { mainModel, modelLine, modelMatches, readModelUsage } from '../src/executor/model';
 import { resultComment } from '../src/runner';
@@ -198,6 +198,37 @@ describe('executor adapters', () => {
     const a = c.args.join(' ');
     for (const f of ['-p P', '--output-format stream-json', '--verbose', '--mcp-config /j/mcp.json', '--strict-mcp-config', '--setting-sources user',
       '--permission-mode bypassPermissions', '--model claude-sonnet-5-5', '--max-budget-usd 5', '--resume sess-1']) expect(a).toContain(f);
+  });
+
+  test('executor.light (TEST-141): đè model / ngân sách / số vòng cho chat / họp; không khai báo → y như cũ; sai → lỗi', () => {
+    expect(exec.light).toBeUndefined();
+    expect(lightExecutor(exec)).toEqual({ ...exec });
+    expect(claudeAdapter.command(ctx).args).not.toContain('--max-turns');
+    const r: any = baseRaw();
+    r.agents[0].executor.max_turns = 80;
+    r.agents[0].executor.light = { model: 'claude-haiku-5-5', max_budget_usd: 0.2, max_turns: 8 };
+    const e = parseConfig(r).agents[0]!.executor;
+    expect(e).toMatchObject({ model: 'claude-sonnet-5-5', maxBudgetUsd: 5, maxTurns: 80, light: { model: 'claude-haiku-5-5', maxBudgetUsd: 0.2, maxTurns: 8 } });
+    const l = lightExecutor(e);
+    expect(l).toMatchObject({ model: 'claude-haiku-5-5', maxBudgetUsd: 0.2, maxTurns: 8, kind: 'claude', bin: '/usr/local/bin/claude', timeoutMin: 60 });
+    expect(l.light).toBeUndefined();
+    const a = claudeAdapter.command({ ...ctx, exec: l }).args.join(' ');
+    for (const f of ['--model claude-haiku-5-5', '--max-budget-usd 0.2', '--max-turns 8']) expect(a).toContain(f);
+    expect(claudeAdapter.command({ ...ctx, exec: e }).args.join(' ')).toContain('--max-turns 80'); // job việc: executor chính
+    // Chỉ đặt một phần → phần còn lại theo executor
+    r.agents[0].executor.light = { model: 'claude-haiku-5-5' };
+    expect(lightExecutor(parseConfig(r).agents[0]!.executor)).toMatchObject({ model: 'claude-haiku-5-5', maxBudgetUsd: 5, maxTurns: 80 });
+    // Sai
+    for (const [bad, msg] of [
+      [{ max_turns: 0 }, 'light.max_turns'], [{ max_budget_usd: -1 }, 'light.max_budget_usd'], [{ model: '' }, 'light.model'],
+      [{ timeout_min: 5 }, 'light.timeout_min: không hỗ trợ'], ['haiku', 'executor.light phải là một mục'],
+    ] as const) {
+      r.agents[0].executor.light = bad;
+      expect(() => parseConfig(r)).toThrow(msg);
+    }
+    r.agents[0].executor.light = undefined;
+    r.agents[0].executor.max_turns = 1.5;
+    expect(() => parseConfig(r)).toThrow('executor.max_turns');
   });
 
   test('claude: noBuiltinTools → --tools "" (chỉ tool MCP); mặc định không có', () => {
@@ -471,8 +502,8 @@ describe('store', () => {
       expect(s.getJob(a)).toMatchObject({ model: 'claude-opus-5-5' });
       expect(JSON.parse(s.getJob(a)!.model_usage!)).toEqual({ 'claude-opus-5-5': { costUsd: 1 } });
       expect(s.costsByModel('2000-01-01')).toEqual([
-        { agent: 'NV1', model: null, jobs: 1, cost: 2, input: null, output: null },
-        { agent: 'NV1', model: 'claude-opus-5-5', jobs: 2, cost: 1.5, input: null, output: null },
+        { agent: 'NV1', kind: 'task', model: null, jobs: 1, cost: 2, input: null, output: null },
+        { agent: 'NV1', kind: 'task', model: 'claude-opus-5-5', jobs: 2, cost: 1.5, input: null, output: null },
       ]);
       s.db.close();
       new Store(path).db.close(); // mở lại: cột đã có, không ALTER lần nữa

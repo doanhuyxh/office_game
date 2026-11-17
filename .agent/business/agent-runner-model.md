@@ -19,6 +19,7 @@ Adapter `custom`: dòng JSON output có `model` thì đọc; không có → ghi 
   - Model không hợp lệ (404 / "selected model") → `✘`, **agent tắt** (cả `start` lẫn `doctor`).
   - Lỗi khác (mạng, hết quota, đăng nhập) → `⚠`, agent vẫn bật.
   - Model thật khác cấu hình → `⚠ model thật Y KHÁC cấu hình X`. So khớp: không phân biệt hoa thường, bỏ hậu tố `[…]`, tên thật chứa tên cấu hình là khớp (alias `opus` ↔ `claude-opus-5-5`).
+- Có `executor.light.model` khác model chính (TEST-141) → chạy thử thêm một lần, dòng `NV120 (chat / họp): model thật …`; model `light` sai cũng làm agent tắt.
 - `--no-model-check` (`start`, `doctor`, `run`): bỏ chạy thử (tốn token) — dòng ghi "chưa kiểm tra".
 
 ## Mỗi job

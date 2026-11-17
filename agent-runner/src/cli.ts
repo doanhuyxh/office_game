@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigError, loadConfig } from './config';
 import { errText, log, setLogFormat } from './log';
-import { kindReportLines } from './report';
+import { KIND_LABEL, kindReportLines } from './report';
 import { Runner } from './runner';
 import { Store } from './store';
 import { USAGE_MAX_SESSIONS, usageSession } from './usage';
@@ -75,8 +75,9 @@ async function main() {
       if (kinds.length) console.log('\nTheo loại (token vào không cache · ghi cache · đọc cache · ra; tỉ lệ đọc cache):\n' + kindReportLines(kinds).join('\n'));
       const byModel = store.costsByModel(new Date(Date.now() - days * 86_400_000).toISOString());
       if (byModel.length) {
-        console.log('\nTheo model (model chính của phiên):');
-        for (const r of byModel) console.log(`${r.agent}\t${r.model ?? 'không rõ'}\t${r.jobs} phiên\t$${(r.cost ?? 0).toFixed(2)}\t${r.input ?? 0} vào / ${r.output ?? 0} ra`);
+        console.log('\nTheo model (model chính của phiên, theo loại job — chat / họp dùng executor.light nếu có):');
+        for (const r of byModel)
+          console.log(`${r.agent}\t${KIND_LABEL[r.kind] ?? r.kind}\t${r.model ?? 'không rõ'}\t${r.jobs} phiên\t$${(r.cost ?? 0).toFixed(2)}\t${r.input ?? 0} vào / ${r.output ?? 0} ra`);
       }
       return 0;
     }

@@ -18,7 +18,7 @@
 - **Đang họp thì không chạy việc**: trước mỗi job việc / chat, runner hỏi `get_my_meeting`; agent đang dự cuộc họp → job về hàng đợi, `not_before` = 30 giây sau (`MEETING_HOLD_SEC`), hỏi lại tới khi hết họp. Không hỏi được (tài khoản không phải bot, OfficeHub bản cũ) → coi như không họp.
 - **Chỉ tool MCP**: job chat / họp luôn chạy với `noBuiltinTools` (adapter `claude`: `--tools ""`), kể cả agent mode `worktree` / `in_place` — tin nhắn là nội dung người khác viết, không được dẫn tới chạy lệnh / đọc ghi file trên máy.
 - **Thư mục chạy** trống, riêng: `{data_dir}/work/{mã NV}/chat-{conversation_id}` / `meeting-{session_id}`.
-- **Model / ngân sách**: dùng `executor` của agent như job việc (chưa tách cấu hình riêng). Riêng một lượt họp bị giới hạn 2,5 phút.
+- **Model / ngân sách** (TEST-141): `executor.light` (`model`, `max_budget_usd`, `max_turns`) đè từng trường của `executor` cho job chat / họp (`lightExecutor`, `config.ts`); không khai báo → dùng `executor` như job việc. Adapter `custom` nhận model qua `{model}`, bỏ qua ngân sách / số vòng. `doctor` / khởi động chạy thử cả model `light` (sai → agent tắt). `report` mục "Theo model" tách theo loại job. Riêng một lượt họp bị giới hạn 2,5 phút.
 - Không bình luận vào việc, không báo trạng thái 3D (`presence`); chi phí / model lưu ở `jobs`, `report` có dòng "Theo loại" (việc / chat / họp).
 - Cột thêm bằng `ALTER TABLE` lúc mở DB: `jobs.kind` (null = task), `rerun`, `not_before`.
 
@@ -46,4 +46,4 @@ Mỗi tin = **một lượt nói** = một job ngắn.
 
 `units.test.ts` (parseWake / check* / prompt / store), `flow.test.ts` (chat: xếp hàng, gộp, nối phiên, quá 24 giờ, đã đọc → bỏ, rerun, kênh office), `meeting.test.ts` (MCP giả giữ lượt + CLI giả phát biểu: hai agent nói lần lượt, nối phiên, bỏ lượt thay, lượt đã qua, việc hoãn khi đang họp, đang làm việc → bỏ lượt, lượt mới giữa phiên).
 
-Chưa thử với OfficeHub thật (người thật @nhắc bot; mở họp 2–3 agent). Chưa có: trần chi phí riêng mỗi cuộc họp, model rẻ hơn cho chat / họp, tin tổng chi phí vào kênh phòng.
+Chưa thử với OfficeHub thật (người thật @nhắc bot; mở họp 2–3 agent). Chưa có: trần chi phí riêng mỗi cuộc họp, tin tổng chi phí vào kênh phòng.

@@ -9,6 +9,13 @@ export interface ExecutorConfig {
   home?: string;
   timeoutMin: number;
   maxBudgetUsd?: number;
+  /** claude: `--max-turns` (số vòng gọi tool tối đa của một phiên). Không đặt = không giới hạn. */
+  maxTurns?: number;
+  /**
+   * Cấu hình nhẹ cho phiên chat_mention / meeting_turn (TEST-141): mỗi trường đè trường cùng tên của executor, không đặt = dùng executor.
+   * Phiên ngắn chỉ gọi vài tool MCP rồi viết một tin → model nhỏ, ngân sách / số vòng thấp. Xem {@link lightExecutor}.
+   */
+  light?: { model?: string; maxBudgetUsd?: number; maxTurns?: number };
   extraArgs: string[];
   /** custom */
   args?: string[];
@@ -67,6 +74,7 @@ export class ConfigError extends Error {
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+const int = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) ? v : undefined);
 const strList = (v: unknown) => (Array.isArray(v) && v.every((x) => typeof x === 'string') ? (v as string[]) : undefined);
 
 /** Username bot Telegram chuẩn hoá: "@…" chữ thường. */
@@ -138,6 +146,22 @@ export function parseConfig(raw: unknown): RunnerConfig {
     if (timeoutMin < 1 || timeoutMin > 600) p.push(`${at}.executor.timeout_min từ 1 đến 600`);
     const budget = num(e.max_budget_usd);
     if (budget !== undefined && budget <= 0) p.push(`${at}.executor.max_budget_usd phải > 0`);
+    const maxTurns = int(e.max_turns);
+    if (e.max_turns !== undefined && (maxTurns === undefined || maxTurns < 1 || maxTurns > 500)) p.push(`${at}.executor.max_turns là số nguyên từ 1 đến 500`);
+    // TEST-141: cấu hình nhẹ cho chat / họp
+    let light: ExecutorConfig['light'];
+    if (e.light !== undefined && e.light !== null) {
+      const l = e.light;
+      if (typeof l !== 'object' || Array.isArray(l)) p.push(`${at}.executor.light phải là một mục (model / max_budget_usd / max_turns)`);
+      else {
+        const lb = num(l.max_budget_usd), lt = int(l.max_turns);
+        if (l.model !== undefined && !str(l.model)) p.push(`${at}.executor.light.model phải là tên model`);
+        if (l.max_budget_usd !== undefined && (lb === undefined || lb <= 0)) p.push(`${at}.executor.light.max_budget_usd phải > 0`);
+        if (l.max_turns !== undefined && (lt === undefined || lt < 1 || lt > 500)) p.push(`${at}.executor.light.max_turns là số nguyên từ 1 đến 500`);
+        for (const k of Object.keys(l)) if (!['model', 'max_budget_usd', 'max_turns'].includes(k)) p.push(`${at}.executor.light.${k}: không hỗ trợ (chỉ model, max_budget_usd, max_turns)`);
+        light = { model: str(l.model), maxBudgetUsd: lb, maxTurns: lt };
+      }
+    }
     const args = strList(e.args), resumeArgs = strList(e.resume_args);
     if (kind === 'custom' && !args) p.push(`${at}.executor.args bắt buộc với kind custom`);
     const fmt = e.output?.format ?? 'text';
@@ -149,7 +173,7 @@ export function parseConfig(raw: unknown): RunnerConfig {
         employeeCode: code, telegramBot: normalizeBot(bot), telegramToken: tgToken, token, repo: repo ? resolve(repo) : '', envFile,
         workspace: { mode, allowBaseBranch: w.allow_base_branch === true, allowEnvFiles: w.allow_env_files === true },
         executor: {
-          kind, bin, model: str(e.model), home: str(e.home), timeoutMin, maxBudgetUsd: budget, extraArgs: strList(e.extra_args) ?? [],
+          kind, bin, model: str(e.model), home: str(e.home), timeoutMin, maxBudgetUsd: budget, maxTurns, light, extraArgs: strList(e.extra_args) ?? [],
           args, resumeArgs, outputFormat: fmt,
         },
       });
@@ -163,6 +187,16 @@ export function parseConfig(raw: unknown): RunnerConfig {
     dataDir: resolve(dataDir!), worktreesDir: resolve(worktreesDir!), maxParallel,
     baseBranch: str(rn.base_branch) ?? 'main', gitBin: gitBin ?? 'git', logFormat, activityStream, agents,
   };
+}
+
+/**
+ * Executor cho phiên chat / họp (TEST-141): trường nào `light` có thì đè, còn lại giữ executor của agent (không khai báo `light` → y như cũ).
+ * Kết quả không còn `light` (tránh áp hai lần).
+ */
+export function lightExecutor(e: ExecutorConfig): ExecutorConfig {
+  const { light, ...base } = e;
+  if (!light) return base;
+  return { ...base, model: light.model ?? e.model, maxBudgetUsd: light.maxBudgetUsd ?? e.maxBudgetUsd, maxTurns: light.maxTurns ?? e.maxTurns };
 }
 
 /** Đọc file cấu hình YAML. Cảnh báo (không chặn) khi file đọc được bởi người khác. */

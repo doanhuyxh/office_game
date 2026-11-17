@@ -71,6 +71,7 @@ export const claudeAdapter: Adapter = {
       '--mcp-config', ctx.mcpConfigFile, '--strict-mcp-config', '--setting-sources', 'user', '--permission-mode', 'bypassPermissions'];
     if (e.model) args.push('--model', e.model);
     if (e.maxBudgetUsd !== undefined) args.push('--max-budget-usd', String(e.maxBudgetUsd));
+    if (e.maxTurns !== undefined) args.push('--max-turns', String(e.maxTurns));
     if (ctx.resumeSessionId) args.push('--resume', ctx.resumeSessionId);
     if (ctx.noBuiltinTools) args.push('--tools', ''); // chỉ tool MCP (CLI 2.1.x: --tools "" = tắt mọi tool có sẵn)
     args.push(...e.extraArgs);

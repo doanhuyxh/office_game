@@ -1,7 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { isInside, readEnvFile, type AgentConfig, type RunnerConfig } from './config';
+import { isInside, lightExecutor, readEnvFile, type AgentConfig, type RunnerConfig } from './config';
 import { modelLine, modelMatches } from './executor/model';
 import { adapters, runExecutor, type RunOutcome } from './executor/run';
 import type { ExecutorConfig } from './config';
@@ -148,6 +148,11 @@ export class Runner {
         const model = await this.checkModel(s, modelCheck);
         if (model.fail) { fail(model.fail); continue; }
         out.push(model.line);
+        // TEST-141: model riêng cho chat / họp (`executor.light.model`) — sai thì agent tắt như model chính
+        const light = s.cfg.executor.light?.model && s.cfg.executor.light.model !== s.cfg.executor.model
+          ? await this.checkModel(s, modelCheck, lightExecutor(s.cfg.executor), 'chat / họp') : undefined;
+        if (light?.fail) { fail(light.fail); continue; }
+        if (light) out.push(light.line);
         s.enabled = true;
         s.problem = undefined;
       } catch (e) {
@@ -158,17 +163,17 @@ export class Runner {
   }
 
   /** Model thật của agent (TEST-64): `fail` = model không hợp lệ (agent tắt); `line` = dòng ✔ / ⚠ cho doctor / log khởi động. */
-  private async checkModel(s: AgentState, enabled: boolean): Promise<{ line: string; fail?: string }> {
-    const code = s.cfg.employeeCode, configured = s.cfg.executor.model;
-    const adapter = adapters[s.cfg.executor.kind];
-    if (!adapter?.probe || !adapter.parseProbe) return { line: `✔ ${code}: model ${configured ?? 'mặc định của CLI'} (adapter ${s.cfg.executor.kind} không chạy thử — đọc model từ output mỗi job nếu có)` };
+  private async checkModel(s: AgentState, enabled: boolean, exec = s.cfg.executor, purpose?: string): Promise<{ line: string; fail?: string }> {
+    const code = purpose ? `${s.cfg.employeeCode} (${purpose})` : s.cfg.employeeCode, configured = exec.model;
+    const adapter = adapters[exec.kind];
+    if (!adapter?.probe || !adapter.parseProbe) return { line: `✔ ${code}: model ${configured ?? 'mặc định của CLI'} (adapter ${exec.kind} không chạy thử — đọc model từ output mỗi job nếu có)` };
     if (!enabled) return { line: `✔ ${code}: model ${configured ?? 'mặc định của CLI'} — chưa kiểm tra (--no-model-check)` };
-    const cmd = adapter.probe(s.cfg.executor);
+    const cmd = adapter.probe(exec);
     const r = await sh([cmd.bin, ...cmd.args], this.config.dataDir, this.baseEnv(s.cfg), 120_000);
     const p = adapter.parseProbe(r.out);
-    if (p.invalidModel) return { line: '', fail: `model ${configured ?? '(mặc định)'} không hợp lệ: ${p.error}` };
+    if (p.invalidModel) return { line: '', fail: `model ${purpose ? `${purpose} ` : ''}${configured ?? '(mặc định)'} không hợp lệ: ${p.error}` };
     if (p.error || !p.model) return { line: `⚠ ${code}: chạy thử model lỗi (${p.error ?? `không đọc được model, mã thoát ${r.code}`}) — vẫn bật agent` };
-    s.model = p.model;
+    if (!purpose) s.model = p.model;
     if (!modelMatches(configured, p.model)) return { line: `⚠ ${code}: model thật ${p.model} KHÁC cấu hình ${configured}` };
     return { line: `✔ ${code}: model thật ${p.model}${configured ? (configured === p.model ? '' : ` (cấu hình ${configured})`) : ' (mặc định của CLI)'}` };
   }
@@ -427,7 +432,8 @@ export class Runner {
     const fresh = !!prev && Date.now() - Date.parse(prev.updated_at) < CHAT_SESSION_HOURS * 3_600_000;
     const resume = fresh && prev!.agent === job.agent && prev!.session_id ? prev!.session_id : undefined;
     const out = await this.runSession(s, job, signal, {
-      cwd, prompt: chatPrompt(job.agent, c.value.conversation, !!resume), resume, noBuiltinTools: true, presence: false, label: 'Trả lời tin nhắn',
+      cwd, prompt: chatPrompt(job.agent, c.value.conversation, !!resume), resume, exec: lightExecutor(s.cfg.executor), noBuiltinTools: true, presence: false,
+      label: 'Trả lời tin nhắn',
     });
     this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd);
     this.finishJob(s, job, out);
@@ -449,7 +455,7 @@ export class Runner {
     mkdirSync(cwd, { recursive: true });
     const prev = this.store.session(job.task_id);
     const resume = prev?.agent === job.agent && prev.session_id ? prev.session_id : undefined;
-    const exec = { ...s.cfg.executor, timeoutMin: Math.min(s.cfg.executor.timeoutMin, MEETING_TURN_MAX_MIN) };
+    const exec = { ...lightExecutor(s.cfg.executor), timeoutMin: Math.min(s.cfg.executor.timeoutMin, MEETING_TURN_MAX_MIN) };
     try {
       const out = await this.runSession(s, job, signal, {
         cwd, prompt: meetingPrompt(job.agent, session, !!resume), resume, exec, noBuiltinTools: true, presence: false, label: 'Phát biểu trong cuộc họp',
