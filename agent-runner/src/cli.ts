@@ -63,6 +63,7 @@ async function main() {
       await runner.process(job);
       await s.activity.drain(); // chạy một lần rồi thoát: job đã ghi xong, chờ tối đa 3 giây để người xem nhận nốt "kết thúc phiên"
       await s.usage.flush(); // gửi mức dùng AI trước khi thoát (lỗi → phiên còn chờ, `start` / `usage push` gửi sau)
+      await s.transcripts?.flush(); // TEST-144: transcript lên cloud (lỗi → còn trong hàng chờ, `start` gửi sau)
       const done = store.getJob(job.id)!;
       console.log(JSON.stringify({ status: done.status, reason: done.reason, pr: done.pr_url, model: done.model, cost: done.cost_usd }, null, 2));
       return done.status === 'done' ? 0 : 1;

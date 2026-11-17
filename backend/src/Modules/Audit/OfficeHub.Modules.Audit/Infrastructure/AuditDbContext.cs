@@ -16,6 +16,7 @@ public sealed class AuditDbContext(DbContextOptions<AuditDbContext> options) : D
     public DbSet<AiAlert> AiAlerts => Set<AiAlert>();
     public DbSet<AiSessionUsage> AiUsageSessions => Set<AiSessionUsage>();
     public DbSet<AiSessionModel> AiUsageModels => Set<AiSessionModel>();
+    public DbSet<AgentTranscript> AgentTranscripts => Set<AgentTranscript>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -53,6 +54,21 @@ public sealed class AuditDbContext(DbContextOptions<AuditDbContext> options) : D
             e.Property(x => x.Model).HasMaxLength(AiUsageRoute.MaxModel).IsRequired();
             e.Property(x => x.CostUsd).HasPrecision(12, 6);
             e.HasIndex(x => new { x.SessionId, x.Model }).IsUnique().HasDatabaseName("ux_ai_usage_models_session_model");
+        });
+        // Transcript phiên agent (TEST-144): một bản / (UserId, Key); nội dung mã hoá trên S3.
+        b.Entity<AgentTranscript>(e =>
+        {
+            e.ToTable("agent_transcripts");
+            e.Property(x => x.Key).HasMaxLength(AgentTranscriptRoute.MaxKey).IsRequired();
+            e.Property(x => x.Kind).HasMaxLength(10).IsRequired();
+            e.Property(x => x.SessionId).HasMaxLength(AgentTranscriptRoute.MaxSessionId).IsRequired();
+            e.Property(x => x.Cwd).HasMaxLength(AgentTranscriptRoute.MaxCwd);
+            e.Property(x => x.Branch).HasMaxLength(AgentTranscriptRoute.MaxBranch);
+            e.Property(x => x.Sha256).HasMaxLength(64).IsRequired();
+            e.Property(x => x.StorageKey).HasMaxLength(300).IsRequired();
+            e.HasIndex(x => new { x.UserId, x.Key }).IsUnique().HasDatabaseName("ux_agent_transcripts_user_key");
+            e.HasIndex(x => x.UpdatedAt).HasDatabaseName("ix_agent_transcripts_updated");
+            e.HasIndex(x => x.ExpiresAt).HasDatabaseName("ix_agent_transcripts_expires");
         });
         b.Entity<AiAlert>(e =>
         {

@@ -18,6 +18,7 @@ import { MCP_SYSTEM_PROMPT } from './prompt/system';
 import { userClaudeExtras } from './home-check';
 import { Store, type Job } from './store';
 import { TelegramClient, type TgMessage } from './telegram';
+import { TranscriptReporter } from './transcript';
 import { USAGE_RETRY_MS, UsageReporter, sourceHost } from './usage';
 import { checkChat, checkMeeting, checkTask, parseWake, type ChatWake, type MeetingWake, type WakeData } from './validator';
 import { AGENT_ENV, Git, TASK_ENV, WorkspaceRefused, branchChanges, inPlaceChanges, installHooks, prepareInPlace, prepareWorktree, publish, pushInPlace, removeHooks, sh } from './workspace';
@@ -39,6 +40,8 @@ interface AgentState {
   activity: ActivitySender;
   /** Gửi chi phí / token mỗi phiên lên OfficeHub (TEST-135). */
   usage: UsageReporter;
+  /** Gửi transcript phiên lên cloud + khôi phục lười (TEST-144) — chỉ adapter có transcript (`claude`). */
+  transcripts?: TranscriptReporter;
   employeeId?: string;
   enabled: boolean;
   problem?: string;
@@ -66,6 +69,8 @@ export class Runner {
         presence: new PresenceReporter(config.mcpUrl, a.token, a.employeeCode),
         activity: new ActivitySender(config.mcpUrl, a.token, a.employeeCode, config.activityStream),
         usage: new UsageReporter(config.mcpUrl, a.token, a.employeeCode, store, { ...source, executor: a.executor.kind }),
+        transcripts: adapters[a.executor.kind]?.hasSession
+          ? new TranscriptReporter(config.mcpUrl, a.token, a.employeeCode, store, a.executor.home ?? process.env.HOME ?? homedir()) : undefined,
       });
     }
   }
@@ -413,17 +418,33 @@ export class Runner {
    * vào cache, đắt hơn phiên mới đọc lại từ OfficeHub), transcript còn ở máy (adapter có `hasSession`), chưa nối quá `maxResumes` lần liên tiếp.
    * `task_sessions` mất (máy mới) → phiên mới, không lỗi.
    */
-  private resumeFor(s: AgentState, job: Job, cwd: string, maxResumes?: number): string | undefined {
+  private async resumeFor(s: AgentState, job: Job, cwd: string, maxResumes?: number): Promise<string | undefined> {
     const prev = this.store.session(job.task_id);
-    if (!prev?.session_id || prev.agent !== job.agent) return undefined;
     const why = (reason: string) => { log('info', `mở phiên mới (${reason})`, { job: job.id, agent: job.agent, task: job.task_code }); return undefined; };
+    const adapter = adapters[s.cfg.executor.kind];
+    if (!adapter?.caps.resume) return undefined;
+    // TEST-144: máy mới / mất runner.db → không có dòng phiên; thử bản trên cloud của đúng khoá này (khôi phục lười, chỉ khi còn trong ngưỡng)
+    if (!prev?.session_id || prev.agent !== job.agent) return prev ? undefined : this.restoreFromCloud(s, job, cwd);
     const gapMin = (Date.now() - Date.parse(prev.updated_at)) / 60_000;
     if (!(gapMin <= RESUME_MAX_GAP_MIN)) return why(`lần chạy trước cách ${Math.round(gapMin)} phút > ${RESUME_MAX_GAP_MIN}`);
     if (maxResumes !== undefined && (prev.resumes ?? 0) >= maxResumes) return why(`đã nối ${prev.resumes} lần liên tiếp`);
-    const adapter = adapters[s.cfg.executor.kind];
-    if (!adapter?.caps.resume) return undefined;
-    if (adapter.hasSession && !adapter.hasSession(this.baseEnv(s.cfg).HOME!, cwd, prev.session_id)) return why('không còn transcript ở máy');
+    if (adapter.hasSession && !adapter.hasSession(this.baseEnv(s.cfg).HOME!, cwd, prev.session_id))
+      return (await this.restoreFromCloud(s, job, cwd)) ?? why('không còn transcript ở máy, cloud không có bản dùng được');
     return prev.session_id;
+  }
+
+  /** Khôi phục transcript của khoá job từ cloud (TEST-144); lỗi không chặn job — trả undefined = phiên mới. */
+  private async restoreFromCloud(s: AgentState, job: Job, cwd: string): Promise<string | undefined> {
+    if (!s.transcripts) return undefined;
+    try { return await s.transcripts.restore(job.task_id, cwd); }
+    catch (e) { log('warn', 'khôi phục transcript từ cloud lỗi — mở phiên mới', { job: job.id, agent: job.agent, error: errText(e) }); return undefined; }
+  }
+
+  /** Sau phiên: đưa transcript vào hàng chờ gửi lên cloud (kèm bản bàn giao = câu cuối của agent) và gửi ở nền (TEST-144). */
+  private queueTranscript(s: AgentState, job: Job, out: RunOutcome) {
+    if (!s.transcripts || !out.sessionId) return;
+    this.store.markTranscript(job.task_id, job.kind ?? 'task', out.summary?.trim() ? out.summary.trim() : null);
+    void s.transcripts.flush().catch((e) => log('warn', 'gửi transcript lỗi', { agent: job.agent, error: errText(e) }));
   }
 
   /**
@@ -457,12 +478,13 @@ export class Runner {
     if (!c.ok) { this.store.finish(job.id, 'skipped', { reason: c.reason }); log('info', 'bỏ job', { job: job.id, reason: c.reason }); return; }
     const cwd = this.workDir(job.agent, `chat-${conv}`);
     mkdirSync(cwd, { recursive: true });
-    const resume = this.resumeFor(s, job, cwd);
+    const resume = await this.resumeFor(s, job, cwd);
     const out = await this.runSession(s, job, signal, {
       cwd, prompt: chatPrompt(job.agent, c.value.conversation, !!resume), resume, exec: lightExecutor(s.cfg.executor), noBuiltinTools: true, presence: false,
       label: 'Trả lời tin nhắn',
     });
     this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd, !!resume);
+    this.queueTranscript(s, job, out);
     this.finishJob(s, job, out);
     // Có tin nhắc mới tới giữa phiên → kiểm tra lại (đã đọc hết thì tự bỏ) và chạy thêm một lượt.
     if (this.store.getJob(job.id)?.rerun) await this.acceptChat(s, { employee_code: job.agent, conversation_id: conv, message_id: '' });
@@ -480,13 +502,14 @@ export class Runner {
     if (!c.ok) { this.store.finish(job.id, 'skipped', { reason: c.reason }); log('info', 'bỏ job', { job: job.id, reason: c.reason }); return; }
     const cwd = this.workDir(job.agent, `meeting-${session}`);
     mkdirSync(cwd, { recursive: true });
-    const resume = this.resumeFor(s, job, cwd, MEETING_RESUME_MAX);
+    const resume = await this.resumeFor(s, job, cwd, MEETING_RESUME_MAX);
     const exec = { ...lightExecutor(s.cfg.executor), timeoutMin: Math.min(s.cfg.executor.timeoutMin, MEETING_TURN_MAX_MIN) };
     try {
       const out = await this.runSession(s, job, signal, {
         cwd, prompt: meetingPrompt(job.agent, session, !!resume), resume, exec, noBuiltinTools: true, presence: false, label: 'Phát biểu trong cuộc họp',
       });
       this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd, !!resume);
+      this.queueTranscript(s, job, out);
       this.finishJob(s, job, out);
     } finally {
       await this.afterMeetingTurn(s, job).catch((e) => log('warn', 'không kiểm tra được lượt họp sau phiên', { job: job.id, agent: job.agent, error: errText(e) }));
@@ -557,7 +580,7 @@ export class Runner {
         }
       }
       const prev = this.store.session(job.task_id);
-      const resume = this.resumeFor(s, job, ws.path);
+      const resume = await this.resumeFor(s, job, ws.path);
       // Phiên mới nhưng việc đã từng làm (worktree / nhánh local hoặc origin / phiên cũ) → prompt bảo đọc Bàn giao trước
       const continued = !resume && (ws.reused || !!ws.existing || !!prev);
       if (ws.existing === 'origin') log('info', 'máy chưa có nhánh việc — lấy lại từ origin để làm tiếp', { job: job.id, agent: job.agent, branch: ws.branch });
@@ -565,6 +588,7 @@ export class Runner {
       const out = await this.runSession(s, job, signal, { cwd: ws.path, prompt, resume, noBuiltinTools: mode === 'none', presence: true,
         label: `${job.task_code} · ${c.value.title}` });
       this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, ws.branch, ws.path, !!resume);
+      this.queueTranscript(s, job, out);
 
       let prUrl: string | undefined, note = '';
       if (mode === 'none') {
@@ -622,7 +646,12 @@ export class Runner {
     if (enabled.length === 0) throw new Error('Không agent nào chạy được — xem các dòng ✘ ở trên (chạy `doctor`)');
     for (const s of enabled) { s.presence.start(); void this.listen(s); }
     // Mức dùng AI (TEST-135): gửi phiên còn tồn từ lần chạy trước, rồi gửi lại theo nhịp (máy chủ tạm lỗi / chưa có bản mới)
-    const flushUsage = () => { for (const s of this.agents.values()) void s.usage.flush().catch(() => undefined); };
+    const flushUsage = () => {
+      for (const s of this.agents.values()) {
+        void s.usage.flush().catch(() => undefined);
+        void s.transcripts?.flush().catch(() => undefined); // TEST-144: transcript chờ gửi (máy chủ tạm lỗi / chưa có bản mới)
+      }
+    };
     flushUsage();
     this.usageTimer = setInterval(flushUsage, USAGE_RETRY_MS);
     await this.schedule();

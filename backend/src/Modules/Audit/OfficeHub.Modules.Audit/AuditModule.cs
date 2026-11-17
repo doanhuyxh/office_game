@@ -8,6 +8,7 @@ using OfficeHub.BuildingBlocks.Ai;
 using OfficeHub.BuildingBlocks.Auditing;
 using OfficeHub.BuildingBlocks.Modules;
 using OfficeHub.BuildingBlocks.Persistence;
+using OfficeHub.BuildingBlocks.Security;
 using OfficeHub.Modules.Audit.Features;
 using OfficeHub.Modules.Audit.Infrastructure;
 
@@ -26,6 +27,10 @@ public sealed class AuditModule : IModule
         services.AddHostedService<AuditMigrator>();
         services.AddHostedService<AiAuditWriter>();
         services.AddHostedService<AiAlertMonitor>();
+        // Transcript phiên agent (TEST-144): nội dung mã hoá như lương rồi lên S3; job xoá bản hết hạn.
+        services.AddFieldEncryption(config);
+        services.AddScoped<AgentTranscriptStore>();
+        services.AddHostedService<AgentTranscriptCleanup>();
         // Lịch sử sửa: thay NullChangeAuditSink mặc định (BuildingBlocks) bằng hàng đợi ghi DB.
         services.AddSingleton<ChangeAuditQueue>();
         services.AddSingleton<IChangeAuditSink>(sp => sp.GetRequiredService<ChangeAuditQueue>());
@@ -44,5 +49,9 @@ public sealed class AuditModule : IModule
         AiSessionUsageEndpoints.Map(api.MapGroup("/ai-usage").WithTags("Audit").RequireAuthorization());
         AiSessionUsageEndpoints.MapInternal(api.MapGroup("/audit/internal").WithTags("Audit").AllowAnonymous()
             .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(AiUsageRoute.MaxBodyBytes + 16 * 1024)));
+        // Transcript phiên agent (TEST-144): ghi / đọc nội bộ (body lớn hơn — nhóm riêng), tra soát chỉ admin / HR.
+        AgentTranscriptEndpoints.MapInternal(api.MapGroup("/audit/internal").WithTags("Audit").AllowAnonymous()
+            .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(AgentTranscriptRoute.MaxBodyBytes + 64 * 1024)));
+        AgentTranscriptEndpoints.Map(api.MapGroup("/agent-transcripts").WithTags("Audit").RequireAuthorization());
     }
 }

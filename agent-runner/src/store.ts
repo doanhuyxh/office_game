@@ -70,6 +70,12 @@ export interface SessionRow {
   task_id: string; agent: string; session_id: string | null; branch: string; worktree: string; updated_at: string;
   /** Số lần nối liên tiếp (TEST-142); null = DB cũ. */
   resumes: number | null;
+  /** TEST-144: loại job của phiên (task / chat / meeting), bản bàn giao (câu cuối của agent), transcript chờ gửi lên cloud, sha256 bản đã gửi, lỗi 400. */
+  kind: string | null;
+  summary: string | null;
+  transcript_pending: number | null;
+  transcript_sha: string | null;
+  transcript_error: string | null;
 }
 
 /** Kết quả phiên ghi vào job khi xong. */
@@ -103,7 +109,10 @@ export class Store {
     if (!have.has('cli_ran')) this.db.run(`UPDATE jobs SET cli_ran = 2 WHERE ${LEGACY_CLI_RAN}`);
     // TEST-142: số lần nối liên tiếp của phiên (họp: quá trần → phiên mới)
     const sessCols = new Set(this.db.query<{ name: string }, []>(`PRAGMA table_info(task_sessions)`).all().map((c) => c.name));
-    if (!sessCols.has('resumes')) this.db.exec(`ALTER TABLE task_sessions ADD COLUMN resumes INTEGER`);
+    // TEST-144: transcript lên cloud — loại job, bản bàn giao, hàng chờ gửi
+    for (const [col, type] of [['resumes', 'INTEGER'], ['kind', 'TEXT'], ['summary', 'TEXT'], ['transcript_pending', 'INTEGER'], ['transcript_sha', 'TEXT'],
+      ['transcript_error', 'TEXT']] as const)
+      if (!sessCols.has(col)) this.db.exec(`ALTER TABLE task_sessions ADD COLUMN ${col} ${type}`);
     this.db.exec(`CREATE INDEX IF NOT EXISTS ix_jobs_usage_pending ON jobs(agent, id) WHERE cli_ran IS NOT NULL AND usage_sent_at IS NULL`);
   }
 
@@ -221,6 +230,24 @@ export class Store {
         branch = excluded.branch, worktree = excluded.worktree, updated_at = excluded.updated_at,
         resumes = CASE WHEN ? THEN COALESCE(task_sessions.resumes, 0) + 1 ELSE 0 END`,
       [taskId, agent, sessionId, branch, worktree, this.now(), resumed ? 1 : 0]);
+  }
+
+  /** Sau phiên CLI có transcript (TEST-144): ghi loại job + bản bàn giao, đưa vào hàng chờ gửi lên cloud. */
+  markTranscript(taskId: string, kind: string, summary: string | null) {
+    this.db.run(`UPDATE task_sessions SET kind = ?, summary = ?, transcript_pending = 1, transcript_error = NULL WHERE task_id = ? AND session_id IS NOT NULL`,
+      [kind, summary, taskId]);
+  }
+
+  /** Phiên chờ gửi transcript của một agent (cũ trước). */
+  pendingTranscripts(agent: string, limit = 20) {
+    return this.db.query<SessionRow, [string, number]>(
+      `SELECT * FROM task_sessions WHERE agent = ? AND transcript_pending = 1 AND session_id IS NOT NULL ORDER BY updated_at LIMIT ?`).all(agent, limit);
+  }
+
+  /** Kết quả gửi transcript: `sha` = đã gửi (hoặc bản trên cloud đã khớp); `error` = bỏ, không gửi lại (400 / quá lớn / không còn file). */
+  doneTranscript(taskId: string, r: { sha?: string; error?: string }) {
+    this.db.run(`UPDATE task_sessions SET transcript_pending = 0, transcript_sha = COALESCE(?, transcript_sha), transcript_error = ? WHERE task_id = ?`,
+      [r.sha ?? null, r.error ?? null, taskId]);
   }
 
   offset(bot: string) { return this.db.query<{ next_offset: number }, [string]>(`SELECT next_offset FROM tg_offsets WHERE bot = ?`).get(bot)?.next_offset ?? 0; }

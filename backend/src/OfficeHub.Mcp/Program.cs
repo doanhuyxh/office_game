@@ -27,6 +27,7 @@ var realtimeBase = builder.Configuration.GetSection(McpSettings.Section).Get<Mcp
 builder.Services.AddHttpClient(BotPresenceReporter.RealtimeClientName, c => { c.BaseAddress = new Uri(realtimeBase); c.Timeout = TimeSpan.FromSeconds(5); });
 builder.Services.AddSingleton<BotPresenceReporter>();
 builder.Services.AddSingleton<AiUsageRelay>();
+builder.Services.AddSingleton<AgentTranscriptRelay>();
 // Bot không chạy qua agent-runner: tự phát sự kiện "tool" / session vào luồng hoạt động (TEST-96); sweeper gửi session_end khi bot rảnh.
 builder.Services.AddSingleton<BotToolFeed>();
 builder.Services.AddHostedService<BotToolFeedSweeper>();
@@ -149,6 +150,45 @@ app.MapPost(AiUsageRoute.McpPath, async (HttpContext http, AiUsageRelay relay, T
         var r = await relay.RelayAsync(http.Request.Headers.Authorization.ToString(), http.Connection.RemoteIpAddress?.ToString(), body!.Sessions!,
             http.RequestAborted);
         return r.Accepted is { } ok ? Results.Ok(ok) : Results.Problem(r.Error, statusCode: r.Status);
+    }
+    catch (HttpRequestException)
+    {
+        return Results.Problem("Máy chủ OfficeHub đang không phản hồi, thử lại sau.", statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
+
+// agent-runner lưu / đọc lại transcript phiên agent (TEST-144) → Api (mã hoá, S3, 90 ngày). Sau BearerGate (cùng token AI); chỉ tài khoản bot,
+// mỗi bot chỉ bản của mình (userId gắn theo token). Body lớn (transcript gzip base64 ≤ 9 MB) — nginx `location = /mcp/transcripts` cùng giới hạn.
+app.MapPost(AgentTranscriptRoute.McpPath, async (HttpContext http, AgentTranscriptRelay relay) =>
+{
+    if (http.Request.ContentLength > AgentTranscriptRoute.MaxBodyBytes)
+        return Results.Problem($"Thân request tối đa {AgentTranscriptRoute.MaxBodyBytes / 1024 / 1024} MB", statusCode: StatusCodes.Status400BadRequest);
+    if (http.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } size) size.MaxRequestBodySize = AgentTranscriptRoute.MaxBodyBytes;
+    AgentTranscriptUpload? body;
+    try { body = await http.Request.ReadFromJsonAsync<AgentTranscriptUpload>(OfficeHubApi.Json); }
+    catch (Exception e) when (e is JsonException or BadHttpRequestException or InvalidDataException or InvalidOperationException)
+    {
+        return Results.Problem($"Body JSON không hợp lệ hoặc quá {AgentTranscriptRoute.MaxBodyBytes / 1024 / 1024} MB", statusCode: StatusCodes.Status400BadRequest);
+    }
+    if (AgentTranscriptRoute.Validate(body, out _) is { } err) return Results.Problem(err, statusCode: StatusCodes.Status400BadRequest);
+    try
+    {
+        var r = await relay.SaveAsync(http.Request.Headers.Authorization.ToString(), http.Connection.RemoteIpAddress?.ToString(), body!, http.RequestAborted);
+        return r.Body is { } ok ? Results.Ok(ok) : Results.Problem(r.Error, statusCode: r.Status);
+    }
+    catch (HttpRequestException)
+    {
+        return Results.Problem("Máy chủ OfficeHub đang không phản hồi, thử lại sau.", statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
+app.MapGet(AgentTranscriptRoute.McpPath, async (string? key, HttpContext http, AgentTranscriptRelay relay) =>
+{
+    if (string.IsNullOrWhiteSpace(key) || key.Length > AgentTranscriptRoute.MaxKey)
+        return Results.Problem($"key: bắt buộc, tối đa {AgentTranscriptRoute.MaxKey} ký tự", statusCode: StatusCodes.Status400BadRequest);
+    try
+    {
+        var r = await relay.ReadAsync(http.Request.Headers.Authorization.ToString(), http.Connection.RemoteIpAddress?.ToString(), key.Trim(), http.RequestAborted);
+        return r.Body is { } ok ? Results.Ok(ok) : Results.Problem(r.Error, statusCode: r.Status);
     }
     catch (HttpRequestException)
     {

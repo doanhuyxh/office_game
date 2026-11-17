@@ -57,7 +57,7 @@ Trạng thái hợp đồng tính lúc đọc. Không trùng thời gian / số 
 
 Reporting **không có schema** (chỉ đọc qua `*.Contracts`).
 
-## Schema `audit` — `AuditDbContext` (migration `InitialAudit`, `ChangeLog`, `AiRequestSummary`, `AiAlerts`, `AiUsage`)
+## Schema `audit` — `AuditDbContext` (migration `InitialAudit`, `ChangeLog`, `AiRequestSummary`, `AiAlerts`, `AiUsage`, `AgentTranscripts`)
 
 | Bảng | Cột chính | Ghi chú |
 |---|---|---|
@@ -65,6 +65,7 @@ Reporting **không có schema** (chỉ đọc qua `*.Contracts`).
 | `ai_alerts` | `CreatedAt`, `UserId`, `Rule`, `WindowStart`, `WindowEnd`, `Count`, `Total` | index `CreatedAt`, (`UserId`,`Rule`,`CreatedAt`); xoá > 180 ngày ([business/ai-monitoring.md](business/ai-monitoring.md)) |
 | `ai_usage_sessions` (TEST-134) | `UserId` (bot), `SourceId` (≤ 100, runner đặt), `Kind`, `TaskId?`, `ProjectId?`, `TaskCode?`, `Executor`, `Status`, `StartedAt`, `FinishedAt`, `Turns?`, `CostUsd numeric(12,6)?`, `ReceivedAt` | **unique (`UserId`,`SourceId`)** (gửi lại = cập nhật), index (`UserId`,`FinishedAt`), (`FinishedAt`); chỉ thêm / cập nhật, không xoá ([business/ai-usage.md](business/ai-usage.md)) |
 | `ai_usage_models` (TEST-134) | `SessionId` (FK cascade trong schema), `Model` (≤ 100, `"không rõ"` khi runner không báo), `InputTokens?`, `OutputTokens?`, `CacheReadTokens?`, `CacheWriteTokens?` (bigint), `CostUsd?` | unique (`SessionId`,`Model`) |
+| `agent_transcripts` (TEST-144) | `UserId` (bot), `Key` (≤ 200, khoá job runner), `Kind`, `SessionId`, `Cwd?`, `Branch?`, `SummaryEncrypted?` (`v2:` như lương), `Sha256`, `SizeBytes`, `StorageKey` (S3, nội dung mã hoá), `CreatedAt`, `UpdatedAt`, `ExpiresAt` (+90 ngày) | **unique (`UserId`,`Key`)** (gửi lại = thay), index `UpdatedAt`, `ExpiresAt`; job xoá bản hết hạn ([business/agent-transcripts.md](business/agent-transcripts.md)) |
 | `changes` | `OccurredAt`, `Source` (web/ai/system), `UserId?`, `UserName`, `Module` (schema), `Entity`, `EntityId`, `EntityLabel`, `Action`, `ChangesJson` (jsonb `[{field, old, new, masked}]`) | index `OccurredAt`, (`Entity`,`EntityId`,`OccurredAt`), (`UserId`,`OccurredAt`); không tự xoá ([business/audit.md](business/audit.md)) |
 
 `attendance.reminders` (migration `Reminders`): `EmployeeId`, `WorkDate`, `Kind` (Checkout / MissingCheckout), `SentAt`; unique (`EmployeeId`,`WorkDate`,`Kind`) — chống nhắc lặp.
