@@ -39,7 +39,15 @@ builder.Services.AddMcpServer(o =>
     })
     .WithHttpTransport(o => o.Stateless = true)
     .WithToolsFromAssembly()
-    .WithRequestFilters(f => f.AddCallToolFilter(next => async (ctx, ct) =>
+    .WithRequestFilters(f => f.AddListToolsFilter(next => async (ctx, ct) =>
+    {
+        // TEST-143: /mcp?profile=chat|meeting|task (agent-runner) → chỉ trả tool hợp loại phiên, bớt token schema mỗi lượt gọi model
+        var result = await next(ctx, ct);
+        var profile = ToolProfiles.Parse(ctx.Services?.GetService<IHttpContextAccessor>()?.HttpContext?.Request.Query[ToolProfiles.QueryKey]);
+        if (profile is not null)
+            result.Tools = result.Tools.Where(t => ToolProfiles.Allows(profile, t.Name, t.Annotations?.ReadOnlyHint == true)).ToList();
+        return result;
+    }).AddCallToolFilter(next => async (ctx, ct) =>
     {
         // Tên tool → header X-Mcp-Tool khi gọi Api (audit) + log thời gian chạy.
         var name = ctx.Params?.Name;

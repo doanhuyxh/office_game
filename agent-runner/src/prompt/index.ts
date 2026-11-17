@@ -26,7 +26,15 @@ export function buildPrompt(w: WakeData, ctx: PromptContext): string {
   return intro(w, ctx.resumed, ctx.continued) + m.workStep(ctx.branch) + finish(w) + rules(m.GIT_RULES);
 }
 
-/** Cấu hình MCP cho CLI (định dạng mcpServers): token KHÔNG nằm trong file mà lấy từ biến môi trường OFFICEHUB_TOKEN của tiến trình. */
-export function mcpConfig(url: string) {
-  return { mcpServers: { officehub: { type: 'http', url, headers: { Authorization: 'Bearer ${OFFICEHUB_TOKEN}' } } } };
+/** Hồ sơ tool của OfficeHub.Mcp theo loại phiên (TEST-143): `tools/list` chỉ trả tool hợp loại phiên → bớt token schema mỗi lượt gọi model. */
+export type McpProfile = 'task' | 'chat' | 'meeting';
+
+/**
+ * Cấu hình MCP cho CLI (định dạng mcpServers): token KHÔNG nằm trong file mà lấy từ biến môi trường OFFICEHUB_TOKEN của tiến trình.
+ * `profile` → `?profile=…` trên URL (máy chủ bản cũ bỏ qua tham số lạ → đủ tool như trước).
+ */
+export function mcpConfig(url: string, profile?: McpProfile) {
+  let full = url;
+  if (profile) { const u = new URL(url); u.searchParams.set('profile', profile); full = u.toString(); }
+  return { mcpServers: { officehub: { type: 'http', url: full, headers: { Authorization: 'Bearer ${OFFICEHUB_TOKEN}' } } } };
 }

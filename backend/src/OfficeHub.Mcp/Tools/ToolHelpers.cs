@@ -11,6 +11,35 @@ internal static class ToolHelpers
 
     public static string Out(object value) => System.Text.Json.JsonSerializer.Serialize(value, OfficeHubApi.Json);
 
+    /// <summary>
+    /// Bỏ mọi thuộc tính có giá trị null (đệ quy, cả trong mảng) — kết quả tool vào context của model ở mọi lượt sau, trường null chỉ tốn token
+    /// (TEST-143). Phần tử null trong mảng giữ nguyên. Trả lại chính node đã sửa.
+    /// </summary>
+    public static JsonNode? Compact(JsonNode? node)
+    {
+        switch (node)
+        {
+            case JsonObject o:
+                foreach (var key in o.Where(p => p.Value is null).Select(p => p.Key).ToList()) o.Remove(key);
+                foreach (var p in o) Compact(p.Value);
+                break;
+            case JsonArray a:
+                foreach (var x in a) Compact(x);
+                break;
+        }
+        return node;
+    }
+
+    /// <summary>Giữ <paramref name="limit"/> phần tử CUỐI (mới nhất) của mảng; trả tổng ban đầu. limit &lt; 0 → giữ hết.</summary>
+    public static int KeepLast(JsonArray? array, int limit)
+    {
+        if (array is null) return 0;
+        var total = array.Count;
+        if (limit < 0) return total;
+        while (array.Count > limit) array.RemoveAt(0);
+        return total;
+    }
+
     /// <summary>"yyyy-MM-dd" → giữ nguyên chuỗi chuẩn hoá; sai định dạng → lỗi tiếng Việt.</summary>
     public static string Date(string? value, string label)
     {

@@ -74,6 +74,7 @@ beforeAll(async () => {
 cwd="$3"; prompt="$5"; dir="$(dirname "$prompt")"
 echo "$@" > "$dir/args.txt"
 cp "$prompt" "$dir/prompt-copy.md"
+cp "$7" "$dir/mcp-copy.json"
 [ -f "$(dirname "$0")/slow" ] && sleep 1
 [ -f "$(dirname "$0")/speak" ] && curl -s -o /dev/null "$FAKE_CTL/speak?agent=$OFFICEHUB_AGENT"
 cd "$cwd" || exit 3
@@ -139,6 +140,7 @@ test('hai agent nói lần lượt: mỗi lượt một phiên ngắn chỉ tool
   expect(file(first, 'args.txt')).toContain(join(dataDir, 'work/NV120', `meeting-${S}`));
   expect(file(first, 'args.txt')).not.toContain('--session');
   expect(file(first, 'args.txt')).toContain('--model small-model'); // TEST-141: lượt họp dùng executor.light
+  expect(JSON.parse(file(first, 'mcp-copy.json')).mcpServers.officehub.url).toEndWith('/mcp?profile=meeting'); // TEST-143
   const prompt = file(first, 'prompt-copy.md');
   for (const r of ['get_my_meeting', 'speak_in_meeting', 'pass_turn', 'get_my_role', S]) expect(prompt).toContain(r);
   expect(prompt).not.toContain('NỐI TIẾP');
@@ -228,6 +230,7 @@ test('đang họp thì không chạy việc: job việc hoãn tới khi cuộc h
   const done = await runNext();
   expect(done).toMatchObject({ id, status: 'done', kind: 'task' });
   expect(file(done, 'args.txt')).toContain('--model big-model'); // TEST-141: job việc vẫn dùng model chính
+  expect(JSON.parse(file(done, 'mcp-copy.json')).mcpServers.officehub.url).toEndWith('/mcp?profile=task'); // TEST-143
   expect(comments.length).toBe(1);
 }, 30000);
 

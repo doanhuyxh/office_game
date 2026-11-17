@@ -490,6 +490,10 @@ describe('prompt / mcp / log', () => {
   });
   test('cấu hình MCP không chứa token', () => {
     expect(JSON.stringify(mcpConfig('http://x/mcp'))).toContain('${OFFICEHUB_TOKEN}');
+    // TEST-143: hồ sơ tool theo loại phiên
+    expect(mcpConfig('http://x/mcp').mcpServers.officehub.url).toBe('http://x/mcp');
+    expect(mcpConfig('http://x/mcp', 'chat').mcpServers.officehub.url).toBe('http://x/mcp?profile=chat');
+    expect(mcpConfig('https://x/mcp?a=1', 'meeting').mcpServers.officehub.url).toBe('https://x/mcp?a=1&profile=meeting');
   });
   test('redact', () => {
     registerSecret('ohk_supersecret_1234');

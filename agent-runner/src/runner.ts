@@ -379,7 +379,8 @@ export class Runner {
     mkdirSync(jobDir, { recursive: true });
     const promptFile = join(jobDir, 'prompt.md'), mcpFile = join(jobDir, 'mcp.json');
     writeFileSync(promptFile, o.prompt, { mode: 0o600 });
-    writeFileSync(mcpFile, JSON.stringify(mcpConfig(this.config.mcpUrl), null, 2), { mode: 0o600 });
+    // TEST-143: hồ sơ tool theo loại job (việc / chat / họp)
+    writeFileSync(mcpFile, JSON.stringify(mcpConfig(this.config.mcpUrl, job.kind ?? 'task'), null, 2), { mode: 0o600 });
     const env = { ...this.baseEnv(s.cfg), OFFICEHUB_TOKEN: s.cfg.token, [AGENT_ENV]: job.agent, [TASK_ENV]: job.task_code };
     const onActivity = (action: string) => {
       log('info', 'agent đang làm', { job: job.id, agent: job.agent, task: job.task_code, action });
