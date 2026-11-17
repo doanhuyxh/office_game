@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseConfig } from '../src/config';
 import { MEETING_RESUME_MAX, MEETING_TURN_MAX_MIN, Runner } from '../src/runner';
+import { formatFinding } from '../src/doctor/finding';
 import { Store } from '../src/store';
 
 const S = '01a1d500-0000-7000-8000-0000000000aa',
@@ -152,7 +153,7 @@ echo '{"session_id":"sess-'$OFFICEHUB_AGENT'","model":"fake-model-1","cost_usd":
   mkdirSync(dataDir, { recursive: true });
   store = new Store(join(dataDir, 'runner.db'));
   runner = new Runner(config, store);
-  const lines = await runner.checkAgents(undefined, false);
+  const lines = (await runner.checkAgents({ telegram: false })).map(formatFinding);
   expect(lines.filter((l) => l.startsWith('✘'))).toEqual([]);
 });
 

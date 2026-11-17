@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseConfig } from '../src/config';
 import { Runner } from '../src/runner';
+import { formatFinding } from '../src/doctor/finding';
 import { Store } from '../src/store';
 import { sh } from '../src/workspace';
 import type { RunnerConfig } from '../src/config';
@@ -236,7 +237,7 @@ const waitFor = async (cond: () => boolean, ms = 15000) => {
 };
 
 test('doctor: CLI, token đúng nhân viên, repo + hook, bot Telegram', async () => {
-  const lines = await runner.checkAgents();
+  const lines = (await runner.checkAgents()).map(formatFinding);
   expect(lines.filter((l) => l.startsWith('✘'))).toEqual([]);
   expect(lines.join('\n')).toContain('token AI đúng nhân viên');
   expect(lines.join('\n')).toContain('NV120: CLI custom'); // TEST-64: kind + bin + version + model cấu hình
@@ -427,7 +428,7 @@ test('commit đứng tên tài khoản git của máy + trailer Agent / Task; fo
 
 test('git.executable sai → doctor báo lỗi, agent không nhận việc', async () => {
   const bad = new Runner({ ...runner.config, gitBin: '/khong/co/git' }, store);
-  const lines = await bad.checkAgents(undefined, false);
+  const lines = (await bad.checkAgents({ telegram: false })).map(formatFinding);
   expect(lines.join('\n')).toContain('git.executable /khong/co/git không tồn tại');
   expect(bad.agents.get('NV120')!.enabled).toBe(false);
   expect(
@@ -475,7 +476,7 @@ const inPlaceSetup = async (name = 'agent-repo-ip', branch = 'work') => {
   require('node:fs').mkdirSync(config.dataDir, { recursive: true });
   const st = new Store(join(config.dataDir, 'runner.db'));
   const r = new Runner(config, st);
-  const lines = await r.checkAgents('NV120', false);
+  const lines = (await r.checkAgents({ only: 'NV120', telegram: false })).map(formatFinding);
   const exec = async () => {
     const s = r.agents.get('NV120')!;
     const id = await r.accept(s, { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' });
@@ -573,7 +574,7 @@ test('in_place: repo có .env ở gốc → doctor tắt agent (trừ allow_env_
   const { repo, r } = await inPlaceSetup();
   writeFileSync(join(repo, '.env'), 'X=1\n');
   await run(['git', 'update-index', '--assume-unchanged', '.env'], repo).catch(() => undefined);
-  const lines = await r.checkAgents('NV120', false);
+  const lines = (await r.checkAgents({ only: 'NV120', telegram: false })).map(formatFinding);
   expect(lines.join('\n')).toContain('repo có .env');
   expect(r.agents.get('NV120')!.enabled).toBe(false);
   rmSync(join(repo, '.env'));
@@ -657,7 +658,7 @@ echo '{"session_id":"sess-biz","model":"fake-model-1","cost_usd":0.1,"summary":"
   require('node:fs').mkdirSync(config.dataDir, { recursive: true });
   const st = new Store(join(config.dataDir, 'runner.db'));
   const r = new Runner(config, st);
-  const lines = await r.checkAgents('NV120', false);
+  const lines = (await r.checkAgents({ only: 'NV120', telegram: false })).map(formatFinding);
   const exec = async () => {
     const s = r.agents.get('NV120')!;
     const id = await r.accept(s, { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' });

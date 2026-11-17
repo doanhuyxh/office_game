@@ -2,6 +2,7 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigError, loadConfig } from './config';
+import { formatFinding, hasFailure } from './doctor/finding';
 import { errText, log, setLogFormat } from './log';
 import { KIND_LABEL, kindReportLines } from './report';
 import { Runner } from './runner';
@@ -46,13 +47,13 @@ async function main() {
 
   switch (cmd) {
     case 'doctor': {
-      const lines = await runner.checkAgents(
-        arg('--agent')?.toUpperCase(),
-        !process.argv.includes('--no-telegram'),
+      const findings = await runner.checkAgents({
+        only: arg('--agent')?.toUpperCase(),
+        telegram: !process.argv.includes('--no-telegram'),
         modelCheck,
-      );
-      console.log(lines.join('\n'));
-      return lines.some((l) => l.startsWith('✘')) ? 1 : 0;
+      });
+      console.log(findings.map(formatFinding).join('\n'));
+      return hasFailure(findings) ? 1 : 0;
     }
     case 'run': {
       const code = arg('--agent')?.toUpperCase(),
@@ -61,8 +62,8 @@ async function main() {
         console.error('Cần --agent và --task');
         return 2;
       }
-      const lines = await runner.checkAgents(code, false, modelCheck);
-      console.log(lines.join('\n'));
+      const findings = await runner.checkAgents({ only: code, telegram: false, modelCheck });
+      console.log(findings.map(formatFinding).join('\n'));
       const s = runner.agents.get(code);
       if (!s?.enabled) return 1;
       const t = (await s.hub.getTask(task))?.task;
