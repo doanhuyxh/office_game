@@ -13,6 +13,8 @@ import { PresenceReporter } from './presence';
 import { buildPrompt, mcpConfig } from './prompt';
 import { chatPrompt } from './prompt/chat';
 import { meetingPrompt } from './prompt/meeting';
+import { MCP_SYSTEM_PROMPT } from './prompt/system';
+import { userClaudeExtras } from './home-check';
 import { Store, type Job } from './store';
 import { TelegramClient, type TgMessage } from './telegram';
 import { USAGE_RETRY_MS, UsageReporter, sourceHost } from './usage';
@@ -90,6 +92,12 @@ export class Runner {
         if (v.code !== 0) { fail(`${s.cfg.executor.bin} --version lỗi: ${v.err || v.out}`); continue; }
         const conf = s.cfg.executor.model ? `model cấu hình ${s.cfg.executor.model}` : 'model: mặc định của CLI (không cấu hình)';
         out.push(`✔ ${code}: CLI ${s.cfg.executor.kind} ${s.cfg.executor.bin} — ${v.out.split('\n')[0]} · ${conf}`);
+        // TEST-140: cấu hình cấp user trong HOME của agent được nạp vào mọi phiên (--setting-sources user) → tốn token / đổi hành vi
+        if (s.cfg.executor.kind === 'claude') {
+          if (!s.cfg.executor.home) out.push(`⚠ ${code}: chưa đặt executor.home — CLI dùng HOME của runner (${this.baseEnv(s.cfg).HOME}); nên dùng HOME riêng, sạch cho agent`);
+          const extras = userClaudeExtras(this.baseEnv(s.cfg).HOME!);
+          if (extras.length) out.push(`⚠ ${code}: HOME ${this.baseEnv(s.cfg).HOME} có ${extras.join(', ')} — nạp vào mọi phiên của agent (tốn token, có thể đổi hành vi); nên để HOME riêng chỉ có đăng nhập CLI`);
+        }
         const me = await s.hub.me();
         if (me.code !== code) { fail(`token thuộc nhân viên ${me.code}, không phải ${code}`); continue; }
         s.employeeId = me.id;
@@ -386,7 +394,7 @@ export class Runner {
     let out: RunOutcome | undefined;
     try {
       out = await runExecutor({ cwd: o.cwd, jobDir, promptFile, prompt: o.prompt, mcpConfigFile: mcpFile, resumeSessionId: o.resume, exec,
-        noBuiltinTools: o.noBuiltinTools, onActivity, onEvent: s.activity.active ? (e) => s.activity.push(e) : undefined }, env, signal);
+        noBuiltinTools: o.noBuiltinTools, systemPrompt: o.noBuiltinTools ? MCP_SYSTEM_PROMPT : undefined, onActivity, onEvent: s.activity.active ? (e) => s.activity.push(e) : undefined }, env, signal);
     } finally {
       const failed = !out || out.exitCode !== 0 || out.timedOut;
       s.activity.push(sessionEnd(out ? { ...out, isError: out.isError || failed } : { isError: true }, o.label));

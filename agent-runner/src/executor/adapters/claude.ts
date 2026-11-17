@@ -74,6 +74,7 @@ export const claudeAdapter: Adapter = {
     if (e.maxTurns !== undefined) args.push('--max-turns', String(e.maxTurns));
     if (ctx.resumeSessionId) args.push('--resume', ctx.resumeSessionId);
     if (ctx.noBuiltinTools) args.push('--tools', ''); // chỉ tool MCP (CLI 2.1.x: --tools "" = tắt mọi tool có sẵn)
+    if (ctx.systemPrompt) args.push('--system-prompt', ctx.systemPrompt); // TEST-140: chỉ dẫn của máy chủ MCP vẫn được nạp
     args.push(...e.extraArgs);
     return { bin: e.bin, args };
   },

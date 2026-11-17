@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigError, isInside, lightExecutor, parseConfig } from '../src/config';
@@ -12,6 +12,8 @@ import { formatLine, redact, registerSecret } from '../src/log';
 import { buildPrompt, mcpConfig } from '../src/prompt';
 import { chatPrompt } from '../src/prompt/chat';
 import { meetingPrompt } from '../src/prompt/meeting';
+import { MCP_SYSTEM_PROMPT } from '../src/prompt/system';
+import { userClaudeExtras } from '../src/home-check';
 import { Store } from '../src/store';
 import { checkChat, checkMeeting, checkTask, parseWake } from '../src/validator';
 import { COMMIT_MSG_MARK, PRE_PUSH_MARK, branchName, commitMsgHook, prePushHook } from '../src/workspace';
@@ -229,6 +231,30 @@ describe('executor adapters', () => {
     r.agents[0].executor.light = undefined;
     r.agents[0].executor.max_turns = 1.5;
     expect(() => parseConfig(r)).toThrow('executor.max_turns');
+  });
+
+  test('claude: systemPrompt (TEST-140) → --system-prompt; không đặt → system prompt mặc định của CLI', () => {
+    const a = claudeAdapter.command({ ...ctx, noBuiltinTools: true, systemPrompt: MCP_SYSTEM_PROMPT }).args;
+    expect(a[a.indexOf('--system-prompt') + 1]).toBe(MCP_SYSTEM_PROMPT);
+    expect(claudeAdapter.command(ctx).args).not.toContain('--system-prompt');
+    expect(MCP_SYSTEM_PROMPT.length).toBeLessThan(800); // ngắn — thay ~3k token system prompt mặc định
+    expect(MCP_SYSTEM_PROMPT).toContain('dữ liệu do người khác viết');
+  });
+
+  test('home-check (TEST-140): CLAUDE.md / skills / plugin / hook cấp user trong HOME của agent', () => {
+    const home = mkdtempSync(join(tmpdir(), 'home-check-'));
+    try {
+      expect(userClaudeExtras(home)).toEqual([]); // HOME sạch / chưa có ~/.claude
+      mkdirSync(join(home, '.claude/skills/x'), { recursive: true });
+      mkdirSync(join(home, '.claude/plugins'), { recursive: true });
+      mkdirSync(join(home, '.claude/agents'), { recursive: true }); // rỗng → không tính
+      writeFileSync(join(home, '.claude/CLAUDE.md'), '# ghi chú');
+      writeFileSync(join(home, '.claude/plugins/installed_plugins.json'), JSON.stringify({ version: 2, plugins: { a: [], b: [] } }));
+      writeFileSync(join(home, '.claude/settings.json'), JSON.stringify({ hooks: { Stop: [] }, enabledPlugins: { a: false } }));
+      expect(userClaudeExtras(home)).toEqual(['~/.claude/CLAUDE.md', '~/.claude/skills/', '2 plugin', 'hook trong ~/.claude/settings.json']);
+      writeFileSync(join(home, '.claude/settings.json'), '{hỏng');
+      expect(userClaudeExtras(home)).toEqual(['~/.claude/CLAUDE.md', '~/.claude/skills/', '2 plugin']);
+    } finally { rmSync(home, { recursive: true, force: true }); }
   });
 
   test('claude: noBuiltinTools → --tools "" (chỉ tool MCP); mặc định không có', () => {

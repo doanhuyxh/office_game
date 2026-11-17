@@ -15,6 +15,8 @@ export interface ExecContext {
    * nội dung người khác viết không dẫn tới chạy lệnh trên máy. Adapter `custom` không ép được — CLI tự khai báo phải tự giới hạn.
    */
   noBuiltinTools?: boolean;
+  /** Thay system prompt mặc định của CLI (claude: `--system-prompt`). Runner đặt cho phiên chỉ có tool MCP (TEST-140). Adapter `custom` bỏ qua. */
+  systemPrompt?: string;
   /** Gọi mỗi khi agent làm một thao tác (đọc / sửa file, chạy lệnh, gọi MCP, nhận định) — để runner log tiến độ. */
   onActivity?: (message: string) => void;
   /** Gọi với từng sự kiện có cấu trúc (lệnh + kết quả, diff, suy nghĩ…) đã che bí mật — để gửi lên OfficeHub cho người xem trực tiếp (TEST-93). */
