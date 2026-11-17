@@ -75,7 +75,8 @@ export class ConfigError extends Error {
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
 const int = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) ? v : undefined);
-const strList = (v: unknown) => (Array.isArray(v) && v.every((x) => typeof x === 'string') ? (v as string[]) : undefined);
+const strList = (v: unknown) =>
+  Array.isArray(v) && v.every((x) => typeof x === 'string') ? (v as string[]) : undefined;
 
 /** Username bot Telegram chuẩn hoá: "@…" chữ thường. */
 export const normalizeBot = (v: string) => '@' + v.trim().replace(/^@/, '').toLowerCase();
@@ -89,19 +90,25 @@ export const isInside = (child: string, parent: string) => {
 export function parseConfig(raw: unknown): RunnerConfig {
   const p: string[] = [];
   const o = (raw ?? {}) as Record<string, any>;
-  const oh = o.officehub ?? {}, tg = o.telegram ?? {}, rn = o.runner ?? {}, gt = o.git ?? {};
+  const oh = o.officehub ?? {},
+    tg = o.telegram ?? {},
+    rn = o.runner ?? {},
+    gt = o.git ?? {};
   const gitBin = str(gt.executable);
-  if (gitBin && !isAbsolute(gitBin)) p.push('git.executable phải là đường dẫn tuyệt đối tới file chạy git (hoặc bỏ trống = git trong PATH)');
+  if (gitBin && !isAbsolute(gitBin))
+    p.push('git.executable phải là đường dẫn tuyệt đối tới file chạy git (hoặc bỏ trống = git trong PATH)');
   const mcpUrl = str(oh.mcp_url);
   if (!mcpUrl || !/^https?:\/\//.test(mcpUrl)) p.push('officehub.mcp_url phải là URL http(s) tới /mcp');
   const groupChatId = str(String(tg.group_chat_id ?? ''));
   if (!groupChatId || !/^-?\d+$/.test(groupChatId)) p.push('telegram.group_chat_id phải là số (nhóm dạng -100…)');
-  const dataDir = str(rn.data_dir), worktreesDir = str(rn.worktrees_dir);
+  const dataDir = str(rn.data_dir),
+    worktreesDir = str(rn.worktrees_dir);
   if (!dataDir || !isAbsolute(dataDir)) p.push('runner.data_dir phải là đường dẫn tuyệt đối');
   if (!worktreesDir || !isAbsolute(worktreesDir)) p.push('runner.worktrees_dir phải là đường dẫn tuyệt đối');
   const logFormat = rn.log_format ?? 'auto';
   if (!['auto', 'json', 'pretty'].includes(logFormat)) p.push('runner.log_format là auto, json hoặc pretty');
-  if (rn.activity_stream !== undefined && typeof rn.activity_stream !== 'boolean') p.push('runner.activity_stream là true hoặc false');
+  if (rn.activity_stream !== undefined && typeof rn.activity_stream !== 'boolean')
+    p.push('runner.activity_stream là true hoặc false');
   const activityStream = rn.activity_stream !== false;
   const maxParallel = num(rn.max_parallel) ?? 2;
   if (maxParallel < 1 || maxParallel > 10) p.push('runner.max_parallel từ 1 đến 10');
@@ -109,27 +116,32 @@ export function parseConfig(raw: unknown): RunnerConfig {
   const agents: AgentConfig[] = [];
   const list = Array.isArray(o.agents) ? o.agents : [];
   if (list.length === 0) p.push('Chưa khai báo agent nào (agents: [...])');
-  const seenCodes = new Set<string>(), seenBots = new Set<string>();
+  const seenCodes = new Set<string>(),
+    seenBots = new Set<string>();
   list.forEach((a: any, i: number) => {
     const at = `agents[${i}]`;
     const code = str(a?.employee_code)?.toUpperCase();
     if (!code) p.push(`${at}.employee_code bắt buộc`);
     else if (seenCodes.has(code)) p.push(`${at}.employee_code ${code} bị trùng`);
     const bot = str(a?.telegram_bot);
-    if (!bot || !/^@?[A-Za-z][A-Za-z0-9_]{1,28}bot$/i.test(bot)) p.push(`${at}.telegram_bot phải là username bot (kết thúc bằng "bot")`);
+    if (!bot || !/^@?[A-Za-z][A-Za-z0-9_]{1,28}bot$/i.test(bot))
+      p.push(`${at}.telegram_bot phải là username bot (kết thúc bằng "bot")`);
     else if (seenBots.has(normalizeBot(bot))) p.push(`${at}.telegram_bot bị trùng`);
     const tgToken = str(a?.telegram_token);
-    if (!tgToken || !/^\d{5,15}:[A-Za-z0-9_-]{30,}$/.test(tgToken)) p.push(`${at}.telegram_token không đúng dạng 123456789:AA…`);
+    if (!tgToken || !/^\d{5,15}:[A-Za-z0-9_-]{30,}$/.test(tgToken))
+      p.push(`${at}.telegram_token không đúng dạng 123456789:AA…`);
     const token = str(a?.token);
     if (!token || !token.startsWith('ohk_')) p.push(`${at}.token phải là token AI của OfficeHub (ohk_…)`);
     const w = a?.workspace ?? {};
     const mode = w.mode ?? 'worktree';
-    if (mode !== 'worktree' && mode !== 'in_place' && mode !== 'none') p.push(`${at}.workspace.mode là worktree, in_place hoặc none`);
+    if (mode !== 'worktree' && mode !== 'in_place' && mode !== 'none')
+      p.push(`${at}.workspace.mode là worktree, in_place hoặc none`);
     // Mode none (agent nghiệp vụ) không cần repo; có khai báo cũng bỏ qua.
     const repo = mode === 'none' ? undefined : str(a?.repo);
     if (mode !== 'none') {
       if (!repo || !isAbsolute(repo)) p.push(`${at}.repo phải là đường dẫn tuyệt đối`);
-      else if (worktreesDir && isInside(repo, worktreesDir)) p.push(`${at}: repo không được nằm trong runner.worktrees_dir`);
+      else if (worktreesDir && isInside(repo, worktreesDir))
+        p.push(`${at}: repo không được nằm trong runner.worktrees_dir`);
     }
     // worktrees_dir NẰM TRONG repo được phép (vd .officehub-runner/worktrees): EnvLoader dừng ở gốc worktree (.git) nên không đọc .env của
     // repo chính; `doctor` / khởi động bắt buộc thư mục đó đã gitignore.
@@ -147,22 +159,30 @@ export function parseConfig(raw: unknown): RunnerConfig {
     const budget = num(e.max_budget_usd);
     if (budget !== undefined && budget <= 0) p.push(`${at}.executor.max_budget_usd phải > 0`);
     const maxTurns = int(e.max_turns);
-    if (e.max_turns !== undefined && (maxTurns === undefined || maxTurns < 1 || maxTurns > 500)) p.push(`${at}.executor.max_turns là số nguyên từ 1 đến 500`);
+    if (e.max_turns !== undefined && (maxTurns === undefined || maxTurns < 1 || maxTurns > 500))
+      p.push(`${at}.executor.max_turns là số nguyên từ 1 đến 500`);
     // TEST-141: cấu hình nhẹ cho chat / họp
     let light: ExecutorConfig['light'];
     if (e.light !== undefined && e.light !== null) {
       const l = e.light;
-      if (typeof l !== 'object' || Array.isArray(l)) p.push(`${at}.executor.light phải là một mục (model / max_budget_usd / max_turns)`);
+      if (typeof l !== 'object' || Array.isArray(l))
+        p.push(`${at}.executor.light phải là một mục (model / max_budget_usd / max_turns)`);
       else {
-        const lb = num(l.max_budget_usd), lt = int(l.max_turns);
+        const lb = num(l.max_budget_usd),
+          lt = int(l.max_turns);
         if (l.model !== undefined && !str(l.model)) p.push(`${at}.executor.light.model phải là tên model`);
-        if (l.max_budget_usd !== undefined && (lb === undefined || lb <= 0)) p.push(`${at}.executor.light.max_budget_usd phải > 0`);
-        if (l.max_turns !== undefined && (lt === undefined || lt < 1 || lt > 500)) p.push(`${at}.executor.light.max_turns là số nguyên từ 1 đến 500`);
-        for (const k of Object.keys(l)) if (!['model', 'max_budget_usd', 'max_turns'].includes(k)) p.push(`${at}.executor.light.${k}: không hỗ trợ (chỉ model, max_budget_usd, max_turns)`);
+        if (l.max_budget_usd !== undefined && (lb === undefined || lb <= 0))
+          p.push(`${at}.executor.light.max_budget_usd phải > 0`);
+        if (l.max_turns !== undefined && (lt === undefined || lt < 1 || lt > 500))
+          p.push(`${at}.executor.light.max_turns là số nguyên từ 1 đến 500`);
+        for (const k of Object.keys(l))
+          if (!['model', 'max_budget_usd', 'max_turns'].includes(k))
+            p.push(`${at}.executor.light.${k}: không hỗ trợ (chỉ model, max_budget_usd, max_turns)`);
         light = { model: str(l.model), maxBudgetUsd: lb, maxTurns: lt };
       }
     }
-    const args = strList(e.args), resumeArgs = strList(e.resume_args);
+    const args = strList(e.args),
+      resumeArgs = strList(e.resume_args);
     if (kind === 'custom' && !args) p.push(`${at}.executor.args bắt buộc với kind custom`);
     const fmt = e.output?.format ?? 'text';
     if (fmt !== 'text' && fmt !== 'json') p.push(`${at}.executor.output.format là text hoặc json`);
@@ -170,22 +190,46 @@ export function parseConfig(raw: unknown): RunnerConfig {
     if (bot) seenBots.add(normalizeBot(bot));
     if (code && bot && tgToken && token && (repo || mode === 'none') && bin && (kind === 'claude' || kind === 'custom'))
       agents.push({
-        employeeCode: code, telegramBot: normalizeBot(bot), telegramToken: tgToken, token, repo: repo ? resolve(repo) : '', envFile,
+        employeeCode: code,
+        telegramBot: normalizeBot(bot),
+        telegramToken: tgToken,
+        token,
+        repo: repo ? resolve(repo) : '',
+        envFile,
         workspace: { mode, allowBaseBranch: w.allow_base_branch === true, allowEnvFiles: w.allow_env_files === true },
         executor: {
-          kind, bin, model: str(e.model), home: str(e.home), timeoutMin, maxBudgetUsd: budget, maxTurns, light, extraArgs: strList(e.extra_args) ?? [],
-          args, resumeArgs, outputFormat: fmt,
+          kind,
+          bin,
+          model: str(e.model),
+          home: str(e.home),
+          timeoutMin,
+          maxBudgetUsd: budget,
+          maxTurns,
+          light,
+          extraArgs: strList(e.extra_args) ?? [],
+          args,
+          resumeArgs,
+          outputFormat: fmt,
         },
       });
   });
   // in_place làm việc thẳng trong repo → hai agent không được dùng chung một repo (không có worktree ngăn cách).
   for (const a of agents.filter((x) => x.workspace.mode === 'in_place'))
-    if (agents.some((b) => b !== a && b.repo === a.repo)) p.push(`${a.employeeCode}: workspace in_place nhưng repo ${a.repo} bị agent khác dùng chung`);
+    if (agents.some((b) => b !== a && b.repo === a.repo))
+      p.push(`${a.employeeCode}: workspace in_place nhưng repo ${a.repo} bị agent khác dùng chung`);
   if (p.length) throw new ConfigError(p);
   return {
-    mcpUrl: mcpUrl!, telegramApiUrl: (str(tg.api_url) ?? 'https://api.telegram.org').replace(/\/$/, ''), groupChatId: groupChatId!,
-    dataDir: resolve(dataDir!), worktreesDir: resolve(worktreesDir!), maxParallel,
-    baseBranch: str(rn.base_branch) ?? 'main', gitBin: gitBin ?? 'git', logFormat, activityStream, agents,
+    mcpUrl: mcpUrl!,
+    telegramApiUrl: (str(tg.api_url) ?? 'https://api.telegram.org').replace(/\/$/, ''),
+    groupChatId: groupChatId!,
+    dataDir: resolve(dataDir!),
+    worktreesDir: resolve(worktreesDir!),
+    maxParallel,
+    baseBranch: str(rn.base_branch) ?? 'main',
+    gitBin: gitBin ?? 'git',
+    logFormat,
+    activityStream,
+    agents,
   };
 }
 
@@ -196,14 +240,20 @@ export function parseConfig(raw: unknown): RunnerConfig {
 export function lightExecutor(e: ExecutorConfig): ExecutorConfig {
   const { light, ...base } = e;
   if (!light) return base;
-  return { ...base, model: light.model ?? e.model, maxBudgetUsd: light.maxBudgetUsd ?? e.maxBudgetUsd, maxTurns: light.maxTurns ?? e.maxTurns };
+  return {
+    ...base,
+    model: light.model ?? e.model,
+    maxBudgetUsd: light.maxBudgetUsd ?? e.maxBudgetUsd,
+    maxTurns: light.maxTurns ?? e.maxTurns,
+  };
 }
 
 /** Đọc file cấu hình YAML. Cảnh báo (không chặn) khi file đọc được bởi người khác. */
 export function loadConfig(path: string): { config: RunnerConfig; warnings: string[] } {
   if (!existsSync(path)) throw new ConfigError([`Không thấy file cấu hình ${path}`]);
   const warnings: string[] = [];
-  if (process.platform !== 'win32' && (statSync(path).mode & 0o077) !== 0) warnings.push(`${path} đang cho nhóm / người khác đọc — nên chmod 600 (file có token)`);
+  if (process.platform !== 'win32' && (statSync(path).mode & 0o077) !== 0)
+    warnings.push(`${path} đang cho nhóm / người khác đọc — nên chmod 600 (file có token)`);
   return { config: parseConfig(Bun.YAML.parse(readFileSync(path, 'utf8'))), warnings };
 }
 

@@ -11,8 +11,8 @@ export function intro(w: WakeData, resumed: boolean, continued = false): string 
   const note = resumed
     ? '\nĐây là phiên NỐI TIẾP (bạn còn nhớ phiên trước): việc có thể vừa bị trả về / có bình luận mới — chỉ đọc phần MỚI để biết lý do trước khi sửa.\n'
     : continued
-      ? '\nViệc này ĐÃ TỪNG LÀM nhưng đây là phiên MỚI (bạn không nhớ phiên trước): đọc kỹ bình luận gần nhất, nhất là mục **Bàn giao** của lần trước'
-        + ' (đã làm / đang dở / bước tiếp theo), và lịch sử nhánh (git log / git diff so với nhánh gốc) nếu có repo — rồi làm tiếp, không làm lại từ đầu.\n'
+      ? '\nViệc này ĐÃ TỪNG LÀM nhưng đây là phiên MỚI (bạn không nhớ phiên trước): đọc kỹ bình luận gần nhất, nhất là mục **Bàn giao** của lần trước' +
+        ' (đã làm / đang dở / bước tiếp theo), và lịch sử nhánh (git log / git diff so với nhánh gốc) nếu có repo — rồi làm tiếp, không làm lại từ đầu.\n'
       : '';
   const read = resumed
     ? `1–2. (Đã đọc ở phiên trước — bỏ qua get_my_role / get_project trừ khi cần xem lại.)

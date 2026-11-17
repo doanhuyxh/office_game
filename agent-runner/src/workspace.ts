@@ -2,11 +2,21 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSy
 import { delimiter, dirname, isAbsolute, join } from 'node:path';
 import { isInside } from './config';
 
-export interface Sh { code: number; out: string; err: string }
+export interface Sh {
+  code: number;
+  out: string;
+  err: string;
+}
 
 /** Chạy lệnh (không qua shell) và chờ xong. */
 export async function sh(cmd: string[], cwd: string, env?: Record<string, string>, timeoutMs?: number): Promise<Sh> {
-  const p = Bun.spawn(cmd, { cwd, env: env ?? (process.env as Record<string, string>), stdout: 'pipe', stderr: 'pipe', ...(timeoutMs ? { timeout: timeoutMs } : {}) });
+  const p = Bun.spawn(cmd, {
+    cwd,
+    env: env ?? (process.env as Record<string, string>),
+    stdout: 'pipe',
+    stderr: 'pipe',
+    ...(timeoutMs ? { timeout: timeoutMs } : {}),
+  });
   const [out, err] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text()]);
   return { code: await p.exited, out: out.trim(), err: err.trim() };
 }
@@ -17,12 +27,19 @@ export async function sh(cmd: string[], cwd: string, env?: Record<string, string
  * `GIT_TERMINAL_PROMPT=0`: thiếu thông tin đăng nhập → lỗi ngay, không treo chờ nhập mật khẩu.
  */
 export class Git {
-  constructor(readonly bin: string, readonly env: Record<string, string> = process.env as Record<string, string>) {}
+  constructor(
+    readonly bin: string,
+    readonly env: Record<string, string> = process.env as Record<string, string>,
+  ) {}
 
   /** Bản dùng env khác (HOME / PATH của agent). */
-  withEnv(env: Record<string, string>) { return new Git(this.bin, env); }
+  withEnv(env: Record<string, string>) {
+    return new Git(this.bin, env);
+  }
 
-  run(cwd: string, ...args: string[]) { return sh([this.bin, ...args], cwd, { ...this.env, GIT_TERMINAL_PROMPT: '0' }); }
+  run(cwd: string, ...args: string[]) {
+    return sh([this.bin, ...args], cwd, { ...this.env, GIT_TERMINAL_PROMPT: '0' });
+  }
 
   async out(cwd: string, ...args: string[]) {
     const r = await this.run(cwd, ...args);
@@ -32,7 +49,7 @@ export class Git {
 
   /** PATH có thư mục của git cấu hình ở đầu → CLI agent, gh, hook đều gọi đúng git này. */
   pathWithGit(path: string | undefined) {
-    return isAbsolute(this.bin) ? [dirname(this.bin), path].filter(Boolean).join(delimiter) : path ?? '';
+    return isAbsolute(this.bin) ? [dirname(this.bin), path].filter(Boolean).join(delimiter) : (path ?? '');
   }
 
   /** Kiểm tra lúc khởi động: file chạy được + phiên bản. Lỗi → ném (runner không nhận việc). */
@@ -52,7 +69,8 @@ export class Git {
 }
 
 /** Nhánh của việc: agent/<mã NV>/<mã việc> (chữ thường). */
-export const branchName = (employeeCode: string, taskCode: string) => `agent/${employeeCode.toLowerCase()}/${taskCode.toLowerCase()}`;
+export const branchName = (employeeCode: string, taskCode: string) =>
+  `agent/${employeeCode.toLowerCase()}/${taskCode.toLowerCase()}`;
 
 /** Thư mục chặn: agent không được đổi mã runner (agent sửa được luật / bộ điều phối của chính nó). */
 export const PROTECTED_PATHS = ['agent-runner/'];
@@ -61,7 +79,8 @@ export const PRE_PUSH_MARK = '# officehub-agent-runner pre-push';
 export const COMMIT_MSG_MARK = '# officehub-agent-runner commit-msg';
 
 /** Biến môi trường runner đặt cho CLI agent — hook commit-msg dựa vào đây để gắn trailer (commit của người không bị đụng). */
-export const AGENT_ENV = 'OFFICEHUB_AGENT', TASK_ENV = 'OFFICEHUB_TASK';
+export const AGENT_ENV = 'OFFICEHUB_AGENT',
+  TASK_ENV = 'OFFICEHUB_TASK';
 
 /**
  * Hook pre-push (nằm ở .git/hooks — dùng chung cho mọi worktree của repo): chặn push lên main / master, chặn force push (commit trên remote
@@ -112,9 +131,15 @@ export async function installHooks(git: Git, repo: string, baseBranch: string): 
   const dir = join(isAbsolute(common) ? common : join(repo, common), 'hooks');
   mkdirSync(dir, { recursive: true });
   const warnings: string[] = [];
-  for (const [name, mark, body] of [['pre-push', PRE_PUSH_MARK, prePushHook(baseBranch)], ['commit-msg', COMMIT_MSG_MARK, commitMsgHook()]] as const) {
+  for (const [name, mark, body] of [
+    ['pre-push', PRE_PUSH_MARK, prePushHook(baseBranch)],
+    ['commit-msg', COMMIT_MSG_MARK, commitMsgHook()],
+  ] as const) {
     const path = join(dir, name);
-    if (existsSync(path) && !readFileSync(path, 'utf8').includes(mark)) { warnings.push(`${path} đã có hook khác — không ghi đè, tự gộp phần của runner`); continue; }
+    if (existsSync(path) && !readFileSync(path, 'utf8').includes(mark)) {
+      warnings.push(`${path} đã có hook khác — không ghi đè, tự gộp phần của runner`);
+      continue;
+    }
     writeFileSync(path, body);
     chmodSync(path, 0o755);
   }
@@ -129,9 +154,15 @@ export async function removeHooks(git: Git, repo: string): Promise<string[]> {
   const common = await git.out(repo, 'rev-parse', '--git-common-dir');
   const dir = join(isAbsolute(common) ? common : join(repo, common), 'hooks');
   const removed: string[] = [];
-  for (const [name, mark] of [['pre-push', PRE_PUSH_MARK], ['commit-msg', COMMIT_MSG_MARK]] as const) {
+  for (const [name, mark] of [
+    ['pre-push', PRE_PUSH_MARK],
+    ['commit-msg', COMMIT_MSG_MARK],
+  ] as const) {
     const path = join(dir, name);
-    if (existsSync(path) && readFileSync(path, 'utf8').includes(mark)) { unlinkSync(path); removed.push(name); }
+    if (existsSync(path) && readFileSync(path, 'utf8').includes(mark)) {
+      unlinkSync(path);
+      removed.push(name);
+    }
   }
   return removed;
 }
@@ -145,8 +176,14 @@ export async function removeHooks(git: Git, repo: string): Promise<string[]> {
  * - không có ở đâu → nhánh mới từ origin/{base}.
  * `existing` = nhánh đã có từ trước (local / origin) → việc là làm tiếp.
  */
-export async function prepareWorktree(git: Git, repo: string, worktreesDir: string, employeeCode: string, taskCode: string, baseBranch: string)
-  : Promise<{ path: string; branch: string; reused: boolean; existing?: 'local' | 'origin' }> {
+export async function prepareWorktree(
+  git: Git,
+  repo: string,
+  worktreesDir: string,
+  employeeCode: string,
+  taskCode: string,
+  baseBranch: string,
+): Promise<{ path: string; branch: string; reused: boolean; existing?: 'local' | 'origin' }> {
   const path = join(worktreesDir, employeeCode, taskCode.toUpperCase());
   if (isInside(repo, path)) throw new Error('repo không được nằm trong worktree');
   const branch = branchName(employeeCode, taskCode);
@@ -169,7 +206,10 @@ export async function prepareWorktree(git: Git, repo: string, worktreesDir: stri
 /** Số commit của nhánh chưa có trên origin/{base} + file đổi (để chặn agent-runner/). */
 export async function branchChanges(git: Git, worktree: string, baseBranch: string) {
   const ahead = Number(await git.out(worktree, 'rev-list', '--count', `origin/${baseBranch}..HEAD`));
-  const files = ahead > 0 ? (await git.out(worktree, 'diff', '--name-only', `origin/${baseBranch}...HEAD`)).split('\n').filter(Boolean) : [];
+  const files =
+    ahead > 0
+      ? (await git.out(worktree, 'diff', '--name-only', `origin/${baseBranch}...HEAD`)).split('\n').filter(Boolean)
+      : [];
   const dirty = (await git.out(worktree, 'status', '--porcelain')).length > 0;
   return { ahead, files, dirty, touchesProtected: files.some((f) => PROTECTED_PATHS.some((p) => f.startsWith(p))) };
 }
@@ -177,13 +217,28 @@ export async function branchChanges(git: Git, worktree: string, baseBranch: stri
 /**
  * Push nhánh (không bao giờ --force) + mở PR bằng gh (đăng nhập sẵn trong HOME hoặc GH_TOKEN trong env_file). PR đã có → trả link cũ.
  */
-export async function publish(git: Git, worktree: string, branch: string, baseBranch: string, title: string, body: string) {
+export async function publish(
+  git: Git,
+  worktree: string,
+  branch: string,
+  baseBranch: string,
+  title: string,
+  body: string,
+) {
   const push = await git.run(worktree, 'push', '--quiet', '-u', 'origin', branch);
   if (push.code !== 0) throw new Error(`git push lỗi: ${push.err || push.out}`);
   const env = { ...git.env, GIT_TERMINAL_PROMPT: '0' };
-  const existing = await sh(['gh', 'pr', 'list', '--head', branch, '--state', 'open', '--json', 'url', '--jq', '.[0].url'], worktree, env);
+  const existing = await sh(
+    ['gh', 'pr', 'list', '--head', branch, '--state', 'open', '--json', 'url', '--jq', '.[0].url'],
+    worktree,
+    env,
+  );
   if (existing.code === 0 && existing.out) return existing.out;
-  const pr = await sh(['gh', 'pr', 'create', '--base', baseBranch, '--head', branch, '--title', title, '--body', body], worktree, env);
+  const pr = await sh(
+    ['gh', 'pr', 'create', '--base', baseBranch, '--head', branch, '--title', title, '--body', body],
+    worktree,
+    env,
+  );
   if (pr.code !== 0) throw new Error(`gh pr create lỗi: ${pr.err || pr.out}`);
   return pr.out.split('\n').pop()!;
 }
@@ -209,20 +264,32 @@ export async function prepareInPlace(git: Git, repo: string, baseBranch: string,
   const branch = (await git.run(repo, 'symbolic-ref', '--short', '-q', 'HEAD')).out;
   if (!branch) throw new WorkspaceRefused('repo đang ở detached HEAD — checkout một nhánh trước khi giao việc');
   if (!allowBaseBranch && [baseBranch, 'main', 'master'].includes(branch))
-    throw new WorkspaceRefused(`repo đang ở nhánh ${branch} — chuyển sang nhánh làm việc (hoặc bật workspace.allow_base_branch)`);
+    throw new WorkspaceRefused(
+      `repo đang ở nhánh ${branch} — chuyển sang nhánh làm việc (hoặc bật workspace.allow_base_branch)`,
+    );
   const dirty = (await git.out(repo, 'status', '--porcelain')).split('\n').filter(Boolean);
-  if (dirty.length) throw new WorkspaceRefused(`repo còn ${dirty.length} thay đổi chưa commit (vd ${dirty[0]!.trim()}) — commit / stash trước khi giao việc`);
+  if (dirty.length)
+    throw new WorkspaceRefused(
+      `repo còn ${dirty.length} thay đổi chưa commit (vd ${dirty[0]!.trim()}) — commit / stash trước khi giao việc`,
+    );
   return { path: repo, branch, head: await git.out(repo, 'rev-parse', 'HEAD') };
 }
 
 /** Sau phiên in_place: commit mới so với HEAD lúc bắt đầu, file đổi, còn dirty không, có bị đổi nhánh không. */
 export async function inPlaceChanges(git: Git, repo: string, startHead: string, startBranch: string) {
   const commits = (await git.out(repo, 'log', '--format=%h %s', `${startHead}..HEAD`)).split('\n').filter(Boolean);
-  const files = commits.length ? (await git.out(repo, 'diff', '--name-only', startHead, 'HEAD')).split('\n').filter(Boolean) : [];
+  const files = commits.length
+    ? (await git.out(repo, 'diff', '--name-only', startHead, 'HEAD')).split('\n').filter(Boolean)
+    : [];
   const dirty = (await git.out(repo, 'status', '--porcelain')).length > 0;
   const branchNow = (await git.run(repo, 'symbolic-ref', '--short', '-q', 'HEAD')).out;
   return {
-    commits, ahead: commits.length, files, dirty, branchChanged: branchNow !== startBranch, branchNow,
+    commits,
+    ahead: commits.length,
+    files,
+    dirty,
+    branchChanged: branchNow !== startBranch,
+    branchNow,
     touchesProtected: files.some((f) => PROTECTED_PATHS.some((p) => f.startsWith(p))),
   };
 }

@@ -51,6 +51,7 @@ Dự án bun + TypeScript độc lập ở gốc repo, **không thư viện runt
 | `bun src/cli.ts usage push [--since yyyy-MM-dd] [--agent NV018] [--dry-run]` | Gửi bù chi phí / token các phiên chưa gửi lên OfficeHub ("Mức dùng AI") — [agent-runner-usage.md](agent-runner-usage.md) |
 | `bun run build` | Một file chạy `dist/officehub-runner` — build từ commit đã merge `main`, cài `/opt/officehub-runner/` |
 | `bun run typecheck`, `bun test` | Bắt buộc khi đổi `agent-runner/` (CI job `agent-runner`) |
+| `bun run format` | Định dạng `src/` + `tests/` bằng Biome (`biome.json`: rộng 120, nháy đơn); CI chạy `bun run format:check` |
 
 Test: đơn vị (cấu hình, validator, adapter + mẫu stream-json, store, prompt, hook) + **tích hợp** `tests/flow.test.ts` (Telegram giả + MCP giả + CLI giả + repo bare: tin hợp lệ / giả mạo, worktree ngoài repo, push nhánh, bình luận chi phí, nối phiên, việc không còn giao, chạm `agent-runner/` → không push + hook chặn). Đã thử adapter `claude` với CLI thật (Haiku, có `--resume`).
 

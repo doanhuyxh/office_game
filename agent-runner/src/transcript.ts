@@ -33,16 +33,27 @@ function maskDeep(v: unknown): unknown {
  * dòng không phải JSON → che cả dòng. Thà che nhầm còn hơn lộ.
  */
 export function redactTranscript(jsonl: string): string {
-  return jsonl.split('\n').map((line) => {
-    if (!line.trim()) return line;
-    try { return JSON.stringify(maskDeep(JSON.parse(line))); } catch { return mask(line); }
-  }).join('\n');
+  return jsonl
+    .split('\n')
+    .map((line) => {
+      if (!line.trim()) return line;
+      try {
+        return JSON.stringify(maskDeep(JSON.parse(line)));
+      } catch {
+        return mask(line);
+      }
+    })
+    .join('\n');
 }
 
 /** File transcript của phiên ở máy (thử cwd và đường dẫn thật của cwd); không có → undefined. */
 export function transcriptFile(home: string, cwd: string, sessionId: string): string | undefined {
   const dirs = [cwd];
-  try { dirs.push(realpathSync(cwd)); } catch { /* cwd đã bị xoá */ }
+  try {
+    dirs.push(realpathSync(cwd));
+  } catch {
+    /* cwd đã bị xoá */
+  }
   return dirs.map((d) => join(claudeProjectDir(home, d), `${sessionId}.jsonl`)).find((f) => existsSync(f));
 }
 
@@ -52,7 +63,14 @@ export const sha256Hex = (b: Uint8Array) => createHash('sha256').update(b).diges
 export const transcriptUrl = (mcpUrl: string) => mcpUrl.replace(/\/+$/, '') + '/transcripts';
 
 /** Bản đã lưu trên cloud (GET) — khớp `AgentTranscriptDto`. */
-export interface CloudTranscript { key: string; kind: string; sessionId: string; sha256: string; updatedAt: string; contentBase64?: string | null }
+export interface CloudTranscript {
+  key: string;
+  kind: string;
+  sessionId: string;
+  sha256: string;
+  updatedAt: string;
+  contentBase64?: string | null;
+}
 
 export class TranscriptReporter {
   private disabled = false;
@@ -62,20 +80,36 @@ export class TranscriptReporter {
   readonly url: string;
 
   /** `home` = HOME của CLI agent (nơi Claude Code ghi transcript). */
-  constructor(mcpUrl: string, private readonly token: string, readonly agent: string, private readonly store: Store, private readonly home: string) {
+  constructor(
+    mcpUrl: string,
+    private readonly token: string,
+    readonly agent: string,
+    private readonly store: Store,
+    private readonly home: string,
+  ) {
     this.url = transcriptUrl(mcpUrl);
   }
 
-  get isDisabled() { return this.disabled; }
+  get isDisabled() {
+    return this.disabled;
+  }
 
   /** Gửi các phiên đang chờ. Gọi chồng nhau → chờ lượt đang gửi rồi gửi thêm một lượt. Trả số bản đã gửi. */
   flush(): Promise<number> {
-    if (this.sending) { this.again = true; return this.sending; }
+    if (this.sending) {
+      this.again = true;
+      return this.sending;
+    }
     this.sending = (async () => {
       let n = 0;
-      do { this.again = false; n += await this.flushOnce(); } while (this.again && !this.disabled);
+      do {
+        this.again = false;
+        n += await this.flushOnce();
+      } while (this.again && !this.disabled);
       return n;
-    })().finally(() => { this.sending = undefined; });
+    })().finally(() => {
+      this.sending = undefined;
+    });
     return this.sending;
   }
 
@@ -84,7 +118,10 @@ export class TranscriptReporter {
     for (const row of this.store.pendingTranscripts(this.agent)) {
       if (this.disabled) break;
       const file = transcriptFile(this.home, row.worktree, row.session_id!);
-      if (!file) { this.store.doneTranscript(row.task_id, { error: 'không còn file transcript ở máy' }); continue; }
+      if (!file) {
+        this.store.doneTranscript(row.task_id, { error: 'không còn file transcript ở máy' });
+        continue;
+      }
       let gz: Uint8Array;
       try {
         if (statSync(file).size > 200 * 1024 * 1024) throw new Error('file > 200 MB');
@@ -94,18 +131,39 @@ export class TranscriptReporter {
         continue;
       }
       const sha = sha256Hex(gz);
-      if (sha === row.transcript_sha) { this.store.doneTranscript(row.task_id, { sha }); continue; } // không đổi từ lần gửi trước
+      if (sha === row.transcript_sha) {
+        this.store.doneTranscript(row.task_id, { sha });
+        continue;
+      } // không đổi từ lần gửi trước
       if (gz.length > TRANSCRIPT_MAX_GZIP) {
-        this.store.doneTranscript(row.task_id, { error: `transcript ${(gz.length / 1048576).toFixed(1)} MB sau nén > 6 MB — không gửi` });
-        log('warn', 'transcript quá lớn — không gửi lên cloud', { agent: this.agent, key: row.task_id, mb: +(gz.length / 1048576).toFixed(1) });
+        this.store.doneTranscript(row.task_id, {
+          error: `transcript ${(gz.length / 1048576).toFixed(1)} MB sau nén > 6 MB — không gửi`,
+        });
+        log('warn', 'transcript quá lớn — không gửi lên cloud', {
+          agent: this.agent,
+          key: row.task_id,
+          mb: +(gz.length / 1048576).toFixed(1),
+        });
         continue;
       }
       const r = await this.post({
-        key: row.task_id, kind: row.kind ?? 'task', sessionId: row.session_id, cwd: row.worktree || null, branch: row.branch || null,
-        summary: row.summary ? mask(row.summary).slice(0, MAX_SUMMARY) : null, contentBase64: Buffer.from(gz).toString('base64'),
+        key: row.task_id,
+        kind: row.kind ?? 'task',
+        sessionId: row.session_id,
+        cwd: row.worktree || null,
+        branch: row.branch || null,
+        summary: row.summary ? mask(row.summary).slice(0, MAX_SUMMARY) : null,
+        contentBase64: Buffer.from(gz).toString('base64'),
       });
-      if (r === 'ok') { this.store.doneTranscript(row.task_id, { sha }); sent++; continue; }
-      if (r === 'invalid') { this.store.doneTranscript(row.task_id, { error: 'OfficeHub từ chối (400)' }); continue; }
+      if (r === 'ok') {
+        this.store.doneTranscript(row.task_id, { sha });
+        sent++;
+        continue;
+      }
+      if (r === 'invalid') {
+        this.store.doneTranscript(row.task_id, { error: 'OfficeHub từ chối (400)' });
+        continue;
+      }
       break; // retry / denied: thử lại ở nhịp sau (denied đã tắt bộ gửi)
     }
     if (sent) log('info', 'đã gửi transcript lên cloud', { agent: this.agent, sessions: sent });
@@ -116,22 +174,42 @@ export class TranscriptReporter {
     let res: Response;
     try {
       res = await fetch(this.url, {
-        method: 'POST', headers: { authorization: `Bearer ${this.token}`, 'content-type': 'application/json' }, body: JSON.stringify(body),
+        method: 'POST',
+        headers: { authorization: `Bearer ${this.token}`, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
         signal: AbortSignal.timeout(120_000),
       });
-    } catch (e) { this.fail(errText(e), 'gửi transcript lỗi — thử lại sau'); return 'retry'; }
-    if (res.ok) { this.lastError = undefined; return 'ok'; }
+    } catch (e) {
+      this.fail(errText(e), 'gửi transcript lỗi — thử lại sau');
+      return 'retry';
+    }
+    if (res.ok) {
+      this.lastError = undefined;
+      return 'ok';
+    }
     if (res.status === 400 || res.status === 413) {
-      log('warn', 'OfficeHub từ chối transcript — bỏ qua', { agent: this.agent, key: body.key, status: res.status, error: (await res.text().catch(() => '')).slice(0, 300) });
+      log('warn', 'OfficeHub từ chối transcript — bỏ qua', {
+        agent: this.agent,
+        key: body.key,
+        status: res.status,
+        error: (await res.text().catch(() => '')).slice(0, 300),
+      });
       return 'invalid';
     }
     if (res.status === 401 || res.status === 403) {
       this.disabled = true;
-      log('warn', 'OfficeHub không nhận transcript — ngừng gửi cho agent này (token sai / tài khoản chưa được HR đánh dấu là bot?)', { agent: this.agent, status: res.status });
+      log(
+        'warn',
+        'OfficeHub không nhận transcript — ngừng gửi cho agent này (token sai / tài khoản chưa được HR đánh dấu là bot?)',
+        { agent: this.agent, status: res.status },
+      );
       return 'denied';
     }
     if (res.status === 404 || res.status === 405)
-      this.fail(`status=${res.status}`, 'OfficeHub chưa có endpoint transcript — deploy bản mới + nginx `location = /mcp/transcripts`; runner giữ hàng chờ');
+      this.fail(
+        `status=${res.status}`,
+        'OfficeHub chưa có endpoint transcript — deploy bản mới + nginx `location = /mcp/transcripts`; runner giữ hàng chờ',
+      );
     else this.fail(`status=${res.status}`, 'gửi transcript lỗi — thử lại sau');
     return 'retry';
   }
@@ -144,9 +222,12 @@ export class TranscriptReporter {
     if (this.disabled) return undefined;
     let dto: CloudTranscript;
     try {
-      const res = await fetch(`${this.url}?key=${encodeURIComponent(key)}`, { headers: { authorization: `Bearer ${this.token}` }, signal: AbortSignal.timeout(60_000) });
+      const res = await fetch(`${this.url}?key=${encodeURIComponent(key)}`, {
+        headers: { authorization: `Bearer ${this.token}` },
+        signal: AbortSignal.timeout(60_000),
+      });
       if (!res.ok) return undefined; // 404 = chưa có bản; lỗi khác → phiên mới (không chặn job)
-      dto = await res.json() as CloudTranscript;
+      dto = (await res.json()) as CloudTranscript;
     } catch (e) {
       log('warn', 'không tải được transcript từ cloud — mở phiên mới', { agent: this.agent, key, error: errText(e) });
       return undefined;
@@ -154,7 +235,10 @@ export class TranscriptReporter {
     const gapMin = (Date.now() - Date.parse(dto.updatedAt)) / 60_000;
     if (!dto.contentBase64 || !dto.sessionId || !(gapMin <= RESUME_MAX_GAP_MIN)) return undefined;
     const gz = Buffer.from(dto.contentBase64, 'base64');
-    if (sha256Hex(gz) !== dto.sha256) { log('warn', 'transcript trên cloud lệch sha256 — bỏ', { agent: this.agent, key }); return undefined; }
+    if (sha256Hex(gz) !== dto.sha256) {
+      log('warn', 'transcript trên cloud lệch sha256 — bỏ', { agent: this.agent, key });
+      return undefined;
+    }
     const dir = claudeProjectDir(this.home, cwd);
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, `${dto.sessionId}.jsonl`), Bun.gunzipSync(gz), { mode: 0o600 });

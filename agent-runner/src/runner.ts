@@ -20,14 +20,56 @@ import { Store, type Job } from './store';
 import { TelegramClient, type TgMessage } from './telegram';
 import { TranscriptReporter } from './transcript';
 import { USAGE_RETRY_MS, UsageReporter, sourceHost } from './usage';
-import { checkChat, checkMeeting, checkTask, parseWake, type ChatWake, type MeetingWake, type WakeData } from './validator';
-import { AGENT_ENV, Git, TASK_ENV, WorkspaceRefused, branchChanges, inPlaceChanges, installHooks, prepareInPlace, prepareWorktree, publish, pushInPlace, removeHooks, sh } from './workspace';
+import {
+  checkChat,
+  checkMeeting,
+  checkTask,
+  parseWake,
+  type ChatWake,
+  type MeetingWake,
+  type WakeData,
+} from './validator';
+import {
+  AGENT_ENV,
+  Git,
+  TASK_ENV,
+  WorkspaceRefused,
+  branchChanges,
+  inPlaceChanges,
+  installHooks,
+  prepareInPlace,
+  prepareWorktree,
+  publish,
+  pushInPlace,
+  removeHooks,
+  sh,
+} from './workspace';
 
 /** Biến Windows tiến trình con cần để chạy bình thường (không chứa bí mật). */
 const WINDOWS_ENV = [
-  'SystemRoot', 'SystemDrive', 'windir', 'ComSpec', 'PATHEXT', 'TEMP', 'TMP', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH',
-  'APPDATA', 'LOCALAPPDATA', 'ProgramData', 'ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432', 'CommonProgramFiles',
-  'USERNAME', 'USERDOMAIN', 'COMPUTERNAME', 'OS', 'PROCESSOR_ARCHITECTURE', 'NUMBER_OF_PROCESSORS',
+  'SystemRoot',
+  'SystemDrive',
+  'windir',
+  'ComSpec',
+  'PATHEXT',
+  'TEMP',
+  'TMP',
+  'USERPROFILE',
+  'HOMEDRIVE',
+  'HOMEPATH',
+  'APPDATA',
+  'LOCALAPPDATA',
+  'ProgramData',
+  'ProgramFiles',
+  'ProgramFiles(x86)',
+  'ProgramW6432',
+  'CommonProgramFiles',
+  'USERNAME',
+  'USERDOMAIN',
+  'COMPUTERNAME',
+  'OS',
+  'PROCESSOR_ARCHITECTURE',
+  'NUMBER_OF_PROCESSORS',
 ];
 
 interface AgentState {
@@ -51,7 +93,9 @@ interface AgentState {
 
 /** Runner được dừng khi phiên CLI đang chạy — job về hàng đợi thay vì ghi lỗi. */
 export class RunnerStopped extends Error {
-  constructor() { super('runner dừng giữa phiên'); }
+  constructor() {
+    super('runner dừng giữa phiên');
+  }
 }
 
 /** Bộ điều phối: Listener (Telegram) → Validator → Store (hàng đợi + khoá task_id) → Workspace → Executor → Publisher (PR + bình luận). */
@@ -63,19 +107,35 @@ export class Runner {
   /** Git của runner (env của runner); thao tác cho agent dùng `gitFor(agent)` (HOME / PATH của agent). */
   readonly git: Git;
 
-  constructor(readonly config: RunnerConfig, readonly store: Store) {
+  constructor(
+    readonly config: RunnerConfig,
+    readonly store: Store,
+  ) {
     this.git = new Git(config.gitBin);
     const source = { host: sourceHost(), dbId: store.dbId() };
     for (const a of config.agents) {
       registerSecret(a.token);
       registerSecret(a.telegramToken);
       this.agents.set(a.employeeCode, {
-        cfg: a, hub: new OfficeHubClient(config.mcpUrl, a.token), tg: new TelegramClient(config.telegramApiUrl, a.telegramToken), enabled: false,
+        cfg: a,
+        hub: new OfficeHubClient(config.mcpUrl, a.token),
+        tg: new TelegramClient(config.telegramApiUrl, a.telegramToken),
+        enabled: false,
         presence: new PresenceReporter(config.mcpUrl, a.token, a.employeeCode),
         activity: new ActivitySender(config.mcpUrl, a.token, a.employeeCode, config.activityStream),
-        usage: new UsageReporter(config.mcpUrl, a.token, a.employeeCode, store, { ...source, executor: a.executor.kind }),
+        usage: new UsageReporter(config.mcpUrl, a.token, a.employeeCode, store, {
+          ...source,
+          executor: a.executor.kind,
+        }),
         transcripts: adapters[a.executor.kind]?.hasSession
-          ? new TranscriptReporter(config.mcpUrl, a.token, a.employeeCode, store, a.executor.home ?? process.env.HOME ?? homedir()) : undefined,
+          ? new TranscriptReporter(
+              config.mcpUrl,
+              a.token,
+              a.employeeCode,
+              store,
+              a.executor.home ?? process.env.HOME ?? homedir(),
+            )
+          : undefined,
       });
     }
   }
@@ -90,87 +150,171 @@ export class Runner {
     const out: string[] = [];
     // TEST-46: git sai đường dẫn → mọi agent tắt (không nhận việc).
     let gitError: string | null = null;
-    try { out.push(`✔ git: ${await this.git.version()} (${this.config.gitBin})`); } catch (e) { gitError = errText(e); }
+    try {
+      out.push(`✔ git: ${await this.git.version()} (${this.config.gitBin})`);
+    } catch (e) {
+      gitError = errText(e);
+    }
     for (const s of this.agents.values()) {
       if (only && s.cfg.employeeCode !== only) continue;
       const code = s.cfg.employeeCode;
-      const fail = (m: string) => { s.enabled = false; s.problem = m; out.push(`✘ ${code}: ${m}`); };
+      const fail = (m: string) => {
+        s.enabled = false;
+        s.problem = m;
+        out.push(`✘ ${code}: ${m}`);
+      };
       const none = s.cfg.workspace.mode === 'none';
-      if (gitError && !none) { fail(gitError); continue; } // mode none không dùng git
+      if (gitError && !none) {
+        fail(gitError);
+        continue;
+      } // mode none không dùng git
       try {
-        if (!existsSync(s.cfg.executor.bin)) { fail(`không thấy CLI ${s.cfg.executor.bin}`); continue; }
+        if (!existsSync(s.cfg.executor.bin)) {
+          fail(`không thấy CLI ${s.cfg.executor.bin}`);
+          continue;
+        }
         const v = await sh([s.cfg.executor.bin, '--version'], '/', this.baseEnv(s.cfg));
-        if (v.code !== 0) { fail(`${s.cfg.executor.bin} --version lỗi: ${v.err || v.out}`); continue; }
-        const conf = s.cfg.executor.model ? `model cấu hình ${s.cfg.executor.model}` : 'model: mặc định của CLI (không cấu hình)';
+        if (v.code !== 0) {
+          fail(`${s.cfg.executor.bin} --version lỗi: ${v.err || v.out}`);
+          continue;
+        }
+        const conf = s.cfg.executor.model
+          ? `model cấu hình ${s.cfg.executor.model}`
+          : 'model: mặc định của CLI (không cấu hình)';
         out.push(`✔ ${code}: CLI ${s.cfg.executor.kind} ${s.cfg.executor.bin} — ${v.out.split('\n')[0]} · ${conf}`);
         // TEST-140: cấu hình cấp user trong HOME của agent được nạp vào mọi phiên (--setting-sources user) → tốn token / đổi hành vi
         if (s.cfg.executor.kind === 'claude') {
-          if (!s.cfg.executor.home) out.push(`⚠ ${code}: chưa đặt executor.home — CLI dùng HOME của runner (${this.baseEnv(s.cfg).HOME}); nên dùng HOME riêng, sạch cho agent`);
+          if (!s.cfg.executor.home)
+            out.push(
+              `⚠ ${code}: chưa đặt executor.home — CLI dùng HOME của runner (${this.baseEnv(s.cfg).HOME}); nên dùng HOME riêng, sạch cho agent`,
+            );
           const extras = userClaudeExtras(this.baseEnv(s.cfg).HOME!);
-          if (extras.length) out.push(`⚠ ${code}: HOME ${this.baseEnv(s.cfg).HOME} có ${extras.join(', ')} — nạp vào mọi phiên của agent (tốn token, có thể đổi hành vi); nên để HOME riêng chỉ có đăng nhập CLI`);
+          if (extras.length)
+            out.push(
+              `⚠ ${code}: HOME ${this.baseEnv(s.cfg).HOME} có ${extras.join(', ')} — nạp vào mọi phiên của agent (tốn token, có thể đổi hành vi); nên để HOME riêng chỉ có đăng nhập CLI`,
+            );
         }
         const me = await s.hub.me();
-        if (me.code !== code) { fail(`token thuộc nhân viên ${me.code}, không phải ${code}`); continue; }
+        if (me.code !== code) {
+          fail(`token thuộc nhân viên ${me.code}, không phải ${code}`);
+          continue;
+        }
         s.employeeId = me.id;
         out.push(`✔ ${code}: token AI đúng nhân viên (${me.fullName})`);
         if (none) {
           // Agent nghiệp vụ (TEST-80): không repo / git / hook / gh. CLI chạy trong thư mục trống dưới data_dir, chỉ có tool MCP.
           const work = this.workDir(code, 'x');
           out.push(`✔ ${code}: workspace none — không repo / git / PR; CLI chạy trong ${dirname(work)}, chỉ tool MCP`);
-          if (s.cfg.executor.kind !== 'claude') out.push(`⚠ ${code}: adapter ${s.cfg.executor.kind} — runner không tắt được công cụ có sẵn của CLI (chạy lệnh, đọc / ghi file); CLI phải tự giới hạn`);
+          if (s.cfg.executor.kind !== 'claude')
+            out.push(
+              `⚠ ${code}: adapter ${s.cfg.executor.kind} — runner không tắt được công cụ có sẵn của CLI (chạy lệnh, đọc / ghi file); CLI phải tự giới hạn`,
+            );
           const above = projectFilesAbove(work);
-          if (above.length) out.push(`⚠ ${code}: thư mục chạy nằm dưới ${above.join(', ')} — CLI có thể nạp hướng dẫn / repo đó; đặt runner.data_dir ra ngoài mọi repo`);
+          if (above.length)
+            out.push(
+              `⚠ ${code}: thư mục chạy nằm dưới ${above.join(', ')} — CLI có thể nạp hướng dẫn / repo đó; đặt runner.data_dir ra ngoài mọi repo`,
+            );
         } else {
           const git = this.gitFor(s.cfg);
           const origin = await git.run(s.cfg.repo, 'remote', 'get-url', 'origin');
-          if (origin.code !== 0) { fail(`${s.cfg.repo} không phải git repo có remote origin`); continue; }
+          if (origin.code !== 0) {
+            fail(`${s.cfg.repo} không phải git repo có remote origin`);
+            continue;
+          }
           const who = await git.identity(s.cfg.repo);
-          if (!who) { fail(`chưa có git user.name / user.email (HOME ${this.baseEnv(s.cfg).HOME}) — commit sẽ lỗi; runner không tự đặt danh tính`); continue; }
-          out.push(`✔ ${code}: commit đứng tên ${who.name} <${who.email}> (tài khoản git của máy), trailer Agent / Task`);
+          if (!who) {
+            fail(
+              `chưa có git user.name / user.email (HOME ${this.baseEnv(s.cfg).HOME}) — commit sẽ lỗi; runner không tự đặt danh tính`,
+            );
+            continue;
+          }
+          out.push(
+            `✔ ${code}: commit đứng tên ${who.name} <${who.email}> (tài khoản git của máy), trailer Agent / Task`,
+          );
           for (const dir of [this.config.worktreesDir, this.config.dataDir].filter((d) => isInside(d, s.cfg.repo))) {
             const ignored = await git.run(s.cfg.repo, 'check-ignore', '-q', join(dir, 'x'));
-            if (ignored.code !== 0) throw new Error(`${dir} nằm trong repo nhưng chưa có trong .gitignore — thêm vào trước khi chạy`);
+            if (ignored.code !== 0)
+              throw new Error(`${dir} nằm trong repo nhưng chưa có trong .gitignore — thêm vào trước khi chạy`);
           }
           if (s.cfg.workspace.mode === 'in_place') {
             const removed = await removeHooks(git, s.cfg.repo); // in_place không dùng hook
-            out.push(`✔ ${code}: repo ${s.cfg.repo}, mode in_place không dùng hook${removed.length ? ` — đã gỡ hook của runner: ${removed.join(', ')}` : ''}`);
+            out.push(
+              `✔ ${code}: repo ${s.cfg.repo}, mode in_place không dùng hook${removed.length ? ` — đã gỡ hook của runner: ${removed.join(', ')}` : ''}`,
+            );
           } else {
             const hookWarns = await installHooks(git, s.cfg.repo, this.config.baseBranch);
             for (const w of hookWarns) out.push(`⚠ ${code}: ${w}`);
-            out.push(`✔ ${code}: repo ${s.cfg.repo}, hook pre-push (chặn main / force push / agent-runner/) + commit-msg (trailer) đã cài`);
+            out.push(
+              `✔ ${code}: repo ${s.cfg.repo}, hook pre-push (chặn main / force push / agent-runner/) + commit-msg (trailer) đã cài`,
+            );
           }
           const onMain = await this.mainBranchWarning(git, s.cfg);
           if (onMain) out.push(`⚠ ${code}: ${onMain}`);
           if (s.cfg.workspace.mode === 'in_place') {
             // CLI chạy thẳng trong repo → đọc được .env ở gốc repo (worktree ngoài repo thì không). Mặc định từ chối.
-            const envFiles = readdirSync(s.cfg.repo).filter((f) => f === '.env' || (f.startsWith('.env.') && !/\.(example|sample|template)$/.test(f)));
-            if (envFiles.length && !s.cfg.workspace.allowEnvFiles) { fail(`workspace in_place nhưng repo có ${envFiles.join(', ')} — CLI đọc được file này; dùng bản clone riêng không có .env (hoặc workspace.allow_env_files: true)`); continue; }
-            if (envFiles.length) out.push(`⚠ ${code}: repo có ${envFiles.join(', ')} và CLI đọc được (allow_env_files)`);
+            const envFiles = readdirSync(s.cfg.repo).filter(
+              (f) => f === '.env' || (f.startsWith('.env.') && !/\.(example|sample|template)$/.test(f)),
+            );
+            if (envFiles.length && !s.cfg.workspace.allowEnvFiles) {
+              fail(
+                `workspace in_place nhưng repo có ${envFiles.join(', ')} — CLI đọc được file này; dùng bản clone riêng không có .env (hoặc workspace.allow_env_files: true)`,
+              );
+              continue;
+            }
+            if (envFiles.length)
+              out.push(`⚠ ${code}: repo có ${envFiles.join(', ')} và CLI đọc được (allow_env_files)`);
             const cur = (await git.run(s.cfg.repo, 'symbolic-ref', '--short', '-q', 'HEAD')).out;
             const dirty = (await git.run(s.cfg.repo, 'status', '--porcelain')).out;
-            out.push(`✔ ${code}: workspace in_place — commit thẳng vào nhánh đang checkout rồi runner push nhánh đó lên origin, KHÔNG PR (hiện: ${cur || 'detached HEAD'})`);
-            if (!cur || (!s.cfg.workspace.allowBaseBranch && [this.config.baseBranch, 'main', 'master'].includes(cur))) out.push(`⚠ ${code}: nhánh hiện tại không dùng được cho in_place — việc sẽ bị từ chối cho tới khi chuyển nhánh`);
+            out.push(
+              `✔ ${code}: workspace in_place — commit thẳng vào nhánh đang checkout rồi runner push nhánh đó lên origin, KHÔNG PR (hiện: ${cur || 'detached HEAD'})`,
+            );
+            if (!cur || (!s.cfg.workspace.allowBaseBranch && [this.config.baseBranch, 'main', 'master'].includes(cur)))
+              out.push(
+                `⚠ ${code}: nhánh hiện tại không dùng được cho in_place — việc sẽ bị từ chối cho tới khi chuyển nhánh`,
+              );
             if (dirty) out.push(`⚠ ${code}: repo đang có thay đổi chưa commit — việc sẽ bị từ chối cho tới khi sạch`);
           }
         }
-        if (s.cfg.envFile && !existsSync(s.cfg.envFile)) { fail(`không thấy env_file ${s.cfg.envFile}`); continue; }
+        if (s.cfg.envFile && !existsSync(s.cfg.envFile)) {
+          fail(`không thấy env_file ${s.cfg.envFile}`);
+          continue;
+        }
         if (telegram) {
           const bot = await s.tg.getMe();
-          if ('@' + bot.username.toLowerCase() !== s.cfg.telegramBot) { fail(`telegram_token là của @${bot.username}, không phải ${s.cfg.telegramBot}`); continue; }
+          if ('@' + bot.username.toLowerCase() !== s.cfg.telegramBot) {
+            fail(`telegram_token là của @${bot.username}, không phải ${s.cfg.telegramBot}`);
+            continue;
+          }
           out.push(`✔ ${code}: bot Telegram ${s.cfg.telegramBot}`);
         }
         if (s.cfg.workspace.mode === 'worktree') {
-          const gh = await sh(['gh', 'auth', 'status'], s.cfg.repo, this.baseEnv(s.cfg)).catch(() => ({ code: 1, out: '', err: 'không có gh' }));
-          out.push(gh.code === 0 ? `✔ ${code}: gh đã đăng nhập` : `⚠ ${code}: gh chưa sẵn sàng (${(gh.err || gh.out).split('\n')[0]}) — sẽ không tạo được PR`);
+          const gh = await sh(['gh', 'auth', 'status'], s.cfg.repo, this.baseEnv(s.cfg)).catch(() => ({
+            code: 1,
+            out: '',
+            err: 'không có gh',
+          }));
+          out.push(
+            gh.code === 0
+              ? `✔ ${code}: gh đã đăng nhập`
+              : `⚠ ${code}: gh chưa sẵn sàng (${(gh.err || gh.out).split('\n')[0]}) — sẽ không tạo được PR`,
+          );
         }
         // Chạy thử model sau cùng: chỉ tốn token khi mọi kiểm tra khác đã qua.
         const model = await this.checkModel(s, modelCheck);
-        if (model.fail) { fail(model.fail); continue; }
+        if (model.fail) {
+          fail(model.fail);
+          continue;
+        }
         out.push(model.line);
         // TEST-141: model riêng cho chat / họp (`executor.light.model`) — sai thì agent tắt như model chính
-        const light = s.cfg.executor.light?.model && s.cfg.executor.light.model !== s.cfg.executor.model
-          ? await this.checkModel(s, modelCheck, lightExecutor(s.cfg.executor), 'chat / họp') : undefined;
-        if (light?.fail) { fail(light.fail); continue; }
+        const light =
+          s.cfg.executor.light?.model && s.cfg.executor.light.model !== s.cfg.executor.model
+            ? await this.checkModel(s, modelCheck, lightExecutor(s.cfg.executor), 'chat / họp')
+            : undefined;
+        if (light?.fail) {
+          fail(light.fail);
+          continue;
+        }
         if (light) out.push(light.line);
         s.enabled = true;
         s.problem = undefined;
@@ -182,29 +326,53 @@ export class Runner {
   }
 
   /** Model thật của agent (TEST-64): `fail` = model không hợp lệ (agent tắt); `line` = dòng ✔ / ⚠ cho doctor / log khởi động. */
-  private async checkModel(s: AgentState, enabled: boolean, exec = s.cfg.executor, purpose?: string): Promise<{ line: string; fail?: string }> {
-    const code = purpose ? `${s.cfg.employeeCode} (${purpose})` : s.cfg.employeeCode, configured = exec.model;
+  private async checkModel(
+    s: AgentState,
+    enabled: boolean,
+    exec = s.cfg.executor,
+    purpose?: string,
+  ): Promise<{ line: string; fail?: string }> {
+    const code = purpose ? `${s.cfg.employeeCode} (${purpose})` : s.cfg.employeeCode,
+      configured = exec.model;
     const adapter = adapters[exec.kind];
-    if (!adapter?.probe || !adapter.parseProbe) return { line: `✔ ${code}: model ${configured ?? 'mặc định của CLI'} (adapter ${exec.kind} không chạy thử — đọc model từ output mỗi job nếu có)` };
-    if (!enabled) return { line: `✔ ${code}: model ${configured ?? 'mặc định của CLI'} — chưa kiểm tra (--no-model-check)` };
+    if (!adapter?.probe || !adapter.parseProbe)
+      return {
+        line: `✔ ${code}: model ${configured ?? 'mặc định của CLI'} (adapter ${exec.kind} không chạy thử — đọc model từ output mỗi job nếu có)`,
+      };
+    if (!enabled)
+      return { line: `✔ ${code}: model ${configured ?? 'mặc định của CLI'} — chưa kiểm tra (--no-model-check)` };
     const cmd = adapter.probe(exec);
     const r = await sh([cmd.bin, ...cmd.args], this.config.dataDir, this.baseEnv(s.cfg), 120_000);
     const p = adapter.parseProbe(r.out);
-    if (p.invalidModel) return { line: '', fail: `model ${purpose ? `${purpose} ` : ''}${configured ?? '(mặc định)'} không hợp lệ: ${p.error}` };
-    if (p.error || !p.model) return { line: `⚠ ${code}: chạy thử model lỗi (${p.error ?? `không đọc được model, mã thoát ${r.code}`}) — vẫn bật agent` };
+    if (p.invalidModel)
+      return {
+        line: '',
+        fail: `model ${purpose ? `${purpose} ` : ''}${configured ?? '(mặc định)'} không hợp lệ: ${p.error}`,
+      };
+    if (p.error || !p.model)
+      return {
+        line: `⚠ ${code}: chạy thử model lỗi (${p.error ?? `không đọc được model, mã thoát ${r.code}`}) — vẫn bật agent`,
+      };
     if (!purpose) s.model = p.model;
-    if (!modelMatches(configured, p.model)) return { line: `⚠ ${code}: model thật ${p.model} KHÁC cấu hình ${configured}` };
-    return { line: `✔ ${code}: model thật ${p.model}${configured ? (configured === p.model ? '' : ` (cấu hình ${configured})`) : ' (mặc định của CLI)'}` };
+    if (!modelMatches(configured, p.model))
+      return { line: `⚠ ${code}: model thật ${p.model} KHÁC cấu hình ${configured}` };
+    return {
+      line: `✔ ${code}: model thật ${p.model}${configured ? (configured === p.model ? '' : ` (cấu hình ${configured})`) : ' (mặc định của CLI)'}`,
+    };
   }
 
   /** Biến môi trường cho tiến trình con: KHÔNG kế thừa toàn bộ env của runner (tránh lộ bí mật khác) — chỉ PATH / ngôn ngữ / HOME + env_file. */
   baseEnv(a: AgentConfig): Record<string, string> {
     const env: Record<string, string> = {};
-    for (const k of ['PATH', 'LANG', 'LC_ALL', 'TERM', 'TMPDIR', 'USER', 'SHELL', 'DOTNET_ROOT']) if (process.env[k]) env[k] = process.env[k]!;
+    for (const k of ['PATH', 'LANG', 'LC_ALL', 'TERM', 'TMPDIR', 'USER', 'SHELL', 'DOTNET_ROOT'])
+      if (process.env[k]) env[k] = process.env[k]!;
     if (process.platform === 'win32') {
       // Windows: không có HOME (dùng USERPROFILE); thiếu SystemRoot / APPDATA… thì git, gh, claude.exe lỗi mạng / không thấy cấu hình.
       const pick = (k: string) => Object.keys(process.env).find((x) => x.toLowerCase() === k.toLowerCase());
-      for (const k of WINDOWS_ENV) { const x = pick(k); if (x && process.env[x]) env[k] = process.env[x]!; }
+      for (const k of WINDOWS_ENV) {
+        const x = pick(k);
+        if (x && process.env[x]) env[k] = process.env[x]!;
+      }
       env.HOME = a.executor.home ?? process.env.HOME ?? homedir();
       env.USERPROFILE = a.executor.home ?? env.USERPROFILE ?? homedir();
     } else {
@@ -218,7 +386,9 @@ export class Runner {
   }
 
   /** Git với HOME / PATH của agent (credential helper, SSH key, user.name của HOME đó). */
-  gitFor(a: AgentConfig) { return this.git.withEnv(this.baseEnv(a)); }
+  gitFor(a: AgentConfig) {
+    return this.git.withEnv(this.baseEnv(a));
+  }
 
   /**
    * Repo của agent đang đứng trên main / master → câu cảnh báo (KHÔNG chặn; in ở `doctor` / khởi động và log đầu mỗi job). Nhánh khác / detached HEAD → ''.
@@ -229,7 +399,9 @@ export class Runner {
     const cur = (await git.run(a.repo, 'symbolic-ref', '--short', '-q', 'HEAD')).out;
     if (cur !== 'main' && cur !== 'master') return '';
     if (a.workspace.mode === 'in_place')
-      return a.workspace.allowBaseBranch ? `repo đang ở nhánh ${cur} — commit của agent sẽ được push THẲNG lên ${cur}, không qua PR` : '';
+      return a.workspace.allowBaseBranch
+        ? `repo đang ở nhánh ${cur} — commit của agent sẽ được push THẲNG lên ${cur}, không qua PR`
+        : '';
     return `repo đang ở nhánh ${cur} — nhánh việc tách từ origin/${this.config.baseBranch} và PR merge vào ${this.config.baseBranch}`;
   }
 
@@ -256,9 +428,13 @@ export class Runner {
 
   async onMessage(s: AgentState, msg: TgMessage) {
     const wake = parseWake(msg, {
-      groupChatId: this.config.groupChatId, employeeCode: s.cfg.employeeCode,
+      groupChatId: this.config.groupChatId,
+      employeeCode: s.cfg.employeeCode,
     });
-    if (!wake.ok) { log('info', 'bỏ qua tin Telegram', { agent: s.cfg.employeeCode, reason: wake.reason }); return null; }
+    if (!wake.ok) {
+      log('info', 'bỏ qua tin Telegram', { agent: s.cfg.employeeCode, reason: wake.reason });
+      return null;
+    }
     if (wake.value.kind === 'meeting') return this.acceptMeeting(s, wake.value);
     return wake.value.kind === 'chat' ? this.acceptChat(s, wake.value) : this.accept(s, wake.value);
   }
@@ -269,11 +445,18 @@ export class Runner {
    * không đứng chờ hết hạn nói. Đang chạy job chat (ngắn) → xếp hàng, chạy ngay sau đó.
    */
   async acceptMeeting(s: AgentState, w: MeetingWake): Promise<number | null> {
-    const label = meetingLabel(w.session_id), ctx = { agent: s.cfg.employeeCode, task: label };
-    if (!s.enabled || !s.employeeId) { log('warn', 'agent đang tắt — bỏ qua', { ...ctx, problem: s.problem }); return null; }
+    const label = meetingLabel(w.session_id),
+      ctx = { agent: s.cfg.employeeCode, task: label };
+    if (!s.enabled || !s.employeeId) {
+      log('warn', 'agent đang tắt — bỏ qua', { ...ctx, problem: s.problem });
+      return null;
+    }
     try {
       const c = checkMeeting(await s.hub.myMeeting(), w.session_id);
-      if (!c.ok) { log('info', 'bỏ qua lượt họp', { ...ctx, reason: c.reason }); return null; }
+      if (!c.ok) {
+        log('info', 'bỏ qua lượt họp', { ...ctx, reason: c.reason });
+        return null;
+      }
       const busy = this.store.runningJob(s.cfg.employeeCode);
       if (busy && (busy.kind ?? 'task') === 'task') {
         await s.hub.passTurn();
@@ -295,7 +478,11 @@ export class Runner {
    */
   private async heldByMeeting(s: AgentState, job: Job): Promise<boolean> {
     let m: any;
-    try { m = await s.hub.myMeeting(); } catch { return false; }
+    try {
+      m = await s.hub.myMeeting();
+    } catch {
+      return false;
+    }
     if (!m?.inMeeting) return false;
     const reason = 'agent đang họp — chờ hết cuộc họp';
     if (job.reason !== reason) log('info', 'hoãn job', { job: job.id, agent: job.agent, task: job.task_code, reason });
@@ -309,31 +496,65 @@ export class Runner {
    */
   async acceptChat(s: AgentState, w: ChatWake): Promise<number | null> {
     const label = chatLabel(w.conversation_id);
-    if (!s.enabled || !s.employeeId) { log('warn', 'agent đang tắt — bỏ qua', { agent: s.cfg.employeeCode, task: label, problem: s.problem }); return null; }
-    try {
-      const c = checkChat(await s.hub.listChats(), w.conversation_id);
-      if (!c.ok) { log('info', 'bỏ qua tin nhắc', { agent: s.cfg.employeeCode, task: label, reason: c.reason }); return null; }
-    } catch (e) {
-      log('warn', 'không kiểm tra được hội thoại — bỏ qua', { agent: s.cfg.employeeCode, task: label, error: errText(e) });
+    if (!s.enabled || !s.employeeId) {
+      log('warn', 'agent đang tắt — bỏ qua', { agent: s.cfg.employeeCode, task: label, problem: s.problem });
       return null;
     }
-    const id = this.store.enqueue(s.cfg.employeeCode, lightKey(s.cfg.employeeCode, w.conversation_id), label, '', 'chat');
-    log('info', id ? 'xếp hàng tin nhắc' : 'hội thoại đã có job đang chờ / chạy — gộp', { agent: s.cfg.employeeCode, task: label, job: id });
+    try {
+      const c = checkChat(await s.hub.listChats(), w.conversation_id);
+      if (!c.ok) {
+        log('info', 'bỏ qua tin nhắc', { agent: s.cfg.employeeCode, task: label, reason: c.reason });
+        return null;
+      }
+    } catch (e) {
+      log('warn', 'không kiểm tra được hội thoại — bỏ qua', {
+        agent: s.cfg.employeeCode,
+        task: label,
+        error: errText(e),
+      });
+      return null;
+    }
+    const id = this.store.enqueue(
+      s.cfg.employeeCode,
+      lightKey(s.cfg.employeeCode, w.conversation_id),
+      label,
+      '',
+      'chat',
+    );
+    log('info', id ? 'xếp hàng tin nhắc' : 'hội thoại đã có job đang chờ / chạy — gộp', {
+      agent: s.cfg.employeeCode,
+      task: label,
+      job: id,
+    });
     return id;
   }
 
   /** Hỏi lại OfficeHub rồi xếp hàng. Trả id job (null = bỏ qua / đã có job đang chờ cho việc này). */
   async accept(s: AgentState, w: WakeData): Promise<number | null> {
-    if (!s.enabled || !s.employeeId) { log('warn', 'agent đang tắt — bỏ qua', { agent: s.cfg.employeeCode, task: w.task_code, problem: s.problem }); return null; }
+    if (!s.enabled || !s.employeeId) {
+      log('warn', 'agent đang tắt — bỏ qua', { agent: s.cfg.employeeCode, task: w.task_code, problem: s.problem });
+      return null;
+    }
     try {
       const c = checkTask(await s.hub.getTask(w.task_id), w, s.employeeId);
-      if (!c.ok) { log('info', 'bỏ qua việc', { agent: s.cfg.employeeCode, task: w.task_code, reason: c.reason }); return null; }
+      if (!c.ok) {
+        log('info', 'bỏ qua việc', { agent: s.cfg.employeeCode, task: w.task_code, reason: c.reason });
+        return null;
+      }
     } catch (e) {
-      log('warn', 'không kiểm tra được việc — bỏ qua', { agent: s.cfg.employeeCode, task: w.task_code, error: errText(e) });
+      log('warn', 'không kiểm tra được việc — bỏ qua', {
+        agent: s.cfg.employeeCode,
+        task: w.task_code,
+        error: errText(e),
+      });
       return null;
     }
     const id = this.store.enqueue(s.cfg.employeeCode, w.task_id, w.task_code, w.project_id);
-    log('info', id ? 'xếp hàng việc' : 'việc đã có job đang chờ / chạy', { agent: s.cfg.employeeCode, task: w.task_code, job: id });
+    log('info', id ? 'xếp hàng việc' : 'việc đã có job đang chờ / chạy', {
+      agent: s.cfg.employeeCode,
+      task: w.task_code,
+      job: id,
+    });
     return id;
   }
 
@@ -353,9 +574,13 @@ export class Runner {
    * Thư mục chạy của phiên không có repo (mode none; sau này chat / họp): `{data_dir}/work/{mã NV}/{tên}` — trống, CỐ ĐỊNH theo việc
    * (CLI tìm phiên để nối theo thư mục chạy → việc bị trả về phải chạy lại đúng thư mục cũ).
    */
-  workDir(agent: string, name: string) { return join(this.config.dataDir, 'work', agent, name.replace(/[^A-Za-z0-9._-]/g, '_')); }
+  workDir(agent: string, name: string) {
+    return join(this.config.dataDir, 'work', agent, name.replace(/[^A-Za-z0-9._-]/g, '_'));
+  }
 
-  private jobDir(job: Pick<Job, 'id'>) { return join(this.config.dataDir, 'jobs', String(job.id)); }
+  private jobDir(job: Pick<Job, 'id'>) {
+    return join(this.config.dataDir, 'jobs', String(job.id));
+  }
 
   async process(job: Job): Promise<void> {
     const s = this.agents.get(job.agent)!;
@@ -363,7 +588,7 @@ export class Runner {
     this.running.set(job.id, ctl);
     try {
       // Agent đang họp → việc / chat chờ (kiểm tra trước khi ghi log bắt đầu: job hoãn được hỏi lại mỗi 30 giây).
-      if (job.kind !== 'meeting' && await this.heldByMeeting(s, job)) return;
+      if (job.kind !== 'meeting' && (await this.heldByMeeting(s, job))) return;
       log('info', 'bắt đầu job', { job: job.id, agent: job.agent, task: job.task_code });
       if (job.kind === 'meeting') await this.processMeeting(s, job, ctl.signal);
       else if (job.kind === 'chat') await this.processChat(s, job, ctl.signal);
@@ -388,30 +613,69 @@ export class Runner {
    * `presence` = có báo thao tác lên văn phòng 3D không; `noBuiltinTools` = chỉ tool MCP.
    * `label` = tên phiên người xem trực tiếp thấy ("MÃ · tên việc"; chat / họp: nhãn chung, không có nội dung tin).
    */
-  private async runSession(s: AgentState, job: Job, signal: AbortSignal,
-    o: { cwd: string; prompt: string; resume?: string; exec?: ExecutorConfig; noBuiltinTools?: boolean; presence: boolean; label: string }): Promise<RunOutcome> {
-    const jobDir = this.jobDir(job), exec = o.exec ?? s.cfg.executor;
+  private async runSession(
+    s: AgentState,
+    job: Job,
+    signal: AbortSignal,
+    o: {
+      cwd: string;
+      prompt: string;
+      resume?: string;
+      exec?: ExecutorConfig;
+      noBuiltinTools?: boolean;
+      presence: boolean;
+      label: string;
+    },
+  ): Promise<RunOutcome> {
+    const jobDir = this.jobDir(job),
+      exec = o.exec ?? s.cfg.executor;
     mkdirSync(jobDir, { recursive: true });
-    const promptFile = join(jobDir, 'prompt.md'), mcpFile = join(jobDir, 'mcp.json');
+    const promptFile = join(jobDir, 'prompt.md'),
+      mcpFile = join(jobDir, 'mcp.json');
     writeFileSync(promptFile, o.prompt, { mode: 0o600 });
     // TEST-143: hồ sơ tool theo loại job (việc / chat / họp)
     writeFileSync(mcpFile, JSON.stringify(mcpConfig(this.config.mcpUrl, job.kind ?? 'task'), null, 2), { mode: 0o600 });
-    const env = { ...this.baseEnv(s.cfg), OFFICEHUB_TOKEN: s.cfg.token, [AGENT_ENV]: job.agent, [TASK_ENV]: job.task_code };
+    const env = {
+      ...this.baseEnv(s.cfg),
+      OFFICEHUB_TOKEN: s.cfg.token,
+      [AGENT_ENV]: job.agent,
+      [TASK_ENV]: job.task_code,
+    };
     const onActivity = (action: string) => {
       log('info', 'agent đang làm', { job: job.id, agent: job.agent, task: job.task_code, action });
       if (o.presence) s.presence.activity(action);
       // activity.log: bản đọc được của phiên (output.log là stream-json thô) — mỗi thao tác một dòng kèm giờ.
-      try { appendFileSync(join(jobDir, 'activity.log'), redact(`${new Date().toTimeString().slice(0, 8)}  ${action}\n`)); } catch { /* không chặn job vì log */ }
+      try {
+        appendFileSync(join(jobDir, 'activity.log'), redact(`${new Date().toTimeString().slice(0, 8)}  ${action}\n`));
+      } catch {
+        /* không chặn job vì log */
+      }
     };
     // Dòng đầu job ghi model: adapter claude tự báo từ sự kiện system/init; adapter khác chỉ biết model cấu hình.
-    if (!adapters[exec.kind]?.activity) onActivity(`Model ${exec.model ? `${exec.model} (cấu hình)` : 'mặc định của CLI'}`);
+    if (!adapters[exec.kind]?.activity)
+      onActivity(`Model ${exec.model ? `${exec.model} (cấu hình)` : 'mặc định của CLI'}`);
     // Người đứng gần bot trong 3D xem trực tiếp: bắt đầu phiên → từng thao tác → kết thúc phiên. Bộ gửi chạy ở nền: job KHÔNG chờ nó
     // và lỗi của nó không tới được đây (lỗi 2026-11-14: chờ gửi nốt ở cuối job làm runner treo, không ghi kết quả / bình luận chi phí).
     s.activity.push(sessionStart(o.label, exec.model));
     let out: RunOutcome | undefined;
     try {
-      out = await runExecutor({ cwd: o.cwd, jobDir, promptFile, prompt: o.prompt, mcpConfigFile: mcpFile, resumeSessionId: o.resume, exec,
-        noBuiltinTools: o.noBuiltinTools, systemPrompt: o.noBuiltinTools ? MCP_SYSTEM_PROMPT : undefined, onActivity, onEvent: s.activity.active ? (e) => s.activity.push(e) : undefined }, env, signal);
+      out = await runExecutor(
+        {
+          cwd: o.cwd,
+          jobDir,
+          promptFile,
+          prompt: o.prompt,
+          mcpConfigFile: mcpFile,
+          resumeSessionId: o.resume,
+          exec,
+          noBuiltinTools: o.noBuiltinTools,
+          systemPrompt: o.noBuiltinTools ? MCP_SYSTEM_PROMPT : undefined,
+          onActivity,
+          onEvent: s.activity.active ? (e) => s.activity.push(e) : undefined,
+        },
+        env,
+        signal,
+      );
     } finally {
       const failed = !out || out.exitCode !== 0 || out.timedOut;
       s.activity.push(sessionEnd(out ? { ...out, isError: out.isError || failed } : { isError: true }, o.label));
@@ -420,7 +684,13 @@ export class Runner {
     // Runner bị dừng (stop() huỷ phiên): không ghi kết quả / bình luận "phiên lỗi" — process() đưa job về hàng đợi.
     if (signal.aborted) throw new RunnerStopped();
     if (out.model && !out.modelFromConfig && !modelMatches(exec.model, out.model))
-      log('warn', 'model thật khác cấu hình', { job: job.id, agent: job.agent, task: job.task_code, model: out.model, configured: exec.model });
+      log('warn', 'model thật khác cấu hình', {
+        job: job.id,
+        agent: job.agent,
+        task: job.task_code,
+        model: out.model,
+        configured: exec.model,
+      });
     return out;
   }
 
@@ -432,24 +702,39 @@ export class Runner {
    */
   private async resumeFor(s: AgentState, job: Job, cwd: string, maxResumes?: number): Promise<string | undefined> {
     const prev = this.store.session(job.task_id);
-    const why = (reason: string) => { log('info', `mở phiên mới (${reason})`, { job: job.id, agent: job.agent, task: job.task_code }); return undefined; };
+    const why = (reason: string) => {
+      log('info', `mở phiên mới (${reason})`, { job: job.id, agent: job.agent, task: job.task_code });
+      return undefined;
+    };
     const adapter = adapters[s.cfg.executor.kind];
     if (!adapter?.caps.resume) return undefined;
     // TEST-144: máy mới / mất runner.db → không có dòng phiên; thử bản trên cloud của đúng khoá này (khôi phục lười, chỉ khi còn trong ngưỡng)
     if (!prev?.session_id || prev.agent !== job.agent) return prev ? undefined : this.restoreFromCloud(s, job, cwd);
     const gapMin = (Date.now() - Date.parse(prev.updated_at)) / 60_000;
-    if (!(gapMin <= RESUME_MAX_GAP_MIN)) return why(`lần chạy trước cách ${Math.round(gapMin)} phút > ${RESUME_MAX_GAP_MIN}`);
-    if (maxResumes !== undefined && (prev.resumes ?? 0) >= maxResumes) return why(`đã nối ${prev.resumes} lần liên tiếp`);
+    if (!(gapMin <= RESUME_MAX_GAP_MIN))
+      return why(`lần chạy trước cách ${Math.round(gapMin)} phút > ${RESUME_MAX_GAP_MIN}`);
+    if (maxResumes !== undefined && (prev.resumes ?? 0) >= maxResumes)
+      return why(`đã nối ${prev.resumes} lần liên tiếp`);
     if (adapter.hasSession && !adapter.hasSession(this.baseEnv(s.cfg).HOME!, cwd, prev.session_id))
-      return (await this.restoreFromCloud(s, job, cwd)) ?? why('không còn transcript ở máy, cloud không có bản dùng được');
+      return (
+        (await this.restoreFromCloud(s, job, cwd)) ?? why('không còn transcript ở máy, cloud không có bản dùng được')
+      );
     return prev.session_id;
   }
 
   /** Khôi phục transcript của khoá job từ cloud (TEST-144); lỗi không chặn job — trả undefined = phiên mới. */
   private async restoreFromCloud(s: AgentState, job: Job, cwd: string): Promise<string | undefined> {
     if (!s.transcripts) return undefined;
-    try { return await s.transcripts.restore(job.task_id, cwd); }
-    catch (e) { log('warn', 'khôi phục transcript từ cloud lỗi — mở phiên mới', { job: job.id, agent: job.agent, error: errText(e) }); return undefined; }
+    try {
+      return await s.transcripts.restore(job.task_id, cwd);
+    } catch (e) {
+      log('warn', 'khôi phục transcript từ cloud lỗi — mở phiên mới', {
+        job: job.id,
+        agent: job.agent,
+        error: errText(e),
+      });
+      return undefined;
+    }
   }
 
   /** Sau phiên: đưa transcript vào hàng chờ gửi lên cloud (kèm bản bàn giao = câu cuối của agent) và gửi ở nền (TEST-144). */
@@ -466,16 +751,36 @@ export class Runner {
   private finishJob(s: AgentState, job: Job, out: RunOutcome, f: { note?: string; prUrl?: string } = {}): boolean {
     const ok = out.exitCode === 0 && !out.timedOut && !out.isError;
     this.store.finish(job.id, ok ? 'done' : 'failed', {
-      reason: out.timedOut ? 'hết giờ' : out.isError ? `CLI báo lỗi (${out.errorKind ?? out.exitCode})` : out.exitCode !== 0 ? `mã thoát ${out.exitCode}` : f.note || null,
-      session_id: out.sessionId ?? null, cost_usd: out.costUsd ?? null, input_tokens: out.inputTokens ?? null, output_tokens: out.outputTokens ?? null,
-      turns: out.turns ?? null, pr_url: f.prUrl ?? null,
+      reason: out.timedOut
+        ? 'hết giờ'
+        : out.isError
+          ? `CLI báo lỗi (${out.errorKind ?? out.exitCode})`
+          : out.exitCode !== 0
+            ? `mã thoát ${out.exitCode}`
+            : f.note || null,
+      session_id: out.sessionId ?? null,
+      cost_usd: out.costUsd ?? null,
+      input_tokens: out.inputTokens ?? null,
+      output_tokens: out.outputTokens ?? null,
+      turns: out.turns ?? null,
+      pr_url: f.prUrl ?? null,
       model: out.model ? out.model + (out.modelFromConfig ? ' (cấu hình)' : '') : null,
       model_usage: out.modelUsage ? JSON.stringify(out.modelUsage) : null,
-      cache_read_tokens: out.cacheReadTokens ?? null, cache_write_tokens: out.cacheWriteTokens ?? null,
-      executor: s.cfg.executor.kind, cli_ran: 1,
+      cache_read_tokens: out.cacheReadTokens ?? null,
+      cache_write_tokens: out.cacheWriteTokens ?? null,
+      executor: s.cfg.executor.kind,
+      cli_ran: 1,
     });
     void s.usage.flush().catch((e) => log('warn', 'gửi mức dùng AI lỗi', { agent: job.agent, error: errText(e) }));
-    log(ok ? 'info' : 'warn', 'xong job', { job: job.id, task: job.task_code, ok, model: out.model, pr: f.prUrl, cost: out.costUsd, sec: out.durationSec });
+    log(ok ? 'info' : 'warn', 'xong job', {
+      job: job.id,
+      task: job.task_code,
+      ok,
+      model: out.model,
+      pr: f.prUrl,
+      cost: out.costUsd,
+      sec: out.durationSec,
+    });
     return ok;
   }
 
@@ -487,19 +792,29 @@ export class Runner {
   private async processChat(s: AgentState, job: Job, signal: AbortSignal): Promise<void> {
     const conv = lightId(job);
     const c = checkChat(await s.hub.listChats(), conv);
-    if (!c.ok) { this.store.finish(job.id, 'skipped', { reason: c.reason }); log('info', 'bỏ job', { job: job.id, reason: c.reason }); return; }
+    if (!c.ok) {
+      this.store.finish(job.id, 'skipped', { reason: c.reason });
+      log('info', 'bỏ job', { job: job.id, reason: c.reason });
+      return;
+    }
     const cwd = this.workDir(job.agent, `chat-${conv}`);
     mkdirSync(cwd, { recursive: true });
     const resume = await this.resumeFor(s, job, cwd);
     const out = await this.runSession(s, job, signal, {
-      cwd, prompt: chatPrompt(job.agent, c.value.conversation, !!resume), resume, exec: lightExecutor(s.cfg.executor), noBuiltinTools: true, presence: false,
+      cwd,
+      prompt: chatPrompt(job.agent, c.value.conversation, !!resume),
+      resume,
+      exec: lightExecutor(s.cfg.executor),
+      noBuiltinTools: true,
+      presence: false,
       label: 'Trả lời tin nhắn',
     });
     this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd, !!resume);
     this.queueTranscript(s, job, out);
     this.finishJob(s, job, out);
     // Có tin nhắc mới tới giữa phiên → kiểm tra lại (đã đọc hết thì tự bỏ) và chạy thêm một lượt.
-    if (this.store.getJob(job.id)?.rerun) await this.acceptChat(s, { employee_code: job.agent, conversation_id: conv, message_id: '' });
+    if (this.store.getJob(job.id)?.rerun)
+      await this.acceptChat(s, { employee_code: job.agent, conversation_id: conv, message_id: '' });
   }
 
   /**
@@ -511,20 +826,35 @@ export class Runner {
   private async processMeeting(s: AgentState, job: Job, signal: AbortSignal): Promise<void> {
     const session = lightId(job);
     const c = checkMeeting(await s.hub.myMeeting(), session);
-    if (!c.ok) { this.store.finish(job.id, 'skipped', { reason: c.reason }); log('info', 'bỏ job', { job: job.id, reason: c.reason }); return; }
+    if (!c.ok) {
+      this.store.finish(job.id, 'skipped', { reason: c.reason });
+      log('info', 'bỏ job', { job: job.id, reason: c.reason });
+      return;
+    }
     const cwd = this.workDir(job.agent, `meeting-${session}`);
     mkdirSync(cwd, { recursive: true });
     const resume = await this.resumeFor(s, job, cwd, MEETING_RESUME_MAX);
-    const exec = { ...lightExecutor(s.cfg.executor), timeoutMin: Math.min(s.cfg.executor.timeoutMin, MEETING_TURN_MAX_MIN) };
+    const exec = {
+      ...lightExecutor(s.cfg.executor),
+      timeoutMin: Math.min(s.cfg.executor.timeoutMin, MEETING_TURN_MAX_MIN),
+    };
     try {
       const out = await this.runSession(s, job, signal, {
-        cwd, prompt: meetingPrompt(job.agent, session, !!resume), resume, exec, noBuiltinTools: true, presence: false, label: 'Phát biểu trong cuộc họp',
+        cwd,
+        prompt: meetingPrompt(job.agent, session, !!resume),
+        resume,
+        exec,
+        noBuiltinTools: true,
+        presence: false,
+        label: 'Phát biểu trong cuộc họp',
       });
       this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd, !!resume);
       this.queueTranscript(s, job, out);
       this.finishJob(s, job, out);
     } finally {
-      await this.afterMeetingTurn(s, job).catch((e) => log('warn', 'không kiểm tra được lượt họp sau phiên', { job: job.id, agent: job.agent, error: errText(e) }));
+      await this.afterMeetingTurn(s, job).catch((e) =>
+        log('warn', 'không kiểm tra được lượt họp sau phiên', { job: job.id, agent: job.agent, error: errText(e) }),
+      );
     }
   }
 
@@ -542,51 +872,88 @@ export class Runner {
       return;
     }
     await s.hub.passTurn();
-    log('warn', 'agent không dùng lượt họp — runner bỏ lượt thay', { job: job.id, agent: job.agent, task: job.task_code });
+    log('warn', 'agent không dùng lượt họp — runner bỏ lượt thay', {
+      job: job.id,
+      agent: job.agent,
+      task: job.task_code,
+    });
   }
 
   /** Job việc: kiểm tra lại việc → chuẩn bị nơi làm (worktree / in_place / none) → chạy CLI → push + PR (worktree) / push nhánh đang checkout (in_place) → bình luận kết quả. */
   private async processTask(s: AgentState, job: Job, signal: AbortSignal): Promise<void> {
-    const w: WakeData = { employee_code: job.agent, project_id: job.project_id, task_id: job.task_id, task_code: job.task_code };
+    const w: WakeData = {
+      employee_code: job.agent,
+      project_id: job.project_id,
+      task_id: job.task_id,
+      task_code: job.task_code,
+    };
     // Văn phòng 3D (TEST-121): job hỏng → `error` kèm loại lỗi ngắn (giữ tới job kế), còn lại → rảnh.
-    let task = job.task_code, failure: string | undefined;
+    let task = job.task_code,
+      failure: string | undefined;
     try {
       const detail = await s.hub.getTask(job.task_id);
       const c = checkTask(detail, w, s.employeeId!);
-      if (!c.ok) { this.store.finish(job.id, 'skipped', { reason: c.reason }); log('info', 'bỏ job', { job: job.id, reason: c.reason }); return; }
+      if (!c.ok) {
+        this.store.finish(job.id, 'skipped', { reason: c.reason });
+        log('info', 'bỏ job', { job: job.id, reason: c.reason });
+        return;
+      }
       s.presence.working(job.task_code, c.value.title);
       if (c.value.title?.trim()) task = `${job.task_code} · ${c.value.title.trim()}`;
 
       const mode = s.cfg.workspace.mode;
       const git = this.gitFor(s.cfg);
-      let ws: { path: string; branch: string; reused: boolean; existing?: 'local' | 'origin' }, startHead = '';
+      let ws: { path: string; branch: string; reused: boolean; existing?: 'local' | 'origin' },
+        startHead = '';
       if (mode === 'none') {
         // Agent nghiệp vụ: không git. Thư mục trống cố định theo việc (nối phiên khi việc bị trả về).
         ws = { path: this.workDir(job.agent, job.task_code.toUpperCase()), branch: '', reused: false };
         mkdirSync(ws.path, { recursive: true });
       } else {
         const onMain = await this.mainBranchWarning(git, s.cfg);
-        if (onMain) log('warn', 'repo đang ở main / master', { job: job.id, agent: job.agent, task: job.task_code, message: onMain });
+        if (onMain)
+          log('warn', 'repo đang ở main / master', {
+            job: job.id,
+            agent: job.agent,
+            task: job.task_code,
+            message: onMain,
+          });
         if (mode === 'in_place') {
           // in_place không dùng hook → gỡ hook của runner nếu còn (hook của người dùng giữ nguyên).
           const removed = await removeHooks(git, s.cfg.repo);
-          if (removed.length) log('info', 'đã gỡ hook của runner (in_place không dùng)', { job: job.id, agent: job.agent, hooks: removed });
+          if (removed.length)
+            log('info', 'đã gỡ hook của runner (in_place không dùng)', {
+              job: job.id,
+              agent: job.agent,
+              hooks: removed,
+            });
         } else {
           // worktree: hook có thể bị xoá sau lúc khởi động → trước mỗi job kiểm tra, thiếu thì tạo lại (hook khác của người dùng: không ghi đè, chỉ cảnh báo).
-          for (const m of await installHooks(git, s.cfg.repo, this.config.baseBranch)) log('warn', 'hook git', { job: job.id, agent: job.agent, message: m });
+          for (const m of await installHooks(git, s.cfg.repo, this.config.baseBranch))
+            log('warn', 'hook git', { job: job.id, agent: job.agent, message: m });
         }
         try {
           if (mode === 'in_place') {
             const r = await prepareInPlace(git, s.cfg.repo, this.config.baseBranch, s.cfg.workspace.allowBaseBranch);
             ws = { path: r.path, branch: r.branch, reused: false };
             startHead = r.head;
-          } else ws = await prepareWorktree(git, s.cfg.repo, this.config.worktreesDir, job.agent, job.task_code, this.config.baseBranch);
+          } else
+            ws = await prepareWorktree(
+              git,
+              s.cfg.repo,
+              this.config.worktreesDir,
+              job.agent,
+              job.task_code,
+              this.config.baseBranch,
+            );
         } catch (e) {
           if (!(e instanceof WorkspaceRefused)) throw e;
           // Workspace chưa sẵn sàng (đang bẩn / sai nhánh…) — không chạy agent, báo lại trong việc để người xử lý rồi giao lại.
           this.store.finish(job.id, 'skipped', { reason: e.message });
           failure = 'Không chạy được';
-          await s.hub.comment(job.task_id, `**🤖 agent-runner** (${job.agent}) — KHÔNG chạy: ${e.message}`).catch(() => undefined);
+          await s.hub
+            .comment(job.task_id, `**🤖 agent-runner** (${job.agent}) — KHÔNG chạy: ${e.message}`)
+            .catch(() => undefined);
           log('warn', 'bỏ job — workspace chưa sẵn sàng', { job: job.id, task: job.task_code, reason: e.message });
           return;
         }
@@ -595,14 +962,26 @@ export class Runner {
       const resume = await this.resumeFor(s, job, ws.path);
       // Phiên mới nhưng việc đã từng làm (worktree / nhánh local hoặc origin / phiên cũ) → prompt bảo đọc Bàn giao trước
       const continued = !resume && (ws.reused || !!ws.existing || !!prev);
-      if (ws.existing === 'origin') log('info', 'máy chưa có nhánh việc — lấy lại từ origin để làm tiếp', { job: job.id, agent: job.agent, branch: ws.branch });
+      if (ws.existing === 'origin')
+        log('info', 'máy chưa có nhánh việc — lấy lại từ origin để làm tiếp', {
+          job: job.id,
+          agent: job.agent,
+          branch: ws.branch,
+        });
       const prompt = buildPrompt(w, { mode, branch: ws.branch, resumed: !!resume, continued });
-      const out = await this.runSession(s, job, signal, { cwd: ws.path, prompt, resume, noBuiltinTools: mode === 'none', presence: true,
-        label: `${job.task_code} · ${c.value.title}` });
+      const out = await this.runSession(s, job, signal, {
+        cwd: ws.path,
+        prompt,
+        resume,
+        noBuiltinTools: mode === 'none',
+        presence: true,
+        label: `${job.task_code} · ${c.value.title}`,
+      });
       this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, ws.branch, ws.path, !!resume);
       this.queueTranscript(s, job, out);
 
-      let prUrl: string | undefined, note = '';
+      let prUrl: string | undefined,
+        note = '';
       if (mode === 'none') {
         // Không có gì để push: kết quả nằm trên OfficeHub (agent tự bình luận), runner chỉ báo thời gian / chi phí.
       } else if (mode === 'in_place') {
@@ -612,23 +991,41 @@ export class Runner {
         if (ch.ahead > 0) {
           let pushed = 'CHƯA push';
           if (!ch.touchesProtected && !ch.branchChanged) {
-            try { await pushInPlace(git, ws.path, ws.branch); pushed = 'đã push lên origin'; }
-            catch (e) { pushed = `⚠ CHƯA push — git push lỗi: ${errText(e).slice(0, 300)}`; failure = 'Không push được'; }
+            try {
+              await pushInPlace(git, ws.path, ws.branch);
+              pushed = 'đã push lên origin';
+            } catch (e) {
+              pushed = `⚠ CHƯA push — git push lỗi: ${errText(e).slice(0, 300)}`;
+              failure = 'Không push được';
+            }
           } else failure = 'Không push được';
-          note = `${ch.ahead} commit mới trên nhánh \`${ch.branchNow || ws.branch}\` (${pushed}): ${ch.commits.slice(0, 5).map((c) => `\`${c}\``).join(', ')}${ch.ahead > 5 ? ', …' : ''}`;
+          note = `${ch.ahead} commit mới trên nhánh \`${ch.branchNow || ws.branch}\` (${pushed}): ${ch.commits
+            .slice(0, 5)
+            .map((c) => `\`${c}\``)
+            .join(', ')}${ch.ahead > 5 ? ', …' : ''}`;
         } else note = 'Phiên kết thúc, không có commit mới.';
-        if (ch.touchesProtected) note += ' ⚠ Có thay đổi trong `agent-runner/` — runner KHÔNG push; người thật xem lại / bỏ commit đó rồi tự push.';
-        if (ch.branchChanged) note += ` ⚠ Agent đã đổi nhánh (${ws.branch} → ${ch.branchNow || 'detached HEAD'}) trái quy tắc — runner KHÔNG push, kiểm tra repo.`;
+        if (ch.touchesProtected)
+          note +=
+            ' ⚠ Có thay đổi trong `agent-runner/` — runner KHÔNG push; người thật xem lại / bỏ commit đó rồi tự push.';
+        if (ch.branchChanged)
+          note += ` ⚠ Agent đã đổi nhánh (${ws.branch} → ${ch.branchNow || 'detached HEAD'}) trái quy tắc — runner KHÔNG push, kiểm tra repo.`;
         if (ch.dirty) note += ' Còn thay đổi chưa commit trong workspace.';
       } else {
         const ch = await branchChanges(git, ws.path, this.config.baseBranch);
         if (ch.touchesProtected) {
-          note = '⚠ Nhánh có thay đổi trong `agent-runner/` — runner KHÔNG push. Người thật kiểm tra worktree trên máy agent.';
+          note =
+            '⚠ Nhánh có thay đổi trong `agent-runner/` — runner KHÔNG push. Người thật kiểm tra worktree trên máy agent.';
           failure = 'Không push được';
         } else if (ch.ahead > 0) {
           try {
-            prUrl = await publish(git, ws.path, ws.branch, this.config.baseBranch, `${job.task_code}: ${c.value.title}`.slice(0, 200),
-              `Việc OfficeHub **${job.task_code}** — agent ${job.agent}, tạo tự động bởi agent-runner (TEST-44). Người thật review trước khi merge.`);
+            prUrl = await publish(
+              git,
+              ws.path,
+              ws.branch,
+              this.config.baseBranch,
+              `${job.task_code}: ${c.value.title}`.slice(0, 200),
+              `Việc OfficeHub **${job.task_code}** — agent ${job.agent}, tạo tự động bởi agent-runner (TEST-44). Người thật review trước khi merge.`,
+            );
           } catch (e) {
             note = `⚠ Không push / tạo được PR: ${errText(e)}`;
             failure = errText(e).startsWith('git push lỗi') ? 'Không push được' : 'Không tạo được PR';
@@ -653,10 +1050,14 @@ export class Runner {
   async start(modelCheck = true) {
     const recovered = this.store.recoverRunning();
     if (recovered) log('warn', 'đưa lại job đang chạy dở vào hàng đợi', { count: recovered });
-    for (const line of await this.checkAgents(undefined, true, modelCheck)) log(line.startsWith('✘') ? 'error' : line.startsWith('⚠') ? 'warn' : 'info', line);
+    for (const line of await this.checkAgents(undefined, true, modelCheck))
+      log(line.startsWith('✘') ? 'error' : line.startsWith('⚠') ? 'warn' : 'info', line);
     const enabled = [...this.agents.values()].filter((a) => a.enabled);
     if (enabled.length === 0) throw new Error('Không agent nào chạy được — xem các dòng ✘ ở trên (chạy `doctor`)');
-    for (const s of enabled) { s.presence.start(); void this.listen(s); }
+    for (const s of enabled) {
+      s.presence.start();
+      void this.listen(s);
+    }
     // Mức dùng AI (TEST-135): gửi phiên còn tồn từ lần chạy trước, rồi gửi lại theo nhịp (máy chủ tạm lỗi / chưa có bản mới)
     const flushUsage = () => {
       for (const s of this.agents.values()) {
@@ -672,7 +1073,10 @@ export class Runner {
   stop() {
     this.abort.abort();
     clearInterval(this.usageTimer);
-    for (const s of this.agents.values()) { s.presence.stop(); s.activity.stop(); }
+    for (const s of this.agents.values()) {
+      s.presence.stop();
+      s.activity.stop();
+    }
     for (const c of this.running.values()) c.abort();
   }
 }
@@ -686,13 +1090,22 @@ export function presenceFailure(out: Pick<RunOutcome, 'exitCode' | 'timedOut' | 
  * Bình luận runner gửi vào việc sau mỗi phiên: PR, thời gian, model (TEST-64), chi phí, token, trạng thái.
  * Không chép output của CLI (agent tự báo kết quả).
  */
-export function resultComment(job: Pick<Job, 'agent'>, out: RunOutcome, prUrl: string | undefined, note: string, ok: boolean, configuredModel?: string): string {
+export function resultComment(
+  job: Pick<Job, 'agent'>,
+  out: RunOutcome,
+  prUrl: string | undefined,
+  note: string,
+  ok: boolean,
+  configuredModel?: string,
+): string {
   const parts = [
     `**🤖 agent-runner** (${job.agent}) — ${ok ? 'phiên kết thúc' : out.timedOut ? 'HẾT GIỜ, đã dừng phiên' : 'phiên lỗi'}`,
     prUrl ? `- PR: ${prUrl}` : null,
     `- Thời gian: ${Math.round(out.durationSec / 60)} phút${out.turns ? ` · ${out.turns} lượt` : ''}`,
     `- Model: ${modelLine(out, configuredModel)}`,
-    out.costUsd !== undefined ? `- Chi phí: $${out.costUsd.toFixed(2)}${out.inputTokens ? ` · ${out.inputTokens.toLocaleString('en')} token vào / ${(out.outputTokens ?? 0).toLocaleString('en')} ra` : ''}` : null,
+    out.costUsd !== undefined
+      ? `- Chi phí: $${out.costUsd.toFixed(2)}${out.inputTokens ? ` · ${out.inputTokens.toLocaleString('en')} token vào / ${(out.outputTokens ?? 0).toLocaleString('en')} ra` : ''}`
+      : null,
     note ? `- ${note}` : null,
   ];
   return parts.filter(Boolean).join('\n');

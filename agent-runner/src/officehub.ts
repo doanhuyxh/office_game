@@ -9,19 +9,31 @@ export class OfficeHubClient {
   private id = 0;
   private initialized = false;
 
-  constructor(private readonly url: string, private readonly token: string) {}
+  constructor(
+    private readonly url: string,
+    private readonly token: string,
+  ) {}
 
   private async rpc(method: string, params: unknown): Promise<any> {
     const res = await fetch(this.url, {
       method: 'POST',
-      headers: { authorization: `Bearer ${this.token}`, 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+      headers: {
+        authorization: `Bearer ${this.token}`,
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+      },
       body: JSON.stringify({ jsonrpc: '2.0', id: ++this.id, method, params }),
       signal: AbortSignal.timeout(30_000),
     });
     if (res.status === 401) throw new Error('OfficeHub từ chối token AI (401) — token sai / đã thu hồi / hết hạn');
     if (!res.ok) throw new Error(`OfficeHub MCP trả ${res.status}`);
     const text = await res.text();
-    const payload = text.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5)).pop() ?? text;
+    const payload =
+      text
+        .split('\n')
+        .filter((l) => l.startsWith('data:'))
+        .map((l) => l.slice(5))
+        .pop() ?? text;
     const msg = JSON.parse(payload);
     if (msg.error) throw new Error(`MCP ${method}: ${msg.error.message ?? JSON.stringify(msg.error)}`);
     return msg.result;
@@ -29,13 +41,21 @@ export class OfficeHubClient {
 
   async callTool<T = any>(name: string, args: Record<string, unknown>): Promise<T> {
     if (!this.initialized) {
-      await this.rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'officehub-agent-runner', version: '1' } });
+      await this.rpc('initialize', {
+        protocolVersion: '2025-06-18',
+        capabilities: {},
+        clientInfo: { name: 'officehub-agent-runner', version: '1' },
+      });
       this.initialized = true;
     }
     const r = await this.rpc('tools/call', { name, arguments: args });
     const text: string = r?.content?.[0]?.text ?? '';
     if (r?.isError) throw new Error(`${name}: ${text.slice(0, 300)}`);
-    try { return JSON.parse(text) as T; } catch { return text as T; }
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      return text as T;
+    }
   }
 
   /** Nhân viên của token: { id, code, fullName }. */
@@ -46,19 +66,31 @@ export class OfficeHubClient {
     return { id: e.id, code: String(e.code).toUpperCase(), fullName: e.fullName ?? '' };
   }
 
-  getTask(task: string) { return this.callTool<any>('get_task', { task }); }
+  getTask(task: string) {
+    return this.callTool<any>('get_task', { task });
+  }
 
   /** Hội thoại của agent (chỉ tài khoản bot): `[{ conversation, type, unread, mentionedUnread, … }]`. */
-  listChats() { return this.callTool<any>('list_chats', {}); }
+  listChats() {
+    return this.callTool<any>('list_chats', {});
+  }
 
   /** Cuộc họp agent đang dự (chỉ tài khoản bot): `{ inMeeting, sessionId, isMyTurn, isChair, … }`. */
-  myMeeting() { return this.callTool<any>('get_my_meeting', {}); }
+  myMeeting() {
+    return this.callTool<any>('get_my_meeting', {});
+  }
 
   /** Bỏ lượt nói đang giữ (runner gọi thay khi agent không dùng được lượt — cuộc họp không đứng chờ hết hạn). */
-  passTurn() { return this.callTool<any>('pass_turn', {}); }
+  passTurn() {
+    return this.callTool<any>('pass_turn', {});
+  }
 
   async comment(task: string, content: string) {
-    try { await this.callTool('comment_task', { task, content }); return true; }
-    catch (e) { return errText(e); }
+    try {
+      await this.callTool('comment_task', { task, content });
+      return true;
+    } catch (e) {
+      return errText(e);
+    }
   }
 }

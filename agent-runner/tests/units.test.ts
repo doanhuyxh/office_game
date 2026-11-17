@@ -3,7 +3,13 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigError, isInside, lightExecutor, parseConfig } from '../src/config';
-import { claudeAdapter, claudeHasSession, claudeProjectDir, parseProbe, probeArgs } from '../src/executor/adapters/claude';
+import {
+  claudeAdapter,
+  claudeHasSession,
+  claudeProjectDir,
+  parseProbe,
+  probeArgs,
+} from '../src/executor/adapters/claude';
 import { mainModel, modelLine, modelMatches, readModelUsage } from '../src/executor/model';
 import { resultComment } from '../src/runner';
 import { customAdapter, fillArgs } from '../src/executor/adapters/custom';
@@ -23,10 +29,16 @@ export const baseRaw = () => ({
   officehub: { mcp_url: 'http://localhost:5200/mcp' },
   telegram: { group_chat_id: '-1001234567890', notifier_bot: '@OfficeHub_Notify_Bot' },
   runner: { data_dir: '/var/lib/r', worktrees_dir: '/srv/agents/worktrees', max_parallel: 2 },
-  agents: [{
-    employee_code: 'nv120', telegram_bot: 'Agent_Dev01_Bot', telegram_token: TG, token: 'ohk_abcdefgh12345678', repo: '/srv/agents/NV120/office_game',
-    executor: { kind: 'claude', bin: '/usr/local/bin/claude', model: 'claude-sonnet-5-5', max_budget_usd: 5 },
-  }],
+  agents: [
+    {
+      employee_code: 'nv120',
+      telegram_bot: 'Agent_Dev01_Bot',
+      telegram_token: TG,
+      token: 'ohk_abcdefgh12345678',
+      repo: '/srv/agents/NV120/office_game',
+      executor: { kind: 'claude', bin: '/usr/local/bin/claude', model: 'claude-sonnet-5-5', max_budget_usd: 5 },
+    },
+  ],
 });
 
 describe('config', () => {
@@ -40,17 +52,31 @@ describe('config', () => {
   });
 
   test('workspace: mặc định worktree; in_place + cờ; sai giá trị / dùng chung repo → lỗi', () => {
-    expect(parseConfig(baseRaw()).agents[0]!.workspace).toEqual({ mode: 'worktree', allowBaseBranch: false, allowEnvFiles: false });
+    expect(parseConfig(baseRaw()).agents[0]!.workspace).toEqual({
+      mode: 'worktree',
+      allowBaseBranch: false,
+      allowEnvFiles: false,
+    });
     const r: any = baseRaw();
     r.agents[0].workspace = { mode: 'in_place', allow_base_branch: true };
-    expect(parseConfig(r).agents[0]!.workspace).toEqual({ mode: 'in_place', allowBaseBranch: true, allowEnvFiles: false });
+    expect(parseConfig(r).agents[0]!.workspace).toEqual({
+      mode: 'in_place',
+      allowBaseBranch: true,
+      allowEnvFiles: false,
+    });
     r.agents[0].workspace = { mode: 'ban-nhap' };
     expect(() => parseConfig(r)).toThrow(ConfigError);
     r.agents[0].workspace = { mode: 'in_place', allow_env_files: 'yes' };
     expect(() => parseConfig(r)).toThrow(ConfigError);
     // hai agent chung repo mà một bên in_place → lỗi
     r.agents[0].workspace = { mode: 'in_place' };
-    r.agents.push({ ...r.agents[0], employee_code: 'NV121', telegram_bot: 'Agent_Dev02_Bot', token: 'ohk_zzzzzzzz12345678', workspace: undefined });
+    r.agents.push({
+      ...r.agents[0],
+      employee_code: 'NV121',
+      telegram_bot: 'Agent_Dev02_Bot',
+      token: 'ohk_zzzzzzzz12345678',
+      workspace: undefined,
+    });
     expect(() => parseConfig(r)).toThrow('bị agent khác dùng chung');
   });
 
@@ -81,7 +107,10 @@ describe('config', () => {
     r.agents[0].telegram_bot = '@khongphai';
     r.agents[0].executor = { kind: 'custom', bin: 'relative/bin' };
     r.agents.push({ ...baseRaw().agents[0] });
-    try { parseConfig(r); throw new Error('phải lỗi'); } catch (e) {
+    try {
+      parseConfig(r);
+      throw new Error('phải lỗi');
+    } catch (e) {
       const p = (e as ConfigError).problems.join('\n');
       expect(p).toContain('token phải là token AI');
       expect(p).toContain('telegram_bot');
@@ -107,15 +136,26 @@ describe('config', () => {
 
 describe('validator', () => {
   const opts = { groupChatId: '-1001234567890', employeeCode: 'NV120' };
-  const P = '01a1cb11-4644-716a-bf4d-8ab17b2f159b', T = '01a1ced9-0a22-713a-b89d-cbd02c09c92d';
+  const P = '01a1cb11-4644-716a-bf4d-8ab17b2f159b',
+    T = '01a1ced9-0a22-713a-b89d-cbd02c09c92d';
   const msg = (text: string, over: any = {}) => ({
-    message_id: 1, date: 0, chat: { id: -1001234567890, type: 'supergroup' }, from: { id: 9, is_bot: true, username: 'OfficeHub_Notify_Bot' }, text, ...over,
+    message_id: 1,
+    date: 0,
+    chat: { id: -1001234567890, type: 'supergroup' },
+    from: { id: 9, is_bot: true, username: 'OfficeHub_Notify_Bot' },
+    text,
+    ...over,
   });
   const good = `@agent_dev01_bot\n{"employee_code":"NV120","project_id":"${P}","task_id":"${T}","task_code":"TEST-45"}`;
 
   test('chỉ cần nhóm + mã nhân viên khớp: người gửi / dòng nhắc bot không quan trọng', () => {
-    for (const m of [msg(good, { from: { id: 1, is_bot: false, username: 'nguoi_that' } }), msg(good.replace('@agent_dev01_bot', '@agent_dev02_bot')),
-      msg(good, { from: undefined }), msg(good.split('\n')[1]!)]) expect(parseWake(m as any, opts).ok).toBe(true);
+    for (const m of [
+      msg(good, { from: { id: 1, is_bot: false, username: 'nguoi_that' } }),
+      msg(good.replace('@agent_dev01_bot', '@agent_dev02_bot')),
+      msg(good, { from: undefined }),
+      msg(good.split('\n')[1]!),
+    ])
+      expect(parseWake(m as any, opts).ok).toBe(true);
   });
 
   test('tin đúng', () => {
@@ -127,11 +167,21 @@ describe('validator', () => {
   });
 
   test('chat_mention (TEST-81): chỉ cần employee_code + conversation_id + message_id', () => {
-    const C = '01A1D000-0000-7000-8000-00000000C0DE', M = '01a1d000-0000-7000-8000-00000000beef';
-    const chat = (o: any = {}) => msg(JSON.stringify({ employee_code: 'NV120', event: 'chat_mention', conversation_id: C, message_id: M, ...o }));
+    const C = '01A1D000-0000-7000-8000-00000000C0DE',
+      M = '01a1d000-0000-7000-8000-00000000beef';
+    const chat = (o: any = {}) =>
+      msg(JSON.stringify({ employee_code: 'NV120', event: 'chat_mention', conversation_id: C, message_id: M, ...o }));
     const r = parseWake(chat(), opts);
-    expect(r.ok && r.value).toEqual({ kind: 'chat', employee_code: 'NV120', conversation_id: C.toLowerCase(), message_id: M });
-    const bad = (m: any) => { const x = parseWake(m, opts); return x.ok ? '' : x.reason; };
+    expect(r.ok && r.value).toEqual({
+      kind: 'chat',
+      employee_code: 'NV120',
+      conversation_id: C.toLowerCase(),
+      message_id: M,
+    });
+    const bad = (m: any) => {
+      const x = parseWake(m, opts);
+      return x.ok ? '' : x.reason;
+    };
     expect(bad(chat({ employee_code: 'NV999' }))).toContain('không phải của agent');
     expect(bad(chat({ message_id: undefined }))).toContain('thiếu trường');
     expect(bad(chat({ conversation_id: 'office' }))).toContain('không phải GUID');
@@ -139,11 +189,21 @@ describe('validator', () => {
   });
 
   test('meeting_turn (TEST-84): employee_code + session_id + conversation_id; checkMeeting đúng phiên + đang giữ lượt', () => {
-    const SS = '01A1D500-0000-7000-8000-0000000000AA', C = '01a1d500-0000-7000-8000-0000000000bb';
-    const turn = (o: any = {}) => msg(JSON.stringify({ employee_code: 'NV120', event: 'meeting_turn', session_id: SS, conversation_id: C, ...o }));
+    const SS = '01A1D500-0000-7000-8000-0000000000AA',
+      C = '01a1d500-0000-7000-8000-0000000000bb';
+    const turn = (o: any = {}) =>
+      msg(JSON.stringify({ employee_code: 'NV120', event: 'meeting_turn', session_id: SS, conversation_id: C, ...o }));
     const r = parseWake(turn(), opts);
-    expect(r.ok && r.value).toEqual({ kind: 'meeting', employee_code: 'NV120', session_id: SS.toLowerCase(), conversation_id: C });
-    const bad = (m: any) => { const x = parseWake(m, opts); return x.ok ? '' : x.reason; };
+    expect(r.ok && r.value).toEqual({
+      kind: 'meeting',
+      employee_code: 'NV120',
+      session_id: SS.toLowerCase(),
+      conversation_id: C,
+    });
+    const bad = (m: any) => {
+      const x = parseWake(m, opts);
+      return x.ok ? '' : x.reason;
+    };
     expect(bad(turn({ employee_code: 'NV121' }))).toContain('không phải của agent');
     expect(bad(turn({ session_id: undefined }))).toContain('thiếu trường');
     expect(bad(turn({ session_id: 'abc' }))).toContain('không phải GUID');
@@ -159,10 +219,22 @@ describe('validator', () => {
   test('checkChat: còn tin nhắc chưa đọc mới chạy; kênh office không lộ id', () => {
     const C = '01a1d000-0000-7000-8000-00000000c0de';
     const list = (o: any[]) => o;
-    expect(checkChat(list([{ conversation: C, type: 'room', mentionedUnread: 2 }]), C.toUpperCase())).toEqual({ ok: true, value: { conversation: C } });
-    expect(checkChat(list([{ conversation: C, type: 'room', mentionedUnread: 0, unread: 5 }]), C)).toEqual({ ok: false, reason: 'không còn tin nhắc chưa đọc' });
-    expect(checkChat(list([{ conversation: 'office', type: 'office', mentionedUnread: 1 }]), C)).toEqual({ ok: true, value: { conversation: 'office' } });
-    expect(checkChat(list([{ conversation: 'khac', mentionedUnread: 3 }]), C)).toEqual({ ok: false, reason: 'agent không ở trong hội thoại này' });
+    expect(checkChat(list([{ conversation: C, type: 'room', mentionedUnread: 2 }]), C.toUpperCase())).toEqual({
+      ok: true,
+      value: { conversation: C },
+    });
+    expect(checkChat(list([{ conversation: C, type: 'room', mentionedUnread: 0, unread: 5 }]), C)).toEqual({
+      ok: false,
+      reason: 'không còn tin nhắc chưa đọc',
+    });
+    expect(checkChat(list([{ conversation: 'office', type: 'office', mentionedUnread: 1 }]), C)).toEqual({
+      ok: true,
+      value: { conversation: 'office' },
+    });
+    expect(checkChat(list([{ conversation: 'khac', mentionedUnread: 3 }]), C)).toEqual({
+      ok: false,
+      reason: 'agent không ở trong hội thoại này',
+    });
     expect(checkChat('lỗi', C).ok).toBe(false);
   });
 
@@ -180,12 +252,25 @@ describe('validator', () => {
 
   test('checkTask', () => {
     const w = { project_id: P, task_id: T };
-    const d = (t: any, dependsOn: any[] = []) => ({ task: { id: T, projectId: P, assigneeEmployeeId: 'me', done: false, title: 'X', code: 'TEST-45', ...t }, dependsOn });
+    const d = (t: any, dependsOn: any[] = []) => ({
+      task: { id: T, projectId: P, assigneeEmployeeId: 'me', done: false, title: 'X', code: 'TEST-45', ...t },
+      dependsOn,
+    });
     expect(checkTask(d({}), w, 'me').ok).toBe(true);
-    expect(checkTask(d({ assigneeEmployeeId: 'other' }), w, 'me')).toEqual({ ok: false, reason: 'việc không còn giao cho agent này' });
+    expect(checkTask(d({ assigneeEmployeeId: 'other' }), w, 'me')).toEqual({
+      ok: false,
+      reason: 'việc không còn giao cho agent này',
+    });
     expect(checkTask(d({ done: true }), w, 'me').ok).toBe(false);
     expect(checkTask(d({ projectId: 'khac' }), w, 'me').ok).toBe(false);
-    const waiting = checkTask(d({}, [{ code: 'TEST-41', done: true }, { code: 'TEST-42', done: false }]), w, 'me');
+    const waiting = checkTask(
+      d({}, [
+        { code: 'TEST-41', done: true },
+        { code: 'TEST-42', done: false },
+      ]),
+      w,
+      'me',
+    );
     expect(waiting.ok === false && waiting.reason).toBe('việc còn chờ TEST-42');
     expect(checkTask(null, w, 'me').ok).toBe(false);
   });
@@ -193,13 +278,31 @@ describe('validator', () => {
 
 describe('executor adapters', () => {
   const exec = parseConfig(baseRaw()).agents[0]!.executor;
-  const ctx: ExecContext = { cwd: '/w', jobDir: '/j', promptFile: '/j/prompt.md', prompt: 'P', mcpConfigFile: '/j/mcp.json', exec };
+  const ctx: ExecContext = {
+    cwd: '/w',
+    jobDir: '/j',
+    promptFile: '/j/prompt.md',
+    prompt: 'P',
+    mcpConfigFile: '/j/mcp.json',
+    exec,
+  };
 
   test('claude: cờ bắt buộc + resume + budget', () => {
     const c = claudeAdapter.command({ ...ctx, resumeSessionId: 'sess-1' });
     const a = c.args.join(' ');
-    for (const f of ['-p P', '--output-format stream-json', '--verbose', '--mcp-config /j/mcp.json', '--strict-mcp-config', '--setting-sources user',
-      '--permission-mode bypassPermissions', '--model claude-sonnet-5-5', '--max-budget-usd 5', '--resume sess-1']) expect(a).toContain(f);
+    for (const f of [
+      '-p P',
+      '--output-format stream-json',
+      '--verbose',
+      '--mcp-config /j/mcp.json',
+      '--strict-mcp-config',
+      '--setting-sources user',
+      '--permission-mode bypassPermissions',
+      '--model claude-sonnet-5-5',
+      '--max-budget-usd 5',
+      '--resume sess-1',
+    ])
+      expect(a).toContain(f);
   });
 
   test('executor.light (TEST-141): đè model / ngân sách / số vòng cho chat / họp; không khai báo → y như cũ; sai → lỗi', () => {
@@ -210,20 +313,39 @@ describe('executor adapters', () => {
     r.agents[0].executor.max_turns = 80;
     r.agents[0].executor.light = { model: 'claude-haiku-5-5', max_budget_usd: 0.2, max_turns: 8 };
     const e = parseConfig(r).agents[0]!.executor;
-    expect(e).toMatchObject({ model: 'claude-sonnet-5-5', maxBudgetUsd: 5, maxTurns: 80, light: { model: 'claude-haiku-5-5', maxBudgetUsd: 0.2, maxTurns: 8 } });
+    expect(e).toMatchObject({
+      model: 'claude-sonnet-5-5',
+      maxBudgetUsd: 5,
+      maxTurns: 80,
+      light: { model: 'claude-haiku-5-5', maxBudgetUsd: 0.2, maxTurns: 8 },
+    });
     const l = lightExecutor(e);
-    expect(l).toMatchObject({ model: 'claude-haiku-5-5', maxBudgetUsd: 0.2, maxTurns: 8, kind: 'claude', bin: '/usr/local/bin/claude', timeoutMin: 60 });
+    expect(l).toMatchObject({
+      model: 'claude-haiku-5-5',
+      maxBudgetUsd: 0.2,
+      maxTurns: 8,
+      kind: 'claude',
+      bin: '/usr/local/bin/claude',
+      timeoutMin: 60,
+    });
     expect(l.light).toBeUndefined();
     const a = claudeAdapter.command({ ...ctx, exec: l }).args.join(' ');
     for (const f of ['--model claude-haiku-5-5', '--max-budget-usd 0.2', '--max-turns 8']) expect(a).toContain(f);
     expect(claudeAdapter.command({ ...ctx, exec: e }).args.join(' ')).toContain('--max-turns 80'); // job việc: executor chính
     // Chỉ đặt một phần → phần còn lại theo executor
     r.agents[0].executor.light = { model: 'claude-haiku-5-5' };
-    expect(lightExecutor(parseConfig(r).agents[0]!.executor)).toMatchObject({ model: 'claude-haiku-5-5', maxBudgetUsd: 5, maxTurns: 80 });
+    expect(lightExecutor(parseConfig(r).agents[0]!.executor)).toMatchObject({
+      model: 'claude-haiku-5-5',
+      maxBudgetUsd: 5,
+      maxTurns: 80,
+    });
     // Sai
     for (const [bad, msg] of [
-      [{ max_turns: 0 }, 'light.max_turns'], [{ max_budget_usd: -1 }, 'light.max_budget_usd'], [{ model: '' }, 'light.model'],
-      [{ timeout_min: 5 }, 'light.timeout_min: không hỗ trợ'], ['haiku', 'executor.light phải là một mục'],
+      [{ max_turns: 0 }, 'light.max_turns'],
+      [{ max_budget_usd: -1 }, 'light.max_budget_usd'],
+      [{ model: '' }, 'light.model'],
+      [{ timeout_min: 5 }, 'light.timeout_min: không hỗ trợ'],
+      ['haiku', 'executor.light phải là một mục'],
     ] as const) {
       r.agents[0].executor.light = bad;
       expect(() => parseConfig(r)).toThrow(msg);
@@ -249,12 +371,25 @@ describe('executor adapters', () => {
       mkdirSync(join(home, '.claude/plugins'), { recursive: true });
       mkdirSync(join(home, '.claude/agents'), { recursive: true }); // rỗng → không tính
       writeFileSync(join(home, '.claude/CLAUDE.md'), '# ghi chú');
-      writeFileSync(join(home, '.claude/plugins/installed_plugins.json'), JSON.stringify({ version: 2, plugins: { a: [], b: [] } }));
-      writeFileSync(join(home, '.claude/settings.json'), JSON.stringify({ hooks: { Stop: [] }, enabledPlugins: { a: false } }));
-      expect(userClaudeExtras(home)).toEqual(['~/.claude/CLAUDE.md', '~/.claude/skills/', '2 plugin', 'hook trong ~/.claude/settings.json']);
+      writeFileSync(
+        join(home, '.claude/plugins/installed_plugins.json'),
+        JSON.stringify({ version: 2, plugins: { a: [], b: [] } }),
+      );
+      writeFileSync(
+        join(home, '.claude/settings.json'),
+        JSON.stringify({ hooks: { Stop: [] }, enabledPlugins: { a: false } }),
+      );
+      expect(userClaudeExtras(home)).toEqual([
+        '~/.claude/CLAUDE.md',
+        '~/.claude/skills/',
+        '2 plugin',
+        'hook trong ~/.claude/settings.json',
+      ]);
       writeFileSync(join(home, '.claude/settings.json'), '{hỏng');
       expect(userClaudeExtras(home)).toEqual(['~/.claude/CLAUDE.md', '~/.claude/skills/', '2 plugin']);
-    } finally { rmSync(home, { recursive: true, force: true }); }
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
   });
 
   test('claude: noBuiltinTools → --tools "" (chỉ tool MCP); mặc định không có', () => {
@@ -265,18 +400,41 @@ describe('executor adapters', () => {
 
   test('claude: đọc stream-json mẫu', () => {
     const r: ExecResult = {};
-    for (const l of readFileSync(join(import.meta.dir, 'fixtures/claude-stream.jsonl'), 'utf8').split('\n')) claudeAdapter.parseLine(l, r);
-    expect(r).toMatchObject({ sessionId: '0d6c1f3e-1111-4222-8333-944455556666', costUsd: 0.8123, turns: 17, inputTokens: 44200, outputTokens: 5300, isError: false });
+    for (const l of readFileSync(join(import.meta.dir, 'fixtures/claude-stream.jsonl'), 'utf8').split('\n'))
+      claudeAdapter.parseLine(l, r);
+    expect(r).toMatchObject({
+      sessionId: '0d6c1f3e-1111-4222-8333-944455556666',
+      costUsd: 0.8123,
+      turns: 17,
+      inputTokens: 44200,
+      outputTokens: 5300,
+      isError: false,
+    });
     expect(r.summary).toContain('Chờ review');
     // TEST-64: model chính (init + modelUsage) và model phụ
     expect(r.model).toBe('claude-sonnet-5-5');
     expect(Object.keys(r.modelUsage!)).toEqual(['claude-sonnet-5-5', 'claude-haiku-5-5']);
-    expect(r.modelUsage!['claude-sonnet-5-5']).toEqual({ costUsd: 0.8, inputTokens: 44100, outputTokens: 5000, cacheReadTokens: 40000, cacheWriteTokens: 3000 });
+    expect(r.modelUsage!['claude-sonnet-5-5']).toEqual({
+      costUsd: 0.8,
+      inputTokens: 44100,
+      outputTokens: 5000,
+      cacheReadTokens: 40000,
+      cacheWriteTokens: 3000,
+    });
     // TEST-135: phần cache của cả phiên (inputTokens vẫn là tổng gồm cache)
     expect(r).toMatchObject({ cacheReadTokens: 40000, cacheWriteTokens: 3000 });
     // Không trường token nào → không biết (undefined), không phải 0
-    expect(readModelUsage({ m: { costUSD: 0.1 } })!.m).toEqual({ costUsd: 0.1, inputTokens: undefined, outputTokens: undefined });
-    expect(claudeAdapter.activity!(readFileSync(join(import.meta.dir, 'fixtures/claude-stream.jsonl'), 'utf8').split('\n')[0]!, '/w')).toEqual(['Model claude-sonnet-5-5']);
+    expect(readModelUsage({ m: { costUSD: 0.1 } })!.m).toEqual({
+      costUsd: 0.1,
+      inputTokens: undefined,
+      outputTokens: undefined,
+    });
+    expect(
+      claudeAdapter.activity!(
+        readFileSync(join(import.meta.dir, 'fixtures/claude-stream.jsonl'), 'utf8').split('\n')[0]!,
+        '/w',
+      ),
+    ).toEqual(['Model claude-sonnet-5-5']);
   });
 
   test('model: init chỉ là model được yêu cầu, model thật lấy từ modelUsage', () => {
@@ -284,7 +442,10 @@ describe('executor adapters', () => {
     claudeAdapter.parseLine('{"type":"system","subtype":"init","model":"claude-opus-5-5","session_id":"s"}', r);
     expect(r.model).toBe('claude-opus-5-5');
     // CLI tự hạ model (fallback) → modelUsage không có model init → lấy model tốn nhiều nhất
-    claudeAdapter.parseLine('{"type":"result","subtype":"success","is_error":false,"session_id":"s","modelUsage":{"claude-haiku-5-5":{"costUSD":0.01,"outputTokens":10},"claude-sonnet-5-5":{"costUSD":0.3,"outputTokens":900}}}', r);
+    claudeAdapter.parseLine(
+      '{"type":"result","subtype":"success","is_error":false,"session_id":"s","modelUsage":{"claude-haiku-5-5":{"costUSD":0.01,"outputTokens":10},"claude-sonnet-5-5":{"costUSD":0.3,"outputTokens":900}}}',
+      r,
+    );
     expect(r.model).toBe('claude-sonnet-5-5');
     expect(mainModel(undefined, undefined)).toBeUndefined();
     expect(mainModel('x', {})).toBe('x');
@@ -304,27 +465,56 @@ describe('executor adapters', () => {
     expect(modelLine({}, undefined)).toBe('không rõ (mặc định của CLI)');
     expect(modelLine({}, 'm1')).toBe('m1 (cấu hình)');
     expect(modelLine({ model: 'm1', modelFromConfig: true }, 'm1')).toBe('m1 (cấu hình)');
-    expect(modelLine({ model: 'claude-opus-5-5', modelUsage: { 'claude-opus-5-5': { costUsd: 1 }, 'claude-haiku-5-5': { costUsd: 0.012 } } }, 'opus'))
-      .toBe('claude-opus-5-5 · phụ: claude-haiku-5-5 ($0.01)');
-    expect(modelLine({ model: 'claude-sonnet-5-5' }, 'claude-opus-5-5')).toBe('claude-sonnet-5-5 ⚠ khác cấu hình (claude-opus-5-5)');
+    expect(
+      modelLine(
+        {
+          model: 'claude-opus-5-5',
+          modelUsage: { 'claude-opus-5-5': { costUsd: 1 }, 'claude-haiku-5-5': { costUsd: 0.012 } },
+        },
+        'opus',
+      ),
+    ).toBe('claude-opus-5-5 · phụ: claude-haiku-5-5 ($0.01)');
+    expect(modelLine({ model: 'claude-sonnet-5-5' }, 'claude-opus-5-5')).toBe(
+      'claude-sonnet-5-5 ⚠ khác cấu hình (claude-opus-5-5)',
+    );
   });
 
   test('bình luận chi phí có dòng Model', () => {
-    const c = resultComment({ agent: 'NV018' }, { exitCode: 0, timedOut: false, durationSec: 120, costUsd: 0.31, model: 'claude-opus-5-5' }, undefined, '', true, 'claude-opus-5-5');
+    const c = resultComment(
+      { agent: 'NV018' },
+      { exitCode: 0, timedOut: false, durationSec: 120, costUsd: 0.31, model: 'claude-opus-5-5' },
+      undefined,
+      '',
+      true,
+      'claude-opus-5-5',
+    );
     expect(c).toContain('- Model: claude-opus-5-5');
     expect(c.indexOf('Model')).toBeLessThan(c.indexOf('Chi phí'));
   });
 
   test('claude: chạy thử model (doctor / start)', () => {
     const a = probeArgs('claude-opus-5-5').join(' ');
-    for (const f of ['-p ok', '--output-format stream-json', '--verbose', '--max-turns 1', '--strict-mcp-config', '--model claude-opus-5-5']) expect(a).toContain(f);
+    for (const f of [
+      '-p ok',
+      '--output-format stream-json',
+      '--verbose',
+      '--max-turns 1',
+      '--strict-mcp-config',
+      '--model claude-opus-5-5',
+    ])
+      expect(a).toContain(f);
     expect(probeArgs(undefined)).not.toContain('--model');
-    const ok = ['{"type":"system","subtype":"init","model":"claude-haiku-5-5"}',
-      '{"type":"result","subtype":"success","is_error":false,"modelUsage":{"claude-haiku-5-5":{"costUSD":0.0002}}}'].join('\n');
+    const ok = [
+      '{"type":"system","subtype":"init","model":"claude-haiku-5-5"}',
+      '{"type":"result","subtype":"success","is_error":false,"modelUsage":{"claude-haiku-5-5":{"costUSD":0.0002}}}',
+    ].join('\n');
     expect(parseProbe(ok)).toEqual({ model: 'claude-haiku-5-5' });
     // Mẫu thật Claude Code 2.1.x với model sai: init lặp lại tên sai, result is_error + 404
-    const bad = ['{"type":"system","subtype":"init","model":"claude-bogus-9"}', '[claude-code:unrecognized_model] {"model":"claude-bogus-9"}',
-      '{"type":"result","subtype":"success","is_error":true,"result":"There\'s an issue with the selected model (claude-bogus-9). It may not exist or you may not have access to it.","terminal_reason":"api_error","api_error_status":404,"modelUsage":{}}'].join('\n');
+    const bad = [
+      '{"type":"system","subtype":"init","model":"claude-bogus-9"}',
+      '[claude-code:unrecognized_model] {"model":"claude-bogus-9"}',
+      '{"type":"result","subtype":"success","is_error":true,"result":"There\'s an issue with the selected model (claude-bogus-9). It may not exist or you may not have access to it.","terminal_reason":"api_error","api_error_status":404,"modelUsage":{}}',
+    ].join('\n');
     const p = parseProbe(bad);
     expect(p.invalidModel).toBe(true);
     expect(p.model).toBeUndefined();
@@ -332,32 +522,50 @@ describe('executor adapters', () => {
     const r: ExecResult = {};
     claudeAdapter.parseLine(bad.split('\n')[2]!, r);
     expect(r).toMatchObject({ isError: true, errorKind: 'api_error 404' });
-    expect(parseProbe('{"type":"result","subtype":"error_during_execution","is_error":true,"result":"rate limited"}')).toMatchObject({ invalidModel: false, error: 'rate limited' });
+    expect(
+      parseProbe('{"type":"result","subtype":"error_during_execution","is_error":true,"result":"rate limited"}'),
+    ).toMatchObject({ invalidModel: false, error: 'rate limited' });
     expect(parseProbe('')).toMatchObject({ error: 'CLI không trả sự kiện result' });
   });
 
   test('claude: mô tả thao tác agent đang làm', () => {
     const line = (content: unknown[]) => JSON.stringify({ type: 'assistant', message: { content } });
-    const out = claudeAdapter.activity!(line([
-      { type: 'text', text: 'Đọc   code\ntrước' },
-      { type: 'tool_use', name: 'Read', input: { file_path: '/w/src/a.ts' } },
-      { type: 'tool_use', name: 'Bash', input: { command: 'bun test' } },
-      { type: 'tool_use', name: 'mcp__officehub__update_task_status', input: { status: 'Doing' } },
-    ]), '/w');
-    expect(out).toEqual(['Nói: Đọc code trước', 'Đọc src/a.ts', 'Chạy: bun test', 'OfficeHub update_task_status → Doing']);
+    const out = claudeAdapter.activity!(
+      line([
+        { type: 'text', text: 'Đọc   code\ntrước' },
+        { type: 'tool_use', name: 'Read', input: { file_path: '/w/src/a.ts' } },
+        { type: 'tool_use', name: 'Bash', input: { command: 'bun test' } },
+        { type: 'tool_use', name: 'mcp__officehub__update_task_status', input: { status: 'Doing' } },
+      ]),
+      '/w',
+    );
+    expect(out).toEqual([
+      'Nói: Đọc code trước',
+      'Đọc src/a.ts',
+      'Chạy: bun test',
+      'OfficeHub update_task_status → Doing',
+    ]);
     expect(claudeAdapter.activity!('không phải json', '/w')).toEqual([]);
     expect(claudeAdapter.activity!('{"type":"result"}', '/w')).toEqual([]);
   });
 
   test('claude: hết ngân sách → isError', () => {
     const r: ExecResult = {};
-    claudeAdapter.parseLine('{"type":"result","subtype":"error_max_budget_usd","is_error":true,"total_cost_usd":5.01,"session_id":"s"}', r);
+    claudeAdapter.parseLine(
+      '{"type":"result","subtype":"error_max_budget_usd","is_error":true,"total_cost_usd":5.01,"session_id":"s"}',
+      r,
+    );
     expect(r.isError).toBe(true);
     expect(r.errorKind).toBe('error_max_budget_usd');
   });
 
   test('custom: thay biến + resume_args + output json / text', () => {
-    const e = { ...exec, kind: 'custom' as const, args: ['run', '--cwd', '{cwd}', '--p', '{prompt_file}', '-m', '{model}'], resumeArgs: ['--session', '{session_id}'] };
+    const e = {
+      ...exec,
+      kind: 'custom' as const,
+      args: ['run', '--cwd', '{cwd}', '--p', '{prompt_file}', '-m', '{model}'],
+      resumeArgs: ['--session', '{session_id}'],
+    };
     const c = customAdapter.command({ ...ctx, exec: e, resumeSessionId: 's9' });
     expect(c.args).toEqual(['run', '--cwd', '/w', '--p', '/j/prompt.md', '-m', 'claude-sonnet-5-5', '--session', 's9']);
     expect(fillArgs(['{mcp_config}'], ctx)).toEqual(['/j/mcp.json']);
@@ -378,9 +586,15 @@ describe('định dạng log', () => {
   });
   test('pretty: giờ + agent + việc + job, thao tác có ký hiệu, trường còn lại dạng khoá=giá trị', () => {
     const f = { job: 3, agent: 'NV120', task: 'TEST-45' };
-    expect(formatLine('info', 'agent đang làm', { ...f, action: 'Sửa src/a.ts' }, 'pretty', false, t)).toBe('10:21:07 NV120 TEST-45 #3    ✎ Sửa src/a.ts');
-    expect(formatLine('info', 'agent đang làm', { ...f, action: 'Chạy: bun test' }, 'pretty', false, t)).toContain('$ bun test');
-    expect(formatLine('info', 'agent đang làm', { ...f, action: 'Model claude-opus-5-5' }, 'pretty', false, t)).toBe('10:21:07 NV120 TEST-45 #3    ▶ claude-opus-5-5');
+    expect(formatLine('info', 'agent đang làm', { ...f, action: 'Sửa src/a.ts' }, 'pretty', false, t)).toBe(
+      '10:21:07 NV120 TEST-45 #3    ✎ Sửa src/a.ts',
+    );
+    expect(formatLine('info', 'agent đang làm', { ...f, action: 'Chạy: bun test' }, 'pretty', false, t)).toContain(
+      '$ bun test',
+    );
+    expect(formatLine('info', 'agent đang làm', { ...f, action: 'Model claude-opus-5-5' }, 'pretty', false, t)).toBe(
+      '10:21:07 NV120 TEST-45 #3    ▶ claude-opus-5-5',
+    );
     const done = formatLine('info', 'xong job', { ...f, ok: true, cost: 0.42, pr: undefined }, 'pretty', false, t);
     expect(done).toContain('xong job');
     expect(done).toContain('ok=true cost=0.42');
@@ -410,9 +624,19 @@ describe('prompt / mcp / log', () => {
     expect(buildPrompt(w, ctx('worktree', true))).toContain('NỐI TIẾP');
   });
   test('prompt theo mode: quy tắc chung ở cả hai, phần git khác nhau', () => {
-    const wt = buildPrompt(w, ctx('worktree')), ip = buildPrompt(w, ctx('in_place'));
+    const wt = buildPrompt(w, ctx('worktree')),
+      ip = buildPrompt(w, ctx('in_place'));
     for (const p of [wt, ip]) {
-      for (const r of ['get_my_role', 'get_project', 'comment_task TEST-45', 'Không duyệt / từ chối đơn', 'Không đọc / tạo / sửa file .env', 'agent-runner/', 'git add -A']) expect(p).toContain(r);
+      for (const r of [
+        'get_my_role',
+        'get_project',
+        'comment_task TEST-45',
+        'Không duyệt / từ chối đơn',
+        'Không đọc / tạo / sửa file .env',
+        'agent-runner/',
+        'git add -A',
+      ])
+        expect(p).toContain(r);
     }
     expect(wt).toContain('worktree riêng');
     expect(wt).not.toContain('workspace THẬT');
@@ -425,20 +649,52 @@ describe('prompt / mcp / log', () => {
   });
   test('prompt mode none (TEST-80): chỉ tool MCP, không có phần git / file', () => {
     const p = buildPrompt(w, { mode: 'none', branch: '', resumed: false });
-    for (const r of ['get_my_role', 'get_project', 'get_task TEST-45', 'comment_task TEST-45', 'CHỈ bằng tool MCP', 'Không duyệt / từ chối / huỷ đơn', 'DỮ LIỆU']) expect(p).toContain(r);
+    for (const r of [
+      'get_my_role',
+      'get_project',
+      'get_task TEST-45',
+      'comment_task TEST-45',
+      'CHỈ bằng tool MCP',
+      'Không duyệt / từ chối / huỷ đơn',
+      'DỮ LIỆU',
+    ])
+      expect(p).toContain(r);
     for (const r of ['git', 'worktree', 'AGENTS.md', 'commit thay đổi', 'push']) expect(p).not.toContain(r);
     expect(buildPrompt(w, { mode: 'none', branch: '', resumed: true })).toContain('NỐI TIẾP');
   });
   test('prompt chat (TEST-81): chỉ id hội thoại, một tin trả lời, không có phần việc / git', () => {
     const p = chatPrompt('NV120', 'office', false);
-    for (const r of ['NV120', 'read_chat office', 'send_chat_message office', 'mark_chat_read office', 'DỮ LIỆU', 'tối đa MỘT tin', 'Không duyệt / từ chối / huỷ đơn', 'không trả lời tin của bot khác']) expect(p).toContain(r);
+    for (const r of [
+      'NV120',
+      'read_chat office',
+      'send_chat_message office',
+      'mark_chat_read office',
+      'DỮ LIỆU',
+      'tối đa MỘT tin',
+      'Không duyệt / từ chối / huỷ đơn',
+      'không trả lời tin của bot khác',
+    ])
+      expect(p).toContain(r);
     for (const r of ['get_task', 'comment_task', 'git', 'NỐI TIẾP']) expect(p).not.toContain(r);
     expect(chatPrompt('NV120', 'abc', true)).toContain('NỐI TIẾP');
   });
   test('prompt họp (TEST-84): một lượt = một tin hoặc bỏ lượt, phần chủ trì, không chép nội dung', () => {
     const p = meetingPrompt('NV120', 'sess-1', false);
-    for (const r of ['NV120', 'sess-1', 'get_my_meeting', 'get_my_role', 'read_chat', 'speak_in_meeting MỘT tin', 'pass_turn', 'assign_turn', 'create_task', 'DỮ LIỆU',
-      'Không duyệt / từ chối / huỷ đơn', 'Chỉ nói khi đang giữ lượt']) expect(p).toContain(r);
+    for (const r of [
+      'NV120',
+      'sess-1',
+      'get_my_meeting',
+      'get_my_role',
+      'read_chat',
+      'speak_in_meeting MỘT tin',
+      'pass_turn',
+      'assign_turn',
+      'create_task',
+      'DỮ LIỆU',
+      'Không duyệt / từ chối / huỷ đơn',
+      'Chỉ nói khi đang giữ lượt',
+    ])
+      expect(p).toContain(r);
     for (const r of ['git', 'comment_task', 'NỐI TIẾP']) expect(p).not.toContain(r);
     const again = meetingPrompt('NV120', 'sess-1', true);
     expect(again).toContain('NỐI TIẾP');
@@ -449,7 +705,9 @@ describe('prompt / mcp / log', () => {
     const fresh = buildPrompt(w, { mode: 'worktree', branch: 'b', resumed: false });
     const cont = buildPrompt(w, { mode: 'worktree', branch: 'b', resumed: false, continued: true });
     const res = buildPrompt(w, { mode: 'worktree', branch: 'b', resumed: true, continued: true });
-    for (const p of [fresh, cont, res]) for (const r of ['**Bàn giao**', 'Đã làm:', 'Đang dở:', 'Bước tiếp theo:', 'get_task TEST-45']) expect(p).toContain(r);
+    for (const p of [fresh, cont, res])
+      for (const r of ['**Bàn giao**', 'Đã làm:', 'Đang dở:', 'Bước tiếp theo:', 'get_task TEST-45'])
+        expect(p).toContain(r);
     for (const r of ['NỐI TIẾP', 'ĐÃ TỪNG LÀM']) expect(fresh).not.toContain(r);
     expect(fresh).toContain('1. get_my_role');
     expect(cont).toContain('ĐÃ TỪNG LÀM');
@@ -461,7 +719,8 @@ describe('prompt / mcp / log', () => {
     expect(buildPrompt(w, { mode: 'none', branch: '', resumed: false, continued: true })).toContain('ĐÃ TỪNG LÀM');
   });
   test('claudeHasSession (TEST-142): transcript ở <HOME>/.claude/projects/<cwd đổi ký tự lạ thành "-">/<session>.jsonl', () => {
-    const home = mkdtempSync(join(tmpdir(), 'cc-home-')), cwd = mkdtempSync(join(tmpdir(), 'cc_work.x-'));
+    const home = mkdtempSync(join(tmpdir(), 'cc-home-')),
+      cwd = mkdtempSync(join(tmpdir(), 'cc_work.x-'));
     try {
       expect(claudeProjectDir('/h', '/srv/a_b/TEST-45')).toBe('/h/.claude/projects/-srv-a-b-TEST-45');
       expect(claudeHasSession(home, cwd, 's1')).toBe(false);
@@ -472,7 +731,10 @@ describe('prompt / mcp / log', () => {
       expect(claudeHasSession(home, cwd, 's1')).toBe(true);
       expect(claudeHasSession(home, cwd, 's2')).toBe(false);
       expect(claudeHasSession(home, join(cwd, 'đã-xoá'), 's1')).toBe(false); // cwd không còn → không lỗi
-    } finally { rmSync(home, { recursive: true, force: true }); rmSync(cwd, { recursive: true, force: true }); }
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+      rmSync(cwd, { recursive: true, force: true });
+    }
   });
   test('store.saveSession (TEST-142): đếm số lần nối liên tiếp, phiên mới → 0', () => {
     const dir = mkdtempSync(join(tmpdir(), 'sess-'));
@@ -486,14 +748,18 @@ describe('prompt / mcp / log', () => {
       s.saveSession('k', 'NV1', 'b', '', '/w', false);
       expect(s.session('k')).toMatchObject({ resumes: 0, session_id: 'b' });
       s.db.close();
-    } finally { rmSync(dir, { recursive: true, force: true }); }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
   test('cấu hình MCP không chứa token', () => {
     expect(JSON.stringify(mcpConfig('http://x/mcp'))).toContain('${OFFICEHUB_TOKEN}');
     // TEST-143: hồ sơ tool theo loại phiên
     expect(mcpConfig('http://x/mcp').mcpServers.officehub.url).toBe('http://x/mcp');
     expect(mcpConfig('http://x/mcp', 'chat').mcpServers.officehub.url).toBe('http://x/mcp?profile=chat');
-    expect(mcpConfig('https://x/mcp?a=1', 'meeting').mcpServers.officehub.url).toBe('https://x/mcp?a=1&profile=meeting');
+    expect(mcpConfig('https://x/mcp?a=1', 'meeting').mcpServers.officehub.url).toBe(
+      'https://x/mcp?a=1&profile=meeting',
+    );
   });
   test('redact', () => {
     registerSecret('ohk_supersecret_1234');
@@ -520,7 +786,9 @@ describe('prompt / mcp / log', () => {
 describe('store', () => {
   test('khoá task_id, FIFO, mỗi agent 1, tổng ≤ max, khôi phục', () => {
     const s = new Store(':memory:');
-    const a = s.enqueue('NV1', 't1', 'A-1', 'p')!, b = s.enqueue('NV1', 't2', 'A-2', 'p')!, c = s.enqueue('NV2', 't3', 'A-3', 'p')!;
+    const a = s.enqueue('NV1', 't1', 'A-1', 'p')!,
+      b = s.enqueue('NV1', 't2', 'A-2', 'p')!,
+      c = s.enqueue('NV2', 't3', 'A-3', 'p')!;
     expect(s.enqueue('NV2', 't1', 'A-1', 'p')).toBeNull(); // t1 đang chờ
     expect(s.claimNext(2, ['NV1', 'NV2'])!.id).toBe(a);
     expect(s.claimNext(2, ['NV1', 'NV2'])!.id).toBe(c); // NV1 đang chạy → bỏ qua b
@@ -540,7 +808,8 @@ describe('store', () => {
 
   test('job chat (TEST-81): khoá theo hội thoại, đang chạy → đánh dấu rerun, vẫn mỗi agent 1 phiên', () => {
     const s = new Store(':memory:');
-    const t = s.enqueue('NV1', 't1', 'A-1', 'p')!, c = s.enqueue('NV1', 'conv1', 'chat:conv1', '', 'chat')!;
+    const t = s.enqueue('NV1', 't1', 'A-1', 'p')!,
+      c = s.enqueue('NV1', 'conv1', 'chat:conv1', '', 'chat')!;
     expect(s.getJob(t)!.kind).toBe('task');
     expect(s.getJob(c)!.kind).toBe('chat');
     expect(s.enqueue('NV1', 'conv1', 'chat:conv1', '', 'chat')).toBeNull(); // đang chờ → gộp, không cần rerun
@@ -554,7 +823,10 @@ describe('store', () => {
     expect(s.enqueue('NV1', 'conv1', 'chat:conv1', '', 'chat')).toBeNull(); // đang chạy → rerun
     expect(s.getJob(c)!.rerun).toBe(1);
     s.finish(c, 'done', { cost_usd: 0.2 });
-    expect(s.costsByKind('2000-01-01')).toMatchObject([{ kind: 'chat', jobs: 1, cost: 0.2 }, { kind: 'task', jobs: 1, cost: null }]);
+    expect(s.costsByKind('2000-01-01')).toMatchObject([
+      { kind: 'chat', jobs: 1, cost: 0.2 },
+      { kind: 'task', jobs: 1, cost: null },
+    ]);
   });
 
   test('model: lưu cột model / model_usage, report nhóm theo model, migration DB cũ', () => {
@@ -567,11 +839,18 @@ describe('store', () => {
       old.exec(`CREATE TABLE jobs (id INTEGER PRIMARY KEY AUTOINCREMENT, agent TEXT NOT NULL, task_id TEXT NOT NULL, task_code TEXT NOT NULL, project_id TEXT NOT NULL,
         status TEXT NOT NULL, reason TEXT, created_at TEXT NOT NULL, started_at TEXT, finished_at TEXT,
         session_id TEXT, cost_usd REAL, input_tokens INTEGER, output_tokens INTEGER, turns INTEGER, pr_url TEXT)`);
-      old.run(`INSERT INTO jobs (agent, task_id, task_code, project_id, status, created_at, finished_at, cost_usd) VALUES ('NV1', 't0', 'A-0', 'p', 'done', '2026', '2026-11-01', 2)`);
+      old.run(
+        `INSERT INTO jobs (agent, task_id, task_code, project_id, status, created_at, finished_at, cost_usd) VALUES ('NV1', 't0', 'A-0', 'p', 'done', '2026', '2026-11-01', 2)`,
+      );
       old.close();
       const s = new Store(path);
-      const a = s.enqueue('NV1', 't1', 'A-1', 'p')!, b = s.enqueue('NV1', 't2', 'A-2', 'p')!;
-      s.finish(a, 'done', { cost_usd: 1, model: 'claude-opus-5-5', model_usage: JSON.stringify({ 'claude-opus-5-5': { costUsd: 1 } }) });
+      const a = s.enqueue('NV1', 't1', 'A-1', 'p')!,
+        b = s.enqueue('NV1', 't2', 'A-2', 'p')!;
+      s.finish(a, 'done', {
+        cost_usd: 1,
+        model: 'claude-opus-5-5',
+        model_usage: JSON.stringify({ 'claude-opus-5-5': { costUsd: 1 } }),
+      });
       s.finish(b, 'done', { cost_usd: 0.5, model: 'claude-opus-5-5' });
       expect(s.getJob(a)).toMatchObject({ model: 'claude-opus-5-5' });
       expect(JSON.parse(s.getJob(a)!.model_usage!)).toEqual({ 'claude-opus-5-5': { costUsd: 1 } });
@@ -581,7 +860,9 @@ describe('store', () => {
       ]);
       s.db.close();
       new Store(path).db.close(); // mở lại: cột đã có, không ALTER lần nữa
-    } finally { rmSync(dir, { recursive: true, force: true }); }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -604,30 +885,38 @@ describe('presence (văn phòng 3D: đang làm / rảnh)', () => {
     const { PresenceReporter } = await import('../src/presence');
     const got: any[] = [];
     let status = 204;
-    const srv = Bun.serve({ port: 0, async fetch(req) { got.push(await req.json()); return new Response(null, { status }); } });
+    const srv = Bun.serve({
+      port: 0,
+      async fetch(req) {
+        got.push(await req.json());
+        return new Response(null, { status });
+      },
+    });
     const gap = PresenceReporter.minGapMs;
     PresenceReporter.minGapMs = 300;
     try {
       const p = new PresenceReporter(`http://localhost:${srv.port}/mcp`, 'ohk_x', 'NV120');
       p.working('WEB-12', 'Sửa form');
       await Bun.sleep(50);
-      p.activity('Đọc a.ts'); p.activity('Sửa a.ts'); p.activity('Sửa b.ts');
+      p.activity('Đọc a.ts');
+      p.activity('Sửa a.ts');
+      p.activity('Sửa b.ts');
       await Bun.sleep(50);
-      expect(got).toEqual([{ state: 'working', task: 'WEB-12 · Sửa form' }]);   // chưa tới nhịp
+      expect(got).toEqual([{ state: 'working', task: 'WEB-12 · Sửa form' }]); // chưa tới nhịp
       await Bun.sleep(400);
       expect(got.at(-1)).toEqual({ state: 'working', task: 'WEB-12 · Sửa form', activity: 'Sửa code' }); // chỉ nhãn mới nhất
       expect(got.length).toBe(2);
       p.idle();
       await Bun.sleep(50);
       expect(got.at(-1)).toEqual({ state: 'idle' });
-      p.activity('Đọc a.ts');                                                  // rảnh → bỏ qua thao tác
+      p.activity('Đọc a.ts'); // rảnh → bỏ qua thao tác
       status = 403;
       p.working('WEB-13');
       await Bun.sleep(50);
       const n = got.length;
       p.idle();
       await Bun.sleep(50);
-      expect(got.length).toBe(n);                                              // đã ngừng báo
+      expect(got.length).toBe(n); // đã ngừng báo
       p.stop();
     } finally {
       PresenceReporter.minGapMs = gap;
@@ -640,16 +929,22 @@ test('presence: lỗi job → error gửi ngay, giữ qua idle() và nhịp còn
   const { PresenceReporter } = await import('../src/presence');
   const got: any[] = [];
   let rejectError = false;
-  const srv = Bun.serve({ port: 0, async fetch(req) {
-    const b = await req.json() as any;
-    got.push(b);
-    return new Response(null, { status: rejectError && b.state === 'error' ? 400 : 204 });
-  } });
+  const srv = Bun.serve({
+    port: 0,
+    async fetch(req) {
+      const b = (await req.json()) as any;
+      got.push(b);
+      return new Response(null, { status: rejectError && b.state === 'error' ? 400 : 204 });
+    },
+  });
   const beat = PresenceReporter.heartbeatMs;
   PresenceReporter.heartbeatMs = 150;
   const logs: string[] = [];
-  const orig = console.log, origErr = console.error;
-  console.log = console.error = (...a: unknown[]) => { logs.push(a.join(' ')); };
+  const orig = console.log,
+    origErr = console.error;
+  console.log = console.error = (...a: unknown[]) => {
+    logs.push(a.join(' '));
+  };
   try {
     const p = new PresenceReporter(`http://localhost:${srv.port}/mcp`, 'ohk_x', 'NV018');
     p.working('WEB-12', 'Sửa form');
@@ -658,40 +953,46 @@ test('presence: lỗi job → error gửi ngay, giữ qua idle() và nhịp còn
     await Bun.sleep(30);
     const err = { state: 'error' as const, task: 'WEB-12 · Sửa form', error: 'Hết giờ', taskId: 't1', projectId: 'p1' };
     expect(got.at(-1)).toEqual(err);
-    p.idle();                                                                  // finally của job
+    p.idle(); // finally của job
     p.activity('Đọc a.ts');
     await Bun.sleep(30);
     expect(got.at(-1)).toEqual(err);
     expect(p.state).toEqual(err);
-    p.start();                                                                 // khởi động: báo rảnh + nhịp
+    p.start(); // khởi động: báo rảnh + nhịp
     await Bun.sleep(30);
     expect(got.at(-1)).toEqual({ state: 'idle' });
-    p.error('x'.repeat(100));                                                  // chỉ loại lỗi ngắn
+    p.error('x'.repeat(100)); // chỉ loại lỗi ngắn
     await Bun.sleep(30);
     expect(got.at(-1)).toEqual({ state: 'error', error: 'x'.repeat(40) });
     const n = got.length;
-    await Bun.sleep(200);                                                      // nhịp còn sống gửi lại lỗi
+    await Bun.sleep(200); // nhịp còn sống gửi lại lỗi
     expect(got.length).toBeGreaterThan(n);
     expect(got.at(-1)).toEqual({ state: 'error', error: 'x'.repeat(40) });
-    p.working('WEB-13');                                                       // job kế → hết lỗi
+    p.working('WEB-13'); // job kế → hết lỗi
     await Bun.sleep(30);
     expect(got.at(-1)).toEqual({ state: 'working', task: 'WEB-13' });
-    p.error('Lỗi'); await Bun.sleep(30);
-    p.clearError(); await Bun.sleep(30);
+    p.error('Lỗi');
+    await Bun.sleep(30);
+    p.clearError();
+    await Bun.sleep(30);
     expect(got.at(-1)).toEqual({ state: 'idle' });
 
-    rejectError = true;                                                        // máy chủ bản cũ
-    p.error('Hết giờ'); await Bun.sleep(50);
+    rejectError = true; // máy chủ bản cũ
+    p.error('Hết giờ');
+    await Bun.sleep(50);
     expect(got.slice(-2)).toEqual([{ state: 'error', error: 'Hết giờ' }, { state: 'idle' }]);
     expect(p.state).toEqual({ state: 'idle' });
-    p.working('WEB-14'); await Bun.sleep(30);
-    p.error('Mã thoát 1'); await Bun.sleep(50);
-    expect(got.at(-1)).toEqual({ state: 'idle' });                             // vẫn báo trạng thái
+    p.working('WEB-14');
+    await Bun.sleep(30);
+    p.error('Mã thoát 1');
+    await Bun.sleep(50);
+    expect(got.at(-1)).toEqual({ state: 'idle' }); // vẫn báo trạng thái
     expect(logs.filter((l) => l.includes('chưa nhận trạng thái lỗi')).length).toBe(1);
     p.stop();
   } finally {
     PresenceReporter.heartbeatMs = beat;
-    console.log = orig; console.error = origErr;
+    console.log = orig;
+    console.error = origErr;
     srv.stop();
   }
 });
@@ -705,22 +1006,37 @@ test('presenceFailure: loại lỗi ngắn theo kết quả phiên', async () =>
 
 test('presence: máy chủ chưa có endpoint (405) → ghi log một lần, vẫn thử lại, có lại thì báo chạy lại', async () => {
   const { PresenceReporter } = await import('../src/presence');
-  let status = 405, hits = 0;
-  const srv = Bun.serve({ port: 0, async fetch() { hits++; return new Response(null, { status }); } });
+  let status = 405,
+    hits = 0;
+  const srv = Bun.serve({
+    port: 0,
+    async fetch() {
+      hits++;
+      return new Response(null, { status });
+    },
+  });
   const logs: string[] = [];
-  const orig = console.log, origErr = console.error;
-  console.log = console.error = (...a: unknown[]) => { logs.push(a.join(' ')); };
+  const orig = console.log,
+    origErr = console.error;
+  console.log = console.error = (...a: unknown[]) => {
+    logs.push(a.join(' '));
+  };
   try {
     const p = new PresenceReporter(`http://localhost:${srv.port}/mcp`, 'ohk_x', 'NV018');
-    for (const s of ['a', 'b', 'c']) { p.working(s); await Bun.sleep(30); }
-    expect(hits).toBe(3);                                                   // không bị tắt như 403
+    for (const s of ['a', 'b', 'c']) {
+      p.working(s);
+      await Bun.sleep(30);
+    }
+    expect(hits).toBe(3); // không bị tắt như 403
     expect(logs.filter((l) => l.includes('chưa có endpoint')).length).toBe(1);
     status = 204;
-    p.idle(); await Bun.sleep(30);
+    p.idle();
+    await Bun.sleep(30);
     expect(logs.some((l) => l.includes('đã chạy lại'))).toBe(true);
     p.stop();
   } finally {
-    console.log = orig; console.error = origErr;
+    console.log = orig;
+    console.error = origErr;
     srv.stop();
   }
 });

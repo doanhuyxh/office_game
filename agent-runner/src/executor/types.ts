@@ -23,14 +23,23 @@ export interface ExecContext {
   onEvent?: (event: ActivityEvent) => void;
 }
 
-export interface Command { bin: string; args: string[] }
+export interface Command {
+  bin: string;
+  args: string[];
+}
 
 /**
  * Chi phí / token của một model trong phiên (Claude Code: `modelUsage` của sự kiện `result`).
  * `inputTokens` = TỔNG token vào, gồm cả phần đọc / ghi cache (cách tính cũ của `report` / bình luận); TEST-135 tách thêm
  * `cacheReadTokens` / `cacheWriteTokens` (không có = CLI không báo) — gửi lên OfficeHub thì token vào = tổng − cache.
  */
-export interface ModelUse { costUsd?: number; inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheWriteTokens?: number }
+export interface ModelUse {
+  costUsd?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+}
 
 /** Kết quả đọc từ output CLI (trường nào CLI không có thì undefined). */
 export interface ExecResult {
@@ -82,4 +91,8 @@ export interface Adapter {
 }
 
 /** Kết quả chạy thử model: model thật, lỗi; `invalidModel` = CLI báo model không tồn tại / không có quyền → agent tắt. */
-export interface ProbeResult { model?: string; error?: string; invalidModel?: boolean }
+export interface ProbeResult {
+  model?: string;
+  error?: string;
+  invalidModel?: boolean;
+}

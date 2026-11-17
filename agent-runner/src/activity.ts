@@ -31,13 +31,22 @@ export class ActivitySender {
   private dropped = 0;
   readonly url: string;
 
-  constructor(mcpUrl: string, private readonly token: string, private readonly agent: string, private readonly enabled = true) {
+  constructor(
+    mcpUrl: string,
+    private readonly token: string,
+    private readonly agent: string,
+    private readonly enabled = true,
+  ) {
     this.url = activityUrl(mcpUrl);
   }
 
   /** Còn gửi không (cấu hình bật, chưa bị 401 / 403). */
-  get active(): boolean { return this.enabled && !this.disabled; }
-  get pending(): number { return this.queue.length; }
+  get active(): boolean {
+    return this.enabled && !this.disabled;
+  }
+  get pending(): number {
+    return this.queue.length;
+  }
 
   /** Xếp một sự kiện vào hàng chờ. Không bao giờ ném lỗi (người xem trực tiếp không được làm hỏng job). */
   push(e: ActivityEvent) {
@@ -49,7 +58,11 @@ export class ActivitySender {
         this.queue.splice(0, this.queue.length - ActivitySender.maxQueue);
       }
       if (this.queue.length >= ActivitySender.maxBatch) this.flushNow();
-      else this.timer ??= setTimeout(() => { this.timer = undefined; this.kick(); }, ActivitySender.intervalMs);
+      else
+        this.timer ??= setTimeout(() => {
+          this.timer = undefined;
+          this.kick();
+        }, ActivitySender.intervalMs);
     } catch (err) {
       this.fail('push', `gửi hoạt động xem trực tiếp lỗi nội bộ: ${errText(err)}`, 0);
     }
@@ -63,8 +76,13 @@ export class ActivitySender {
 
   /** Khởi động một lượt gửi ở nền; lỗi bất ngờ chỉ ghi log (không để thành unhandled rejection làm sập runner). */
   private kick() {
-    try { void this.flush().catch((err) => this.fail('flush', `gửi hoạt động xem trực tiếp lỗi nội bộ: ${errText(err)}`, 0)); }
-    catch (err) { this.fail('flush', `gửi hoạt động xem trực tiếp lỗi nội bộ: ${errText(err)}`, 0); }
+    try {
+      void this.flush().catch((err) =>
+        this.fail('flush', `gửi hoạt động xem trực tiếp lỗi nội bộ: ${errText(err)}`, 0),
+      );
+    } catch (err) {
+      this.fail('flush', `gửi hoạt động xem trực tiếp lỗi nội bộ: ${errText(err)}`, 0);
+    }
   }
 
   /**
@@ -77,15 +95,28 @@ export class ActivitySender {
     // Có hạn chót ngay trong vòng lặp: vòng `await` không tiến triển sẽ chiếm hết microtask, timer của Promise.race không bao giờ chạy
     // (lỗi 2026-11-14: runner treo 100% CPU ở cuối job, không ghi kết quả / không bình luận chi phí).
     const deadline = Date.now() + timeoutMs;
-    const all = (async () => { while (this.active && (this.queue.length > 0 || this.sending) && Date.now() < deadline) await this.flush(); })();
-    await Promise.race([all, new Promise<void>((r) => { timeout = setTimeout(r, timeoutMs); })]);
+    const all = (async () => {
+      while (this.active && (this.queue.length > 0 || this.sending) && Date.now() < deadline) await this.flush();
+    })();
+    await Promise.race([
+      all,
+      new Promise<void>((r) => {
+        timeout = setTimeout(r, timeoutMs);
+      }),
+    ]);
     clearTimeout(timeout);
     this.queue = [];
   }
 
-  stop() { this.clearTimer(); this.queue = []; }
+  stop() {
+    this.clearTimer();
+    this.queue = [];
+  }
 
-  private clearTimer() { clearTimeout(this.timer); this.timer = undefined; }
+  private clearTimer() {
+    clearTimeout(this.timer);
+    this.timer = undefined;
+  }
 
   /**
    * Gửi lần lượt từng lô cho tới khi hết hàng chờ. Đang gửi → chờ lượt đang chạy (nó tự lấy tiếp hàng chờ). Không có gì để gửi → xong ngay,
@@ -95,7 +126,7 @@ export class ActivitySender {
     if (this.sending) return this.sending;
     if (!this.active || this.queue.length === 0) return Promise.resolve();
     // Hoãn một microtask: `sending` đã được gán trước khi `pump` chạy (và trước khi `finally` của nó xoá cờ).
-    return this.sending = Promise.resolve().then(() => this.pump());
+    return (this.sending = Promise.resolve().then(() => this.pump()));
   }
 
   private async pump(): Promise<void> {
@@ -108,7 +139,8 @@ export class ActivitySender {
 
   /** Lấy ≤ maxBatch sự kiện đầu hàng chờ, tổng thân ≤ maxBytes (luôn lấy ít nhất 1). */
   private takeBatch(): ActivityEvent[] {
-    let bytes = 0, n = 0;
+    let bytes = 0,
+      n = 0;
     while (n < this.queue.length && n < ActivitySender.maxBatch) {
       const size = Buffer.byteLength(JSON.stringify(this.queue[n])) + 1;
       if (n > 0 && bytes + size > ActivitySender.maxBytes) break;
@@ -134,21 +166,35 @@ export class ActivitySender {
         error = errText(e);
       }
       if (status !== undefined && status >= 200 && status < 300) {
-        if (this.lastError) { log('info', 'gửi hoạt động xem trực tiếp đã chạy lại', { agent: this.agent }); this.lastError = undefined; }
-        if (this.dropped) { log('warn', 'hàng chờ hoạt động xem trực tiếp đầy — đã bỏ sự kiện cũ', { agent: this.agent, dropped: this.dropped }); this.dropped = 0; }
+        if (this.lastError) {
+          log('info', 'gửi hoạt động xem trực tiếp đã chạy lại', { agent: this.agent });
+          this.lastError = undefined;
+        }
+        if (this.dropped) {
+          log('warn', 'hàng chờ hoạt động xem trực tiếp đầy — đã bỏ sự kiện cũ', {
+            agent: this.agent,
+            dropped: this.dropped,
+          });
+          this.dropped = 0;
+        }
         return;
       }
       if (status === 401 || status === 403) {
         this.disabled = true;
         this.queue = [];
-        log('warn', 'OfficeHub không nhận hoạt động xem trực tiếp — ngừng gửi (tài khoản chưa được HR đánh dấu là bot?)', { agent: this.agent, status });
+        log(
+          'warn',
+          'OfficeHub không nhận hoạt động xem trực tiếp — ngừng gửi (tài khoản chưa được HR đánh dấu là bot?)',
+          { agent: this.agent, status },
+        );
         return;
       }
       const retryable = status === undefined || status === 429 || status >= 500;
       if (!retryable || attempt === 1) {
-        const hint = status === 404 || status === 405
-          ? 'OfficeHub chưa có endpoint /mcp/activity — deploy bản mới + nginx chuyển tiếp'
-          : 'gửi hoạt động xem trực tiếp lỗi — bỏ lô';
+        const hint =
+          status === 404 || status === 405
+            ? 'OfficeHub chưa có endpoint /mcp/activity — deploy bản mới + nginx chuyển tiếp'
+            : 'gửi hoạt động xem trực tiếp lỗi — bỏ lô';
         this.fail(status !== undefined ? `status=${status}` : error!, hint, events.length);
         return;
       }

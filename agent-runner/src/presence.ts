@@ -31,7 +31,11 @@ export class PresenceReporter {
   private sending = false;
   readonly url: string;
 
-  constructor(mcpUrl: string, private readonly token: string, private readonly agent: string) {
+  constructor(
+    mcpUrl: string,
+    private readonly token: string,
+    private readonly agent: string,
+  ) {
     this.url = presenceUrl(mcpUrl);
   }
 
@@ -82,18 +86,33 @@ export class PresenceReporter {
     if (this.current.state === 'error') this.set({ state: 'idle' }, true);
   }
 
-  get state(): PresenceState { return this.current; }
+  get state(): PresenceState {
+    return this.current;
+  }
 
   private set(s: PresenceState, now: boolean) {
     this.current = s;
     const wait = now ? 0 : Math.max(0, this.lastSent + PresenceReporter.minGapMs - Date.now());
-    if (wait === 0) { clearTimeout(this.timer); this.timer = undefined; void this.flush(); }
-    else this.timer ??= setTimeout(() => { this.timer = undefined; void this.flush(); }, wait);
+    if (wait === 0) {
+      clearTimeout(this.timer);
+      this.timer = undefined;
+      void this.flush();
+    } else
+      this.timer ??= setTimeout(() => {
+        this.timer = undefined;
+        void this.flush();
+      }, wait);
   }
 
   private async flush() {
     if (this.disabled) return;
-    if (this.sending) { this.timer ??= setTimeout(() => { this.timer = undefined; void this.flush(); }, 500); return; }
+    if (this.sending) {
+      this.timer ??= setTimeout(() => {
+        this.timer = undefined;
+        void this.flush();
+      }, 500);
+      return;
+    }
     this.sending = true;
     this.lastSent = Date.now();
     const body = this.current;
@@ -107,19 +126,36 @@ export class PresenceReporter {
       });
       if (res.status === 401 || res.status === 403) {
         this.disabled = true;
-        log('warn', 'OfficeHub không nhận trạng thái văn phòng 3D — ngừng báo (tài khoản chưa được HR đánh dấu là bot?)', { agent: this.agent, status: res.status });
+        log(
+          'warn',
+          'OfficeHub không nhận trạng thái văn phòng 3D — ngừng báo (tài khoản chưa được HR đánh dấu là bot?)',
+          { agent: this.agent, status: res.status },
+        );
       } else if (res.status === 404 || res.status === 405) {
         // Máy chủ chưa có /mcp/presence (OfficeHub chưa deploy bản mới / reverse proxy chưa chuyển tiếp) — vẫn thử theo nhịp, tự chạy lại khi có
-        this.fail(`status=${res.status}`, 'OfficeHub chưa có endpoint trạng thái văn phòng 3D — deploy bản mới + nginx `location = /mcp/presence`; runner vẫn thử lại theo nhịp');
+        this.fail(
+          `status=${res.status}`,
+          'OfficeHub chưa có endpoint trạng thái văn phòng 3D — deploy bản mới + nginx `location = /mcp/presence`; runner vẫn thử lại theo nhịp',
+        );
       } else if (res.status === 400 && body.state === 'error') {
         // Máy chủ chưa nhận state "error" (bản trước TEST-118) → báo rảnh thay, không tắt báo trạng thái
         if (!this.errorUnsupportedLogged) {
           this.errorUnsupportedLogged = true;
-          log('warn', 'OfficeHub chưa nhận trạng thái lỗi của văn phòng 3D — báo rảnh thay (deploy bản mới để hiện ⚠)', { agent: this.agent });
+          log(
+            'warn',
+            'OfficeHub chưa nhận trạng thái lỗi của văn phòng 3D — báo rảnh thay (deploy bản mới để hiện ⚠)',
+            { agent: this.agent },
+          );
         }
-        if (this.current === body) { this.current = { state: 'idle' }; resend = true; }
+        if (this.current === body) {
+          this.current = { state: 'idle' };
+          resend = true;
+        }
       } else if (!res.ok) this.fail(`status=${res.status}`, 'báo trạng thái văn phòng 3D lỗi');
-      else if (this.lastError) { log('info', 'báo trạng thái văn phòng 3D đã chạy lại', { agent: this.agent }); this.lastError = undefined; }
+      else if (this.lastError) {
+        log('info', 'báo trạng thái văn phòng 3D đã chạy lại', { agent: this.agent });
+        this.lastError = undefined;
+      }
     } catch (e) {
       this.fail(errText(e), 'báo trạng thái văn phòng 3D lỗi');
     } finally {

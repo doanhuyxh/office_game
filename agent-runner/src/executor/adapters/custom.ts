@@ -3,9 +3,15 @@ import type { Adapter, ExecContext } from '../types';
 /** Thay {cwd} {model} {mcp_config} {prompt_file} {session_id} trong tham số. */
 export function fillArgs(template: string[], ctx: ExecContext): string[] {
   const vars: Record<string, string> = {
-    cwd: ctx.cwd, model: ctx.exec.model ?? '', mcp_config: ctx.mcpConfigFile, prompt_file: ctx.promptFile, session_id: ctx.resumeSessionId ?? '',
+    cwd: ctx.cwd,
+    model: ctx.exec.model ?? '',
+    mcp_config: ctx.mcpConfigFile,
+    prompt_file: ctx.promptFile,
+    session_id: ctx.resumeSessionId ?? '',
   };
-  return template.map((a) => a.replace(/\{(cwd|model|mcp_config|prompt_file|session_id)\}/g, (_, k: string) => vars[k]!));
+  return template.map((a) =>
+    a.replace(/\{(cwd|model|mcp_config|prompt_file|session_id)\}/g, (_, k: string) => vars[k]!),
+  );
 }
 
 /**
@@ -26,7 +32,11 @@ export const customAdapter: Adapter = {
     const t = line.trim();
     if (!t.startsWith('{')) return;
     let m: any;
-    try { m = JSON.parse(t); } catch { return; }
+    try {
+      m = JSON.parse(t);
+    } catch {
+      return;
+    }
     if (typeof m.session_id === 'string') r.sessionId = m.session_id;
     if (typeof m.cost_usd === 'number') r.costUsd = m.cost_usd;
     if (typeof m.input_tokens === 'number') r.inputTokens = m.input_tokens;
