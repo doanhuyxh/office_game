@@ -17,6 +17,8 @@ const root = mkdtempSync(join(tmpdir(), 'runner-flow-'));
 const comments: { task: string; content: string }[] = [];
 let authOk = true;
 const presence: any[] = [];
+/** Phiên mức dùng AI runner gửi tới /mcp/usage (TEST-135), theo thứ tự nhận. */
+const usage: any[] = [];
 /** Sự kiện xem trực tiếp runner gửi tới /mcp/activity (TEST-99), theo thứ tự nhận. */
 const activity: any[] = [];
 /** true = /mcp/activity nhận request rồi im lặng (máy chủ treo) — job vẫn phải xong. */
@@ -62,6 +64,11 @@ beforeAll(async () => {
     async fetch(req) {
       if (req.headers.get('authorization') !== `Bearer ${TOKEN}`) authOk = false;
       if (new URL(req.url).pathname === '/mcp/presence') { presence.push(await req.json()); return new Response(null, { status: 204 }); }
+      if (new URL(req.url).pathname === '/mcp/usage') {
+        const b = await req.json() as any;
+        usage.push(...b.sessions);
+        return Response.json({ accepted: b.sessions.length, created: b.sessions.length, updated: 0 });
+      }
       if (new URL(req.url).pathname === '/mcp/activity' && activityHang) { await Bun.sleep(20_000); return new Response(null, { status: 503 }); }
       if (new URL(req.url).pathname === '/mcp/activity') { activity.push(...(await req.json() as any).events); return new Response(null, { status: 204 }); }
       const m = await req.json() as any;
@@ -198,6 +205,14 @@ test('tin Telegram hợp lệ → job chạy trong worktree ngoài repo → push
   const end = activity.slice(start + 1).find((e) => e.kind === 'session_end');
   expect(end).toMatchObject({ id: 'session-end', ok: true, costUsd: 0.42, model: 'fake-model-1' });
   expect(JSON.stringify(activity)).not.toContain(TOKEN);
+  // Mức dùng AI (TEST-135): sau phiên runner gửi /mcp/usage ở nền (CLI tự khai báo: không báo cache → null, không phải 0)
+  expect(await waitFor(() => usage.some((u) => u.taskCode === 'TEST-45'), 3000)).toBe(true);
+  const u = usage.find((x) => x.taskCode === 'TEST-45');
+  expect(u).toMatchObject({ kind: 'task', taskId: T1, projectId: P, executor: 'custom', costUsd: 0.42, turns: null });
+  expect(u.sourceId).toEndWith(`:${store.dbId()}:NV120:${job.id}`);
+  expect(['done', 'failed']).toContain(u.status);
+  expect(u.models).toEqual([{ model: 'fake-model-1', inputTokens: 1000, outputTokens: 200, cacheReadTokens: null, cacheWriteTokens: null, costUsd: 0.42 }]);
+  expect(await waitFor(() => !!store.getJob(job.id)!.usage_sent_at, 3000)).toBe(true);
 }, 30000);
 
 test('việc được đánh thức lại → nối phiên cũ (resume_args) trong cùng worktree', async () => {
@@ -554,6 +569,14 @@ test('chat_mention: tin Telegram → job chat trong thư mục riêng của hộ
   expect(presence.slice(presenceBefore).some((p) => p.state === 'working')).toBe(false); // chat không đổi trạng thái 3D
   // Xem trực tiếp: phiên chat chỉ có nhãn chung, không có nội dung / id hội thoại
   expect(activity.slice(activityBefore).filter((e) => e.kind === 'session_start').map((e) => e.task)).toEqual(['Trả lời tin nhắn']);
+  // Mức dùng AI (TEST-135): phiên chat cũng được gửi, không có id / mã việc
+  // mỗi test dựng runner.db mới (số job đếm lại từ 1) → so cả mã DB trong sourceId
+  const sid = `:${st.dbId()}:NV120:${job.id}`;
+  expect(await waitFor(() => usage.some((x) => x.sourceId.endsWith(sid)), 3000)).toBe(true);
+  const u = usage.find((x) => x.sourceId.endsWith(sid));
+  expect(u).toMatchObject({ kind: 'chat', status: 'done', costUsd: 0.1 });
+  expect(u.taskId).toBeUndefined();
+  expect(u.taskCode).toBeUndefined();
 
   // nhắc lần nữa trong 24 giờ → nối phiên cũ của hội thoại
   await r.onMessage(s, wake);

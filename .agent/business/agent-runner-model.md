@@ -24,6 +24,6 @@ Adapter `custom`: dòng JSON output có `model` thì đọc; không có → ghi 
 ## Mỗi job
 
 - Log `agent đang làm` dòng đầu = model (`10:21:07 NV018 TEST-45 #3  ▶ claude-opus-5-5`; adapter không có `activity` → model cấu hình). `xong job` có `model=`; model thật lệch cấu hình → `warn model thật khác cấu hình`.
-- `runner.db` bảng `jobs`: cột `model` (model chính; từ cấu hình thì kèm " (cấu hình)") + `model_usage` (JSON `{ model: { costUsd, inputTokens, outputTokens } }`, token vào gồm cache). DB cũ thiếu cột → `ALTER TABLE … ADD COLUMN` lúc mở `Store`; job trước TEST-64 có `model` null.
+- `runner.db` bảng `jobs`: cột `model` (model chính; từ cấu hình thì kèm " (cấu hình)") + `model_usage` (JSON `{ model: { costUsd, inputTokens, outputTokens, cacheReadTokens?, cacheWriteTokens? } }`, token vào gồm cache; phần cache từ TEST-135 — [agent-runner-usage.md](agent-runner-usage.md)). DB cũ thiếu cột → `ALTER TABLE … ADD COLUMN` lúc mở `Store`; job trước TEST-64 có `model` null.
 - Bình luận chi phí: dòng `- Model: claude-opus-5-5 · phụ: claude-haiku-5-5 ($0.01)` (lệch cấu hình → `⚠ khác cấu hình (X)`).
 - `report`: sau bảng theo agent có mục **Theo model** (agent + model chính: số việc, chi phí, token; null → "không rõ").

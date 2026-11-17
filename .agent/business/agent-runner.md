@@ -48,6 +48,7 @@ Dự án bun + TypeScript độc lập ở gốc repo, **không thư viện runt
 | `bun src/cli.ts start [--no-model-check]` | Dịch vụ (systemd: `deploy/officehub-runner.service`) |
 | `bun src/cli.ts run --agent NV120 --task TEST-45` | Chạy ngay một việc (bỏ qua Telegram, vẫn hỏi lại OfficeHub) |
 | `bun src/cli.ts report [--days 1]` | Chi phí theo agent + theo model |
+| `bun src/cli.ts usage push [--since yyyy-MM-dd] [--agent NV018] [--dry-run]` | Gửi bù chi phí / token các phiên chưa gửi lên OfficeHub ("Mức dùng AI") — [agent-runner-usage.md](agent-runner-usage.md) |
 | `bun run build` | Một file chạy `dist/officehub-runner` — build từ commit đã merge `main`, cài `/opt/officehub-runner/` |
 | `bun run typecheck`, `bun test` | Bắt buộc khi đổi `agent-runner/` (CI job `agent-runner`) |
 
@@ -55,7 +56,7 @@ Test: đơn vị (cấu hình, validator, adapter + mẫu stream-json, store, pr
 
 ## Chưa làm (bước sau của TEST-44)
 
-**Gửi mức dùng AI** (TEST-135, chủ dự án làm): sau mỗi phiên (việc / chat / họp) gửi `POST /mcp/usage` bằng token AI của bot — hợp đồng, giới hạn (≤ 50 phiên / lô, `sourceId` để gửi lại không trùng) và cách đọc ở [ai-usage.md](ai-usage.md). Hiện runner chỉ lưu `model_usage` trong `runner.db` ([agent-runner-model.md](agent-runner-model.md)); e2e `scripts/dev/ai-usage-flow-e2e.ts` giả bước gửi.
+Đã làm (TEST-135): **gửi mức dùng AI** sau mỗi phiên (`POST /mcp/usage`) + `usage push` gửi bù — [agent-runner-usage.md](agent-runner-usage.md). Chưa thử với OfficeHub thật.
 
 
 Đọc trường `event` / `comment_id` (OfficeHub đã gửi từ TEST-63: assigned / returned / mentioned — `mentioned` không bắt buộc việc giao cho bot, prompt chỉ trả lời bằng bình luận; cancelled → dừng phiên chưa có), HMAC tin, tổng kết chi phí hằng ngày vào nhóm, adapter `codex` / `gemini`, user Linux riêng từng agent, chỉ chạy khi người giao nằm trong danh sách cho phép (prompt injection).

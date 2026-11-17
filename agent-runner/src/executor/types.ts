@@ -23,8 +23,12 @@ export interface ExecContext {
 
 export interface Command { bin: string; args: string[] }
 
-/** Chi phí / token của một model trong phiên (Claude Code: `modelUsage` của sự kiện `result`). */
-export interface ModelUse { costUsd?: number; inputTokens?: number; outputTokens?: number }
+/**
+ * Chi phí / token của một model trong phiên (Claude Code: `modelUsage` của sự kiện `result`).
+ * `inputTokens` = TỔNG token vào, gồm cả phần đọc / ghi cache (cách tính cũ của `report` / bình luận); TEST-135 tách thêm
+ * `cacheReadTokens` / `cacheWriteTokens` (không có = CLI không báo) — gửi lên OfficeHub thì token vào = tổng − cache.
+ */
+export interface ModelUse { costUsd?: number; inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheWriteTokens?: number }
 
 /** Kết quả đọc từ output CLI (trường nào CLI không có thì undefined). */
 export interface ExecResult {
@@ -35,8 +39,12 @@ export interface ExecResult {
   /** Mọi model đã dùng trong phiên (có thể có model phụ cho tác vụ nhỏ). */
   modelUsage?: Record<string, ModelUse>;
   costUsd?: number;
+  /** Tổng token vào, gồm cả cache (xem {@link ModelUse}). */
   inputTokens?: number;
   outputTokens?: number;
+  /** Phần token vào đọc từ cache / ghi vào cache (TEST-135); CLI không báo → undefined. */
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
   turns?: number;
   summary?: string;
   isError?: boolean;

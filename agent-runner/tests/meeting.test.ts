@@ -22,6 +22,8 @@ let runner: Runner, store: Store;
 /** Trạng thái cuộc họp trên "OfficeHub": ai dự, ai giữ lượt; `next` = thứ tự nhận lượt sau mỗi lần nói / bỏ lượt. */
 let meeting: { active: boolean; bots: string[]; speaker: string | null; next: (string | null)[] };
 let spoken: string[], passes: string[], comments: string[], presence: any[], activity: any[];
+/** Phiên mức dùng AI runner gửi (TEST-135) — không reset giữa các test. */
+const usage: any[] = [];
 const advance = () => { meeting.speaker = meeting.next.shift() ?? null; };
 
 beforeAll(async () => {
@@ -39,6 +41,11 @@ beforeAll(async () => {
       if (!who) return new Response(null, { status: 401 });
       if (url.pathname === '/mcp/presence') { presence.push({ agent: who.code, ...(await req.json() as object) }); return new Response(null, { status: 204 }); }
       if (url.pathname === '/mcp/activity') { activity.push(...(await req.json() as any).events.map((e: any) => ({ agent: who.code, ...e }))); return new Response(null, { status: 204 }); }
+      if (url.pathname === '/mcp/usage') {
+        const b = await req.json() as any;
+        usage.push(...b.sessions.map((s: any) => ({ agent: who.code, ...s })));
+        return Response.json({ accepted: b.sessions.length, created: b.sessions.length, updated: 0 });
+      }
       const m = await req.json() as any;
       const reply = (result: unknown) => Response.json({ jsonrpc: '2.0', id: m.id, result });
       if (m.method === 'initialize') return reply({ protocolVersion: '2025-06-18', capabilities: {} });
@@ -153,6 +160,10 @@ test('hai agent nói lần lượt: mỗi lượt một phiên ngắn chỉ tool
   for (let i = 0; i < 30 && activity.filter((e) => e.kind === 'session_end').length < 3; i++) await Bun.sleep(100); // bộ gửi chạy ở nền
   expect(activity.filter((e) => e.kind === 'session_end').length).toBe(3);
   expect(store.costsByKind('2000-01-01')).toEqual([{ kind: 'meeting', jobs: 3, cost: 0.15000000000000002 }]);
+  // Mức dùng AI (TEST-135): mỗi lượt nói một phiên kind meeting, gửi bằng token của đúng bot, không có id / mã việc
+  for (let i = 0; i < 30 && usage.length < 3; i++) await Bun.sleep(100);
+  expect(usage.map((u) => `${u.agent} ${u.kind} ${u.status} ${u.costUsd}`)).toEqual(['NV120 meeting done 0.05', 'NV121 meeting done 0.05', 'NV120 meeting done 0.05']);
+  expect(usage.every((u) => u.taskId === undefined && u.taskCode === undefined && u.sourceId.includes(`:${u.agent}:`))).toBe(true);
 }, 30000);
 
 test('agent không nói trong lượt → runner bỏ lượt thay; lượt đã qua / họp đã dừng → bỏ job, không gọi CLI', async () => {

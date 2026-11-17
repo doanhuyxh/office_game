@@ -15,6 +15,7 @@ import { chatPrompt } from './prompt/chat';
 import { meetingPrompt } from './prompt/meeting';
 import { Store, type Job } from './store';
 import { TelegramClient, type TgMessage } from './telegram';
+import { USAGE_RETRY_MS, UsageReporter, sourceHost } from './usage';
 import { checkChat, checkMeeting, checkTask, parseWake, type ChatWake, type MeetingWake, type WakeData } from './validator';
 import { AGENT_ENV, Git, TASK_ENV, WorkspaceRefused, branchChanges, inPlaceChanges, installHooks, prepareInPlace, prepareWorktree, publish, pushInPlace, removeHooks, sh } from './workspace';
 
@@ -33,6 +34,8 @@ interface AgentState {
   presence: PresenceReporter;
   /** Luồng "agent đang làm gì" cho người xem trực tiếp trong 3D (TEST-99). */
   activity: ActivitySender;
+  /** Gửi chi phí / token mỗi phiên lên OfficeHub (TEST-135). */
+  usage: UsageReporter;
   employeeId?: string;
   enabled: boolean;
   problem?: string;
@@ -45,11 +48,13 @@ export class Runner {
   readonly agents = new Map<string, AgentState>();
   private readonly abort = new AbortController();
   private readonly running = new Map<number, AbortController>();
+  private usageTimer?: ReturnType<typeof setInterval>;
   /** Git của runner (env của runner); thao tác cho agent dùng `gitFor(agent)` (HOME / PATH của agent). */
   readonly git: Git;
 
   constructor(readonly config: RunnerConfig, readonly store: Store) {
     this.git = new Git(config.gitBin);
+    const source = { host: sourceHost(), dbId: store.dbId() };
     for (const a of config.agents) {
       registerSecret(a.token);
       registerSecret(a.telegramToken);
@@ -57,6 +62,7 @@ export class Runner {
         cfg: a, hub: new OfficeHubClient(config.mcpUrl, a.token), tg: new TelegramClient(config.telegramApiUrl, a.telegramToken), enabled: false,
         presence: new PresenceReporter(config.mcpUrl, a.token, a.employeeCode),
         activity: new ActivitySender(config.mcpUrl, a.token, a.employeeCode, config.activityStream),
+        usage: new UsageReporter(config.mcpUrl, a.token, a.employeeCode, store, { ...source, executor: a.executor.kind }),
       });
     }
   }
@@ -339,7 +345,8 @@ export class Runner {
       else if (job.kind === 'chat') await this.processChat(s, job, ctl.signal);
       else await this.processTask(s, job, ctl.signal);
     } catch (e) {
-      this.store.finish(job.id, 'failed', { reason: errText(e) });
+      // Lỗi sau khi đã ghi kết quả phiên (vd xếp lượt chat kế) → giữ kết quả + chi phí đã ghi, chỉ log
+      if (this.store.getJob(job.id)?.status === 'running') this.store.finish(job.id, 'failed', { reason: errText(e) });
       log('error', 'job lỗi', { job: job.id, task: job.task_code, error: errText(e) });
     } finally {
       this.running.delete(job.id);
@@ -385,8 +392,11 @@ export class Runner {
     return out;
   }
 
-  /** Ghi kết quả phiên vào hàng đợi (trạng thái, chi phí, token, model). Trả `ok`. */
-  private finishJob(job: Job, out: RunOutcome, f: { note?: string; prUrl?: string } = {}): boolean {
+  /**
+   * Ghi kết quả phiên vào hàng đợi (trạng thái, chi phí, token, model) rồi gửi mức dùng AI lên OfficeHub ở nền (TEST-135 — lỗi không ảnh hưởng job,
+   * phiên chưa gửi được gửi lại theo nhịp {@link USAGE_RETRY_MS}). Trả `ok`.
+   */
+  private finishJob(s: AgentState, job: Job, out: RunOutcome, f: { note?: string; prUrl?: string } = {}): boolean {
     const ok = out.exitCode === 0 && !out.timedOut && !out.isError;
     this.store.finish(job.id, ok ? 'done' : 'failed', {
       reason: out.timedOut ? 'hết giờ' : out.isError ? `CLI báo lỗi (${out.errorKind ?? out.exitCode})` : out.exitCode !== 0 ? `mã thoát ${out.exitCode}` : f.note || null,
@@ -394,7 +404,10 @@ export class Runner {
       turns: out.turns ?? null, pr_url: f.prUrl ?? null,
       model: out.model ? out.model + (out.modelFromConfig ? ' (cấu hình)' : '') : null,
       model_usage: out.modelUsage ? JSON.stringify(out.modelUsage) : null,
+      cache_read_tokens: out.cacheReadTokens ?? null, cache_write_tokens: out.cacheWriteTokens ?? null,
+      executor: s.cfg.executor.kind, cli_ran: 1,
     });
+    void s.usage.flush().catch((e) => log('warn', 'gửi mức dùng AI lỗi', { agent: job.agent, error: errText(e) }));
     log(ok ? 'info' : 'warn', 'xong job', { job: job.id, task: job.task_code, ok, model: out.model, pr: f.prUrl, cost: out.costUsd, sec: out.durationSec });
     return ok;
   }
@@ -417,7 +430,7 @@ export class Runner {
       cwd, prompt: chatPrompt(job.agent, c.value.conversation, !!resume), resume, noBuiltinTools: true, presence: false, label: 'Trả lời tin nhắn',
     });
     this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd);
-    this.finishJob(job, out);
+    this.finishJob(s, job, out);
     // Có tin nhắc mới tới giữa phiên → kiểm tra lại (đã đọc hết thì tự bỏ) và chạy thêm một lượt.
     if (this.store.getJob(job.id)?.rerun) await this.acceptChat(s, { employee_code: job.agent, conversation_id: conv, message_id: '' });
   }
@@ -442,7 +455,7 @@ export class Runner {
         cwd, prompt: meetingPrompt(job.agent, session, !!resume), resume, exec, noBuiltinTools: true, presence: false, label: 'Phát biểu trong cuộc họp',
       });
       this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd);
-      this.finishJob(job, out);
+      this.finishJob(s, job, out);
     } finally {
       await this.afterMeetingTurn(s, job).catch((e) => log('warn', 'không kiểm tra được lượt họp sau phiên', { job: job.id, agent: job.agent, error: errText(e) }));
     }
@@ -556,7 +569,7 @@ export class Runner {
       const ok = out.exitCode === 0 && !out.timedOut && !out.isError;
       if (!ok) failure = presenceFailure(out);
       await s.hub.comment(job.task_id, resultComment(job, out, prUrl, note, ok, s.cfg.executor.model));
-      this.finishJob(job, out, { note, prUrl });
+      this.finishJob(s, job, out, { note, prUrl });
     } catch (e) {
       failure = 'Runner lỗi'; // process() ghi failed + log
       throw e;
@@ -573,11 +586,16 @@ export class Runner {
     const enabled = [...this.agents.values()].filter((a) => a.enabled);
     if (enabled.length === 0) throw new Error('Không agent nào chạy được — xem các dòng ✘ ở trên (chạy `doctor`)');
     for (const s of enabled) { s.presence.start(); void this.listen(s); }
+    // Mức dùng AI (TEST-135): gửi phiên còn tồn từ lần chạy trước, rồi gửi lại theo nhịp (máy chủ tạm lỗi / chưa có bản mới)
+    const flushUsage = () => { for (const s of this.agents.values()) void s.usage.flush().catch(() => undefined); };
+    flushUsage();
+    this.usageTimer = setInterval(flushUsage, USAGE_RETRY_MS);
     await this.schedule();
   }
 
   stop() {
     this.abort.abort();
+    clearInterval(this.usageTimer);
     for (const s of this.agents.values()) { s.presence.stop(); s.activity.stop(); }
     for (const c of this.running.values()) c.abort();
   }

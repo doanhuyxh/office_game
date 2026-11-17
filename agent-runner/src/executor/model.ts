@@ -11,12 +11,17 @@ export function readModelUsage(u: unknown): Record<string, ModelUse> | undefined
   const out: Record<string, ModelUse> = {};
   for (const [name, v] of Object.entries(u as Record<string, any>)) {
     if (!v || typeof v !== 'object') continue;
-    const num = (x: unknown) => (typeof x === 'number' ? x : 0);
-    out[name] = {
-      costUsd: typeof v.costUSD === 'number' ? v.costUSD : undefined,
-      inputTokens: num(v.inputTokens) + num(v.cacheReadInputTokens) + num(v.cacheCreationInputTokens),
-      outputTokens: typeof v.outputTokens === 'number' ? v.outputTokens : undefined,
+    const num = (x: unknown) => (typeof x === 'number' ? x : undefined);
+    const input = num(v.inputTokens), read = num(v.cacheReadInputTokens), write = num(v.cacheCreationInputTokens);
+    const use: ModelUse = {
+      costUsd: num(v.costUSD),
+      // Tổng gồm cả cache; không trường nào có → không biết (undefined, không phải 0)
+      inputTokens: input === undefined && read === undefined && write === undefined ? undefined : (input ?? 0) + (read ?? 0) + (write ?? 0),
+      outputTokens: num(v.outputTokens),
     };
+    if (read !== undefined) use.cacheReadTokens = read;
+    if (write !== undefined) use.cacheWriteTokens = write;
+    out[name] = use;
   }
   return Object.keys(out).length ? out : undefined;
 }

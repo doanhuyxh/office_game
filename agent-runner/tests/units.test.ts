@@ -214,7 +214,11 @@ describe('executor adapters', () => {
     // TEST-64: model chính (init + modelUsage) và model phụ
     expect(r.model).toBe('claude-sonnet-5-5');
     expect(Object.keys(r.modelUsage!)).toEqual(['claude-sonnet-5-5', 'claude-haiku-5-5']);
-    expect(r.modelUsage!['claude-sonnet-5-5']).toEqual({ costUsd: 0.8, inputTokens: 44100, outputTokens: 5000 });
+    expect(r.modelUsage!['claude-sonnet-5-5']).toEqual({ costUsd: 0.8, inputTokens: 44100, outputTokens: 5000, cacheReadTokens: 40000, cacheWriteTokens: 3000 });
+    // TEST-135: phần cache của cả phiên (inputTokens vẫn là tổng gồm cache)
+    expect(r).toMatchObject({ cacheReadTokens: 40000, cacheWriteTokens: 3000 });
+    // Không trường token nào → không biết (undefined), không phải 0
+    expect(readModelUsage({ m: { costUSD: 0.1 } })!.m).toEqual({ costUsd: 0.1, inputTokens: undefined, outputTokens: undefined });
     expect(claudeAdapter.activity!(readFileSync(join(import.meta.dir, 'fixtures/claude-stream.jsonl'), 'utf8').split('\n')[0]!, '/w')).toEqual(['Model claude-sonnet-5-5']);
   });
 

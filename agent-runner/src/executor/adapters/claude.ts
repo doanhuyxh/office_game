@@ -99,6 +99,8 @@ export const claudeAdapter: Adapter = {
     const u = m.usage ?? {};
     const input = (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
     if (input) r.inputTokens = input;
+    if (typeof u.cache_read_input_tokens === 'number') r.cacheReadTokens = u.cache_read_input_tokens;
+    if (typeof u.cache_creation_input_tokens === 'number') r.cacheWriteTokens = u.cache_creation_input_tokens;
     if (typeof u.output_tokens === 'number') r.outputTokens = u.output_tokens;
     if (typeof m.result === 'string') r.summary = m.result;
     r.isError = m.is_error === true || (typeof m.subtype === 'string' && m.subtype !== 'success');

@@ -28,6 +28,20 @@ export interface Job {
   model: string | null;
   model_usage: string | null;
   kind: JobKind | null;
+  /** Phần token vào đọc / ghi cache (TEST-135; `input_tokens` vẫn là tổng gồm cache). CLI không báo → null. */
+  cache_read_tokens: number | null;
+  cache_write_tokens: number | null;
+  /** Loại CLI chạy phiên (`claude` / `custom`) — gửi lên OfficeHub làm `executor`. */
+  executor: string | null;
+  /**
+   * Job có chạy CLI (có phiên để báo mức dùng AI, TEST-135): 1 = runner tự gửi sau phiên + gửi lại theo nhịp;
+   * 2 = job cũ trước TEST-135 (đánh dấu lúc nâng cấp DB) — chỉ gửi bằng `usage push`; null = không chạy CLI (bỏ qua / lỗi trước khi chạy).
+   */
+  cli_ran: number | null;
+  /** Đã gửi mức dùng AI lên OfficeHub lúc nào (null = chưa). */
+  usage_sent_at: string | null;
+  /** OfficeHub từ chối phiên (400) — câu lỗi; runner không tự gửi lại, `usage push` thử lại. */
+  usage_error: string | null;
   /** 1 = có tin đánh thức mới cho cùng khoá trong lúc job đang chạy → xong thì runner kiểm tra lại và chạy thêm một lượt. */
   rerun: number | null;
   /** Job bị hoãn (agent đang họp): chưa tới giờ này thì chưa lấy ra chạy. */
@@ -35,7 +49,16 @@ export interface Job {
 }
 
 /** Cột thêm sau khi bảng đã có trong runner.db cũ → `ALTER TABLE … ADD COLUMN` lúc mở (migration nhẹ, không mất dữ liệu). */
-const JOB_COLUMNS_ADDED: [string, string][] = [['model', 'TEXT'], ['model_usage', 'TEXT'], ['kind', 'TEXT'], ['rerun', 'INTEGER'], ['not_before', 'TEXT']];
+const JOB_COLUMNS_ADDED: [string, string][] = [['model', 'TEXT'], ['model_usage', 'TEXT'], ['kind', 'TEXT'], ['rerun', 'INTEGER'], ['not_before', 'TEXT'],
+  ['cache_read_tokens', 'INTEGER'], ['cache_write_tokens', 'INTEGER'], ['executor', 'TEXT'], ['cli_ran', 'INTEGER'], ['usage_sent_at', 'TEXT'], ['usage_error', 'TEXT']];
+
+/** Job cũ (trước TEST-135) có dấu hiệu đã chạy CLI → `cli_ran = 2` (chỉ gửi bằng `usage push`). */
+const LEGACY_CLI_RAN = `status IN ('done', 'failed') AND started_at IS NOT NULL
+  AND (session_id IS NOT NULL OR model IS NOT NULL OR cost_usd IS NOT NULL OR turns IS NOT NULL OR input_tokens IS NOT NULL)`;
+
+/** Kết quả phiên ghi vào job khi xong. */
+export type JobResult = Partial<Pick<Job, 'reason' | 'session_id' | 'cost_usd' | 'input_tokens' | 'output_tokens' | 'cache_read_tokens' | 'cache_write_tokens'
+  | 'turns' | 'pr_url' | 'model' | 'model_usage' | 'executor' | 'cli_ran'>>;
 
 /**
  * SQLite của runner (`{data_dir}/runner.db`): hàng đợi job, khoá theo task_id (một task chỉ một job đang chờ / chạy — index unique có điều kiện),
@@ -57,9 +80,24 @@ export class Store {
       CREATE TABLE IF NOT EXISTS task_sessions (
         task_id TEXT PRIMARY KEY, agent TEXT NOT NULL, session_id TEXT, branch TEXT NOT NULL, worktree TEXT NOT NULL, updated_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS tg_offsets (bot TEXT PRIMARY KEY, next_offset INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     `);
     const have = new Set(this.db.query<{ name: string }, []>(`PRAGMA table_info(jobs)`).all().map((c) => c.name));
     for (const [col, type] of JOB_COLUMNS_ADDED) if (!have.has(col)) this.db.exec(`ALTER TABLE jobs ADD COLUMN ${col} ${type}`);
+    if (!have.has('cli_ran')) this.db.run(`UPDATE jobs SET cli_ran = 2 WHERE ${LEGACY_CLI_RAN}`);
+    this.db.exec(`CREATE INDEX IF NOT EXISTS ix_jobs_usage_pending ON jobs(agent, id) WHERE cli_ran IS NOT NULL AND usage_sent_at IS NULL`);
+  }
+
+  /**
+   * Mã ngẫu nhiên của runner.db này (8 ký tự hex, tạo một lần). Nằm trong `sourceId` gửi OfficeHub: máy bị xoá → DB mới đếm job lại từ 1,
+   * mã khác → phiên mới không ghi đè phiên cũ cùng số job.
+   */
+  dbId(): string {
+    const row = this.db.query<{ value: string }, []>(`SELECT value FROM meta WHERE key = 'db_id'`).get();
+    if (row) return row.value;
+    const id = crypto.randomUUID().replace(/-/g, '').slice(0, 8);
+    this.db.run(`INSERT OR IGNORE INTO meta (key, value) VALUES ('db_id', ?)`, [id]);
+    return this.db.query<{ value: string }, []>(`SELECT value FROM meta WHERE key = 'db_id'`).get()!.value;
   }
 
   private now() { return new Date().toISOString(); }
@@ -114,12 +152,38 @@ export class Store {
   /** Job đang chạy của một agent (mỗi agent tối đa 1). */
   runningJob(agent: string) { return this.db.query<Job, [string]>(`SELECT * FROM jobs WHERE status = 'running' AND agent = ?`).get(agent); }
 
-  finish(id: number, status: Exclude<JobStatus, 'queued' | 'running'>,
-    f: Partial<Pick<Job, 'reason' | 'session_id' | 'cost_usd' | 'input_tokens' | 'output_tokens' | 'turns' | 'pr_url' | 'model' | 'model_usage'>> = {}) {
+  finish(id: number, status: Exclude<JobStatus, 'queued' | 'running'>, f: JobResult = {}) {
     this.db.run(`UPDATE jobs SET status = ?, finished_at = ?, reason = ?, session_id = ?, cost_usd = ?, input_tokens = ?, output_tokens = ?, turns = ?, pr_url = ?,
-        model = ?, model_usage = ? WHERE id = ?`,
+        model = ?, model_usage = ?, cache_read_tokens = ?, cache_write_tokens = ?, executor = ?, cli_ran = ?, usage_sent_at = NULL, usage_error = NULL WHERE id = ?`,
       [status, this.now(), f.reason ?? null, f.session_id ?? null, f.cost_usd ?? null, f.input_tokens ?? null, f.output_tokens ?? null, f.turns ?? null, f.pr_url ?? null,
-        f.model ?? null, f.model_usage ?? null, id]);
+        f.model ?? null, f.model_usage ?? null, f.cache_read_tokens ?? null, f.cache_write_tokens ?? null, f.executor ?? null, f.cli_ran ?? null, id]);
+  }
+
+  /**
+   * Phiên chưa gửi mức dùng AI của một agent, theo id tăng dần, sau `afterId` (con trỏ — phiên bị từ chối không làm vòng gửi lặp mãi).
+   * Mặc định (runner tự gửi): chỉ job chạy sau TEST-135, chưa bị OfficeHub từ chối. `all` (`usage push`): cả job cũ + job bị từ chối.
+   */
+  pendingUsage(agent: string, o: { afterId?: number; limit?: number; all?: boolean; sinceIso?: string } = {}): Job[] {
+    const cond = o.all ? 'cli_ran IS NOT NULL' : 'cli_ran = 1 AND usage_error IS NULL';
+    return this.db.query<Job, [string, number, string, number]>(`
+      SELECT * FROM jobs WHERE agent = ? AND ${cond} AND usage_sent_at IS NULL AND status IN ('done', 'failed') AND id > ? AND finished_at >= ?
+      ORDER BY id LIMIT ?`).all(agent, o.afterId ?? 0, o.sinceIso ?? '', o.limit ?? 50);
+  }
+
+  /** Agent có phiên chưa gửi (kể cả job cũ / bị từ chối) — `usage push` liệt kê agent không còn trong cấu hình. */
+  pendingUsageAgents(sinceIso = ''): { agent: string; n: number }[] {
+    return this.db.query<{ agent: string; n: number }, [string]>(`
+      SELECT agent, COUNT(*) n FROM jobs WHERE cli_ran IS NOT NULL AND usage_sent_at IS NULL AND status IN ('done', 'failed') AND finished_at >= ?
+      GROUP BY agent ORDER BY agent`).all(sinceIso);
+  }
+
+  markUsageSent(ids: number[]) {
+    if (!ids.length) return;
+    this.db.run(`UPDATE jobs SET usage_sent_at = ?, usage_error = NULL WHERE id IN (${ids.map(() => '?').join(',')})`, [this.now(), ...ids]);
+  }
+
+  markUsageRejected(id: number, error: string) {
+    this.db.run(`UPDATE jobs SET usage_error = ? WHERE id = ?`, [error.slice(0, 500), id]);
   }
 
   getJob(id: number) { return this.db.query<Job, [number]>(`SELECT * FROM jobs WHERE id = ?`).get(id); }
