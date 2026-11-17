@@ -117,6 +117,11 @@ public static class ChatRules
     public static readonly TimeSpan UploadUrlTtl = TimeSpan.FromMinutes(30);
     /// <summary>Hạn link xem / tải trả kèm tin nhắn (client giữ cache lâu hơn → tải lại danh sách sẽ có link mới).</summary>
     public static readonly TimeSpan AttachmentUrlTtl = TimeSpan.FromMinutes(60);
+    /// <summary>Hạn link tải tệp trả cho trợ lý AI (tool view_attachment — TEST-151): ngắn, model chỉ cần mở ngay.</summary>
+    public static readonly TimeSpan AiAttachmentUrlTtl = TimeSpan.FromMinutes(10);
+    /// <summary>Cạnh dài tối đa của ảnh thu nhỏ cho trợ lý AI (~1–2k token / ảnh) — <c>GET /attachments/{id}/preview?max=</c>.</summary>
+    public const int PreviewMaxSide = 1280;
+    public const int PreviewMinSide = 64;
     public static readonly TimeSpan TicketCleanupAfter = TimeSpan.FromHours(24);
 
     public const string OfficeAlias = "office";

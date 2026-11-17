@@ -46,29 +46,43 @@ public sealed class OfficeHubApi(HttpClient http, IHttpContextAccessor ctx)
         catch (ApiException e) when (e.Status is HttpStatusCode.NotFound) { return null; }
     }
 
+    /// <summary>GET nội dung nhị phân (vd ảnh thu nhỏ — TEST-151): trả byte + Content-Type; lỗi như <see cref="GetAsync"/>.</summary>
+    public async Task<(byte[] Data, string ContentType)> GetBytesAsync(string path, CancellationToken ct)
+    {
+        using var req = NewRequest(HttpMethod.Get, path, null);
+        using var res = await SendRawAsync(req, ct);
+        if (!res.IsSuccessStatusCode) throw new ApiException(res.StatusCode, ProblemMessage(res.StatusCode, await res.Content.ReadAsStringAsync(ct)));
+        return (await res.Content.ReadAsByteArrayAsync(ct), res.Content.Headers.ContentType?.MediaType ?? "application/octet-stream");
+    }
+
     private async Task<JsonNode?> SendAsync(HttpMethod method, string path, object? body, CancellationToken ct)
     {
-        using var req = new HttpRequestMessage(method, path);
+        using var req = NewRequest(method, path, body);
+        using var res = await SendRawAsync(req, ct);
+        var text = await res.Content.ReadAsStringAsync(ct);
+        if (res.IsSuccessStatusCode) return string.IsNullOrWhiteSpace(text) ? null : JsonNode.Parse(text);
+        throw new ApiException(res.StatusCode, ProblemMessage(res.StatusCode, text));
+    }
+
+    private HttpRequestMessage NewRequest(HttpMethod method, string path, object? body)
+    {
         var http0 = ctx.HttpContext ?? throw new McpException("Không xác định được người dùng");
+        var req = new HttpRequestMessage(method, path);
         req.Headers.Authorization = AuthenticationHeaderValue.Parse(http0.Request.Headers.Authorization.ToString());
         // IP của client AI (để Api ghi vào sự kiện chấm công). Chấm công qua MCP luôn tính "từ xa", IP chỉ để tra cứu.
         if (http0.Connection.RemoteIpAddress is { } ip) req.Headers.TryAddWithoutValidation("X-Forwarded-For", ip.ToString());
         if (CurrentTool.Value is { } tool) req.Headers.TryAddWithoutValidation(AccessTokenAuth.ToolHeader, tool);
         req.Headers.TryAddWithoutValidation("User-Agent", $"OfficeHub.Mcp ({Truncate(http0.Request.Headers.UserAgent.ToString(), 200)})");
         if (body is not null) req.Content = JsonContent.Create(body, options: Json);
+        return req;
+    }
 
-        HttpResponseMessage res;
-        try { res = await http.SendAsync(req, ct); }
+    private async Task<HttpResponseMessage> SendRawAsync(HttpRequestMessage req, CancellationToken ct)
+    {
+        try { return await http.SendAsync(req, ct); }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
         {
             throw new McpException("Máy chủ OfficeHub đang không phản hồi, thử lại sau ít phút.");
-        }
-
-        using (res)
-        {
-            var text = await res.Content.ReadAsStringAsync(ct);
-            if (res.IsSuccessStatusCode) return string.IsNullOrWhiteSpace(text) ? null : JsonNode.Parse(text);
-            throw new ApiException(res.StatusCode, ProblemMessage(res.StatusCode, text));
         }
     }
 

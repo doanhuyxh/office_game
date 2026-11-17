@@ -1,5 +1,5 @@
 // E2E TEST-143: hồ sơ tool MCP theo loại phiên agent + cắt gọn kết quả, Api + Mcp THẬT trên DB tạm.
-// Kiểm tra: tools/list không profile = đủ 103 tool; ?profile=chat|meeting|task chỉ trả tool hợp loại phiên (đo kích thước schema từng hồ sơ),
+// Kiểm tra: tools/list không profile = đủ 104 tool; ?profile=chat|meeting|task chỉ trả tool hợp loại phiên (đo kích thước schema từng hồ sơ),
 // profile lạ = đủ; tool ngoài hồ sơ vẫn gọi được (không phải lớp bảo mật); get_task mặc định 20 bình luận mới nhất + commentsTotal, comments=0,
 // không có trường null; read_chat since = chỉ tin mới, không có olderBefore null.
 // CHỈ DB tạm (lệnh dựng: .agent/e2e.md "mcp-profiles-e2e.ts"):
@@ -97,8 +97,8 @@ await rpc(null, 'initialize', { protocolVersion: '2025-06-18', capabilities: {},
 const all = await list(null), chat = await list('chat'), meeting = await list('meeting'), task = await list('task'), odd = await list('abc');
 console.log(`  schema tools/list: đủ ${all.names.length} tool ${all.bytes} B · chat ${chat.names.length} / ${chat.bytes} B · meeting ${meeting.names.length} / ${meeting.bytes} B`
   + ` · task ${task.names.length} / ${task.bytes} B`);
-ok('không profile → đủ 103 tool', all.names.length === 103, all.names.length);
-ok('profile lạ → đủ tool', odd.names.length === 103, odd.names.length);
+ok('không profile → đủ 104 tool', all.names.length === 104, all.names.length);
+ok('profile lạ → đủ tool', odd.names.length === 104, odd.names.length);
 ok('chat: có read_chat / send_chat_message / create_task / go_to, không approve / check_in_out / speak_in_meeting',
   ['read_chat', 'send_chat_message', 'create_task', 'go_to'].every((n) => chat.names.includes(n))
   && !['approve_request', 'check_in_out', 'speak_in_meeting'].some((n) => chat.names.includes(n)), chat.names.length);

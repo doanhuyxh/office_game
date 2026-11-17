@@ -24,7 +24,7 @@ public class ToolProfilesTests
     public void Every_listed_name_is_a_real_tool()
     {
         var names = All.Select(t => t.Name).ToHashSet();
-        Assert.Equal(103, names.Count);
+        Assert.Equal(104, names.Count);
         // Tên sai trong hồ sơ = tool lặng lẽ biến mất khỏi phiên agent
         foreach (var n in ToolProfiles.ChatWrites.Concat(ToolProfiles.MeetingWrites).Concat(ToolProfiles.TaskExcluded))
             Assert.Contains(n, names);
@@ -36,7 +36,7 @@ public class ToolProfilesTests
     [Fact]
     public void No_or_unknown_profile_lists_everything()
     {
-        Assert.Equal(103, Of(null).Length);
+        Assert.Equal(104, Of(null).Length);
         Assert.Null(ToolProfiles.Parse("abc"));
         Assert.Null(ToolProfiles.Parse(""));
         Assert.Equal(ToolProfiles.Meeting, ToolProfiles.Parse(" Meeting "));
@@ -46,7 +46,7 @@ public class ToolProfilesTests
     public void Chat_profile()
     {
         var chat = Of(ToolProfiles.Chat);
-        foreach (var n in new[] { "read_chat", "send_chat_message", "mark_chat_read", "get_my_role", "list_opportunities", "create_task", "go_to" })
+        foreach (var n in new[] { "read_chat", "view_attachment", "send_chat_message", "mark_chat_read", "get_my_role", "list_opportunities", "create_task", "go_to" })
             Assert.Contains(n, chat);
         foreach (var n in new[] { "approve_request", "reject_request", "check_in_out", "speak_in_meeting", "create_department", "submit_document", "present_screen", "create_upload" })
             Assert.DoesNotContain(n, chat);
@@ -56,7 +56,7 @@ public class ToolProfilesTests
     public void Meeting_profile()
     {
         var meeting = Of(ToolProfiles.Meeting);
-        foreach (var n in new[] { "get_my_meeting", "read_chat", "speak_in_meeting", "pass_turn", "assign_turn", "create_task", "present_markdown", "get_finance_overview" })
+        foreach (var n in new[] { "get_my_meeting", "read_chat", "view_attachment", "speak_in_meeting", "pass_turn", "assign_turn", "create_task", "present_markdown", "get_finance_overview" })
             Assert.Contains(n, meeting);
         foreach (var n in new[] { "send_chat_message", "approve_request", "update_task_status", "go_to", "submit_leave_request", "book_meeting_room", "create_upload" })
             Assert.DoesNotContain(n, meeting);
@@ -69,7 +69,7 @@ public class ToolProfilesTests
         foreach (var n in new[] { "get_task", "update_task_status", "comment_task", "create_document", "present_screen", "go_to" })
             Assert.Contains(n, task);
         foreach (var n in ToolProfiles.TaskExcluded) Assert.DoesNotContain(n, task);
-        Assert.Equal(103 - ToolProfiles.TaskExcluded.Count, task.Length);
+        Assert.Equal(104 - ToolProfiles.TaskExcluded.Count, task.Length);
     }
 
     [Fact]

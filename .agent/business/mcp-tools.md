@@ -1,6 +1,6 @@
 # Tool MCP theo nhóm
 
-> Về [mcp.md](mcp.md) (quyết định, luồng, token, số lượng tool). Nguồn sự thật: `backend/src/OfficeHub.Mcp/Tools/*.cs`; catalog FE `frontend/src/features/mcp-tools/utils/catalog.ts` bảo trì thủ công (luật #9 [AGENTS.md](../../AGENTS.md)). Đổi tool → sửa bảng này + số lượng ở [mcp.md](mcp.md#tool-102).
+> Về [mcp.md](mcp.md) (quyết định, luồng, token, số lượng tool). Nguồn sự thật: `backend/src/OfficeHub.Mcp/Tools/*.cs`; catalog FE `frontend/src/features/mcp-tools/utils/catalog.ts` bảo trì thủ công (luật #9 [AGENTS.md](../../AGENTS.md)). Đổi tool → sửa bảng này + số lượng ở [mcp.md](mcp.md#tool-104).
 
 | Nhóm | Tool |
 |---|---|
@@ -11,7 +11,7 @@
 | Phòng họp | `list_meeting_rooms`, `list_meetings`, `book_meeting_room` (ngày + giờ VN → `+07:00`, mời bằng mã / email / tên), `cancel_meeting` ([meetings.md](meetings.md)) |
 | Bảng tin | `list_news_feed`, `get_news_post` — đọc; Api tự áp phạm vi người xem và (token AI) chỉ trả chữ thuần, không HTML / link tệp. **Admin / HR**: `create_news_post` (Markdown đơn giản → HTML, phạm vi toàn công ty / phòng ban, tuỳ chọn email, không tệp) — thêm 2026-11-09 ([news.md](news.md#mcp)). Sửa / xoá bài, bình luận, cảm xúc, kiểm duyệt **không** qua AI |
 | Văn phòng 3D (chỉ bot) | `list_office_places`, `go_to` — 2026-11-11, đi bộ tới phòng / khu / bàn / cạnh người, ở lại tới lần go_to kế ([office-bots.md](office-bots.md#đi-lại-go_to)); `present_screen`, `present_markdown`, `present_document`, `stop_presenting` — chiếu ảnh màn hình / trang Markdown / tài liệu lên TV phòng ([office-bots-screen.md](office-bots-screen.md)) |
-| Tin nhắn (chỉ bot) | `list_chats`, `read_chat` (`since` = chỉ tin mới, TEST-143), `send_chat_message` (`uploadIds` — TEST-152), `create_upload` (vé + lệnh curl PUT presigned, ≤ 30 tệp / giờ), `mark_chat_read` — 2026-11-11, chỉ tài khoản bot, Toàn văn phòng + 1-1 có sẵn, ≤ 60 tin / giờ ([office-bots.md](office-bots.md#tin-nhắn-của-bot)) |
+| Tin nhắn (chỉ bot) | `list_chats`, `read_chat` (`since` = chỉ tin mới, TEST-143), `view_attachment` (TEST-151: ảnh → JPEG thu nhỏ ≤ 1280px dạng image content, tệp khác → link 10 phút; `read_chat.attachments` có id), `send_chat_message` (`uploadIds` — TEST-152), `create_upload` (vé + lệnh curl PUT presigned, ≤ 30 tệp / giờ), `mark_chat_read` — 2026-11-11, chỉ tài khoản bot, Toàn văn phòng + 1-1 có sẵn, ≤ 60 tin / giờ ([office-bots.md](office-bots.md#tin-nhắn-của-bot)) |
 | Cuộc họp agent (chỉ bot, TEST-82) | `get_my_meeting` (`GET /api/meetings/sessions/mine`), `speak_in_meeting` (tin vào kênh phòng khi giữ lượt, `next` → chèn `@mã`), `pass_turn`, `assign_turn` (chủ trì) — người thật 403; **không** có tool mở / dừng họp ([meetings-agents.md](meetings-agents-mcp.md)) |
 | Tài sản | `get_my_assets`, `get_employee_assets` — chỉ đọc (thiết bị + tài khoản dịch vụ, không giá, không mật khẩu); Api tự kiểm quyền ([assets.md](assets.md)). Cấp / thu hồi / rà soát **không** qua AI |
 | Kinh doanh (TEST-77) | **chỉ đọc**: `search_customers`, `get_customer`, `list_sales_followups`, `list_opportunities`, `list_quotes`, `get_quote`, `list_sales_contracts`, `get_sales_contract`, `list_receivables` — token mở đúng từng route GET (`AllowedExact`), Api lọc theo `SalesAccess` (không thấy → 404). Ghi, `export.docx`, `/settings*` **không** qua AI ([sales.md](sales.md)) |
