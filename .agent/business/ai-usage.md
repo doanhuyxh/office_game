@@ -34,4 +34,8 @@ runner ─POST /mcp/usage (token AI của bot)─▶ Mcp (chỉ bot, gắn userI
 
 ## Kiểm tra
 
-Unit: `tests/OfficeHub.Modules.Audit.Tests/AiSessionLedgerTests.cs` (lô, chuẩn hoá, giờ VN, chi phí trống, quyền, `TryKind`). E2E (DB tạm): `scripts/dev/ai-session-usage-e2e.ts` (Api + Mcp, không FE); `scripts/dev/ai-usage-ui-e2e.ts` (giao diện, Chrome máy tính + điện thoại 390).
+Unit: `tests/OfficeHub.Modules.Audit.Tests/AiSessionLedgerTests.cs` (lô, chuẩn hoá, giờ VN, chi phí trống, quyền, `TryKind`). E2E (DB tạm): `scripts/dev/ai-session-usage-e2e.ts` (Api + Mcp, không FE); `scripts/dev/ai-usage-ui-e2e.ts` (giao diện, Chrome máy tính + điện thoại 390); `scripts/dev/ai-usage-flow-e2e.ts` (TEST-137, **xuyên khâu**: giả runner gửi `/mcp/usage` qua đúng `frontend/nginx.conf` → Mcp → Api → API đọc + Excel giải nén → Chrome tab "Mức dùng AI" + thẻ Hồ sơ; HR xem người khác / tất cả).
+
+Runner **chưa** gửi số liệu (TEST-135, chủ dự án làm) → e2e thay runner bằng `fetch` cùng hợp đồng `AiUsageUpload`. Khi TEST-135 xong: thêm bước chạy runner với CLI giả (mẫu `agent-runner/tests/flow.test.ts`) vào script này.
+
+Ghi chú: Excel sheet "Phiên" có thêm một dòng trống cuối chỉ có định dạng (vùng định dạng tới `r` thay vì `r - 1`) — vô hại, đếm dòng phải bỏ dòng không có giá trị.

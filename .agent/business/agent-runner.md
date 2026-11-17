@@ -55,4 +55,7 @@ Test: đơn vị (cấu hình, validator, adapter + mẫu stream-json, store, pr
 
 ## Chưa làm (bước sau của TEST-44)
 
+**Gửi mức dùng AI** (TEST-135, chủ dự án làm): sau mỗi phiên (việc / chat / họp) gửi `POST /mcp/usage` bằng token AI của bot — hợp đồng, giới hạn (≤ 50 phiên / lô, `sourceId` để gửi lại không trùng) và cách đọc ở [ai-usage.md](ai-usage.md). Hiện runner chỉ lưu `model_usage` trong `runner.db` ([agent-runner-model.md](agent-runner-model.md)); e2e `scripts/dev/ai-usage-flow-e2e.ts` giả bước gửi.
+
+
 Đọc trường `event` / `comment_id` (OfficeHub đã gửi từ TEST-63: assigned / returned / mentioned — `mentioned` không bắt buộc việc giao cho bot, prompt chỉ trả lời bằng bình luận; cancelled → dừng phiên chưa có), HMAC tin, tổng kết chi phí hằng ngày vào nhóm, adapter `codex` / `gemini`, user Linux riêng từng agent, chỉ chạy khi người giao nằm trong danh sách cho phép (prompt injection).
