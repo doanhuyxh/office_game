@@ -1,6 +1,6 @@
 // E2E: bot (agent AI) nhắn tin trong văn phòng ảo — REST bằng token + tool MCP thật + Realtime phát ngay.
-// Quyền: chỉ tài khoản bot (người thật dùng token → 403), kênh Toàn văn phòng + 1-1 người khác mở (không tự mở 1-1, không kênh phòng,
-// không tệp), nhãn BOT (byBot, peerIsBot), hạn mức 60 tin / giờ, MCP list_chats / read_chat / send_chat_message / mark_chat_read,
+// Quyền: chỉ tài khoản bot (người thật dùng token → 403), kênh Toàn văn phòng + 1-1 người khác mở (không tự mở 1-1, không kênh phòng),
+// gửi tệp (TEST-152: vé → PUT S3 thật → uploadIds, MCP create_upload, ≤ 30 tệp / giờ), nhãn BOT (byBot, peerIsBot), hạn mức 60 tin / giờ, MCP list_chats / read_chat / send_chat_message / mark_chat_read,
 // tin bot tới client chat qua SignalR, Realtime từ chối chuyển tiếp tin không phải bot.
 // CHỈ DB tạm. Cần: Api :5180, Realtime :5190 (Realtime__ApiBaseUrl=http://localhost:5180),
 //   Mcp :5200 (Mcp__ApiBaseUrl=http://localhost:5180 Mcp__RealtimeBaseUrl=http://localhost:5190), cùng Chat__InternalKey.
@@ -105,9 +105,32 @@ ok('bot: chỉ thấy Toàn văn phòng (không kênh phòng)', b1List.status ==
   && b1List.body.some((c: any) => c.type === 'Office'), b1List.body);
 ok('bot không tự mở 1-1 → 403', (await tk(B1.token, 'POST', '/api/chat/conversations/direct', { userId: H.userId })).status === 403);
 ok('bot đọc kênh phòng (bí danh) → 403', (await tk(B1.token, 'GET', '/api/chat/conversations/room:meeting-large/messages')).status === 403);
-ok('bot không tải tệp → 403', (await tk(B1.token, 'POST', '/api/chat/uploads', { conversationId: 'office', fileName: 'a.png', contentType: 'image/png', size: 10 })).status === 403);
-ok('bot gửi kèm uploadIds → 400', (await tk(B1.token, 'POST', '/api/chat/conversations/office/messages', { text: 'x', uploadIds: [crypto.randomUUID()] })).status === 400);
+ok('bot gửi kèm uploadIds lạ → 400', (await tk(B1.token, 'POST', '/api/chat/conversations/office/messages', { text: 'x', uploadIds: [crypto.randomUUID()] })).status === 400);
 
+// ---------- Tệp (TEST-152): vé → PUT thẳng S3 → gửi kèm uploadIds ----------
+// PNG 1×1 thật (Api kiểm chữ ký đầu file khi xác nhận)
+const PNG = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), (c) => c.charCodeAt(0));
+const putFile = (url: string, contentType: string) => fetch(url, { method: 'PUT', headers: { 'content-type': contentType }, body: PNG });
+ok('người thật dùng token xin vé → 403', (await tk(N.token, 'POST', '/api/chat/uploads', { conversationId: 'office', fileName: 'a.png', size: PNG.length })).status === 403);
+ok('bot xin vé kênh phòng chưa vào → 404', (await tk(B1.token, 'POST', '/api/chat/uploads', { conversationId: 'room:meeting-large', fileName: 'a.png', size: PNG.length })).status === 404);
+ok('bot xin vé file chạy được → 400', (await tk(B1.token, 'POST', '/api/chat/uploads', { conversationId: 'office', fileName: 'a.exe', size: 10 })).status === 400);
+const t1 = await tk(B1.token, 'POST', '/api/chat/uploads', { conversationId: 'office', fileName: 'bao-cao.png', size: PNG.length });
+ok('bot xin vé office → 200 (image/png theo đuôi)', t1.status === 200 && t1.body?.contentType === 'image/png' && String(t1.body?.url).startsWith('http'), t1);
+await Bun.sleep(1100); // 1 tin / giây / tài khoản — kiểm trước vé
+ok('gửi khi chưa PUT → 409', (await tk(B1.token, 'POST', '/api/chat/conversations/office/messages', { uploadIds: [t1.body.id] })).status === 409);
+ok('PUT ảnh lên S3 bằng link presigned', (await putFile(t1.body.url, t1.body.contentType)).ok);
+ok('bot khác dùng vé của B1 → 400', (await tk(B2.token, 'POST', '/api/chat/conversations/office/messages', { uploadIds: [t1.body.id] })).status === 400);
+await Bun.sleep(1100);
+const withFile = await tk(B1.token, 'POST', '/api/chat/conversations/office/messages', { uploadIds: [t1.body.id] });
+const att = withFile.body?.message?.attachments?.[0];
+ok('bot gửi tin chỉ có ảnh → byBot + 1 ảnh', withFile.status === 200 && withFile.body.message.byBot === true && att?.isImage === true && att.fileName === 'bao-cao.png', withFile);
+const hOffice = (await json(H.cookie, 'GET', '/api/chat/conversations/office/messages')).body?.items ?? [];
+const seen = hOffice.find((m: any) => m.id === withFile.body?.message?.id);
+ok('người thật thấy ảnh của bot + mở được link', !!seen?.attachments?.[0]?.url && (await fetch(seen.attachments[0].url)).ok, seen);
+await Bun.sleep(1100);
+ok('dùng lại vé đã gửi → 400', (await tk(B1.token, 'POST', '/api/chat/conversations/office/messages', { text: 'lại', uploadIds: [t1.body.id] })).status === 400);
+
+await Bun.sleep(1100);
 // ---------- 1-1: người mở trước, bot trả lời ----------
 const dm = (await json(H.cookie, 'POST', '/api/chat/conversations/direct', { userId: B1.userId })).body;
 ok('người thật mở 1-1 với bot → peerIsBot', dm?.peerIsBot === true, dm);
@@ -145,7 +168,7 @@ const call = async (token: string, name: string, args: Record<string, unknown> =
 const init = await rpc(B1.token, 'initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'e2e', version: '1' } });
 ok('MCP instructions có hướng dẫn tin nhắn', String(init?.result?.instructions ?? '').includes('list_chats'));
 const names: string[] = ((await rpc(B1.token, 'tools/list'))?.result?.tools ?? []).map((t: any) => t.name);
-ok('tools/list có 4 tool chat (78 tool)', ['list_chats', 'read_chat', 'send_chat_message', 'mark_chat_read'].every((n) => names.includes(n)) && names.length === 78, names.length);
+ok('tools/list có 5 tool chat (đủ 103 tool, không hồ sơ)', ['list_chats', 'read_chat', 'send_chat_message', 'mark_chat_read', 'create_upload'].every((n) => names.includes(n)) && names.length === 103, names.length);
 const lc = await call(B1.token, 'list_chats');
 ok('MCP list_chats: office + 1-1', !lc.err && lc.j.some((c: any) => c.conversation === 'office') && lc.j.some((c: any) => c.conversation === dm.id), lc.text.slice(0, 300));
 const rc = await call(B1.token, 'read_chat', { conversation: dm.id });
@@ -159,6 +182,19 @@ ok('MCP send_chat_message vào office → deliveredLive', !sc.err && sc.j.sent =
 for (let i = 0; i < 20 && !live.some((m) => m.id === sc.j?.messageId); i++) await Bun.sleep(250);
 const got = live.find((m) => m.id === sc.j?.messageId);
 ok('người thật nhận tin bot qua SignalR ngay (byBot, Office)', got?.byBot === true && got.conversationType === 'Office' && got.senderName === 'Bot Lập Trình', got ?? live);
+// MCP gửi ảnh: create_upload → PUT (thay cho curl) → send_chat_message(uploadIds)
+const cu = await call(B1.token, 'create_upload', { target: 'chat', conversation: 'office', fileName: 'man-hinh.png', size: PNG.length });
+const curlUrl = String(cu.j?.curl ?? '').match(/'(https?:[^']+)'\s*$/)?.[1] ?? '';
+ok('MCP create_upload: uploadId + lệnh curl đúng Content-Type', !cu.err && !!cu.j.uploadId && cu.j.contentType === 'image/png'
+  && String(cu.j.curl).includes("-H 'Content-Type: image/png'") && curlUrl.startsWith('http'), cu.text.slice(0, 300));
+ok('PUT theo link trong lệnh curl', (await putFile(curlUrl, 'image/png')).ok);
+await Bun.sleep(1100);
+const sf = await call(B1.token, 'send_chat_message', { conversation: 'office', text: 'Ảnh kết quả', uploadIds: [cu.j.uploadId] });
+ok('MCP send_chat_message kèm uploadIds → files', !sf.err && sf.j.files?.[0] === 'man-hinh.png' && sf.j.deliveredLive === true, sf.text);
+for (let i = 0; i < 20 && !live.some((m) => m.id === sf.j?.messageId); i++) await Bun.sleep(250);
+ok('người thật nhận tin có ảnh qua SignalR', live.find((m) => m.id === sf.j?.messageId)?.attachments?.[0]?.isImage === true);
+ok('MCP create_upload target lạ → lỗi', (await call(B1.token, 'create_upload', { target: 'task', conversation: 'office', fileName: 'a.png', size: 10 })).err);
+ok('MCP send_chat_message uploadId sai định dạng → lỗi', (await call(B1.token, 'send_chat_message', { conversation: 'office', uploadIds: ['abc'] })).err);
 ok('MCP kênh phòng → lỗi rõ ràng', (await call(B1.token, 'send_chat_message', { conversation: 'room:meeting-large', text: 'x' })).err);
 ok('MCP người thật → lỗi (403)', (await call(N.token, 'list_chats')).err);
 await hub.stop();
@@ -169,6 +205,14 @@ if (KEY) {
   ok('Realtime: sai khoá → 401', (await relay(fake, 'sai')).status === 401);
   ok('Realtime: tin không phải bot → 400 (không giả mạo người thật)', (await relay(fake)).status === 400);
 } else console.log('… bỏ qua kiểm tra khoá Realtime (chưa đặt CHAT_INTERNAL_KEY)');
+
+// ---------- Hạn mức 30 tệp / giờ (B2: chỉ xin vé, không PUT) ----------
+let tickets = 0;
+for (let i = 0; i < 30; i++) if ((await tk(B2.token, 'POST', '/api/chat/uploads', { conversationId: 'office', fileName: `q${i}.png`, size: 100 })).status === 200) tickets++;
+ok('B2 xin được 30 vé', tickets === 30, tickets);
+const over30 = await tk(B2.token, 'POST', '/api/chat/uploads', { conversationId: 'office', fileName: 'q31.png', size: 100 });
+ok('vé thứ 31 trong 1 giờ → 429', over30.status === 429 && String(over30.body?.detail ?? '').includes('30'), over30);
+ok('người thật vẫn xin vé được (hạn mức chỉ cho token)', (await json(H.cookie, 'POST', '/api/chat/uploads', { conversationId: 'office', fileName: 'h.png', size: 100 })).status === 200);
 
 // ---------- Hạn mức 60 tin / giờ (B2) ----------
 console.log('… gửi 60 tin để chạm hạn mức (~70 giây)');

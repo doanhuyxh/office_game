@@ -117,10 +117,12 @@ public static class AccessTokenAuth
         // TEST-54: tạo tài liệu chữ (Nháp) + gửi duyệt ban hành — token luôn qua người duyệt (không tự ban hành)
         ("POST", Exact($"/api/documents/assets/(text|{Id}/submit)")),
         // Chat (2026-11-11): CHỈ tài khoản bot (Api tự trả 403 cho người thật), kênh Toàn văn phòng + 1-1 người khác đã mở.
-        //   Không có: mở 1-1 mới, kênh phòng (Api trả 404), tải tệp, thu hồi, tìm người.
+        //   Không có: mở 1-1 mới, thu hồi, tìm người, link tải tệp của người khác (/attachments — TEST-151 sẽ đọc qua Mcp).
         ("GET", Exact("/api/chat/(conversations|unread-count)")),
         ("GET", Exact($"/api/chat/conversations/(office|{Id})/messages")),
         ("POST", Exact($"/api/chat/conversations/(office|{Id})/(messages|read)")),
+        // TEST-152: xin vé + link PUT presigned để gửi tệp kèm tin (Api: chỉ bot, kênh bot dùng được, ≤ ChatRules.BotUploadsPerHour / giờ)
+        ("POST", Exact("/api/chat/uploads")),
         // Kinh doanh (TEST-77): CHỈ ĐỌC — khách, việc đã hẹn, cơ hội, báo giá, HĐ bán, công nợ. Api tự lọc theo người xem (SalesAccess, không thấy → 404).
         //   Không có: mọi POST / PUT / DELETE, export.docx (file Word báo giá), /settings*, phụ lục, đợt thu / ghi nhận thu.
         ("GET", Exact("/api/sales/(customers|opportunities|quotes|contracts|receivables|activities/upcoming)/?")),

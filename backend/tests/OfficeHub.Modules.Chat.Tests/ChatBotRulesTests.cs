@@ -17,4 +17,11 @@ public class ChatBotRulesTests
         Assert.False(ChatRules.BotQuotaLeft(60));
         Assert.Equal(TimeSpan.FromHours(1), ChatRules.BotQuotaWindow);
     }
+
+    [Fact]
+    public void Upload_quota_is_30_per_hour()
+    {
+        Assert.True(ChatRules.BotUploadQuotaLeft(29));
+        Assert.False(ChatRules.BotUploadQuotaLeft(30));
+    }
 }

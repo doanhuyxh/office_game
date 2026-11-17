@@ -91,7 +91,7 @@ public static class ChatEndpoints
 
     /// <summary>
     /// Token AI: chỉ tài khoản bot (cờ HR đặt) được chat — tin 1-1 của người thật không đi ra nhà cung cấp AI. Null = cho phép.
-    /// Danh sách route token được gọi nằm ở AccessTokenAuth (không có tạo 1-1, tải tệp, thu hồi, tìm người).
+    /// Danh sách route token được gọi nằm ở AccessTokenAuth (không có tạo 1-1, thu hồi, tìm người; tải tệp lên có từ TEST-152).
     /// </summary>
     private static async Task<ProblemHttpResult?> AiGuardAsync(ClaimsPrincipal user, IAccountService accounts, CancellationToken ct)
     {
@@ -200,7 +200,6 @@ public static class ChatEndpoints
         var uploadIds = (req.UploadIds ?? []).Where(u => u != Guid.Empty).Distinct().ToList();
         var val = new Validation();
         foreach (var (field, message) in ChatRules.ValidateMessage(text, uploadIds.Count)) val.Add(field, message);
-        if (byBot && uploadIds.Count > 0) val.Add("uploadIds", "Bot chưa gửi được tệp đính kèm — chỉ gửi chữ");
         if (val.Failed) return val.Problem();
         if (byBot)
         {
@@ -547,11 +546,22 @@ public static class ChatEndpoints
     // ---------------- Tệp đính kèm ----------------
 
     private static async Task<Results<Ok<UploadTicketDto>, ProblemHttpResult, ValidationProblem>> CreateUploadAsync(UploadRequest req,
-        ClaimsPrincipal user, ChatDbContext db, ChatStore store, IFileStorage files, TimeProvider clock, CancellationToken ct)
+        ClaimsPrincipal user, ChatDbContext db, ChatStore store, IFileStorage files, IAccountService accounts, TimeProvider clock, CancellationToken ct)
     {
+        // Token AI (TEST-152): chỉ tài khoản bot, kênh bot dùng được — như gửi tin; agent PUT file bằng curl rồi gửi tin kèm uploadIds
+        if (await AiGuardAsync(user, accounts, ct) is { } denied) return denied;
         var me = Me(user);
         var conv = await store.ResolveAsync(req.ConversationId, ct);
-        if (conv is null || !await store.CanAccessAsync(conv, me, ct)) return Unknown();
+        if (conv is null || HiddenForAi(user, conv) || !await store.CanAccessAsync(conv, me, ct)) return Unknown();
+        if (user.IsAccessToken())
+        {
+            var since = clock.GetUtcNow() - ChatRules.BotQuotaWindow;
+            var used = await db.UploadTickets.CountAsync(t => t.UserId == me && t.CreatedAt > since, ct)
+                + await db.Attachments.CountAsync(a => db.Messages.Any(m => m.Id == a.MessageId && m.SenderId == me && m.ByBot && m.CreatedAt > since), ct);
+            if (!ChatRules.BotUploadQuotaLeft(used))
+                return TypedResults.Problem($"Bot đã tải {ChatRules.BotUploadsPerHour} tệp trong 1 giờ qua — đợi rồi gửi tiếp",
+                    statusCode: StatusCodes.Status429TooManyRequests);
+        }
 
         var name = ChatRules.CleanFileName(req.FileName);
         var contentType = FileTypes.ContentTypeFor(name); // TEST-13: theo đuôi, không tin trình duyệt

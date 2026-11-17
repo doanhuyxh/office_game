@@ -58,10 +58,12 @@ export const SESSION_END_ID = 'session-end';
 
 /**
  * Che bí mật trong chữ sắp gửi đi: chuỗi đã đăng ký (token AI, token bot — {@link redact}) + các mẫu hay gặp
- * (token `ohk_…`, khoá riêng PEM, `Bearer …`, `password=…` / `"apiKey": "…"`, chuỗi kết nối có mật khẩu). Thà che nhầm còn hơn lộ.
+ * (token `ohk_…`, khoá riêng PEM, `Bearer …`, `password=…` / `"apiKey": "…"`, chuỗi kết nối có mật khẩu, chữ ký link tạm S3 / GCS
+ * — `create_upload` trả link PUT presigned cho agent `curl`, TEST-152). Thà che nhầm còn hơn lộ.
  */
 export function mask(text: string): string {
   return redact(text)
+    .replace(/([?&](?:X-Amz-(?:Signature|Credential|Security-Token)|X-Goog-(?:Signature|Credential)|Signature)=)[^&\s"'#]+/gi, '$1***')
     .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(-----END [A-Z ]*PRIVATE KEY-----|$)/g, '***')
     .replace(/\bohk_[A-Za-z0-9_-]{8,}/g, '***')
     .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,}/gi, '$1 ***')

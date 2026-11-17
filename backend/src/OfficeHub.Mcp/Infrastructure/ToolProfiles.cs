@@ -31,12 +31,15 @@ public static class ToolProfiles
 
     /// <summary>
     /// task (làm việc được giao): đủ tool TRỪ tool của phiên họp / chat (runner xử lý trong phiên riêng) và tool tự phục vụ cá nhân / duyệt đơn
-    /// (bot không chấm công, xin nghỉ, và không bao giờ duyệt — ServerInstructions).
+    /// (bot không chấm công, xin nghỉ, và không bao giờ duyệt — ServerInstructions). chat / meeting cũng không có create_upload (phiên chỉ có
+    /// tool MCP, không Bash để PUT file).
     /// </summary>
     public static readonly IReadOnlySet<string> TaskExcluded = new HashSet<string>(StringComparer.Ordinal)
     {
         "speak_in_meeting", "pass_turn", "assign_turn", "get_my_meeting",
         "list_chats", "read_chat", "send_chat_message", "mark_chat_read",
+        // TEST-152: tải tệp hiện chỉ để gửi kèm tin chat (không có trong phiên task) — TEST-153 mở lại khi comment_task nhận tệp
+        "create_upload",
         "approve_request", "reject_request", "cancel_my_request",
         "check_in_out", "register_overtime", "submit_attendance_correction", "submit_leave_request",
     };

@@ -53,7 +53,7 @@ Thành viên phòng: Realtime báo khi người chơi **bước vào** phòng c�
 
 ## Tệp đính kèm
 
-`POST /uploads` → trình duyệt `PUT` thẳng S3 với đúng `Content-Type` (cần CORS — [env.md](../env.md#s3-cors-kho-tài-liệu)) → gửi tin kèm `uploadIds`, Api `HEAD` kiểm tra file đã lên + dung lượng. Khoá `chat/{yyyy}/{MM}/{vé}/{tên-an-toàn}` (dưới `files/` của `IFileStorage`), **không** chung `documents/`. Ảnh (jpeg / png / webp / gif) ≤ **10 MB**, tệp khác ≤ **25 MB**, chặn đuôi chạy chương trình; SVG tải về, không xem trực tiếp. `AttachmentDto.url` = presigned GET 60 phút (ảnh `inline`).
+`POST /uploads` → trình duyệt `PUT` thẳng S3 với đúng `Content-Type` (cần CORS — [env.md](../env.md#s3-cors-kho-tài-liệu)) → gửi tin kèm `uploadIds`, Api `HEAD` kiểm tra file đã lên + dung lượng. Khoá `chat/{yyyy}/{MM}/{vé}/{tên-an-toàn}` (dưới `files/` của `IFileStorage`), **không** chung `documents/`. Ảnh (jpeg / png / webp / gif) ≤ **10 MB**, tệp khác ≤ **25 MB**, chặn đuôi chạy chương trình; SVG tải về, không xem trực tiếp. `AttachmentDto.url` = presigned GET 60 phút (ảnh `inline`). Token AI (TEST-152): chỉ bot, kênh bot dùng được, ≤ 30 tệp / giờ — [office-bots.md](office-bots.md#tin-nhắn-của-bot).
 
 ## Realtime (`/rt/hub/chat`, MessagePack)
 

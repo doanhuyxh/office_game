@@ -109,6 +109,10 @@ public static class ChatRules
 
     /// <summary>Còn hạn mức gửi không (đã gửi <paramref name="sentLastHour"/> tin trong giờ qua).</summary>
     public static bool BotQuotaLeft(int sentLastHour) => sentLastHour < BotMessagesPerHour;
+    /// <summary>Tối đa số tệp một bot (token AI) xin tải lên trong 1 giờ — vé còn treo + tệp đã gửi kèm tin (TEST-152).</summary>
+    public const int BotUploadsPerHour = 30;
+    /// <summary>Còn hạn mức tải tệp không (<paramref name="usedLastHour"/> = vé + tệp đã gửi trong giờ qua).</summary>
+    public static bool BotUploadQuotaLeft(int usedLastHour) => usedLastHour < BotUploadsPerHour;
     public static readonly TimeSpan MinSendInterval = TimeSpan.FromSeconds(1);
     public static readonly TimeSpan UploadUrlTtl = TimeSpan.FromMinutes(30);
     /// <summary>Hạn link xem / tải trả kèm tin nhắn (client giữ cache lâu hơn → tải lại danh sách sẽ có link mới).</summary>
