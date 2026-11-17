@@ -96,7 +96,11 @@ public sealed class ChatSettings : IValidatableObject
     public string? McpToRealtimeKey { get; set; }
     /// <summary><c>Chat__RealtimeToApiKey</c>: Realtime → Api (<c>/api/chat/internal/*</c>: cấp quyền kênh chat phòng). Trống → <see cref="InternalKey"/>.</summary>
     public string? RealtimeToApiKey { get; set; }
+    /// <summary><c>Chat__McpToApiKey</c>: Mcp → Api (<c>/api/audit/internal/*</c>: mức dùng AI của phiên agent, TEST-134). Trống → <see cref="InternalKey"/>.</summary>
+    public string? McpToApiKey { get; set; }
 
+    /// <summary>Khoá thực dùng cho chiều Mcp → Api.</summary>
+    public string McpApiKey => string.IsNullOrWhiteSpace(McpToApiKey) ? InternalKey : McpToApiKey.Trim();
     /// <summary>Khoá thực dùng cho chiều Mcp → Realtime.</summary>
     public string McpRealtimeKey => string.IsNullOrWhiteSpace(McpToRealtimeKey) ? InternalKey : McpToRealtimeKey.Trim();
     /// <summary>Khoá thực dùng cho chiều Realtime → Api.</summary>
@@ -108,6 +112,8 @@ public sealed class ChatSettings : IValidatableObject
             yield return new("Chat__McpToRealtimeKey phải dài tối thiểu 32 ký tự (hoặc để trống = dùng Chat__InternalKey)", [nameof(McpToRealtimeKey)]);
         if (!string.IsNullOrWhiteSpace(RealtimeToApiKey) && RealtimeToApiKey.Trim().Length < 32)
             yield return new("Chat__RealtimeToApiKey phải dài tối thiểu 32 ký tự (hoặc để trống = dùng Chat__InternalKey)", [nameof(RealtimeToApiKey)]);
+        if (!string.IsNullOrWhiteSpace(McpToApiKey) && McpToApiKey.Trim().Length < 32)
+            yield return new("Chat__McpToApiKey phải dài tối thiểu 32 ký tự (hoặc để trống = dùng Chat__InternalKey)", [nameof(McpToApiKey)]);
     }
 }
 

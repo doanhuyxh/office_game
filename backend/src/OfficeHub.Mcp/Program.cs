@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using OfficeHub.BuildingBlocks.Ai;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.BuildingBlocks.Office;
@@ -25,6 +26,7 @@ builder.Services.AddOptions<ChatSettings>().Bind(builder.Configuration.GetSectio
 var realtimeBase = builder.Configuration.GetSection(McpSettings.Section).Get<McpSettings>()?.RealtimeBaseUrl ?? new McpSettings().RealtimeBaseUrl;
 builder.Services.AddHttpClient(BotPresenceReporter.RealtimeClientName, c => { c.BaseAddress = new Uri(realtimeBase); c.Timeout = TimeSpan.FromSeconds(5); });
 builder.Services.AddSingleton<BotPresenceReporter>();
+builder.Services.AddSingleton<AiUsageRelay>();
 // Bot không chạy qua agent-runner: tự phát sự kiện "tool" / session vào luồng hoạt động (TEST-96); sweeper gửi session_end khi bot rảnh.
 builder.Services.AddSingleton<BotToolFeed>();
 builder.Services.AddHostedService<BotToolFeedSweeper>();
@@ -111,6 +113,34 @@ app.MapPost(BotActivityFeedRoute.McpPath, async (HttpContext http, BotPresenceRe
             false => Results.Problem("Văn phòng 3D không nhận sự kiện lúc này", statusCode: StatusCodes.Status503ServiceUnavailable),
             true => Results.NoContent(),
         };
+    }
+    catch (HttpRequestException)
+    {
+        return Results.Problem("Máy chủ OfficeHub đang không phản hồi, thử lại sau.", statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
+
+// agent-runner gửi chi phí / token của từng phiên agent (TEST-134) → Api lưu (audit.ai_usage_sessions). Sau BearerGate (cùng token AI); chỉ tài khoản bot.
+// Gửi lại cùng sourceId = cập nhật. Mcp không lưu, chỉ gắn userId của token rồi chuyển sang Api.
+app.MapPost(AiUsageRoute.McpPath, async (HttpContext http, AiUsageRelay relay, TimeProvider clock) =>
+{
+    if (http.Request.ContentLength > AiUsageRoute.MaxBodyBytes)
+        return Results.Problem($"Thân request tối đa {AiUsageRoute.MaxBodyBytes / 1024} KB", statusCode: StatusCodes.Status400BadRequest);
+    if (http.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } size)
+        size.MaxRequestBodySize = AiUsageRoute.MaxBodyBytes; // chặn cả body chunked không khai Content-Length
+    AiUsageUpload? body;
+    try { body = await http.Request.ReadFromJsonAsync<AiUsageUpload>(AiUsageRelay.Json); }
+    catch (Exception e) when (e is JsonException or BadHttpRequestException or InvalidDataException or InvalidOperationException)
+    {
+        return Results.Problem($"Body JSON không hợp lệ (thời điểm phải kèm múi giờ) hoặc quá {AiUsageRoute.MaxBodyBytes / 1024} KB",
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+    if (AiUsageRoute.Validate(body?.Sessions, clock.GetUtcNow()) is { } err) return Results.Problem(err, statusCode: StatusCodes.Status400BadRequest);
+    try
+    {
+        var r = await relay.RelayAsync(http.Request.Headers.Authorization.ToString(), http.Connection.RemoteIpAddress?.ToString(), body!.Sessions!,
+            http.RequestAborted);
+        return r.Accepted is { } ok ? Results.Ok(ok) : Results.Problem(r.Error, statusCode: r.Status);
     }
     catch (HttpRequestException)
     {

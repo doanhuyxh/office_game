@@ -124,6 +124,115 @@ namespace OfficeHub.Modules.Audit.Infrastructure.Migrations
                     b.ToTable("ai_requests", "audit");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Audit.Domain.AiSessionModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("CacheReadTokens")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("CacheWriteTokens")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal?>("CostUsd")
+                        .HasPrecision(12, 6)
+                        .HasColumnType("numeric(12,6)");
+
+                    b.Property<long?>("InputTokens")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<long?>("OutputTokens")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionId", "Model")
+                        .IsUnique()
+                        .HasDatabaseName("ux_ai_usage_models_session_model");
+
+                    b.ToTable("ai_usage_models", "audit");
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Audit.Domain.AiSessionUsage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("CostUsd")
+                        .HasPrecision(12, 6)
+                        .HasColumnType("numeric(12,6)");
+
+                    b.Property<string>("Executor")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTimeOffset>("FinishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SourceId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("TaskCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid?>("TaskId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("Turns")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinishedAt")
+                        .HasDatabaseName("ix_ai_usage_sessions_time");
+
+                    b.HasIndex("UserId", "FinishedAt")
+                        .HasDatabaseName("ix_ai_usage_sessions_user_time");
+
+                    b.HasIndex("UserId", "SourceId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_ai_usage_sessions_source");
+
+                    b.ToTable("ai_usage_sessions", "audit");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Audit.Domain.ChangeLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -185,6 +294,20 @@ namespace OfficeHub.Modules.Audit.Infrastructure.Migrations
                         .HasDatabaseName("ix_changes_entity");
 
                     b.ToTable("changes", "audit");
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Audit.Domain.AiSessionModel", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Audit.Domain.AiSessionUsage", null)
+                        .WithMany("Models")
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Audit.Domain.AiSessionUsage", b =>
+                {
+                    b.Navigation("Models");
                 });
 #pragma warning restore 612, 618
         }

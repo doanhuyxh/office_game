@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using OfficeHub.BuildingBlocks.Ai;
 using OfficeHub.Modules.Audit.Domain;
 
 namespace OfficeHub.Modules.Audit.Infrastructure;
@@ -13,6 +14,8 @@ public sealed class AuditDbContext(DbContextOptions<AuditDbContext> options) : D
     public DbSet<AiRequestLog> AiRequests => Set<AiRequestLog>();
     public DbSet<ChangeLog> Changes => Set<ChangeLog>();
     public DbSet<AiAlert> AiAlerts => Set<AiAlert>();
+    public DbSet<AiSessionUsage> AiUsageSessions => Set<AiSessionUsage>();
+    public DbSet<AiSessionModel> AiUsageModels => Set<AiSessionModel>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -28,6 +31,28 @@ public sealed class AuditDbContext(DbContextOptions<AuditDbContext> options) : D
             e.Property(x => x.RequestSummary).HasColumnType("jsonb");
             e.HasIndex(x => x.OccurredAt).HasDatabaseName("ix_ai_requests_time");
             e.HasIndex(x => new { x.UserId, x.OccurredAt }).HasDatabaseName("ix_ai_requests_user_time");
+        });
+        // Mức dùng AI theo phiên agent (TEST-134): runner gửi qua /mcp/usage, duy nhất theo (UserId, SourceId).
+        b.Entity<AiSessionUsage>(e =>
+        {
+            e.ToTable("ai_usage_sessions");
+            e.Property(x => x.SourceId).HasMaxLength(AiUsageRoute.MaxSourceId).IsRequired();
+            e.Property(x => x.Kind).HasMaxLength(10).IsRequired();
+            e.Property(x => x.TaskCode).HasMaxLength(AiUsageRoute.MaxTaskCode);
+            e.Property(x => x.Executor).HasMaxLength(AiUsageRoute.MaxExecutor).IsRequired();
+            e.Property(x => x.Status).HasMaxLength(10).IsRequired();
+            e.Property(x => x.CostUsd).HasPrecision(12, 6);
+            e.HasIndex(x => new { x.UserId, x.SourceId }).IsUnique().HasDatabaseName("ux_ai_usage_sessions_source");
+            e.HasIndex(x => new { x.UserId, x.FinishedAt }).HasDatabaseName("ix_ai_usage_sessions_user_time");
+            e.HasIndex(x => x.FinishedAt).HasDatabaseName("ix_ai_usage_sessions_time");
+            e.HasMany(x => x.Models).WithOne().HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<AiSessionModel>(e =>
+        {
+            e.ToTable("ai_usage_models");
+            e.Property(x => x.Model).HasMaxLength(AiUsageRoute.MaxModel).IsRequired();
+            e.Property(x => x.CostUsd).HasPrecision(12, 6);
+            e.HasIndex(x => new { x.SessionId, x.Model }).IsUnique().HasDatabaseName("ux_ai_usage_models_session_model");
         });
         b.Entity<AiAlert>(e =>
         {

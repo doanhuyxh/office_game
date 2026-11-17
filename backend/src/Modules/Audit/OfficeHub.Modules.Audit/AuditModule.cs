@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using OfficeHub.BuildingBlocks.Ai;
 using OfficeHub.BuildingBlocks.Auditing;
 using OfficeHub.BuildingBlocks.Modules;
 using OfficeHub.BuildingBlocks.Persistence;
@@ -39,5 +40,9 @@ public sealed class AuditModule : IModule
         AiUsageEndpoints.Map(g);
         AiAlertEndpoints.Map(g);
         ChangeEndpoints.Map(g);
+        // Mức dùng AI theo phiên agent (TEST-134): đọc bằng cookie; ghi qua đường nội bộ Mcp → Api (nginx chặn /api/audit/internal/ từ ngoài).
+        AiSessionUsageEndpoints.Map(api.MapGroup("/ai-usage").WithTags("Audit").RequireAuthorization());
+        AiSessionUsageEndpoints.MapInternal(api.MapGroup("/audit/internal").WithTags("Audit").AllowAnonymous()
+            .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(AiUsageRoute.MaxBodyBytes + 16 * 1024)));
     }
 }

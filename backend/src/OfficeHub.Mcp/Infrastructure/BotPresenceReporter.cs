@@ -241,6 +241,10 @@ public sealed class BotPresenceReporter(IHttpClientFactory http, IMemoryCache ca
     public async Task<BotActivity?> BotActivityAsync(string authorization, string? clientIp, string activity) =>
         await GetCallerAsync(authorization, clientIp) is { } c ? new BotActivity(c.UserId, c.Name, c.Look, c.Zone, activity) : null;
 
+    /// <summary>Tài khoản bot của token (null = không phải bot / Api không trả lời) — <c>/mcp/usage</c> (TEST-134) dùng để gắn userId cho lô.</summary>
+    public async Task<Guid?> BotUserIdAsync(string authorization, string? clientIp) =>
+        (await GetCallerAsync(authorization, clientIp))?.UserId;
+
     /// <summary>null = không phải bot / không xác định được (nhớ cả kết quả "không phải bot" để không hỏi Api mỗi lệnh gọi).</summary>
     private async Task<Caller?> GetCallerAsync(string authorization, string? clientIp)
     {
