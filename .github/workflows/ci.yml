@@ -37,27 +37,27 @@ jobs:
       - run: bun test
 
   # Build & push image lên GHCR khi merge vào main. Bước deploy (SSH vào VPS) thêm sau khi có VPS.
-  images:
-    if: github.ref == 'refs/heads/main'
-    needs: [backend, frontend]
-    runs-on: ubuntu-latest
-    permissions: { contents: read, packages: write }
-    strategy:
-      matrix:
-        include:
-          - { name: backend, file: backend/Dockerfile, args: "" }   # một image cho Api + Realtime (biến SERVICE)
-          - { name: web, file: frontend/Dockerfile, args: "" }
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
-        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ${{ matrix.file }}
-          build-args: ${{ matrix.args }}
-          push: true
-          tags: ghcr.io/${{ github.repository }}/${{ matrix.name }}:${{ github.sha }},ghcr.io/${{ github.repository }}/${{ matrix.name }}:latest
+  # images:
+  #   if: github.ref == 'refs/heads/main'
+  #   needs: [backend, frontend]
+  #   runs-on: ubuntu-latest
+  #   permissions: { contents: read, packages: write }
+  #   strategy:
+  #     matrix:
+  #       include:
+  #         - { name: backend, file: backend/Dockerfile, args: "" }   # một image cho Api + Realtime (biến SERVICE)
+  #         - { name: web, file: frontend/Dockerfile, args: "" }
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: docker/login-action@v3
+  #       with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+  #     - uses: docker/build-push-action@v6
+  #       with:
+  #         context: .
+  #         file: ${{ matrix.file }}
+  #         build-args: ${{ matrix.args }}
+  #         push: true
+  #         tags: ghcr.io/${{ github.repository }}/${{ matrix.name }}:${{ github.sha }},ghcr.io/${{ github.repository }}/${{ matrix.name }}:latest
       # Quét lỗ hổng image vừa đẩy (TEST-22) — hiện chỉ báo cáo (exit-code 0); ổn định rồi đổi exit-code thành "1" để chặn deploy khi có CRITICAL
       # - uses: aquasecurity/trivy-action@0.28.0
       #   with:
