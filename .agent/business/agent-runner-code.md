@@ -22,6 +22,10 @@
 | `workspace/` | `git.ts`: lớp `Git`, hook, lệnh git của worktree / in_place / PR. Mỗi mode một `WorkspaceStrategy` (`strategy.ts`): `worktree.ts`, `in-place.ts`, `none.ts` — `prepare(job)` trả nơi làm + hàm `publish`; registry `index.ts` |
 | `store.ts`, `validator.ts`, `config.ts`, `telegram.ts`, `log.ts`, `report.ts` | Hàng đợi SQLite · kiểm tra tin đánh thức · đọc `agents.yaml` · Bot API · log · bảng `report` |
 
+## Test (`tests/`)
+
+Mỗi module một file cùng tên: `config`, `validator`, `executor`, `log`, `prompt`, `store`, `presence`, `endpoint`, `activity`, `usage`, `transcript`, `events` (`*.test.ts`); cấu hình mẫu dùng chung ở `tests/fixtures/config.ts`. Tích hợp cả luồng (Telegram giả + MCP giả + CLI giả + repo bare): `flow.test.ts`, `meeting.test.ts`. Thêm module → thêm file test cùng tên, không dồn vào file chung.
+
 ## Quy tắc
 
 - **Format bằng Biome** (`bun run format`, CI chạy `format:check`): rộng 120, nháy đơn, mỗi câu lệnh một dòng.

@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test
 import { ActivitySender, activityUrl } from '../src/hub/activity';
 import type { ActivityEvent } from '../src/executor/events';
 import { parseConfig } from '../src/config';
-import { baseRaw } from './units.test';
+import { baseRaw } from './fixtures/config';
 
 /** Máy chủ giả /mcp/activity: ghi từng lô, trả theo kịch bản `replies` (hết kịch bản → 204). */
 const batches: ActivityEvent[][] = [];
