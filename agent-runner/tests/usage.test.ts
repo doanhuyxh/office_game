@@ -5,6 +5,7 @@ import { afterAll, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { kindReportLines } from '../src/report';
 import { Store, type Job, type JobResult } from '../src/store';
 import { sourceHost, splitInput, UsageReporter, usageSession, usageUrl, type AiUsageSession } from '../src/usage';
 
@@ -195,6 +196,26 @@ describe('gửi', () => {
     await reporter().flush({ all: true });
     expect(requests.length).toBe(2);
     expect(saved.size).toBe(1);
+  });
+});
+
+describe('report theo loại (TEST-139)', () => {
+  test('token vào không cache / ghi / đọc cache / ra, tỉ lệ đọc cache chỉ trên phiên có báo cache, chi phí trung bình trên phiên có chi phí', () => {
+    // việc: 1 phiên có cache (tổng 44200 = 1200 + 3000 + 40000), 1 phiên CLI không báo cache (tổng 1000), 1 phiên không có chi phí
+    doneJob('NV120', { cost_usd: 0.8, input_tokens: 44200, output_tokens: 5300, cache_read_tokens: 40000, cache_write_tokens: 3000 });
+    doneJob('NV120', { cost_usd: 0.2, input_tokens: 1000, output_tokens: 100 });
+    doneJob('NV120');
+    doneJob('NV120', { kind: 'chat', key: 'NV120:c', code: 'chat:c', cost_usd: 0.05, input_tokens: 10000, output_tokens: 50, cache_read_tokens: 9000, cache_write_tokens: 0 });
+    const rows = store.costsByKind('2000-01-01');
+    expect(rows.find((r) => r.kind === 'task')).toMatchObject({ jobs: 3, costed: 2, input: 45200, cache_read: 40000, cache_write: 3000, input_with_cache: 44200 });
+    const lines = kindReportLines(rows);
+    expect(lines).toEqual([
+      'chat\t1 phiên\t$0.05 ($0.050 / phiên)\tvào 1,000 · ghi cache 0 · đọc cache 9,000 · ra 50\tđọc cache 90%',
+      'việc\t3 phiên\t$1.00 ($0.500 / phiên)\tvào 2,200 · ghi cache 3,000 · đọc cache 40,000 · ra 5,400\tđọc cache 90%',
+    ]);
+    // Không phiên nào báo cache / không có chi phí
+    expect(kindReportLines([{ kind: 'meeting', jobs: 2, cost: null, costed: 0, input: 500, output: 9, cache_read: null, cache_write: null, input_with_cache: null }]))
+      .toEqual(['họp\t2 phiên\t$0.00 (chi phí không rõ)\tvào 500 · ghi cache 0 · đọc cache 0 · ra 9\tđọc cache —']);
   });
 });
 

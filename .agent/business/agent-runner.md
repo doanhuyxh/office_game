@@ -47,7 +47,7 @@ Dự án bun + TypeScript độc lập ở gốc repo, **không thư viện runt
 | `bun src/cli.ts doctor [--agent NV120] [--no-telegram] [--no-model-check]` | CLI `--version` + model thật (chạy thử), token đúng nhân viên, repo có origin, cài hook, bot Telegram (`getMe`), `gh auth status` |
 | `bun src/cli.ts start [--no-model-check]` | Dịch vụ (systemd: `deploy/officehub-runner.service`) |
 | `bun src/cli.ts run --agent NV120 --task TEST-45` | Chạy ngay một việc (bỏ qua Telegram, vẫn hỏi lại OfficeHub) |
-| `bun src/cli.ts report [--days 1]` | Chi phí theo agent + theo model |
+| `bun src/cli.ts report [--days 1]` | Chi phí theo agent, theo loại job (token không cache / ghi / đọc cache, tỉ lệ đọc cache) và theo model |
 | `bun src/cli.ts usage push [--since yyyy-MM-dd] [--agent NV018] [--dry-run]` | Gửi bù chi phí / token các phiên chưa gửi lên OfficeHub ("Mức dùng AI") — [agent-runner-usage.md](agent-runner-usage.md) |
 | `bun run build` | Một file chạy `dist/officehub-runner` — build từ commit đã merge `main`, cài `/opt/officehub-runner/` |
 | `bun run typecheck`, `bun test` | Bắt buộc khi đổi `agent-runner/` (CI job `agent-runner`) |

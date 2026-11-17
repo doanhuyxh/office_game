@@ -449,7 +449,7 @@ describe('store', () => {
     expect(s.enqueue('NV1', 'conv1', 'chat:conv1', '', 'chat')).toBeNull(); // đang chạy → rerun
     expect(s.getJob(c)!.rerun).toBe(1);
     s.finish(c, 'done', { cost_usd: 0.2 });
-    expect(s.costsByKind('2000-01-01')).toEqual([{ kind: 'chat', jobs: 1, cost: 0.2 }, { kind: 'task', jobs: 1, cost: null }]);
+    expect(s.costsByKind('2000-01-01')).toMatchObject([{ kind: 'chat', jobs: 1, cost: 0.2 }, { kind: 'task', jobs: 1, cost: null }]);
   });
 
   test('model: lưu cột model / model_usage, report nhóm theo model, migration DB cũ', () => {

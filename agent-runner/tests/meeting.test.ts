@@ -159,7 +159,7 @@ test('hai agent nói lần lượt: mỗi lượt một phiên ngắn chỉ tool
     .toEqual(['NV120 Phát biểu trong cuộc họp', 'NV121 Phát biểu trong cuộc họp', 'NV120 Phát biểu trong cuộc họp']);
   for (let i = 0; i < 30 && activity.filter((e) => e.kind === 'session_end').length < 3; i++) await Bun.sleep(100); // bộ gửi chạy ở nền
   expect(activity.filter((e) => e.kind === 'session_end').length).toBe(3);
-  expect(store.costsByKind('2000-01-01')).toEqual([{ kind: 'meeting', jobs: 3, cost: 0.15000000000000002 }]);
+  expect(store.costsByKind('2000-01-01')).toMatchObject([{ kind: 'meeting', jobs: 3, cost: 0.15000000000000002 }]);
   // Mức dùng AI (TEST-135): mỗi lượt nói một phiên kind meeting, gửi bằng token của đúng bot, không có id / mã việc
   for (let i = 0; i < 30 && usage.length < 3; i++) await Bun.sleep(100);
   expect(usage.map((u) => `${u.agent} ${u.kind} ${u.status} ${u.costUsd}`)).toEqual(['NV120 meeting done 0.05', 'NV121 meeting done 0.05', 'NV120 meeting done 0.05']);

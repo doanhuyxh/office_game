@@ -56,6 +56,15 @@ const JOB_COLUMNS_ADDED: [string, string][] = [['model', 'TEXT'], ['model_usage'
 const LEGACY_CLI_RAN = `status IN ('done', 'failed') AND started_at IS NOT NULL
   AND (session_id IS NOT NULL OR model IS NOT NULL OR cost_usd IS NOT NULL OR turns IS NOT NULL OR input_tokens IS NOT NULL)`;
 
+/**
+ * Tổng theo loại job (`report`, TEST-139). `input` = tổng token vào GỒM cache; `input_with_cache` = phần `input` của các job có báo cache
+ * (mẫu số của tỉ lệ đọc cache — job không báo cache không làm tỉ lệ sai); `costed` = số job có chi phí (mẫu số chi phí trung bình).
+ */
+export interface KindCost {
+  kind: string; jobs: number; cost: number | null; costed: number; input: number | null; output: number | null;
+  cache_read: number | null; cache_write: number | null; input_with_cache: number | null;
+}
+
 /** Kết quả phiên ghi vào job khi xong. */
 export type JobResult = Partial<Pick<Job, 'reason' | 'session_id' | 'cost_usd' | 'input_tokens' | 'output_tokens' | 'cache_read_tokens' | 'cache_write_tokens'
   | 'turns' | 'pr_url' | 'model' | 'model_usage' | 'executor' | 'cli_ran'>>;
@@ -215,8 +224,11 @@ export class Store {
 
   /** Chi phí theo loại job (việc / chat / họp) — lệnh `report`. */
   costsByKind(sinceIso: string) {
-    return this.db.query<{ kind: string; jobs: number; cost: number | null }, [string]>(`
-      SELECT COALESCE(kind, 'task') kind, COUNT(*) jobs, SUM(cost_usd) cost FROM jobs WHERE finished_at >= ? GROUP BY 1 ORDER BY 1`).all(sinceIso);
+    return this.db.query<KindCost, [string]>(`
+      SELECT COALESCE(kind, 'task') kind, COUNT(*) jobs, SUM(cost_usd) cost, COUNT(cost_usd) costed,
+        SUM(input_tokens) input, SUM(output_tokens) output, SUM(cache_read_tokens) cache_read, SUM(cache_write_tokens) cache_write,
+        SUM(CASE WHEN cache_read_tokens IS NOT NULL OR cache_write_tokens IS NOT NULL THEN input_tokens END) input_with_cache
+      FROM jobs WHERE finished_at >= ? GROUP BY 1 ORDER BY 1`).all(sinceIso);
   }
 
   /** Chi phí theo agent + model chính (TEST-64, lệnh `report`); job không rõ model → model null. */
