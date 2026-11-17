@@ -206,7 +206,7 @@ test('hai agent nói lần lượt: mỗi lượt một phiên ngắn chỉ tool
     agent: 'NV120',
     kind: 'meeting',
     status: 'done',
-    task_id: `NV120:${S}`,
+    key: `NV120:${S}`,
     cost_usd: 0.05,
   });
   expect(spoken).toEqual(['NV120']);
@@ -220,7 +220,7 @@ test('hai agent nói lần lượt: mỗi lượt một phiên ngắn chỉ tool
 
   // lượt 2: NV121; lượt 3: NV120 nối phiên cũ của chính cuộc họp này
   await runner.onMessage(agentOf('NV121'), turnMsg('NV121'));
-  expect(await runNext()).toMatchObject({ agent: 'NV121', task_id: `NV121:${S}`, status: 'done' }); // khoá riêng từng agent: không giẫm job / phiên của NV120
+  expect(await runNext()).toMatchObject({ agent: 'NV121', key: `NV121:${S}`, status: 'done' }); // khoá riêng từng agent: không giẫm job / phiên của NV120
   await runner.onMessage(agentOf('NV120'), turnMsg('NV120'));
   const third = await runNext();
   expect(spoken).toEqual(['NV120', 'NV121', 'NV120']);

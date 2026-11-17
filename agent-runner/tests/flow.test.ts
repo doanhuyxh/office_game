@@ -824,7 +824,7 @@ test('chat_mention: tin Telegram → job chat trong thư mục riêng của hộ
     id: id!,
     kind: 'chat',
     status: 'done',
-    task_id: `NV120:${C}`,
+    key: `NV120:${C}`,
     cost_usd: 0.1,
     pr_url: null,
   });

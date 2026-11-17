@@ -69,4 +69,4 @@ export function skipJob(store: Store, job: Job, reason: string) {
 export const agentScopedKey = (agent: string, id: string) => `${agent}:${id}`;
 
 /** Id hội thoại / phiên họp của job chat / họp (bỏ tiền tố agent của {@link agentScopedKey}). */
-export const scopedId = (job: Pick<Job, 'task_id'>) => job.task_id.slice(job.task_id.indexOf(':') + 1);
+export const scopedId = (job: Pick<Job, 'key'>) => job.key.slice(job.key.indexOf(':') + 1);

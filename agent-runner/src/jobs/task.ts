@@ -28,14 +28,14 @@ export function taskJobs(services: JobServices): JobHandler<WakeOf<'task'>> {
       kind: 'task',
       employee_code: job.agent,
       project_id: job.project_id,
-      task_id: job.task_id,
-      task_code: job.task_code,
+      task_id: job.key,
+      task_code: job.label,
     };
-    const checked = checkTask(await s.hub.getTask(job.task_id), wake, s.employeeId!);
+    const checked = checkTask(await s.hub.getTask(job.key), wake, s.employeeId!);
     if (!checked.ok) return skipJob(store, job, checked.reason);
     const title = checked.value.title;
-    s.presence.working(job.task_code, title);
-    if (title.trim()) desk.task = `${job.task_code} · ${title.trim()}`;
+    s.presence.working(job.label, title);
+    if (title.trim()) desk.task = `${job.label} · ${title.trim()}`;
 
     const strategy = workspaces[s.cfg.workspace.mode];
     let ws: PreparedWorkspace;
@@ -46,12 +46,12 @@ export function taskJobs(services: JobServices): JobHandler<WakeOf<'task'>> {
       // Workspace chưa sẵn sàng (đang bẩn / sai nhánh…) — không chạy agent, báo lại trong việc để người xử lý rồi giao lại.
       store.finish(job.id, 'skipped', { reason: e.message });
       desk.failure = 'Không chạy được';
-      await s.hub.comment(job.task_id, `**🤖 agent-runner** (${job.agent}) — KHÔNG chạy: ${e.message}`);
-      log('warn', 'bỏ job — workspace chưa sẵn sàng', { job: job.id, task: job.task_code, reason: e.message });
+      await s.hub.comment(job.key, `**🤖 agent-runner** (${job.agent}) — KHÔNG chạy: ${e.message}`);
+      log('warn', 'bỏ job — workspace chưa sẵn sàng', { job: job.id, task: job.label, reason: e.message });
       return;
     }
 
-    const workedBefore = !!store.session(job.task_id);
+    const workedBefore = !!store.session(job.key);
     const resume = await sessions.resumeFor(s, job, ws.path);
     // Phiên mới nhưng việc đã từng làm (worktree / nhánh local hoặc origin / phiên cũ) → prompt bảo đọc Bàn giao trước
     const continued = !resume && (ws.hasHistory || workedBefore);
@@ -61,15 +61,15 @@ export function taskJobs(services: JobServices): JobHandler<WakeOf<'task'>> {
       resume,
       noBuiltinTools: strategy.noBuiltinTools,
       presence: true,
-      label: `${job.task_code} · ${title}`,
+      label: `${job.label} · ${title}`,
     });
     sessions.record(s, job, out, { cwd: ws.path, branch: ws.branch, resumed: !!resume });
 
-    const published = await ws.publish(`${job.task_code}: ${title}`.slice(0, 200));
+    const published = await ws.publish(`${job.label}: ${title}`.slice(0, 200));
     const ok = succeeded(out);
     desk.failure = ok ? published.failure : presenceFailure(out);
     const comment = resultComment(job, out, published.prUrl, published.note, ok, s.cfg.executor.model);
-    await s.hub.comment(job.task_id, comment);
+    await s.hub.comment(job.key, comment);
     sessions.finish(s, job, out, { note: published.note, prUrl: published.prUrl });
   }
 
@@ -90,7 +90,7 @@ export function taskJobs(services: JobServices): JobHandler<WakeOf<'task'>> {
     },
 
     async run(s, job, signal) {
-      const desk: DeskNote = { task: job.task_code };
+      const desk: DeskNote = { task: job.label };
       try {
         await work(s, job, signal, desk);
       } catch (e) {
@@ -98,7 +98,7 @@ export function taskJobs(services: JobServices): JobHandler<WakeOf<'task'>> {
         throw e;
       } finally {
         if (desk.failure)
-          s.presence.error(desk.failure, { task: desk.task, taskId: job.task_id, projectId: job.project_id });
+          s.presence.error(desk.failure, { task: desk.task, taskId: job.key, projectId: job.project_id });
         else s.presence.idle();
       }
     },

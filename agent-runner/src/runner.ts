@@ -208,8 +208,8 @@ export class Runner {
   /** Chạy một job đã lấy khỏi hàng đợi bằng handler của loại job; lỗi ghi `failed`, runner dừng giữa phiên thì job về hàng đợi. */
   async process(job: Job): Promise<void> {
     const s = this.agents.get(job.agent)!;
-    const handler = this.handlerOf(job.kind ?? 'task');
-    const fields = { job: job.id, agent: job.agent, task: job.task_code };
+    const handler = this.handlerOf(job.kind);
+    const fields = { job: job.id, agent: job.agent, task: job.label };
     const ctl = new AbortController();
     this.running.set(job.id, ctl);
     try {
@@ -225,7 +225,7 @@ export class Runner {
       }
       // Lỗi sau khi đã ghi kết quả phiên (vd xếp lượt chat kế) → giữ kết quả + chi phí đã ghi, chỉ log
       if (this.store.getJob(job.id)?.status === 'running') this.store.finish(job.id, 'failed', { reason: errText(e) });
-      log('error', 'job lỗi', { job: job.id, task: job.task_code, error: errText(e) });
+      log('error', 'job lỗi', { job: job.id, task: job.label, error: errText(e) });
     } finally {
       this.running.delete(job.id);
       // prompt + cấu hình MCP chỉ sống trong lúc chạy; giữ output.log / activity.log để tra lỗi
@@ -247,7 +247,7 @@ export class Runner {
     }
     if (!meeting?.inMeeting) return false;
     const reason = 'agent đang họp — chờ hết cuộc họp';
-    if (job.reason !== reason) log('info', 'hoãn job', { job: job.id, agent: job.agent, task: job.task_code, reason });
+    if (job.reason !== reason) log('info', 'hoãn job', { job: job.id, agent: job.agent, task: job.label, reason });
     this.store.hold(job.id, new Date(Date.now() + MEETING_HOLD_SEC * 1000).toISOString(), reason);
     return true;
   }

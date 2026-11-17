@@ -28,6 +28,7 @@
 - **Request tới endpoint phụ của OfficeHub luôn qua `HubEndpoint`** (`post` / `get` không ném lỗi, trả `ok | invalid | denied | missing | error`); lỗi lặp ghi qua `FailureLog`. Không tự viết `fetch` + xử lý 401 / 404 trong bộ gửi mới.
 - **Rẽ nhánh theo loại job / mode chỉ ở registry**: `Runner` không biết loại job cụ thể (`handlers[kind]`), handler việc không biết mode cụ thể (`workspaces[mode]`).
 - **Phiên CLI luôn qua `Sessions`**: loại job mới chỉ lo kiểm tra + nơi chạy + prompt, không tự ghi `task_sessions` / `jobs` / mức dùng AI.
+- **`runner.db` chỉ nâng cấp tiến, tương thích lùi**: mỗi bước `MIGRATIONS` chỉ thêm cột / điền dữ liệu. Cột `task_id` / `task_code` giữ tên cũ trong DB; mã đọc ra thành `job.key` (khoá job) / `job.label` (nhãn). `jobs.kind` luôn có giá trị (job cũ đã điền `task`).
 - **Hằng số nhịp / ngưỡng đặt ở `policy.ts`**, không để số trần trong code.
 - **Runner dừng giữa phiên** → `RunnerStopped` → `store.requeue` (job về hàng đợi, không ghi `failed`, không bình luận).
 
@@ -38,6 +39,7 @@
 | Bước kiểm tra `doctor` | Một hàm trong `doctor/agent.ts`, gọi trong `diagnoseAgent` |
 | Kênh báo cáo mới lên OfficeHub | File mới trong `hub/` dùng `HubEndpoint` + `FailureLog`; gắn vào `AgentState` |
 | Hằng số chính sách | `policy.ts` |
+| Cột / bảng mới trong `runner.db` | Một bước mới ở CUỐI `MIGRATIONS` (`store.ts`) + cột trong `JOB_SELECT` / `SESSION_SELECT` + trường trong `Job` / `SessionRow` |
 | Adapter CLI | `executor/adapters/<tên>.ts` + registry `executor/run.ts` + `config.ts` (`executor.kind`) |
 | Loại job / sự kiện Telegram mới | Hình dạng tin trong `EVENT_SHAPES` (`validator.ts`) + `JobKind` (`store.ts`) + `jobs/<tên>.ts` hiện thực `JobHandler` + một dòng trong `jobs/index.ts` (+ hồ sơ tool `McpProfile` nếu cần) |
 | Mode workspace mới | `workspace/<tên>.ts` hiện thực `WorkspaceStrategy` + registry `workspace/index.ts` + `WorkspaceMode` (`config.ts`) + prompt của mode (`prompt/`) + bước kiểm tra trong `doctor/agent.ts` |

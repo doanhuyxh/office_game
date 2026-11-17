@@ -48,8 +48,8 @@ export interface SessionPlace {
   resumed: boolean;
 }
 
-type JobRef = Pick<Job, 'id' | 'agent' | 'task_code'>;
-const jobFields = (job: JobRef) => ({ job: job.id, agent: job.agent, task: job.task_code });
+type JobRef = Pick<Job, 'id' | 'agent' | 'label'>;
+const jobFields = (job: JobRef) => ({ job: job.id, agent: job.agent, task: job.label });
 
 /**
  * Vòng đời một phiên CLI của job, dùng chung cho job việc / chat / họp: quyết định nối phiên → chạy CLI → ghi phiên + transcript → ghi kết quả
@@ -74,7 +74,7 @@ export class Sessions {
       ...agentEnv(s.cfg, this.git),
       OFFICEHUB_TOKEN: s.cfg.token,
       [AGENT_ENV]: job.agent,
-      [TASK_ENV]: job.task_code,
+      [TASK_ENV]: job.label,
     };
     const onActivity = this.activityLogger(s, job, dir, request.presence);
     // Dòng đầu job ghi model: adapter claude tự báo từ sự kiện system/init; adapter khác chỉ biết model cấu hình.
@@ -118,7 +118,7 @@ export class Sessions {
     mkdirSync(dir, { recursive: true });
     const files = { prompt: join(dir, 'prompt.md'), mcp: join(dir, 'mcp.json') };
     writeFileSync(files.prompt, prompt, { mode: 0o600 });
-    const mcp = mcpConfig(this.config.mcpUrl, job.kind ?? 'task');
+    const mcp = mcpConfig(this.config.mcpUrl, job.kind);
     writeFileSync(files.mcp, JSON.stringify(mcp, null, 2), { mode: 0o600 });
     return files;
   }
@@ -145,7 +145,7 @@ export class Sessions {
   async resumeFor(s: AgentState, job: Job, cwd: string, maxResumes?: number): Promise<string | undefined> {
     const adapter = adapters[s.cfg.executor.kind];
     if (!adapter?.caps.resume) return undefined;
-    const prev = this.store.session(job.task_id);
+    const prev = this.store.session(job.key);
     if (!prev) return this.restoreFromCloud(s, job, cwd);
     if (!prev.session_id || prev.agent !== job.agent) return undefined;
     const fresh = (reason: string) => {
@@ -168,7 +168,7 @@ export class Sessions {
   private async restoreFromCloud(s: AgentState, job: Job, cwd: string): Promise<string | undefined> {
     if (!s.transcripts) return undefined;
     try {
-      return await s.transcripts.restore(job.task_id, cwd);
+      return await s.transcripts.restore(job.key, cwd);
     } catch (e) {
       log('warn', 'khôi phục transcript từ cloud lỗi — mở phiên mới', {
         job: job.id,
@@ -184,9 +184,9 @@ export class Sessions {
    * agent (TEST-144; gửi ở nền, lỗi chỉ ghi log).
    */
   record(s: AgentState, job: Job, out: RunOutcome, place: SessionPlace) {
-    this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, place.branch ?? '', place.cwd, place.resumed);
+    this.store.saveSession(job.key, job.agent, out.sessionId ?? null, place.branch ?? '', place.cwd, place.resumed);
     if (!s.transcripts || !out.sessionId) return;
-    this.store.markTranscript(job.task_id, job.kind ?? 'task', out.summary?.trim() || null);
+    this.store.markTranscript(job.key, job.kind, out.summary?.trim() || null);
     void s.transcripts.flush().catch((e) => log('warn', 'gửi transcript lỗi', { agent: job.agent, error: errText(e) }));
   }
 
@@ -214,7 +214,7 @@ export class Sessions {
     void s.usage.flush().catch((e) => log('warn', 'gửi mức dùng AI lỗi', { agent: job.agent, error: errText(e) }));
     log(ok ? 'info' : 'warn', 'xong job', {
       job: job.id,
-      task: job.task_code,
+      task: job.label,
       ok,
       model: out.model,
       pr: extra.prUrl,

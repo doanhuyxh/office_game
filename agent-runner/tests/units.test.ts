@@ -864,6 +864,49 @@ describe('store', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  test('migration theo user_version: DB cũ được nâng cấp một lần, job cũ kind trống → task, bản runner cũ vẫn đọc được; DB mới hơn → từ chối', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'runner-db-'));
+    try {
+      const path = join(dir, 'runner.db');
+      const { Database } = require('bun:sqlite');
+      // runner.db bản đầu (chưa có user_version, chưa có cột kind / model …) với một job việc và một phiên
+      const old = new Database(path, { create: true });
+      old.exec(`CREATE TABLE jobs (id INTEGER PRIMARY KEY AUTOINCREMENT, agent TEXT NOT NULL, task_id TEXT NOT NULL, task_code TEXT NOT NULL, project_id TEXT NOT NULL,
+        status TEXT NOT NULL, reason TEXT, created_at TEXT NOT NULL, started_at TEXT, finished_at TEXT,
+        session_id TEXT, cost_usd REAL, input_tokens INTEGER, output_tokens INTEGER, turns INTEGER, pr_url TEXT);
+        CREATE TABLE task_sessions (task_id TEXT PRIMARY KEY, agent TEXT NOT NULL, session_id TEXT, branch TEXT NOT NULL, worktree TEXT NOT NULL, updated_at TEXT NOT NULL)`);
+      old.run(
+        `INSERT INTO jobs (agent, task_id, task_code, project_id, status, created_at) VALUES ('NV1', 't0', 'A-0', 'p', 'queued', '2026')`,
+      );
+      old.run(`INSERT INTO task_sessions VALUES ('t0', 'NV1', 'sess-old', 'agent/nv1/a-0', '/w', '2026-11-01')`);
+      old.close();
+
+      const s = new Store(path);
+      const version = () => s.db.query<{ user_version: number }, []>('PRAGMA user_version').get()!.user_version;
+      expect(version()).toBe(2);
+      // trong mã: key / label; cột trong DB vẫn là task_id / task_code
+      expect(s.getJob(1)).toMatchObject({ key: 't0', label: 'A-0', kind: 'task', status: 'queued' });
+      expect(s.session('t0')).toMatchObject({ key: 't0', agent: 'NV1', session_id: 'sess-old', resumes: null });
+      expect(s.claimNext(1, ['NV1'])).toMatchObject({ id: 1, key: 't0', label: 'A-0', kind: 'task' });
+      expect(s.enqueue('NV1', 't0', 'A-0', 'p')).toBeNull(); // khoá vẫn chặn job trùng
+      // bản runner cũ đọc bằng tên cột gốc vẫn được (migration không đổi tên / xoá cột)
+      expect(s.db.query<any, []>(`SELECT task_id, task_code, kind FROM jobs WHERE id = 1`).get()).toEqual({
+        task_id: 't0',
+        task_code: 'A-0',
+        kind: 'task',
+      });
+      s.db.close();
+
+      const again = new Store(path); // mở lại: đã ở phiên bản mới nhất, không chạy lại bước nào
+      expect(again.getJob(1)?.status).toBe('running');
+      again.db.exec('PRAGMA user_version = 99');
+      again.db.close();
+      expect(() => new Store(path)).toThrow('mới hơn bản runner này');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('presence (văn phòng 3D: đang làm / rảnh)', () => {

@@ -10,7 +10,7 @@ export const noneWorkspace: WorkspaceStrategy = {
   mode: 'none',
   noBuiltinTools: true,
   async prepare(c, job) {
-    const path = workDir(c.config.dataDir, job.agent, job.task_code.toUpperCase());
+    const path = workDir(c.config.dataDir, job.agent, job.label.toUpperCase());
     mkdirSync(path, { recursive: true });
     return { path, branch: '', hasHistory: false, publish: async () => ({ note: '' }) };
   },

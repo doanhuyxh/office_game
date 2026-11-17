@@ -16,7 +16,7 @@ export const inPlaceWorkspace: WorkspaceStrategy = {
     const { git, agent, config } = c;
     const fields = { job: job.id, agent: job.agent };
     const onMain = await mainBranchWarning(git, agent, config.baseBranch);
-    if (onMain) log('warn', 'repo đang ở main / master', { ...fields, task: job.task_code, message: onMain });
+    if (onMain) log('warn', 'repo đang ở main / master', { ...fields, task: job.label, message: onMain });
     // in_place không dùng hook → gỡ hook của runner nếu còn (hook của người dùng giữ nguyên).
     const removed = await removeHooks(git, agent.repo);
     if (removed.length) log('info', 'đã gỡ hook của runner (in_place không dùng)', { ...fields, hooks: removed });

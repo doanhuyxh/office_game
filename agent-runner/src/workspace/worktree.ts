@@ -13,11 +13,11 @@ export const worktreeWorkspace: WorkspaceStrategy = {
     const { git, agent, config } = c;
     const fields = { job: job.id, agent: job.agent };
     const onMain = await mainBranchWarning(git, agent, config.baseBranch);
-    if (onMain) log('warn', 'repo đang ở main / master', { ...fields, task: job.task_code, message: onMain });
+    if (onMain) log('warn', 'repo đang ở main / master', { ...fields, task: job.label, message: onMain });
     // Hook có thể bị xoá sau lúc khởi động → trước mỗi job kiểm tra, thiếu thì tạo lại (hook khác của người dùng: không ghi đè, chỉ cảnh báo).
     for (const message of await installHooks(git, agent.repo, config.baseBranch))
       log('warn', 'hook git', { ...fields, message });
-    const ws = await prepareWorktree(git, agent.repo, config.worktreesDir, job.agent, job.task_code, config.baseBranch);
+    const ws = await prepareWorktree(git, agent.repo, config.worktreesDir, job.agent, job.label, config.baseBranch);
     if (ws.existing === 'origin')
       log('info', 'máy chưa có nhánh việc — lấy lại từ origin để làm tiếp', { ...fields, branch: ws.branch });
 
@@ -33,7 +33,7 @@ export const worktreeWorkspace: WorkspaceStrategy = {
           failure: 'Không push được',
         };
       if (ch.ahead === 0) return { note: withDirty('Phiên kết thúc, nhánh không có commit mới.') };
-      const body = `Việc OfficeHub **${job.task_code}** — agent ${job.agent}, tạo tự động bởi agent-runner (TEST-44). Người thật review trước khi merge.`;
+      const body = `Việc OfficeHub **${job.label}** — agent ${job.agent}, tạo tự động bởi agent-runner (TEST-44). Người thật review trước khi merge.`;
       try {
         const prUrl = await pushAndOpenPr(git, ws.path, ws.branch, config.baseBranch, title, body);
         return { prUrl, note: dirty };

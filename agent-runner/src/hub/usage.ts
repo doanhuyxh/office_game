@@ -116,7 +116,7 @@ export function usageModels(job: Job): AiUsageModel[] | undefined {
 
 /** Job đã xong → một phiên theo hợp đồng `AiUsageSession`. `executor` của job cũ (trước TEST-135) lấy từ cấu hình agent hiện tại. */
 export function usageSession(job: Job, host: string, dbId: string, fallbackExecutor?: string): AiUsageSession {
-  const kind = job.kind ?? 'task';
+  const kind = job.kind;
   const s: AiUsageSession = {
     sourceId: sourceId(job, host, dbId),
     kind,
@@ -128,9 +128,9 @@ export function usageSession(job: Job, host: string, dbId: string, fallbackExecu
   };
   if (kind === 'task') {
     // Chat / họp: task_id là khoá `<mã NV>:<id>`, task_code là nhãn log — không phải việc
-    if (GUID.test(job.task_id)) s.taskId = job.task_id;
+    if (GUID.test(job.key)) s.taskId = job.key;
     if (GUID.test(job.project_id)) s.projectId = job.project_id;
-    if (job.task_code.trim()) s.taskCode = job.task_code.trim().slice(0, MAX_TASK_CODE);
+    if (job.label.trim()) s.taskCode = job.label.trim().slice(0, MAX_TASK_CODE);
   }
   const executor = (job.executor ?? fallbackExecutor)?.trim();
   if (executor) s.executor = executor.slice(0, MAX_EXECUTOR);

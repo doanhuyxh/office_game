@@ -125,7 +125,7 @@ export class TranscriptReporter {
       if (this.disabled) break;
       const file = transcriptFile(this.home, row.worktree, row.session_id!);
       if (!file) {
-        this.store.doneTranscript(row.task_id, { error: 'không còn file transcript ở máy' });
+        this.store.doneTranscript(row.key, { error: 'không còn file transcript ở máy' });
         continue;
       }
       let gz: Uint8Array;
@@ -133,27 +133,27 @@ export class TranscriptReporter {
         if (statSync(file).size > 200 * 1024 * 1024) throw new Error('file > 200 MB');
         gz = Bun.gzipSync(Buffer.from(redactTranscript(readFileSync(file, 'utf8'))));
       } catch (e) {
-        this.store.doneTranscript(row.task_id, { error: `không đọc được transcript: ${errText(e)}` });
+        this.store.doneTranscript(row.key, { error: `không đọc được transcript: ${errText(e)}` });
         continue;
       }
       const sha = sha256Hex(gz);
       if (sha === row.transcript_sha) {
-        this.store.doneTranscript(row.task_id, { sha });
+        this.store.doneTranscript(row.key, { sha });
         continue;
       } // không đổi từ lần gửi trước
       if (gz.length > TRANSCRIPT_MAX_GZIP) {
-        this.store.doneTranscript(row.task_id, {
+        this.store.doneTranscript(row.key, {
           error: `transcript ${(gz.length / 1048576).toFixed(1)} MB sau nén > 6 MB — không gửi`,
         });
         log('warn', 'transcript quá lớn — không gửi lên cloud', {
           agent: this.agent,
-          key: row.task_id,
+          key: row.key,
           mb: +(gz.length / 1048576).toFixed(1),
         });
         continue;
       }
       const r = await this.post({
-        key: row.task_id,
+        key: row.key,
         kind: row.kind ?? 'task',
         sessionId: row.session_id,
         cwd: row.worktree || null,
@@ -162,12 +162,12 @@ export class TranscriptReporter {
         contentBase64: Buffer.from(gz).toString('base64'),
       });
       if (r === 'ok') {
-        this.store.doneTranscript(row.task_id, { sha });
+        this.store.doneTranscript(row.key, { sha });
         sent++;
         continue;
       }
       if (r === 'invalid') {
-        this.store.doneTranscript(row.task_id, { error: 'OfficeHub từ chối (400)' });
+        this.store.doneTranscript(row.key, { error: 'OfficeHub từ chối (400)' });
         continue;
       }
       break; // retry / denied: thử lại ở nhịp sau (denied đã tắt bộ gửi)

@@ -43,7 +43,7 @@ export function meetingJobs(services: JobServices): JobHandler<WakeOf<'meeting'>
     log('warn', 'agent không dùng lượt họp — runner bỏ lượt thay', {
       job: job.id,
       agent: job.agent,
-      task: job.task_code,
+      task: job.label,
     });
   }
 
@@ -64,9 +64,9 @@ export function meetingJobs(services: JobServices): JobHandler<WakeOf<'meeting'>
       const checked = checkMeeting(await s.hub.myMeeting(), wake.session_id);
       if (!checked.ok) return checked;
       const busy = store.runningJob(s.cfg.employeeCode);
-      if (!busy || (busy.kind ?? 'task') !== 'task') return { ok: true };
+      if (!busy || busy.kind !== 'task') return { ok: true };
       await s.hub.passTurn();
-      return { ok: false, reason: `đang chạy ${busy.task_code}`, warning: 'agent đang làm việc — bỏ lượt họp' };
+      return { ok: false, reason: `đang chạy ${busy.label}`, warning: 'agent đang làm việc — bỏ lượt họp' };
     },
 
     async run(s, job, signal) {

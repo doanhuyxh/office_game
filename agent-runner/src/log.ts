@@ -47,7 +47,7 @@ const GLYPHS: [RegExp, string, RegExp?][] = [
   [/^Chạy: /, '$', /^Chạy: /],
   [/^Tìm: /, '?', /^Tìm: /],
   [/^OfficeHub /, '⇄'],
-  [/^Nói: /, '›', /^Nói: /],
+  [/^Nói: /, '>', /^Nói: /],
   [/^Giao việc phụ/, '↳'],
   [/^Model /, '▶', /^Model /], // dòng đầu job (TEST-64): `▶ claude-opus-5-5`
 ];
