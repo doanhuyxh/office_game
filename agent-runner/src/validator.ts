@@ -1,3 +1,4 @@
+import type { ChatSummary, MeetingState, TaskDetail } from './hub/types';
 import type { TgMessage } from './telegram';
 
 /** Dữ liệu tin đánh thức VIỆC (TEST-42): JSON có 4 trường (+ `event` assigned / returned / ready / mentioned — runner chưa phân biệt). */
@@ -118,7 +119,7 @@ export function parseWake(msg: TgMessage, opts: { groupChatId: string; employeeC
  * @param detail kết quả MCP get_task.
  */
 export function checkTask(
-  detail: any,
+  detail: TaskDetail | null | undefined,
   wake: Pick<WakeData, 'project_id' | 'task_id'>,
   myEmployeeId: string,
 ): Check<{ title: string; code: string }> {
@@ -128,7 +129,7 @@ export function checkTask(
   if (t.projectId !== wake.project_id) return { ok: false, reason: 'việc không thuộc project_id trong tin' };
   if (t.assigneeEmployeeId !== myEmployeeId) return { ok: false, reason: 'việc không còn giao cho agent này' };
   if (t.done) return { ok: false, reason: 'việc đã xong' };
-  const waiting = (detail.dependsOn ?? []).filter((x: any) => !x.done).map((x: any) => x.code);
+  const waiting = (detail?.dependsOn ?? []).filter((dep) => !dep.done).map((dep) => dep.code);
   if (waiting.length) return { ok: false, reason: `việc còn chờ ${waiting.join(', ')}` };
   return { ok: true, value: { title: String(t.title ?? ''), code: String(t.code ?? '') } };
 }
@@ -139,8 +140,8 @@ export function checkTask(
  * Kênh Toàn văn phòng: `list_chats` trả `conversation: "office"` (không lộ id) → id không khớp hội thoại nào thì xét kênh office.
  * @returns `conversation` để đưa vào prompt ("office" hoặc id).
  */
-export function checkChat(list: any, conversationId: string): Check<{ conversation: string }> {
-  const items: any[] = Array.isArray(list) ? list : [];
+export function checkChat(list: unknown, conversationId: string): Check<{ conversation: string }> {
+  const items: (ChatSummary | null | undefined)[] = Array.isArray(list) ? list : [];
   const id = conversationId.toLowerCase();
   const c =
     items.find((x) => String(x?.conversation ?? '').toLowerCase() === id) ??
@@ -154,7 +155,7 @@ export function checkChat(list: any, conversationId: string): Check<{ conversati
  * Bước 2 của tin meeting_turn (MCP `get_my_meeting` bằng token của agent, lúc nhận tin VÀ ngay trước khi chạy): agent đang dự đúng phiên họp đó
  * và đang giữ lượt. Phiên đã dừng / hết trần, lượt đã qua (quá hạn nói, người mở dừng họp) → bỏ, chỉ log.
  */
-export function checkMeeting(m: any, sessionId: string): Check<{ isChair: boolean }> {
+export function checkMeeting(m: MeetingState | null | undefined, sessionId: string): Check<{ isChair: boolean }> {
   if (!m?.inMeeting) return { ok: false, reason: 'agent không dự cuộc họp nào đang diễn ra' };
   if (String(m.sessionId ?? '').toLowerCase() !== sessionId.toLowerCase())
     return { ok: false, reason: 'agent đang dự cuộc họp khác' };

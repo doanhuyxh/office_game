@@ -1,4 +1,18 @@
 import { errText } from '../log';
+import type { ChatSummary, MeetingState, ProfileResult, TaskDetail } from './types';
+
+/** Phong bì JSON-RPC và kết quả `tools/call` của MCP (chỉ phần runner đọc). */
+interface RpcMessage {
+  error?: { message?: string };
+  result?: ToolResult;
+}
+interface ToolResult {
+  content?: { text?: string }[];
+  isError?: boolean;
+}
+
+/** Hạn một lần gọi MCP. */
+const RPC_TIMEOUT_MS = 30_000;
 
 /**
  * Gọi tool MCP của OfficeHub bằng token AI của agent (JSON-RPC qua HTTP, phản hồi JSON hoặc SSE).
@@ -14,7 +28,7 @@ export class OfficeHubClient {
     private readonly token: string,
   ) {}
 
-  private async rpc(method: string, params: unknown): Promise<any> {
+  private async rpc(method: string, params: unknown): Promise<ToolResult | undefined> {
     const res = await fetch(this.url, {
       method: 'POST',
       headers: {
@@ -23,7 +37,7 @@ export class OfficeHubClient {
         accept: 'application/json, text/event-stream',
       },
       body: JSON.stringify({ jsonrpc: '2.0', id: ++this.id, method, params }),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(RPC_TIMEOUT_MS),
     });
     if (res.status === 401) throw new Error('OfficeHub từ chối token AI (401) — token sai / đã thu hồi / hết hạn');
     if (!res.ok) throw new Error(`OfficeHub MCP trả ${res.status}`);
@@ -34,12 +48,13 @@ export class OfficeHubClient {
         .filter((l) => l.startsWith('data:'))
         .map((l) => l.slice(5))
         .pop() ?? text;
-    const msg = JSON.parse(payload);
+    const msg = JSON.parse(payload) as RpcMessage;
     if (msg.error) throw new Error(`MCP ${method}: ${msg.error.message ?? JSON.stringify(msg.error)}`);
     return msg.result;
   }
 
-  async callTool<T = any>(name: string, args: Record<string, unknown>): Promise<T> {
+  /** Gọi một tool; kết quả là JSON tool trả (không phải JSON → chuỗi thô). Kiểu `T` chỉ là kỳ vọng — nơi dùng phải kiểm tra. */
+  async callTool<T = unknown>(name: string, args: Record<string, unknown>): Promise<T> {
     if (!this.initialized) {
       await this.rpc('initialize', {
         protocolVersion: '2025-06-18',
@@ -49,7 +64,7 @@ export class OfficeHubClient {
       this.initialized = true;
     }
     const r = await this.rpc('tools/call', { name, arguments: args });
-    const text: string = r?.content?.[0]?.text ?? '';
+    const text = r?.content?.[0]?.text ?? '';
     if (r?.isError) throw new Error(`${name}: ${text.slice(0, 300)}`);
     try {
       return JSON.parse(text) as T;
@@ -60,29 +75,29 @@ export class OfficeHubClient {
 
   /** Nhân viên của token: { id, code, fullName }. */
   async me(): Promise<{ id: string; code: string; fullName: string }> {
-    const p = await this.callTool<any>('get_my_profile', {});
-    const e = p?.employee;
+    const profile = await this.callTool<ProfileResult | undefined>('get_my_profile', {});
+    const e = profile?.employee;
     if (!e?.id || !e?.code) throw new Error('get_my_profile không trả hồ sơ nhân viên (tài khoản chưa gắn nhân viên?)');
     return { id: e.id, code: String(e.code).toUpperCase(), fullName: e.fullName ?? '' };
   }
 
   getTask(task: string) {
-    return this.callTool<any>('get_task', { task });
+    return this.callTool<TaskDetail | undefined>('get_task', { task });
   }
 
   /** Hội thoại của agent (chỉ tài khoản bot): `[{ conversation, type, unread, mentionedUnread, … }]`. */
   listChats() {
-    return this.callTool<any>('list_chats', {});
+    return this.callTool<ChatSummary[] | undefined>('list_chats', {});
   }
 
   /** Cuộc họp agent đang dự (chỉ tài khoản bot): `{ inMeeting, sessionId, isMyTurn, isChair, … }`. */
   myMeeting() {
-    return this.callTool<any>('get_my_meeting', {});
+    return this.callTool<MeetingState | undefined>('get_my_meeting', {});
   }
 
   /** Bỏ lượt nói đang giữ (runner gọi thay khi agent không dùng được lượt — cuộc họp không đứng chờ hết hạn). */
   passTurn() {
-    return this.callTool<any>('pass_turn', {});
+    return this.callTool('pass_turn', {});
   }
 
   async comment(task: string, content: string) {

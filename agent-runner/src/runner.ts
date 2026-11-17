@@ -10,6 +10,7 @@ import { type Finding, findingLogLevel, formatFinding } from './doctor/finding';
 import { adapters } from './executor/run';
 import { ActivitySender } from './hub/activity';
 import { OfficeHubClient } from './hub/client';
+import type { MeetingState } from './hub/types';
 import { PresenceReporter } from './hub/presence';
 import { TranscriptReporter } from './hub/transcript';
 import { sourceHost, USAGE_RETRY_MS, UsageReporter } from './hub/usage';
@@ -213,6 +214,24 @@ export class Runner {
     }
   }
 
+  /**
+   * Nhận rồi chạy NGAY một tin đánh thức, chờ xong cả các bộ gửi nền (lệnh `run`: chạy một lần rồi thoát). Vẫn hỏi lại OfficeHub như tin từ
+   * Telegram. Không chạy được → `problem`; chạy được → `job` đã ghi kết quả.
+   */
+  async runNow(s: AgentState, wake: Wake): Promise<{ job?: Job; problem?: string }> {
+    const agent = s.cfg.employeeCode;
+    if (!(await this.accept(s, wake))) return { problem: 'Việc không chạy được (xem log ở trên)' };
+    const job = this.store.claimNext(1, [agent]);
+    if (!job) return { problem: 'Agent đang có job khác chạy' };
+    await this.process(job);
+    // Job đã ghi xong; tiến trình sắp thoát nên chờ các bộ gửi nền: sự kiện "kết thúc phiên" (tối đa 3 giây), mức dùng AI, transcript.
+    // Gửi lỗi → phần đó còn trong hàng chờ, `start` / `usage push` gửi sau.
+    await s.activity.drain();
+    await s.usage.flush();
+    await s.transcripts?.flush();
+    return { job: this.store.getJob(job.id)! };
+  }
+
   /** Chạy một job đã lấy khỏi hàng đợi bằng handler của loại job; lỗi ghi `failed`, runner dừng giữa phiên thì job về hàng đợi. */
   async process(job: Job): Promise<void> {
     const s = this.agents.get(job.agent)!;
@@ -247,7 +266,7 @@ export class Runner {
    * {@link MEETING_HOLD_SEC} giây rồi kiểm tra lại. Không hỏi được (tài khoản không phải bot, OfficeHub bản cũ) → coi như không họp.
    */
   private async heldByMeeting(s: AgentState, job: Job): Promise<boolean> {
-    let meeting: { inMeeting?: boolean } | undefined;
+    let meeting: MeetingState | undefined;
     try {
       meeting = await s.hub.myMeeting();
     } catch {
