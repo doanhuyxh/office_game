@@ -1,5 +1,5 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join } from 'node:path';
+import { delimiter, dirname, isAbsolute, join } from 'node:path';
 import { isInside } from './config';
 
 export interface Sh { code: number; out: string; err: string }
@@ -32,7 +32,7 @@ export class Git {
 
   /** PATH có thư mục của git cấu hình ở đầu → CLI agent, gh, hook đều gọi đúng git này. */
   pathWithGit(path: string | undefined) {
-    return isAbsolute(this.bin) ? [dirname(this.bin), path].filter(Boolean).join(':') : path ?? '';
+    return isAbsolute(this.bin) ? [dirname(this.bin), path].filter(Boolean).join(delimiter) : path ?? '';
   }
 
   /** Kiểm tra lúc khởi động: file chạy được + phiên bản. Lỗi → ném (runner không nhận việc). */
