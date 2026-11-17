@@ -2,7 +2,7 @@
 
 > Về [agent-runner.md](agent-runner.md) · [README](README.md) · phía máy chủ (hợp đồng, lưu, API đọc, giao diện): [ai-usage.md](ai-usage.md) · model thật: [agent-runner-model.md](agent-runner-model.md)
 
-Code: `agent-runner/src/usage.ts` (dựng phiên + `UsageReporter`), `store.ts` (cột, hàng chờ), `runner.ts` (`finishJob`, nhịp gửi lại), `cli.ts` (`usage push`). Test: `tests/usage.test.ts`, phần usage trong `flow.test.ts` / `meeting.test.ts`.
+Code: `agent-runner/src/hub/usage.ts` (dựng phiên + `UsageReporter`), `store.ts` (cột, hàng chờ), `runner.ts` (`finishJob`, nhịp gửi lại), `cli.ts` (`usage push`). Test: `tests/usage.test.ts`, phần usage trong `flow.test.ts` / `meeting.test.ts`.
 
 ## Khi nào gửi
 

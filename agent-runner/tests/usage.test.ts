@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { kindReportLines } from '../src/report';
 import { Store, type Job, type JobResult } from '../src/store';
-import { sourceHost, splitInput, UsageReporter, usageSession, usageUrl, type AiUsageSession } from '../src/usage';
+import { sourceHost, splitInput, UsageReporter, usageSession, usageUrl, type AiUsageSession } from '../src/hub/usage';
 
 const root = mkdtempSync(join(tmpdir(), 'runner-usage-'));
 afterAll(() => {

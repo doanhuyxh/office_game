@@ -1,4 +1,5 @@
-import { errText, log } from './log';
+import { log } from '../log';
+import { FailureLog, failureKey, HubEndpoint, type HubOutcome, hubUrl } from './endpoint';
 
 /**
  * Báo OfficeHub "bot đang làm / rảnh" để hiện trong văn phòng 3D (2026-11-13): đang làm → ngồi bàn, bong bóng "🛠 WEB-12 · Sửa code";
@@ -29,14 +30,20 @@ export class PresenceReporter {
   private disabled = false;
   private errorUnsupportedLogged = false;
   private sending = false;
-  readonly url: string;
+  private readonly endpoint: HubEndpoint;
+  private readonly failures: FailureLog;
 
   constructor(
     mcpUrl: string,
-    private readonly token: string,
+    token: string,
     private readonly agent: string,
   ) {
-    this.url = presenceUrl(mcpUrl);
+    this.endpoint = new HubEndpoint(mcpUrl, 'presence', token);
+    this.failures = new FailureLog(agent);
+  }
+
+  get url(): string {
+    return this.endpoint.url;
   }
 
   /** Bắt đầu: báo rảnh + nhịp còn sống. */
@@ -115,68 +122,63 @@ export class PresenceReporter {
     }
     this.sending = true;
     this.lastSent = Date.now();
-    const body = this.current;
-    let resend = false;
+    const sent = this.current;
+    let outcome: HubOutcome;
     try {
-      const res = await fetch(this.url, {
-        method: 'POST',
-        headers: { authorization: `Bearer ${this.token}`, 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (res.status === 401 || res.status === 403) {
-        this.disabled = true;
-        log(
-          'warn',
-          'OfficeHub không nhận trạng thái văn phòng 3D — ngừng báo (tài khoản chưa được HR đánh dấu là bot?)',
-          { agent: this.agent, status: res.status },
-        );
-      } else if (res.status === 404 || res.status === 405) {
-        // Máy chủ chưa có /mcp/presence (OfficeHub chưa deploy bản mới / reverse proxy chưa chuyển tiếp) — vẫn thử theo nhịp, tự chạy lại khi có
-        this.fail(
-          `status=${res.status}`,
-          'OfficeHub chưa có endpoint trạng thái văn phòng 3D — deploy bản mới + nginx `location = /mcp/presence`; runner vẫn thử lại theo nhịp',
-        );
-      } else if (res.status === 400 && body.state === 'error') {
-        // Máy chủ chưa nhận state "error" (bản trước TEST-118) → báo rảnh thay, không tắt báo trạng thái
-        if (!this.errorUnsupportedLogged) {
-          this.errorUnsupportedLogged = true;
-          log(
-            'warn',
-            'OfficeHub chưa nhận trạng thái lỗi của văn phòng 3D — báo rảnh thay (deploy bản mới để hiện ⚠)',
-            { agent: this.agent },
-          );
-        }
-        if (this.current === body) {
-          this.current = { state: 'idle' };
-          resend = true;
-        }
-      } else if (!res.ok) this.fail(`status=${res.status}`, 'báo trạng thái văn phòng 3D lỗi');
-      else if (this.lastError) {
-        log('info', 'báo trạng thái văn phòng 3D đã chạy lại', { agent: this.agent });
-        this.lastError = undefined;
-      }
-    } catch (e) {
-      this.fail(errText(e), 'báo trạng thái văn phòng 3D lỗi');
+      outcome = await this.endpoint.post(sent, SEND_TIMEOUT_MS);
     } finally {
       this.sending = false;
     }
-    if (resend) await this.flush();
+    if (this.handle(outcome, sent)) await this.flush();
   }
 
-  /** Lỗi giống lần trước → không ghi lại (nhịp còn sống 2 phút không làm đầy log). */
-  private lastError?: string;
-  private fail(key: string, msg: string) {
-    if (key === this.lastError) return;
-    this.lastError = key;
-    log('warn', msg, { agent: this.agent, error: key });
+  /** Xử lý kết quả gửi. Trả true = gửi lại ngay (vừa đổi `error` → `idle` cho máy chủ bản cũ). */
+  private handle(outcome: HubOutcome, sent: PresenceState): boolean {
+    if (outcome.status === 'ok') {
+      this.failures.recovered('báo trạng thái văn phòng 3D đã chạy lại');
+      return false;
+    }
+    if (outcome.status === 'denied') {
+      this.disabled = true;
+      log(
+        'warn',
+        'OfficeHub không nhận trạng thái văn phòng 3D — ngừng báo (tài khoản chưa được HR đánh dấu là bot?)',
+        { agent: this.agent, status: outcome.code },
+      );
+      return false;
+    }
+    if (outcome.status === 'missing') {
+      // OfficeHub chưa deploy bản mới / reverse proxy chưa chuyển tiếp — vẫn thử theo nhịp, tự chạy lại khi có
+      this.failures.warn(
+        failureKey(outcome),
+        'OfficeHub chưa có endpoint trạng thái văn phòng 3D — deploy bản mới + nginx `location = /mcp/presence`; runner vẫn thử lại theo nhịp',
+      );
+      return false;
+    }
+    if (outcome.code === 400 && sent.state === 'error') return this.fallBackToIdle(sent);
+    this.failures.warn(failureKey(outcome), 'báo trạng thái văn phòng 3D lỗi');
+    return false;
+  }
+
+  /** Máy chủ chưa nhận state "error" (bản trước TEST-118) → báo rảnh thay, không tắt báo trạng thái. Trả true = cần gửi `idle`. */
+  private fallBackToIdle(rejected: PresenceState): boolean {
+    if (!this.errorUnsupportedLogged) {
+      this.errorUnsupportedLogged = true;
+      log('warn', 'OfficeHub chưa nhận trạng thái lỗi của văn phòng 3D — báo rảnh thay (deploy bản mới để hiện ⚠)', {
+        agent: this.agent,
+      });
+    }
+    if (this.current !== rejected) return false; // đã có trạng thái mới hơn, lượt gửi kế lo
+    this.current = { state: 'idle' };
+    return true;
   }
 }
+
+/** Hạn một lần báo trạng thái. */
+const SEND_TIMEOUT_MS = 10_000;
 
 /** `http://host/mcp` → `http://host/mcp/presence`. */
-export function presenceUrl(mcpUrl: string): string {
-  return mcpUrl.replace(/\/+$/, '') + '/presence';
-}
+export const presenceUrl = (mcpUrl: string) => hubUrl(mcpUrl, 'presence');
 
 /**
  * Câu mô tả thao tác (adapter claude: "Đọc src/x.ts", "Chạy: bun test", "Nói: …") → nhãn thô cho bong bóng 3D.

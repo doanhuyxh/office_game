@@ -3,9 +3,9 @@
 Bộ điều phối agent của OfficeHub (TEST-44): nhận tin đánh thức Telegram khi việc được giao cho tài khoản bot, hỏi lại OfficeHub qua MCP,
 chạy CLI agent (Claude Code hoặc CLI tuỳ chỉnh) trong worktree riêng, push nhánh + mở PR, bình luận chi phí vào việc.
 Agent nghiệp vụ (không viết code) dùng `workspace.mode: none`: không repo / git / PR, CLI chỉ có tool MCP của OfficeHub.
-Văn phòng 3D (`src/presence.ts`): job việc đang chạy → bot ngồi bàn; xong → Khu nghỉ; job hỏng (hết giờ, CLI lỗi, không push / tạo PR được,
+Văn phòng 3D (`src/hub/presence.ts`): job việc đang chạy → bot ngồi bàn; xong → Khu nghỉ; job hỏng (hết giờ, CLI lỗi, không push / tạo PR được,
 workspace chưa sẵn sàng, runner lỗi) → `state: "error"` kèm loại lỗi ngắn, bot ở bàn với bong bóng ⚠ tới job kế (TEST-121).
-Sau mỗi phiên (việc / chat / họp) runner gửi chi phí / token lên OfficeHub (`src/usage.ts`, `POST <mcp_url>/usage`, trang "Mức dùng AI"); `usage push` gửi bù lịch sử.
+Sau mỗi phiên (việc / chat / họp) runner gửi chi phí / token lên OfficeHub (`src/hub/usage.ts`, `POST <mcp_url>/usage`, trang "Mức dùng AI"); `usage push` gửi bù lịch sử.
 Runner cũng nhận tin `chat_mention` (người thật @nhắc bot trong chat) và `meeting_turn` (tới lượt nói trong cuộc họp agent): mỗi tin một phiên ngắn chỉ có tool MCP.
 
 ```bash

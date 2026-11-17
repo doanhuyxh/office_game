@@ -7,7 +7,7 @@ import { errText, log, setLogFormat } from './log';
 import { KIND_LABEL, kindReportLines } from './report';
 import { Runner } from './runner';
 import { Store } from './store';
-import { USAGE_MAX_SESSIONS, usageSession } from './usage';
+import { USAGE_MAX_SESSIONS, usageSession } from './hub/usage';
 
 const HELP = `officehub-agent-runner — bộ điều phối agent (TEST-44)
 

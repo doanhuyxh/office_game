@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { claudeProjectDir } from '../src/executor/adapters/claude';
 import { registerSecret } from '../src/log';
 import { Store } from '../src/store';
-import { TranscriptReporter, redactTranscript, sha256Hex, transcriptFile } from '../src/transcript';
+import { TranscriptReporter, redactTranscript, sha256Hex, transcriptFile } from '../src/hub/transcript';
 
 const root = mkdtempSync(join(tmpdir(), 'runner-transcript-'));
 const TOKEN = 'ohk_transcript_test_token';

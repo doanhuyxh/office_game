@@ -4,7 +4,7 @@ import { type AgentConfig, isInside, lightExecutor, type RunnerConfig } from '..
 import { projectFilesAbove, workDir } from '../core/paths';
 import { userClaudeExtras } from '../home-check';
 import { errText } from '../log';
-import type { OfficeHubClient } from '../officehub';
+import type { OfficeHubClient } from '../hub/client';
 import type { TelegramClient } from '../telegram';
 import { type Git, installHooks, mainBranchWarning, removeHooks, sh } from '../workspace';
 import { CheckFailed, type Finding, Report } from './finding';

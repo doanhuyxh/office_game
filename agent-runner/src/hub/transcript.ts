@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { claudeProjectDir } from './executor/adapters/claude';
-import { mask } from './executor/events';
-import { errText, log } from './log';
-import { RESUME_MAX_GAP_MIN } from './prompt/common';
-import type { Store } from './store';
+import { claudeProjectDir } from '../executor/adapters/claude';
+import { mask } from '../executor/events';
+import { errText, log } from '../log';
+import { RESUME_MAX_GAP_MIN } from '../prompt/common';
+import type { Store } from '../store';
+import { FailureLog, failureKey, HubEndpoint, hubUrl } from './endpoint';
 
 /**
  * Transcript phiên agent lên cloud (TEST-144, chủ dự án chốt 2026-11-17: lưu cả transcript, 90 ngày, máy chủ mã hoá như lương, admin + HR xem).
@@ -60,7 +61,7 @@ export function transcriptFile(home: string, cwd: string, sessionId: string): st
 export const sha256Hex = (b: Uint8Array) => createHash('sha256').update(b).digest('hex');
 
 /** `http://host/mcp` → `http://host/mcp/transcripts`. */
-export const transcriptUrl = (mcpUrl: string) => mcpUrl.replace(/\/+$/, '') + '/transcripts';
+export const transcriptUrl = (mcpUrl: string) => hubUrl(mcpUrl, 'transcripts');
 
 /** Bản đã lưu trên cloud (GET) — khớp `AgentTranscriptDto`. */
 export interface CloudTranscript {
@@ -76,18 +77,23 @@ export class TranscriptReporter {
   private disabled = false;
   private sending?: Promise<number>;
   private again = false;
-  private lastError?: string;
-  readonly url: string;
+  private readonly endpoint: HubEndpoint;
+  private readonly failures: FailureLog;
 
   /** `home` = HOME của CLI agent (nơi Claude Code ghi transcript). */
   constructor(
     mcpUrl: string,
-    private readonly token: string,
+    token: string,
     readonly agent: string,
     private readonly store: Store,
     private readonly home: string,
   ) {
-    this.url = transcriptUrl(mcpUrl);
+    this.endpoint = new HubEndpoint(mcpUrl, 'transcripts', token);
+    this.failures = new FailureLog(agent);
+  }
+
+  get url(): string {
+    return this.endpoint.url;
   }
 
   get isDisabled() {
@@ -171,46 +177,34 @@ export class TranscriptReporter {
   }
 
   private async post(body: Record<string, unknown>): Promise<'ok' | 'invalid' | 'retry' | 'denied'> {
-    let res: Response;
-    try {
-      res = await fetch(this.url, {
-        method: 'POST',
-        headers: { authorization: `Bearer ${this.token}`, 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(120_000),
-      });
-    } catch (e) {
-      this.fail(errText(e), 'gửi transcript lỗi — thử lại sau');
-      return 'retry';
-    }
-    if (res.ok) {
-      this.lastError = undefined;
+    const outcome = await this.endpoint.post(body, UPLOAD_TIMEOUT_MS);
+    if (outcome.status === 'ok') {
+      this.failures.clear();
       return 'ok';
     }
-    if (res.status === 400 || res.status === 413) {
+    if (outcome.status === 'invalid') {
       log('warn', 'OfficeHub từ chối transcript — bỏ qua', {
         agent: this.agent,
         key: body.key,
-        status: res.status,
-        error: (await res.text().catch(() => '')).slice(0, 300),
+        status: outcome.code,
+        error: outcome.detail,
       });
       return 'invalid';
     }
-    if (res.status === 401 || res.status === 403) {
+    if (outcome.status === 'denied') {
       this.disabled = true;
       log(
         'warn',
         'OfficeHub không nhận transcript — ngừng gửi cho agent này (token sai / tài khoản chưa được HR đánh dấu là bot?)',
-        { agent: this.agent, status: res.status },
+        { agent: this.agent, status: outcome.code },
       );
       return 'denied';
     }
-    if (res.status === 404 || res.status === 405)
-      this.fail(
-        `status=${res.status}`,
-        'OfficeHub chưa có endpoint transcript — deploy bản mới + nginx `location = /mcp/transcripts`; runner giữ hàng chờ',
-      );
-    else this.fail(`status=${res.status}`, 'gửi transcript lỗi — thử lại sau');
+    const hint =
+      outcome.status === 'missing'
+        ? 'OfficeHub chưa có endpoint transcript — deploy bản mới + nginx `location = /mcp/transcripts`; runner giữ hàng chờ'
+        : 'gửi transcript lỗi — thử lại sau';
+    this.failures.warn(failureKey(outcome), hint);
     return 'retry';
   }
 
@@ -220,16 +214,17 @@ export class TranscriptReporter {
    */
   async restore(key: string, cwd: string): Promise<string | undefined> {
     if (this.disabled) return undefined;
+    const outcome = await this.endpoint.get({ key }, DOWNLOAD_TIMEOUT_MS);
+    if (outcome.status !== 'ok') {
+      // 404 = chưa có bản; mã lỗi khác → phiên mới (không chặn job). Chỉ lỗi mạng mới đáng ghi log.
+      if (outcome.status === 'error' && outcome.code === undefined) this.downloadFailed(key, outcome.detail);
+      return undefined;
+    }
     let dto: CloudTranscript;
     try {
-      const res = await fetch(`${this.url}?key=${encodeURIComponent(key)}`, {
-        headers: { authorization: `Bearer ${this.token}` },
-        signal: AbortSignal.timeout(60_000),
-      });
-      if (!res.ok) return undefined; // 404 = chưa có bản; lỗi khác → phiên mới (không chặn job)
-      dto = (await res.json()) as CloudTranscript;
+      dto = (await outcome.response.json()) as CloudTranscript;
     } catch (e) {
-      log('warn', 'không tải được transcript từ cloud — mở phiên mới', { agent: this.agent, key, error: errText(e) });
+      this.downloadFailed(key, errText(e));
       return undefined;
     }
     const gapMin = (Date.now() - Date.parse(dto.updatedAt)) / 60_000;
@@ -246,9 +241,11 @@ export class TranscriptReporter {
     return dto.sessionId;
   }
 
-  private fail(key: string, msg: string) {
-    if (key === this.lastError) return;
-    this.lastError = key;
-    log('warn', msg, { agent: this.agent, error: key });
+  private downloadFailed(key: string, error: string) {
+    log('warn', 'không tải được transcript từ cloud — mở phiên mới', { agent: this.agent, key, error });
   }
 }
+
+/** Hạn tải lên / tải về một transcript (tới 6 MB sau nén). */
+const UPLOAD_TIMEOUT_MS = 120_000;
+const DOWNLOAD_TIMEOUT_MS = 60_000;

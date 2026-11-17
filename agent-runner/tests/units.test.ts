@@ -868,7 +868,7 @@ describe('store', () => {
 
 describe('presence (văn phòng 3D: đang làm / rảnh)', () => {
   test('nhãn thô — không lộ lệnh / đường dẫn / lời agent', async () => {
-    const { activityLabel, presenceUrl } = await import('../src/presence');
+    const { activityLabel, presenceUrl } = await import('../src/hub/presence');
     expect(activityLabel('Đọc src/secret/key.ts')).toBe('Đọc code');
     expect(activityLabel('Sửa backend/x.cs')).toBe('Sửa code');
     expect(activityLabel('Chạy: cd backend && dotnet test')).toBe('Chạy kiểm thử');
@@ -882,7 +882,7 @@ describe('presence (văn phòng 3D: đang làm / rảnh)', () => {
   });
 
   test('gộp theo nhịp, đổi việc / hết việc gửi ngay, 403 → ngừng báo', async () => {
-    const { PresenceReporter } = await import('../src/presence');
+    const { PresenceReporter } = await import('../src/hub/presence');
     const got: any[] = [];
     let status = 204;
     const srv = Bun.serve({
@@ -926,7 +926,7 @@ describe('presence (văn phòng 3D: đang làm / rảnh)', () => {
 });
 
 test('presence: lỗi job → error gửi ngay, giữ qua idle() và nhịp còn sống, job kế / start() xoá; 400 (máy chủ cũ) → gửi idle (TEST-121)', async () => {
-  const { PresenceReporter } = await import('../src/presence');
+  const { PresenceReporter } = await import('../src/hub/presence');
   const got: any[] = [];
   let rejectError = false;
   const srv = Bun.serve({
@@ -1005,7 +1005,7 @@ test('presenceFailure: loại lỗi ngắn theo kết quả phiên', async () =>
 });
 
 test('presence: máy chủ chưa có endpoint (405) → ghi log một lần, vẫn thử lại, có lại thì báo chạy lại', async () => {
-  const { PresenceReporter } = await import('../src/presence');
+  const { PresenceReporter } = await import('../src/hub/presence');
   let status = 405,
     hits = 0;
   const srv = Bun.serve({

@@ -1,5 +1,6 @@
-import type { ActivityEvent } from './executor/events';
-import { errText, log } from './log';
+import type { ActivityEvent } from '../executor/events';
+import { errText, log } from '../log';
+import { FailureLog, failureKey, HubEndpoint, hubUrl, isTransient } from './endpoint';
 
 /**
  * Gửi sự kiện "agent đang làm gì" lên OfficeHub để người đứng gần bot trong văn phòng 3D xem trực tiếp (TEST-99).
@@ -27,17 +28,22 @@ export class ActivitySender {
   private timer?: ReturnType<typeof setTimeout>;
   private sending?: Promise<void>;
   private disabled = false;
-  private lastError?: string;
   private dropped = 0;
-  readonly url: string;
+  private readonly endpoint: HubEndpoint;
+  private readonly failures: FailureLog;
 
   constructor(
     mcpUrl: string,
-    private readonly token: string,
+    token: string,
     private readonly agent: string,
     private readonly enabled = true,
   ) {
-    this.url = activityUrl(mcpUrl);
+    this.endpoint = new HubEndpoint(mcpUrl, 'activity', token);
+    this.failures = new FailureLog(agent);
+  }
+
+  get url(): string {
+    return this.endpoint.url;
   }
 
   /** Còn gửi không (cấu hình bật, chưa bị 401 / 403). */
@@ -64,7 +70,7 @@ export class ActivitySender {
           this.kick();
         }, ActivitySender.intervalMs);
     } catch (err) {
-      this.fail('push', `gửi hoạt động xem trực tiếp lỗi nội bộ: ${errText(err)}`, 0);
+      this.internalError('push', err);
     }
   }
 
@@ -77,11 +83,9 @@ export class ActivitySender {
   /** Khởi động một lượt gửi ở nền; lỗi bất ngờ chỉ ghi log (không để thành unhandled rejection làm sập runner). */
   private kick() {
     try {
-      void this.flush().catch((err) =>
-        this.fail('flush', `gửi hoạt động xem trực tiếp lỗi nội bộ: ${errText(err)}`, 0),
-      );
+      void this.flush().catch((err) => this.internalError('flush', err));
     } catch (err) {
-      this.fail('flush', `gửi hoạt động xem trực tiếp lỗi nội bộ: ${errText(err)}`, 0);
+      this.internalError('flush', err);
     }
   }
 
@@ -150,66 +154,52 @@ export class ActivitySender {
     return this.queue.splice(0, n);
   }
 
+  /** Gửi một lô; lỗi mạng / 429 / 5xx → thử lại 1 lần rồi bỏ lô. */
   private async send(events: ActivityEvent[]): Promise<void> {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      if (attempt > 0) await new Promise((r) => setTimeout(r, ActivitySender.retryDelayMs));
-      let status: number | undefined, error: string | undefined;
-      try {
-        const res = await fetch(this.url, {
-          method: 'POST',
-          headers: { authorization: `Bearer ${this.token}`, 'content-type': 'application/json' },
-          body: JSON.stringify({ events }),
-          signal: AbortSignal.timeout(5_000),
-        });
-        status = res.status;
-      } catch (e) {
-        error = errText(e);
-      }
-      if (status !== undefined && status >= 200 && status < 300) {
-        if (this.lastError) {
-          log('info', 'gửi hoạt động xem trực tiếp đã chạy lại', { agent: this.agent });
-          this.lastError = undefined;
-        }
-        if (this.dropped) {
-          log('warn', 'hàng chờ hoạt động xem trực tiếp đầy — đã bỏ sự kiện cũ', {
-            agent: this.agent,
-            dropped: this.dropped,
-          });
-          this.dropped = 0;
-        }
-        return;
-      }
-      if (status === 401 || status === 403) {
-        this.disabled = true;
-        this.queue = [];
-        log(
-          'warn',
-          'OfficeHub không nhận hoạt động xem trực tiếp — ngừng gửi (tài khoản chưa được HR đánh dấu là bot?)',
-          { agent: this.agent, status },
-        );
-        return;
-      }
-      const retryable = status === undefined || status === 429 || status >= 500;
-      if (!retryable || attempt === 1) {
-        const hint =
-          status === 404 || status === 405
-            ? 'OfficeHub chưa có endpoint /mcp/activity — deploy bản mới + nginx chuyển tiếp'
-            : 'gửi hoạt động xem trực tiếp lỗi — bỏ lô';
-        this.fail(status !== undefined ? `status=${status}` : error!, hint, events.length);
-        return;
-      }
+    let outcome = await this.endpoint.post({ events }, SEND_TIMEOUT_MS);
+    if (outcome.status !== 'ok' && isTransient(outcome)) {
+      await new Promise((r) => setTimeout(r, ActivitySender.retryDelayMs));
+      outcome = await this.endpoint.post({ events }, SEND_TIMEOUT_MS);
     }
+    if (outcome.status === 'ok') {
+      this.failures.recovered('gửi hoạt động xem trực tiếp đã chạy lại');
+      this.reportDropped();
+      return;
+    }
+    if (outcome.status === 'denied') {
+      this.disabled = true;
+      this.queue = [];
+      log(
+        'warn',
+        'OfficeHub không nhận hoạt động xem trực tiếp — ngừng gửi (tài khoản chưa được HR đánh dấu là bot?)',
+        { agent: this.agent, status: outcome.code },
+      );
+      return;
+    }
+    const hint =
+      outcome.status === 'missing'
+        ? 'OfficeHub chưa có endpoint /mcp/activity — deploy bản mới + nginx chuyển tiếp'
+        : 'gửi hoạt động xem trực tiếp lỗi — bỏ lô';
+    this.failures.warn(failureKey(outcome), hint, { events: events.length });
   }
 
-  /** Lỗi giống lần trước → không ghi lại (mỗi giây một lô, không làm đầy log). */
-  private fail(key: string, msg: string, count: number) {
-    if (key === this.lastError) return;
-    this.lastError = key;
-    log('warn', msg, { agent: this.agent, error: key, events: count });
+  private reportDropped() {
+    if (!this.dropped) return;
+    log('warn', 'hàng chờ hoạt động xem trực tiếp đầy — đã bỏ sự kiện cũ', {
+      agent: this.agent,
+      dropped: this.dropped,
+    });
+    this.dropped = 0;
+  }
+
+  /** Lỗi nội bộ của bộ gửi (không phải lỗi máy chủ) — chỉ ghi log, không bao giờ ném ra job. */
+  private internalError(where: 'push' | 'flush', err: unknown) {
+    this.failures.warn(where, `gửi hoạt động xem trực tiếp lỗi nội bộ: ${errText(err)}`, { events: 0 });
   }
 }
+
+/** Hạn gửi một lô. */
+const SEND_TIMEOUT_MS = 5_000;
 
 /** `http://host/mcp` → `http://host/mcp/activity`. */
-export function activityUrl(mcpUrl: string): string {
-  return mcpUrl.replace(/\/+$/, '') + '/activity';
-}
+export const activityUrl = (mcpUrl: string) => hubUrl(mcpUrl, 'activity');

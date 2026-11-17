@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
-import { ActivitySender, activityUrl } from '../src/activity';
+import { ActivitySender, activityUrl } from '../src/hub/activity';
 import type { ActivityEvent } from '../src/executor/events';
 import { parseConfig } from '../src/config';
 import { baseRaw } from './units.test';

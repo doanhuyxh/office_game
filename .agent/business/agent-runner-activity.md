@@ -1,7 +1,7 @@
 # agent-runner: sự kiện "agent đang làm gì" (xem trực tiếp trong 3D)
 
 > Về [agent-runner.md](agent-runner.md) · phía OfficeHub (hợp đồng, đệm, ai được xem): [office-bots-activity.md](office-bots-activity.md) · bong bóng nhãn thô: [office-bots-work.md](office-bots-work.md).
-> Code: `agent-runner/src/executor/events.ts` (kiểu, che bí mật, cắt, phiên), `executor/adapters/claude-events.ts` (stream-json → sự kiện), `executor/run.ts` (`onEvent`), `src/activity.ts` (`ActivitySender` — gom lô + gửi), `runner.ts` (`runSession`). Test `tests/events.test.ts`, `tests/activity.test.ts`, luồng `flow.test.ts` / `meeting.test.ts`.
+> Code: `agent-runner/src/executor/events.ts` (kiểu, che bí mật, cắt, phiên), `executor/adapters/claude-events.ts` (stream-json → sự kiện), `executor/run.ts` (`onEvent`), `src/hub/activity.ts` (`ActivitySender` — gom lô + gửi), `runner.ts` (`runSession`). Test `tests/events.test.ts`, `tests/activity.test.ts`, luồng `flow.test.ts` / `meeting.test.ts`.
 
 Chủ dự án duyệt 2026-11-14: bấm vào bot trong văn phòng 3D → thấy trực tiếp lệnh, file đang sửa, suy nghĩ, lời agent. **Ai đứng trong phạm vi nghe được của bot cũng xem được, không lưu lịch sử, có hiện suy nghĩ.** Vì vậy mọi thứ runner gửi đi phải coi như công khai trong công ty.
 
@@ -51,7 +51,7 @@ Khớp `BotActivityEvent` (`backend/.../BuildingBlocks/Office/BotActivityFeed.cs
 - **Gom lô**: mỗi **1 giây** hoặc ngay khi đủ **50** sự kiện; thân ≤ 240 KB (máy chủ nhận 256 KB) → chia lô; mỗi lúc một request, giữ thứ tự (máy chủ giới hạn 5 lần / giây / token).
 - **Hàng chờ** ≤ 500 sự kiện; đầy → bỏ cũ nhất (ghi log số đã bỏ).
 - **Lỗi**: mạng / 5xx / 429 → thử lại lô đó 1 lần (sau 0,5 giây) rồi bỏ; 400 / 404 / lỗi khác → bỏ lô; lỗi giống lần trước không ghi log lại. **401 / 403 → ngừng gửi** cho agent đó tới khi khởi động lại runner. Không bao giờ ném lỗi ra job.
-- **Tắt**: `runner.activity_stream: false` trong `agents.yaml` (mặc định `true`) → không gửi gì, `onEvent` không gắn. Bong bóng nhãn thô (`presence.ts`) và `activity.log` không đổi.
+- **Tắt**: `runner.activity_stream: false` trong `agents.yaml` (mặc định `true`) → không gửi gì, `onEvent` không gắn. Bong bóng nhãn thô (`hub/presence.ts`) và `activity.log` không đổi.
 - Máy chủ chưa deploy `/mcp/activity` (404) → log một lần "deploy bản mới + nginx chuyển tiếp", job vẫn chạy bình thường.
 
 Giới hạn đã biết: bí mật không theo mẫu nào và chưa đăng ký (vd agent `echo` một giá trị lạ) vẫn lọt; thêm mẫu vào `mask()` khi gặp.

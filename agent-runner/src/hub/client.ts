@@ -1,4 +1,4 @@
-import { errText } from './log';
+import { errText } from '../log';
 
 /**
  * Gọi tool MCP của OfficeHub bằng token AI của agent (JSON-RPC qua HTTP, phản hồi JSON hoặc SSE).

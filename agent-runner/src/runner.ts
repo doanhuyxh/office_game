@@ -9,10 +9,10 @@ import { modelLine, modelMatches } from './executor/model';
 import { adapters, runExecutor, type RunOutcome } from './executor/run';
 import type { ExecutorConfig } from './config';
 import { errText, log, redact, registerSecret } from './log';
-import { OfficeHubClient } from './officehub';
-import { ActivitySender } from './activity';
+import { OfficeHubClient } from './hub/client';
+import { ActivitySender } from './hub/activity';
 import { sessionEnd, sessionStart } from './executor/events';
-import { PresenceReporter } from './presence';
+import { PresenceReporter } from './hub/presence';
 import { buildPrompt, mcpConfig } from './prompt';
 import { RESUME_MAX_GAP_MIN } from './prompt/common';
 import { chatPrompt } from './prompt/chat';
@@ -20,8 +20,8 @@ import { meetingPrompt } from './prompt/meeting';
 import { MCP_SYSTEM_PROMPT } from './prompt/system';
 import { Store, type Job } from './store';
 import { TelegramClient, type TgMessage } from './telegram';
-import { TranscriptReporter } from './transcript';
-import { USAGE_RETRY_MS, UsageReporter, sourceHost } from './usage';
+import { TranscriptReporter } from './hub/transcript';
+import { USAGE_RETRY_MS, UsageReporter, sourceHost } from './hub/usage';
 import {
   checkChat,
   checkMeeting,

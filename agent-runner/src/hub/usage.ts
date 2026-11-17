@@ -1,7 +1,8 @@
 import { hostname } from 'node:os';
-import { errText, log } from './log';
-import type { Job, Store } from './store';
-import type { ModelUse } from './executor/types';
+import { log } from '../log';
+import type { Job, Store } from '../store';
+import { FailureLog, failureKey, HubEndpoint, hubUrl } from './endpoint';
+import type { ModelUse } from '../executor/types';
 
 /**
  * Gửi mức dùng AI (chi phí / token) của từng phiên agent lên OfficeHub (TEST-135) — xem theo ngày / tháng / năm, theo model ở
@@ -139,9 +140,7 @@ export function usageSession(job: Job, host: string, dbId: string, fallbackExecu
 }
 
 /** `http://host/mcp` → `http://host/mcp/usage`. */
-export function usageUrl(mcpUrl: string): string {
-  return mcpUrl.replace(/\/+$/, '') + '/usage';
-}
+export const usageUrl = (mcpUrl: string) => hubUrl(mcpUrl, 'usage');
 
 export interface UsageFlushResult {
   sent: number;
@@ -161,17 +160,22 @@ export class UsageReporter {
   private disabled = false;
   private sending?: Promise<UsageFlushResult>;
   private again = false;
-  private lastError?: string;
-  readonly url: string;
+  private readonly endpoint: HubEndpoint;
+  private readonly failures: FailureLog;
 
   constructor(
     mcpUrl: string,
-    private readonly token: string,
+    token: string,
     readonly agent: string,
     private readonly store: Store,
     private readonly source: { host: string; dbId: string; executor?: string },
   ) {
-    this.url = usageUrl(mcpUrl);
+    this.endpoint = new HubEndpoint(mcpUrl, 'usage', token);
+    this.failures = new FailureLog(agent);
+  }
+
+  get url(): string {
+    return this.endpoint.url;
   }
 
   get isDisabled() {
@@ -244,77 +248,58 @@ export class UsageReporter {
         });
       }
     }
-    if (out.sent && this.lastError) {
-      log('info', 'gửi mức dùng AI đã chạy lại', { agent: this.agent });
-      this.lastError = undefined;
-    }
+    if (out.sent) this.failures.recovered('gửi mức dùng AI đã chạy lại');
     return out;
   }
 
-  private async send(jobs: Job[]): Promise<{ status: 'ok' | 'invalid' | 'retry' | 'denied'; detail: string }> {
+  private async send(jobs: Job[]): Promise<SendResult> {
     const body = {
       sessions: jobs.map((j) => usageSession(j, this.source.host, this.source.dbId, this.source.executor)),
     };
-    let res: Response;
-    try {
-      res = await fetch(this.url, {
-        method: 'POST',
-        headers: { authorization: `Bearer ${this.token}`, 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(20_000),
-      });
-    } catch (e) {
-      return this.fail(errText(e), 'gửi mức dùng AI lỗi — thử lại sau');
-    }
-    if (res.ok) {
-      const a = (await res.json().catch(() => undefined)) as
+    const outcome = await this.endpoint.post(body, SEND_TIMEOUT_MS);
+    if (outcome.status === 'ok') {
+      const accepted = (await outcome.response.json().catch(() => undefined)) as
         | { accepted?: number; created?: number; updated?: number }
         | undefined;
       log('info', 'đã gửi mức dùng AI', {
         agent: this.agent,
         sessions: jobs.length,
-        created: a?.created,
-        updated: a?.updated,
+        created: accepted?.created,
+        updated: accepted?.updated,
       });
       return { status: 'ok', detail: '' };
     }
-    const detail = await problemDetail(res);
-    if (res.status === 400 || res.status === 413)
-      return { status: 'invalid', detail: `${res.status} ${detail}`.trim() };
-    if (res.status === 401 || res.status === 403) {
+    const codeAndDetail = `${outcome.code ?? ''} ${outcome.detail}`.trim();
+    if (outcome.status === 'invalid') return { status: 'invalid', detail: codeAndDetail };
+    if (outcome.status === 'denied') {
       this.disabled = true;
       log(
         'warn',
         'OfficeHub không nhận mức dùng AI — ngừng gửi cho agent này (token sai / tài khoản chưa được HR đánh dấu là bot?)',
-        { agent: this.agent, status: res.status, error: detail },
+        { agent: this.agent, status: outcome.code, error: outcome.detail },
       );
-      return { status: 'denied', detail: `${res.status} ${detail}`.trim() };
+      return { status: 'denied', detail: codeAndDetail };
     }
-    if (res.status === 404 || res.status === 405)
-      return this.fail(
-        `status=${res.status}`,
+    if (outcome.status === 'missing')
+      return this.retryLater(
+        failureKey(outcome),
         'OfficeHub chưa có endpoint mức dùng AI — deploy bản mới + nginx `location = /mcp/usage`; runner giữ phiên và thử lại sau',
       );
-    return this.fail(`status=${res.status} ${detail}`.trim(), 'gửi mức dùng AI lỗi — thử lại sau');
+    const key = outcome.code === undefined ? outcome.detail : `${failureKey(outcome)} ${outcome.detail}`.trim();
+    return this.retryLater(key, 'gửi mức dùng AI lỗi — thử lại sau');
   }
 
-  /** Lỗi giống lần trước → không ghi lại (nhịp 5 phút không làm đầy log). */
-  private fail(key: string, msg: string): { status: 'retry'; detail: string } {
-    if (key !== this.lastError) {
-      this.lastError = key;
-      log('warn', msg, { agent: this.agent, error: key });
-    }
+  /** Giữ phiên, thử lại ở nhịp sau; lỗi giống lần trước không ghi lại (nhịp 5 phút không làm đầy log). */
+  private retryLater(key: string, message: string): SendResult {
+    this.failures.warn(key, message);
     return { status: 'retry', detail: key };
   }
 }
 
-/** Câu lỗi `detail` của ProblemDetails (máy chủ trả tiếng Việt), không có → rỗng. */
-async function problemDetail(res: Response): Promise<string> {
-  try {
-    const text = await res.text();
-    const d = JSON.parse(text)?.detail;
-    return typeof d === 'string' ? d.slice(0, 300) : text.slice(0, 200);
-  } catch {
-    return '';
-  }
+interface SendResult {
+  status: 'ok' | 'invalid' | 'retry' | 'denied';
+  detail: string;
 }
+
+/** Hạn gửi một lô phiên. */
+const SEND_TIMEOUT_MS = 20_000;
