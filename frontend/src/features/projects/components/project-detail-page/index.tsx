@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useSearch } from '@tanstack/react-router';
-import { ArrowLeft, FolderOpen, Pencil } from 'lucide-react';
+import { ArrowLeft, FolderOpen, Pencil, RefreshCw } from 'lucide-react';
+import { type Query, useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { Markdown } from '@/components/common/markdown';
 import { Button } from '@/components/common/button';
 import { StatusBadge } from '@/components/common/StatusBadge';
@@ -26,6 +27,13 @@ import { ProjectFormDialog } from '../project-form-dialog';
 import { ProjectOverview } from '../project-overview';
 import { TaskBoard } from '../task-board';
 
+/** Query của dự án đang xem: mọi key `projectKeys.*` chứa id dự án (detail, tasks, effort, financials, installments, changeRequests, appendix)
+ *  + hộp thoại việc đang mở (`projectKeys.task` / `comments` — key theo id việc, chỉ lấy query đang có người dùng). */
+const projectQueryFilter = (projectId: string) => ({
+  predicate: (q: Query) => q.queryKey[0] === 'projects'
+    && (q.queryKey.includes(projectId) || ((q.queryKey[1] === 'task' || q.queryKey[1] === 'comments') && q.getObserversCount() > 0)),
+});
+
 /** /projects/$projectId: Công việc · Tổng quan (mô tả Markdown + thông tin nhanh) · Hướng dẫn làm việc · Mốc nghiệm thu · Thay đổi (CR) · Thành viên · Ngày công / Tài chính (theo myAccess) · Phụ lục (phòng ban, thành viên, quyền hạn). */
 export function ProjectDetailPage() {
   const { projectId } = useParams({ strict: false }) as { projectId: string };
@@ -38,6 +46,10 @@ export function ProjectDetailPage() {
   const canFinance = access.includes('finance') && finance.view;
   const [tab, setTab] = useTabParam('tasks', ['tasks', 'overview', 'guide', 'milestones', 'changes', 'members', 'appendix', ...(canEffort ? ['effort'] : []), ...(canFinance ? ['finance'] : [])]);
   const [editing, setEditing] = useState(false);
+  // "Làm mới" (TEST-150): đánh dấu cũ mọi query của dự án → query đang mở tải lại, query khác chỉ bị đánh dấu (không gọi API thừa).
+  // Tab / bộ lọc / vị trí cuộn giữ nguyên vì không remount.
+  const qc = useQueryClient();
+  const reloading = useIsFetching(projectQueryFilter(projectId)) > 0;
   // Link chuông ?task=… (TEST-66) → luôn ở tab Công việc để hộp thoại việc mở được
   const openTask = (useSearch({ strict: false }) as { task?: string }).task;
   useEffect(() => { if (openTask && tab !== 'tasks') setTab('tasks'); }, [openTask, tab, setTab]);
@@ -66,7 +78,9 @@ export function ProjectDetailPage() {
         </div>
       </div>
       <Tabs value={openTask ? 'tasks' : tab} onValueChange={setTab}>
-        <PageToolbar>
+        <PageToolbar actions={<Button size="sm" variant="outline" disabled={reloading} data-testid="project-reload"
+          onClick={() => void qc.invalidateQueries(projectQueryFilter(projectId))}>
+          <RefreshCw className={reloading ? 'animate-spin' : undefined} /> Làm mới</Button>}>
           <TabsList>
             <TabsTrigger value="tasks">Công việc ({p.tasks.open})</TabsTrigger>
             <TabsTrigger value="overview">Tổng quan</TabsTrigger>
