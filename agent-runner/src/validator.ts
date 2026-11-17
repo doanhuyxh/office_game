@@ -28,7 +28,56 @@ export type Wake = ({ kind: 'task' } & WakeData) | ({ kind: 'chat' } & ChatWake)
 export type Check<T> = { ok: true; value: T } | { ok: false; reason: string };
 
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const KEYS = ['employee_code', 'project_id', 'task_id', 'task_code'];
+
+/**
+ * Hình dạng dòng JSON của một loại tin đánh thức: trường chuỗi bắt buộc, trường nào phải là GUID, kiểm tra riêng (nếu có) và cách dựng
+ * {@link Wake}. Thêm loại tin mới = thêm một mục vào {@link EVENT_SHAPES}.
+ */
+interface WakeShape {
+  keys: string[];
+  guids: string[];
+  /** Kiểm tra thêm; trả lý do nếu không đạt. */
+  invalid?(d: Record<string, string>): string | undefined;
+  build(d: Record<string, string>): Wake;
+}
+
+/** Tin việc (không có `event`, hoặc `event` assigned / returned / ready / mentioned). */
+const TASK_SHAPE: WakeShape = {
+  keys: ['employee_code', 'project_id', 'task_id', 'task_code'],
+  guids: ['project_id', 'task_id'],
+  invalid: (d) => (/^[A-Z0-9]+-\d+$/i.test(d.task_code!) ? undefined : 'task_code sai dạng'),
+  build: (d) => ({
+    kind: 'task',
+    employee_code: d.employee_code!,
+    project_id: d.project_id!,
+    task_id: d.task_id!,
+    task_code: d.task_code!,
+  }),
+};
+
+/** Loại tin theo trường `event`; `event` khác → {@link TASK_SHAPE}. */
+const EVENT_SHAPES: Record<string, WakeShape> = {
+  chat_mention: {
+    keys: ['employee_code', 'conversation_id', 'message_id'],
+    guids: ['conversation_id', 'message_id'],
+    build: (d) => ({
+      kind: 'chat',
+      employee_code: d.employee_code!,
+      conversation_id: d.conversation_id!.toLowerCase(),
+      message_id: d.message_id!,
+    }),
+  },
+  meeting_turn: {
+    keys: ['employee_code', 'session_id', 'conversation_id'],
+    guids: ['session_id', 'conversation_id'],
+    build: (d) => ({
+      kind: 'meeting',
+      employee_code: d.employee_code!,
+      session_id: d.session_id!.toLowerCase(),
+      conversation_id: d.conversation_id!,
+    }),
+  },
+};
 
 /**
  * Bước 1 (không gọi mạng): đúng nhóm + có dòng JSON hợp lệ có `employee_code` trùng mã của agent. KHÔNG kiểm người gửi / dòng nhắc bot:
@@ -36,72 +85,31 @@ const KEYS = ['employee_code', 'project_id', 'task_id', 'task_code'];
  * Tin không đạt bị bỏ qua (log lý do), KHÔNG trả lời vào nhóm.
  */
 export function parseWake(msg: TgMessage, opts: { groupChatId: string; employeeCode: string }): Check<Wake> {
-  if (String(msg.chat.id) !== opts.groupChatId) return { ok: false, reason: `sai nhóm (${msg.chat.id})` };
+  const fail = (reason: string) => ({ ok: false as const, reason });
+  if (String(msg.chat.id) !== opts.groupChatId) return fail(`sai nhóm (${msg.chat.id})`);
   const line = (msg.text ?? '')
     .split('\n')
     .map((l) => l.trim())
     .find((l) => l.startsWith('{'));
-  if (!line) return { ok: false, reason: 'không có dòng JSON' };
+  if (!line) return fail('không có dòng JSON');
   let data: unknown;
   try {
     data = JSON.parse(line);
   } catch {
-    return { ok: false, reason: 'dòng JSON không hợp lệ' };
+    return fail('dòng JSON không hợp lệ');
   }
-  if (!data || typeof data !== 'object' || Array.isArray(data)) return { ok: false, reason: 'JSON không phải object' };
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return fail('JSON không phải object');
   const d = data as Record<string, unknown>;
-  const mine = () => String(d.employee_code).toUpperCase() === opts.employeeCode;
-  const notMine = { ok: false as const, reason: `mã nhân viên ${d.employee_code} không phải của agent này` };
-  if (d.event === 'chat_mention') {
-    const keys = ['employee_code', 'conversation_id', 'message_id'];
-    if (!keys.every((k) => typeof d[k] === 'string' && (d[k] as string).length > 0))
-      return { ok: false, reason: `JSON thiếu trường chuỗi ${keys.join(', ')}` };
-    if (!GUID.test(d.conversation_id as string) || !GUID.test(d.message_id as string))
-      return { ok: false, reason: 'conversation_id / message_id không phải GUID' };
-    if (!mine()) return notMine;
-    return {
-      ok: true,
-      value: {
-        kind: 'chat',
-        employee_code: d.employee_code as string,
-        conversation_id: (d.conversation_id as string).toLowerCase(),
-        message_id: d.message_id as string,
-      },
-    };
-  }
-  if (d.event === 'meeting_turn') {
-    const keys = ['employee_code', 'session_id', 'conversation_id'];
-    if (!keys.every((k) => typeof d[k] === 'string' && (d[k] as string).length > 0))
-      return { ok: false, reason: `JSON thiếu trường chuỗi ${keys.join(', ')}` };
-    if (!GUID.test(d.session_id as string) || !GUID.test(d.conversation_id as string))
-      return { ok: false, reason: 'session_id / conversation_id không phải GUID' };
-    if (!mine()) return notMine;
-    return {
-      ok: true,
-      value: {
-        kind: 'meeting',
-        employee_code: d.employee_code as string,
-        session_id: (d.session_id as string).toLowerCase(),
-        conversation_id: d.conversation_id as string,
-      },
-    };
-  }
-  if (!KEYS.every((k) => typeof d[k] === 'string' && (d[k] as string).length > 0))
-    return { ok: false, reason: `JSON thiếu trường chuỗi ${KEYS.join(', ')}` };
-  if (!GUID.test(d.project_id as string) || !GUID.test(d.task_id as string))
-    return { ok: false, reason: 'project_id / task_id không phải GUID' };
-  if (!/^[A-Z0-9]+-\d+$/i.test(d.task_code as string)) return { ok: false, reason: 'task_code sai dạng' };
-  if (!mine()) return notMine;
-  return {
-    ok: true,
-    value: {
-      kind: 'task',
-      employee_code: d.employee_code as string,
-      project_id: d.project_id as string,
-      task_id: d.task_id as string,
-      task_code: d.task_code as string,
-    },
-  };
+  const shape = (typeof d.event === 'string' && EVENT_SHAPES[d.event]) || TASK_SHAPE;
+  if (!shape.keys.every((k) => typeof d[k] === 'string' && (d[k] as string).length > 0))
+    return fail(`JSON thiếu trường chuỗi ${shape.keys.join(', ')}`);
+  const fields = d as Record<string, string>;
+  if (!shape.guids.every((k) => GUID.test(fields[k]!))) return fail(`${shape.guids.join(' / ')} không phải GUID`);
+  const invalid = shape.invalid?.(fields);
+  if (invalid) return fail(invalid);
+  if (fields.employee_code!.toUpperCase() !== opts.employeeCode)
+    return fail(`mã nhân viên ${fields.employee_code} không phải của agent này`);
+  return { ok: true, value: shape.build(fields) };
 }
 
 /**

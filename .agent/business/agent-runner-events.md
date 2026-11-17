@@ -10,7 +10,7 @@
 | `chat_mention` | `chat` | `employee_code`, `conversation_id`, `message_id` (GUID) | `<mã NV>:<id hội thoại>` |
 | `meeting_turn` | `meeting` | `employee_code`, `session_id`, `conversation_id` (GUID) | `<mã NV>:<id phiên họp>` |
 
-`employee_code` phải trùng mã NV của agent. Tin sai → bỏ, chỉ log. Khoá chat / họp **riêng từng agent** (`lightKey`): nhiều bot cùng một hội thoại / cuộc họp mỗi bot một job + một phiên CLI.
+`employee_code` phải trùng mã NV của agent. Tin sai → bỏ, chỉ log. Khoá chat / họp **riêng từng agent** (`agentScopedKey` ở `jobs/handler.ts`): nhiều bot cùng một hội thoại / cuộc họp mỗi bot một job + một phiên CLI.
 
 ## Nguyên tắc chung (chủ dự án chốt 2026-11-13)
 
@@ -27,7 +27,7 @@
 Người thật @nhắc bot trong kênh Toàn văn phòng / kênh phòng / nhóm (bot nhắc bot không gửi — [chat-extras.md](chat-extras.md)).
 
 1. **Kiểm tra lại** (`checkChat`, MCP `list_chats`, lúc nhận tin và ngay trước khi chạy): hội thoại còn `mentionedUnread > 0`; hết → bỏ (tin lặp không chạy lại). Kênh Toàn văn phòng: `list_chats` trả `conversation: "office"` → id không khớp hội thoại nào thì xét kênh office.
-2. **Hàng đợi**: đang có job chờ → gộp; đang chạy → `rerun = 1`, xong thì `acceptChat` lại (đã đọc hết thì tự bỏ).
+2. **Hàng đợi**: đang có job chờ → gộp; đang chạy → `rerun = 1`, xong thì handler chat (`jobs/chat.ts`) gọi `accept` lại (đã đọc hết thì tự bỏ).
 3. **Prompt** (`prompt/chat.ts`): `get_my_role` → `read_chat` → trả lời tối đa một tin bằng `send_chat_message` nếu được hỏi / nhờ → `mark_chat_read`. Không chép nội dung tin.
 4. **Nối phiên** theo hội thoại theo quy tắc chung (TEST-142, [agent-runner-workspace.md](agent-runner-workspace.md#nối-phiên-test-142)): lần trước ≤ 10 phút + còn transcript; còn lại → phiên mới.
 
@@ -39,7 +39,7 @@ Mỗi tin = **một lượt nói** = một job ngắn.
 2. **Agent đang chạy job việc** lúc tới lượt → runner gọi `pass_turn` ngay, không xếp hàng (việc đang làm không bị ngắt; cuộc họp không đứng chờ 3 phút). Chủ trì bỏ lượt khi không ai chờ → cuộc họp kết thúc ([meetings-agents.md](meetings-agents.md)) — đừng mở họp với bot đang làm việc dài. Đang chạy job chat → xếp hàng, chạy ngay sau đó.
 3. **Chạy**: tối đa `MEETING_TURN_MAX_MIN` = 2,5 phút (hạn nói của server 3 phút), nối phiên theo cuộc họp → agent nhớ diễn biến; theo quy tắc chung (≤ 10 phút + còn transcript) và tối đa `MEETING_RESUME_MAX` = 8 lượt nối liên tiếp rồi mở phiên mới (đọc lại kênh phòng) — TEST-142.
 4. **Prompt** (`prompt/meeting.ts`): `get_my_meeting` → `read_chat` kênh phòng → số liệu từ tool của mình → `speak_in_meeting` một tin hoặc `pass_turn`; chủ trì mời lần lượt, gần hết trần thì tổng kết + `create_task`.
-5. **Sau phiên** (`afterMeetingTurn`): agent vẫn giữ lượt → có `meeting_turn` mới tới giữa phiên (`rerun`) thì xếp thêm một job, không thì runner `pass_turn` thay (CLI lỗi / hết giờ / không nói).
+5. **Sau phiên** (`afterTurn` ở `jobs/meeting.ts`): agent vẫn giữ lượt → có `meeting_turn` mới tới giữa phiên (`rerun`) thì xếp thêm một job, không thì runner `pass_turn` thay (CLI lỗi / hết giờ / không nói).
 6. Người thật bấm Dừng: job đang chờ bị bỏ ở bước kiểm tra lại; job đang chạy tự hết trong ≤ 2,5 phút (phát biểu sau khi dừng bị Api chặn).
 
 ## Test / chưa làm

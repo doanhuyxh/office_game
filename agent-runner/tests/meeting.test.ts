@@ -291,6 +291,7 @@ test('một lượt họp tối đa 2,5 phút dù executor.timeout_min dài hơn
 test('đang họp thì không chạy việc: job việc hoãn tới khi cuộc họp kết thúc', async () => {
   meeting.speaker = 'NV121'; // NV120 dự họp nhưng chưa tới lượt
   const id = (await runner.accept(agentOf('NV120'), {
+    kind: 'task',
     employee_code: 'NV120',
     project_id: P,
     task_id: T1,
@@ -324,7 +325,13 @@ test('đang họp thì không chạy việc: job việc hoãn tới khi cuộc h
 test('agent đang chạy job việc mà tới lượt họp → runner bỏ lượt ngay, không xếp hàng', async () => {
   meeting.active = false; // việc bắt đầu khi chưa có cuộc họp
   writeFileSync(join(root, 'slow'), '');
-  await runner.accept(agentOf('NV120'), { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' });
+  await runner.accept(agentOf('NV120'), {
+    kind: 'task',
+    employee_code: 'NV120',
+    project_id: P,
+    task_id: T1,
+    task_code: 'TEST-45',
+  });
   const job = store.claimNext(2, ['NV120'])!;
   const running = runner.process(job);
   await Bun.sleep(300);
@@ -341,7 +348,8 @@ test('lượt mới tới khi job họp của cùng phiên đang chạy → xong
   writeFileSync(join(root, 'speak'), '');
   writeFileSync(join(root, 'slow'), '');
   meeting.next = ['NV120', null]; // nói xong lượt lại quay về NV120 (vd chủ trì, không ai chờ)
-  const id = (await runner.acceptMeeting(agentOf('NV120'), {
+  const id = (await runner.accept(agentOf('NV120'), {
+    kind: 'meeting',
     employee_code: 'NV120',
     session_id: S,
     conversation_id: ROOM,
@@ -350,7 +358,12 @@ test('lượt mới tới khi job họp của cùng phiên đang chạy → xong
   const running = runner.process(job);
   await Bun.sleep(300);
   expect(
-    await runner.acceptMeeting(agentOf('NV120'), { employee_code: 'NV120', session_id: S, conversation_id: ROOM }),
+    await runner.accept(agentOf('NV120'), {
+      kind: 'meeting',
+      employee_code: 'NV120',
+      session_id: S,
+      conversation_id: ROOM,
+    }),
   ).toBeNull();
   expect(store.getJob(id)!.rerun).toBe(1);
   await running;

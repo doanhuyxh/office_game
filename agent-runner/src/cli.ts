@@ -72,6 +72,7 @@ async function main() {
         return 1;
       }
       const id = await runner.accept(s, {
+        kind: 'task',
         employee_code: code,
         project_id: t.projectId,
         task_id: t.id,

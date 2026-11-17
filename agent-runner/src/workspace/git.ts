@@ -1,6 +1,6 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, isAbsolute, join } from 'node:path';
-import { type AgentConfig, isInside } from './config';
+import { type AgentConfig, isInside } from '../config';
 
 export interface Sh {
   code: number;

@@ -11,7 +11,7 @@ import {
   probeArgs,
 } from '../src/executor/adapters/claude';
 import { mainModel, modelLine, modelMatches, readModelUsage } from '../src/executor/model';
-import { resultComment } from '../src/runner';
+import { resultComment } from '../src/jobs/task';
 import { customAdapter, fillArgs } from '../src/executor/adapters/custom';
 import type { ExecContext, ExecResult } from '../src/executor/types';
 import { formatLine, redact, registerSecret } from '../src/log';
@@ -998,7 +998,7 @@ test('presence: lỗi job → error gửi ngay, giữ qua idle() và nhịp còn
 });
 
 test('presenceFailure: loại lỗi ngắn theo kết quả phiên', async () => {
-  const { presenceFailure } = await import('../src/runner');
+  const { presenceFailure } = await import('../src/jobs/task');
   expect(presenceFailure({ exitCode: 0, timedOut: true, isError: false })).toBe('Hết giờ');
   expect(presenceFailure({ exitCode: 1, timedOut: false, isError: true })).toBe('CLI báo lỗi');
   expect(presenceFailure({ exitCode: 3, timedOut: false, isError: false })).toBe('Mã thoát 3');

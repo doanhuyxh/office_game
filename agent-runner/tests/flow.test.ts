@@ -327,7 +327,13 @@ test('việc được đánh thức lại → nối phiên cũ (resume_args) tro
   // Ở đây /mcp/activity treo hẳn: job vẫn phải xong, ghi kết quả và bình luận như thường (bộ gửi không nằm trên đường đi của job).
   activityHang = true;
   const t0 = Date.now();
-  const id = await runner.accept(s, { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' });
+  const id = await runner.accept(s, {
+    kind: 'task',
+    employee_code: 'NV120',
+    project_id: P,
+    task_id: T1,
+    task_code: 'TEST-45',
+  });
   expect(id).not.toBeNull();
   expect(await waitFor(() => comments.length > before)).toBe(true);
   expect(await waitFor(() => store.getJob(id!)?.status === 'done', 3000)).toBe(true);
@@ -350,7 +356,13 @@ test('TEST-142: lần trước cách > 10 phút → phiên mới + đọc Bàn g
     wt = join(root, 'worktrees/NV120/TEST-45'),
     branch = 'agent/nv120/test-45';
   const runTask = async () => {
-    const id = await runner.accept(s, { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' });
+    const id = await runner.accept(s, {
+      kind: 'task',
+      employee_code: 'NV120',
+      project_id: P,
+      task_id: T1,
+      task_code: 'TEST-45',
+    });
     expect(id).not.toBeNull();
     expect(await waitFor(() => ['done', 'failed'].includes(store.getJob(id!)?.status ?? ''), 15000)).toBe(true);
     const dir = join(root, 'data/jobs', String(id));
@@ -397,7 +409,7 @@ test('việc không còn giao cho agent → bỏ, không chạy', async () => {
   const saved = tasks[T1];
   tasks[T1] = { ...saved, task: { ...saved.task, assigneeEmployeeId: 'nguoi-khac' } };
   expect(
-    await runner.accept(s, { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' }),
+    await runner.accept(s, { kind: 'task', employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' }),
   ).toBeNull();
   tasks[T1] = saved;
 });
@@ -433,6 +445,7 @@ test('git.executable sai → doctor báo lỗi, agent không nhận việc', asy
   expect(bad.agents.get('NV120')!.enabled).toBe(false);
   expect(
     await bad.accept(bad.agents.get('NV120')!, {
+      kind: 'task',
       employee_code: 'NV120',
       project_id: P,
       task_id: T1,
@@ -444,7 +457,7 @@ test('git.executable sai → doctor báo lỗi, agent không nhận việc', asy
 test('agent sửa agent-runner/ → runner không push, hook pre-push cũng chặn', async () => {
   const s = runner.agents.get('NV120')!;
   const before = comments.length;
-  await runner.accept(s, { employee_code: 'NV120', project_id: P, task_id: T2, task_code: 'TEST-46' });
+  await runner.accept(s, { kind: 'task', employee_code: 'NV120', project_id: P, task_id: T2, task_code: 'TEST-46' });
   expect(await waitFor(() => comments.length > before)).toBe(true);
   expect(comments.at(-1)!.content).toContain('agent-runner/');
   expect(comments.at(-1)!.content).toContain('KHÔNG push');
@@ -479,7 +492,13 @@ const inPlaceSetup = async (name = 'agent-repo-ip', branch = 'work') => {
   const lines = (await r.checkAgents({ only: 'NV120', telegram: false })).map(formatFinding);
   const exec = async () => {
     const s = r.agents.get('NV120')!;
-    const id = await r.accept(s, { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' });
+    const id = await r.accept(s, {
+      kind: 'task',
+      employee_code: 'NV120',
+      project_id: P,
+      task_id: T1,
+      task_code: 'TEST-45',
+    });
     const job = st.claimNext(1, ['NV120'])!;
     await r.process(job);
     return { id, job: st.getJob(job.id)! };
@@ -588,7 +607,7 @@ test('hook pre-push bị xoá → job kế tiếp tự tạo lại trước khi 
   const s = runner.agents.get('NV120')!;
   const before = comments.length;
   expect(
-    await runner.accept(s, { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' }),
+    await runner.accept(s, { kind: 'task', employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' }),
   ).not.toBeNull();
   expect(await waitFor(() => comments.length > before)).toBe(true);
   expect(readFileSync(join(hooks, 'pre-push'), 'utf8')).toContain('officehub-agent-runner');
@@ -661,7 +680,13 @@ echo '{"session_id":"sess-biz","model":"fake-model-1","cost_usd":0.1,"summary":"
   const lines = (await r.checkAgents({ only: 'NV120', telegram: false })).map(formatFinding);
   const exec = async () => {
     const s = r.agents.get('NV120')!;
-    const id = await r.accept(s, { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' });
+    const id = await r.accept(s, {
+      kind: 'task',
+      employee_code: 'NV120',
+      project_id: P,
+      task_id: T1,
+      task_code: 'TEST-45',
+    });
     const job = st.claimNext(1, ['NV120'])!;
     await r.process(job);
     return { id, job: st.getJob(job.id)! };
@@ -744,7 +769,7 @@ test('runner dừng giữa phiên → job về hàng đợi (không ghi lỗi, k
   const before = comments.length;
   try {
     const s = r.agents.get('NV120')!;
-    await r.accept(s, { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' });
+    await r.accept(s, { kind: 'task', employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' });
     const job = st.claimNext(1, ['NV120'])!;
     const running = r.process(job);
     await Bun.sleep(300);
@@ -857,11 +882,11 @@ test('chat_mention: tin nhắc mới tới khi job cùng hội thoại đang ch�
   const w = { employee_code: 'NV120', conversation_id: OFFICE, message_id: '01a1d000-0000-7000-8000-00000000beef' };
   writeFileSync(join(root, 'slow'), ''); // CLI giả chạy 1 giây
   try {
-    const id = (await r.acceptChat(s, w))!;
+    const id = (await r.accept(s, { kind: 'chat', ...w }))!;
     const job = st.claimNext(1, ['NV120'])!;
     const running = r.process(job);
     await Bun.sleep(300);
-    expect(await r.acceptChat(s, w)).toBeNull(); // đang chạy → không xếp thêm, đánh dấu rerun
+    expect(await r.accept(s, { kind: 'chat', ...w })).toBeNull(); // đang chạy → không xếp thêm, đánh dấu rerun
     expect(st.getJob(id)!.rerun).toBe(1);
     await running;
     expect(st.getJob(id)!.status).toBe('done');
