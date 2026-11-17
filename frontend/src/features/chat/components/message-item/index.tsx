@@ -63,22 +63,28 @@ async function download(a: IAttachment) {
   }
 }
 
-function Attachments({ items, local, onPreview }: { items: IAttachment[]; local: boolean; onPreview: (a: IAttachment) => void }) {
+const isImage = (a: IAttachment) => a.isImage && !!a.url;
+
+/** Ảnh đính kèm: hiện thẳng (bo góc), KHÔNG nằm trong bong bóng có nền (TEST-146). `className` = viền trạng thái của tin. */
+function ImageAttachments({ items, onPreview, className }: { items: IAttachment[]; onPreview: (a: IAttachment) => void; className?: string }) {
   if (items.length === 0) return null;
-  const images = items.filter((a) => a.isImage && a.url);
-  const files = items.filter((a) => !(a.isImage && a.url));
+  return (
+    <div className="flex flex-wrap gap-1.5" data-testid="chat-images">
+      {items.map((a) => (
+        <button key={a.id} type="button" className={cn('overflow-hidden rounded-xl', className)} onClick={() => onPreview(a)} aria-label={`Xem ảnh ${a.fileName}`}>
+          <img src={a.url} alt={a.fileName} loading="lazy" className="block max-h-56 max-w-full object-cover sm:max-w-72" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Tệp không phải ảnh: nút tải, nằm trong bong bóng. */
+function FileAttachments({ items, local }: { items: IAttachment[]; local: boolean }) {
+  if (items.length === 0) return null;
   return (
     <div className="mt-1.5 grid gap-1.5 first:mt-0">
-      {images.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {images.map((a) => (
-            <button key={a.id} type="button" className="overflow-hidden rounded-md" onClick={() => onPreview(a)} aria-label={`Xem ảnh ${a.fileName}`}>
-              <img src={a.url} alt={a.fileName} loading="lazy" className="max-h-56 max-w-full object-cover sm:max-w-72" />
-            </button>
-          ))}
-        </div>
-      )}
-      {files.map((a) => (
+      {items.map((a) => (
         <button
           key={a.id}
           type="button"
@@ -146,6 +152,11 @@ export function MessageItem({ m, mine, meId, showHeader, onRecall, onEdit, onRea
   const [editing, setEditing] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const mentionsMe = !mine && !m.deleted && mentionsUser(m, meId);
+  const images = m.attachments.filter(isImage);
+  const files = m.attachments.filter((a) => !isImage(a));
+  // Bong bóng chỉ khi có chữ hoặc tệp thường — tin chỉ có ảnh không có nền / padding
+  const hasBubble = !!m.text || files.length > 0;
+  const edited = <span className="text-[10px] opacity-70" title={m.editedAt ? `Sửa lúc ${formatTime(m.editedAt)}` : undefined} data-testid="chat-edited">(đã sửa)</span>;
   // Tin hệ thống (mở / kết thúc họp với AI — người gửi OfficeHub, senderId rỗng): dòng giữa khung, không bong bóng, không menu
   if (isSystemMessage(m)) return (
     <div className="my-2 flex justify-center" data-testid="chat-system-message">
@@ -169,26 +180,30 @@ export function MessageItem({ m, mine, meId, showHeader, onRecall, onEdit, onRea
           <EditBox m={m} onSave={(t) => onEdit(m, t)} onCancel={() => setEditing(false)} />
         ) : (
         <div className={cn('flex items-center gap-1', mine && 'flex-row-reverse')}>
-          <div
-            className={cn(
-              'min-w-0 rounded-2xl px-3 py-2 text-sm leading-relaxed',
-              mine ? 'bg-primary text-primary-foreground' : 'bg-muted',
-              mentionsMe && 'bg-warning/15 ring-1 ring-warning/60',
-              m.deleted && 'bg-transparent text-muted-foreground italic ring-1 ring-border',
-              local?.status === 'sending' && 'opacity-70',
-              local?.status === 'failed' && 'ring-1 ring-destructive',
-            )}
-          >
-            {m.deleted ? (
-              'Tin nhắn đã thu hồi'
-            ) : (
-              <>
-                {m.text && <p className="break-words whitespace-pre-wrap"><MessageText text={m.text} mentions={m.mentions} mine={mine} /></p>}
-                {m.editedAt && <span className="text-[10px] opacity-70" title={`Sửa lúc ${formatTime(m.editedAt)}`} data-testid="chat-edited">(đã sửa)</span>}
-                <Attachments items={m.attachments} local={!!local} onPreview={onPreview} />
-              </>
-            )}
-          </div>
+          {m.deleted ? (
+            <div className="min-w-0 rounded-2xl px-3 py-2 text-sm leading-relaxed text-muted-foreground italic ring-1 ring-border">Tin nhắn đã thu hồi</div>
+          ) : (
+            <div className={cn('flex min-w-0 flex-col gap-1', mine ? 'items-end' : 'items-start', local?.status === 'sending' && 'opacity-70')}>
+              {hasBubble && (
+                <div
+                  className={cn(
+                    'min-w-0 rounded-2xl px-3 py-2 text-sm leading-relaxed',
+                    mine ? 'bg-primary text-primary-foreground' : 'bg-muted',
+                    mentionsMe && 'bg-warning/15 ring-1 ring-warning/60',
+                    local?.status === 'failed' && 'ring-1 ring-destructive',
+                  )}
+                >
+                  {m.text && <p className="break-words whitespace-pre-wrap"><MessageText text={m.text} mentions={m.mentions} mine={mine} /></p>}
+                  {m.editedAt && edited}
+                  <FileAttachments items={files} local={!!local} />
+                </div>
+              )}
+              {/* Ảnh tách khỏi bong bóng, không nền; tin chỉ có ảnh thì viền trạng thái (@nhắc tôi / gửi lỗi) nằm trên ảnh */}
+              <ImageAttachments items={images} onPreview={onPreview}
+                className={cn(!hasBubble && mentionsMe && 'ring-2 ring-warning/70', !hasBubble && local?.status === 'failed' && 'ring-2 ring-destructive')} />
+              {!hasBubble && m.editedAt && <span className="px-1 text-muted-foreground">{edited}</span>}
+            </div>
+          )}
           {!m.deleted && !local && (
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>

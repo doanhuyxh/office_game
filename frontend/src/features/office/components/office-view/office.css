@@ -289,7 +289,10 @@
 .office-root .chat-panel { position: absolute; z-index: 6; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border);
   border-radius: 12px; background: var(--background); color: var(--foreground); color-scheme: light; box-shadow: 0 12px 32px rgba(2, 6, 23, .5); }
 .dark .office-root .chat-panel { color-scheme: dark; }
-.office-root .chat-panel.docked { left: 12px; bottom: 12px; width: min(400px, calc(100vw - 24px)); height: min(460px, calc(100dvh - 260px)); min-height: 320px; }
+.office-root .chat-panel.docked { left: 12px; bottom: 12px; width: min(400px, calc(100vw - 24px)); height: min(680px, calc(100dvh - 140px)); min-height: 320px; }
+/* TEST-146: khung ghim cao tới 100dvh - 140px → mép trên cách đỉnh ≥ 128px, dưới thẻ tài khoản thu gọn (~70px). Thẻ mở ra (vai trò + nút)
+   cao hơn nên nổi TRÊN khung chat như menu thả xuống */
+.office-root .me.open { z-index: 8; }
 .office-root .chat-panel.floating { z-index: 7; }
 .office-root .chat-panel-head { flex: none; display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 12px; border-bottom: 1px solid var(--border);
   background: var(--muted); font-size: 13px; }

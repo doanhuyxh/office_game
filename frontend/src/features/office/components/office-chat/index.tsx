@@ -21,12 +21,13 @@ const COMPACT_KEY = 'officehub.office.chat-list-compact';
 const MIN = { w: 300, h: 320 };
 
 /**
- * Khung nổi mặc định (TEST-126, mockup `design/mockups/office-chat/`): máy tính ~780 × 560 giữa màn hình; điện thoại ~92% rộng, chừa
- * ~200 px dưới cùng cho joystick + nút zoom, xoay ngang thì chừa hai bên. `fit` trong hook giữ không vượt màn hình.
+ * Khung nổi mặc định (TEST-126, mockup `design/mockups/office-chat/`): máy tính ~780 × 760 (TEST-146: cao hơn,
+ * vừa màn hình) giữa màn hình; điện thoại ~92% rộng, chừa ~200 px dưới cùng cho joystick + nút zoom, xoay ngang thì chừa hai bên.
+ * `fit` trong hook giữ không vượt màn hình. Kích thước người dùng đã kéo (localStorage) giữ nguyên.
  */
 const initialRect = (touch: boolean) => ({ w: vw, h: vh }: { w: number; h: number }): PanelRect => {
   if (!touch && vw > 640) {
-    const w = Math.min(780, vw - 24), h = Math.min(560, vh - 24);
+    const w = Math.min(780, vw - 24), h = Math.min(760, vh - 24);
     return { w, h, x: (vw - w) / 2, y: (vh - h) / 2 };
   }
   const landscape = vw > vh;

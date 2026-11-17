@@ -4,6 +4,9 @@
 
 Chủ dự án chốt 2026-11-12 (đừng hỏi lại): sửa tin **không quá 24 giờ** sau khi gửi; cảm xúc **emoji tự do**; **ai cũng tạo được** nhóm chat. Giới hạn tự đặt (chưa chủ dự án xác nhận): nhóm ≤ **100** người, ≤ **20** loại emoji / tin, tìm ≤ **50** kết quả.
 
+## Hiển thị tin có ảnh (TEST-146)
+`message-item` (dùng chung `/chat` + khung chat 3D): ảnh **không nằm trong bong bóng có nền**. Tin chỉ có ảnh → không bong bóng / padding, ảnh bo góc hiện thẳng; tin có chữ + ảnh → chữ (và tệp thường) trong bong bóng, ảnh tách ra bên dưới. Trạng thái trên tin chỉ có ảnh: đang gửi = mờ, gửi lỗi = viền `destructive`, @nhắc tôi = viền `warning` quanh ảnh.
+
 ## Sửa tin
 
 `PATCH /api/chat/messages/{id}` `{text}` — chỉ người gửi, tin chưa thu hồi, `now − createdAt ≤ 24h` (`ChatRules.EditWindow`, quá → **409**); cùng quy tắc nội dung như gửi (≤ 1000 ký tự, tin không tệp phải còn chữ → 400); tệp giữ nguyên. Đổi chữ → `messages.EditedAt` (FE hiện "(đã sửa)"); là tin mới nhất → cập nhật `LastPreview`. Không lưu lịch sử các bản sửa. Người khác / người ngoài → 404.
