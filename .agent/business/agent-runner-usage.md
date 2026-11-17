@@ -2,11 +2,11 @@
 
 > Về [agent-runner.md](agent-runner.md) · [README](README.md) · phía máy chủ (hợp đồng, lưu, API đọc, giao diện): [ai-usage.md](ai-usage.md) · model thật: [agent-runner-model.md](agent-runner-model.md)
 
-Code: `agent-runner/src/hub/usage.ts` (dựng phiên + `UsageReporter`), `store.ts` (cột, hàng chờ), `runner.ts` (`finishJob`, nhịp gửi lại), `cli.ts` (`usage push`). Test: `tests/usage.test.ts`, phần usage trong `flow.test.ts` / `meeting.test.ts`.
+Code: `agent-runner/src/hub/usage.ts` (dựng phiên + `UsageReporter`), `store.ts` (cột, hàng chờ), `core/session.ts` (`Sessions.finish`), `runner.ts` (nhịp gửi lại), `cli.ts` (`usage push`). Test: `tests/usage.test.ts`, phần usage trong `flow.test.ts` / `meeting.test.ts`.
 
 ## Khi nào gửi
 
-- **Sau mỗi phiên CLI**, mọi loại job (việc / chat / họp), cả thành công lẫn lỗi (`finishJob` ghi `jobs.cli_ran = 1` rồi gọi `UsageReporter.flush()` ở nền — job không chờ, lỗi chỉ log).
+- **Sau mỗi phiên CLI**, mọi loại job (việc / chat / họp), cả thành công lẫn lỗi (`Sessions.finish` ghi `jobs.cli_ran = 1` rồi gọi `UsageReporter.flush()` ở nền — job không chờ, lỗi chỉ log).
 - Job **không chạy CLI** (bỏ qua ở bước kiểm tra lại, workspace chưa sẵn sàng, lỗi trước khi chạy) → không gửi (`cli_ran` null).
 - Khởi động runner + mỗi **5 phút** (`USAGE_RETRY_MS`): gửi lại phiên chưa gửi (máy chủ tạm lỗi / chưa deploy bản có `/mcp/usage`).
 - Mỗi agent một `UsageReporter` (token AI riêng — Mcp gắn `userId` theo token, chỉ tài khoản bot). Lô ≤ 50 phiên, theo id job tăng dần; gọi chồng nhau (nhiều phiên xong cùng lúc) → chờ lượt đang gửi rồi gửi thêm một lượt, không gửi trùng.

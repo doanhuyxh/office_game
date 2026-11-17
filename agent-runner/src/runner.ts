@@ -1,42 +1,44 @@
-import { appendFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { lightExecutor, type AgentConfig, type RunnerConfig } from './config';
+import { type AgentConfig, lightExecutor, type RunnerConfig } from './config';
+import type { AgentState } from './core/agent';
 import { agentEnv, agentHome } from './core/env';
 import { jobDir, workDir } from './core/paths';
-import { diagnoseAgent, gitUnavailable, type DoctorContext, type DoctorOptions } from './doctor/agent';
-import { findingLogLevel, formatFinding, type Finding } from './doctor/finding';
-import { modelLine, modelMatches } from './executor/model';
-import { adapters, runExecutor, type RunOutcome } from './executor/run';
-import type { ExecutorConfig } from './config';
-import { errText, log, redact, registerSecret } from './log';
-import { OfficeHubClient } from './hub/client';
+import { RunnerStopped, Sessions, succeeded } from './core/session';
+import { type DoctorContext, type DoctorOptions, diagnoseAgent, gitUnavailable } from './doctor/agent';
+import { type Finding, findingLogLevel, formatFinding } from './doctor/finding';
+import { modelLine } from './executor/model';
+import { adapters, type RunOutcome } from './executor/run';
 import { ActivitySender } from './hub/activity';
-import { sessionEnd, sessionStart } from './executor/events';
+import { OfficeHubClient } from './hub/client';
 import { PresenceReporter } from './hub/presence';
-import { buildPrompt, mcpConfig } from './prompt';
-import { RESUME_MAX_GAP_MIN } from './prompt/common';
+import { TranscriptReporter } from './hub/transcript';
+import { sourceHost, USAGE_RETRY_MS, UsageReporter } from './hub/usage';
+import { errText, log, registerSecret } from './log';
+import {
+  MEETING_HOLD_SEC,
+  MEETING_RESUME_MAX,
+  MEETING_TURN_MAX_MIN,
+  SCHEDULE_POLL_MS,
+  TELEGRAM_RETRY_SEC,
+} from './policy';
+import { buildPrompt } from './prompt';
 import { chatPrompt } from './prompt/chat';
 import { meetingPrompt } from './prompt/meeting';
-import { MCP_SYSTEM_PROMPT } from './prompt/system';
-import { Store, type Job } from './store';
+import type { Job, Store } from './store';
 import { TelegramClient, type TgMessage } from './telegram';
-import { TranscriptReporter } from './hub/transcript';
-import { USAGE_RETRY_MS, UsageReporter, sourceHost } from './hub/usage';
 import {
+  type ChatWake,
   checkChat,
   checkMeeting,
   checkTask,
-  parseWake,
-  type ChatWake,
   type MeetingWake,
+  parseWake,
   type WakeData,
 } from './validator';
 import {
-  AGENT_ENV,
-  Git,
-  TASK_ENV,
-  WorkspaceRefused,
   branchChanges,
+  Git,
   inPlaceChanges,
   installHooks,
   mainBranchWarning,
@@ -45,33 +47,10 @@ import {
   publish,
   pushInPlace,
   removeHooks,
+  WorkspaceRefused,
 } from './workspace';
 
-interface AgentState {
-  cfg: AgentConfig;
-  hub: OfficeHubClient;
-  tg: TelegramClient;
-  /** Trạng thái đang làm / rảnh trong văn phòng 3D (bàn ↔ Khu nghỉ). */
-  presence: PresenceReporter;
-  /** Luồng "agent đang làm gì" cho người xem trực tiếp trong 3D (TEST-99). */
-  activity: ActivitySender;
-  /** Gửi chi phí / token mỗi phiên lên OfficeHub (TEST-135). */
-  usage: UsageReporter;
-  /** Gửi transcript phiên lên cloud + khôi phục lười (TEST-144) — chỉ adapter có transcript (`claude`). */
-  transcripts?: TranscriptReporter;
-  employeeId?: string;
-  enabled: boolean;
-  problem?: string;
-  /** Model thật đọc được lúc chạy thử (`checkAgents`, TEST-64). */
-  model?: string;
-}
-
-/** Runner được dừng khi phiên CLI đang chạy — job về hàng đợi thay vì ghi lỗi. */
-export class RunnerStopped extends Error {
-  constructor() {
-    super('runner dừng giữa phiên');
-  }
-}
+export { RunnerStopped } from './core/session';
 
 /** Bộ điều phối: Listener (Telegram) → Validator → Store (hàng đợi + khoá task_id) → Workspace → Executor → Publisher (PR + bình luận). */
 export class Runner {
@@ -81,12 +60,14 @@ export class Runner {
   private usageTimer?: ReturnType<typeof setInterval>;
   /** Git của runner (env của runner); thao tác cho agent dùng `gitFor(agent)` (HOME / PATH của agent). */
   readonly git: Git;
+  private readonly sessions: Sessions;
 
   constructor(
     readonly config: RunnerConfig,
     readonly store: Store,
   ) {
     this.git = new Git(config.gitBin);
+    this.sessions = new Sessions(config, store, this.git);
     const source = { host: sourceHost(), dbId: store.dbId() };
     for (const a of config.agents) {
       registerSecret(a.token);
@@ -173,7 +154,7 @@ export class Runner {
         }
       } catch (e) {
         if (this.abort.signal.aborted) return;
-        const wait = ((e as { retryAfter?: number }).retryAfter ?? 5) * 1000;
+        const wait = ((e as { retryAfter?: number }).retryAfter ?? TELEGRAM_RETRY_SEC) * 1000;
         log('warn', 'getUpdates lỗi', { agent: s.cfg.employeeCode, error: errText(e), retryMs: wait });
         await Bun.sleep(wait);
       }
@@ -320,7 +301,7 @@ export class Runner {
       const enabled = [...this.agents.values()].filter((a) => a.enabled).map((a) => a.cfg.employeeCode);
       const job = this.store.claimNext(this.config.maxParallel, enabled);
       if (job) void this.process(job);
-      else await Bun.sleep(2000);
+      else await Bun.sleep(SCHEDULE_POLL_MS);
     }
   }
 
@@ -360,182 +341,6 @@ export class Runner {
   }
 
   /**
-   * Chạy CLI của agent cho một job: ghi prompt + cấu hình MCP vào thư mục tạm của job, env riêng (không kế thừa env runner), log từng thao tác.
-   * `presence` = có báo thao tác lên văn phòng 3D không; `noBuiltinTools` = chỉ tool MCP.
-   * `label` = tên phiên người xem trực tiếp thấy ("MÃ · tên việc"; chat / họp: nhãn chung, không có nội dung tin).
-   */
-  private async runSession(
-    s: AgentState,
-    job: Job,
-    signal: AbortSignal,
-    o: {
-      cwd: string;
-      prompt: string;
-      resume?: string;
-      exec?: ExecutorConfig;
-      noBuiltinTools?: boolean;
-      presence: boolean;
-      label: string;
-    },
-  ): Promise<RunOutcome> {
-    const jobDir = this.jobDir(job),
-      exec = o.exec ?? s.cfg.executor;
-    mkdirSync(jobDir, { recursive: true });
-    const promptFile = join(jobDir, 'prompt.md'),
-      mcpFile = join(jobDir, 'mcp.json');
-    writeFileSync(promptFile, o.prompt, { mode: 0o600 });
-    // TEST-143: hồ sơ tool theo loại job (việc / chat / họp)
-    writeFileSync(mcpFile, JSON.stringify(mcpConfig(this.config.mcpUrl, job.kind ?? 'task'), null, 2), { mode: 0o600 });
-    const env = {
-      ...this.envFor(s.cfg),
-      OFFICEHUB_TOKEN: s.cfg.token,
-      [AGENT_ENV]: job.agent,
-      [TASK_ENV]: job.task_code,
-    };
-    const onActivity = (action: string) => {
-      log('info', 'agent đang làm', { job: job.id, agent: job.agent, task: job.task_code, action });
-      if (o.presence) s.presence.activity(action);
-      // activity.log: bản đọc được của phiên (output.log là stream-json thô) — mỗi thao tác một dòng kèm giờ.
-      try {
-        appendFileSync(join(jobDir, 'activity.log'), redact(`${new Date().toTimeString().slice(0, 8)}  ${action}\n`));
-      } catch {
-        /* không chặn job vì log */
-      }
-    };
-    // Dòng đầu job ghi model: adapter claude tự báo từ sự kiện system/init; adapter khác chỉ biết model cấu hình.
-    if (!adapters[exec.kind]?.activity)
-      onActivity(`Model ${exec.model ? `${exec.model} (cấu hình)` : 'mặc định của CLI'}`);
-    // Người đứng gần bot trong 3D xem trực tiếp: bắt đầu phiên → từng thao tác → kết thúc phiên. Bộ gửi chạy ở nền: job KHÔNG chờ nó
-    // và lỗi của nó không tới được đây (lỗi 2026-11-14: chờ gửi nốt ở cuối job làm runner treo, không ghi kết quả / bình luận chi phí).
-    s.activity.push(sessionStart(o.label, exec.model));
-    let out: RunOutcome | undefined;
-    try {
-      out = await runExecutor(
-        {
-          cwd: o.cwd,
-          jobDir,
-          promptFile,
-          prompt: o.prompt,
-          mcpConfigFile: mcpFile,
-          resumeSessionId: o.resume,
-          exec,
-          noBuiltinTools: o.noBuiltinTools,
-          systemPrompt: o.noBuiltinTools ? MCP_SYSTEM_PROMPT : undefined,
-          onActivity,
-          onEvent: s.activity.active ? (e) => s.activity.push(e) : undefined,
-        },
-        env,
-        signal,
-      );
-    } finally {
-      const failed = !out || out.exitCode !== 0 || out.timedOut;
-      s.activity.push(sessionEnd(out ? { ...out, isError: out.isError || failed } : { isError: true }, o.label));
-      s.activity.flushNow();
-    }
-    // Runner bị dừng (stop() huỷ phiên): không ghi kết quả / bình luận "phiên lỗi" — process() đưa job về hàng đợi.
-    if (signal.aborted) throw new RunnerStopped();
-    if (out.model && !out.modelFromConfig && !modelMatches(exec.model, out.model))
-      log('warn', 'model thật khác cấu hình', {
-        job: job.id,
-        agent: job.agent,
-        task: job.task_code,
-        model: out.model,
-        configured: exec.model,
-      });
-    return out;
-  }
-
-  /**
-   * Nối phiên CLI cũ của khoá job không (TEST-142) — chỉ khi RẺ hơn mở phiên mới:
-   * cùng agent, lần chạy trước cách ≤ {@link RESUME_MAX_GAP_MIN} phút (cache prompt còn sống; xa hơn thì nối phiên = ghi lại cả transcript cũ
-   * vào cache, đắt hơn phiên mới đọc lại từ OfficeHub), transcript còn ở máy (adapter có `hasSession`), chưa nối quá `maxResumes` lần liên tiếp.
-   * `task_sessions` mất (máy mới) → phiên mới, không lỗi.
-   */
-  private async resumeFor(s: AgentState, job: Job, cwd: string, maxResumes?: number): Promise<string | undefined> {
-    const prev = this.store.session(job.task_id);
-    const why = (reason: string) => {
-      log('info', `mở phiên mới (${reason})`, { job: job.id, agent: job.agent, task: job.task_code });
-      return undefined;
-    };
-    const adapter = adapters[s.cfg.executor.kind];
-    if (!adapter?.caps.resume) return undefined;
-    // TEST-144: máy mới / mất runner.db → không có dòng phiên; thử bản trên cloud của đúng khoá này (khôi phục lười, chỉ khi còn trong ngưỡng)
-    if (!prev?.session_id || prev.agent !== job.agent) return prev ? undefined : this.restoreFromCloud(s, job, cwd);
-    const gapMin = (Date.now() - Date.parse(prev.updated_at)) / 60_000;
-    if (!(gapMin <= RESUME_MAX_GAP_MIN))
-      return why(`lần chạy trước cách ${Math.round(gapMin)} phút > ${RESUME_MAX_GAP_MIN}`);
-    if (maxResumes !== undefined && (prev.resumes ?? 0) >= maxResumes)
-      return why(`đã nối ${prev.resumes} lần liên tiếp`);
-    if (adapter.hasSession && !adapter.hasSession(this.envFor(s.cfg).HOME!, cwd, prev.session_id))
-      return (
-        (await this.restoreFromCloud(s, job, cwd)) ?? why('không còn transcript ở máy, cloud không có bản dùng được')
-      );
-    return prev.session_id;
-  }
-
-  /** Khôi phục transcript của khoá job từ cloud (TEST-144); lỗi không chặn job — trả undefined = phiên mới. */
-  private async restoreFromCloud(s: AgentState, job: Job, cwd: string): Promise<string | undefined> {
-    if (!s.transcripts) return undefined;
-    try {
-      return await s.transcripts.restore(job.task_id, cwd);
-    } catch (e) {
-      log('warn', 'khôi phục transcript từ cloud lỗi — mở phiên mới', {
-        job: job.id,
-        agent: job.agent,
-        error: errText(e),
-      });
-      return undefined;
-    }
-  }
-
-  /** Sau phiên: đưa transcript vào hàng chờ gửi lên cloud (kèm bản bàn giao = câu cuối của agent) và gửi ở nền (TEST-144). */
-  private queueTranscript(s: AgentState, job: Job, out: RunOutcome) {
-    if (!s.transcripts || !out.sessionId) return;
-    this.store.markTranscript(job.task_id, job.kind ?? 'task', out.summary?.trim() ? out.summary.trim() : null);
-    void s.transcripts.flush().catch((e) => log('warn', 'gửi transcript lỗi', { agent: job.agent, error: errText(e) }));
-  }
-
-  /**
-   * Ghi kết quả phiên vào hàng đợi (trạng thái, chi phí, token, model) rồi gửi mức dùng AI lên OfficeHub ở nền (TEST-135 — lỗi không ảnh hưởng job,
-   * phiên chưa gửi được gửi lại theo nhịp {@link USAGE_RETRY_MS}). Trả `ok`.
-   */
-  private finishJob(s: AgentState, job: Job, out: RunOutcome, f: { note?: string; prUrl?: string } = {}): boolean {
-    const ok = out.exitCode === 0 && !out.timedOut && !out.isError;
-    this.store.finish(job.id, ok ? 'done' : 'failed', {
-      reason: out.timedOut
-        ? 'hết giờ'
-        : out.isError
-          ? `CLI báo lỗi (${out.errorKind ?? out.exitCode})`
-          : out.exitCode !== 0
-            ? `mã thoát ${out.exitCode}`
-            : f.note || null,
-      session_id: out.sessionId ?? null,
-      cost_usd: out.costUsd ?? null,
-      input_tokens: out.inputTokens ?? null,
-      output_tokens: out.outputTokens ?? null,
-      turns: out.turns ?? null,
-      pr_url: f.prUrl ?? null,
-      model: out.model ? out.model + (out.modelFromConfig ? ' (cấu hình)' : '') : null,
-      model_usage: out.modelUsage ? JSON.stringify(out.modelUsage) : null,
-      cache_read_tokens: out.cacheReadTokens ?? null,
-      cache_write_tokens: out.cacheWriteTokens ?? null,
-      executor: s.cfg.executor.kind,
-      cli_ran: 1,
-    });
-    void s.usage.flush().catch((e) => log('warn', 'gửi mức dùng AI lỗi', { agent: job.agent, error: errText(e) }));
-    log(ok ? 'info' : 'warn', 'xong job', {
-      job: job.id,
-      task: job.task_code,
-      ok,
-      model: out.model,
-      pr: f.prUrl,
-      cost: out.costUsd,
-      sec: out.durationSec,
-    });
-    return ok;
-  }
-
-  /**
    * Job chat (TEST-81): kiểm tra lại hội thoại → chạy CLI trong thư mục trống riêng của hội thoại, CHỈ tool MCP (tin nhắn là nội dung người khác
    * viết) → agent tự đọc / trả lời / đánh dấu đã đọc. Dùng `executor` của agent như job việc (model, giờ, ngân sách). Nối phiên theo hội thoại
    * khi lần trước cách ≤ {@link RESUME_MAX_GAP_MIN} phút (TEST-142). Không bình luận vào việc, không báo trạng thái 3D; chi phí vẫn vào `report`.
@@ -550,8 +355,8 @@ export class Runner {
     }
     const cwd = this.workDir(job.agent, `chat-${conv}`);
     mkdirSync(cwd, { recursive: true });
-    const resume = await this.resumeFor(s, job, cwd);
-    const out = await this.runSession(s, job, signal, {
+    const resume = await this.sessions.resumeFor(s, job, cwd);
+    const out = await this.sessions.run(s, job, signal, {
       cwd,
       prompt: chatPrompt(job.agent, c.value.conversation, !!resume),
       resume,
@@ -560,9 +365,8 @@ export class Runner {
       presence: false,
       label: 'Trả lời tin nhắn',
     });
-    this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd, !!resume);
-    this.queueTranscript(s, job, out);
-    this.finishJob(s, job, out);
+    this.sessions.record(s, job, out, { cwd, resumed: !!resume });
+    this.sessions.finish(s, job, out);
     // Có tin nhắc mới tới giữa phiên → kiểm tra lại (đã đọc hết thì tự bỏ) và chạy thêm một lượt.
     if (this.store.getJob(job.id)?.rerun)
       await this.acceptChat(s, { employee_code: job.agent, conversation_id: conv, message_id: '' });
@@ -584,13 +388,13 @@ export class Runner {
     }
     const cwd = this.workDir(job.agent, `meeting-${session}`);
     mkdirSync(cwd, { recursive: true });
-    const resume = await this.resumeFor(s, job, cwd, MEETING_RESUME_MAX);
+    const resume = await this.sessions.resumeFor(s, job, cwd, MEETING_RESUME_MAX);
     const exec = {
       ...lightExecutor(s.cfg.executor),
       timeoutMin: Math.min(s.cfg.executor.timeoutMin, MEETING_TURN_MAX_MIN),
     };
     try {
-      const out = await this.runSession(s, job, signal, {
+      const out = await this.sessions.run(s, job, signal, {
         cwd,
         prompt: meetingPrompt(job.agent, session, !!resume),
         resume,
@@ -599,9 +403,8 @@ export class Runner {
         presence: false,
         label: 'Phát biểu trong cuộc họp',
       });
-      this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, '', cwd, !!resume);
-      this.queueTranscript(s, job, out);
-      this.finishJob(s, job, out);
+      this.sessions.record(s, job, out, { cwd, resumed: !!resume });
+      this.sessions.finish(s, job, out);
     } finally {
       await this.afterMeetingTurn(s, job).catch((e) =>
         log('warn', 'không kiểm tra được lượt họp sau phiên', { job: job.id, agent: job.agent, error: errText(e) }),
@@ -710,7 +513,7 @@ export class Runner {
         }
       }
       const prev = this.store.session(job.task_id);
-      const resume = await this.resumeFor(s, job, ws.path);
+      const resume = await this.sessions.resumeFor(s, job, ws.path);
       // Phiên mới nhưng việc đã từng làm (worktree / nhánh local hoặc origin / phiên cũ) → prompt bảo đọc Bàn giao trước
       const continued = !resume && (ws.reused || !!ws.existing || !!prev);
       if (ws.existing === 'origin')
@@ -720,7 +523,7 @@ export class Runner {
           branch: ws.branch,
         });
       const prompt = buildPrompt(w, { mode, branch: ws.branch, resumed: !!resume, continued });
-      const out = await this.runSession(s, job, signal, {
+      const out = await this.sessions.run(s, job, signal, {
         cwd: ws.path,
         prompt,
         resume,
@@ -728,8 +531,7 @@ export class Runner {
         presence: true,
         label: `${job.task_code} · ${c.value.title}`,
       });
-      this.store.saveSession(job.task_id, job.agent, out.sessionId ?? null, ws.branch, ws.path, !!resume);
-      this.queueTranscript(s, job, out);
+      this.sessions.record(s, job, out, { cwd: ws.path, branch: ws.branch, resumed: !!resume });
 
       let prUrl: string | undefined,
         note = '';
@@ -785,10 +587,10 @@ export class Runner {
         if (ch.dirty) note += (note ? ' ' : '') + 'Còn thay đổi chưa commit trong worktree.';
       }
 
-      const ok = out.exitCode === 0 && !out.timedOut && !out.isError;
+      const ok = succeeded(out);
       if (!ok) failure = presenceFailure(out);
       await s.hub.comment(job.task_id, resultComment(job, out, prUrl, note, ok, s.cfg.executor.model));
-      this.finishJob(s, job, out, { note, prUrl });
+      this.sessions.finish(s, job, out, { note, prUrl });
     } catch (e) {
       if (!(e instanceof RunnerStopped)) failure = 'Runner lỗi'; // process() ghi failed + log
       throw e;
@@ -860,15 +662,6 @@ export function resultComment(
   ];
   return parts.filter(Boolean).join('\n');
 }
-
-/** Họp: nối phiên tối đa ngần này lượt liên tiếp rồi mở phiên mới (transcript dài dần, mỗi lượt đọc lại cả cuộc họp) — TEST-142. */
-export const MEETING_RESUME_MAX = 8;
-
-/** Thời gian tối đa của một lượt họp (phút) — dưới hạn nói 3 phút của OfficeHub (`AgentMeetingTurnRules.TurnTimeout`) để runner kịp bỏ lượt thay. */
-export const MEETING_TURN_MAX_MIN = 2.5;
-
-/** Agent đang họp: job việc / chat hoãn từng nhịp này (giây) rồi kiểm tra lại. */
-export const MEETING_HOLD_SEC = 30;
 
 /**
  * Khoá của job chat / họp (`jobs.task_id`, cũng là khoá nối phiên): RIÊNG từng agent — nhiều bot cùng một hội thoại / cuộc họp mỗi bot một job,

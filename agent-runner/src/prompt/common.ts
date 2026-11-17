@@ -4,7 +4,7 @@ import type { WakeData } from '../validator';
 
 /**
  * Mở đầu + bước 1–4 (TEST-142):
- * - `resumed` = nối phiên CLI cũ (agent còn nhớ, vừa chạy ≤ {@link RESUME_MAX_GAP_MIN} phút trước) → bỏ đọc lại vai trò / dự án, chỉ đọc phần mới.
+ * - `resumed` = nối phiên CLI cũ (agent còn nhớ, vừa chạy ≤ `RESUME_MAX_GAP_MIN` phút trước) → bỏ đọc lại vai trò / dự án, chỉ đọc phần mới.
  * - `continued` = phiên MỚI nhưng việc đã từng làm (worktree / nhánh / phiên cũ còn dấu) → đọc bản Bàn giao + lịch sử nhánh trước khi làm tiếp.
  */
 export function intro(w: WakeData, resumed: boolean, continued = false): string {
@@ -28,9 +28,6 @@ ${read}
 4. update_task_status → trạng thái đang làm theo quy trình của dự án.
 `;
 }
-
-/** Nối phiên CLI cũ chỉ khi lần chạy trước cách ≤ ngần này phút (cache prompt còn sống) — xa hơn thì phiên mới + bản Bàn giao rẻ hơn (TEST-142). */
-export const RESUME_MAX_GAP_MIN = 10;
 
 export function finish(w: WakeData): string {
   return `6. Xong: comment_task ${w.task_code} báo kết quả (đã làm gì, kiểm tra gì, còn gì), rồi chuyển việc sang trạng thái ngay trước trạng thái cần duyệt

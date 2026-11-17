@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { claudeProjectDir } from '../executor/adapters/claude';
 import { mask } from '../executor/events';
 import { errText, log } from '../log';
-import { RESUME_MAX_GAP_MIN } from '../prompt/common';
+import { RESUME_MAX_GAP_MIN } from '../policy';
 import type { Store } from '../store';
 import { FailureLog, failureKey, HubEndpoint, hubUrl } from './endpoint';
 

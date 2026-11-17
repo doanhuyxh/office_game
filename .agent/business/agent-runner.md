@@ -1,6 +1,6 @@
 # Bộ điều phối agent (`agent-runner/`, TEST-44)
 
-> Về [README](README.md) · model thật agent dùng: [agent-runner-model.md](agent-runner-model.md) · tin chat_mention / meeting_turn: [agent-runner-events.md](agent-runner-events.md) · tin đánh thức: [notifications-telegram.md](notifications-telegram.md) · đội agent: [agent-team.md](agent-team.md)
+> Về [README](README.md) · cấu trúc mã + thêm cái mới vào đâu: [agent-runner-code.md](agent-runner-code.md) · model thật agent dùng: [agent-runner-model.md](agent-runner-model.md) · tin chat_mention / meeting_turn: [agent-runner-events.md](agent-runner-events.md) · tin đánh thức: [notifications-telegram.md](notifications-telegram.md) · đội agent: [agent-team.md](agent-team.md)
 
 Dự án bun + TypeScript độc lập ở gốc repo, **không thư viện runtime** (Telegram / MCP qua `fetch`, YAML `Bun.YAML`, SQLite `bun:sqlite`). Không import mã `backend/` / `frontend/` — chỉ nói chuyện với OfficeHub qua `/mcp` (token AI của agent) và Telegram.
 

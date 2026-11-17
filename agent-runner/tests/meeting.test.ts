@@ -5,7 +5,8 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseConfig } from '../src/config';
-import { MEETING_RESUME_MAX, MEETING_TURN_MAX_MIN, Runner } from '../src/runner';
+import { MEETING_RESUME_MAX, MEETING_TURN_MAX_MIN } from '../src/policy';
+import { Runner } from '../src/runner';
 import { formatFinding } from '../src/doctor/finding';
 import { Store } from '../src/store';
 
