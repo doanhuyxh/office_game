@@ -64,7 +64,21 @@ export interface ExecResult {
 
 export interface Adapter {
   kind: string;
-  caps: { resume: boolean; cost: boolean; budget: boolean };
+  caps: {
+    /** Nối được phiên cũ. */
+    resume: boolean;
+    /** Runner tắt được công cụ có sẵn của CLI (`noBuiltinTools`) — không thì CLI phải tự giới hạn (mode none, chat, họp). */
+    toolRestriction: boolean;
+  };
+  /** Lỗi trong phần `executor` của cấu hình riêng adapter này (câu không kèm tiền tố `agents[i].executor.`). */
+  configProblems?(exec: ExecutorConfig): string[];
+  /** Cảnh báo `doctor` về HOME của CLI (thứ CLI tự nạp vào mọi phiên…). */
+  homeWarnings?(exec: ExecutorConfig, home: string): string[];
+  /**
+   * Đường dẫn file transcript của một phiên chạy ở `cwd` (dù file có tồn tại hay không). Có hàm này → runner gửi transcript lên cloud và
+   * khôi phục lại khi máy mất file (TEST-144).
+   */
+  transcriptFile?(home: string, cwd: string, sessionId: string): string;
   command(ctx: ExecContext): Command;
   /** Đọc từng dòng stdout, cập nhật kết quả. */
   parseLine(line: string, r: ExecResult): void;

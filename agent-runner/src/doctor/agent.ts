@@ -2,7 +2,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { type AgentConfig, isInside, lightExecutor, type RunnerConfig } from '../config';
 import { projectFilesAbove, workDir } from '../core/paths';
-import { userClaudeExtras } from '../home-check';
+import { adapters } from '../executor/run';
 import { errText } from '../log';
 import type { OfficeHubClient } from '../hub/client';
 import type { TelegramClient } from '../telegram';
@@ -78,16 +78,7 @@ async function checkCli(c: DoctorContext, report: Report) {
   if (version.code !== 0) throw new CheckFailed(`${exec.bin} --version lỗi: ${version.err || version.out}`);
   const model = exec.model ? `model cấu hình ${exec.model}` : 'model: mặc định của CLI (không cấu hình)';
   report.ok(`CLI ${exec.kind} ${exec.bin} — ${version.out.split('\n')[0]} · ${model}`);
-  // TEST-140: cấu hình cấp user trong HOME của agent được nạp vào mọi phiên (--setting-sources user) → tốn token / đổi hành vi
-  if (exec.kind !== 'claude') return;
-  const home = c.env.HOME!;
-  if (!exec.home)
-    report.warn(`chưa đặt executor.home — CLI dùng HOME của runner (${home}); nên dùng HOME riêng, sạch cho agent`);
-  const extras = userClaudeExtras(home);
-  if (extras.length)
-    report.warn(
-      `HOME ${home} có ${extras.join(', ')} — nạp vào mọi phiên của agent (tốn token, có thể đổi hành vi); nên để HOME riêng chỉ có đăng nhập CLI`,
-    );
+  for (const warning of adapters[exec.kind].homeWarnings?.(exec, c.env.HOME!) ?? []) report.warn(warning);
 }
 
 /** Token AI phải thuộc đúng nhân viên trong cấu hình. Trả id nhân viên. */
@@ -103,7 +94,7 @@ async function checkToken(c: DoctorContext, report: Report): Promise<string> {
 function checkNoneWorkspace(c: DoctorContext, report: Report) {
   const work = workDir(c.config.dataDir, c.agent.employeeCode, 'x');
   report.ok(`workspace none — không repo / git / PR; CLI chạy trong ${dirname(work)}, chỉ tool MCP`);
-  if (c.agent.executor.kind !== 'claude')
+  if (!adapters[c.agent.executor.kind].caps.toolRestriction)
     report.warn(
       `adapter ${c.agent.executor.kind} — runner không tắt được công cụ có sẵn của CLI (chạy lệnh, đọc / ghi file); CLI phải tự giới hạn`,
     );

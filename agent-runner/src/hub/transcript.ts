@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { claudeProjectDir } from '../executor/adapters/claude';
+import { dirname } from 'node:path';
 import { mask } from '../executor/events';
 import { errText, log } from '../log';
 import { RESUME_MAX_GAP_MIN } from '../policy';
@@ -47,15 +46,18 @@ export function redactTranscript(jsonl: string): string {
     .join('\n');
 }
 
+/** Đường dẫn file transcript của phiên `sessionId` chạy ở `cwd` — do adapter của CLI quyết định (`Adapter.transcriptFile`). */
+export type TranscriptLocator = (cwd: string, sessionId: string) => string;
+
 /** File transcript của phiên ở máy (thử cwd và đường dẫn thật của cwd); không có → undefined. */
-export function transcriptFile(home: string, cwd: string, sessionId: string): string | undefined {
+export function transcriptFile(locate: TranscriptLocator, cwd: string, sessionId: string): string | undefined {
   const dirs = [cwd];
   try {
     dirs.push(realpathSync(cwd));
   } catch {
     /* cwd đã bị xoá */
   }
-  return dirs.map((d) => join(claudeProjectDir(home, d), `${sessionId}.jsonl`)).find((f) => existsSync(f));
+  return dirs.map((d) => locate(d, sessionId)).find((f) => existsSync(f));
 }
 
 export const sha256Hex = (b: Uint8Array) => createHash('sha256').update(b).digest('hex');
@@ -80,13 +82,13 @@ export class TranscriptReporter {
   private readonly endpoint: HubEndpoint;
   private readonly failures: FailureLog;
 
-  /** `home` = HOME của CLI agent (nơi Claude Code ghi transcript). */
+  /** `locate` = nơi CLI của agent ghi transcript (theo HOME của agent). */
   constructor(
     mcpUrl: string,
     token: string,
     readonly agent: string,
     private readonly store: Store,
-    private readonly home: string,
+    private readonly locate: TranscriptLocator,
   ) {
     this.endpoint = new HubEndpoint(mcpUrl, 'transcripts', token);
     this.failures = new FailureLog(agent);
@@ -123,7 +125,7 @@ export class TranscriptReporter {
     let sent = 0;
     for (const row of this.store.pendingTranscripts(this.agent)) {
       if (this.disabled) break;
-      const file = transcriptFile(this.home, row.worktree, row.session_id!);
+      const file = transcriptFile(this.locate, row.worktree, row.session_id!);
       if (!file) {
         this.store.doneTranscript(row.key, { error: 'không còn file transcript ở máy' });
         continue;
@@ -234,9 +236,9 @@ export class TranscriptReporter {
       log('warn', 'transcript trên cloud lệch sha256 — bỏ', { agent: this.agent, key });
       return undefined;
     }
-    const dir = claudeProjectDir(this.home, cwd);
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, `${dto.sessionId}.jsonl`), Bun.gunzipSync(gz), { mode: 0o600 });
+    const file = this.locate(cwd, dto.sessionId);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, Bun.gunzipSync(gz), { mode: 0o600 });
     log('info', 'đã khôi phục transcript từ cloud để nối phiên', { agent: this.agent, key, session: dto.sessionId });
     return dto.sessionId;
   }

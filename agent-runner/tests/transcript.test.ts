@@ -62,7 +62,8 @@ beforeEach(() => {
   saved.clear();
   posts.length = 0;
 });
-const reporter = () => new TranscriptReporter(`http://localhost:${server.port}/mcp`, TOKEN, 'NV120', store, home);
+const locate = (dir: string, sessionId: string) => join(claudeProjectDir(home, dir), `${sessionId}.jsonl`);
+const reporter = () => new TranscriptReporter(`http://localhost:${server.port}/mcp`, TOKEN, 'NV120', store, locate);
 /** Phiên vừa chạy: transcript ở HOME/.claude/projects/<cwd>, dòng task_sessions + hàng chờ. */
 const session = (key: string, sid: string, lines: object[], kind = 'task') => {
   const dir = claudeProjectDir(home, realpathSync(cwd));
@@ -179,9 +180,9 @@ describe('khôi phục lười', () => {
     await reporter().flush();
     // "Máy mới": HOME khác, chưa có transcript
     home = join(root, `home-new${n}`);
-    expect(transcriptFile(home, cwd, 's-4')).toBeUndefined();
+    expect(transcriptFile(locate, cwd, 's-4')).toBeUndefined();
     expect(await reporter().restore('T4', cwd)).toBe('s-4');
-    const f = transcriptFile(home, cwd, 's-4')!;
+    const f = transcriptFile(locate, cwd, 's-4')!;
     expect(readFileSync(f, 'utf8')).toContain('đang dở');
     // Chưa có trên cloud
     expect(await reporter().restore('KHÔNG-CÓ', cwd)).toBeUndefined();

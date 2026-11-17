@@ -19,7 +19,7 @@ import { buildPrompt, mcpConfig } from '../src/prompt';
 import { chatPrompt } from '../src/prompt/chat';
 import { meetingPrompt } from '../src/prompt/meeting';
 import { MCP_SYSTEM_PROMPT } from '../src/prompt/system';
-import { userClaudeExtras } from '../src/home-check';
+import { userClaudeExtras } from '../src/executor/adapters/claude-home';
 import { Store } from '../src/store';
 import { checkChat, checkMeeting, checkTask, parseWake } from '../src/validator';
 import { COMMIT_MSG_MARK, PRE_PUSH_MARK, branchName, commitMsgHook, prePushHook } from '../src/workspace';

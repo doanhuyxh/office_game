@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { mainModel, readModelUsage } from '../model';
 import type { Adapter, ExecContext, ProbeResult } from '../types';
 import { claudeEvents } from './claude-events';
+import { userClaudeExtras } from './claude-home';
 
 /**
  * Claude Code CLI không giao diện (kiểm với 2.1.x: `claude --help`):
@@ -122,7 +123,20 @@ export function claudeHasSession(home: string, cwd: string, sessionId: string): 
 
 export const claudeAdapter: Adapter = {
   kind: 'claude',
-  caps: { resume: true, cost: true, budget: true },
+  caps: { resume: true, toolRestriction: true },
+  // TEST-140: cấu hình cấp user trong HOME của agent được nạp vào mọi phiên (--setting-sources user) → tốn token / đổi hành vi
+  homeWarnings(exec, home) {
+    const warnings: string[] = [];
+    if (!exec.home)
+      warnings.push(`chưa đặt executor.home — CLI dùng HOME của runner (${home}); nên dùng HOME riêng, sạch cho agent`);
+    const extras = userClaudeExtras(home);
+    if (extras.length)
+      warnings.push(
+        `HOME ${home} có ${extras.join(', ')} — nạp vào mọi phiên của agent (tốn token, có thể đổi hành vi); nên để HOME riêng chỉ có đăng nhập CLI`,
+      );
+    return warnings;
+  },
+  transcriptFile: (home, cwd, sessionId) => join(claudeProjectDir(home, cwd), `${sessionId}.jsonl`),
   command(ctx: ExecContext) {
     const e = ctx.exec;
     const args = [

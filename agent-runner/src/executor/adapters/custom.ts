@@ -20,7 +20,8 @@ export function fillArgs(template: string[], ctx: ExecContext): string[] {
  */
 export const customAdapter: Adapter = {
   kind: 'custom',
-  caps: { resume: true, cost: true, budget: false },
+  caps: { resume: true, toolRestriction: false },
+  configProblems: (exec) => (exec.args ? [] : ['args bắt buộc với kind custom']),
   command(ctx) {
     const e = ctx.exec;
     const args = fillArgs(e.args ?? [], ctx);

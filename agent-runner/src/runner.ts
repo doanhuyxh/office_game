@@ -64,11 +64,19 @@ export class Runner {
           ...source,
           executor: a.executor.kind,
         }),
-        transcripts: adapters[a.executor.kind]?.hasSession
-          ? new TranscriptReporter(config.mcpUrl, a.token, a.employeeCode, store, agentHome(a))
-          : undefined,
+        transcripts: this.transcriptsOf(a),
       });
     }
+  }
+
+  /** Bộ gửi transcript lên cloud — chỉ khi adapter của CLI biết transcript nằm ở đâu. */
+  private transcriptsOf(a: AgentConfig): TranscriptReporter | undefined {
+    const locate = adapters[a.executor.kind].transcriptFile;
+    if (!locate) return undefined;
+    const home = agentHome(a);
+    return new TranscriptReporter(this.config.mcpUrl, a.token, a.employeeCode, this.store, (cwd, sessionId) =>
+      locate(home, cwd, sessionId),
+    );
   }
 
   // ---------------- Kiểm tra agent ----------------

@@ -1,9 +1,10 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
+import { adapters, type ExecutorKind, isExecutorKind } from './executor/run';
 
 /** Cấu hình runner (agents.yaml). Kiểm tra bằng tay (không phụ thuộc thư viện) — lỗi gom thành danh sách tiếng Việt. */
 export interface ExecutorConfig {
-  kind: 'claude' | 'custom';
+  kind: ExecutorKind;
   bin: string;
   model?: string;
   home?: string;
@@ -151,7 +152,7 @@ export function parseConfig(raw: unknown): RunnerConfig {
       if (w[k] !== undefined && typeof w[k] !== 'boolean') p.push(`${at}.workspace.${k} là true / false`);
     const e = a?.executor ?? {};
     const kind = e.kind;
-    if (kind !== 'claude' && kind !== 'custom') p.push(`${at}.executor.kind phải là claude hoặc custom`);
+    if (!isExecutorKind(kind)) p.push(`${at}.executor.kind phải là ${Object.keys(adapters).join(' hoặc ')}`);
     const bin = str(e.bin);
     if (!bin || !isAbsolute(bin)) p.push(`${at}.executor.bin phải là đường dẫn tuyệt đối tới CLI`);
     const timeoutMin = num(e.timeout_min) ?? 60;
@@ -183,12 +184,29 @@ export function parseConfig(raw: unknown): RunnerConfig {
     }
     const args = strList(e.args),
       resumeArgs = strList(e.resume_args);
-    if (kind === 'custom' && !args) p.push(`${at}.executor.args bắt buộc với kind custom`);
     const fmt = e.output?.format ?? 'text';
+    const executorOf = (kind: ExecutorKind): ExecutorConfig => ({
+      kind,
+      bin: bin!,
+      model: str(e.model),
+      home: str(e.home),
+      timeoutMin,
+      maxBudgetUsd: budget,
+      maxTurns,
+      light,
+      extraArgs: strList(e.extra_args) ?? [],
+      args,
+      resumeArgs,
+      outputFormat: fmt,
+    });
     if (fmt !== 'text' && fmt !== 'json') p.push(`${at}.executor.output.format là text hoặc json`);
     if (code) seenCodes.add(code);
     if (bot) seenBots.add(normalizeBot(bot));
-    if (code && bot && tgToken && token && (repo || mode === 'none') && bin && (kind === 'claude' || kind === 'custom'))
+    const executor = isExecutorKind(kind) && bin ? executorOf(kind) : undefined;
+    if (executor)
+      for (const problem of adapters[executor.kind].configProblems?.(executor) ?? [])
+        p.push(`${at}.executor.${problem}`);
+    if (code && bot && tgToken && token && (repo || mode === 'none') && executor)
       agents.push({
         employeeCode: code,
         telegramBot: normalizeBot(bot),
@@ -197,20 +215,7 @@ export function parseConfig(raw: unknown): RunnerConfig {
         repo: repo ? resolve(repo) : '',
         envFile,
         workspace: { mode, allowBaseBranch: w.allow_base_branch === true, allowEnvFiles: w.allow_env_files === true },
-        executor: {
-          kind,
-          bin,
-          model: str(e.model),
-          home: str(e.home),
-          timeoutMin,
-          maxBudgetUsd: budget,
-          maxTurns,
-          light,
-          extraArgs: strList(e.extra_args) ?? [],
-          args,
-          resumeArgs,
-          outputFormat: fmt,
-        },
+        executor,
       });
   });
   // in_place làm việc thẳng trong repo → hai agent không được dùng chung một repo (không có worktree ngăn cách).
