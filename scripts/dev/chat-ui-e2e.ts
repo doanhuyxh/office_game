@@ -8,6 +8,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { BASE, launch } from './cdp';
+import { checkImageViewer, checkNewsViewer, makePng } from './image-viewer-checks';
 import { totp } from './totp';
 if (process.env.E2E_LOCAL_DB !== '1') throw new Error('Chỉ chạy với DB tạm: đặt E2E_LOCAL_DB=1');
 const API = process.env.API_URL ?? 'http://localhost:5180';
@@ -185,6 +186,25 @@ try {
   check('A thấy ảnh của B (tải được từ S3, hiển thị thật)', await waitFor(ba, `(() => { const im = document.querySelector('[data-testid=chat-messages] img'); return !!im && im.complete && im.naturalWidth > 0; })()`, 12000),
     await q(ba, `[...document.querySelectorAll('[data-testid=chat-messages] img')].map(i => i.src.slice(0, 120))`));
   await q(ba, `(() => { const e = [...document.querySelectorAll('[data-testid=chat-conversation]')].find(x => x.textContent.includes('Trần Bảo Bình')); e?.click(); return true; })()`);
+
+  // ---------- TEST-147: trình xem ảnh dùng chung — B gửi 2 ảnh (2400 × 1600 + 900 × 600), A xem ở /chat; Bảng tin dùng cùng trình xem ----------
+  {
+    const bigPath = `${tmpdir()}/chat-ui-e2e-${stamp}-big.png`, smallPath = `${tmpdir()}/chat-ui-e2e-${stamp}-2.png`;
+    await Bun.write(bigPath, makePng(2400, 1600));
+    await Bun.write(smallPath, makePng(900, 600, 1));
+    const d = await bb.send('DOM.getDocument', { depth: 1 });
+    const nd = await bb.send('DOM.querySelector', { nodeId: d.result.root.nodeId, selector: '[data-testid=chat-file-input]' });
+    await bb.send('DOM.setFileInputFiles', { nodeId: nd.result.nodeId, files: [bigPath, smallPath] });
+    await waitFor(bb, `document.querySelector('[data-testid=chat-files]')?.children.length === 2`);
+    await sleep(2500); // tải lên S3
+    await sendGap();
+    await q(bb, `document.querySelector('[data-testid=chat-send]').click()`);
+    check('A nhận 2 ảnh mới của B', await waitFor(ba, `(() => { const im = [...document.querySelectorAll('[data-testid=chat-images] img')]; return im.length >= 3 && im.every((i) => i.complete && i.naturalWidth > 0); })()`, 20000),
+      await q(ba, `document.querySelectorAll('[data-testid=chat-images] img').length`));
+    await checkImageViewer(ba, check, { scope: 'document', label: 'trình xem /chat', sender: 'Trần Bảo Bình', shot: `${tmpdir()}/chat-ui-e2e-viewer.png` });
+    await checkNewsViewer(ba, check, BASE, stamp, `${tmpdir()}/chat-ui-e2e-news-viewer.png`);
+    await ba.go(`${BASE}/chat`, 3500);
+  }
 
   // ---------- Thu hồi ----------
   await openConv(ba, 'Trần Bảo Bình');

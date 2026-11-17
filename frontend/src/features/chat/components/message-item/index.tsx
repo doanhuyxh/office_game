@@ -1,18 +1,16 @@
 import { Fragment, useMemo, useState, type KeyboardEvent } from 'react';
 import { AlertCircle, File as FileIcon, Loader2, MoreHorizontal, Pencil, RotateCcw, SmilePlus, Undo2, X } from 'lucide-react';
-import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/common/dropdown-menu';
 import { Textarea } from '@/components/common/textarea';
 import { BotBadge } from '@/components/common/bot-badge';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import { formatTime } from '@/utils/date';
-import { errorMessage } from '@/utils/errors';
 import { cn } from '@/utils/cn';
 import { splitMentions } from '@/utils/mention';
-import { chatApi } from '../../api/chat.api';
 import type { IAttachment, IMention, IMessage } from '../../types/chat.types';
 import { mentionsUser } from '../../utils/cache';
+import { downloadAttachment, isImage } from '../../utils/attachments';
 import { MAX_TEXT, formatBytes, isSystemMessage } from '../../utils/labels';
 import { EmojiDialog, QUICK_EMOJIS } from '../emoji-dialog';
 import { ReactionBar } from '../reaction-bar';
@@ -51,20 +49,6 @@ function MessageText({ text, mentions, mine }: { text: string; mentions?: IMenti
   );
 }
 
-async function download(a: IAttachment) {
-  try {
-    const { url } = await chatApi.attachmentUrl(a.id, true);
-    const link = document.createElement('a');
-    link.href = url;
-    link.rel = 'noopener';
-    link.click();
-  } catch (e) {
-    toast.error(errorMessage(e, 'Không tải được tệp'));
-  }
-}
-
-const isImage = (a: IAttachment) => a.isImage && !!a.url;
-
 /** Ảnh đính kèm: hiện thẳng (bo góc), KHÔNG nằm trong bong bóng có nền (TEST-146). `className` = viền trạng thái của tin. */
 function ImageAttachments({ items, onPreview, className }: { items: IAttachment[]; onPreview: (a: IAttachment) => void; className?: string }) {
   if (items.length === 0) return null;
@@ -89,7 +73,7 @@ function FileAttachments({ items, local }: { items: IAttachment[]; local: boolea
           key={a.id}
           type="button"
           disabled={local}
-          onClick={() => void download(a)}
+          onClick={() => void downloadAttachment(a.id)}
           className="flex max-w-72 items-center gap-2 rounded-md border bg-background/60 px-2.5 py-1.5 text-start text-foreground hover:bg-background disabled:opacity-70"
           title={local ? a.fileName : `Tải ${a.fileName}`}
         >

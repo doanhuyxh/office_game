@@ -24,6 +24,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { BASE, launch } from './cdp';
+import { checkImageViewer, makePng } from './image-viewer-checks';
 import { totp } from './totp';
 
 if (process.env.E2E_LOCAL_DB !== '1') throw new Error('Chỉ chạy với DB tạm: đặt E2E_LOCAL_DB=1');
@@ -259,6 +260,23 @@ try {
   await say(pb, `B trả lời trong 3D ${stamp}`);
   ok('A nhận trả lời của B trong 3D (realtime)', await hasMsg(pa, `B trả lời trong 3D ${stamp}`));
   ok('A đang xem 1-1 → không toast', !(await toastText(pa)).includes(`${B.name} nhắn bạn`), await toastText(pa));
+
+  // ---------- TEST-147: trình xem ảnh toàn màn hình trong khung chat 3D (2 ảnh mới: 2400 × 1600 + 900 × 600) ----------
+  const bigPath = `${tmpdir()}/ocf-e2e-${stamp}-big.png`, smallPath = `${tmpdir()}/ocf-e2e-${stamp}-2.png`;
+  await Bun.write(bigPath, makePng(2400, 1600));
+  await Bun.write(smallPath, makePng(900, 600, 1));
+  {
+    const d = await pa.send('DOM.getDocument', { depth: 1 });
+    const nd = await pa.send('DOM.querySelector', { nodeId: d.result.root.nodeId, selector: '[data-testid=office-chat] [data-testid=chat-file-input]' });
+    await pa.send('DOM.setFileInputFiles', { nodeId: nd.result.nodeId, files: [bigPath, smallPath] });
+    await waitFor(pa, `${P3}.querySelector('[data-testid=chat-files]')?.children.length === 2`);
+    await sleep(2500); // tải lên S3
+    await pa.evalJs(`${P3}.querySelector('[data-testid=chat-send]').click()`);
+    ok('A gửi 2 ảnh trong khung 3D (đã gửi xong, ảnh hiển thị)', await waitFor(pa, `(() => { const im = [...${P3}.querySelectorAll('[data-testid=chat-images] img')];
+      return im.length >= 3 && im.every((i) => i.complete && i.naturalWidth > 0) && ![...${P3}.querySelectorAll('[data-testid=chat-message]')].some((e) => e.textContent.includes('Đang gửi') || e.textContent.includes('Đang tải lên')); })()`, 25000));
+    await sendGap();
+    await checkImageViewer(pa, ok, { scope: P3, label: 'trình xem 3D', sender: A.name, shot: `${SHOTS}/a-image-viewer.png`, myPos: () => me(pa) });
+  }
 
   // ---------- C (/chat) không thấy 1-1 của A–B ----------
   const cConvs = (await api(pc, '/api/chat/conversations')).body as any[];

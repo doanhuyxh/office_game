@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, FileText } from 'lucide-react';
+import { Download, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/common/dialog';
+import { ImageViewer } from '@/components/common/image-viewer';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errors';
 import { newsApi } from '../../api/news.api';
 import type { IMedia } from '../../types/news.types';
 import { formatSize } from '../../utils/labels';
 
-/** Ảnh / video dạng lưới (như Facebook; quá 4 mục thì ô cuối hiện "+N"), tệp khác liệt kê bên dưới. Ảnh bấm để xem lớn. */
+/** Ảnh / video dạng lưới (như Facebook; quá 4 mục thì ô cuối hiện "+N"), tệp khác liệt kê bên dưới. Ảnh bấm để xem lớn (trình xem ảnh dùng chung — TEST-147). */
 export function MediaGrid({ media }: { media: IMedia[] }) {
   const visual = media.filter((m) => m.kind !== 'File');
   const files = media.filter((m) => m.kind === 'File');
@@ -58,27 +58,8 @@ export function MediaGrid({ media }: { media: IMedia[] }) {
           </Button>
         </div>
       ))}
-      <Lightbox images={images} index={open} onIndex={setOpen} />
+      <ImageViewer images={images.map((m) => ({ id: m.id, url: m.url ?? '', fileName: m.fileName }))} index={open} onIndex={setOpen}
+        onDownload={(img) => { const m = images.find((x) => x.id === img.id); return m && download(m); }} />
     </div>
-  );
-}
-
-function Lightbox({ images, index, onIndex }: { images: IMedia[]; index: number | null; onIndex: (i: number | null) => void }) {
-  const cur = index !== null ? images[index] : null;
-  const go = (d: number) => index !== null && onIndex((index + d + images.length) % images.length);
-  return (
-    <Dialog open={cur !== null} onOpenChange={(o) => !o && onIndex(null)}>
-      <DialogContent className="max-w-[min(96vw,64rem)] border-0 bg-black/90 p-2 text-white sm:max-w-[min(96vw,64rem)]" onPointerDownOutside={undefined} onInteractOutside={undefined}>
-        <DialogTitle className="sr-only">{cur?.fileName ?? 'Ảnh'}</DialogTitle>
-        <DialogDescription className="sr-only">Xem ảnh lớn</DialogDescription>
-        {cur && <img src={cur.url ?? undefined} alt={cur.fileName} className="mx-auto max-h-[85vh] w-auto object-contain" />}
-        {images.length > 1 && (
-          <>
-            <Button type="button" variant="ghost" size="icon" className="absolute top-1/2 left-2 -translate-y-1/2 text-white hover:bg-white/20" onClick={() => go(-1)} aria-label="Ảnh trước"><ChevronLeft /></Button>
-            <Button type="button" variant="ghost" size="icon" className="absolute top-1/2 right-2 -translate-y-1/2 text-white hover:bg-white/20" onClick={() => go(1)} aria-label="Ảnh sau"><ChevronRight /></Button>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
   );
 }

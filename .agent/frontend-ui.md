@@ -40,6 +40,6 @@ Dùng chung ở Bảng tin (soạn bài, bình luận), bình luận việc, cha
 - Server tìm (Bảng tin, chat) — [news-extras.md](business/news-extras.md); thành viên dự án lọc ở FE bằng `rankPeople` (bỏ dấu, tách từ, xếp hạng giống `PersonSearch` ở BE). Gọi server sau 200 ms (`useDebounce`).
 - `MentionList`: cao ~8 dòng, cuộn, ↑↓ cuộn theo (`data-index` + `scrollIntoView`), tô chữ khớp (`highlightMatches`), dòng phụ `mentionHint(mã, phòng ban, chức danh)`, avatar + chip BOT; prop `open` → "Đang tìm…" / "Không tìm thấy ai"; đủ 20 → "Gõ thêm … để thu hẹp".
 
-## Ảnh / video ngoài
+## Ảnh / video
 
-- (TEST-22, `utils/trustedMedia.ts`): Markdown (`components/common/markdown.tsx`) và link media của việc (`task-media`) chỉ tự tải ảnh / file video từ cùng domain hoặc S3 `*.amazonaws.com`; nguồn khác hiện thành link bấm mở (tránh ảnh theo dõi). YouTube / Vimeo / Drive nhúng như cũ.
+- Ảnh / video ngoài (chỉ tự tải từ cùng domain / S3) và **trình xem ảnh toàn màn hình dùng chung** `ImageViewer` (chat, khung chat 3D, Bảng tin — TEST-147) → [frontend-media.md](frontend-media.md).

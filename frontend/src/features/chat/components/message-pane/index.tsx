@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Loader2, MessageSquareDashed, Search, Upload, Users, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
@@ -6,16 +6,18 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/common/alert-dialog';
 import { Button } from '@/components/common/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/common/dialog';
+import { ImageViewer, type ImageViewerItem } from '@/components/common/image-viewer';
 import { Spinner } from '@/components/feedback/Spinner';
 import { useMe } from '@/features/auth';
 import { AgentMeetingBar, AgentMeetingDialog, type AgentMeetingDraft } from '@/features/meetings';
 import { cn } from '@/utils/cn';
+import { formatDateTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
 import { useChat } from '../../hooks/useChat';
 import { loadOlderMessages, useMessages } from '../../hooks/useChatData';
-import type { IAttachment, IConversation, IMessage } from '../../types/chat.types';
-import { MAX_FILES, dayKey, dayLabel, fileProblem } from '../../utils/labels';
+import type { IConversation, IMessage } from '../../types/chat.types';
+import { downloadAttachment, isImage } from '../../utils/attachments';
+import { MAX_FILES, dayKey, dayLabel, fileProblem, isSystemMessage } from '../../utils/labels';
 import { Composer } from '../composer';
 import { ConversationIcon } from '../conversation-list';
 import { GroupMembersDialog } from '../group-members-dialog';
@@ -54,7 +56,7 @@ export function MessagePane({ conversation, onBack, onLeft, back = 'mobile', sub
 
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
-  const [preview, setPreview] = useState<IAttachment | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [recalling, setRecalling] = useState<IMessage | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -139,6 +141,14 @@ export function MessagePane({ conversation, onBack, onLeft, back = 'mobile', sub
     addFiles([...e.dataTransfer.files]);
   };
 
+  // Trình xem ảnh (TEST-147): mọi ảnh trong các tin đã tải (bỏ tin thu hồi / tin hệ thống), theo thứ tự thời gian; ảnh tin đang gửi không tải về
+  const gallery = useMemo<ImageViewerItem[]>(() => items
+    .filter((m) => !m.deleted && !isSystemMessage(m))
+    .flatMap((m) => m.attachments.filter(isImage).map((a) => ({
+      id: a.id, url: a.url, fileName: a.fileName, caption: `${m.senderName} · ${formatDateTime(m.createdAt)}`, downloadable: !m.local,
+    }))), [items]);
+  const previewIndex = preview ? gallery.findIndex((g) => g.id === preview) : -1;
+
   const meId = me?.id;
   const rows: ReactNode[] = [];
   items.forEach((m, i) => {
@@ -165,7 +175,7 @@ export function MessagePane({ conversation, onBack, onLeft, back = 'mobile', sub
         onReact={chat.react}
         onRetry={(x) => x.clientId && chat.retry(conversation.id, x.clientId)}
         onDiscard={(x) => x.clientId && chat.discard(conversation.id, x.clientId)}
-        onPreview={setPreview}
+        onPreview={(a) => setPreview(a.id)}
       />,
     );
   });
@@ -244,13 +254,8 @@ export function MessagePane({ conversation, onBack, onLeft, back = 'mobile', sub
         <div className="flex items-center gap-2 text-sm font-medium text-primary"><Upload className="size-5" /> Thả tệp / ảnh để đính kèm</div>
       </div>
 
-      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
-        <DialogContent className="max-w-[min(95vw,64rem)] p-2 sm:max-w-5xl">
-          <DialogTitle className="sr-only">{preview?.fileName ?? 'Ảnh'}</DialogTitle>
-          <DialogDescription className="sr-only">Xem ảnh đã gửi trong cuộc trò chuyện</DialogDescription>
-          {preview && <img src={preview.url} alt={preview.fileName} className="max-h-[80vh] w-full rounded object-contain" />}
-        </DialogContent>
-      </Dialog>
+      <ImageViewer images={gallery} index={previewIndex >= 0 ? previewIndex : null}
+        onIndex={(i) => setPreview(i === null ? null : gallery[i]?.id ?? null)} onDownload={(img) => downloadAttachment(img.id)} />
 
       <AlertDialog open={!!recalling} onOpenChange={(o) => !o && setRecalling(null)}>
         <AlertDialogContent>
