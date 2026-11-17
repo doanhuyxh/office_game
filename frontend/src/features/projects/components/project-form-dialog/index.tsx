@@ -7,7 +7,6 @@ import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/common/input';
 import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { SelectField } from '@/components/common/SelectField';
-import { Textarea } from '@/components/common/textarea';
 import { useDepartments, useEmployees } from '@/features/employees';
 import { todayVn, useLines } from '@/features/finance';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -35,7 +34,7 @@ function Section({ title, hint, children, testId, className = '' }: { title: str
  * Tạo / sửa dự án. Làm cho khách → gắn một hoặc nhiều hợp đồng bán (tìm theo số / tên / khách); một hợp đồng chỉ thuộc một dự án.
  * Mã không đổi sau khi tạo (dùng trong mã việc + số hiệu tài liệu). Quy trình "Đi lần lượt" (mặc định bật cho dự án mới)
  * + hướng dẫn làm việc (Markdown — người và BOT đọc qua MCP get_project).
- * Bố cục: header + footer cố định; từ `lg` 2 cột cuộn riêng — trái: thông tin chung / hợp đồng / thời gian / quy trình / thành viên, phải: chỉ mô tả + hướng dẫn.
+ * Bố cục: header + footer cố định; từ `lg` 2 cột cuộn riêng — trái: thông tin chung / hợp đồng / thời gian / quy trình / thành viên, phải: chỉ mô tả + hướng dẫn (cả hai Markdown, Viết / Xem trước).
  */
 export function ProjectFormDialog({ open, project, workGuide, onClose, onCreated }: {
   open: boolean; project?: IProject | null; workGuide?: string | null; onClose: () => void; onCreated?: (id: string) => void;
@@ -48,6 +47,7 @@ export function ProjectFormDialog({ open, project, workGuide, onClose, onCreated
   const [q, setQ] = useState('');
   const [picked, setPicked] = useState<ISalesContractRef[]>([]);
   const [preview, setPreview] = useState(false);
+  const [descPreview, setDescPreview] = useState(false);
   const search = useDebounce(q, 300).trim();
   const contractQuery = useSalesContractSearch(search, open && f.kind === 'Client' && search.length > 0);
   const contracts = (contractQuery.data ?? []).filter((c) => !picked.some((x) => x.id === c.id));
@@ -61,7 +61,7 @@ export function ProjectFormDialog({ open, project, workGuide, onClose, onCreated
       startOn: p.startOn ?? '', endOn: p.endOn ?? '', budgetManDays: p.budgetManDays, status: p.status, sequential: p.sequential, workGuide: workGuide ?? '' }
       : { code: '', name: '', kind: 'Internal', description: '', departmentIds: [], leadDepartmentId: null, businessLineId: null, salesContractIds: [], startOn: todayVn(), endOn: '', budgetManDays: null, status: 'Active',
         sequential: true, workGuide: '' });
-    setMembers([]); setQ(''); setPicked(p?.contracts ?? []); setPreview(!!workGuide?.trim());
+    setMembers([]); setQ(''); setPicked(p?.contracts ?? []); setPreview(!!workGuide?.trim()); setDescPreview(!!p?.description?.trim());
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [open, project?.id]);
   const errors = fieldErrors(save.error);
@@ -155,9 +155,9 @@ export function ProjectFormDialog({ open, project, workGuide, onClose, onCreated
             </div>
             <div className="grid min-w-0 grid-cols-1 content-start gap-6 border-t px-6 py-5 lg:flex lg:min-h-0 lg:flex-col lg:overflow-y-auto lg:border-t-0 lg:border-l" data-testid="pj-col-text">
               <Section title="Mô tả">
-                <Textarea id="pj-desc" aria-label="Mô tả" rows={5} className="min-h-28" maxLength={2000} value={f.description ?? ''} onChange={(e) => set('description', e.target.value)}
-                  placeholder="Mục tiêu, phạm vi, khách hàng…" />
-                {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
+                <MarkdownEditor id="pj-desc" label="Dự án là gì (Markdown, ≤ 2 000 ký tự)" value={f.description ?? ''} onChange={(v) => set('description', v)}
+                  preview={descPreview} onPreviewChange={setDescPreview} rows={6} minHeightClass="min-h-32" maxLength={2000} error={errors.description} emptyText="Chưa có mô tả."
+                  placeholder={'**Mục tiêu:** …\n- Phạm vi…\n- Khách hàng…'} />
               </Section>
               <Section title="Hướng dẫn làm việc" className="lg:flex lg:flex-1 lg:flex-col" hint="Thành viên và BOT đọc trước khi làm việc trong dự án (Markdown).">
                 <MarkdownEditor id="pj-guide" label="Nội dung hướng dẫn" value={f.workGuide ?? ''} onChange={(v) => set('workGuide', v)}

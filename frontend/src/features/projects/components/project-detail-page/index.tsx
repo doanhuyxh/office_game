@@ -15,6 +15,7 @@ import { useTabParam } from '@/hooks/useTabParam';
 import { errorMessage } from '@/utils/errors';
 import { useProject } from '../../hooks/useProjects';
 import { PROJECT_KIND, PROJECT_STATUS } from '../../utils/labels';
+import { markdownSummary } from '../../utils/summary';
 import { ChangeRequestsPanel } from '../change-requests-panel';
 import { EffortPanel } from '../effort-panel';
 import { FinancialsPanel } from '../financials-panel';
@@ -22,9 +23,10 @@ import { MembersPanel } from '../members-panel';
 import { MilestonesPanel } from '../milestones-panel';
 import { ProjectAppendix } from '../project-appendix';
 import { ProjectFormDialog } from '../project-form-dialog';
+import { ProjectOverview } from '../project-overview';
 import { TaskBoard } from '../task-board';
 
-/** /projects/$projectId: Công việc · Hướng dẫn làm việc · Mốc nghiệm thu · Thay đổi (CR) · Thành viên · Ngày công / Tài chính (theo myAccess) · Phụ lục (phòng ban, thành viên, quyền hạn). */
+/** /projects/$projectId: Công việc · Tổng quan (mô tả Markdown + thông tin nhanh) · Hướng dẫn làm việc · Mốc nghiệm thu · Thay đổi (CR) · Thành viên · Ngày công / Tài chính (theo myAccess) · Phụ lục (phòng ban, thành viên, quyền hạn). */
 export function ProjectDetailPage() {
   const { projectId } = useParams({ strict: false }) as { projectId: string };
   const { data: d, isLoading, error } = useProject(projectId);
@@ -34,7 +36,7 @@ export function ProjectDetailPage() {
   const access = d?.myAccess ?? [];
   const canEffort = access.includes('effort');
   const canFinance = access.includes('finance') && finance.view;
-  const [tab, setTab] = useTabParam('tasks', ['tasks', 'guide', 'milestones', 'changes', 'members', 'appendix', ...(canEffort ? ['effort'] : []), ...(canFinance ? ['finance'] : [])]);
+  const [tab, setTab] = useTabParam('tasks', ['tasks', 'overview', 'guide', 'milestones', 'changes', 'members', 'appendix', ...(canEffort ? ['effort'] : []), ...(canFinance ? ['finance'] : [])]);
   const [editing, setEditing] = useState(false);
   // Link chuông ?task=… (TEST-66) → luôn ở tab Công việc để hộp thoại việc mở được
   const openTask = (useSearch({ strict: false }) as { task?: string }).task;
@@ -42,6 +44,7 @@ export function ProjectDetailPage() {
   if (isLoading) return <Spinner />;
   if (error || !d) return <div className="grid gap-2"><p className="text-sm text-destructive">{errorMessage(error, 'Không tìm thấy dự án')}</p><Link to={PATHS.projects} className="text-sm underline">← Danh sách dự án</Link></div>;
   const p = d.project;
+  const summary = markdownSummary(p.description);
   return (
     <div className="grid grid-cols-1 gap-4">
       <PageHeader title={p.name} />
@@ -52,7 +55,9 @@ export function ProjectDetailPage() {
             <StatusBadge tone={PROJECT_STATUS[p.status].tone}>{PROJECT_STATUS[p.status].label}</StatusBadge></div>
           <div className="text-sm text-muted-foreground">{PROJECT_KIND[p.kind]}{p.contracts.length > 0 && ` · HĐ ${p.contracts.map((c) => c.code).join(', ')} · ${[...new Set(p.contracts.map((c) => c.customerName))].join(', ')}`}{p.departments.length > 0 && ` · ${p.departments.map((x) => (x.isLead ? `${x.name} (chủ trì)` : x.name)).join(', ')}`}
             {p.startOn && ` · ${fmtDate(p.startOn)}${p.endOn ? ` → ${fmtDate(p.endOn)}` : ''}`}</div>
-          {p.description && <p className="max-w-3xl whitespace-pre-wrap text-sm">{p.description}</p>}
+          {summary && <p className="flex max-w-3xl min-w-0 items-baseline gap-2 text-sm" data-testid="project-summary">
+            <span className="line-clamp-1 min-w-0 text-muted-foreground" title={summary}>{summary}</span>
+            <button type="button" className="shrink-0 text-xs text-primary hover:underline" onClick={() => setTab('overview')}>Xem tổng quan</button></p>}
           {p.viaDepartment && <p className="text-xs text-muted-foreground" data-testid="via-department">Bạn xem dự án này nhờ phòng ban của mình tham gia — chỉ đọc (không tạo / sửa việc, không bình luận). Xem tab "Phụ lục".</p>}
         </div>
         <div className="flex gap-2">
@@ -64,6 +69,7 @@ export function ProjectDetailPage() {
         <PageToolbar>
           <TabsList>
             <TabsTrigger value="tasks">Công việc ({p.tasks.open})</TabsTrigger>
+            <TabsTrigger value="overview">Tổng quan</TabsTrigger>
             <TabsTrigger value="guide">Hướng dẫn</TabsTrigger>
             <TabsTrigger value="milestones">Mốc ({p.milestonesAccepted}/{p.milestonesOpen + p.milestonesAccepted})</TabsTrigger>
             <TabsTrigger value="changes">Thay đổi</TabsTrigger>
@@ -74,6 +80,7 @@ export function ProjectDetailPage() {
           </TabsList>
         </PageToolbar>
         <TabsContent value="tasks" className="mt-4"><TaskBoard d={d} myEmployeeId={myEmployeeId} /></TabsContent>
+        <TabsContent value="overview" className="mt-4"><ProjectOverview d={d} onTab={setTab} onEdit={() => setEditing(true)} canEffort={canEffort} /></TabsContent>
         <TabsContent value="guide" className="mt-4">
           <div className="grid max-w-3xl items-start gap-3 @min-[96rem]/content:max-w-none @min-[96rem]/content:grid-cols-[minmax(0,48rem)_minmax(0,24rem)] @min-[96rem]/content:gap-6" data-testid="work-guide">
             <p className="text-sm text-muted-foreground @min-[96rem]/content:col-start-2 @min-[96rem]/content:row-start-1">{`Quy trình: ${d.columns.map((c) => c.name).join(' → ')}${p.sequential ? ', đi lần lượt; chuyển lùi phải ghi lý do' : ', kéo thả tự do'}`}

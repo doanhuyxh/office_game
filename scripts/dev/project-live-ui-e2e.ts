@@ -80,7 +80,7 @@ const bot = async (method: string, path: string, body?: unknown) => {
   return r.json().catch(() => null);
 };
 
-const br = await launch(9371, `/tmp/officehub-live-${Date.now()}`, 1440, 900);
+const br = await launch(9371, `${tmpdir()}/officehub-live-${Date.now()}`, 1440, 900);
 try {
   ok('quản lý đăng nhập web', (await br.login(PM.user, PW)) === 200);
   const toasts = () => br.evalJs(`[...document.querySelectorAll('[data-sonner-toast]')].map(t => t.textContent).join(' | ')`) as Promise<string>;
