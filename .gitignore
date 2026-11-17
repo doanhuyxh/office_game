@@ -38,3 +38,4 @@ agent-runner/data/
 
 # Log chạy local (TEST-22) — không commit
 *.log
+/.mcp.json
