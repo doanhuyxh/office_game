@@ -127,6 +127,9 @@ public static class AccessTokenAuth
         ("POST", Exact($"/api/chat/conversations/(office|{Id})/(messages|read)")),
         // TEST-152: xin vé + link PUT presigned để gửi tệp kèm tin (Api: chỉ bot, kênh bot dùng được, ≤ ChatRules.BotUploadsPerHour / giờ)
         ("POST", Exact("/api/chat/uploads")),
+        // TEST-154: present_screen đọc ảnh từ vé tải lên CỦA CHÍNH MÌNH (JPEG thu nhỏ) rồi huỷ vé — Api lọc theo người xin vé (khác → 404)
+        ("GET", Exact($"/api/chat/uploads/{Id}/screen")),
+        ("DELETE", Exact($"/api/chat/uploads/{Id}")),
         // TEST-151: xem tệp đính kèm (thông tin + link hạn ngắn, ảnh thu nhỏ) — Api kiểm thành viên hội thoại + tin chưa thu hồi. Không có /url (link 60 phút của web).
         ("GET", Exact($"/api/chat/attachments/{Id}(/preview)?")),
         // Kinh doanh (TEST-77): CHỈ ĐỌC — khách, việc đã hẹn, cơ hội, báo giá, HĐ bán, công nợ. Api tự lọc theo người xem (SalesAccess, không thấy → 404).

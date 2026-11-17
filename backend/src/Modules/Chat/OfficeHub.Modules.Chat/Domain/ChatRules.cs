@@ -122,6 +122,11 @@ public static class ChatRules
     /// <summary>Cạnh dài tối đa của ảnh thu nhỏ cho trợ lý AI (~1–2k token / ảnh) — <c>GET /attachments/{id}/preview?max=</c>.</summary>
     public const int PreviewMaxSide = 1280;
     public const int PreviewMinSide = 64;
+    /// <summary>
+    /// Cạnh dài tối đa của khung chiếu lên TV phòng họp từ vé tải lên (tool present_screen — TEST-154): to hơn ảnh cho AI xem để chữ trên
+    /// ảnh chụp màn hình còn đọc được; JPEG ~0,3–0,8 MB, dưới giới hạn 2 MB / khung của Realtime.
+    /// </summary>
+    public const int ScreenMaxSide = 1920;
     public static readonly TimeSpan TicketCleanupAfter = TimeSpan.FromHours(24);
 
     public const string OfficeAlias = "office";
@@ -176,6 +181,9 @@ public static class ChatRules
 
     /// <summary>Ảnh (jpeg / png / webp / gif) xem trực tiếp trong khung chat; còn lại là tệp tải về.</summary>
     public static bool IsImage(string contentType) => IsImageType(NormalizeContentType(contentType));
+
+    /// <summary>Loại ảnh chiếu được lên TV phòng họp (present_screen — TEST-154): PNG / JPEG / WebP, không GIF.</summary>
+    public static bool IsScreenImage(string contentType) => NormalizeContentType(contentType) is "image/png" or "image/jpeg" or "image/webp";
 
     public static long MaxSizeOf(string contentType) => IsImage(contentType) ? MaxImageSize : MaxFileSize;
 

@@ -24,4 +24,13 @@ public class ChatBotRulesTests
         Assert.True(ChatRules.BotUploadQuotaLeft(29));
         Assert.False(ChatRules.BotUploadQuotaLeft(30));
     }
+
+    [Theory]
+    [InlineData("image/png", true)]
+    [InlineData("image/jpeg", true)]
+    [InlineData("IMAGE/WEBP", true)]
+    [InlineData("image/gif", false)]
+    [InlineData("image/svg+xml", false)]
+    [InlineData("application/pdf", false)]
+    public void Screen_frames_are_png_jpeg_webp_only(string type, bool expected) => Assert.Equal(expected, ChatRules.IsScreenImage(type)); // TEST-154
 }

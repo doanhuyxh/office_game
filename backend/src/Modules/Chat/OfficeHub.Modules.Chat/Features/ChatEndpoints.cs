@@ -44,6 +44,8 @@ public static class ChatEndpoints
         g.MapPost("/conversations/{id}/members", AddMembersAsync);
         g.MapDelete("/conversations/{id}/members/me", LeaveGroupAsync);
         g.MapPost("/uploads", CreateUploadAsync);
+        g.MapGet("/uploads/{id:guid}/screen", UploadScreenAsync);
+        g.MapDelete("/uploads/{id:guid}", DeleteUploadAsync);
         g.MapGet("/attachments/{id:guid}/url", AttachmentUrlAsync);
         g.MapGet("/attachments/{id:guid}", AttachmentInfoAsync);
         g.MapGet("/attachments/{id:guid}/preview", AttachmentPreviewAsync);
@@ -585,6 +587,43 @@ public static class ChatEndpoints
         await db.SaveChangesAsync(ct);
         var url = await files.GetUploadUrlAsync(ticket.FileKey, contentType, ChatRules.UploadUrlTtl);
         return TypedResults.Ok(new UploadTicketDto(ticket.Id, url, contentType, now + ChatRules.UploadUrlTtl));
+    }
+
+    /// <summary>
+    /// Ảnh từ vé tải lên CỦA CHÍNH TÔI (đã PUT xong, chưa gửi kèm tin) → JPEG cạnh dài ≤ <see cref="ChatRules.ScreenMaxSide"/> — tool MCP
+    /// present_screen lấy ảnh chụp màn hình từ S3 thay vì model gửi base64 (TEST-154). Vé người khác / không có → 404; chưa tải lên → 409;
+    /// không phải PNG / JPEG / WebP → 400; hỏng / quá lớn → 422. Không xoá vé (chiếu lỗi thì gọi lại được) — xong thì DELETE /uploads/{id}.
+    /// </summary>
+    private static async Task<Results<FileContentHttpResult, ProblemHttpResult, ValidationProblem>> UploadScreenAsync(Guid id, ClaimsPrincipal user,
+        HttpContext http, ChatDbContext db, IFileStorage files, IAccountService accounts, CancellationToken ct)
+    {
+        if (await AiGuardAsync(user, accounts, ct) is { } denied) return denied;
+        var me = Me(user);
+        var t = await db.UploadTickets.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && x.UserId == me, ct);
+        if (t is null) return Problems.NotFound("tệp tải lên");
+        if (!ChatRules.IsScreenImage(t.ContentType))
+            return TypedResults.Problem("Chỉ chiếu được ảnh PNG / JPEG / WebP", statusCode: StatusCodes.Status400BadRequest);
+        // TEST-13: chép key tạm → key chính + kiểm chữ ký đầu file (gọi lại được — đã chép thì kiểm bản chính)
+        var check = await files.PromoteUploadAsync(t.FileKey, t.FileName, ct);
+        if (check.Error is { } bad) return new Validation().Add("uploadId", bad).Problem();
+        if (check.Size is not { } size) return Problems.Conflict("Ảnh chưa tải lên xong — chạy lệnh curl của create_upload rồi thử lại");
+        if (size <= 0 || size > ChatRules.MaxSizeOf(t.ContentType)) return new Validation().Add("uploadId", "Ảnh vượt giới hạn dung lượng").Problem();
+        await using var src = await files.OpenReadAsync(t.FileKey, ct);
+        var frame = ImageThumbnail.ToJpeg(src, ChatRules.ScreenMaxSide);
+        if (frame is null)
+            return TypedResults.Problem("Không đọc được ảnh (hỏng hoặc quá lớn)", statusCode: StatusCodes.Status422UnprocessableEntity);
+        http.Response.Headers.CacheControl = "private, no-store";
+        return TypedResults.File(frame.Data, frame.ContentType);
+    }
+
+    /// <summary>Huỷ vé tải lên của chính tôi (chưa gửi kèm tin): xoá file trên S3 (key chính + key tạm) rồi xoá vé. Không có → 404 (TEST-154).</summary>
+    private static async Task<Results<NoContent, ProblemHttpResult>> DeleteUploadAsync(Guid id, ClaimsPrincipal user, ChatDbContext db,
+        IFileStorage files, IAccountService accounts, CancellationToken ct)
+    {
+        if (await AiGuardAsync(user, accounts, ct) is { } denied) return denied;
+        var me = Me(user);
+        var n = await UploadCleanup.PurgeAsync(db.UploadTickets, x => x.Id == id && x.UserId == me, x => x.FileKey, files, db, ct, batch: 1);
+        return n > 0 ? TypedResults.NoContent() : Problems.NotFound("tệp tải lên");
     }
 
     private static async Task<Results<Ok<UrlDto>, ProblemHttpResult>> AttachmentUrlAsync(Guid id, bool? download, ClaimsPrincipal user,

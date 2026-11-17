@@ -1,7 +1,11 @@
 // E2E: bot chiếu màn hình lên TV phòng họp (present_screen / present_markdown / stop_presenting) — người trong phòng nhận ScreenChanged live, người ngoài không;
 // ảnh chỉ lấy được bằng URL có mã ngẫu nhiên (mã sai 404, no-store); 1 ảnh / 3 giây; ảnh không hợp lệ bị từ chối; chỉ bot, chỉ khi ở trong phòng
 // có tường; người trong phòng "Tắt chiếu" → bot không tự bật lại trong 1 phút; stop_presenting; bot rời phòng → tự tắt, ảnh cũ 404.
-// CHỈ DB tạm. Api :5180, Realtime :5190, Mcp :5200 (như bot-walk-e2e.ts). Mất ~1,5 phút (đợi hết 1 phút sau khi người tắt chiếu).
+// TEST-154: ảnh KHÔNG đi qua base64 — create_upload(target = screen) → PUT presigned S3 → present_screen(uploadId); server thu nhỏ ra JPEG,
+// chiếu xong vé bị huỷ (dùng lại → lỗi); chiếu lỗi (tần suất) thì vé còn, gọi lại được; vé của bot khác / chưa PUT / nội dung không phải ảnh → lỗi;
+// chiếu lại ảnh đã gửi trong chat (source = chat).
+// CHỈ DB + S3 tạm (RustFS như task-comment-files-e2e.ts; Api cần S3__*). Api :5180, Realtime :5190, Mcp :5200 (như bot-walk-e2e.ts).
+// Mất ~1,5 phút (đợi hết 1 phút sau khi người tắt chiếu).
 //   E2E_LOCAL_DB=1 API_URL=http://localhost:5180 RT_URL=http://localhost:5190 MCP_URL=http://localhost:5200/mcp ADMIN_LOGIN=… ADMIN_PASSWORD=… bun scripts/dev/bot-screen-e2e.ts
 import { NavGrid } from '../../frontend/src/features/office/engine/navGrid';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -64,8 +68,10 @@ const MCP = process.env.MCP_URL ?? 'http://localhost:5200/mcp';
 const map = JSON.parse(readFileSync(new URL('../../shared/office-map.json', import.meta.url), 'utf8'));
 const nav = new NavGrid(map);
 const ROOM = map.rooms.find((r: any) => r.id === 'meeting-small');
-const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
-const JPEG_HEAD = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 0x4a, 0x46, 0x49, 0x46, 0, 1]).toString('base64');
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+/** SDK S3 luôn ký link https — S3 tạm chạy http trên máy → đổi giao thức cho link trỏ localhost. */
+const s3url = (u: string) => u.replace(/^https:\/\/(127\.0\.0\.1|localhost)([:/])/, 'http://$1$2');
+const putUrl = (curl: unknown) => String(curl ?? '').match(/'(https?:\/\/[^']+)'$/)?.[1] ?? '';
 
 const admin = await login(ADMIN_LOGIN, ADMIN_PASSWORD);
 const positions = (await json(admin, 'GET', '/api/org/positions')).body;
@@ -133,17 +139,49 @@ const call = async (token: string, name: string, args: Record<string, unknown> =
   try { return { err: !!r?.result?.isError, j: JSON.parse(text) as any, text }; } catch { return { err: !!r?.result?.isError, j: null as any, text }; }
 };
 
+/** create_upload(target = screen) → PUT lên S3 tạm; trả uploadId (put = false: chỉ xin vé, chưa tải lên). */
+const upload = async (token: string, data: Uint8Array, fileName = 'man-hinh.png', put = true) => {
+  const cu = await call(token, 'create_upload', { target: 'screen', fileName, size: data.length });
+  if (cu.err) return { id: '', err: cu.text };
+  if (put) {
+    const res = await fetch(s3url(putUrl(cu.j?.curl)), { method: 'PUT', headers: { 'content-type': cu.j?.contentType }, body: data });
+    if (!res.ok) return { id: '', err: `PUT ${res.status}` };
+  }
+  return { id: String(cu.j?.uploadId ?? ''), err: '' };
+};
+const frame = async (token: string, args: Record<string, unknown> = {}) => call(token, 'present_screen', { uploadId: (await upload(token, PNG)).id, ...args });
+
 // ---------- Quyền + điều kiện ----------
-const names: string[] = ((await rpc(B.token, 'tools/list'))?.result?.tools ?? []).map((t: any) => t.name);
-ok('tools/list có present_screen / present_markdown / present_document / stop_presenting (78 tool)', ['present_screen', 'present_markdown', 'present_document', 'stop_presenting'].every((n) => names.includes(n)) && names.length === 78, names.length);
-ok('người thật dùng token → lỗi chỉ bot', (await call(H.token, 'present_screen', { image: PNG })).text.includes('Chỉ tài khoản bot'));
-ok('bot chưa ở phòng có tường → lỗi go_to phòng họp trước', (await call(B.token, 'present_screen', { image: PNG })).text.includes('phòng có tường'));
+const tools: any[] = (await rpc(B.token, 'tools/list'))?.result?.tools ?? [];
+ok('tools/list có present_screen / present_markdown / present_document / stop_presenting', ['present_screen', 'present_markdown', 'present_document', 'stop_presenting']
+  .every((n) => tools.some((t) => t.name === n)), tools.length);
+const schema = tools.find((t) => t.name === 'present_screen')?.inputSchema?.properties ?? {};
+ok('TEST-154: present_screen nhận uploadId, không còn tham số image (base64)', 'uploadId' in schema && !('image' in schema), Object.keys(schema));
+ok('người thật dùng token → create_upload screen bị chặn (chỉ bot)', !!(await upload(H.token, PNG)).err);
+ok('người thật dùng token → present_screen lỗi chỉ bot', (await call(H.token, 'present_screen', { uploadId: crypto.randomUUID() })).text.includes('Chỉ tài khoản bot'));
+ok('TEST-154: create_upload screen với .svg / .pdf → lỗi trước khi xin vé', (await upload(B.token, PNG, 'a.svg')).err.includes('png')
+  && (await upload(B.token, PNG, 'a.pdf')).err.includes('png'));
+const early = await upload(B.token, PNG);
+ok('bot chưa ở phòng có tường → lỗi go_to phòng họp trước', (await call(B.token, 'present_screen', { uploadId: early.id })).text.includes('phòng có tường'));
 const g = await call(B.token, 'go_to', { place: 'Phòng họp nhỏ' });
 await Bun.sleep(Math.ceil(g.j?.seconds ?? 6) * 1000 + 1500);
 
+// ---------- TEST-154: vé không dùng được ----------
+const B2 = await mkEmp('Bot Khác', `e2e.bs.b2.${stamp}`);
+await json(admin, 'PUT', `/api/org/employees/${B2.e.id}/account/bot`, { isBot: true });
+const other = await upload(B2.token, PNG);
+const po = await call(B.token, 'present_screen', { uploadId: other.id });
+ok('TEST-154: uploadId của bot khác → lỗi không tìm thấy', !!other.id && po.err && po.text.includes('tìm thấy'), po.text);
+const notPut = await upload(B.token, PNG, 'chua-tai.png', false);
+ok('TEST-154: vé chưa PUT file → lỗi "chưa tải lên"', (await call(B.token, 'present_screen', { uploadId: notPut.id })).text.includes('chưa tải lên'));
+const fake = await upload(B.token, new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>'), 'gia.png');
+ok('TEST-154: nội dung không phải ảnh (svg đặt đuôi .png) → lỗi', (await call(B.token, 'present_screen', { uploadId: fake.id })).err);
+ok('TEST-154: uploadId không phải id / source lạ → lỗi', (await call(B.token, 'present_screen', { uploadId: 'abc' })).err
+  && (await call(B.token, 'present_screen', { uploadId: early.id, source: 'base64' })).text.includes('source'));
+
 // ---------- Chiếu ----------
-const p1 = await call(B.token, 'present_screen', { image: PNG, caption: 'Đang sửa lỗi đăng nhập — WEB-12' });
-ok('bot chiếu ảnh màn hình → 1 người xem trong phòng', !p1.err && p1.j.viewers === 1 && p1.j.live === true, p1.text);
+const p1 = await call(B.token, 'present_screen', { uploadId: early.id, caption: 'Đang sửa lỗi đăng nhập — WEB-12' });
+ok('bot chiếu ảnh màn hình (vé tải lên trước khi vào phòng) → 1 người xem trong phòng', !p1.err && p1.j.viewers === 1 && p1.j.live === true, p1.text);
 await Bun.sleep(500);
 const s1 = h.screens.at(-1);
 ok('người trong phòng nhận ScreenChanged: live, chú thích, tên bot, URL /rt/screens/…', s1?.live === true && s1.title.includes('WEB-12') && s1.byName === 'Bot Trình Bày'
@@ -151,15 +189,18 @@ ok('người trong phòng nhận ScreenChanged: live, chú thích, tên bot, URL
 ok('người ngoài phòng không nhận gì', o.screens.length === 0, o.screens);
 const asH = { headers: { cookie: H.cookie } };
 const img = await fetch(RT + s1.url, asH);
-ok('tải ảnh bằng URL (người trong phòng): đúng PNG, không cache', img.status === 200 && img.headers.get('content-type') === 'image/png' && img.headers.get('cache-control') === 'no-store'
-  && Buffer.from(await img.arrayBuffer()).equals(Buffer.from(PNG, 'base64')));
+const imgBytes = Buffer.from(await img.arrayBuffer());
+ok('tải ảnh bằng URL (người trong phòng): server đổi sang JPEG, không cache', img.status === 200 && img.headers.get('content-type') === 'image/jpeg'
+  && img.headers.get('cache-control') === 'no-store' && imgBytes[0] === 0xff && imgBytes[1] === 0xd8, { status: img.status, type: img.headers.get('content-type') });
+ok('TEST-154: chiếu xong vé bị huỷ → dùng lại uploadId → lỗi', (await call(B.token, 'present_screen', { uploadId: early.id })).err);
 ok('mã trong URL sai → 404', (await fetch(`${RT}/rt/screens/meeting-small/${'0'.repeat(32)}`, asH)).status === 404);
 ok('TEST-18: không đăng nhập → 401', (await fetch(RT + s1.url)).status === 401);
 ok('TEST-18: người ngoài phòng có link → 404', (await fetch(RT + s1.url, { headers: { cookie: O.cookie } })).status === 404);
-ok('cập nhật ngay (< 3 giây) → lỗi tần suất', (await call(B.token, 'present_screen', { image: PNG })).text.includes('3 giây'));
-ok('ảnh không phải PNG/JPEG/WebP (svg) → lỗi', (await call(B.token, 'present_screen', { image: Buffer.from('<svg/>').toString('base64') })).text.includes('PNG, JPEG'));
+const retry = await upload(B.token, PNG);
+ok('cập nhật ngay (< 3 giây) → lỗi tần suất', (await call(B.token, 'present_screen', { uploadId: retry.id })).text.includes('3 giây'));
 await Bun.sleep(3100);
-await call(B.token, 'present_screen', { image: JPEG_HEAD });
+const p2 = await call(B.token, 'present_screen', { uploadId: retry.id });
+ok('TEST-154: chiếu lỗi thì vé còn → gọi lại cùng uploadId sau 3 giây được', !p2.err, p2.text);
 await Bun.sleep(500);
 const s2 = h.screens.at(-1);
 ok('khung mới: URL đổi ?v=2, cùng mã; tải ra JPEG', s2.url !== s1.url && s2.url.split('?')[0] === s1.url.split('?')[0] && s2.url.endsWith('v=2')
@@ -171,10 +212,17 @@ await h.c.invoke('ClearScreen');
 await Bun.sleep(300);
 ok('người trong phòng bấm Tắt chiếu → màn hình tắt', h.screens.at(-1) === null);
 ok('TEST-18: tắt chiếu → link ảnh bot hết hiệu lực ngay (404)', (await fetch(RT + s2.url, asH)).status === 404);
-ok('bot chiếu lại ngay → bị chặn 1 phút', (await call(B.token, 'present_screen', { image: PNG })).text.includes('vừa tắt'));
+ok('bot chiếu lại ngay → bị chặn 1 phút', (await frame(B.token)).text.includes('vừa tắt'));
 console.log('… đợi hết 1 phút sau khi người tắt chiếu');
 await Bun.sleep(61_000);
-ok('sau 1 phút bot chiếu lại được', !(await call(B.token, 'present_screen', { image: PNG })).err);
+// TEST-154: chiếu lại ảnh đã gửi trong chat (source = chat) — tệp đính kèm, không phải vé
+const cu = await call(B.token, 'create_upload', { target: 'chat', conversation: 'office', fileName: 'anh-chat.png', size: PNG.length });
+await fetch(s3url(putUrl(cu.j?.curl)), { method: 'PUT', headers: { 'content-type': 'image/png' }, body: PNG });
+const sent = await call(B.token, 'send_chat_message', { conversation: 'office', uploadIds: [cu.j?.uploadId] });
+const attId = ((await call(B.token, 'read_chat', { conversation: 'office', take: 5 })).j?.messages ?? [])
+  .find((m: any) => m.seq === sent.j?.seq)?.attachments?.[0]?.id;
+const pc = await call(B.token, 'present_screen', { uploadId: attId, source: 'chat' });
+ok('sau 1 phút bot chiếu lại được — ảnh đính kèm đã gửi trong chat (source = chat)', !!attId && !pc.err, { attId, sent: sent.text, pc: pc.text });
 await Bun.sleep(300);
 const s3 = h.screens.at(-1);
 const st = await call(B.token, 'stop_presenting');
@@ -215,7 +263,7 @@ ok('stop_presenting tắt trang Markdown', st2.j?.stopped === true && h.screens.
 
 // ---------- Rời phòng → tự tắt ----------
 await Bun.sleep(3100);
-await call(B.token, 'present_screen', { image: PNG });
+await frame(B.token);
 await Bun.sleep(300);
 ok('chiếu lại', h.screens.at(-1)?.live === true);
 await call(B.token, 'go_to', { place: 'Pantry' });

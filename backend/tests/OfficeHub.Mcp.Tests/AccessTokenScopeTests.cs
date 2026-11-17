@@ -42,6 +42,8 @@ public class AccessTokenScopeTests
     [InlineData("POST", "/api/chat/conversations/office/messages")]
     [InlineData("POST", "/api/chat/conversations/0193a000-0000-7000-8000-000000000000/read")]
     [InlineData("POST", "/api/chat/uploads")]                // TEST-152: bot xin link PUT gửi tệp kèm tin
+    [InlineData("GET", "/api/chat/uploads/0193a000-0000-7000-8000-000000000000/screen")]      // TEST-154: present_screen đọc ảnh vé tải lên
+    [InlineData("DELETE", "/api/chat/uploads/0193a000-0000-7000-8000-000000000000")]          // TEST-154: huỷ vé sau khi chiếu
     [InlineData("GET", "/api/chat/attachments/0193a000-0000-7000-8000-000000000000")]         // TEST-151: view_attachment
     [InlineData("GET", "/api/chat/attachments/0193a000-0000-7000-8000-000000000000/preview")]
     public void Allows_self_service_routes(string method, string path) =>
@@ -57,6 +59,8 @@ public class AccessTokenScopeTests
     [InlineData("GET", "/api/chat/people")]
     [InlineData("GET", "/api/chat/attachments/0193a000-0000-7000-8000-000000000000/url")]
     [InlineData("GET", "/api/chat/attachments/not-a-guid/preview")]
+    [InlineData("GET", "/api/chat/uploads/0193a000-0000-7000-8000-000000000000")]
+    [InlineData("DELETE", "/api/chat/uploads/not-a-guid")]
     [InlineData("GET", "/api/chat/attachments/0193a000-0000-7000-8000-000000000000/preview/x")]
     [InlineData("POST", "/api/chat/internal/rooms/kt/members")]
     [InlineData("GET", "/api/contracts/0193a000-0000-7000-8000-000000000000/file")]

@@ -196,14 +196,14 @@ public static class ChatTools
     }
 
     [McpServerTool(Name = "create_upload", Title = "Xin link tải tệp lên", Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("Bước 1 để gửi ảnh / tệp (vd ảnh chụp màn hình báo cáo) kèm tin nhắn hoặc bình luận việc: xin vé + link PUT tạm (30 phút) cho MỘT file. " +
-                 "target = chat (chỉ tài khoản bot; cần conversation) hoặc task-comment (thành viên dự án; cần task). " +
+    [Description("Bước 1 để gửi ảnh / tệp (vd ảnh chụp màn hình báo cáo) kèm tin nhắn, bình luận việc hoặc chiếu lên TV phòng họp: xin vé + link PUT tạm (30 phút) cho MỘT file. " +
+                 "target = chat (chỉ tài khoản bot; cần conversation), task-comment (thành viên dự án; cần task) hoặc screen (chỉ tài khoản bot; ảnh PNG / JPEG / WebP để present_screen). " +
                  "Bước 2: chạy lệnh curl trong kết quả (thay <đường-dẫn-file>; Content-Type phải giữ đúng như trả về). " +
-                 "Bước 3: chat → send_chat_message cùng conversation; task-comment → comment_task cùng task — với uploadIds = [uploadId]. " +
+                 "Bước 3: chat → send_chat_message cùng conversation; task-comment → comment_task cùng task — với uploadIds = [uploadId]; screen → present_screen(uploadId). " +
                  "Ảnh (png / jpg / webp / gif) ≤ 10 MB, tệp khác ≤ 25 MB, chặn file chạy được; loại file theo đuôi tên. Tối đa 30 tệp / giờ (mỗi nơi). " +
                  "Không đưa link tải lên vào tin nhắn / bình luận; không truyền nội dung file dạng base64 qua tool.")]
     public static async Task<string> CreateUpload(OfficeHubApi api,
-        [Description("Nơi gửi tệp: chat hoặc task-comment (bình luận việc)")] string target,
+        [Description("Nơi gửi tệp: chat, task-comment (bình luận việc) hoặc screen (chiếu lên TV phòng họp bằng present_screen)")] string target,
         [Description("Tên file kèm đuôi, vd ket-qua.png")] string fileName,
         [Description("Dung lượng file (byte), vd từ `wc -c < file`")] long size,
         [Description("target = chat: office hoặc id hội thoại 1-1 / kênh phòng (từ list_chats) — cùng hội thoại sẽ gửi tin")] string? conversation = null,
@@ -211,13 +211,24 @@ public static class ChatTools
         CancellationToken ct = default)
     {
         var kind = (target ?? "").Trim().ToLowerInvariant();
-        if (kind is not ("chat" or TaskCommentTarget)) throw new McpException("target phải là chat hoặc task-comment");
+        if (kind is not ("chat" or TaskCommentTarget or ScreenTarget)) throw new McpException("target phải là chat, task-comment hoặc screen");
         if (string.IsNullOrWhiteSpace(fileName)) throw new McpException("Thiếu tên file (fileName)");
         if (size <= 0) throw new McpException("size phải là dung lượng file (byte) > 0");
         JsonNode ticket;
         var result = new JsonObject();
         string next;
-        if (kind == "chat")
+        if (kind == ScreenTarget)
+        {
+            // TEST-154: vé chat của chính bot (gắn tạm kênh office — hội thoại bot luôn vào được); present_screen đọc ảnh rồi huỷ vé,
+            // không bao giờ thành tin nhắn. Bỏ dở → dọn sau 24 giờ như vé chat khác.
+            if (!ScreenImage(fileName)) throw new McpException("target = screen chỉ nhận ảnh .png / .jpg / .jpeg / .webp");
+            ticket = await api.PostAsync("/api/chat/uploads", new JsonObject
+            {
+                ["conversationId"] = "office", ["fileName"] = fileName.Trim(), ["size"] = size,
+            }, ct) ?? throw new McpException("Api không trả kết quả");
+            next = "Chạy lệnh curl (HTTP 200 = xong) rồi present_screen(uploadId) — đang ở trong phòng họp (go_to trước)";
+        }
+        else if (kind == "chat")
         {
             if (string.IsNullOrWhiteSpace(conversation)) throw new McpException("target = chat cần conversation (office hoặc id từ list_chats)");
             ticket = await api.PostAsync("/api/chat/uploads", new JsonObject
@@ -247,6 +258,13 @@ public static class ChatTools
         result["next"] = next;
         return Out(result);
     }
+
+    /// <summary>Giá trị target của create_upload cho ảnh chiếu lên TV phòng họp (present_screen — TEST-154).</summary>
+    internal const string ScreenTarget = "screen";
+
+    /// <summary>Đuôi ảnh chiếu được lên TV (PNG / JPEG / WebP) — báo lỗi sớm thay vì để present_screen trả 400 sau khi đã tải lên.</summary>
+    internal static bool ScreenImage(string fileName) =>
+        Path.GetExtension(fileName.Trim()).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".webp";
 
     /// <summary>Lệnh PUT dựng sẵn cho agent (Bash). Link nằm trong nháy đơn — presigned URL S3 không chứa nháy đơn.</summary>
     internal static string CurlPut(string url, string contentType) =>
