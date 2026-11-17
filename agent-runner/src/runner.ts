@@ -49,6 +49,11 @@ interface AgentState {
   model?: string;
 }
 
+/** Runner được dừng khi phiên CLI đang chạy — job về hàng đợi thay vì ghi lỗi. */
+export class RunnerStopped extends Error {
+  constructor() { super('runner dừng giữa phiên'); }
+}
+
 /** Bộ điều phối: Listener (Telegram) → Validator → Store (hàng đợi + khoá task_id) → Workspace → Executor → Publisher (PR + bình luận). */
 export class Runner {
   readonly agents = new Map<string, AgentState>();
@@ -364,6 +369,11 @@ export class Runner {
       else if (job.kind === 'chat') await this.processChat(s, job, ctl.signal);
       else await this.processTask(s, job, ctl.signal);
     } catch (e) {
+      if (e instanceof RunnerStopped) {
+        this.store.requeue(job.id, 'runner dừng giữa phiên');
+        log('warn', 'runner dừng giữa phiên — job về hàng đợi', { job: job.id, agent: job.agent, task: job.task_code });
+        return;
+      }
       // Lỗi sau khi đã ghi kết quả phiên (vd xếp lượt chat kế) → giữ kết quả + chi phí đã ghi, chỉ log
       if (this.store.getJob(job.id)?.status === 'running') this.store.finish(job.id, 'failed', { reason: errText(e) });
       log('error', 'job lỗi', { job: job.id, task: job.task_code, error: errText(e) });
@@ -407,6 +417,8 @@ export class Runner {
       s.activity.push(sessionEnd(out ? { ...out, isError: out.isError || failed } : { isError: true }, o.label));
       s.activity.flushNow();
     }
+    // Runner bị dừng (stop() huỷ phiên): không ghi kết quả / bình luận "phiên lỗi" — process() đưa job về hàng đợi.
+    if (signal.aborted) throw new RunnerStopped();
     if (out.model && !out.modelFromConfig && !modelMatches(exec.model, out.model))
       log('warn', 'model thật khác cấu hình', { job: job.id, agent: job.agent, task: job.task_code, model: out.model, configured: exec.model });
     return out;
@@ -630,7 +642,7 @@ export class Runner {
       await s.hub.comment(job.task_id, resultComment(job, out, prUrl, note, ok, s.cfg.executor.model));
       this.finishJob(s, job, out, { note, prUrl });
     } catch (e) {
-      failure = 'Runner lỗi'; // process() ghi failed + log
+      if (!(e instanceof RunnerStopped)) failure = 'Runner lỗi'; // process() ghi failed + log
       throw e;
     } finally {
       if (failure) s.presence.error(failure, { task, taskId: job.task_id, projectId: job.project_id });
@@ -665,15 +677,15 @@ export class Runner {
   }
 }
 
-/**
- * Bình luận runner gửi vào việc sau mỗi phiên: PR, thời gian, model (TEST-64), chi phí, token, trạng thái.
- * Không chép output của CLI (agent tự báo kết quả).
- */
 /** Loại lỗi ngắn của phiên hỏng cho bong bóng 3D (TEST-121) — không lộ stderr / lời agent. */
 export function presenceFailure(out: Pick<RunOutcome, 'exitCode' | 'timedOut' | 'isError'>): string {
   return out.timedOut ? 'Hết giờ' : out.isError ? 'CLI báo lỗi' : `Mã thoát ${out.exitCode}`;
 }
 
+/**
+ * Bình luận runner gửi vào việc sau mỗi phiên: PR, thời gian, model (TEST-64), chi phí, token, trạng thái.
+ * Không chép output của CLI (agent tự báo kết quả).
+ */
 export function resultComment(job: Pick<Job, 'agent'>, out: RunOutcome, prUrl: string | undefined, note: string, ok: boolean, configuredModel?: string): string {
   const parts = [
     `**🤖 agent-runner** (${job.agent}) — ${ok ? 'phiên kết thúc' : out.timedOut ? 'HẾT GIỜ, đã dừng phiên' : 'phiên lỗi'}`,

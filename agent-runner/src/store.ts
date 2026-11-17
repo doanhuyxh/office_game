@@ -177,6 +177,11 @@ export class Store {
     this.db.run(`UPDATE jobs SET status = 'queued', started_at = NULL, not_before = ?, reason = ? WHERE id = ?`, [untilIso, reason, id]);
   }
 
+  /** Runner được dừng giữa phiên (SIGTERM / deploy): job đang chạy về hàng đợi, lần khởi động sau chạy lại — không tính là phiên lỗi. */
+  requeue(id: number, reason: string) {
+    this.db.run(`UPDATE jobs SET status = 'queued', started_at = NULL, reason = ? WHERE id = ? AND status = 'running'`, [reason, id]);
+  }
+
   /** Job đang chạy của một agent (mỗi agent tối đa 1). */
   runningJob(agent: string) { return this.db.query<Job, [string]>(`SELECT * FROM jobs WHERE status = 'running' AND agent = ?`).get(agent); }
 

@@ -581,6 +581,32 @@ test('job hết giờ → văn phòng 3D báo lỗi "Hết giờ" (không bị f
   r.stop();
 }, 30000);
 
+test('runner dừng giữa phiên → job về hàng đợi (không ghi lỗi, không bình luận "phiên lỗi"); khởi động lại thì chạy tiếp', async () => {
+  const { r, st } = await noneSetup();
+  writeFileSync(join(root, 'slow'), ''); // CLI giả ngủ 1 giây
+  const before = comments.length;
+  try {
+    const s = r.agents.get('NV120')!;
+    await r.accept(s, { employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' });
+    const job = st.claimNext(1, ['NV120'])!;
+    const running = r.process(job);
+    await Bun.sleep(300);
+    r.stop();
+    await running;
+    const after = st.getJob(job.id)!;
+    expect(after.status).toBe('queued');
+    expect(after.reason).toBe('runner dừng giữa phiên');
+    expect(after.started_at).toBeNull();
+    expect(comments.length).toBe(before);
+    expect(r.agents.get('NV120')!.presence.state.state).toBe('idle'); // không báo lỗi lên văn phòng 3D
+    // lần khởi động sau lấy lại đúng job đó
+    expect(st.claimNext(1, ['NV120'])?.id).toBe(job.id);
+    st.finish(job.id, 'skipped', { reason: 'dọn test' });
+  } finally {
+    rmSync(join(root, 'slow'), { force: true });
+  }
+}, 30000);
+
 // ---------------- chat_mention (TEST-81): người thật @nhắc bot trong chat → phiên ngắn chỉ có tool MCP ----------------
 test('chat_mention: tin Telegram → job chat trong thư mục riêng của hội thoại, không bình luận vào việc, nối phiên ≤ 10 phút; đã đọc hết → bỏ', async () => {
   const { r, st, dataDir } = await noneSetup();
