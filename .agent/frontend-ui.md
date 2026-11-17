@@ -26,7 +26,8 @@
 ## Bảng
 
 - Bảng dài cần header dính khi cuộn: `<Table containerClassName="max-h-[calc(100vh-…)] overflow-auto">` (khung tự cuộn — sticky không bám theo cuộn trang vì `Table` đã bọc `overflow-x-auto`) + `<TableHeader className="sticky top-0 z-10 bg-background shadow-[inset_0_-1px_0_var(--color-border)] [&_tr]:border-b-0">` (viền dưới bằng shadow). Mẫu: `notification-events-card`.
-- Phân trang: [frontend.md](frontend.md) (BE phân trang, `TablePagination`).
+- Phân trang: [frontend.md](frontend.md) (BE phân trang, `TablePagination`; khung hẹp `variant="compact"` / tự gọn < 420 px).
+- **Ô chọn trong hộp thoại** (chọn việc, người… từ danh sách dài): "tìm + gợi ý + Xem thêm", KHÔNG dùng phân trang bảng. Mẫu `task-dependencies` (TEST-133): ẩn mục vô nghĩa (việc đã xong — có công tắc hiện), 15 dòng + "Xem thêm", cả dòng là nút (`role=option`, ≥ 40 px / 44 px điện thoại), chỉ dòng được bấm xoay, ↑ ↓ Enter, Esc xoá ô tìm.
 
 ### Bảng nhiều cột: nút "Cột"
 

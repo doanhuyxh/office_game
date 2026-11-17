@@ -166,7 +166,7 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
               </fieldset>
               {task && detail && (
                 <div className="border-t pt-3">
-                  <TaskDependencies projectId={projectId} taskId={task.id} dependsOn={detail.dependsOn ?? []} blocks={detail.blocks ?? []} canWork={canWork} />
+                  <TaskDependencies projectId={projectId} taskId={task.id} dependsOn={detail.dependsOn ?? []} blocks={detail.blocks ?? []} canWork={canWork} columns={columns} />
                 </div>
               )}
             </div>

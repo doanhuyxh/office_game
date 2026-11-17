@@ -337,7 +337,7 @@ function AccessLog({ assetId }: { assetId: string }) {
             {!log.isLoading && rows.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Chưa có lượt xem.</TableCell></TableRow>}
           </TableBody>
         </Table>
-        <TablePagination state={pg} total={log.data?.total} unit="lượt" />
+        <TablePagination state={pg} total={log.data?.total} unit="lượt" variant="compact" />
       </div>
     </section>
   );
