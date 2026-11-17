@@ -178,6 +178,19 @@ public class AiSessionLedgerTests
         Assert.Null(AiSessionLedger.ResolveScope(me, true, "ALL").Scope!.UserId);
     }
 
+    [Theory]
+    [InlineData(null, true, null)]
+    [InlineData("  ", true, null)]
+    [InlineData("task", true, "task")]
+    [InlineData(" Meeting ", true, "meeting")]
+    [InlineData("chat", true, "chat")]
+    [InlineData("bogus", false, "bogus")]
+    public void TryKind_accepts_known_kinds_or_empty(string? input, bool ok, string? value)
+    {
+        Assert.Equal(ok, AiSessionLedger.TryKind(input, out var v));
+        Assert.Equal(value, v);
+    }
+
     // ---------- SQL ----------
 
     [Fact]

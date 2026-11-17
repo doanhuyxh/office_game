@@ -22,10 +22,10 @@ internal static class AiSessionUsageExport
     private const string Count = "#,##0";
 
     public static async Task<Results<FileContentHttpResult, ValidationProblem, ProblemHttpResult>> ExportAsync(string? from, string? to, string? group,
-        string? userId, ClaimsPrincipal user, AuditDbContext db, IAccountService accounts, IOptions<OfficeSettings> office, TimeProvider clock,
+        string? userId, string? kind, ClaimsPrincipal user, AuditDbContext db, IAccountService accounts, IOptions<OfficeSettings> office, TimeProvider clock,
         CancellationToken ct)
     {
-        var (q, error) = AiSessionUsageEndpoints.Build(user, from, to, group, userId, db, office, clock);
+        var (q, error) = AiSessionUsageEndpoints.Build(user, from, to, group, userId, kind, db, office, clock);
         if (q is null) return error!.Invalid is { } v ? v : error.Denied!;
         var data = AiSessionLedger.Summarize(await AiSessionUsageEndpoints.RowsAsync(q, db, ct), q.Group, q.Tz);
         var sessions = await q.Sessions.Include(s => s.Models).OrderByDescending(s => s.FinishedAt).ThenByDescending(s => s.Id)

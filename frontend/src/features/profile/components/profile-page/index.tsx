@@ -12,6 +12,7 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { Textarea } from '@/components/common/textarea';
 import { Spinner } from '@/components/feedback/Spinner';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { AiMonthCard } from '@/features/ai-access';
 import { TwoFactorCard, useMe } from '@/features/auth';
 import { NotificationSoundCard } from '@/features/notifications';
 import { formatDate, formatDateTime } from '@/utils/date';
@@ -261,6 +262,7 @@ export function ProfilePage() {
           <SensitiveCard p={p} />
         </>
       )}
+      <AiMonthCard />
       <TwoFactorCard />
       <OfficeCharacterCard />
       <NotificationSoundCard />

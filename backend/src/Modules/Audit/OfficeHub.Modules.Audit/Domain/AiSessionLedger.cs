@@ -73,6 +73,13 @@ public static class AiSessionLedger
 
     public static bool IsGroup(string? group) => group is Day or Month or Year;
 
+    /// <summary>Bộ lọc loại phiên (TEST-136): trống → null (mọi loại); khác <see cref="AiUsageRoute.Kinds"/> → false.</summary>
+    public static bool TryKind(string? kind, out string? value)
+    {
+        value = string.IsNullOrWhiteSpace(kind) ? null : kind.Trim().ToLowerInvariant();
+        return value is null || AiUsageRoute.Kinds.Contains(value);
+    }
+
     /// <summary>
     /// Khoảng ngày (lịch VN, gồm 2 đầu) từ <c>from</c>/<c>to</c> yyyy-MM-dd. Trống: <c>to</c> = hôm nay; <c>from</c> theo nhóm —
     /// day: 30 ngày, month: đầu tháng 11 tháng trước (12 tháng), year: 1/1 bốn năm trước (5 năm).

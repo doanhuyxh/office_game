@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { AppWindow, Ban, Check, KeyRound, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -25,6 +25,9 @@ import { ConnectGuide } from '../connect-guide';
 import { CreateTokenDialog } from '../create-token-dialog';
 import { WebhookCard } from '../webhook-card';
 import { useTabParam } from '@/hooks/useTabParam';
+
+/** Tab "Mức dùng AI" (biểu đồ, bảng phiên) tải riêng khi mở — không làm nặng phần kết nối. */
+const AiUsageTab = lazy(() => import('../ai-usage-tab'));
 
 const CAN = [
   'Xem chấm công hôm nay, bảng công tháng, ngày lễ, ca làm',
@@ -289,27 +292,24 @@ export function AiAccessPage() {
   const [newToken, setNewToken] = useState<string | null>(null);
   const createButton = <Button variant="outline" onClick={() => setCreating(true)}><Plus className="size-4" /> Tạo token</Button>;
 
-  const [tab, setTab] = useTabParam('me', ['me', 'company']);
+  const [tab, setTab] = useTabParam('me', isHr ? ['me', 'usage', 'company'] : ['me', 'usage']);
   return (
     <div className="grid grid-cols-1 gap-6">
       <PageHeader title="Kết nối AI" />
-      {isHr ? (
-        <Tabs value={tab} onValueChange={setTab}>
-          <PageToolbar actions={createButton}>
-            <TabsList>
-              <TabsTrigger value="me">Của tôi</TabsTrigger>
-              <TabsTrigger value="company">Toàn công ty</TabsTrigger>
-            </TabsList>
-          </PageToolbar>
-          <TabsContent value="me" className="pt-2"><MyTab onCreate={() => setCreating(true)} newToken={newToken} /></TabsContent>
-          <TabsContent value="company" className="pt-2"><CompanyTab /></TabsContent>
-        </Tabs>
-      ) : (
-        <>
-          <PageToolbar actions={createButton} />
-          <MyTab onCreate={() => setCreating(true)} newToken={newToken} />
-        </>
-      )}
+      <Tabs value={tab} onValueChange={setTab}>
+        <PageToolbar actions={tab === 'usage' ? undefined : createButton}>
+          <TabsList>
+            <TabsTrigger value="me">Của tôi</TabsTrigger>
+            <TabsTrigger value="usage" data-testid="ai-usage-tab-trigger">Mức dùng AI</TabsTrigger>
+            {isHr && <TabsTrigger value="company">Toàn công ty</TabsTrigger>}
+          </TabsList>
+        </PageToolbar>
+        <TabsContent value="me" className="pt-2"><MyTab onCreate={() => setCreating(true)} newToken={newToken} /></TabsContent>
+        <TabsContent value="usage" className="pt-2">
+          {tab === 'usage' && <Suspense fallback={<Spinner />}><AiUsageTab canPickUser={isHr} /></Suspense>}
+        </TabsContent>
+        {isHr && <TabsContent value="company" className="pt-2"><CompanyTab /></TabsContent>}
+      </Tabs>
       <CreateTokenDialog open={creating} onOpenChange={setCreating} onCreated={setNewToken} />
     </div>
   );
