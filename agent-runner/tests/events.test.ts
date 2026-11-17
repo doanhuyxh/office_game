@@ -256,6 +256,17 @@ describe('sự kiện xem trực tiếp: an toàn', () => {
     expect(mask('maxTokens = 5, bun test, const a = 1')).toBe('maxTokens = 5, bun test, const a = 1'); // không che nhầm chữ thường gặp
   });
 
+  test('che chữ ký link tạm S3 (create_upload → curl, TEST-152)', () => {
+    const url =
+      "curl -X PUT --upload-file a.png 'https://s3.example.com/b/chat/x.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=1800&X-Amz-Signature=0123abcdef&X-Amz-SignedHeaders=host'";
+    const out = mask(url);
+    expect(out).not.toContain('0123abcdef');
+    expect(out).toContain('X-Amz-Signature=***');
+    expect(out).toContain('https://s3.example.com/b/chat/x.png?X-Amz-Algorithm=AWS4-HMAC-SHA256'); // vẫn đọc được file nào
+    expect(mask('https://s/k?X-Amz-Credential=AKIAXXXX%2F20261117&X-Amz-Security-Token=FQoGZX')).not.toMatch(/AKIAXXXX|FQoGZX/);
+    expect(mask('{"url":"https://s/k?a=1&Signature=zzz9"}')).toBe('{"url":"https://s/k?a=1&Signature=***"}');
+  });
+
   test('cắt độ dài: lệnh giữ đầu, kết quả giữ đuôi, diff ≤ 200 dòng', () => {
     const ex = claudeEvents('/w');
     const cmd = ex(tool('b3', 'Bash', { command: 'echo ' + 'a'.repeat(5000) }))[0]!;

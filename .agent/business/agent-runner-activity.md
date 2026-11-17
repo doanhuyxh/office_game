@@ -35,7 +35,7 @@ Khớp `BotActivityEvent` (`backend/.../BuildingBlocks/Office/BotActivityFeed.cs
 
 ## An toàn (bắt buộc)
 
-- `mask()` chạy trên **mọi** trường chữ (`sanitize` là bước cuối của mọi sự kiện): chuỗi đã `registerSecret` (token AI, token bot) + mẫu: `ohk_…`, token bot Telegram, khối khoá riêng PEM, `Bearer …` / `Basic …`, `user:pass@host`, `password|secret|token|api_key|…  = / : giá trị`. Mẫu cuối che cả code vô hại (`const token = …`) — chấp nhận, thà che nhầm.
+- `mask()` chạy trên **mọi** trường chữ (`sanitize` là bước cuối của mọi sự kiện): chuỗi đã `registerSecret` (token AI, token bot) + mẫu: `ohk_…`, token bot Telegram, khối khoá riêng PEM, `Bearer …` / `Basic …`, `user:pass@host`, chữ ký link presigned (`X-Amz-Signature|Credential|Security-Token`, `X-Goog-…`, `Signature` — TEST-152, link `create_upload`), `password|secret|token|api_key|…  = / : giá trị`. Mẫu cuối che cả code vô hại (`const token = …`) — chấp nhận, thà che nhầm.
 - File nhạy cảm (`isSensitivePath`: `.env*`, `*.env`, `*.pem`, `*.key`, `*.p12`, `*.pfx`, `agents.yaml`, `id_rsa*` / `id_ed25519*`, `.npmrc`, `.netrc`, `credentials*`, `secrets.*`): sửa / ghi chỉ gửi `path` + "(nội dung ẩn: file nhạy cảm)".
 - Lệnh đụng file đó hoặc in biến môi trường (`isSensitiveCommand`: `cat .env`, `printenv`, `env | …`): lệnh vẫn hiện, **kết quả bị ẩn**.
 - Đường dẫn: trong `cwd` → tương đối; trong HOME → `~/…`.

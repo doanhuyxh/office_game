@@ -41,6 +41,7 @@ public class AccessTokenScopeTests
     [InlineData("GET", "/api/chat/conversations/0193a000-0000-7000-8000-000000000000/messages")]
     [InlineData("POST", "/api/chat/conversations/office/messages")]
     [InlineData("POST", "/api/chat/conversations/0193a000-0000-7000-8000-000000000000/read")]
+    [InlineData("POST", "/api/chat/uploads")]                // TEST-152: bot xin link PUT gửi tệp kèm tin
     public void Allows_self_service_routes(string method, string path) =>
         Assert.True(AccessTokenAuth.IsAllowed(method, path));
 
@@ -50,7 +51,6 @@ public class AccessTokenScopeTests
     [InlineData("POST", "/api/chat/conversations/direct")]  // bot không tự mở 1-1
     [InlineData("GET", "/api/chat/conversations/room:meeting-large/messages")] // kênh phòng
     [InlineData("POST", "/api/chat/conversations/room:kt/messages")]
-    [InlineData("POST", "/api/chat/uploads")]
     [InlineData("DELETE", "/api/chat/messages/0193a000-0000-7000-8000-000000000000")]
     [InlineData("GET", "/api/chat/people")]
     [InlineData("GET", "/api/chat/attachments/0193a000-0000-7000-8000-000000000000/url")]
