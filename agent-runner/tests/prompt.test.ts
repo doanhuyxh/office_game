@@ -46,6 +46,21 @@ describe('prompt / mcp / log', () => {
     expect(ip).toContain('không reset / stash / rebase');
     expect(ip).not.toContain('Làm việc trong thư mục hiện tại: worktree riêng');
   });
+  test('ảnh (TEST-156): mode có repo đính ảnh chụp kết quả, phiên không Bash chỉ xem / chuyển tiếp', () => {
+    for (const mode of ['worktree', 'in_place'] as const) {
+      const p = buildPrompt(w, ctx(mode));
+      for (const r of ['chụp màn hình', 'create_upload(target = task-comment, task TEST-45)', 'uploadIds', 'view_attachment', 'Không dán link tải lên'])
+        expect(p).toContain(r);
+    }
+    const none = buildPrompt(w, { mode: 'none', branch: '', resumed: false });
+    expect(none).toContain('view_attachment');
+    expect(none).not.toContain('create_upload');
+    for (const p of [chatPrompt('NV120', 'office', false), meetingPrompt('NV120', 'sess-1', false)]) {
+      expect(p).toContain('view_attachment');
+      expect(p).toContain('forwardAttachmentIds');
+      expect(p).not.toContain('create_upload');
+    }
+  });
   test('prompt mode none (TEST-80): chỉ tool MCP, không có phần git / file', () => {
     const p = buildPrompt(w, { mode: 'none', branch: '', resumed: false });
     for (const r of [

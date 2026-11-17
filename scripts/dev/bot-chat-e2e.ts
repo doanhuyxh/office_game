@@ -4,11 +4,13 @@
 // tin bot tới client chat qua SignalR, Realtime từ chối chuyển tiếp tin không phải bot.
 // CHỈ DB tạm. Cần: Api :5180, Realtime :5190 (Realtime__ApiBaseUrl=http://localhost:5180),
 //   Mcp :5200 (Mcp__ApiBaseUrl=http://localhost:5180 Mcp__RealtimeBaseUrl=http://localhost:5190), cùng Chat__InternalKey.
+//   Api tạm PHẢI chạy với S3__KeyPrefix=e2e/ (TEST-156: file thử nằm dưới e2e/files/ để dọn; script dừng nếu link S3 không ở đó).
 // Chạy từ frontend/ (dùng @microsoft/signalr):
 //   cd frontend && E2E_LOCAL_DB=1 API_URL=http://localhost:5180 RT_URL=http://localhost:5190 MCP_URL=http://localhost:5200/mcp \
 //     ADMIN_LOGIN=… ADMIN_PASSWORD=… CHAT_INTERNAL_KEY=… bun ../scripts/dev/bot-chat-e2e.ts
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { assertE2eS3Key } from './s3-e2e-guard';
 import { totp } from './totp';
 
 if (process.env.E2E_LOCAL_DB !== '1') throw new Error('Chỉ chạy với DB tạm: đặt E2E_LOCAL_DB=1');
@@ -116,6 +118,7 @@ ok('bot xin vé kênh phòng chưa vào → 404', (await tk(B1.token, 'POST', '/
 ok('bot xin vé file chạy được → 400', (await tk(B1.token, 'POST', '/api/chat/uploads', { conversationId: 'office', fileName: 'a.exe', size: 10 })).status === 400);
 const t1 = await tk(B1.token, 'POST', '/api/chat/uploads', { conversationId: 'office', fileName: 'bao-cao.png', size: PNG.length });
 ok('bot xin vé office → 200 (image/png theo đuôi)', t1.status === 200 && t1.body?.contentType === 'image/png' && String(t1.body?.url).startsWith('http'), t1);
+assertE2eS3Key(t1.body.url); // file thử chỉ dưới e2e/files/ (TEST-156)
 await Bun.sleep(1100); // 1 tin / giây / tài khoản — kiểm trước vé
 ok('gửi khi chưa PUT → 409', (await tk(B1.token, 'POST', '/api/chat/conversations/office/messages', { uploadIds: [t1.body.id] })).status === 409);
 ok('PUT ảnh lên S3 bằng link presigned', (await putFile(t1.body.url, t1.body.contentType)).ok);

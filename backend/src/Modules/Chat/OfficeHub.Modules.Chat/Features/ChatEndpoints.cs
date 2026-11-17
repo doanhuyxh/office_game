@@ -15,6 +15,7 @@ using OfficeHub.Modules.Identity.Contracts;
 using OfficeHub.Modules.Meetings.Contracts;
 using OfficeHub.Modules.Notification.Contracts;
 using OfficeHub.Modules.Organization.Contracts;
+using OfficeHub.Modules.Projects.Contracts;
 
 namespace OfficeHub.Modules.Chat.Features;
 
@@ -182,7 +183,7 @@ public static class ChatEndpoints
 
     private static async Task<Results<Ok<SendResultDto>, ProblemHttpResult, ValidationProblem>> SendAsync(string id, SendRequest req,
         ClaimsPrincipal user, ChatDbContext db, ChatStore store, ChatThrottle throttle, IFileStorage files, IPushSender push, IAccountService accounts,
-        IWebhookPublisher webhooks, ITelegramWakeup telegram, IAgentMeetingTurns meetings, TimeProvider clock, CancellationToken ct)
+        IWebhookPublisher webhooks, ITelegramWakeup telegram, IAgentMeetingTurns meetings, ICommentFileLookup commentFiles, TimeProvider clock, CancellationToken ct)
     {
         if (await AiGuardAsync(user, accounts, ct) is { } denied) return denied;
         var me = Me(user);
@@ -203,8 +204,9 @@ public static class ChatEndpoints
 
         var text = ChatRules.NormalizeText(req.Text);
         var uploadIds = (req.UploadIds ?? []).Where(u => u != Guid.Empty).Distinct().ToList();
+        var forwardIds = (req.ForwardAttachmentIds ?? []).Where(u => u != Guid.Empty).Distinct().ToList();
         var val = new Validation();
-        foreach (var (field, message) in ChatRules.ValidateMessage(text, uploadIds.Count)) val.Add(field, message);
+        foreach (var (field, message) in ChatRules.ValidateMessage(text, uploadIds.Count + forwardIds.Count)) val.Add(field, message);
         if (val.Failed) return val.Problem();
         if (byBot)
         {
@@ -213,6 +215,15 @@ public static class ChatEndpoints
             if (!ChatRules.BotQuotaLeft(sent))
                 return TypedResults.Problem($"Bot đã gửi {ChatRules.BotMessagesPerHour} tin trong 1 giờ qua — đợi rồi gửi tiếp",
                     statusCode: StatusCodes.Status429TooManyRequests);
+            // Chuyển tiếp = thêm tệp mới vào chat → tính chung hạn mức tệp / giờ của bot như tải lên (TEST-156)
+            if (forwardIds.Count > 0)
+            {
+                var used = await db.UploadTickets.CountAsync(t => t.UserId == me && t.CreatedAt > since, ct)
+                    + await db.Attachments.CountAsync(a => db.Messages.Any(m => m.Id == a.MessageId && m.SenderId == me && m.ByBot && m.CreatedAt > since), ct);
+                if (!ChatRules.BotUploadQuotaLeft(used + forwardIds.Count - 1))
+                    return TypedResults.Problem($"Bot đã tải {ChatRules.BotUploadsPerHour} tệp trong 1 giờ qua — đợi rồi gửi tiếp",
+                        statusCode: StatusCodes.Status429TooManyRequests);
+            }
         }
         // Họp agent (TEST-75): kênh phòng đang họp → bot dự họp chỉ nói khi giữ lượt, bot khác không nhắn vào; người thật nhắn tự do
         var gate = conv.Type == ConversationType.Room && conv.RoomId is { } meetingRoom ? await meetings.GateAsync(meetingRoom, me, ct) : null;
@@ -223,6 +234,16 @@ public static class ChatEndpoints
         var tickets = uploadIds.Count == 0 ? [] : await db.UploadTickets.Where(t => uploadIds.Contains(t.Id) && t.UserId == me && t.ConversationId == conv.Id).ToListAsync(ct);
         if (tickets.Count != uploadIds.Count)
             return new Validation().Add("uploadIds", "Tệp đính kèm không hợp lệ hoặc đã hết hạn — tải lại tệp").Problem();
+        var forwards = new List<ForwardFile>();
+        foreach (var fid in forwardIds)
+        {
+            var src = await VisibleAttachmentAsync(fid, user, db, store, ct) is { } ca ? new ForwardFile(ca.FileKey, ca.FileName, ca.ContentType)
+                : await commentFiles.FindVisibleAsync(fid, user, ct) is { } cf ? new ForwardFile(cf.FileKey, cf.FileName, cf.ContentType)
+                : null;
+            if (src is null)
+                return new Validation().Add("forwardAttachmentIds", $"Tệp {fid} không tồn tại hoặc bạn không xem được — lấy id từ attachments của tin nhắn / bình luận việc").Problem();
+            forwards.Add(src);
+        }
 
         var now = clock.GetUtcNow();
         var msg = new Message
@@ -248,6 +269,25 @@ public static class ChatEndpoints
                 MessageId = msg.Id, FileKey = t.FileKey, FileName = t.FileName, ContentType = t.ContentType, Size = size.Value,
                 IsImage = ChatRules.IsImage(t.ContentType),
             });
+        }
+        // Chuyển tiếp (TEST-156): chép sang khoá chat mới — bản trong tin không phụ thuộc vòng đời bản gốc (xoá bình luận / việc xoá file gốc)
+        var copied = new List<string>();
+        foreach (var f in forwards)
+        {
+            var att = new MessageAttachment
+            {
+                MessageId = msg.Id, FileKey = "", FileName = f.FileName, ContentType = f.ContentType, IsImage = ChatRules.IsImage(f.ContentType),
+            };
+            att.FileKey = ChatRules.FileKey(now, att.Id, f.FileName);
+            var size = await files.CopyAsync(f.FileKey, att.FileKey, f.FileName, ct);
+            if (size is not > 0)
+            {
+                foreach (var key in copied) await files.DeleteAsync(key, ct);
+                return Problems.Conflict($"Tệp \"{f.FileName}\" không còn trên kho — không chuyển tiếp được");
+            }
+            att.Size = size.Value;
+            msg.Attachments.Add(att);
+            copied.Add(att.FileKey);
         }
         db.Messages.Add(msg);
         db.UploadTickets.RemoveRange(tickets);
@@ -276,6 +316,9 @@ public static class ChatEndpoints
 
         return TypedResults.Ok(new SendResultDto(await store.ToDtoAsync(msg), conv.Type, conv.RoomId, store.RoomNameOf(conv), recipients));
     }
+
+    /// <summary>Tệp nguồn để chuyển tiếp (chat hoặc bình luận việc) — chỉ khoá S3 + tên + loại.</summary>
+    private sealed record ForwardFile(string FileKey, string FileName, string ContentType);
 
     private static async Task<SendResultDto> ResultAsync(Conversation conv, Message msg, ChatStore store, CancellationToken ct) =>
         new(await store.ToDtoAsync(msg), conv.Type, conv.RoomId, store.RoomNameOf(conv), await store.RecipientsAsync(conv, ct));

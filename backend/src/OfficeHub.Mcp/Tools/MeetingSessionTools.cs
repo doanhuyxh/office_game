@@ -59,13 +59,17 @@ public static class MeetingSessionTools
     [McpServerTool(Name = "speak_in_meeting", Title = "Phát biểu trong cuộc họp", Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("(Chỉ tài khoản bot) Phát biểu MỘT tin (≤ 1000 ký tự) vào kênh phòng họp khi đang giữ lượt — mỗi lượt một tin, tính 1 lượt. " +
                  "next = mã bot dự họp được mời nói kế (tự chèn @mã); không có next → lượt sang bot đang chờ, hết hàng chờ → về chủ trì. " +
-                 "Không giữ lượt → lỗi nêu ai đang giữ. Tin hiện nhãn BOT trong chat + bong bóng trên đầu bot ở văn phòng 3D.")]
+                 "Không giữ lượt → lỗi nêu ai đang giữ. Tin hiện nhãn BOT trong chat + bong bóng trên đầu bot ở văn phòng 3D. " +
+                 "Cần cho mọi người xem ảnh / tệp đã có (vd ảnh chụp kết quả trong bình luận việc) → forwardAttachmentIds (id từ attachments của get_task / read_chat), " +
+                 "server chép vào tin; chiếu to lên TV phòng thì dùng present_document / present_markdown.")]
     public static async Task<string> SpeakInMeeting(OfficeHubApi api, ChatRelay relay,
         [Description("Nội dung phát biểu (≤ 1000 ký tự), ngắn gọn, có số liệu từ tool của mình")] string text,
         [Description("Mã bot dự họp được mời nói kế (vd NV021), tuỳ chọn")] string? next = null,
+        [Description("id ảnh / tệp đã có để kèm vào tin (attachments[].id từ get_task / read_chat), ≤ 5 — tuỳ chọn")] string[]? forwardAttachmentIds = null,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(text)) throw new McpException("Thiếu nội dung phát biểu");
+        var forwards = ChatTools.ForwardIds(forwardAttachmentIds);
         var (session, conversation, attendees) = await CurrentAsync(api, ct);
         RequireTurn(session, attendees);
         var body = text.Trim();
@@ -77,6 +81,7 @@ public static class MeetingSessionTools
         var result = await api.PostAsync($"/api/chat/conversations/{conversation}/messages", new JsonObject
         {
             ["text"] = body,
+            ["forwardAttachmentIds"] = ChatTools.IdArray(forwards),
             ["clientId"] = "mcp-" + Guid.NewGuid().ToString("N"),
         }, ct) ?? throw new McpException("Api không trả kết quả");
         var live = await relay.PublishAsync(result, ct);
@@ -87,6 +92,8 @@ public static class MeetingSessionTools
             ["messageId"] = m?["id"]?.DeepClone(),
             ["seq"] = m?["seq"]?.DeepClone(),
             ["createdAt"] = m?["createdAt"]?.DeepClone(),
+            ["files"] = (m?["attachments"] as JsonArray)?.Count > 0
+                ? new JsonArray((m!["attachments"] as JsonArray)!.OfType<JsonObject>().Select(a => (JsonNode?)a["fileName"]?.DeepClone()).ToArray()) : null,
             ["deliveredLive"] = live,
         });
     }

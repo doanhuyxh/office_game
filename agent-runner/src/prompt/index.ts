@@ -22,7 +22,7 @@ export interface PromptContext {
  */
 export function buildPrompt(w: WakeData, ctx: PromptContext): string {
   if (ctx.mode === 'none')
-    return intro(w, ctx.resumed, ctx.continued) + none.workStep() + finish(w) + hardRules(none.RULES);
+    return intro(w, ctx.resumed, ctx.continued) + none.workStep() + finish(w, false) + hardRules(none.RULES);
   const m = ctx.mode === 'in_place' ? inPlace : worktree;
   return intro(w, ctx.resumed, ctx.continued) + m.workStep(ctx.branch) + finish(w) + rules(m.GIT_RULES);
 }

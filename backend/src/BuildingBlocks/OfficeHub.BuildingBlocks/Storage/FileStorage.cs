@@ -41,6 +41,13 @@ public interface IFileStorage
     /// với loại an toàn (ảnh raster, PDF, video, âm thanh) — SVG / HTML / văn bản luôn tải về.
     /// </summary>
     Task<string> GetDownloadUrlAsync(string key, string fileName, bool inline, TimeSpan? ttl = null);
+
+    /// <summary>
+    /// Chép file đã có (<paramref name="sourceKey"/>) sang <paramref name="destinationKey"/> trong cùng bucket, MIME theo đuôi <paramref name="fileName"/> —
+    /// chuyển tiếp tệp sang nơi khác (TEST-156) mà bản mới không phụ thuộc vòng đời bản gốc (xoá bình luận / việc xoá file gốc).
+    /// Trả kích thước bản chép; gốc không còn → null.
+    /// </summary>
+    Task<long?> CopyAsync(string sourceKey, string destinationKey, string fileName, CancellationToken ct = default);
 }
 
 /// <summary>Kết quả xác nhận tải lên: <c>Size</c> null + <c>Error</c> null = chưa tải lên; <c>Error</c> = nội dung không hợp lệ (file đã bị xoá).</summary>
@@ -186,6 +193,25 @@ public sealed class S3FileStorage(S3ClientProvider provider, TimeProvider clock)
         req.ResponseHeaderOverrides.ContentType = type;
         req.ResponseHeaderOverrides.ContentDisposition = ContentDisposition(fileName, inline && FileTypes.IsInlineSafe(type));
         return s3.GetPreSignedURLAsync(req);
+    }
+
+    public async Task<long?> CopyAsync(string sourceKey, string destinationKey, string fileName, CancellationToken ct = default)
+    {
+        try
+        {
+            await s3.CopyObjectAsync(new CopyObjectRequest
+            {
+                SourceBucket = _cfg.BucketFiles, SourceKey = FullKey(sourceKey),
+                DestinationBucket = _cfg.BucketFiles, DestinationKey = FullKey(destinationKey),
+                ContentType = FileTypes.ContentTypeFor(fileName), MetadataDirective = S3MetadataDirective.REPLACE,
+                ServerSideEncryptionMethod = Sse,
+            }, ct);
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+        return await GetSizeAsync(destinationKey, ct);
     }
 
     /// <summary>RFC 6266: tên ASCII dự phòng + filename* UTF-8 (tên tiếng Việt).</summary>

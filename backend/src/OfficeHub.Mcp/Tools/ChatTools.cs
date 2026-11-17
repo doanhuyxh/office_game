@@ -161,6 +161,8 @@ public static class ChatTools
     [McpServerTool(Name = "send_chat_message", Title = "Gửi tin nhắn", Destructive = false, Idempotent = false, OpenWorld = false)]
     [Description("(Chỉ tài khoản bot) Gửi một tin (chữ ≤ 1000 ký tự và / hoặc tối đa 5 tệp) vào kênh Toàn văn phòng, hội thoại 1-1 đã có hoặc kênh phòng đã vào (go_to). " +
                  "Kèm ảnh / tệp: create_upload cho từng file → chạy lệnh curl nó trả → truyền uploadIds ở đây (KHÔNG dán base64 / link tải lên vào tin). " +
+                 "Không chạy được lệnh (phiên chỉ có tool MCP) → chuyển tiếp ảnh / tệp ĐÃ CÓ bằng forwardAttachmentIds: id lấy từ attachments của read_chat " +
+                 "hoặc comments[].attachments của get_task (vd ảnh chụp kết quả đã đính vào bình luận việc); server chép sang tin — chỉ chuyển tiếp khi người trong hội thoại được xem nội dung đó. " +
                  "Tin hiện nhãn BOT cho mọi người và bong bóng trên đầu bot trong văn phòng 3D. Tối đa 60 tin / giờ. " +
                  "Nhắc ai thì viết @mã-nhân-viên (vd @NV012; phải là thành viên kênh, 1-1 không cần) — người đó nhận push; tin của bot không đánh thức bot khác. " +
                  "Kênh office là cả công ty: chỉ đăng khi thật cần (báo xong việc quan trọng, trả lời câu hỏi gửi tới bạn); " +
@@ -170,15 +172,19 @@ public static class ChatTools
         [Description("office (Toàn văn phòng) hoặc id hội thoại 1-1 / kênh phòng (từ list_chats)")] string conversation,
         [Description("Nội dung tin (≤ 1000 ký tự); được bỏ trống khi có uploadIds")] string? text = null,
         [Description("uploadId từ create_upload (đã PUT file xong), ≤ 5 tệp — tuỳ chọn")] string[]? uploadIds = null,
+        [Description("id tệp đã có để chuyển tiếp (attachments[].id từ read_chat / get_task) — tuỳ chọn; cộng uploadIds ≤ 5 tệp")] string[]? forwardAttachmentIds = null,
         CancellationToken ct = default)
     {
         var id = ConversationId(conversation);
         var uploads = UploadIds(uploadIds);
-        if (string.IsNullOrWhiteSpace(text) && uploads.Count == 0) throw new McpException("Thiếu nội dung tin (hoặc uploadIds)");
+        var forwards = ForwardIds(forwardAttachmentIds, uploads.Count);
+        if (string.IsNullOrWhiteSpace(text) && uploads.Count == 0 && forwards.Count == 0)
+            throw new McpException("Thiếu nội dung tin (hoặc uploadIds / forwardAttachmentIds)");
         var result = await api.PostAsync($"/api/chat/conversations/{id}/messages", new JsonObject
         {
             ["text"] = text?.Trim(),
-            ["uploadIds"] = uploads.Count > 0 ? new JsonArray(uploads.Select(u => (JsonNode?)JsonValue.Create(u)).ToArray()) : null,
+            ["uploadIds"] = IdArray(uploads),
+            ["forwardAttachmentIds"] = IdArray(forwards),
             ["clientId"] = "mcp-" + Guid.NewGuid().ToString("N"),
         }, ct) ?? throw new McpException("Api không trả kết quả");
         var live = await relay.PublishAsync(result, ct);
@@ -284,6 +290,29 @@ public static class ChatTools
         if (list.Count > 5) throw new McpException("Tối đa 5 tệp mỗi tin / bình luận");
         return list;
     }
+
+    /// <summary>
+    /// forwardAttachmentIds hợp lệ (Guid, bỏ trùng); cộng <paramref name="uploadCount"/> ≤ 5 (TEST-156). id sai định dạng → lỗi rõ ràng,
+    /// id không tồn tại / không xem được → Api 400.
+    /// </summary>
+    internal static List<string> ForwardIds(string[]? ids, int uploadCount = 0)
+    {
+        var list = new List<string>();
+        foreach (var raw in ids ?? [])
+        {
+            var s = (raw ?? "").Trim();
+            if (s.Length == 0) continue;
+            if (!Guid.TryParse(s, out var g) || g == Guid.Empty)
+                throw new McpException($"forwardAttachmentIds: \"{s}\" không hợp lệ — lấy attachments[].id từ read_chat / get_task");
+            if (!list.Contains(g.ToString())) list.Add(g.ToString());
+        }
+        if (list.Count + uploadCount > 5) throw new McpException("Tối đa 5 tệp mỗi tin (uploadIds + forwardAttachmentIds)");
+        return list;
+    }
+
+    /// <summary>Mảng JSON id (null khi rỗng — Api coi như không gửi).</summary>
+    internal static JsonArray? IdArray(List<string> ids) =>
+        ids.Count > 0 ? new JsonArray(ids.Select(u => (JsonNode?)JsonValue.Create(u)).ToArray()) : null;
 
     [McpServerTool(Name = "mark_chat_read", Title = "Đánh dấu đã đọc tin nhắn", Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("(Chỉ tài khoản bot) Đánh dấu đã đọc hết một hội thoại (unread về 0) — gọi sau khi read_chat và xử lý xong.")]

@@ -40,7 +40,11 @@ public sealed record SendResultDto(MessageDto Message, ConversationType Conversa
 
 public sealed record DeleteResultDto(Guid ConversationId, Guid MessageId, ConversationType ConversationType, string? RoomId, IReadOnlyList<Guid>? Recipients);
 
-public sealed record SendRequest(string? Text, List<Guid>? UploadIds, string? ClientId);
+/// <param name="ForwardAttachmentIds">
+/// Chuyển tiếp tệp ĐÃ CÓ (TEST-156) — id tệp đính kèm chat tôi xem được hoặc tệp bình luận việc trong dự án tôi xem được; server chép sang
+/// khoá chat mới. Cho bot ở phiên chat / họp (không Bash để tải file lên). Tính chung giới hạn tệp mỗi tin với <paramref name="UploadIds"/>.
+/// </param>
+public sealed record SendRequest(string? Text, List<Guid>? UploadIds, string? ClientId, List<Guid>? ForwardAttachmentIds = null);
 
 public sealed record EditRequest(string? Text);
 

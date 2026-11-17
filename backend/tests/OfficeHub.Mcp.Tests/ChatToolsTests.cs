@@ -48,4 +48,27 @@ public class ChatToolsTests
         Assert.Contains("--upload-file '<đường-dẫn-file>'", cmd);
         Assert.EndsWith("'https://s3.example/b/k?X-Amz-Signature=abc&x=%27y'", cmd);
     }
+
+    // TEST-156: chuyển tiếp tệp đã có — phiên chat / họp không Bash
+    [Fact]
+    public void Forward_ids_normalized_and_share_five_file_limit_with_uploads()
+    {
+        var ids = ChatTools.ForwardIds(["0193A000-0000-7000-8000-000000000001", " 0193a000-0000-7000-8000-000000000001 ", ""]);
+        Assert.Equal(["0193a000-0000-7000-8000-000000000001"], ids);
+        Assert.Empty(ChatTools.ForwardIds(null));
+        Assert.Null(ChatTools.IdArray([]));
+        var three = Enumerable.Range(1, 3).Select(i => $"0193a000-0000-7000-8000-00000000000{i}").ToArray();
+        Assert.Equal(3, ChatTools.ForwardIds(three, uploadCount: 2).Count);
+        var ex = Assert.Throws<McpException>(() => ChatTools.ForwardIds(three, uploadCount: 3));
+        Assert.Contains("forwardAttachmentIds", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("abc")]
+    [InlineData("00000000-0000-0000-0000-000000000000")]
+    public void Forward_ids_reject_junk(string id)
+    {
+        var ex = Assert.Throws<McpException>(() => ChatTools.ForwardIds([id]));
+        Assert.Contains("read_chat / get_task", ex.Message);
+    }
 }

@@ -5,6 +5,8 @@
 //   4. Chặn: bot / người ngoài hội thoại hoặc ngoài dự án view_attachment → lỗi; uploadId chưa PUT / của người khác → lỗi;
 //      quá 30 tệp / giờ (chat và bình luận việc tính riêng) → lỗi ghi rõ giới hạn; quá 120 request / phút / token → lỗi tiếng Việt rõ ràng.
 //   5. DB chỉ lưu khoá file (chat/…, projects/comments/…), không có base64 trong tin nhắn / bình luận / khoá.
+//   4f (TEST-156). Chuyển tiếp ảnh đã có không cần Bash: send_chat_message(forwardAttachmentIds) với id tệp bình luận việc / tệp chat → server
+//      chép sang khoá chat/ mới (xoá bình luận gốc vẫn xem được bản chuyển tiếp); ngoài dự án / ngoài hội thoại / id lạ / quá 5 tệp → lỗi.
 // TẠO DỮ LIỆU THẬT → CHỈ DB tạm + S3 tạm (RustFS trong docker — không cần bucket thật). Dựng (Git Bash, từ gốc repo):
 //   docker run -d --name e2e155-pg -e POSTGRES_USER=e2e -e POSTGRES_PASSWORD=e2e -e POSTGRES_DB=e2e -p 127.0.0.1:55475:5432 postgres:17-alpine
 //   docker run -d --name e2e155-s3 -p 127.0.0.1:9475:9000 -e RUSTFS_ACCESS_KEY=e2eaccess -e RUSTFS_SECRET_KEY=e2esecret123 rustfs/rustfs
@@ -245,6 +247,43 @@ ok('[4] bot O ngoài dự án view_attachment(task-comment) → lỗi, không c�
 ok('[4] bot O ngoài dự án get_task → lỗi', (await call(O.token, 'get_task', { task: taskCode })).err);
 ok('[4] bot O ngoài dự án create_upload(task-comment) → lỗi', (await upload(O.token, { target: 'task-comment', task: taskCode }, null)).cu.err);
 ok('[4] id tệp lạ → lỗi', (await call(B.token, 'view_attachment', { id: crypto.randomUUID(), source: 'task-comment' })).err);
+// 4f. Chuyển tiếp (TEST-156): bot ở phiên không Bash gửi lại ảnh đã có — tệp bình luận việc / tệp chat — vào chat, không tải file mới
+await gap();
+const fw1 = await call(B.token, 'send_chat_message', { conversation: 'office', text: `Ảnh lỗi từ ${taskCode}`, forwardAttachmentIds: [caB?.id] });
+ok('[4f] bot B chuyển tiếp ảnh bình luận việc vào office → sent, files = [man-hinh-loi.png]', !fw1.err && JSON.stringify(fw1.j?.files) === '["man-hinh-loi.png"]', fw1.text);
+const rFw = await call(A.token, 'read_chat', { conversation: 'office', take: 20 });
+const fwAtt = (rFw.j?.messages ?? []).find((m: any) => m.seq === fw1.j?.seq)?.attachments?.[0];
+ok('[4f] bot A read_chat thấy tệp chuyển tiếp: id MỚI, cùng tên / cỡ', !!fwAtt?.id && fwAtt.id !== caB?.id && fwAtt.fileName === 'man-hinh-loi.png' && fwAtt.size === IMG.length, rFw.text.slice(0, 500));
+const vFw = await call(A.token, 'view_attachment', { id: fwAtt?.id });
+ok('[4f] view_attachment(chat) bản chuyển tiếp → JPEG ≤ 1280', !vFw.err && small(viewed(vFw).size), vFw.text);
+await gap();
+const fw2 = await call(B.token, 'send_chat_message', { conversation: 'office', forwardAttachmentIds: [aB?.id] });
+ok('[4f] chuyển tiếp tệp chat (ảnh A gửi office) chỉ có tệp, không chữ → sent', !fw2.err && JSON.stringify(fw2.j?.files) === '["bieu-do.png"]', fw2.text);
+// Bản chuyển tiếp không phụ thuộc bản gốc: A bình luận ảnh mới → B chuyển tiếp → A xoá bình luận (file gốc bị xoá) → bản trong chat vẫn xem được
+const upG = await upload(A.token, { target: 'task-comment', task: taskCode, fileName: 'se-xoa.png' });
+const ctG = await call(A.token, 'comment_task', { task: taskCode, content: 'sẽ xoá', uploadIds: [upG.id] });
+const gG = await call(B.token, 'get_task', { task: taskCode });
+const gAtt = (gG.j?.comments ?? []).find((c: any) => c.attachments?.[0]?.fileName === 'se-xoa.png')?.attachments?.[0];
+await gap();
+const fw3 = await call(B.token, 'send_chat_message', { conversation: 'office', text: 'trước khi xoá', forwardAttachmentIds: [gAtt?.id] });
+const del = await fetch(`${API}/api/projects/comments/${ctG.j?.commentId}`, { method: 'DELETE', headers: { cookie: A.cookie } });
+const rG = await call(B.token, 'read_chat', { conversation: 'office', take: 20 });
+const fw3Att = (rG.j?.messages ?? []).find((m: any) => m.seq === fw3.j?.seq)?.attachments?.[0];
+const vG = await call(B.token, 'view_attachment', { id: fw3Att?.id });
+const vGone = await call(B.token, 'view_attachment', { id: gAtt?.id, source: 'task-comment' });
+ok('[4f] xoá bình luận gốc → bản gốc mất, bản chuyển tiếp trong chat vẫn xem được', !fw3.err && del.ok && vGone.err && !vG.err && small(viewed(vG).size),
+  { fw3: fw3.text, del: del.status, vG: vG.text, vGone: vGone.text });
+// Chặn: ngoài dự án / ngoài hội thoại / id lạ / sai định dạng / quá 5 tệp
+await gap();
+const fwO = await call(O.token, 'send_chat_message', { conversation: 'office', forwardAttachmentIds: [caB?.id] });
+ok('[4f] bot O ngoài dự án chuyển tiếp ảnh bình luận việc → lỗi', fwO.err && /không xem được/.test(fwO.text), fwO.text);
+await gap();
+const fwDm = await call(B.token, 'send_chat_message', { conversation: 'office', forwardAttachmentIds: [dmAtt?.id] });
+ok('[4f] bot B chuyển tiếp ảnh trong 1-1 của người khác (H ↔ A) → lỗi', fwDm.err, fwDm.text);
+ok('[4f] id lạ → lỗi', (await call(B.token, 'send_chat_message', { conversation: 'office', forwardAttachmentIds: [crypto.randomUUID()] })).err);
+ok('[4f] id sai định dạng → lỗi nêu forwardAttachmentIds', /forwardAttachmentIds/.test((await call(B.token, 'send_chat_message', { conversation: 'office', forwardAttachmentIds: ['abc'] })).text));
+const six = Array.from({ length: 6 }, () => crypto.randomUUID());
+ok('[4f] quá 5 tệp (upload + chuyển tiếp) → lỗi', /Tối đa 5 tệp/.test((await call(B.token, 'send_chat_message', { conversation: 'office', uploadIds: six.slice(0, 3), forwardAttachmentIds: six.slice(3) })).text));
 // 4c. uploadId chưa PUT / của người khác / không phải uuid
 await gap();
 const noPut = await upload(A.token, { target: 'chat', conversation: 'office' }, null);
@@ -291,6 +330,9 @@ const db = new SQL(PG_URL);
 const chatFiles = await db`SELECT "FileKey" AS key, "Size" AS size FROM chat.attachments a JOIN chat.messages m ON m."Id" = a."MessageId" WHERE m."SenderId" = ${A.userId}`;
 ok('[5] chat.attachments: 2 tệp của A, khoá chat/…/tên-file, size đúng', chatFiles.length === 2
   && chatFiles.every((r: any) => /^chat\/\d{4}\/\d{2}\/[0-9a-f-]{32,36}\/[\w.-]+\.png$/.test(r.key) && Number(r.size) === IMG.length), chatFiles);
+const fwFiles = await db`SELECT "FileKey" AS key FROM chat.attachments a JOIN chat.messages m ON m."Id" = a."MessageId" WHERE m."SenderId" = ${B.userId}`;
+ok('[5] tệp chuyển tiếp của B: 3 bản chép riêng, khoá chat/…, không trùng khoá gốc', fwFiles.length === 3
+  && fwFiles.every((r: any) => r.key.startsWith('chat/') && !chatFiles.some((c: any) => c.key === r.key)), fwFiles);
 const taskFiles = await db`SELECT a."FileKey" AS key FROM projects.comment_attachments a JOIN projects.task_comments c ON c."Id" = a."CommentId" WHERE c."TaskId" = ${taskId}`;
 ok('[5] comment_attachments: khoá projects/comments/…', taskFiles.length === 1 && taskFiles.every((r: any) => r.key.startsWith('projects/comments/') && r.key.length < 200), taskFiles);
 const B64 = '[A-Za-z0-9+/]{200,}';

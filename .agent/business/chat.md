@@ -44,7 +44,7 @@ Thành viên phòng: Realtime báo khi người chơi **bước vào** phòng c�
 | GET | `/unread-count` · `/people?search=` | `{count}` · ≤ 20 người để nhắn 1-1 (tìm không dấu theo tên / mã) |
 | POST | `/conversations/direct` `{userId}` | lấy hoặc tạo 1-1 (chính mình 400, tài khoản khoá 404) |
 | GET | `/conversations/{id}/messages?before=&take=` | `{items (tăng dần seq), hasMore}` — con trỏ `seq` thay `page/pageSize` (tin mới chen vào làm lệch trang) |
-| POST | `/conversations/{id}/messages` `{text?, uploadIds?, clientId?}` | `SendResultDto` (`message, conversationType, roomId, roomName, recipients`) |
+| POST | `/conversations/{id}/messages` `{text?, uploadIds?, forwardAttachmentIds?, clientId?}` | `SendResultDto` (`message, conversationType, roomId, roomName, recipients`) |
 | DELETE | `/messages/{id}` · POST `/conversations/{id}/read` | thu hồi (chỉ người gửi; lặp lại = 200) · đã đọc → 204 |
 | POST | `/uploads` · GET `/attachments/{id}/url?download=` | vé + presigned PUT 30 phút · link tải mới (404 nếu tin thu hồi / không phải thành viên) |
 | GET | `/attachments/{id}` · `/attachments/{id}/preview?max=` | TEST-151 (cho MCP `view_attachment`, token AI chỉ tài khoản bot): `AttachmentDto` + link 10 phút · ảnh → JPEG cạnh dài ≤ 1280 (`BuildingBlocks/Imaging/ImageThumbnail`, SkiaSharp; không lưu bản thu nhỏ), không phải ảnh 400, hỏng / > 40 MP 422. Quyền như `/url` |
@@ -55,6 +55,8 @@ Thành viên phòng: Realtime báo khi người chơi **bước vào** phòng c�
 ## Tệp đính kèm
 
 `POST /uploads` → trình duyệt `PUT` thẳng S3 với đúng `Content-Type` (cần CORS — [env.md](../env.md#s3-cors-kho-tài-liệu)) → gửi tin kèm `uploadIds`, Api `HEAD` kiểm tra file đã lên + dung lượng. Khoá `chat/{yyyy}/{MM}/{vé}/{tên-an-toàn}` (dưới `files/` của `IFileStorage`), **không** chung `documents/`. Ảnh (jpeg / png / webp / gif) ≤ **10 MB**, tệp khác ≤ **25 MB**, chặn đuôi chạy chương trình; SVG tải về, không xem trực tiếp. `AttachmentDto.url` = presigned GET 60 phút (ảnh `inline`). Token AI (TEST-152): chỉ bot, kênh bot dùng được, ≤ 30 tệp / giờ — [office-bots.md](office-bots.md#tin-nhắn-của-bot).
+
+**Chuyển tiếp (TEST-156)** `forwardAttachmentIds`: id tệp chat tôi xem được (tin chưa thu hồi, hội thoại tôi là thành viên) hoặc tệp bình luận việc trong dự án tôi xem được (Projects tra qua `ICommentFileLookup` — contract, không JOIN chéo schema). Server **chép** (`IFileStorage.CopyAsync`) sang khoá `chat/…` mới — bản trong tin sống độc lập (xoá bình luận / việc xoá file gốc). Cộng `uploadIds` ≤ 5 tệp / tin; bot: tính vào hạn mức 30 tệp / giờ. Id không có / không xem được → 400 `forwardAttachmentIds`; file gốc mất trên S3 → 409. Dùng cho bot ở phiên chat / họp không có Bash.
 
 ## Realtime (`/rt/hub/chat`, MessagePack)
 

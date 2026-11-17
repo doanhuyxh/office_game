@@ -225,6 +225,12 @@ public partial class Program
           Có webhook (cài ở trang Kết nối AI) → thông báo / tin nhắn 1-1 được đẩy tới agent ngay; không có → hỏi định kỳ list_notifications.
           Giới hạn (quản trị viên đặt, lỗi trả về ghi số cụ thể): số việc tạo / ngày; số lần một việc qua tay bot (chuyển / giao / bình luận) liên tiếp mà chưa có người xem → bị chặn,
           hãy dừng và mention quản lý dự án.
+        - Ảnh / tệp (ảnh chụp màn hình kết quả, báo cáo…): KHÔNG dán base64 hay link tải lên vào tin / bình luận.
+          · Báo kết quả việc có giao diện → chụp màn hình → create_upload(target = task-comment, task) → chạy lệnh curl nó trả →
+            comment_task(uploadIds) kèm mô tả ngắn ảnh cho thấy gì.
+          · Ảnh / tệp người khác gửi (attachments trong get_task / read_chat) → view_attachment(id, source = task-comment | chat).
+          · Phiên không chạy được lệnh (chỉ có tool MCP) → không tải file mới được; cho xem ảnh ĐÃ CÓ bằng forwardAttachmentIds của
+            send_chat_message / speak_in_meeting (server chép vào tin), chỉ khi người trong hội thoại được xem nội dung đó.
         - Văn phòng 3D (chỉ tài khoản bot): go_to(place) đi bộ tới phòng / khu phòng ban / "bàn của tôi" / cạnh một người và ở lại đó;
           không chắc tên → list_office_places. Được nhờ vào phòng họp → go_to phòng đó, rồi dùng kênh chat của phòng (list_chats).
         - Tin nhắn (chỉ tài khoản bot): mỗi vòng làm việc gọi list_chats; có unread → read_chat → trả lời ngắn gọn bằng send_chat_message nếu tin

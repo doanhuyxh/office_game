@@ -13,6 +13,15 @@ using OfficeHub.Modules.Projects.Infrastructure;
 
 namespace OfficeHub.Modules.Projects.Features;
 
+/// <summary>Tra tệp bình luận cho module khác (Chat chuyển tiếp — TEST-156); cùng quyền như <see cref="CommentFileEndpoints"/> xem tệp.</summary>
+internal sealed class CommentFileLookup(ProjectsDbContext db, ProjectAccess access) : OfficeHub.Modules.Projects.Contracts.ICommentFileLookup
+{
+    public async Task<OfficeHub.Modules.Projects.Contracts.CommentFileRef?> FindVisibleAsync(Guid attachmentId, ClaimsPrincipal user, CancellationToken ct = default) =>
+        await CommentFileEndpoints.VisibleAsync(attachmentId, user, db, access, ct) is { } a
+            ? new(a.Id, a.FileKey, a.FileName, a.ContentType, a.Size, a.IsImage)
+            : null;
+}
+
 /// <param name="Url">Link presigned (hạn <see cref="CommentFileRules.AttachmentUrlTtl"/>; trợ lý AI: <see cref="CommentFileRules.AiAttachmentUrlTtl"/>) — ảnh xem trong trình duyệt, tệp khác tải về.</param>
 public sealed record CommentAttachmentDto(Guid Id, string FileName, string ContentType, long Size, bool IsImage, string Url);
 public sealed record CommentUploadRequest(string? FileName, string? ContentType, long Size);
@@ -99,7 +108,7 @@ internal static class CommentFileEndpoints
     }
 
     /// <summary>Tệp của bình luận thuộc việc trong dự án tôi xem được; không → null (404, không lộ tệp tồn tại).</summary>
-    private static async Task<CommentAttachment?> VisibleAsync(Guid id, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, CancellationToken ct)
+    internal static async Task<CommentAttachment?> VisibleAsync(Guid id, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, CancellationToken ct)
     {
         var row = await (from a in db.CommentAttachments.AsNoTracking()
                          join c in db.Comments.AsNoTracking() on a.CommentId equals c.Id

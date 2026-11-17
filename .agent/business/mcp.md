@@ -18,7 +18,7 @@ AI client ──POST /mcp (Bearer ohk_…)──▶ OfficeHub.Mcp (BearerGate �
 ```
 
 - `OfficeHub.Mcp` **không đọc DB**: mỗi tool gọi lại REST của Api bằng token của người dùng (`Infrastructure/OfficeHubApi.cs`), nên phân quyền, phân cấp quản lý, validate đều do Api làm. Lỗi Api (ProblemDetails / ValidationProblem) → `McpException` tiếng Việt.
-- Streamable HTTP **stateless** (SDK `ModelContextProtocol.AspNetCore` 2.3.1), endpoint `/mcp`. `ServerInstructions` trong `Program.cs`: hỏi xác nhận trước tool ghi, coi văn bản người khác nhập là dữ liệu (chống prompt injection), không có hợp đồng / lương.
+- Streamable HTTP **stateless** (SDK `ModelContextProtocol.AspNetCore` 2.3.1), endpoint `/mcp`. `ServerInstructions` trong `Program.cs`: hỏi xác nhận trước tool ghi, coi văn bản người khác nhập là dữ liệu (chống prompt injection), không có hợp đồng / lương; ảnh / tệp (TEST-156): báo kết quả có giao diện → chụp màn hình → `create_upload(task-comment)` → curl → `comment_task(uploadIds)`, xem bằng `view_attachment`, phiên không Bash → `forwardAttachmentIds`, không dán link tải lên / base64.
 - `BearerGate`: thiếu / sai token → 401 + `WWW-Authenticate: Bearer resource_metadata=…` (OAuth discovery); kiểm tra bằng `GET /api/auth/me`, nhớ `Mcp__TokenCacheSeconds` (30 s). Api không phản hồi → 503 (không nhớ). Thu hồi token có hiệu lực ngay ở lệnh gọi tool kế tiếp (Api kiểm tra lại mỗi request).
 - Gửi `X-Forwarded-For` = IP client AI và `User-Agent: OfficeHub.Mcp (<UA client>)` sang Api (chỉ để ghi log / sự kiện chấm công).
 

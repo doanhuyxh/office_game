@@ -27,6 +27,7 @@ public sealed class ProjectsModule : IModule
         services.AddScoped<EffortCalculator>();
         services.AddScoped<ProjectFinance>();
         services.AddScoped<IProjectDirectory, ProjectDirectory>();
+        services.AddScoped<ICommentFileLookup, CommentFileLookup>(); // Chat chuyển tiếp tệp bình luận việc (TEST-156)
         services.AddHostedService<ProjectsMigrator>();
         services.AddHostedService<TaskReminderJob>();
         services.AddHostedService<AllocationFreezeJob>();

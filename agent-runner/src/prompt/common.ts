@@ -29,9 +29,19 @@ ${read}
 `;
 }
 
-export function finish(w: WakeData): string {
+/**
+ * Bước 6 (kết thúc). `shell` = phiên chạy được lệnh (mode có repo) → hướng dẫn đính kèm ảnh chụp kết quả (TEST-156: create_upload → curl →
+ * comment_task uploadIds); mode none không có Bash nên chỉ xem ảnh người khác gửi.
+ */
+export function finish(w: WakeData, shell = true): string {
+  const images = shell
+    ? `   Kết quả có giao diện / nhìn được → chụp màn hình (vd Chrome headless) → create_upload(target = task-comment, task ${w.task_code})
+   → chạy lệnh curl nó trả → comment_task kèm uploadIds (≤ 5 ảnh, mô tả ngắn ảnh cho thấy gì). Không dán link tải lên / base64 vào bình luận.
+`
+    : '';
   return `6. Xong: comment_task ${w.task_code} báo kết quả (đã làm gì, kiểm tra gì, còn gì), rồi chuyển việc sang trạng thái ngay trước trạng thái cần duyệt
    (vd "Chờ review"). Chưa rõ yêu cầu → comment_task hỏi quản lý dự án rồi dừng, không đoán.
+${images}   Bình luận / tin có ảnh, tệp (attachments) cần xem → view_attachment(id, source = task-comment hoặc chat).
    Bình luận kết quả (cả khi phải dừng giữa chừng) KẾT THÚC bằng mục **Bàn giao** đúng 3 dòng: "Đã làm: …", "Đang dở: …", "Bước tiếp theo: …"
    — lần sau việc có thể chạy ở phiên MỚI không nhớ gì, chỉ đọc mục này.
 `;

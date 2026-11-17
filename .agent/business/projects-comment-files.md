@@ -40,7 +40,7 @@ Người thật dán / kéo-thả / chọn ảnh, tệp vào bình luận việc
 - `create_upload(target = task-comment, task, fileName, size)` → `uploadId` + lệnh `curl` PUT dựng sẵn → `comment_task(task, uploadIds, content?)` (≤ 5, không base64).
 - `get_task` / `list_task_comments`: `comments[].attachments` = `[{id, fileName, contentType, isImage, size}]` — **bỏ link presigned** (`ProjectTools.StripAttachmentUrls`).
 - `view_attachment(id, source = task-comment)`: ảnh → image content JPEG ≤ 1280px; tệp khác → link 10 phút. Mặc định `source = chat`.
-- Hồ sơ phiên `task` có `create_upload` + `view_attachment` (89 tool); `chat` / `meeting` vẫn không có `create_upload`.
+- Hồ sơ phiên `task` có `create_upload` + `view_attachment` (89 tool); `chat` / `meeting` vẫn không có `create_upload` — ở đó bot đưa ảnh bình luận việc vào chat / cuộc họp bằng `forwardAttachmentIds` (TEST-156, Projects trả tệp qua contract `ICommentFileLookup`, cùng quyền xem dự án; Chat chép sang khoá `chat/` riêng).
 
 ## Kiểm thử
 

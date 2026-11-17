@@ -1,13 +1,15 @@
 // E2E module Chat (REST, Api): hội thoại Office / Room / Direct, quyền (người ngoài và admin không đọc được tin 1-1), gửi / khử trùng / giới hạn
 // tốc độ, lịch sử theo con trỏ, chưa đọc, thu hồi (xoá mềm), thành viên kênh phòng (khoá nội bộ), tệp đính kèm S3 (thư mục chat/), token AI bị chặn.
-// TẠO NHÂN VIÊN THẬT + GHI 1 ẢNH NHỎ LÊN S3 THẬT (thư mục files/chat/, giữ lại vì thu hồi chỉ xoá mềm) → CHỈ chạy trên DB tạm:
+// TẠO NHÂN VIÊN THẬT + GHI 1 ẢNH NHỎ LÊN S3 THẬT (e2e/files/chat/, giữ lại vì thu hồi chỉ xoá mềm) → CHỈ chạy trên DB tạm:
 //   docker run -d --name officehub-e2e-pg -e POSTGRES_DB=officehub_e2e -e POSTGRES_USER=e2e -e POSTGRES_PASSWORD=e2e_pw_7391 -p 127.0.0.1:55432:5432 postgres:18-alpine
 //   Api (từ backend/): ASPNETCORE_URLS=http://localhost:5180 ConnectionStrings__Default="Host=127.0.0.1;Port=55432;Database=officehub_e2e;Username=e2e;Password=e2e_pw_7391"
+//        S3__KeyPrefix=e2e/ (TEST-156: file thử dưới e2e/files/ để dọn; script dừng nếu link S3 không ở đó)
 //        Seed__AdminEmail=e2e.admin@officehub.test Seed__AdminPassword='E2e-Admin-2026!' dotnet run --project src/OfficeHub.Api --no-launch-profile
 //   E2E_LOCAL_DB=1 API_URL=http://localhost:5180 ADMIN_LOGIN=e2e.admin@officehub.test ADMIN_PASSWORD='E2e-Admin-2026!' bun scripts/dev/chat-e2e.ts
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { totp } from './totp';
+import { assertE2eS3Key } from './s3-e2e-guard';
 if (process.env.E2E_LOCAL_DB !== '1') throw new Error('Chỉ chạy với DB tạm: đặt E2E_LOCAL_DB=1');
 const API = process.env.API_URL ?? 'http://localhost:5180';
 const envFile = Bun.file(new URL('../../.env', import.meta.url));
@@ -193,6 +195,7 @@ ok('tệp > 25 MB → 400', (await up(A, DM, { fileName: 'a.pdf', contentType: '
 ok('C xin tải lên vào hội thoại A–B → 404', (await up(C, DM)).status === 404);
 const t = await up(A, DM);
 ok('xin tải lên → vé + presigned PUT trỏ vào thư mục chat/', t.status === 200 && /\/files\/(uploads\/)?chat\/\d{4}\/\d{2}\//.test(decodeURIComponent(t.body.url)) && !t.body.url.includes('documents/'), t.body?.url?.slice(0, 200));
+assertE2eS3Key(t.body.url); // file thử chỉ dưới e2e/files/ (TEST-156)
 const unfinished = await send(A, DM, { text: 'chưa tải xong', uploadIds: [t.body.id] });
 ok('gửi khi tệp chưa PUT lên S3 → 409', unfinished.status === 409, unfinished.body);
 const put = await fetch(t.body.url, { method: 'PUT', headers: { 'content-type': t.body.contentType }, body: PNG });
