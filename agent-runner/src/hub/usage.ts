@@ -1,6 +1,6 @@
 import { hostname } from 'node:os';
 import { log } from '../log';
-import type { Job, Store } from '../store';
+import { type Job, reportKind, type Store, taskIdOf } from '../store';
 import { FailureLog, failureKey, HubEndpoint, hubUrl } from './endpoint';
 import type { ModelUse } from '../executor/types';
 
@@ -116,7 +116,7 @@ export function usageModels(job: Job): AiUsageModel[] | undefined {
 
 /** Job đã xong → một phiên theo hợp đồng `AiUsageSession`. `executor` của job cũ (trước TEST-135) lấy từ cấu hình agent hiện tại. */
 export function usageSession(job: Job, host: string, dbId: string, fallbackExecutor?: string): AiUsageSession {
-  const kind = job.kind;
+  const kind = reportKind(job.kind) as AiUsageSession['kind'];
   const s: AiUsageSession = {
     sourceId: sourceId(job, host, dbId),
     kind,
@@ -127,8 +127,9 @@ export function usageSession(job: Job, host: string, dbId: string, fallbackExecu
     costUsd: num(job.cost_usd),
   };
   if (kind === 'task') {
-    // Chat / họp: task_id là khoá `<mã NV>:<id>`, task_code là nhãn log — không phải việc
-    if (GUID.test(job.key)) s.taskId = job.key;
+    // Chat / họp: task_id là khoá `<mã NV>:<id>`, task_code là nhãn log — không phải việc. Review: id việc sau tiền tố.
+    const taskId = taskIdOf(job);
+    if (taskId && GUID.test(taskId)) s.taskId = taskId;
     if (GUID.test(job.project_id)) s.projectId = job.project_id;
     if (job.label.trim()) s.taskCode = job.label.trim().slice(0, MAX_TASK_CODE);
   }

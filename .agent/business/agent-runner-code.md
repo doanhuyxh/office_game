@@ -9,7 +9,7 @@
 | `cli.ts` | Đọc dòng lệnh (`node:util` `parseArgs` — cờ lạ báo lỗi, mã thoát 2), đọc cấu hình, mở `Store` + `Runner`, gọi lệnh trong bảng `COMMANDS` |
 | `commands/` | Mỗi lệnh một file trả mã thoát: `start.ts`, `doctor.ts`, `run.ts`, `report.ts`, `usage-push.ts`; `context.ts` (`CliContext`, `CliFlags`) |
 | `runner.ts` | Nối dây: tạo agent, Listener (Telegram), `accept(agent, wake)` (nhận tin, chung cho mọi loại), Scheduler, `process(job)` gọi handler của loại job |
-| `jobs/` | Mỗi loại job một handler (`JobHandler` ở `handler.ts`): `task.ts`, `chat.ts`, `meeting.ts`; registry `index.ts`. Handler khai: khoá + nhãn job, câu log, `admit` (hỏi lại OfficeHub lúc nhận tin), `run` (kiểm tra lại → phiên CLI → kết quả) |
+| `jobs/` | Mỗi loại job một handler (`JobHandler` ở `handler.ts`): `task.ts`, `chat.ts`, `meeting.ts`, `review.ts`; registry `index.ts`. Handler khai: khoá + nhãn job, câu log, `admit` (hỏi lại OfficeHub lúc nhận tin), `run` (kiểm tra lại → phiên CLI → kết quả) |
 | `policy.ts` | Mọi hằng số chính sách: `RESUME_MAX_GAP_MIN`, `MEETING_*`, `SCHEDULE_POLL_MS`, `TELEGRAM_RETRY_SEC` |
 | `core/agent.ts` | `AgentState` (cấu hình + client + bộ gửi + kết quả kiểm tra của một agent) |
 | `core/env.ts` | `agentEnv` (env của tiến trình con, không kế thừa env runner), `agentHome` |

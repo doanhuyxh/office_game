@@ -80,7 +80,9 @@ export const COMMIT_MSG_MARK = '# officehub-agent-runner commit-msg';
 
 /** Biến môi trường runner đặt cho CLI agent — hook commit-msg dựa vào đây để gắn trailer (commit của người không bị đụng). */
 export const AGENT_ENV = 'OFFICEHUB_AGENT',
-  TASK_ENV = 'OFFICEHUB_TASK';
+  TASK_ENV = 'OFFICEHUB_TASK',
+  /** Phiên chỉ đọc (review, TEST-167) — hook pre-push chặn mọi push. */
+  READONLY_ENV = 'OFFICEHUB_READONLY';
 
 /**
  * Hook pre-push (nằm ở .git/hooks — dùng chung cho mọi worktree của repo): chặn push lên main / master, chặn force push (commit trên remote
@@ -90,6 +92,9 @@ export const AGENT_ENV = 'OFFICEHUB_AGENT',
 export function prePushHook(baseBranch: string) {
   return `#!/bin/sh
 ${PRE_PUSH_MARK} — do runner cài, đừng sửa tay (TEST-44, TEST-46)
+if [ -n "$${READONLY_ENV}" ]; then
+  echo "agent-runner: phiên review chỉ đọc — không push" >&2; exit 1
+fi
 zero=0000000000000000000000000000000000000000
 while read local_ref local_sha remote_ref remote_sha; do
   case "$remote_ref" in
@@ -201,6 +206,32 @@ export async function prepareWorktree(
   }
   await git.out(repo, 'worktree', 'add', '-b', branch, path, `origin/${baseBranch}`);
   return { path, branch, reused: false };
+}
+
+/**
+ * Worktree cho phiên review (TEST-167): `{worktrees_dir}/{mã NV}/REVIEW-{mã việc}` ở `origin/{base}` (detached); đã có thì dùng lại và đưa về
+ * `origin/{base}` (checkout --force). Agent tự lấy nhánh / PR của người làm (`gh pr checkout --detach`, hoặc `git fetch` + checkout
+ * FETCH_HEAD) vì người làm có thể chạy in_place (nhánh không đoán được). Cùng đường dẫn → nối được phiên CLI cũ. Không publish;
+ * push bị hook chặn ({@link READONLY_ENV}).
+ */
+export async function prepareReviewWorktree(
+  git: Git,
+  repo: string,
+  worktreesDir: string,
+  employeeCode: string,
+  taskCode: string,
+  baseBranch: string,
+): Promise<string> {
+  const path = join(worktreesDir, employeeCode, `REVIEW-${taskCode.toUpperCase()}`);
+  if (isInside(repo, path)) throw new Error('repo không được nằm trong worktree');
+  await git.out(repo, 'fetch', '--quiet', 'origin', baseBranch);
+  if (existsSync(join(path, '.git'))) {
+    await git.out(path, 'checkout', '--quiet', '--force', '--detach', `origin/${baseBranch}`);
+    return path;
+  }
+  mkdirSync(join(worktreesDir, employeeCode), { recursive: true });
+  await git.out(repo, 'worktree', 'add', '--detach', path, `origin/${baseBranch}`);
+  return path;
 }
 
 /** Số commit của nhánh chưa có trên origin/{base} + file đổi (để chặn agent-runner/). */

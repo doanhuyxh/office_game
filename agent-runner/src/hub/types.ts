@@ -11,8 +11,13 @@ export interface TaskDetail {
     code?: string;
     title?: string;
     assigneeEmployeeId?: string;
+    /** Người review (TEST-161). */
+    reviewerEmployeeId?: string;
+    columnId?: string;
     done?: boolean;
   };
+  /** Cột trạng thái của dự án; `isReview` = cột review (TEST-161, trường false có thể bị bỏ). */
+  columns?: { id?: string; isReview?: boolean }[];
   /** Việc phải xong trước. */
   dependsOn?: TaskRef[];
   /** Việc đang chờ việc này xong. */

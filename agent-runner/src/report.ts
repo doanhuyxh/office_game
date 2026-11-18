@@ -1,7 +1,12 @@
 import type { KindCost } from './store';
 
 /** Nhãn loại job trong `report`. */
-export const KIND_LABEL: Record<string, string> = { task: 'việc', chat: 'chat', meeting: 'họp' };
+export const KIND_LABEL: Record<string, string> = {
+  task: 'việc',
+  chat: 'chat',
+  meeting: 'họp',
+  review: 'review',
+};
 
 const n = (x: number) => x.toLocaleString('en');
 

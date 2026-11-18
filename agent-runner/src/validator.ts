@@ -24,7 +24,12 @@ export interface MeetingWake {
 }
 
 /** Tin đánh thức đã phân loại theo trường `event`. */
-export type Wake = ({ kind: 'task' } & WakeData) | ({ kind: 'chat' } & ChatWake) | ({ kind: 'meeting' } & MeetingWake);
+export type Wake =
+  | ({ kind: 'task' } & WakeData)
+  | ({ kind: 'chat' } & ChatWake)
+  | ({ kind: 'meeting' } & MeetingWake)
+  /** `event: review_requested` (TEST-167): bot là người review, việc vừa vào cột review — cùng 4 trường như tin việc. */
+  | ({ kind: 'review' } & WakeData);
 
 export type Check<T> = { ok: true; value: T } | { ok: false; reason: string };
 
@@ -57,8 +62,15 @@ const TASK_SHAPE: WakeShape = {
   }),
 };
 
+/** Tin cùng dạng tin việc nhưng thành loại job khác (review). Trường thêm của máy chủ (assignee_code) bị bỏ qua. */
+const taskShapeAs = (kind: 'review'): WakeShape => ({
+  ...TASK_SHAPE,
+  build: (d) => ({ ...(TASK_SHAPE.build(d) as WakeData), kind }),
+});
+
 /** Loại tin theo trường `event`; `event` khác → {@link TASK_SHAPE}. */
 const EVENT_SHAPES: Record<string, WakeShape> = {
+  review_requested: taskShapeAs('review'),
   chat_mention: {
     keys: ['employee_code', 'conversation_id', 'message_id'],
     guids: ['conversation_id', 'message_id'],
@@ -141,6 +153,37 @@ export function checkTask(
       blocks: refs(detail?.blocks),
     },
   };
+}
+
+/** Phần chung của kiểm tra việc: đọc được, đúng id / dự án. */
+function sameTask(
+  detail: TaskDetail | null | undefined,
+  wake: Pick<WakeData, 'project_id' | 'task_id'>,
+): Check<NonNullable<TaskDetail['task']>> {
+  const t = detail?.task;
+  if (!t?.id) return { ok: false, reason: 'không đọc được việc (không còn quyền / đã xoá?)' };
+  if (t.id !== wake.task_id) return { ok: false, reason: 'task_id không khớp' };
+  if (t.projectId !== wake.project_id) return { ok: false, reason: 'việc không thuộc project_id trong tin' };
+  return { ok: true, value: t };
+}
+
+/**
+ * Bước 2 của tin review_requested (TEST-167), lúc nhận tin VÀ ngay trước khi chạy: agent đúng là người review của việc, việc chưa xong và
+ * đang ở cột review (`columns[].isReview`). Người làm đã kéo lùi / người review đổi → bỏ.
+ */
+export function checkReview(
+  detail: TaskDetail | null | undefined,
+  wake: Pick<WakeData, 'project_id' | 'task_id'>,
+  myEmployeeId: string,
+): Check<{ title: string; code: string }> {
+  const same = sameTask(detail, wake);
+  if (!same.ok) return same;
+  const t = same.value;
+  if (t.reviewerEmployeeId !== myEmployeeId) return { ok: false, reason: 'agent không còn là người review của việc' };
+  if (t.done) return { ok: false, reason: 'việc đã xong' };
+  const column = (detail?.columns ?? []).find((c) => c?.id === t.columnId);
+  if (column?.isReview !== true) return { ok: false, reason: 'việc không còn ở cột review' };
+  return { ok: true, value: { title: String(t.title ?? ''), code: String(t.code ?? '') } };
 }
 
 /** Việc đã kiểm tra xong: tên, mã + mã các việc liên quan để đưa vào prompt (TEST-164). */
