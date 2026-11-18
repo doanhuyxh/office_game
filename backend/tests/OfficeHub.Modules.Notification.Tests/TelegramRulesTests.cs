@@ -62,6 +62,19 @@ public class TelegramRulesTests
     }
 
     [Fact]
+    public void Review_wake_message_has_task_fields_and_assignee_code()
+    {
+        var p = Guid.NewGuid(); var t = Guid.NewGuid();
+        using var doc = JsonDocument.Parse(TelegramRules.ReviewWakeMessage("NV020", p, t, "TEST-161", "NV018"));
+        Assert.Equal(["employee_code", "project_id", "task_id", "task_code", "event", "assignee_code"], doc.RootElement.EnumerateObject().Select(x => x.Name).ToArray());
+        Assert.Equal("review_requested", doc.RootElement.GetProperty("event").GetString());
+        Assert.Equal("NV020", doc.RootElement.GetProperty("employee_code").GetString());
+        Assert.Equal("NV018", doc.RootElement.GetProperty("assignee_code").GetString());
+        using var noAssignee = JsonDocument.Parse(TelegramRules.ReviewWakeMessage("NV020", p, t, "TEST-161", null));
+        Assert.False(noAssignee.RootElement.TryGetProperty("assignee_code", out _));
+    }
+
+    [Fact]
     public void Meeting_turn_wake_message_has_session_and_conversation_only()
     {
         var sid = Guid.NewGuid(); var c = Guid.NewGuid();

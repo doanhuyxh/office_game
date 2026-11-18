@@ -4,8 +4,9 @@ export type ProjectStatus = 'Active' | 'Closed';
 export type MemberRole = 'Member' | 'Manager';
 export type MilestoneStatus = 'Open' | 'Accepted';
 /** Cột trạng thái công việc của một dự án (tên / màu / thứ tự tự do). isDone = cột hoàn thành; approverOnly = chỉ quản lý dự án chuyển vào / kéo lùi ra. */
-export interface ITaskColumn { id: string; name: string; position: number; color: string; isDone: boolean; approverOnly: boolean; taskCount: number }
-export interface ITaskColumnRequest { name: string; color?: string | null; isDone: boolean; approverOnly: boolean }
+/** isReview (TEST-161): việc vào cột này → báo người review của việc. */
+export interface ITaskColumn { id: string; name: string; position: number; color: string; isDone: boolean; approverOnly: boolean; taskCount: number; isReview?: boolean }
+export interface ITaskColumnRequest { name: string; color?: string | null; isDone: boolean; approverOnly: boolean; isReview: boolean }
 
 export interface ISalesContractRef { id: string; code: string; title: string; customerName: string; status: string; businessLineId: string | null }
 export interface IInstallmentRef { id: string; contractId: string; title: string; dueOn: string; cancelled: boolean }
@@ -51,6 +52,8 @@ export interface ITask {
   id: string; projectId: string; code: string; title: string; description: string | null; columnId: string; columnName: string; columnColor: string;
   /** Đang ở cột hoàn thành. */
   done: boolean; rank: number; assigneeEmployeeId: string | null;
+  /** Người review (TEST-161). */
+  reviewerEmployeeId?: string | null;
   assigneeName: string | null; milestoneId: string | null; dueOn: string | null; estimateDays: number | null; overdue: boolean; commentCount: number; createdAt: string;
   createdByName: string; completedAt: string | null; projectName: string | null;
   /** Tạo qua token AI / MCP. */
@@ -72,14 +75,16 @@ export interface ICommentAttachment { id: string; fileName: string; contentType:
 export interface IComment { id: string; content: string; authorName: string; createdAt: string; byBot: boolean; canDelete: boolean; attachments?: ICommentAttachment[] }
 /** POST /tasks/{id}/uploads → vé tải lên: PUT tệp thẳng lên `url` với header Content-Type = `contentType`. */
 export interface ICommentUploadTicket { id: string; url: string; contentType: string; expiresAt: string }
-export type TaskActivityKind = 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited' | 'Depends' | 'CommentDeleted' | 'Follow' | 'Unfollow';
+export type TaskActivityKind = 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited' | 'Depends' | 'CommentDeleted' | 'Follow' | 'Unfollow' | 'Reviewer';
 export interface ITaskActivity { id: string; kind: TaskActivityKind; from: string | null; to: string | null; note: string | null; actorName: string; byBot: boolean; at: string }
 /** GET /tasks/{id}: việc + bình luận + lịch sử. canApprove = được chuyển vào / kéo lùi ra cột cần người duyệt. */
 export interface ITaskDetail { task: ITask; comments: IComment[]; activities: ITaskActivity[]; sequential: boolean; canApprove: boolean; columns: ITaskColumn[];
   /** Việc phải xong trước / việc đang chờ việc này. */
   dependsOn?: ITaskRef[]; blocks?: ITaskRef[];
   /** Người theo dõi (TEST-160). */
-  followers?: ITaskFollower[] }
+  followers?: ITaskFollower[];
+  /** Người review (TEST-161). */
+  reviewer?: ITaskFollower | null }
 export interface IEffortCell { employeeId: string; month: string; presentDays: number; percent: number; explicit: boolean; manDays: number }
 export interface IEffort {
   months: string[]; members: IMember[]; cells: IEffortCell[]; totalManDays: number; budgetManDays: number | null;
@@ -110,6 +115,8 @@ export interface ITaskRequest {
   mediaLinks?: string[];
   /** Lý do khi chuyển lùi trạng thái (bắt buộc nếu dự án đi lần lượt). */
   note?: string | null;
+  /** Người review (TEST-161) — thành viên khác người làm; null = bỏ. */
+  reviewerId?: string | null;
 }
 export interface IMilestoneRequest { title: string; dueOn?: string | null; installmentId?: string | null; note?: string | null }
 

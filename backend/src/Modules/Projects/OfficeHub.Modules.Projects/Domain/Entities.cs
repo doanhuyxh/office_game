@@ -155,6 +155,9 @@ public sealed class TaskItem
     /// <summary>Thứ tự trong cột (số thực để chèn giữa không phải đánh lại).</summary>
     public double Rank { get; set; }
     public Guid? AssigneeEmployeeId { get; set; }
+    /// <summary>Người review (TEST-161): thành viên dự án khác người làm. Việc vào cột <see cref="TaskColumn.IsReview"/> → báo người này (bot: Telegram + webhook).
+    /// Chỉ lưu Id nhân viên (không FK sang schema org). Luật: <see cref="ReviewerRules"/>.</summary>
+    public Guid? ReviewerEmployeeId { get; set; }
     public Guid? MilestoneId { get; set; }
     public DateOnly? DueOn { get; set; }
     public decimal? EstimateDays { get; set; }
@@ -184,11 +187,13 @@ public sealed class TaskColumn
     public bool IsDone { get; set; }
     /// <summary>Cần người duyệt: chỉ quản lý dự án / HR chuyển việc vào cột này, hoặc kéo lùi việc ra khỏi cột (mở lại).</summary>
     public bool ApproverOnly { get; set; }
+    /// <summary>Cột review (TEST-161): việc chuyển vào đây (từ cột khác) và có người review → báo người review "Cần review". Không đổi quyền chuyển việc.</summary>
+    public bool IsReview { get; set; }
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<TaskActivityKind>))]
-/// <summary>CommentDeleted (TEST-39): người viết tự xoá bình luận — không lưu nội dung đã xoá.</summary>
-public enum TaskActivityKind { Created = 0, Moved = 1, Assigned = 2, DueChanged = 3, Edited = 4, Depends = 5, CommentDeleted = 6, Follow = 7, Unfollow = 8 }
+/// <summary>CommentDeleted (TEST-39): người viết tự xoá bình luận — không lưu nội dung đã xoá. Reviewer (TEST-161): đổi người review (from → to = họ tên).</summary>
+public enum TaskActivityKind { Created = 0, Moved = 1, Assigned = 2, DueChanged = 3, Edited = 4, Depends = 5, CommentDeleted = 6, Follow = 7, Unfollow = 8, Reviewer = 9 }
 
 /// <summary>Lịch sử một việc: tạo, chuyển trạng thái (kèm lý do khi lùi), đổi người, đổi hạn, sửa nội dung. Chỉ thêm. <see cref="ByBot"/> = làm qua token AI / MCP.</summary>
 public sealed class TaskActivity

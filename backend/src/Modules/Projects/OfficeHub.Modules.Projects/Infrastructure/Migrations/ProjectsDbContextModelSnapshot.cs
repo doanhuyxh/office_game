@@ -497,6 +497,9 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.Property<bool>("IsDone")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsReview")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -650,6 +653,9 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
 
                     b.Property<double>("Rank")
                         .HasColumnType("double precision");
+
+                    b.Property<Guid?>("ReviewerEmployeeId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Title")
                         .IsRequired()

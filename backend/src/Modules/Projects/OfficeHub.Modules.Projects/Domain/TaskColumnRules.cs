@@ -3,7 +3,8 @@ using System.Text.RegularExpressions;
 namespace OfficeHub.Modules.Projects.Domain;
 
 /// <summary>Cột trạng thái (thông tin đủ cho luật thuần — test không cần DB).</summary>
-public sealed record ColumnInfo(Guid Id, string Name, int Position, bool IsDone, bool ApproverOnly);
+/// <param name="IsReview">Cột review (TEST-161) — vào đây thì báo người review.</param>
+public sealed record ColumnInfo(Guid Id, string Name, int Position, bool IsDone, bool ApproverOnly, bool IsReview = false);
 
 /// <summary>
 /// Luật cột trạng thái công việc (chủ dự án chốt 2026-11-11): tên / màu / thứ tự tự do, tối đa <see cref="MaxColumns"/> cột,
@@ -24,7 +25,7 @@ public static partial class TaskColumnRules
     [
         new() { ProjectId = projectId, Name = "Cần làm", Position = 0, Color = "#64748b" },
         new() { ProjectId = projectId, Name = "Đang làm", Position = 1, Color = "#3b82f6" },
-        new() { ProjectId = projectId, Name = "Chờ review", Position = 2, Color = "#f59e0b" },
+        new() { ProjectId = projectId, Name = "Chờ review", Position = 2, Color = "#f59e0b", IsReview = true },
         new() { ProjectId = projectId, Name = "Xong", Position = 3, Color = "#22c55e", IsDone = true, ApproverOnly = true },
     ];
 

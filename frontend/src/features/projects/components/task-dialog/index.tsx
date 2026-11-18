@@ -35,6 +35,7 @@ function ActivityLine({ a }: { a: ITaskActivity }) {
   const change = a.kind === 'Moved' ? `${stateLabel(a.from) || '—'} → ${stateLabel(a.to) || '—'}`
     : a.kind === 'Created' ? `(${stateLabel(a.to)})`
     : a.kind === 'Assigned' ? `${a.from ?? 'chưa giao'} → ${a.to ?? 'chưa giao'}`
+    : a.kind === 'Reviewer' ? `${a.from ?? 'không có'} → ${a.to ?? 'không có'}`
     : a.kind === 'DueChanged' ? `${fmtDay(a.from)} → ${fmtDay(a.to)}`
     : a.kind === 'Depends' ? `${a.from ?? 'không'} → ${a.to ?? 'không'}`
     : a.kind === 'Follow' ? (a.to ?? '') : a.kind === 'Unfollow' ? (a.from ?? '') : '';
@@ -93,8 +94,8 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
     save.reset(); setComment(''); setCommentFiles([]); setShowHistory(false);
     setPreview(!!task?.description); // việc đã có mô tả → mở ở chế độ xem Markdown
     setLinks(task?.mediaLinks.length ? [...task.mediaLinks] : []);
-    setF(task ? { title: task.title, description: task.description ?? '', columnId: task.columnId, assigneeEmployeeId: task.assigneeEmployeeId, milestoneId: task.milestoneId,
-      dueOn: task.dueOn ?? '', estimateDays: task.estimateDays } : { title: '', description: '', columnId: createCols.find((c) => c.id === initialColumnId)?.id ?? createCols[0]?.id ?? null, assigneeEmployeeId: null, milestoneId: null, dueOn: '', estimateDays: null });
+    setF(task ? { title: task.title, description: task.description ?? '', columnId: task.columnId, assigneeEmployeeId: task.assigneeEmployeeId, reviewerId: task.reviewerEmployeeId ?? null, milestoneId: task.milestoneId,
+      dueOn: task.dueOn ?? '', estimateDays: task.estimateDays } : { title: '', description: '', columnId: createCols.find((c) => c.id === initialColumnId)?.id ?? createCols[0]?.id ?? null, assigneeEmployeeId: null, reviewerId: null, milestoneId: null, dueOn: '', estimateDays: null });
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [open, task?.id]);
   const errors = fieldErrors(save.error);
@@ -189,8 +190,12 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
               <fieldset disabled={!canWork} className="grid min-w-0 grid-cols-1 gap-3">
                 <SelectField id="tk-state" label="Trạng thái" value={f.columnId ?? null} onChange={(v) => set('columnId', v)} error={errors.columnId}
                   options={(task ? columns : createCols).map((c) => ({ value: c.id, label: c.name }))} />
-                <SelectField id="tk-who" label="Người làm" allowEmpty emptyLabel="— Chưa giao —" value={f.assigneeEmployeeId ?? null} onChange={(v) => set('assigneeEmployeeId', v)}
+                <SelectField id="tk-who" label="Người làm" allowEmpty emptyLabel="— Chưa giao —" value={f.assigneeEmployeeId ?? null} onChange={(v) => setF((x) => ({ ...x, assigneeEmployeeId: v, reviewerId: x.reviewerId === v ? null : x.reviewerId }))}
                   options={members.filter((m) => m.isActive).map((m) => ({ value: m.employeeId, label: m.fullName }))} error={errors.assigneeEmployeeId} />
+                {/* TEST-161: người review — việc vào trạng thái review thì người này nhận "Cần review" (bot được đánh thức, chỉ bình luận) */}
+                <SelectField id="tk-reviewer" label="Người review" allowEmpty emptyLabel="— Không có —" value={f.reviewerId ?? null} onChange={(v) => set('reviewerId', v)}
+                  options={members.filter((m) => (m.isActive || m.employeeId === f.reviewerId) && m.employeeId !== f.assigneeEmployeeId)
+                    .map((m) => ({ value: m.employeeId, label: m.isBot ? `${m.fullName} (BOT)` : m.fullName }))} error={errors.reviewerId} />
                 {/* Không chọn ngày đã qua (back-end cũng chặn; giữ nguyên hạn cũ đã qua khi sửa vẫn được) */}
                 <FormField id="tk-due" label="Hạn" type="date" min={todayVn()} value={f.dueOn ?? ''} onChange={(e) => set('dueOn', e.target.value)} error={errors.dueOn} />
                 <FormField id="tk-est" label="Ước lượng (ngày)" type="number" min={0} step="0.5" value={f.estimateDays ?? ''} onChange={(e) => set('estimateDays', e.target.value === '' ? null : Number(e.target.value))} error={errors.estimateDays} />

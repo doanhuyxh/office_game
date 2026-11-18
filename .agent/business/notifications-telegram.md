@@ -29,7 +29,7 @@ Tin = một dòng JSON (không nhắc bot, không có tên / mô tả việc / n
 {"employee_code":"NV018","project_id":"…","task_id":"…","task_code":"TEST-75","event":"ready"}
 {"employee_code":"NV018","project_id":"…","task_id":"…","task_code":"TEST-63","event":"mentioned","comment_id":"…"}
 ```
-`event` = `assigned` / `returned` / `ready` / `mentioned` (hằng `TelegramRules.Assigned/Returned/Ready/Mentioned`); tin cũ không có `event` = `assigned`. (`TelegramRules.WakeMessage`, test ở `TelegramRulesTests`.)
+`event` = `assigned` / `returned` / `ready` / `mentioned` / `review_requested` (hằng `TelegramRules.Assigned/Returned/Ready/Mentioned/ReviewRequested`; `review_requested` thêm `assignee_code`, gửi cho người review là bot khi việc vào cột review — TEST-161, [projects-task-reviewer.md](projects-task-reviewer.md)); tin cũ không có `event` = `assigned`. (`TelegramRules.WakeMessage`, test ở `TelegramRulesTests`.)
 **Runner:** `agent-runner/` hiện bỏ qua `event` / `comment_id` (chỉ đọc 4 trường) — tin `mentioned` cho bot không phải người làm bị bỏ ("việc không còn giao cho agent này"); bot là người làm thì mở phiên làm việc bình thường. Xử lý riêng `mentioned` (chỉ trả lời bằng `comment_task`) do người thật sửa runner — xem [agent-runner.md](agent-runner.md#chưa-làm-bước-sau-của-test-44).
 
 ## Gửi nền (`Infrastructure/Telegram.cs`)

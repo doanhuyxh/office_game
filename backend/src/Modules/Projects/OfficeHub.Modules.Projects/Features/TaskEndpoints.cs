@@ -22,18 +22,20 @@ namespace OfficeHub.Modules.Projects.Features;
 /// <param name="AwaitingHuman">Chỉ <c>/tasks/mine</c> (TEST-157): người làm là bot và đã báo, đang chờ người duyệt / trả lời (<see cref="BotWaitRules.AwaitingHuman"/>).</param>
 /// <param name="ProjectActive">Chỉ <c>/tasks/mine</c> tính thật (nơi khác mặc định true): dự án đang chạy.</param>
 /// <param name="FollowerCount">Số người theo dõi (TEST-160).</param>
+/// <param name="ReviewerEmployeeId">Người review (TEST-161).</param>
 public sealed record TaskDto(Guid Id, Guid ProjectId, string Code, string Title, string? Description, Guid ColumnId, string ColumnName, string ColumnColor, bool Done, double Rank, Guid? AssigneeEmployeeId, string? AssigneeName,
     Guid? MilestoneId, DateOnly? DueOn, decimal? EstimateDays, bool Overdue, int CommentCount, DateTimeOffset CreatedAt, string CreatedByName, DateTimeOffset? CompletedAt,
     List<string> MediaLinks, string? ProjectName = null, bool CreatedByBot = false, int WaitingOn = 0,
-    bool AwaitingHuman = false, bool ProjectActive = true, int FollowerCount = 0);
+    bool AwaitingHuman = false, bool ProjectActive = true, int FollowerCount = 0, Guid? ReviewerEmployeeId = null);
 /// <summary>Việc liên quan (chờ / đang chặn) — mã, tên, đã xong chưa.</summary>
 public sealed record TaskRefDto(Guid Id, string Code, string Title, bool Done);
 /// <param name="DependsOn">Mã / id các việc phải xong trước (tối đa 10, cùng dự án) — thay toàn bộ danh sách; rỗng = bỏ hết.</param>
 public sealed record SetDependencies(List<Guid> DependsOn);
 /// <param name="ColumnId">Cột trạng thái — tạo: bỏ trống = cột đầu; sửa: bỏ trống = giữ nguyên.</param>
 /// <param name="Note">Lý do khi chuyển lùi — bắt buộc nếu dự án đi lần lượt.</param>
+/// <param name="ReviewerId">Người review (TEST-161): thành viên dự án khác người làm; như người làm — sửa thì gửi giá trị hiện tại, null = bỏ.</param>
 public sealed record UpsertTask(string Title, string? Description = null, Guid? ColumnId = null, Guid? AssigneeEmployeeId = null, Guid? MilestoneId = null,
-    DateOnly? DueOn = null, decimal? EstimateDays = null, List<string>? MediaLinks = null, string? Note = null);
+    DateOnly? DueOn = null, decimal? EstimateDays = null, List<string>? MediaLinks = null, string? Note = null, Guid? ReviewerId = null);
 public sealed record MoveTask(Guid ColumnId, double? Rank = null, string? Note = null);
 /// <param name="CanDelete">Người xem được xoá (chỉ chính người viết, trên web, dự án đang chạy — TEST-39).</param>
 /// <param name="Attachments">Ảnh / tệp đính kèm (TEST-153) — link presigned cấp mỗi lần đọc.</param>
@@ -47,8 +49,9 @@ public sealed record TaskActivityDto(Guid Id, TaskActivityKind Kind, string? Fro
 /// <param name="CanApprove">Người xem được chuyển việc vào / lùi ra khỏi cột cần người duyệt (quản lý dự án / HR).</param>
 /// <param name="DependsOn">Việc phải xong trước việc này.</param><param name="Blocks">Việc đang chờ việc này.</param>
 /// <param name="Followers">Người theo dõi việc (TEST-160).</param>
+/// <param name="Reviewer">Người review (TEST-161) — null = chưa có.</param>
 public sealed record TaskDetailDto(TaskDto Task, List<CommentDto> Comments, List<TaskActivityDto> Activities, bool Sequential, bool CanApprove, List<TaskColumnDto> Columns,
-    List<TaskRefDto>? DependsOn = null, List<TaskRefDto>? Blocks = null, List<TaskFollowerDto>? Followers = null);
+    List<TaskRefDto>? DependsOn = null, List<TaskRefDto>? Blocks = null, List<TaskFollowerDto>? Followers = null, TaskFollowerDto? Reviewer = null);
 
 /// <summary>
 /// Công việc dạng kanban theo cột trạng thái tự do của dự án (<see cref="TaskColumn"/>). Thành viên tạo / sửa / kéo; xoá: người tạo hoặc quản lý dự án.
@@ -94,7 +97,7 @@ internal static class TaskEndpoints
             t.AssigneeEmployeeId, t.AssigneeEmployeeId is { } a && emps.TryGetValue(a, out var e) ? e.FullName : null, t.MilestoneId, t.DueOn, t.EstimateDays,
             EffortRules.IsOverdue(t.DueOn, t.CompletedAt != null, today), counts.GetValueOrDefault(t.Id), t.CreatedAt, t.CreatedByName, t.CompletedAt, t.MediaLinks,
             withProject ? projects[t.ProjectId].Name : null, t.CreatedByBot, waiting.GetValueOrDefault(t.Id),
-            FollowerCount: followers.GetValueOrDefault(t.Id))).ToList();
+            FollowerCount: followers.GetValueOrDefault(t.Id), ReviewerEmployeeId: t.ReviewerEmployeeId)).ToList();
     }
 
     private static async Task<Results<Ok<List<TaskDto>>, NotFound>> ListAsync(Guid id, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, ProjectClock clock,
@@ -152,7 +155,16 @@ internal static class TaskEndpoints
             await TaskColumnEndpoints.ListForAsync(db, t.ProjectId, ct),
             dependsOn.Select(x => new TaskRefDto(x.Id, EffortRules.TaskCode(code, x.Number), x.Title, x.Done)).ToList(),
             blocks.Select(x => new TaskRefDto(x.Id, EffortRules.TaskCode(code, x.Number), x.Title, x.Done)).ToList(),
-            await TaskFollowerEndpoints.ListAsync(db, access, accounts, tid, ct)));
+            await TaskFollowerEndpoints.ListAsync(db, access, accounts, tid, ct), await ReviewerAsync(access, accounts, t.ReviewerEmployeeId, ct)));
+    }
+
+    /// <summary>Người review (TEST-161) dạng như người theo dõi: mã, họ tên, nhãn BOT; không còn trong danh bạ → "(không rõ)".</summary>
+    private static async Task<TaskFollowerDto?> ReviewerAsync(ProjectAccess access, IAccountService accounts, Guid? reviewer, CancellationToken ct)
+    {
+        if (reviewer is not { } id) return null;
+        if (!(await access.EmployeesAsync(ct)).TryGetValue(id, out var e)) return new TaskFollowerDto(id, null, "(không rõ)", false);
+        var isBot = e.UserId is { } u && (await accounts.GetAsync(u, ct))?.IsBot == true;
+        return new TaskFollowerDto(id, e.Code, e.FullName, isBot);
     }
 
     private static async Task<Validation> ValidateAsync(UpsertTask r, Project p, ProjectsDbContext db, DateOnly today, DateOnly? previousDue, CancellationToken ct)
@@ -163,6 +175,8 @@ internal static class TaskEndpoints
         if (r.MediaLinks is not null && TaskRules.MediaLinksError(TaskRules.NormalizeLinks(r.MediaLinks)) is { } linkErr) v.Add("mediaLinks", linkErr);
         if (EffortRules.DueDateError(r.DueOn, previousDue, today) is { } dueErr) v.Add("dueOn", dueErr);
         if (r.AssigneeEmployeeId is { } a && !p.Members.Any(m => m.EmployeeId == a)) v.Add("assigneeEmployeeId", "Người được giao phải là thành viên dự án");
+        if (ReviewerRules.Error(r.ReviewerId, r.AssigneeEmployeeId, r.ReviewerId is { } rv && p.Members.Any(m => m.EmployeeId == rv)) is { } reviewerErr)
+            v.Add("reviewerId", reviewerErr);
         if (r.MilestoneId is { } mid && !await db.Milestones.AnyAsync(m => m.Id == mid && m.ProjectId == p.Id, ct)) v.Add("milestoneId", "Mốc không thuộc dự án");
         return v;
     }
@@ -265,6 +279,34 @@ internal static class TaskEndpoints
         return to;
     }
 
+    /// <summary>
+    /// TEST-161: việc vừa vào cột review (<see cref="ReviewerRules.ShouldRequest"/>) → chuông "Cần review" cho người review; người review là bot →
+    /// thêm Telegram <c>review_requested</c> + webhook <see cref="WebhookEvents.TaskReviewRequested"/>. Bot review chỉ bình luận (rào chắn duyệt giữ nguyên).
+    /// </summary>
+    /// <returns>Tài khoản đã nhận chuông.</returns>
+    private static async Task<List<Guid>> NotifyReviewRequestedAsync(INotifier notifier, IEmployeeDirectory dir, ITelegramWakeup telegram, IWebhookPublisher webhooks,
+        IAccountService accounts, Project p, TaskItem t, List<ColumnInfo> cols, Guid from, ProjectViewer v, CancellationToken ct)
+    {
+        if (!ReviewerRules.ShouldRequest(cols, from, t.ColumnId, t.ReviewerEmployeeId, v.Employee?.Id)) return [];
+        if (await dir.GetAsync(t.ReviewerEmployeeId!.Value, ct) is not { UserId: { } uid } reviewer || uid == v.UserId) return [];
+        var code = EffortRules.TaskCode(p.Code, t.Number);
+        var column = cols.FirstOrDefault(c => c.Id == t.ColumnId)?.Name ?? "?";
+        var assignee = t.AssigneeEmployeeId is { } a ? await dir.GetAsync(a, ct) : null;
+        await notifier.NotifyAsync(new NotificationRequest([uid], NotificationCategories.ProjectTask, $"Cần review: {code} {t.Title}",
+            TaskNotifyRules.Body($"{v.Name} chuyển sang \"{column}\" trong dự án {p.Name}{(assignee is null ? "" : $", người làm {assignee.FullName}")}."),
+            TaskNotifyRules.Link(p.Id, t.Id), SendEmail: false), ct);
+        if ((await accounts.GetAsync(uid, ct))?.IsBot == true)
+        {
+            await telegram.TaskReviewRequestedAsync(uid, reviewer.Code, p.Id, t.Id, code, assignee?.Code, ct);
+            await webhooks.PublishAsync([uid], WebhookEvents.TaskReviewRequested, new
+            {
+                taskId = t.Id, taskCode = code, title = t.Title, projectId = p.Id, projectName = p.Name, column,
+                assigneeEmployeeId = t.AssigneeEmployeeId, assigneeCode = assignee?.Code, assigneeName = assignee?.FullName, movedBy = v.Name,
+            }, ct);
+        }
+        return [uid];
+    }
+
     private static async Task<Results<Created<Guid>, NotFound, ValidationProblem, ProblemHttpResult>> CreateAsync(Guid id, UpsertTask r, ClaimsPrincipal user,
         ProjectsDbContext db, ProjectAccess access, IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, ProjectClock clock, CancellationToken ct)
     {
@@ -297,7 +339,7 @@ internal static class TaskEndpoints
             {
                 ProjectId = id, Number = number, Title = r.Title.Trim(), Description = ProjectEndpoints.Clean(r.Description), MediaLinks = TaskRules.NormalizeLinks(r.MediaLinks),
                 ColumnId = column!.Id, Rank = rank,
-                AssigneeEmployeeId = r.AssigneeEmployeeId, MilestoneId = r.MilestoneId, DueOn = r.DueOn, EstimateDays = r.EstimateDays, CreatedAt = clock.Now, CreatedByName = v.Name,
+                AssigneeEmployeeId = r.AssigneeEmployeeId, ReviewerEmployeeId = r.ReviewerId, MilestoneId = r.MilestoneId, DueOn = r.DueOn, EstimateDays = r.EstimateDays, CreatedAt = clock.Now, CreatedByName = v.Name,
                 CreatedByBot = user.IsAccessToken(), CompletedAt = column.IsDone ? clock.Now : null,
             };
             db.Tasks.Add(t);
@@ -340,7 +382,8 @@ internal static class TaskEndpoints
     }
 
     private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> UpdateAsync(Guid tid, UpsertTask r, ClaimsPrincipal user, ProjectsDbContext db,
-        ProjectAccess access, IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, ProjectClock clock, CancellationToken ct)
+        ProjectAccess access, IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, IWebhookPublisher webhooks, IAccountService accounts, ProjectClock clock,
+        CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var (t, p) = await LoadAsync(tid, db, ct);
@@ -360,6 +403,8 @@ internal static class TaskEndpoints
         var reassigned = r.AssigneeEmployeeId != t.AssigneeEmployeeId;
         if (reassigned)
             db.Activities.Add(Activity(t, TaskActivityKind.Assigned, v, user, now, await NameOfAsync(access, t.AssigneeEmployeeId, ct), await NameOfAsync(access, r.AssigneeEmployeeId, ct)));
+        if (r.ReviewerId != t.ReviewerEmployeeId)
+            db.Activities.Add(Activity(t, TaskActivityKind.Reviewer, v, user, now, await NameOfAsync(access, t.ReviewerEmployeeId, ct), await NameOfAsync(access, r.ReviewerId, ct)));
         if (r.DueOn != t.DueOn)
             db.Activities.Add(Activity(t, TaskActivityKind.DueChanged, v, user, now, t.DueOn?.ToString("yyyy-MM-dd"), r.DueOn?.ToString("yyyy-MM-dd")));
         var links = r.MediaLinks is null ? t.MediaLinks : TaskRules.NormalizeLinks(r.MediaLinks); // null (client cũ) → giữ nguyên
@@ -368,20 +413,21 @@ internal static class TaskEndpoints
         if (title != t.Title || description != t.Description || r.EstimateDays != t.EstimateDays || r.MilestoneId != t.MilestoneId || !links.SequenceEqual(t.MediaLinks))
             db.Activities.Add(Activity(t, TaskActivityKind.Edited, v, user, now));
         if (r.DueOn != t.DueOn || reassigned) t.DueRemindedAt = null; // đổi hạn / người → nhắc lại theo hạn mới
-        t.Title = title; t.Description = description; t.AssigneeEmployeeId = r.AssigneeEmployeeId; t.MilestoneId = r.MilestoneId;
+        t.Title = title; t.Description = description; t.AssigneeEmployeeId = r.AssigneeEmployeeId; t.ReviewerEmployeeId = r.ReviewerId; t.MilestoneId = r.MilestoneId;
         t.DueOn = r.DueOn; t.EstimateDays = r.EstimateDays; t.MediaLinks = links;
         await db.SaveChangesAsync(ct);
         var notified = new List<Guid>();
         if (reassigned && await NotifyAssignedAsync(notifier, dir, telegram, p, t, v, ct) is { } au) notified.Add(au);
         var note = ProjectEndpoints.Clean(r.Note);
         notified.AddRange(await NotifyMovedAsync(notifier, dir, telegram, p, t, cols, from, note, v, ct));
+        notified.AddRange(await NotifyReviewRequestedAsync(notifier, dir, telegram, webhooks, accounts, p, t, cols, from, v, ct));
         await NotifyMembersMovedAsync(notifier, access, p, t, cols, from, note, v, notified, ct);
         if (!wasDone && t.CompletedAt != null) await NotifyUnblockedAsync(notifier, dir, telegram, db, p, t, v, ct);
         return TypedResults.NoContent();
     }
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> MoveAsync(Guid tid, MoveTask r, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
-        IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, ProjectClock clock, CancellationToken ct)
+        IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, IWebhookPublisher webhooks, IAccountService accounts, ProjectClock clock, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var (t, p) = await LoadAsync(tid, db, ct);
@@ -400,6 +446,7 @@ internal static class TaskEndpoints
         await db.SaveChangesAsync(ct);
         var note = ProjectEndpoints.Clean(r.Note);
         var notified = await NotifyMovedAsync(notifier, dir, telegram, p, t, cols, from, note, v, ct);
+        notified.AddRange(await NotifyReviewRequestedAsync(notifier, dir, telegram, webhooks, accounts, p, t, cols, from, v, ct));
         await NotifyMembersMovedAsync(notifier, access, p, t, cols, from, note, v, notified, ct);
         if (!wasDone && t.CompletedAt != null) await NotifyUnblockedAsync(notifier, dir, telegram, db, p, t, v, ct);
         return TypedResults.NoContent();

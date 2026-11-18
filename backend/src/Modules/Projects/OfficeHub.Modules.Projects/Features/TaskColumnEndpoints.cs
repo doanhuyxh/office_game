@@ -13,8 +13,10 @@ namespace OfficeHub.Modules.Projects.Features;
 
 /// <param name="IsDone">Cột hoàn thành — việc ở đây tính là xong.</param>
 /// <param name="ApproverOnly">Cần người duyệt — chỉ quản lý dự án / HR chuyển việc vào hoặc kéo lùi ra.</param>
-public sealed record TaskColumnDto(Guid Id, string Name, int Position, string Color, bool IsDone, bool ApproverOnly, int TaskCount);
-public sealed record UpsertTaskColumn(string Name, string? Color = null, bool IsDone = false, bool ApproverOnly = false);
+/// <param name="IsReview">Cột review (TEST-161): việc vào đây → báo người review của việc.</param>
+public sealed record TaskColumnDto(Guid Id, string Name, int Position, string Color, bool IsDone, bool ApproverOnly, int TaskCount, bool IsReview = false);
+/// <param name="IsReview">null (client cũ) = giữ nguyên khi sửa, false khi thêm.</param>
+public sealed record UpsertTaskColumn(string Name, string? Color = null, bool IsDone = false, bool ApproverOnly = false, bool? IsReview = null);
 public sealed record ReorderTaskColumns(List<Guid> Ids);
 
 /// <summary>
@@ -36,14 +38,14 @@ internal static class TaskColumnEndpoints
         await db.Columns.Where(c => c.ProjectId == projectId).OrderBy(c => c.Position).ThenBy(c => c.Id).ToListAsync(ct);
 
     internal static List<ColumnInfo> Infos(IEnumerable<TaskColumn> cols) =>
-        cols.OrderBy(c => c.Position).ThenBy(c => c.Id).Select(c => new ColumnInfo(c.Id, c.Name, c.Position, c.IsDone, c.ApproverOnly)).ToList();
+        cols.OrderBy(c => c.Position).ThenBy(c => c.Id).Select(c => new ColumnInfo(c.Id, c.Name, c.Position, c.IsDone, c.ApproverOnly, c.IsReview)).ToList();
 
     internal static async Task<List<TaskColumnDto>> ListForAsync(ProjectsDbContext db, Guid projectId, CancellationToken ct)
     {
         var cols = await db.Columns.AsNoTracking().Where(c => c.ProjectId == projectId).OrderBy(c => c.Position).ThenBy(c => c.Id).ToListAsync(ct);
         var counts = await db.Tasks.AsNoTracking().Where(t => t.ProjectId == projectId).GroupBy(t => t.ColumnId).Select(g => new { g.Key, N = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.N, ct);
-        return cols.Select(c => new TaskColumnDto(c.Id, c.Name, c.Position, c.Color, c.IsDone, c.ApproverOnly, counts.GetValueOrDefault(c.Id))).ToList();
+        return cols.Select(c => new TaskColumnDto(c.Id, c.Name, c.Position, c.Color, c.IsDone, c.ApproverOnly, counts.GetValueOrDefault(c.Id), c.IsReview)).ToList();
     }
 
     private static async Task<Results<Ok<List<TaskColumnDto>>, NotFound>> ListAsync(Guid id, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
@@ -83,7 +85,7 @@ internal static class TaskColumnEndpoints
         if (val.Failed) return val.Problem();
         var c = new TaskColumn
         {
-            ProjectId = id, Name = name, Position = cols.Count, IsDone = r.IsDone, ApproverOnly = r.ApproverOnly,
+            ProjectId = id, Name = name, Position = cols.Count, IsDone = r.IsDone, ApproverOnly = r.ApproverOnly, IsReview = r.IsReview ?? false,
             Color = r.Color?.ToLowerInvariant() ?? TaskColumnRules.Palette[cols.Count % TaskColumnRules.Palette.Length],
         };
         db.Columns.Add(c);
@@ -113,6 +115,7 @@ internal static class TaskColumnEndpoints
         if (r.Color is not null) c.Color = r.Color.ToLowerInvariant();
         c.IsDone = r.IsDone;
         c.ApproverOnly = r.ApproverOnly;
+        if (r.IsReview is { } review) c.IsReview = review;
         await db.SaveChangesAsync(ct);
         return TypedResults.NoContent();
     }
