@@ -859,6 +859,84 @@ test('TEST-158: start → việc đang giao chưa có tin Telegram được ch�
   }
 }, 60000);
 
+// ---------------- log từng bước lúc khởi động (TEST-159) ----------------
+test('TEST-159: checkAgents có progress → mỗi bước báo TRƯỚC kết quả của nó, kết quả báo ngay trùng danh sách trả về', async () => {
+  const seen: { kind: 'step' | 'finding'; text: string; agent?: string }[] = [];
+  const findings = await runner.checkAgents({
+    modelCheck: false,
+    progress: {
+      step: (text, agent) => seen.push({ kind: 'step', text, agent }),
+      finding: (f) => seen.push({ kind: 'finding', text: formatFinding(f), agent: f.agent }),
+    },
+  });
+  expect(seen.filter((e) => e.kind === 'finding').map((e) => e.text)).toEqual(findings.map(formatFinding));
+  const steps = seen.filter((e) => e.kind === 'step');
+  expect(steps[0]).toMatchObject({ agent: undefined });
+  expect(steps[0]!.text).toContain('kiểm tra git của runner');
+  expect(steps.slice(1).every((e) => e.agent === 'NV120')).toBe(true);
+  const order = [
+    'kiểm tra agent 1/1',
+    'kiểm tra CLI',
+    'kiểm tra token AI',
+    'kiểm tra workspace',
+    'kiểm tra bot Telegram',
+  ];
+  const at = order.map((o) => steps.findIndex((e) => e.text.startsWith(o)));
+  expect(at.every((i) => i >= 0)).toBe(true);
+  expect([...at].sort((a, b) => a - b)).toEqual(at);
+  expect(steps.at(-1)!.text).toContain('không chạy thử'); // --no-model-check: nói rõ không chạy thử
+  // bước tới trước kết quả của chính nó
+  const i = (kind: string, part: string) => seen.findIndex((e) => e.kind === kind && e.text.includes(part));
+  expect(i('step', 'kiểm tra git của runner')).toBeLessThan(i('finding', 'git: '));
+  expect(i('step', 'kiểm tra token AI')).toBeLessThan(i('finding', 'token AI đúng nhân viên'));
+  expect(i('finding', 'CLI custom')).toBeLessThan(i('step', 'kiểm tra token AI')); // kết quả bước trước có trước khi sang bước sau
+  expect(i('step', 'kiểm tra bot Telegram')).toBeLessThan(i('finding', 'bot Telegram @agent_dev01_bot'));
+}, 30000);
+
+test('TEST-159: start → log đủ 6 giai đoạn đúng thứ tự, bước kiểm tra + kết quả nằm giữa giai đoạn 2 và 3, kết thúc bằng dòng sẵn sàng', async () => {
+  const { r } = await noneSetup();
+  const lines: any[] = [];
+  const orig = console.log;
+  console.log = (...a: unknown[]) => {
+    try {
+      lines.push(JSON.parse(String(a[0])));
+    } catch {
+      /* dòng không phải log JSON */
+    }
+  };
+  let started: Promise<void>;
+  try {
+    started = r.start({ modelCheck: false, catchUp: false });
+    expect(await waitFor(() => lines.some((l) => String(l.msg).startsWith('khởi động 6/6')), 10000)).toBe(true);
+  } finally {
+    console.log = orig;
+    r.stop();
+  }
+  await started!;
+  const msgs = lines.map((l) => String(l.msg));
+  const phases = msgs.filter((m) => m.startsWith('khởi động '));
+  expect(phases.map((m) => m.slice(0, 'khởi động n/6'.length))).toEqual(
+    [1, 2, 3, 4, 5, 6].map((n) => `khởi động ${n}/6`),
+  );
+  expect(phases[3]).toContain('bỏ qua bắt bù việc đang giao (--no-catchup)');
+  expect(phases[5]).toContain('sẵn sàng');
+  const at = (part: string) => msgs.findIndex((m) => m.includes(part));
+  for (const part of [
+    '→ kiểm tra git của runner',
+    '→ kiểm tra CLI custom',
+    '→ kiểm tra token AI',
+    '✔ NV120: token AI đúng nhân viên',
+  ]) {
+    expect(at(part)).toBeGreaterThan(at('khởi động 2/6'));
+    expect(at(part)).toBeLessThan(at('khởi động 3/6'));
+  }
+  expect(at('→ đang nghe Telegram')).toBeGreaterThan(at('khởi động 3/6'));
+  expect(lines.find((l) => String(l.msg).startsWith('khởi động 6/6'))).toMatchObject({
+    agents: 'NV120',
+    maxParallel: 1,
+  });
+}, 30000);
+
 // ---------------- chat_mention (TEST-81): người thật @nhắc bot trong chat → phiên ngắn chỉ có tool MCP ----------------
 test('chat_mention: tin Telegram → job chat trong thư mục riêng của hội thoại, không bình luận vào việc, nối phiên ≤ 10 phút; đã đọc hết → bỏ', async () => {
   const { r, st, dataDir } = await noneSetup();

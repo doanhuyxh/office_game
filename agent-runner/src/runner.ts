@@ -6,7 +6,7 @@ import { agentEnv, agentHome } from './core/env';
 import { jobDir, workDir } from './core/paths';
 import { RunnerStopped, Sessions } from './core/session';
 import { type DoctorContext, type DoctorOptions, diagnoseAgent, gitUnavailable } from './doctor/agent';
-import { type Finding, findingLogLevel, formatFinding } from './doctor/finding';
+import { type DoctorProgress, type Finding, findingLogLevel, formatFinding } from './doctor/finding';
 import { adapters } from './executor/run';
 import { ActivitySender } from './hub/activity';
 import { OfficeHubClient } from './hub/client';
@@ -29,6 +29,9 @@ import { parseWake, pickStartupTasks, type Wake } from './validator';
 import { Git } from './workspace';
 
 export { RunnerStopped } from './core/session';
+
+/** Số giai đoạn `start` in ra log (`khởi động n/6`). */
+const STARTUP_PHASES = 6;
 
 /**
  * Bộ điều phối: Listener (Telegram) → nhận tin (validator + handler của loại job hỏi lại OfficeHub) → Store (hàng đợi + khoá job) →
@@ -93,21 +96,31 @@ export class Runner {
    * vẫn chạy. Các bước kiểm tra nằm ở `doctor/agent.ts`. Git của runner không chạy được (TEST-46) → mọi agent có repo tắt.
    */
   async checkAgents(o: { only?: string } & Partial<DoctorOptions> = {}): Promise<Finding[]> {
-    const options: DoctorOptions = { telegram: o.telegram ?? true, modelCheck: o.modelCheck ?? true };
+    const progress = o.progress;
+    const options: DoctorOptions = { telegram: o.telegram ?? true, modelCheck: o.modelCheck ?? true, progress };
     const findings: Finding[] = [];
     let gitError: string | undefined;
+    progress?.step(`kiểm tra git của runner (${this.config.gitBin} --version)`);
     try {
-      findings.push({ level: 'ok', text: `git: ${await this.git.version()} (${this.config.gitBin})` });
+      const ok: Finding = { level: 'ok', text: `git: ${await this.git.version()} (${this.config.gitBin})` };
+      findings.push(ok);
+      progress?.finding(ok);
     } catch (e) {
       gitError = errText(e);
     }
-    for (const s of this.agents.values()) {
-      if (o.only && s.cfg.employeeCode !== o.only) continue;
-      const needsGit = s.cfg.workspace.mode !== 'none';
-      const d =
-        gitError && needsGit
-          ? gitUnavailable(s.cfg.employeeCode, gitError)
-          : await diagnoseAgent(this.doctorContext(s), options);
+    const targets = [...this.agents.values()].filter((s) => !o.only || s.cfg.employeeCode === o.only);
+    for (const [i, s] of targets.entries()) {
+      const { employeeCode: code, workspace, executor } = s.cfg;
+      progress?.step(
+        `kiểm tra agent ${i + 1}/${targets.length} (workspace ${workspace.mode}, CLI ${executor.kind})`,
+        code,
+      );
+      const needsGit = workspace.mode !== 'none';
+      let d: Awaited<ReturnType<typeof diagnoseAgent>>;
+      if (gitError && needsGit) {
+        d = gitUnavailable(code, gitError);
+        for (const f of d.findings) progress?.finding(f);
+      } else d = await diagnoseAgent(this.doctorContext(s), options);
       findings.push(...d.findings);
       s.employeeId = d.employeeId ?? s.employeeId;
       s.model = d.model ?? s.model;
@@ -213,6 +226,7 @@ export class Runner {
   async catchUp(s: AgentState): Promise<number | null> {
     const agent = s.cfg.employeeCode;
     let list: unknown;
+    log('info', 'bắt bù lúc khởi động: đang hỏi OfficeHub việc đang giao (list_my_tasks)', { agent });
     try {
       list = await s.hub.myTasks();
     } catch (e) {
@@ -346,25 +360,55 @@ export class Runner {
 
   // ---------------- Vòng đời ----------------
 
-  /** @param o `catchUp: false` (cờ `--no-catchup`) hoặc `runner.startup_catchup: false` → không bắt bù việc lúc khởi động. */
+  /**
+   * Khởi động dịch vụ. Mỗi giai đoạn log một dòng `khởi động n/6: …` TRƯỚC khi làm (TEST-159) — nhìn log biết runner đang ở bước nào, kẹt ở đâu;
+   * bước kiểm tra agent in thêm từng bước con + từng kết quả ngay khi có.
+   * @param o `catchUp: false` (cờ `--no-catchup`) hoặc `runner.startup_catchup: false` → không bắt bù việc lúc khởi động.
+   */
   async start(o: { modelCheck?: boolean; catchUp?: boolean } = {}) {
     const modelCheck = o.modelCheck ?? true;
+    const phase = (n: number, text: string, fields: Record<string, unknown> = {}) =>
+      log('info', `khởi động ${n}/${STARTUP_PHASES}: ${text}`, fields);
+
+    phase(1, 'đưa lại job chạy dở vào hàng đợi', { dataDir: this.config.dataDir });
     const recovered = this.store.recoverRunning();
     if (recovered) log('warn', 'đưa lại job đang chạy dở vào hàng đợi', { count: recovered });
-    for (const f of await this.checkAgents({ modelCheck })) log(findingLogLevel(f), formatFinding(f));
-    const enabled = [...this.agents.values()].filter((a) => a.enabled);
+
+    phase(2, `kiểm tra git + ${this.agents.size} agent`, { modelCheck });
+    const progress: DoctorProgress = {
+      step: (text, agent) => log('info', `→ ${text}`, { agent }),
+      finding: (f) => log(findingLogLevel(f), formatFinding(f)),
+    };
+    await this.checkAgents({ modelCheck, progress });
+    const all = [...this.agents.values()];
+    const enabled = all.filter((a) => a.enabled);
+    const disabled = all.filter((a) => !a.enabled).map((a) => a.cfg.employeeCode);
     if (enabled.length === 0) throw new Error('Không agent nào chạy được — xem các dòng ✘ ở trên (chạy `doctor`)');
+
+    phase(3, `bật ${enabled.length} agent: báo trạng thái văn phòng 3D + nghe Telegram`, {
+      disabled: disabled.length ? disabled.join(', ') : undefined,
+    });
     for (const s of enabled) {
       s.presence.start();
       void this.listen(s);
+      log('info', '→ đang nghe Telegram (getUpdates)', { agent: s.cfg.employeeCode, bot: s.cfg.telegramBot });
     }
+
     // Việc đang giao mà chưa có tin đánh thức (TEST-158) — chạy nền, không chặn listener / scheduler
-    if (this.config.startupCatchup && o.catchUp !== false)
+    const catchUp = this.config.startupCatchup && o.catchUp !== false;
+    if (catchUp) {
+      phase(4, 'bắt bù việc đang giao chưa có tin đánh thức (chạy nền)');
       for (const s of enabled)
         void this.catchUp(s).catch((e) =>
           log('warn', 'bắt bù lúc khởi động lỗi', { agent: s.cfg.employeeCode, error: errText(e) }),
         );
+    } else {
+      const why = o.catchUp === false ? '--no-catchup' : 'runner.startup_catchup: false';
+      phase(4, `bỏ qua bắt bù việc đang giao (${why})`);
+    }
+
     // Mức dùng AI (TEST-135) + transcript (TEST-144): gửi phần còn tồn từ lần chạy trước, rồi gửi lại theo nhịp (máy chủ tạm lỗi / chưa có bản mới)
+    phase(5, 'gửi mức dùng AI + transcript còn tồn từ lần chạy trước (chạy nền)');
     const flushPending = () => {
       for (const s of this.agents.values()) {
         void s.usage.flush().catch(() => undefined);
@@ -373,6 +417,11 @@ export class Runner {
     };
     flushPending();
     this.usageTimer = setInterval(flushPending, USAGE_RETRY_MS);
+
+    phase(6, 'sẵn sàng — chờ tin đánh thức và chạy hàng đợi', {
+      agents: enabled.map((a) => a.cfg.employeeCode).join(', '),
+      maxParallel: this.config.maxParallel,
+    });
     await this.schedule();
   }
 

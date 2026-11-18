@@ -7,7 +7,7 @@ import { errText } from '../log';
 import type { OfficeHubClient } from '../hub/client';
 import type { TelegramClient } from '../telegram';
 import { type Git, installHooks, mainBranchWarning, removeHooks, sh } from '../workspace';
-import { CheckFailed, type Finding, Report } from './finding';
+import { CheckFailed, type DoctorProgress, type Finding, Report } from './finding';
 import { checkModel } from './model';
 
 /** Thứ một lượt kiểm tra agent cần: cấu hình, env + git của agent (HOME / PATH riêng), client OfficeHub / Telegram. */
@@ -25,6 +25,8 @@ export interface DoctorOptions {
   telegram: boolean;
   /** Chạy thử CLI để đọc model thật — tốn vài trăm token mỗi agent (tắt: `--no-model-check`). */
   modelCheck: boolean;
+  /** Nhận từng bước + từng kết quả ngay khi có (lúc khởi động runner, TEST-159). Không đặt = chỉ trả kết quả cuối. */
+  progress?: DoctorProgress;
 }
 
 /** Kết quả kiểm tra một agent. `problem` có giá trị = agent không chạy được (đã có dòng ✘ tương ứng trong `findings`). */
@@ -42,28 +44,51 @@ export interface Diagnosis {
  * mọi kiểm tra khác đã qua). Lỗi đầu tiên dừng các bước sau. Có tác dụng phụ lên repo: cài hook (worktree) / gỡ hook của runner (in_place).
  */
 export async function diagnoseAgent(c: DoctorContext, o: DoctorOptions): Promise<Diagnosis> {
-  const report = new Report(c.agent.employeeCode);
+  const report = new Report(c.agent.employeeCode, o.progress);
   const result: Diagnosis = { findings: report.findings };
   const probe = { env: c.env, cwd: c.config.dataDir, enabled: o.modelCheck };
+  const { executor, workspace } = c.agent;
   try {
+    report.step(`kiểm tra CLI ${executor.kind} (${executor.bin} --version)`);
     await checkCli(c, report);
+    report.step('kiểm tra token AI với OfficeHub (get_my_profile)');
     result.employeeId = await checkToken(c, report);
-    if (c.agent.workspace.mode === 'none') checkNoneWorkspace(c, report);
+    report.step(
+      workspace.mode === 'none'
+        ? 'kiểm tra workspace none (thư mục chạy)'
+        : `kiểm tra workspace ${workspace.mode}: repo, danh tính git, hook, nhánh`,
+    );
+    if (workspace.mode === 'none') checkNoneWorkspace(c, report);
     else await checkRepoWorkspace(c, report);
     if (c.agent.envFile && !existsSync(c.agent.envFile))
       throw new CheckFailed(`không thấy env_file ${c.agent.envFile}`);
-    if (o.telegram) await checkTelegram(c, report);
-    if (c.agent.workspace.mode === 'worktree') await checkGh(c, report);
-    result.model = await checkModel({ ...probe, exec: c.agent.executor }, report);
+    if (o.telegram) {
+      report.step(`kiểm tra bot Telegram ${c.agent.telegramBot} (getMe)`);
+      await checkTelegram(c, report);
+    }
+    if (workspace.mode === 'worktree') {
+      report.step('kiểm tra gh (gh auth status)');
+      await checkGh(c, report);
+    }
+    report.step(modelStep(o.modelCheck, executor.model));
+    result.model = await checkModel({ ...probe, exec: executor }, report);
     // TEST-141: model riêng cho chat / họp (`executor.light.model`) — sai thì agent tắt như model chính
-    const light = c.agent.executor.light?.model;
-    if (light && light !== c.agent.executor.model)
-      await checkModel({ ...probe, exec: lightExecutor(c.agent.executor), scope: 'chat / họp' }, report);
+    const light = executor.light?.model;
+    if (light && light !== executor.model) {
+      report.step(modelStep(o.modelCheck, light, 'chat / họp'));
+      await checkModel({ ...probe, exec: lightExecutor(executor), scope: 'chat / họp' }, report);
+    }
   } catch (e) {
     result.problem = errText(e);
     report.fail(result.problem);
   }
   return result;
+}
+
+/** Câu báo bước kiểm tra model: chạy thử thật thì nói rõ có thể lâu (người xem log không tưởng runner treo). */
+function modelStep(enabled: boolean, model: string | undefined, scope?: string): string {
+  const what = `model ${scope ? `${scope} ` : ''}${model ?? 'mặc định của CLI'}`;
+  return enabled ? `chạy thử ${what} — có thể mất tới 2 phút` : `kiểm tra ${what} (không chạy thử)`;
 }
 
 /** Git của runner không chạy được (TEST-46) → agent có repo tắt, không kiểm tra gì thêm. */

@@ -25,6 +25,10 @@ Dự án bun + TypeScript độc lập ở gốc repo, **không thư viện runt
 6. **Prompt** (`prompt/`): chỉ mã NV / mã việc / id + các bước `get_my_role` → `get_project` (workGuide) → `get_task` → làm → `comment_task` → chuyển trạng thái trước bước duyệt; agent **chỉ commit, không push / không tạo PR**; quy tắc cứng (không `.env`, không sửa `agent-runner/`, không duyệt, không production). Không chép nội dung việc.
 7. **Publisher**: nhánh có commit mới → `git push` + `gh pr create` (PR đã có → dùng lại); chạm `agent-runner/` → không push. Runner `comment_task` một dòng: PR, thời gian, lượt, chi phí, token, ghi chú lỗi.
 
+## Log lúc khởi động (TEST-159)
+
+`Runner.start` log một dòng `khởi động n/6: …` **trước** mỗi giai đoạn (nhìn log biết đang ở bước nào / kẹt ở đâu): 1 đưa lại job chạy dở → 2 kiểm tra git + agent → 3 bật agent (trạng thái 3D + nghe Telegram, mỗi agent một dòng) → 4 bắt bù việc (hoặc ghi rõ đã tắt bằng cờ / cấu hình) → 5 gửi mức dùng AI + transcript tồn → 6 sẵn sàng (agent đang chạy, `maxParallel`). Trong giai đoạn 2, `checkAgents` nhận `progress: DoctorProgress` (`doctor/finding.ts`): `step` gọi trước từng kiểm tra (dòng `→ kiểm tra CLI …`, `→ chạy thử model … — có thể mất tới 2 phút`), `finding` gọi ngay khi có dòng ✔ / ⚠ / ✘ — không còn chờ kiểm tra xong mọi agent mới in. Thêm bước kiểm tra mới trong `diagnoseAgent` → gọi `report.step(...)` trước nó. Lệnh `doctor` / `run` không truyền `progress` (gom rồi in như cũ).
+
 ## Bắt bù lúc khởi động (TEST-158)
 
 Mỗi lần `start` (chủ dự án chốt 2026-11-18), sau khi kiểm tra agent, runner gọi `Runner.catchUp` cho từng agent đang bật — chạy nền, không chặn listener: việc đang giao mà không có tin đánh thức (giao trước khi runner chạy, runner tắt quá 24 giờ, tin Telegram gửi lỗi) vẫn được làm.
