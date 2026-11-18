@@ -59,7 +59,7 @@ export function ImageViewer({ images, index, onIndex, onDownload }: {
   return (
     <DialogPrimitive.Root open={cur !== null} onOpenChange={(o) => !o && close()}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay data-slot="image-viewer-overlay" className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           ref={contentRef}
           tabIndex={-1}
