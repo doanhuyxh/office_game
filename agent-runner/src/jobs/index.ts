@@ -1,5 +1,6 @@
 import type { JobKind } from '../store';
 import { chatJobs } from './chat';
+import { deployJobs } from './deploy';
 import type { JobHandler, JobServices, WakeOf } from './handler';
 import { meetingJobs } from './meeting';
 import { reviewJobs } from './review';
@@ -16,5 +17,6 @@ export function createJobHandlers(services: JobServices): JobHandlers {
     chat: chatJobs(services),
     meeting: meetingJobs(services),
     review: reviewJobs(services),
+    deploy: deployJobs(services),
   };
 }

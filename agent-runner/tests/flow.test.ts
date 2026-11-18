@@ -809,6 +809,60 @@ test('none + builtin_tools (TEST-163): doctor cảnh báo có shell, prompt phi�
   expect(prompt).not.toContain('CHỈ bằng tool MCP');
 }, 30000);
 
+test('task_done (TEST-168): bot none + builtin_tools đang theo dõi việc đã Xong → phiên deploy có shell; không theo dõi / chưa Xong → bỏ', async () => {
+  const { r, st, dataDir } = await noneSetup({ mode: 'none', builtin_tools: true });
+  const s = r.agents.get('NV120')!;
+  const saved = tasks[T1];
+  const wake = { kind: 'deploy' as const, employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' };
+  try {
+    // chưa Xong → bỏ
+    tasks[T1] = { ...saved, followers: [{ employeeId: 'emp-1' }] };
+    expect(await r.accept(s, wake)).toBeNull();
+    // Xong nhưng không theo dõi → bỏ
+    tasks[T1] = { ...saved, task: { ...saved.task, done: true }, followers: [{ employeeId: 'nguoi-khac' }] };
+    expect(await r.accept(s, wake)).toBeNull();
+    tasks[T1] = { ...saved, task: { ...saved.task, done: true }, followers: [{ employeeId: 'emp-1' }] };
+    const before = comments.length;
+    const id = await r.accept(s, wake);
+    expect(id).not.toBeNull();
+    const job = st.claimNext(1, ['NV120'])!;
+    expect(job.kind).toBe('deploy');
+    expect(job.key).toBe(`NV120:${T1}`); // khoá riêng agent — không đụng job việc của người làm
+    await r.process(job);
+    expect(st.getJob(id!)!.status).toBe('done');
+    const prompt = readFileSync(join(dataDir, 'jobs', String(id), 'prompt-copy.md'), 'utf8');
+    for (const t of ['VỪA ĐƯỢC NGƯỜI THẬT DUYỆT XONG', 'mục "Deploy"', 'DEPLOY: XONG', 'DEPLOY: LỖI', 'KHÔNG rollback'])
+      expect(prompt).toContain(t);
+    expect(comments.length).toBe(before + 1);
+    expect(comments.at(-1)!.task).toBe(T1);
+    expect(comments.at(-1)!.content).toContain('Phiên deploy');
+  } finally {
+    tasks[T1] = saved;
+  }
+}, 30000);
+
+test('task_done (TEST-168): bot không phải none + builtin_tools → không chạy CLI, bình luận lý do', async () => {
+  const s = runner.agents.get('NV120')!; // mode worktree
+  const saved = tasks[T1];
+  tasks[T1] = { ...saved, task: { ...saved.task, done: true }, followers: [{ employeeId: 'emp-1' }] };
+  try {
+    const before = comments.length;
+    const id = await runner.accept(s, {
+      kind: 'deploy',
+      employee_code: 'NV120',
+      project_id: P,
+      task_id: T1,
+      task_code: 'TEST-45',
+    });
+    expect(id).not.toBeNull();
+    expect(await waitFor(() => comments.length > before)).toBe(true);
+    expect(comments.at(-1)!.content).toContain('KHÔNG deploy');
+    expect(await waitFor(() => store.getJob(id!)?.status === 'skipped', 3000)).toBe(true);
+  } finally {
+    tasks[T1] = saved;
+  }
+}, 30000);
+
 test('job hết giờ → văn phòng 3D báo lỗi "Hết giờ" (không bị finally ghi đè bằng rảnh); job kế → đang làm rồi rảnh (TEST-121)', async () => {
   const { r, exec } = await noneSetup();
   const ex = r.agents.get('NV120')!.cfg.executor;

@@ -121,7 +121,7 @@ export class Sessions {
     mkdirSync(dir, { recursive: true });
     const files = { prompt: join(dir, 'prompt.md'), mcp: join(dir, 'mcp.json') };
     writeFileSync(files.prompt, prompt, { mode: 0o600 });
-    // review dùng bộ tool việc (get_task, comment_task…)
+    // review / deploy dùng bộ tool việc (get_task, comment_task…)
     const mcp = mcpConfig(this.config.mcpUrl, reportKind(job.kind) as McpProfile);
     writeFileSync(files.mcp, JSON.stringify(mcp, null, 2), { mode: 0o600 });
     return files;

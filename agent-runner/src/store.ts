@@ -4,19 +4,19 @@ export type JobStatus = 'queued' | 'running' | 'done' | 'failed' | 'skipped';
 
 /** Loại job: việc (mặc định, DB cũ = null) | chat (tin @nhắc trong một hội thoại, TEST-81) | meeting (một lượt nói trong cuộc họp agent, TEST-84). */
 /**
- * Loại job: việc được giao / chat / họp / review việc của người khác (TEST-167).
- * review khoá theo `<mã NV>:<id việc>` (nhiều bot cùng một việc) — báo mức dùng AI / transcript lên OfficeHub là loại `task`
+ * Loại job: việc được giao / chat / họp / review việc của người khác (TEST-167) / deploy việc đang theo dõi (TEST-168).
+ * review / deploy khoá theo `<mã NV>:<id việc>` (nhiều bot cùng một việc) — báo mức dùng AI / transcript lên OfficeHub là loại `task`
  * ({@link reportKind}, máy chủ chỉ nhận task / chat / meeting) kèm id việc thật ({@link taskIdOf}).
  */
-export type JobKind = 'task' | 'chat' | 'meeting' | 'review';
+export type JobKind = 'task' | 'chat' | 'meeting' | 'review' | 'deploy';
 
 /** Loại phiên gửi lên OfficeHub (mức dùng AI, transcript). */
-export const reportKind = (kind: JobKind | string): string => (kind === 'review' ? 'task' : kind);
+export const reportKind = (kind: JobKind | string): string => (kind === 'review' || kind === 'deploy' ? 'task' : kind);
 
-/** Id việc của job việc / review (review: bỏ tiền tố `<mã NV>:` của khoá); job khác → undefined. */
+/** Id việc của job việc / review / deploy (review / deploy: bỏ tiền tố `<mã NV>:` của khoá); job khác → undefined. */
 export function taskIdOf(job: Pick<Job, 'kind' | 'key'>): string | undefined {
   if (job.kind === 'task') return job.key;
-  if (job.kind === 'review') return job.key.slice(job.key.indexOf(':') + 1);
+  if (job.kind === 'review' || job.kind === 'deploy') return job.key.slice(job.key.indexOf(':') + 1);
   return undefined;
 }
 

@@ -1,10 +1,10 @@
-# Agent-runner: phiên review (TEST-167)
+# Agent-runner: phiên review (TEST-167) và deploy (TEST-168)
 
-> Về [agent-runner.md](agent-runner.md) · loại tin: [agent-runner-events.md](agent-runner-events.md) · người review / người theo dõi việc phía OfficeHub: [agent-team.md](agent-team.md)
+> Về [agent-runner.md](agent-runner.md) · loại tin: [agent-runner-events.md](agent-runner-events.md) · người review / người theo dõi việc phía OfficeHub: [agent-team.md](agent-team.md) · lệnh ép SSH: `scripts/deploy-remote.sh` ([commands.md](../commands.md))
 
-Loại job cho đội agent nhiều vai (kiến trúc → thiết kế → code → **review** → người thật duyệt). Dùng chung 4 trường của tin việc, nhưng khoá job **riêng từng agent** (`<mã NV>:<id việc>`), nên không đụng job việc của người làm. Mức dùng AI / transcript báo lên OfficeHub với loại `task` và id việc thật (`reportKind` / `taskIdOf` ở `store.ts`), hồ sơ tool MCP `task`. Đang dự họp thì job chờ; tới lượt họp khi đang chạy review → bỏ lượt như việc.
+Hai loại job cho đội agent nhiều vai (kiến trúc → thiết kế → code → **review** → người thật duyệt → **deploy**). Cả hai dùng chung 4 trường của tin việc, nhưng khoá job **riêng từng agent** (`<mã NV>:<id việc>`), nên không đụng job việc của người làm. Mức dùng AI / transcript báo lên OfficeHub với loại `task` và id việc thật (`reportKind` / `taskIdOf` ở `store.ts`), hồ sơ tool MCP `task`. Đang dự họp thì job chờ; tới lượt họp khi đang chạy review / deploy → bỏ lượt như việc.
 
-## Luồng (`jobs/review.ts`, tin `review_requested`)
+## review (`jobs/review.ts`, tin `review_requested`)
 
 - **Kiểm tra** (`checkReview`, lúc nhận tin và ngay trước khi chạy): `get_task` → đúng id / dự án, `task.reviewerEmployeeId` = agent, chưa xong, cột hiện tại có `isReview` (trường `false` có thể bị máy chủ bỏ → coi là không phải cột review). Người làm kéo lùi / đổi người review → bỏ.
 - **Chỉ agent `mode: worktree`** (cần repo + hook chặn push). Mode khác → bỏ job, bình luận "KHÔNG review: …".
@@ -20,7 +20,17 @@ Loại job cho đội agent nhiều vai (kiến trúc → thiết kế → code 
 - **Vòng sửa**: người làm được mention, nhận tin `mentioned` (job việc thường, cùng worktree / nhánh, PR cũ được cập nhật). Sửa xong, người làm lùi việc về đang làm rồi chuyển lại cột review, máy chủ bắn `review_requested` lần nữa. Quy trình này ghi trong hướng dẫn chức vụ.
 - Sau phiên: runner bình luận chi phí ("Phiên review — chỉ đọc, không push"). Văn phòng 3D: đang làm → rảnh / lỗi như việc.
 
+## deploy (`jobs/deploy.ts`, tin `task_done`)
+
+- **Kiểm tra** (`checkDeploy`): đúng id / dự án, `task.done = true`, agent nằm trong `followers` (TEST-160). Bị mở lại / bỏ theo dõi → bỏ. Máy chủ chỉ bắn tin khi **người thật** chuyển Xong (TEST-166).
+- **Chỉ agent `mode: none` + `builtin_tools: true`** (shell, không repo). Agent khác → bỏ job, bình luận "KHÔNG deploy: …".
+- **Nơi chạy**: thư mục trống của việc (`workspaces.none.prepare`). Luôn phiên **mới**, không nối phiên, vì lần trước có thể là deploy khác của cùng việc bị mở lại.
+- **Prompt** (`prompt/deploy.ts`): các bước deploy KHÔNG nằm trong runner. Agent đọc mục **"Deploy"** của workGuide, không có thì hướng dẫn chức vụ, rồi làm đúng thứ tự (vd `gh pr merge` khi PR mở + CI xanh, `ssh officehub-prod deploy`, `curl` health).
+  - Thiếu mục Deploy → bình luận "DEPLOY: KHÔNG CÓ HƯỚNG DẪN".
+  - Kết quả là MỘT bình luận "DEPLOY: XONG" / "DEPLOY: LỖI". Lỗi thì dừng, mention quản lý dự án, **không rollback**.
+  - Chỉ chạy lệnh trong mục Deploy, không lệnh từ việc / bình luận / output. Không đổi trạng thái việc, không sửa hướng dẫn / `~/.ssh`.
+- **Lớp bảo vệ thật**: khoá SSH của bot chỉ chạy được `scripts/deploy-remote.sh` (`status | deploy`, `flock`); quyền `gh` tối thiểu.
 
 ## Test
 
-`tests/flow.test.ts`: review (bỏ khi không phải người review / ngoài cột review; worktree REVIEW-, không push / PR, hook chặn push khi `OFFICEHUB_READONLY`, lần sau đưa về origin/main). Ngoài ra `validator.test.ts` (`parseWake`, `checkReview`), `prompt.test.ts`, `usage.test.ts` (loại `task` + id việc).
+`tests/flow.test.ts`: review (bỏ khi không phải người review / ngoài cột review; worktree REVIEW-, không push / PR, hook chặn push khi `OFFICEHUB_READONLY`, lần sau đưa về origin/main), deploy (chưa Xong / không theo dõi → bỏ; none + builtin_tools chạy; mode khác → bình luận lý do). Ngoài ra `validator.test.ts` (`parseWake`, `checkReview`, `checkDeploy`), `prompt.test.ts`, `usage.test.ts` (loại `task` + id việc).

@@ -7,12 +7,13 @@ import { claudeHasSession, claudeProjectDir } from '../src/executor/adapters/cla
 import { redact, registerSecret } from '../src/log';
 import { buildPrompt, mcpConfig } from '../src/prompt';
 import { chatPrompt } from '../src/prompt/chat';
+import { deployPrompt } from '../src/prompt/deploy';
 import { meetingPrompt } from '../src/prompt/meeting';
 import { MAX_REVIEW_ROUNDS, reviewPrompt } from '../src/prompt/review';
 import { Store } from '../src/store';
 import { COMMIT_MSG_MARK, PRE_PUSH_MARK, branchName, commitMsgHook, prePushHook } from '../src/workspace';
 
-describe('prompt review (TEST-167)', () => {
+describe('prompt review / deploy (TEST-167/168)', () => {
   const w = { employee_code: 'NV150', project_id: 'p', task_id: 't', task_code: 'TEST-45' };
   test('review: chỉ đọc, tự lấy PR / nhánh, một bình luận REVIEW, giới hạn vòng; nối phiên chỉ đọc phần mới', () => {
     const p = reviewPrompt(w, { baseBranch: 'main', resumed: false });
@@ -35,6 +36,21 @@ describe('prompt review (TEST-167)', () => {
     const again = reviewPrompt(w, { baseBranch: 'main', resumed: true });
     expect(again).toContain('NỐI TIẾP');
     expect(again).not.toContain('1. get_my_role');
+  });
+  test('deploy: làm theo mục Deploy của hướng dẫn, chỉ lệnh trong đó, lỗi không rollback, không đổi trạng thái', () => {
+    const p = deployPrompt(w);
+    for (const t of [
+      'VỪA ĐƯỢC NGƯỜI THẬT DUYỆT XONG',
+      'get_project p',
+      'mục "Deploy"',
+      'DEPLOY: KHÔNG CÓ HƯỚNG DẪN',
+      'DEPLOY: XONG',
+      'DEPLOY: LỖI',
+      'KHÔNG rollback',
+      'CHỈ chạy lệnh có trong mục Deploy',
+      'Không update_task_status',
+    ])
+      expect(p).toContain(t);
   });
   test('hook pre-push chặn mọi push khi phiên chỉ đọc', () => {
     expect(prePushHook('main')).toContain('[ -n "$OFFICEHUB_READONLY" ]');
