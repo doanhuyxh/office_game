@@ -63,4 +63,19 @@ public class BotWaitRulesTests
         Assert.False(BotWaitRules.AwaitingApproval(cols, done.Id));
         Assert.False(BotWaitRules.AwaitingApproval(cols, Guid.NewGuid()));
     }
+
+    [Fact]
+    public void Awaiting_human_for_tasks_mine()
+    {
+        // người thật vừa giao việc cho bot → chưa chờ
+        Assert.False(BotWaitRules.AwaitingHuman([Person(0)], BotA, true));
+        // bot bình luận / chuyển sang Chờ review → chờ
+        Assert.True(BotWaitRules.AwaitingHuman([Person(0), Bot(5)], BotA, true));
+        // sau đó người thật bình luận hoặc trả việc về → hết chờ
+        Assert.False(BotWaitRules.AwaitingHuman([Person(0), Bot(5), Person(9)], BotA, true));
+        // bot khác giao việc cho bot này → không chờ
+        Assert.False(BotWaitRules.AwaitingHuman([Bot(1, BotB)], BotA, true));
+        // người làm là người thật (thao tác qua token AI vẫn ByBot) → luôn false
+        Assert.False(BotWaitRules.AwaitingHuman([Bot(5, Human)], Human, false));
+    }
 }

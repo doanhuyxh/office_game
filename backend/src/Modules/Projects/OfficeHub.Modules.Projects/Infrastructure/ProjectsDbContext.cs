@@ -35,6 +35,19 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
         await AgentSettings.AsNoTracking().Where(x => x.Id == Domain.AgentSettings.SingletonId)
             .Select(x => new AgentLimits(x.MaxBotTasksPerDay, x.MaxBotStreak)).FirstOrDefaultAsync(ct) ?? AgentLimits.Default;
 
+    /// <summary>Sự kiện lịch sử + bình luận của các việc cho luật <see cref="BotWaitRules"/> (TEST-119 / TEST-157) — 2 truy vấn cho cả lô, không N+1.
+    /// Dùng chung bởi <c>/internal/bot-waiting</c> (văn phòng 3D) và <c>/tasks/mine</c> (<c>awaitingHuman</c>).</summary>
+    public async Task<ILookup<Guid, WaitEvent>> WaitEventsAsync(IReadOnlyCollection<Guid> taskIds, CancellationToken ct)
+    {
+        var acts = await Activities.AsNoTracking().Where(a => taskIds.Contains(a.TaskId))
+            .Select(a => new { a.TaskId, a.At, a.ByBot, a.ActorEmployeeId, a.Kind }).ToListAsync(ct);
+        var comments = await Comments.AsNoTracking().Where(c => taskIds.Contains(c.TaskId))
+            .Select(c => new { c.TaskId, c.CreatedAt, c.ByBot, c.AuthorEmployeeId }).ToListAsync(ct);
+        return acts.Select(a => (a.TaskId, Event: new WaitEvent(a.At, a.ByBot, a.ActorEmployeeId, BotWaitRules.Counts(a.Kind))))
+            .Concat(comments.Select(c => (c.TaskId, Event: new WaitEvent(c.CreatedAt, c.ByBot, c.AuthorEmployeeId, true))))
+            .ToLookup(x => x.TaskId, x => x.Event);
+    }
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.HasDefaultSchema(Schema);

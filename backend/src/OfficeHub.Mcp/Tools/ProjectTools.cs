@@ -70,7 +70,9 @@ public sealed class ProjectTools
     }
 
     [McpServerTool(Name = "list_my_tasks", Title = "Việc của tôi", ReadOnly = true, OpenWorld = false)]
-    [Description("Việc chưa xong được giao cho tôi ở mọi dự án (tối đa 200), sắp theo hạn: mã việc, tên, dự án, trạng thái, hạn, overdue.")]
+    [Description("Việc chưa xong được giao cho tôi ở mọi dự án (tối đa 200), sắp theo hạn: mã việc, tên, dự án, trạng thái, hạn, overdue; " +
+                 "awaitingHuman = true: bot đã báo (chuyển / bình luận), đang chờ người duyệt / trả lời — chưa cần làm tiếp; " +
+                 "projectActive = false: dự án đã đóng — không làm; waitingOn > 0: còn việc phải xong trước — chưa bắt đầu.")]
     public static async Task<string> ListMyTasks(OfficeHubApi api, CancellationToken ct) =>
         Out(await api.GetAsync("/api/projects/tasks/mine", ct));
 

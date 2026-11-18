@@ -39,7 +39,7 @@ Chủ dự án chốt 2026-11-08: **"Dự án" là module riêng**; dev outsourc
 | POST | `/milestones/{mid}/accept` | `{ acceptedOn (≤ hôm nay), note? }` → `ISalesContractsLookup.MarkAcceptedAsync`: hạn đợt thu sau ngày nghiệm thu thì **kéo về ngày nghiệm thu** (đặt lại mốc nhắc), báo kế toán + người phụ trách HĐ (`receivable_due`) |
 | GET / POST / PUT / DELETE | `/{id}/columns`, `/columns/{cid}`, `/{id}/columns/order` | Cột trạng thái — [projects-tasks.md](projects-tasks.md) |
 | GET / POST | `/{id}/tasks` | `columnId` (bỏ trống = cột đầu). Mã `{MÃ DỰ ÁN}-{n}` (n tăng trong dự án, unique; trùng khi tạo đồng thời → thử lại). Người được giao phải là thành viên; mốc thuộc dự án. `description` = Markdown ≤ 20 000; `mediaLinks` ≤ 20 link http/https ≤ 1000 ký tự (`TaskRules`, bỏ trống / trùng; PUT gửi `null` → giữ nguyên) |
-| GET | `/tasks/mine` | Việc chưa xong giao cho tôi, mọi dự án |
+| GET | `/tasks/mine` | Việc chưa xong giao cho tôi, mọi dự án (≤ 200). Thêm `awaitingHuman` (tôi là bot + đang chờ người theo `BotWaitRules`; người thật → luôn `false`) và `projectActive` (dự án `Active`) — chỉ tính ở đây, nơi khác mặc định `false` / `true` (TEST-157, cho agent-runner bắt bù việc) |
 | GET | `/tasks/{tid}` | Việc + bình luận + lịch sử (`activities`) + `sequential` + `canApprove` + `columns` |
 | PUT / POST / DELETE | `/tasks/{tid}`, `/tasks/{tid}/move` | `move { columnId, rank?, note? }` (kéo thả); PUT cũng nhận `columnId`, `note`. Sai quy trình → 409. Vào cột hoàn thành → `CompletedAt`. Đổi hạn / người → nhắc lại |
 | GET / POST | `/tasks/{tid}/comments` | Bình luận → chuông người được giao |

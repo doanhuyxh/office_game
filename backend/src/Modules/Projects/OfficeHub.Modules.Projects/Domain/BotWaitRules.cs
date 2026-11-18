@@ -28,6 +28,11 @@ public static class BotWaitRules
         return null;
     }
 
+    /// <summary><c>awaitingHuman</c> của <c>/tasks/mine</c> (TEST-157): người làm là tài khoản bot và đang chờ người theo <see cref="WaitingSince"/>.
+    /// Người làm là người thật → luôn false (kể cả khi họ thao tác qua token AI).</summary>
+    public static bool AwaitingHuman(IEnumerable<WaitEvent> events, Guid assigneeEmployeeId, bool assigneeIsBot) =>
+        assigneeIsBot && WaitingSince(events, assigneeEmployeeId) is not null;
+
     /// <summary>Chờ duyệt (true) khi cột ngay sau cột hiện tại (theo <see cref="TaskColumn.Position"/>) là cột cần người duyệt;
     /// còn lại là chờ phản hồi. Cột không thuộc danh sách → false.</summary>
     public static bool AwaitingApproval(IEnumerable<TaskColumn> columns, Guid columnId)

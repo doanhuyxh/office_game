@@ -49,15 +49,8 @@ internal static class BotWaitingEndpoints
         var taskIds = tasks.Select(t => t.Id).ToList();
         var projectIds = tasks.Select(t => t.ProjectId).Distinct().ToList();
 
-        var acts = await db.Activities.AsNoTracking().Where(a => taskIds.Contains(a.TaskId))
-            .Select(a => new { a.TaskId, a.At, a.ByBot, a.ActorEmployeeId, a.Kind }).ToListAsync(ct);
-        var comments = await db.Comments.AsNoTracking().Where(c => taskIds.Contains(c.TaskId))
-            .Select(c => new { c.TaskId, c.CreatedAt, c.ByBot, c.AuthorEmployeeId }).ToListAsync(ct);
+        var events = await db.WaitEventsAsync(taskIds, ct);
         var columns = await db.Columns.AsNoTracking().Where(c => projectIds.Contains(c.ProjectId)).ToListAsync(ct);
-
-        var events = acts.Select(a => (a.TaskId, Event: new WaitEvent(a.At, a.ByBot, a.ActorEmployeeId, BotWaitRules.Counts(a.Kind))))
-            .Concat(comments.Select(c => (c.TaskId, Event: new WaitEvent(c.CreatedAt, c.ByBot, c.AuthorEmployeeId, true))))
-            .ToLookup(x => x.TaskId, x => x.Event);
         var columnsOf = columns.ToLookup(c => c.ProjectId);
         var columnName = columns.ToDictionary(c => c.Id, c => c.Name);
 

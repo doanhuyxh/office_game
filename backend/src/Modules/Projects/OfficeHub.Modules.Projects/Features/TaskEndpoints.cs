@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.BuildingBlocks.Storage;
+using OfficeHub.Modules.Identity.Contracts;
 using OfficeHub.Modules.Notification.Contracts;
 using OfficeHub.Modules.Organization.Contracts;
 using OfficeHub.Modules.Projects.Contracts;
@@ -18,9 +19,12 @@ namespace OfficeHub.Modules.Projects.Features;
 /// <param name="CreatedByBot">Tạo qua token AI / MCP (nhãn BOT).</param>
 /// <param name="WaitingOn">Số việc phải chờ chưa xong (0 = bắt đầu được).</param>
 /// <param name="Done">Đang ở cột hoàn thành.</param>
+/// <param name="AwaitingHuman">Chỉ <c>/tasks/mine</c> (TEST-157): người làm là bot và đã báo, đang chờ người duyệt / trả lời (<see cref="BotWaitRules.AwaitingHuman"/>).</param>
+/// <param name="ProjectActive">Chỉ <c>/tasks/mine</c> tính thật (nơi khác mặc định true): dự án đang chạy.</param>
 public sealed record TaskDto(Guid Id, Guid ProjectId, string Code, string Title, string? Description, Guid ColumnId, string ColumnName, string ColumnColor, bool Done, double Rank, Guid? AssigneeEmployeeId, string? AssigneeName,
     Guid? MilestoneId, DateOnly? DueOn, decimal? EstimateDays, bool Overdue, int CommentCount, DateTimeOffset CreatedAt, string CreatedByName, DateTimeOffset? CompletedAt,
-    List<string> MediaLinks, string? ProjectName = null, bool CreatedByBot = false, int WaitingOn = 0);
+    List<string> MediaLinks, string? ProjectName = null, bool CreatedByBot = false, int WaitingOn = 0,
+    bool AwaitingHuman = false, bool ProjectActive = true);
 /// <summary>Việc liên quan (chờ / đang chặn) — mã, tên, đã xong chưa.</summary>
 public sealed record TaskRefDto(Guid Id, string Code, string Title, bool Done);
 /// <param name="DependsOn">Mã / id các việc phải xong trước (tối đa 10, cùng dự án) — thay toàn bộ danh sách; rỗng = bỏ hết.</param>
@@ -97,14 +101,28 @@ internal static class TaskEndpoints
         return TypedResults.Ok(await ToDtosAsync(rows, db, access, clock, ct));
     }
 
-    /// <summary>Việc chưa xong được giao cho tôi, ở mọi dự án.</summary>
-    private static async Task<Ok<List<TaskDto>>> MineAsync(ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, ProjectClock clock, CancellationToken ct)
+    /// <summary>Việc chưa xong được giao cho tôi, ở mọi dự án. Thêm <c>awaitingHuman</c> + <c>projectActive</c> để agent-runner bỏ qua việc
+    /// đang chờ người / dự án đã đóng khi bắt bù lúc khởi động (TEST-157) — tính theo lô, chỉ ở đây.</summary>
+    private static async Task<Ok<List<TaskDto>>> MineAsync(ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, ProjectClock clock,
+        IAccountService accounts, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         if (v.Employee is null) return TypedResults.Ok(new List<TaskDto>());
-        var rows = await db.Tasks.AsNoTracking().Where(t => t.AssigneeEmployeeId == v.Employee.Id && t.CompletedAt == null)
+        var me = v.Employee.Id;
+        var rows = await db.Tasks.AsNoTracking().Where(t => t.AssigneeEmployeeId == me && t.CompletedAt == null)
             .OrderBy(t => t.DueOn == null).ThenBy(t => t.DueOn).ThenBy(t => t.Id).Take(200).ToListAsync(ct);
-        return TypedResults.Ok(await ToDtosAsync(rows, db, access, clock, ct, withProject: true));
+        var dtos = await ToDtosAsync(rows, db, access, clock, ct, withProject: true);
+        if (dtos.Count == 0) return TypedResults.Ok(dtos);
+        var projectIds = rows.Select(t => t.ProjectId).Distinct().ToList();
+        var active = (await db.Projects.AsNoTracking().Where(p => projectIds.Contains(p.Id) && p.Status == ProjectStatus.Active).Select(p => p.Id).ToListAsync(ct))
+            .ToHashSet();
+        var isBot = (await accounts.GetAsync(v.UserId, ct))?.IsBot ?? false;
+        var events = isBot ? await db.WaitEventsAsync(rows.Select(t => t.Id).ToList(), ct) : null;
+        return TypedResults.Ok(dtos.Select(d => d with
+        {
+            AwaitingHuman = events is not null && BotWaitRules.AwaitingHuman(events[d.Id], me, isBot),
+            ProjectActive = active.Contains(d.ProjectId),
+        }).ToList());
     }
 
     /// <summary>Một việc + bình luận + lịch sử (hộp thoại việc trên web, tool MCP get_task).</summary>
