@@ -1,6 +1,6 @@
 import type { WorkspaceMode } from '../config';
 import type { WakeData } from '../validator';
-import { finish, hardRules, intro, rules } from './common';
+import { finish, handoff, hardRules, intro, rules } from './common';
 import * as inPlace from './in-place';
 import * as none from './none';
 import * as worktree from './worktree';
@@ -12,6 +12,10 @@ export interface PromptContext {
   resumed: boolean;
   /** Phiên mới nhưng việc đã từng làm (worktree / nhánh / phiên cũ còn dấu) → đọc Bàn giao trước (TEST-142). */
   continued?: boolean;
+  /** Mode none + `workspace.builtin_tools` (TEST-163): có shell, không repo. */
+  shell?: boolean;
+  /** Mã việc phải xong trước / đang chờ việc này (TEST-164) — chỉ mã, không tên. */
+  related?: { dependsOn: string[]; blocks: string[] };
 }
 
 /**
@@ -21,10 +25,14 @@ export interface PromptContext {
  * Mode none (agent nghiệp vụ, không repo): bước 5 chỉ dùng tool MCP, bộ quy tắc riêng không có phần git / file.
  */
 export function buildPrompt(w: WakeData, ctx: PromptContext): string {
-  if (ctx.mode === 'none')
-    return intro(w, ctx.resumed, ctx.continued) + none.workStep() + finish(w, false) + hardRules(none.RULES);
+  const start = intro(w, ctx.resumed, ctx.continued, ctx.related?.dependsOn);
+  const end = handoff(ctx.related?.blocks);
+  if (ctx.mode === 'none') {
+    const shell = ctx.shell === true;
+    return start + none.workStep(shell) + finish(w, shell) + end + hardRules(shell ? none.SHELL_RULES : none.RULES);
+  }
   const m = ctx.mode === 'in_place' ? inPlace : worktree;
-  return intro(w, ctx.resumed, ctx.continued) + m.workStep(ctx.branch) + finish(w) + rules(m.GIT_RULES);
+  return start + m.workStep(ctx.branch) + finish(w) + end + rules(m.GIT_RULES);
 }
 
 /** Hồ sơ tool của OfficeHub.Mcp theo loại phiên (TEST-143): `tools/list` chỉ trả tool hợp loại phiên → bớt token schema mỗi lượt gọi model. */

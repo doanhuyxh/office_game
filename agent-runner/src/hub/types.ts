@@ -14,7 +14,15 @@ export interface TaskDetail {
     done?: boolean;
   };
   /** Việc phải xong trước. */
-  dependsOn?: { code?: string; done?: boolean }[];
+  dependsOn?: TaskRef[];
+  /** Việc đang chờ việc này xong. */
+  blocks?: TaskRef[];
+}
+
+/** Một việc liên quan trong `get_task` (dependsOn / blocks). */
+export interface TaskRef {
+  code?: string;
+  done?: boolean;
 }
 
 /** Một dòng của `list_chats` (chỉ tài khoản bot). Kênh Toàn văn phòng có `conversation: "office"` (không lộ id). */

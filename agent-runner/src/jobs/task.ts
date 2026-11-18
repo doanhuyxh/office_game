@@ -33,7 +33,7 @@ export function taskJobs(services: JobServices): JobHandler<WakeOf<'task'>> {
     };
     const checked = checkTask(await s.hub.getTask(job.key), wake, s.employeeId!);
     if (!checked.ok) return skipJob(store, job, checked.reason);
-    const title = checked.value.title;
+    const { title, dependsOn, blocks } = checked.value;
     s.presence.working(job.label, title);
     if (title.trim()) desk.task = `${job.label} · ${title.trim()}`;
 
@@ -55,11 +55,20 @@ export function taskJobs(services: JobServices): JobHandler<WakeOf<'task'>> {
     const resume = await sessions.resumeFor(s, job, ws.path);
     // Phiên mới nhưng việc đã từng làm (worktree / nhánh local hoặc origin / phiên cũ) → prompt bảo đọc Bàn giao trước
     const continued = !resume && (ws.hasHistory || workedBefore);
+    // Mode none + builtin_tools (TEST-163): vẫn không repo nhưng có công cụ của CLI. Phiên chat / họp không đi qua đây → vẫn chỉ MCP.
+    const shell = strategy.mode === 'none' && s.cfg.workspace.builtinTools;
     const out = await sessions.run(s, job, signal, {
       cwd: ws.path,
-      prompt: buildPrompt(wake, { mode: strategy.mode, branch: ws.branch, resumed: !!resume, continued }),
+      prompt: buildPrompt(wake, {
+        mode: strategy.mode,
+        branch: ws.branch,
+        resumed: !!resume,
+        continued,
+        shell,
+        related: { dependsOn, blocks },
+      }),
       resume,
-      noBuiltinTools: strategy.noBuiltinTools,
+      noBuiltinTools: strategy.noBuiltinTools && !shell,
       presence: true,
       label: `${job.label} · ${title}`,
     });

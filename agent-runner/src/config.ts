@@ -36,6 +36,11 @@ export interface WorkspaceConfig {
   allowBaseBranch: boolean;
   /** in_place: cho phép repo có file .env ở gốc (CLI chạy trong repo nên đọc được .env đó). Mặc định không. */
   allowEnvFiles: boolean;
+  /**
+   * none (TEST-163): phiên việc có công cụ có sẵn của CLI (chạy lệnh, đọc / ghi file trong thư mục việc) dù không có repo — cho bot thiết kế
+   * (curl tải ảnh lên create_upload), DevOps (gh / ssh theo hướng dẫn). Mặc định false = chỉ tool MCP. Phiên chat / họp vẫn chỉ MCP.
+   */
+  builtinTools: boolean;
 }
 
 export interface AgentConfig {
@@ -153,8 +158,10 @@ export function parseConfig(raw: unknown): RunnerConfig {
     // repo chính; `doctor` / khởi động bắt buộc thư mục đó đã gitignore.
     const envFile = str(a?.env_file);
     if (envFile && !isAbsolute(envFile)) p.push(`${at}.env_file phải là đường dẫn tuyệt đối`);
-    for (const k of ['allow_base_branch', 'allow_env_files'])
+    for (const k of ['allow_base_branch', 'allow_env_files', 'builtin_tools'])
       if (w[k] !== undefined && typeof w[k] !== 'boolean') p.push(`${at}.workspace.${k} là true / false`);
+    if (w.builtin_tools === true && mode !== 'none')
+      p.push(`${at}.workspace.builtin_tools chỉ dùng với mode none (worktree / in_place đã có sẵn công cụ)`);
     const e = a?.executor ?? {};
     const kind = e.kind;
     if (!isExecutorKind(kind)) p.push(`${at}.executor.kind phải là ${Object.keys(adapters).join(' hoặc ')}`);
@@ -219,7 +226,12 @@ export function parseConfig(raw: unknown): RunnerConfig {
         token,
         repo: repo ? resolve(repo) : '',
         envFile,
-        workspace: { mode, allowBaseBranch: w.allow_base_branch === true, allowEnvFiles: w.allow_env_files === true },
+        workspace: {
+          mode,
+          allowBaseBranch: w.allow_base_branch === true,
+          allowEnvFiles: w.allow_env_files === true,
+          builtinTools: w.builtin_tools === true,
+        },
         executor,
       });
   });
