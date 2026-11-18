@@ -37,6 +37,13 @@ const INTERACTIVE = OFFICE_MAP.objects.filter((o) => o.action || (o.interact && 
  */
 const HIT_HEIGHT = 2.1, HIT_RADIUS = 0.45, HIT_MIN_PX = 18, HIT_MIN_TOUCH_PX = 28;
 const _p = new THREE.Vector3(), _p2 = new THREE.Vector3();
+/**
+ * Đo FPS thật (TEST-176): đếm khung đã render trong mỗi cửa sổ ~0,5 s rồi mới báo `onFps` (không báo từng khung → HUD không setState mỗi khung).
+ * Hai khung cách nhau quá `FPS_GAP_MS` (tab ẩn / rAF dừng) → bỏ cửa sổ đang đo, đo lại từ đầu.
+ */
+const FPS_WINDOW_MS = 500, FPS_GAP_MS = 1000;
+/** Số liệu FPS gửi cho HUD: fps = khung / giây trung bình cửa sổ vừa đo, ms = thời gian trung bình một khung. */
+export interface FpsStats { fps: number; ms: number }
 
 type Other = { avatar: Avatar; tx: number; tz: number; tr: number; name: string; alert: AlertKind | null };
 /** others[].bot = avatar bot; alert = bot cần chú ý (TEST-122) — bản đồ nhỏ tô màu theo đó. */
@@ -100,6 +107,13 @@ export class OfficeScene {
    */
   onAvatarClick?: (hit: { id: string; bot: boolean }) => void;
   private hoverAvatar = false;
+  /**
+   * FPS thật đang render (TEST-176), gọi mỗi ~0,5 s; `null` = chưa có số / tab vừa bị ẩn (đang đo lại). Gán `undefined` = không đo.
+   */
+  onFps?: (stats: FpsStats | null) => void;
+  private fpsStart = 0;
+  private fpsLast = 0;
+  private fpsFrames = 0;
 
   constructor(private host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -143,6 +157,7 @@ export class OfficeScene {
     addEventListener('keydown', this.keyDown);
     addEventListener('keyup', this.keyUp);
     addEventListener('blur', this.clearKeys);
+    document.addEventListener('visibilitychange', this.visibility);
     const el = this.renderer.domElement;
     el.addEventListener('pointerdown', this.pointerDown);
     el.addEventListener('pointerup', this.pointerUp);
@@ -611,6 +626,33 @@ export class OfficeScene {
     this.camera.lookAt(this.camTarget.x, 0.6, this.camTarget.z);
     this.marker.scale.setScalar(1 + Math.sin(this.clock.elapsedTime * 6) * 0.08);
     this.renderer.render(this.scene, this.camera);
+    this.countFrame();
+  };
+
+  /** Đếm khung vừa render; đủ cửa sổ đo → báo `onFps`. Không có người nghe thì bỏ qua (không tốn gì). */
+  private countFrame() {
+    if (!this.onFps) { this.fpsStart = 0; return; }
+    const now = performance.now();
+    if (!this.fpsStart || now - this.fpsLast > FPS_GAP_MS) {
+      this.fpsStart = now;
+      this.fpsFrames = 0;
+    } else {
+      this.fpsFrames++;
+      const span = now - this.fpsStart;
+      if (span >= FPS_WINDOW_MS) {
+        this.onFps({ fps: (this.fpsFrames * 1000) / span, ms: span / this.fpsFrames });
+        this.fpsStart = now;
+        this.fpsFrames = 0;
+      }
+    }
+    this.fpsLast = now;
+  }
+
+  /** Tab bị ẩn → rAF dừng: xoá số cũ (HUD không hiện số sai), quay lại thì đo từ đầu. */
+  private visibility = () => {
+    if (!document.hidden) return;
+    this.fpsStart = 0;
+    this.onFps?.(null);
   };
 
   dispose() {
@@ -618,6 +660,7 @@ export class OfficeScene {
     cancelAnimationFrame(this.raf);
     removeEventListener('resize', this.resize);
     removeEventListener('keydown', this.keyDown);
+    document.removeEventListener('visibilitychange', this.visibility);
     removeEventListener('keyup', this.keyUp);
     removeEventListener('blur', this.clearKeys);
     for (const id of [...this.others.keys()]) this.removeOther(id);

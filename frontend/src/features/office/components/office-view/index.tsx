@@ -14,6 +14,7 @@ import { OfficeScene, TYPING_SCOPES } from '../../engine/OfficeScene';
 import { OfficeConnection } from '../../api/officeHub';
 import type { SitSpot } from '../../engine/sitSpots';
 import { Minimap } from '../minimap';
+import { FpsMeter } from '../fps-meter';
 import { VOICE_INITIAL, VoiceClient, type VoiceView } from '../../api/voiceClient';
 import { ScreenView, VoicePanel } from '../voice-panel';
 import { Joystick } from '../joystick';
@@ -437,6 +438,8 @@ export function OfficeView() {
             <button type="button" onClick={() => scene?.zoom(1)} title="Thu nhỏ">－</button>
           </>}
         </div>
+        {/* FPS thật đang render (TEST-176): dưới cụm camera (điện thoại: dưới bản đồ nhỏ), bấm để thu gọn */}
+        <FpsMeter scene={scene} />
         <VoicePanel voice={voice} view={voiceView} />
         <ScreenView screen={voiceView.screen} count={voiceView.screenCount} />
         <ScreenDocPanel screen={screen} onClear={clearScreen} />

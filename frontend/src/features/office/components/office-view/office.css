@@ -64,6 +64,16 @@
 .office-root .camera { top: 206px; right: 12px; display: flex; gap: 4px; padding: 4px; }
 .office-root .camera button { width: 32px; height: 30px; border: 0; border-radius: 8px; background: rgba(148, 163, 184, .18); color: inherit; font: 700 15px system-ui; cursor: pointer; }
 .office-root .camera button:hover { background: rgba(148, 163, 184, .35); }
+/* Ô FPS thật (TEST-176): dưới cụm camera (206 + 40 + 6); màu theo ngưỡng bằng token success / warning / destructive */
+.office-root .fps-meter { top: 252px; right: 12px; display: flex; align-items: baseline; gap: 4px; min-width: 64px; padding: 3px 8px; border-radius: 8px;
+  color: #e2e8f0; font: 600 12px/18px ui-monospace, SFMono-Regular, Menlo, monospace; cursor: pointer; font-variant-numeric: tabular-nums; }
+.office-root .fps-meter b { font-size: 13px; }
+.office-root .fps-meter small { margin-left: 2px; color: #94a3b8; font-weight: 400; font-size: 11px; }
+.office-root .fps-meter.good { border-color: var(--success); background: color-mix(in oklch, var(--success) 28%, rgba(15, 23, 42, .85)); }
+.office-root .fps-meter.mid { border-color: var(--warning); background: color-mix(in oklch, var(--warning) 28%, rgba(15, 23, 42, .85)); }
+.office-root .fps-meter.bad { border-color: var(--destructive); background: color-mix(in oklch, var(--destructive) 32%, rgba(15, 23, 42, .85)); }
+.office-root .fps-meter.collapsed { min-width: 0; color: #94a3b8; opacity: .75; }
+.office-root .fps-meter:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
 .office-root .help { top: calc(100% + 8px); left: 0; z-index: 8; display: grid; gap: 4px; font-size: 13px; width: 290px; max-width: calc(100vw - 24px); }
 .office-root .help button { justify-self: start; margin-top: 4px; padding: 4px 10px; border: 0; border-radius: 8px; background: #3b82f6; color: #fff; font: 600 12px system-ui; cursor: pointer; }
 .office-root .help kbd { margin-right: 2px; }
@@ -170,6 +180,10 @@
 @media (max-width: 640px) {
   .office-root { --minimap-top: 52px; --minimap-w: 132px; }
   .office-root .camera { top: auto; bottom: 156px; right: 12px; }
+  /* Ô FPS: ngay dưới bản đồ nhỏ (52 + 132 × 30 / 68 ≈ 112), cỡ nhỏ hơn; không hiện ms */
+  .office-root .fps-meter { top: 118px; min-width: 52px; padding: 2px 6px; font-size: 11px; line-height: 16px; }
+  .office-root .fps-meter b { font-size: 12px; }
+  .office-root .fps-meter small { display: none; }
   .office-root .zone { display: none; }
   .office-root .prompt { bottom: 160px; max-width: calc(100vw - 32px); }
   /* Hàng trên đã chật (thẻ tên + thẻ trạng thái) → nút "Hướng dẫn" xuống ngay dưới thẻ tên */
