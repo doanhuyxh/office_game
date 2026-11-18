@@ -1,4 +1,4 @@
-import type { ChatSummary, MeetingState, TaskDetail } from './hub/types';
+import type { ChatSummary, MeetingState, MyTask, TaskDetail } from './hub/types';
 import type { TgMessage } from './telegram';
 
 /** Dữ liệu tin đánh thức VIỆC (TEST-42): JSON có 4 trường (+ `event` assigned / returned / ready / mentioned — runner chưa phân biệt). */
@@ -29,6 +29,7 @@ export type Wake = ({ kind: 'task' } & WakeData) | ({ kind: 'chat' } & ChatWake)
 export type Check<T> = { ok: true; value: T } | { ok: false; reason: string };
 
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const TASK_CODE = /^[A-Z0-9]+-\d+$/i;
 
 /**
  * Hình dạng dòng JSON của một loại tin đánh thức: trường chuỗi bắt buộc, trường nào phải là GUID, kiểm tra riêng (nếu có) và cách dựng
@@ -46,7 +47,7 @@ interface WakeShape {
 const TASK_SHAPE: WakeShape = {
   keys: ['employee_code', 'project_id', 'task_id', 'task_code'],
   guids: ['project_id', 'task_id'],
-  invalid: (d) => (/^[A-Z0-9]+-\d+$/i.test(d.task_code!) ? undefined : 'task_code sai dạng'),
+  invalid: (d) => (TASK_CODE.test(d.task_code!) ? undefined : 'task_code sai dạng'),
   build: (d) => ({
     kind: 'task',
     employee_code: d.employee_code!,
@@ -161,4 +162,58 @@ export function checkMeeting(m: MeetingState | null | undefined, sessionId: stri
     return { ok: false, reason: 'agent đang dự cuộc họp khác' };
   if (m.isMyTurn !== true) return { ok: false, reason: 'không phải lượt của agent' };
   return { ok: true, value: { isChair: m.isChair === true } };
+}
+
+/** Việc được chọn để bắt bù lúc khởi động — đủ trường để dựng tin đánh thức việc. */
+export interface StartupTask {
+  id: string;
+  projectId: string;
+  code: string;
+}
+
+/** Kết quả lọc `list_my_tasks`: việc cần làm (giữ thứ tự máy chủ trả — theo hạn) + số việc bị bỏ theo từng lý do. */
+export interface StartupPick {
+  tasks: StartupTask[];
+  /** Tổng số dòng máy chủ trả. */
+  total: number;
+  /** Bot đã báo, đang chờ người duyệt / trả lời. */
+  awaitingHuman: number;
+  /** Còn chờ việc khác xong. */
+  blocked: number;
+  /** Dự án không còn chạy. */
+  inactive: number;
+  /** Dòng thiếu / sai id, dự án hoặc mã việc. */
+  invalid: number;
+}
+
+/**
+ * Bắt bù lúc khởi động (TEST-158, hàm thuần): từ kết quả MCP `list_my_tasks` chọn việc agent CẦN làm ngay — dự án đang chạy, không chờ việc
+ * khác, và không phải việc bot đã báo xong đang chờ người (`awaitingHuman`, luật `BotWaitRules` của OfficeHub — TEST-157).
+ * OfficeHub bản cũ không trả `awaitingHuman` → không đạt (không đoán: chạy lại việc đang chờ duyệt là đốt token).
+ * Đây chỉ là bước chọn; từng việc vẫn qua `checkTask` (hỏi lại `get_task`) như tin đánh thức thường.
+ */
+export function pickStartupTasks(list: unknown): Check<StartupPick> {
+  if (!Array.isArray(list)) return { ok: false, reason: 'list_my_tasks không trả danh sách' };
+  const pick: StartupPick = { tasks: [], total: list.length, awaitingHuman: 0, blocked: 0, inactive: 0, invalid: 0 };
+  for (const row of list as (MyTask | null | undefined)[]) {
+    const { id, projectId, code } = row ?? {};
+    if (
+      typeof id !== 'string' ||
+      typeof projectId !== 'string' ||
+      typeof code !== 'string' ||
+      !GUID.test(id) ||
+      !GUID.test(projectId) ||
+      !TASK_CODE.test(code)
+    ) {
+      pick.invalid++;
+      continue;
+    }
+    if (typeof row!.awaitingHuman !== 'boolean')
+      return { ok: false, reason: 'OfficeHub bản cũ: list_my_tasks chưa trả awaitingHuman (cần bản có TEST-157)' };
+    if (row!.projectActive !== true) pick.inactive++;
+    else if (Number(row!.waitingOn ?? 0) > 0) pick.blocked++;
+    else if (row!.awaitingHuman) pick.awaitingHuman++;
+    else pick.tasks.push({ id, projectId, code });
+  }
+  return { ok: true, value: pick };
 }

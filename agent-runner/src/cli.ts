@@ -15,7 +15,9 @@ import { Store } from './store';
 
 const HELP = `officehub-agent-runner — bộ điều phối agent (TEST-44)
 
-  start [--no-model-check]            nghe Telegram, chạy việc được giao (dịch vụ systemd)
+  start [--no-model-check] [--no-catchup]
+                                      nghe Telegram, chạy việc được giao (dịch vụ systemd); lúc khởi động xếp luôn các việc
+                                      đang giao cho agent mà chưa có tin đánh thức
   doctor [--agent NV120] [--no-telegram] [--no-model-check]
                                       kiểm tra cấu hình: CLI, model thật, token, repo, hook, bot Telegram, gh
   run --agent NV120 --task TEST-45 [--no-model-check]
@@ -26,6 +28,7 @@ const HELP = `officehub-agent-runner — bộ điều phối agent (TEST-44)
                                       trước khi có tính năng này và phiên từng bị từ chối; gửi lại không tạo trùng
 
   --no-model-check  không chạy thử CLI để đọc model thật (mỗi agent tốn vài trăm token)
+  --no-catchup      start: không bắt bù việc lúc khởi động (hoặc runner.startup_catchup: false trong agents.yaml)
 
   --config <file>   mặc định $RUNNER_CONFIG hoặc /etc/officehub-runner/agents.yaml`;
 
@@ -47,6 +50,7 @@ function readArgs(argv: string[]) {
       since: { type: 'string' },
       'no-telegram': { type: 'boolean' },
       'no-model-check': { type: 'boolean' },
+      'no-catchup': { type: 'boolean' },
       'dry-run': { type: 'boolean' },
       help: { type: 'boolean' },
     },
@@ -58,6 +62,7 @@ function readArgs(argv: string[]) {
     since: values.since,
     telegram: !values['no-telegram'],
     modelCheck: !values['no-model-check'],
+    catchUp: !values['no-catchup'],
     dryRun: !!values['dry-run'],
   };
   return { command: positionals[0], args: positionals.slice(1), flags, config: values.config, help: !!values.help };

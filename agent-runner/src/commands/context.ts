@@ -13,6 +13,8 @@ export interface CliFlags {
   telegram: boolean;
   /** false = `--no-model-check`. */
   modelCheck: boolean;
+  /** false = `--no-catchup`. */
+  catchUp: boolean;
   dryRun: boolean;
 }
 

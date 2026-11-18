@@ -16,10 +16,16 @@ import { TranscriptReporter } from './hub/transcript';
 import { sourceHost, USAGE_RETRY_MS, UsageReporter } from './hub/usage';
 import { createJobHandlers, type JobHandler, type JobHandlers } from './jobs';
 import { errText, log, registerSecret } from './log';
-import { MEETING_HOLD_SEC, SCHEDULE_POLL_MS, TELEGRAM_RETRY_SEC } from './policy';
+import {
+  MEETING_HOLD_SEC,
+  SCHEDULE_POLL_MS,
+  STARTUP_CATCHUP_MAX,
+  STARTUP_RECENT_JOB_MIN,
+  TELEGRAM_RETRY_SEC,
+} from './policy';
 import type { Job, Store } from './store';
 import { TelegramClient, type TgMessage } from './telegram';
-import { parseWake, type Wake } from './validator';
+import { parseWake, pickStartupTasks, type Wake } from './validator';
 import { Git } from './workspace';
 
 export { RunnerStopped } from './core/session';
@@ -197,6 +203,65 @@ export class Runner {
     return id;
   }
 
+  /**
+   * Bắt bù lúc khởi động (TEST-158): hỏi OfficeHub các việc đang giao cho agent rồi xếp hàng những việc cần làm ngay, không chờ tin đánh thức
+   * (việc giao trước khi runner chạy, runner tắt quá lâu, tin Telegram gửi lỗi). Lọc bằng {@link pickStartupTasks} — bỏ việc bot đã báo đang
+   * chờ người; mỗi việc còn lại đi qua {@link accept} như một tin đánh thức (hỏi lại `get_task`, khoá theo id việc → trùng job dở / tin
+   * Telegram tồn thì gộp). Tối đa {@link STARTUP_CATCHUP_MAX} việc; việc có job vừa kết thúc trong {@link STARTUP_RECENT_JOB_MIN} phút thì bỏ.
+   * @returns số việc đã xếp hàng; null = không bắt bù được (không hỏi được OfficeHub / bản cũ) — chỉ log, runner vẫn chạy.
+   */
+  async catchUp(s: AgentState): Promise<number | null> {
+    const agent = s.cfg.employeeCode;
+    let list: unknown;
+    try {
+      list = await s.hub.myTasks();
+    } catch (e) {
+      log('warn', 'bắt bù lúc khởi động: không hỏi được việc của agent', { agent, error: errText(e) });
+      return null;
+    }
+    const picked = pickStartupTasks(list);
+    if (!picked.ok) {
+      log('warn', 'bắt bù lúc khởi động: bỏ qua', { agent, reason: picked.reason });
+      return null;
+    }
+    const { tasks, total, awaitingHuman, blocked, inactive, invalid } = picked.value;
+    const recentSince = new Date(Date.now() - STARTUP_RECENT_JOB_MIN * 60_000).toISOString();
+    let queued = 0;
+    let recent = 0;
+    let notQueued = 0;
+    const batch = tasks.slice(0, STARTUP_CATCHUP_MAX);
+    for (const t of batch) {
+      if (this.abort.signal.aborted) break;
+      if (this.store.finishedSince(t.id, recentSince)) {
+        recent++;
+        continue;
+      }
+      const wake: Wake = {
+        kind: 'task',
+        employee_code: agent,
+        project_id: t.projectId,
+        task_id: t.id,
+        task_code: t.code,
+      };
+      if (await this.accept(s, wake)) queued++;
+      else notQueued++;
+    }
+    log('info', 'bắt bù lúc khởi động', {
+      agent,
+      open: total,
+      queued,
+      // đã có job chờ / chạy cho việc đó, hoặc get_task không cho chạy (lý do ở dòng log ngay trên)
+      notQueued,
+      recent,
+      awaitingHuman,
+      blocked,
+      inactive,
+      invalid,
+      overLimit: tasks.length - batch.length,
+    });
+    return queued;
+  }
+
   /** Handler của một loại job. Registry định kiểu theo từng loại; ở đây chỉ cần giao diện chung. */
   private handlerOf(kind: Wake['kind']): JobHandler {
     return this.handlers[kind] as unknown as JobHandler;
@@ -281,7 +346,9 @@ export class Runner {
 
   // ---------------- Vòng đời ----------------
 
-  async start(modelCheck = true) {
+  /** @param o `catchUp: false` (cờ `--no-catchup`) hoặc `runner.startup_catchup: false` → không bắt bù việc lúc khởi động. */
+  async start(o: { modelCheck?: boolean; catchUp?: boolean } = {}) {
+    const modelCheck = o.modelCheck ?? true;
     const recovered = this.store.recoverRunning();
     if (recovered) log('warn', 'đưa lại job đang chạy dở vào hàng đợi', { count: recovered });
     for (const f of await this.checkAgents({ modelCheck })) log(findingLogLevel(f), formatFinding(f));
@@ -291,6 +358,12 @@ export class Runner {
       s.presence.start();
       void this.listen(s);
     }
+    // Việc đang giao mà chưa có tin đánh thức (TEST-158) — chạy nền, không chặn listener / scheduler
+    if (this.config.startupCatchup && o.catchUp !== false)
+      for (const s of enabled)
+        void this.catchUp(s).catch((e) =>
+          log('warn', 'bắt bù lúc khởi động lỗi', { agent: s.cfg.employeeCode, error: errText(e) }),
+        );
     // Mức dùng AI (TEST-135) + transcript (TEST-144): gửi phần còn tồn từ lần chạy trước, rồi gửi lại theo nhịp (máy chủ tạm lỗi / chưa có bản mới)
     const flushPending = () => {
       for (const s of this.agents.values()) {

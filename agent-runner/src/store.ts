@@ -361,6 +361,13 @@ export class Store {
     this.db.run(`UPDATE jobs SET usage_error = ? WHERE id = ?`, [error.slice(0, 500), id]);
   }
 
+  /** Khoá này có job nào kết thúc sau `sinceIso` không (bắt bù lúc khởi động không chạy lại việc vừa xong — TEST-158). */
+  finishedSince(key: string, sinceIso: string): boolean {
+    return !!this.db
+      .query<{ id: number }, [string, string]>(`SELECT id FROM jobs WHERE task_id = ? AND finished_at > ? LIMIT 1`)
+      .get(key, sinceIso);
+  }
+
   getJob(id: number) {
     return this.db.query<Job, [number]>(`${JOB_SELECT} WHERE id = ?`).get(id);
   }

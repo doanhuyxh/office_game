@@ -25,6 +25,17 @@ Dự án bun + TypeScript độc lập ở gốc repo, **không thư viện runt
 6. **Prompt** (`prompt/`): chỉ mã NV / mã việc / id + các bước `get_my_role` → `get_project` (workGuide) → `get_task` → làm → `comment_task` → chuyển trạng thái trước bước duyệt; agent **chỉ commit, không push / không tạo PR**; quy tắc cứng (không `.env`, không sửa `agent-runner/`, không duyệt, không production). Không chép nội dung việc.
 7. **Publisher**: nhánh có commit mới → `git push` + `gh pr create` (PR đã có → dùng lại); chạm `agent-runner/` → không push. Runner `comment_task` một dòng: PR, thời gian, lượt, chi phí, token, ghi chú lỗi.
 
+## Bắt bù lúc khởi động (TEST-158)
+
+Mỗi lần `start` (chủ dự án chốt 2026-11-18), sau khi kiểm tra agent, runner gọi `Runner.catchUp` cho từng agent đang bật — chạy nền, không chặn listener: việc đang giao mà không có tin đánh thức (giao trước khi runner chạy, runner tắt quá 24 giờ, tin Telegram gửi lỗi) vẫn được làm.
+
+1. MCP `list_my_tasks` → `pickStartupTasks` (`validator.ts`, hàm thuần) giữ việc `projectActive = true`, `waitingOn = 0`, `awaitingHuman = false`, theo thứ tự máy chủ trả (hạn). `awaitingHuman` = bot đã báo (chuyển / bình luận), chưa có người thật thao tác lại (`BotWaitRules`, TEST-157) — sau mỗi phiên runner đều bình luận kết quả nên việc vừa chạy (kể cả lỗi) không bị chạy lại tới khi người thật trả lời / trả việc.
+2. Mỗi việc đi qua `accept()` như tin đánh thức: hỏi lại `get_task`, khoá theo id việc (đã có job chờ / chạy, tin Telegram tồn → gộp).
+3. Rào chắn (`policy.ts`): tối đa `STARTUP_CATCHUP_MAX` = 20 việc / agent / lần khởi động (phần còn lại lần sau); khoá có job kết thúc trong `STARTUP_RECENT_JOB_MIN` = 10 phút → bỏ (`store.finishedSince`, chống khởi động lại liên tục). OfficeHub bản cũ không trả `awaitingHuman` / tool lỗi → bỏ qua cả bước, log `warn`, runner vẫn chạy.
+4. Log một dòng `bắt bù lúc khởi động` mỗi agent: `open`, `queued`, `notQueued`, `recent`, `awaitingHuman`, `blocked`, `inactive`, `invalid`, `overLimit`.
+
+Tắt: `runner.startup_catchup: false` hoặc `start --no-catchup`. Lệnh `run` / `doctor` / `report` / `usage push` không bắt bù. Điểm yếu đã chấp nhận: người thật bình luận không @nhắc vào việc đang chờ duyệt → lần khởi động sau bot mở một phiên đọc và trả lời. Test: `validator.test.ts`, `catchup.test.ts`, `flow.test.ts` (start → chạy, khởi động lại không chạy lại, hai cách tắt).
+
 ## Mode workspace
 
 `workspace.mode` mỗi agent: `worktree` (mặc định, như trên) | `in_place` (commit thẳng vào nhánh đang checkout, runner push nhánh đó lên origin, không PR) | `none` (agent nghiệp vụ: không repo / git, chỉ tool MCP — TEST-80) — chi tiết, điều kiện từ chối, rủi ro `.env`: [agent-runner-workspace.md](agent-runner-workspace.md).
@@ -45,7 +56,7 @@ Dự án bun + TypeScript độc lập ở gốc repo, **không thư viện runt
 | Lệnh | Việc |
 |---|---|
 | `bun src/cli.ts doctor [--agent NV120] [--no-telegram] [--no-model-check]` | CLI `--version` + model thật (chạy thử), token đúng nhân viên, repo có origin, cài hook, bot Telegram (`getMe`), `gh auth status` |
-| `bun src/cli.ts start [--no-model-check]` | Dịch vụ (systemd: `deploy/officehub-runner.service`) |
+| `bun src/cli.ts start [--no-model-check] [--no-catchup]` | Dịch vụ (systemd: `deploy/officehub-runner.service`); lúc khởi động bắt bù việc đang giao |
 | `bun src/cli.ts run --agent NV120 --task TEST-45` | Chạy ngay một việc (bỏ qua Telegram, vẫn hỏi lại OfficeHub) |
 | `bun src/cli.ts report [--days 1]` | Chi phí theo agent, theo loại job (token không cache / ghi / đọc cache, tỉ lệ đọc cache) và theo model |
 | `bun src/cli.ts usage push [--since yyyy-MM-dd] [--agent NV018] [--dry-run]` | Gửi bù chi phí / token các phiên chưa gửi lên OfficeHub ("Mức dùng AI") — [agent-runner-usage.md](agent-runner-usage.md) |
@@ -60,4 +71,4 @@ Test: đơn vị (cấu hình, validator, adapter + mẫu stream-json, store, pr
 Đã làm (TEST-135): **gửi mức dùng AI** sau mỗi phiên (`POST /mcp/usage`) + `usage push` gửi bù — [agent-runner-usage.md](agent-runner-usage.md). Chưa thử với OfficeHub thật.
 
 
-Đọc trường `event` / `comment_id` (OfficeHub đã gửi từ TEST-63: assigned / returned / mentioned — `mentioned` không bắt buộc việc giao cho bot, prompt chỉ trả lời bằng bình luận; cancelled → dừng phiên chưa có), HMAC tin, tổng kết chi phí hằng ngày vào nhóm, adapter `codex` / `gemini`, user Linux riêng từng agent, chỉ chạy khi người giao nằm trong danh sách cho phép (prompt injection).
+Bắt bù tin @nhắc chat chưa đọc lúc khởi động (`list_chats` có `mentionedUnread`; hiện chỉ bắt bù việc). Đọc trường `event` / `comment_id` (OfficeHub đã gửi từ TEST-63: assigned / returned / mentioned — `mentioned` không bắt buộc việc giao cho bot, prompt chỉ trả lời bằng bình luận; cancelled → dừng phiên chưa có), HMAC tin, tổng kết chi phí hằng ngày vào nhóm, adapter `codex` / `gemini`, user Linux riêng từng agent, chỉ chạy khi người giao nằm trong danh sách cho phép (prompt injection).

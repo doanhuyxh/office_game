@@ -62,6 +62,8 @@ export interface RunnerConfig {
   logFormat: 'auto' | 'json' | 'pretty';
   /** Gửi sự kiện "agent đang làm gì" lên OfficeHub cho người xem trực tiếp trong 3D (TEST-99). Mặc định bật. */
   activityStream: boolean;
+  /** Mỗi lần `start`, xếp luôn các việc đang giao cho agent mà không chờ tin đánh thức (TEST-158). Mặc định bật. */
+  startupCatchup: boolean;
   /** File chạy git (TEST-46). Không đặt = "git" trong PATH. */
   gitBin: string;
   agents: AgentConfig[];
@@ -111,6 +113,9 @@ export function parseConfig(raw: unknown): RunnerConfig {
   if (rn.activity_stream !== undefined && typeof rn.activity_stream !== 'boolean')
     p.push('runner.activity_stream là true hoặc false');
   const activityStream = rn.activity_stream !== false;
+  if (rn.startup_catchup !== undefined && typeof rn.startup_catchup !== 'boolean')
+    p.push('runner.startup_catchup là true hoặc false');
+  const startupCatchup = rn.startup_catchup !== false;
   const maxParallel = num(rn.max_parallel) ?? 2;
   if (maxParallel < 1 || maxParallel > 10) p.push('runner.max_parallel từ 1 đến 10');
 
@@ -234,6 +239,7 @@ export function parseConfig(raw: unknown): RunnerConfig {
     gitBin: gitBin ?? 'git',
     logFormat,
     activityStream,
+    startupCatchup,
     agents,
   };
 }

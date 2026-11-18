@@ -37,3 +37,19 @@ export interface MeetingState {
 export interface ProfileResult {
   employee?: { id?: string; code?: string; fullName?: string };
 }
+
+/**
+ * Một dòng của `list_my_tasks` (việc chưa xong đang giao cho tài khoản của token, sắp theo hạn). `awaitingHuman` / `projectActive` có từ
+ * TEST-157 — OfficeHub bản cũ không trả.
+ */
+export interface MyTask {
+  id?: string;
+  projectId?: string;
+  code?: string;
+  /** Số việc phải xong trước mà chưa xong. */
+  waitingOn?: number;
+  /** Bot đã báo (chuyển trạng thái / bình luận) và chưa có người thật thao tác lại → đang chờ người duyệt / trả lời. */
+  awaitingHuman?: boolean;
+  /** Dự án đang chạy. */
+  projectActive?: boolean;
+}

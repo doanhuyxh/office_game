@@ -4,7 +4,10 @@ import type { Command } from './context';
 /** Sau SIGTERM / SIGINT: chờ ngần này cho các phiên CLI bị huỷ thoát hẳn (SIGTERM rồi 10 giây sau SIGKILL) trước khi kết thúc tiến trình. */
 const SHUTDOWN_GRACE_MS = 12_000;
 
-/** `start [--no-model-check]`: dịch vụ — nghe Telegram, chạy việc được giao cho tới khi nhận SIGTERM / SIGINT. */
+/**
+ * `start [--no-model-check] [--no-catchup]`: dịch vụ — bắt bù việc đang giao cho agent, nghe Telegram, chạy việc được giao cho tới khi nhận
+ * SIGTERM / SIGINT.
+ */
 export const start: Command = async ({ runner, flags }) => {
   const stop = () => {
     log('info', 'dừng runner');
@@ -13,6 +16,6 @@ export const start: Command = async ({ runner, flags }) => {
   };
   process.on('SIGTERM', stop);
   process.on('SIGINT', stop);
-  await runner.start(flags.modelCheck);
+  await runner.start({ modelCheck: flags.modelCheck, catchUp: flags.catchUp });
   return 0;
 };

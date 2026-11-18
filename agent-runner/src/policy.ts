@@ -17,3 +17,9 @@ export const SCHEDULE_POLL_MS = 2000;
 
 /** Listener: `getUpdates` lỗi mà Telegram không báo `retry_after` → chờ ngần này giây rồi thử lại. */
 export const TELEGRAM_RETRY_SEC = 5;
+
+/** Bắt bù lúc khởi động (TEST-158): mỗi agent xếp tối đa ngần này việc mỗi lần `start`; phần còn lại chỉ log, lần khởi động sau lấy tiếp. */
+export const STARTUP_CATCHUP_MAX = 20;
+
+/** Bắt bù lúc khởi động: việc có job vừa kết thúc trong ngần này phút thì bỏ qua (runner khởi động lại liên tục không chạy lại cùng một việc). */
+export const STARTUP_RECENT_JOB_MIN = 10;

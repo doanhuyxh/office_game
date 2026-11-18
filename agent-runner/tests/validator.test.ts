@@ -1,6 +1,6 @@
 // Tin đánh thức: parseWake (không gọi mạng) + checkTask / checkChat / checkMeeting (kết quả tool MCP).
 import { describe, expect, test } from 'bun:test';
-import { checkChat, checkMeeting, checkTask, parseWake } from '../src/validator';
+import { checkChat, checkMeeting, checkTask, parseWake, pickStartupTasks } from '../src/validator';
 
 describe('validator', () => {
   const opts = { groupChatId: '-1001234567890', employeeCode: 'NV120' };
@@ -141,5 +141,61 @@ describe('validator', () => {
     );
     expect(waiting.ok === false && waiting.reason).toBe('việc còn chờ TEST-42');
     expect(checkTask(null, w, 'me').ok).toBe(false);
+  });
+});
+
+describe('pickStartupTasks (TEST-158): việc bắt bù lúc khởi động', () => {
+  const P = '01a1cb11-4644-716a-bf4d-8ab17b2f159b';
+  const id = (n: number) => `01a1ced9-0a22-713a-b89d-${String(n).padStart(12, '0')}`;
+  const row = (n: number, over: Record<string, unknown> = {}) => ({
+    id: id(n),
+    projectId: P,
+    code: `TEST-${n}`,
+    waitingOn: 0,
+    awaitingHuman: false,
+    projectActive: true,
+    ...over,
+  });
+
+  test('giữ việc cần làm theo đúng thứ tự máy chủ trả; đếm việc bị bỏ theo lý do', () => {
+    const r = pickStartupTasks([
+      row(3),
+      row(1, { awaitingHuman: true }),
+      row(2, { waitingOn: 2 }),
+      row(5, { projectActive: false }),
+      row(4),
+      { id: 'khong-phai-guid', projectId: P, code: 'TEST-9', awaitingHuman: false, projectActive: true },
+      null,
+    ]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.tasks).toEqual([
+      { id: id(3), projectId: P, code: 'TEST-3' },
+      { id: id(4), projectId: P, code: 'TEST-4' },
+    ]);
+    expect(r.value).toMatchObject({ total: 7, awaitingHuman: 1, blocked: 1, inactive: 1, invalid: 2 });
+  });
+
+  test('dự án không chạy / còn chờ việc khác được xét trước awaitingHuman; thiếu projectActive → không chạy', () => {
+    const r = pickStartupTasks([
+      row(1, { projectActive: false, awaitingHuman: true }),
+      row(2, { projectActive: undefined }),
+      row(3, { waitingOn: undefined }),
+    ]);
+    expect(r.ok && r.value).toMatchObject({ tasks: [{ code: 'TEST-3' }], inactive: 2, awaitingHuman: 0 });
+  });
+
+  test('OfficeHub bản cũ (không có awaitingHuman) → không đạt, không đoán', () => {
+    const r = pickStartupTasks([row(1), row(2, { awaitingHuman: undefined })]);
+    expect(r).toEqual({ ok: false, reason: expect.stringContaining('bản cũ') });
+  });
+
+  test('không phải danh sách → không đạt; danh sách rỗng → không có việc', () => {
+    expect(pickStartupTasks('lỗi').ok).toBe(false);
+    expect(pickStartupTasks(undefined).ok).toBe(false);
+    expect(pickStartupTasks([])).toEqual({
+      ok: true,
+      value: { tasks: [], total: 0, awaitingHuman: 0, blocked: 0, inactive: 0, invalid: 0 },
+    });
   });
 });

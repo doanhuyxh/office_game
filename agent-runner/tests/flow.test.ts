@@ -26,6 +26,9 @@ const usage: any[] = [];
 const activity: any[] = [];
 /** true = /mcp/activity nhận request rồi im lặng (máy chủ treo) — job vẫn phải xong. */
 let activityHang = false;
+/** Kết quả MCP list_my_tasks (TEST-158); null = tool chưa có (OfficeHub bản cũ) → lỗi. */
+let mine: any[] | null = null;
+let mineCalls = 0;
 /** Kết quả MCP list_chats (TEST-81). */
 let chats: any[] = [];
 let updatesServed = false;
@@ -112,6 +115,10 @@ beforeAll(async () => {
       if (name === 'get_my_profile') return text({ employee: { id: 'emp-1', code: 'NV120', fullName: 'Bot Thử' } });
       if (name === 'get_task') return text(tasks[a.task] ?? tasks[T1]);
       if (name === 'list_chats') return text(chats);
+      if (name === 'list_my_tasks') {
+        mineCalls++;
+        if (mine) return text(mine);
+      }
       if (name === 'comment_task') {
         comments.push({ task: a.task, content: a.content });
         return text({ ok: true });
@@ -788,6 +795,69 @@ test('runner dừng giữa phiên → job về hàng đợi (không ghi lỗi, k
     rmSync(join(root, 'slow'), { force: true });
   }
 }, 30000);
+
+// ---------------- bắt bù lúc khởi động (TEST-158) ----------------
+test('TEST-158: start → việc đang giao chưa có tin Telegram được chạy luôn; việc chờ người không chạy; khởi động lại không chạy lại; --no-catchup / cấu hình tắt → không hỏi', async () => {
+  const T3 = '01a1ced9-0a22-713a-b89d-00000000c158',
+    T4 = '01a1ced9-0a22-713a-b89d-00000000d158';
+  tasks[T3] = {
+    task: { id: T3, projectId: P, assigneeEmployeeId: 'emp-1', done: false, title: 'Việc bắt bù', code: 'TEST-158' },
+    dependsOn: [],
+  };
+  const row = (id: string, code: string, awaitingHuman: boolean) => ({
+    id,
+    projectId: P,
+    code,
+    waitingOn: 0,
+    awaitingHuman,
+    projectActive: true,
+  });
+  mine = [row(T4, 'TEST-159', true), row(T3, 'TEST-158', false)];
+  const jobsOf = (st: Store, key: string) =>
+    st.db.query<any, [string]>(`SELECT * FROM jobs WHERE task_id = ?`).all(key);
+  try {
+    // 1) khởi động: không có tin Telegram nào cho T3 → vẫn chạy
+    const a = await noneSetup();
+    const before = comments.length;
+    const calls = mineCalls;
+    const started = a.r.start({ modelCheck: false });
+    expect(await waitFor(() => comments.slice(before).some((c) => c.task === T3))).toBe(true);
+    expect(await waitFor(() => jobsOf(a.st, T3)[0]?.status === 'done', 3000)).toBe(true);
+    expect(mineCalls).toBe(calls + 1);
+    expect(jobsOf(a.st, T4)).toEqual([]); // bot đã báo, đang chờ người duyệt
+    a.r.stop();
+    await started;
+
+    // 2) khởi động lại ngay (cùng runner.db): việc vừa xong không chạy lại
+    const b = await noneSetup();
+    const again = b.r.start({ modelCheck: false });
+    expect(await waitFor(() => mineCalls === calls + 2, 5000)).toBe(true);
+    await Bun.sleep(500);
+    expect(jobsOf(b.st, T3).length).toBe(1);
+    b.r.stop();
+    await again;
+
+    // 3) --no-catchup → không hỏi list_my_tasks
+    const c = await noneSetup();
+    const off = c.r.start({ modelCheck: false, catchUp: false });
+    await Bun.sleep(700);
+    expect(mineCalls).toBe(calls + 2);
+    c.r.stop();
+    await off;
+
+    // 4) runner.startup_catchup: false → cũng không hỏi
+    const d = await noneSetup();
+    d.r.config.startupCatchup = false;
+    const offCfg = d.r.start({ modelCheck: false });
+    await Bun.sleep(700);
+    expect(mineCalls).toBe(calls + 2);
+    d.r.stop();
+    await offCfg;
+  } finally {
+    mine = null;
+    delete tasks[T3];
+  }
+}, 60000);
 
 // ---------------- chat_mention (TEST-81): người thật @nhắc bot trong chat → phiên ngắn chỉ có tool MCP ----------------
 test('chat_mention: tin Telegram → job chat trong thư mục riêng của hội thoại, không bình luận vào việc, nối phiên ≤ 10 phút; đã đọc hết → bỏ', async () => {
