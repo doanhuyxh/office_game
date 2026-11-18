@@ -127,7 +127,7 @@ export function usageSession(job: Job, host: string, dbId: string, fallbackExecu
     costUsd: num(job.cost_usd),
   };
   if (kind === 'task') {
-    // Chat / họp: task_id là khoá `<mã NV>:<id>`, task_code là nhãn log — không phải việc. Review: id việc sau tiền tố.
+    // Chat / họp: task_id là khoá `<mã NV>:<id>`, task_code là nhãn log — không phải việc. Review / deploy: id việc sau tiền tố.
     const taskId = taskIdOf(job);
     if (taskId && GUID.test(taskId)) s.taskId = taskId;
     if (GUID.test(job.project_id)) s.projectId = job.project_id;

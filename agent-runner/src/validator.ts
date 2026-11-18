@@ -29,7 +29,9 @@ export type Wake =
   | ({ kind: 'chat' } & ChatWake)
   | ({ kind: 'meeting' } & MeetingWake)
   /** `event: review_requested` (TEST-167): bot là người review, việc vừa vào cột review — cùng 4 trường như tin việc. */
-  | ({ kind: 'review' } & WakeData);
+  | ({ kind: 'review' } & WakeData)
+  /** `event: task_done` (TEST-168): việc bot đang theo dõi vừa được người thật chuyển Xong — cùng 4 trường như tin việc. */
+  | ({ kind: 'deploy' } & WakeData);
 
 export type Check<T> = { ok: true; value: T } | { ok: false; reason: string };
 
@@ -62,8 +64,8 @@ const TASK_SHAPE: WakeShape = {
   }),
 };
 
-/** Tin cùng dạng tin việc nhưng thành loại job khác (review). Trường thêm của máy chủ (assignee_code) bị bỏ qua. */
-const taskShapeAs = (kind: 'review'): WakeShape => ({
+/** Tin cùng dạng tin việc nhưng thành loại job khác (review / deploy). Trường thêm của máy chủ (assignee_code, project_code) bị bỏ qua. */
+const taskShapeAs = (kind: 'review' | 'deploy'): WakeShape => ({
   ...TASK_SHAPE,
   build: (d) => ({ ...(TASK_SHAPE.build(d) as WakeData), kind }),
 });
@@ -71,6 +73,7 @@ const taskShapeAs = (kind: 'review'): WakeShape => ({
 /** Loại tin theo trường `event`; `event` khác → {@link TASK_SHAPE}. */
 const EVENT_SHAPES: Record<string, WakeShape> = {
   review_requested: taskShapeAs('review'),
+  task_done: taskShapeAs('deploy'),
   chat_mention: {
     keys: ['employee_code', 'conversation_id', 'message_id'],
     guids: ['conversation_id', 'message_id'],
@@ -183,6 +186,24 @@ export function checkReview(
   if (t.done) return { ok: false, reason: 'việc đã xong' };
   const column = (detail?.columns ?? []).find((c) => c?.id === t.columnId);
   if (column?.isReview !== true) return { ok: false, reason: 'việc không còn ở cột review' };
+  return { ok: true, value: { title: String(t.title ?? ''), code: String(t.code ?? '') } };
+}
+
+/**
+ * Bước 2 của tin task_done (TEST-168), lúc nhận tin VÀ ngay trước khi chạy: việc đã xong và agent đang theo dõi việc. Bị mở lại / bỏ theo
+ * dõi → bỏ.
+ */
+export function checkDeploy(
+  detail: TaskDetail | null | undefined,
+  wake: Pick<WakeData, 'project_id' | 'task_id'>,
+  myEmployeeId: string,
+): Check<{ title: string; code: string }> {
+  const same = sameTask(detail, wake);
+  if (!same.ok) return same;
+  const t = same.value;
+  if (t.done !== true) return { ok: false, reason: 'việc chưa xong (bị mở lại?)' };
+  if (!(detail?.followers ?? []).some((f) => f?.employeeId === myEmployeeId))
+    return { ok: false, reason: 'agent không theo dõi việc này' };
   return { ok: true, value: { title: String(t.title ?? ''), code: String(t.code ?? '') } };
 }
 

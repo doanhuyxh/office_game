@@ -6,6 +6,7 @@ export const KIND_LABEL: Record<string, string> = {
   chat: 'chat',
   meeting: 'họp',
   review: 'review',
+  deploy: 'deploy',
 };
 
 const n = (x: number) => x.toLocaleString('en');

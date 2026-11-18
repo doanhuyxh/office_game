@@ -112,3 +112,18 @@ agents:
       home: /srv/agents/NV150/home               # gh auth login bằng token CHỈ ĐỌC repo (gh pr checkout), không quyền merge
       timeout_min: 30
       max_budget_usd: 3
+
+  - employee_code: NV160                         # agent DEVOPS (TEST-168): được thêm làm "Người theo dõi" việc → tin task_done khi người thật duyệt Xong
+    telegram_bot: "@agent_devops01_bot"
+    telegram_token: "888888888:AA…"
+    token: "ohk_ffffffffffffffff"
+    workspace:
+      mode: none                                 # không repo
+      builtin_tools: true                        # bắt buộc cho deploy: shell để chạy gh / ssh theo mục "Deploy" của hướng dẫn
+    executor:
+      kind: claude
+      bin: /usr/local/bin/claude
+      model: claude-sonnet-5-5
+      home: /srv/agents/NV160/home               # ~/.ssh/config alias officehub-prod (khoá chỉ chạy được scripts/deploy-remote.sh), gh auth
+      timeout_min: 20
+      max_budget_usd: 1

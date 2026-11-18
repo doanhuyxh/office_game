@@ -147,9 +147,11 @@ describe('dựng phiên', () => {
     ).toMatchObject({ kind: 'meeting', status: 'failed' });
   });
 
-  test('review (TEST-167): gửi loại task, id việc lấy sau tiền tố <mã NV>: của khoá', () => {
-    const s = usageSession(doneJob('NV120', { kind: 'review', key: `NV120:${T}`, code: 'TEST-45' }), 'h', 'd');
-    expect(s).toMatchObject({ kind: 'task', taskId: T, projectId: P, taskCode: 'TEST-45' });
+  test('review / deploy (TEST-167/168): gửi loại task, id việc lấy sau tiền tố <mã NV>: của khoá', () => {
+    for (const kind of ['review', 'deploy'] as const) {
+      const s = usageSession(doneJob('NV120', { kind, key: `NV120:${T}`, code: 'TEST-45' }), 'h', 'd');
+      expect(s).toMatchObject({ kind: 'task', taskId: T, projectId: P, taskCode: 'TEST-45' });
+    }
   });
 
   test('không biết → null, không phải 0; model cấu hình bỏ hậu tố; job cũ không có cache → token vào = tổng', () => {

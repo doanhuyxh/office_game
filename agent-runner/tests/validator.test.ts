@@ -1,6 +1,14 @@
 // Tin đánh thức: parseWake (không gọi mạng) + checkTask / checkChat / checkMeeting (kết quả tool MCP).
 import { describe, expect, test } from 'bun:test';
-import { checkChat, checkMeeting, checkReview, checkTask, parseWake, pickStartupTasks } from '../src/validator';
+import {
+  checkChat,
+  checkDeploy,
+  checkMeeting,
+  checkReview,
+  checkTask,
+  parseWake,
+  pickStartupTasks,
+} from '../src/validator';
 
 describe('validator', () => {
   const opts = { groupChatId: '-1001234567890', employeeCode: 'NV120' };
@@ -26,7 +34,7 @@ describe('validator', () => {
       expect(parseWake(m as any, opts).ok).toBe(true);
   });
 
-  test('review_requested (TEST-167): cùng 4 trường như tin việc → job review, trường thêm bị bỏ qua', () => {
+  test('review_requested / task_done (TEST-167/168): cùng 4 trường như tin việc → job review / deploy, trường thêm bị bỏ qua', () => {
     const extra = '"assignee_code":"NV018","project_code":"TEST","task_code"';
     const review = parseWake(msg(good.replace('"task_code"', `"event":"review_requested",${extra}`)), opts);
     expect(review.ok && review.value).toEqual({
@@ -36,13 +44,15 @@ describe('validator', () => {
       task_id: T,
       task_code: 'TEST-45',
     });
+    const done = parseWake(msg(good.replace('"task_code"', `"event":"task_done",${extra}`)), opts);
+    expect(done.ok && done.value.kind).toBe('deploy');
     // vẫn kiểm GUID / mã việc như tin việc
     expect(
-      parseWake(msg(good.replace('"task_code"', '"event":"review_requested","task_code"').replace(T, 'x')), opts).ok,
+      parseWake(msg(good.replace('"task_code"', '"event":"task_done","task_code"').replace(T, 'x')), opts).ok,
     ).toBe(false);
   });
 
-  test('checkReview (TEST-167)', () => {
+  test('checkReview / checkDeploy (TEST-167/168)', () => {
     const w = { project_id: P, task_id: T };
     const base = { id: T, projectId: P, title: 'X', code: 'TEST-45', done: false, columnId: 'c-rev' };
     const review = (t: any = {}, columns: any[] = [{ id: 'c-rev', isReview: true }]) => ({
@@ -61,6 +71,19 @@ describe('validator', () => {
     }); // isReview false bị máy chủ bỏ
     expect(checkReview(review({ projectId: 'khac' }), w, 'me').ok).toBe(false);
     expect(checkReview(null, w, 'me').ok).toBe(false);
+
+    const deploy = (t: any = {}, followers: any[] = [{ employeeId: 'me' }]) => ({
+      task: { ...base, done: true, ...t },
+      followers,
+    });
+    expect(checkDeploy(deploy(), w, 'me')).toEqual({ ok: true, value: { title: 'X', code: 'TEST-45' } });
+    expect(checkDeploy(deploy({ done: false }), w, 'me')).toEqual({ ok: false, reason: 'việc chưa xong (bị mở lại?)' });
+    expect(checkDeploy(deploy({}, [{ employeeId: 'other' }]), w, 'me')).toEqual({
+      ok: false,
+      reason: 'agent không theo dõi việc này',
+    });
+    expect(checkDeploy(deploy({}, null as any), w, 'me').ok).toBe(false); // máy chủ cũ không trả followers
+    expect(checkDeploy(deploy({ id: 'khac' }), w, 'me').ok).toBe(false);
   });
 
   test('tin đúng', () => {
