@@ -8,8 +8,38 @@ import { redact, registerSecret } from '../src/log';
 import { buildPrompt, mcpConfig } from '../src/prompt';
 import { chatPrompt } from '../src/prompt/chat';
 import { meetingPrompt } from '../src/prompt/meeting';
+import { MAX_REVIEW_ROUNDS, reviewPrompt } from '../src/prompt/review';
 import { Store } from '../src/store';
 import { COMMIT_MSG_MARK, PRE_PUSH_MARK, branchName, commitMsgHook, prePushHook } from '../src/workspace';
+
+describe('prompt review (TEST-167)', () => {
+  const w = { employee_code: 'NV150', project_id: 'p', task_id: 't', task_code: 'TEST-45' };
+  test('review: chỉ đọc, tự lấy PR / nhánh, một bình luận REVIEW, giới hạn vòng; nối phiên chỉ đọc phần mới', () => {
+    const p = reviewPrompt(w, { baseBranch: 'main', resumed: false });
+    for (const t of [
+      'NGƯỜI REVIEW của việc TEST-45',
+      'get_my_role',
+      'get_project p',
+      'origin/main',
+      'gh pr checkout <số PR> --detach',
+      'git diff origin/main...HEAD',
+      'REVIEW: ĐẠT',
+      'REVIEW: CẦN SỬA',
+      'REVIEW: KHÔNG REVIEW ĐƯỢC',
+      `Đã có ${MAX_REVIEW_ROUNDS} lần`,
+      'CHỈ ĐỌC',
+      'Không update_task_status',
+      '**Bàn giao**',
+    ])
+      expect(p).toContain(t);
+    const again = reviewPrompt(w, { baseBranch: 'main', resumed: true });
+    expect(again).toContain('NỐI TIẾP');
+    expect(again).not.toContain('1. get_my_role');
+  });
+  test('hook pre-push chặn mọi push khi phiên chỉ đọc', () => {
+    expect(prePushHook('main')).toContain('[ -n "$OFFICEHUB_READONLY" ]');
+  });
+});
 
 describe('prompt / mcp / log', () => {
   const w = { employee_code: 'NV120', project_id: 'p', task_id: 't', task_code: 'TEST-45' };

@@ -6,7 +6,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { kindReportLines } from '../src/report';
-import { Store, type Job, type JobResult } from '../src/store';
+import { Store, type Job, type JobKind, type JobResult } from '../src/store';
 import { sourceHost, splitInput, UsageReporter, usageSession, usageUrl, type AiUsageSession } from '../src/hub/usage';
 
 const root = mkdtempSync(join(tmpdir(), 'runner-usage-'));
@@ -60,7 +60,7 @@ beforeEach(() => {
 /** Thêm một job đã chạy xong (như finishJob). */
 function doneJob(
   agent: string,
-  f: JobResult & { kind?: 'task' | 'chat' | 'meeting'; status?: 'done' | 'failed'; key?: string; code?: string } = {},
+  f: JobResult & { kind?: JobKind; status?: 'done' | 'failed'; key?: string; code?: string } = {},
 ): Job {
   const id = store.enqueue(agent, f.key ?? `${T}-${Math.random()}`, f.code ?? 'TEST-45', P, f.kind ?? 'task')!;
   store.claimNext(10, [agent]);
@@ -145,6 +145,11 @@ describe('dựng phiên', () => {
         'd',
       ),
     ).toMatchObject({ kind: 'meeting', status: 'failed' });
+  });
+
+  test('review (TEST-167): gửi loại task, id việc lấy sau tiền tố <mã NV>: của khoá', () => {
+    const s = usageSession(doneJob('NV120', { kind: 'review', key: `NV120:${T}`, code: 'TEST-45' }), 'h', 'd');
+    expect(s).toMatchObject({ kind: 'task', taskId: T, projectId: P, taskCode: 'TEST-45' });
   });
 
   test('không biết → null, không phải 0; model cấu hình bỏ hậu tố; job cũ không có cache → token vào = tổng', () => {

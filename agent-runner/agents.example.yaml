@@ -99,3 +99,16 @@ agents:
       max_budget_usd: 4
       # MCP thêm ngoài OfficeHub: chép design-mcp.example.json ra ngoài repo; khoá lấy từ env_file qua ${STITCH_API_KEY}, không ghi vào file
       extra_args: ["--mcp-config", "/etc/officehub-runner/design-mcp.json"]
+
+  - employee_code: NV150                         # agent REVIEW (TEST-167): được đặt làm "Người review" của việc → tin review_requested
+    telegram_bot: "@agent_review01_bot"
+    telegram_token: "777777777:AA…"
+    token: "ohk_eeeeeeeeeeeeeeee"
+    repo: /srv/agents/NV150/office_game          # bản clone riêng — review chạy trong worktree REVIEW-<mã việc>, CHỈ ĐỌC (hook chặn push)
+    executor:                                    # mode worktree (mặc định) — bắt buộc cho review; nên khác model / nhà cung cấp với bot code
+      kind: claude
+      bin: /usr/local/bin/claude
+      model: claude-opus-5-5
+      home: /srv/agents/NV150/home               # gh auth login bằng token CHỈ ĐỌC repo (gh pr checkout), không quyền merge
+      timeout_min: 30
+      max_budget_usd: 3

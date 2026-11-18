@@ -630,6 +630,59 @@ test('hook pre-push bị xoá → job kế tiếp tự tạo lại trước khi 
   expect((await sh(['git', 'log', '-1', '--format=%B'], wt)).out).toContain('Agent: NV120');
 }, 30000);
 
+test('review_requested (TEST-167): người review → worktree REVIEW-<mã> ở origin/main, không push / PR, bình luận chi phí; không phải reviewer / ngoài cột review → bỏ', async () => {
+  const s = runner.agents.get('NV120')!;
+  const saved = tasks[T1];
+  const wake = { kind: 'review' as const, employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' };
+  const reviewTask = (over: Record<string, unknown> = {}) => ({
+    ...saved,
+    task: { ...saved.task, assigneeEmployeeId: 'emp-9', reviewerEmployeeId: 'emp-1', columnId: 'c-rev', ...over },
+    columns: [{ id: 'c-doing' }, { id: 'c-rev', isReview: true }],
+  });
+  try {
+    tasks[T1] = reviewTask({ reviewerEmployeeId: 'nguoi-khac' });
+    expect(await runner.accept(s, wake)).toBeNull();
+    tasks[T1] = reviewTask({ columnId: 'c-doing' });
+    expect(await runner.accept(s, wake)).toBeNull();
+    tasks[T1] = reviewTask();
+    const before = comments.length;
+    const id = await runner.accept(s, wake);
+    expect(id).not.toBeNull();
+    expect(await waitFor(() => comments.length > before)).toBe(true);
+    expect(await waitFor(() => store.getJob(id!)?.status === 'done', 3000)).toBe(true);
+    const job = store.getJob(id!)!;
+    expect(job.kind).toBe('review');
+    expect(job.key).toBe(`NV120:${T1}`);
+    expect(job.pr_url).toBeNull();
+    const c = comments.at(-1)!;
+    expect(c.task).toBe(T1);
+    expect(c.content).toContain('Phiên review — chỉ đọc, không push');
+    const wt = join(root, 'worktrees/NV120/REVIEW-TEST-45');
+    expect(readFileSync(join(root, 'data/jobs', String(id), 'args.txt'), 'utf8')).toContain(wt);
+    const prompt = readFileSync(join(root, 'data/jobs', String(id), 'prompt-copy.md'), 'utf8');
+    for (const t of ['NGƯỜI REVIEW', 'gh pr checkout', 'REVIEW: ĐẠT', 'REVIEW: CẦN SỬA', 'CHỈ ĐỌC'])
+      expect(prompt).toContain(t);
+    // commit CLI giả tạo trong worktree review không được push lên origin
+    expect((await sh(['git', 'ls-remote', '--heads', 'origin'], wt)).out).not.toContain('REVIEW');
+    // hook pre-push chặn mọi push khi phiên chỉ đọc
+    const push = await sh(['git', 'push', 'origin', 'HEAD:refs/heads/thu-review'], wt, {
+      ...process.env,
+      OFFICEHUB_READONLY: '1',
+    } as any);
+    expect(push.code).not.toBe(0);
+    expect(push.err).toContain('chỉ đọc');
+    // lần review sau: dùng lại worktree, đưa về origin/main (bỏ commit cũ)
+    const head = (await sh(['git', 'rev-parse', 'HEAD'], wt)).out;
+    const again = await runner.accept(s, wake);
+    expect(await waitFor(() => store.getJob(again!)?.status === 'done', 15000)).toBe(true);
+    const originMain = (await sh(['git', 'rev-parse', 'origin/main'], wt)).out;
+    expect((await sh(['git', 'rev-parse', 'HEAD~1'], wt)).out).toBe(originMain); // một commit mới của CLI giả trên origin/main
+    expect((await sh(['git', 'rev-parse', 'HEAD'], wt)).out).not.toBe(head);
+  } finally {
+    tasks[T1] = saved;
+  }
+}, 40000);
+
 test('in_place: gỡ hook do runner cài, giữ nguyên hook của người dùng', async () => {
   const { repo, exec } = await inPlaceSetup();
   const hooks = join(repo, '.git/hooks');

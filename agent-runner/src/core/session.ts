@@ -6,10 +6,10 @@ import { modelMatches } from '../executor/model';
 import { adapters, type RunOutcome, runExecutor } from '../executor/run';
 import { errText, log, redact } from '../log';
 import { RESUME_MAX_GAP_MIN } from '../policy';
-import { mcpConfig } from '../prompt';
+import { type McpProfile, mcpConfig } from '../prompt';
 import { MCP_SYSTEM_PROMPT } from '../prompt/system';
-import type { Job, Store } from '../store';
-import { AGENT_ENV, type Git, TASK_ENV } from '../workspace';
+import { type Job, reportKind, type Store } from '../store';
+import { AGENT_ENV, type Git, READONLY_ENV, TASK_ENV } from '../workspace';
 import type { AgentState } from './agent';
 import { agentEnv } from './env';
 import { jobDir } from './paths';
@@ -34,6 +34,8 @@ export interface SessionRequest {
   exec?: ExecutorConfig;
   /** Chỉ tool MCP (mode none, chat, họp). */
   noBuiltinTools?: boolean;
+  /** Phiên chỉ đọc (review, TEST-167): đặt `READONLY_ENV` → hook pre-push của runner chặn mọi push. */
+  readOnly?: boolean;
   /** Có báo thao tác lên văn phòng 3D không. */
   presence: boolean;
   /** Tên phiên người xem trực tiếp thấy ("MÃ · tên việc"; chat / họp: nhãn chung, không có nội dung tin). */
@@ -75,6 +77,7 @@ export class Sessions {
       OFFICEHUB_TOKEN: s.cfg.token,
       [AGENT_ENV]: job.agent,
       [TASK_ENV]: job.label,
+      ...(request.readOnly ? { [READONLY_ENV]: '1' } : {}),
     };
     const onActivity = this.activityLogger(s, job, dir, request.presence);
     // Dòng đầu job ghi model: adapter claude tự báo từ sự kiện system/init; adapter khác chỉ biết model cấu hình.
@@ -118,7 +121,8 @@ export class Sessions {
     mkdirSync(dir, { recursive: true });
     const files = { prompt: join(dir, 'prompt.md'), mcp: join(dir, 'mcp.json') };
     writeFileSync(files.prompt, prompt, { mode: 0o600 });
-    const mcp = mcpConfig(this.config.mcpUrl, job.kind);
+    // review dùng bộ tool việc (get_task, comment_task…)
+    const mcp = mcpConfig(this.config.mcpUrl, reportKind(job.kind) as McpProfile);
     writeFileSync(files.mcp, JSON.stringify(mcp, null, 2), { mode: 0o600 });
     return files;
   }
@@ -186,7 +190,7 @@ export class Sessions {
   record(s: AgentState, job: Job, out: RunOutcome, place: SessionPlace) {
     this.store.saveSession(job.key, job.agent, out.sessionId ?? null, place.branch ?? '', place.cwd, place.resumed);
     if (!s.transcripts || !out.sessionId) return;
-    this.store.markTranscript(job.key, job.kind, out.summary?.trim() || null);
+    this.store.markTranscript(job.key, reportKind(job.kind), out.summary?.trim() || null);
     void s.transcripts.flush().catch((e) => log('warn', 'gửi transcript lỗi', { agent: job.agent, error: errText(e) }));
   }
 

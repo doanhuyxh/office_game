@@ -64,7 +64,8 @@ export function meetingJobs(services: JobServices): JobHandler<WakeOf<'meeting'>
       const checked = checkMeeting(await s.hub.myMeeting(), wake.session_id);
       if (!checked.ok) return checked;
       const busy = store.runningJob(s.cfg.employeeCode);
-      if (!busy || busy.kind !== 'task') return { ok: true };
+      // Đang làm việc / review (phiên dài) → bỏ lượt; đang chat thì chờ được
+      if (!busy || !['task', 'review'].includes(busy.kind)) return { ok: true };
       await s.hub.passTurn();
       return { ok: false, reason: `đang chạy ${busy.label}`, warning: 'agent đang làm việc — bỏ lượt họp' };
     },
