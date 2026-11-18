@@ -86,6 +86,10 @@ internal static class NotificationCatalog
             "Người review của việc khi việc chuyển vào trạng thái review từ trạng thái khác (bỏ khi chính người review chuyển). " +
             "Telegram + webhook task.review_requested: chỉ khi người review là tài khoản bot.",
             NotificationCategories.ProjectTask, Telegram: nameof(ITelegramWakeup.TaskReviewRequestedAsync), WebhookEvent: WebhookEvents.TaskReviewRequested),
+        new("projects.task_done_followers", "projects", "Việc theo dõi đã xong (bot)",
+            "Người theo dõi là tài khoản bot khi người thật chuyển việc từ chưa xong sang trạng thái hoàn thành (token AI chuyển / đã xong chuyển cột xong khác → không gửi). " +
+            "Không chuông; Telegram + webhook task.done — vd bot DevOps deploy khi việc được duyệt.",
+            null, Telegram: nameof(ITelegramWakeup.TaskDoneAsync), WebhookEvent: WebhookEvents.TaskDone),
         new("projects.task_due", "projects", "Việc đến hạn / quá hạn", "Người làm, một lần khi việc chưa xong đến hạn hoặc quá hạn.", NotificationCategories.ProjectTask),
         new("projects.updated", "projects", "Dự án được cập nhật", "Thành viên dự án khi thông tin chung / hướng dẫn làm việc của dự án đổi.", NotificationCategories.ProjectTask),
         new("projects.member_added", "projects", "Thêm vào dự án", "Nhân viên được thêm vào dự án (mở công việc + kho tài liệu dự án).", NotificationCategories.ProjectMemberAdded),

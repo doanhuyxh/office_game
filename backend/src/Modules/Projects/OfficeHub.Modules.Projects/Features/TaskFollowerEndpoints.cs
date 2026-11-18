@@ -17,7 +17,7 @@ public sealed record TaskFollowerDto(Guid EmployeeId, string? Code, string FullN
 
 /// <summary>
 /// Người theo dõi việc (TEST-160): thành viên dự án có quyền làm việc (kể cả token AI / MCP) thêm / bỏ người theo dõi; người được thêm phải là thành viên dự án.
-/// Ghi lịch sử Follow / Unfollow (to / from = họ tên). Chưa gửi thông báo cho người theo dõi (đánh thức khi việc xong làm ở việc riêng).
+/// Ghi lịch sử Follow / Unfollow (to / from = họ tên). Người theo dõi là bot được đánh thức <c>task_done</c> khi người thật chuyển việc sang hoàn thành (TEST-166, <see cref="TaskDoneRules"/>).
 /// </summary>
 internal static class TaskFollowerEndpoints
 {

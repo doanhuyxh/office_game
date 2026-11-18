@@ -32,6 +32,12 @@ Việc chỉ có một người làm. Người theo dõi = thành viên dự án
 
 Hộp thoại việc, cột phải dưới "Phải chờ việc": "Người theo dõi (n)" — chip họ tên + nhãn BOT, ✕ bỏ (có vòng xoay); ô chọn tìm được "Thêm người theo dõi" chỉ gợi ý thành viên đang làm chưa theo dõi, chọn là thêm ngay. Không có quyền làm → chỉ xem (ẩn khi trống).
 
-## Chưa làm
+## Đánh thức `task_done` (TEST-166)
 
-Chưa gửi chuông / webhook / Telegram cho người theo dõi (đánh thức `task_done` khi việc xong làm ở việc riêng trên bảng `TEST`).
+Vd bot DevOps theo dõi việc của dev → việc được duyệt Xong thì deploy (runner xử lý: TEST-168).
+
+- `TaskEndpoints.UpdateAsync` / `MoveAsync`, cạnh `NotifyUnblockedAsync` → `NotifyDoneFollowersAsync` khi `TaskDoneRules.ShouldWake`: việc chuyển **chưa xong → xong lần này** và người thao tác **không dùng token AI** (bot không tự "duyệt" để kích hoạt deploy). Đã xong chuyển sang cột hoàn thành khác → không bắn lại; mở lại rồi Xong lần nữa → bắn lại.
+- Người nhận (`TaskDoneRules.BotTargets`): người theo dõi có tài khoản **bot đang hoạt động**, mỗi tài khoản một lần, bỏ người thao tác. Người theo dõi là người thật → không có gì (chưa có chuông).
+- Mỗi bot: Telegram `ITelegramWakeup.TaskDoneAsync` → `{"employee_code":<mã bot>,"project_id","task_id","task_code","event":"task_done","project_code","assignee_code"?}` (hàng đợi `Kind = task_done`; không có tên việc như mọi tin Telegram) + webhook `task.done` (`taskId, taskCode, title, projectId, projectCode, projectName, column, assigneeEmployeeId, assigneeCode, assigneeName, movedBy, completedAt`).
+- Danh mục: `projects.task_done_followers` (không chuông; Telegram + webhook). Đổi cột thành hoàn thành / xoá cột (`TaskColumnEndpoints`) làm việc xong hàng loạt → **không** bắn.
+- Test: `TaskDoneRulesTests`, `TelegramRulesTests`; e2e `scripts/dev/task-done-e2e.ts` (12/12 trên DB tạm, 2026-11-18).

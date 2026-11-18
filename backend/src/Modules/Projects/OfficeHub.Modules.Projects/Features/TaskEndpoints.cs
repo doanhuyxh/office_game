@@ -423,6 +423,8 @@ internal static class TaskEndpoints
         notified.AddRange(await NotifyReviewRequestedAsync(notifier, dir, telegram, webhooks, accounts, p, t, cols, from, v, ct));
         await NotifyMembersMovedAsync(notifier, access, p, t, cols, from, note, v, notified, ct);
         if (!wasDone && t.CompletedAt != null) await NotifyUnblockedAsync(notifier, dir, telegram, db, p, t, v, ct);
+        if (TaskDoneRules.ShouldWake(wasDone, t.CompletedAt != null, user.IsAccessToken()))
+            await NotifyDoneFollowersAsync(dir, telegram, webhooks, accounts, access, db, p, t, cols, v, ct);
         return TypedResults.NoContent();
     }
 
@@ -449,6 +451,8 @@ internal static class TaskEndpoints
         notified.AddRange(await NotifyReviewRequestedAsync(notifier, dir, telegram, webhooks, accounts, p, t, cols, from, v, ct));
         await NotifyMembersMovedAsync(notifier, access, p, t, cols, from, note, v, notified, ct);
         if (!wasDone && t.CompletedAt != null) await NotifyUnblockedAsync(notifier, dir, telegram, db, p, t, v, ct);
+        if (TaskDoneRules.ShouldWake(wasDone, t.CompletedAt != null, user.IsAccessToken()))
+            await NotifyDoneFollowersAsync(dir, telegram, webhooks, accounts, access, db, p, t, cols, v, ct);
         return TypedResults.NoContent();
     }
 
@@ -494,6 +498,35 @@ internal static class TaskEndpoints
                 $"Sẵn sàng: {EffortRules.TaskCode(p.Code, x.Number)} {x.Title}",
                 $"{EffortRules.TaskCode(p.Code, done.Number)} \"{done.Title}\" đã xong — việc này hết phải chờ, có thể bắt đầu.", TaskNotifyRules.Link(p.Id, x.Id), SendEmail: false), ct);
         }
+    }
+
+    /// <summary>
+    /// TEST-166: người thật vừa chuyển việc sang hoàn thành (<see cref="TaskDoneRules.ShouldWake"/>) → mỗi bot đang theo dõi việc nhận Telegram
+    /// <c>task_done</c> + webhook <see cref="WebhookEvents.TaskDone"/> (vd bot DevOps deploy). Không chuông cho người theo dõi là người thật.
+    /// </summary>
+    private static async Task NotifyDoneFollowersAsync(IEmployeeDirectory dir, ITelegramWakeup telegram, IWebhookPublisher webhooks, IAccountService accounts,
+        ProjectAccess access, ProjectsDbContext db, Project p, TaskItem t, List<ColumnInfo> cols, ProjectViewer v, CancellationToken ct)
+    {
+        var ids = await db.Followers.AsNoTracking().Where(f => f.TaskId == t.Id).Select(f => f.EmployeeId).ToListAsync(ct);
+        if (ids.Count == 0) return;
+        var emps = await access.EmployeesAsync(ct);
+        var byUser = ids.Select(i => emps.TryGetValue(i, out var e) ? e : null).OfType<EmployeeRef>().Where(e => e.UserId != null)
+            .GroupBy(e => e.UserId!.Value).ToDictionary(g => g.Key, g => g.First());
+        if (byUser.Count == 0) return;
+        var accs = await accounts.GetManyAsync(byUser.Keys.ToList(), ct);
+        var targets = TaskDoneRules.BotTargets(byUser.Keys.Select(u => accs.TryGetValue(u, out var a)
+            ? new TaskDoneRules.Follower(u, a.IsBot, a.IsActive) : new TaskDoneRules.Follower(u, false, false)), v.UserId);
+        if (targets.Count == 0) return;
+        var code = EffortRules.TaskCode(p.Code, t.Number);
+        var column = cols.FirstOrDefault(c => c.Id == t.ColumnId)?.Name ?? "?";
+        var assignee = t.AssigneeEmployeeId is { } a ? await dir.GetAsync(a, ct) : null;
+        foreach (var u in targets)
+            await telegram.TaskDoneAsync(u, byUser[u].Code, p.Id, p.Code, t.Id, code, assignee?.Code, ct);
+        await webhooks.PublishAsync(targets, WebhookEvents.TaskDone, new
+        {
+            taskId = t.Id, taskCode = code, title = t.Title, projectId = p.Id, projectCode = p.Code, projectName = p.Name, column,
+            assigneeEmployeeId = t.AssigneeEmployeeId, assigneeCode = assignee?.Code, assigneeName = assignee?.FullName, movedBy = v.Name, completedAt = t.CompletedAt,
+        }, ct);
     }
 
     /// <summary>Đặt danh sách việc phải chờ (thay toàn bộ). Thành viên dự án đang chạy; cùng dự án, không vòng, ≤ 10.</summary>

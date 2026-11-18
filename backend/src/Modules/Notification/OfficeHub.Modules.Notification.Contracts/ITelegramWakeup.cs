@@ -23,6 +23,12 @@ public interface ITelegramWakeup
     /// Người gọi bỏ người review khi chính họ chuyển việc; người nhận không phải bot / đã khoá → bỏ qua.</summary>
     Task TaskReviewRequestedAsync(Guid reviewerUserId, string reviewerCode, Guid projectId, Guid taskId, string taskCode, string? assigneeCode, CancellationToken ct = default);
 
+    /// <summary>Việc bot đang theo dõi vừa được NGƯỜI THẬT chuyển sang hoàn thành (TEST-166) → tin <c>event: task_done</c> (4 trường như giao việc,
+    /// <c>employee_code</c> = mã bot theo dõi) + <c>project_code</c> + <c>assignee_code</c> (nếu có); vd bot DevOps deploy khi việc được duyệt Xong.
+    /// Người gọi chỉ gửi khi việc chuyển chưa xong → xong lần này và người thao tác không dùng token AI; người nhận không phải bot / đã khoá → bỏ qua.</summary>
+    Task TaskDoneAsync(Guid followerUserId, string followerCode, Guid projectId, string projectCode, Guid taskId, string taskCode, string? assigneeCode,
+        CancellationToken ct = default);
+
     /// <summary>Bot được @mã-nhân-viên trong bình luận việc (TEST-63) → tin <c>event: mentioned</c> + <c>comment_id</c>; agent đọc bình luận và chỉ trả lời bằng bình luận.
     /// Người gọi bỏ tác giả bình luận; người nhận không phải bot / đã khoá → bỏ qua.</summary>
     Task TaskMentionedAsync(Guid userId, string employeeCode, Guid projectId, Guid taskId, string taskCode, Guid commentId, CancellationToken ct = default);
@@ -50,6 +56,8 @@ public static partial class TelegramRules
     public const string Ready = "ready";
     /// <summary>Việc vào cột review, người review là bot (TEST-161).</summary>
     public const string ReviewRequested = "review_requested";
+    /// <summary>Việc bot theo dõi được người thật chuyển sang hoàn thành (TEST-166).</summary>
+    public const string TaskDone = "task_done";
     /// <summary>Bot được @nhắc trong tin nhắn chat (TEST-70) — tin không có task_id / project_id.</summary>
     public const string ChatMention = "chat_mention";
     /// <summary>Bot dự họp agent tới lượt nói (TEST-75) — tin không có task_id / project_id / nội dung.</summary>
@@ -76,6 +84,19 @@ public static partial class TelegramRules
         var d = new Dictionary<string, string>
         {
             ["employee_code"] = reviewerCode, ["project_id"] = projectId.ToString(), ["task_id"] = taskId.ToString(), ["task_code"] = taskCode, ["event"] = ReviewRequested,
+        };
+        if (!string.IsNullOrWhiteSpace(assigneeCode)) d["assignee_code"] = assigneeCode;
+        return JsonSerializer.Serialize(d);
+    }
+
+    /// <summary>Tin đánh thức bot theo dõi khi việc xong (TEST-166): như <see cref="WakeMessage"/> với event = <see cref="TaskDone"/>, + project_code,
+    /// + assignee_code khi việc có người làm. Không có tên việc (như mọi tin Telegram — agent tự đọc qua MCP; tên có ở webhook).</summary>
+    public static string DoneWakeMessage(string followerCode, Guid projectId, string projectCode, Guid taskId, string taskCode, string? assigneeCode)
+    {
+        var d = new Dictionary<string, string>
+        {
+            ["employee_code"] = followerCode, ["project_id"] = projectId.ToString(), ["task_id"] = taskId.ToString(), ["task_code"] = taskCode, ["event"] = TaskDone,
+            ["project_code"] = projectCode,
         };
         if (!string.IsNullOrWhiteSpace(assigneeCode)) d["assignee_code"] = assigneeCode;
         return JsonSerializer.Serialize(d);
