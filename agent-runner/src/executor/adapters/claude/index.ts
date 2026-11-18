@@ -1,9 +1,10 @@
 import { existsSync, realpathSync } from 'node:fs';
 import { join } from 'node:path';
-import { mainModel, readModelUsage } from '../model';
-import type { Adapter, ExecContext, ProbeResult } from '../types';
-import { claudeEvents } from './claude-events';
-import { userClaudeExtras } from './claude-home';
+import { mainModel, readModelUsage } from '../../model';
+import type { Adapter, ExecContext, ProbeResult } from '../../types';
+import { sharedHomeWarning } from '../shared';
+import { claudeEvents } from './events';
+import { userClaudeExtras } from './home';
 
 /**
  * Claude Code CLI không giao diện (kiểm với 2.1.x: `claude --help`):
@@ -127,8 +128,7 @@ export const claudeAdapter: Adapter = {
   // TEST-140: cấu hình cấp user trong HOME của agent được nạp vào mọi phiên (--setting-sources user) → tốn token / đổi hành vi
   homeWarnings(exec, home) {
     const warnings: string[] = [];
-    if (!exec.home)
-      warnings.push(`chưa đặt executor.home — CLI dùng HOME của runner (${home}); nên dùng HOME riêng, sạch cho agent`);
+    if (!exec.home) warnings.push(sharedHomeWarning(home));
     const extras = userClaudeExtras(home);
     if (extras.length)
       warnings.push(

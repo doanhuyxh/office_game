@@ -7,17 +7,13 @@ import { lightExecutor, parseConfig } from '../src/config';
 import { claudeAdapter, parseProbe, probeArgs } from '../src/executor/adapters/claude';
 import { mainModel, modelLine, modelMatches, readModelUsage } from '../src/executor/model';
 import { resultComment } from '../src/jobs/task';
-import {
-  codexAdapter,
-  codexEvents,
-  codexHasSession,
-  codexMcpArgs,
-  codexSessionModel,
-} from '../src/executor/adapters/codex';
+import { codexAdapter, codexMcpArgs } from '../src/executor/adapters/codex';
+import { codexEvents } from '../src/executor/adapters/codex/events';
+import { codexHasSession, codexSessionModel } from '../src/executor/adapters/codex/session';
 import { customAdapter, fillArgs } from '../src/executor/adapters/custom';
 import type { ExecContext, ExecResult } from '../src/executor/types';
 import { MCP_SYSTEM_PROMPT } from '../src/prompt/system';
-import { userClaudeExtras } from '../src/executor/adapters/claude-home';
+import { userClaudeExtras } from '../src/executor/adapters/claude/home';
 import { baseRaw } from './fixtures/config';
 
 describe('executor adapters', () => {

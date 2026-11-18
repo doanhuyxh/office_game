@@ -1,6 +1,6 @@
 # agent-runner — adapter `codex` (OpenAI Codex CLI)
 
-Tách từ [agent-runner.md](agent-runner.md). Code: `agent-runner/src/executor/adapters/codex.ts`. Kiểm với Codex CLI **0.170** (`codex exec --help`, `codex exec resume --help`) — bản khác đổi cờ thì sửa adapter.
+Tách từ [agent-runner.md](agent-runner.md). Code: `agent-runner/src/executor/adapters/codex/` (`index.ts` lệnh + đọc output, `events.ts` sự kiện xem trực tiếp, `session.ts` file phiên + model thật). Kiểm với Codex CLI **0.170** (`codex exec --help`, `codex exec resume --help`) — bản khác đổi cờ thì sửa adapter.
 
 ## Cấu hình
 

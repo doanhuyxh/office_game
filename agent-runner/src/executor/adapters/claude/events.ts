@@ -8,7 +8,7 @@ import {
   isSensitivePath,
   oneLine,
   sanitize,
-} from '../events';
+} from '../../events';
 
 /**
  * stream-json của Claude Code → sự kiện có cấu trúc (TEST-93). Có trạng thái theo từng lần chạy CLI: nhớ `tool_use` đã thấy để ghép

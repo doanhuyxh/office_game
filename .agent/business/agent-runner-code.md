@@ -17,7 +17,7 @@
 | `core/session.ts` | `Sessions`: vòng đời một phiên CLI dùng chung cho mọi loại job — `resumeFor` → `run` → `record` (phiên + transcript) → `finish` (kết quả + mức dùng AI); `succeeded(out)`; `RunnerStopped` |
 | `doctor/` | `agent.ts`: mỗi bước kiểm tra một hàm, lỗi ném `CheckFailed`; `model.ts`: chạy thử model; `finding.ts`: `Finding { level, agent, scope, text }` + `formatFinding` / `hasFailure` |
 | `hub/` | Mọi thứ nói chuyện với OfficeHub: `client.ts` (tool MCP), `types.ts` (kiểu kết quả tool: `TaskDetail`, `ChatSummary`, `MeetingState` — mọi trường tuỳ chọn, `validator.ts` kiểm tra), `endpoint.ts` (`HubEndpoint` + `FailureLog`), `presence.ts`, `activity.ts`, `usage.ts`, `transcript.ts` |
-| `executor/` | `Adapter` (`types.ts`) + registry `adapters` / `ExecutorKind` (`run.ts`), `adapters/claude.ts` + `claude-events.ts` + `claude-home.ts`, `adapters/codex.ts`, `adapters/custom.ts`, `events.ts`, `model.ts` |
+| `executor/` | `Adapter` (`types.ts`) + `run.ts` (chạy tiến trình), `adapters/index.ts` (registry `adapters` / `ExecutorKind`), mỗi CLI một thư mục `adapters/<tên>/` (`claude/`: `index.ts` + `events.ts` + `home.ts`; `codex/`: `index.ts` + `events.ts` + `session.ts`; `custom/`), `adapters/shared.ts` (đọc JSONL, đọc MCP của job, cảnh báo HOME), `events.ts`, `model.ts` |
 | `prompt/` | Prompt theo mode (`worktree` / `in-place` / `none`) + chat / họp |
 | `workspace/` | `git.ts`: lớp `Git`, hook, lệnh git của worktree / in_place / PR. Mỗi mode một `WorkspaceStrategy` (`strategy.ts`): `worktree.ts`, `in-place.ts`, `none.ts` — `prepare(job)` trả nơi làm + hàm `publish`; registry `index.ts` |
 | `store.ts`, `validator.ts`, `config.ts`, `telegram.ts`, `log.ts`, `report.ts` | Hàng đợi SQLite · kiểm tra tin đánh thức · đọc `agents.yaml` · Bot API · log · bảng `report` |
@@ -48,7 +48,7 @@ Mỗi module một file cùng tên: `config`, `validator`, `executor`, `log`, `p
 | Lệnh CLI | `commands/<tên>.ts` (kiểu `Command`) + một dòng trong `COMMANDS` và `HELP` (`cli.ts`) + bảng lệnh ở [agent-runner.md](agent-runner.md) |
 | Tool MCP runner gọi thêm | Hàm trong `hub/client.ts` + kiểu kết quả trong `hub/types.ts` (trường tuỳ chọn) + kiểm tra ở nơi dùng |
 | Cột / bảng mới trong `runner.db` | Một bước mới ở CUỐI `MIGRATIONS` (`store.ts`) + cột trong `JOB_SELECT` / `SESSION_SELECT` + trường trong `Job` / `SessionRow` |
-| Adapter CLI | `executor/adapters/<tên>.ts` hiện thực `Adapter` + một dòng trong registry `adapters` (`executor/run.ts`). `executor.kind` hợp lệ lấy từ registry; adapter tự khai `configProblems` (lỗi cấu hình riêng), `homeWarnings` (cảnh báo `doctor`), `transcriptFile` (có thì runner gửi transcript lên cloud), `caps.toolRestriction` |
+| Adapter CLI (opencode, cursor, gemini…) | Thư mục `executor/adapters/<tên>/` + một dòng trong `adapters/index.ts` — các bước: [agent-runner-adapters.md](agent-runner-adapters.md) |
 | Loại job / sự kiện Telegram mới | Hình dạng tin trong `EVENT_SHAPES` (`validator.ts`) + `JobKind` (`store.ts`) + `jobs/<tên>.ts` hiện thực `JobHandler` + một dòng trong `jobs/index.ts` (+ hồ sơ tool `McpProfile` nếu cần) |
 | Mode workspace mới | `workspace/<tên>.ts` hiện thực `WorkspaceStrategy` + registry `workspace/index.ts` + `WorkspaceMode` (`config.ts`) + prompt của mode (`prompt/`) + bước kiểm tra trong `doctor/agent.ts` |
 

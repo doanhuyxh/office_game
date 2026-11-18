@@ -3,7 +3,7 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { claudeAdapter } from '../src/executor/adapters/claude';
-import { claudeEvents } from '../src/executor/adapters/claude-events';
+import { claudeEvents } from '../src/executor/adapters/claude/events';
 import { customAdapter } from '../src/executor/adapters/custom';
 import {
   type ActivityEvent,

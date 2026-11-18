@@ -1,4 +1,4 @@
-import type { Adapter, ExecContext } from '../types';
+import type { Adapter, ExecContext } from '../../types';
 
 /** Thay {cwd} {model} {mcp_config} {prompt_file} {session_id} trong tham số. */
 export function fillArgs(template: string[], ctx: ExecContext): string[] {
