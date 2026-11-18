@@ -153,6 +153,15 @@
   body {
     @apply min-h-svh w-full bg-background font-sans text-foreground antialiased has-[div[data-variant='inset']]:bg-sidebar;
   }
+  /* iOS Safari không phát contextmenu khi nhấn giữ link / ảnh → tắt callout đó (TEST-174); ô nhập chữ giữ nguyên. */
+  html {
+    -webkit-touch-callout: none;
+  }
+  input,
+  textarea,
+  [contenteditable]:not([contenteditable='false']) {
+    -webkit-touch-callout: default;
+  }
   /* Khoá cuộn khi mở lớp phủ (TEST-173). Trang cuộn ở <html> (overflow-x-hidden ở trên), không phải <body>.
      Radix (react-remove-scroll-bar) đặt body[data-scroll-locked] { overflow: hidden; margin-right: <bề rộng thanh cuộn> }
      cho cả menu / select lẫn modal: overflow trên body không khoá được trang, lại biến body thành khung cuộn → hỏng header dính.

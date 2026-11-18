@@ -11,6 +11,7 @@ import { ApiError } from '@/services/api-client';
 import { useApiDown } from '@/services/maintenance';
 import { MaintenancePage } from '@/components/feedback/maintenance-page';
 import { createAppRouter } from '@/routes/router';
+import { useBlockContextMenu } from '@/hooks/useBlockContextMenu';
 
 /**
  * Phiên hết hiệu lực giữa chừng (bị khoá, nghỉ việc, HR cấp lại mật khẩu…) → API trả 401
@@ -71,6 +72,7 @@ function MaintenanceGate() {
 
 /** Root component: bọc Providers & Router. Thêm provider mới (toast, theme, i18n...) ở đây. */
 export function App() {
+  useBlockContextMenu();
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
