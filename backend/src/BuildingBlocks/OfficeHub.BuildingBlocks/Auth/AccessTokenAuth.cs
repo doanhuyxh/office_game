@@ -105,6 +105,9 @@ public static class AccessTokenAuth
         ("POST", Exact($"/api/projects/tasks/{Id}/uploads")),
         ("GET", Exact($"/api/projects/comment-attachments/{Id}(/preview)?")),
         ("PUT", Exact($"/api/projects/tasks/{Id}/dependencies")), // việc phải chờ (2026-11-11, đội agent chuyền việc)
+        // TEST-160: người theo dõi việc (thêm / bỏ) — Api kiểm thành viên dự án có quyền làm + người được thêm là thành viên.
+        ("POST", Exact($"/api/projects/tasks/{Id}/followers/{Id}")),
+        ("DELETE", Exact($"/api/projects/tasks/{Id}/followers/{Id}")),
         ("PUT", Exact($"/api/projects/{Id}/(guide|description)")), // hướng dẫn làm việc / mô tả dự án (quản lý dự án / HR — Api kiểm)
         // Họp agent (TEST-75): bot giữ lượt bỏ lượt / bot chủ trì chỉ định người nói kế — Api kiểm bot dự họp + đang giữ lượt. Mở / dừng vẫn chỉ người thật.
         ("POST", Exact($"/api/meetings/sessions/{Id}/(pass|assign)")),

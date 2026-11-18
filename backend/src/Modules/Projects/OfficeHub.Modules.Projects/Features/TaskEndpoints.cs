@@ -21,10 +21,11 @@ namespace OfficeHub.Modules.Projects.Features;
 /// <param name="Done">Đang ở cột hoàn thành.</param>
 /// <param name="AwaitingHuman">Chỉ <c>/tasks/mine</c> (TEST-157): người làm là bot và đã báo, đang chờ người duyệt / trả lời (<see cref="BotWaitRules.AwaitingHuman"/>).</param>
 /// <param name="ProjectActive">Chỉ <c>/tasks/mine</c> tính thật (nơi khác mặc định true): dự án đang chạy.</param>
+/// <param name="FollowerCount">Số người theo dõi (TEST-160).</param>
 public sealed record TaskDto(Guid Id, Guid ProjectId, string Code, string Title, string? Description, Guid ColumnId, string ColumnName, string ColumnColor, bool Done, double Rank, Guid? AssigneeEmployeeId, string? AssigneeName,
     Guid? MilestoneId, DateOnly? DueOn, decimal? EstimateDays, bool Overdue, int CommentCount, DateTimeOffset CreatedAt, string CreatedByName, DateTimeOffset? CompletedAt,
     List<string> MediaLinks, string? ProjectName = null, bool CreatedByBot = false, int WaitingOn = 0,
-    bool AwaitingHuman = false, bool ProjectActive = true);
+    bool AwaitingHuman = false, bool ProjectActive = true, int FollowerCount = 0);
 /// <summary>Việc liên quan (chờ / đang chặn) — mã, tên, đã xong chưa.</summary>
 public sealed record TaskRefDto(Guid Id, string Code, string Title, bool Done);
 /// <param name="DependsOn">Mã / id các việc phải xong trước (tối đa 10, cùng dự án) — thay toàn bộ danh sách; rỗng = bỏ hết.</param>
@@ -45,8 +46,9 @@ public sealed record TaskActivityDto(Guid Id, TaskActivityKind Kind, string? Fro
 /// <param name="Sequential">Dự án đi lần lượt (tiến từng cột, lùi phải có lý do).</param>
 /// <param name="CanApprove">Người xem được chuyển việc vào / lùi ra khỏi cột cần người duyệt (quản lý dự án / HR).</param>
 /// <param name="DependsOn">Việc phải xong trước việc này.</param><param name="Blocks">Việc đang chờ việc này.</param>
+/// <param name="Followers">Người theo dõi việc (TEST-160).</param>
 public sealed record TaskDetailDto(TaskDto Task, List<CommentDto> Comments, List<TaskActivityDto> Activities, bool Sequential, bool CanApprove, List<TaskColumnDto> Columns,
-    List<TaskRefDto>? DependsOn = null, List<TaskRefDto>? Blocks = null);
+    List<TaskRefDto>? DependsOn = null, List<TaskRefDto>? Blocks = null, List<TaskFollowerDto>? Followers = null);
 
 /// <summary>
 /// Công việc dạng kanban theo cột trạng thái tự do của dự án (<see cref="TaskColumn"/>). Thành viên tạo / sửa / kéo; xoá: người tạo hoặc quản lý dự án.
@@ -85,11 +87,14 @@ internal static class TaskEndpoints
                              where ids.Contains(d.TaskId) && x.CompletedAt == null
                              group d by d.TaskId into g
                              select new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
+        var followers = await db.Followers.AsNoTracking().Where(f => ids.Contains(f.TaskId)).GroupBy(f => f.TaskId).Select(g => new { g.Key, N = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.N, ct);
         return rows.Select(t => new TaskDto(t.Id, t.ProjectId, EffortRules.TaskCode(projects[t.ProjectId].Code, t.Number), t.Title, t.Description, t.ColumnId,
             columns.GetValueOrDefault(t.ColumnId)?.Name ?? "?", columns.GetValueOrDefault(t.ColumnId)?.Color ?? TaskColumnRules.DefaultColor, t.CompletedAt != null, t.Rank,
             t.AssigneeEmployeeId, t.AssigneeEmployeeId is { } a && emps.TryGetValue(a, out var e) ? e.FullName : null, t.MilestoneId, t.DueOn, t.EstimateDays,
             EffortRules.IsOverdue(t.DueOn, t.CompletedAt != null, today), counts.GetValueOrDefault(t.Id), t.CreatedAt, t.CreatedByName, t.CompletedAt, t.MediaLinks,
-            withProject ? projects[t.ProjectId].Name : null, t.CreatedByBot, waiting.GetValueOrDefault(t.Id))).ToList();
+            withProject ? projects[t.ProjectId].Name : null, t.CreatedByBot, waiting.GetValueOrDefault(t.Id),
+            FollowerCount: followers.GetValueOrDefault(t.Id))).ToList();
     }
 
     private static async Task<Results<Ok<List<TaskDto>>, NotFound>> ListAsync(Guid id, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, ProjectClock clock,
@@ -127,7 +132,7 @@ internal static class TaskEndpoints
 
     /// <summary>Một việc + bình luận + lịch sử (hộp thoại việc trên web, tool MCP get_task).</summary>
     private static async Task<Results<Ok<TaskDetailDto>, NotFound>> DetailAsync(Guid tid, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, ProjectClock clock,
-        IFileStorage files, CancellationToken ct)
+        IFileStorage files, IAccountService accounts, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var t = await db.Tasks.AsNoTracking().FirstOrDefaultAsync(x => x.Id == tid, ct);
@@ -146,7 +151,8 @@ internal static class TaskEndpoints
         return TypedResults.Ok(new TaskDetailDto(dto, comments, activities, sequential, CanApprove(v, user, t.ProjectId),
             await TaskColumnEndpoints.ListForAsync(db, t.ProjectId, ct),
             dependsOn.Select(x => new TaskRefDto(x.Id, EffortRules.TaskCode(code, x.Number), x.Title, x.Done)).ToList(),
-            blocks.Select(x => new TaskRefDto(x.Id, EffortRules.TaskCode(code, x.Number), x.Title, x.Done)).ToList()));
+            blocks.Select(x => new TaskRefDto(x.Id, EffortRules.TaskCode(code, x.Number), x.Title, x.Done)).ToList(),
+            await TaskFollowerEndpoints.ListAsync(db, access, accounts, tid, ct)));
     }
 
     private static async Task<Validation> ValidateAsync(UpsertTask r, Project p, ProjectsDbContext db, DateOnly today, DateOnly? previousDue, CancellationToken ct)
@@ -165,7 +171,7 @@ internal static class TaskEndpoints
     private static bool CanApprove(ProjectViewer v, ClaimsPrincipal user, Guid projectId) => v.CanManage(projectId) && !user.IsAccessToken();
 
     /// <summary>Token AI: việc đã qua tay bot quá nhiều lần liên tiếp → chặn (null = được làm).</summary>
-    private static async Task<string?> StreakErrorAsync(ClaimsPrincipal user, Guid tid, ProjectsDbContext db, CancellationToken ct)
+    internal static async Task<string?> StreakErrorAsync(ClaimsPrincipal user, Guid tid, ProjectsDbContext db, CancellationToken ct)
     {
         if (!user.IsAccessToken()) return null;
         var acts = await db.Activities.AsNoTracking().Where(a => a.TaskId == tid).OrderByDescending(a => a.At).Take(50)
@@ -178,7 +184,7 @@ internal static class TaskEndpoints
         return AgentTeamRules.StreakAllows(AgentTeamRules.BotStreak(events), limit) ? null : AgentTeamRules.StreakMessage(limit);
     }
 
-    private static TaskActivity Activity(TaskItem t, TaskActivityKind kind, ProjectViewer v, ClaimsPrincipal user, DateTimeOffset now,
+    internal static TaskActivity Activity(TaskItem t, TaskActivityKind kind, ProjectViewer v, ClaimsPrincipal user, DateTimeOffset now,
         string? from = null, string? to = null, string? note = null) =>
         new() { TaskId = t.Id, Kind = kind, From = Cut(from), To = Cut(to), Note = note, ActorEmployeeId = v.Employee?.Id, ActorName = v.Name, ByBot = user.IsAccessToken(), At = now };
 
@@ -306,7 +312,7 @@ internal static class TaskEndpoints
         }
     }
 
-    private static async Task<(TaskItem? T, Project? P)> LoadAsync(Guid tid, ProjectsDbContext db, CancellationToken ct)
+    internal static async Task<(TaskItem? T, Project? P)> LoadAsync(Guid tid, ProjectsDbContext db, CancellationToken ct)
     {
         var t = await db.Tasks.FirstOrDefaultAsync(x => x.Id == tid, ct);
         return t is null ? (null, null) : (t, await db.Projects.Include(p => p.Members).FirstOrDefaultAsync(p => p.Id == t.ProjectId, ct));

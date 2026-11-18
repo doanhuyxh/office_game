@@ -28,6 +28,7 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
     public DbSet<CommentUploadTicket> CommentUploadTickets => Set<CommentUploadTicket>();
     public DbSet<TaskActivity> Activities => Set<TaskActivity>();
     public DbSet<TaskDependency> Dependencies => Set<TaskDependency>();
+    public DbSet<TaskFollower> Followers => Set<TaskFollower>();
     public DbSet<AgentSettings> AgentSettings => Set<AgentSettings>();
 
     /// <summary>Giới hạn đội agent đang áp dụng (đọc mỗi lần: chỉ request qua token AI cần, truy vấn theo khoá chính).</summary>
@@ -188,6 +189,13 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             // Xoá việc → xoá luôn quan hệ chờ (cả hai chiều)
             e.HasOne<TaskItem>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<TaskItem>().WithMany().HasForeignKey(x => x.DependsOnId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<TaskFollower>(e =>
+        {
+            e.ToTable("task_followers");
+            e.HasKey(x => new { x.TaskId, x.EmployeeId });
+            e.HasIndex(x => x.EmployeeId).HasDatabaseName("ix_task_followers_employee"); // việc tôi theo dõi
+            e.HasOne<TaskItem>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade); // xoá việc → xoá người theo dõi
         });
         b.Entity<TaskActivity>(e =>
         {

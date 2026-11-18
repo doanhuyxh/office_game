@@ -21,6 +21,8 @@ export function describeActivity(a: IProjectActivity): string {
     case 'Depends': return `${who} đổi việc phải chờ của ${a.taskCode}`;
     case 'Commented': return `${who} bình luận ${a.taskCode}: ${a.text ?? ''}`;
     case 'CommentDeleted': return `${who} xoá một bình luận ở ${a.taskCode}`;
+    case 'Follow': return `${who} thêm ${a.to ?? '?'} theo dõi ${a.taskCode}`;
+    case 'Unfollow': return `${who} bỏ ${a.from ?? '?'} khỏi người theo dõi ${a.taskCode}`;
     default: return `${who} sửa ${a.taskCode}: ${a.taskTitle}`;
   }
 }

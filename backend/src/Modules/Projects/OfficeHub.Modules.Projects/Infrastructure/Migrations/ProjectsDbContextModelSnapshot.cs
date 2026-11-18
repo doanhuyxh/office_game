@@ -574,6 +574,25 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.ToTable("task_dependencies", "projects");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.TaskFollower", b =>
+                {
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("TaskId", "EmployeeId");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("ix_task_followers_employee");
+
+                    b.ToTable("task_followers", "projects");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.TaskItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -752,6 +771,15 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("OfficeHub.Modules.Projects.Domain.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.TaskFollower", b =>
+                {
                     b.HasOne("OfficeHub.Modules.Projects.Domain.TaskItem", null)
                         .WithMany()
                         .HasForeignKey("TaskId")

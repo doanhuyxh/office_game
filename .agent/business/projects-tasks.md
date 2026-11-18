@@ -30,7 +30,8 @@
 - **@nhắc trong bình luận** (TEST-62): gõ `@` → gợi ý thành viên dự án (lọc FE `rankPeople`, cùng quy tắc tìm người TEST-71), chèn `@mã`; tên nổi bật khi hiển thị — [agent-team.md](agent-team.md).
 - **Ảnh / tệp đính kèm bình luận** (TEST-153): dán / kéo / chọn trên web, ≤ 5 tệp, bình luận chỉ có tệp được; xoá bình luận / việc → xoá file S3 — [projects-comment-files.md](projects-comment-files.md).
 - **Xoá bình luận** (TEST-39): `DELETE /api/projects/comments/{id}` — CHỈ người viết (`AuthorEmployeeId`), không ngoại lệ cho quản lý / HR / admin (403); token AI 403 (ngoài allowlist, không có tool MCP); dự án đóng 409. Xoá cứng + lịch sử `CommentDeleted` (không chép nội dung). `CommentDto.canDelete` do BE tính. Bình luận BOT của mình / lý do chuyển lùi xoá được như thường.
-- `task_activities` (chỉ thêm): Created (to = tên cột), Moved (from/to = **tên cột** tại thời điểm chuyển; bản ghi trước 2026-11-11 là tên enum `Todo/Doing/Review/Done` — FE đổi ra nhãn), Assigned, DueChanged, Edited.
+- **Người theo dõi việc** (TEST-160): `task_followers`, `POST` / `DELETE /tasks/{tid}/followers/{employeeId}`, lịch sử Follow / Unfollow, MCP `followers` — [projects-task-followers.md](projects-task-followers.md).
+- `task_activities` (chỉ thêm): Created (to = tên cột), Moved (from/to = **tên cột** tại thời điểm chuyển; bản ghi trước 2026-11-11 là tên enum `Todo/Doing/Review/Done` — FE đổi ra nhãn), Assigned, DueChanged, Edited, Depends, CommentDeleted, Follow / Unfollow.
 
 ## BOT + MCP
 

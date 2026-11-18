@@ -58,6 +58,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Dự án — phòng ban tham gia (chủ trì), nhân viên phòng ban xem dự án chỉ đọc, tab Phụ lục quyền hạn (sinh từ `ProjectViewer`) | [projects-departments.md](projects-departments.md) |
 | Công việc dự án: cột trạng thái tự do (tên / màu / thứ tự, hoàn thành, cần người duyệt), quyền sửa theo chức vụ, quy trình đi lần lượt, lịch sử, BOT / MCP | [projects-tasks.md](projects-tasks.md) |
 | Ảnh / tệp đính kèm bình luận việc (vé S3, dán ảnh trên web, MCP create_upload / comment_task / view_attachment) | [projects-comment-files.md](projects-comment-files.md) |
+| Người theo dõi việc (followers: thêm / bỏ, lịch sử Follow / Unfollow, MCP `followers`) | [projects-task-followers.md](projects-task-followers.md) |
 | Yêu cầu thay đổi (CR) của dự án → phụ lục hợp đồng bán (tăng / giảm giá trị, đợt thu mới) | [projects-changes.md](projects-changes.md) |
 | Tài chính — chứng từ đính kèm dòng sổ / đề nghị chi (S3 `finance/`), Excel sổ thu chi + sổ quỹ + tổng hợp | [finance-docs.md](finance-docs.md) |
 | Báo giá: hạng mục, chiết khấu (vượt ngưỡng → duyệt `quote_discount`), phiên bản, Word theo mẫu, lập hợp đồng từ báo giá | [sales-quotes.md](sales-quotes.md) |

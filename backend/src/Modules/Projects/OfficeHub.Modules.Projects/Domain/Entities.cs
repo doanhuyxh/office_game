@@ -188,7 +188,7 @@ public sealed class TaskColumn
 
 [JsonConverter(typeof(JsonStringEnumConverter<TaskActivityKind>))]
 /// <summary>CommentDeleted (TEST-39): người viết tự xoá bình luận — không lưu nội dung đã xoá.</summary>
-public enum TaskActivityKind { Created = 0, Moved = 1, Assigned = 2, DueChanged = 3, Edited = 4, Depends = 5, CommentDeleted = 6 }
+public enum TaskActivityKind { Created = 0, Moved = 1, Assigned = 2, DueChanged = 3, Edited = 4, Depends = 5, CommentDeleted = 6, Follow = 7, Unfollow = 8 }
 
 /// <summary>Lịch sử một việc: tạo, chuyển trạng thái (kèm lý do khi lùi), đổi người, đổi hạn, sửa nội dung. Chỉ thêm. <see cref="ByBot"/> = làm qua token AI / MCP.</summary>
 public sealed class TaskActivity
@@ -281,5 +281,16 @@ public sealed class TaskDependency
 {
     public Guid TaskId { get; set; }
     public Guid DependsOnId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>
+/// Người theo dõi việc (TEST-160): thành viên dự án (người hoặc bot) muốn biết diễn biến của việc không giao cho mình — vd bot DevOps chờ việc sang Xong để deploy.
+/// Chỉ lưu Id nhân viên (không FK sang schema org). Xoá việc → xoá theo (cascade). Chưa gửi thông báo riêng cho người theo dõi.
+/// </summary>
+public sealed class TaskFollower
+{
+    public Guid TaskId { get; set; }
+    public Guid EmployeeId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }

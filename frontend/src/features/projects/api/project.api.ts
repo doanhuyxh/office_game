@@ -68,6 +68,8 @@ export const projectApi = {
   deleteComment: (commentId: string) => send<void>('DELETE', `${base}/comments/${commentId}`),
   activity: (after: string | null) => http<IProjectActivityFeed>(`${base}/activity${after ? `?after=${encodeURIComponent(after)}` : ''}`),
   setDependencies: (tid: string, dependsOn: string[]) => send<void>('PUT', `${base}/tasks/${tid}/dependencies`, { dependsOn }),
+  addFollower: (tid: string, employeeId: string) => send<void>('POST', `${base}/tasks/${tid}/followers/${employeeId}`),
+  removeFollower: (tid: string, employeeId: string) => send<void>('DELETE', `${base}/tasks/${tid}/followers/${employeeId}`),
   agentSettings: () => http<IAgentSettings>(`${base}/agent-settings`),
   appendix: (id: string) => http<IProjectAppendix>(`${base}/${id}/appendix`),
   saveAgentSettings: (b: IAgentSettingsRequest) => send<IAgentSettings>('PUT', `${base}/agent-settings`, b),

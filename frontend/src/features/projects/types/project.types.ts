@@ -59,21 +59,27 @@ export interface ITask {
   mediaLinks: string[];
   /** Số việc phải chờ chưa xong (0 = bắt đầu được). */
   waitingOn?: number;
+  /** Số người theo dõi (TEST-160). */
+  followerCount?: number;
 }
 /** Việc liên quan (phải chờ / đang chặn). */
 export interface ITaskRef { id: string; code: string; title: string; done: boolean }
+/** Người theo dõi việc (TEST-160) — thành viên dự án, người hoặc bot. */
+export interface ITaskFollower { employeeId: string; code: string | null; fullName: string; isBot: boolean }
 /** Ảnh / tệp đính kèm bình luận việc (TEST-153). url = link presigned (hạn 60 phút): ảnh mở trực tiếp, tệp khác tải về. */
 export interface ICommentAttachment { id: string; fileName: string; contentType: string; size: number; isImage: boolean; url: string }
 /** canDelete: back-end tính theo người xem — chỉ chính người viết, trên web, dự án đang chạy. */
 export interface IComment { id: string; content: string; authorName: string; createdAt: string; byBot: boolean; canDelete: boolean; attachments?: ICommentAttachment[] }
 /** POST /tasks/{id}/uploads → vé tải lên: PUT tệp thẳng lên `url` với header Content-Type = `contentType`. */
 export interface ICommentUploadTicket { id: string; url: string; contentType: string; expiresAt: string }
-export type TaskActivityKind = 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited' | 'Depends' | 'CommentDeleted';
+export type TaskActivityKind = 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited' | 'Depends' | 'CommentDeleted' | 'Follow' | 'Unfollow';
 export interface ITaskActivity { id: string; kind: TaskActivityKind; from: string | null; to: string | null; note: string | null; actorName: string; byBot: boolean; at: string }
 /** GET /tasks/{id}: việc + bình luận + lịch sử. canApprove = được chuyển vào / kéo lùi ra cột cần người duyệt. */
 export interface ITaskDetail { task: ITask; comments: IComment[]; activities: ITaskActivity[]; sequential: boolean; canApprove: boolean; columns: ITaskColumn[];
   /** Việc phải xong trước / việc đang chờ việc này. */
-  dependsOn?: ITaskRef[]; blocks?: ITaskRef[] }
+  dependsOn?: ITaskRef[]; blocks?: ITaskRef[];
+  /** Người theo dõi (TEST-160). */
+  followers?: ITaskFollower[] }
 export interface IEffortCell { employeeId: string; month: string; presentDays: number; percent: number; explicit: boolean; manDays: number }
 export interface IEffort {
   months: string[]; members: IMember[]; cells: IEffortCell[]; totalManDays: number; budgetManDays: number | null;
@@ -119,7 +125,7 @@ export interface IChangeRequestRequest { title: string; description?: string | n
 /** Một thay đổi ở dự án (GET /api/projects/activity) — bảng việc tự cập nhật + toast khi đang ở trang khác. */
 export interface IProjectActivity {
   id: string; projectId: string; projectName: string; taskId: string; taskCode: string; taskTitle: string;
-  kind: 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited' | 'Depends' | 'CommentDeleted' | 'Commented';
+  kind: TaskActivityKind | 'Commented';
   from: string | null; to: string | null; text: string | null; actorName: string; byBot: boolean; at: string;
   /** Người xem là thành viên dự án — chỉ hiện toast cho dự án mình tham gia. */
   member: boolean;
