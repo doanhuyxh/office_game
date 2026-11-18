@@ -43,7 +43,7 @@ codex exec [resume] --json --skip-git-repo-check
 | Tắt công cụ có sẵn (phiên chỉ MCP) | `--tools ""` — tắt hẳn | **Không tắt được shell**: chỉ sandbox `read-only` (lệnh vẫn chạy, đọc được file user đó đọc được, không ghi / không ra mạng). `caps.toolRestriction = false` → `doctor` cảnh báo |
 | System prompt ngắn cho phiên MCP (TEST-140) | `--system-prompt` | bỏ qua |
 | Chi phí USD | có | không (chỉ token: `input_tokens` đã gồm `cached_input_tokens`, `output_tokens` của `turn.completed`) |
-| Model thật | `modelUsage` | CLI không báo → ghi model cấu hình kèm "(cấu hình)"; không có chạy thử model lúc `start` / `doctor` |
+| Model thật | `modelUsage` | `--json` không báo → `finish` đọc dòng `turn_context` cuối trong file phiên (`codexSessionModel`); không đọc được → model cấu hình kèm "(cấu hình)". Không có chạy thử model lúc `start` / `doctor` |
 | Trần ngân sách / số vòng | có | không |
 | Transcript lên cloud (TEST-144) | có | không (tên file phiên có ngày giờ, không suy ra được từ id) |
 | Sự kiện xem trực tiếp | đủ, có diff | lệnh + kết quả, file sửa (chỉ đường dẫn), suy nghĩ, lời agent, tool MCP |
@@ -53,9 +53,12 @@ Vì không tắt hẳn được shell, **đừng dùng `codex` cho bot nghiệp 
 ## Đọc output (`--json`)
 
 - `thread.started` → `sessionId`; `item.completed` loại `agent_message` → `summary` (lời cuối cùng).
-- `turn.completed` → cộng token, `turns` + 1, không lỗi. `turn.failed` → `isError`, `errorKind = turn_failed`, `summary` = thông báo lỗi.
+- `turn.completed` → cộng token, không lỗi. `turns` = số lần gọi công cụ xong (`command_execution`, `mcp_tool_call`, `file_change`, `web_search`) + 1 cho lượt trả lời cuối (gần với `num_turns` của claude).
+- Bình luận kết quả: không có chi phí USD nên ghi dòng `- Token: … token vào (… đọc từ cache) / … ra` (`resultComment`). `turn.failed` → `isError`, `errorKind = turn_failed`, `summary` = thông báo lỗi.
 - Dòng `{"type":"error"}` lẻ chỉ là báo thử lại ("Reconnecting… 2/5") — không tính lỗi.
 
-## Chưa kiểm với tài khoản thật
+## Đã kiểm
 
-Cờ lệnh, cách khai MCP, sự kiện `thread.started` / `turn.failed`, tên file phiên đã chạy thật với 0.170 (không đăng nhập). Hình dạng `item.*` (`command_execution`, `file_change`, `mcp_tool_call`, `reasoning`) và `usage` viết theo định dạng công bố của Codex, **chưa chạy một phiên đăng nhập thật** — lần đầu dùng nên chạy `bun src/cli.ts run --agent <mã> --task <việc thử>` và xem `{data_dir}/jobs/{id}/output.log`.
+Cờ lệnh, khai MCP, `thread.started` / `turn.failed`, tên file phiên: chạy thật với 0.170. Phiên thật đầu tiên (NV010, 2026-11-18, đăng nhập ChatGPT) xác nhận hình dạng `mcp_tool_call`, `agent_message`, `usage` (`input_tokens`, `cached_input_tokens`, `cache_write_input_tokens`, `output_tokens`, `reasoning_output_tokens`). `command_execution` / `file_change` / `reasoning` viết theo định dạng công bố, chưa thấy trong log thật.
+
+Lưu ý vận hành: đăng nhập ChatGPT không dùng được model ngoài dòng Codex / GPT-5 (vd `gpt-4o-mini` → `turn.failed`); nối phiên sang model khác thì Codex chỉ cảnh báo (`item` loại `error`), không hỏng phiên.

@@ -81,7 +81,7 @@ export function runExecutor(ctx: ExecContext, env: Record<string, string>, signa
     child.on('close', (code) => {
       clearTimeout(timer);
       if (killTimer) clearTimeout(killTimer);
-      adapter.finish?.(tail, r);
+      adapter.finish?.(tail, r, env.HOME);
       // CLI không báo model → ghi model cấu hình, đánh dấu để bình luận / report ghi "(cấu hình)".
       if (!r.model && ctx.exec.model) {
         r.model = ctx.exec.model;

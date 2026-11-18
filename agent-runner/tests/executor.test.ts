@@ -7,7 +7,13 @@ import { lightExecutor, parseConfig } from '../src/config';
 import { claudeAdapter, parseProbe, probeArgs } from '../src/executor/adapters/claude';
 import { mainModel, modelLine, modelMatches, readModelUsage } from '../src/executor/model';
 import { resultComment } from '../src/jobs/task';
-import { codexAdapter, codexEvents, codexHasSession, codexMcpArgs } from '../src/executor/adapters/codex';
+import {
+  codexAdapter,
+  codexEvents,
+  codexHasSession,
+  codexMcpArgs,
+  codexSessionModel,
+} from '../src/executor/adapters/codex';
 import { customAdapter, fillArgs } from '../src/executor/adapters/custom';
 import type { ExecContext, ExecResult } from '../src/executor/types';
 import { MCP_SYSTEM_PROMPT } from '../src/prompt/system';
@@ -336,6 +342,8 @@ describe('executor adapters', () => {
       const raw = baseRaw();
       (raw.agents[0] as any).executor = { kind: 'codex', bin: '/usr/bin/codex' };
       expect(parseConfig(raw).agents[0]!.executor.kind).toBe('codex');
+      (raw.agents[0] as any).executor.extra_args = ['--mcp-config', '/x/design-mcp.json'];
+      expect(() => parseConfig(raw)).toThrow('--mcp-config');
     });
 
     test('lệnh: MCP qua -c, phiên có công cụ bỏ sandbox, prompt sau --', () => {
@@ -413,7 +421,26 @@ describe('executor adapters', () => {
     test('hasSession tìm file rollout theo id; doctor cảnh báo chưa đăng nhập + trần không áp dụng', () => {
       const day = join(dir, '.codex', 'sessions', '2026', '11', '18');
       mkdirSync(day, { recursive: true });
-      writeFileSync(join(day, 'rollout-2026-11-18T15-35-37-th-9.jsonl'), '');
+      writeFileSync(
+        join(day, 'rollout-2026-11-18T15-35-37-th-9.jsonl'),
+        '{"type":"session_meta","payload":{}}\n{"type":"turn_context","payload":{"model":"gpt-a"}}\n{"type":"turn_context","payload":{"cwd":"/w","model":"gpt-b"}}\n',
+      );
+      expect(codexSessionModel(dir, 'th-9')).toBe('gpt-b');
+      const done: ExecResult = { sessionId: 'th-9' };
+      codexAdapter.finish!('', done, dir);
+      expect(done.model).toBe('gpt-b');
+      const out = {
+        ...done,
+        inputTokens: 247405,
+        cacheReadTokens: 212096,
+        outputTokens: 753,
+        exitCode: 0,
+        timedOut: false,
+        durationSec: 60,
+      };
+      expect(resultComment({ agent: 'NV010' }, out, undefined, '', true)).toContain(
+        '- Token: 247,405 token vào (212,096 đọc từ cache) / 753 ra',
+      );
       expect(codexHasSession(dir, '/w', 'th-9')).toBe(true);
       expect(codexHasSession(dir, '/w', 'th-0')).toBe(false);
       const w = codexAdapter.homeWarnings!({ ...cx.exec, home: dir, maxBudgetUsd: 4 }, dir).join('\n');

@@ -13,7 +13,7 @@ import type { Adapter, ExecContext, ExecResult } from '../types';
  * - Phiên có công cụ: `--dangerously-bypass-approvals-and-sandbox` (như bypassPermissions của claude — cần git, mạng, build).
  *   Phiên chỉ MCP (`noBuiltinTools`): sandbox `read-only` — Codex KHÔNG tắt hẳn được shell, lệnh vẫn chạy nhưng không ghi file / ra mạng
  *   → `caps.toolRestriction = false`, `doctor` cảnh báo.
- * Codex không báo chi phí USD và model thật trong `--json` (model ghi theo cấu hình); không có trần ngân sách / số vòng.
+ * Codex không báo chi phí USD; model thật không có trong `--json` → `finish` đọc từ file phiên (`turn_context`); không có trần ngân sách / số vòng.
  */
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 const toml = (v: string) => JSON.stringify(v);
@@ -38,21 +38,49 @@ export function codexMcpArgs(mcpConfigFile: string): string[] {
   return args;
 }
 
-/** Phiên `sessionId` còn file `rollout-…-<id>.jsonl` trong `<HOME>/.codex/sessions/<năm>/<tháng>/<ngày>/` không. */
-export function codexHasSession(home: string, _cwd: string, sessionId: string): boolean {
-  const walk = (dir: string, depth: number): boolean => {
+/** File `rollout-…-<id>.jsonl` của phiên trong `<HOME>/.codex/sessions/<năm>/<tháng>/<ngày>/` (tên có ngày giờ nên phải dò). */
+export function codexSessionFile(home: string, sessionId: string): string | undefined {
+  const walk = (dir: string, depth: number): string | undefined => {
     let entries: import('node:fs').Dirent[];
     try {
       entries = readdirSync(dir, { withFileTypes: true });
     } catch {
-      return false;
+      return undefined;
     }
-    return entries.some((e) =>
-      e.isDirectory() ? depth < 3 && walk(join(dir, e.name), depth + 1) : e.name.endsWith(`-${sessionId}.jsonl`),
-    );
+    for (const e of entries) {
+      const path = join(dir, e.name);
+      if (!e.isDirectory()) {
+        if (e.name.endsWith(`-${sessionId}.jsonl`)) return path;
+      } else if (depth < 3) {
+        const found = walk(path, depth + 1);
+        if (found) return found;
+      }
+    }
+    return undefined;
   };
   return walk(join(home, '.codex', 'sessions'), 0);
 }
+
+export const codexHasSession = (home: string, _cwd: string, sessionId: string) => !!codexSessionFile(home, sessionId);
+
+/** Model thật của lượt cuối: dòng `turn_context` cuối cùng trong file phiên (`--json` không báo model). Không đọc được → undefined. */
+export function codexSessionModel(home: string, sessionId: string): string | undefined {
+  const file = codexSessionFile(home, sessionId);
+  if (!file) return undefined;
+  let model: string | undefined;
+  try {
+    for (const line of readFileSync(file, 'utf8').split('\n')) {
+      if (!line.includes('"type":"turn_context"')) continue;
+      const m = /"model":"([^"\\]+)"/.exec(line);
+      if (m) model = m[1];
+    }
+  } catch {
+    /* file bị xoá giữa chừng */
+  }
+  return model;
+}
+
+const TOOL_ITEMS = new Set(['command_execution', 'mcp_tool_call', 'file_change', 'web_search']);
 
 const parse = (line: string): any => {
   if (!line.startsWith('{')) return undefined;
@@ -122,6 +150,11 @@ export function codexEvents(cwd: string): (line: string) => ActivityEvent[] {
 export const codexAdapter: Adapter = {
   kind: 'codex',
   caps: { resume: true, toolRestriction: false },
+  // `--mcp-config` là cờ của Claude Code: Codex thoát ngay với "unexpected argument" → chặn từ lúc đọc cấu hình.
+  configProblems: (exec) =>
+    exec.extraArgs.some((x) => x === '--mcp-config' || x.startsWith('--mcp-config='))
+      ? ['extra_args có --mcp-config (cờ của Claude Code) — với codex, khai MCP thêm trong <home>/.codex/config.toml']
+      : [],
   homeWarnings(exec, home) {
     const warnings: string[] = [];
     if (!exec.home)
@@ -172,6 +205,7 @@ export const codexAdapter: Adapter = {
     if (m.type === 'thread.started' && typeof m.thread_id === 'string') r.sessionId = m.thread_id;
     else if (m.type === 'item.completed' && m.item?.type === 'agent_message' && str(m.item.text))
       r.summary = m.item.text; // lời cuối cùng của agent = tóm tắt
+    else if (m.type === 'item.completed' && TOOL_ITEMS.has(m.item?.type)) r.turns = (r.turns ?? 0) + 1;
     else if (m.type === 'turn.completed') {
       const u = m.usage ?? {};
       // input_tokens của OpenAI đã gồm phần đọc cache (cached_input_tokens) — khớp quy ước "tổng token vào" của runner.
@@ -179,7 +213,7 @@ export const codexAdapter: Adapter = {
       if (typeof u.cached_input_tokens === 'number')
         r.cacheReadTokens = (r.cacheReadTokens ?? 0) + u.cached_input_tokens;
       if (typeof u.output_tokens === 'number') r.outputTokens = (r.outputTokens ?? 0) + u.output_tokens;
-      r.turns = (r.turns ?? 0) + 1;
+      r.turns = (r.turns ?? 0) + 1; // lượt trả lời cuối; mỗi lần gọi công cụ đã cộng ở trên (gần với num_turns của claude)
       r.isError = false;
     } else if (m.type === 'turn.failed') {
       // Dòng `{"type":"error"}` lẻ là báo thử lại ("Reconnecting… 2/5"), chỉ `turn.failed` mới là hỏng thật.
@@ -189,4 +223,7 @@ export const codexAdapter: Adapter = {
     }
   },
   hasSession: codexHasSession,
+  finish(_tail, r, home) {
+    if (!r.model && r.sessionId && home) r.model = codexSessionModel(home, r.sessionId);
+  },
 };

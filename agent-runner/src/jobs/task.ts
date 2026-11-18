@@ -140,6 +140,8 @@ export function resultComment(
     `- Thời gian: ${duration}`,
     `- Model: ${modelLine(out, configuredModel)}`,
     out.costUsd !== undefined ? `- Chi phí: ${costText(out)}` : null,
+    // CLI không báo chi phí USD (vd codex) nhưng có token → vẫn ghi token
+    out.costUsd === undefined && out.inputTokens ? `- Token: ${tokenText(out)}` : null,
     note ? `- ${note}` : null,
   ];
   return lines.filter(Boolean).join('\n');
@@ -147,7 +149,11 @@ export function resultComment(
 
 function costText(out: RunOutcome): string {
   const cost = `$${(out.costUsd ?? 0).toFixed(2)}`;
-  if (!out.inputTokens) return cost;
+  return out.inputTokens ? `${cost} · ${tokenText(out)}` : cost;
+}
+
+function tokenText(out: RunOutcome): string {
   const tokens = (n: number) => n.toLocaleString('en');
-  return `${cost} · ${tokens(out.inputTokens)} token vào / ${tokens(out.outputTokens ?? 0)} ra`;
+  const cached = out.cacheReadTokens ? ` (${tokens(out.cacheReadTokens)} đọc từ cache)` : '';
+  return `${tokens(out.inputTokens ?? 0)} token vào${out.costUsd === undefined ? cached : ''} / ${tokens(out.outputTokens ?? 0)} ra`;
 }

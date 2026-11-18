@@ -100,8 +100,8 @@ export interface Adapter {
    */
   hasSession?(home: string, cwd: string, sessionId: string): boolean;
   parseProbe?(stdout: string): ProbeResult;
-  /** Sau khi tiến trình thoát (vd output text: lấy phần cuối làm tóm tắt). */
-  finish?(stdoutTail: string, r: ExecResult): void;
+  /** Sau khi tiến trình thoát (vd output text: lấy phần cuối làm tóm tắt; codex: đọc model thật từ file phiên trong `home`). */
+  finish?(stdoutTail: string, r: ExecResult, home?: string): void;
 }
 
 /** Kết quả chạy thử model: model thật, lỗi; `invalidModel` = CLI báo model không tồn tại / không có quyền → agent tắt. */
