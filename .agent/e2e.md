@@ -97,7 +97,17 @@
 
 **Admin / HR bắt buộc 2FA**: script đăng nhập bằng admin / HR trên DB mới sẽ nhận `mustSetupTwoFactor` (API 403) → bật 2FA qua API rồi tính mã bằng `totp(sharedKey)` của `scripts/dev/totp.ts` (mẫu: hàm `enroll` trong `twofa-e2e.ts`). Đã bật → `/login` trả 403 `2fa_required`, gửi tiếp `POST /api/auth/login/2fa` (giữ cookie `officehub.2fa`).
 
-## Test trên DB tạm (khi test tạo dữ liệu không xoá được, vd nhân viên)
+## DB dev riêng (từ 2026-11-18) — không cần Postgres docker tạm
+
+`.env` gốc trỏ `ConnectionStrings__Default` tới **DB dev riêng** (`office` trên `100.103.27.5`, cần Tailscale / VPN); production là DB khác (`.env.pro`). Chạy Api bình thường (`dotnet run --project src/OfficeHub.Api`, cổng 5080) là test được, **không cần** `docker run … postgres`:
+
+- Lần đầu trên DB trống: Api tự migrate + tạo admin từ `Seed__*` (log có vài dòng `Failed executing DbCommand … __ef_migrations` và một lần `Lỗi hàng đợi email quên mật khẩu` — chỉ ở lần migrate đầu, bỏ qua). Sau đó `TEST_PASSWORD=… bun scripts/dev/seed-org.ts "$Seed__AdminEmail" "$Seed__AdminPassword" account.txt` để có phòng ban + tài khoản thử.
+- Script "chỉ DB tạm" chạy được trên DB này: đặt `E2E_LOCAL_DB=1` (cờ tự khai "không phải production") + `API_URL=http://localhost:5080` và các biến ghi ở đầu file script.
+- **Trước khi chạy e2e, kiểm tra `ConnectionStrings__Default` trong `.env` không phải dòng production** (dòng production đang để dạng chú thích ngay phía trên).
+- DB dev dùng chung giữa các lần chạy → dữ liệu thử tích luỹ. Script cần DB sạch (đếm tổng, admin chưa bật 2FA, `key-rotation-e2e.ts`…) hoặc chạy song song nhiều Api thì vẫn dùng DB tạm bên dưới.
+- S3 / SMTP / FCM / Telegram trong `.env` vẫn là dịch vụ thật: e2e ghi S3 đặt `S3__KeyPrefix=e2e/`; không muốn gửi email thật thì chạy Mailpit và đè `Smtp__*` như dưới.
+
+## Test trên DB tạm (khi cần DB sạch / chạy song song)
 
 `docker run -d --name officehub-e2e-pg -e POSTGRES_DB=officehub_e2e -e POSTGRES_USER=e2e -e POSTGRES_PASSWORD=<tuỳ ý> -p 127.0.0.1:55432:5432 postgres:18-alpine` → chạy Api với `ConnectionStrings__Default=Host=127.0.0.1;Port=55432;…` (tự migrate + tạo admin từ `Seed__*`) → test → `docker rm -f officehub-e2e-pg`. S3 / SMTP vẫn là dịch vụ thật trong `.env`.
 Cần đọc email (OTP ký): thêm container Mailpit (`axllent/mailpit`, SMTP 11025, API 18025) và chạy Api với `Smtp__Host=127.0.0.1 Smtp__Port=11025 Smtp__UseSsl=false Smtp__Username= Smtp__Password=` → không gửi email thật.

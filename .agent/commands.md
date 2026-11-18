@@ -13,7 +13,7 @@
 ## Chạy dev
 
 ```bash
-# 1) Hạ tầng phụ (Postgres + S3 trong .env đang trỏ tới dịch vụ thật → không cần container postgres/s3)
+# 1) Hạ tầng phụ (.env trỏ Postgres dev riêng + S3 thật → không cần container postgres/s3)
 docker compose --env-file .env -f infra/docker-compose.dev.yml up -d mailpit seq livekit
 #    Chạy offline hoàn toàn: bỏ danh sách service (bật cả postgres, s3=RustFS, s3-init) và trỏ .env về localhost
 
