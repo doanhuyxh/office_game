@@ -201,12 +201,13 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
                 <FormField id="tk-est" label="Ước lượng (ngày)" type="number" min={0} step="0.5" value={f.estimateDays ?? ''} onChange={(e) => set('estimateDays', e.target.value === '' ? null : Number(e.target.value))} error={errors.estimateDays} />
                 <SelectField id="tk-ms" label="Mốc" allowEmpty value={f.milestoneId ?? null} onChange={(v) => set('milestoneId', v)} options={milestones.map((m) => ({ value: m.id, label: m.title }))} />
               </fieldset>
+              {/* TEST-172: Người theo dõi ngay sau Mốc, trước Phải chờ việc */}
+              {task && detail && <TaskFollowers taskId={task.id} followers={detail.followers ?? []} members={members} canWork={canWork} />}
               {task && detail && (
                 <div className="border-t pt-3">
                   <TaskDependencies projectId={projectId} taskId={task.id} dependsOn={detail.dependsOn ?? []} blocks={detail.blocks ?? []} canWork={canWork} columns={columns} />
                 </div>
               )}
-              {task && detail && <TaskFollowers taskId={task.id} followers={detail.followers ?? []} members={members} canWork={canWork} />}
             </div>
           </div>
           <DialogFooter className="shrink-0 items-center border-t px-6 py-4">

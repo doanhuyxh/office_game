@@ -30,7 +30,7 @@ Việc chỉ có một người làm. Người theo dõi = thành viên dự án
 
 ## Giao diện
 
-Hộp thoại việc, cột phải dưới "Phải chờ việc": "Người theo dõi (n)" — chip họ tên + nhãn BOT, ✕ bỏ (có vòng xoay); ô chọn tìm được "Thêm người theo dõi" chỉ gợi ý thành viên đang làm chưa theo dõi, chọn là thêm ngay. Không có quyền làm → chỉ xem (ẩn khi trống).
+Hộp thoại việc, cột phải ngay sau "Mốc", trước "Phải chờ việc" (TEST-172): "Người theo dõi (n)" — chip họ tên + nhãn BOT, ✕ bỏ (có vòng xoay); ô chọn tìm được "Thêm người theo dõi" chỉ gợi ý thành viên đang làm chưa theo dõi, chọn là thêm ngay. Không có quyền làm → chỉ xem (ẩn khi trống).
 
 ## Đánh thức `task_done` (TEST-166)
 
