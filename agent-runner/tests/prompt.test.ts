@@ -49,7 +49,13 @@ describe('prompt / mcp / log', () => {
   test('ảnh (TEST-156): mode có repo đính ảnh chụp kết quả, phiên không Bash chỉ xem / chuyển tiếp', () => {
     for (const mode of ['worktree', 'in_place'] as const) {
       const p = buildPrompt(w, ctx(mode));
-      for (const r of ['chụp màn hình', 'create_upload(target = task-comment, task TEST-45)', 'uploadIds', 'view_attachment', 'Không dán link tải lên'])
+      for (const r of [
+        'chụp màn hình',
+        'create_upload(target = task-comment, task TEST-45)',
+        'uploadIds',
+        'view_attachment',
+        'Không dán link tải lên',
+      ])
         expect(p).toContain(r);
     }
     const none = buildPrompt(w, { mode: 'none', branch: '', resumed: false });

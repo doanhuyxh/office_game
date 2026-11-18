@@ -63,7 +63,10 @@ export const SESSION_END_ID = 'session-end';
  */
 export function mask(text: string): string {
   return redact(text)
-    .replace(/([?&](?:X-Amz-(?:Signature|Credential|Security-Token)|X-Goog-(?:Signature|Credential)|Signature)=)[^&\s"'#]+/gi, '$1***')
+    .replace(
+      /([?&](?:X-Amz-(?:Signature|Credential|Security-Token)|X-Goog-(?:Signature|Credential)|Signature)=)[^&\s"'#]+/gi,
+      '$1***',
+    )
     .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(-----END [A-Z ]*PRIVATE KEY-----|$)/g, '***')
     .replace(/\bohk_[A-Za-z0-9_-]{8,}/g, '***')
     .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,}/gi, '$1 ***')

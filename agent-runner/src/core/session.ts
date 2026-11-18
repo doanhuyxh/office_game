@@ -215,9 +215,7 @@ export class Sessions {
       .flush()
       .catch((e) => log('warn', 'gửi mức dùng AI lỗi', { agent: job.agent, error: errText(e) }));
     // Dòng đánh dấu kết thúc, in sau khi gửi xong mức dùng AI + transcript (flush transcript gọi chồng → chờ lượt đang gửi).
-    void Promise.allSettled([usageSent, s.transcripts?.flush()]).then(() =>
-      console.log(`====${job.label}=====done==`),
-    );
+    void Promise.allSettled([usageSent, s.transcripts?.flush()]).then(() => console.log(`====${job.label}=====done==`));
     log(ok ? 'info' : 'warn', 'xong job', {
       job: job.id,
       task: job.label,

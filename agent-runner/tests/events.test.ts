@@ -263,7 +263,9 @@ describe('sự kiện xem trực tiếp: an toàn', () => {
     expect(out).not.toContain('0123abcdef');
     expect(out).toContain('X-Amz-Signature=***');
     expect(out).toContain('https://s3.example.com/b/chat/x.png?X-Amz-Algorithm=AWS4-HMAC-SHA256'); // vẫn đọc được file nào
-    expect(mask('https://s/k?X-Amz-Credential=AKIAXXXX%2F20261117&X-Amz-Security-Token=FQoGZX')).not.toMatch(/AKIAXXXX|FQoGZX/);
+    expect(mask('https://s/k?X-Amz-Credential=AKIAXXXX%2F20261117&X-Amz-Security-Token=FQoGZX')).not.toMatch(
+      /AKIAXXXX|FQoGZX/,
+    );
     expect(mask('{"url":"https://s/k?a=1&Signature=zzz9"}')).toBe('{"url":"https://s/k?a=1&Signature=***"}');
   });
 
