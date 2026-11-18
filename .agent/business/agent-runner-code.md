@@ -17,7 +17,7 @@
 | `core/session.ts` | `Sessions`: vòng đời một phiên CLI dùng chung cho mọi loại job — `resumeFor` → `run` → `record` (phiên + transcript) → `finish` (kết quả + mức dùng AI); `succeeded(out)`; `RunnerStopped` |
 | `doctor/` | `agent.ts`: mỗi bước kiểm tra một hàm, lỗi ném `CheckFailed`; `model.ts`: chạy thử model; `finding.ts`: `Finding { level, agent, scope, text }` + `formatFinding` / `hasFailure` |
 | `hub/` | Mọi thứ nói chuyện với OfficeHub: `client.ts` (tool MCP), `types.ts` (kiểu kết quả tool: `TaskDetail`, `ChatSummary`, `MeetingState` — mọi trường tuỳ chọn, `validator.ts` kiểm tra), `endpoint.ts` (`HubEndpoint` + `FailureLog`), `presence.ts`, `activity.ts`, `usage.ts`, `transcript.ts` |
-| `executor/` | `Adapter` (`types.ts`) + registry `adapters` / `ExecutorKind` (`run.ts`), `adapters/claude.ts` + `claude-events.ts` + `claude-home.ts`, `adapters/custom.ts`, `events.ts`, `model.ts` |
+| `executor/` | `Adapter` (`types.ts`) + registry `adapters` / `ExecutorKind` (`run.ts`), `adapters/claude.ts` + `claude-events.ts` + `claude-home.ts`, `adapters/codex.ts`, `adapters/custom.ts`, `events.ts`, `model.ts` |
 | `prompt/` | Prompt theo mode (`worktree` / `in-place` / `none`) + chat / họp |
 | `workspace/` | `git.ts`: lớp `Git`, hook, lệnh git của worktree / in_place / PR. Mỗi mode một `WorkspaceStrategy` (`strategy.ts`): `worktree.ts`, `in-place.ts`, `none.ts` — `prepare(job)` trả nơi làm + hàm `publish`; registry `index.ts` |
 | `store.ts`, `validator.ts`, `config.ts`, `telegram.ts`, `log.ts`, `report.ts` | Hàng đợi SQLite · kiểm tra tin đánh thức · đọc `agents.yaml` · Bot API · log · bảng `report` |

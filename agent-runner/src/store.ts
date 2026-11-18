@@ -46,7 +46,7 @@ export interface Job {
   /** Phần token vào đọc / ghi cache (TEST-135; `input_tokens` vẫn là tổng gồm cache). CLI không báo → null. */
   cache_read_tokens: number | null;
   cache_write_tokens: number | null;
-  /** Loại CLI chạy phiên (`claude` / `custom`) — gửi lên OfficeHub làm `executor`. */
+  /** Loại CLI chạy phiên (`claude` / `codex` / `custom`) — gửi lên OfficeHub làm `executor`. */
   executor: string | null;
   /**
    * Job có chạy CLI (có phiên để báo mức dùng AI, TEST-135): 1 = runner tự gửi sau phiên + gửi lại theo nhịp;

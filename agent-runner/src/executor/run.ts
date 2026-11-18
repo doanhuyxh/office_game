@@ -4,11 +4,15 @@ import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { redact } from '../log';
 import { claudeAdapter } from './adapters/claude';
+import { codexAdapter } from './adapters/codex';
 import { customAdapter } from './adapters/custom';
 import type { Adapter, ExecContext, ExecResult } from './types';
 
 /** Registry loại CLI (`executor.kind`) → adapter. Thêm CLI mới = một file trong `adapters/` + một dòng ở đây. */
-export const adapters = { claude: claudeAdapter, custom: customAdapter } satisfies Record<string, Adapter>;
+export const adapters = { claude: claudeAdapter, codex: codexAdapter, custom: customAdapter } satisfies Record<
+  string,
+  Adapter
+>;
 export type ExecutorKind = keyof typeof adapters;
 export const isExecutorKind = (v: unknown): v is ExecutorKind => typeof v === 'string' && Object.hasOwn(adapters, v);
 

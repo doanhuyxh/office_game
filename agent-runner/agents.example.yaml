@@ -41,7 +41,7 @@ agents:
     #   builtin_tools: false                     # chỉ mode none: true = phiên việc CÓ shell / đọc ghi file trong thư mục việc (vẫn không repo) —
     #                                            #   cho bot thiết kế (curl tải ảnh lên), DevOps (gh / ssh theo hướng dẫn); chat / họp vẫn chỉ MCP — xem NV140
     executor:
-      kind: claude                               # claude | custom
+      kind: claude                               # claude | codex | custom
       bin: /usr/local/bin/claude
       model: claude-sonnet-5-5
       home: /srv/agents/NV120/home               # HOME riêng (đăng nhập CLI, gh auth login, ~/.claude)
@@ -53,6 +53,19 @@ agents:
       #   max_budget_usd: 0.2
       #   max_turns: 8
       extra_args: []
+
+  - employee_code: NV122                         # agent chạy OpenAI Codex CLI (`codex login` trong HOME bên dưới, hoặc CODEX_API_KEY trong env_file)
+    telegram_bot: "@agent_dev03_bot"
+    telegram_token: "222222222:AA…"
+    token: "ohk_wwwwwwwwwwwwwwww"
+    repo: /srv/agents/NV122/office_game
+    executor:
+      kind: codex                                # runner tự khai MCP OfficeHub; MCP thêm (Stitch…) đặt trong <home>/.codex/config.toml
+      bin: /usr/local/bin/codex
+      model: gpt-5.1-codex                       # không có max_budget_usd / max_turns (Codex không hỗ trợ) — chỉ timeout_min
+      home: /srv/agents/NV122/home
+      timeout_min: 60
+      extra_args: []                             # cờ thêm cho `codex exec`, vd ["-c", "model_reasoning_effort=\"high\""]
 
   - employee_code: NV121
     telegram_bot: "@agent_dev02_bot"

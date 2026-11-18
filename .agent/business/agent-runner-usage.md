@@ -18,7 +18,7 @@ Code: `agent-runner/src/hub/usage.ts` (dựng phiên + `UsageReporter`), `store.
 | `sourceId` | `<tên máy ≤ 40, bỏ ":">:<mã runner.db 8 hex>:<mã NV>:<id job>` — mã DB (bảng `meta.db_id`, tạo một lần) để máy bị xoá / DB mới đếm job lại từ 1 không ghi đè phiên cũ (lệch nhẹ so với mô tả việc `<máy>:<NV>:<jobId>`, có chủ ý) |
 | `kind` | `jobs.kind` (null = `task`) |
 | `taskId` / `projectId` / `taskCode` | chỉ job việc (GUID hợp lệ; mã việc ≤ 50). Chat / họp: không gửi (`task_id` là khoá `<NV>:<id>`, `task_code` là nhãn log) |
-| `executor` | `jobs.executor` (`claude` / `custom`); job cũ → kind trong cấu hình agent hiện tại |
+| `executor` | `jobs.executor` (`claude` / `codex` / `custom`); job cũ → kind trong cấu hình agent hiện tại |
 | `status` | `done` / `failed` |
 | `startedAt` / `finishedAt` | `jobs.started_at` (lúc lấy job ra chạy, gồm chuẩn bị worktree) / `finished_at`, ISO UTC |
 | `turns`, `costUsd` | `jobs.turns`, `jobs.cost_usd` — không có → **null**, không gửi 0 |

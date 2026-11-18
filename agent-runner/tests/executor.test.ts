@@ -1,4 +1,4 @@
-// Adapter CLI (claude, custom): lệnh, đọc output, model thật, transcript, HOME.
+// Adapter CLI (claude, codex, custom): lệnh, đọc output, model thật, transcript, HOME.
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -7,6 +7,7 @@ import { lightExecutor, parseConfig } from '../src/config';
 import { claudeAdapter, parseProbe, probeArgs } from '../src/executor/adapters/claude';
 import { mainModel, modelLine, modelMatches, readModelUsage } from '../src/executor/model';
 import { resultComment } from '../src/jobs/task';
+import { codexAdapter, codexEvents, codexHasSession, codexMcpArgs } from '../src/executor/adapters/codex';
 import { customAdapter, fillArgs } from '../src/executor/adapters/custom';
 import type { ExecContext, ExecResult } from '../src/executor/types';
 import { MCP_SYSTEM_PROMPT } from '../src/prompt/system';
@@ -312,5 +313,113 @@ describe('executor adapters', () => {
     const t: ExecResult = {};
     customAdapter.finish!('dòng 1\nkết quả cuối\n', t);
     expect(t.summary).toBe('dòng 1\nkết quả cuối');
+  });
+
+  describe('codex', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'codex-'));
+    const mcp = join(dir, 'mcp.json');
+    writeFileSync(
+      mcp,
+      JSON.stringify({
+        mcpServers: {
+          officehub: {
+            type: 'http',
+            url: 'https://x.test/mcp?profile=task',
+            headers: { Authorization: 'Bearer ${OFFICEHUB_TOKEN}' },
+          },
+        },
+      }),
+    );
+    const cx: ExecContext = { ...ctx, mcpConfigFile: mcp, exec: { ...exec, kind: 'codex', model: 'gpt-x' } };
+
+    test('cấu hình kind codex hợp lệ, không cần args', () => {
+      const raw = baseRaw();
+      (raw.agents[0] as any).executor = { kind: 'codex', bin: '/usr/bin/codex' };
+      expect(parseConfig(raw).agents[0]!.executor.kind).toBe('codex');
+    });
+
+    test('lệnh: MCP qua -c, phiên có công cụ bỏ sandbox, prompt sau --', () => {
+      const c = codexAdapter.command({ ...cx, prompt: '-bắt đầu bằng gạch' });
+      expect(c.args.slice(0, 3)).toEqual(['exec', '--json', '--skip-git-repo-check']);
+      expect(c.args).toContain('mcp_servers.officehub.url="https://x.test/mcp?profile=task"');
+      expect(c.args).toContain('mcp_servers.officehub.bearer_token_env_var="OFFICEHUB_TOKEN"');
+      expect(c.args).toContain('mcp_servers.officehub.default_tools_approval_mode="approve"');
+      expect(c.args).toContain('--dangerously-bypass-approvals-and-sandbox');
+      expect(c.args.slice(c.args.indexOf('-m'), c.args.indexOf('-m') + 2)).toEqual(['-m', 'gpt-x']);
+      expect(c.args.slice(-2)).toEqual(['--', '-bắt đầu bằng gạch']);
+      expect(c.args.join(' ')).not.toContain('ohk_');
+    });
+
+    test('lệnh: phiên chỉ MCP → sandbox read-only; nối phiên → exec resume <id> <prompt>', () => {
+      const c = codexAdapter.command({ ...cx, noBuiltinTools: true, resumeSessionId: 'th-1' });
+      expect(c.args.slice(0, 2)).toEqual(['exec', 'resume']);
+      expect(c.args).toContain('sandbox_mode="read-only"');
+      expect(c.args).not.toContain('--dangerously-bypass-approvals-and-sandbox');
+      expect(c.args.slice(-3)).toEqual(['--', 'th-1', 'P']);
+      expect(codexAdapter.caps.toolRestriction).toBe(false);
+    });
+
+    test('file MCP hỏng / thiếu → không có tham số MCP', () => {
+      expect(codexMcpArgs(join(dir, 'không-có.json'))).toEqual([]);
+    });
+
+    test('đọc output: phiên, tóm tắt, token, lỗi', () => {
+      const r: ExecResult = {};
+      for (const l of [
+        '{"type":"thread.started","thread_id":"th-9"}',
+        '{"type":"error","message":"Reconnecting... 2/5"}',
+        '{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"Xong việc"}}',
+        '{"type":"turn.completed","usage":{"input_tokens":100,"cached_input_tokens":40,"output_tokens":7}}',
+        'dòng không phải JSON',
+      ])
+        codexAdapter.parseLine(l, r);
+      expect(r).toMatchObject({
+        sessionId: 'th-9',
+        summary: 'Xong việc',
+        inputTokens: 100,
+        cacheReadTokens: 40,
+        outputTokens: 7,
+        turns: 1,
+        isError: false,
+      });
+      const f: ExecResult = {};
+      codexAdapter.parseLine('{"type":"turn.failed","error":{"message":"401 Unauthorized"}}', f);
+      expect(f).toMatchObject({ isError: true, errorKind: 'turn_failed', summary: '401 Unauthorized' });
+    });
+
+    test('log tiến độ + sự kiện xem trực tiếp', () => {
+      const started = '{"type":"item.started","item":{"id":"i1","type":"command_execution","command":"ls"}}';
+      const done =
+        '{"type":"item.completed","item":{"id":"i1","type":"command_execution","command":"ls","aggregated_output":"a.txt","exit_code":0}}';
+      const secret =
+        '{"type":"item.completed","item":{"id":"i2","type":"command_execution","command":"cat .env","aggregated_output":"KEY=1","exit_code":0}}';
+      const change =
+        '{"type":"item.completed","item":{"id":"i3","type":"file_change","changes":[{"path":"/w/src/a.ts","kind":"update"}],"status":"completed"}}';
+      const tool =
+        '{"type":"item.started","item":{"id":"i4","type":"mcp_tool_call","server":"officehub","tool":"get_task"}}';
+      expect(codexAdapter.activity!(started, '/w')).toEqual(['Chạy: ls']);
+      expect(codexAdapter.activity!(change, '/w')).toEqual(['Sửa src/a.ts']);
+      expect(codexAdapter.activity!(tool, '/w')).toEqual(['OfficeHub get_task']);
+      const ev = codexEvents('/w');
+      expect(ev(started)).toEqual([{ id: 'i1', kind: 'command', title: 'Chạy lệnh', text: 'ls' }]);
+      expect(ev(done)[0]).toMatchObject({ id: 'i1', kind: 'command', ok: true, output: 'a.txt' });
+      expect(ev(secret)[0]!.output).not.toContain('KEY=1');
+      expect(ev(change)).toEqual([
+        { id: 'i3-0', kind: 'file_edit', title: 'Sửa src/a.ts', path: 'src/a.ts', ok: true },
+      ]);
+      expect(ev(tool)).toEqual([{ id: 'i4', kind: 'tool', title: 'OfficeHub get_task' }]);
+    });
+
+    test('hasSession tìm file rollout theo id; doctor cảnh báo chưa đăng nhập + trần không áp dụng', () => {
+      const day = join(dir, '.codex', 'sessions', '2026', '11', '18');
+      mkdirSync(day, { recursive: true });
+      writeFileSync(join(day, 'rollout-2026-11-18T15-35-37-th-9.jsonl'), '');
+      expect(codexHasSession(dir, '/w', 'th-9')).toBe(true);
+      expect(codexHasSession(dir, '/w', 'th-0')).toBe(false);
+      const w = codexAdapter.homeWarnings!({ ...cx.exec, home: dir, maxBudgetUsd: 4 }, dir).join('\n');
+      expect(w).toContain('auth.json');
+      expect(w).toContain('max_budget_usd');
+      rmSync(dir, { recursive: true, force: true });
+    });
   });
 });

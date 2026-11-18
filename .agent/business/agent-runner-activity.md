@@ -31,6 +31,7 @@ Khớp `BotActivityEvent` (`backend/.../BuildingBlocks/Office/BotActivityFeed.cs
 - `id` = `tool_use.id` của CLI; suy nghĩ / lời nói: `think-N` / `say-N` (đếm trong một lần chạy); phiên: `session`, `session-end`.
 - Kết quả của `Read` / `Grep` / `Edit` / tool MCP **không gửi nội dung** (là nội dung file / dữ liệu nghiệp vụ) — chỉ cập nhật `ok`.
 - **Không cập nhật `session_start` bằng cùng id**: server xoá đệm mỗi khi nhận `session_start` → model thật để ở `session_end`.
+- Adapter `codex` có `events` (`codexEvents`): lệnh + kết quả, file đã sửa (chỉ đường dẫn, Codex không gửi diff), suy nghĩ, lời agent, tool MCP.
 - Adapter `custom` không có `events` → người xem chỉ thấy bắt đầu / kết thúc phiên.
 
 ## An toàn (bắt buộc)
