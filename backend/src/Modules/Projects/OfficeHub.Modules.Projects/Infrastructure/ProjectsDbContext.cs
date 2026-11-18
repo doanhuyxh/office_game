@@ -26,6 +26,7 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
     public DbSet<TaskComment> Comments => Set<TaskComment>();
     public DbSet<CommentAttachment> CommentAttachments => Set<CommentAttachment>();
     public DbSet<CommentUploadTicket> CommentUploadTickets => Set<CommentUploadTicket>();
+    public DbSet<CommentUploadLink> CommentUploadLinks => Set<CommentUploadLink>();
     public DbSet<TaskActivity> Activities => Set<TaskActivity>();
     public DbSet<TaskDependency> Dependencies => Set<TaskDependency>();
     public DbSet<TaskFollower> Followers => Set<TaskFollower>();
@@ -159,6 +160,8 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.ToTable("task_comments");
             e.Property(x => x.Content).HasMaxLength(3000);
             e.Property(x => x.AuthorName).HasMaxLength(200);
+            e.Property(x => x.ClientIp).HasMaxLength(64);
+            e.Property(x => x.UserAgent).HasMaxLength(300);
             e.HasIndex(x => new { x.TaskId, x.CreatedAt }).HasDatabaseName("ix_task_comments_task");
             e.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_task_comments_time"); // luồng thay đổi (/activity)
             e.HasOne<TaskItem>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
@@ -180,6 +183,15 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.Property(x => x.ContentType).HasMaxLength(150);
             e.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_comment_upload_tickets_created");
             e.HasIndex(x => new { x.UserId, x.CreatedAt }).HasDatabaseName("ix_comment_upload_tickets_user");
+            e.HasIndex(x => x.UploadLinkId).HasDatabaseName("ix_comment_upload_tickets_link");
+        });
+        b.Entity<CommentUploadLink>(e =>
+        {
+            e.ToTable("comment_upload_links");
+            e.Property(x => x.TokenHash).HasMaxLength(64);
+            e.HasIndex(x => x.TokenHash).IsUnique().HasDatabaseName("ux_comment_upload_links_token");
+            e.HasIndex(x => new { x.TaskId, x.UserId }).HasDatabaseName("ix_comment_upload_links_task_user");
+            e.HasOne<TaskItem>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
         });
         b.Entity<TaskDependency>(e =>
         {

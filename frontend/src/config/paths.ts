@@ -32,4 +32,6 @@ export const PATHS = {
   forgotPassword: '/forgot-password',
   acceptInvite: '/accept-invite',
   resetPassword: '/reset-password',
+  /** Trang công khai gửi tệp vào bình luận việc qua link (TEST-175) — không cần đăng nhập. */
+  uploadLink: '/u/$token',
 } as const;

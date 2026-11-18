@@ -39,8 +39,11 @@ public sealed record UpsertTask(string Title, string? Description = null, Guid? 
 public sealed record MoveTask(Guid ColumnId, double? Rank = null, string? Note = null);
 /// <param name="CanDelete">Người xem được xoá (chỉ chính người viết, trên web, dự án đang chạy — TEST-39).</param>
 /// <param name="Attachments">Ảnh / tệp đính kèm (TEST-153) — link presigned cấp mỗi lần đọc.</param>
+/// <param name="ViaUploadLink">Gửi qua link tải lên từ thiết bị khác (TEST-175) — nhãn "Qua link tải lên".</param>
 public sealed record CommentDto(Guid Id, string Content, string AuthorName, DateTimeOffset CreatedAt, bool ByBot, bool CanDelete = false,
-    List<CommentAttachmentDto>? Attachments = null);
+    List<CommentAttachmentDto>? Attachments = null, bool ViaUploadLink = false);
+/// <summary>Nguồn bình luận gửi qua link tải lên (TEST-175): id link + IP / User-Agent lần tải (tra soát, không trả ra API).</summary>
+internal sealed record CommentVia(Guid LinkId, string? Ip, string? UserAgent);
 /// <param name="Content">Bỏ trống được khi có <paramref name="UploadIds"/>.</param>
 /// <param name="UploadIds">Vé từ <c>POST /tasks/{tid}/uploads</c> (đã PUT file xong), ≤ <see cref="CommentFileRules.MaxAttachments"/>.</param>
 public sealed record NewComment(string? Content, List<Guid>? UploadIds = null);
@@ -185,9 +188,12 @@ internal static class TaskEndpoints
     private static bool CanApprove(ProjectViewer v, ClaimsPrincipal user, Guid projectId) => v.CanManage(projectId) && !user.IsAccessToken();
 
     /// <summary>Token AI: việc đã qua tay bot quá nhiều lần liên tiếp → chặn (null = được làm).</summary>
-    internal static async Task<string?> StreakErrorAsync(ClaimsPrincipal user, Guid tid, ProjectsDbContext db, CancellationToken ct)
+    internal static Task<string?> StreakErrorAsync(ClaimsPrincipal user, Guid tid, ProjectsDbContext db, CancellationToken ct) =>
+        StreakErrorAsync(user.IsAccessToken(), tid, db, ct);
+
+    private static async Task<string?> StreakErrorAsync(bool byBot, Guid tid, ProjectsDbContext db, CancellationToken ct)
     {
-        if (!user.IsAccessToken()) return null;
+        if (!byBot) return null;
         var acts = await db.Activities.AsNoTracking().Where(a => a.TaskId == tid).OrderByDescending(a => a.At).Take(50)
             .Select(a => new { a.At, a.ByBot, a.Kind }).ToListAsync(ct);
         var comments = await db.Comments.AsNoTracking().Where(c => c.TaskId == tid).OrderByDescending(c => c.CreatedAt).Take(50)
@@ -602,7 +608,7 @@ internal static class TaskEndpoints
         var list = new List<CommentDto>(rows.Count);
         foreach (var c in rows)
             list.Add(new CommentDto(c.Id, c.Content, c.AuthorName, c.CreatedAt, c.ByBot, deleter != null && c.AuthorEmployeeId == deleter,
-                await CommentFileEndpoints.DtosAsync(c.Attachments, files)));
+                await CommentFileEndpoints.DtosAsync(c.Attachments, files), c.UploadLinkId != null));
         return list;
     }
 
@@ -636,19 +642,33 @@ internal static class TaskEndpoints
         var (t, p) = await LoadAsync(tid, db, ct);
         if (t is null || p is null || !v.CanSee(p.Id)) return TypedResults.NotFound();
         if (!v.CanWork(p.Id)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được bình luận");
+        return await PostCommentAsync(t, p, v, user.IsAccessToken(), r, null, db, access, dir, notifier, telegram, clock, files, ct);
+    }
+
+    /// <summary>
+    /// Đăng bình luận (nội dung + tệp đã PUT) thay mặt <paramref name="v"/> — dùng chung cho web / token AI và link tải lên từ thiết bị khác
+    /// (<paramref name="via"/>, TEST-175: vé phải xin qua đúng link đó; bình luận đứng tên người tạo link). Quyền đã kiểm ở nơi gọi.
+    /// </summary>
+    internal static async Task<Results<Created<Guid>, NotFound, ValidationProblem, ProblemHttpResult>> PostCommentAsync(TaskItem t, Project p, ProjectViewer v, bool byBot,
+        NewComment r, CommentVia? via, ProjectsDbContext db, ProjectAccess access, IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, ProjectClock clock,
+        IFileStorage files, CancellationToken ct)
+    {
+        var tid = t.Id;
+        var linkId = via?.LinkId;
         var uploadIds = (r.UploadIds ?? []).Where(u => u != Guid.Empty).Distinct().ToList();
         var val = new Validation();
         foreach (var (field, message) in CommentFileRules.ValidateComment(r.Content, uploadIds.Count)) val.Add(field, message);
         if (val.Failed) return val.Problem();
         if (uploadIds.Count > 0 && p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
-        if (await StreakErrorAsync(user, t.Id, db, ct) is { } streakErr) return Problems.Conflict(streakErr);
+        if (byBot && await StreakErrorAsync(true, t.Id, db, ct) is { } streakErr) return Problems.Conflict(streakErr);
         var tickets = uploadIds.Count == 0 ? []
-            : await db.CommentUploadTickets.Where(x => uploadIds.Contains(x.Id) && x.UserId == v.UserId && x.TaskId == tid).ToListAsync(ct);
+            : await db.CommentUploadTickets.Where(x => uploadIds.Contains(x.Id) && x.UserId == v.UserId && x.TaskId == tid && x.UploadLinkId == linkId).ToListAsync(ct);
         if (tickets.Count != uploadIds.Count)
             return new Validation().Add("uploadIds", "Tệp đính kèm không hợp lệ hoặc đã hết hạn — tải lại tệp").Problem();
         var c = new TaskComment
         {
-            TaskId = tid, Content = r.Content?.Trim() ?? "", AuthorEmployeeId = v.Employee?.Id, AuthorName = v.Name, ByBot = user.IsAccessToken(), CreatedAt = clock.Now,
+            TaskId = tid, Content = r.Content?.Trim() ?? "", AuthorEmployeeId = v.Employee?.Id, AuthorName = v.Name, ByBot = byBot, CreatedAt = clock.Now,
+            UploadLinkId = linkId, ClientIp = via?.Ip, UserAgent = via?.UserAgent,
         };
         foreach (var x in tickets.OrderBy(x => uploadIds.IndexOf(x.Id)))
         {
@@ -668,6 +688,7 @@ internal static class TaskEndpoints
         }
         db.Comments.Add(c);
         db.CommentUploadTickets.RemoveRange(tickets);
+        if (linkId is { } lid && await db.CommentUploadLinks.FirstOrDefaultAsync(x => x.Id == lid, ct) is { } link) link.FileCount += tickets.Count;
         await db.SaveChangesAsync(ct);
         var code = EffortRules.TaskCode(p.Code, t.Number);
         var preview = CommentFileRules.Preview(c.Content, c.Attachments.Select(a => (a.FileName, a.IsImage)).ToList());

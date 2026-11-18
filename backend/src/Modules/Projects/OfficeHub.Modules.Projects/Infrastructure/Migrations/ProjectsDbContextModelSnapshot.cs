@@ -192,6 +192,47 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.ToTable("comment_attachments", "projects");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.CommentUploadLink", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FileCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ux_comment_upload_links_token");
+
+                    b.HasIndex("TaskId", "UserId")
+                        .HasDatabaseName("ix_comment_upload_links_task_user");
+
+                    b.ToTable("comment_upload_links", "projects");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.CommentUploadTicket", b =>
                 {
                     b.Property<Guid>("Id")
@@ -225,6 +266,9 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.Property<Guid>("TaskId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("UploadLinkId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
@@ -232,6 +276,9 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
 
                     b.HasIndex("CreatedAt")
                         .HasDatabaseName("ix_comment_upload_tickets_created");
+
+                    b.HasIndex("UploadLinkId")
+                        .HasDatabaseName("ix_comment_upload_tickets_link");
 
                     b.HasIndex("UserId", "CreatedAt")
                         .HasDatabaseName("ix_comment_upload_tickets_user");
@@ -536,6 +583,10 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.Property<bool>("ByBot")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("ClientIp")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasMaxLength(3000)
@@ -546,6 +597,13 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
 
                     b.Property<Guid>("TaskId")
                         .HasColumnType("uuid");
+
+                    b.Property<Guid?>("UploadLinkId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
 
                     b.HasKey("Id");
 
@@ -702,6 +760,15 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.HasOne("OfficeHub.Modules.Projects.Domain.TaskComment", null)
                         .WithMany("Attachments")
                         .HasForeignKey("CommentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.CommentUploadLink", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Projects.Domain.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

@@ -122,6 +122,17 @@ internal sealed class ProjectAccess(ProjectsDbContext db, IEmployeeDirectory dir
             isHr || user.IsInRole(Roles.Manager), fin.Has(FinancePermission.View), emp, roles, fin.Has(FinancePermission.Admin), manageColumns, deptProjects);
     }
 
+    /// <summary>
+    /// Người tạo link tải lên (TEST-175) đứng tên bình luận: nhân viên đang làm, còn là thành viên dự án <paramref name="projectId"/>; không → null (link hết hiệu lực).
+    /// Chỉ mang vai trò trong dự án đó (không HR / tài chính) — đủ cho <see cref="ProjectViewer.CanWork"/> + chuông.
+    /// </summary>
+    public async Task<ProjectViewer?> MemberViewerAsync(Guid userId, Guid projectId, CancellationToken ct)
+    {
+        if (await dir.GetByUserIdAsync(userId, ct) is not { IsActive: true } emp) return null;
+        var role = await db.Members.AsNoTracking().Where(m => m.EmployeeId == emp.Id && m.ProjectId == projectId).Select(m => (ProjectMemberRole?)m.Role).FirstOrDefaultAsync(ct);
+        return role is { } r ? new ProjectViewer(userId, emp.FullName, false, false, false, emp, new Dictionary<Guid, ProjectMemberRole> { [projectId] = r }) : null;
+    }
+
     public async Task<IReadOnlyDictionary<Guid, EmployeeRef>> EmployeesAsync(CancellationToken ct) =>
         _employees ??= (await dir.ListEmployedAsync(new DateOnly(2000, 1, 1), new DateOnly(2200, 1, 1), ct)).DistinctBy(e => e.Id).ToDictionary(e => e.Id);
 }

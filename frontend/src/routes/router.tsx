@@ -70,6 +70,12 @@ const tokenSearch = (s: Record<string, unknown>): { uid?: string; token?: string
 });
 const acceptInvite = createRoute({ getParentRoute: () => root, path: PATHS.acceptInvite, validateSearch: tokenSearch, component: AcceptInviteForm });
 const resetPassword = createRoute({ getParentRoute: () => root, path: PATHS.resetPassword, validateSearch: tokenSearch, component: ResetPasswordForm });
+// Link tải tệp từ thiết bị khác (TEST-175): trang công khai riêng, ngoài layout đăng nhập — chỉ cần token trong đường dẫn.
+const uploadLink = createRoute({
+  getParentRoute: () => root,
+  path: PATHS.uploadLink,
+  component: lazyRouteComponent(() => import('@/features/upload-link/page'), 'UploadLinkPage'),
+});
 
 // ---- Cần đăng nhập ----
 const protectedRoute = createRoute({
@@ -142,6 +148,7 @@ const routeTree = root.addChildren([
   forgotPassword,
   acceptInvite,
   resetPassword,
+  uploadLink,
   protectedRoute.addChildren([
     office,
     oauthAuthorize,

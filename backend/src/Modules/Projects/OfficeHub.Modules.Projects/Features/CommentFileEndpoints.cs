@@ -63,6 +63,16 @@ internal static class CommentFileEndpoints
                     statusCode: StatusCodes.Status429TooManyRequests);
         }
 
+        return await IssueTicketAsync(tid, v.UserId, byBot, null, req, db, files, now, ct);
+    }
+
+    /// <summary>
+    /// Kiểm tệp (<see cref="CommentFileRules.ValidateUpload"/>, MIME theo đuôi), dọn vé bỏ dở, tạo vé + presigned PUT. Quyền / hạn mức đã kiểm ở nơi gọi.
+    /// <paramref name="linkId"/>: vé xin qua link tải lên (TEST-175) — chỉ gửi được qua đúng link đó.
+    /// </summary>
+    internal static async Task<Results<Ok<CommentUploadTicketDto>, NotFound, ValidationProblem, ProblemHttpResult>> IssueTicketAsync(Guid tid, Guid userId, bool byBot,
+        Guid? linkId, CommentUploadRequest req, ProjectsDbContext db, IFileStorage files, DateTimeOffset now, CancellationToken ct)
+    {
         var name = CommentFileRules.CleanFileName(req.FileName);
         var contentType = FileTypes.ContentTypeFor(name); // theo đuôi, không tin trình duyệt (TEST-13)
         var val = new Validation();
@@ -74,7 +84,8 @@ internal static class CommentFileEndpoints
 
         var ticket = new CommentUploadTicket
         {
-            TaskId = tid, UserId = v.UserId, ByBot = byBot, FileName = name, ContentType = contentType, Size = req.Size, CreatedAt = now, FileKey = "",
+            TaskId = tid, UserId = userId, ByBot = byBot, FileName = name, ContentType = contentType, Size = req.Size, CreatedAt = now, FileKey = "",
+            UploadLinkId = linkId,
         };
         ticket.FileKey = CommentFileRules.FileKey(now, ticket.Id, name);
         db.CommentUploadTickets.Add(ticket);

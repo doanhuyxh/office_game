@@ -3,7 +3,7 @@ import { confirmDialog, promptDialog } from '@/components/common/confirm-dialog'
 import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@/utils/cn';
 import { toast } from 'sonner';
-import { ImagePlus, Trash2, X } from 'lucide-react';
+import { ImagePlus, Smartphone, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { FormField } from '@/components/common/FormField';
@@ -25,6 +25,7 @@ import { TaskCommentInput } from '../task-comment-input';
 import { TaskDependencies } from '../task-dependencies';
 import { TaskFollowers } from '../task-followers';
 import { TaskMedia } from '../task-media';
+import { UploadLinkDialog } from '../upload-link-dialog';
 
 const fmtTime = (iso: string) => new Date(iso).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
@@ -64,6 +65,7 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
   const [comment, setComment] = useState('');
   const [commentFiles, setCommentFiles] = useState<File[]>([]);
   const [preview, setPreview] = useState(false);
+  const [uploadLinkOpen, setUploadLinkOpen] = useState(false);
   const [links, setLinks] = useState<string[]>([]);
   const save = useProjectMutation((b: ITaskRequest): Promise<unknown> => (task ? projectApi.updateTask(task.id, b) : projectApi.createTask(projectId, b)));
   const remove = useProjectMutation(projectApi.deleteTask);
@@ -91,7 +93,7 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
   const createCols = createColumns(columns, sequential, canDelete);
   useEffect(() => {
     if (!open) return;
-    save.reset(); setComment(''); setCommentFiles([]); setShowHistory(false);
+    save.reset(); setComment(''); setCommentFiles([]); setShowHistory(false); setUploadLinkOpen(false);
     setPreview(!!task?.description); // việc đã có mô tả → mở ở chế độ xem Markdown
     setLinks(task?.mediaLinks.length ? [...task.mediaLinks] : []);
     setF(task ? { title: task.title, description: task.description ?? '', columnId: task.columnId, assigneeEmployeeId: task.assigneeEmployeeId, reviewerId: task.reviewerEmployeeId ?? null, milestoneId: task.milestoneId,
@@ -169,7 +171,9 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
                   <div className="text-sm font-medium">Bình luận ({comments.length})</div>
                   {comments.map((c) => <div key={c.id} id={`task-comment-${c.id}`} className={cn('rounded-md bg-muted/50 p-2 text-sm', c.id === focusCommentId && 'ring-2 ring-primary/50')} data-testid="task-comment">
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <span className="min-w-0 flex-1">{c.authorName}{c.byBot && <BotBadge className="ml-1" />} · {fmtTime(c.createdAt)}</span>
+                      <span className="min-w-0 flex-1">{c.authorName}{c.byBot && <BotBadge className="ml-1" />}
+                        {c.viaUploadLink && <span title="Gửi từ thiết bị khác qua link tải lên" data-testid="upload-link-badge"
+                          className="ml-1 inline-flex items-center gap-0.5 rounded bg-success/15 px-1 py-px align-middle text-[10px] font-semibold leading-none text-success"><Smartphone className="size-3" /> Qua link tải lên</span>} · {fmtTime(c.createdAt)}</span>
                       {c.canDelete && <Button type="button" size="icon" variant="ghost" className="size-6 shrink-0 text-muted-foreground hover:text-destructive" aria-label="Xoá bình luận"
                         loading={deleteComment.isPending && deleteComment.variables === c.id} disabled={deleteComment.isPending}
                         onClick={async () => await confirmDialog({ title: 'Xoá bình luận?', description: 'Bình luận bị xoá hẳn; lịch sử việc ghi lại là đã xoá một bình luận.', confirmText: 'Xoá', destructive: true, onConfirm: () => deleteComment.mutateAsync(c.id) })
@@ -179,7 +183,9 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
                     {c.content && <Markdown text={c.content} mentions={mentionNames} />}
                     {!!c.attachments?.length && <CommentAttachments attachments={c.attachments} caption={`${c.authorName} · ${fmtTime(c.createdAt)}`} />}</div>)}
                   {canWork && <TaskCommentInput members={members} value={comment} onChange={setComment} onSubmit={postComment} pending={addComment.isPending}
-                    files={commentFiles} onAddFiles={addCommentFiles} onRemoveFile={(i) => setCommentFiles((x) => x.filter((_, j) => j !== i))} />}
+                    files={commentFiles} onAddFiles={addCommentFiles} onRemoveFile={(i) => setCommentFiles((x) => x.filter((_, j) => j !== i))}
+                    onUploadLink={() => setUploadLinkOpen(true)} />}
+                  {canWork && <UploadLinkDialog taskId={task.id} taskCode={task.code} open={uploadLinkOpen} onClose={() => setUploadLinkOpen(false)} />}
                   <p className="text-xs text-muted-foreground">Tạo bởi {task.createdByName}{task.createdByBot && <BotBadge className="ml-1" />} · {fmtTime(task.createdAt)}{task.completedAt && ` · xong ${fmtTime(task.completedAt)}`}
                     {activities.length > 0 && <button type="button" className="ml-2 underline" onClick={() => setShowHistory((x) => !x)}>{showHistory ? 'Ẩn lịch sử' : `Lịch sử (${activities.length})`}</button>}</p>
                   {showHistory && <ul className="grid gap-1 rounded-md border p-2" data-testid="task-history">{[...activities].reverse().map((a) => <ActivityLine key={a.id} a={a} />)}</ul>}

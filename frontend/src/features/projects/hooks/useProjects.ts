@@ -10,6 +10,9 @@ export const useTasks = (id: string) => useQuery({ queryKey: projectKeys.tasks(i
 export const useMyTasks = () => useQuery({ queryKey: projectKeys.myTasks, queryFn: projectApi.myTasks });
 /** Việc + bình luận + lịch sử (hộp thoại việc). */
 export const useTaskDetail = (taskId: string | null) => useQuery({ queryKey: projectKeys.task(taskId ?? ''), queryFn: () => projectApi.task(taskId!), enabled: !!taskId });
+/** Link tải lên còn hạn của tôi trên việc (TEST-175). */
+export const useUploadLinks = (taskId: string, enabled: boolean) =>
+  useQuery({ queryKey: projectKeys.uploadLinks(taskId), queryFn: () => projectApi.uploadLinks(taskId), enabled });
 export const useEffort = (id: string, enabled: boolean) => useQuery({ queryKey: projectKeys.effort(id), queryFn: () => projectApi.effort(id), enabled });
 export const useSalesContractSearch = (search: string, enabled: boolean) =>
   useQuery({ queryKey: projectKeys.contracts(search), queryFn: () => projectApi.salesContracts(search), enabled });

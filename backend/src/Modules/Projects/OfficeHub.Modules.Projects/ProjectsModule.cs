@@ -28,6 +28,7 @@ public sealed class ProjectsModule : IModule
         services.AddScoped<ProjectFinance>();
         services.AddScoped<IProjectDirectory, ProjectDirectory>();
         services.AddScoped<ICommentFileLookup, CommentFileLookup>(); // Chat chuyển tiếp tệp bình luận việc (TEST-156)
+        UploadLinkEndpoints.AddRateLimit(services); // link tải lên từ thiết bị khác — endpoint công khai theo IP (TEST-175)
         services.AddHostedService<ProjectsMigrator>();
         services.AddHostedService<TaskReminderJob>();
         services.AddHostedService<AllocationFreezeJob>();
@@ -38,6 +39,7 @@ public sealed class ProjectsModule : IModule
         var g = api.MapGroup("/projects").WithTags("Projects").RequireAuthorization();
         TaskEndpoints.Map(g);       // trước ProjectEndpoints: "/tasks/mine" không bị "/{id:guid}" nuốt (guid constraint đã chặn, giữ thứ tự cho rõ)
         CommentFileEndpoints.Map(g); // tệp đính kèm bình luận việc (TEST-153)
+        UploadLinkEndpoints.Map(g);  // link tải tệp từ thiết bị khác (TEST-175)
         TaskFollowerEndpoints.Map(g); // người theo dõi việc (TEST-160)
         TaskColumnEndpoints.Map(g);
         ActivityFeedEndpoints.Map(g); // /activity — bảng việc tự cập nhật + toast
@@ -46,6 +48,9 @@ public sealed class ProjectsModule : IModule
         ChangeRequestEndpoints.Map(g);
         ProjectAppendixEndpoints.Map(g); // /{id}/appendix — tab Phụ lục (TEST-40)
         ProjectEndpoints.Map(g);
+        // Trang công khai /u/{token} (TEST-175): không đăng nhập, chỉ token link; giới hạn theo IP
+        UploadLinkEndpoints.MapPublic(api.MapGroup("/projects/public/upload-links").WithTags("Projects").AllowAnonymous()
+            .RequireRateLimiting(UploadLinkEndpoints.RateLimitPolicy));
         // Realtime hỏi việc bot đang chờ người (TEST-119) — khoá nội bộ, không cookie; nginx chặn từ ngoài
         BotWaitingEndpoints.Map(api.MapGroup("/projects/internal").WithTags("Projects").AllowAnonymous()
             .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(16 * 1024)));

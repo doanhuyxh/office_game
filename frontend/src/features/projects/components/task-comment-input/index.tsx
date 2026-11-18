@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent } from 'react';
-import { File as FileIcon, Paperclip, X } from 'lucide-react';
+import { File as FileIcon, Paperclip, Smartphone, X } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { MentionList, type IMentionOption } from '@/components/common/mention-list';
 import { MessageInput } from '@/components/common/message-input';
@@ -15,10 +15,11 @@ import { MAX_COMMENT_FILES, formatBytes, isImageFile } from '../../utils/attachm
  * Chọn → chèn "@<mã NV>" — đúng cú pháp back-end đọc (`AgentTeamRules.MentionedCodes`) và bot dùng qua MCP comment_task.
  * Đính kèm ảnh / tệp: nút kẹp giấy, dán ảnh (Ctrl+V), kéo-thả vào ô; xem trước + bỏ (×) trước khi gửi; tối đa 5 tệp. Tải lên khi bấm gửi
  * (chỗ gọi lo tải + đăng — `pending` bao cả hai). Chỉ có tệp, không chữ vẫn gửi được.
+ * Nút điện thoại cạnh kẹp giấy (`onUploadLink`, TEST-175): mở hộp tạo link tải tệp từ thiết bị khác.
  */
-export function TaskCommentInput({ members, value, onChange, onSubmit, pending, files, onAddFiles, onRemoveFile }: {
+export function TaskCommentInput({ members, value, onChange, onSubmit, pending, files, onAddFiles, onRemoveFile, onUploadLink }: {
   members: IMember[]; value: string; onChange: (text: string) => void; onSubmit: () => void; pending: boolean;
-  files: File[]; onAddFiles: (list: File[]) => void; onRemoveFile: (index: number) => void;
+  files: File[]; onAddFiles: (list: File[]) => void; onRemoveFile: (index: number) => void; onUploadLink?: () => void;
 }) {
   const area = useRef<HTMLTextAreaElement>(null);
   const picker = useRef<HTMLInputElement>(null);
@@ -101,6 +102,12 @@ export function TaskCommentInput({ members, value, onChange, onSubmit, pending, 
             disabled={pending || files.length >= MAX_COMMENT_FILES} onClick={() => picker.current?.click()}>
             <Paperclip />
           </Button>
+          {onUploadLink && (
+            <Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label="Tải từ thiết bị khác" title="Tải từ thiết bị khác (link / mã QR, không cần đăng nhập)"
+              data-testid="task-comment-upload-link" onClick={onUploadLink}>
+              <Smartphone />
+            </Button>
+          )}
         </>}
         inputTestId="task-comment-input"
         onKeyDown={(e) => { if (nav.handleKey({ key: e.key, shiftKey: e.shiftKey, isComposing: e.nativeEvent.isComposing })) e.preventDefault(); }}

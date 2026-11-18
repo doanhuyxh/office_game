@@ -1,6 +1,6 @@
 # Ảnh / tệp đính kèm bình luận việc (TEST-153)
 
-> Về [projects-tasks.md](projects-tasks.md) · MCP [mcp-tools.md](mcp-tools.md) · e2e [../e2e.md](../e2e.md)
+> Về [projects-tasks.md](projects-tasks.md) · MCP [mcp-tools.md](mcp-tools.md) · e2e [../e2e.md](../e2e.md) · link tải từ thiết bị khác (TEST-175): [projects-comment-upload-links.md](projects-comment-upload-links.md)
 
 Người thật dán / kéo-thả / chọn ảnh, tệp vào bình luận việc trên web; bot gửi ảnh báo cáo (vd ảnh chụp kết quả) và xem ảnh của nhau qua MCP. Module Projects có **bản riêng** (không tham chiếu Chat — ranh giới module), cùng giới hạn như chat.
 

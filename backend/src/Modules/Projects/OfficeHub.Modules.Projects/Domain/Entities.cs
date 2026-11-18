@@ -250,6 +250,12 @@ public sealed class TaskComment
     public DateTimeOffset CreatedAt { get; set; }
     /// <summary>Ảnh / tệp đính kèm (TEST-153) — xoá bình luận / việc thì xoá cả file trên S3.</summary>
     public List<CommentAttachment> Attachments { get; set; } = [];
+    /// <summary>Gửi qua link tải lên từ thiết bị khác (TEST-175, <see cref="CommentUploadLink"/>) — nhãn "Qua link tải lên"; null = web / AI.</summary>
+    public Guid? UploadLinkId { get; set; }
+    /// <summary>IP của lần tải qua link (tra soát, không hiện công khai).</summary>
+    public string? ClientIp { get; set; }
+    /// <summary>User-Agent của lần tải qua link (tra soát, không hiện công khai).</summary>
+    public string? UserAgent { get; set; }
 }
 
 /// <summary>Tệp đính kèm bình luận việc (TEST-153): chỉ lưu khoá S3 (<see cref="CommentFileRules.FileKey"/>), không lưu nội dung.</summary>
@@ -276,6 +282,25 @@ public sealed class CommentUploadTicket
     public required string ContentType { get; set; }
     public long Size { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    /// <summary>Vé xin qua link tải lên (TEST-175) — chỉ dùng được khi gửi qua đúng link đó.</summary>
+    public Guid? UploadLinkId { get; set; }
+}
+
+/// <summary>
+/// Link tải tệp từ thiết bị khác cho bình luận việc (TEST-175): trang công khai <c>/u/{token}</c>, không cần đăng nhập. Gắn cố định với người tạo
+/// (<see cref="UserId"/>, bình luận đứng tên họ) và việc. DB chỉ giữ SHA-256 của token (<see cref="UploadLinkRules"/>).
+/// </summary>
+public sealed class CommentUploadLink
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid TaskId { get; set; }
+    public Guid UserId { get; set; }
+    public required string TokenHash { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    /// <summary>Số tệp đã gửi qua link (giới hạn <see cref="UploadLinkRules.MaxFilesPerLink"/>).</summary>
+    public int FileCount { get; set; }
 }
 
 /// <summary>

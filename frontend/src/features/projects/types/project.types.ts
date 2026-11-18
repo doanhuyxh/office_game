@@ -72,7 +72,13 @@ export interface ITaskFollower { employeeId: string; code: string | null; fullNa
 /** Ảnh / tệp đính kèm bình luận việc (TEST-153). url = link presigned (hạn 60 phút): ảnh mở trực tiếp, tệp khác tải về. */
 export interface ICommentAttachment { id: string; fileName: string; contentType: string; size: number; isImage: boolean; url: string }
 /** canDelete: back-end tính theo người xem — chỉ chính người viết, trên web, dự án đang chạy. */
-export interface IComment { id: string; content: string; authorName: string; createdAt: string; byBot: boolean; canDelete: boolean; attachments?: ICommentAttachment[] }
+export interface IComment { id: string; content: string; authorName: string; createdAt: string; byBot: boolean; canDelete: boolean; attachments?: ICommentAttachment[];
+  /** Gửi qua link tải lên từ thiết bị khác (TEST-175) — nhãn "Qua link tải lên". */
+  viaUploadLink?: boolean }
+/** POST /tasks/{id}/upload-links (TEST-175): token chỉ trả một lần — FE dựng URL `/u/{token}` + QR. */
+export interface IUploadLinkCreated { id: string; token: string; expiresAt: string }
+/** Link còn hạn của tôi trên việc (không có token). */
+export interface IUploadLink { id: string; createdAt: string; expiresAt: string; fileCount: number }
 /** POST /tasks/{id}/uploads → vé tải lên: PUT tệp thẳng lên `url` với header Content-Type = `contentType`. */
 export interface ICommentUploadTicket { id: string; url: string; contentType: string; expiresAt: string }
 export type TaskActivityKind = 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited' | 'Depends' | 'CommentDeleted' | 'Follow' | 'Unfollow' | 'Reviewer';

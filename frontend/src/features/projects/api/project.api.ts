@@ -1,6 +1,6 @@
 import { http, httpPost } from '@/services/api-client';
 import type {
-  IComment, ICommentUploadTicket, IEffort, ITaskDetail, IInstallmentRef, IMilestoneRequest, IProject, IProjectDetail, IProjectFinancials, IProjectRequest, ISalesContractRef, ITask, ITaskRequest, MemberRole,
+  IComment, ICommentUploadTicket, IUploadLink, IUploadLinkCreated, IEffort, ITaskDetail, IInstallmentRef, IMilestoneRequest, IProject, IProjectDetail, IProjectFinancials, IProjectRequest, ISalesContractRef, ITask, ITaskRequest, MemberRole,
   ProjectStatus, ITaskColumnRequest, ChangeRequestStatus, IChangeRequest, IChangeRequestRequest, IProjectActivityFeed, IAgentSettings, IAgentSettingsRequest, IProjectAppendix,
 } from '../types/project.types';
 
@@ -15,6 +15,7 @@ export const projectKeys = {
   myTasks: ['projects', 'my-tasks'] as const,
   comments: (taskId: string) => ['projects', 'comments', taskId] as const,
   task: (taskId: string) => ['projects', 'task', taskId] as const,
+  uploadLinks: (taskId: string) => ['projects', 'upload-links', taskId] as const,
   effort: (id: string) => ['projects', 'effort', id] as const,
   contracts: (search: string) => ['projects', 'sales-contracts', search] as const,
   installments: (projectId: string) => ['projects', 'installments', projectId] as const,
@@ -66,6 +67,10 @@ export const projectApi = {
   createUpload: (tid: string, file: File) =>
     httpPost<ICommentUploadTicket>(`${base}/tasks/${tid}/uploads`, { fileName: file.name, contentType: file.type || null, size: file.size }),
   deleteComment: (commentId: string) => send<void>('DELETE', `${base}/comments/${commentId}`),
+  /** Link tải tệp từ thiết bị khác (TEST-175): hạn 15 / 60 / 1440 phút. */
+  createUploadLink: (tid: string, minutes: number) => httpPost<IUploadLinkCreated>(`${base}/tasks/${tid}/upload-links`, { minutes }),
+  uploadLinks: (tid: string) => http<IUploadLink[]>(`${base}/tasks/${tid}/upload-links`),
+  revokeUploadLink: (id: string) => send<void>('DELETE', `${base}/upload-links/${id}`),
   activity: (after: string | null) => http<IProjectActivityFeed>(`${base}/activity${after ? `?after=${encodeURIComponent(after)}` : ''}`),
   setDependencies: (tid: string, dependsOn: string[]) => send<void>('PUT', `${base}/tasks/${tid}/dependencies`, { dependsOn }),
   addFollower: (tid: string, employeeId: string) => send<void>('POST', `${base}/tasks/${tid}/followers/${employeeId}`),
