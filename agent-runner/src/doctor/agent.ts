@@ -118,8 +118,14 @@ async function checkToken(c: DoctorContext, report: Report): Promise<string> {
 /** Agent nghiệp vụ (TEST-80): không repo / git / hook / gh. CLI chạy trong thư mục trống dưới data_dir, chỉ có tool MCP. */
 function checkNoneWorkspace(c: DoctorContext, report: Report) {
   const work = workDir(c.config.dataDir, c.agent.employeeCode, 'x');
-  report.ok(`workspace none — không repo / git / PR; CLI chạy trong ${dirname(work)}, chỉ tool MCP`);
-  if (!adapters[c.agent.executor.kind].caps.toolRestriction)
+  if (c.agent.workspace.builtinTools) {
+    // TEST-163: có shell trên máy runner — agent chạy lệnh theo hướng dẫn dự án / chức vụ, giới hạn bằng quyền của user HOME agent.
+    report.warn(
+      `workspace none + builtin_tools — không repo nhưng CLI CHẠY ĐƯỢC LỆNH / đọc ghi file trong ${dirname(work)} (quyền của user chạy agent); ` +
+        'chỉ cấp khoá / token (ssh, gh) thật cần cho việc của bot này',
+    );
+  } else report.ok(`workspace none — không repo / git / PR; CLI chạy trong ${dirname(work)}, chỉ tool MCP`);
+  if (!c.agent.workspace.builtinTools && !adapters[c.agent.executor.kind].caps.toolRestriction)
     report.warn(
       `adapter ${c.agent.executor.kind} — runner không tắt được công cụ có sẵn của CLI (chạy lệnh, đọc / ghi file); CLI phải tự giới hạn`,
     );

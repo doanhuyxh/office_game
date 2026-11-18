@@ -38,6 +38,8 @@ agents:
     #   mode: none                               # none = agent NGHIỆP VỤ (Kinh doanh, Tài chính, Nhân sự…): không cần `repo`, không git / PR.
     #                                            #   · CLI chạy trong thư mục trống {data_dir}/work/<mã NV>/<mã việc>, CHỈ có tool MCP của OfficeHub
     #                                            #     (adapter claude: tắt Bash / đọc ghi file; adapter custom phải tự giới hạn) — xem agent NV130 bên dưới
+    #   builtin_tools: false                     # chỉ mode none: true = phiên việc CÓ shell / đọc ghi file trong thư mục việc (vẫn không repo) —
+    #                                            #   cho bot thiết kế (curl tải ảnh lên), DevOps (gh / ssh theo hướng dẫn); chat / họp vẫn chỉ MCP — xem NV140
     executor:
       kind: claude                               # claude | custom
       bin: /usr/local/bin/claude
@@ -80,18 +82,19 @@ agents:
       timeout_min: 30
       max_budget_usd: 2
 
-  - employee_code: NV140                         # agent THIẾT KẾ giao diện: OfficeHub + Stitch + Figma, không repo
+  - employee_code: NV140                         # agent THIẾT KẾ giao diện: OfficeHub + Stitch, không repo
     telegram_bot: "@agent_design01_bot"
     telegram_token: "666666666:AA…"
     token: "ohk_dddddddddddddddd"
     env_file: /etc/officehub-runner/NV140.env    # chmod 600, một dòng: STITCH_API_KEY=… (tạo khoá trong Stitch → Settings)
     workspace:
-      mode: none                                 # tắt Bash / đọc ghi file; tool MCP (OfficeHub, Stitch, Figma) vẫn dùng được
+      mode: none                                 # không repo / git / PR
+      builtin_tools: true                        # có shell: curl PUT ảnh / .html thiết kế lên create_upload rồi comment_task BÀN GIAO
     executor:
       kind: claude
       bin: /usr/local/bin/claude
       model: claude-sonnet-5-5
-      home: /srv/agents/NV140/home               # Figma chỉ đăng nhập OAuth: đăng nhập tay MỘT lần với HOME này (.agent/business/agent-runner-workspace.md)
+      home: /srv/agents/NV140/home               # HOME riêng (đăng nhập CLI); không đặt khoá / token thừa ở đây vì phiên có shell
       timeout_min: 45
       max_budget_usd: 4
       # MCP thêm ngoài OfficeHub: chép design-mcp.example.json ra ngoài repo; khoá lấy từ env_file qua ${STITCH_API_KEY}, không ghi vào file

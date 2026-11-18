@@ -141,6 +141,25 @@ describe('validator', () => {
     );
     expect(waiting.ok === false && waiting.reason).toBe('việc còn chờ TEST-42');
     expect(checkTask(null, w, 'me').ok).toBe(false);
+    // TEST-164: mã việc liên quan cho prompt — chỉ mã đúng dạng, không tên
+    const related = checkTask(
+      {
+        ...d({}, [{ code: 'TEST-41', done: true }, { code: 'xấu; rm -rf', done: true }, { done: true }]),
+        blocks: [{ code: 'TEST-50', done: false }],
+      },
+      w,
+      'me',
+    );
+    expect(related.ok && related.value).toEqual({
+      title: 'X',
+      code: 'TEST-45',
+      dependsOn: ['TEST-41'],
+      blocks: ['TEST-50'],
+    });
+    expect(checkTask(d({}), w, 'me')).toEqual({
+      ok: true,
+      value: { title: 'X', code: 'TEST-45', dependsOn: [], blocks: [] },
+    });
   });
 });
 

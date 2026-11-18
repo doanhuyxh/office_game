@@ -491,7 +491,13 @@ const inPlaceSetup = async (name = 'agent-repo-ip', branch = 'work') => {
   const config: RunnerConfig = {
     ...runner.config,
     dataDir: join(root, `data-${name}`),
-    agents: [{ ...base, repo, workspace: { mode: 'in_place', allowBaseBranch: false, allowEnvFiles: false } }],
+    agents: [
+      {
+        ...base,
+        repo,
+        workspace: { mode: 'in_place', allowBaseBranch: false, allowEnvFiles: false, builtinTools: false },
+      },
+    ],
   };
   require('node:fs').mkdirSync(config.dataDir, { recursive: true });
   const st = new Store(join(config.dataDir, 'runner.db'));
@@ -639,7 +645,7 @@ test('in_place: gỡ hook do runner cài, giữ nguyên hook của người dùn
 }, 30000);
 
 // ---------------- mode none (TEST-80): agent nghiệp vụ — không repo / git / PR, chỉ tool MCP ----------------
-const noneSetup = async () => {
+const noneSetup = async (workspace: Record<string, unknown> = { mode: 'none' }) => {
   // CLI giả không đụng git: ghi tham số + thư mục chạy, in dòng JSON kết quả
   const bin = join(root, 'fake-biz-agent.sh');
   writeFileSync(
@@ -667,7 +673,7 @@ echo '{"session_id":"sess-biz","model":"fake-model-1","cost_usd":0.1,"summary":"
         telegram_bot: '@agent_dev01_bot',
         telegram_token: TG,
         token: TOKEN,
-        workspace: { mode: 'none' },
+        workspace,
         executor: {
           kind: 'custom',
           bin,
@@ -734,6 +740,20 @@ test('none: doctor không cần repo / git / gh; job chạy trong thư mục tr�
   expect(args).toContain(work);
   // 3D: vẫn báo đang làm → rảnh
   expect(await waitFor(() => presence.at(-1)?.state === 'idle', 3000)).toBe(true);
+}, 30000);
+
+test('none + builtin_tools (TEST-163): doctor cảnh báo có shell, prompt phiên việc có shell + tải ảnh lên', async () => {
+  const { lines, exec, dataDir } = await noneSetup({ mode: 'none', builtin_tools: true });
+  expect(lines.filter((l) => l.startsWith('✘'))).toEqual([]);
+  const text = lines.join('\n');
+  expect(text).toContain('workspace none + builtin_tools');
+  expect(text).not.toContain('runner không tắt được công cụ có sẵn'); // có shell là chủ ý → không cảnh báo adapter
+  const { job } = await exec();
+  expect(job.status).toBe('done');
+  const prompt = readFileSync(join(dataDir, 'jobs', String(job.id), 'prompt-copy.md'), 'utf8');
+  expect(prompt).toContain('shell trong thư mục hiện tại');
+  expect(prompt).toContain('create_upload');
+  expect(prompt).not.toContain('CHỈ bằng tool MCP');
 }, 30000);
 
 test('job hết giờ → văn phòng 3D báo lỗi "Hết giờ" (không bị finally ghi đè bằng rảnh); job kế → đang làm rồi rảnh (TEST-121)', async () => {

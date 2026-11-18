@@ -1,4 +1,4 @@
-import type { ChatSummary, MeetingState, MyTask, TaskDetail } from './hub/types';
+import type { ChatSummary, MeetingState, MyTask, TaskDetail, TaskRef } from './hub/types';
 import type { TgMessage } from './telegram';
 
 /** Dữ liệu tin đánh thức VIỆC (TEST-42): JSON có 4 trường (+ `event` assigned / returned / ready / mentioned — runner chưa phân biệt). */
@@ -123,7 +123,7 @@ export function checkTask(
   detail: TaskDetail | null | undefined,
   wake: Pick<WakeData, 'project_id' | 'task_id'>,
   myEmployeeId: string,
-): Check<{ title: string; code: string }> {
+): Check<CheckedTask> {
   const t = detail?.task;
   if (!t?.id) return { ok: false, reason: 'không đọc được việc (không còn quyền / đã xoá?)' };
   if (t.id !== wake.task_id) return { ok: false, reason: 'task_id không khớp' };
@@ -132,7 +132,34 @@ export function checkTask(
   if (t.done) return { ok: false, reason: 'việc đã xong' };
   const waiting = (detail?.dependsOn ?? []).filter((dep) => !dep.done).map((dep) => dep.code);
   if (waiting.length) return { ok: false, reason: `việc còn chờ ${waiting.join(', ')}` };
-  return { ok: true, value: { title: String(t.title ?? ''), code: String(t.code ?? '') } };
+  return {
+    ok: true,
+    value: {
+      title: String(t.title ?? ''),
+      code: String(t.code ?? ''),
+      dependsOn: refs(detail?.dependsOn),
+      blocks: refs(detail?.blocks),
+    },
+  };
+}
+
+/** Việc đã kiểm tra xong: tên, mã + mã các việc liên quan để đưa vào prompt (TEST-164). */
+export interface CheckedTask {
+  title: string;
+  code: string;
+  /** Mã việc phải xong trước (lúc chạy đều đã xong) → agent đọc bình luận BÀN GIAO của chúng. */
+  dependsOn: string[];
+  /** Mã việc đang chờ việc này → kết quả phải bàn giao được cho người làm sau. */
+  blocks: string[];
+}
+
+/** Dữ liệu ngoài: chỉ lấy MÃ việc đúng dạng (không đưa tên / nội dung người viết vào prompt), tối đa 10. */
+function refs(list: TaskRef[] | undefined): string[] {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((x) => x?.code)
+    .filter((c): c is string => typeof c === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(c))
+    .slice(0, 10);
 }
 
 /**

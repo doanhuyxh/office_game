@@ -18,6 +18,7 @@ describe('config', () => {
       mode: 'worktree',
       allowBaseBranch: false,
       allowEnvFiles: false,
+      builtinTools: false,
     });
     const r: any = baseRaw();
     r.agents[0].workspace = { mode: 'in_place', allow_base_branch: true };
@@ -25,6 +26,7 @@ describe('config', () => {
       mode: 'in_place',
       allowBaseBranch: true,
       allowEnvFiles: false,
+      builtinTools: false,
     });
     r.agents[0].workspace = { mode: 'ban-nhap' };
     expect(() => parseConfig(r)).toThrow(ConfigError);
@@ -53,6 +55,16 @@ describe('config', () => {
     expect(parseConfig(raw).agents[0]!.repo).toBe('');
     raw.agents[0].workspace = { mode: 'worktree' };
     expect(() => parseConfig(raw)).toThrow('repo phải là đường dẫn tuyệt đối');
+  });
+
+  test('workspace.builtin_tools (TEST-163): chỉ với mode none, phải là true / false', () => {
+    const raw = baseRaw() as any;
+    raw.agents[0].workspace = { mode: 'none', builtin_tools: true };
+    expect(parseConfig(raw).agents[0]!.workspace.builtinTools).toBe(true);
+    raw.agents[0].workspace = { mode: 'none', builtin_tools: 'yes' };
+    expect(() => parseConfig(raw)).toThrow('builtin_tools là true / false');
+    raw.agents[0].workspace = { mode: 'worktree', builtin_tools: true };
+    expect(() => parseConfig(raw)).toThrow('builtin_tools chỉ dùng với mode none');
   });
 
   test('worktrees_dir trong repo được phép (doctor bắt buộc gitignore); repo trong worktrees_dir → lỗi', () => {
