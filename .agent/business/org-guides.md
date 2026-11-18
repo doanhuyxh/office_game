@@ -38,7 +38,13 @@ Ghi (2026-11-09, cùng lúc nâng giới hạn 500 / 10.000 → 2.000 / 40.000, 
 
 ## UI (`features/employees`)
 
-- Tab Phòng ban / Chức vụ: mô tả dưới tên, nút 📖 (xanh = đã có hướng dẫn) mở `GuideDialog` — ai cũng xem; người có quyền thấy tab Soạn (đếm ký tự, "Chèn khung mẫu"), cảnh báo nội dung công khai cho mọi nhân viên + AI.
+- Tab **Phòng ban** (`departments-panel`, TEST-177) là bảng cây thu gọn được — chỉ hiển thị, không đổi API / quyền, mọi số liệu tính ở FE từ `GET /departments` (`departmentRollup` trong `utils/orgTree.ts`):
+  - Mặc định chỉ cấp 1; phòng có phòng con có ▸ / ▾ + "(số phòng con trực tiếp)"; "Mở hết / Thu hết". Khối đang mở lưu `localStorage` `officehub.departments.expanded` (mỗi trình duyệt, try/catch, lỗi → mặc định).
+  - Ô tìm theo tên / mã (`fold` của `SearchSelectField`: không dấu, không phân biệt hoa thường): hiện phòng khớp + cấp trên (tự mở) + phòng con của nó; thu / mở khi đang tìm là tạm, xoá từ khoá → về trạng thái đã lưu.
+  - Lọc "Chỉ phòng có nhân viên": ẩn phòng có tổng cả khối = 0 (phòng cha vẫn hiện nếu phòng con còn người).
+  - Cột Nhân viên của phòng có phòng con = tổng cả khối, tooltip "N trực thuộc · M cả khối". Bỏ cột "Thuộc" (thụt lề đã cho biết cha); điện thoại ẩn Trưởng phòng (hiện dưới tên) + Khu vực 3D.
+  - Menu ⋯: Mô tả & hướng dẫn (ai cũng có) · Sửa · Thêm phòng con (form thêm phòng ban chọn sẵn cha) · Xoá (đỏ, vẫn hộp xác nhận) — 3 mục sau chỉ HR / admin. Phòng đã có hướng dẫn: icon 📖 nhỏ màu xanh cạnh tên.
+- Tab Chức vụ: mô tả dưới tên, nút 📖 (xanh = đã có hướng dẫn) mở `GuideDialog` — ai cũng xem; người có quyền thấy tab Soạn (đếm ký tự, "Chèn khung mẫu"), cảnh báo nội dung công khai cho mọi nhân viên + AI.
 - `GuideText`: hiển thị Markdown tối giản (`#` tiêu đề, `-`/`1.` danh sách, `**đậm**`), dựng phần tử React — **không** innerHTML, không link / ảnh.
 - `MyRoleCard` trên Tổng quan: đúng nội dung `get_my_role` (ẩn với tài khoản không có hồ sơ).
 

@@ -69,3 +69,35 @@ export function suggestedManager(departments: IDepartment[], departmentId: strin
 
 /** "Cấp 3 · Trưởng phòng"; thiếu cấp (dữ liệu cũ / Api chưa cập nhật) → chỉ tên. */
 export const positionLabel = (p: IPosition) => (Number.isFinite(p.level) && p.level > 0 ? `Cấp ${p.level} · ${p.name}` : p.name);
+
+/**
+ * Cây phòng ban cho bảng thu gọn: con trực tiếp (cùng quy tắc với `departmentTree` — cha không tồn tại = gốc),
+ * tổng nhân viên cả khối (phòng + mọi phòng con cháu) và danh sách cấp trên của mỗi phòng.
+ */
+export function departmentRollup(departments: IDepartment[]) {
+  const ids = new Set(departments.map((d) => d.id));
+  const byId = new Map(departments.map((d) => [d.id, d]));
+  const children = new Map<string, string[]>();
+  for (const d of departments) {
+    if (d.parentId && ids.has(d.parentId) && d.parentId !== d.id) children.set(d.parentId, [...(children.get(d.parentId) ?? []), d.id]);
+  }
+  const total = new Map<string, number>();
+  const sum = (id: string, path: Set<string>): number => {
+    const cached = total.get(id);
+    if (cached !== undefined) return cached;
+    path.add(id);
+    let n = byId.get(id)?.employeeCount ?? 0;
+    for (const c of children.get(id) ?? []) if (!path.has(c)) n += sum(c, path); // phòng dữ liệu vòng lặp
+    path.delete(id);
+    total.set(id, n);
+    return n;
+  };
+  for (const d of departments) sum(d.id, new Set());
+  const ancestors = (id: string): string[] => {
+    const out: string[] = [];
+    const seen = new Set([id]);
+    for (let p = byId.get(id)?.parentId; p && ids.has(p) && !seen.has(p); p = byId.get(p)?.parentId) { seen.add(p); out.push(p); }
+    return out;
+  };
+  return { children, total, ancestors };
+}
