@@ -443,7 +443,7 @@ export function OfficeView() {
         <VoicePanel voice={voice} view={voiceView} />
         <ScreenView screen={voiceView.screen} count={voiceView.screenCount} />
         <ScreenDocPanel screen={screen} onClear={clearScreen} />
-        <BotActivityPanel view={botWatch.view} onClose={botWatch.close} />
+        <BotActivityPanel view={botWatch.view} onClose={botWatch.close} onRetry={botWatch.retry} />
         {scene && avatarMenu && (
           <AvatarMenu key={avatarMenu.id} scene={scene} target={avatarMenu} onClose={() => setAvatarMenu(null)} onWatchBot={watchBot} />
         )}

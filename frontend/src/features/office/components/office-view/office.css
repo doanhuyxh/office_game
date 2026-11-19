@@ -103,7 +103,14 @@
 .office-root .bot-act-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .office-root .bot-act-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .office-root .bot-act .screen-live { flex: none; padding: 0 6px; border-radius: 4px; background: #dc2626; color: #fff; font-size: 11px; font-weight: 600; }
-.office-root .bot-act-state { color: var(--muted-foreground); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.office-root .bot-act-state { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--muted-foreground); font-size: 12px; }
+.office-root .bot-act-state .txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Chấm trạng thái (TEST-190): xám xoay = đang kết nối · xanh = đang làm · vàng = rảnh · đỏ = mất kết nối */
+.office-root .bot-act-dot { flex: none; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted-foreground); }
+.office-root .bot-act-dot.busy { background: var(--success); }
+.office-root .bot-act-dot.idle { background: var(--warning); }
+.office-root .bot-act-dot.lost { background: var(--destructive); }
+.office-root .bot-act-dot.connecting { width: 10px; height: 10px; background: none; border: 2px solid var(--border); border-top-color: var(--muted-foreground); animation: bot-act-spin .8s linear infinite; }
 .office-root .bot-act-close { flex: none; width: 28px; height: 28px; border: 0; border-radius: 8px; background: var(--muted); color: inherit; font: 600 13px system-ui; cursor: pointer; }
 .office-root .bot-act .bot-watch-meta { flex: none; display: flex; flex-wrap: wrap; color: var(--muted-foreground); font-size: 12px; }
 .office-root .bot-act .bot-watch-meta > span + span::before { content: '·'; margin: 0 6px; }
@@ -131,6 +138,28 @@
 .office-root .bot-act-spin { display: inline-block; width: 10px; height: 10px; margin-left: 8px; vertical-align: -1px; border-radius: 50%; border: 2px solid rgba(148, 163, 184, .4); border-top-color: #4ade80; animation: bot-act-spin .8s linear infinite; }
 @keyframes bot-act-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .office-root .bot-act-spin { animation-duration: 3s; } }
+/* Thân khi chưa có sự kiện (TEST-190): đang kết nối (vòng xoay + skeleton) / chậm (nút Thử lại) / chờ thao tác đầu / rảnh — canh giữa, không để trắng */
+.office-root .bot-act-status { margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 4px; text-align: center; color: var(--muted-foreground); }
+.office-root .bot-act-status p { margin: 0; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; }
+.office-root .bot-act-status.idle .big { font-size: 40px; line-height: 1; }
+.office-root .bot-act-task { max-width: 100%; padding: 2px 10px; border-radius: 999px; background: var(--muted); color: var(--foreground); font-weight: 600; overflow-wrap: anywhere; }
+.office-root .bot-act-spinner { flex: none; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--primary); animation: bot-act-spin .8s linear infinite; }
+.office-root .bot-act-pulse { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--success); animation: bot-act-pulse 1.4s ease-in-out infinite; }
+@keyframes bot-act-pulse { 50% { opacity: .3; transform: scale(.7); } }
+.office-root .bot-act-retry { padding: 4px 14px; border: 1px solid var(--border); border-radius: 999px; background: var(--muted); color: var(--foreground); font: 600 12px system-ui; cursor: pointer; }
+.office-root .bot-act-skel { align-self: stretch; display: flex; flex-direction: column; gap: 10px; padding: 4px 6px; }
+.office-root .bot-act-skel-row { display: flex; align-items: center; gap: 8px; }
+.office-root .bot-act-skel-row > span { border-radius: 6px; background: var(--muted); animation: bot-act-skel 1.4s ease-in-out infinite; }
+.office-root .bot-act-skel-row .dot { flex: none; width: 18px; height: 18px; border-radius: 50%; }
+.office-root .bot-act-skel-row .bar { height: 12px; }
+@keyframes bot-act-skel { 50% { opacity: .45; } }
+/* Mất kết nối giữa chừng: giữ dòng thời gian, làm mờ, dải báo ở trên cùng thân */
+.office-root .bot-act-reconnect { flex: none; display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--destructive); background: var(--background); color: var(--destructive); font-size: 12px; font-weight: 600; }
+.office-root .bot-act-log.dim { opacity: .55; }
+@media (prefers-reduced-motion: reduce) {
+  .office-root .bot-act-skel-row > span, .office-root .bot-act-pulse { animation: none; }
+  .office-root .bot-act-dot.connecting, .office-root .bot-act-spinner { animation-duration: 3s; }
+}
 /* File: đường dẫn + diff */
 .office-root .bot-act-file { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
 .office-root .bot-act-file.err { border-color: var(--destructive); }

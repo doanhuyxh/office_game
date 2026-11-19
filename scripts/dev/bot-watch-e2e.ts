@@ -2,6 +2,8 @@
 //   Esc, bấm ra ngoài, phím không đi, ↓, điện thoại ≥ 44 px, người rời → đóng)
 // (mục [98]: bảng đầy đủ "Màn hình của bot" — 10 loại sự kiện, thu gọn, cuộn, Esc, theme, kéo / đổi cỡ, rỗng)
 // + TEST-100 (mục [100]: tab "File đã sửa" — gộp theo file, + / -, nhãn Mới, nội dung ẩn, mở diff, nháy, phiên mới → trống, điện thoại):
+// + TEST-190 (mục [190]: thân bảng không còn trắng — đang kết nối (vòng xoay + skeleton, bảng thấp ~280 px khi chưa tự đổi cỡ), > 8 giây → "Kết nối chậm…"
+//   + Thử lại, đang chờ thao tác đầu (chấm + việc), rảnh ☕, mất kết nối hub giữa chừng (chặn URL hub + đóng socket) → giữ sự kiện, làm mờ, dải báo; điện thoại):
 // + TEST-102 (mục [102]: kéo đổi vị trí + đổi kích thước bảng — ra 4 mép không lọt, nhỏ nhất 320 × 220 / to nhất vừa màn hình, nội dung không tràn,
 //   nhấn-kéo trên nút Đóng / tab / chọn chữ / lăn chuột không di chuyển bảng, nhân vật + camera đứng yên, nhớ vị trí khi đóng mở lại / bot khác / tải lại,
 //   thu cửa sổ tự vào lại, điện thoại rộng hết màn hình + chạm kéo không đổi):
@@ -10,7 +12,7 @@
 // session_start bỏ cũ, model / lượt / chi phí), con trỏ bàn tay khi rê lên bot, bấm sàn vẫn đi bộ, nút Đóng → UnwatchBot, đi ra xa →
 // server ngắt (BotWatchEnded range), người thật của tài khoản bot vào văn phòng → ngắt (offline). Chrome headless máy tính 1440×900 + điện thoại
 // 390×844 (chạm). Dùng hook dev `window.__officeScene` (chỉ có khi chạy Vite dev). Không cần Mcp: bot online + sự kiện bơm thẳng vào Realtime
-// bằng khoá nội bộ (như Mcp làm). Chưa phủ: mất kết nối hub rồi nối lại (WatchBot lại) — thử tay bằng cách tắt / bật Realtime.
+// bằng khoá nội bộ (như Mcp làm). Mất kết nối hub rồi nối lại (WatchBot lại): mục [190] (chặn URL hub bằng CDP + đóng socket).
 // TẠO TÀI KHOẢN THẬT → CHỈ chạy trên DB tạm:
 //   docker run -d --name e2e-botwatch-pg -e POSTGRES_DB=e2e -e POSTGRES_USER=e2e -e POSTGRES_PASSWORD=e2e -p 127.0.0.1:55499:5432 postgres:18-alpine
 //   Api (từ backend/): env ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5283
@@ -209,14 +211,47 @@ const panel = (p: typeof pc) => p.evalJs(`(() => { const el = document.querySele
   return { bot: el.dataset.bot, text: el.innerText, state: el.querySelector('[data-testid=office-bot-watch-state]')?.textContent ?? '',
     lines: [...el.querySelectorAll('.bot-watch-line')].map((l) => ({ id: l.dataset.id, kind: l.dataset.kind, err: l.classList.contains('err'), text: l.innerText })),
     meta: el.querySelector('.bot-watch-meta')?.textContent ?? '' }; })()`) as Promise<{ bot: string; text: string; state: string; lines: { id: string; kind: string; err: boolean; text: string }[]; meta: string } | null>;
-/** Chờ bảng mở (và WatchBot đã trả về — hết "Đang kết nối…") hoặc đóng. */
+/** Chờ bảng mở (và WatchBot đã trả về — hết "Đang kết nối…" / "Mất kết nối…") hoặc đóng. */
 const waitPanel = async (p: typeof pc, want: boolean, ms = 5000) => {
   for (let t = 0; t < ms; t += 200) {
     const v = await panel(p);
-    if (want ? !!v && v.state !== 'Đang kết nối…' : !v) return v;
+    if (want ? !!v && v.state !== 'Đang kết nối…' && !v.state.startsWith('Mất kết nối') : !v) return v;
     await p.sleep(200);
   }
   return await panel(p);
+};
+/** TEST-190: trạng thái thân bảng (đang kết nối / chậm / chờ / rảnh / dải mất kết nối), chấm đầu bảng, chiều cao. */
+type Body190 = { h: number; tone: string; state: string; connecting: string | null; slow: string | null; retry: boolean; waiting: string | null; empty: string | null;
+  bar: string | null; skel: number; lines: string[]; dim: boolean; dot: string; anim: string; centered: boolean; big: number };
+const bodyOf = (p: typeof pc) => p.evalJs(`(() => { const P = document.querySelector('[data-testid=office-bot-watch]'); if (!P) return null;
+  const r = P.getBoundingClientRect(), t = (id) => P.querySelector('[data-testid=' + id + ']'), dot = t('office-bot-dot'), log = t('office-bot-log');
+  const st = P.querySelector('.bot-act-status'), sr = st?.getBoundingClientRect(), lr = log?.getBoundingClientRect();
+  return { h: r.height, tone: P.dataset.tone, state: t('office-bot-watch-state')?.textContent ?? '', connecting: t('office-bot-connecting')?.innerText ?? null,
+    slow: t('office-bot-slow')?.innerText ?? null, retry: !!t('office-bot-retry'), waiting: t('office-bot-waiting')?.innerText ?? null, empty: t('office-bot-empty')?.innerText ?? null,
+    bar: t('office-bot-reconnect-bar')?.innerText ?? null, skel: P.querySelectorAll('.bot-act-skel-row').length, lines: [...P.querySelectorAll('.bot-watch-line')].map((l) => l.dataset.id),
+    dim: !!P.querySelector('.bot-act-log.dim'), dot: dot ? getComputedStyle(dot).backgroundColor : '', anim: dot ? getComputedStyle(dot).animationName : '',
+    centered: !!sr && !!lr && Math.abs((sr.top + sr.bottom) / 2 - (lr.top + lr.bottom) / 2) < 12 && Math.abs((sr.left + sr.right) / 2 - (lr.left + lr.right) / 2) < 12,
+    big: parseFloat(getComputedStyle(P.querySelector('.bot-act-status.idle .big') ?? P).fontSize) }; })()`) as Promise<Body190 | null>;
+/** TEST-190: chặn khung WatchBot gửi lên hub văn phòng (lời gọi treo → giả "đang kết nối" lâu) + nhớ socket hub để đóng (giả mất kết nối). */
+const BLOCK190 = `(() => { if (window.__bw190) return; window.__bw190 = { block: false, socks: new Set() }; const orig = WebSocket.prototype.send;
+  WebSocket.prototype.send = function (d) { if (String(this.url).includes('/hub/office')) { window.__bw190.socks.add(this);
+    if (window.__bw190.block) { const u8 = d instanceof ArrayBuffer ? new Uint8Array(d) : ArrayBuffer.isView(d) ? new Uint8Array(d.buffer, d.byteOffset, d.byteLength) : null;
+      if ((u8 ? String.fromCharCode(...u8) : String(d)).includes('WatchBot')) return; } }
+    return orig.call(this, d); }; })()`;
+/** Mất kết nối hub giữa chừng: chặn URL hub văn phòng (negotiate + socket) rồi đóng socket đang mở → SignalR tự kết nối lại và thất bại cho tới khi bỏ chặn. */
+const dropHub = async (p: typeof pc) => {
+  await p.send('Network.enable');
+  await p.send('Network.setBlockedURLs', { urls: ['*/hub/office*'] });
+  await p.evalJs(`window.__bw190.socks.forEach((s) => s.close())`);
+};
+const restoreHub = (p: typeof pc) => p.send('Network.setBlockedURLs', { urls: [] });
+const waitBody = async (p: typeof pc, cond: (b: Body190) => boolean, ms = 5000) => {
+  for (let t = 0; t < ms; t += 200) { const b = await bodyOf(p); if (b && cond(b)) return b; await p.sleep(200); }
+  return await bodyOf(p);
+};
+const setDark = async (p: typeof pc, dark: boolean) => {
+  await p.evalJs(`document.documentElement.classList.toggle('dark', ${dark}); document.documentElement.classList.toggle('light', ${!dark})`);
+  await p.sleep(200);
 };
 const toastHas = async (p: typeof pc, text: string, ms = 4000) => {
   for (let t = 0; t < ms; t += 200) { if (await p.evalJs(`document.body.innerText.includes(${JSON.stringify(text)})`)) return true; await p.sleep(200); }
@@ -521,11 +556,22 @@ await pc.sleep(500);
 px = await botPixel(pc);
 if (px) await clickBot(pc, px[0], px[1]);
 v = await waitPanel(pc, true);
-ok('[98] bot rảnh, không có sự kiện → "☕ <tên bot> đang nghỉ, chưa có việc nào đang chạy"', v?.lines.length === 0 && v.text.includes(`☕ ${B.name} đang nghỉ, chưa có việc nào đang chạy`), v?.text);
+ok('[98] bot rảnh, không có sự kiện → "☕" + "<tên bot> đang nghỉ, chưa có việc nào đang chạy"', v?.lines.length === 0 && v.text.includes('☕') && v.text.includes(`${B.name} đang nghỉ, chưa có việc nào đang chạy`), v?.text);
+let b190 = await bodyOf(pc);
+ok('[190] rảnh: office-bot-empty, biểu tượng ☕ lớn (≥ 32 px), canh giữa thân; đầu bảng chấm vàng "Đang rảnh"', !!b190?.empty && b190.big >= 32 && b190.centered && b190.tone === 'idle' && b190.state === 'Đang rảnh', b190);
+const idleDot = b190?.dot;
+await pc.shot(`${SHOTS}/desktop-190-idle-light.png`);
+await setDark(pc, true);
+await pc.shot(`${SHOTS}/desktop-190-idle-dark.png`);
+await setDark(pc, false);
 await internal('/rt/internal/bot-activity', presence);
-let waiting = false;
-for (let t = 0; t < 4000 && !waiting; t += 250) { await pc.sleep(250); waiting = (await panel(pc))?.text.includes('Đang chờ thao tác đầu tiên…') === true; }
-ok('[98] bot chuyển sang đang làm, chưa có sự kiện → "Đang chờ thao tác đầu tiên…"', waiting, (await panel(pc))?.text);
+b190 = await waitBody(pc, (b) => !!b.waiting, 4000);
+ok('[98] bot chuyển sang đang làm, chưa có sự kiện → "Đang chờ thao tác đầu tiên của bot…"', !!b190?.waiting?.includes('Đang chờ thao tác đầu tiên của bot…'), b190);
+ok('[190] chờ thao tác đầu: kèm mã + tên việc, canh giữa; đầu bảng chấm xanh (khác chấm rảnh)', !!b190?.waiting?.includes('TEST-97 · Xem bot') && b190.centered && b190.tone === 'busy' && !!b190.dot && b190.dot !== idleDot && !b190.connecting && !b190.empty, b190);
+await pc.shot(`${SHOTS}/desktop-190-waiting-light.png`);
+await setDark(pc, true);
+await pc.shot(`${SHOTS}/desktop-190-waiting-dark.png`);
+await setDark(pc, false);
 await feed([{ id: 's4', kind: 'session_start', task: 'TEST-97 · Xem bot', model: 'claude-fable-5-1' }, { id: 'c5', kind: 'command', title: 'Kiểm tra', text: 'git status', ok: false, output: 'fatal: <b>not</b> a git repository' },
   { id: 'd5', kind: 'file_edit', path: 'frontend/src/b.tsx', diff: '-<div>cũ</div>\n+<div>mới</div>' }, { id: 't5', kind: 'thinking', text: 'Thư mục này chưa có git.' }, { id: 'y5', kind: 'say', text: 'Mình sẽ **khởi tạo** repo.' }]);
 await pc.sleep(700);
@@ -629,6 +675,66 @@ ok('[100] về tab Hoạt động → dòng thời gian còn nguyên (s5, a4), b
 }
 await pc.evalJs(`localStorage.removeItem('officehub.office.agent-screen-panel')`);
 
+// ---------- TEST-190: đang kết nối / chậm + Thử lại / bảng thấp khi trống / mất kết nối giữa chừng ----------
+{
+  await pc.evalJs(`document.querySelector('[data-testid=office-bot-watch-close]')?.click()`);
+  await waitPanel(pc, false, 2000);
+  // Tải lại để hook bảng nổi đọc lại localStorage (đã xoá → coi như người xem chưa tự đổi cỡ)
+  await pc.go(`${BASE}/office`, 2500);
+  ok('[190] tải lại trang (chưa có cỡ bảng đã lưu)', await ready(pc) && (await pc.evalJs(`localStorage.getItem('officehub.office.agent-screen-panel')`)) === null);
+  await walk(pc, bot.x + 1.6, bot.z + 1.4);
+  await pc.evalJs(BLOCK190);
+  await pc.evalJs('window.__bw190.block = true');
+  px = await botPixel(pc);
+  if (px) await clickBot(pc, px[0], px[1]);
+  let b = await waitBody(pc, (x) => !!x.connecting, 3000);
+  ok('[190] đang kết nối: vòng xoay + "Đang kết nối tới <tên bot>…" + 4 dòng skeleton, canh giữa', !!b?.connecting?.includes(`Đang kết nối tới ${B.name}…`) && b.skel === 4 && b.centered && b.lines.length === 0, b);
+  ok('[190] …đầu bảng: chấm xám xoay + "Đang kết nối…"', b?.tone === 'connecting' && b.anim === 'bot-act-spin' && b.state === 'Đang kết nối…', b);
+  ok('[190] …chưa có nội dung + chưa tự đổi cỡ → bảng thấp ~280 px', !!b && Math.abs(b.h - 280) <= 2, b?.h);
+  await pc.shot(`${SHOTS}/desktop-190-connecting-light.png`);
+  await pc.evalJs(`document.querySelector('[data-testid=office-bot-tab-files]').click()`);
+  await pc.sleep(200);
+  ok('[190] tab File đã sửa khi đang kết nối → skeleton, chưa hiện "Chưa sửa file nào"', await q(pc, `const f = P.querySelector('[data-testid=office-bot-files]'); return !!f && f.querySelectorAll('.bot-act-skel-row').length === 4 && !P.querySelector('[data-testid=office-bot-files-empty]')`));
+  await pc.evalJs(`document.querySelector('[data-testid=office-bot-tab-log]').click()`);
+  b = await waitBody(pc, (x) => !!x.slow, 10_000);
+  ok('[190] quá 8 giây → "Kết nối chậm hơn bình thường, vẫn đang thử…" + nút Thử lại, vẫn skeleton', !!b?.slow?.includes('Kết nối chậm hơn bình thường, vẫn đang thử…') && b.retry && b.skel === 4 && !b.connecting, b);
+  await setDark(pc, true);
+  await pc.shot(`${SHOTS}/desktop-190-slow-dark.png`);
+  await setDark(pc, false);
+  await pc.shot(`${SHOTS}/desktop-190-slow-light.png`);
+  await pc.evalJs(`window.__bw190.block = false; document.querySelector('[data-testid=office-bot-retry]').click()`);
+  b = await waitBody(pc, (x) => x.lines.length > 0, 5000);
+  ok('[190] bấm Thử lại → WatchBot lại, nhận sự kiện, hết skeleton; đầu bảng "Đang làm"', !!b && b.lines.length > 0 && b.skel === 0 && !b.slow && b.tone === 'busy' && b.state.startsWith('Đang làm'), b);
+  ok('[190] …có sự kiện đầu tiên → bảng giãn về cỡ mặc định (> 400 px)', !!b && b.h > 400, b?.h);
+  ok('[190] …không ghi cỡ bảng vào localStorage (người xem chưa tự đổi cỡ)', (await pc.evalJs(`localStorage.getItem('officehub.office.agent-screen-panel')`)) === null);
+  const before = b?.lines ?? [];
+  await dropHub(pc);
+  b = await waitBody(pc, (x) => !!x.bar, 5000);
+  ok('[190] mất kết nối giữa chừng → dải "Mất kết nối, đang thử lại…", sự kiện giữ nguyên, thân làm mờ', !!b?.bar?.includes('Mất kết nối, đang thử lại…') && before.length > 0 && b.lines.join() === before.join() && b.dim, { b, before });
+  ok('[190] …đầu bảng chấm đỏ + "Mất kết nối, đang thử lại…"', b?.tone === 'lost' && b.state === 'Mất kết nối, đang thử lại…' && !!b.dot && b.dot !== idleDot, b);
+  await pc.shot(`${SHOTS}/desktop-190-lost-light.png`);
+  await setDark(pc, true);
+  await pc.shot(`${SHOTS}/desktop-190-lost-dark.png`);
+  await setDark(pc, false);
+  await restoreHub(pc);
+  // Nối lại = kết nối hub MỚI → server đặt người xem ở lối vào (Welcome) → WatchBot lại bị từ chối vì xa bot (hành vi sẵn có của hub,
+  // TEST-190 không đổi hub) → bảng đóng kèm lý do. Dải "Mất kết nối" vẫn hiện tới lúc đó, không có lúc nào thân trắng.
+  let sawBar = true;
+  for (let t = 0; t < 20_000; t += 200) {
+    const x = await bodyOf(pc);
+    if (!x || (!x.bar && x.tone === 'busy')) { b = x; break; }
+    if (!x.bar || x.lines.join() !== before.join()) sawBar = false;
+    await pc.sleep(200);
+  }
+  ok('[190] nối lại → (đứng gần) bỏ dải + mờ, sự kiện còn; (bị đưa về lối vào) bảng đóng + "Hãy lại gần hơn để xem"; trong lúc chờ dải + sự kiện giữ nguyên',
+    sawBar && (b ? !b.dim && before.every((id) => b!.lines.includes(id)) : await toastHas(pc, 'Hãy lại gần hơn để xem', 3000)), { b, sawBar });
+  // Về lại cạnh bot, mở lại bảng cho các bước sau
+  await walk(pc, bot.x + 1.6, bot.z + 1.4);
+  px = await botPixel(pc);
+  if (!(await panel(pc)) && px) await clickBot(pc, px[0], px[1]);
+  ok('[190] về cạnh bot, mở lại bảng', (await waitPanel(pc, true))?.bot === B.userId);
+}
+
 // --- Đi ra xa (> 7 m quá 3 giây) → server ngắt: bảng đóng + "Bạn đã đi ra xa"
 const away = await walk(pc, bot.x + 9.5, bot.z + 1);
 ok('H1 đi ra xa > 7 m', !!away && dist(away, bot) > 7.3, away && dist(away, bot));
@@ -660,6 +766,15 @@ ok('H2 đi tới cạnh bot', !!(await walk(pm, bot.x - 1.4, bot.z + 1.4)));
 const tp = await botPixel(pm, true);
 ok('có điểm chạm trúng bot (bán kính ≥ 28 px)', !!tp, tp);
 if (tp) {
+  // TEST-190 điện thoại: đang kết nối → vòng xoay + skeleton (bảng giữ bố cục điện thoại)
+  await pm.evalJs(BLOCK190);
+  await pm.evalJs('window.__bw190.block = true');
+  await clickBot(pm, tp[0], tp[1], true);
+  const mb = await waitBody(pm, (x) => !!x.connecting, 3000);
+  ok('[190] điện thoại: đang kết nối → vòng xoay + skeleton, bảng trong màn hình', !!mb?.connecting && mb.skel === 4 && await pm.evalJs(`(() => { const r = document.querySelector('[data-testid=office-bot-watch]').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight; })()`), mb);
+  await pm.shot(`${SHOTS}/mobile-190-connecting.png`);
+  await pm.evalJs(`window.__bw190.block = false; document.querySelector('[data-testid=office-bot-watch-close]').click()`);
+  await waitPanel(pm, false, 2000);
   const tm = await clickBot(pm, tp[0], tp[1], true);
   ok('[127] chạm bot trên điện thoại → menu, mục cao ≥ 44 px, nằm trong màn hình', !!tm && tm.items.every((i) => i.h >= 44) && tm.rect.x >= 0 && tm.rect.x + tm.rect.w <= 390, tm);
   const mv = await waitPanel(pm, true);
@@ -684,6 +799,26 @@ if (tp) {
     if (!P || !l || !d) return false; const r = P.getBoundingClientRect(), f = l.getBoundingClientRect(); return f.left >= r.left && f.right <= r.right && f.bottom <= r.bottom + 1 && l.scrollWidth <= l.clientWidth + 1; })()`));
   await pm.shot(`${SHOTS}/mobile-files.png`);
   await pm.evalJs(`document.querySelector('[data-testid=office-bot-tab-log]')?.click()`);
+  // TEST-190 điện thoại: mất kết nối giữa chừng → dải báo, sự kiện giữ nguyên; nối lại → bỏ dải
+  await pm.sleep(200);
+  const mBefore = (await bodyOf(pm))?.lines ?? [];
+  await dropHub(pm);
+  const ml = await waitBody(pm, (x) => !!x.bar, 5000);
+  ok('[190] điện thoại: mất kết nối → dải báo, sự kiện giữ nguyên, thân mờ', !!ml?.bar && mBefore.length > 0 && ml.lines.join() === mBefore.join() && ml.dim, { ml, mBefore });
+  await setDark(pm, true);
+  await pm.shot(`${SHOTS}/mobile-190-lost-dark.png`);
+  await setDark(pm, false);
+  await restoreHub(pm);
+  // Như máy tính: nối lại → về lối vào → bảng đóng + lý do (hoặc bỏ dải nếu vẫn gần); rồi về cạnh bot mở lại cho các bước sau
+  const mr = await waitBody(pm, (x) => !x.bar, 20_000);
+  ok('[190] điện thoại: nối lại → hết dải "Mất kết nối" (bỏ dải giữ sự kiện, hoặc bảng đóng vì bị đưa về lối vào)',
+    !mr || (!mr.bar && mBefore.every((id) => mr.lines.includes(id))), mr);
+  if (!(await panel(pm))) {
+    await walk(pm, bot.x - 1.4, bot.z + 1.4);
+    const tp2 = await botPixel(pm, true);
+    if (tp2) await clickBot(pm, tp2[0], tp2[1], true);
+  }
+  ok('[190] điện thoại: về cạnh bot, bảng mở lại', (await waitPanel(pm, true))?.bot === B.userId);
 }
 ok('hai người cùng xem một bot không chen nhau (H1 vẫn xem được)', !!(await (async () => { await walk(pc, bot.x + 1.6, bot.z + 1.4); const p = await botPixel(pc); if (p) await clickBot(pc, p[0], p[1]); return (await waitPanel(pc, true))?.bot === B.userId; })()));
 await feed([{ id: 'c4', kind: 'command', text: 'bun test' }]);
@@ -788,7 +923,8 @@ ok('sự kiện mới tới cả 2 người xem', (await panel(pc))?.lines.some(
   ok('[127] H2 rời văn phòng → menu tự đóng', (await waitMenu(pc, false, 6000)) === null);
 }
 
-const noise = (errs: string[]) => errs.filter((e) => !/livekit|voice|7880|net::ERR|Failed to load resource/i.test(e));
+// [190] cố ý chặn hub văn phòng (giả mất kết nối) → SignalR ghi lỗi negotiate / kết nối lại: bỏ qua
+const noise = (errs: string[]) => errs.filter((e) => !/livekit|voice|7880|net::ERR|Failed to load resource|Failed to complete negotiation|Failed to start the connection|Connection disconnected/i.test(e));
 ok('không lỗi console (máy tính)', noise(pc.errors).length === 0, noise(pc.errors));
 ok('không lỗi console (điện thoại)', noise(pm.errors).length === 0, noise(pm.errors));
 

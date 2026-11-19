@@ -1,0 +1,12 @@
+# Bảng "Màn hình của bot" — trạng thái kết nối / chờ / rảnh (TEST-190)
+
+> Phần của [office-bots-watch.md](office-bots-watch.md) (hook `use-bot-watch`, bảng `bot-activity-panel`). Về [README.md](README.md). E2E: mục `[190]` của `scripts/dev/bot-watch-e2e.ts` ([e2e.md](../e2e.md)).
+
+Chỉ đổi giao diện: hub / API / hợp đồng sự kiện giữ nguyên, không lưu lịch sử. Hook thêm `slow` (đang kết nối > `BOT_WATCH_SLOW_MS` = 8 s, đếm lại mỗi lần bắt đầu kết nối / bấm Thử lại), `lost` (hub `reconnecting`; snapshot WatchBot mới xoá cả hai) và `retry()` (gọi lại `WatchBot` cho bot đang mở; lỗi → gợi ý "Chưa kết nối được…", **giữ** bảng, `slow` lại bật).
+
+- **Đầu bảng**: chấm màu trước dòng trạng thái (`office-bot-dot`, bảng có `data-tone`): xám xoay = đang kết nối · xanh `--success` = đang làm · vàng `--warning` = rảnh · đỏ `--destructive` = mất kết nối ("Mất kết nối, đang thử lại…"). Không `color-mix()`.
+- **Rỗng** (TEST-190 — không để thân trắng; mỗi trạng thái canh giữa thân): đang kết nối → vòng xoay "Đang kết nối tới <tên bot>…" + 4 dòng skeleton (`bot-act-skeleton`) · quá 8 s (`BOT_WATCH_SLOW_MS`) → "Kết nối chậm hơn bình thường, vẫn đang thử…" + nút **Thử lại** (`retry`) · `busy = true` chưa có sự kiện → chấm nhấp nháy "Đang chờ thao tác đầu tiên của bot…" + mã · tên việc · `busy = false` → ☕ lớn + "<tên bot> đang nghỉ, chưa có việc nào đang chạy". Skeleton / chấm nhấp nháy đứng yên khi `prefers-reduced-motion`.
+- **Mất kết nối giữa chừng** (hub `reconnecting` khi đã có sự kiện): giữ nguyên dòng thời gian, làm mờ (`.dim`), dải "Mất kết nối, đang thử lại…" trên cùng thân; WatchBot lại thành công → bỏ dải + mờ. Không xoá trắng.
+- **Chiều cao khi trống** (máy tính): chưa có sự kiện + người xem chưa tự kéo / đổi cỡ (`floating` của hook = chưa có gì ở localStorage) → cao 280 px, có sự kiện đầu tiên → cỡ mặc định; đã tự đổi cỡ → giữ cỡ đó. Điện thoại giữ bố cục cũ.
+- `data-testid`: `office-bot-dot`, `office-bot-connecting`, `office-bot-slow`, `office-bot-retry`, `office-bot-waiting`, `office-bot-empty` (rảnh), `office-bot-reconnect-bar`, `office-bot-skeleton`. Tab "File đã sửa" khi đang kết nối: skeleton ([office-bots-watch-files.md](office-bots-watch-files.md)).
+- e2e `[190]`: chặn khung `WatchBot` trên socket hub (bọc `WebSocket.prototype.send`) để giả kết nối treo → chậm → Thử lại; `Network.setBlockedURLs('*/hub/office*')` + đóng socket để giả mất kết nối giữa chừng rồi bỏ chặn → nối lại.

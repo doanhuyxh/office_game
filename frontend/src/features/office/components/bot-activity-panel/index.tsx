@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { BotWatchView } from '../../hooks/use-bot-watch';
 import { useFloatingPanel, type PanelRect } from '../../hooks/use-floating-panel';
+import { BotActSkeleton } from '../bot-act-skeleton';
 import { BotActivityEvent, formatCost } from '../bot-activity-event';
 import { BotFileList, summarizeFiles } from '../bot-file-list';
 
@@ -8,6 +9,8 @@ const MIN = { w: 320, h: 220 };
 /** Cách đáy ≤ bấy nhiêu px thì coi là đang ở cuối (tự cuộn theo sự kiện mới). */
 const STICK_PX = 32;
 const PHONE = '(max-width: 640px)';
+/** Chưa có sự kiện + người xem chưa tự kéo / đổi cỡ bảng → bảng chỉ cao bấy nhiêu px (TEST-190), có sự kiện đầu tiên thì giãn về cỡ mặc định. */
+const COMPACT_H = 280;
 const subscribePhone = (cb: () => void) => { const m = matchMedia(PHONE); m.addEventListener('change', cb); return () => m.removeEventListener('change', cb); };
 
 /**
@@ -47,8 +50,11 @@ function Elapsed({ from, to }: { from: string; to: string | null }) {
  * `fit` của hook); pointer capture giữ sự kiện trên bảng nên kéo không làm nhân vật đi / camera xoay. Nhớ vị trí + kích thước theo trình duyệt ở
  * localStorage `officehub.office.agent-screen-panel` (mở bot khác / tải lại vẫn dùng) — KHÔNG lưu sự kiện (chủ dự án: không lưu lịch sử).
  * Điện thoại (≤ 640 px): rộng hết màn hình, vị trí do CSS, không kéo / đổi cỡ.
+ * Không để thân trắng (TEST-190): đang kết nối → vòng xoay + skeleton (quá 8 giây → "Kết nối chậm…" + nút Thử lại = `onRetry`); bot đang làm
+ * chưa có sự kiện → chấm nhấp nháy "Đang chờ thao tác đầu tiên của bot…" + việc; rảnh → ☕; mất kết nối giữa chừng → giữ sự kiện, làm mờ +
+ * dải "Mất kết nối, đang thử lại…". Đầu bảng có chấm màu theo trạng thái. Chưa có sự kiện và chưa tự đổi cỡ → bảng thấp (COMPACT_H).
  */
-export function BotActivityPanel({ view, onClose }: { view: BotWatchView | null; onClose: () => void }) {
+export function BotActivityPanel({ view, onClose, onRetry }: { view: BotWatchView | null; onClose: () => void; onRetry: () => void }) {
   const phone = useSyncExternalStore(subscribePhone, () => matchMedia(PHONE).matches);
   const panel = useFloatingPanel({ storageKey: 'officehub.office.agent-screen-panel', min: MIN, initial: initialRect });
   const logRef = useRef<HTMLDivElement>(null);
@@ -75,7 +81,9 @@ export function BotActivityPanel({ view, onClose }: { view: BotWatchView | null;
   useEffect(() => { stick.current = true; setBehind(false); setTab('log'); }, [botId]);
   // Có sự kiện mới / cập nhật (mảng mới) hoặc bảng đổi cỡ: đang bám cuối thì cuộn xuống, không thì giữ nguyên chỗ người xem đang đọc
   const events = view?.events;
-  const { w, h } = panel.rect;
+  const w = panel.rect.w;
+  // Chưa có nội dung + chưa tự kéo / đổi cỡ (không có gì ở localStorage) → bảng thấp; có sự kiện đầu tiên → cỡ mặc định
+  const h = !panel.floating && !events?.length ? Math.min(panel.rect.h, Math.max(MIN.h, COMPACT_H)) : panel.rect.h;
   useLayoutEffect(() => {
     const el = logRef.current;
     if (el && stick.current) el.scrollTop = el.scrollHeight;
@@ -102,15 +110,18 @@ export function BotActivityPanel({ view, onClose }: { view: BotWatchView | null;
   // Về tab Hoạt động: dòng thời gian được dựng lại → bám cuối như lúc mới mở
   const pick = (t: 'log' | 'files') => { if (t === 'log') { stick.current = true; setBehind(false); } setTab(t); };
 
-  const state = view.connecting ? 'Đang kết nối…'
+  const lost = view.lost && view.connecting;
+  const state = lost ? 'Mất kết nối, đang thử lại…' : view.connecting ? 'Đang kết nối…'
     : view.busy === true ? `Đang làm${view.task ? ` · ${view.task}` : ''}`
     : view.busy === false ? 'Đang rảnh' : 'Chưa rõ trạng thái';
   const live = !view.connecting && view.busy === true && !view.endedAt;
   const hasMeta = !!view.model || !!view.startedAt || view.turns != null || view.costUsd != null;
+  const tone = lost ? 'lost' : view.connecting ? 'connecting' : view.busy === true ? 'busy' : view.busy === false ? 'idle' : 'unknown';
+  const empty = view.events.length === 0;
   const initial = view.name.trim().split(/\s+/).at(-1)?.charAt(0).toUpperCase() || '🤖';
 
   return (
-    <div className="card bot-act" data-testid="office-bot-watch" data-bot={view.botId} data-live={live ? '' : undefined}
+    <div className="card bot-act" data-testid="office-bot-watch" data-bot={view.botId} data-live={live ? '' : undefined} data-tone={tone}
       style={phone ? undefined : { left: panel.rect.x, top: panel.rect.y, width: w, height: h }}>
       <div className="bot-act-head" data-testid="office-bot-drag" {...(phone ? {} : panel.dragProps)}>
         <span className="bot-act-avatar" aria-hidden>{initial}</span>
@@ -119,7 +130,10 @@ export function BotActivityPanel({ view, onClose }: { view: BotWatchView | null;
             <b>{view.name}</b>
             {live && <span className="screen-live" data-testid="office-bot-live">● Trực tiếp</span>}
           </div>
-          <div className="bot-act-state" data-testid="office-bot-watch-state" title={state}>{state}</div>
+          <div className="bot-act-state" title={state}>
+            <span className={`bot-act-dot ${tone}`} aria-hidden data-testid="office-bot-dot" />
+            <span className="txt" data-testid="office-bot-watch-state">{state}</span>
+          </div>
         </div>
         <button type="button" className="bot-act-close" onClick={onClose} aria-label="Đóng" title="Đóng (Esc)" data-testid="office-bot-watch-close">✕</button>
       </div>
@@ -137,12 +151,37 @@ export function BotActivityPanel({ view, onClose }: { view: BotWatchView | null;
           File đã sửa{files.length > 0 && ` (${files.length})`}
         </button>
       </div>
-      {tab === 'files' ? <BotFileList files={files} /> : (
-        <div className="bot-act-log" ref={logRef} onScroll={onScroll} data-testid="office-bot-log">
-          {view.events.length === 0 && !view.connecting && (
-            <p className="bot-act-empty" data-testid="office-bot-empty">
-              {view.busy === false ? `☕ ${view.name} đang nghỉ, chưa có việc nào đang chạy` : 'Đang chờ thao tác đầu tiên…'}
-            </p>
+      {lost && !empty && (
+        <div className="bot-act-reconnect" role="status" data-testid="office-bot-reconnect-bar">
+          <span className="bot-act-dot lost" aria-hidden /> Mất kết nối, đang thử lại…
+        </div>
+      )}
+      {tab === 'files' ? <BotFileList files={files} connecting={view.connecting && empty} /> : (
+        <div className={`bot-act-log${lost && !empty ? ' dim' : ''}`} ref={logRef} onScroll={onScroll} data-testid="office-bot-log">
+          {empty && view.connecting && (
+            <div className="bot-act-status" role="status" data-testid={view.slow ? 'office-bot-slow' : 'office-bot-connecting'}>
+              {view.slow ? (
+                <>
+                  <p>Kết nối chậm hơn bình thường, vẫn đang thử…</p>
+                  <button type="button" className="bot-act-retry" onClick={onRetry} data-testid="office-bot-retry">Thử lại</button>
+                </>
+              ) : (
+                <p><span className="bot-act-spinner" aria-hidden />Đang kết nối tới {view.name}…</p>
+              )}
+              <BotActSkeleton />
+            </div>
+          )}
+          {empty && !view.connecting && view.busy === false && (
+            <div className="bot-act-status idle" data-testid="office-bot-empty">
+              <span className="big" aria-hidden>☕</span>
+              <p>{view.name} đang nghỉ, chưa có việc nào đang chạy</p>
+            </div>
+          )}
+          {empty && !view.connecting && view.busy !== false && (
+            <div className="bot-act-status" role="status" data-testid="office-bot-waiting">
+              <p><span className="bot-act-pulse" aria-hidden />Đang chờ thao tác đầu tiên của bot…</p>
+              {view.task && <small className="bot-act-task">{view.task}</small>}
+            </div>
           )}
           {view.events.map((e) => <BotActivityEvent key={e.id} e={e} live={live} />)}
         </div>

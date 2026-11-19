@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { formatTime } from '@/utils/date';
 import type { BotWatchEventDto } from '../../types/office.types';
+import { BotActSkeleton } from '../bot-act-skeleton';
 import { BotDiff, diffStat } from '../bot-activity-event';
 
 /** Một file agent đã sửa trong phiên đang xem — gộp từ các sự kiện `file_edit` / `file_write` cùng `path`. */
@@ -45,15 +46,17 @@ export function summarizeFiles(events: BotWatchEventDto[]): BotFileSummary[] {
  * Tab "File đã sửa" của bảng "Màn hình của bot" (TEST-100): mỗi file một dòng (số lần sửa, tổng dòng + / -, giờ sửa gần nhất, nhãn "Mới"),
  * bấm để mở các diff của file đó theo thứ tự thời gian. File đổi sau khi mở tab → dòng nháy nhẹ. Không gọi API, không lưu — danh sách
  * tính từ sự kiện trong RAM nên chỉ là phần người xem đã nhận được (ghi chú cuối tab). Đường dẫn / diff do agent sinh ra → chữ thuần.
+ * `connecting` (đang kết nối, chưa có sự kiện — TEST-190) → skeleton như tab Hoạt động thay cho "Chưa sửa file nào".
  */
-export function BotFileList({ files }: { files: BotFileSummary[] }) {
+export function BotFileList({ files, connecting = false }: { files: BotFileSummary[]; connecting?: boolean }) {
   const [openPath, setOpenPath] = useState<string | null>(null);
   // Mốc lúc mở tab: chỉ nháy file đổi SAU đó (mở tab không nháy cả danh sách)
   const [baseline] = useState(() => files[0]?.lastSeq ?? 0);
 
   return (
     <div className="bot-act-log bot-act-files" data-testid="office-bot-files">
-      {files.length === 0 && <p className="bot-act-empty" data-testid="office-bot-files-empty">Chưa sửa file nào trong phiên này</p>}
+      {connecting && files.length === 0 && <BotActSkeleton />}
+      {!connecting && files.length === 0 && <p className="bot-act-empty" data-testid="office-bot-files-empty">Chưa sửa file nào trong phiên này</p>}
       {files.map((f) => {
         const open = openPath === f.path;
         const noDiff = f.edits.every((e) => !e.diff);
@@ -83,7 +86,7 @@ export function BotFileList({ files }: { files: BotFileSummary[] }) {
           </div>
         );
       })}
-      <p className="bot-file-note">Chỉ gồm thay đổi từ lúc bạn bắt đầu xem và 200 thao tác gần nhất</p>
+      {!connecting && <p className="bot-file-note">Chỉ gồm thay đổi từ lúc bạn bắt đầu xem và 200 thao tác gần nhất</p>}
     </div>
   );
 }

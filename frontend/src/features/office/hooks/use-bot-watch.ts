@@ -11,6 +11,8 @@ export const BOT_WATCH_END_REASON: Record<string, string> = {
 };
 /** Chờ bấy nhiêu ms sau khi nối lại hub rồi mới gọi lại WatchBot (Welcome + vị trí kịp tới server — như GetScreen ở OfficeView); thử lại một lần. */
 const REWATCH_DELAY = 600, REWATCH_RETRY = 1200;
+/** Đang kết nối quá bấy nhiêu ms → bảng đổi sang "Kết nối chậm hơn bình thường…" + nút Thử lại (TEST-190). */
+export const BOT_WATCH_SLOW_MS = 8000;
 
 /** Trạng thái "đang xem bot" cho HUD — chỉ trong RAM (chủ dự án: không lưu lịch sử, không localStorage). */
 export interface BotWatchView {
@@ -18,6 +20,10 @@ export interface BotWatchView {
   name: string;
   /** Đang gọi WatchBot (mở bảng / nối lại sau mất kết nối). */
   connecting: boolean;
+  /** Đang kết nối đã quá BOT_WATCH_SLOW_MS (TEST-190) → bảng hiện nút "Thử lại" (`retry`). */
+  slow: boolean;
+  /** Hub đang kết nối lại (mất kết nối giữa chừng) — sự kiện đã có vẫn giữ, bảng làm mờ + dải "Mất kết nối…" (TEST-190). */
+  lost: boolean;
   /** Bot đang làm (true) / rảnh (false) / chưa rõ (null) + việc đang làm "MÃ · tên". */
   busy: boolean | null;
   task: string | null;
@@ -33,7 +39,7 @@ export interface BotWatchView {
 }
 
 const fresh = (botId: string, name: string): BotWatchView =>
-  ({ botId, name, connecting: true, busy: null, task: null, model: null, turns: null, costUsd: null, startedAt: null, endedAt: null, events: [] });
+  ({ botId, name, connecting: true, slow: false, lost: false, busy: null, task: null, model: null, turns: null, costUsd: null, startedAt: null, endedAt: null, events: [] });
 
 /**
  * Gộp lô mới vào danh sách: cùng `id` → thay (server đã trộn trường null = giữ cũ, giữ `seq`); có `session_start` → bỏ mọi sự kiện có
@@ -66,12 +72,13 @@ function apply(v: BotWatchView, events: BotWatchEventDto[], busy: boolean | null
 }
 
 const applySnapshot = (v: BotWatchView, dto: BotWatchDto): BotWatchView =>
-  ({ ...apply(v, dto.events ?? [], dto.busy, dto.task), name: dto.name || v.name, connecting: false });
+  ({ ...apply(v, dto.events ?? [], dto.busy, dto.task), name: dto.name || v.name, connecting: false, slow: false, lost: false });
 
 /**
  * Lớp dữ liệu "xem bot đang làm gì" trong văn phòng 3D (TEST-97). `watch(botId)` → hub `WatchBot` (server kiểm phạm vi nghe được, lỗi →
  * `hint`); `onActivity` / `onEnded` nối vào `OfficeConnection` (hàm ổn định, dùng được trong closure của effect kết nối); `BotWatchEnded`
  * → đóng + gợi ý lý do ngắn; mất kết nối hub rồi nối lại → gọi lại `WatchBot` nếu bảng còn mở; `close` / rời trang → `UnwatchBot`.
+ * Kết nối quá 8 giây → `slow` + `retry()` (TEST-190).
  * Không ghi gì vào localStorage / cache.
  */
 export function useBotWatch(connRef: RefObject<OfficeConnection | null>, conn: ConnState, hint: (text: string) => void) {
@@ -81,19 +88,49 @@ export function useBotWatch(connRef: RefObject<OfficeConnection | null>, conn: C
   const hintRef = useRef(hint);
   hintRef.current = hint;
 
+  // Lần gọi WatchBot mới nhất (mở bảng / Thử lại): kết quả của lần gọi cũ hơn bị bỏ — vd lời gọi treo bị huỷ khi hub rớt sau khi đã bấm Thử lại.
+  const attempt = useRef(0);
   const watch = useCallback(async (botId: string, name: string) => {
     const c = connRef.current;
     if (!c) return;
-    setView((v) => (v?.botId === botId ? { ...v, name, connecting: true } : fresh(botId, name)));
+    const my = ++attempt.current;
+    setView((v) => (v?.botId === botId ? { ...v, name, connecting: true, slow: false } : fresh(botId, name)));
     try {
       const dto = await c.watchBot(botId);
       // Người dùng đã đóng / đổi bot trong lúc chờ → bỏ kết quả. Lô BotActivity tới trước kết quả thì gộp cùng id, không trùng dòng.
       setView((v) => (v?.botId === botId ? applySnapshot(v, dto) : v));
     } catch (err) {
+      if (my !== attempt.current) return;
+      // Hub rớt giữa lúc chờ (lời gọi bị huỷ) → giữ bảng ở trạng thái đang kết nối; nối lại thì effect bên dưới gọi WatchBot lại (TEST-190)
+      if (!c.connected) return;
       setView((v) => (v?.botId === botId ? null : v));
       hintRef.current(hubErrorMessage(err, 'Chưa xem được bot này'));
     }
   }, [connRef]);
+
+  // "Thử lại" khi kết nối chậm (TEST-190): gọi lại WatchBot cho bot đang mở; lỗi → gợi ý nhưng GIỮ bảng (vẫn đang thử), đếm lại mốc chậm.
+  const retry = useCallback(async () => {
+    const v = viewRef.current, c = connRef.current;
+    if (!v || !c) return;
+    const botId = v.botId, my = ++attempt.current;
+    setView((x) => (x?.botId === botId ? { ...x, connecting: true, slow: false } : x));
+    try {
+      const dto = await c.watchBot(botId);
+      setView((x) => (x?.botId === botId ? applySnapshot(x, dto) : x));
+    } catch (err) {
+      if (my !== attempt.current) return;
+      setView((x) => (x?.botId === botId && x.connecting ? { ...x, slow: true } : x));
+      hintRef.current(hubErrorMessage(err, 'Chưa kết nối được, thử lại sau ít giây'));
+    }
+  }, [connRef]);
+
+  // Đang kết nối quá 8 giây → `slow` (bảng đổi chữ + nút Thử lại); mỗi lần bắt đầu kết nối / bấm Thử lại thì đếm lại.
+  const connecting = !!view?.connecting, slow = !!view?.slow, watchedId = view?.botId;
+  useEffect(() => {
+    if (!connecting || slow) return;
+    const t = window.setTimeout(() => setView((x) => (x && x.botId === watchedId && x.connecting ? { ...x, slow: true } : x)), BOT_WATCH_SLOW_MS);
+    return () => clearTimeout(t);
+  }, [connecting, slow, watchedId]);
 
   const close = useCallback(() => {
     if (!viewRef.current) return;
@@ -134,7 +171,7 @@ export function useBotWatch(connRef: RefObject<OfficeConnection | null>, conn: C
     const v = viewRef.current;
     if (!v) return;
     if (conn === 'kicked') { setView(null); return; }
-    if (conn === 'reconnecting') { setView((x) => (x ? { ...x, connecting: true } : x)); return; }
+    if (conn === 'reconnecting') { setView((x) => (x ? { ...x, connecting: true, lost: true } : x)); return; }
     if (conn !== 'online' || was !== 'reconnecting') return;
     let alive = true, timer = 0;
     const again = (retriesLeft: number) => {
@@ -156,5 +193,5 @@ export function useBotWatch(connRef: RefObject<OfficeConnection | null>, conn: C
   // Rời trang văn phòng → thôi xem (kết nối còn mở thì báo server; đã đóng thì server tự dọn).
   useEffect(() => () => { void connRef.current?.unwatchBot().catch(() => { /* bỏ qua */ }); }, [connRef]);
 
-  return { view, watch, close, onActivity, onEnded };
+  return { view, watch, retry, close, onActivity, onEnded };
 }

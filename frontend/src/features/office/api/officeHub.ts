@@ -121,6 +121,11 @@ export class OfficeConnection {
     return camel<BotWatchDto>(await this.conn.invoke('WatchBot', botUserId));
   }
 
+  /** Hub đang kết nối (không ở trạng thái kết nối lại / đã đóng). */
+  get connected() {
+    return this.conn.state === HubConnectionState.Connected;
+  }
+
   /** Thôi xem bot (đóng bảng). Ngắt kết nối thì server tự thôi — chưa kết nối thì không gọi. */
   unwatchBot(): Promise<void> {
     return this.conn.state === HubConnectionState.Connected ? this.conn.invoke('UnwatchBot') : Promise.resolve();
