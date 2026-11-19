@@ -2,8 +2,8 @@
 // MCP: tools/list không còn tham số `reviewer` (create_task / update_task), get_project / get_task trả columns[].wakeFollowers, get_task không có `reviewer`,
 //      ServerInstructions không còn vòng cố định "Doing → Review → Done" (bot đọc get_my_role + workGuide), get_my_role: token bot → ghi chú
 //      "quy trình làm việc của vai trò bạn", token người thật → ghi chú "tài liệu tham khảo".
-// Giao diện (Chrome headless 1440×900): hộp thoại việc không còn ô "Người review"; hộp thoại cột có checkbox "Đánh thức bot theo dõi"
-//      — tick / bỏ tick lưu đúng (kiểm qua API), tiêu đề cột có biểu tượng chuông khi bật. Ảnh vào SHOTS_DIR.
+// Giao diện (Chrome headless 1440×900): hộp thoại việc không còn ô "Người review"; hộp thoại cột có công tắc "Đánh thức bot theo dõi"
+//      — tick / bỏ tick lưu đúng (kiểm qua API), tiêu đề cột có biểu tượng bot khi bật (TEST-189). Ảnh vào SHOTS_DIR.
 // TẠO DỮ LIỆU THẬT → CHỈ DB tạm. Api (backend/) như đầu task-column-wake-e2e.ts (+ Telegram__ApiUrl=http://127.0.0.1:9), Mcp cùng Api, Vite trỏ Api:
 //   E2E_LOCAL_DB=1 API_URL=http://localhost:5293 MCP_URL=http://localhost:5213/mcp BASE_URL=http://localhost:5183 ADMIN_LOGIN=… ADMIN_PASSWORD=… \
 //     bun scripts/dev/task-wake-ui-e2e.ts
@@ -133,16 +133,16 @@ try {
   ok('đăng nhập UI quản lý dự án', (await br.login(PM.user, PW)) === 200);
   await br.go(`${BASE}/projects/${P}?tab=tasks`, 4000);
   await br.shot(`${SHOTS}/1-board.png`);
-  ok('tiêu đề cột "Chờ review" có chuông đánh thức, "Đang làm" không',
+  ok('tiêu đề cột "Chờ review" có biểu tượng bot đánh thức, "Đang làm" không',
     await br.evalJs(`!!document.querySelector('[data-testid="col-Chờ review"] [data-testid="col-wake-icon"]') && !document.querySelector('[data-testid="col-Đang làm"] [data-testid="col-wake-icon"]')`));
   const openCol = async (name: string) => {
     await br.evalJs(`document.querySelector('[aria-label="Sửa trạng thái ${name}"]').click()`);
     await br.sleep(700);
   };
   await openCol('Đang làm');
-  const dlg = await br.evalJs(`(() => { const d = document.querySelector('[data-testid="column-dialog"]'); return d ? { text: d.innerText, wake: !!d.querySelector('[data-testid="col-wake"]'), checked: d.querySelector('[data-testid="col-wake"]')?.checked } : null })()`);
-  ok('hộp thoại cột: checkbox "Đánh thức bot theo dõi" + dòng giải thích, không còn "Cột review"',
-    dlg?.wake && dlg.checked === false && dlg.text.includes('Đánh thức bot theo dõi') && dlg.text.includes('bot đang theo dõi') && !dlg.text.includes('Cột review'), dlg);
+  const dlg = await br.evalJs(`(() => { const d = document.querySelector('[data-testid="column-dialog"]'); return d ? { text: d.innerText, wake: !!d.querySelector('[data-testid="col-wake"]'), checked: d.querySelector('[data-testid="col-wake"]')?.getAttribute('aria-checked') === 'true' } : null })()`);
+  ok('hộp thoại cột: công tắc "Đánh thức bot theo dõi" + dòng giải thích, không còn "Cột review"',
+    dlg?.wake && dlg.checked === false && dlg.text.includes('Đánh thức bot theo dõi') && dlg.text.includes('gọi bot theo dõi việc') && !dlg.text.includes('Cột review'), dlg);
   await br.evalJs(`document.querySelector('[data-testid="col-wake"]').click()`);
   await br.sleep(300);
   await br.shot(`${SHOTS}/2-column-dialog-ticked.png`);
@@ -150,10 +150,10 @@ try {
   await br.sleep(1500);
   cols = (await json(Hum.cookie, 'GET', `/api/projects/${P}/columns`)).body as any[];
   ok('tick → lưu wakeFollowers = true cho "Đang làm"', cols.find((c) => c.id === DOING)?.wakeFollowers === true, cols);
-  ok('tiêu đề cột "Đang làm" hiện chuông sau khi lưu', await br.evalJs(`!!document.querySelector('[data-testid="col-Đang làm"] [data-testid="col-wake-icon"]')`));
+  ok('tiêu đề cột "Đang làm" hiện biểu tượng bot sau khi lưu', await br.evalJs(`!!document.querySelector('[data-testid="col-Đang làm"] [data-testid="col-wake-icon"]')`));
   await br.shot(`${SHOTS}/3-board-after-tick.png`);
   await openCol('Đang làm');
-  ok('mở lại: checkbox đang tick', await br.evalJs(`document.querySelector('[data-testid="col-wake"]')?.checked === true`));
+  ok('mở lại: công tắc đang bật', await br.evalJs(`document.querySelector('[data-testid="col-wake"]')?.getAttribute('aria-checked') === 'true'`));
   await br.evalJs(`document.querySelector('[data-testid="col-wake"]').click()`);
   await br.sleep(200);
   await br.evalJs(`document.querySelector('[data-testid="column-dialog"] button[type="submit"]').click()`);

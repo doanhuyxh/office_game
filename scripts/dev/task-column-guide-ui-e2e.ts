@@ -2,6 +2,9 @@
 // hộp thoại cột: tick "Đánh thức bot theo dõi" → ô "Hướng dẫn cho bot ở cột này" (Viết / Xem trước, đếm ký tự); có hướng dẫn mà chưa chọn bot → cảnh báo
 // "Chưa chọn bot: …"; chọn bot → hết cảnh báo; lưu (kiểm API), mở lại ở Xem trước; tab Hướng dẫn: dưới hướng dẫn chung là từng cột có hướng dẫn
 // (nhãn màu + bot được chọn / "mọi bot theo dõi việc"), có trong mục lục, bấm cuộn tới; bỏ tick → ẩn ô, nội dung giữ (API hasGuide = false), tick lại hiện lại.
+// TEST-189 bố cục mới: bật đánh thức → hai cột Cài đặt | Hướng dẫn cho bot, ~1.500 ký tự → chỉ một thanh cuộn (ô soạn), nút Lưu luôn trong khung nhìn;
+// tắt → một cột hẹp, bật lại nội dung còn; Phóng to; điện thoại 390×844 → hai tab, thanh đáy cố định; theme tối; biểu tượng bot trên tiêu đề cột
+// (aria-label / tooltip: bot được gọi + có / chưa có hướng dẫn riêng), bấm → mở hộp thoại sửa cột.
 // TẠO DỮ LIỆU THẬT → CHỈ DB tạm. Api như đầu task-column-guide-e2e.ts, Vite trỏ Api (không cần Mcp / Realtime):
 //   VITE_API_TARGET=http://localhost:5386 bunx vite --port 5188   (trong frontend/)
 //   E2E_LOCAL_DB=1 API_URL=http://localhost:5386 BASE_URL=http://localhost:5188 ADMIN_LOGIN=… ADMIN_PASSWORD=… bun scripts/dev/task-column-guide-ui-e2e.ts
@@ -89,23 +92,97 @@ try {
   const save = async () => { await br.evalJs(`document.querySelector('[data-testid="column-dialog"] button[type="submit"]').click()`); await br.sleep(1500); };
   const q = (id: string) => `document.querySelector('[data-testid="${id}"]')`;
   const scrollDialog = () => br.evalJs(`${q('column-dialog')}.scrollTop = 9999`);
+  const setGuide = (text: string) => br.evalJs(`(() => { const t = document.getElementById('col-guide'); const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+    set.call(t, ${JSON.stringify(text)}); t.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  // Đo bố cục hộp thoại: kiểu bố cục, hai cột cạnh nhau, phần tử đang cuộn được (overflow auto / scroll và nội dung dài hơn khung), nút Lưu trong khung nhìn.
+  const layout = () => br.evalJs(`(() => { const d = ${q('column-dialog')}; const r = (e) => e?.getBoundingClientRect(); const s = r(${q('col-settings')}), g = r(${q('col-guide')});
+    const vis = (e) => !!e && e.offsetParent !== null;
+    const scrollers = [d, ...d.querySelectorAll('*')].filter((e) => /(auto|scroll)/.test(getComputedStyle(e).overflowY) && e.scrollHeight > e.clientHeight + 1)
+      .map((e) => e.id || e.dataset.testid || e.tagName);
+    const b = r(d.querySelector('button[type="submit"]'));
+    return { layout: d.dataset.layout, w: r(d).width, vw: innerWidth, side: !!(s && g && vis(${q('col-settings')}) && vis(${q('col-guide')}) && g.left >= s.right - 1),
+      settings: vis(${q('col-settings')}), guide: vis(${q('col-guide')}), tabs: vis(${q('col-tab-guide')}), scrollers, save: b.top >= 0 && b.bottom <= innerHeight && b.left >= 0 && b.right <= innerWidth && b.width > 0 } })()`);
+  await br.go(`${BASE}/projects/${P}?tab=tasks`, 4000);
+  await br.evalJs(`localStorage.setItem('officehub:theme', 'light')`);
   await br.go(`${BASE}/projects/${P}?tab=tasks`, 4000);
   await openEdit('Chờ review');
   ok('cột có tick: hiện ô "Hướng dẫn cho bot ở cột này" + bộ đếm / 10.000',
     await br.evalJs(`!!${q('col-guide')} && ${q('col-guide')}.innerText.includes('Hướng dẫn cho bot ở cột này') && ${q('col-guide-count')}.innerText.includes('10.000')`));
-  await br.evalJs(`(() => { const t = document.getElementById('col-guide'); const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
-    set.call(t, ${JSON.stringify(GUIDE)}); t.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  // ── TEST-189: bố cục hai cột, một thanh cuộn, nút Lưu luôn thấy ──
+  const LONG = Array.from({ length: 30 }, (_, i) => `${i + 1}. Bước kiểm tra số ${i + 1}: đọc bình luận, chạy lệnh, ghi kết quả.`).join('\n').slice(0, 1500);
+  await setGuide(LONG);
+  await br.sleep(300);
+  let L = await layout();
+  ok('[189] bật đánh thức: hai cột Cài đặt | Hướng dẫn cạnh nhau, không có tab', L.layout === 'two-column' && L.side && !L.tabs, L);
+  ok('[189] ~1.500 ký tự: không quá một thanh cuộn, nút Lưu trong khung nhìn', L.scrollers.length <= 1 && L.save, L);
+  await br.shot(`${SHOTS}/189-1-wide-two-columns-light.png`);
+  await setGuide(LONG.repeat(3));
+  await br.sleep(300);
+  L = await layout();
+  ok('[189] 4.500 ký tự: đúng một thanh cuộn (ô soạn), hộp thoại không cuộn, nút Lưu trong khung nhìn', JSON.stringify(L.scrollers) === '["col-guide"]' && L.save, L);
+  await setGuide(LONG);
+  await br.sleep(300);
+  await br.evalJs(`${q('col-wake')}.click()`);
+  await br.sleep(300);
+  L = await layout();
+  ok('[189] tắt đánh thức → một cột hẹp (≤ 480px), không ô hướng dẫn', L.layout === 'single' && L.w <= 480 && !L.guide && L.save, L);
+  await br.shot(`${SHOTS}/189-2-wide-single-column.png`);
+  await br.evalJs(`${q('col-wake')}.click()`);
+  await br.sleep(300);
+  ok('[189] bật lại → nội dung hướng dẫn còn nguyên', await br.evalJs(`document.getElementById('col-guide')?.value === ${JSON.stringify(LONG)}`));
+  await br.evalJs(`${q('col-guide-max')}.click()`);
+  await br.sleep(300);
+  L = await layout();
+  ok('[189] Phóng to → hộp thoại gần hết màn hình, ẩn cột Cài đặt, Lưu vẫn thấy', L.w >= L.vw - 20 && !L.settings && L.guide && L.save, L);
+  await br.evalJs(`${q('col-guide-max')}.click()`);
+  await br.sleep(300);
+  ok('[189] Thu nhỏ → về hai cột', (await layout()).side);
+  // Điện thoại: hai tab, thanh đáy cố định
+  await br.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await br.sleep(600);
+  L = await layout();
+  ok('[189] điện thoại: tab "Cài đặt" đang mở, ô hướng dẫn ẩn, nút Lưu thấy', L.tabs && L.settings && !L.guide && L.save, L);
+  await br.shot(`${SHOTS}/189-3-phone-tab-settings.png`);
+  await br.evalJs(`${q('col-tab-guide')}.click()`);
+  await br.sleep(300);
+  L = await layout();
+  ok('[189] điện thoại: bấm tab "Hướng dẫn cho bot" → ô hướng dẫn, ẩn Cài đặt, nút Lưu thấy', !L.settings && L.guide && L.save, L);
+  await br.shot(`${SHOTS}/189-4-phone-tab-guide.png`);
+  await br.evalJs(`${q('col-tab-settings')}.click()`);
+  await br.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+  await br.sleep(600);
+  await setGuide(GUIDE);
   await br.sleep(300);
   ok('có hướng dẫn + chưa chọn bot → cảnh báo "Chưa chọn bot: mọi bot theo dõi việc sẽ được gọi…"',
     await br.evalJs(`${q('col-guide-all-bots')}?.innerText.includes('Chưa chọn bot: mọi bot theo dõi việc sẽ được gọi và đọc hướng dẫn này.') === true`));
   ok('bộ đếm ký tự cập nhật', await br.evalJs(`${q('col-guide-count')}.innerText.startsWith('${GUIDE.length}')`));
   await scrollDialog();
   await br.shot(`${SHOTS}/1-column-dialog-guide-warning.png`);
+  ok('[189] chưa chọn bot → dòng "Mọi bot theo dõi việc sẽ được gọi"', await br.evalJs(`!!${q('col-wake-all')}`));
+  await br.evalJs(`${q('col-wake-add')}.click()`);
+  await br.sleep(200);
   await br.evalJs(`${q(`col-wake-bot-${Rev.code}`)}.click()`);
   await br.sleep(300);
+  ok('[189] chọn Bot Review → thẻ tên', await br.evalJs(`!!${q(`col-wake-chip-${Rev.code}`)} && !${q('col-wake-all')}`));
   ok('chọn Bot Review → hết cảnh báo', await br.evalJs(`!${q('col-guide-all-bots')}`));
   await save();
   let c = await colOf('Chờ review');
+  // TEST-189: biểu tượng bot trên tiêu đề cột
+  const icon = (col: string) => br.evalJs(`document.querySelector('[data-testid="col-${col}"] [data-testid="col-wake-icon"]')?.getAttribute('aria-label') ?? null`);
+  const iRev = await icon('Chờ review'), iDep = await icon('Deploy'), iDoing = await icon('Đang làm');
+  ok('[189] tiêu đề "Chờ review": biểu tượng bot — gọi Bot Review, có hướng dẫn riêng', !!iRev?.includes('Bot Review') && iRev.includes('Có hướng dẫn riêng'), iRev);
+  ok('[189] tiêu đề "Deploy": mọi bot theo dõi việc, có hướng dẫn riêng; "Đang làm" không có biểu tượng',
+    !!iDep?.includes('mọi bot theo dõi việc') && iDep.includes('Có hướng dẫn riêng') && iDoing === null, { iDep, iDoing });
+  const ic = await br.evalJs(`(() => { const r = document.querySelector('[data-testid="col-Chờ review"] [data-testid="col-wake-icon"]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 } })()`);
+  for (const d of [-6, -2, 0]) await br.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: ic.x + d, y: ic.y + d });
+  await br.sleep(700);
+  ok('[189] tooltip biểu tượng bot hiện tên bot + hướng dẫn', await br.evalJs(`[...document.querySelectorAll('[data-testid="col-wake-tip"]')].some((t) => t.innerText.includes('Bot Review') && t.innerText.includes('Có hướng dẫn riêng'))`));
+  await br.shot(`${SHOTS}/189-5-board-bot-icon-tooltip.png`);
+  await br.evalJs(`document.querySelector('[data-testid="col-Chờ review"] [data-testid="col-wake-icon"]').click()`);
+  await br.sleep(700);
+  ok('[189] bấm biểu tượng bot → mở hộp thoại sửa cột', await br.evalJs(`${q('column-dialog')}?.innerText.includes('Sửa trạng thái "Chờ review"') === true`));
+  await br.evalJs(`[...document.querySelectorAll('[data-testid="column-dialog"] button')].find((b) => b.innerText.trim() === 'Huỷ').click()`);
+  await br.sleep(500);
   ok('lưu → API guide + hasGuide + wakeBotIds', c?.guide === GUIDE && c?.hasGuide === true && JSON.stringify(c?.wakeBotIds) === JSON.stringify([Rev.e.id]), c);
   await openEdit('Chờ review');
   ok('mở lại: ô hướng dẫn ở chế độ Xem trước, hiện nội dung đã lưu',
@@ -113,6 +190,15 @@ try {
   await scrollDialog();
   await br.sleep(200);
   await br.shot(`${SHOTS}/2-column-dialog-guide-preview.png`);
+  // Theme tối
+  await br.evalJs(`localStorage.setItem('officehub:theme', 'dark')`);
+  await br.go(`${BASE}/projects/${P}?tab=tasks`, 4000);
+  await openEdit('Chờ review');
+  ok('[189] theme tối: hộp thoại hai cột', await br.evalJs(`document.documentElement.classList.contains('dark')`) && (await layout()).side);
+  await br.shot(`${SHOTS}/189-6-wide-two-columns-dark.png`);
+  await br.evalJs(`localStorage.setItem('officehub:theme', 'light')`);
+  await br.go(`${BASE}/projects/${P}?tab=tasks`, 4000);
+  await openEdit('Chờ review');
   await br.evalJs(`[...document.querySelectorAll('[data-testid="column-dialog"] button')].find((b) => b.innerText.trim() === 'Huỷ').click()`);
   await br.sleep(500);
   await br.go(`${BASE}/projects/${P}?tab=guide`, 4000);

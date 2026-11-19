@@ -1,6 +1,6 @@
 // E2E TEST-184 giao diện hộp thoại cột: chọn bot được đánh thức (wakeBotIds).
-// Chrome headless 1440×900: tick "Đánh thức bot theo dõi" → hiện danh sách bot thành viên dự án (tên + nhãn BOT) + ghi chú "Không chọn bot nào = …",
-// người thật không có trong danh sách; tick 1 bot → lưu (kiểm API), mở lại hiện đúng; bỏ tick bot → []; bỏ tick đánh thức → ẩn danh sách + API xoá;
+// Chrome headless 1440×900: bật "Đánh thức bot theo dõi" → "Bot được gọi": chưa chọn → "Mọi bot theo dõi việc sẽ được gọi"; "+ Thêm bot" mở danh sách bot
+// thành viên dự án (tên + nhãn BOT, không có người thật); chọn → thẻ tên có ✕ (TEST-189) → lưu (kiểm API), mở lại hiện đúng; bỏ hết → []; tắt đánh thức → ẩn + API xoá;
 // dự án không có bot → "Dự án chưa có thành viên là bot". Ảnh vào SHOTS_DIR.
 // TẠO DỮ LIỆU THẬT → CHỈ DB tạm. Api như đầu task-column-wake-e2e.ts, Vite trỏ Api (không cần Mcp / Realtime):
 //   VITE_API_TARGET=http://localhost:5291 bunx vite --port 5183   (trong frontend/)
@@ -90,36 +90,47 @@ try {
     await br.sleep(700);
   };
   const save = async () => { await br.evalJs(`document.querySelector('[data-testid="column-dialog"] button[type="submit"]').click()`); await br.sleep(1500); };
-  const botBox = (code: string) => `document.querySelector('[data-testid="col-wake-bot-${code}"]')`;
+  // TEST-189: bot chọn bằng thẻ tên (chip, nút ✕ bỏ) + nút "+ Thêm bot" mở danh sách bot chưa chọn.
+  const picked = (code: string) => br.evalJs(`!!document.querySelector('[data-testid="col-wake-chip-${code}"]')`);
+  const toggleBot = async (code: string) => {
+    if (await picked(code)) await br.evalJs(`document.querySelector('[data-testid="col-wake-bot-remove-${code}"]').click()`);
+    else {
+      if (!(await br.evalJs(`!!document.querySelector('[data-testid="col-wake-bot-list"]')`))) { await br.evalJs(`document.querySelector('[data-testid="col-wake-add"]').click()`); await br.sleep(200); }
+      await br.evalJs(`document.querySelector('[data-testid="col-wake-bot-${code}"]').click()`);
+    }
+    await br.sleep(200);
+  };
   await br.go(`${BASE}/projects/${P}?tab=tasks`, 4000);
   await openEdit('Chờ review');
-  const d1 = await br.evalJs(`(() => { const l = document.querySelector('[data-testid="col-wake-bots"]'); return l ? { text: l.innerText, n: l.querySelectorAll('input[type=checkbox]').length } : null })()`);
-  ok('cột "Chờ review" (đã tick): danh sách 2 bot + nhãn BOT + ghi chú, không có người thật',
-    d1?.n === 2 && d1.text.includes('Bot Review') && d1.text.includes('Bot DevOps') && !d1.text.includes('Người Thật') && /bot/i.test(d1.text)
-    && d1.text.includes('Không chọn bot nào = đánh thức tất cả bot theo dõi việc') && d1.text.includes('Bot được chọn vẫn phải là người theo dõi của việc'), d1);
-  ok('mặc định không bot nào được tick', await br.evalJs(`!${botBox(Rev.code)}.checked && !${botBox(Ops.code)}.checked`));
-  await br.evalJs(`${botBox(Rev.code)}.click()`);
+  ok('mặc định chưa chọn bot: dòng "Mọi bot theo dõi việc sẽ được gọi", không thẻ bot nào',
+    await br.evalJs(`document.querySelector('[data-testid="col-wake-all"]')?.innerText === 'Mọi bot theo dõi việc sẽ được gọi'`) && !(await picked(Rev.code)) && !(await picked(Ops.code)));
+  await br.evalJs(`document.querySelector('[data-testid="col-wake-add"]').click()`);
   await br.sleep(300);
+  const d1 = await br.evalJs(`(() => { const l = document.querySelector('[data-testid="col-wake-bots"]'); return l ? { text: l.innerText, n: l.querySelectorAll('[data-testid="col-wake-bot-list"] [role=option]').length,
+    info: !!l.querySelector('[aria-label="Giải thích: Bot được gọi"]') } : null })()`);
+  ok('"+ Thêm bot" → danh sách 2 bot + nhãn BOT, không có người thật; giải thích dài trong (i)',
+    d1?.n === 2 && d1.text.includes('Bot Review') && d1.text.includes('Bot DevOps') && !d1.text.includes('Người Thật') && /bot/i.test(d1.text) && d1.info, d1);
+  await toggleBot(Rev.code);
+  ok('chọn Bot Review → thẻ tên (mã + BOT), hết dòng "Mọi bot…"', (await picked(Rev.code))
+    && await br.evalJs(`!document.querySelector('[data-testid="col-wake-all"]') && document.querySelector('[data-testid="col-wake-chip-${Rev.code}"]').innerText.includes('${Rev.code}')`));
   await br.shot(`${SHOTS}/1-column-dialog-bots.png`);
   await save();
   ok('lưu → API wakeBotIds = [Bot Review]', JSON.stringify((await colOf(P, 'Chờ review'))?.wakeBotIds) === JSON.stringify([Rev.e.id]));
   await openEdit('Chờ review');
-  ok('mở lại: Bot Review đang tick, Bot DevOps không', await br.evalJs(`${botBox(Rev.code)}.checked && !${botBox(Ops.code)}.checked`));
-  await br.evalJs(`${botBox(Rev.code)}.click()`);
-  await br.evalJs(`${botBox(Ops.code)}.click()`);
-  await br.sleep(200);
+  ok('mở lại: Bot Review đã chọn, Bot DevOps không', (await picked(Rev.code)) && !(await picked(Ops.code)));
+  await toggleBot(Rev.code);
+  await toggleBot(Ops.code);
   await save();
   ok('đổi sang Bot DevOps → API [Bot DevOps]', JSON.stringify((await colOf(P, 'Chờ review'))?.wakeBotIds) === JSON.stringify([Ops.e.id]));
   await openEdit('Chờ review');
-  await br.evalJs(`${botBox(Ops.code)}.click()`);
-  await br.sleep(200);
+  await toggleBot(Ops.code);
   await save();
   ok('bỏ tick hết bot → API [] (đánh thức tất cả)', (await colOf(P, 'Chờ review'))?.wakeBotIds?.length === 0);
   await openEdit('Chờ review');
-  await br.evalJs(`${botBox(Rev.code)}.click()`);
+  await toggleBot(Rev.code);
   await br.evalJs(`document.querySelector('[data-testid="col-wake"]').click()`);
   await br.sleep(300);
-  ok('bỏ tick "Đánh thức bot theo dõi" → ẩn danh sách bot', await br.evalJs(`!document.querySelector('[data-testid="col-wake-bots"]')`));
+  ok('tắt "Đánh thức bot theo dõi" → ẩn danh sách bot', await br.evalJs(`!document.querySelector('[data-testid="col-wake-bots"]')`));
   await br.shot(`${SHOTS}/2-column-dialog-untick.png`);
   await save();
   const c2 = await colOf(P, 'Chờ review');

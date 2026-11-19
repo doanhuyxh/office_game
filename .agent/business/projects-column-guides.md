@@ -28,13 +28,19 @@ Chủ dự án chốt 2026-11-19: **tách hướng dẫn về cột**; cột có
 
 ## Giao diện
 
-- Hộp thoại cột (`column-dialog`): tick "Đánh thức bot theo dõi" → dưới danh sách bot có ô **"Hướng dẫn cho bot ở cột này"** (`MarkdownEditor` Viết / Xem trước, `data-testid=col-guide`,
-  đếm ký tự `col-guide-count`, mở lại cột đã có nội dung → Xem trước). Có nội dung mà **chưa chọn bot** → cảnh báo `col-guide-all-bots`:
-  "Chưa chọn bot: mọi bot theo dõi việc sẽ được gọi và đọc hướng dẫn này." Bỏ tick → ẩn ô và **không gửi** `guide` (nội dung giữ).
+- Hộp thoại cột (`column-dialog`, bố cục TEST-189): thanh tiêu đề + **thanh đáy cố định** (Xoá trạng thái bên trái — màn hẹp chỉ icon; Huỷ · Lưu bên phải).
+  Tắt đánh thức → một cột hẹp (`data-layout=single`, `sm:max-w-md`). Bật → hai cột (`two-column`, `sm:max-w-5xl`, cao 92dvh): trái **Cài đặt** (`col-settings`:
+  tên, màu, 3 công tắc `Switch` — `col-done` / `col-approver` / `col-wake`, mỗi cái một dòng mô tả ngắn, giải thích dài trong (i) tooltip; "Bot được gọi"),
+  phải **Hướng dẫn cho bot** (`col-guide`): `MarkdownEditor fill` Viết / Xem trước, ô soạn cao hết hộp thoại và là **thanh cuộn duy nhất**, đếm ký tự `col-guide-count`,
+  nút Phóng to / Thu nhỏ `col-guide-max` (hộp thoại gần toàn màn hình, ẩn cột Cài đặt). Dưới `lg` hai cột thành hai tab `col-tab-settings` / `col-tab-guide`
+  (lỗi lưu → tự mở tab có lỗi). Mở lại cột đã có nội dung → Xem trước. Có nội dung mà **chưa chọn bot** → cảnh báo `col-guide-all-bots`:
+  "Chưa chọn bot: mọi bot theo dõi việc sẽ được gọi và đọc hướng dẫn này." Tắt đánh thức → ẩn cột phải và **không gửi** `guide` (nội dung giữ, bật lại còn).
+- Bảng việc: cột bật đánh thức có biểu tượng bot cạnh tên (`column-wake-icon`, `data-testid=col-wake-icon`, chấm nhỏ = có hướng dẫn riêng); tooltip / aria-label:
+  bot được gọi (hoặc "mọi bot theo dõi việc") + "Có hướng dẫn riêng cho bot" / "Chưa có hướng dẫn riêng". Người sửa được cột bấm vào → mở hộp thoại cột.
 - Tab **Hướng dẫn** của dự án: dưới hướng dẫn chung, mục "Hướng dẫn theo trạng thái" (`column-guides`) — mỗi cột `hasGuide` một khối (`column-guide-<tên>`, id `guide-col-<id>`):
   tiêu đề = nhãn màu cột → bot được chọn (tên + BOT) hoặc "mọi bot theo dõi việc". Mục lục (TEST-183) thêm "Trạng thái: <tên>" (chấm màu), bấm cuộn tới.
 
 ## Kiểm tra
 
 - Test: `TaskColumnRulesTests` (Clean / GuideError / ActiveGuide), `ToolProfilesTests.Column_guides_are_stripped_but_has_guide_kept`.
-- e2e DB tạm: `task-column-guide-e2e.ts` (API + MCP), `task-column-guide-ui-e2e.ts` (hộp thoại + tab Hướng dẫn, ảnh) — [e2e.md](../e2e.md).
+- e2e DB tạm: `task-column-guide-e2e.ts` (API + MCP), `task-column-guide-ui-e2e.ts` (hộp thoại 2 cột / 1 cột / phóng to / điện thoại 2 tab / theme tối, biểu tượng bot trên bảng, tab Hướng dẫn, ảnh) — [e2e.md](../e2e.md).

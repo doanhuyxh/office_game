@@ -58,5 +58,7 @@ Hướng dẫn riêng của cột (`guide`, `hasGuide`, `columnGuide` — TEST-1
 ## Giao diện
 
 Hộp thoại việc, cột phải ngay sau "Mốc", trước "Phải chờ việc" (TEST-172): "Người theo dõi (n)" — chip họ tên + nhãn BOT, ✕ bỏ (có vòng xoay); ô chọn tìm được "Thêm người theo dõi" chỉ gợi ý thành viên đang làm chưa theo dõi, chọn là thêm ngay. Không có quyền làm → chỉ xem (ẩn khi trống).
-TEST-179: bỏ ô "Người review" ở hộp thoại việc. Hộp thoại cột: checkbox **"Đánh thức bot theo dõi"** (`wakeFollowers`, `data-testid=col-wake`) kèm dòng giải thích. Lịch sử `Reviewer` cũ vẫn hiển thị.
-TEST-184: tick ô đó → danh sách **bot thành viên dự án** (tên + mã + nhãn BOT, `data-testid=col-wake-bots`, `col-wake-bot-<mã>`) kèm ghi chú "Không chọn bot nào = đánh thức tất cả…"; không có bot → "Dự án chưa có thành viên là bot"; bỏ tick → ẩn + gửi `[]`.
+TEST-179: bỏ ô "Người review" ở hộp thoại việc. Hộp thoại cột: công tắc **"Đánh thức bot theo dõi"** (`wakeFollowers`, `data-testid=col-wake`, `Switch` từ TEST-189). Lịch sử `Reviewer` cũ vẫn hiển thị.
+TEST-184 / TEST-189: bật → mục "Bot được gọi" (`col-wake-bots`): thẻ tên bot đã chọn (tên + mã + BOT, ✕ bỏ — `col-wake-chip-<mã>` / `col-wake-bot-remove-<mã>`), nút "+ Thêm bot" (`col-wake-add`)
+mở danh sách bot thành viên chưa chọn (`col-wake-bot-<mã>`); chưa chọn ai → "Mọi bot theo dõi việc sẽ được gọi" (`col-wake-all`); ghi chú dài trong (i); không có bot → "Dự án chưa có thành viên là bot"; tắt → ẩn + gửi `[]`.
+Bố cục hộp thoại cột + biểu tượng bot trên tiêu đề cột: [projects-column-guides.md](projects-column-guides.md#giao-diện).
