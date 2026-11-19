@@ -27,4 +27,6 @@ export const REALTIME = {
 /** Key localStorage (chỉ cho tiện ích phía client, không lưu dữ liệu quan trọng). */
 export const STORAGE_KEY = {
   theme: 'officehub:theme',
+  /** Tab Công việc của dự án: xem dạng Cột / Danh sách (TEST-192). */
+  projectTaskView: 'officehub:projects.taskView',
 } as const;

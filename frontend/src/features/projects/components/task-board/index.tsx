@@ -2,12 +2,14 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { useMutationState } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { toast } from 'sonner';
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, CheckCircle2, GripVertical, Loader2, Plus, Settings2, ShieldCheck } from 'lucide-react';
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, CheckCircle2, Columns3, GripVertical, List, Loader2, Plus, Settings2, ShieldCheck } from 'lucide-react';
 import { BotBadge } from '@/components/common/bot-badge';
 import { Button } from '@/components/common/button';
+import { Checkbox } from '@/components/common/checkbox';
 import { promptDialog } from '@/components/common/confirm-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/common/tooltip';
 import { Spinner } from '@/components/feedback/Spinner';
+import { STORAGE_KEY } from '@/config/env';
 import { fmtDate } from '@/features/finance';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errors';
@@ -15,9 +17,11 @@ import { projectApi } from '../../api/project.api';
 import { moveTaskKey, useMoveTask, useProjectMutation, useTaskDetail, useTasks, type IMoveTaskArgs } from '../../hooks/useProjects';
 import type { IProjectDetail, ITask, ITaskColumn } from '../../types/project.types';
 import { createColumns, moveBlockReason, needsMoveNote } from '../../utils/labels';
+import { readStored, writeStored, type TaskView } from '../../utils/task-list';
 import { ColumnDialog } from '../column-dialog';
 import { ColumnWakeIcon } from '../column-wake-icon';
 import { TaskDialog } from '../task-dialog';
+import { TaskList } from '../task-list';
 
 /** Khoảng trống dưới bảng: padding dưới của <main> (py-6) + lề SidebarInset. */
 const BOTTOM_GAP = 32;
@@ -57,6 +61,22 @@ function readDesc() {
 }
 
 /** Đưa cột `id` tới vị trí của cột `target` (kéo thả tiêu đề cột). */
+/** Nút chuyển chế độ xem Cột / Danh sách (TEST-192) — nhớ theo trình duyệt. */
+function ViewToggle({ view, onChange }: { view: TaskView; onChange: (v: TaskView) => void }) {
+  const item = (v: TaskView, label: string, Icon: typeof List) => (
+    <button type="button" aria-pressed={view === v} onClick={() => onChange(v)} data-testid={`view-${v}`}
+      className={cn('inline-flex h-7 items-center gap-1.5 rounded-sm px-2.5 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+        view === v ? 'bg-background font-medium text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground')}>
+      <Icon className="size-4" aria-hidden />{label}
+    </button>
+  );
+  return (
+    <div className="inline-flex shrink-0 items-center gap-0.5 rounded-md bg-muted p-0.5" role="group" aria-label="Chế độ xem công việc">
+      {item('board', 'Cột', Columns3)}{item('list', 'Danh sách', List)}
+    </div>
+  );
+}
+
 function reorder(ids: string[], id: string, target: string) {
   const rest = ids.filter((x) => x !== id);
   const at = rest.indexOf(target) + (ids.indexOf(id) < ids.indexOf(target) ? 1 : 0);
@@ -72,10 +92,14 @@ function reorder(ids: string[], id: string, target: string) {
  * spinner + khoá thẻ tới khi lưu xong, nháy viền khi xong (primary) / khi lỗi thẻ quay về cột cũ (destructive).
  * Việc đang mở nằm trên URL `?task=<id>` (+ `&comment=<id>` từ chuông bình luận → cuộn tới) để link chuông / copy link mở thẳng hộp thoại (TEST-66);
  * lấy theo id nên mở được cả việc đã xong / đang bị lọc. Đóng hộp thoại → bỏ task / comment khỏi URL (replace).
+ * Nút Cột / Danh sách (TEST-192, nhớ theo trình duyệt): Danh sách = `TaskList` trên cùng dữ liệu, dùng chung hộp thoại việc / tạo việc ở đây.
  */
 export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId: string | null }) {
   const p = d.project;
-  const { data = [], isLoading } = useTasks(p.id);
+  const tasks = useTasks(p.id);
+  const { data = [], isLoading } = tasks;
+  const [view, setViewState] = useState<TaskView>(() => readStored(STORAGE_KEY.projectTaskView, ['board', 'list'] as const, 'board'));
+  const setView = (v: TaskView) => { setViewState(v); writeStored(STORAGE_KEY.projectTaskView, v); };
   const [create, setCreate] = useState<{ columnId: string } | null>(null);
   const search = useSearch({ strict: false }) as { task?: string; comment?: string };
   const navigate = useNavigate();
@@ -98,16 +122,19 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
   const [savingCol, setSavingCol] = useState<string | null>(null);
   const [dragTask, setDragTask] = useState<ITask | null>(null);
   const [flash, setFlash] = useState<Record<string, 'ok' | 'err'>>({});
-  const board = useFillHeight(!isLoading);
+  const board = useFillHeight(!isLoading && view === 'board');
   const move = useMoveTask(p.id);
   const moving = new Set(useMutationState({ filters: { mutationKey: moveTaskKey(p.id), status: 'pending' },
     select: (m) => (m.state.variables as IMoveTaskArgs | undefined)?.task.id }));
   const reorderCols = useProjectMutation((ids: string[]) => projectApi.reorderColumns(p.id, ids));
-  if (isLoading) return <Spinner />;
+  if (isLoading && view === 'board') return <Spinner />;
   const manage = p.canManageColumns && p.status === 'Active';
   const byId = new Map(d.columns.map((c) => [c.id, c]));
   const columns = pendingOrder ? pendingOrder.map((id) => byId.get(id)).filter((c): c is ITaskColumn => !!c) : d.columns;
   const creatable = new Set(createColumns(columns, p.sequential, p.canManage).map((c) => c.id));
+  /** Chỉ xem (TEST-192): không có quyền làm việc hoặc dự án không chạy. */
+  const readOnly = !p.canWork || p.status !== 'Active';
+  const firstCreatable = columns.find((c) => creatable.has(c.id));
   const opened: ITask | undefined = search.task && !missing ? data.find((t) => t.id === search.task) ?? linked.data?.task : undefined;
   const shown = mine ? data.filter((t) => t.assigneeEmployeeId === myEmployeeId) : data;
   const dropTask = async (columnId: string, id: string) => {
@@ -159,16 +186,20 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} /> Chỉ việc của tôi</label>
+        <ViewToggle view={view} onChange={setView} />
+        <label className="flex items-center gap-2 text-sm"><Checkbox checked={mine} onCheckedChange={(c) => setMine(c === true)} data-testid="only-mine" /> Chỉ việc của tôi</label>
         {!p.canWork && <span className="text-xs text-muted-foreground">{p.status === 'Closed' ? 'Dự án đã đóng — chỉ xem.' : 'Bạn chỉ xem (không phải thành viên).'}</span>}
         {(p.sequential || columns.some((c) => c.approverOnly)) && <span className="text-xs text-muted-foreground" data-testid="review-hint">
           Quy trình:{p.sequential && ' đi lần lượt từng cột · chuyển lùi phải ghi lý do'}
           {columns.some((c) => c.approverOnly) && `${p.sequential ? ' ·' : ''} chỉ quản lý dự án chuyển sang ${columns.filter((c) => c.approverOnly).map((c) => `"${c.name}"`).join(', ')}`}.
         </span>}
-        {manage && <span className="text-xs text-muted-foreground">Kéo tiêu đề cột để đổi thứ tự.</span>}
-        {manage && <Button size="sm" variant="outline" className="ml-auto" onClick={() => setColEdit(null)}><Plus /> Thêm trạng thái</Button>}
+        {manage && view === 'board' && <span className="text-xs text-muted-foreground">Kéo tiêu đề cột để đổi thứ tự.</span>}
+        {manage && view === 'board' && <Button size="sm" variant="outline" className="ml-auto" onClick={() => setColEdit(null)}><Plus /> Thêm trạng thái</Button>}
       </div>
-      <div ref={board.ref} style={board.height ? { '--board-h': `${board.height}px` } as CSSProperties : undefined}
+      {view === 'list' ? <TaskList d={d} tasks={data} isLoading={isLoading} isError={tasks.isError && !tasks.data} isFetching={tasks.isFetching}
+        onRetry={() => void tasks.refetch()} myEmployeeId={myEmployeeId} mine={mine} onMine={setMine} onOpen={(id) => openTask(id)}
+        onCreate={!readOnly && firstCreatable ? () => setCreate({ columnId: firstCreatable.id }) : null} readOnly={readOnly} />
+      : <div ref={board.ref} style={board.height ? { '--board-h': `${board.height}px` } as CSSProperties : undefined}
         className="flex gap-3 overflow-x-auto pb-2 xl:h-(--board-h)">
         {columns.map((c) => {
           // API trả theo rank tăng dần → giảm dần chỉ đảo thứ tự hiển thị, rank trong DB giữ nguyên.
@@ -237,7 +268,7 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
             </div>
           );
         })}
-      </div>
+      </div>}
       <TaskDialog projectId={p.id} task={opened ?? (create ? null : undefined)} initialColumnId={create?.columnId} columns={columns} members={d.members}
         milestones={d.milestones} canWork={p.canWork} canDelete={p.canManage} sequential={p.sequential} focusCommentId={opened ? search.comment : undefined}
         onClose={() => (opened ? openTask(undefined) : setCreate(null))} />
