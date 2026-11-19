@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Check, Trash2 } from 'lucide-react';
+import { BotBadge } from '@/components/common/bot-badge';
 import { Button } from '@/components/common/button';
 import { confirmDialog } from '@/components/common/confirm-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
@@ -10,18 +11,20 @@ import { SelectField } from '@/components/common/SelectField';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { projectApi } from '../../api/project.api';
 import { useProjectMutation } from '../../hooks/useProjects';
-import type { ITaskColumn, ITaskColumnRequest } from '../../types/project.types';
+import type { IMember, ITaskColumn, ITaskColumnRequest } from '../../types/project.types';
 import { COLUMN_PALETTE } from '../../utils/labels';
 
 /**
  * Thêm / sửa / xoá một trạng thái (cột) công việc — chỉ hiện với chức vụ có quyền "Quản lý trạng thái công việc" (back-end kiểm).
  * `column`: undefined = đóng, null = thêm mới (cuối bảng). Xoá cột còn việc → chọn cột nhận việc.
+ * "Đánh thức bot theo dõi" (TEST-184): chọn bot thành viên dự án được đánh thức ở cột (không chọn = mọi bot theo dõi việc); back-end kiểm bot / thành viên.
  */
-export function ColumnDialog({ projectId, column, columns, onClose }: {
-  projectId: string; column: ITaskColumn | null | undefined; columns: ITaskColumn[]; onClose: () => void;
+export function ColumnDialog({ projectId, column, columns, members, onClose }: {
+  projectId: string; column: ITaskColumn | null | undefined; columns: ITaskColumn[]; members: IMember[]; onClose: () => void;
 }) {
   const open = column !== undefined;
-  const [f, setF] = useState<ITaskColumnRequest>({ name: '', color: COLUMN_PALETTE[0], isDone: false, approverOnly: false, wakeFollowers: false });
+  const [f, setF] = useState<ITaskColumnRequest>({ name: '', color: COLUMN_PALETTE[0], isDone: false, approverOnly: false, wakeFollowers: false, wakeBotIds: [] });
+  const bots = members.filter((m) => m.isBot);
   const [moveTo, setMoveTo] = useState<string | null>(null);
   const save = useProjectMutation((b: ITaskColumnRequest): Promise<unknown> => (column ? projectApi.updateColumn(column.id, b) : projectApi.createColumn(projectId, b)));
   const remove = useProjectMutation((a: { id: string; moveTo: string | null }) => projectApi.deleteColumn(a.id, a.moveTo));
@@ -29,12 +32,15 @@ export function ColumnDialog({ projectId, column, columns, onClose }: {
   useEffect(() => {
     if (!open) return;
     save.reset(); remove.reset(); setMoveTo(null);
-    setF(column ? { name: column.name, color: column.color, isDone: column.isDone, approverOnly: column.approverOnly, wakeFollowers: !!column.wakeFollowers }
-      : { name: '', color: COLUMN_PALETTE[columns.length % COLUMN_PALETTE.length], isDone: false, approverOnly: false, wakeFollowers: false });
+    // Bot đã rời dự án không hiện ở danh sách → bỏ khỏi lựa chọn (lưu lại sẽ xoá).
+    const botIds = (column?.wakeBotIds ?? []).filter((id) => bots.some((b) => b.employeeId === id));
+    setF(column ? { name: column.name, color: column.color, isDone: column.isDone, approverOnly: column.approverOnly, wakeFollowers: !!column.wakeFollowers, wakeBotIds: botIds }
+      : { name: '', color: COLUMN_PALETTE[columns.length % COLUMN_PALETTE.length], isDone: false, approverOnly: false, wakeFollowers: false, wakeBotIds: [] });
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [open, column?.id]);
   const errors = fieldErrors(save.error);
   const set = <K extends keyof ITaskColumnRequest>(k: K, v: ITaskColumnRequest[K]) => setF((x) => ({ ...x, [k]: v }));
+  const toggleBot = (id: string, on: boolean) => setF((x) => ({ ...x, wakeBotIds: on ? [...x.wakeBotIds, id] : x.wakeBotIds.filter((b) => b !== id) }));
   const lastDone = !!column?.isDone && !others.some((c) => c.isDone);
   const del = async () => {
     if (!column) return;
@@ -51,7 +57,7 @@ export function ColumnDialog({ projectId, column, columns, onClose }: {
         <DialogHeader><DialogTitle>{column ? `Sửa trạng thái "${column.name}"` : 'Thêm trạng thái'}</DialogTitle></DialogHeader>
         <form className="grid gap-4" onSubmit={(e) => {
           e.preventDefault();
-          save.mutate({ ...f, name: f.name.trim() }, {
+          save.mutate({ ...f, name: f.name.trim(), wakeBotIds: f.wakeFollowers ? f.wakeBotIds : [] }, {
             onSuccess: () => { toast.success(column ? 'Đã lưu trạng thái' : 'Đã thêm trạng thái'); onClose(); },
             onError: (err) => !Object.keys(fieldErrors(err)).length && toast.error(errorMessage(err)),
           });
@@ -94,6 +100,21 @@ export function ColumnDialog({ projectId, column, columns, onClose }: {
             <span><span className="font-medium">Đánh thức bot theo dõi</span>
               <span className="block text-xs text-muted-foreground">Việc chuyển vào đây thì các bot đang theo dõi việc được gọi (mỗi bot tự xem hướng dẫn dự án để biết bước của mình).</span></span>
           </label>
+          {f.wakeFollowers && (
+            <div className="ml-6 grid gap-2 rounded-lg border p-3" data-testid="col-wake-bots">
+              <p className="text-xs text-muted-foreground">Không chọn bot nào = đánh thức tất cả bot theo dõi việc. Bot được chọn vẫn phải là người theo dõi của việc.</p>
+              {bots.length === 0 ? <p className="text-sm text-muted-foreground">Dự án chưa có thành viên là bot</p> : bots.map((b) => (
+                <label key={b.employeeId} className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={f.wakeBotIds.includes(b.employeeId)} onChange={(e) => toggleBot(b.employeeId, e.target.checked)}
+                    data-testid={`col-wake-bot-${b.code ?? b.employeeId}`} />
+                  <span className="truncate">{b.fullName}</span>
+                  {b.code && <span className="text-xs text-muted-foreground">{b.code}</span>}
+                  <BotBadge className="shrink-0" />
+                </label>
+              ))}
+              {errors.wakeBotIds && <p className="text-xs text-destructive">{errors.wakeBotIds}</p>}
+            </div>
+          )}
           {column && column.taskCount > 0 && others.length > 0 && (
             <div className="rounded-lg border border-dashed p-3">
               <SelectField id="col-move" label={`Khi xoá: chuyển ${column.taskCount} việc sang`} value={moveTo} onChange={setMoveTo}

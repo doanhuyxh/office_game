@@ -4,9 +4,14 @@ export type ProjectStatus = 'Active' | 'Closed';
 export type MemberRole = 'Member' | 'Manager';
 export type MilestoneStatus = 'Open' | 'Accepted';
 /** Cột trạng thái công việc của một dự án (tên / màu / thứ tự tự do). isDone = cột hoàn thành; approverOnly = chỉ quản lý dự án chuyển vào / kéo lùi ra. */
-/** wakeFollowers (TEST-178): việc vào cột này → đánh thức các bot theo dõi việc (sự kiện column_entered). */
-export interface ITaskColumn { id: string; name: string; position: number; color: string; isDone: boolean; approverOnly: boolean; taskCount: number; wakeFollowers?: boolean }
-export interface ITaskColumnRequest { name: string; color?: string | null; isDone: boolean; approverOnly: boolean; wakeFollowers: boolean }
+/**
+ * wakeFollowers (TEST-178): việc vào cột này → đánh thức các bot theo dõi việc (sự kiện column_entered).
+ * wakeBotIds (TEST-184): Id nhân viên bot được đánh thức — rỗng = mọi bot theo dõi việc; có giá trị = chỉ các bot này (vẫn phải đang theo dõi việc).
+ */
+export interface ITaskColumn {
+  id: string; name: string; position: number; color: string; isDone: boolean; approverOnly: boolean; taskCount: number; wakeFollowers?: boolean; wakeBotIds?: string[] | null;
+}
+export interface ITaskColumnRequest { name: string; color?: string | null; isDone: boolean; approverOnly: boolean; wakeFollowers: boolean; wakeBotIds: string[] }
 
 export interface ISalesContractRef { id: string; code: string; title: string; customerName: string; status: string; businessLineId: string | null }
 export interface IInstallmentRef { id: string; contractId: string; title: string; dueOn: string; cancelled: boolean }

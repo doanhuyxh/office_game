@@ -461,7 +461,8 @@ internal static class TaskEndpoints
     }
 
     /// <summary>
-    /// TEST-178: việc vừa vào cột "Đánh thức bot theo dõi" (<see cref="FollowerWakeRules.ShouldWake"/>) → mỗi bot đang theo dõi việc (bỏ người thao tác)
+    /// TEST-178: việc vừa vào cột "Đánh thức bot theo dõi" (<see cref="FollowerWakeRules.ShouldWake"/>) → mỗi bot đang theo dõi việc (bỏ người thao tác;
+    /// cột có chọn bot — TEST-184 — thì chỉ bot được chọn, còn là thành viên dự án)
     /// nhận Telegram <c>column_entered</c> + webhook <see cref="WebhookEvents.TaskColumnEntered"/>; bot tự đọc hướng dẫn chức vụ + workGuide để biết
     /// ở cột này mình có việc không. Người theo dõi là người thật không có chuông riêng (đã có chuông hoạt động chung của thành viên).
     /// </summary>
@@ -475,8 +476,16 @@ internal static class TaskEndpoints
             .GroupBy(e => e.UserId!.Value).ToDictionary(g => g.Key, g => g.First());
         if (byUser.Count == 0) return;
         var accs = await accounts.GetManyAsync(byUser.Keys.ToList(), ct);
-        var targets = FollowerWakeRules.BotTargets(byUser.Keys.Select(u => accs.TryGetValue(u, out var a)
-            ? new FollowerWakeRules.Follower(u, a.IsBot, a.IsActive) : new FollowerWakeRules.Follower(u, false, false)), v.UserId);
+        // TEST-184: cột có chọn bot → chỉ bot được chọn còn là thành viên dự án (đã rời dự án → không đánh thức, không quay về "tất cả").
+        var chosen = cols.FirstOrDefault(c => c.Id == t.ColumnId)?.WakeBotIds ?? [];
+        if (chosen.Count > 0)
+        {
+            var members = await db.Members.AsNoTracking().Where(m => m.ProjectId == p.Id && chosen.Contains(m.EmployeeId)).Select(m => m.EmployeeId).ToListAsync(ct);
+            if (members.Count == 0) return;
+            chosen = members;
+        }
+        var targets = FollowerWakeRules.BotTargets(byUser.Select(kv => accs.TryGetValue(kv.Key, out var a)
+            ? new FollowerWakeRules.Follower(kv.Key, a.IsBot, a.IsActive, kv.Value.Id) : new FollowerWakeRules.Follower(kv.Key, false, false, kv.Value.Id)), v.UserId, chosen);
         if (targets.Count == 0) return;
         var code = EffortRules.TaskCode(p.Code, t.Number);
         var column = cols.FirstOrDefault(c => c.Id == t.ColumnId)?.Name ?? "?";

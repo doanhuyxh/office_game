@@ -240,7 +240,7 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
       <TaskDialog projectId={p.id} task={opened ?? (create ? null : undefined)} initialColumnId={create?.columnId} columns={columns} members={d.members}
         milestones={d.milestones} canWork={p.canWork} canDelete={p.canManage} sequential={p.sequential} focusCommentId={opened ? search.comment : undefined}
         onClose={() => (opened ? openTask(undefined) : setCreate(null))} />
-      <ColumnDialog projectId={p.id} column={colEdit} columns={columns} onClose={() => setColEdit(undefined)} />
+      <ColumnDialog projectId={p.id} column={colEdit} columns={columns} members={d.members} onClose={() => setColEdit(undefined)} />
     </div>
   );
 }

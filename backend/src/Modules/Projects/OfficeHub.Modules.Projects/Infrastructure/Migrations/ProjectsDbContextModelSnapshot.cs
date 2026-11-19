@@ -555,6 +555,12 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uuid");
 
+                    b.PrimitiveCollection<List<Guid>>("WakeBotIds")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid[]")
+                        .HasDefaultValueSql("'{}'::uuid[]");
+
                     b.Property<bool>("WakeFollowers")
                         .HasColumnType("boolean");
 

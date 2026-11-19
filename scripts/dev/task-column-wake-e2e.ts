@@ -3,6 +3,8 @@
 // (b) người thật chuyển vào cột có tick (POST /move và PUT /tasks) → MỌI bot theo dõi nhận; người theo dõi là người thật → không;
 // (c) cột không tick → không có tin; (d) kéo lùi rồi vào lại → bắn lại; chuyển giữa hai cột có tick → bắn;
 // + API cột: dự án mới "Chờ review" có wakeFollowers, thêm / sửa cột (bỏ trống = giữ nguyên), GET /tasks/{id} → columns[].wakeFollowers, không còn reviewer.
+// TEST-184 wakeBotIds: (a) cột không chọn bot → mọi bot theo dõi; (b) chọn A → chỉ A; (c) chọn bot không theo dõi việc → không ai; (d) người thật / ngoài dự án → 400;
+// (e) bỏ tick → xoá danh sách; bỏ trống khi sửa = giữ; trùng → một lần.
 // (e) migration kiểm tra riêng bằng `dotnet ef database update` xuống / lên trên cùng DB tạm (xem .agent/business/projects-task-followers.md).
 // MÁY CHỦ TELEGRAM GIẢ + MÁY NHẬN WEBHOOK GIẢ trong cùng tiến trình. CHỈ DB tạm. Api (backend/):
 //   env ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5291
@@ -207,6 +209,40 @@ ok('việc chỉ có người thật theo dõi → không có tin / webhook', r.
 const T5 = await mkTask('Cột không tick', [Ops], TODO);
 r = await json(PM.cookie, 'POST', `/api/projects/tasks/${T5}/move`, { columnId: DOING });
 ok('(c) Cần làm → Đang làm (không tick) → không có tin', r.status === 204 && (await sleep(3500), wakes(T5).length === 0 && hooksFor(T5).length === 0), r);
+
+// ── TEST-184: chọn bot được đánh thức ở cột (wakeBotIds) ──
+const colOf = async (id: string) => ((await json(PM.cookie, 'GET', `/api/projects/${P}/columns`)).body as any[]).find((c) => c.id === id);
+const putReview = (b: Record<string, unknown>) => json(PM.cookie, 'PUT', `/api/projects/columns/${REVIEW}`, { name: 'Chờ review', wakeFollowers: true, ...b });
+ok('(184) cột cũ: wakeBotIds rỗng', (await colOf(REVIEW))?.wakeBotIds?.length === 0, await colOf(REVIEW));
+r = await putReview({ wakeBotIds: [Hum.e.id] });
+ok('(184d) chọn người thật → 400 wakeBotIds', r.status === 400 && !!r.body?.errors?.wakeBotIds, r);
+r = await putReview({ wakeBotIds: [crypto.randomUUID()] });
+ok('(184d) chọn người ngoài dự án → 400 wakeBotIds', r.status === 400 && !!r.body?.errors?.wakeBotIds, r);
+r = await putReview({ wakeBotIds: [Rev.e.id, Rev.e.id] });
+ok('(184) chọn Bot Review (gửi trùng) → 204, lưu một lần', r.status === 204 && JSON.stringify((await colOf(REVIEW))?.wakeBotIds) === JSON.stringify([Rev.e.id]), r);
+r = await putReview({});
+ok('(184) sửa cột bỏ trống wakeBotIds → giữ nguyên', r.status === 204 && JSON.stringify((await colOf(REVIEW))?.wakeBotIds) === JSON.stringify([Rev.e.id]), r);
+const T6 = await mkTask('Chọn bot đánh thức', [Rev, Ops]);
+ok('(184) GET /tasks/{id} → columns[].wakeBotIds',
+  JSON.stringify((await json(PM.cookie, 'GET', `/api/projects/tasks/${T6}`)).body.columns.find((c: any) => c.id === REVIEW)?.wakeBotIds) === JSON.stringify([Rev.e.id]));
+r = await json(PM.cookie, 'POST', `/api/projects/tasks/${T6}/move`, { columnId: REVIEW });
+ok('(184b) cột chọn Bot Review → chỉ Bot Review nhận (Bot DevOps cũng theo dõi nhưng không)',
+  r.status === 204 && await until(() => wakes(T6).length >= 1) && (await sleep(3500), codes(T6) === Rev.code && hooksFor(T6).length === 1), { r, w: wakes(T6) });
+r = await json(PM.cookie, 'POST', `/api/projects/tasks/${T6}/move`, { columnId: DEPLOY });
+ok('(184a) cột không chọn bot (Deploy) → cả Bot Review và Bot DevOps nhận',
+  r.status === 204 && await until(() => wakes(T6).length >= 3) && (await sleep(3500), wakes(T6).slice(1).map((x) => x.employee_code).sort().join() === [Rev.code, Ops.code].sort().join()),
+  { r, w: wakes(T6) });
+r = await putReview({ wakeBotIds: [Dev.e.id] });
+await json(PM.cookie, 'POST', `/api/projects/tasks/${T6}/move`, { columnId: DOING, note: 'Thử lại' });
+const r2 = await json(PM.cookie, 'POST', `/api/projects/tasks/${T6}/move`, { columnId: REVIEW });
+ok('(184c) cột chọn Bot Dev (không theo dõi việc) → không ai nhận', r.status === 204 && r2.status === 204 && (await sleep(4000), wakes(T6).length === 3), { r, r2, w: wakes(T6) });
+r = await putReview({ wakeFollowers: false, wakeBotIds: [Rev.e.id] });
+const rc = await colOf(REVIEW);
+ok('(184e) bỏ tick đánh thức → danh sách bị xoá', r.status === 204 && rc?.wakeFollowers === false && rc?.wakeBotIds?.length === 0, { r, rc });
+r = await json(PM.cookie, 'POST', `/api/projects/${P}/columns`, { name: `QA ${stamp}`, wakeFollowers: true, wakeBotIds: [Ops.e.id] });
+ok('(184) thêm cột kèm wakeBotIds → lưu', r.status === 201 && JSON.stringify((await colOf(r.body))?.wakeBotIds) === JSON.stringify([Ops.e.id]), r);
+r = await json(PM.cookie, 'POST', `/api/projects/${P}/columns`, { name: `QB ${stamp}`, wakeBotIds: [Ops.e.id] });
+ok('(184) thêm cột không tick + wakeBotIds → danh sách rỗng', r.status === 201 && (await colOf(r.body))?.wakeBotIds?.length === 0, r);
 
 ok('không còn tin review_requested / task_done / webhook cũ', old() === 0, old());
 console.log(`\nPROJECT=${P} TASK=${T5} REVIEWER=${Rev.e.id}`);

@@ -4,7 +4,8 @@ namespace OfficeHub.Modules.Projects.Domain;
 
 /// <summary>Cột trạng thái (thông tin đủ cho luật thuần — test không cần DB).</summary>
 /// <param name="WakeFollowers">Cột "Đánh thức bot theo dõi" (TEST-178) — việc vào đây thì đánh thức bot theo dõi việc (<see cref="FollowerWakeRules"/>).</param>
-public sealed record ColumnInfo(Guid Id, string Name, int Position, bool IsDone, bool ApproverOnly, bool WakeFollowers = false);
+/// <param name="WakeBotIds">TEST-184: bot (Id nhân viên) được đánh thức ở cột này; null / rỗng = mọi bot theo dõi việc.</param>
+public sealed record ColumnInfo(Guid Id, string Name, int Position, bool IsDone, bool ApproverOnly, bool WakeFollowers = false, IReadOnlyList<Guid>? WakeBotIds = null);
 
 /// <summary>
 /// Luật cột trạng thái công việc (chủ dự án chốt 2026-11-11): tên / màu / thứ tự tự do, tối đa <see cref="MaxColumns"/> cột,
