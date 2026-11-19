@@ -134,9 +134,12 @@ internal static class TaskEndpoints
         }).ToList());
     }
 
-    /// <summary>Một việc + bình luận + lịch sử (hộp thoại việc trên web, tool MCP get_task).</summary>
+    /// <summary>
+    /// Một việc + bình luận + lịch sử (hộp thoại việc trên web, tool MCP get_task). <paramref name="comments"/> = false (web, TEST-194):
+    /// bỏ tải bình luận (trả danh sách rỗng) vì web tải riêng qua <c>GET /tasks/{tid}/comments</c>; mặc định giữ nguyên cho MCP.
+    /// </summary>
     private static async Task<Results<Ok<TaskDetailDto>, NotFound>> DetailAsync(Guid tid, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, ProjectClock clock,
-        IFileStorage files, IAccountService accounts, CancellationToken ct)
+        IFileStorage files, IAccountService accounts, CancellationToken ct, bool comments = true)
     {
         var v = await access.ViewerAsync(user, ct);
         var t = await db.Tasks.AsNoTracking().FirstOrDefaultAsync(x => x.Id == tid, ct);
@@ -144,7 +147,7 @@ internal static class TaskEndpoints
         var proj = await db.Projects.Where(p => p.Id == t.ProjectId).Select(p => new { p.Sequential, p.Status }).FirstAsync(ct);
         var sequential = proj.Sequential;
         var dto = (await ToDtosAsync([t], db, access, clock, ct, withProject: true))[0];
-        var comments = await CommentListAsync(db, files, tid, CommentDeleter(v, user, proj.Status), ct);
+        var commentList = comments ? await CommentListAsync(db, files, tid, CommentDeleter(v, user, proj.Status), ct) : [];
         var activities = await db.Activities.AsNoTracking().Where(a => a.TaskId == tid).OrderBy(a => a.At)
             .Select(a => new TaskActivityDto(a.Id, a.Kind, a.From, a.To, a.Note, a.ActorName, a.ByBot, a.At)).ToListAsync(ct);
         var code = dto.Code[..dto.Code.LastIndexOf('-')];
@@ -154,7 +157,7 @@ internal static class TaskEndpoints
                             where d.DependsOnId == tid orderby x.Number select new { x.Id, x.Number, x.Title, Done = x.CompletedAt != null }).ToListAsync(ct);
         var columns = await TaskColumnEndpoints.ListForAsync(db, t.ProjectId, ct);
         var current = columns.FirstOrDefault(c => c.Id == t.ColumnId);
-        return TypedResults.Ok(new TaskDetailDto(dto, comments, activities, sequential, CanApprove(v, user, t.ProjectId),
+        return TypedResults.Ok(new TaskDetailDto(dto, commentList, activities, sequential, CanApprove(v, user, t.ProjectId),
             columns,
             dependsOn.Select(x => new TaskRefDto(x.Id, EffortRules.TaskCode(code, x.Number), x.Title, x.Done)).ToList(),
             blocks.Select(x => new TaskRefDto(x.Id, EffortRules.TaskCode(code, x.Number), x.Title, x.Done)).ToList(),

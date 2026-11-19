@@ -45,3 +45,9 @@ Người thật dán / kéo-thả / chọn ảnh, tệp vào bình luận việc
 ## Kiểm thử
 
 `scripts/dev/task-comment-files-e2e.ts` (REST + MCP, 47/47) và `task-comment-files-ui-e2e.ts` (Chrome: dán ảnh, chip, gửi, ImageViewer — 13/13) — **chỉ DB + S3 tạm** ([../e2e.md](../e2e.md)).
+
+## Tải bình luận trên web (TEST-194)
+
+- Hộp thoại việc lấy bình luận bằng `GET /api/projects/tasks/{tid}/comments` (hook `useTaskComments`, khoá `projectKeys.comments`), chi tiết việc gọi `GET /tasks/{tid}?comments=false` (bỏ `CommentListAsync`, `comments` rỗng). **Mặc định `comments=true`**: MCP `get_task` vẫn nhận bình luận, catalog tool không đổi.
+- Làm mới: `useProjectMutation` (gửi / xoá bình luận, lưu việc kèm lý do lùi cột) và `ProjectLiveUpdates` invalidate cả tiền tố `['projects']` → gồm khoá bình luận.
+- Component `task-comment-list`: đang tải lần đầu → "Bình luận (`task.commentCount`)" + vòng xoay "Đang tải…" (`role=status`) + `min(commentCount, 3)` thẻ khung xương (viền + `bg-foreground/10`, đủ đậm nền tối); `commentCount = 0` → trạng thái trống luôn; trống → khung viền đứt "Chưa có bình luận nào"; lỗi → "Không tải được bình luận" + Thử lại; tải lại nền giữ danh sách cũ. `data-testid`: `task-comments-loading` / `task-comment-skeleton` / `task-comments-empty` / `task-comments-error`. Cuộn tới `focusCommentId` sau khi truy vấn bình luận về. E2E `scripts/dev/task-comments-states-e2e.ts`.

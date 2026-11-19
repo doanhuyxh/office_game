@@ -57,7 +57,8 @@ export const projectApi = {
   updateColumn: (cid: string, b: ITaskColumnRequest) => send<void>('PUT', `${base}/columns/${cid}`, b),
   reorderColumns: (id: string, ids: string[]) => send<void>('PUT', `${base}/${id}/columns/order`, { ids }),
   deleteColumn: (cid: string, moveTo?: string | null) => send<void>('DELETE', `${base}/columns/${cid}${moveTo ? `?moveTo=${moveTo}` : ''}`),
-  task: (tid: string) => http<ITaskDetail>(`${base}/tasks/${tid}`),
+  /** Chi tiết việc KHÔNG kèm bình luận (`comments` rỗng) — web tải bình luận riêng qua `comments` (TEST-194); MCP get_task vẫn có bình luận. */
+  task: (tid: string) => http<ITaskDetail>(`${base}/tasks/${tid}?comments=false`),
   deleteTask: (tid: string) => send<void>('DELETE', `${base}/tasks/${tid}`),
   comments: (tid: string) => http<IComment[]>(`${base}/tasks/${tid}/comments`),
   /** Bình luận có thể chỉ có tệp (content rỗng) khi có uploadIds; tối đa 5 tệp. */

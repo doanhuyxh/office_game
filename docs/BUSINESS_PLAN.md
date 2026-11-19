@@ -104,7 +104,7 @@ Quyền ở Sales: ai thuộc phòng gắn mảng Outsource / Kênh MXH (hoặc 
 - **Chuyển quyền sở hữu dự án** từ module Documents sang `Projects` (giữ nguyên Id). Documents đọc dự án qua `Projects.Contracts` (`IProjectDirectory`), kho tài liệu dự án giữ như cũ. Migration chép dữ liệu một lần + kiểm tra ranh giới module.
 - Dự án gắn **hợp đồng bán** (chủ dự án chốt 2026-11-08: **1 dự án → nhiều hợp đồng, 1 hợp đồng → 1 dự án**), mảng, quản lý dự án, ngày bắt đầu / kết thúc dự kiến, **ngân sách ngày công**.
 - **Mốc nghiệm thu** gắn đợt thu: quản lý dự án bấm "Đã nghiệm thu" (kèm biên bản) → đợt thu tương ứng chuyển **Đến hạn** + báo kế toán.
-- **Công việc**: kanban (Cần làm / Đang làm / Chờ review / Xong), người làm, hạn, ước lượng ngày, bình luận, đính kèm, nhắc quá hạn. ✅ Đính kèm ảnh / tệp trong bình luận việc (TEST-153, 2026-11-17). ✅ Link tải tệp từ thiết bị khác (trang công khai + QR, TEST-175, 2026-11-18). ✅ Chế độ xem Danh sách bên cạnh kanban (nhóm / lọc / sắp xếp, đổi trạng thái trên dòng, TEST-192, 2026-11-19).
+- **Công việc**: kanban (Cần làm / Đang làm / Chờ review / Xong), người làm, hạn, ước lượng ngày, bình luận, đính kèm, nhắc quá hạn. ✅ Đính kèm ảnh / tệp trong bình luận việc (TEST-153, 2026-11-17). ✅ Link tải tệp từ thiết bị khác (trang công khai + QR, TEST-175, 2026-11-18). ✅ Chế độ xem Danh sách bên cạnh kanban (nhóm / lọc / sắp xếp, đổi trạng thái trên dòng, TEST-192, 2026-11-19). ✅ Bình luận trong hộp thoại việc tải riêng, có trạng thái đang tải / trống / lỗi (TEST-194, 2026-11-19).
 - **Yêu cầu thay đổi (CR)**: ghi phát sinh → nếu tính tiền thì tạo phụ lục hợp đồng + đợt thu mới.
 - **Bảo trì sau bàn giao**: hợp đồng định kỳ tháng (cùng cơ chế với gói kênh MXH).
 

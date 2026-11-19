@@ -1,14 +1,12 @@
 import { BotBadge } from '@/components/common/bot-badge';
 import { confirmDialog, promptDialog } from '@/components/common/confirm-dialog';
 import { useEffect, useMemo, useState } from 'react';
-import { cn } from '@/utils/cn';
 import { toast } from 'sonner';
-import { ImagePlus, Smartphone, Trash2, X } from 'lucide-react';
+import { ImagePlus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/common/input';
-import { Markdown } from '@/components/common/markdown';
 import { Label } from '@/components/common/label';
 import { SelectField } from '@/components/common/SelectField';
 import { todayVn } from '@/utils/date';
@@ -19,9 +17,9 @@ import type { IMember, IMilestone, ITask, ITaskActivity, ITaskColumn, ITaskReque
 import { ACTIVITY_LABEL, createColumns, needsMoveNote, stateLabel } from '../../utils/labels';
 import { isHttpUrl } from '../../utils/media';
 import { MAX_COMMENT_FILES, fileProblem, putToS3 } from '../../utils/attachments';
-import { CommentAttachments } from '../comment-attachments';
 import { MarkdownEditor } from '../markdown-editor';
 import { TaskCommentInput } from '../task-comment-input';
+import { TaskCommentList } from '../task-comment-list';
 import { TaskDependencies } from '../task-dependencies';
 import { TaskFollowers } from '../task-followers';
 import { TaskMedia } from '../task-media';
@@ -80,15 +78,9 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
     }
     return projectApi.addComment(task!.id, content, ids);
   });
-  const deleteComment = useProjectMutation(projectApi.deleteComment);
   const detail = useTaskDetail(task?.id ?? null).data;
-  const comments = detail?.comments ?? [];
   const activities = detail?.activities ?? [];
   const [showHistory, setShowHistory] = useState(false);
-  const focusLoaded = !!focusCommentId && comments.some((c) => c.id === focusCommentId);
-  useEffect(() => {
-    if (focusLoaded) document.getElementById(`task-comment-${focusCommentId}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }, [focusLoaded, focusCommentId]);
   // @mã thành viên trong bình luận → hiện họ tên nổi bật (mã HOA → họ tên)
   const mentionNames = useMemo(() => new Map(members.filter((m) => m.code).map((m) => [m.code!.toUpperCase(), m.fullName])), [members]);
   const createCols = createColumns(columns, sequential, canDelete);
@@ -169,20 +161,7 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
               </fieldset>
               {task && (
                 <div className="grid gap-2 border-t pt-3">
-                  <div className="text-sm font-medium">Bình luận ({comments.length})</div>
-                  {comments.map((c) => <div key={c.id} id={`task-comment-${c.id}`} className={cn('rounded-md bg-muted/50 p-2 text-sm', c.id === focusCommentId && 'ring-2 ring-primary/50')} data-testid="task-comment">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <span className="min-w-0 flex-1">{c.authorName}{c.byBot && <BotBadge className="ml-1" />}
-                        {c.viaUploadLink && <span title="Gửi từ thiết bị khác qua link tải lên" data-testid="upload-link-badge"
-                          className="ml-1 inline-flex items-center gap-0.5 rounded bg-success/15 px-1 py-px align-middle text-[10px] font-semibold leading-none text-success"><Smartphone className="size-3" /> Qua link tải lên</span>} · {fmtTime(c.createdAt)}</span>
-                      {c.canDelete && <Button type="button" size="icon" variant="ghost" className="size-6 shrink-0 text-muted-foreground hover:text-destructive" aria-label="Xoá bình luận"
-                        loading={deleteComment.isPending && deleteComment.variables === c.id} disabled={deleteComment.isPending}
-                        onClick={async () => await confirmDialog({ title: 'Xoá bình luận?', description: 'Bình luận bị xoá hẳn; lịch sử việc ghi lại là đã xoá một bình luận.', confirmText: 'Xoá', destructive: true, onConfirm: () => deleteComment.mutateAsync(c.id) })
-                          && toast.success('Đã xoá bình luận')}>
-                        <Trash2 className="size-3.5" /></Button>}
-                    </div>
-                    {c.content && <Markdown text={c.content} mentions={mentionNames} />}
-                    {!!c.attachments?.length && <CommentAttachments attachments={c.attachments} caption={`${c.authorName} · ${fmtTime(c.createdAt)}`} />}</div>)}
+                  <TaskCommentList taskId={task.id} commentCount={task.commentCount} mentions={mentionNames} focusCommentId={focusCommentId} />
                   {canWork && <TaskCommentInput members={members} value={comment} onChange={setComment} onSubmit={postComment} pending={addComment.isPending}
                     files={commentFiles} onAddFiles={addCommentFiles} onRemoveFile={(i) => setCommentFiles((x) => x.filter((_, j) => j !== i))}
                     onUploadLink={() => setUploadLinkOpen(true)} />}

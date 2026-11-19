@@ -8,8 +8,11 @@ export const useProjectList = (mine: boolean) => useQuery({ queryKey: projectKey
 export const useProject = (id: string) => useQuery({ queryKey: projectKeys.detail(id), queryFn: () => projectApi.get(id) });
 export const useTasks = (id: string) => useQuery({ queryKey: projectKeys.tasks(id), queryFn: () => projectApi.tasks(id) });
 export const useMyTasks = () => useQuery({ queryKey: projectKeys.myTasks, queryFn: projectApi.myTasks });
-/** Việc + bình luận + lịch sử (hộp thoại việc). */
+/** Việc + lịch sử (hộp thoại việc) — không kèm bình luận, dùng `useTaskComments`. */
 export const useTaskDetail = (taskId: string | null) => useQuery({ queryKey: projectKeys.task(taskId ?? ''), queryFn: () => projectApi.task(taskId!), enabled: !!taskId });
+/** Bình luận của việc (TEST-194). Làm mới: `useProjectMutation` + `ProjectLiveUpdates` invalidate cả tiền tố ['projects'] nên gồm luôn khoá này. */
+export const useTaskComments = (taskId: string | null) =>
+  useQuery({ queryKey: projectKeys.comments(taskId ?? ''), queryFn: () => projectApi.comments(taskId!), enabled: !!taskId });
 /** Link tải lên còn hạn của tôi trên việc (TEST-175). */
 export const useUploadLinks = (taskId: string, enabled: boolean) =>
   useQuery({ queryKey: projectKeys.uploadLinks(taskId), queryFn: () => projectApi.uploadLinks(taskId), enabled });
