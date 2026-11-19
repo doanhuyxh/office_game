@@ -16,6 +16,7 @@ import { useTabParam } from '@/hooks/useTabParam';
 import { errorMessage } from '@/utils/errors';
 import { useProject } from '../../hooks/useProjects';
 import { PROJECT_KIND, PROJECT_STATUS } from '../../utils/labels';
+import { markdownHeadings } from '../../utils/headings';
 import { markdownSummary } from '../../utils/summary';
 import { ChangeRequestsPanel } from '../change-requests-panel';
 import { EffortPanel } from '../effort-panel';
@@ -26,6 +27,11 @@ import { ProjectAppendix } from '../project-appendix';
 import { ProjectFormDialog } from '../project-form-dialog';
 import { ProjectOverview } from '../project-overview';
 import { TaskBoard } from '../task-board';
+import { WorkflowSummary } from '../workflow-summary';
+import { WorkGuideToc } from '../work-guide-toc';
+
+/** Tiền tố id tiêu đề hướng dẫn (mục lục cuộn tới). */
+const GUIDE_HEADING_PREFIX = 'guide';
 
 /** Query của dự án đang xem: mọi key `projectKeys.*` chứa id dự án (detail, tasks, effort, financials, installments, changeRequests, appendix)
  *  + hộp thoại việc đang mở (`projectKeys.task` / `comments` — key theo id việc, chỉ lấy query đang có người dùng). */
@@ -57,6 +63,7 @@ export function ProjectDetailPage() {
   if (error || !d) return <div className="grid gap-2"><p className="text-sm text-destructive">{errorMessage(error, 'Không tìm thấy dự án')}</p><Link to={PATHS.projects} className="text-sm underline">← Danh sách dự án</Link></div>;
   const p = d.project;
   const summary = markdownSummary(p.description);
+  const guideHeadings = markdownHeadings(d.workGuide);
   return (
     <div className="grid grid-cols-1 gap-4">
       <PageHeader title={p.name} />
@@ -96,11 +103,23 @@ export function ProjectDetailPage() {
         <TabsContent value="tasks" className="mt-4"><TaskBoard d={d} myEmployeeId={myEmployeeId} /></TabsContent>
         <TabsContent value="overview" className="mt-4"><ProjectOverview d={d} onTab={setTab} onEdit={() => setEditing(true)} canEffort={canEffort} /></TabsContent>
         <TabsContent value="guide" className="mt-4">
-          <div className="grid max-w-3xl items-start gap-3 @min-[96rem]/content:max-w-none @min-[96rem]/content:grid-cols-[minmax(0,48rem)_minmax(0,24rem)] @min-[96rem]/content:gap-6" data-testid="work-guide">
-            <p className="text-sm text-muted-foreground @min-[96rem]/content:col-start-2 @min-[96rem]/content:row-start-1">{`Quy trình: ${d.columns.map((c) => c.name).join(' → ')}${p.sequential ? ', đi lần lượt; chuyển lùi phải ghi lý do' : ', kéo thả tự do'}`}
-              {d.columns.some((c) => c.approverOnly) && `; chỉ quản lý dự án chuyển sang ${d.columns.filter((c) => c.approverOnly).map((c) => `"${c.name}"`).join(', ')}`}. Thành viên và BOT (qua MCP) đọc hướng dẫn này trước khi làm việc.</p>
-            {d.workGuide ? <div className="rounded-lg border p-4 @min-[96rem]/content:row-start-1"><Markdown text={d.workGuide} /></div>
-              : <p className="text-sm text-muted-foreground @min-[96rem]/content:row-start-1">Chưa có hướng dẫn.{p.canManage && ' Bấm "Sửa" để soạn.'}</p>}
+          {/* TEST-183: 2 cột từ @4xl — trái nội dung, phải (dính khi cuộn) quy trình + mục lục; hẹp → 1 cột, mục lục thu gọn */}
+          <div className="grid max-w-[88rem] items-start gap-4 @4xl/content:grid-cols-[minmax(0,1fr)_16rem] @4xl/content:gap-6 @6xl/content:grid-cols-[minmax(0,1fr)_18rem]" data-testid="work-guide">
+            <aside className="grid gap-4 rounded-lg border p-4 @4xl/content:sticky @4xl/content:top-20 @4xl/content:col-start-2 @4xl/content:row-start-1 @4xl/content:max-h-[calc(100dvh-6rem)] @4xl/content:overflow-y-auto">
+              <WorkflowSummary columns={d.columns} sequential={p.sequential} />
+              {guideHeadings.length > 0 && <>
+                <details className="group @4xl/content:hidden">
+                  <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-muted-foreground">Mục lục ({guideHeadings.length})</summary>
+                  <WorkGuideToc headings={guideHeadings} prefix={GUIDE_HEADING_PREFIX} className="mt-2" />
+                </details>
+                <div className="hidden gap-2 border-t pt-4 @4xl/content:grid">
+                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Mục lục</div>
+                  <WorkGuideToc headings={guideHeadings} prefix={GUIDE_HEADING_PREFIX} className="-mx-2" />
+                </div>
+              </>}
+            </aside>
+            {d.workGuide ? <div className="min-w-0 rounded-lg border p-4 @4xl/content:col-start-1 @4xl/content:row-start-1 @4xl/content:p-6"><Markdown text={d.workGuide} headingIds={GUIDE_HEADING_PREFIX} /></div>
+              : <p className="text-sm text-muted-foreground @4xl/content:col-start-1 @4xl/content:row-start-1">Chưa có hướng dẫn.{p.canManage && ' Bấm "Sửa" để soạn.'}</p>}
           </div>
         </TabsContent>
         <TabsContent value="milestones" className="mt-4"><MilestonesPanel d={d} /></TabsContent>

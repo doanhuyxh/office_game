@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import type { Parent, Root, RootContent, Text } from 'mdast';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -9,9 +9,9 @@ import { isTrustedMediaUrl } from '@/utils/trustedMedia';
 
 /** Map thẻ Markdown → class Tailwind (không có plugin typography). */
 const COMPONENTS: Components = {
-  h1: ({ node: _n, ...p }) => <h1 className="mt-3 mb-1 text-lg font-semibold first:mt-0" {...p} />,
-  h2: ({ node: _n, ...p }) => <h2 className="mt-3 mb-1 text-base font-semibold first:mt-0" {...p} />,
-  h3: ({ node: _n, ...p }) => <h3 className="mt-2 mb-1 text-sm font-semibold first:mt-0" {...p} />,
+  h1: ({ node: _n, className, ...p }) => <h1 className={cn('mt-3 mb-1 text-lg font-semibold first:mt-0', className)} {...p} />,
+  h2: ({ node: _n, className, ...p }) => <h2 className={cn('mt-3 mb-1 text-base font-semibold first:mt-0', className)} {...p} />,
+  h3: ({ node: _n, className, ...p }) => <h3 className={cn('mt-2 mb-1 text-sm font-semibold first:mt-0', className)} {...p} />,
   h4: ({ node: _n, ...p }) => <h4 className="mt-2 mb-1 text-sm font-medium first:mt-0" {...p} />,
   p: ({ node: _n, ...p }) => <p className="my-1.5 first:mt-0 last:mb-0" {...p} />,
   ul: ({ node: _n, ...p }) => <ul className="my-1.5 ml-5 list-disc space-y-0.5 [&_ul]:my-0.5" {...p} />,
@@ -31,6 +31,23 @@ const COMPONENTS: Components = {
   td: ({ node: _n, ...p }) => <td className="border px-2 py-1 align-top" {...p} />,
   input: ({ node: _n, ...p }) => <input {...p} disabled className="mr-1.5 align-middle" />,
 };
+
+/** Id tiêu đề theo dòng nguồn (`{prefix}-L{dòng}`) — để mục lục cuộn tới (khớp `markdownHeadings` của trang gọi). */
+export const markdownHeadingId = (prefix: string, line: number) => `${prefix}-L${line}`;
+
+/** Thêm id + `scroll-mt-20` (chừa header dính) cho h1 / h2 / h3. */
+function withHeadingIds(base: Components, prefix: string): Components {
+  const tags = ['h1', 'h2', 'h3'] as const;
+  const out: Components = { ...base };
+  for (const tag of tags) {
+    const Base = base[tag] as (p: Record<string, unknown>) => ReactNode;
+    out[tag] = ({ node, className, ...p }) => {
+      const line = node?.position?.start.line;
+      return Base({ ...p, node, className: cn('scroll-mt-20', className), id: line ? markdownHeadingId(prefix, line) : undefined });
+    };
+  }
+  return out;
+}
 
 /** Nội dung do bot gửi (TV phòng họp): ảnh nhúng → chỉ hiện chữ thay thế, không tải URL lạ từ máy người xem. */
 const NO_IMAGES: Components = { ...COMPONENTS, img: ({ alt }) => <span className="text-muted-foreground">[ảnh{alt ? `: ${alt}` : ''}]</span> };
@@ -59,13 +76,18 @@ function remarkMentions(names: ReadonlyMap<string, string>) {
 /**
  * Hiển thị Markdown (GFM: bảng, checklist, ~~gạch~~, link tự động) do người dùng nhập.
  * An toàn: react-markdown không render HTML thô và lọc URL `javascript:` — không dùng rehype-raw. `noImages`: không tải ảnh nhúng.
+ * `headingIds`: tiền tố id cho tiêu đề h1–h3 (theo dòng nguồn) để mục lục cuộn tới.
  * `mentions` (mã nhân viên viết HOA → họ tên): "@mã" khớp hiện thành tên nổi bật (bình luận việc), mã khác giữ chữ thường.
  */
-export function Markdown({ text, className, noImages, mentions }: { text: string; className?: string; noImages?: boolean; mentions?: ReadonlyMap<string, string> }) {
+export function Markdown({ text, className, noImages, mentions, headingIds }: { text: string; className?: string; noImages?: boolean; mentions?: ReadonlyMap<string, string>; headingIds?: string }) {
+  const components = useMemo(() => {
+    const base = noImages ? NO_IMAGES : COMPONENTS;
+    return headingIds ? withHeadingIds(base, headingIds) : base;
+  }, [noImages, headingIds]);
   const plugins = useMemo<PluggableList>(() => (mentions && mentions.size > 0 ? [remarkGfm, [remarkMentions, mentions]] : [remarkGfm]), [mentions]);
   return (
     <div className={cn('text-sm leading-relaxed break-words', className)}>
-      <ReactMarkdown remarkPlugins={plugins} components={noImages ? NO_IMAGES : COMPONENTS}>{text}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={plugins} components={components}>{text}</ReactMarkdown>
     </div>
   );
 }
