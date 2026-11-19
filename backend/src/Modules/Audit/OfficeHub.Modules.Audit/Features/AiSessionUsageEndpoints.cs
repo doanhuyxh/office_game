@@ -68,14 +68,16 @@ internal static class AiSessionUsageEndpoints
     }
 
     /// <param name="kind">Lọc loại phiên (task | chat | meeting | other); trống = mọi loại.</param>
+    /// <param name="status">Lọc trạng thái phiên (done | failed | skipped); trống = mọi trạng thái (TEST-195).</param>
     internal static (Query? Q, Failure? Error) Build(ClaimsPrincipal user, string? from, string? to, string? group, string? userId, string? kind,
-        AuditDbContext db, IOptions<OfficeSettings> office, TimeProvider clock)
+        string? status, AuditDbContext db, IOptions<OfficeSettings> office, TimeProvider clock)
     {
         if (user.IsAccessToken() || user.GetUserId() is not { } me)
             return (null, Failure.Forbid("Chỉ xem khi đăng nhập trên web"));
         var g = string.IsNullOrWhiteSpace(group) ? AiSessionLedger.Day : group.Trim();
         if (!AiSessionLedger.IsGroup(g)) return (null, Failure.Field("group", "Nhóm phải là day, month hoặc year"));
         if (!AiSessionLedger.TryKind(kind, out var k)) return (null, Failure.Field("kind", "Loại phải là task, chat, meeting hoặc other"));
+        if (!AiSessionLedger.TryStatus(status, out var st)) return (null, Failure.Field("status", "Trạng thái phải là done, failed hoặc skipped"));
         var (scope, denied) = AiSessionLedger.ResolveScope(me, user.IsHr(), userId);
         if (denied == "invalid") return (null, Failure.Field("userId", "userId phải là id tài khoản hoặc all"));
         if (scope is null) return (null, Failure.Forbid("Chỉ admin / HR xem được mức dùng AI của người khác"));
@@ -87,6 +89,7 @@ internal static class AiSessionUsageEndpoints
         var q = db.AiUsageSessions.AsNoTracking().Where(s => s.FinishedAt >= start && s.FinishedAt < end);
         if (scope.UserId is { } uid) q = q.Where(s => s.UserId == uid);
         if (k is not null) q = q.Where(s => s.Kind == k);
+        if (st is not null) q = q.Where(s => s.Status == st);
         return (new Query(range.From, range.To, g, scope.UserId, tz, q), null);
     }
 
@@ -97,20 +100,20 @@ internal static class AiSessionUsageEndpoints
          select new AiUsageRow(s.Id, s.FinishedAt, s.CostUsd, m.Model, m.InputTokens, m.OutputTokens, m.CacheReadTokens, m.CacheWriteTokens, m.CostUsd))
         .ToListAsync(ct);
 
-    private static async Task<Results<Ok<AiSessionUsageSummary>, ValidationProblem, ProblemHttpResult>> SummaryAsync(string? from, string? to, string? group, string? userId, string? kind, ClaimsPrincipal user,
+    private static async Task<Results<Ok<AiSessionUsageSummary>, ValidationProblem, ProblemHttpResult>> SummaryAsync(string? from, string? to, string? group, string? userId, string? kind, string? status, ClaimsPrincipal user,
         AuditDbContext db, IOptions<OfficeSettings> office, TimeProvider clock, CancellationToken ct)
     {
-        var (q, error) = Build(user, from, to, group, userId, kind, db, office, clock);
+        var (q, error) = Build(user, from, to, group, userId, kind, status, db, office, clock);
         if (q is null) return error!.Invalid is { } v ? v : error.Denied!;
         var data = AiSessionLedger.Summarize(await RowsAsync(q, db, ct), q.Group, q.Tz);
         return TypedResults.Ok(new AiSessionUsageSummary(q.From, q.To, q.Group, q.UserId, data.Groups, data.Buckets, data.Total));
     }
 
     /// <summary>Danh sách phiên mới nhất trước; có <c>page</c> → <see cref="PagedResult{T}"/>, không có → 200 phiên gần nhất.</summary>
-    private static async Task<Results<Ok<List<AiSessionUsageDto>>, Ok<PagedResult<AiSessionUsageDto>>, ValidationProblem, ProblemHttpResult>> SessionsAsync(string? from, string? to, string? userId, string? kind, int? page, int? pageSize, ClaimsPrincipal user,
+    private static async Task<Results<Ok<List<AiSessionUsageDto>>, Ok<PagedResult<AiSessionUsageDto>>, ValidationProblem, ProblemHttpResult>> SessionsAsync(string? from, string? to, string? userId, string? kind, string? status, int? page, int? pageSize, ClaimsPrincipal user,
         AuditDbContext db, IAccountService accounts, IOptions<OfficeSettings> office, TimeProvider clock, CancellationToken ct)
     {
-        var (q, error) = Build(user, from, to, null, userId, kind, db, office, clock);
+        var (q, error) = Build(user, from, to, null, userId, kind, status, db, office, clock);
         if (q is null) return error!.Invalid is { } v ? v : error.Denied!;
         var ordered = q.Sessions.Include(s => s.Models).OrderByDescending(s => s.FinishedAt).ThenByDescending(s => s.Id);
         if (page is { } p)

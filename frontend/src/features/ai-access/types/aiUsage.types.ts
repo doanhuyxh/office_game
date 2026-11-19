@@ -2,6 +2,7 @@
 
 export type AiUsageGroupBy = 'day' | 'month' | 'year';
 export type AiSessionKind = 'task' | 'chat' | 'meeting' | 'other';
+export type AiSessionStatus = 'done' | 'failed' | 'skipped';
 
 export interface IAiUsageFilter {
   group: AiUsageGroupBy;
@@ -9,6 +10,8 @@ export interface IAiUsageFilter {
   from: string | null;
   to: string | null;
   kind: AiSessionKind | null;
+  /** Trạng thái phiên (TEST-195); null = mọi trạng thái. */
+  status: AiSessionStatus | null;
   /** null = của tôi; 'all' / id tài khoản — chỉ admin / HR. */
   userId: string | null;
 }

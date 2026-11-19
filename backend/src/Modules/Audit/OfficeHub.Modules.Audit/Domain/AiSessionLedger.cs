@@ -80,6 +80,13 @@ public static class AiSessionLedger
         return value is null || AiUsageRoute.Kinds.Contains(value);
     }
 
+    /// <summary>Bộ lọc trạng thái phiên (TEST-195): trống → null (mọi trạng thái); khác <see cref="AiUsageRoute.Statuses"/> → false.</summary>
+    public static bool TryStatus(string? status, out string? value)
+    {
+        value = string.IsNullOrWhiteSpace(status) ? null : status.Trim().ToLowerInvariant();
+        return value is null || AiUsageRoute.Statuses.Contains(value);
+    }
+
     /// <summary>
     /// Khoảng ngày (lịch VN, gồm 2 đầu) từ <c>from</c>/<c>to</c> yyyy-MM-dd. Trống: <c>to</c> = hôm nay; <c>from</c> theo nhóm —
     /// day: 30 ngày, month: đầu tháng 11 tháng trước (12 tháng), year: 1/1 bốn năm trước (5 năm).

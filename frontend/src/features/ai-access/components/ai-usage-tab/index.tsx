@@ -15,16 +15,17 @@ import { formatNumber } from '@/utils/number';
 import { cn } from '@/utils/cn';
 import { aiUsageApi } from '../../api/aiUsage.api';
 import { useAiUsageSummary } from '../../hooks/useAiUsage';
-import type { AiSessionKind, AiUsageGroupBy, IAiUsageFilter, IAiUsageModelGroup, IAiUsageSummary } from '../../types/aiUsage.types';
-import { formatTokensShort, formatUsd, GROUP_LABEL, KIND_LABEL, modelColor } from '../../utils/aiUsage';
+import type { AiSessionKind, AiSessionStatus, AiUsageGroupBy, IAiUsageFilter, IAiUsageModelGroup, IAiUsageSummary } from '../../types/aiUsage.types';
+import { formatTokensShort, formatUsd, GROUP_LABEL, KIND_LABEL, modelColor, SESSION_STATUS } from '../../utils/aiUsage';
 import { AiUsageChart, type AiUsageMetric } from '../ai-usage-chart';
 import { AiUsageSessions } from '../ai-usage-sessions';
 
 const GROUPS: AiUsageGroupBy[] = ['day', 'month', 'year'];
 const KINDS: AiSessionKind[] = ['task', 'chat', 'meeting', 'other'];
+const STATUSES: AiSessionStatus[] = ['done', 'failed', 'skipped'];
 const ALL = 'all';
 
-interface UsageSearch { usage?: string; from?: string; to?: string; kind?: string; user?: string }
+interface UsageSearch { usage?: string; from?: string; to?: string; kind?: string; status?: string; user?: string }
 const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
 const isDate = (v: string | undefined) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
 
@@ -35,7 +36,7 @@ const monthEnd = (ym: string) => {
 };
 
 /**
- * Bộ lọc lưu trên URL (`?tab=usage&usage=month&from=…&to=…&kind=task&user=…`) → reload / gửi link giữ nguyên.
+ * Bộ lọc lưu trên URL (`?tab=usage&usage=month&from=…&to=…&kind=task&status=failed&user=…`) → reload / gửi link giữ nguyên.
  * Không `from` / `to` = mặc định: Ngày 30 ngày (BE), Tháng 12 tháng (BE), Năm = tất cả (10 năm — trần của BE).
  */
 function useUsageFilter(canPickUser: boolean) {
@@ -43,14 +44,15 @@ function useUsageFilter(canPickUser: boolean) {
   const navigate = useNavigate();
   const group = (GROUPS as string[]).includes(search.usage ?? '') ? (search.usage as AiUsageGroupBy) : 'day';
   const kind = (KINDS as string[]).includes(search.kind ?? '') ? (search.kind as AiSessionKind) : null;
+  const status = (STATUSES as string[]).includes(search.status ?? '') ? (search.status as AiSessionStatus) : null;
   const user = canPickUser ? (str(search.user) ?? ALL) : null;
   const from = isDate(str(search.from));
   const to = isDate(str(search.to));
   const filter = useMemo<IAiUsageFilter>(() => ({
-    group, kind, userId: user,
+    group, kind, status, userId: user,
     from: from ?? (group === 'year' ? `${Number(todayVn().slice(0, 4)) - 9}-01-01` : null),
     to,
-  }), [group, kind, user, from, to]);
+  }), [group, kind, status, user, from, to]);
 
   const set = useCallback((patch: Partial<UsageSearch>) => {
     void navigate({
@@ -240,6 +242,10 @@ export function AiUsageTab({ canPickUser }: { canPickUser: boolean }) {
         <div className="w-40">
           <SelectField id="ai-usage-kind" label="Loại phiên" allowEmpty emptyLabel="Mọi loại" value={filter.kind}
             onChange={(v) => set({ kind: v ?? undefined })} options={KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))} />
+        </div>
+        <div className="w-40">
+          <SelectField id="ai-usage-status" label="Trạng thái" allowEmpty emptyLabel="Mọi trạng thái" value={filter.status}
+            onChange={(v) => set({ status: v ?? undefined })} options={STATUSES.map((s) => ({ value: s, label: SESSION_STATUS[s].label }))} />
         </div>
         {canPickUser && (
           <UserPicker value={filter.userId} onChange={(v) => set({ user: v && v !== ALL ? v : undefined })} />

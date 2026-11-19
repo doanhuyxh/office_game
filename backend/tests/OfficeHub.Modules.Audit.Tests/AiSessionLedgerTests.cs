@@ -191,6 +191,19 @@ public class AiSessionLedgerTests
         Assert.Equal(value, v);
     }
 
+    [Theory]
+    [InlineData(null, true, null)]
+    [InlineData("", true, null)]
+    [InlineData("done", true, "done")]
+    [InlineData(" Failed ", true, "failed")]
+    [InlineData("skipped", true, "skipped")]
+    [InlineData("abc", false, "abc")]
+    public void TryStatus_accepts_known_statuses_or_empty(string? input, bool ok, string? value)
+    {
+        Assert.Equal(ok, AiSessionLedger.TryStatus(input, out var v));
+        Assert.Equal(value, v);
+    }
+
     // ---------- SQL ----------
 
     [Fact]

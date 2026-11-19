@@ -5,6 +5,8 @@
 // admin có ô chọn người / bot (Tất cả / một người), người thường không có ô + API người khác / all → 403, biểu đồ (chú thích ẩn / hiện, Token ↔ Chi phí),
 // bảng theo model, danh sách phiên (lỗi tô đỏ, link việc), Xuất Excel, thẻ Hồ sơ khớp tháng hiện tại (admin không có dữ liệu → không có thẻ),
 // theme tối, điện thoại 390 px (thẻ 2 cột, không tràn ngang). Ảnh vào SHOTS_DIR.
+// TEST-195: lọc trạng thái phiên (?status=done|failed|skipped) — API (400, quyền, AND với kind), ô "Trạng thái" ngay sau "Loại phiên", về trang 1,
+// số trang đúng, thẻ / bảng / Excel cùng bộ lọc, giá trị lạ trên URL = không lọc, tải lại giữ bộ lọc, theme sáng + tối (ảnh 5-status-*.png).
 // CHỈ DB tạm. Api (backend/): env ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5283
 //   'ConnectionStrings__Default=Host=127.0.0.1;Port=55441;Database=e2e;Username=e2e;Password=e2e' Seed__AdminEmail=… Seed__AdminPassword=…
 //   Chat__InternalKey=<khoá ≥ 32 ký tự> Telegram__ApiUrl=http://127.0.0.1:9 Smtp__Host=127.0.0.1 Smtp__Port=1 dotnet run --project src/OfficeHub.Api --no-launch-profile
@@ -123,6 +125,34 @@ ok('API kind=task: chỉ phiên việc (s1, s3, h1)', sumKind?.total?.sessions =
 ok('API kind sai → 400', (await json(admin, 'GET', '/api/ai-usage/summary?kind=abc')).status === 400);
 ok('API sessions + export nhận kind', (await json(admin, 'GET', '/api/ai-usage/sessions?userId=all&kind=meeting&page=1')).body?.total === 1
   && (await fetch(`${API}/api/ai-usage/export?userId=all&kind=chat`, { headers: { cookie: admin } })).status === 200);
+// ── TEST-195: lọc trạng thái phiên ──
+// 28 phiên của H vào tháng 3/2015 (ngoài mọi khoảng mặc định → không đổi các kiểm tra khác): 25 bỏ qua (việc), 1 lỗi (việc), 2 xong (chat)
+const old = (i: number) => new Date(Date.UTC(2015, 2, 10, 3, i));
+const r3 = await ingest(H.userId, [
+  ...Array.from({ length: 25 }, (_, i) => sess(`k${i}`, old(i), 'task', 'skipped', 0.01, [m(SONNET, 10, 10, 0, 0, 0.01)])),
+  sess('kf', old(30), 'task', 'failed', 0.02, [m(SONNET, 10, 10, 0, 0, 0.02)]),
+  sess('kd1', old(31), 'chat', 'done', 0.03, [m(OPUS, 10, 10, 0, 0, 0.03)]),
+  sess('kd2', old(32), 'chat', 'done', 0.03, [m(OPUS, 10, 10, 0, 0, 0.03)]),
+]);
+ok('[195] ghi 28 phiên cũ (2015) cho H', r3.status === 200, await r3.text());
+const R2015 = `from=2015-03-01&to=2015-03-31&userId=${H.userId}`;
+const sumSt = async (qs: string) => (await json(admin, 'GET', `/api/ai-usage/summary?${R2015}&${qs}`)).body?.total?.sessions;
+ok('[195] API summary status=skipped / failed / done / trống → 25 / 1 / 2 / 28',
+  await sumSt('status=skipped') === 25 && await sumSt('status=failed') === 1 && await sumSt('status=done') === 2 && await sumSt('status=') === 28,
+  [await sumSt('status=skipped'), await sumSt('status=failed'), await sumSt('status=done'), await sumSt('status=')]);
+ok('[195] API status hoa + khoảng trắng (" Failed ") vẫn nhận', await sumSt('status=%20Failed%20') === 1);
+ok('[195] API AND với kind: kind=chat&status=done → 2, kind=chat&status=failed → 0', await sumSt('kind=chat&status=done') === 2 && await sumSt('kind=chat&status=failed') === 0);
+const sesSt = (await json(admin, 'GET', `/api/ai-usage/sessions?${R2015}&status=skipped&page=2&pageSize=20`)).body;
+ok('[195] API sessions status=skipped trang 2: tổng 25, 5 dòng, đều skipped', sesSt?.total === 25 && sesSt?.items?.length === 5 && sesSt.items.every((x: any) => x.status === 'skipped'),
+  { total: sesSt?.total, n: sesSt?.items?.length });
+ok('[195] API status sai → 400 (summary / sessions / export)', (await json(admin, 'GET', '/api/ai-usage/summary?status=abc')).status === 400
+  && (await json(admin, 'GET', '/api/ai-usage/sessions?status=abc&page=1')).status === 400
+  && (await fetch(`${API}/api/ai-usage/export?status=abc`, { headers: { cookie: admin } })).status === 400);
+ok('[195] export nhận status hợp lệ → 200', (await fetch(`${API}/api/ai-usage/export?${R2015}&status=failed`, { headers: { cookie: admin } })).status === 200);
+const hDone = (await json(H.cookie, 'GET', '/api/ai-usage/sessions?status=done&page=1')).body;
+ok('[195] người thường lọc status: chỉ phiên của mình (h1)', hDone?.total === 1 && hDone.items[0].userId === H.userId, hDone?.total);
+ok('[195] người thường status + userId=all / người khác → 403', (await json(H.cookie, 'GET', '/api/ai-usage/sessions?status=failed&userId=all&page=1')).status === 403
+  && (await json(H.cookie, 'GET', `/api/ai-usage/summary?status=failed&userId=${B.userId}`)).status === 403);
 ok('người thường xem all / người khác → 403', (await json(H.cookie, 'GET', '/api/ai-usage/summary?userId=all')).status === 403
   && (await json(H.cookie, 'GET', `/api/ai-usage/summary?userId=${B.userId}`)).status === 403);
 
@@ -209,6 +239,72 @@ try {
     HTMLAnchorElement.prototype.click = function () { url = this.href; }; document.querySelector('[data-testid="ai-usage-export"]').click(); HTMLAnchorElement.prototype.click = a0;
     const r = await fetch(url); const b = new Uint8Array(await r.arrayBuffer()); return { url, status: r.status, type: r.headers.get('content-type'), pk: b[0] === 0x50 && b[1] === 0x4b }; })()`) as any;
   ok('Xuất Excel: /api/ai-usage/export?group=month&userId=all → 200 xlsx', xls.status === 200 && xls.pk && xls.url.includes('group=month') && xls.url.includes('userId=all'), xls);
+
+  // ── TEST-195: ô "Trạng thái" ──
+  const clickAt = async (expr: string) => {
+    const r = await br.evalJs(`(() => { const e = ${expr}; if (!e) return null; e.scrollIntoView({ block: 'center' }); const b = e.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; })()`) as { x: number; y: number } | null;
+    if (!r) throw new Error(`Không thấy phần tử: ${expr}`);
+    for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased'] as const)
+      await br.send('Input.dispatchMouseEvent', { type, x: r.x, y: r.y, button: 'left', clickCount: 1, pointerType: 'mouse' });
+    await br.sleep(350);
+  };
+  const pick = async (id: string, label: string) => {
+    await clickAt(`document.getElementById('${id}')`);
+    await clickAt(`[...document.querySelectorAll('[role="option"]')].find((o) => o.innerText.trim() === ${JSON.stringify(label)})`);
+  };
+  const sessRows = `document.querySelectorAll('[data-testid="ai-usage-session-row"]').length`;
+  const pageLbl = `(document.querySelector('[data-testid="ai-usage-tab"] [aria-label^="Trang "][aria-label*=" trên "]')?.getAttribute('aria-label') ?? '')`;
+  const selText = (id: string) => `(document.getElementById('${id}')?.innerText.trim() ?? '')`;
+  await br.go(`${BASE}/ai-access?tab=usage&user=${H.userId}&from=2015-03-01&to=2015-03-31`, 2500);
+  ok('[195] H tháng 3/2015: 28 phiên, 20 dòng, "Trang 1 trên 2", ô Trạng thái = "Mọi trạng thái"', await until(br, `${loaded(28)} && ${sessRows} === 20 && ${pageLbl} === 'Trang 1 trên 2'`)
+    && await br.evalJs(`${selText('ai-usage-status')} === 'Mọi trạng thái'`), [await br.evalJs(statSessions), await br.evalJs(sessRows), await br.evalJs(pageLbl), await br.evalJs(selText('ai-usage-status'))]);
+  ok('[195] ô "Trạng thái" nằm ngay sau ô "Loại phiên" (cùng hàng)', await br.evalJs(`(() => {
+    const k = document.getElementById('ai-usage-kind').closest('.w-40'), s = document.getElementById('ai-usage-status').closest('.w-40');
+    const a = k.getBoundingClientRect(), b = s.getBoundingClientRect(); return k.nextElementSibling === s && Math.abs(a.top - b.top) < 2 && b.left > a.right - 1; })()`));
+  await clickAt(`document.querySelector('[data-testid="ai-usage-tab"] [aria-label="Trang sau"]')`);
+  ok('[195] sang trang 2: 8 dòng', await until(br, `${pageLbl} === 'Trang 2 trên 2' && ${sessRows} === 8`), [await br.evalJs(pageLbl), await br.evalJs(sessRows)]);
+  await clickAt(`document.getElementById('ai-usage-status')`);
+  const opts = await br.evalJs(`[...document.querySelectorAll('[role="option"]')].map((o) => o.innerText.trim())`);
+  ok('[195] lựa chọn: Mọi trạng thái · Xong · Lỗi · Bỏ qua', JSON.stringify(opts) === JSON.stringify(['Mọi trạng thái', 'Xong', 'Lỗi', 'Bỏ qua']), opts);
+  await clickAt(`[...document.querySelectorAll('[role="option"]')].find((o) => o.innerText.trim() === 'Bỏ qua')`);
+  ok('[195] chọn "Bỏ qua" → ?status=skipped, về trang 1, 25 phiên, 20 dòng đều "Bỏ qua"', await until(br, `location.search.includes('status=skipped') && ${loaded(25)} && ${pageLbl} === 'Trang 1 trên 2' && ${sessRows} === 20`)
+    && await br.evalJs(`[...document.querySelectorAll('[data-testid="ai-usage-session-row"]')].every((r) => r.innerText.includes('Bỏ qua'))`),
+    [await br.evalJs('location.search'), await br.evalJs(statSessions), await br.evalJs(pageLbl), await br.evalJs(sessRows)]);
+  await clickAt(`document.querySelector('[data-testid="ai-usage-tab"] [aria-label="Trang sau"]')`);
+  await until(br, `${pageLbl} === 'Trang 2 trên 2'`);
+  await pick('ai-usage-status', 'Lỗi');
+  ok('[195] từ trang 2 chọn "Lỗi" → 1 phiên, 1 dòng tô đỏ, về trang 1, chi phí $0,02', await until(br, `location.search.includes('status=failed') && ${loaded(1)} && ${sessRows} === 1 && ${statCost}.includes('$0,02')`)
+    && await br.evalJs(`document.querySelector('[data-testid="ai-usage-session-row"]').className.includes('destructive') && !${pageLbl}.includes('Trang 2')`),
+    [await br.evalJs(statSessions), await br.evalJs(sessRows), await br.evalJs(pageLbl), await br.evalJs(statCost)]);
+  await pick('ai-usage-status', 'Xong');
+  await pick('ai-usage-kind', 'Chat');
+  ok('[195] Xong + Loại "Chat" → 2 phiên chat, chi phí $0,06', await until(br, `location.search.includes('status=done') && location.search.includes('kind=chat') && ${loaded(2)} && ${sessRows} === 2 && ${statCost}.includes('$0,06')`),
+    [await br.evalJs('location.search'), await br.evalJs(statSessions), await br.evalJs(statCost)]);
+  const xls2 = await br.evalJs(`(() => { let url = ''; const a0 = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () { url = this.href; };
+    document.querySelector('[data-testid="ai-usage-export"]').click(); HTMLAnchorElement.prototype.click = a0; return url; })()`) as string;
+  ok('[195] Xuất Excel mang cùng bộ lọc (status=done&kind=chat)', xls2.includes('status=done') && xls2.includes('kind=chat'), xls2);
+  await br.go(`${BASE}/ai-access?tab=usage&user=${H.userId}&from=2015-03-01&to=2015-03-31&status=failed`, 2500);
+  ok('[195] tải lại / gửi link ?status=failed giữ bộ lọc (ô hiện "Lỗi", 1 phiên)', await until(br, `${loaded(1)} && ${selText('ai-usage-status')} === 'Lỗi'`), await br.evalJs(selText('ai-usage-status')));
+  await pick('ai-usage-status', 'Mọi trạng thái');
+  ok('[195] "Mọi trạng thái" → bỏ ?status, 28 phiên như cũ', await until(br, `!location.search.includes('status=') && ${loaded(28)}`), await br.evalJs('location.search'));
+  await br.go(`${BASE}/ai-access?tab=usage&user=${H.userId}&from=2015-03-01&to=2015-03-31&status=xyz`, 2500);
+  ok('[195] ?status=xyz (lạ) → coi như không lọc: 28 phiên, ô "Mọi trạng thái"', await until(br, `${loaded(28)} && ${selText('ai-usage-status')} === 'Mọi trạng thái'`), await br.evalJs(statSessions));
+  await br.go(`${BASE}/ai-access?tab=usage&status=failed`, 2500);
+  ok('[195] mặc định 30 ngày + Lỗi: 1 phiên (s4 Họp)', await until(br, `${loaded(1)} && ${sessRows} === 1`)
+    && await br.evalJs(`document.querySelector('[data-testid="ai-usage-session-row"]').innerText.includes('Họp')`));
+  if (SHOTS) {
+    // Khung cao để thấy cả hàng bộ lọc + bảng phiên; ép sáng / tối bằng class (theme mặc định có thể theo hệ thống)
+    await br.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1900, deviceScaleFactor: 1, mobile: false });
+    await br.evalJs(`(() => { document.documentElement.classList.remove('dark'); document.querySelector('[data-testid="ai-usage-tab"]').scrollIntoView({ block: 'start' }); })()`);
+    await br.sleep(500);
+    await br.shot(`${SHOTS}/5-status-light.png`);
+    await br.evalJs(`document.documentElement.classList.add('dark')`);
+    await br.sleep(500);
+    await br.shot(`${SHOTS}/5-status-dark.png`);
+    await br.send('Emulation.clearDeviceMetricsOverride', {});
+  }
+  await br.go(`${BASE}/ai-access?tab=usage&usage=month`, 2500);
+  await until(br, loaded(6));
 
   // Theme tối
   await br.evalJs(`document.documentElement.classList.add('dark')`);

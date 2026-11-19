@@ -9,6 +9,7 @@ export function aiUsageQs(f: Partial<IAiUsageFilter>) {
   if (f.from) p.set('from', f.from);
   if (f.to) p.set('to', f.to);
   if (f.kind) p.set('kind', f.kind);
+  if (f.status) p.set('status', f.status);
   if (f.userId) p.set('userId', f.userId);
   return p.toString();
 }
