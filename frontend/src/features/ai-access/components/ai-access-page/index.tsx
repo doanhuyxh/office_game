@@ -22,6 +22,7 @@ import {
 } from '../../hooks/useAccessTokens';
 import { accessTokenKeys } from '../../api/accessToken.api';
 import { aiUsageKeys } from '../../api/aiUsage.api';
+import { agentTranscriptKeys } from '../../api/agentTranscript.api';
 import { TOKEN_STATUS } from '../../utils/labels';
 import { ActivityTable } from '../activity-table';
 import { ConnectGuide } from '../connect-guide';
@@ -31,6 +32,8 @@ import { useTabParam } from '@/hooks/useTabParam';
 
 /** Tab "Mức dùng AI" (biểu đồ, bảng phiên) tải riêng khi mở — không làm nặng phần kết nối. */
 const AiUsageTab = lazy(() => import('../ai-usage-tab'));
+/** Tab "Transcript agent" (chỉ admin / HR, TEST-145) — tải riêng khi mở. */
+const AgentTranscriptTab = lazy(() => import('../agent-transcript-tab'));
 
 const CAN = [
   'Xem chấm công hôm nay, bảng công tháng, ngày lễ, ca làm',
@@ -295,10 +298,10 @@ export function AiAccessPage() {
   const [newToken, setNewToken] = useState<string | null>(null);
   const createButton = <Button variant="outline" onClick={() => setCreating(true)}><Plus className="size-4" /> Tạo token</Button>;
 
-  const [tab, setTab] = useTabParam('me', isHr ? ['me', 'usage', 'company'] : ['me', 'usage']);
+  const [tab, setTab] = useTabParam('me', isHr ? ['me', 'usage', 'company', 'transcripts'] : ['me', 'usage']);
   // "Làm mới": tải lại số liệu của tab đang mở, giữ nguyên bộ lọc / trang (nằm trên URL / state, không bị reset).
   const qc = useQueryClient();
-  const reloadKey = tab === 'usage' ? aiUsageKeys.all : accessTokenKeys.all;
+  const reloadKey = tab === 'usage' ? aiUsageKeys.all : tab === 'transcripts' ? agentTranscriptKeys.all : accessTokenKeys.all;
   const reloading = useIsFetching({ queryKey: reloadKey }) > 0;
   const reloadButton = (
     <Button variant="outline" onClick={() => void qc.invalidateQueries({ queryKey: reloadKey })} disabled={reloading} data-testid="ai-access-reload">
@@ -309,11 +312,12 @@ export function AiAccessPage() {
     <div className="grid grid-cols-1 gap-6">
       <PageHeader title="Kết nối AI" />
       <Tabs value={tab} onValueChange={setTab}>
-        <PageToolbar actions={<>{reloadButton}{tab !== 'usage' && createButton}</>}>
+        <PageToolbar actions={<>{reloadButton}{tab !== 'usage' && tab !== 'transcripts' && createButton}</>}>
           <TabsList>
             <TabsTrigger value="me">Của tôi</TabsTrigger>
             <TabsTrigger value="usage" data-testid="ai-usage-tab-trigger">Mức dùng AI</TabsTrigger>
             {isHr && <TabsTrigger value="company">Toàn công ty</TabsTrigger>}
+            {isHr && <TabsTrigger value="transcripts" data-testid="agent-transcript-tab-trigger">Transcript agent</TabsTrigger>}
           </TabsList>
         </PageToolbar>
         <TabsContent value="me" className="pt-2"><MyTab onCreate={() => setCreating(true)} newToken={newToken} /></TabsContent>
@@ -321,6 +325,11 @@ export function AiAccessPage() {
           {tab === 'usage' && <Suspense fallback={<Spinner />}><AiUsageTab canPickUser={isHr} /></Suspense>}
         </TabsContent>
         {isHr && <TabsContent value="company" className="pt-2"><CompanyTab /></TabsContent>}
+        {isHr && (
+          <TabsContent value="transcripts" className="pt-2">
+            {tab === 'transcripts' && <Suspense fallback={<Spinner />}><AgentTranscriptTab /></Suspense>}
+          </TabsContent>
+        )}
       </Tabs>
       <CreateTokenDialog open={creating} onOpenChange={setCreating} onCreated={setNewToken} />
     </div>

@@ -30,6 +30,12 @@ runner ─POST/GET /mcp/transcripts (token AI bot)─▶ Mcp (chỉ bot, gắn u
 
 Unit: `tests/OfficeHub.Modules.Audit.Tests/AgentTranscriptTests.cs` (validate, mã hoá ↔ giải mã, sai khoá, tên file), `agent-runner/tests/transcript.test.ts` (che giữ JSON, gửi / không gửi lại / thay, lỗi theo mã, khôi phục lười: máy mới, quá 10 phút, lệch sha). E2E xuyên khâu (DB tạm, khoá mã hoá tạm, `S3__KeyPrefix` riêng): `scripts/dev/agent-transcripts-e2e.ts` 29/29 — `TranscriptReporter` thật → Mcp → Api → S3 → tải về khớp sha, đã che → khôi phục vào HOME mới; quyền; hết hạn.
 
-## Chưa làm
+## Giao diện tra soát (TEST-145)
 
-Giao diện tra soát trên web (danh sách + tải về cho admin / HR) — hiện chỉ có API; việc ở bảng TEST (Lưu trữ).
+Kết nối AI → tab **"Transcript agent"** (`?tab=transcripts`, cạnh "Toàn công ty", chỉ hiện khi `isHr` = admin / HR; người khác vào thẳng link → tab "Của tôi", không gọi API). Code: `frontend/src/features/ai-access/components/agent-transcript-tab/` (tải lười như "Mức dùng AI"), `api/agentTranscript.api.ts`, `hooks/useAgentTranscripts.ts`, `utils/agentTranscript.ts`.
+- Bảng (BE phân trang, mới nhất trước, nút "Cột"): Cập nhật · Bot · Loại (Việc / Chat / Họp) · Khoá · Nhánh · Bản bàn giao (2 dòng, bỏ ký hiệu Markdown; bấm → hộp thoại Markdown đủ + nút tải) · Kích thước · Hạn xoá · **Tải về**.
+- Lọc bot (chỉ tài khoản bot trong danh bạ) + loại, trên URL `?bot=<userId>&tkind=task|chat|meeting` (tên riêng, không lẫn `kind` / `user` của tab mức dùng); giá trị lạ = không lọc; đổi bộ lọc → trang 1. Nút "Làm mới" của trang tải lại tab đang mở.
+- Tải về: `httpDownload` (`services/api-client.ts`) lấy blob qua cookie → lưu đúng tên `transcript-<kind>-<key>.jsonl.gz`; nút `loading` (chỉ dòng bấm xoay, dòng khác khoá); 404 (bản vừa hết hạn) → toast "đã hết hạn… Làm mới".
+- Trạng thái: đang tải (vòng xoay trong bảng), trống ("Chưa có transcript nào…" / "Không có transcript nào khớp bộ lọc."), lỗi (chữ đỏ + Thử lại; cả khi đổi bộ lọc — không giữ dòng cũ như kết quả mới).
+- Chưa làm (tách việc nếu chủ dự án muốn): xem nhanh nội dung trên web (giải nén, từng lượt user / assistant / tool, cuộn ảo).
+- E2E: `scripts/dev/agent-transcripts-ui-e2e.ts` 43/43 (DB + S3 tạm).
