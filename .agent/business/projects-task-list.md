@@ -7,6 +7,7 @@ Chỉ front-end, **không API mới**: dùng dữ liệu `useTasks` mà kanban �
 ## Hàng tab + khung (ảnh `danh-sach-trong-v2`)
 
 - Trang chi tiết dự án dùng **tab dạng thẻ** (`ProjectTab` trong `project-detail-page`): vạch `border` dưới cả hàng; tab đang chọn nền `muted` + viền, che vạch để nối liền nội dung; số đếm (việc mở, mốc, thành viên) là nhãn tròn, tab đang chọn đảo màu (`foreground`). "Làm mới" là nút ghost cuối hàng (điện thoại chỉ còn biểu tượng); hàng tab cuộn ngang khi hẹp.
+- **Nền tối** (TEST-193, ảnh `may-tinh-toi-v2-review`): không dạng thẻ — tab đang chọn chữ sáng, **gạch chân 2px `primary`** sát đáy (che vạch hàng), nền `muted/40`, không viền / bo thẻ; số đếm tab đang chọn nền `background` chữ `primary`; mọi tab có `border-b-2` trong suốt nên cao bằng nhau; "Làm mới" có viền `border` + nền `muted/40`. Chỉ đổi class `dark:` trong `ProjectTab` — `components/common/tabs.tsx` giữ nguyên.
 - Tab Công việc là một khung (`task-panel`, viền, bo đáy): vùng công cụ nền `muted` (Cột / Danh sách, Chỉ việc của tôi, quy trình; ở Danh sách thêm hàng lọc + tìm + Tạo công việc), dưới là kanban hoặc bảng tràn hết chiều ngang, chân "Hiển thị X / Y công việc" nền `muted`. Tab khác giữ nguyên nội dung.
 
 ## Chuyển chế độ

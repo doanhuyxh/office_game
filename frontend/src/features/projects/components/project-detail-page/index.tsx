@@ -33,15 +33,21 @@ import { TaskBoard } from '../task-board';
 import { WorkflowSummary } from '../workflow-summary';
 import { WorkGuideToc } from '../work-guide-toc';
 
-/** Một tab của trang dự án (dạng thẻ): đang chọn → nền `muted` + viền, che vạch dưới để nối liền nội dung; số đếm là nhãn tròn. */
+/**
+ * Một tab của trang dự án. Nền sáng (dạng thẻ): đang chọn → nền `muted` + viền, che vạch dưới để nối liền nội dung; số đếm nhãn tròn đảo màu.
+ * Nền tối (TEST-193, thiết kế `may-tinh-toi-v2-review`): không viền, không bo góc — tab đang chọn gạch chân `primary` sát đáy, nền chỉ nhỉnh hơn nền trang
+ * (`muted/40`); số đếm nhãn nền tối (`background`) chữ `primary`. Mọi tab nền tối có `border-b-2` trong suốt để chiều cao không nhảy.
+ */
 function ProjectTab({ value, count, children }: { value: string; count?: number | string; children: ReactNode }) {
   return (
     <TabsTrigger value={value} className={cn('group/tab h-auto flex-none gap-2 rounded-b-none rounded-t-lg border border-b-0 border-transparent px-3 py-2',
       'data-[state=active]:border-border data-[state=active]:bg-muted data-[state=active]:shadow-none',
-      'dark:data-[state=active]:border-border dark:data-[state=active]:bg-muted')}>
+      'dark:rounded-none dark:border-0 dark:border-b-2',
+      'dark:data-[state=active]:border-transparent dark:data-[state=active]:border-b-primary dark:data-[state=active]:bg-muted/40')}>
       {children}
       {count !== undefined && <span className={cn('rounded-full bg-muted px-1.5 text-xs leading-5 font-medium text-muted-foreground tabular-nums',
-        'group-data-[state=active]/tab:bg-foreground group-data-[state=active]/tab:text-background')} data-testid={`tab-count-${value}`}>{count}</span>}
+        'group-data-[state=active]/tab:bg-foreground group-data-[state=active]/tab:text-background',
+        'dark:group-data-[state=active]/tab:bg-background dark:group-data-[state=active]/tab:text-primary')} data-testid={`tab-count-${value}`}>{count}</span>}
     </TabsTrigger>
   );
 }
@@ -104,7 +110,8 @@ export function ProjectDetailPage() {
         </div>
       </div>
       <Tabs value={openTask ? 'tasks' : tab} onValueChange={setTab}>
-        {/* TEST-192 (thiết kế TEST-191 bản 2): tab dạng thẻ — vạch dưới cả hàng, tab đang chọn nền `muted` có viền, nối liền khung công cụ của tab Công việc */}
+        {/* TEST-192 (thiết kế TEST-191 bản 2): nền sáng tab dạng thẻ — vạch dưới cả hàng, tab đang chọn nền `muted` có viền, nối liền khung công cụ của tab Công việc.
+            TEST-193: nền tối tab đang chọn gạch chân `primary`, "Làm mới" nút nhỏ có viền + nền nhẹ. */}
         <div className="relative flex items-end gap-2 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-border" data-testid="project-tabs">
           <TabsList className="relative z-10 min-w-0 flex-1 items-end gap-0.5 rounded-none bg-transparent p-0 group-data-[orientation=horizontal]/tabs:h-auto">
             <ProjectTab value="tasks" count={p.tasks.open}>Công việc</ProjectTab>
@@ -117,7 +124,7 @@ export function ProjectDetailPage() {
             {canFinance && <ProjectTab value="finance">Tài chính</ProjectTab>}
             <ProjectTab value="appendix">Phụ lục</ProjectTab>
           </TabsList>
-          <Button size="sm" variant="ghost" className="mb-1 shrink-0" disabled={reloading} data-testid="project-reload" aria-label="Làm mới"
+          <Button size="sm" variant="ghost" className="mb-1 shrink-0 dark:border dark:border-border dark:bg-muted/40 dark:hover:bg-muted" disabled={reloading} data-testid="project-reload" aria-label="Làm mới"
             onClick={() => void qc.invalidateQueries(projectQueryFilter(projectId))}>
             <RefreshCw className={reloading ? 'animate-spin' : undefined} /> <span className="hidden sm:inline">Làm mới</span></Button>
         </div>

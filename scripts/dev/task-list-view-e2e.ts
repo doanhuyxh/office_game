@@ -4,7 +4,7 @@
 // đổi trạng thái trên dòng: menu chỉ có cột được phép (đi lần lượt, cột cần người duyệt không hiện với thành viên), tiến một bước lưu ngay,
 // lùi hỏi lý do → bình luận; người theo dõi 👁 + số, rê chuột hiện tên; Tạo công việc mở hộp thoại; bấm dòng mở chi tiết (?task=);
 // tài khoản chỉ xem (thấy dự án nhờ phòng ban) → không nút tạo, trạng thái là nhãn tĩnh; trống / đang tải / lỗi tải + Thử lại;
-// điện thoại 390×844 thẻ nhiều dòng không cuộn ngang; theme tối. Ảnh vào SHOTS_DIR.
+// điện thoại 390×844 thẻ nhiều dòng không cuộn ngang; theme tối (TEST-193: hàng tab gạch chân primary, số đếm nền tối chữ nhấn). Ảnh vào SHOTS_DIR.
 // TẠO DỮ LIỆU THẬT → CHỈ DB tạm. Api như đầu task-column-guide-e2e.ts, Vite trỏ Api (không cần Mcp / Realtime):
 //   docker run -d --name e2e192-pg -e POSTGRES_USER=e2e -e POSTGRES_PASSWORD=e2e -e POSTGRES_DB=e2e -p 127.0.0.1:15492:5432 postgres:17-alpine
 //   (script dùng `docker exec <PG_CONTAINER, mặc định e2e192-pg> psql` để đặt một hạn đã qua — API không cho tạo)
@@ -288,6 +288,20 @@ try {
   await br.evalJs(`localStorage.setItem('officehub:theme', 'dark')`);
   await br.go(URL_TASKS, 3500);
   ok('theme tối: html.dark + danh sách', await br.evalJs(`document.documentElement.classList.contains('dark') && !!${q('task-table')}`));
+  // TEST-193 (thiết kế may-tinh-toi-v2-review): nền tối tab đang chọn gạch chân màu nhấn (primary), không viền thẻ, nền nhỉnh hơn trang;
+  // số đếm nhãn nền tối (background) chữ màu nhấn; mọi tab cùng chiều cao; "Làm mới" có viền
+  ok('theme tối: tab đang chọn gạch chân primary, không viền thẻ, số đếm nền tối chữ nhấn', await br.evalJs(`(() => {
+    const tabs = [...document.querySelectorAll('[data-testid="project-tabs"] [role="tab"]')]; const t = tabs.find((x) => x.dataset.state === 'active');
+    const off = tabs.find((x) => x.dataset.state !== 'active'); const n = ${q('tab-count-tasks')}; const ts = getComputedStyle(t), ns = getComputedStyle(n), os = getComputedStyle(off);
+    const p1 = document.createElement('div'); p1.className = 'bg-primary'; const p2 = document.createElement('div'); p2.className = 'bg-background';
+    document.body.append(p1, p2); const primary = getComputedStyle(p1).backgroundColor, bg = getComputedStyle(p2).backgroundColor; p1.remove(); p2.remove();
+    const rb = getComputedStyle(${q('project-reload')});
+    return ts.borderTopWidth === '0px' && ts.borderLeftWidth === '0px' && ts.borderBottomWidth === '2px' && ts.borderBottomColor === primary
+      && os.borderBottomColor === 'rgba(0, 0, 0, 0)' && t.getBoundingClientRect().height === off.getBoundingClientRect().height
+      && ts.backgroundColor !== bg && ts.backgroundColor !== 'rgba(0, 0, 0, 0)' && ts.borderTopLeftRadius === '0px'
+      && ns.backgroundColor === bg && ns.color === primary && rb.borderTopWidth === '1px'; })()`),
+    await br.evalJs(`(() => { const t = document.querySelector('[data-testid="project-tabs"] [role="tab"][data-state="active"]'); const s = getComputedStyle(t), n = getComputedStyle(${q('tab-count-tasks')});
+      return [s.borderTopWidth, s.borderBottomWidth, s.borderBottomColor, s.backgroundColor, s.borderTopLeftRadius, n.backgroundColor, n.color]; })()`));
   await br.shot(`${SHOTS}/3-may-tinh-toi.png`);
 
   // ── Điện thoại 390×844 ──
