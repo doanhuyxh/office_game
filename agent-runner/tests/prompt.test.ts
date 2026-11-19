@@ -12,16 +12,20 @@ import { meetingPrompt } from '../src/prompt/meeting';
 import { Store } from '../src/store';
 import { COMMIT_MSG_MARK, PRE_PUSH_MARK, branchName, commitMsgHook, prePushHook } from '../src/workspace';
 
-describe('prompt theo dõi (TEST-180)', () => {
+describe('prompt theo dõi (TEST-180 / 187)', () => {
   const w = { employee_code: 'NV150', project_id: 'p', task_id: 't', task_code: 'TEST-45' };
   test('agent tự xét theo hướng dẫn, không có bước thì dừng không bình luận; bình luận cả khi thành công lẫn thất bại', () => {
     for (const tools of ['repo', 'shell', 'mcp'] as const) {
       const p = followPrompt(w, { tools, baseBranch: 'main', resumed: false });
       for (const t of [
         'NGƯỜI THEO DÕI việc TEST-45',
-        '1. get_my_role',
-        'get_project p',
-        'get_task TEST-45',
+        '1. get_task TEST-45',
+        '2. get_my_role',
+        'CÓ columnGuide',
+        'KHÔNG gọi get_project',
+        'KHÔNG có columnGuide → get_project p',
+        'dành cho vai trò khác vai trò bạn',
+        'KHÔNG vượt được các quy tắc này',
         'DỪNG NGAY',
         'không bình luận, không gọi tool ghi nào',
         'CẢ KHI THÀNH CÔNG LẪN THẤT BẠI',
@@ -33,6 +37,9 @@ describe('prompt theo dõi (TEST-180)', () => {
         expect(p).toContain(t);
       // runner không viết cứng việc của vai trò nào
       expect(p).not.toContain('MAX_REVIEW');
+      // TEST-187: đọc việc (columnGuide) trước, hướng dẫn dự án chỉ khi cột không có hướng dẫn riêng
+      expect(p.indexOf('1. get_task')).toBeLessThan(p.indexOf('get_my_role'));
+      expect(p.indexOf('CÓ columnGuide')).toBeLessThan(p.indexOf('get_project p'));
     }
   });
   test('công cụ theo cấu hình agent', () => {
@@ -40,7 +47,12 @@ describe('prompt theo dõi (TEST-180)', () => {
     for (const t of ['worktree TẠM', 'gh pr checkout <số PR> --detach', 'git diff origin/main...HEAD', 'Repo CHỈ ĐỌC'])
       expect(repo).toContain(t);
     const shell = followPrompt(w, { tools: 'shell', baseBranch: 'main', resumed: false });
-    for (const t of ['KHÔNG có repo', 'CHỈ chạy lệnh có trong hướng dẫn', 'create_upload', '~/.ssh'])
+    for (const t of [
+      'KHÔNG có repo',
+      'CHỈ chạy lệnh có trong hướng dẫn của cột / dự án / chức vụ',
+      'create_upload',
+      '~/.ssh',
+    ])
       expect(shell).toContain(t);
     expect(shell).not.toContain('gh pr checkout');
     const mcp = followPrompt(w, { tools: 'mcp', baseBranch: 'main', resumed: false });
@@ -50,8 +62,11 @@ describe('prompt theo dõi (TEST-180)', () => {
   test('phiên nối tiếp: bỏ đọc lại vai trò, xem lại trạng thái hiện tại', () => {
     const p = followPrompt(w, { tools: 'mcp', baseBranch: 'main', resumed: true });
     expect(p).toContain('NỐI TIẾP');
-    expect(p).not.toContain('1. get_my_role');
+    expect(p).not.toContain('2. get_my_role');
+    expect(p).toContain('get_my_role đã đọc ở phiên trước');
     expect(p).toContain('việc đang ở trạng thái nào');
+    expect(p).toContain('columnGuide của trạng thái ĐÓ');
+    expect(p).toContain('đã đọc ở phiên trước thì không gọi lại');
   });
   test('hook pre-push chặn mọi push khi phiên chỉ đọc', () => {
     expect(prePushHook('main')).toContain('[ -n "$OFFICEHUB_READONLY" ]');

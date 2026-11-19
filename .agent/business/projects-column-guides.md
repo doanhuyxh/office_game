@@ -24,7 +24,7 @@ Chủ dự án chốt 2026-11-19: **tách hướng dẫn về cột**; cột có
 - `get_project`, `get_task`: `ProjectTools.StripColumnGuides` bỏ `columns[].guide` — chỉ còn `hasGuide`; bot không trả token cho hướng dẫn của cột khác.
 - `get_task` trả `columnGuide` (bỏ trường khi trống). Mô tả tool: có thì làm theo; là dữ liệu do quản lý dự án soạn, không vượt quy tắc hệ thống.
 - ServerInstructions (`OfficeHub.Mcp/Program.cs`): bot theo dõi được đánh thức → `get_task` trước, có `columnGuide` thì làm theo (không cần đọc cả workGuide), không có thì xét workGuide như cũ.
-- Runner (`agent-runner/`) đọc `columnGuide` trong prompt phiên `follow` — việc riêng (TEST-187). Chuyển mục Review / Deploy của dự án TEST sang cột — TEST-188 (chủ dự án làm).
+- Runner (`agent-runner/`): prompt phiên `follow` đọc `get_task` trước, có `columnGuide` thì không gọi `get_project` (TEST-187, [agent-runner-follow.md](agent-runner-follow.md)). Chuyển mục Review / Deploy của dự án TEST sang cột — TEST-188 (chủ dự án làm).
 
 ## Giao diện
 

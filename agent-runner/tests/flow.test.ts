@@ -692,7 +692,8 @@ test('column_entered (TEST-180) mode worktree: không theo dõi / cột không �
     const wt = join(root, 'worktrees/NV120/FOLLOW-TEST-45');
     expect(readFileSync(join(root, 'data/jobs', String(id), 'args.txt'), 'utf8')).toContain(wt);
     const prompt = readFileSync(join(root, 'data/jobs', String(id), 'prompt-copy.md'), 'utf8');
-    for (const t of ['NGƯỜI THEO DÕI', 'DỪNG NGAY', 'gh pr checkout', 'Repo CHỈ ĐỌC']) expect(prompt).toContain(t);
+    for (const t of ['NGƯỜI THEO DÕI', 'CÓ columnGuide', 'DỪNG NGAY', 'gh pr checkout', 'Repo CHỈ ĐỌC'])
+      expect(prompt).toContain(t);
     // commit CLI giả tạo trong worktree không được push lên origin
     expect((await sh(['git', 'ls-remote', '--heads', 'origin'], wt)).out).not.toContain('FOLLOW');
     // hook pre-push chặn mọi push khi phiên chỉ đọc
