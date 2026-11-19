@@ -4,6 +4,11 @@
 
 Chỉ front-end, **không API mới**: dùng dữ liệu `useTasks` mà kanban đã tải (toàn bộ việc của dự án), lọc / nhóm / sắp xếp / tìm ở client, không phân trang.
 
+## Hàng tab + khung (ảnh `danh-sach-trong-v2`)
+
+- Trang chi tiết dự án dùng **tab dạng thẻ** (`ProjectTab` trong `project-detail-page`): vạch `border` dưới cả hàng; tab đang chọn nền `muted` + viền, che vạch để nối liền nội dung; số đếm (việc mở, mốc, thành viên) là nhãn tròn, tab đang chọn đảo màu (`foreground`). "Làm mới" là nút ghost cuối hàng (điện thoại chỉ còn biểu tượng); hàng tab cuộn ngang khi hẹp.
+- Tab Công việc là một khung (`task-panel`, viền, bo đáy): vùng công cụ nền `muted` (Cột / Danh sách, Chỉ việc của tôi, quy trình; ở Danh sách thêm hàng lọc + tìm + Tạo công việc), dưới là kanban hoặc bảng tràn hết chiều ngang, chân "Hiển thị X / Y công việc" nền `muted`. Tab khác giữ nguyên nội dung.
+
 ## Chuyển chế độ
 
 - Nút **Cột / Danh sách** đầu hàng công cụ tab Công việc (`ViewToggle` trong `task-board`). Mặc định Cột; lựa chọn nhớ theo trình duyệt ở localStorage `STORAGE_KEY.projectTaskView` (`officehub:projects.taskView`, `config/env.ts`), đọc / ghi bọc try/catch (`readStored` / `writeStored` trong `utils/task-list.ts`).
@@ -21,7 +26,7 @@ Chỉ front-end, **không API mới**: dùng dữ liệu `useTasks` mà kanban �
 - **Đổi trạng thái trên dòng**: nhãn trạng thái (`ColumnBadge` + ▾) mở menu chỉ gồm cột chuyển tới được (`moveBlockReason` — đi lần lượt, cột cần người duyệt khi không `canManage`); lùi khi đi lần lượt → `promptDialog` hỏi lý do (`needsMoveNote`); lưu qua `useMoveTask` (optimistic, lỗi → về cột cũ + toast như kanban). Đang lưu → vòng xoay cạnh nhãn. Không còn cột nào → nhãn tĩnh. Mở menu không mở hộp thoại chi tiết (chặn nổi bọt cả trong portal).
 - **Tạo công việc**: mở `TaskDialog` tạo mới ở cột đầu tiên trong `createColumns(...)`; không cột nào tạo được → ẩn nút.
 - **Chỉ xem** (`!canWork` hoặc dự án không `Active`, vd thấy dự án nhờ phòng ban): ẩn "Tạo công việc", trạng thái là nhãn tĩnh; bấm dòng vẫn mở chi tiết.
-- **Đang tải**: hàng lọc giữ nguyên + dòng skeleton (bảng) / thẻ skeleton (hẹp). **Lỗi tải** (chưa có dữ liệu cũ): khung "Không tải được công việc" + chỉ nút "Thử lại" (`loading` khi đang tải lại). **Trống**: "Không tìm thấy công việc" + "Xoá bộ lọc" khi đang lọc; dự án chưa có việc → "Chưa có công việc".
+- **Đang tải**: hàng lọc giữ nguyên + dòng skeleton (bảng) / thẻ skeleton (hẹp). **Lỗi tải** (chưa có dữ liệu cũ): khung "Không tải được công việc" + chỉ nút "Thử lại" (`loading` khi đang tải lại). **Trống**: nằm trong khung — vùng rộng vẫn có hàng tiêu đề bảng, giữa là biểu tượng tròn + "Không tìm thấy công việc" + nút chính "Xoá bộ lọc" khi đang lọc, chân vẫn đếm "Hiển thị 0 / Y"; dự án chưa có việc → "Chưa có công việc".
 
 ## Mã
 

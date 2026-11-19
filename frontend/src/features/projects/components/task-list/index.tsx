@@ -87,8 +87,21 @@ export function TaskList({ d, tasks, isLoading, isError, isFetching, onRetry, my
 
   const memberOptions = d.members.filter((m) => m.isActive || tasks.some((t) => t.assigneeEmployeeId === m.employeeId));
   const empty = !isLoading && !isError && shown.length === 0;
+  const tableHead = <>
+    <colgroup>
+      <col /><col className="w-36" /><col className="w-40" /><col className="w-24" /><col className="w-36" /><col className="w-24" /><col className="w-24" />
+    </colgroup>
+    <TableHeader className="bg-muted/40 text-xs uppercase">
+      <TableRow>
+        <TableHead>Việc</TableHead><TableHead>Trạng thái</TableHead><TableHead>Người làm</TableHead><TableHead>Theo dõi</TableHead>
+        <TableHead>Hạn</TableHead><TableHead className="text-right">Ước lượng</TableHead><TableHead className="text-right">Bình luận</TableHead>
+      </TableRow>
+    </TableHeader>
+  </>;
   return (
-    <div className="grid gap-3" data-testid="task-list">
+    <div className="grid min-w-0" data-testid="task-list">
+      {/* Vùng công cụ nền `muted` nối tiếp hàng Cột / Danh sách của TaskBoard (thiết kế TEST-191 bản 2) */}
+      <div className="grid gap-2 border-b bg-muted px-3 pb-3">
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center" data-testid="task-list-filters">
         <FilterSelect label="Trạng thái" value={f.columnId} onChange={(columnId) => set({ columnId })} testId="filter-status"
           options={[{ value: 'all', label: 'Tất cả' }, ...columns.map((c) => ({ value: c.id, label: c.name }))]} />
@@ -111,22 +124,19 @@ export function TaskList({ d, tasks, isLoading, isError, isFetching, onRetry, my
         {onCreate && <Button size="sm" className="ml-auto shrink-0" onClick={onCreate} data-testid="list-create-task" aria-label="Tạo công việc">
           <Plus /> <span className="hidden sm:inline">Tạo công việc</span><span className="sm:hidden">Tạo</span></Button>}
       </div>
+      </div>
 
-      {isError ? <ListError onRetry={onRetry} retrying={isFetching} />
-        : empty ? <ListEmpty filtered={isFiltered(f)} onClear={clear} />
+      {isError ? <div className="p-3"><ListError onRetry={onRetry} retrying={isFetching} /></div>
+        : empty ? <>
+          {/* Trống: giữ hàng tiêu đề bảng (vùng rộng), thông báo nằm trong khung, dòng đếm ở chân (ảnh danh-sach-trong-v2) */}
+          <div className="hidden @4xl/content:block"><Table className="table-fixed">{tableHead}</Table></div>
+          <ListEmpty filtered={isFiltered(f)} onClear={clear} />
+        </>
         : <>
           {/* Vùng nội dung rộng: bảng */}
-          <div className="hidden rounded-lg border @4xl/content:block">
+          <div className="hidden @4xl/content:block">
             <Table className="table-fixed" data-testid="task-table">
-              <colgroup>
-                <col /><col className="w-36" /><col className="w-40" /><col className="w-24" /><col className="w-36" /><col className="w-24" /><col className="w-24" />
-              </colgroup>
-              <TableHeader className="bg-muted/40 text-xs uppercase">
-                <TableRow>
-                  <TableHead>Việc</TableHead><TableHead>Trạng thái</TableHead><TableHead>Người làm</TableHead><TableHead>Theo dõi</TableHead>
-                  <TableHead>Hạn</TableHead><TableHead className="text-right">Ước lượng</TableHead><TableHead className="text-right">Bình luận</TableHead>
-                </TableRow>
-              </TableHeader>
+              {tableHead}
               <TableBody>
                 {isLoading ? Array.from({ length: 6 }, (_, i) => (
                   <TableRow key={i} data-testid="task-row-skeleton">
@@ -156,7 +166,7 @@ export function TaskList({ d, tasks, isLoading, isError, isFetching, onRetry, my
             </Table>
           </div>
           {/* Vùng hẹp (điện thoại, máy tính bảng): thẻ nhiều dòng, không cuộn ngang */}
-          <div className="grid gap-3 @4xl/content:hidden" data-testid="task-cards">
+          <div className="grid gap-3 p-3 @4xl/content:hidden" data-testid="task-cards">
             {isLoading ? Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-24 w-full rounded-lg" />)
               : groups.map((g) => (
                 <section key={g.key} className="grid gap-2" data-testid="task-group" data-group={g.label}>
@@ -185,10 +195,10 @@ export function TaskList({ d, tasks, isLoading, isError, isFetching, onRetry, my
                 </section>
               ))}
           </div>
-          {!isLoading && <p className="text-xs text-muted-foreground" data-testid="task-list-count">
-            Hiển thị {shown.length} / {tasks.length} công việc{groupBy !== 'none' && ` · ${groups.length} nhóm`}
-          </p>}
         </>}
+      {!isLoading && !isError && <p className="rounded-b-lg border-t bg-muted px-3 py-2 text-xs text-muted-foreground" data-testid="task-list-count">
+        Hiển thị {shown.length} / {tasks.length} công việc{groupBy !== 'none' && shown.length > 0 && ` · ${groups.length} nhóm`}
+      </p>}
     </div>
   );
 }
@@ -329,13 +339,13 @@ function StatusCell({ t, targets, busy, onPick }: { t: ITask; targets: ITaskColu
 
 function ListEmpty({ filtered, onClear }: { filtered: boolean; onClear: () => void }) {
   return (
-    <div className="grid justify-items-center gap-2 rounded-lg border border-dashed px-4 py-12 text-center" data-testid="task-list-empty">
-      <SearchX className="size-8 text-muted-foreground" aria-hidden />
+    <div className="grid justify-items-center gap-2 px-4 py-16 text-center" data-testid="task-list-empty">
+      <span className="grid size-14 place-items-center rounded-full border bg-muted"><SearchX className="size-6 text-muted-foreground" aria-hidden /></span>
       <p className="font-medium">{filtered ? 'Không tìm thấy công việc' : 'Chưa có công việc'}</p>
       <p className="max-w-sm text-sm text-muted-foreground">
-        {filtered ? 'Thử đổi bộ lọc hoặc từ khoá tìm kiếm.' : 'Dự án này chưa có công việc nào.'}
+        {filtered ? 'Thử đổi bộ lọc hoặc tìm với từ khoá khác để thấy công việc bạn cần.' : 'Dự án này chưa có công việc nào.'}
       </p>
-      {filtered && <Button size="sm" variant="outline" onClick={onClear}><FilterX /> Xoá bộ lọc</Button>}
+      {filtered && <Button size="sm" className="mt-1" onClick={onClear}><FilterX /> Xoá bộ lọc</Button>}
     </div>
   );
 }

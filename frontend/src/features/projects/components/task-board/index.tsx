@@ -60,7 +60,6 @@ function readDesc() {
   } catch { return new Set<string>(); }
 }
 
-/** Đưa cột `id` tới vị trí của cột `target` (kéo thả tiêu đề cột). */
 /** Nút chuyển chế độ xem Cột / Danh sách (TEST-192) — nhớ theo trình duyệt. */
 function ViewToggle({ view, onChange }: { view: TaskView; onChange: (v: TaskView) => void }) {
   const item = (v: TaskView, label: string, Icon: typeof List) => (
@@ -71,12 +70,13 @@ function ViewToggle({ view, onChange }: { view: TaskView; onChange: (v: TaskView
     </button>
   );
   return (
-    <div className="inline-flex shrink-0 items-center gap-0.5 rounded-md bg-muted p-0.5" role="group" aria-label="Chế độ xem công việc">
+    <div className="inline-flex shrink-0 items-center gap-0.5 rounded-md bg-border/70 p-0.5" role="group" aria-label="Chế độ xem công việc">
       {item('board', 'Cột', Columns3)}{item('list', 'Danh sách', List)}
     </div>
   );
 }
 
+/** Đưa cột `id` tới vị trí của cột `target` (kéo thả tiêu đề cột). */
 function reorder(ids: string[], id: string, target: string) {
   const rest = ids.filter((x) => x !== id);
   const at = rest.indexOf(target) + (ids.indexOf(id) < ids.indexOf(target) ? 1 : 0);
@@ -184,8 +184,9 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
     else void dropTask(columnId, e.dataTransfer.getData(TASK));
   };
   return (
-    <div className="grid gap-3">
-      <div className="flex flex-wrap items-center gap-3">
+    // Khung của tab Công việc (TEST-192, thiết kế TEST-191 bản 2): nối liền tab đang chọn, vùng công cụ nền `muted`.
+    <div className="grid min-w-0 rounded-b-lg border border-t-0" data-testid="task-panel">
+      <div className={cn('flex flex-wrap items-center gap-3 bg-muted px-3 pt-3', view === 'list' ? 'pb-2' : 'border-b pb-3')}>
         <ViewToggle view={view} onChange={setView} />
         <label className="flex items-center gap-2 text-sm"><Checkbox checked={mine} onCheckedChange={(c) => setMine(c === true)} data-testid="only-mine" /> Chỉ việc của tôi</label>
         {!p.canWork && <span className="text-xs text-muted-foreground">{p.status === 'Closed' ? 'Dự án đã đóng — chỉ xem.' : 'Bạn chỉ xem (không phải thành viên).'}</span>}
@@ -200,7 +201,7 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
         onRetry={() => void tasks.refetch()} myEmployeeId={myEmployeeId} mine={mine} onMine={setMine} onOpen={(id) => openTask(id)}
         onCreate={!readOnly && firstCreatable ? () => setCreate({ columnId: firstCreatable.id }) : null} readOnly={readOnly} />
       : <div ref={board.ref} style={board.height ? { '--board-h': `${board.height}px` } as CSSProperties : undefined}
-        className="flex gap-3 overflow-x-auto pb-2 xl:h-(--board-h)">
+        className="flex gap-3 overflow-x-auto p-3 xl:h-(--board-h)">
         {columns.map((c) => {
           // API trả theo rank tăng dần → giảm dần chỉ đảo thứ tự hiển thị, rank trong DB giữ nguyên.
           const col = shown.filter((t) => t.columnId === c.id);

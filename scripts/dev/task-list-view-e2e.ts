@@ -155,6 +155,13 @@ try {
   ok('bấm Danh sách → bảng danh sách, không còn kanban', await br.evalJs(`!!${q('task-list')} && !${q('col-Cần làm')}`));
   await br.go(URL_TASKS, 3500);
   ok('tải lại trang vẫn ở Danh sách', await br.evalJs(`!!${q('task-list')} && ${q('view-list')}.getAttribute('aria-pressed') === 'true'`));
+  // Hàng tab dạng thẻ (ảnh danh-sach-trong-v2): tab Công việc đang chọn có nền + viền, số việc là nhãn tròn đảo màu, nối liền khung công cụ cùng nền
+  ok('tab dạng thẻ: Công việc đang chọn nền muted + viền, số việc nhãn đảo màu, nối liền khung công cụ', await br.evalJs(`(() => {
+    const t = document.querySelector('[data-testid="project-tabs"] [role="tab"][data-state="active"]'); const n = ${q('tab-count-tasks')};
+    const panel = ${q('task-panel')}; const tool = panel.firstElementChild; const ts = getComputedStyle(t), ns = getComputedStyle(n);
+    const tb = t.getBoundingClientRect(), pb = panel.getBoundingClientRect();
+    return t.innerText.startsWith('Công việc') && n.innerText.trim() === '6' && ts.backgroundColor === getComputedStyle(tool).backgroundColor
+      && ts.borderTopWidth === '1px' && ns.backgroundColor !== ts.backgroundColor && Math.abs(tb.bottom - pb.top) <= 1; })()`));
 
   // ── Nhóm theo trạng thái ──
   ok('nhóm đúng thứ tự cột của dự án (cột tự thêm / đổi thứ tự)', (await groups()).join('|') === NAMES.join('|'), await groups());
@@ -271,6 +278,8 @@ try {
   await setSearch('khong-co-viec-nao-xyz');
   await br.sleep(300);
   ok('trống: "Không tìm thấy công việc" + Xoá bộ lọc', await br.evalJs(`${q('task-list-empty')}?.innerText.includes('Không tìm thấy công việc') && !!${q('task-list-empty')}.querySelector('button')`));
+  ok('trống (máy tính): vẫn có hàng tiêu đề bảng + chân "Hiển thị 0 / 26 công việc"', await br.evalJs(`[...${q('task-list')}.querySelectorAll('thead th')].some((th) => th.offsetParent && th.innerText.toLowerCase().includes('người làm'))
+    && ${q('task-list-count')}?.innerText.trim() === 'Hiển thị 0 / 26 công việc'`), await br.evalJs(`${q('task-list-count')}?.innerText`));
   await br.shot(`${SHOTS}/5-danh-sach-trong.png`);
   await clickAt(`${q('task-list-empty')}.querySelector('button')`);
   ok('bấm Xoá bộ lọc trong khung trống → có lại dữ liệu', (await rows()).length > 0);
@@ -286,7 +295,7 @@ try {
   await br.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   await br.go(URL_TASKS, 3500);
   ok('điện thoại: thẻ nhiều dòng, bảng ẩn', await br.evalJs(`${q('task-cards')}.offsetParent !== null && ${q('task-table')}.closest('div.hidden') !== null
-    && getComputedStyle(${q('task-table')}.closest('.rounded-lg')).display === 'none'`));
+    && getComputedStyle(${q('task-table')}.closest('div.hidden')).display === 'none'`));
   ok('điện thoại: không cuộn ngang', await noHScroll(), await br.evalJs(`[document.documentElement.scrollWidth, window.innerWidth]`));
   ok('điện thoại: nhóm Xong thu gọn, thẻ việc có menu trạng thái', await br.evalJs(`!document.querySelector('[data-testid="task-cards"] [data-task="${await codeOf(done[0])}"]')
     && !!document.querySelector('[data-testid="task-cards"] [data-task="${C.overdue}"] [data-testid="task-status-menu"]')`));

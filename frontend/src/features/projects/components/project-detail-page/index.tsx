@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useParams, useSearch } from '@tanstack/react-router';
 import { ArrowLeft, FolderOpen, Pencil, RefreshCw } from 'lucide-react';
 import { type Query, useIsFetching, useQueryClient } from '@tanstack/react-query';
@@ -6,8 +6,9 @@ import { Markdown } from '@/components/common/markdown';
 import { Button } from '@/components/common/button';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
+import { cn } from '@/utils/cn';
 import { Spinner } from '@/components/feedback/Spinner';
-import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
+import { PageHeader } from '@/components/layout/PageHeader';
 import { PATHS } from '@/config/paths';
 import { useMe } from '@/features/auth';
 import { fmtDate, useFinancePerms } from '@/features/finance';
@@ -31,6 +32,19 @@ import { ProjectOverview } from '../project-overview';
 import { TaskBoard } from '../task-board';
 import { WorkflowSummary } from '../workflow-summary';
 import { WorkGuideToc } from '../work-guide-toc';
+
+/** Một tab của trang dự án (dạng thẻ): đang chọn → nền `muted` + viền, che vạch dưới để nối liền nội dung; số đếm là nhãn tròn. */
+function ProjectTab({ value, count, children }: { value: string; count?: number | string; children: ReactNode }) {
+  return (
+    <TabsTrigger value={value} className={cn('group/tab h-auto flex-none gap-2 rounded-b-none rounded-t-lg border border-b-0 border-transparent px-3 py-2',
+      'data-[state=active]:border-border data-[state=active]:bg-muted data-[state=active]:shadow-none',
+      'dark:data-[state=active]:border-border dark:data-[state=active]:bg-muted')}>
+      {children}
+      {count !== undefined && <span className={cn('rounded-full bg-muted px-1.5 text-xs leading-5 font-medium text-muted-foreground tabular-nums',
+        'group-data-[state=active]/tab:bg-foreground group-data-[state=active]/tab:text-background')} data-testid={`tab-count-${value}`}>{count}</span>}
+    </TabsTrigger>
+  );
+}
 
 /** Tiền tố id tiêu đề hướng dẫn (mục lục cuộn tới). */
 const GUIDE_HEADING_PREFIX = 'guide';
@@ -90,22 +104,24 @@ export function ProjectDetailPage() {
         </div>
       </div>
       <Tabs value={openTask ? 'tasks' : tab} onValueChange={setTab}>
-        <PageToolbar actions={<Button size="sm" variant="outline" disabled={reloading} data-testid="project-reload"
-          onClick={() => void qc.invalidateQueries(projectQueryFilter(projectId))}>
-          <RefreshCw className={reloading ? 'animate-spin' : undefined} /> Làm mới</Button>}>
-          <TabsList>
-            <TabsTrigger value="tasks">Công việc ({p.tasks.open})</TabsTrigger>
-            <TabsTrigger value="overview">Tổng quan</TabsTrigger>
-            <TabsTrigger value="guide">Hướng dẫn</TabsTrigger>
-            <TabsTrigger value="milestones">Mốc ({p.milestonesAccepted}/{p.milestonesOpen + p.milestonesAccepted})</TabsTrigger>
-            <TabsTrigger value="changes">Thay đổi</TabsTrigger>
-            <TabsTrigger value="members">Thành viên ({p.memberCount})</TabsTrigger>
-            {canEffort && <TabsTrigger value="effort">Ngày công</TabsTrigger>}
-            {canFinance && <TabsTrigger value="finance">Tài chính</TabsTrigger>}
-            <TabsTrigger value="appendix">Phụ lục</TabsTrigger>
+        {/* TEST-192 (thiết kế TEST-191 bản 2): tab dạng thẻ — vạch dưới cả hàng, tab đang chọn nền `muted` có viền, nối liền khung công cụ của tab Công việc */}
+        <div className="relative flex items-end gap-2 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-border" data-testid="project-tabs">
+          <TabsList className="relative z-10 min-w-0 flex-1 items-end gap-0.5 rounded-none bg-transparent p-0 group-data-[orientation=horizontal]/tabs:h-auto">
+            <ProjectTab value="tasks" count={p.tasks.open}>Công việc</ProjectTab>
+            <ProjectTab value="overview">Tổng quan</ProjectTab>
+            <ProjectTab value="guide">Hướng dẫn</ProjectTab>
+            <ProjectTab value="milestones" count={`${p.milestonesAccepted}/${p.milestonesOpen + p.milestonesAccepted}`}>Mốc</ProjectTab>
+            <ProjectTab value="changes">Thay đổi</ProjectTab>
+            <ProjectTab value="members" count={p.memberCount}>Thành viên</ProjectTab>
+            {canEffort && <ProjectTab value="effort">Ngày công</ProjectTab>}
+            {canFinance && <ProjectTab value="finance">Tài chính</ProjectTab>}
+            <ProjectTab value="appendix">Phụ lục</ProjectTab>
           </TabsList>
-        </PageToolbar>
-        <TabsContent value="tasks" className="mt-4"><TaskBoard d={d} myEmployeeId={myEmployeeId} /></TabsContent>
+          <Button size="sm" variant="ghost" className="mb-1 shrink-0" disabled={reloading} data-testid="project-reload" aria-label="Làm mới"
+            onClick={() => void qc.invalidateQueries(projectQueryFilter(projectId))}>
+            <RefreshCw className={reloading ? 'animate-spin' : undefined} /> <span className="hidden sm:inline">Làm mới</span></Button>
+        </div>
+        <TabsContent value="tasks" className="-mt-2"><TaskBoard d={d} myEmployeeId={myEmployeeId} /></TabsContent>
         <TabsContent value="overview" className="mt-4"><ProjectOverview d={d} onTab={setTab} onEdit={() => setEditing(true)} canEffort={canEffort} /></TabsContent>
         <TabsContent value="guide" className="mt-4">
           {/* TEST-183: 2 cột từ @4xl — trái nội dung, phải (dính khi cuộn) quy trình + mục lục; hẹp → 1 cột, mục lục thu gọn */}
