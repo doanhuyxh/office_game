@@ -83,5 +83,23 @@ export async function httpDownload(url: string, fallbackName: string): Promise<v
   setTimeout(() => URL.revokeObjectURL(href), 1000);
 }
 
+/**
+ * GET (cookie) trả về `Response` còn nguyên luồng `body` — dùng khi cần đọc theo luồng (vd giải nén transcript ngay trên trình duyệt, TEST-197).
+ * Lỗi HTTP → `ApiError` như `http`; huỷ bằng `signal` → `AbortError`.
+ */
+export async function httpStream(url: string, signal?: AbortSignal): Promise<Response> {
+  let res: Response;
+  try {
+    res = await fetch(url, { credentials: 'include', signal });
+  } catch (err) {
+    if (!(err instanceof DOMException && err.name === 'AbortError')) maintenance.networkError();
+    throw err;
+  }
+  if (isGatewayDown(res)) maintenance.gatewayDown();
+  else maintenance.ok();
+  if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
+  return res;
+}
+
 /** Chuỗi query phân trang: `page=2&pageSize=20`. */
 export const pageQs = (q: IPageQuery) => `page=${q.page}&pageSize=${q.pageSize}`;

@@ -1,4 +1,4 @@
-import { http, httpDownload, pageQs } from '@/services/api-client';
+import { http, httpDownload, httpStream, pageQs } from '@/services/api-client';
 import type { IPaged, IPageQuery } from '@/types/api';
 import type { IAgentTranscript, IAgentTranscriptFilter } from '../types/agentTranscript.types';
 
@@ -23,4 +23,6 @@ export const agentTranscriptApi = {
   /** Tải `transcript-<kind>-<key>.jsonl.gz` (đã giải mã); bản hết hạn → ApiError 404. */
   download: (t: Pick<IAgentTranscript, 'id' | 'kind' | 'key'>) =>
     httpDownload(`/api/agent-transcripts/${t.id}/download`, `transcript-${t.kind}-${t.key.replace(/[^A-Za-z0-9_-]/g, '_')}.jsonl.gz`),
+  /** Mở luồng `.jsonl.gz` để xem nhanh trên web (TEST-197) — cùng endpoint tải về; không lưu cache. */
+  open: (id: string, signal?: AbortSignal) => httpStream(`/api/agent-transcripts/${id}/download`, signal),
 };

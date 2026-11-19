@@ -37,5 +37,5 @@ Kết nối AI → tab **"Transcript agent"** (`?tab=transcripts`, cạnh "Toàn
 - Lọc bot (chỉ tài khoản bot trong danh bạ) + loại, trên URL `?bot=<userId>&tkind=task|chat|meeting` (tên riêng, không lẫn `kind` / `user` của tab mức dùng); giá trị lạ = không lọc; đổi bộ lọc → trang 1. Nút "Làm mới" của trang tải lại tab đang mở.
 - Tải về: `httpDownload` (`services/api-client.ts`) lấy blob qua cookie → lưu đúng tên `transcript-<kind>-<key>.jsonl.gz`; nút `loading` (chỉ dòng bấm xoay, dòng khác khoá); 404 (bản vừa hết hạn) → toast "đã hết hạn… Làm mới".
 - Trạng thái: đang tải (vòng xoay trong bảng), trống ("Chưa có transcript nào…" / "Không có transcript nào khớp bộ lọc."), lỗi (chữ đỏ + Thử lại; cả khi đổi bộ lọc — không giữ dòng cũ như kết quả mới).
-- Chưa làm (tách việc nếu chủ dự án muốn): xem nhanh nội dung trên web (giải nén, từng lượt user / assistant / tool, cuộn ảo).
+- Nút **"Xem"** (TEST-197): xem nhanh nội dung ngay trên web (giải nén trên trình duyệt, từng lượt, cuộn ảo) — [agent-transcripts-viewer.md](agent-transcripts-viewer.md).
 - E2E: `scripts/dev/agent-transcripts-ui-e2e.ts` 43/43 (DB + S3 tạm).

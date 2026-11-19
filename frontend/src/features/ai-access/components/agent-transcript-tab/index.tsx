@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { Download, FileArchive, RotateCcw } from 'lucide-react';
+import { Download, Eye, FileArchive, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { ColumnsMenu, useColumns, type ColumnDef } from '@/components/common/columns';
@@ -19,6 +19,9 @@ import { errorMessage } from '@/utils/errors';
 import { useAgentTranscripts, useDownloadAgentTranscript } from '../../hooks/useAgentTranscripts';
 import type { AgentTranscriptKind, IAgentTranscript, IAgentTranscriptFilter } from '../../types/agentTranscript.types';
 import { formatBytes, summaryPreview, TRANSCRIPT_KIND_LABEL } from '../../utils/agentTranscript';
+
+// Bảng xem nội dung (TEST-197) tải lười: chỉ khi bấm "Xem".
+const AgentTranscriptViewer = lazy(() => import('../agent-transcript-viewer'));
 
 const KINDS: AgentTranscriptKind[] = ['task', 'chat', 'meeting'];
 const ALL = 'all';
@@ -90,6 +93,7 @@ export function AgentTranscriptTab() {
   const cols = useColumns('agent-transcripts', COLUMNS);
   const download = useDownloadAgentTranscript();
   const [open, setOpen] = useState<IAgentTranscript | null>(null);
+  const [viewing, setViewing] = useState<IAgentTranscript | null>(null);
   const v = cols.show;
   const span = cols.span(1);
   // Lỗi (cả khi đổi bộ lọc mà còn dữ liệu cũ giữ chỗ) → báo lỗi thay vì để người xem tưởng danh sách cũ là kết quả mới.
@@ -192,7 +196,14 @@ export function AgentTranscriptTab() {
                   )}
                   {v('size') && <TableCell className="whitespace-nowrap text-right tabular-nums">{formatBytes(t.sizeBytes)}</TableCell>}
                   {v('expires') && <TableCell className="whitespace-nowrap">{formatDate(t.expiresAt)}</TableCell>}
-                  <TableCell>{downloadButton(t, 'Tải về', 'agent-transcript-download')}</TableCell>
+                  <TableCell>
+                    <div className="flex justify-end gap-1.5">
+                      <Button size="sm" variant="outline" onClick={() => setViewing(t)} data-testid="agent-transcript-view" title="Xem nội dung phiên ngay trên web">
+                        <Eye className="size-4" /> Xem
+                      </Button>
+                      {downloadButton(t, 'Tải về', 'agent-transcript-download')}
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -215,6 +226,13 @@ export function AgentTranscriptTab() {
           {open && <div className="flex justify-end">{downloadButton(open, 'Tải transcript')}</div>}
         </DialogContent>
       </Dialog>
+
+      {viewing && (
+        <Suspense fallback={null}>
+          <AgentTranscriptViewer key={viewing.id} t={viewing} onClose={() => setViewing(null)}
+            download={downloadButton(viewing, 'Tải về', 'transcript-viewer-download')} />
+        </Suspense>
+      )}
     </div>
   );
 }
