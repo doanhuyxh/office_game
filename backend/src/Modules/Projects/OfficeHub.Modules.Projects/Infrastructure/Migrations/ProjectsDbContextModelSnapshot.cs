@@ -541,6 +541,10 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .HasMaxLength(7)
                         .HasColumnType("character varying(7)");
 
+                    b.Property<string>("Guide")
+                        .HasMaxLength(10000)
+                        .HasColumnType("character varying(10000)");
+
                     b.Property<bool>("IsDone")
                         .HasColumnType("boolean");
 

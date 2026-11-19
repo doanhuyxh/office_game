@@ -16,6 +16,24 @@ public static partial class TaskColumnRules
     public const int MaxColumns = 15;
     public const int MaxName = 50;
     public const string DefaultColor = "#64748b";
+    /// <summary>Độ dài tối đa hướng dẫn của cột (TEST-186).</summary>
+    public const int MaxGuide = 10_000;
+
+    /// <summary>Chuẩn hoá hướng dẫn cột: CRLF → LF, trim, rỗng → null (như <c>OrgGuide.Clean</c>).</summary>
+    public static string? CleanGuide(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Replace("\r\n", "\n").Trim();
+
+    /// <summary>Lỗi hướng dẫn cột (null = hợp lệ): quá dài, hoặc có nội dung mà cột không bật "Đánh thức bot theo dõi".
+    /// <paramref name="guide"/> null = không gửi (giữ nguyên) → không kiểm.</summary>
+    public static string? GuideError(string? guide, bool wakeFollowers)
+    {
+        var clean = CleanGuide(guide);
+        if (clean is null) return null;
+        if (clean.Length > MaxGuide) return $"Hướng dẫn tối đa {MaxGuide:N0} ký tự";
+        return wakeFollowers ? null : "Bật \"Đánh thức bot theo dõi\" để soạn hướng dẫn cho cột";
+    }
+
+    /// <summary>Hướng dẫn đang có hiệu lực của cột: chỉ khi bật "Đánh thức bot theo dõi" (tắt → nội dung giữ nhưng không dùng).</summary>
+    public static string? ActiveGuide(bool wakeFollowers, string? guide) => wakeFollowers ? CleanGuide(guide) : null;
 
     /// <summary>Bảng màu gợi ý ở FE (vẫn nhận mọi mã #rrggbb).</summary>
     public static readonly string[] Palette =

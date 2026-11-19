@@ -70,4 +70,28 @@ public class TaskColumnRulesTests
         Assert.False(TaskColumnRules.IsPermutation([Done.Id, Done.Id], Cols));
         Assert.False(TaskColumnRules.IsPermutation([Done.Id, Guid.NewGuid()], Cols));
     }
+
+    [Fact]
+    public void Column_guide_is_cleaned_and_validated()
+    {
+        // TEST-186: chuẩn hoá như OrgGuide.Clean — trim, rỗng → null, CRLF → LF
+        Assert.Null(TaskColumnRules.CleanGuide(null));
+        Assert.Null(TaskColumnRules.CleanGuide("  \r\n "));
+        Assert.Equal("## Review\n1. Đọc", TaskColumnRules.CleanGuide("  ## Review\r\n1. Đọc \n"));
+        // không gửi / xoá → hợp lệ kể cả khi tắt đánh thức
+        Assert.Null(TaskColumnRules.GuideError(null, false));
+        Assert.Null(TaskColumnRules.GuideError("", false));
+        Assert.Null(TaskColumnRules.GuideError("Làm review", true));
+        Assert.NotNull(TaskColumnRules.GuideError("Làm review", false)); // chỉ lưu được khi bật đánh thức
+        Assert.Null(TaskColumnRules.GuideError(new string('a', TaskColumnRules.MaxGuide) + "  ", true)); // đếm sau khi trim
+        Assert.NotNull(TaskColumnRules.GuideError(new string('a', TaskColumnRules.MaxGuide + 1), true));
+    }
+
+    [Fact]
+    public void Column_guide_only_active_when_waking_followers()
+    {
+        Assert.Equal("x", TaskColumnRules.ActiveGuide(true, " x "));
+        Assert.Null(TaskColumnRules.ActiveGuide(false, "x")); // tắt đánh thức → giữ nội dung nhưng không dùng
+        Assert.Null(TaskColumnRules.ActiveGuide(true, "  "));
+    }
 }

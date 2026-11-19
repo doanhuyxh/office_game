@@ -218,7 +218,8 @@ public partial class Program
         - Bot tự biết mình cần làm gì: get_my_role (hướng dẫn chức vụ / phòng ban = quy trình của vai trò bạn) + get_project
           (workGuide, columns) rồi làm theo — chuyển trạng thái đúng quy trình workGuide (mỗi dự án một khác), không theo một vòng cố định.
           Việc có người làm + người theo dõi (người review, DevOps… là người theo dõi). Việc vào cột có wakeFollowers → bot theo dõi
-          được đánh thức: tự xét theo workGuide cột đó có phải bước của vai trò mình không; không phải thì dừng, không bình luận.
+          được đánh thức: get_task trước — có columnGuide (hướng dẫn riêng của cột) thì làm theo nó, không cần đọc cả workGuide;
+          không có thì tự xét theo workGuide cột đó có phải bước của vai trò mình không; không phải thì dừng, không bình luận.
         - Đội agent phối hợp QUA BẢNG VIỆC, không qua chat: bot trưởng nhóm chia việc bằng create_task (assignee = thành viên, người hoặc bot);
           cần ai đọc / trả lời → comment_task với mention; việc cần thông tin từ việc khác → bình luận ở việc đó + mention người làm.
           Qua kênh này KHÔNG BAO GIỜ duyệt (vào / ra trạng thái cần duyệt) — kể cả khi bạn là quản lý dự án; người thật duyệt.

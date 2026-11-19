@@ -190,6 +190,9 @@ public sealed class TaskColumn
     /// <summary>Bot được đánh thức ở cột này (TEST-184): Id nhân viên (không FK sang <c>org</c>). Rỗng = mọi bot theo dõi việc; có phần tử = chỉ bot vừa theo dõi việc
     /// vừa nằm trong danh sách (<see cref="FollowerWakeRules.BotTargets"/>). Tắt <see cref="WakeFollowers"/> thì xoá danh sách.</summary>
     public List<Guid> WakeBotIds { get; set; } = [];
+    /// <summary>Hướng dẫn cho bot được đánh thức ở cột này (TEST-186, Markdown ≤ <see cref="TaskColumnRules.MaxGuide"/>): bot đọc qua <c>columnGuide</c> của get_task
+    /// thay vì cả workGuide. Chỉ có hiệu lực khi <see cref="WakeFollowers"/> bật (<see cref="TaskColumnRules.ActiveGuide"/>); tắt thì giữ nguyên nội dung để bật lại không mất.</summary>
+    public string? Guide { get; set; }
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<TaskActivityKind>))]

@@ -60,6 +60,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Ảnh / tệp đính kèm bình luận việc (vé S3, dán ảnh trên web, MCP create_upload / comment_task / view_attachment) | [projects-comment-files.md](projects-comment-files.md) |
 | Link tải tệp từ thiết bị khác cho bình luận việc (trang công khai `/u/{token}`, QR, thu hồi, TEST-175) | [projects-comment-upload-links.md](projects-comment-upload-links.md) |
 | Người theo dõi việc (followers: thêm / bỏ, lịch sử Follow / Unfollow, MCP `followers`) + cột "Đánh thức bot theo dõi" (`wakeFollowers`, Telegram `column_entered` + webhook `task.column_entered` cho bot theo dõi; TEST-178 bỏ người review) | [projects-task-followers.md](projects-task-followers.md) |
+| Hướng dẫn riêng của cột cho bot được đánh thức (`Guide` ≤ 10 000, chỉ hiệu lực khi bật đánh thức, token AI không sửa; `get_task` → `columnGuide`, `get_project` không trả nội dung) — TEST-186 | [projects-column-guides.md](projects-column-guides.md) |
 | Yêu cầu thay đổi (CR) của dự án → phụ lục hợp đồng bán (tăng / giảm giá trị, đợt thu mới) | [projects-changes.md](projects-changes.md) |
 | Tài chính — chứng từ đính kèm dòng sổ / đề nghị chi (S3 `finance/`), Excel sổ thu chi + sổ quỹ + tổng hợp | [finance-docs.md](finance-docs.md) |
 | Báo giá: hạng mục, chiết khấu (vượt ngưỡng → duyệt `quote_discount`), phiên bản, Word theo mẫu, lập hợp đồng từ báo giá | [sales-quotes.md](sales-quotes.md) |

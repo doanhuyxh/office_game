@@ -50,8 +50,9 @@ public sealed record TaskActivityDto(Guid Id, TaskActivityKind Kind, string? Fro
 /// <param name="CanApprove">Người xem được chuyển việc vào / lùi ra khỏi cột cần người duyệt (quản lý dự án / HR).</param>
 /// <param name="DependsOn">Việc phải xong trước việc này.</param><param name="Blocks">Việc đang chờ việc này.</param>
 /// <param name="Followers">Người theo dõi việc (TEST-160).</param>
+/// <param name="ColumnGuide">TEST-186: hướng dẫn của cột hiện tại của việc (null khi cột không có / không bật đánh thức bot theo dõi).</param>
 public sealed record TaskDetailDto(TaskDto Task, List<CommentDto> Comments, List<TaskActivityDto> Activities, bool Sequential, bool CanApprove, List<TaskColumnDto> Columns,
-    List<TaskRefDto>? DependsOn = null, List<TaskRefDto>? Blocks = null, List<TaskFollowerDto>? Followers = null);
+    List<TaskRefDto>? DependsOn = null, List<TaskRefDto>? Blocks = null, List<TaskFollowerDto>? Followers = null, string? ColumnGuide = null);
 
 /// <summary>
 /// Công việc dạng kanban theo cột trạng thái tự do của dự án (<see cref="TaskColumn"/>). Thành viên tạo / sửa / kéo; xoá: người tạo hoặc quản lý dự án.
@@ -151,11 +152,14 @@ internal static class TaskEndpoints
                                where d.TaskId == tid orderby x.Number select new { x.Id, x.Number, x.Title, Done = x.CompletedAt != null }).ToListAsync(ct);
         var blocks = await (from d in db.Dependencies.AsNoTracking() join x in db.Tasks.AsNoTracking() on d.TaskId equals x.Id
                             where d.DependsOnId == tid orderby x.Number select new { x.Id, x.Number, x.Title, Done = x.CompletedAt != null }).ToListAsync(ct);
+        var columns = await TaskColumnEndpoints.ListForAsync(db, t.ProjectId, ct);
+        var current = columns.FirstOrDefault(c => c.Id == t.ColumnId);
         return TypedResults.Ok(new TaskDetailDto(dto, comments, activities, sequential, CanApprove(v, user, t.ProjectId),
-            await TaskColumnEndpoints.ListForAsync(db, t.ProjectId, ct),
+            columns,
             dependsOn.Select(x => new TaskRefDto(x.Id, EffortRules.TaskCode(code, x.Number), x.Title, x.Done)).ToList(),
             blocks.Select(x => new TaskRefDto(x.Id, EffortRules.TaskCode(code, x.Number), x.Title, x.Done)).ToList(),
-            await TaskFollowerEndpoints.ListAsync(db, access, accounts, tid, ct)));
+            await TaskFollowerEndpoints.ListAsync(db, access, accounts, tid, ct),
+            current is { HasGuide: true } ? current.Guide : null));
     }
 
     private static async Task<Validation> ValidateAsync(UpsertTask r, Project p, ProjectsDbContext db, DateOnly today, DateOnly? previousDue, CancellationToken ct)

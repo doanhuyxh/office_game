@@ -13,11 +13,16 @@ import { projectApi } from '../../api/project.api';
 import { useProjectMutation } from '../../hooks/useProjects';
 import type { IMember, ITaskColumn, ITaskColumnRequest } from '../../types/project.types';
 import { COLUMN_PALETTE } from '../../utils/labels';
+import { MarkdownEditor } from '../markdown-editor';
+
+/** Độ dài tối đa hướng dẫn của cột — khớp TaskColumnRules.MaxGuide (back-end). */
+const MAX_GUIDE = 10_000;
 
 /**
  * Thêm / sửa / xoá một trạng thái (cột) công việc — chỉ hiện với chức vụ có quyền "Quản lý trạng thái công việc" (back-end kiểm).
  * `column`: undefined = đóng, null = thêm mới (cuối bảng). Xoá cột còn việc → chọn cột nhận việc.
  * "Đánh thức bot theo dõi" (TEST-184): chọn bot thành viên dự án được đánh thức ở cột (không chọn = mọi bot theo dõi việc); back-end kiểm bot / thành viên.
+ * Hướng dẫn cho bot ở cột (TEST-186): chỉ soạn khi tick đánh thức; bỏ tick thì không gửi `guide` → nội dung đã lưu giữ nguyên (bật lại không mất).
  */
 export function ColumnDialog({ projectId, column, columns, members, onClose }: {
   projectId: string; column: ITaskColumn | null | undefined; columns: ITaskColumn[]; members: IMember[]; onClose: () => void;
@@ -26,12 +31,15 @@ export function ColumnDialog({ projectId, column, columns, members, onClose }: {
   const [f, setF] = useState<ITaskColumnRequest>({ name: '', color: COLUMN_PALETTE[0], isDone: false, approverOnly: false, wakeFollowers: false, wakeBotIds: [] });
   const bots = members.filter((m) => m.isBot);
   const [moveTo, setMoveTo] = useState<string | null>(null);
+  const [guide, setGuide] = useState('');
+  const [guidePreview, setGuidePreview] = useState(false);
   const save = useProjectMutation((b: ITaskColumnRequest): Promise<unknown> => (column ? projectApi.updateColumn(column.id, b) : projectApi.createColumn(projectId, b)));
   const remove = useProjectMutation((a: { id: string; moveTo: string | null }) => projectApi.deleteColumn(a.id, a.moveTo));
   const others = columns.filter((c) => c.id !== column?.id);
   useEffect(() => {
     if (!open) return;
     save.reset(); remove.reset(); setMoveTo(null);
+    setGuide(column?.guide ?? ''); setGuidePreview(!!column?.guide);
     // Bot đã rời dự án không hiện ở danh sách → bỏ khỏi lựa chọn (lưu lại sẽ xoá).
     const botIds = (column?.wakeBotIds ?? []).filter((id) => bots.some((b) => b.employeeId === id));
     setF(column ? { name: column.name, color: column.color, isDone: column.isDone, approverOnly: column.approverOnly, wakeFollowers: !!column.wakeFollowers, wakeBotIds: botIds }
@@ -53,11 +61,11 @@ export function ColumnDialog({ projectId, column, columns, members, onClose }: {
   };
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md" data-testid="column-dialog">
+      <DialogContent className={`max-h-[92dvh] overflow-y-auto ${f.wakeFollowers ? 'sm:max-w-2xl' : 'sm:max-w-md'}`} data-testid="column-dialog">
         <DialogHeader><DialogTitle>{column ? `Sửa trạng thái "${column.name}"` : 'Thêm trạng thái'}</DialogTitle></DialogHeader>
         <form className="grid gap-4" onSubmit={(e) => {
           e.preventDefault();
-          save.mutate({ ...f, name: f.name.trim(), wakeBotIds: f.wakeFollowers ? f.wakeBotIds : [] }, {
+          save.mutate({ ...f, name: f.name.trim(), wakeBotIds: f.wakeFollowers ? f.wakeBotIds : [], ...(f.wakeFollowers ? { guide } : {}) }, {
             onSuccess: () => { toast.success(column ? 'Đã lưu trạng thái' : 'Đã thêm trạng thái'); onClose(); },
             onError: (err) => !Object.keys(fieldErrors(err)).length && toast.error(errorMessage(err)),
           });
@@ -98,7 +106,7 @@ export function ColumnDialog({ projectId, column, columns, members, onClose }: {
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" className="mt-0.5" checked={f.wakeFollowers} onChange={(e) => set('wakeFollowers', e.target.checked)} data-testid="col-wake" />
             <span><span className="font-medium">Đánh thức bot theo dõi</span>
-              <span className="block text-xs text-muted-foreground">Việc chuyển vào đây thì các bot đang theo dõi việc được gọi (mỗi bot tự xem hướng dẫn dự án để biết bước của mình).</span></span>
+              <span className="block text-xs text-muted-foreground">Việc chuyển vào đây thì các bot đang theo dõi việc được gọi (bot làm theo hướng dẫn của cột bên dưới; không có thì tự xem hướng dẫn dự án để biết bước của mình).</span></span>
           </label>
           {f.wakeFollowers && (
             <div className="ml-6 grid gap-2 rounded-lg border p-3" data-testid="col-wake-bots">
@@ -113,6 +121,19 @@ export function ColumnDialog({ projectId, column, columns, members, onClose }: {
                 </label>
               ))}
               {errors.wakeBotIds && <p className="text-xs text-destructive">{errors.wakeBotIds}</p>}
+              <div className="grid gap-1 border-t pt-3" data-testid="col-guide">
+                <MarkdownEditor id="col-guide" label="Hướng dẫn cho bot ở cột này" value={guide} onChange={setGuide} preview={guidePreview} onPreviewChange={setGuidePreview}
+                  rows={8} minHeightClass="min-h-40 max-h-[40dvh] overflow-y-auto" maxLength={MAX_GUIDE} error={errors.guide} emptyText="Chưa có hướng dẫn — bot đọc hướng dẫn chung của dự án."
+                  placeholder={'## Review\n1. Đọc bình luận kết quả của người làm, lấy commit…\n2. Chạy build / test…\n3. Bình luận "REVIEW: ĐẠT" hoặc "REVIEW: CẦN SỬA"'} />
+                <div className="flex flex-wrap items-start justify-between gap-2 text-xs text-muted-foreground">
+                  <span>Bot được đánh thức ở cột này đọc hướng dẫn này thay cho cả hướng dẫn dự án. Bot không tự sửa được.</span>
+                  <span className="shrink-0 tabular-nums" data-testid="col-guide-count">{guide.length.toLocaleString('vi-VN')} / {MAX_GUIDE.toLocaleString('vi-VN')}</span>
+                </div>
+                {guide.trim() && f.wakeBotIds.length === 0 && (
+                  <p className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1 text-xs text-warning" data-testid="col-guide-all-bots">
+                    Chưa chọn bot: mọi bot theo dõi việc sẽ được gọi và đọc hướng dẫn này.</p>
+                )}
+              </div>
             </div>
           )}
           {column && column.taskCount > 0 && others.length > 0 && (

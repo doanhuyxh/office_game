@@ -16,18 +16,23 @@ namespace OfficeHub.Modules.Projects.Features;
 /// <param name="ApproverOnly">Cần người duyệt — chỉ quản lý dự án / HR chuyển việc vào hoặc kéo lùi ra.</param>
 /// <param name="WakeFollowers">"Đánh thức bot theo dõi" (TEST-178): việc vào đây → bot theo dõi việc được đánh thức.</param>
 /// <param name="WakeBotIds">TEST-184: bot (Id nhân viên) được đánh thức; rỗng = mọi bot theo dõi việc, có giá trị = chỉ các bot này và phải đang theo dõi việc.</param>
+/// <param name="HasGuide">TEST-186: cột có hướng dẫn đang hiệu lực (bật đánh thức + có nội dung).</param>
+/// <param name="Guide">TEST-186: nội dung hướng dẫn đã lưu (cho web; còn giữ cả khi tắt đánh thức). MCP get_project / get_task bỏ trường này.</param>
 public sealed record TaskColumnDto(Guid Id, string Name, int Position, string Color, bool IsDone, bool ApproverOnly, int TaskCount, bool WakeFollowers = false,
-    IReadOnlyList<Guid>? WakeBotIds = null);
+    IReadOnlyList<Guid>? WakeBotIds = null, bool HasGuide = false, string? Guide = null);
 /// <param name="WakeFollowers">null (bỏ trống) = giữ nguyên khi sửa, false khi thêm.</param>
 /// <param name="WakeBotIds">TEST-184: null (bỏ trống) = giữ nguyên khi sửa, rỗng = mọi bot theo dõi; mỗi Id phải là bot thành viên dự án (sai → 400).
 /// Tắt <paramref name="WakeFollowers"/> → danh sách bị xoá.</param>
+/// <param name="Guide">TEST-186: hướng dẫn cho bot ở cột (Markdown ≤ 10.000 ký tự). null (bỏ trống) = giữ nguyên khi sửa, "" = xoá;
+/// có nội dung thì cột phải bật <paramref name="WakeFollowers"/> (400 <c>guide</c>).</param>
 public sealed record UpsertTaskColumn(string Name, string? Color = null, bool IsDone = false, bool ApproverOnly = false, bool? WakeFollowers = null,
-    List<Guid>? WakeBotIds = null);
+    List<Guid>? WakeBotIds = null, string? Guide = null);
 public sealed record ReorderTaskColumns(List<Guid> Ids);
 
 /// <summary>
 /// Cột trạng thái công việc (chủ dự án chốt 2026-11-11): người giữ chức vụ có cờ "Quản lý trạng thái công việc" thêm / sửa / sắp xếp / xoá
-/// ở mọi dự án họ xem được (vai trò admin / hr không thay thế). Dự án đã đóng → chỉ đọc. Token AI chỉ đọc (GET).
+/// ở mọi dự án họ xem được (vai trò admin / hr không thay thế). Dự án đã đóng → chỉ đọc. Token AI chỉ đọc (GET) — kể cả hướng dẫn cột
+/// (TEST-186: bot không tự sửa hướng dẫn mình làm theo).
 /// </summary>
 internal static class TaskColumnEndpoints
 {
@@ -52,7 +57,7 @@ internal static class TaskColumnEndpoints
         var counts = await db.Tasks.AsNoTracking().Where(t => t.ProjectId == projectId).GroupBy(t => t.ColumnId).Select(g => new { g.Key, N = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.N, ct);
         return cols.Select(c => new TaskColumnDto(c.Id, c.Name, c.Position, c.Color, c.IsDone, c.ApproverOnly, counts.GetValueOrDefault(c.Id), c.WakeFollowers,
-            c.WakeBotIds)).ToList();
+            c.WakeBotIds, TaskColumnRules.ActiveGuide(c.WakeFollowers, c.Guide) is not null, c.Guide)).ToList();
     }
 
     private static async Task<Results<Ok<List<TaskColumnDto>>, NotFound>> ListAsync(Guid id, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
@@ -114,10 +119,12 @@ internal static class TaskColumnEndpoints
         var val = Validate(r, name, Infos(cols), null);
         var wake = r.WakeFollowers ?? false;
         var botIds = await BotIdsAsync(r.WakeBotIds, wake, id, val, db, access, accounts, ct) ?? [];
+        if (TaskColumnRules.GuideError(r.Guide, wake) is { } guideErr) val.Add("guide", guideErr);
         if (val.Failed) return val.Problem();
         var c = new TaskColumn
         {
             ProjectId = id, Name = name, Position = cols.Count, IsDone = r.IsDone, ApproverOnly = r.ApproverOnly, WakeFollowers = wake, WakeBotIds = botIds,
+            Guide = TaskColumnRules.CleanGuide(r.Guide),
             Color = r.Color?.ToLowerInvariant() ?? TaskColumnRules.Palette[cols.Count % TaskColumnRules.Palette.Length],
         };
         db.Columns.Add(c);
@@ -138,6 +145,7 @@ internal static class TaskColumnEndpoints
         if (TaskColumnRules.UnsetDoneError(infos.First(x => x.Id == cid), r.IsDone, infos) is { } doneErr) val.Add("isDone", doneErr);
         var wake = r.WakeFollowers ?? c.WakeFollowers;
         var botIds = await BotIdsAsync(r.WakeBotIds, wake, c.ProjectId, val, db, access, accounts, ct);
+        if (TaskColumnRules.GuideError(r.Guide, wake) is { } guideErr) val.Add("guide", guideErr);
         if (val.Failed) return val.Problem();
         if (r.IsDone != c.IsDone)
         {
@@ -151,6 +159,7 @@ internal static class TaskColumnEndpoints
         c.ApproverOnly = r.ApproverOnly;
         c.WakeFollowers = wake;
         if (botIds is not null) c.WakeBotIds = botIds;
+        if (r.Guide is not null) c.Guide = TaskColumnRules.CleanGuide(r.Guide); // "" → xoá; tắt đánh thức thì nội dung giữ nguyên (không dùng)
         await db.SaveChangesAsync(ct);
         return TypedResults.NoContent();
     }

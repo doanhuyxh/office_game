@@ -138,6 +138,7 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.Property(x => x.Name).HasMaxLength(TaskColumnRules.MaxName);
             e.Property(x => x.Color).HasMaxLength(7);
             e.Property(x => x.WakeBotIds).HasDefaultValueSql("'{}'::uuid[]"); // TEST-184: bot được đánh thức (rỗng = mọi bot theo dõi)
+            e.Property(x => x.Guide).HasMaxLength(TaskColumnRules.MaxGuide); // TEST-186: hướng dẫn cho bot ở cột
             e.HasIndex(x => new { x.ProjectId, x.Position }).HasDatabaseName("ix_task_columns_project");
             e.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
         });

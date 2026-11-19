@@ -16,9 +16,11 @@ import { useTabParam } from '@/hooks/useTabParam';
 import { errorMessage } from '@/utils/errors';
 import { useProject } from '../../hooks/useProjects';
 import { PROJECT_KIND, PROJECT_STATUS } from '../../utils/labels';
+import { columnGuideId, guidedColumns } from '../../utils/column-guides';
 import { markdownHeadings } from '../../utils/headings';
 import { markdownSummary } from '../../utils/summary';
 import { ChangeRequestsPanel } from '../change-requests-panel';
+import { ColumnGuides } from '../column-guides';
 import { EffortPanel } from '../effort-panel';
 import { FinancialsPanel } from '../financials-panel';
 import { MembersPanel } from '../members-panel';
@@ -64,6 +66,9 @@ export function ProjectDetailPage() {
   const p = d.project;
   const summary = markdownSummary(p.description);
   const guideHeadings = markdownHeadings(d.workGuide);
+  // TEST-186: hướng dẫn riêng từng cột — dưới hướng dẫn chung, có trong mục lục
+  const colToc = guidedColumns(d.columns).map((c) => ({ id: columnGuideId(c.id), text: `Trạng thái: ${c.name}`, color: c.color }));
+  const tocCount = guideHeadings.length + colToc.length;
   return (
     <div className="grid grid-cols-1 gap-4">
       <PageHeader title={p.name} />
@@ -107,19 +112,22 @@ export function ProjectDetailPage() {
           <div className="grid max-w-[88rem] items-start gap-4 @4xl/content:grid-cols-[minmax(0,1fr)_16rem] @4xl/content:gap-6 @6xl/content:grid-cols-[minmax(0,1fr)_18rem]" data-testid="work-guide">
             <aside className="grid gap-4 rounded-lg border p-4 @4xl/content:sticky @4xl/content:top-20 @4xl/content:col-start-2 @4xl/content:row-start-1 @4xl/content:max-h-[calc(100dvh-6rem)] @4xl/content:overflow-y-auto">
               <WorkflowSummary columns={d.columns} sequential={p.sequential} />
-              {guideHeadings.length > 0 && <>
+              {tocCount > 0 && <>
                 <details className="group @4xl/content:hidden">
-                  <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-muted-foreground">Mục lục ({guideHeadings.length})</summary>
-                  <WorkGuideToc headings={guideHeadings} prefix={GUIDE_HEADING_PREFIX} className="mt-2" />
+                  <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-muted-foreground">Mục lục ({tocCount})</summary>
+                  <WorkGuideToc headings={guideHeadings} extra={colToc} prefix={GUIDE_HEADING_PREFIX} className="mt-2" />
                 </details>
                 <div className="hidden gap-2 border-t pt-4 @4xl/content:grid">
                   <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Mục lục</div>
-                  <WorkGuideToc headings={guideHeadings} prefix={GUIDE_HEADING_PREFIX} className="-mx-2" />
+                  <WorkGuideToc headings={guideHeadings} extra={colToc} prefix={GUIDE_HEADING_PREFIX} className="-mx-2" />
                 </div>
               </>}
             </aside>
-            {d.workGuide ? <div className="min-w-0 rounded-lg border p-4 @4xl/content:col-start-1 @4xl/content:row-start-1 @4xl/content:p-6"><Markdown text={d.workGuide} headingIds={GUIDE_HEADING_PREFIX} /></div>
-              : <p className="text-sm text-muted-foreground @4xl/content:col-start-1 @4xl/content:row-start-1">Chưa có hướng dẫn.{p.canManage && ' Bấm "Sửa" để soạn.'}</p>}
+            <div className="grid min-w-0 gap-4 @4xl/content:col-start-1 @4xl/content:row-start-1">
+              {d.workGuide ? <div className="min-w-0 rounded-lg border p-4 @4xl/content:p-6"><Markdown text={d.workGuide} headingIds={GUIDE_HEADING_PREFIX} /></div>
+                : <p className="text-sm text-muted-foreground">Chưa có hướng dẫn.{p.canManage && ' Bấm "Sửa" để soạn.'}</p>}
+              <ColumnGuides columns={d.columns} members={d.members} />
+            </div>
           </div>
         </TabsContent>
         <TabsContent value="milestones" className="mt-4"><MilestonesPanel d={d} /></TabsContent>

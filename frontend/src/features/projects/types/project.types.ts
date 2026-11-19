@@ -7,11 +7,14 @@ export type MilestoneStatus = 'Open' | 'Accepted';
 /**
  * wakeFollowers (TEST-178): việc vào cột này → đánh thức các bot theo dõi việc (sự kiện column_entered).
  * wakeBotIds (TEST-184): Id nhân viên bot được đánh thức — rỗng = mọi bot theo dõi việc; có giá trị = chỉ các bot này (vẫn phải đang theo dõi việc).
+ * guide / hasGuide (TEST-186): hướng dẫn cho bot được đánh thức ở cột (Markdown); hasGuide = đang hiệu lực (bật đánh thức + có nội dung). Tắt đánh thức → guide vẫn giữ.
  */
 export interface ITaskColumn {
   id: string; name: string; position: number; color: string; isDone: boolean; approverOnly: boolean; taskCount: number; wakeFollowers?: boolean; wakeBotIds?: string[] | null;
+  hasGuide?: boolean; guide?: string | null;
 }
-export interface ITaskColumnRequest { name: string; color?: string | null; isDone: boolean; approverOnly: boolean; wakeFollowers: boolean; wakeBotIds: string[] }
+/** guide: bỏ trống (undefined) = giữ nguyên khi sửa, '' = xoá; chỉ gửi nội dung khi bật wakeFollowers (back-end trả 400 nếu không). */
+export interface ITaskColumnRequest { name: string; color?: string | null; isDone: boolean; approverOnly: boolean; wakeFollowers: boolean; wakeBotIds: string[]; guide?: string }
 
 export interface ISalesContractRef { id: string; code: string; title: string; customerName: string; status: string; businessLineId: string | null }
 export interface IInstallmentRef { id: string; contractId: string; title: string; dueOn: string; cancelled: boolean }

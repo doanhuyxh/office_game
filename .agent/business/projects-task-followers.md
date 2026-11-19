@@ -34,6 +34,8 @@ mình có việc không (vd bot review làm ở "Chờ review", bot DevOps làm 
 - Cột: `GET /{id}/columns` → `wakeFollowers`, `wakeBotIds`; `POST /{id}/columns`, `PUT /columns/{cid}` nhận `wakeFollowers` (bỏ trống khi sửa = giữ nguyên, khi thêm = false) + `wakeBotIds`
   (bỏ trống khi sửa = giữ, `[]` = tất cả; mỗi Id phải là **thành viên dự án là tài khoản bot** → sai 400 `wakeBotIds`; bỏ trùng; tắt `wakeFollowers` → xoá danh sách). Quyền như sửa cột (chức vụ "Quản lý trạng thái công việc", không qua token AI).
 
+Hướng dẫn riêng của cột (`guide`, `hasGuide`, `columnGuide` — TEST-186): [projects-column-guides.md](projects-column-guides.md).
+
 ## Đánh thức `column_entered` (`FollowerWakeRules`)
 
 - `TaskEndpoints.MoveAsync` / `UpdateAsync` (đổi `columnId`) → `WakeFollowersAsync` khi `ShouldWake`: việc chuyển **vào** cột `WakeFollowers` từ **một cột khác** (chuyển giữa hai cột có tick cũng bắn; lùi rồi vào lại → bắn lại).

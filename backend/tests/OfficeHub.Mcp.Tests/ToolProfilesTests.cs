@@ -99,4 +99,23 @@ public class ToolProfilesTests
         Assert.Empty(none["comments"]!.AsArray());
         Assert.Equal(5, none["commentsTotal"]!.GetValue<int>());
     }
+
+    [Fact]
+    public void Column_guides_are_stripped_but_has_guide_kept()
+    {
+        // TEST-186: get_project / get_task không trả nội dung hướng dẫn của các cột — chỉ hasGuide; columnGuide (cột hiện tại) giữ nguyên
+        var detail = new JsonObject
+        {
+            ["columnGuide"] = "Review theo checklist",
+            ["columns"] = new JsonArray(
+                new JsonObject { ["name"] = "Chờ review", ["hasGuide"] = true, ["guide"] = "Review theo checklist" },
+                new JsonObject { ["name"] = "Deploy", ["hasGuide"] = false, ["guide"] = "nội dung cũ khi tắt đánh thức" }),
+        };
+        ProjectTools.StripColumnGuides(detail["columns"] as JsonArray);
+        var r = ProjectTools.TrimTask(detail, comments: 20, history: 20);
+        foreach (var c in r["columns"]!.AsArray()) Assert.False(c!.AsObject().ContainsKey("guide"));
+        Assert.True(r["columns"]![0]!["hasGuide"]!.GetValue<bool>());
+        Assert.Equal("Review theo checklist", r["columnGuide"]!.GetValue<string>());
+        ProjectTools.StripColumnGuides(null); // không có columns → không lỗi
+    }
 }
