@@ -49,9 +49,9 @@ mình có việc không (vd bot review làm ở "Chờ review", bot DevOps làm 
 
 - `get_task` trả `followers` (+ `columns`).
 - `create_task` / `update_task`: tham số `followers` — mã nhân viên / họ tên thành viên dự án, cách nhau dấu phẩy; `update_task` **thay toàn bộ** danh sách (thêm người mới, bỏ người không còn), `"none"` = bỏ hết. Người ngoài dự án → lỗi.
-- Tham số `reviewer` / trường `reviewer` của TEST-161 còn trong tool MCP tới việc kế tiếp của TEST-178 (Api đã bỏ qua `reviewerId`).
+- TEST-179: bỏ tham số `reviewer` (`create_task` / `update_task`) và trường `reviewer` (`get_task`). `get_project` / `get_task` → `columns[].wakeFollowers` (việc vào cột → bot theo dõi được đánh thức). `update_task_status`: chuyển theo quy trình workGuide, không tự sang trạng thái hoàn thành trừ khi workGuide ghi rõ.
 
 ## Giao diện
 
 Hộp thoại việc, cột phải ngay sau "Mốc", trước "Phải chờ việc" (TEST-172): "Người theo dõi (n)" — chip họ tên + nhãn BOT, ✕ bỏ (có vòng xoay); ô chọn tìm được "Thêm người theo dõi" chỉ gợi ý thành viên đang làm chưa theo dõi, chọn là thêm ngay. Không có quyền làm → chỉ xem (ẩn khi trống).
-Ô "Người review" + checkbox "Cột review" (gửi `isReview`, Api bỏ qua) còn ở FE tới việc giao diện kế tiếp của TEST-178.
+TEST-179: bỏ ô "Người review" ở hộp thoại việc. Hộp thoại cột: checkbox **"Đánh thức bot theo dõi"** (`wakeFollowers`, `data-testid=col-wake`) kèm dòng giải thích. Lịch sử `Reviewer` cũ vẫn hiển thị.

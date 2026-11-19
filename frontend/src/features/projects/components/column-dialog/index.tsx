@@ -21,7 +21,7 @@ export function ColumnDialog({ projectId, column, columns, onClose }: {
   projectId: string; column: ITaskColumn | null | undefined; columns: ITaskColumn[]; onClose: () => void;
 }) {
   const open = column !== undefined;
-  const [f, setF] = useState<ITaskColumnRequest>({ name: '', color: COLUMN_PALETTE[0], isDone: false, approverOnly: false, isReview: false });
+  const [f, setF] = useState<ITaskColumnRequest>({ name: '', color: COLUMN_PALETTE[0], isDone: false, approverOnly: false, wakeFollowers: false });
   const [moveTo, setMoveTo] = useState<string | null>(null);
   const save = useProjectMutation((b: ITaskColumnRequest): Promise<unknown> => (column ? projectApi.updateColumn(column.id, b) : projectApi.createColumn(projectId, b)));
   const remove = useProjectMutation((a: { id: string; moveTo: string | null }) => projectApi.deleteColumn(a.id, a.moveTo));
@@ -29,8 +29,8 @@ export function ColumnDialog({ projectId, column, columns, onClose }: {
   useEffect(() => {
     if (!open) return;
     save.reset(); remove.reset(); setMoveTo(null);
-    setF(column ? { name: column.name, color: column.color, isDone: column.isDone, approverOnly: column.approverOnly, isReview: !!column.isReview }
-      : { name: '', color: COLUMN_PALETTE[columns.length % COLUMN_PALETTE.length], isDone: false, approverOnly: false, isReview: false });
+    setF(column ? { name: column.name, color: column.color, isDone: column.isDone, approverOnly: column.approverOnly, wakeFollowers: !!column.wakeFollowers }
+      : { name: '', color: COLUMN_PALETTE[columns.length % COLUMN_PALETTE.length], isDone: false, approverOnly: false, wakeFollowers: false });
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [open, column?.id]);
   const errors = fieldErrors(save.error);
@@ -90,9 +90,9 @@ export function ColumnDialog({ projectId, column, columns, onClose }: {
               <span className="block text-xs text-muted-foreground">Chỉ quản lý dự án được chuyển việc vào, hoặc trả việc về trạng thái trước.</span></span>
           </label>
           <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" className="mt-0.5" checked={f.isReview} onChange={(e) => set('isReview', e.target.checked)} data-testid="col-review" />
-            <span><span className="font-medium">Cột review</span>
-              <span className="block text-xs text-muted-foreground">Việc chuyển vào đây thì người review của việc nhận thông báo &quot;Cần review&quot; (bot review được đánh thức, chỉ bình luận).</span></span>
+            <input type="checkbox" className="mt-0.5" checked={f.wakeFollowers} onChange={(e) => set('wakeFollowers', e.target.checked)} data-testid="col-wake" />
+            <span><span className="font-medium">Đánh thức bot theo dõi</span>
+              <span className="block text-xs text-muted-foreground">Việc chuyển vào đây thì các bot đang theo dõi việc được gọi (mỗi bot tự xem hướng dẫn dự án để biết bước của mình).</span></span>
           </label>
           {column && column.taskCount > 0 && others.length > 0 && (
             <div className="rounded-lg border border-dashed p-3">

@@ -4,9 +4,9 @@ export type ProjectStatus = 'Active' | 'Closed';
 export type MemberRole = 'Member' | 'Manager';
 export type MilestoneStatus = 'Open' | 'Accepted';
 /** Cột trạng thái công việc của một dự án (tên / màu / thứ tự tự do). isDone = cột hoàn thành; approverOnly = chỉ quản lý dự án chuyển vào / kéo lùi ra. */
-/** isReview (TEST-161): việc vào cột này → báo người review của việc. */
-export interface ITaskColumn { id: string; name: string; position: number; color: string; isDone: boolean; approverOnly: boolean; taskCount: number; isReview?: boolean }
-export interface ITaskColumnRequest { name: string; color?: string | null; isDone: boolean; approverOnly: boolean; isReview: boolean }
+/** wakeFollowers (TEST-178): việc vào cột này → đánh thức các bot theo dõi việc (sự kiện column_entered). */
+export interface ITaskColumn { id: string; name: string; position: number; color: string; isDone: boolean; approverOnly: boolean; taskCount: number; wakeFollowers?: boolean }
+export interface ITaskColumnRequest { name: string; color?: string | null; isDone: boolean; approverOnly: boolean; wakeFollowers: boolean }
 
 export interface ISalesContractRef { id: string; code: string; title: string; customerName: string; status: string; businessLineId: string | null }
 export interface IInstallmentRef { id: string; contractId: string; title: string; dueOn: string; cancelled: boolean }
@@ -52,8 +52,6 @@ export interface ITask {
   id: string; projectId: string; code: string; title: string; description: string | null; columnId: string; columnName: string; columnColor: string;
   /** Đang ở cột hoàn thành. */
   done: boolean; rank: number; assigneeEmployeeId: string | null;
-  /** Người review (TEST-161). */
-  reviewerEmployeeId?: string | null;
   assigneeName: string | null; milestoneId: string | null; dueOn: string | null; estimateDays: number | null; overdue: boolean; commentCount: number; createdAt: string;
   createdByName: string; completedAt: string | null; projectName: string | null;
   /** Tạo qua token AI / MCP. */
@@ -88,9 +86,7 @@ export interface ITaskDetail { task: ITask; comments: IComment[]; activities: IT
   /** Việc phải xong trước / việc đang chờ việc này. */
   dependsOn?: ITaskRef[]; blocks?: ITaskRef[];
   /** Người theo dõi (TEST-160). */
-  followers?: ITaskFollower[];
-  /** Người review (TEST-161). */
-  reviewer?: ITaskFollower | null }
+  followers?: ITaskFollower[] }
 export interface IEffortCell { employeeId: string; month: string; presentDays: number; percent: number; explicit: boolean; manDays: number }
 export interface IEffort {
   months: string[]; members: IMember[]; cells: IEffortCell[]; totalManDays: number; budgetManDays: number | null;
@@ -121,8 +117,6 @@ export interface ITaskRequest {
   mediaLinks?: string[];
   /** Lý do khi chuyển lùi trạng thái (bắt buộc nếu dự án đi lần lượt). */
   note?: string | null;
-  /** Người review (TEST-161) — thành viên khác người làm; null = bỏ. */
-  reviewerId?: string | null;
 }
 export interface IMilestoneRequest { title: string; dueOn?: string | null; installmentId?: string | null; note?: string | null }
 

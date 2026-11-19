@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { useMutationState } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { toast } from 'sonner';
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, CheckCircle2, GripVertical, Loader2, Plus, Settings2, ShieldCheck } from 'lucide-react';
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, BellRing, CheckCircle2, GripVertical, Loader2, Plus, Settings2, ShieldCheck } from 'lucide-react';
 import { BotBadge } from '@/components/common/bot-badge';
 import { Button } from '@/components/common/button';
 import { promptDialog } from '@/components/common/confirm-dialog';
@@ -191,6 +191,7 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
                 {savingCol === c.id && <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" aria-label="Đang lưu thứ tự" />}
                 {c.isDone && <span title="Trạng thái hoàn thành"><CheckCircle2 className="size-3.5 shrink-0 text-success" aria-label="Hoàn thành" /></span>}
                 {c.approverOnly && <span title="Cần người duyệt (chỉ quản lý dự án)"><ShieldCheck className="size-3.5 shrink-0 text-warning" aria-label="Cần người duyệt" /></span>}
+                {c.wakeFollowers && <span title="Đánh thức bot theo dõi khi việc vào cột này" data-testid="col-wake-icon"><BellRing className="size-3.5 shrink-0 text-info" aria-label="Đánh thức bot theo dõi" /></span>}
                 <span className="ml-auto flex shrink-0 items-center">
                   <Tooltip>
                     <TooltipTrigger asChild>

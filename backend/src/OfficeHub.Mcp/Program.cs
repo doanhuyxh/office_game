@@ -213,10 +213,12 @@ public partial class Program
           · ĐANG TRÒ CHUYỆN với người dùng → tóm tắt nội dung sẽ gửi và CHỜ người dùng đồng ý rõ ràng trước khi gọi.
           · CHẠY TỰ ĐỘNG (agent / bot làm việc được giao, không có người trò chuyện) → được tự làm việc dự án trong phạm vi việc được giao,
             theo hướng dẫn làm việc của dự án (get_project → workGuide) và quy trình trạng thái; chưa rõ yêu cầu → comment_task hỏi
-            quản lý dự án thay vì đoán; không tự chuyển Done khi dự án requireReview (gửi Review để quản lý duyệt).
+            quản lý dự án thay vì đoán; không tự chuyển sang trạng thái hoàn thành trừ khi workGuide ghi rõ.
           · Duyệt / từ chối / huỷ đơn: KHÔNG BAO GIỜ tự ý, kể cả khi chạy tự động.
-        - Vòng làm việc gợi ý cho bot: list_notifications / list_my_tasks → get_task + get_project (workGuide) → update_task_status Doing →
-          làm việc → comment_task báo kết quả (link sản phẩm) → update_task_status Review → quản lý duyệt Done hoặc trả về Doing kèm lý do.
+        - Bot tự biết mình cần làm gì: get_my_role (hướng dẫn chức vụ / phòng ban = quy trình của vai trò bạn) + get_project
+          (workGuide, columns) rồi làm theo — chuyển trạng thái đúng quy trình workGuide (mỗi dự án một khác), không theo một vòng cố định.
+          Việc có người làm + người theo dõi (người review, DevOps… là người theo dõi). Việc vào cột có wakeFollowers → bot theo dõi
+          được đánh thức: tự xét theo workGuide cột đó có phải bước của vai trò mình không; không phải thì dừng, không bình luận.
         - Đội agent phối hợp QUA BẢNG VIỆC, không qua chat: bot trưởng nhóm chia việc bằng create_task (assignee = thành viên, người hoặc bot);
           cần ai đọc / trả lời → comment_task với mention; việc cần thông tin từ việc khác → bình luận ở việc đó + mention người làm.
           Qua kênh này KHÔNG BAO GIỜ duyệt (vào / ra trạng thái cần duyệt) — kể cả khi bạn là quản lý dự án; người thật duyệt.

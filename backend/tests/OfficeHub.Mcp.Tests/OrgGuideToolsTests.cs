@@ -24,6 +24,17 @@ public class OrgGuideToolsTests
     }
 
     [Fact]
+    public void Guide_note_depends_on_bot_account() // TEST-179: bot làm theo hướng dẫn vai trò, người thật giữ ghi chú "tham khảo"
+    {
+        Assert.Equal(DirectoryTools.GuideNote, (string?)DirectoryTools.WithNote(new JsonObject(), isBot: false)!["_note"]);
+        var bot = (string?)DirectoryTools.WithNote(new JsonObject(), isBot: true)!["_note"];
+        Assert.Equal(DirectoryTools.BotGuideNote, bot);
+        Assert.Contains("QUY TRÌNH LÀM VIỆC", bot);
+        Assert.Contains("không duyệt", bot);
+        Assert.Null(DirectoryTools.WithNote(null, isBot: true));
+    }
+
+    [Fact]
     public void Limits_pinned() // Mcp không tham chiếu module Organization: OrgGuideTests khoá OrgGuide ở cùng giá trị
         => Assert.Equal((2_000, 40_000), (OrgGuideTools.DescriptionMax, OrgGuideTools.GuideMax));
 

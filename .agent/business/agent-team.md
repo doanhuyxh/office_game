@@ -33,6 +33,6 @@ Chủ dự án hỏi 2026-11-11 "đội agent tự làm việc với nhau đư�
 
 ## Vòng làm việc của đội (ServerInstructions)
 
-Bot trưởng nhóm `create_task` (assignee = bot / người, `dependsOn` cho việc nối tiếp) → webhook / `list_notifications` đánh thức bot thợ → `update_task_status` Đang làm → làm → `comment_task` (kết quả, `mention` người cần đọc) → Chờ review → **người thật** duyệt Xong trên web → việc chờ nó nhận "Sẵn sàng".
+Không có vòng cố định (TEST-179): bot đọc `get_my_role` (hướng dẫn chức vụ / phòng ban = quy trình của vai trò) + `get_project` (workGuide, columns) rồi chuyển trạng thái theo workGuide; không tự sang trạng thái hoàn thành trừ khi workGuide ghi rõ. Ví dụ: bot trưởng nhóm `create_task` (`dependsOn`) → bot thợ được đánh thức, làm, `comment_task` → chuyển tới cột workGuide quy định → việc vào cột có `wakeFollowers` → bot theo dõi (review, DevOps…) được đánh thức, tự xét cột đó có phải bước của mình (không → dừng, không bình luận) → **người thật** duyệt trên web → việc chờ nhận "Sẵn sàng".
 
 E2E: `scripts/dev/agent-team-e2e.ts` (46 kiểm tra, Api Development + Mcp, máy nhận webhook giả trong script).
