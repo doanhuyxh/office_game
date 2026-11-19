@@ -10,6 +10,18 @@ import type { IMember } from '../../types/project.types';
 import { MAX_COMMENT_FILES, formatBytes, isImageFile } from '../../utils/attachments';
 
 /**
+ * Nút đính kèm / tải từ thiết bị khác (TEST-196): `outline` (viền + nền nhẹ như ô nhập) để nhìn là biết bấm được ngay khi nghỉ —
+ * icon màu chữ chính (không `muted-foreground`), rê chuột / nhấn đổi nền + viền đậm, focus bàn phím có vòng `ring` (sẵn trong `Button`).
+ * Vô hiệu (đang gửi / đủ số tệp): viền đứt, bỏ nền + bóng, mờ, con trỏ cấm (`pointer-events-auto` để thấy con trỏ + tooltip;
+ * trình duyệt vẫn không phát click cho nút `disabled`).
+ */
+const ATTACH_BUTTON = cn(
+  'shrink-0 border-input text-foreground hover:border-ring/70 active:scale-95 active:bg-accent dark:hover:border-ring dark:active:bg-input/60',
+  'disabled:pointer-events-auto disabled:cursor-not-allowed disabled:border-dashed disabled:bg-transparent disabled:opacity-45 disabled:shadow-none',
+  'disabled:hover:border-input disabled:hover:bg-transparent disabled:active:scale-100 dark:disabled:bg-transparent dark:disabled:hover:bg-transparent',
+);
+
+/**
  * Ô bình luận việc (TEST-62): gõ @ → gợi ý thành viên dự án (có cả tài khoản bot), ↑↓ Enter / Tab chọn, Esc đóng.
  * Lọc ở FE (thành viên ít) theo cùng quy tắc tìm người với server (TEST-71): không dấu, gõ họ tên có dấu cách, mọi từ phải khớp, xếp hạng.
  * Chọn → chèn "@<mã NV>" — đúng cú pháp back-end đọc (`AgentTeamRules.MentionedCodes`) và bot dùng qua MCP comment_task.
@@ -98,12 +110,13 @@ export function TaskCommentInput({ members, value, onChange, onSubmit, pending, 
         leading={<>
           <input ref={picker} type="file" multiple className="hidden" data-testid="task-comment-file-input"
             onChange={(e) => { const list = [...(e.target.files ?? [])]; e.target.value = ''; onAddFiles(list); }} />
-          <Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label="Chọn tệp / ảnh đính kèm" title={`Chọn tệp (tối đa ${MAX_COMMENT_FILES} tệp)`}
-            disabled={pending || files.length >= MAX_COMMENT_FILES} onClick={() => picker.current?.click()}>
+          <Button type="button" variant="outline" size="icon" className={ATTACH_BUTTON} aria-label="Chọn tệp / ảnh đính kèm"
+            title={files.length >= MAX_COMMENT_FILES ? `Đã đủ ${MAX_COMMENT_FILES} tệp — bỏ bớt để chọn thêm` : `Chọn tệp (tối đa ${MAX_COMMENT_FILES} tệp)`}
+            data-testid="task-comment-attach" disabled={pending || files.length >= MAX_COMMENT_FILES} onClick={() => picker.current?.click()}>
             <Paperclip />
           </Button>
           {onUploadLink && (
-            <Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label="Tải từ thiết bị khác" title="Tải từ thiết bị khác (link / mã QR, không cần đăng nhập)"
+            <Button type="button" variant="outline" size="icon" className={ATTACH_BUTTON} aria-label="Tải từ thiết bị khác" title="Tải từ thiết bị khác (link / mã QR, không cần đăng nhập)"
               data-testid="task-comment-upload-link" onClick={onUploadLink}>
               <Smartphone />
             </Button>

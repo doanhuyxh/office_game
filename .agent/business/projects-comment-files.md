@@ -32,7 +32,7 @@ Người thật dán / kéo-thả / chọn ảnh, tệp vào bình luận việc
 
 ## Web (`features/projects`)
 
-- `task-comment-input`: nút kẹp giấy (chọn nhiều tệp), dán ảnh Ctrl+V, kéo-thả vào ô (lớp phủ "Thả ảnh / tệp để đính kèm"); chip xem trước (ảnh thu nhỏ / icon, tên, dung lượng, nút ×); kiểm tra sớm ở client (`utils/attachments.ts`: cỡ, đuôi chặn, tối đa 5 — server vẫn kiểm). Tải lên khi bấm gửi (xin vé → PUT S3 → đăng); nút gửi `loading` suốt cả chuỗi.
+- `task-comment-input`: nút kẹp giấy (chọn nhiều tệp), dán ảnh Ctrl+V, kéo-thả vào ô (lớp phủ "Thả ảnh / tệp để đính kèm"); chip xem trước (ảnh thu nhỏ / icon, tên, dung lượng, nút ×); kiểm tra sớm ở client (`utils/attachments.ts`: cỡ, đuôi chặn, tối đa 5 — server vẫn kiểm). Tải lên khi bấm gửi (xin vé → PUT S3 → đăng); nút gửi `loading` suốt cả chuỗi. Nút kẹp giấy + "Tải từ thiết bị khác" (TEST-196): `Button variant="outline" size="icon"` (viền + nền nhẹ như ô nhập, icon màu chữ chính, cao / bo góc = nút gửi) để nhìn là biết bấm được; vô hiệu (đang gửi / đủ 5 tệp) → viền đứt, bỏ nền, mờ, con trỏ cấm + tooltip "Đã đủ 5 tệp…".
 - `comment-attachments`: ảnh = ô 96px, bấm mở `ImageViewer` dùng chung (lướt mọi ảnh của bình luận, chú thích "người viết · giờ"); tệp khác = chip tên + dung lượng, tải về.
 
 ## MCP
