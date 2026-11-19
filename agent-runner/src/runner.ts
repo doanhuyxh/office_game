@@ -23,7 +23,7 @@ import {
   STARTUP_RECENT_JOB_MIN,
   TELEGRAM_RETRY_SEC,
 } from './policy';
-import type { Job, Store } from './store';
+import { currentKind, type Job, type JobKind, type Store } from './store';
 import { TelegramClient, type TgMessage } from './telegram';
 import { parseWake, pickStartupTasks, type Wake } from './validator';
 import { Git } from './workspace';
@@ -123,6 +123,7 @@ export class Runner {
       } else d = await diagnoseAgent(this.doctorContext(s), options);
       findings.push(...d.findings);
       s.employeeId = d.employeeId ?? s.employeeId;
+      s.employeeName = d.employeeName ?? s.employeeName;
       s.model = d.model ?? s.model;
       s.enabled = !d.problem;
       s.problem = d.problem;
@@ -277,8 +278,8 @@ export class Runner {
   }
 
   /** Handler của một loại job. Registry định kiểu theo từng loại; ở đây chỉ cần giao diện chung. */
-  private handlerOf(kind: Wake['kind']): JobHandler {
-    return this.handlers[kind] as unknown as JobHandler;
+  private handlerOf(kind: JobKind): JobHandler {
+    return this.handlers[currentKind(kind)] as unknown as JobHandler;
   }
 
   // ---------------- Scheduler ----------------

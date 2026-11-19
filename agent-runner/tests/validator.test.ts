@@ -1,10 +1,10 @@
 // Tin đánh thức: parseWake (không gọi mạng) + checkTask / checkChat / checkMeeting (kết quả tool MCP).
 import { describe, expect, test } from 'bun:test';
 import {
+  actedOnTask,
   checkChat,
-  checkDeploy,
+  checkFollow,
   checkMeeting,
-  checkReview,
   checkTask,
   parseWake,
   pickStartupTasks,
@@ -34,56 +34,110 @@ describe('validator', () => {
       expect(parseWake(m as any, opts).ok).toBe(true);
   });
 
-  test('review_requested / task_done (TEST-167/168): cùng 4 trường như tin việc → job review / deploy, trường thêm bị bỏ qua', () => {
-    const extra = '"assignee_code":"NV018","project_code":"TEST","task_code"';
-    const review = parseWake(msg(good.replace('"task_code"', `"event":"review_requested",${extra}`)), opts);
-    expect(review.ok && review.value).toEqual({
-      kind: 'review',
+  test('column_entered (TEST-180): cùng 4 trường như tin việc → job follow, trường thêm bị bỏ qua; tin cũ review_requested / task_done cũng vậy', () => {
+    const extra = (event: string) =>
+      `"event":"${event}","column_id":"${T}","assignee_code":"NV018","project_code":"TEST","task_code"`;
+    const r = parseWake(msg(good.replace('"task_code"', extra('column_entered'))), opts);
+    expect(r.ok && r.value).toEqual({
+      kind: 'follow',
       employee_code: 'NV120',
       project_id: P,
       task_id: T,
       task_code: 'TEST-45',
     });
-    const done = parseWake(msg(good.replace('"task_code"', `"event":"task_done",${extra}`)), opts);
-    expect(done.ok && done.value.kind).toBe('deploy');
+    for (const old of ['review_requested', 'task_done']) {
+      const legacy = parseWake(msg(good.replace('"task_code"', extra(old))), opts);
+      expect(legacy.ok && legacy.value.kind).toBe('follow');
+    }
     // vẫn kiểm GUID / mã việc như tin việc
     expect(
-      parseWake(msg(good.replace('"task_code"', '"event":"task_done","task_code"').replace(T, 'x')), opts).ok,
+      parseWake(
+        msg(good.replace('"task_code"', extra('column_entered')).replace(`"task_id":"${T}"`, '"task_id":"x"')),
+        opts,
+      ).ok,
     ).toBe(false);
   });
 
-  test('checkReview / checkDeploy (TEST-167/168)', () => {
+  test('checkFollow (TEST-180): còn theo dõi + việc ở cột đánh thức bot theo dõi', () => {
     const w = { project_id: P, task_id: T };
-    const base = { id: T, projectId: P, title: 'X', code: 'TEST-45', done: false, columnId: 'c-rev' };
-    const review = (t: any = {}, columns: any[] = [{ id: 'c-rev', isReview: true }]) => ({
-      task: { ...base, reviewerEmployeeId: 'me', ...t },
+    const base = { id: T, projectId: P, title: 'X', code: 'TEST-45', done: false, columnId: 'c-deploy' };
+    const cols = [{ id: 'c-rev', wakeFollowers: true }, { id: 'c-deploy', wakeFollowers: true }, { id: 'c-doing' }];
+    const detail = (t: any = {}, followers: any = [{ employeeId: 'me' }], columns: any[] = cols) => ({
+      task: { ...base, ...t },
+      followers,
       columns,
     });
-    expect(checkReview(review(), w, 'me')).toEqual({ ok: true, value: { title: 'X', code: 'TEST-45' } });
-    expect(checkReview(review({ reviewerEmployeeId: 'other' }), w, 'me')).toEqual({
+    expect(checkFollow(detail(), w, 'me')).toEqual({ ok: true, value: { title: 'X', code: 'TEST-45' } });
+    // việc đã xong vẫn chạy được nếu cột hoàn thành bật đánh thức
+    expect(checkFollow(detail({ done: true }), w, 'me').ok).toBe(true);
+    expect(checkFollow(detail({}, [{ employeeId: 'other' }]), w, 'me')).toEqual({
       ok: false,
-      reason: 'agent không còn là người review của việc',
+      reason: 'agent không còn theo dõi việc này',
     });
-    expect(checkReview(review({ done: true }), w, 'me').ok).toBe(false);
-    expect(checkReview(review({}, [{ id: 'c-rev' }]), w, 'me')).toEqual({
+    expect(checkFollow(detail({}, null), w, 'me').ok).toBe(false);
+    // việc đã sang cột không đánh thức (máy chủ bỏ trường false)
+    expect(checkFollow(detail({ columnId: 'c-doing' }), w, 'me')).toEqual({
       ok: false,
-      reason: 'việc không còn ở cột review',
-    }); // isReview false bị máy chủ bỏ
-    expect(checkReview(review({ projectId: 'khac' }), w, 'me').ok).toBe(false);
-    expect(checkReview(null, w, 'me').ok).toBe(false);
+      reason: 'việc không còn ở cột đánh thức bot theo dõi',
+    });
+    expect(checkFollow(detail({ projectId: 'khac' }), w, 'me').ok).toBe(false);
+    expect(checkFollow(detail({ id: 'khac' }), w, 'me').ok).toBe(false);
+    expect(checkFollow(null, w, 'me').ok).toBe(false);
+  });
 
-    const deploy = (t: any = {}, followers: any[] = [{ employeeId: 'me' }]) => ({
-      task: { ...base, done: true, ...t },
+  test('checkFollow: OfficeHub trước TEST-178 (chưa có wakeFollowers) — người review / cột isReview / việc đã xong', () => {
+    const w = { project_id: P, task_id: T };
+    const base = { id: T, projectId: P, title: 'X', code: 'TEST-45', done: false, columnId: 'c-rev' };
+    const old = (t: any = {}, followers: any[] = []) => ({
+      task: { ...base, ...t },
       followers,
+      columns: [{ id: 'c-rev', isReview: true }, { id: 'c-done' }],
     });
-    expect(checkDeploy(deploy(), w, 'me')).toEqual({ ok: true, value: { title: 'X', code: 'TEST-45' } });
-    expect(checkDeploy(deploy({ done: false }), w, 'me')).toEqual({ ok: false, reason: 'việc chưa xong (bị mở lại?)' });
-    expect(checkDeploy(deploy({}, [{ employeeId: 'other' }]), w, 'me')).toEqual({
-      ok: false,
-      reason: 'agent không theo dõi việc này',
-    });
-    expect(checkDeploy(deploy({}, null as any), w, 'me').ok).toBe(false); // máy chủ cũ không trả followers
-    expect(checkDeploy(deploy({ id: 'khac' }), w, 'me').ok).toBe(false);
+    expect(checkFollow(old({ reviewerEmployeeId: 'me' }), w, 'me').ok).toBe(true);
+    expect(checkFollow(old({ columnId: 'c-done', done: true }, [{ employeeId: 'me' }]), w, 'me').ok).toBe(true);
+    expect(checkFollow(old({ columnId: 'c-done' }, [{ employeeId: 'me' }]), w, 'me').ok).toBe(false);
+    expect(checkFollow(old({ reviewerEmployeeId: 'other' }), w, 'me').ok).toBe(false);
+  });
+
+  test('actedOnTask (TEST-180): bình luận / thao tác MỚI của chính agent sau phiên', () => {
+    const before = {
+      comments: [{ id: 'c1', authorName: 'Bot Thử', byBot: true }],
+      activities: [{ id: 'a1', actorName: 'Bot Thử', byBot: true }],
+    };
+    // không có gì mới → tự dừng
+    expect(actedOnTask(before, before, 'Bot Thử')).toBe(false);
+    // bình luận mới của người / bot khác không tính
+    const others = {
+      ...before,
+      comments: [
+        ...before.comments,
+        { id: 'c2', authorName: 'Người thật', byBot: false },
+        { id: 'c3', authorName: 'Bot khác', byBot: true },
+        { id: 'c4', authorName: 'Bot Thử', byBot: false }, // cùng tên nhưng không phải qua token AI
+      ],
+    };
+    expect(actedOnTask(before, others, 'Bot Thử')).toBe(false);
+    expect(
+      actedOnTask(
+        before,
+        { ...before, comments: [...before.comments, { id: 'c5', authorName: 'Bot Thử', byBot: true }] },
+        'Bot Thử',
+      ),
+    ).toBe(true);
+    // kéo lùi việc (lịch sử Moved) cũng tính
+    expect(
+      actedOnTask(
+        before,
+        { ...before, activities: [...before.activities, { id: 'a2', actorName: 'Bot Thử', byBot: true }] },
+        'Bot Thử',
+      ),
+    ).toBe(true);
+    // không đọc được kết quả sau phiên / không biết tên → coi như có (vẫn bình luận chi phí)
+    expect(actedOnTask(before, undefined, 'Bot Thử')).toBe(true);
+    expect(actedOnTask(before, before, undefined)).toBe(true);
+    expect(actedOnTask(undefined, { comments: [{ id: 'c1', authorName: 'Bot Thử', byBot: true }] }, 'Bot Thử')).toBe(
+      true,
+    );
   });
 
   test('tin đúng', () => {

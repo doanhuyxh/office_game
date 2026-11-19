@@ -209,12 +209,12 @@ export async function prepareWorktree(
 }
 
 /**
- * Worktree cho phiên review (TEST-167): `{worktrees_dir}/{mã NV}/REVIEW-{mã việc}` ở `origin/{base}` (detached); đã có thì dùng lại và đưa về
- * `origin/{base}` (checkout --force). Agent tự lấy nhánh / PR của người làm (`gh pr checkout --detach`, hoặc `git fetch` + checkout
- * FETCH_HEAD) vì người làm có thể chạy in_place (nhánh không đoán được). Cùng đường dẫn → nối được phiên CLI cũ. Không publish;
- * push bị hook chặn ({@link READONLY_ENV}).
+ * Worktree cho phiên theo dõi của agent có repo (TEST-180, trước là phiên review TEST-167): `{worktrees_dir}/{mã NV}/FOLLOW-{mã việc}` ở
+ * `origin/{base}` (detached); đã có thì dùng lại và đưa về `origin/{base}` (checkout --force). Agent tự lấy nhánh / PR của người làm
+ * (`gh pr checkout --detach`, hoặc `git fetch` + checkout FETCH_HEAD) vì người làm có thể chạy in_place (nhánh không đoán được). Cùng đường dẫn
+ * → nối được phiên CLI cũ. Không publish; push bị hook chặn ({@link READONLY_ENV}).
  */
-export async function prepareReviewWorktree(
+export async function prepareFollowWorktree(
   git: Git,
   repo: string,
   worktreesDir: string,
@@ -222,7 +222,7 @@ export async function prepareReviewWorktree(
   taskCode: string,
   baseBranch: string,
 ): Promise<string> {
-  const path = join(worktreesDir, employeeCode, `REVIEW-${taskCode.toUpperCase()}`);
+  const path = join(worktreesDir, employeeCode, `FOLLOW-${taskCode.toUpperCase()}`);
   if (isInside(repo, path)) throw new Error('repo không được nằm trong worktree');
   await git.out(repo, 'fetch', '--quiet', 'origin', baseBranch);
   if (existsSync(join(path, '.git'))) {

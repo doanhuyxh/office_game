@@ -113,12 +113,13 @@ agents:
       # MCP thêm ngoài OfficeHub: chép design-mcp.example.json ra ngoài repo; khoá lấy từ env_file qua ${STITCH_API_KEY}, không ghi vào file
       extra_args: ["--mcp-config", "/etc/officehub-runner/design-mcp.json"]
 
-  - employee_code: NV150                         # agent REVIEW (TEST-167): được đặt làm "Người review" của việc → tin review_requested
+  - employee_code: NV150                         # agent REVIEW: là NGƯỜI THEO DÕI việc → tin column_entered khi việc vào cột "Đánh thức bot theo dõi";
+                                                 # tự đọc hướng dẫn: chỉ làm ở cột review của dự án (TEST-180)
     telegram_bot: "@agent_review01_bot"
     telegram_token: "777777777:AA…"
     token: "ohk_eeeeeeeeeeeeeeee"
-    repo: /srv/agents/NV150/office_game          # bản clone riêng — review chạy trong worktree REVIEW-<mã việc>, CHỈ ĐỌC (hook chặn push)
-    executor:                                    # mode worktree (mặc định) — bắt buộc cho review; nên khác model / nhà cung cấp với bot code
+    repo: /srv/agents/NV150/office_game          # bản clone riêng — phiên theo dõi chạy trong worktree FOLLOW-<mã việc>, CHỈ ĐỌC (hook chặn push)
+    executor:                                    # mode worktree (mặc định) = có repo để đọc code; nên khác model / nhà cung cấp với bot code
       kind: claude
       bin: /usr/local/bin/claude
       model: claude-opus-5-5
@@ -126,13 +127,13 @@ agents:
       timeout_min: 30
       max_budget_usd: 3
 
-  - employee_code: NV160                         # agent DEVOPS (TEST-168): được thêm làm "Người theo dõi" việc → tin task_done khi người thật duyệt Xong
+  - employee_code: NV160                         # agent DEVOPS: là NGƯỜI THEO DÕI việc → tin column_entered; tự đọc hướng dẫn: chỉ làm ở cột Deploy (TEST-180)
     telegram_bot: "@agent_devops01_bot"
     telegram_token: "888888888:AA…"
     token: "ohk_ffffffffffffffff"
     workspace:
       mode: none                                 # không repo
-      builtin_tools: true                        # bắt buộc cho deploy: shell để chạy gh / ssh theo mục "Deploy" của hướng dẫn
+      builtin_tools: true                        # shell để chạy gh / ssh theo mục Deploy của hướng dẫn (không bật = phiên theo dõi chỉ có tool MCP)
     executor:
       kind: claude
       bin: /usr/local/bin/claude
@@ -140,3 +141,4 @@ agents:
       home: /srv/agents/NV160/home               # ~/.ssh/config alias officehub-prod (khoá chỉ chạy được scripts/deploy-remote.sh), gh auth
       timeout_min: 20
       max_budget_usd: 1
+      required_bins: [ssh, gh, curl]             # lệnh hướng dẫn Deploy dùng — doctor kiểm tra có trong PATH của agent, thiếu thì agent tắt

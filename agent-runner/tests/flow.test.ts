@@ -29,6 +29,8 @@ let activityHang = false;
 /** Kết quả MCP list_my_tasks (TEST-158); null = tool chưa có (OfficeHub bản cũ) → lỗi. */
 let mine: any[] | null = null;
 let mineCalls = 0;
+/** Thay kết quả MCP get_task trong một test (TEST-180: đọc lại việc sau phiên follow); null = dùng `tasks`. */
+let getTaskHook: ((a: any) => any) | null = null;
 /** Kết quả MCP list_chats (TEST-81). */
 let chats: any[] = [];
 let updatesServed = false;
@@ -113,7 +115,7 @@ beforeAll(async () => {
       const { name, arguments: a } = m.params;
       const text = (o: unknown) => reply({ content: [{ type: 'text', text: JSON.stringify(o) }] });
       if (name === 'get_my_profile') return text({ employee: { id: 'emp-1', code: 'NV120', fullName: 'Bot Thử' } });
-      if (name === 'get_task') return text(tasks[a.task] ?? tasks[T1]);
+      if (name === 'get_task') return text(getTaskHook?.(a) ?? tasks[a.task] ?? tasks[T1]);
       if (name === 'list_chats') return text(chats);
       if (name === 'list_my_tasks') {
         mineCalls++;
@@ -630,56 +632,80 @@ test('hook pre-push bị xoá → job kế tiếp tự tạo lại trước khi 
   expect((await sh(['git', 'log', '-1', '--format=%B'], wt)).out).toContain('Agent: NV120');
 }, 30000);
 
-test('review_requested (TEST-167): người review → worktree REVIEW-<mã> ở origin/main, không push / PR, bình luận chi phí; không phải reviewer / ngoài cột review → bỏ', async () => {
+/** Việc T1 đang ở cột đánh thức bot theo dõi, NV120 (emp-1) là người theo dõi, người làm là người khác (TEST-180). */
+const followTask = (over: Record<string, unknown> = {}, followers: any[] = [{ employeeId: 'emp-1' }]) => ({
+  ...tasks[T1],
+  task: { ...tasks[T1].task, assigneeEmployeeId: 'emp-9', columnId: 'c-deploy', ...over },
+  columns: [{ id: 'c-doing' }, { id: 'c-rev', wakeFollowers: true }, { id: 'c-deploy', wakeFollowers: true }],
+  followers,
+  comments: [{ id: 'c-old', authorName: 'Bot Thử', byBot: true }],
+  activities: [],
+});
+/** Như {@link followTask} nhưng từ lần đọc thứ `from` trở đi có thêm bình luận mới của chính agent (= agent đã làm bước của mình). */
+const actedAfter = (detail: any, from: number) => {
+  let calls = 0;
+  return () =>
+    ++calls >= from
+      ? { ...detail, comments: [...detail.comments, { id: 'c-new', authorName: 'Bot Thử', byBot: true }] }
+      : detail;
+};
+const followWake = {
+  kind: 'follow' as const,
+  employee_code: 'NV120',
+  project_id: P,
+  task_id: T1,
+  task_code: 'TEST-45',
+};
+
+test('column_entered (TEST-180) mode worktree: không theo dõi / cột không đánh thức → bỏ; chạy ở worktree FOLLOW-<mã> chỉ đọc, không push / PR', async () => {
   const s = runner.agents.get('NV120')!;
   const saved = tasks[T1];
-  const wake = { kind: 'review' as const, employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' };
-  const reviewTask = (over: Record<string, unknown> = {}) => ({
-    ...saved,
-    task: { ...saved.task, assigneeEmployeeId: 'emp-9', reviewerEmployeeId: 'emp-1', columnId: 'c-rev', ...over },
-    columns: [{ id: 'c-doing' }, { id: 'c-rev', isReview: true }],
-  });
   try {
-    tasks[T1] = reviewTask({ reviewerEmployeeId: 'nguoi-khac' });
-    expect(await runner.accept(s, wake)).toBeNull();
-    tasks[T1] = reviewTask({ columnId: 'c-doing' });
-    expect(await runner.accept(s, wake)).toBeNull();
-    tasks[T1] = reviewTask();
+    tasks[T1] = followTask({}, [{ employeeId: 'nguoi-khac' }]);
+    expect(await runner.accept(s, followWake)).toBeNull();
+    tasks[T1] = followTask({ columnId: 'c-doing' });
+    expect(await runner.accept(s, followWake)).toBeNull();
+    // agent có làm (bình luận mới sau phiên: lần đọc thứ 3 = sau phiên) → runner bình luận chi phí
+    const detail = followTask();
+    getTaskHook = actedAfter(detail, 3);
     const before = comments.length;
-    const id = await runner.accept(s, wake);
+    const id = await runner.accept(s, followWake);
     expect(id).not.toBeNull();
-    expect(await waitFor(() => comments.length > before)).toBe(true);
-    expect(await waitFor(() => store.getJob(id!)?.status === 'done', 3000)).toBe(true);
+    expect(await waitFor(() => store.getJob(id!)?.status === 'done', 15000)).toBe(true);
     const job = store.getJob(id!)!;
-    expect(job.kind).toBe('review');
-    expect(job.key).toBe(`NV120:${T1}`);
+    expect(job.kind).toBe('follow');
+    expect(job.key).toBe(`NV120:${T1}`); // khoá riêng agent — không đụng job việc của người làm
     expect(job.pr_url).toBeNull();
-    const c = comments.at(-1)!;
-    expect(c.task).toBe(T1);
-    expect(c.content).toContain('Phiên review — chỉ đọc, không push');
-    const wt = join(root, 'worktrees/NV120/REVIEW-TEST-45');
+    expect(comments.length).toBe(before + 1);
+    expect(comments.at(-1)!.task).toBe(T1);
+    expect(comments.at(-1)!.content).toContain('Phiên theo dõi — repo chỉ đọc, không push');
+    const wt = join(root, 'worktrees/NV120/FOLLOW-TEST-45');
     expect(readFileSync(join(root, 'data/jobs', String(id), 'args.txt'), 'utf8')).toContain(wt);
     const prompt = readFileSync(join(root, 'data/jobs', String(id), 'prompt-copy.md'), 'utf8');
-    for (const t of ['NGƯỜI REVIEW', 'gh pr checkout', 'REVIEW: ĐẠT', 'REVIEW: CẦN SỬA', 'CHỈ ĐỌC'])
-      expect(prompt).toContain(t);
-    // commit CLI giả tạo trong worktree review không được push lên origin
-    expect((await sh(['git', 'ls-remote', '--heads', 'origin'], wt)).out).not.toContain('REVIEW');
+    for (const t of ['NGƯỜI THEO DÕI', 'DỪNG NGAY', 'gh pr checkout', 'Repo CHỈ ĐỌC']) expect(prompt).toContain(t);
+    // commit CLI giả tạo trong worktree không được push lên origin
+    expect((await sh(['git', 'ls-remote', '--heads', 'origin'], wt)).out).not.toContain('FOLLOW');
     // hook pre-push chặn mọi push khi phiên chỉ đọc
-    const push = await sh(['git', 'push', 'origin', 'HEAD:refs/heads/thu-review'], wt, {
+    const push = await sh(['git', 'push', 'origin', 'HEAD:refs/heads/thu-follow'], wt, {
       ...process.env,
       OFFICEHUB_READONLY: '1',
     } as any);
     expect(push.code).not.toBe(0);
     expect(push.err).toContain('chỉ đọc');
-    // lần review sau: dùng lại worktree, đưa về origin/main (bỏ commit cũ)
+    // lần sau: dùng lại worktree, đưa về origin/main (bỏ commit cũ); agent KHÔNG làm gì (cột không phải bước của nó) → không bình luận
     const head = (await sh(['git', 'rev-parse', 'HEAD'], wt)).out;
-    const again = await runner.accept(s, wake);
+    getTaskHook = () => detail;
+    const quiet = comments.length;
+    const again = await runner.accept(s, followWake);
     expect(await waitFor(() => store.getJob(again!)?.status === 'done', 15000)).toBe(true);
+    expect(comments.length).toBe(quiet);
+    expect(store.getJob(again!)!.cost_usd).toBe(0.42); // chi phí vẫn ghi (gửi "Mức dùng AI"), chỉ không bình luận lên việc
     const originMain = (await sh(['git', 'rev-parse', 'origin/main'], wt)).out;
-    expect((await sh(['git', 'rev-parse', 'HEAD~1'], wt)).out).toBe(originMain); // một commit mới của CLI giả trên origin/main
+    expect((await sh(['git', 'rev-parse', 'HEAD~1'], wt)).out).toBe(originMain);
     expect((await sh(['git', 'rev-parse', 'HEAD'], wt)).out).not.toBe(head);
   } finally {
     tasks[T1] = saved;
+    getTaskHook = null;
   }
 }, 40000);
 
@@ -698,7 +724,10 @@ test('in_place: gỡ hook do runner cài, giữ nguyên hook của người dùn
 }, 30000);
 
 // ---------------- mode none (TEST-80): agent nghiệp vụ — không repo / git / PR, chỉ tool MCP ----------------
-const noneSetup = async (workspace: Record<string, unknown> = { mode: 'none' }) => {
+const noneSetup = async (
+  workspace: Record<string, unknown> = { mode: 'none' },
+  executorExtra: Record<string, unknown> = {},
+) => {
   // CLI giả không đụng git: ghi tham số + thư mục chạy, in dòng JSON kết quả
   const bin = join(root, 'fake-biz-agent.sh');
   writeFileSync(
@@ -735,6 +764,7 @@ echo '{"session_id":"sess-biz","model":"fake-model-1","cost_usd":0.1,"summary":"
           args: ['run', '--cwd', '{cwd}', '--prompt', '{prompt_file}', '--mcp', '{mcp_config}'],
           resume_args: ['--session', '{session_id}'],
           output: { format: 'json' },
+          ...executorExtra,
         },
       },
     ],
@@ -809,58 +839,88 @@ test('none + builtin_tools (TEST-163): doctor cảnh báo có shell, prompt phi�
   expect(prompt).not.toContain('CHỈ bằng tool MCP');
 }, 30000);
 
-test('task_done (TEST-168): bot none + builtin_tools đang theo dõi việc đã Xong → phiên deploy có shell; không theo dõi / chưa Xong → bỏ', async () => {
+test('column_entered (TEST-180) mode none + builtin_tools: thư mục trống có shell; agent làm → bình luận chi phí; tin cũ task_done cũng chạy', async () => {
   const { r, st, dataDir } = await noneSetup({ mode: 'none', builtin_tools: true });
   const s = r.agents.get('NV120')!;
   const saved = tasks[T1];
-  const wake = { kind: 'deploy' as const, employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' };
   try {
-    // chưa Xong → bỏ
-    tasks[T1] = { ...saved, followers: [{ employeeId: 'emp-1' }] };
-    expect(await r.accept(s, wake)).toBeNull();
-    // Xong nhưng không theo dõi → bỏ
-    tasks[T1] = { ...saved, task: { ...saved.task, done: true }, followers: [{ employeeId: 'nguoi-khac' }] };
-    expect(await r.accept(s, wake)).toBeNull();
-    tasks[T1] = { ...saved, task: { ...saved.task, done: true }, followers: [{ employeeId: 'emp-1' }] };
+    tasks[T1] = followTask({ done: true, columnId: 'c-done' }, [{ employeeId: 'emp-1' }]);
+    expect(await r.accept(s, followWake)).toBeNull(); // cột hoàn thành không bật đánh thức
+    getTaskHook = actedAfter(followTask(), 3);
     const before = comments.length;
-    const id = await r.accept(s, wake);
+    const id = await r.accept(s, followWake);
     expect(id).not.toBeNull();
     const job = st.claimNext(1, ['NV120'])!;
-    expect(job.kind).toBe('deploy');
-    expect(job.key).toBe(`NV120:${T1}`); // khoá riêng agent — không đụng job việc của người làm
+    expect(job.kind).toBe('follow');
     await r.process(job);
     expect(st.getJob(id!)!.status).toBe('done');
     const prompt = readFileSync(join(dataDir, 'jobs', String(id), 'prompt-copy.md'), 'utf8');
-    for (const t of ['VỪA ĐƯỢC NGƯỜI THẬT DUYỆT XONG', 'mục "Deploy"', 'DEPLOY: XONG', 'DEPLOY: LỖI', 'KHÔNG rollback'])
+    for (const t of ['NGƯỜI THEO DÕI', 'KHÔNG có repo', 'CHỈ chạy lệnh có trong hướng dẫn'])
       expect(prompt).toContain(t);
+    expect(prompt).not.toContain('gh pr checkout');
     expect(comments.length).toBe(before + 1);
-    expect(comments.at(-1)!.task).toBe(T1);
-    expect(comments.at(-1)!.content).toContain('Phiên deploy');
+    expect(comments.at(-1)!.content).toContain('Phiên theo dõi — có shell, không repo');
   } finally {
     tasks[T1] = saved;
+    getTaskHook = null;
   }
 }, 30000);
 
-test('task_done (TEST-168): bot không phải none + builtin_tools → không chạy CLI, bình luận lý do', async () => {
-  const s = runner.agents.get('NV120')!; // mode worktree
-  const saved = tasks[T1];
-  tasks[T1] = { ...saved, task: { ...saved.task, done: true }, followers: [{ employeeId: 'emp-1' }] };
+test('column_entered (TEST-180) mode none không shell: chạy được (trước đây bị từ chối), prompt chỉ tool MCP', async () => {
+  const { r, st, dataDir } = await noneSetup({ mode: 'none' });
+  const s = r.agents.get('NV120')!;
+  getTaskHook = () => followTask();
+  try {
+    const id = await r.accept(s, followWake);
+    expect(id).not.toBeNull();
+    await r.process(st.claimNext(1, ['NV120'])!);
+    expect(st.getJob(id!)!.status).toBe('done');
+    const prompt = readFileSync(join(dataDir, 'jobs', String(id), 'prompt-copy.md'), 'utf8');
+    expect(prompt).toContain('CHỈ có tool MCP');
+    expect(prompt).not.toContain('create_upload');
+  } finally {
+    getTaskHook = null;
+  }
+}, 30000);
+
+test('column_entered (TEST-180) mode in_place → không chạy CLI, bình luận lý do', async () => {
+  const { r, st } = await inPlaceSetup('agent-repo-ip-follow');
+  const s = r.agents.get('NV120')!;
+  getTaskHook = () => followTask();
   try {
     const before = comments.length;
-    const id = await runner.accept(s, {
-      kind: 'deploy',
-      employee_code: 'NV120',
-      project_id: P,
-      task_id: T1,
-      task_code: 'TEST-45',
-    });
+    const id = await r.accept(s, followWake);
     expect(id).not.toBeNull();
-    expect(await waitFor(() => comments.length > before)).toBe(true);
-    expect(comments.at(-1)!.content).toContain('KHÔNG deploy');
-    expect(await waitFor(() => store.getJob(id!)?.status === 'skipped', 3000)).toBe(true);
+    await r.process(st.claimNext(1, ['NV120'])!);
+    expect(st.getJob(id!)!.status).toBe('skipped');
+    expect(st.getJob(id!)!.cli_ran).toBeFalsy();
+    expect(comments.length).toBe(before + 1);
+    expect(comments.at(-1)!.content).toContain('KHÔNG chạy bước theo dõi');
   } finally {
-    tasks[T1] = saved;
+    getTaskHook = null;
   }
+}, 30000);
+
+test('job review / deploy cũ còn trong hàng đợi lúc nâng cấp → chạy bằng handler follow', async () => {
+  const { r, st } = await noneSetup({ mode: 'none' });
+  getTaskHook = () => followTask();
+  try {
+    const id = st.enqueue('NV120', `NV120:${T1}`, 'TEST-45', P, 'deploy');
+    await r.process(st.claimNext(1, ['NV120'])!);
+    expect(st.getJob(id!)!.status).toBe('done');
+    expect(st.getJob(id!)!.cli_ran).toBe(1);
+  } finally {
+    getTaskHook = null;
+  }
+}, 30000);
+
+test('executor.required_bins (TEST-180): thiếu lệnh trong PATH của agent → doctor báo lỗi, agent tắt', async () => {
+  const ok = await noneSetup({ mode: 'none', builtin_tools: true }, { required_bins: ['sh'] });
+  expect(ok.lines.filter((l) => l.startsWith('✘'))).toEqual([]);
+  expect(ok.lines.join('\n')).toContain('có đủ lệnh: sh');
+  const bad = await noneSetup({ mode: 'none', builtin_tools: true }, { required_bins: ['sh', 'khong-co-lenh-nay'] });
+  expect(bad.lines.join('\n')).toContain('✘ NV120: thiếu lệnh khong-co-lenh-nay');
+  expect(bad.r.agents.get('NV120')!.enabled).toBe(false);
 }, 30000);
 
 test('job hết giờ → văn phòng 3D báo lỗi "Hết giờ" (không bị finally ghi đè bằng rảnh); job kế → đang làm rồi rảnh (TEST-121)', async () => {

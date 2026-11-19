@@ -20,6 +20,8 @@ export interface AgentState {
   /** Gửi transcript phiên lên cloud + khôi phục lười (TEST-144) — chỉ adapter có transcript (`claude`). */
   transcripts?: TranscriptReporter;
   employeeId?: string;
+  /** Họ tên nhân viên của token — nhận ra bình luận / thao tác của chính agent trong `get_task` (job follow, TEST-180). */
+  employeeName?: string;
   enabled: boolean;
   problem?: string;
   /** Model thật đọc được lúc chạy thử (`checkAgents`, TEST-64). */

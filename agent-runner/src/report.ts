@@ -5,6 +5,8 @@ export const KIND_LABEL: Record<string, string> = {
   task: 'việc',
   chat: 'chat',
   meeting: 'họp',
+  follow: 'theo dõi',
+  // loại cũ (TEST-167 / 168) — còn trong lịch sử
   review: 'review',
   deploy: 'deploy',
 };

@@ -9,8 +9,7 @@
 | không có / `assigned` / `returned` / `ready` / `mentioned` | `task` | `employee_code`, `project_id`, `task_id`, `task_code` | id việc |
 | `chat_mention` | `chat` | `employee_code`, `conversation_id`, `message_id` (GUID) | `<mã NV>:<id hội thoại>` |
 | `meeting_turn` | `meeting` | `employee_code`, `session_id`, `conversation_id` (GUID) | `<mã NV>:<id phiên họp>` |
-| `review_requested` | `review` | như tin việc (`assignee_code` thêm bị bỏ qua) | `<mã NV>:<id việc>` — [agent-runner-review.md](agent-runner-review.md) |
-| `task_done` | `deploy` | như tin việc (`project_code`, `assignee_code` bị bỏ qua) | `<mã NV>:<id việc>` — [agent-runner-review.md](agent-runner-review.md) |
+| `column_entered` (+ tin cũ `review_requested` / `task_done`) | `follow` | như tin việc (`column_id`, `assignee_code`, `project_code` bị bỏ qua) | `<mã NV>:<id việc>` — [agent-runner-follow.md](agent-runner-follow.md) |
 
 `employee_code` phải trùng mã NV của agent. Tin sai → bỏ, chỉ log. Khoá chat / họp **riêng từng agent** (`agentScopedKey` ở `jobs/handler.ts`): nhiều bot cùng một hội thoại / cuộc họp mỗi bot một job + một phiên CLI.
 

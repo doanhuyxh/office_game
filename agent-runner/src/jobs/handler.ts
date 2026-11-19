@@ -2,12 +2,12 @@ import type { AgentConfig, RunnerConfig } from '../config';
 import type { AgentState } from '../core/agent';
 import type { Sessions } from '../core/session';
 import { log } from '../log';
-import type { Job, JobKind, Store } from '../store';
+import type { Job, Store } from '../store';
 import type { Wake } from '../validator';
 import type { Git } from '../workspace';
 
 /** Tin đánh thức của một loại job. */
-export type WakeOf<K extends JobKind> = Extract<Wake, { kind: K }>;
+export type WakeOf<K extends Wake['kind']> = Extract<Wake, { kind: K }>;
 
 /**
  * Kết quả hỏi lại OfficeHub trước khi xếp hàng. Không nhận: `reason` ghi vào log; `warning` có giá trị = đây là tình huống đáng cảnh báo

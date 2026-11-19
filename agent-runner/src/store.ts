@@ -2,21 +2,30 @@ import { Database } from 'bun:sqlite';
 
 export type JobStatus = 'queued' | 'running' | 'done' | 'failed' | 'skipped';
 
-/** Loại job: việc (mặc định, DB cũ = null) | chat (tin @nhắc trong một hội thoại, TEST-81) | meeting (một lượt nói trong cuộc họp agent, TEST-84). */
 /**
- * Loại job: việc được giao / chat / họp / review việc của người khác (TEST-167) / deploy việc đang theo dõi (TEST-168).
- * review / deploy khoá theo `<mã NV>:<id việc>` (nhiều bot cùng một việc) — báo mức dùng AI / transcript lên OfficeHub là loại `task`
+ * Loại job: việc được giao / chat / họp / bước của người theo dõi khi việc vào cột "Đánh thức bot theo dõi" (`follow`, TEST-180).
+ * `follow` khoá theo `<mã NV>:<id việc>` (nhiều bot cùng theo dõi một việc) — báo mức dùng AI / transcript lên OfficeHub là loại `task`
  * ({@link reportKind}, máy chủ chỉ nhận task / chat / meeting) kèm id việc thật ({@link taskIdOf}).
+ * `review` / `deploy` (TEST-167 / 168) là loại cũ: không còn tạo mới, chỉ còn trong DB (lịch sử, job đang chờ lúc nâng cấp → chạy bằng handler
+ * `follow`, xem {@link currentKind}).
  */
-export type JobKind = 'task' | 'chat' | 'meeting' | 'review' | 'deploy';
+export type JobKind = 'task' | 'chat' | 'meeting' | 'follow' | LegacyJobKind;
+export type LegacyJobKind = 'review' | 'deploy';
+
+/** Loại job trên một việc của người khác (khoá `<mã NV>:<id việc>`). */
+const FOLLOW_KINDS: readonly string[] = ['follow', 'review', 'deploy'];
+
+/** Loại job dùng để chọn handler: loại cũ review / deploy → follow. */
+export const currentKind = (kind: JobKind): Exclude<JobKind, LegacyJobKind> =>
+  FOLLOW_KINDS.includes(kind) ? 'follow' : (kind as Exclude<JobKind, LegacyJobKind>);
 
 /** Loại phiên gửi lên OfficeHub (mức dùng AI, transcript). */
-export const reportKind = (kind: JobKind | string): string => (kind === 'review' || kind === 'deploy' ? 'task' : kind);
+export const reportKind = (kind: JobKind | string): string => (FOLLOW_KINDS.includes(kind) ? 'task' : kind);
 
-/** Id việc của job việc / review / deploy (review / deploy: bỏ tiền tố `<mã NV>:` của khoá); job khác → undefined. */
+/** Id việc của job việc / follow (bỏ tiền tố `<mã NV>:` của khoá); job khác → undefined. */
 export function taskIdOf(job: Pick<Job, 'kind' | 'key'>): string | undefined {
   if (job.kind === 'task') return job.key;
-  if (job.kind === 'review' || job.kind === 'deploy') return job.key.slice(job.key.indexOf(':') + 1);
+  if (FOLLOW_KINDS.includes(job.kind)) return job.key.slice(job.key.indexOf(':') + 1);
   return undefined;
 }
 

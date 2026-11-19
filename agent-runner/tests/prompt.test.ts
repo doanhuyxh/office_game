@@ -7,50 +7,51 @@ import { claudeHasSession, claudeProjectDir } from '../src/executor/adapters/cla
 import { redact, registerSecret } from '../src/log';
 import { buildPrompt, mcpConfig } from '../src/prompt';
 import { chatPrompt } from '../src/prompt/chat';
-import { deployPrompt } from '../src/prompt/deploy';
+import { followPrompt } from '../src/prompt/follow';
 import { meetingPrompt } from '../src/prompt/meeting';
-import { MAX_REVIEW_ROUNDS, reviewPrompt } from '../src/prompt/review';
 import { Store } from '../src/store';
 import { COMMIT_MSG_MARK, PRE_PUSH_MARK, branchName, commitMsgHook, prePushHook } from '../src/workspace';
 
-describe('prompt review / deploy (TEST-167/168)', () => {
+describe('prompt theo dõi (TEST-180)', () => {
   const w = { employee_code: 'NV150', project_id: 'p', task_id: 't', task_code: 'TEST-45' };
-  test('review: chỉ đọc, tự lấy PR / nhánh, một bình luận REVIEW, giới hạn vòng; nối phiên chỉ đọc phần mới', () => {
-    const p = reviewPrompt(w, { baseBranch: 'main', resumed: false });
-    for (const t of [
-      'NGƯỜI REVIEW của việc TEST-45',
-      'get_my_role',
-      'get_project p',
-      'origin/main',
-      'gh pr checkout <số PR> --detach',
-      'git diff origin/main...HEAD',
-      'REVIEW: ĐẠT',
-      'REVIEW: CẦN SỬA',
-      'REVIEW: KHÔNG REVIEW ĐƯỢC',
-      `Đã có ${MAX_REVIEW_ROUNDS} lần`,
-      'CHỈ ĐỌC',
-      'Không update_task_status',
-      '**Bàn giao**',
-    ])
-      expect(p).toContain(t);
-    const again = reviewPrompt(w, { baseBranch: 'main', resumed: true });
-    expect(again).toContain('NỐI TIẾP');
-    expect(again).not.toContain('1. get_my_role');
+  test('agent tự xét theo hướng dẫn, không có bước thì dừng không bình luận; bình luận cả khi thành công lẫn thất bại', () => {
+    for (const tools of ['repo', 'shell', 'mcp'] as const) {
+      const p = followPrompt(w, { tools, baseBranch: 'main', resumed: false });
+      for (const t of [
+        'NGƯỜI THEO DÕI việc TEST-45',
+        '1. get_my_role',
+        'get_project p',
+        'get_task TEST-45',
+        'DỪNG NGAY',
+        'không bình luận, không gọi tool ghi nào',
+        'CẢ KHI THÀNH CÔNG LẪN THẤT BẠI',
+        'kéo lùi',
+        'Không chuyển việc sang trạng thái hoàn thành',
+        'KHÔNG tự hoàn tác',
+        '**Bàn giao**',
+      ])
+        expect(p).toContain(t);
+      // runner không viết cứng việc của vai trò nào
+      expect(p).not.toContain('MAX_REVIEW');
+    }
   });
-  test('deploy: làm theo mục Deploy của hướng dẫn, chỉ lệnh trong đó, lỗi không rollback, không đổi trạng thái', () => {
-    const p = deployPrompt(w);
-    for (const t of [
-      'VỪA ĐƯỢC NGƯỜI THẬT DUYỆT XONG',
-      'get_project p',
-      'mục "Deploy"',
-      'DEPLOY: KHÔNG CÓ HƯỚNG DẪN',
-      'DEPLOY: XONG',
-      'DEPLOY: LỖI',
-      'KHÔNG rollback',
-      'CHỈ chạy lệnh có trong mục Deploy',
-      'Không update_task_status',
-    ])
-      expect(p).toContain(t);
+  test('công cụ theo cấu hình agent', () => {
+    const repo = followPrompt(w, { tools: 'repo', baseBranch: 'main', resumed: false });
+    for (const t of ['worktree TẠM', 'gh pr checkout <số PR> --detach', 'git diff origin/main...HEAD', 'Repo CHỈ ĐỌC'])
+      expect(repo).toContain(t);
+    const shell = followPrompt(w, { tools: 'shell', baseBranch: 'main', resumed: false });
+    for (const t of ['KHÔNG có repo', 'CHỈ chạy lệnh có trong hướng dẫn', 'create_upload', '~/.ssh'])
+      expect(shell).toContain(t);
+    expect(shell).not.toContain('gh pr checkout');
+    const mcp = followPrompt(w, { tools: 'mcp', baseBranch: 'main', resumed: false });
+    for (const t of ['CHỈ có tool MCP', 'view_attachment', 'không tìm cách chạy lệnh']) expect(mcp).toContain(t);
+    expect(mcp).not.toContain('create_upload');
+  });
+  test('phiên nối tiếp: bỏ đọc lại vai trò, xem lại trạng thái hiện tại', () => {
+    const p = followPrompt(w, { tools: 'mcp', baseBranch: 'main', resumed: true });
+    expect(p).toContain('NỐI TIẾP');
+    expect(p).not.toContain('1. get_my_role');
+    expect(p).toContain('việc đang ở trạng thái nào');
   });
   test('hook pre-push chặn mọi push khi phiên chỉ đọc', () => {
     expect(prePushHook('main')).toContain('[ -n "$OFFICEHUB_READONLY" ]');

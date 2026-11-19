@@ -30,7 +30,7 @@ Tin = một dòng JSON (không nhắc bot, không có tên / mô tả việc / n
 {"employee_code":"NV018","project_id":"…","task_id":"…","task_code":"TEST-63","event":"mentioned","comment_id":"…"}
 ```
 `event` = `assigned` / `returned` / `ready` / `mentioned` / `column_entered` (hằng `TelegramRules.Assigned/Returned/Ready/Mentioned/ColumnEntered`; `column_entered` thêm `column_id` + `assignee_code`, gửi mỗi bot theo dõi (trừ người chuyển) khi việc vào cột có tick "Đánh thức bot theo dõi" — TEST-178, thay `review_requested` TEST-161 + `task_done` TEST-166, [projects-task-followers.md](projects-task-followers.md#đánh-thức-column_entered-followerwakerules)); tin cũ không có `event` = `assigned`. (`TelegramRules.WakeMessage`, test ở `TelegramRulesTests`.)
-**Runner:** `agent-runner/` hiện bỏ qua `event` / `comment_id` (chỉ đọc 4 trường) — tin `mentioned` cho bot không phải người làm bị bỏ ("việc không còn giao cho agent này"); bot là người làm thì mở phiên làm việc bình thường. Xử lý riêng `mentioned` (chỉ trả lời bằng `comment_task`) do người thật sửa runner — xem [agent-runner.md](agent-runner.md#chưa-làm-bước-sau-của-test-44).
+**Runner:** `agent-runner/` phân loại theo `event` ([agent-runner-events.md](agent-runner-events.md)): `column_entered` → job `follow` của bot theo dõi ([agent-runner-follow.md](agent-runner-follow.md)); `assigned` / `returned` / `ready` / `mentioned` → job việc (bỏ qua `comment_id`) — tin `mentioned` cho bot không phải người làm bị bỏ ("việc không còn giao cho agent này"); bot là người làm thì mở phiên làm việc bình thường. Xử lý riêng `mentioned` (chỉ trả lời bằng `comment_task`) do người thật sửa runner — xem [agent-runner.md](agent-runner.md#chưa-làm-bước-sau-của-test-44).
 
 ## Gửi nền (`Infrastructure/Telegram.cs`)
 

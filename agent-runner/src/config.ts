@@ -18,6 +18,11 @@ export interface ExecutorConfig {
    */
   light?: { model?: string; maxBudgetUsd?: number; maxTurns?: number };
   extraArgs: string[];
+  /**
+   * Lệnh phải có trong PATH của agent (TEST-180), vd `[ssh, gh, curl]` cho bot DevOps: hướng dẫn dự án bảo agent chạy lệnh nào thì máy chạy agent
+   * phải có lệnh đó. `doctor` / lúc khởi động kiểm tra — thiếu thì agent tắt (báo ngay, không hỏng giữa phiên deploy). Tên lệnh hoặc đường dẫn tuyệt đối.
+   */
+  requiredBins: string[];
   /** custom */
   args?: string[];
   resumeArgs?: string[];
@@ -196,6 +201,12 @@ export function parseConfig(raw: unknown): RunnerConfig {
     }
     const args = strList(e.args),
       resumeArgs = strList(e.resume_args);
+    const requiredBins = strList(e.required_bins) ?? [];
+    if (e.required_bins !== undefined && !strList(e.required_bins))
+      p.push(`${at}.executor.required_bins là danh sách tên lệnh (vd [ssh, gh, curl])`);
+    for (const b of requiredBins)
+      if (!(isAbsolute(b) || /^[A-Za-z0-9._+-]+$/.test(b)))
+        p.push(`${at}.executor.required_bins: "${b}" không phải tên lệnh / đường dẫn tuyệt đối`);
     const fmt = e.output?.format ?? 'text';
     const executorOf = (kind: ExecutorKind): ExecutorConfig => ({
       kind,
@@ -207,6 +218,7 @@ export function parseConfig(raw: unknown): RunnerConfig {
       maxTurns,
       light,
       extraArgs: strList(e.extra_args) ?? [],
+      requiredBins,
       args,
       resumeArgs,
       outputFormat: fmt,

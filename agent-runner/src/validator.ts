@@ -28,10 +28,12 @@ export type Wake =
   | ({ kind: 'task' } & WakeData)
   | ({ kind: 'chat' } & ChatWake)
   | ({ kind: 'meeting' } & MeetingWake)
-  /** `event: review_requested` (TEST-167): bot là người review, việc vừa vào cột review — cùng 4 trường như tin việc. */
-  | ({ kind: 'review' } & WakeData)
-  /** `event: task_done` (TEST-168): việc bot đang theo dõi vừa được người thật chuyển Xong — cùng 4 trường như tin việc. */
-  | ({ kind: 'deploy' } & WakeData);
+  /**
+   * `event: column_entered` (TEST-178 / 180): việc bot đang THEO DÕI vừa vào cột "Đánh thức bot theo dõi" — cùng 4 trường như tin việc
+   * (`column_id`, `assignee_code` thêm bị bỏ qua: runner hỏi lại `get_task`). Tin cũ `review_requested` (TEST-167) / `task_done` (TEST-168)
+   * của OfficeHub bản trước cũng thành loại này.
+   */
+  | ({ kind: 'follow' } & WakeData);
 
 export type Check<T> = { ok: true; value: T } | { ok: false; reason: string };
 
@@ -64,16 +66,18 @@ const TASK_SHAPE: WakeShape = {
   }),
 };
 
-/** Tin cùng dạng tin việc nhưng thành loại job khác (review / deploy). Trường thêm của máy chủ (assignee_code, project_code) bị bỏ qua. */
-const taskShapeAs = (kind: 'review' | 'deploy'): WakeShape => ({
+/** Tin cùng dạng tin việc nhưng là việc bot THEO DÕI. Trường thêm của máy chủ (column_id, assignee_code, project_code) bị bỏ qua. */
+const FOLLOW_SHAPE: WakeShape = {
   ...TASK_SHAPE,
-  build: (d) => ({ ...(TASK_SHAPE.build(d) as WakeData), kind }),
-});
+  build: (d) => ({ ...(TASK_SHAPE.build(d) as WakeData), kind: 'follow' }),
+};
 
 /** Loại tin theo trường `event`; `event` khác → {@link TASK_SHAPE}. */
 const EVENT_SHAPES: Record<string, WakeShape> = {
-  review_requested: taskShapeAs('review'),
-  task_done: taskShapeAs('deploy'),
+  column_entered: FOLLOW_SHAPE,
+  // OfficeHub trước TEST-178 — vẫn nhận để runner và máy chủ không phải nâng cấp cùng lúc
+  review_requested: FOLLOW_SHAPE,
+  task_done: FOLLOW_SHAPE,
   chat_mention: {
     keys: ['employee_code', 'conversation_id', 'message_id'],
     guids: ['conversation_id', 'message_id'],
@@ -171,10 +175,13 @@ function sameTask(
 }
 
 /**
- * Bước 2 của tin review_requested (TEST-167), lúc nhận tin VÀ ngay trước khi chạy: agent đúng là người review của việc, việc chưa xong và
- * đang ở cột review (`columns[].isReview`). Người làm đã kéo lùi / người review đổi → bỏ.
+ * Bước 2 của tin column_entered (TEST-180), lúc nhận tin VÀ ngay trước khi chạy: agent đang theo dõi việc và việc đang ở cột "Đánh thức bot
+ * theo dõi" (`columns[].wakeFollowers`). Bị bỏ theo dõi / việc đã sang cột khác → bỏ. Việc đã xong vẫn chạy được (cột hoàn thành có thể bật
+ * đánh thức). Agent ở trong cột nào thì làm gì là việc của hướng dẫn (agent tự đọc), runner không xét.
+ * OfficeHub trước TEST-178 (chưa có `wakeFollowers`): người review (`reviewerEmployeeId`) tính như người theo dõi, cột `isReview` tính như cột
+ * đánh thức, và việc đã xong tính là ở cột đánh thức (tin task_done cũ).
  */
-export function checkReview(
+export function checkFollow(
   detail: TaskDetail | null | undefined,
   wake: Pick<WakeData, 'project_id' | 'task_id'>,
   myEmployeeId: string,
@@ -182,29 +189,37 @@ export function checkReview(
   const same = sameTask(detail, wake);
   if (!same.ok) return same;
   const t = same.value;
-  if (t.reviewerEmployeeId !== myEmployeeId) return { ok: false, reason: 'agent không còn là người review của việc' };
-  if (t.done) return { ok: false, reason: 'việc đã xong' };
-  const column = (detail?.columns ?? []).find((c) => c?.id === t.columnId);
-  if (column?.isReview !== true) return { ok: false, reason: 'việc không còn ở cột review' };
+  const following =
+    (detail?.followers ?? []).some((f) => f?.employeeId === myEmployeeId) || t.reviewerEmployeeId === myEmployeeId;
+  if (!following) return { ok: false, reason: 'agent không còn theo dõi việc này' };
+  const columns = detail?.columns ?? [];
+  const column = columns.find((c) => c?.id === t.columnId);
+  const legacyServer = !columns.some((c) => c && 'wakeFollowers' in c);
+  const wakes = column?.wakeFollowers === true || (legacyServer && (column?.isReview === true || t.done === true));
+  if (!wakes) return { ok: false, reason: 'việc không còn ở cột đánh thức bot theo dõi' };
   return { ok: true, value: { title: String(t.title ?? ''), code: String(t.code ?? '') } };
 }
 
 /**
- * Bước 2 của tin task_done (TEST-168), lúc nhận tin VÀ ngay trước khi chạy: việc đã xong và agent đang theo dõi việc. Bị mở lại / bỏ theo
- * dõi → bỏ.
+ * Sau phiên follow (TEST-180): agent có để lại dấu vết trên việc không — bình luận / thao tác (chuyển cột, đổi người…) MỚI của chính agent so với
+ * lúc trước phiên. Không có = agent tự dừng vì cột này không phải bước của vai trò mình → runner không bình luận chi phí lên việc.
+ * So theo id (không so giờ: máy runner và máy chủ có thể lệch đồng hồ) và theo tên + cờ BOT (`get_task` không trả id người viết).
+ * Không đọc được kết quả sau phiên / thiếu tên → coi như CÓ (thà thừa một bình luận chi phí còn hơn giấu một phiên lỗi).
  */
-export function checkDeploy(
-  detail: TaskDetail | null | undefined,
-  wake: Pick<WakeData, 'project_id' | 'task_id'>,
-  myEmployeeId: string,
-): Check<{ title: string; code: string }> {
-  const same = sameTask(detail, wake);
-  if (!same.ok) return same;
-  const t = same.value;
-  if (t.done !== true) return { ok: false, reason: 'việc chưa xong (bị mở lại?)' };
-  if (!(detail?.followers ?? []).some((f) => f?.employeeId === myEmployeeId))
-    return { ok: false, reason: 'agent không theo dõi việc này' };
-  return { ok: true, value: { title: String(t.title ?? ''), code: String(t.code ?? '') } };
+export function actedOnTask(
+  before: TaskDetail | null | undefined,
+  after: TaskDetail | null | undefined,
+  myName: string | undefined,
+): boolean {
+  if (!after || !myName) return true;
+  const seen = new Set<string>();
+  for (const x of [...(before?.comments ?? []), ...(before?.activities ?? [])]) if (x?.id) seen.add(x.id);
+  const mine = (x: { id?: string; byBot?: boolean } | null | undefined, name: string | undefined) =>
+    !!x?.id && !seen.has(x.id) && x.byBot === true && name === myName;
+  return (
+    (after.comments ?? []).some((c) => mine(c, c?.authorName)) ||
+    (after.activities ?? []).some((a) => mine(a, a?.actorName))
+  );
 }
 
 /** Việc đã kiểm tra xong: tên, mã + mã các việc liên quan để đưa vào prompt (TEST-164). */

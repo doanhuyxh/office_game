@@ -40,6 +40,7 @@ mình có việc không (vd bot review làm ở "Chờ review", bot DevOps làm 
 - Người nhận (`BotTargets`): người theo dõi có tài khoản **bot đang hoạt động**, mỗi tài khoản một lần, **bỏ người thao tác**. Người theo dõi là người thật → không có tin riêng (đã có chuông hoạt động chung như mọi thành viên).
 - Mỗi bot: Telegram `ITelegramWakeup.TaskColumnEnteredAsync` (hàng đợi `Kind = task_column_entered`):
   `{"employee_code":<mã bot>,"project_id","task_id","task_code","event":"column_entered","column_id","assignee_code"?}` — không có tên / nội dung việc.
+- Runner (`agent-runner/`): job `follow` — bot tự đọc hướng dẫn để biết ở cột đó có bước không, chỉ bình luận khi có làm ([agent-runner-follow.md](agent-runner-follow.md), TEST-180).
 - Webhook `task.column_entered` (chỉ các bot trên): `taskId, taskCode, title, projectId, projectCode, projectName, columnId, column, assigneeEmployeeId, assigneeCode, assigneeName, movedBy, movedByBot`.
 - Danh mục `NotificationCatalog`: `projects.task_column_entered` (không chuông; Telegram + webhook). Đã bỏ `projects.task_review_requested`, `projects.task_done_followers`, chuông riêng "Cần review".
 - Giữ nguyên: chuông hoạt động chung, "Trả lại việc" (`returned`), "Chờ duyệt / Đã duyệt", "Sẵn sàng" (`ready`), rào chắn token AI không duyệt.

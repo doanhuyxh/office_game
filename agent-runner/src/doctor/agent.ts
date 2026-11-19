@@ -1,5 +1,5 @@
 import { existsSync, readdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join } from 'node:path';
 import { type AgentConfig, isInside, lightExecutor, type RunnerConfig } from '../config';
 import { projectFilesAbove, workDir } from '../core/paths';
 import { adapters } from '../executor/run';
@@ -35,6 +35,8 @@ export interface Diagnosis {
   problem?: string;
   /** Id nhân viên của token (đọc được trước khi lỗi thì vẫn trả). */
   employeeId?: string;
+  /** Họ tên nhân viên của token. */
+  employeeName?: string;
   /** Model thật đọc được khi chạy thử. */
   model?: string;
 }
@@ -52,7 +54,9 @@ export async function diagnoseAgent(c: DoctorContext, o: DoctorOptions): Promise
     report.step(`kiểm tra CLI ${executor.kind} (${executor.bin} --version)`);
     await checkCli(c, report);
     report.step('kiểm tra token AI với OfficeHub (get_my_profile)');
-    result.employeeId = await checkToken(c, report);
+    const me = await checkToken(c, report);
+    result.employeeId = me.id;
+    result.employeeName = me.fullName;
     report.step(
       workspace.mode === 'none'
         ? 'kiểm tra workspace none (thư mục chạy)'
@@ -69,6 +73,10 @@ export async function diagnoseAgent(c: DoctorContext, o: DoctorOptions): Promise
     if (workspace.mode === 'worktree') {
       report.step('kiểm tra gh (gh auth status)');
       await checkGh(c, report);
+    }
+    if (executor.requiredBins.length) {
+      report.step(`kiểm tra lệnh cần có: ${executor.requiredBins.join(', ')}`);
+      checkRequiredBins(c, report);
     }
     report.step(modelStep(o.modelCheck, executor.model));
     result.model = await checkModel({ ...probe, exec: executor }, report);
@@ -106,13 +114,13 @@ async function checkCli(c: DoctorContext, report: Report) {
   for (const warning of adapters[exec.kind].homeWarnings?.(exec, c.env.HOME!) ?? []) report.warn(warning);
 }
 
-/** Token AI phải thuộc đúng nhân viên trong cấu hình. Trả id nhân viên. */
-async function checkToken(c: DoctorContext, report: Report): Promise<string> {
+/** Token AI phải thuộc đúng nhân viên trong cấu hình. Trả id + họ tên nhân viên. */
+async function checkToken(c: DoctorContext, report: Report): Promise<{ id: string; fullName: string }> {
   const me = await c.hub.me();
   if (me.code !== c.agent.employeeCode)
     throw new CheckFailed(`token thuộc nhân viên ${me.code}, không phải ${c.agent.employeeCode}`);
   report.ok(`token AI đúng nhân viên (${me.fullName})`);
-  return me.id;
+  return me;
 }
 
 /** Agent nghiệp vụ (TEST-80): không repo / git / hook / gh. CLI chạy trong thư mục trống dưới data_dir, chỉ có tool MCP. */
@@ -197,6 +205,20 @@ async function checkTelegram(c: DoctorContext, report: Report) {
   if (`@${bot.username.toLowerCase()}` !== c.agent.telegramBot)
     throw new CheckFailed(`telegram_token là của @${bot.username}, không phải ${c.agent.telegramBot}`);
   report.ok(`bot Telegram ${c.agent.telegramBot}`);
+}
+
+/**
+ * `executor.required_bins` (TEST-180): mỗi lệnh phải tìm được trong PATH của agent (env riêng, không phải PATH của runner) — thiếu thì agent tắt,
+ * để biết ngay lúc khởi động thay vì bot hỏng giữa phiên làm theo hướng dẫn (deploy cần ssh / gh…).
+ */
+function checkRequiredBins(c: DoctorContext, report: Report) {
+  const bins = c.agent.executor.requiredBins;
+  const missing = bins.filter((b) => (isAbsolute(b) ? !existsSync(b) : !Bun.which(b, { PATH: c.env.PATH ?? '' })));
+  if (missing.length)
+    throw new CheckFailed(
+      `thiếu lệnh ${missing.join(', ')} trong PATH của agent (executor.required_bins) — cài hoặc sửa PATH`,
+    );
+  report.ok(`có đủ lệnh: ${bins.join(', ')}`);
 }
 
 /** Mode worktree cần `gh` để mở PR — chưa đăng nhập chỉ cảnh báo (vẫn push được nhánh). */

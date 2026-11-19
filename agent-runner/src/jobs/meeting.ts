@@ -5,7 +5,7 @@ import { workDir } from '../core/paths';
 import { errText, log } from '../log';
 import { MEETING_RESUME_MAX, MEETING_TURN_MAX_MIN } from '../policy';
 import { meetingPrompt } from '../prompt/meeting';
-import type { Job } from '../store';
+import { currentKind, type Job } from '../store';
 import { checkMeeting } from '../validator';
 import { agentScopedKey, type JobHandler, type JobServices, scopedId, skipJob, type WakeOf } from './handler';
 
@@ -64,8 +64,8 @@ export function meetingJobs(services: JobServices): JobHandler<WakeOf<'meeting'>
       const checked = checkMeeting(await s.hub.myMeeting(), wake.session_id);
       if (!checked.ok) return checked;
       const busy = store.runningJob(s.cfg.employeeCode);
-      // Đang làm việc / review / deploy (phiên dài) → bỏ lượt; đang chat thì chờ được
-      if (!busy || !['task', 'review', 'deploy'].includes(busy.kind)) return { ok: true };
+      // Đang làm việc / bước theo dõi (phiên dài) → bỏ lượt; đang chat thì chờ được
+      if (!busy || !['task', 'follow'].includes(currentKind(busy.kind))) return { ok: true };
       await s.hub.passTurn();
       return { ok: false, reason: `đang chạy ${busy.label}`, warning: 'agent đang làm việc — bỏ lượt họp' };
     },

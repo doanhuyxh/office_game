@@ -1,22 +1,20 @@
-import type { JobKind } from '../store';
+import type { Wake } from '../validator';
 import { chatJobs } from './chat';
-import { deployJobs } from './deploy';
+import { followJobs } from './follow';
 import type { JobHandler, JobServices, WakeOf } from './handler';
 import { meetingJobs } from './meeting';
-import { reviewJobs } from './review';
 import { taskJobs } from './task';
 
 export type { Admission, JobHandler, JobServices } from './handler';
 
-/** Registry loại job → handler. */
-export type JobHandlers = { [K in JobKind]: JobHandler<WakeOf<K>> };
+/** Registry loại job → handler (job loại cũ review / deploy trong DB chạy bằng handler follow — `currentKind` ở `store.ts`). */
+export type JobHandlers = { [K in Wake['kind']]: JobHandler<WakeOf<K>> };
 
 export function createJobHandlers(services: JobServices): JobHandlers {
   return {
     task: taskJobs(services),
     chat: chatJobs(services),
     meeting: meetingJobs(services),
-    review: reviewJobs(services),
-    deploy: deployJobs(services),
+    follow: followJobs(services),
   };
 }
