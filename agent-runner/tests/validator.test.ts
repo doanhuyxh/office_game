@@ -85,6 +85,26 @@ describe('validator', () => {
     expect(checkFollow(null, w, 'me').ok).toBe(false);
   });
 
+  test('checkFollow (TEST-185): cột có chọn bot (wakeBotIds) → chỉ bot trong danh sách chạy; rỗng / thiếu trường = mọi bot theo dõi', () => {
+    const w = { project_id: P, task_id: T };
+    const detail = (wakeBotIds?: unknown) => ({
+      task: { id: T, projectId: P, title: 'X', code: 'TEST-45', done: false, columnId: 'c-rev' },
+      followers: [{ employeeId: 'me' }],
+      columns: [{ id: 'c-rev', wakeFollowers: true, ...(wakeBotIds === undefined ? {} : { wakeBotIds }) }],
+    });
+    expect(checkFollow(detail(['other', 'ME']) as any, w, 'me').ok).toBe(true);
+    expect(checkFollow(detail(['other']) as any, w, 'me')).toEqual({
+      ok: false,
+      reason: 'agent không nằm trong danh sách bot được đánh thức của cột',
+    });
+    expect(checkFollow(detail([]) as any, w, 'me').ok).toBe(true);
+    expect(checkFollow(detail() as any, w, 'me').ok).toBe(true);
+    // dữ liệu ngoài sai kiểu → coi như không chọn bot
+    expect(checkFollow(detail('other') as any, w, 'me').ok).toBe(true);
+    // được chọn nhưng không còn theo dõi việc → vẫn bỏ
+    expect(checkFollow({ ...detail(['me']), followers: [] } as any, w, 'me').ok).toBe(false);
+  });
+
   test('checkFollow: OfficeHub trước TEST-178 (chưa có wakeFollowers) — người review / cột isReview / việc đã xong', () => {
     const w = { project_id: P, task_id: T };
     const base = { id: T, projectId: P, title: 'X', code: 'TEST-45', done: false, columnId: 'c-rev' };

@@ -665,8 +665,18 @@ test('column_entered (TEST-180) mode worktree: không theo dõi / cột không �
     expect(await runner.accept(s, followWake)).toBeNull();
     tasks[T1] = followTask({ columnId: 'c-doing' });
     expect(await runner.accept(s, followWake)).toBeNull();
+    // TEST-185: cột chọn bot khác → bỏ; chọn chính agent → chạy (ca dưới dùng cột có agent trong danh sách)
+    const picked = (ids: string[]) => {
+      const d = followTask();
+      return {
+        ...d,
+        columns: d.columns.map((c: { id: string }) => (c.id === 'c-deploy' ? { ...c, wakeBotIds: ids } : c)),
+      };
+    };
+    tasks[T1] = picked(['emp-khac']);
+    expect(await runner.accept(s, followWake)).toBeNull();
     // agent có làm (bình luận mới sau phiên: lần đọc thứ 3 = sau phiên) → runner bình luận chi phí
-    const detail = followTask();
+    const detail = picked(['emp-khac', 'emp-1']);
     getTaskHook = actedAfter(detail, 3);
     const before = comments.length;
     const id = await runner.accept(s, followWake);

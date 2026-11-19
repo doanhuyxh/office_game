@@ -178,6 +178,8 @@ function sameTask(
  * Bước 2 của tin column_entered (TEST-180), lúc nhận tin VÀ ngay trước khi chạy: agent đang theo dõi việc và việc đang ở cột "Đánh thức bot
  * theo dõi" (`columns[].wakeFollowers`). Bị bỏ theo dõi / việc đã sang cột khác → bỏ. Việc đã xong vẫn chạy được (cột hoàn thành có thể bật
  * đánh thức). Agent ở trong cột nào thì làm gì là việc của hướng dẫn (agent tự đọc), runner không xét.
+ * Cột có chọn bot (`wakeBotIds` không rỗng, TEST-184 / 185) mà agent không nằm trong đó → bỏ: tin tới trễ, hoặc danh sách bị đổi sau khi tin đã
+ * gửi. Thiếu trường / mảng rỗng = mọi bot theo dõi.
  * OfficeHub trước TEST-178 (chưa có `wakeFollowers`): người review (`reviewerEmployeeId`) tính như người theo dõi, cột `isReview` tính như cột
  * đánh thức, và việc đã xong tính là ở cột đánh thức (tin task_done cũ).
  */
@@ -197,6 +199,9 @@ export function checkFollow(
   const legacyServer = !columns.some((c) => c && 'wakeFollowers' in c);
   const wakes = column?.wakeFollowers === true || (legacyServer && (column?.isReview === true || t.done === true));
   if (!wakes) return { ok: false, reason: 'việc không còn ở cột đánh thức bot theo dõi' };
+  const chosen = Array.isArray(column?.wakeBotIds) ? column.wakeBotIds.filter((id) => typeof id === 'string') : [];
+  if (chosen.length && !chosen.some((id) => id.toLowerCase() === myEmployeeId.toLowerCase()))
+    return { ok: false, reason: 'agent không nằm trong danh sách bot được đánh thức của cột' };
   return { ok: true, value: { title: String(t.title ?? ''), code: String(t.code ?? '') } };
 }
 

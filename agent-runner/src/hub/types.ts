@@ -19,8 +19,9 @@ export interface TaskDetail {
   /**
    * Cột trạng thái của dự án; `wakeFollowers` = việc vào cột này thì bot theo dõi được đánh thức (TEST-178 — máy chủ bỏ trường false khi gọn
    * kết quả, nên "không có trường" ở mọi cột = máy chủ bản cũ). `isReview` = cột review của OfficeHub trước TEST-178.
+   * `wakeBotIds` (TEST-184) = Id nhân viên các bot được đánh thức ở cột; thiếu / rỗng = mọi bot theo dõi việc.
    */
-  columns?: { id?: string; wakeFollowers?: boolean; isReview?: boolean }[];
+  columns?: { id?: string; wakeFollowers?: boolean; wakeBotIds?: string[]; isReview?: boolean }[];
   /** Người theo dõi (TEST-160). */
   followers?: { employeeId?: string }[];
   /** Bình luận mới nhất (mặc định 20) — runner chỉ xét id / người viết / cờ BOT, không đọc nội dung. */

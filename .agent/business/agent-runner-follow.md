@@ -15,7 +15,7 @@ Code: `src/jobs/follow.ts`, `src/prompt/follow.ts`, `checkFollow` / `actedOnTask
 
 ## Kiểm tra lại (`checkFollow`, lúc nhận tin và ngay trước khi chạy)
 
-`get_task`: đúng id / dự án, agent nằm trong `followers`, cột hiện tại của việc có `wakeFollowers` (máy chủ bỏ trường `false`). Bị bỏ theo dõi / việc đã sang cột khác → bỏ, chỉ log. Việc đã xong vẫn chạy được (cột hoàn thành có thể bật đánh thức). OfficeHub trước TEST-178 (không cột nào có trường `wakeFollowers`): `reviewerEmployeeId` tính như người theo dõi, cột `isReview` hoặc việc đã xong tính như cột đánh thức.
+`get_task`: đúng id / dự án, agent nằm trong `followers`, cột hiện tại của việc có `wakeFollowers` (máy chủ bỏ trường `false`). Bị bỏ theo dõi / việc đã sang cột khác → bỏ, chỉ log. Cột có chọn bot (`columns[].wakeBotIds` không rỗng, TEST-184) mà Id nhân viên của agent không nằm trong đó → bỏ, lý do "agent không nằm trong danh sách bot được đánh thức của cột" (TEST-185: tin tới trễ, hoặc danh sách bị đổi sau khi tin đã gửi); thiếu trường / mảng rỗng / sai kiểu = mọi bot theo dõi. Việc đã xong vẫn chạy được (cột hoàn thành có thể bật đánh thức). OfficeHub trước TEST-178 (không cột nào có trường `wakeFollowers`): `reviewerEmployeeId` tính như người theo dõi, cột `isReview` hoặc việc đã xong tính như cột đánh thức.
 
 ## Công cụ theo cấu hình agent (`toolsOf`, không theo loại việc)
 
@@ -51,4 +51,4 @@ Danh sách tên lệnh (hoặc đường dẫn tuyệt đối) mà hướng dẫ
 
 ## Test
 
-`tests/flow.test.ts`: worktree (không theo dõi / cột không đánh thức → bỏ; worktree `FOLLOW-`, không push / PR, hook chặn push khi `OFFICEHUB_READONLY`, lần sau đưa về origin/main; agent có bình luận mới → bình luận chi phí, không có → không bình luận nhưng vẫn ghi chi phí), none + builtin_tools (cột hoàn thành không tick → bỏ; prompt có shell), none chỉ MCP (chạy được), in_place (bình luận lý do, không chạy CLI), job `deploy` cũ trong hàng đợi → handler follow, `required_bins` thiếu → agent tắt. `validator.test.ts` (`parseWake` column_entered + tin cũ, `checkFollow` cả máy chủ cũ, `actedOnTask`), `prompt.test.ts` (prompt theo 3 loại công cụ, phiên nối tiếp).
+`tests/flow.test.ts`: worktree (không theo dõi / cột không đánh thức / cột chọn bot khác → bỏ; worktree `FOLLOW-`, không push / PR, hook chặn push khi `OFFICEHUB_READONLY`, lần sau đưa về origin/main; agent có bình luận mới → bình luận chi phí, không có → không bình luận nhưng vẫn ghi chi phí), none + builtin_tools (cột hoàn thành không tick → bỏ; prompt có shell), none chỉ MCP (chạy được), in_place (bình luận lý do, không chạy CLI), job `deploy` cũ trong hàng đợi → handler follow, `required_bins` thiếu → agent tắt. `validator.test.ts` (`parseWake` column_entered + tin cũ, `checkFollow` cả máy chủ cũ + `wakeBotIds`, `actedOnTask`), `prompt.test.ts` (prompt theo 3 loại công cụ, phiên nối tiếp).
