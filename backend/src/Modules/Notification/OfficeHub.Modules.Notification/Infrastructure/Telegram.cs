@@ -73,13 +73,10 @@ internal sealed class TelegramWakeup(NotificationDbContext db, IAccountService a
     public Task TaskMentionedAsync(Guid userId, string employeeCode, Guid projectId, Guid taskId, string taskCode, Guid commentId, CancellationToken ct = default) =>
         EnqueueAsync("task_mentioned", TelegramRules.Mentioned, userId, employeeCode, projectId, taskId, taskCode, commentId, ct);
 
-    public Task TaskReviewRequestedAsync(Guid reviewerUserId, string reviewerCode, Guid projectId, Guid taskId, string taskCode, string? assigneeCode,
+    public Task TaskColumnEnteredAsync(Guid followerUserId, string followerCode, Guid projectId, Guid taskId, string taskCode, Guid columnId, string? assigneeCode,
         CancellationToken ct = default) =>
-        EnqueueAsync("task_review_requested", reviewerUserId, taskId, TelegramRules.ReviewWakeMessage(reviewerCode, projectId, taskId, taskCode, assigneeCode), $"việc {taskCode}", ct);
-
-    public Task TaskDoneAsync(Guid followerUserId, string followerCode, Guid projectId, string projectCode, Guid taskId, string taskCode, string? assigneeCode,
-        CancellationToken ct = default) =>
-        EnqueueAsync("task_done", followerUserId, taskId, TelegramRules.DoneWakeMessage(followerCode, projectId, projectCode, taskId, taskCode, assigneeCode), $"việc {taskCode}", ct);
+        EnqueueAsync("task_column_entered", followerUserId, taskId, TelegramRules.ColumnWakeMessage(followerCode, projectId, taskId, taskCode, columnId, assigneeCode),
+            $"việc {taskCode}", ct);
 
     public Task ChatMentionedAsync(Guid userId, string employeeCode, Guid conversationId, Guid messageId, CancellationToken ct = default) =>
         EnqueueAsync("chat_mention", userId, null, TelegramRules.ChatWakeMessage(employeeCode, conversationId, messageId), $"tin {messageId}", ct);

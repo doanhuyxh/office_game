@@ -19,9 +19,7 @@ public static class WebhookEvents
     public const string ChatMention = "chat.mention";
     /// <summary>Bot dự họp agent vừa nhận lượt nói (TEST-75) — chỉ gửi cho bot đó.</summary>
     public const string MeetingTurn = "meeting.turn";
-    /// <summary>Việc vào cột review, người review là bot (TEST-161) — chỉ gửi cho người review đó.</summary>
-    public const string TaskReviewRequested = "task.review_requested";
-    /// <summary>Việc bot theo dõi được người thật chuyển sang hoàn thành (TEST-166) — chỉ gửi cho bot theo dõi.</summary>
-    public const string TaskDone = "task.done";
+    /// <summary>Việc vào cột "Đánh thức bot theo dõi" (TEST-178) — chỉ gửi cho bot theo dõi việc (bỏ người chuyển).</summary>
+    public const string TaskColumnEntered = "task.column_entered";
     public const string Ping = "ping";
 }

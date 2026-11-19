@@ -62,30 +62,19 @@ public class TelegramRulesTests
     }
 
     [Fact]
-    public void Review_wake_message_has_task_fields_and_assignee_code()
+    public void Column_wake_message_has_task_fields_column_and_assignee_but_no_title()
     {
-        var p = Guid.NewGuid(); var t = Guid.NewGuid();
-        using var doc = JsonDocument.Parse(TelegramRules.ReviewWakeMessage("NV020", p, t, "TEST-161", "NV018"));
-        Assert.Equal(["employee_code", "project_id", "task_id", "task_code", "event", "assignee_code"], doc.RootElement.EnumerateObject().Select(x => x.Name).ToArray());
-        Assert.Equal("review_requested", doc.RootElement.GetProperty("event").GetString());
-        Assert.Equal("NV020", doc.RootElement.GetProperty("employee_code").GetString());
-        Assert.Equal("NV018", doc.RootElement.GetProperty("assignee_code").GetString());
-        using var noAssignee = JsonDocument.Parse(TelegramRules.ReviewWakeMessage("NV020", p, t, "TEST-161", null));
-        Assert.False(noAssignee.RootElement.TryGetProperty("assignee_code", out _));
-    }
-
-    [Fact]
-    public void Done_wake_message_has_task_fields_project_code_and_assignee_but_no_title()
-    {
-        var p = Guid.NewGuid(); var t = Guid.NewGuid();
-        using var doc = JsonDocument.Parse(TelegramRules.DoneWakeMessage("NV030", p, "TEST", t, "TEST-166", "NV018"));
-        Assert.Equal(["employee_code", "project_id", "task_id", "task_code", "event", "project_code", "assignee_code"],
+        var p = Guid.NewGuid(); var t = Guid.NewGuid(); var c = Guid.NewGuid();
+        var text = TelegramRules.ColumnWakeMessage("NV030", p, t, "TEST-178", c, "NV018");
+        Assert.DoesNotContain('\n', text);
+        using var doc = JsonDocument.Parse(text);
+        Assert.Equal(["employee_code", "project_id", "task_id", "task_code", "event", "column_id", "assignee_code"],
             doc.RootElement.EnumerateObject().Select(x => x.Name).ToArray());
-        Assert.Equal("task_done", doc.RootElement.GetProperty("event").GetString());
+        Assert.Equal("column_entered", doc.RootElement.GetProperty("event").GetString());
         Assert.Equal("NV030", doc.RootElement.GetProperty("employee_code").GetString());
-        Assert.Equal("TEST", doc.RootElement.GetProperty("project_code").GetString());
+        Assert.Equal(c.ToString(), doc.RootElement.GetProperty("column_id").GetString());
         Assert.Equal("NV018", doc.RootElement.GetProperty("assignee_code").GetString());
-        using var noAssignee = JsonDocument.Parse(TelegramRules.DoneWakeMessage("NV030", p, "TEST", t, "TEST-166", null));
+        using var noAssignee = JsonDocument.Parse(TelegramRules.ColumnWakeMessage("NV030", p, t, "TEST-178", c, null));
         Assert.False(noAssignee.RootElement.TryGetProperty("assignee_code", out _));
     }
 

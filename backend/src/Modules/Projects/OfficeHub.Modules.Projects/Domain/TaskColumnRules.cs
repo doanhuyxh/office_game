@@ -3,8 +3,8 @@ using System.Text.RegularExpressions;
 namespace OfficeHub.Modules.Projects.Domain;
 
 /// <summary>Cột trạng thái (thông tin đủ cho luật thuần — test không cần DB).</summary>
-/// <param name="IsReview">Cột review (TEST-161) — vào đây thì báo người review.</param>
-public sealed record ColumnInfo(Guid Id, string Name, int Position, bool IsDone, bool ApproverOnly, bool IsReview = false);
+/// <param name="WakeFollowers">Cột "Đánh thức bot theo dõi" (TEST-178) — việc vào đây thì đánh thức bot theo dõi việc (<see cref="FollowerWakeRules"/>).</param>
+public sealed record ColumnInfo(Guid Id, string Name, int Position, bool IsDone, bool ApproverOnly, bool WakeFollowers = false);
 
 /// <summary>
 /// Luật cột trạng thái công việc (chủ dự án chốt 2026-11-11): tên / màu / thứ tự tự do, tối đa <see cref="MaxColumns"/> cột,
@@ -20,12 +20,12 @@ public static partial class TaskColumnRules
     public static readonly string[] Palette =
         ["#64748b", "#3b82f6", "#06b6d4", "#8b5cf6", "#ec4899", "#ef4444", "#f97316", "#f59e0b", "#84cc16", "#22c55e"];
 
-    /// <summary>4 cột khi tạo dự án mới: Cần làm · Đang làm · Chờ review · Xong (hoàn thành + cần người duyệt).</summary>
+    /// <summary>4 cột khi tạo dự án mới: Cần làm · Đang làm · Chờ review (đánh thức bot theo dõi) · Xong (hoàn thành + cần người duyệt).</summary>
     public static List<TaskColumn> Defaults(Guid projectId) =>
     [
         new() { ProjectId = projectId, Name = "Cần làm", Position = 0, Color = "#64748b" },
         new() { ProjectId = projectId, Name = "Đang làm", Position = 1, Color = "#3b82f6" },
-        new() { ProjectId = projectId, Name = "Chờ review", Position = 2, Color = "#f59e0b", IsReview = true },
+        new() { ProjectId = projectId, Name = "Chờ review", Position = 2, Color = "#f59e0b", WakeFollowers = true },
         new() { ProjectId = projectId, Name = "Xong", Position = 3, Color = "#22c55e", IsDone = true, ApproverOnly = true },
     ];
 

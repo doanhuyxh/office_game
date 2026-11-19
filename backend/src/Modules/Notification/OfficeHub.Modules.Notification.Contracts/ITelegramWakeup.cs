@@ -18,15 +18,11 @@ public interface ITelegramWakeup
     /// runner kiểm tra lại việc qua MCP rồi bắt đầu. Người gọi chỉ gửi khi việc có người làm và người làm không phải người vừa thao tác.</summary>
     Task TaskReadyAsync(Guid assigneeUserId, string employeeCode, Guid projectId, Guid taskId, string taskCode, CancellationToken ct = default);
 
-    /// <summary>Việc vừa vào cột review (TEST-161) và người review là bot → tin <c>event: review_requested</c> (4 trường như giao việc, <c>employee_code</c> = mã người review)
-    /// + <c>assignee_code</c> (mã người làm, nếu có); agent đọc việc qua MCP, review và chỉ trả lời bằng bình luận (không duyệt / không chuyển trạng thái).
-    /// Người gọi bỏ người review khi chính họ chuyển việc; người nhận không phải bot / đã khoá → bỏ qua.</summary>
-    Task TaskReviewRequestedAsync(Guid reviewerUserId, string reviewerCode, Guid projectId, Guid taskId, string taskCode, string? assigneeCode, CancellationToken ct = default);
-
-    /// <summary>Việc bot đang theo dõi vừa được NGƯỜI THẬT chuyển sang hoàn thành (TEST-166) → tin <c>event: task_done</c> (4 trường như giao việc,
-    /// <c>employee_code</c> = mã bot theo dõi) + <c>project_code</c> + <c>assignee_code</c> (nếu có); vd bot DevOps deploy khi việc được duyệt Xong.
-    /// Người gọi chỉ gửi khi việc chuyển chưa xong → xong lần này và người thao tác không dùng token AI; người nhận không phải bot / đã khoá → bỏ qua.</summary>
-    Task TaskDoneAsync(Guid followerUserId, string followerCode, Guid projectId, string projectCode, Guid taskId, string taskCode, string? assigneeCode,
+    /// <summary>Việc bot đang theo dõi vừa vào cột "Đánh thức bot theo dõi" (TEST-178) → tin <c>event: column_entered</c> (4 trường như giao việc,
+    /// <c>employee_code</c> = mã bot theo dõi) + <c>column_id</c> + <c>assignee_code</c> (nếu có). Bot tự đọc hướng dẫn chức vụ + workGuide dự án để biết
+    /// ở cột đó mình có việc không (vd bot review ở "Chờ review", bot DevOps ở "Deploy"). Người gọi bỏ người vừa chuyển việc;
+    /// người nhận không phải bot / đã khoá → bỏ qua.</summary>
+    Task TaskColumnEnteredAsync(Guid followerUserId, string followerCode, Guid projectId, Guid taskId, string taskCode, Guid columnId, string? assigneeCode,
         CancellationToken ct = default);
 
     /// <summary>Bot được @mã-nhân-viên trong bình luận việc (TEST-63) → tin <c>event: mentioned</c> + <c>comment_id</c>; agent đọc bình luận và chỉ trả lời bằng bình luận.
@@ -54,10 +50,8 @@ public static partial class TelegramRules
     public const string Assigned = "assigned", Returned = "returned", Mentioned = "mentioned";
     /// <summary>Việc hết phải chờ việc khác (TEST-86).</summary>
     public const string Ready = "ready";
-    /// <summary>Việc vào cột review, người review là bot (TEST-161).</summary>
-    public const string ReviewRequested = "review_requested";
-    /// <summary>Việc bot theo dõi được người thật chuyển sang hoàn thành (TEST-166).</summary>
-    public const string TaskDone = "task_done";
+    /// <summary>Việc bot theo dõi vừa vào cột "Đánh thức bot theo dõi" (TEST-178; thay review_requested TEST-161 + task_done TEST-166).</summary>
+    public const string ColumnEntered = "column_entered";
     /// <summary>Bot được @nhắc trong tin nhắn chat (TEST-70) — tin không có task_id / project_id.</summary>
     public const string ChatMention = "chat_mention";
     /// <summary>Bot dự họp agent tới lượt nói (TEST-75) — tin không có task_id / project_id / nội dung.</summary>
@@ -78,25 +72,14 @@ public static partial class TelegramRules
         return JsonSerializer.Serialize(d);
     }
 
-    /// <summary>Tin đánh thức người review là bot (TEST-161): như <see cref="WakeMessage"/> với event = <see cref="ReviewRequested"/>, + assignee_code khi việc có người làm.</summary>
-    public static string ReviewWakeMessage(string reviewerCode, Guid projectId, Guid taskId, string taskCode, string? assigneeCode)
+    /// <summary>Tin đánh thức bot theo dõi khi việc vào cột có tick (TEST-178): như <see cref="WakeMessage"/> với event = <see cref="ColumnEntered"/>, + column_id,
+    /// + assignee_code khi việc có người làm. Không có tên / nội dung việc (agent tự đọc qua MCP; tên có ở webhook).</summary>
+    public static string ColumnWakeMessage(string followerCode, Guid projectId, Guid taskId, string taskCode, Guid columnId, string? assigneeCode)
     {
         var d = new Dictionary<string, string>
         {
-            ["employee_code"] = reviewerCode, ["project_id"] = projectId.ToString(), ["task_id"] = taskId.ToString(), ["task_code"] = taskCode, ["event"] = ReviewRequested,
-        };
-        if (!string.IsNullOrWhiteSpace(assigneeCode)) d["assignee_code"] = assigneeCode;
-        return JsonSerializer.Serialize(d);
-    }
-
-    /// <summary>Tin đánh thức bot theo dõi khi việc xong (TEST-166): như <see cref="WakeMessage"/> với event = <see cref="TaskDone"/>, + project_code,
-    /// + assignee_code khi việc có người làm. Không có tên việc (như mọi tin Telegram — agent tự đọc qua MCP; tên có ở webhook).</summary>
-    public static string DoneWakeMessage(string followerCode, Guid projectId, string projectCode, Guid taskId, string taskCode, string? assigneeCode)
-    {
-        var d = new Dictionary<string, string>
-        {
-            ["employee_code"] = followerCode, ["project_id"] = projectId.ToString(), ["task_id"] = taskId.ToString(), ["task_code"] = taskCode, ["event"] = TaskDone,
-            ["project_code"] = projectCode,
+            ["employee_code"] = followerCode, ["project_id"] = projectId.ToString(), ["task_id"] = taskId.ToString(), ["task_code"] = taskCode, ["event"] = ColumnEntered,
+            ["column_id"] = columnId.ToString(),
         };
         if (!string.IsNullOrWhiteSpace(assigneeCode)) d["assignee_code"] = assigneeCode;
         return JsonSerializer.Serialize(d);

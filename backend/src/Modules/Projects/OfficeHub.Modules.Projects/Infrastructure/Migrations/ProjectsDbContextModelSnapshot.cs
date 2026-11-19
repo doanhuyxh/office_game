@@ -544,9 +544,6 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.Property<bool>("IsDone")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("IsReview")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -557,6 +554,9 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
 
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("WakeFollowers")
+                        .HasColumnType("boolean");
 
                     b.HasKey("Id");
 
@@ -711,9 +711,6 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
 
                     b.Property<double>("Rank")
                         .HasColumnType("double precision");
-
-                    b.Property<Guid?>("ReviewerEmployeeId")
-                        .HasColumnType("uuid");
 
                     b.Property<string>("Title")
                         .IsRequired()

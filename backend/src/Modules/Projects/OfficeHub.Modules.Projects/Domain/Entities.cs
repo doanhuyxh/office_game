@@ -155,9 +155,6 @@ public sealed class TaskItem
     /// <summary>Thứ tự trong cột (số thực để chèn giữa không phải đánh lại).</summary>
     public double Rank { get; set; }
     public Guid? AssigneeEmployeeId { get; set; }
-    /// <summary>Người review (TEST-161): thành viên dự án khác người làm. Việc vào cột <see cref="TaskColumn.IsReview"/> → báo người này (bot: Telegram + webhook).
-    /// Chỉ lưu Id nhân viên (không FK sang schema org). Luật: <see cref="ReviewerRules"/>.</summary>
-    public Guid? ReviewerEmployeeId { get; set; }
     public Guid? MilestoneId { get; set; }
     public DateOnly? DueOn { get; set; }
     public decimal? EstimateDays { get; set; }
@@ -187,12 +184,13 @@ public sealed class TaskColumn
     public bool IsDone { get; set; }
     /// <summary>Cần người duyệt: chỉ quản lý dự án / HR chuyển việc vào cột này, hoặc kéo lùi việc ra khỏi cột (mở lại).</summary>
     public bool ApproverOnly { get; set; }
-    /// <summary>Cột review (TEST-161): việc chuyển vào đây (từ cột khác) và có người review → báo người review "Cần review". Không đổi quyền chuyển việc.</summary>
-    public bool IsReview { get; set; }
+    /// <summary>"Đánh thức bot theo dõi" (TEST-178): việc chuyển vào đây (từ cột khác) → mọi bot theo dõi việc được đánh thức (<see cref="FollowerWakeRules"/>).
+    /// Không đổi quyền chuyển việc.</summary>
+    public bool WakeFollowers { get; set; }
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<TaskActivityKind>))]
-/// <summary>CommentDeleted (TEST-39): người viết tự xoá bình luận — không lưu nội dung đã xoá. Reviewer (TEST-161): đổi người review (from → to = họ tên).</summary>
+/// <summary>CommentDeleted (TEST-39): người viết tự xoá bình luận — không lưu nội dung đã xoá. Reviewer (TEST-161, đã bỏ ở TEST-178): lịch sử cũ đổi người review (from → to = họ tên) — chỉ còn để đọc / hiển thị.</summary>
 public enum TaskActivityKind { Created = 0, Moved = 1, Assigned = 2, DueChanged = 3, Edited = 4, Depends = 5, CommentDeleted = 6, Follow = 7, Unfollow = 8, Reviewer = 9 }
 
 /// <summary>Lịch sử một việc: tạo, chuyển trạng thái (kèm lý do khi lùi), đổi người, đổi hạn, sửa nội dung. Chỉ thêm. <see cref="ByBot"/> = làm qua token AI / MCP.</summary>
@@ -315,8 +313,9 @@ public sealed class TaskDependency
 }
 
 /// <summary>
-/// Người theo dõi việc (TEST-160): thành viên dự án (người hoặc bot) muốn biết diễn biến của việc không giao cho mình — vd bot DevOps chờ việc sang Xong để deploy.
-/// Chỉ lưu Id nhân viên (không FK sang schema org). Xoá việc → xoá theo (cascade). Chưa gửi thông báo riêng cho người theo dõi.
+/// Người theo dõi việc (TEST-160): thành viên dự án (người hoặc bot) muốn biết diễn biến của việc không giao cho mình — vd bot review, bot DevOps.
+/// Người review cũng là người theo dõi (TEST-178 bỏ trường người review). Bot theo dõi được đánh thức khi việc vào cột "Đánh thức bot theo dõi" (<see cref="FollowerWakeRules"/>);
+/// người theo dõi là người thật không có chuông riêng. Chỉ lưu Id nhân viên (không FK sang schema org). Xoá việc → xoá theo (cascade).
 /// </summary>
 public sealed class TaskFollower
 {

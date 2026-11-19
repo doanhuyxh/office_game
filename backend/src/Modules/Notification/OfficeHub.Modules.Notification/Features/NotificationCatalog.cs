@@ -82,14 +82,11 @@ internal static class NotificationCatalog
         new("projects.task_ready", "projects", "Việc sẵn sàng",
             "Người làm (chưa giao thì quản lý dự án) khi mọi việc phải xong trước đã xong; bỏ người vừa thao tác (Telegram: chỉ khi có người làm là tài khoản bot).",
             NotificationCategories.ProjectTask, Telegram: nameof(ITelegramWakeup.TaskReadyAsync)),
-        new("projects.task_review_requested", "projects", "Cần review",
-            "Người review của việc khi việc chuyển vào trạng thái review từ trạng thái khác (bỏ khi chính người review chuyển). " +
-            "Telegram + webhook task.review_requested: chỉ khi người review là tài khoản bot.",
-            NotificationCategories.ProjectTask, Telegram: nameof(ITelegramWakeup.TaskReviewRequestedAsync), WebhookEvent: WebhookEvents.TaskReviewRequested),
-        new("projects.task_done_followers", "projects", "Việc theo dõi đã xong (bot)",
-            "Người theo dõi là tài khoản bot khi người thật chuyển việc từ chưa xong sang trạng thái hoàn thành (token AI chuyển / đã xong chuyển cột xong khác → không gửi). " +
-            "Không chuông; Telegram + webhook task.done — vd bot DevOps deploy khi việc được duyệt.",
-            null, Telegram: nameof(ITelegramWakeup.TaskDoneAsync), WebhookEvent: WebhookEvents.TaskDone),
+        new("projects.task_column_entered", "projects", "Việc vào cột đánh thức bot theo dõi",
+            "Người theo dõi là tài khoản bot đang hoạt động khi việc chuyển vào trạng thái có tick \"Đánh thức bot theo dõi\" từ trạng thái khác " +
+            "(ai chuyển cũng gửi, bỏ người chuyển; tạo việc thẳng vào cột / đổi cờ / xoá cột không gửi). " +
+            "Không chuông; Telegram + webhook task.column_entered — bot tự đọc hướng dẫn để biết ở cột đó mình có việc không (review, deploy…).",
+            null, Telegram: nameof(ITelegramWakeup.TaskColumnEnteredAsync), WebhookEvent: WebhookEvents.TaskColumnEntered),
         new("projects.task_due", "projects", "Việc đến hạn / quá hạn", "Người làm, một lần khi việc chưa xong đến hạn hoặc quá hạn.", NotificationCategories.ProjectTask),
         new("projects.updated", "projects", "Dự án được cập nhật", "Thành viên dự án khi thông tin chung / hướng dẫn làm việc của dự án đổi.", NotificationCategories.ProjectTask),
         new("projects.member_added", "projects", "Thêm vào dự án", "Nhân viên được thêm vào dự án (mở công việc + kho tài liệu dự án).", NotificationCategories.ProjectMemberAdded),
