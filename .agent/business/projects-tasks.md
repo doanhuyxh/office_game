@@ -31,7 +31,7 @@
 - **Ảnh / tệp đính kèm bình luận** (TEST-153): dán / kéo / chọn trên web, ≤ 5 tệp, bình luận chỉ có tệp được; xoá bình luận / việc → xoá file S3 — [projects-comment-files.md](projects-comment-files.md).
 - **Xoá bình luận** (TEST-39): `DELETE /api/projects/comments/{id}` — CHỈ người viết (`AuthorEmployeeId`), không ngoại lệ cho quản lý / HR / admin (403); token AI 403 (ngoài allowlist, không có tool MCP); dự án đóng 409. Xoá cứng + lịch sử `CommentDeleted` (không chép nội dung). `CommentDto.canDelete` do BE tính. Bình luận BOT của mình / lý do chuyển lùi xoá được như thường.
 - **Người theo dõi việc** (TEST-160): `task_followers`, `POST` / `DELETE /tasks/{tid}/followers/{employeeId}`, lịch sử Follow / Unfollow, MCP `followers`; cờ cột `WakeFollowers` ("Đánh thức bot theo dõi") — việc vào cột → Telegram `column_entered` + webhook cho bot theo dõi. TEST-178 bỏ người review (TEST-161: người review cũ thành người theo dõi; lịch sử `Reviewer` cũ vẫn hiển thị) — [projects-task-followers.md](projects-task-followers.md).
-- `task_activities` (chỉ thêm): Created (to = tên cột), Moved (from/to = **tên cột** tại thời điểm chuyển; bản ghi trước 2026-11-11 là tên enum `Todo/Doing/Review/Done` — FE đổi ra nhãn), Assigned, DueChanged, Edited, Depends, CommentDeleted, Follow / Unfollow, Reviewer (chỉ bản ghi cũ TEST-161).
+- `task_activities` (chỉ thêm): Created (to = tên cột), Moved (from/to = **tên cột** tại thời điểm chuyển; bản ghi trước 2026-11-11 là tên enum `Todo/Doing/Review/Done` — FE đổi ra nhãn), Assigned, DueChanged, Edited, Depends, CommentDeleted, Follow / Unfollow, Reviewer (chỉ bản ghi cũ TEST-161), StreakBlocked (bot bị chặn vì chuỗi, đã báo quản lý dự án — dấu chống báo lặp, TEST-182, [agent-team.md](agent-team.md)).
 
 ## BOT + MCP
 

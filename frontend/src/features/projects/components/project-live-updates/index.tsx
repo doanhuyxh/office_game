@@ -23,6 +23,7 @@ export function describeActivity(a: IProjectActivity): string {
     case 'CommentDeleted': return `${who} xoá một bình luận ở ${a.taskCode}`;
     case 'Follow': return `${who} thêm ${a.to ?? '?'} theo dõi ${a.taskCode}`;
     case 'Reviewer': return `${who} đặt người review ${a.taskCode}: ${a.to ?? 'không ai'}`;
+    case 'StreakBlocked': return `${who} bị chặn ở ${a.taskCode} (thao tác ${a.to ?? ''} liên tiếp) — cần người thật xem`;
     case 'Unfollow': return `${who} bỏ ${a.from ?? '?'} khỏi người theo dõi ${a.taskCode}`;
     default: return `${who} sửa ${a.taskCode}: ${a.taskTitle}`;
   }

@@ -177,23 +177,6 @@ internal static class TaskEndpoints
     /// <summary>Được duyệt (vào / ra cột cần người duyệt): quản lý dự án / HR và KHÔNG qua token AI (<see cref="AgentTeamRules"/>).</summary>
     private static bool CanApprove(ProjectViewer v, ClaimsPrincipal user, Guid projectId) => v.CanManage(projectId) && !user.IsAccessToken();
 
-    /// <summary>Token AI: việc đã qua tay bot quá nhiều lần liên tiếp → chặn (null = được làm).</summary>
-    internal static Task<string?> StreakErrorAsync(ClaimsPrincipal user, Guid tid, ProjectsDbContext db, CancellationToken ct) =>
-        StreakErrorAsync(user.IsAccessToken(), tid, db, ct);
-
-    private static async Task<string?> StreakErrorAsync(bool byBot, Guid tid, ProjectsDbContext db, CancellationToken ct)
-    {
-        if (!byBot) return null;
-        var acts = await db.Activities.AsNoTracking().Where(a => a.TaskId == tid).OrderByDescending(a => a.At).Take(50)
-            .Select(a => new { a.At, a.ByBot, a.Kind }).ToListAsync(ct);
-        var comments = await db.Comments.AsNoTracking().Where(c => c.TaskId == tid).OrderByDescending(c => c.CreatedAt).Take(50)
-            .Select(c => new { c.CreatedAt, c.ByBot }).ToListAsync(ct);
-        var events = acts.Select(a => new TaskEvent(a.At, a.ByBot, a.Kind is TaskActivityKind.Moved or TaskActivityKind.Assigned))
-            .Concat(comments.Select(c => new TaskEvent(c.CreatedAt, c.ByBot, true))); // bình luận bot cũng tính: chặn hai bot @nhắc nhau qua lại
-        var limit = (await db.AgentLimitsAsync(ct)).Streak;
-        return AgentTeamRules.StreakAllows(AgentTeamRules.BotStreak(events), limit) ? null : AgentTeamRules.StreakMessage(limit);
-    }
-
     internal static TaskActivity Activity(TaskItem t, TaskActivityKind kind, ProjectViewer v, ClaimsPrincipal user, DateTimeOffset now,
         string? from = null, string? to = null, string? note = null) =>
         new() { TaskId = t.Id, Kind = kind, From = Cut(from), To = Cut(to), Note = note, ActorEmployeeId = v.Employee?.Id, ActorName = v.Name, ByBot = user.IsAccessToken(), At = now };
@@ -351,7 +334,7 @@ internal static class TaskEndpoints
 
     private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> UpdateAsync(Guid tid, UpsertTask r, ClaimsPrincipal user, ProjectsDbContext db,
         ProjectAccess access, IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, IWebhookPublisher webhooks, IAccountService accounts, ProjectClock clock,
-        CancellationToken ct)
+        BotStreakGuard streak, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var (t, p) = await LoadAsync(tid, db, ct);
@@ -361,7 +344,7 @@ internal static class TaskEndpoints
         var val = await ValidateAsync(r, p, db, clock.Today, t.DueOn, ct);
         if (val.Failed) return val.Problem();
         var changesFlow = (r.ColumnId is { } nc && nc != t.ColumnId) || r.AssigneeEmployeeId != t.AssigneeEmployeeId;
-        if (changesFlow && await StreakErrorAsync(user, t.Id, db, ct) is { } streakErr) return Problems.Conflict(streakErr);
+        if (changesFlow && await streak.ErrorAsync(user.IsAccessToken(), t, p, v, ct) is { } streakErr) return Problems.Conflict(streakErr);
         var now = clock.Now;
         var from = t.ColumnId;
         var cols = TaskColumnEndpoints.Infos(await TaskColumnEndpoints.LoadAsync(db, p.Id, ct));
@@ -394,7 +377,8 @@ internal static class TaskEndpoints
     }
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> MoveAsync(Guid tid, MoveTask r, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
-        IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, IWebhookPublisher webhooks, IAccountService accounts, ProjectClock clock, CancellationToken ct)
+        IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, IWebhookPublisher webhooks, IAccountService accounts, ProjectClock clock, BotStreakGuard streak,
+        CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var (t, p) = await LoadAsync(tid, db, ct);
@@ -406,7 +390,7 @@ internal static class TaskEndpoints
         if (cols.All(c => c.Id != r.ColumnId)) return Problems.Conflict("Trạng thái không thuộc dự án");
         var from = t.ColumnId;
         var wasDone = t.CompletedAt != null;
-        if (r.ColumnId != t.ColumnId && await StreakErrorAsync(user, t.Id, db, ct) is { } streakErr) return Problems.Conflict(streakErr);
+        if (r.ColumnId != t.ColumnId && await streak.ErrorAsync(user.IsAccessToken(), t, p, v, ct) is { } streakErr) return Problems.Conflict(streakErr);
         if (await StartErrorAsync(user, t, cols, r.ColumnId, db, ct) is { } startErr) return Problems.Conflict(startErr);
         if (ApplyColumn(t, p, cols, r.ColumnId, r.Note, v, user, db, clock.Now) is { } err) return Problems.Conflict(err);
         t.Rank = r.Rank ?? (await db.Tasks.Where(x => x.ColumnId == r.ColumnId && x.Id != t.Id).MaxAsync(x => (double?)x.Rank, ct) ?? 0) + 1;
@@ -505,14 +489,14 @@ internal static class TaskEndpoints
 
     /// <summary>Đặt danh sách việc phải chờ (thay toàn bộ). Thành viên dự án đang chạy; cùng dự án, không vòng, ≤ 10.</summary>
     private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> SetDependenciesAsync(Guid tid, SetDependencies r, ClaimsPrincipal user,
-        ProjectsDbContext db, ProjectAccess access, ProjectClock clock, CancellationToken ct)
+        ProjectsDbContext db, ProjectAccess access, ProjectClock clock, BotStreakGuard streak, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var (t, p) = await LoadAsync(tid, db, ct);
         if (t is null || p is null || !v.CanSee(p.Id)) return TypedResults.NotFound();
         if (!v.CanWork(p.Id)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được sửa việc phải chờ");
         if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
-        if (await StreakErrorAsync(user, t.Id, db, ct) is { } streakErr) return Problems.Conflict(streakErr);
+        if (await streak.ErrorAsync(user.IsAccessToken(), t, p, v, ct) is { } streakErr) return Problems.Conflict(streakErr);
         var wanted = (r.DependsOn ?? []).Where(x => x != Guid.Empty).Distinct().ToList();
         var projectTasks = (await db.Tasks.AsNoTracking().Where(x => x.ProjectId == p.Id).Select(x => new { x.Id, x.Number }).ToListAsync(ct));
         var numbers = projectTasks.ToDictionary(x => x.Id, x => x.Number);
@@ -604,13 +588,13 @@ internal static class TaskEndpoints
 
     private static async Task<Results<Created<Guid>, NotFound, ValidationProblem, ProblemHttpResult>> AddCommentAsync(Guid tid, NewComment r, ClaimsPrincipal user,
         ProjectsDbContext db, ProjectAccess access, IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, ProjectClock clock, IFileStorage files,
-        CancellationToken ct)
+        BotStreakGuard streak, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var (t, p) = await LoadAsync(tid, db, ct);
         if (t is null || p is null || !v.CanSee(p.Id)) return TypedResults.NotFound();
         if (!v.CanWork(p.Id)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được bình luận");
-        return await PostCommentAsync(t, p, v, user.IsAccessToken(), r, null, db, access, dir, notifier, telegram, clock, files, ct);
+        return await PostCommentAsync(t, p, v, user.IsAccessToken(), r, null, db, access, dir, notifier, telegram, clock, files, streak, ct);
     }
 
     /// <summary>
@@ -619,7 +603,7 @@ internal static class TaskEndpoints
     /// </summary>
     internal static async Task<Results<Created<Guid>, NotFound, ValidationProblem, ProblemHttpResult>> PostCommentAsync(TaskItem t, Project p, ProjectViewer v, bool byBot,
         NewComment r, CommentVia? via, ProjectsDbContext db, ProjectAccess access, IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, ProjectClock clock,
-        IFileStorage files, CancellationToken ct)
+        IFileStorage files, BotStreakGuard streak, CancellationToken ct)
     {
         var tid = t.Id;
         var linkId = via?.LinkId;
@@ -628,7 +612,7 @@ internal static class TaskEndpoints
         foreach (var (field, message) in CommentFileRules.ValidateComment(r.Content, uploadIds.Count)) val.Add(field, message);
         if (val.Failed) return val.Problem();
         if (uploadIds.Count > 0 && p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
-        if (byBot && await StreakErrorAsync(true, t.Id, db, ct) is { } streakErr) return Problems.Conflict(streakErr);
+        if (await streak.ErrorAsync(byBot, t, p, v, ct) is { } streakErr) return Problems.Conflict(streakErr);
         var tickets = uploadIds.Count == 0 ? []
             : await db.CommentUploadTickets.Where(x => uploadIds.Contains(x.Id) && x.UserId == v.UserId && x.TaskId == tid && x.UploadLinkId == linkId).ToListAsync(ct);
         if (tickets.Count != uploadIds.Count)

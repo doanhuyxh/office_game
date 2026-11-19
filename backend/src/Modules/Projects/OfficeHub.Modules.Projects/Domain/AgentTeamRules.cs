@@ -10,7 +10,8 @@ public sealed record AgentLimits(int TasksPerDay, int Streak)
 
 /// <summary>Một sự kiện trên việc (lịch sử hoặc bình luận) để tính chuỗi thao tác liên tiếp của bot.</summary>
 /// <param name="Counts">Có tính vào chuỗi không (chuyển trạng thái / giao người / bình luận; tạo / sửa nội dung thì không) — sự kiện của người thật luôn ngắt chuỗi.</param>
-public readonly record struct TaskEvent(DateTimeOffset At, bool ByBot, bool Counts);
+/// <param name="Alerted">Dấu "bot bị chặn, đã báo quản lý dự án" (lịch sử <see cref="TaskActivityKind.StreakBlocked"/>, TEST-182) — không tính vào chuỗi.</param>
+public readonly record struct TaskEvent(DateTimeOffset At, bool ByBot, bool Counts, bool Alerted = false);
 
 /// <summary>
 /// Rào chắn cho đội agent phối hợp qua bảng việc (2026-11-11, phương án đề xuất — chủ dự án nói "triển khai đi" không chốt từng điểm):
@@ -58,6 +59,29 @@ public static class AgentTeamRules
 
     /// <summary>Bot được thao tác thêm một lần nữa trên việc không.</summary>
     public static bool StreakAllows(int streak, int limit) => streak < limit;
+
+    /// <summary>
+    /// Bot vừa bị chặn vì chuỗi — có gửi chuông cho quản lý dự án không (TEST-182): chỉ một chuông cho mỗi lần chạm trần.
+    /// Duyệt từ mới → cũ: gặp dấu <see cref="TaskEvent.Alerted"/> trước sự kiện của người thật → đã báo (false);
+    /// gặp người thật trước (chuỗi đã về 0 rồi lại chạm trần) hoặc hết sự kiện → báo (true).
+    /// </summary>
+    public static bool StreakAlertDue(IEnumerable<TaskEvent> events)
+    {
+        foreach (var e in events.OrderByDescending(e => e.At))
+        {
+            if (!e.ByBot) return true;
+            if (e.Alerted) return false;
+        }
+        return true;
+    }
+
+    /// <summary>Tiêu đề chuông "bot bị chặn vì chuỗi" cho quản lý dự án (TEST-182).</summary>
+    public static string StreakAlertTitle(string taskCode, int limit) => $"Việc {taskCode} đang chờ người thật xem — bot đã thao tác {limit} lần liên tiếp";
+
+    /// <summary>Người nhận chuông "bot bị chặn vì chuỗi": quản lý dự án còn làm, có tài khoản, KHÔNG phải tài khoản bot, không phải người thao tác.
+    /// Trả UserId, bỏ trùng, giữ thứ tự.</summary>
+    public static IReadOnlyList<Guid> StreakAlertRecipients(IEnumerable<(Guid? UserId, bool IsActive, bool IsBot)> managers, Guid actorUserId) =>
+        managers.Where(m => m.IsActive && !m.IsBot && m.UserId is { } u && u != actorUserId).Select(m => m.UserId!.Value).Distinct().ToList();
 
     /// <summary>Mã được nhắc bằng @ trong nội dung (không phân biệt hoa thường, bỏ trùng, giữ thứ tự, tối đa <see cref="MaxMentions"/>).
     /// Cú pháp dùng chung với chat — <see cref="MentionCodes"/>.</summary>

@@ -39,7 +39,8 @@ function ActivityLine({ a }: { a: ITaskActivity }) {
     : a.kind === 'Reviewer' ? `${a.from ?? 'không có'} → ${a.to ?? 'không có'}`
     : a.kind === 'DueChanged' ? `${fmtDay(a.from)} → ${fmtDay(a.to)}`
     : a.kind === 'Depends' ? `${a.from ?? 'không'} → ${a.to ?? 'không'}`
-    : a.kind === 'Follow' ? (a.to ?? '') : a.kind === 'Unfollow' ? (a.from ?? '') : '';
+    : a.kind === 'Follow' ? (a.to ?? '') : a.kind === 'Unfollow' ? (a.from ?? '')
+    : a.kind === 'StreakBlocked' ? `(${a.to ?? ''})` : '';
   return (
     <li className="text-xs" data-testid="task-activity">
       <span className="font-medium">{a.actorName}</span>{a.byBot && <BotBadge className="ml-1" />} {ACTIVITY_LABEL[a.kind]} {change}

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.Modules.Identity.Contracts;
 using OfficeHub.Modules.Projects.Contracts;
@@ -42,7 +43,7 @@ internal static class TaskFollowerEndpoints
     }
 
     private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> AddAsync(Guid tid, Guid employeeId, ClaimsPrincipal user,
-        ProjectsDbContext db, ProjectAccess access, ProjectClock clock, CancellationToken ct)
+        ProjectsDbContext db, ProjectAccess access, ProjectClock clock, BotStreakGuard streak, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var (t, p) = await TaskEndpoints.LoadAsync(tid, db, ct);
@@ -54,7 +55,7 @@ internal static class TaskFollowerEndpoints
         var count = await db.Followers.CountAsync(f => f.TaskId == tid, ct);
         if (FollowerRules.AddError(p.Members.Any(m => m.EmployeeId == employeeId), already, count) is { } err)
             return new Validation().Add("employeeId", err).Problem();
-        if (await TaskEndpoints.StreakErrorAsync(user, tid, db, ct) is { } streakErr) return Problems.Conflict(streakErr);
+        if (await streak.ErrorAsync(user.IsAccessToken(), t, p, v, ct) is { } streakErr) return Problems.Conflict(streakErr);
         var now = clock.Now;
         db.Followers.Add(new TaskFollower { TaskId = tid, EmployeeId = employeeId, CreatedAt = now });
         db.Activities.Add(TaskEndpoints.Activity(t, TaskActivityKind.Follow, v, user, now, to: await NameAsync(access, employeeId, ct)));
@@ -64,7 +65,7 @@ internal static class TaskFollowerEndpoints
     }
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> RemoveAsync(Guid tid, Guid employeeId, ClaimsPrincipal user,
-        ProjectsDbContext db, ProjectAccess access, ProjectClock clock, CancellationToken ct)
+        ProjectsDbContext db, ProjectAccess access, ProjectClock clock, BotStreakGuard streak, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var (t, p) = await TaskEndpoints.LoadAsync(tid, db, ct);
@@ -73,7 +74,7 @@ internal static class TaskFollowerEndpoints
         if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
         var row = await db.Followers.FirstOrDefaultAsync(f => f.TaskId == tid && f.EmployeeId == employeeId, ct);
         if (row is null) return TypedResults.NoContent();
-        if (await TaskEndpoints.StreakErrorAsync(user, tid, db, ct) is { } streakErr) return Problems.Conflict(streakErr);
+        if (await streak.ErrorAsync(user.IsAccessToken(), t, p, v, ct) is { } streakErr) return Problems.Conflict(streakErr);
         db.Followers.Remove(row);
         db.Activities.Add(TaskEndpoints.Activity(t, TaskActivityKind.Unfollow, v, user, clock.Now, from: await NameAsync(access, employeeId, ct)));
         await db.SaveChangesAsync(ct);

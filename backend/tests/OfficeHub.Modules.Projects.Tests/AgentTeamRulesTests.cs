@@ -38,6 +38,37 @@ public class AgentTeamRulesTests
         Assert.False(AgentTeamRules.TaskQuotaLeft(2, 2));
     }
 
+    private static TaskEvent Alerted(int min) => new(T0.AddMinutes(min), true, false, Alerted: true);
+
+    [Fact]
+    public void Streak_alert_is_sent_once_per_block_and_again_after_a_human_acts()
+    {
+        // Chưa từng báo → báo.
+        Assert.True(AgentTeamRules.StreakAlertDue([Bot(1), Bot(2), Bot(3)]));
+        Assert.True(AgentTeamRules.StreakAlertDue([]));
+        // Đã báo, bot thử lại (thao tác bị chặn không ghi gì) → không báo thêm.
+        Assert.False(AgentTeamRules.StreakAlertDue([Bot(1), Bot(2), Alerted(3)]));
+        // Đã báo lần trước, người thật bình luận (chuỗi về 0), bot lại chạm trần → báo mới.
+        Assert.True(AgentTeamRules.StreakAlertDue([Bot(1), Alerted(2), Human(3), Bot(4), Bot(5)]));
+        // Thứ tự đầu vào không quan trọng.
+        Assert.False(AgentTeamRules.StreakAlertDue([Alerted(9), Human(3), Bot(5)]));
+    }
+
+    [Fact]
+    public void Streak_alert_marker_does_not_count_in_the_streak() =>
+        Assert.Equal(2, AgentTeamRules.BotStreak([Bot(1), Alerted(2), Bot(3)]));
+
+    [Fact]
+    public void Streak_alert_goes_to_active_human_managers_except_the_actor()
+    {
+        Guid a = Guid.NewGuid(), b = Guid.NewGuid(), bot = Guid.NewGuid(), left = Guid.NewGuid(), actor = Guid.NewGuid();
+        var to = AgentTeamRules.StreakAlertRecipients(
+            [(a, true, false), (bot, true, true), (left, false, false), (null, true, false), (actor, true, false), (b, true, false), (a, true, false)], actor);
+        Assert.Equal([a, b], to);
+        Assert.Contains("TEST-7", AgentTeamRules.StreakAlertTitle("TEST-7", 10));
+        Assert.Contains("10 lần liên tiếp", AgentTeamRules.StreakAlertTitle("TEST-7", 10));
+    }
+
     [Fact]
     public void Defaults_are_50_tasks_and_10_in_a_row() => Assert.Equal(new AgentLimits(50, 10), AgentLimits.Default);
 

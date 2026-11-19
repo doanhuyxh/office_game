@@ -26,6 +26,7 @@ public sealed class ProjectsModule : IModule
         services.AddScoped<ProjectAccess>();
         services.AddScoped<EffortCalculator>();
         services.AddScoped<ProjectFinance>();
+        services.AddScoped<BotStreakGuard>(); // chặn chuỗi bot + chuông quản lý dự án (TEST-182)
         services.AddScoped<IProjectDirectory, ProjectDirectory>();
         services.AddScoped<ICommentFileLookup, CommentFileLookup>(); // Chat chuyển tiếp tệp bình luận việc (TEST-156)
         UploadLinkEndpoints.AddRateLimit(services); // link tải lên từ thiết bị khác — endpoint công khai theo IP (TEST-175)

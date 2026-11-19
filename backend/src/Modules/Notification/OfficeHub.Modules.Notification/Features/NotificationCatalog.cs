@@ -82,6 +82,10 @@ internal static class NotificationCatalog
         new("projects.task_ready", "projects", "Việc sẵn sàng",
             "Người làm (chưa giao thì quản lý dự án) khi mọi việc phải xong trước đã xong; bỏ người vừa thao tác (Telegram: chỉ khi có người làm là tài khoản bot).",
             NotificationCategories.ProjectTask, Telegram: nameof(ITelegramWakeup.TaskReadyAsync)),
+        new("projects.task_bot_blocked", "projects", "Bot bị chặn vì thao tác liên tiếp",
+            "Quản lý dự án (trừ tài khoản bot) khi bot bị chặn trên một việc vì đã thao tác tới giới hạn lần liên tiếp mà chưa có người thật xem; " +
+            "một chuông cho mỗi lần chạm giới hạn — bot thử lại không báo thêm, có người thật thao tác rồi bot lại chạm giới hạn thì báo lại.",
+            NotificationCategories.ProjectTask),
         new("projects.task_column_entered", "projects", "Việc vào cột đánh thức bot theo dõi",
             "Người theo dõi là tài khoản bot đang hoạt động khi việc chuyển vào trạng thái có tick \"Đánh thức bot theo dõi\" từ trạng thái khác " +
             "(ai chuyển cũng gửi, bỏ người chuyển; tạo việc thẳng vào cột / đổi cờ / xoá cột không gửi). " +

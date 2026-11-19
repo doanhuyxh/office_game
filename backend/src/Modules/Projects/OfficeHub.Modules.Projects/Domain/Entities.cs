@@ -197,7 +197,9 @@ public sealed class TaskColumn
 
 [JsonConverter(typeof(JsonStringEnumConverter<TaskActivityKind>))]
 /// <summary>CommentDeleted (TEST-39): người viết tự xoá bình luận — không lưu nội dung đã xoá. Reviewer (TEST-161, đã bỏ ở TEST-178): lịch sử cũ đổi người review (from → to = họ tên) — chỉ còn để đọc / hiển thị.</summary>
-public enum TaskActivityKind { Created = 0, Moved = 1, Assigned = 2, DueChanged = 3, Edited = 4, Depends = 5, CommentDeleted = 6, Follow = 7, Unfollow = 8, Reviewer = 9 }
+public enum TaskActivityKind { Created = 0, Moved = 1, Assigned = 2, DueChanged = 3, Edited = 4, Depends = 5, CommentDeleted = 6, Follow = 7, Unfollow = 8, Reviewer = 9,
+    /// <summary>Bot bị chặn vì chuỗi thao tác liên tiếp, đã báo quản lý dự án (TEST-182) — dấu chống báo lặp, không tính vào chuỗi.</summary>
+    StreakBlocked = 10 }
 
 /// <summary>Lịch sử một việc: tạo, chuyển trạng thái (kèm lý do khi lùi), đổi người, đổi hạn, sửa nội dung. Chỉ thêm. <see cref="ByBot"/> = làm qua token AI / MCP.</summary>
 public sealed class TaskActivity

@@ -175,9 +175,26 @@ for (let i = 0; i < 12; i++) {
   if (r.status === 201) lastOk = i + 1; else { streakHit = r; break; }
 }
 ok('2 bot bình luận qua lại: 10 lần được, lần 11 → 409', lastOk === 10 && streakHit?.status === 409 && String(streakHit.body?.detail ?? '').includes('người thật'), { lastOk, streakHit });
+// TEST-182: bot chạm trần → quản lý dự án có đúng một chuông (bot thử lại không thêm; người thật thao tác rồi chạm trần lần nữa → chuông mới)
+const t2Code = (await json(PM.cookie, 'GET', `/api/projects/tasks/${t2}`)).body?.task?.code as string;
+const blockedBells = async () => (await notifs(PM.cookie)).filter((n) => String(n.title).includes(`Việc ${t2Code} đang chờ người thật xem`));
+const bell1 = await blockedBells();
+ok('bot chạm trần → quản lý dự án có đúng 1 chuông, link mở thẳng việc', bell1.length === 1 && String(bell1[0]?.title).includes('10 lần liên tiếp')
+  && String(bell1[0]?.link ?? '').includes(`task=${t2}`), bell1);
 ok('bị chặn cả chuyển trạng thái', (await tk(W.token, 'POST', `/api/projects/tasks/${t2}/move`, { columnId: DOING })).status === 409);
+ok('bot thử lại (bình luận, chuyển) → không thêm chuông', (await tk(L.token, 'POST', `/api/projects/tasks/${t2}/comments`, { content: 'thử lại' })).status === 409
+  && (await blockedBells()).length === 1);
+ok('lịch sử việc có dòng "bị chặn" (StreakBlocked) đúng một lần',
+  ((await json(PM.cookie, 'GET', `/api/projects/tasks/${t2}`)).body?.activities as any[] ?? []).filter((a) => a.kind === 'StreakBlocked').length === 1);
 await json(H.cookie, 'POST', `/api/projects/tasks/${t2}/comments`, { content: 'Mình xem rồi, làm tiếp đi.' });
 ok('người thật bình luận → bot làm tiếp được', (await tk(W.token, 'POST', `/api/projects/tasks/${t2}/move`, { columnId: DOING })).status === 204);
+let again: any = null;
+for (let i = 0; i < 12 && !again; i++) {
+  const r = await tk(i % 2 ? L.token : W.token, 'POST', `/api/projects/tasks/${t2}/comments`, { content: `vòng 2.${i + 1}` });
+  if (r.status !== 201) again = r;
+}
+ok('bot chạm trần lần nữa → 409 + chuông mới (tổng 2)', again?.status === 409 && (await blockedBells()).length === 2, again);
+await json(H.cookie, 'POST', `/api/projects/tasks/${t2}/comments`, { content: 'Ok, tiếp.' });
 
 // ================= (3) Việc phụ thuộc =================
 const A = (await newTask(L.token, 'Thiết kế CSDL')).body as string;

@@ -87,7 +87,7 @@ export interface IUploadLinkCreated { id: string; token: string; expiresAt: stri
 export interface IUploadLink { id: string; createdAt: string; expiresAt: string; fileCount: number }
 /** POST /tasks/{id}/uploads → vé tải lên: PUT tệp thẳng lên `url` với header Content-Type = `contentType`. */
 export interface ICommentUploadTicket { id: string; url: string; contentType: string; expiresAt: string }
-export type TaskActivityKind = 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited' | 'Depends' | 'CommentDeleted' | 'Follow' | 'Unfollow' | 'Reviewer';
+export type TaskActivityKind = 'Created' | 'Moved' | 'Assigned' | 'DueChanged' | 'Edited' | 'Depends' | 'CommentDeleted' | 'Follow' | 'Unfollow' | 'Reviewer' | 'StreakBlocked';
 export interface ITaskActivity { id: string; kind: TaskActivityKind; from: string | null; to: string | null; note: string | null; actorName: string; byBot: boolean; at: string }
 /** GET /tasks/{id}: việc + bình luận + lịch sử. canApprove = được chuyển vào / kéo lùi ra cột cần người duyệt. */
 export interface ITaskDetail { task: ITask; comments: IComment[]; activities: ITaskActivity[]; sequential: boolean; canApprove: boolean; columns: ITaskColumn[];

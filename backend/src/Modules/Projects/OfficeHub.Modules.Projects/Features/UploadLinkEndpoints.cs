@@ -145,14 +145,14 @@ internal static class UploadLinkEndpoints
     }
 
     private static async Task<IResult> PublicCommentAsync(string token, NewComment r, HttpContext http, ProjectsDbContext db, ProjectAccess access, IEmployeeDirectory dir,
-        INotifier notifier, ITelegramWakeup telegram, ProjectClock clock, IFileStorage files, CancellationToken ct)
+        INotifier notifier, ITelegramWakeup telegram, ProjectClock clock, IFileStorage files, BotStreakGuard streak, CancellationToken ct)
     {
         var (ok, error) = await ResolveAsync(token, db, access, clock, ct);
         if (ok is null) return error!;
         // Qua link: phải có ít nhất một tệp (ghi chú tuỳ chọn) — trang này để gửi tệp, không phải kênh bình luận chữ.
         if (r.UploadIds is not { Count: > 0 }) return new Validation().Add("uploadIds", "Chọn ít nhất một tệp để gửi").Problem();
         var via = new CommentVia(ok.Link.Id, http.Connection.RemoteIpAddress?.ToString(), UploadLinkRules.CleanUserAgent(http.Request.Headers.UserAgent));
-        var res = await TaskEndpoints.PostCommentAsync(ok.Task, ok.Project, ok.Creator, false, r, via, db, access, dir, notifier, telegram, clock, files, ct);
+        var res = await TaskEndpoints.PostCommentAsync(ok.Task, ok.Project, ok.Creator, false, r, via, db, access, dir, notifier, telegram, clock, files, streak, ct);
         // Không trả id bình luận / việc ra ngoài — chỉ số tệp đã gửi qua link
         return res.Result is Created<Guid> ? TypedResults.Ok(new PublicUploadDoneDto(ok.Link.FileCount)) : res.Result;
     }
