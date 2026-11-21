@@ -1,11 +1,11 @@
 # Mẫu cấu hình runner — file THẬT đặt NGOÀI repo (vd /etc/officehub-runner/agents.yaml, chmod 600, chủ = user chạy runner).
 # Có token → KHÔNG commit (agent-runner/agents.yaml đã nằm trong .gitignore).
 officehub:
-  mcp_url: https://office.lokid.me/mcp          # MCP của OfficeHub (token AI của từng agent)
+  mcp_url: https://office.lokid.me/mcp # MCP của OfficeHub (token AI của từng agent)
 
 telegram:
   # api_url: https://api.telegram.org            # chỉ đổi khi test với máy chủ giả
-  group_chat_id: "-1001234567890"               # nhóm riêng tư nhận tin đánh thức (trang Hệ thống → Cấu hình → Telegram)
+  group_chat_id: "-1001234567890" # nhóm riêng tư nhận tin đánh thức (trang Hệ thống → Cấu hình → Telegram)
 
 git:
   # executable: /usr/bin/git                    # file chạy git (vd /usr/bin/git, /opt/homebrew/bin/git, C:\\Program Files\\Git\\cmd\\git.exe); bỏ trống = git trong PATH
@@ -13,23 +13,24 @@ git:
   # không đổi tác giả; commit của agent (mode worktree) được thêm trailer "Agent: <mã NV>" + "Task: <mã việc>" (mode in_place không dùng hook → không có trailer).
 
 runner:
-  data_dir: /var/lib/officehub-runner            # SQLite (hàng đợi, phiên, chi phí) + thư mục tạm của từng job
-  worktrees_dir: /srv/agents/worktrees           # PHẢI nằm ngoài mọi repo (tránh đọc nhầm .env của repo chính)
-  max_parallel: 2                                # tổng số phiên chạy cùng lúc trên máy (mỗi agent tối đa 1 — kể cả phiên chat / họp)
-                                                 # tin chat_mention / meeting_turn: phiên ngắn chỉ có tool MCP, dùng `executor` của agent; đang họp thì việc chờ
-  base_branch: main                              # nhánh gốc MẶC ĐỊNH; agent nào cần nhánh khác thì khai `base_branch` riêng ở agent đó
+  data_dir: /var/lib/officehub-runner # SQLite (hàng đợi, phiên, chi phí) + thư mục tạm của từng job
+  worktrees_dir: /srv/agents/worktrees # PHẢI nằm ngoài mọi repo (tránh đọc nhầm .env của repo chính)
+  max_parallel:
+    2 # tổng số phiên chạy cùng lúc trên máy (mỗi agent tối đa 1 — kể cả phiên chat / họp)
+    # tin chat_mention / meeting_turn: phiên ngắn chỉ có tool MCP, dùng `executor` của agent; đang họp thì việc chờ
+  base_branch: main # nhánh gốc MẶC ĐỊNH; agent nào cần nhánh khác thì khai `base_branch` riêng ở agent đó
   # activity_stream: true                       # gửi lệnh / diff / suy nghĩ của agent lên OfficeHub để người đứng gần bot trong 3D xem trực tiếp (đã che bí mật); false = tắt
   # startup_catchup: true                     # mỗi lần start: xếp luôn các việc đang giao cho agent mà chưa có tin đánh thức (bỏ việc bot đã báo đang chờ người duyệt; tối đa 20 việc / agent); false hoặc `start --no-catchup` = tắt
   # log_format: auto                            # auto (terminal → dòng dễ đọc có màu; systemd / pipe → JSON) | json | pretty; hoặc env RUNNER_LOG_FORMAT
 
 agents:
   - employee_code: NV120
-    telegram_bot: "@agent_dev01_bot"             # bot Telegram của agent (trùng "Bot Telegram" của tài khoản trên OfficeHub)
-    telegram_token: "123456789:AA…"             # token bot của agent — runner long-poll getUpdates bằng token này
-    token: "ohk_xxxxxxxxxxxxxxxx"               # token AI (MCP) của tài khoản agent NV120 — quyền Employee
-    repo: /srv/agents/NV120/office_game          # bản clone riêng của agent (có remote origin)
+    telegram_bot: "@agent_dev01_bot" # bot Telegram của agent (trùng "Bot Telegram" của tài khoản trên OfficeHub)
+    telegram_token: "123456789:AA…" # token bot của agent — runner long-poll getUpdates bằng token này
+    token: "ohk_xxxxxxxxxxxxxxxx" # token AI (MCP) của tài khoản agent NV120 — quyền Employee
+    repo: /srv/agents/NV120/office_game # bản clone riêng của agent (có remote origin)
     # base_branch: developer                     # tuỳ chọn: nhánh gốc RIÊNG của agent — nhánh việc tách từ origin/developer, PR merge vào developer
-                                                 #   (vd agent web base developer, agent app base main; bỏ trống = runner.base_branch)
+    #   (vd agent web base developer, agent app base main; bỏ trống = runner.base_branch)
     # projects:                                  # tuỳ chọn (TEST-200): MỘT agent làm NHIỀU dự án — runner chọn repo theo dự án của việc.
     #   - project: OFFICE                        #   mã dự án trên OfficeHub (doctor / khởi động đổi sang id; mã sai / agent không phải thành viên
     #     repo: /srv/agents/NV120/office_game    #   → ⚠ và tắt RIÊNG dự án đó, agent vẫn chạy)
@@ -40,7 +41,7 @@ agents:
     #                                            # Có `projects` thì `repo` / `base_branch` / `workspace` ở cấp agent là MẶC ĐỊNH cho dự án không khai;
     #                                            # bỏ `repo` cấp agent = không có mặc định → việc của dự án chưa gắn repo bị bỏ + bình luận "KHÔNG chạy".
     #                                            # Không có `projects` = như trước: mọi dự án dùng `repo` cấp agent. Mỗi agent vẫn 1 phiên cùng lúc.
-    env_file: /etc/officehub-runner/NV120.env    # tuỳ chọn: biến môi trường THỬ NGHIỆM (DB tạm, S3 thử, Mailpit…) — không phải .env production
+    env_file: /etc/officehub-runner/NV120.env # tuỳ chọn: biến môi trường THỬ NGHIỆM (DB tạm, S3 thử, Mailpit…) — không phải .env production
     # workspace:                                 # tuỳ chọn; bỏ trống = mode worktree (worktree riêng + push + PR)
     #   mode: in_place                           # in_place = làm NGAY trong `repo`, commit vào nhánh đang checkout rồi runner PUSH nhánh đó lên origin, không PR
     #                                            #   · từ chối khi repo còn thay đổi chưa commit, đang ở main / master / nhánh base hoặc detached HEAD
@@ -53,12 +54,12 @@ agents:
     #   builtin_tools: false                     # chỉ mode none: true = phiên việc CÓ shell / đọc ghi file trong thư mục việc (vẫn không repo) —
     #                                            #   cho bot thiết kế (curl tải ảnh lên), DevOps (gh / ssh theo hướng dẫn); chat / họp vẫn chỉ MCP — xem NV140
     executor:
-      kind: claude                               # claude | codex | custom
+      kind: claude # claude | codex | custom
       bin: /usr/local/bin/claude
       model: claude-sonnet-5-5
-      home: /srv/agents/NV120/home               # HOME riêng (đăng nhập CLI, gh auth login, ~/.claude)
-      timeout_min: 60                            # hết giờ → kill cả process group
-      max_budget_usd: 5                          # claude: --max-budget-usd
+      home: /srv/agents/NV120/home # HOME riêng (đăng nhập CLI, gh auth login, ~/.claude)
+      timeout_min: 60 # hết giờ → kill cả process group
+      max_budget_usd: 5 # claude: --max-budget-usd
       # max_turns: 200                           # claude: --max-turns (số vòng gọi tool tối đa mỗi phiên); bỏ trống = không giới hạn
       # light:                                   # tuỳ chọn — phiên chat_mention / meeting_turn (ngắn, chỉ tool MCP); trường nào bỏ trống thì theo executor
       #   model: claude-haiku-5-5                #   model nhỏ cho trả lời tin nhắn / phát biểu trong họp (doctor chạy thử cả model này)
@@ -66,18 +67,18 @@ agents:
       #   max_turns: 8
       extra_args: []
 
-  - employee_code: NV122                         # agent chạy OpenAI Codex CLI (`codex login` trong HOME bên dưới, hoặc CODEX_API_KEY trong env_file)
+  - employee_code: NV122 # agent chạy OpenAI Codex CLI (`codex login` trong HOME bên dưới, hoặc CODEX_API_KEY trong env_file)
     telegram_bot: "@agent_dev03_bot"
     telegram_token: "222222222:AA…"
     token: "ohk_wwwwwwwwwwwwwwww"
     repo: /srv/agents/NV122/office_game
     executor:
-      kind: codex                                # runner tự khai MCP OfficeHub; MCP thêm (Stitch…) đặt trong <home>/.codex/config.toml
+      kind: codex # runner tự khai MCP OfficeHub; MCP thêm (Stitch…) đặt trong <home>/.codex/config.toml
       bin: /usr/local/bin/codex
-      model: gpt-5.1-codex                       # không có max_budget_usd / max_turns (Codex không hỗ trợ) — chỉ timeout_min
+      model: gpt-5.1-codex # không có max_budget_usd / max_turns (Codex không hỗ trợ) — chỉ timeout_min
       home: /srv/agents/NV122/home
       timeout_min: 60
-      extra_args: []                             # cờ thêm cho `codex exec`, vd ["-c", "model_reasoning_effort=\"high\""]
+      extra_args: [] # cờ thêm cho `codex exec`, vd ["-c", "model_reasoning_effort=\"high\""]
 
   - employee_code: NV121
     telegram_bot: "@agent_dev02_bot"
@@ -85,20 +86,31 @@ agents:
     token: "ohk_yyyyyyyyyyyyyyyy"
     repo: /srv/agents/NV121/office_game
     executor:
-      kind: custom                               # CLI bất kỳ, tự khai báo tham số
+      kind: custom # CLI bất kỳ, tự khai báo tham số
       bin: /opt/tools/my-agent
       home: /srv/agents/NV121/home
       timeout_min: 60
-      args: ["run", "--cwd", "{cwd}", "--model", "{model}", "--mcp", "{mcp_config}", "--prompt-file", "{prompt_file}"]
-      resume_args: ["--session", "{session_id}"]  # tuỳ chọn
-      output: { format: text }                    # text | json (dòng JSON cuối có session_id / cost_usd / summary)
+      args:
+        [
+          "run",
+          "--cwd",
+          "{cwd}",
+          "--model",
+          "{model}",
+          "--mcp",
+          "{mcp_config}",
+          "--prompt-file",
+          "{prompt_file}",
+        ]
+      resume_args: ["--session", "{session_id}"] # tuỳ chọn
+      output: { format: text } # text | json (dòng JSON cuối có session_id / cost_usd / summary)
 
-  - employee_code: NV130                         # agent nghiệp vụ: chỉ làm việc với OfficeHub qua MCP
+  - employee_code: NV130 # agent nghiệp vụ: chỉ làm việc với OfficeHub qua MCP
     telegram_bot: "@agent_sales01_bot"
     telegram_token: "555555555:AA…"
     token: "ohk_zzzzzzzzzzzzzzzz"
     workspace:
-      mode: none                                 # không có `repo`; runner.data_dir nên nằm ngoài mọi repo (doctor cảnh báo nếu không)
+      mode: none # không có `repo`; runner.data_dir nên nằm ngoài mọi repo (doctor cảnh báo nếu không)
     executor:
       kind: claude
       bin: /usr/local/bin/claude
@@ -107,50 +119,51 @@ agents:
       timeout_min: 30
       max_budget_usd: 2
 
-  - employee_code: NV140                         # agent THIẾT KẾ giao diện: OfficeHub + Stitch, không repo
+  - employee_code: NV140 # agent THIẾT KẾ giao diện: OfficeHub + Stitch, không repo
     telegram_bot: "@agent_design01_bot"
     telegram_token: "666666666:AA…"
     token: "ohk_dddddddddddddddd"
-    env_file: /etc/officehub-runner/NV140.env    # chmod 600, một dòng: STITCH_API_KEY=… (tạo khoá trong Stitch → Settings)
+    env_file: /etc/officehub-runner/NV140.env # chmod 600, một dòng: STITCH_API_KEY=… (tạo khoá trong Stitch → Settings)
     workspace:
-      mode: none                                 # không repo / git / PR
-      builtin_tools: true                        # có shell: curl PUT ảnh / .html thiết kế lên create_upload rồi comment_task BÀN GIAO
+      mode: none # không repo / git / PR
+      builtin_tools: true # có shell: curl PUT ảnh / .html thiết kế lên create_upload rồi comment_task BÀN GIAO
     executor:
       kind: claude
       bin: /usr/local/bin/claude
       model: claude-sonnet-5-5
-      home: /srv/agents/NV140/home               # HOME riêng (đăng nhập CLI); không đặt khoá / token thừa ở đây vì phiên có shell
+      home: /srv/agents/NV140/home # HOME riêng (đăng nhập CLI); không đặt khoá / token thừa ở đây vì phiên có shell
       timeout_min: 45
       max_budget_usd: 4
       # MCP thêm ngoài OfficeHub: chép design-mcp.example.json ra ngoài repo; khoá lấy từ env_file qua ${STITCH_API_KEY}, không ghi vào file
       extra_args: ["--mcp-config", "/etc/officehub-runner/design-mcp.json"]
 
-  - employee_code: NV150                         # agent REVIEW: là NGƯỜI THEO DÕI việc → tin column_entered khi việc vào cột "Đánh thức bot theo dõi";
-                                                 # tự đọc hướng dẫn: chỉ làm ở cột review của dự án (TEST-180)
+  - employee_code:
+      NV150 # agent REVIEW: là NGƯỜI THEO DÕI việc → tin column_entered khi việc vào cột "Đánh thức bot theo dõi";
+      # tự đọc hướng dẫn: chỉ làm ở cột review của dự án (TEST-180)
     telegram_bot: "@agent_review01_bot"
     telegram_token: "777777777:AA…"
     token: "ohk_eeeeeeeeeeeeeeee"
-    repo: /srv/agents/NV150/office_game          # bản clone riêng — phiên theo dõi chạy trong worktree FOLLOW-<mã việc>, CHỈ ĐỌC (hook chặn push)
-    executor:                                    # mode worktree (mặc định) = có repo để đọc code; nên khác model / nhà cung cấp với bot code
+    repo: /srv/agents/NV150/office_game # bản clone riêng — phiên theo dõi chạy trong worktree FOLLOW-<mã việc>, CHỈ ĐỌC (hook chặn push)
+    executor: # mode worktree (mặc định) = có repo để đọc code; nên khác model / nhà cung cấp với bot code
       kind: claude
       bin: /usr/local/bin/claude
       model: claude-opus-5-5
-      home: /srv/agents/NV150/home               # gh auth login bằng token CHỈ ĐỌC repo (gh pr checkout), không quyền merge
+      home: /srv/agents/NV150/home # gh auth login bằng token CHỈ ĐỌC repo (gh pr checkout), không quyền merge
       timeout_min: 30
       max_budget_usd: 3
 
-  - employee_code: NV160                         # agent DEVOPS: là NGƯỜI THEO DÕI việc → tin column_entered; tự đọc hướng dẫn: chỉ làm ở cột Deploy (TEST-180)
+  - employee_code: NV160 # agent DEVOPS: là NGƯỜI THEO DÕI việc → tin column_entered; tự đọc hướng dẫn: chỉ làm ở cột Deploy (TEST-180)
     telegram_bot: "@agent_devops01_bot"
     telegram_token: "888888888:AA…"
     token: "ohk_ffffffffffffffff"
     workspace:
-      mode: none                                 # không repo
-      builtin_tools: true                        # shell để chạy gh / ssh theo mục Deploy của hướng dẫn (không bật = phiên theo dõi chỉ có tool MCP)
+      mode: none # không repo
+      builtin_tools: true # shell để chạy gh / ssh theo mục Deploy của hướng dẫn (không bật = phiên theo dõi chỉ có tool MCP)
     executor:
       kind: claude
       bin: /usr/local/bin/claude
       model: claude-sonnet-5-5
-      home: /srv/agents/NV160/home               # ~/.ssh/config alias officehub-prod (khoá chỉ chạy được scripts/deploy-remote.sh), gh auth
+      home: /srv/agents/NV160/home # ~/.ssh/config alias officehub-prod (khoá chỉ chạy được scripts/deploy-remote.sh), gh auth
       timeout_min: 20
       max_budget_usd: 1
-      required_bins: [ssh, gh, curl]             # lệnh hướng dẫn Deploy dùng — doctor kiểm tra có trong PATH của agent, thiếu thì agent tắt
+      required_bins: [ssh, gh, curl] # lệnh hướng dẫn Deploy dùng — doctor kiểm tra có trong PATH của agent, thiếu thì agent tắt
