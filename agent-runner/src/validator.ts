@@ -135,7 +135,7 @@ export function parseWake(msg: TgMessage, opts: { groupChatId: string; employeeC
 
 /**
  * Bước 2 (hỏi lại OfficeHub bằng token của agent — lớp bảo vệ thật): việc tồn tại, đúng dự án, vẫn giao cho chính agent,
- * chưa xong, không còn chờ việc khác. Gọi khi nhận tin VÀ ngay trước khi chạy.
+ * chưa xong, không còn chờ việc khác (mọi việc trước đã `ready`, bản cũ: `done`). Gọi khi nhận tin VÀ ngay trước khi chạy.
  * @param detail kết quả MCP get_task.
  */
 export function checkTask(
@@ -149,7 +149,8 @@ export function checkTask(
   if (t.projectId !== wake.project_id) return { ok: false, reason: 'việc không thuộc project_id trong tin' };
   if (t.assigneeEmployeeId !== myEmployeeId) return { ok: false, reason: 'việc không còn giao cho agent này' };
   if (t.done) return { ok: false, reason: 'việc đã xong' };
-  const waiting = (detail?.dependsOn ?? []).filter((dep) => !dep.done).map((dep) => dep.code);
+  // Việc trước "đủ" khi OfficeHub báo `ready` (đã xong / đã tới cột cho phép việc sau bắt đầu); bản cũ không có trường → theo `done`.
+  const waiting = (detail?.dependsOn ?? []).filter((dep) => !(dep.ready ?? dep.done)).map((dep) => dep.code);
   if (waiting.length) return { ok: false, reason: `việc còn chờ ${waiting.join(', ')}` };
   return {
     ok: true,

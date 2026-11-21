@@ -265,6 +265,12 @@ describe('validator', () => {
     });
     expect(checkTask(d({ done: true }), w, 'me').ok).toBe(false);
     expect(checkTask(d({ projectId: 'khac' }), w, 'me').ok).toBe(false);
+    // việc trước chưa xong nhưng đã tới cột cho phép việc sau bắt đầu (ready) → chạy được; ready = false thắng done (máy chủ quyết)
+    expect(checkTask(d({}, [{ code: 'TEST-41', done: false, ready: true }]), w, 'me').ok).toBe(true);
+    expect(checkTask(d({}, [{ code: 'TEST-41', done: true, ready: false }]), w, 'me')).toEqual({
+      ok: false,
+      reason: 'việc còn chờ TEST-41',
+    });
     const waiting = checkTask(
       d({}, [
         { code: 'TEST-41', done: true },

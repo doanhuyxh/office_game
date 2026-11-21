@@ -28,7 +28,7 @@ export interface TaskDetail {
   comments?: { id?: string; authorName?: string; byBot?: boolean }[];
   /** Lịch sử mới nhất (mặc định 20) — như trên. */
   activities?: { id?: string; actorName?: string; byBot?: boolean }[];
-  /** Việc phải xong trước. */
+  /** Việc đứng trước: phải `ready` (không có trường → `done`) thì việc này mới bắt đầu. */
   dependsOn?: TaskRef[];
   /** Việc đang chờ việc này xong. */
   blocks?: TaskRef[];
@@ -38,6 +38,11 @@ export interface TaskDetail {
 export interface TaskRef {
   code?: string;
   done?: boolean;
+  /**
+   * Việc trước đã đủ để việc sau bắt đầu: đã xong, hoặc đã tới cột dự án đánh dấu "việc sau được bắt đầu từ cột này" (vd Deploy — đã review
+   * đạt, chưa cần quản lý kéo sang Xong). OfficeHub bản cũ không trả → runner dùng `done`.
+   */
+  ready?: boolean;
 }
 
 /** Một dòng của `list_chats` (chỉ tài khoản bot). Kênh Toàn văn phòng có `conversation: "office"` (không lộ id). */
