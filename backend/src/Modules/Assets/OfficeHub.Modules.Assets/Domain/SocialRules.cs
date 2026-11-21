@@ -154,6 +154,26 @@ public static class SocialRules
     /// <summary>Lỗi token (hết hạn, bị thu hồi, System User bị xoá) → đánh dấu token BM lỗi, báo HR + người giữ. Thiếu quyền (10 / 200) chỉ lỗi bài.</summary>
     public static bool IsTokenError(int? code) => code is 190 or 102;
 
+    // ---------------- Kiểm tra token định kỳ (TEST-205) ----------------
+
+    /// <summary>Chu kỳ job <c>SocialTokenCheckJob</c> kiểm tra lại token của mọi BM đang dùng.</summary>
+    public static readonly TimeSpan TokenCheckInterval = TimeSpan.FromHours(5);
+    /// <summary>Lần chạy đầu sau khi Api khởi động.</summary>
+    public static readonly TimeSpan TokenCheckFirstDelay = TimeSpan.FromMinutes(3);
+
+    /// <summary>
+    /// Facebook trả lỗi khi kiểm tra token → token có bị coi là hỏng không. Lỗi tạm thời (giới hạn tần suất, máy chủ Facebook lỗi)
+    /// giữ nguyên trạng thái như lỗi mạng, tránh báo nhầm mỗi 5 giờ.
+    /// </summary>
+    public static bool MarksTokenInvalid(int? httpStatus, int? code) => !IsTransient(httpStatus, code);
+
+    /// <summary>Chỉ báo khi token CHUYỂN sang lỗi; đang lỗi rồi thì không báo lại.</summary>
+    public static bool ShouldAlertTokenInvalid(SocialTokenStatus before) => before != SocialTokenStatus.Invalid;
+
+    /// <summary>Người nhận báo token hỏng: người đang giữ BM (còn làm việc) + mọi HR + mọi Quản trị viên, bỏ trùng, giữ thứ tự.</summary>
+    public static IReadOnlyList<Guid> TokenAlertRecipients(Guid? holderUserId, IEnumerable<Guid> hrUserIds, IEnumerable<Guid> adminUserIds) =>
+        [.. (holderUserId is { } h ? new[] { h } : []).Concat(hrUserIds).Concat(adminUserIds).Distinct()];
+
     /// <summary>Lần thử kế tiếp: 1 → +1 phút, 2 → +5 phút.</summary>
     public static TimeSpan Backoff(int attempts) => attempts <= 1 ? TimeSpan.FromMinutes(1) : TimeSpan.FromMinutes(5);
 

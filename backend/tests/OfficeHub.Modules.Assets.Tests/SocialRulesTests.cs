@@ -177,4 +177,42 @@ public class SocialRulesTests
     [InlineData("")]
     [InlineData("not json")]
     public void ParsePermissions_EmptyOrBroken_Null(string? json) => Assert.Null(SocialRules.ParsePermissions(json));
+
+    // ---------------- Kiểm tra token định kỳ (TEST-205) ----------------
+
+    [Fact]
+    public void TokenCheck_EveryFiveHours() => Assert.Equal(TimeSpan.FromHours(5), SocialRules.TokenCheckInterval);
+
+    [Theory]
+    [InlineData(SocialTokenStatus.None, true)]
+    [InlineData(SocialTokenStatus.Valid, true)]
+    [InlineData(SocialTokenStatus.Invalid, false)]
+    public void TokenInvalidAlert_OnlyOnTransition(SocialTokenStatus before, bool expected) =>
+        Assert.Equal(expected, SocialRules.ShouldAlertTokenInvalid(before));
+
+    [Theory]
+    [InlineData(400, 190, true)]
+    [InlineData(400, 102, true)]
+    [InlineData(403, 200, true)]
+    [InlineData(500, 1, false)]
+    [InlineData(400, 4, false)]
+    [InlineData(429, null, false)]
+    public void MarksTokenInvalid_NotOnTransient(int http, int? code, bool expected) =>
+        Assert.Equal(expected, SocialRules.MarksTokenInvalid(http, code));
+
+    [Fact]
+    public void TokenAlertRecipients_HolderHrAdmin_Deduplicated()
+    {
+        Guid holder = Guid.NewGuid(), hr = Guid.NewGuid(), both = Guid.NewGuid(), admin = Guid.NewGuid();
+        var to = SocialRules.TokenAlertRecipients(holder, [hr, both, holder], [both, admin]);
+        Assert.Equal([holder, hr, both, admin], to);
+    }
+
+    [Fact]
+    public void TokenAlertRecipients_NoHolder_HrAndAdmin()
+    {
+        Guid hr = Guid.NewGuid(), admin = Guid.NewGuid();
+        Assert.Equal([hr, admin], SocialRules.TokenAlertRecipients(null, [hr], [admin]));
+        Assert.Empty(SocialRules.TokenAlertRecipients(null, [], []));
+    }
 }

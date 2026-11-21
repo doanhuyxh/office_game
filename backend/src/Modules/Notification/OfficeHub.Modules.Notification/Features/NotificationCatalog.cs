@@ -121,8 +121,8 @@ internal static class NotificationCatalog
             NotificationCategories.AssetOffboarding, EmailMode.Optional),
         new("assets.review", "assets", "Rà soát quyền dịch vụ", "Người rà soát / HR khi mở đợt rà soát quyền truy cập và khi đến hạn mà chưa quyết.",
             NotificationCategories.AssetReview, EmailMode.Optional),
-        new("assets.social_post", "assets", "Mạng xã hội", "Người đăng khi đăng bài lên Fanpage thất bại · HR + người giữ BM khi token Business Manager bị từ chối.",
-            NotificationCategories.SocialPost, EmailMode.Conditional, "Chỉ khi token BM bị từ chối; đăng bài lỗi chỉ có chuông"),
+        new("assets.social_post", "assets", "Mạng xã hội", "Người đăng khi đăng bài lên Fanpage thất bại · người giữ BM + mọi HR + mọi Quản trị viên khi token Business Manager hỏng (job kiểm tra mỗi 5 giờ, đăng bài, HR đồng bộ / thay token phát hiện) — một lần mỗi lần chuyển sang lỗi.",
+            NotificationCategories.SocialPost, EmailMode.Conditional, "Chỉ khi token BM hỏng; đăng bài lỗi chỉ có chuông"),
 
         new("news.published", "news", "Bài viết mới", "Người xem được bài khi tác giả chọn \"gửi email\" lúc đăng.", NotificationCategories.NewsPublished, EmailMode.Optional),
         new("news.comment", "news", "Bình luận bảng tin", "Tác giả bài / bình luận khi có bình luận hoặc trả lời.", NotificationCategories.NewsComment),

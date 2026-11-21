@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.BuildingBlocks.Hosting;
 using OfficeHub.BuildingBlocks.Security;
@@ -67,12 +68,27 @@ internal sealed class SocialService(AssetsDbContext db, IFacebookGraph graph, IF
         }
         catch (Exception ex) when (ex is GraphException or HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
         {
-            var msg = ex is GraphException g ? g.Error.Message : "Không kết nối được Facebook";
-            // Lỗi mạng không làm token thành "lỗi" — chỉ lỗi Facebook trả về mới đánh dấu
-            if (ex is GraphException) { a.TokenStatus = SocialTokenStatus.Invalid; a.TokenError = Trim(msg, 1000); }
+            // Chỉ lỗi Facebook trả về (không tạm thời) mới làm token "lỗi"; lỗi mạng / Facebook quá tải giữ nguyên trạng thái
+            if (ex is GraphException g && SocialRules.MarksTokenInvalid(g.Error.HttpStatus, g.Error.Code))
+            {
+                await MarkTokenInvalidAsync(a, g.Error.Message, ct);
+                return g.Error.Message;
+            }
             await db.SaveChangesAsync(ct);
-            return msg;
+            return ex is GraphException t ? t.Error.Message : "Không kết nối được Facebook";
         }
+    }
+
+    /// <summary>BM đang dùng có token → job kiểm tra định kỳ.</summary>
+    public Task<List<Guid>> AccountsToCheckAsync(CancellationToken ct) =>
+        db.SocialAccounts.Where(a => a.Status == SocialAccountStatus.Active && a.TokenEncrypted != null).OrderBy(a => a.Name).Select(a => a.Id).ToListAsync(ct);
+
+    /// <summary>Job: kiểm tra token + đồng bộ trang + làm mới quyền một BM (bỏ qua BM đã ngừng dùng / không còn token).</summary>
+    public async Task CheckAccountAsync(Guid accountId, CancellationToken ct)
+    {
+        var a = await db.SocialAccounts.FirstOrDefaultAsync(x => x.Id == accountId, ct);
+        if (a is null || a.Status != SocialAccountStatus.Active || a.TokenEncrypted is null) return;
+        await CheckAndSyncAsync(a, ct);
     }
 
     /// <summary>
@@ -208,7 +224,10 @@ internal sealed class SocialService(AssetsDbContext db, IFacebookGraph graph, IF
             $"{error} Xem tại Đăng bài MXH.", email: false, link: "/social");
     }
 
-    /// <summary>Token BM bị Facebook từ chối → đánh dấu lỗi + báo HR và người giữ (một lần mỗi lần chuyển sang lỗi).</summary>
+    /// <summary>
+    /// Hàm dùng chung cho mọi đường phát hiện token BM hỏng (job 5 giờ, đăng bài lỗi 190 / 102, HR đồng bộ / thay token): đánh dấu lỗi
+    /// + báo người đang giữ + mọi HR + mọi Quản trị viên (chuông + email) — chỉ một lần mỗi lần chuyển sang lỗi.
+    /// </summary>
     private async Task MarkTokenInvalidAsync(SocialAccount a, string error, CancellationToken ct)
     {
         var was = a.TokenStatus;
@@ -216,11 +235,11 @@ internal sealed class SocialService(AssetsDbContext db, IFacebookGraph graph, IF
         a.TokenError = Trim(error, 1000);
         a.TokenCheckedAt = clock.Now;
         await db.SaveChangesAsync(ct);
-        if (was == SocialTokenStatus.Invalid) return;
+        if (!SocialRules.ShouldAlertTokenInvalid(was)) return;
         var hr = await accounts.ListByRoleAsync(Roles.Hr, ct);
-        if (hr.Count == 0) hr = await accounts.ListByRoleAsync(Roles.Admin, ct);
-        var to = hr.Select(x => x.Id).ToList();
-        if (a.HolderEmployeeId is { } h && (await access.EmployeesAsync(ct)).GetValueOrDefault(h) is { IsActive: true, UserId: { } u }) to.Add(u);
+        var admins = await accounts.ListByRoleAsync(Roles.Admin, ct);
+        Guid? holder = a.HolderEmployeeId is { } h && (await access.EmployeesAsync(ct)).GetValueOrDefault(h) is { IsActive: true, UserId: { } u } ? u : null;
+        var to = SocialRules.TokenAlertRecipients(holder, hr.Select(x => x.Id), admins.Select(x => x.Id));
         await ops.NotifyUsersAsync(to, NotificationCategories.SocialPost, $"Token BM \"{a.Name}\" không còn dùng được",
             $"{error} HR cần tạo token System User mới và cập nhật tại Tài sản → MXH.", email: true, link: "/assets?tab=social");
     }
@@ -231,6 +250,44 @@ internal sealed class SocialService(AssetsDbContext db, IFacebookGraph graph, IF
 /// <summary>
 /// Gửi bài lên Facebook: chạy mỗi 30 giây hoặc ngay khi có bài "Đăng ngay" (<see cref="SocialPublishSignal"/>). Giả định một instance Api.
 /// </summary>
+/// <summary>
+/// Kiểm tra lại token System User của mọi BM đang dùng (TEST-205): <see cref="SocialRules.TokenCheckFirstDelay"/> sau khi Api khởi động,
+/// sau đó mỗi <see cref="SocialRules.TokenCheckInterval"/> (5 giờ). Mỗi BM một scope — lỗi một BM không chặn BM khác. Giả định một instance Api.
+/// <c>Facebook__TokenCheckInterval</c> (chỉ dùng khi test) rút chu kỳ + lần chạy đầu.
+/// </summary>
+internal sealed class SocialTokenCheckJob(IServiceScopeFactory scopes, IOptions<FacebookSettings> settings, ILogger<SocialTokenCheckJob> log,
+    JobMonitor monitor) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stop)
+    {
+        var testInterval = settings.Value.TokenCheckInterval is { } t && t > TimeSpan.Zero ? t : (TimeSpan?)null;
+        var interval = testInterval ?? SocialRules.TokenCheckInterval;
+        var job = monitor.Register("assets.social-token-check", "Tài sản: kiểm tra token Facebook BM", interval);
+        await Task.Delay(testInterval ?? SocialRules.TokenCheckFirstDelay, stop);
+        while (!stop.IsCancellationRequested)
+        {
+            try { await job.RunAsync(() => RunOnceAsync(stop)); }
+            catch (Exception ex) when (!stop.IsCancellationRequested) { log.LogError(ex, "Lỗi khi kiểm tra token Facebook BM"); }
+            await Task.Delay(interval, stop);
+        }
+    }
+
+    internal async Task RunOnceAsync(CancellationToken ct)
+    {
+        List<Guid> ids;
+        using (var scope = scopes.CreateScope())
+            ids = await scope.ServiceProvider.GetRequiredService<SocialService>().AccountsToCheckAsync(ct);
+        var failed = 0;
+        foreach (var id in ids)
+        {
+            using var scope = scopes.CreateScope();
+            try { await scope.ServiceProvider.GetRequiredService<SocialService>().CheckAccountAsync(id, ct); }
+            catch (Exception ex) when (!ct.IsCancellationRequested) { failed++; log.LogError(ex, "Lỗi khi kiểm tra token BM {AccountId}", id); }
+        }
+        if (failed > 0) throw new InvalidOperationException($"{failed}/{ids.Count} BM kiểm tra token bị lỗi (xem log)");
+    }
+}
+
 internal sealed class SocialPublishJob(IServiceScopeFactory scopes, SocialPublishSignal signal, ILogger<SocialPublishJob> log, JobMonitor monitor)
     : BackgroundService
 {

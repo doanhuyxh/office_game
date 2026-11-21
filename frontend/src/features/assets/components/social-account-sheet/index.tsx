@@ -95,6 +95,11 @@ export function SocialAccountSheet({ accountId, onClose }: { accountId: string |
                   {a.tokenCheckedAt && <><dt className="text-muted-foreground">Kiểm tra lúc</dt><dd>{formatDateTime(a.tokenCheckedAt)}</dd></>}
                   {a.tokenError && <><dt className="text-muted-foreground">Lỗi</dt><dd className="text-destructive">{a.tokenError}</dd></>}
                 </dl>
+                {a.hasToken && a.status === 'Active' && (
+                  <p className="text-xs text-muted-foreground" data-testid="social-token-autocheck">
+                    Tự kiểm tra mỗi 5 giờ — token hỏng sẽ báo người giữ BM, HR và Quản trị viên.
+                  </p>
+                )}
                 <SocialTokenPermissions account={a} />
                 <form className="grid gap-2" autoComplete="off" onSubmit={(e) => {
                   e.preventDefault();

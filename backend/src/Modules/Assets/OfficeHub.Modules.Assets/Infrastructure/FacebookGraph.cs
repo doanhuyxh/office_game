@@ -15,6 +15,8 @@ public sealed class FacebookSettings
     public string GraphUrl { get; set; } = "https://graph.facebook.com";
     public string VideoUrl { get; set; } = "https://graph-video.facebook.com";
     public string ApiVersion { get; set; } = "v23.0";
+    /// <summary>Chỉ dùng khi test: rút chu kỳ job kiểm tra token (mặc định 5 giờ, lần đầu 3 phút sau khởi động), vd <c>00:00:06</c>.</summary>
+    public TimeSpan? TokenCheckInterval { get; set; }
 }
 
 internal sealed record GraphError(int? HttpStatus, int? Code, int? Subcode, string Message);

@@ -39,6 +39,7 @@ public sealed class AssetsModule : IModule
         services.AddScoped<SocialService>();
         services.AddSingleton<SocialPublishSignal>();
         services.AddHostedService<SocialPublishJob>();
+        services.AddHostedService<SocialTokenCheckJob>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder api)

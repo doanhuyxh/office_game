@@ -35,15 +35,15 @@ Thu hồi BM → huỷ bài **đang chờ** của người bị thu hồi trên 
 ## Facebook Graph API (`FacebookGraph`, mặc định `v23.0`)
 
 - Token đi qua header `Authorization: Bearer` (không nằm trong URL → không lọt log HTTP). Phân trang `/me/accounts` bằng cursor `after`, **không** theo link `next` (link đó chứa token).
-- Lưu / thay token → `GET /me` + `GET /me/accounts?fields=…,access_token` + `GET /me/permissions` (quyền của token — [assets-social-permissions.md](assets-social-permissions.md)) → lưu trang + page token. Trang thiếu `access_token` → `canPost = false` ("Thiếu quyền đăng"). Lỗi Facebook → `TokenStatus = Invalid` + lý do (vẫn lưu token); lỗi mạng không đổi trạng thái.
+- Lưu / thay token → `GET /me` + `GET /me/accounts?fields=…,access_token` + `GET /me/permissions` (quyền của token — [assets-social-permissions.md](assets-social-permissions.md)) → lưu trang + page token. Trang thiếu `access_token` → `canPost = false` ("Thiếu quyền đăng"). Lỗi Facebook → `TokenStatus = Invalid` + lý do (vẫn lưu token); lỗi mạng / lỗi tạm thời không đổi trạng thái.
 - Đăng: chỉ chữ / link → `/{page}/feed`; 1 ảnh → `/photos` (`url`, `caption`); nhiều ảnh (≤ 10) → `/photos published=false` từng ảnh rồi `/feed` + `attached_media[i]`; 1 video (≤ 1 GB) → `graph-video…/{page}/videos` (`file_url`). Facebook tự tải tệp từ link S3 có hạn 2 giờ. Sau đó `GET /{id}?fields=permalink_url` (tương đối → thêm `https://www.facebook.com`).
-- Cấu hình tuỳ chọn (không cần `.env`): `Facebook__GraphUrl`, `Facebook__VideoUrl`, `Facebook__ApiVersion` — chỉ đổi khi test (máy chủ giả).
+- Cấu hình tuỳ chọn (không cần `.env`): `Facebook__GraphUrl`, `Facebook__VideoUrl`, `Facebook__ApiVersion`, `Facebook__TokenCheckInterval` — chỉ đổi khi test (máy chủ giả, rút chu kỳ job).
 
 ## Job `SocialPublishJob` (Api, 30 giây hoặc ngay khi có bài "Đăng ngay" / đăng lại — `SocialPublishSignal`; giả định một instance)
 
 - Nhận đích nguyên tử (Pending → Publishing, `Attempts + 1`) rồi gọi Graph.
 - Lỗi tạm thời (mã 1, 2, 4, 17, 32, 341, 368, 613, HTTP 5xx / 429) hoặc không kết nối được → thử lại sau 1 rồi 5 phút, tối đa 3 lần. Hết giờ chờ (có thể đã lên trang) → Lỗi, **không** tự đăng lại. Đích kẹt "Đang đăng" > 15 phút (Api dừng giữa chừng) → Lỗi "không rõ kết quả".
-- Lỗi token (190, 102) → BM "Token lỗi" + chuông/email HR + người giữ (một lần mỗi lần chuyển sang lỗi). Thiếu quyền (10 / 200) chỉ lỗi bài.
+- Lỗi token (190, 102) → BM "Token lỗi" + báo người giữ + HR + Quản trị viên (hàm chung; job kiểm tra token mỗi 5 giờ — [assets-social-token-check.md](assets-social-token-check.md)). Thiếu quyền (10 / 200) chỉ lỗi bài.
 - Đăng thất bại → chuông `social_post` cho người đăng (chỉ app).
 
 ## Endpoint (`/api/assets/social`)

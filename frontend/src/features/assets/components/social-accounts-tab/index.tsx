@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TriangleAlert } from 'lucide-react';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { Spinner } from '@/components/feedback/Spinner';
@@ -10,10 +11,12 @@ import { SocialAccountSheet } from '../social-account-sheet';
 /**
  * Tab MXH (HR), chia theo nền tảng (`SOCIAL_PLATFORMS`): Facebook Business Manager (BM) — các BM của công ty, người đang giữ, số trang, trạng thái token
  * (bấm dòng mở chi tiết; nút "Thêm BM Facebook" ở đầu trang); Zalo OA, TikTok — chưa hỗ trợ, chỉ hiển thị, không thao tác / gọi API.
+ * BM đang dùng có token lỗi (job kiểm tra mỗi 5 giờ / đăng bài phát hiện) → hộp cảnh báo đầu bảng + badge đỏ (trên điện thoại hiện ngay dưới tên BM).
  */
 export function SocialAccountsTab({ creating, onCreatedClose }: { creating: boolean; onCreatedClose: () => void }) {
   const { data = [], isLoading } = useSocialAccounts();
   const [openId, setOpenId] = useState<string | null>(null);
+  const broken = data.filter((a) => a.status === 'Active' && a.tokenStatus === 'Invalid');
   return (
     <div className="grid grid-cols-1 gap-6">
       <section className="grid grid-cols-1 gap-3" data-testid="social-platform-facebook">
@@ -22,6 +25,16 @@ export function SocialAccountsTab({ creating, onCreatedClose }: { creating: bool
           Mỗi Business Manager lưu một token System User (mã hoá, không ai xem lại được) để đăng bài lên các Fanpage của BM. Bàn giao BM cho nhân viên
           → người đó đăng bài ở menu Đăng bài MXH. Không lưu mật khẩu đăng nhập Facebook.
         </p>
+        {broken.length > 0 && (
+          <div className="grid gap-1 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm" role="alert" data-testid="social-token-broken">
+            <p className="flex items-center gap-2 font-medium text-destructive">
+              <TriangleAlert className="size-4 shrink-0" /> {broken.length} BM có token lỗi — không đăng bài được
+            </p>
+            <p className="text-muted-foreground">
+              {broken.map((a) => a.name).join(', ')}. Mở BM → tạo token System User mới rồi bấm Thay token. Hệ thống tự kiểm tra token mỗi 5 giờ.
+            </p>
+          </div>
+        )}
         <div className="rounded-xl border bg-card">
           <Table>
             <TableHeader>
@@ -41,6 +54,9 @@ export function SocialAccountsTab({ creating, onCreatedClose }: { creating: bool
                   <TableCell className="max-w-[18rem]">
                     <div className="truncate font-medium">{a.name}</div>
                     <div className="truncate text-xs text-muted-foreground">{[a.externalId && `ID ${a.externalId}`, a.loginHint].filter(Boolean).join(' · ') || 'Facebook'}</div>
+                    {a.tokenStatus === 'Invalid' && (
+                      <StatusBadge className="mt-1 md:hidden" tone={TOKEN_STATUS.Invalid.tone}>{TOKEN_STATUS.Invalid.label}</StatusBadge>
+                    )}
                   </TableCell>
                   <TableCell>{a.holderName ? <>{a.holderName} <span className="text-xs text-muted-foreground">({a.holderCode})</span></> : <span className="text-muted-foreground">—</span>}</TableCell>
                   <TableCell className="tabular-nums">{a.pageCount}</TableCell>
