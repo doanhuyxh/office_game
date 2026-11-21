@@ -1,7 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { bridgeCommand } from '../../../hub/mcp-bridge';
-import type { McpServer } from '../shared';
+import { jsonObject, type McpServer, readJsonObject } from '../shared';
 
 /** Thư mục dữ liệu của Antigravity CLI trong HOME của agent (kiểm với agy 1.5.14). */
 const cliDir = (home: string) => join(home, '.gemini', 'antigravity-cli');
@@ -25,16 +25,8 @@ export const antigravityEverRan = (home: string) => existsSync(join(cliDir(home)
  */
 export function writeAntigravityMcp(home: string, servers: McpServer[]): string[] {
   const file = antigravityMcpFile(home);
-  let current: Record<string, unknown> = {};
-  try {
-    const parsed = JSON.parse(readFileSync(file, 'utf8'));
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) current = parsed;
-  } catch {
-    /* chưa có file / file rỗng / hỏng */
-  }
-  const existing = current.mcpServers;
-  const mcpServers: Record<string, unknown> =
-    existing && typeof existing === 'object' && !Array.isArray(existing) ? { ...existing } : {};
+  const current = readJsonObject(file);
+  const mcpServers = jsonObject(current.mcpServers);
   for (const s of servers) mcpServers[s.name] = { ...bridgeCommand(s.url, s.bearerEnv), disabled: false };
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, `${JSON.stringify({ ...current, mcpServers }, null, 2)}\n`, { mode: 0o600 });

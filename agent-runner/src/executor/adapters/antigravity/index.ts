@@ -1,7 +1,5 @@
-import { homedir } from 'node:os';
-import type { ExecutorConfig } from '../../../config';
 import type { Adapter, ExecContext, ExecResult, ProbeResult } from '../../types';
-import { jsonLine, readMcpServers, sharedHomeWarning, str } from '../shared';
+import { execHome, ignoredLimitsWarning, jsonLine, readMcpServers, sharedHomeWarning, str } from '../shared';
 import { antigravityActivity, antigravityEvents } from './events';
 import { antigravityEverRan, antigravityHasSession, writeAntigravityMcp } from './session';
 
@@ -19,7 +17,6 @@ import { antigravityEverRan, antigravityHasSession, writeAntigravityMcp } from '
  *   `result.usage` / `num_turns` là số LUỸ KẾ của cả hội thoại (sai khi nối phiên) → chỉ dùng khi không có số theo bước.
  * - Không có chi phí USD, không có trần ngân sách / số vòng — chỉ `timeout_min`.
  */
-const agentHome = (exec: ExecutorConfig) => exec.home ?? process.env.HOME ?? homedir();
 
 /** Luật quyền cho phiên: cho phép tool của các máy chủ MCP của job; phiên chỉ MCP thì cấm chạy lệnh. */
 export function antigravitySettings(servers: string[], noBuiltinTools: boolean): string {
@@ -72,19 +69,13 @@ export const antigravityAdapter: Adapter = {
       warnings.push(
         `HOME ${home} chưa từng chạy agy — đăng nhập một lần: \`HOME=${home} ${exec.bin}\` (CLI mở trang đăng nhập)`,
       );
-    const ignored = [
-      exec.maxBudgetUsd !== undefined || exec.light?.maxBudgetUsd !== undefined ? 'max_budget_usd' : '',
-      exec.maxTurns !== undefined || exec.light?.maxTurns !== undefined ? 'max_turns' : '',
-    ].filter(Boolean);
-    if (ignored.length)
-      warnings.push(
-        `${ignored.join(', ')} không có tác dụng với antigravity (CLI không có trần này) — chỉ timeout_min chặn phiên`,
-      );
+    const limits = ignoredLimitsWarning(exec, 'antigravity');
+    if (limits) warnings.push(limits);
     return warnings;
   },
   command(ctx: ExecContext) {
     const e = ctx.exec;
-    const servers = writeAntigravityMcp(agentHome(e), readMcpServers(ctx.mcpConfigFile));
+    const servers = writeAntigravityMcp(execHome(e), readMcpServers(ctx.mcpConfigFile));
     const args = ['--output-format', 'stream-json', '--settings', antigravitySettings(servers, !!ctx.noBuiltinTools)];
     if (e.model) args.push('--model', e.model);
     if (ctx.resumeSessionId) args.push('--conversation', ctx.resumeSessionId);

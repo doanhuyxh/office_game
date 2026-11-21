@@ -1,0 +1,23 @@
+{"type":"system","subtype":"init","apiKeySource":"login","cwd":"/w","session_id":"22222222-2222-4333-8444-555555555555","model":"Auto","permissionMode":"default"}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"P"}]},"session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"delta","text":"The","session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"completed","session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"I'll try each of the three steps once, in order."}]},"session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"started","call_id":"call-call-4f87130\nfc_call-4f87130","tool_call":{"getMcpToolsToolCall":{"args":{"server":"officehub","toolName":"ping"}}},"session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"completed","call_id":"call-call-4f87130\nfc_call-4f87130","tool_call":{"getMcpToolsToolCall":{"args":{"server":"officehub","toolName":"ping"},"result":{"success":{"content":"{\"tool\":\"ping\",\"description\":\"Trả về pong kèm mã bí mật thử nghiệm\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}"}}}},"session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"delta","text":"Now","session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"completed","session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"started","call_id":"call-call-cec3197\nfc_call-cec3197","tool_call":{"mcpToolCall":{"args":{"name":"officehub-ping","args":{},"providerIdentifier":"officehub","toolName":"ping","serverIdentifier":"officehub"}}},"session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"completed","call_id":"call-call-cec3197\nfc_call-cec3197","tool_call":{"mcpToolCall":{"args":{"name":"officehub-ping","args":{},"providerIdentifier":"officehub","toolName":"ping","serverIdentifier":"officehub"},"result":{"success":{"content":[{"text":{"text":"pong-7421"}}],"isError":false,"systemReminders":[]}}}},"session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"delta","text":"Ping","session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"completed","session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"started","call_id":"call-call-60120d3\nfc_call-60120d3","tool_call":{"shellToolCall":{"args":{"command":"touch x.txt","description":"Create empty x.txt via touch"}}},"session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"completed","call_id":"call-call-60120d3\nfc_call-60120d3","tool_call":{"shellToolCall":{"args":{"command":"touch x.txt","description":"Create empty x.txt via touch"},"result":{"permissionDenied":{"command":"touch x.txt","error":"Command blocked by permissions configuration"}}}},"session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"delta","text":"Touch","session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"completed","session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"started","call_id":"call-call-09d324f\nfc_call-09d324f","tool_call":{"editToolCall":{"args":{"path":"/w/wf.txt"}}},"session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"completed","call_id":"call-call-09d324f\nfc_call-09d324f","tool_call":{"editToolCall":{"args":{"path":"/w/wf.txt"},"result":{"writePermissionDenied":{"path":"/w/wf.txt","error":"Write permission denied: /w/wf.txt: Blocked by permissions configuration","isReadonly":false}}}},"session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"delta","text":"All","session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"completed","session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"1. **ping officehub** — OK (`pong-7421`)  \n2. **touch x.txt** — Fail (blocked)  \n3. **ghi wf.txt** — Fail (blocked)"}]},"session_id":"22222222-2222-4333-8444-555555555555"}
+{"type":"result","subtype":"success","duration_ms":12255,"duration_api_ms":12255,"is_error":false,"result":"I'll try each of the three steps once, in order.1. **ping officehub** — OK (`pong-7421`)  \n2. **touch x.txt** — Fail (blocked)  \n3. **ghi wf.txt** — Fail (blocked)","session_id":"22222222-2222-4333-8444-555555555555","usage":{"inputTokens":10611,"outputTokens":380,"cacheReadTokens":59904,"cacheWriteTokens":0,"reasoningTokens":176}}

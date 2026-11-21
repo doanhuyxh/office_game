@@ -1,6 +1,6 @@
-// Adapter CLI (claude, codex, antigravity, custom): lệnh, đọc output, model thật, transcript, HOME.
+// Adapter CLI (claude, codex, antigravity, cursor, custom): lệnh, đọc output, model thật, transcript, HOME.
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { lightExecutor, parseConfig } from '../src/config';
@@ -13,6 +13,14 @@ import { codexHasSession, codexSessionModel } from '../src/executor/adapters/cod
 import { antigravityAdapter, antigravitySettings, parseProbe as agyProbe } from '../src/executor/adapters/antigravity';
 import { antigravityEvents } from '../src/executor/adapters/antigravity/events';
 import { antigravityHasSession, antigravityMcpFile } from '../src/executor/adapters/antigravity/session';
+import { cursorAdapter, parseProbe as cursorProbe } from '../src/executor/adapters/cursor';
+import { cursorEvents } from '../src/executor/adapters/cursor/events';
+import {
+  cursorHasSession,
+  cursorMcpFile,
+  cursorPermissionsFile,
+  mcpOnlyPermissions,
+} from '../src/executor/adapters/cursor/session';
 import { customAdapter, fillArgs } from '../src/executor/adapters/custom';
 import type { ExecContext, ExecResult } from '../src/executor/types';
 import { MCP_SYSTEM_PROMPT } from '../src/prompt/system';
@@ -641,6 +649,235 @@ describe('executor adapters', () => {
       // không đặt executor.home → cảnh báo runner sẽ ghi file MCP vào HOME đang dùng chung
       expect(antigravityAdapter.homeWarnings!({ ...ax.exec, home: undefined }, home).join('\n')).toContain(
         '.gemini/config/mcp_config.json',
+      );
+      rmSync(home, { recursive: true, force: true });
+    });
+  });
+
+  describe('cursor (TEST-202)', () => {
+    const home = mkdtempSync(join(tmpdir(), 'cursor-'));
+    const cwd = join(home, 'work');
+    mkdirSync(cwd, { recursive: true });
+    const mcp = join(home, 'job-mcp.json');
+    writeFileSync(
+      mcp,
+      JSON.stringify({
+        mcpServers: {
+          officehub: {
+            type: 'http',
+            url: 'https://x.test/mcp?profile=task',
+            headers: { Authorization: 'Bearer ${OFFICEHUB_TOKEN}' },
+          },
+        },
+      }),
+    );
+    const cu: ExecContext = {
+      ...ctx,
+      cwd,
+      mcpConfigFile: mcp,
+      exec: { ...exec, kind: 'cursor', bin: '/usr/local/bin/agent', model: 'auto', home, maxBudgetUsd: undefined },
+    };
+    const fixture = (name: string) =>
+      readFileSync(join(import.meta.dir, 'fixtures', name), 'utf8')
+        .split('\n')
+        .filter(Boolean);
+    const parse = (name: string) => {
+      const r: ExecResult = {};
+      for (const l of fixture(name)) cursorAdapter.parseLine(l, r);
+      return r;
+    };
+
+    test('cấu hình kind cursor hợp lệ; --api-key / --mcp-config trong extra_args → lỗi', () => {
+      const raw = baseRaw();
+      (raw.agents[0] as any).executor = { kind: 'cursor', bin: '/usr/local/bin/agent' };
+      expect(parseConfig(raw).agents[0]!.executor.kind).toBe('cursor');
+      (raw.agents[0] as any).executor.extra_args = ['--api-key', 'key_abc'];
+      expect(() => parseConfig(raw)).toThrow('CURSOR_API_KEY trong env_file');
+      (raw.agents[0] as any).executor.extra_args = ['--mcp-config=/x/mcp.json'];
+      expect(() => parseConfig(raw)).toThrow('--mcp-config');
+    });
+
+    test('lệnh phiên có công cụ: print + stream-json + trust + workspace + approve-mcps + --force, prompt sau --; MCP ghi vào HOME với ${env:…}', () => {
+      const c = cursorAdapter.command({ ...cu, prompt: '-bắt đầu bằng gạch' });
+      expect(c.bin).toBe('/usr/local/bin/agent');
+      expect(c.args).toEqual([
+        '-p',
+        '--output-format',
+        'stream-json',
+        '--trust',
+        '--workspace',
+        cwd,
+        '--approve-mcps',
+        '--model',
+        'auto',
+        '--force',
+        '--',
+        '-bắt đầu bằng gạch',
+      ]);
+      const file = JSON.parse(readFileSync(cursorMcpFile(home), 'utf8'));
+      expect(file.mcpServers.officehub).toEqual({
+        url: 'https://x.test/mcp?profile=task',
+        headers: { Authorization: 'Bearer ${env:OFFICEHUB_TOKEN}' },
+      });
+      // phiên có công cụ không ghi file quyền vào thư mục làm việc (worktree là repo)
+      expect(existsSync(cursorPermissionsFile(cwd))).toBe(false);
+      expect(c.args.join(' ') + JSON.stringify(file)).not.toContain('ohk_');
+    });
+
+    test('lệnh phiên chỉ MCP: không --force, quyền theo thư mục (cho MCP, cấm shell / ghi / đọc); nối phiên --resume; MCP người dùng tự khai được giữ', () => {
+      writeFileSync(cursorMcpFile(home), JSON.stringify({ mcpServers: { figma: { command: 'npx' } }, khac: 1 }));
+      const c = cursorAdapter.command({ ...cu, noBuiltinTools: true, resumeSessionId: 'chat-1' });
+      expect(c.args).not.toContain('--force');
+      expect(c.args.slice(c.args.indexOf('--resume'), c.args.indexOf('--resume') + 2)).toEqual(['--resume', 'chat-1']);
+      expect(c.args.slice(-2)).toEqual(['--', 'P']);
+      expect(JSON.parse(readFileSync(cursorPermissionsFile(cwd), 'utf8'))).toEqual({
+        permissions: { allow: ['Mcp(officehub:*)'], deny: ['Shell(*)', 'Write(**)', 'Read(**)'] },
+      });
+      const written = JSON.parse(readFileSync(cursorMcpFile(home), 'utf8'));
+      expect(written.khac).toBe(1);
+      expect(Object.keys(written.mcpServers).sort()).toEqual(['figma', 'officehub']);
+      expect(cursorAdapter.caps).toEqual({ resume: true, toolRestriction: false });
+      // cùng thư mục chuyển sang phiên có công cụ → gỡ file quyền do runner ghi (luật cấm thắng --force)…
+      cursorAdapter.command(cu);
+      expect(existsSync(cursorPermissionsFile(cwd))).toBe(false);
+      // …nhưng file quyền người dùng tự viết thì giữ
+      mkdirSync(join(cwd, '.cursor'), { recursive: true });
+      writeFileSync(cursorPermissionsFile(cwd), '{"permissions":{"deny":["Shell(rm)"]}}');
+      cursorAdapter.command(cu);
+      expect(readFileSync(cursorPermissionsFile(cwd), 'utf8')).toBe('{"permissions":{"deny":["Shell(rm)"]}}');
+      expect(mcpOnlyPermissions(['a', 'b'])).toContain('"Mcp(a:*)"');
+      rmSync(join(cwd, '.cursor'), { recursive: true, force: true });
+    });
+
+    test('đọc output thật (2026.11.19): phiên, model hiển thị, tóm tắt = lời cuối, token (vào gồm cache), số lượt', () => {
+      expect(parse('cursor-stream.jsonl')).toEqual({
+        sessionId: '11111111-2222-4333-8444-555555555555',
+        model: 'Auto',
+        summary: 'Đã chạy `echo hi`, sửa `note.txt` thành `xin chao 2`, và tạo `moi.txt` chứa `abc`.',
+        inputTokens: 10410 + 17664,
+        outputTokens: 291,
+        cacheReadTokens: 17664,
+        cacheWriteTokens: 0,
+        turns: 4, // 3 công cụ + lượt trả lời cuối
+        isError: false,
+      });
+      // không có chi phí USD → bình luận chỉ ghi token
+      const out = {
+        ...parse('cursor-stream.jsonl'),
+        exitCode: 0,
+        timedOut: false,
+        durationSec: 60,
+        stderrTail: '',
+      } as any;
+      expect(resultComment({ agent: 'NV180' }, out, undefined, '', true)).toContain(
+        '- Token: 28,074 token vào (17,664 đọc từ cache) / 291 ra',
+      );
+    });
+
+    test('phiên chỉ MCP: shell / ghi file bị chặn theo quyền vẫn là phiên thành công; tool MCP bị từ chối (CLI vẫn thoát 0) → phiên lỗi', () => {
+      const ok = parse('cursor-mcp-only.jsonl');
+      expect(ok.isError).toBe(false);
+      expect(ok.errorKind).toBeUndefined();
+      expect(ok.summary).toContain('ping officehub');
+      const rejected = parse('cursor-rejected.jsonl');
+      expect(rejected.isError).toBe(true);
+      expect(rejected.errorKind).toBe('mcp_rejected');
+      expect(rejected.summary).toStartWith('CLI từ chối tool MCP');
+      const failed: ExecResult = {};
+      cursorAdapter.parseLine('{"type":"result","subtype":"error","is_error":true,"result":"hỏng"}', failed);
+      expect(failed).toMatchObject({ isError: true, errorKind: 'error', summary: 'hỏng' });
+    });
+
+    test('log tiến độ + sự kiện xem trực tiếp: lệnh kèm output, file chỉ đường dẫn, MCP chỉ tên, suy nghĩ gom delta, bỏ công cụ nội bộ', () => {
+      const lines = fixture('cursor-stream.jsonl');
+      expect(lines.flatMap((l) => cursorAdapter.activity!(l, '/w'))).toEqual([
+        "Nói: I'll run `echo hi`, update `note.txt`, and create `moi.txt`.",
+        'Chạy: echo hi',
+        'Sửa note.txt',
+        'Sửa moi.txt',
+        'Nói: Đã chạy `echo hi`, sửa `note.txt` thành `xin chao 2`, và tạo `moi.txt` chứa `abc`.',
+      ]);
+      const ev = cursorEvents('/w');
+      const all = lines.flatMap((l) => ev(l));
+      expect(all.filter((e) => e.kind === 'thinking').length).toBe(2);
+      const command = all.filter((e) => e.kind === 'command');
+      expect(command[0]).toMatchObject({ kind: 'command', title: 'Chạy lệnh', text: 'echo hi' });
+      expect(command[0]!.ok).toBeUndefined();
+      expect(command[1]).toMatchObject({ id: command[0]!.id, ok: true, output: 'hi' });
+      expect(command[0]!.id).toMatch(/^tool-[A-Za-z0-9_-]+$/);
+      expect(all.filter((e) => e.kind === 'file_edit' && e.ok === true).map((e) => e.path)).toEqual([
+        'note.txt',
+        'moi.txt',
+      ]);
+      expect(JSON.stringify(all)).not.toContain('xin chao 2\\n'); // không gửi nội dung file
+      expect(all.at(-1)).toMatchObject({ kind: 'say', title: 'Nói' });
+      // phiên chỉ MCP: tool MCP chỉ có tên, getMcpTools không hiện, lệnh / ghi bị chặn → ok false
+      const mv = cursorEvents('/w');
+      const only = fixture('cursor-mcp-only.jsonl').flatMap((l) => mv(l));
+      expect(only.filter((e) => e.kind === 'tool').map((e) => [e.title, e.ok])).toEqual([
+        ['OfficeHub ping', undefined],
+        ['OfficeHub ping', true],
+      ]);
+      expect(only.find((e) => e.kind === 'command' && e.ok !== undefined)).toMatchObject({
+        text: 'touch x.txt',
+        ok: false,
+      });
+      expect(only.find((e) => e.kind === 'file_edit' && e.ok !== undefined)).toMatchObject({
+        path: 'wf.txt',
+        ok: false,
+      });
+      // lệnh đụng file bí mật → ẩn output
+      const secret =
+        '{"type":"tool_call","subtype":"completed","call_id":"c1","tool_call":{"shellToolCall":{"args":{"command":"cat .env"},"result":{"success":{"exitCode":0,"interleavedOutput":"KEY=1"}}}}}';
+      expect(cursorEvents('/w')(secret)[0]!.output).not.toContain('KEY=1');
+    });
+
+    test('chạy thử model: model từ init; lỗi nằm ở stderr (không có result) — model không dùng được → invalidModel', () => {
+      expect(cursorAdapter.probe!(cu.exec).args).toEqual([
+        '-p',
+        '--output-format',
+        'stream-json',
+        '--trust',
+        '--mode',
+        'ask',
+        '--model',
+        'auto',
+        '--',
+        'ok',
+      ]);
+      expect(cursorProbe(fixture('cursor-stream.jsonl').join('\n'), '')).toEqual({ model: 'Auto' });
+      expect(cursorProbe('', 'Cannot use this model: x. Available models: auto, gpt-5.2')).toMatchObject({
+        invalidModel: true,
+        error: expect.stringContaining('Cannot use this model: x'),
+      });
+      // model có thật nhưng gói không dùng được: có init, không có result
+      const init = fixture('cursor-stream.jsonl')[0]!;
+      expect(cursorProbe(init, 'ActionRequiredError: Model unavailable on Free')).toMatchObject({
+        model: 'Auto',
+        invalidModel: true,
+      });
+      expect(cursorProbe('', 'Not logged in')).toEqual({
+        model: undefined,
+        error: 'Not logged in',
+        invalidModel: false,
+      });
+      expect(cursorProbe('', undefined)).toMatchObject({ error: 'CLI không trả sự kiện result', invalidModel: false });
+    });
+
+    test('còn phiên ở máy (chats/<thư mục>/<id>); cảnh báo HOME: chưa từng chạy, trần không có tác dụng, HOME dùng chung', () => {
+      const w = cursorAdapter.homeWarnings!({ ...cu.exec, maxTurns: 5 }, home).join('\n');
+      expect(w).toContain('chưa từng chạy Cursor CLI');
+      expect(w).toContain('CURSOR_API_KEY');
+      expect(w).toContain('max_turns không có tác dụng với cursor');
+      writeFileSync(join(home, '.cursor', 'cli-config.json'), '{}');
+      mkdirSync(join(home, '.cursor', 'chats', 'abc123', 'chat-1'), { recursive: true });
+      expect(cursorAdapter.homeWarnings!(cu.exec, home)).toEqual([]);
+      expect(cursorHasSession(home, '/w', 'chat-1')).toBe(true);
+      expect(cursorHasSession(home, '/w', 'chat-0')).toBe(false);
+      expect(cursorHasSession(home, '/w', '../chat-1')).toBe(false);
+      expect(cursorHasSession(join(home, 'không-có'), '/w', 'chat-1')).toBe(false);
+      expect(cursorAdapter.homeWarnings!({ ...cu.exec, home: undefined }, home).join('\n')).toContain(
+        '.cursor/mcp.json',
       );
       rmSync(home, { recursive: true, force: true });
     });

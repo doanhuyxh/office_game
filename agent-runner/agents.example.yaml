@@ -51,7 +51,7 @@ agents:
     #   builtin_tools: false                     # chỉ mode none: true = phiên việc CÓ shell / đọc ghi file trong thư mục việc (vẫn không repo) —
     #                                            #   cho bot thiết kế (curl tải ảnh lên), DevOps (gh / ssh theo hướng dẫn); chat / họp vẫn chỉ MCP — xem NV140
     executor:
-      kind: claude # claude | codex | antigravity | custom
+      kind: claude # claude | codex | antigravity | cursor | custom
       bin: /usr/local/bin/claude
       model: claude-sonnet-5-5
       home: /srv/agents/NV120/home # HOME riêng (đăng nhập CLI, gh auth login, ~/.claude)
@@ -93,6 +93,22 @@ agents:
       home: /srv/agents/NV123/home # NÊN đặt HOME riêng: file MCP của HOME này do runner ghi mỗi phiên
       timeout_min: 60
       extra_args: [] # cờ thêm cho `agy`, vd ["--effort", "high"]; MCP thêm khai bằng `agy mcp add` trong HOME của agent
+
+  - employee_code: NV124 # agent chạy Cursor CLI (binary `agent`, tên cũ `cursor-agent`) — đăng nhập một lần: `HOME=<home bên dưới> agent login`,
+    # hoặc CURSOR_API_KEY trong env_file (KHÔNG dùng --api-key trong extra_args: lộ khoá trong tham số tiến trình)
+    telegram_bot: "@agent_dev05_bot"
+    telegram_token: "444444444:AA…"
+    token: "ohk_uuuuuuuuuuuuuuuu"
+    projects:
+      - project: OFFICE
+        repo: /srv/agents/NV124/office_game
+    executor:
+      kind: cursor # runner tự ghi MCP OfficeHub vào <home>/.cursor/mcp.json (header ${env:OFFICEHUB_TOKEN} — token chỉ ở env)
+      bin: /usr/local/bin/agent
+      model: auto # id trong `agent --list-models`; gói Free chỉ dùng được auto / grok. Không có max_budget_usd / max_turns — chỉ timeout_min
+      home: /srv/agents/NV124/home # NÊN đặt HOME riêng: file MCP của HOME này do runner ghi mỗi phiên
+      timeout_min: 60
+      extra_args: [] # cờ thêm cho `agent`; MCP thêm khai trong <home>/.cursor/mcp.json
 
   - employee_code: NV121
     telegram_bot: "@agent_dev02_bot"

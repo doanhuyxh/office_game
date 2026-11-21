@@ -1,0 +1,15 @@
+{"type":"system","subtype":"init","apiKeySource":"login","cwd":"/w","session_id":"11111111-2222-4333-8444-555555555555","model":"Auto","permissionMode":"default"}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"P"}]},"session_id":"11111111-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"delta","text":"The","session_id":"11111111-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"completed","session_id":"11111111-2222-4333-8444-555555555555"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"I'll run `echo hi`, update `note.txt`, and create `moi.txt`."}]},"session_id":"11111111-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"started","call_id":"call-call-9ff59e6\nfc_call-9ff59e6","tool_call":{"shellToolCall":{"args":{"command":"echo hi","description":"Run echo hi"}}},"session_id":"11111111-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"started","call_id":"call-call-9ff59e6\nfc_call-9ff59e6","tool_call":{"editToolCall":{"args":{"path":"/w/note.txt"}}},"session_id":"11111111-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"completed","call_id":"call-call-9ff59e6\nfc_call-9ff59e6","tool_call":{"editToolCall":{"args":{"path":"/w/note.txt"},"result":{"success":{"path":"/w/note.txt","linesAdded":1,"linesRemoved":0}}}},"session_id":"11111111-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"started","call_id":"call-call-9ff59e6\nfc_call-9ff59e6","tool_call":{"editToolCall":{"args":{"path":"/w/moi.txt"}}},"session_id":"11111111-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"completed","call_id":"call-call-9ff59e6\nfc_call-9ff59e6","tool_call":{"shellToolCall":{"args":{"command":"echo hi","description":"Run echo hi"},"result":{"success":{"command":"echo hi","exitCode":0,"stdout":"hi\n","stderr":"","interleavedOutput":"hi\n"}}}},"session_id":"11111111-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"completed","call_id":"call-call-9ff59e6\nfc_call-9ff59e6","tool_call":{"editToolCall":{"args":{"path":"/w/moi.txt"},"result":{"success":{"path":"/w/moi.txt","linesAdded":1,"linesRemoved":0}}}},"session_id":"11111111-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"delta","text":"All","session_id":"11111111-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"completed","session_id":"11111111-2222-4333-8444-555555555555"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Đã chạy `echo hi`, sửa `note.txt` thành `xin chao 2`, và tạo `moi.txt` chứa `abc`."}]},"session_id":"11111111-2222-4333-8444-555555555555"}
+{"type":"result","subtype":"success","duration_ms":5504,"duration_api_ms":5504,"is_error":false,"result":"I'll run `echo hi`, update `note.txt`, and create `moi.txt`.Đã chạy `echo hi`, sửa `note.txt` thành `xin chao 2`, và tạo `moi.txt` chứa `abc`.","session_id":"11111111-2222-4333-8444-555555555555","usage":{"inputTokens":10410,"outputTokens":291,"cacheReadTokens":17664,"cacheWriteTokens":0,"reasoningTokens":72}}

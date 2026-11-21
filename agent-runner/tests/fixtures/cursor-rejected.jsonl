@@ -1,0 +1,15 @@
+{"type":"system","subtype":"init","apiKeySource":"login","cwd":"/w","session_id":"33333333-2222-4333-8444-555555555555","model":"Auto","permissionMode":"default"}
+{"type":"user","message":{"role":"user","content":[{"type":"text","text":"P"}]},"session_id":"33333333-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"delta","text":"The","session_id":"33333333-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"completed","session_id":"33333333-2222-4333-8444-555555555555"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"I'll call the officehub MCP `ping` tool and report exactly what it returns."}]},"session_id":"33333333-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"started","call_id":"call-call-7e992a3\nfc_call-7e992a3","tool_call":{"getMcpToolsToolCall":{"args":{"server":"officehub","toolName":"ping"}}},"session_id":"33333333-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"completed","call_id":"call-call-7e992a3\nfc_call-7e992a3","tool_call":{"getMcpToolsToolCall":{"args":{"server":"officehub","toolName":"ping"},"result":{"success":{"content":"{\"tool\":\"ping\",\"description\":\"Trả về pong kèm mã bí mật thử nghiệm\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}"}}}},"session_id":"33333333-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"delta","text":"The","session_id":"33333333-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"completed","session_id":"33333333-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"started","call_id":"call-call-290345f\nfc_call-290345f","tool_call":{"mcpToolCall":{"args":{"name":"officehub-ping","args":{},"providerIdentifier":"officehub","toolName":"ping","serverIdentifier":"officehub"}}},"session_id":"33333333-2222-4333-8444-555555555555"}
+{"type":"tool_call","subtype":"completed","call_id":"call-call-290345f\nfc_call-290345f","tool_call":{"mcpToolCall":{"args":{"name":"officehub-ping","args":{},"providerIdentifier":"officehub","toolName":"ping","serverIdentifier":"officehub"},"result":{"rejected":{"reason":"User rejected MCP: officehub-ping"}}}},"session_id":"33333333-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"delta","text":"The","session_id":"33333333-2222-4333-8444-555555555555"}
+{"type":"thinking","subtype":"completed","session_id":"33333333-2222-4333-8444-555555555555"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Lời gọi `ping` trên MCP **officehub** bị từ chối (User rejected MCP: officehub-ping), nên không có kết quả trả về từ tool."}]},"session_id":"33333333-2222-4333-8444-555555555555"}
+{"type":"result","subtype":"success","duration_ms":5566,"duration_api_ms":5566,"is_error":false,"result":"I'll call the officehub MCP `ping` tool and report exactly what it returns.Lời gọi `ping` trên MCP **officehub** bị từ chối (User rejected MCP: officehub-ping), nên không có kết quả trả về từ tool.","session_id":"33333333-2222-4333-8444-555555555555","usage":{"inputTokens":10264,"outputTokens":196,"cacheReadTokens":31488,"cacheWriteTokens":0,"reasoningTokens":86}}

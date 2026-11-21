@@ -99,7 +99,8 @@ export interface Adapter {
    * Không có hàm này (adapter `custom`) → runner chỉ xét khoảng cách thời gian.
    */
   hasSession?(home: string, cwd: string, sessionId: string): boolean;
-  parseProbe?(stdout: string): ProbeResult;
+  /** `stderr` của lệnh chạy thử: CLI nào báo model sai / chưa đăng nhập ở stderr (cursor) thì đọc ở đây. */
+  parseProbe?(stdout: string, stderr?: string): ProbeResult;
   /** Sau khi tiến trình thoát (vd output text: lấy phần cuối làm tóm tắt; codex: đọc model thật từ file phiên trong `home`). */
   finish?(stdoutTail: string, r: ExecResult, home?: string): void;
 }

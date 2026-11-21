@@ -2,6 +2,7 @@ import type { Adapter } from '../types';
 import { antigravityAdapter } from './antigravity';
 import { claudeAdapter } from './claude';
 import { codexAdapter } from './codex';
+import { cursorAdapter } from './cursor';
 import { customAdapter } from './custom';
 
 /**
@@ -12,6 +13,7 @@ export const adapters = {
   claude: claudeAdapter,
   codex: codexAdapter,
   antigravity: antigravityAdapter,
+  cursor: cursorAdapter,
   custom: customAdapter,
 } satisfies Record<string, Adapter>;
 export type ExecutorKind = keyof typeof adapters;

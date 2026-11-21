@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Adapter, ExecContext, ExecResult } from '../../types';
-import { jsonLine, readMcpServers, sharedHomeWarning, str } from '../shared';
+import { ignoredLimitsWarning, jsonLine, readMcpServers, sharedHomeWarning, str } from '../shared';
 import { codexActivity, codexEvents } from './events';
 import { codexHasSession, codexSessionModel } from './session';
 
@@ -50,14 +50,8 @@ export const codexAdapter: Adapter = {
       warnings.push(
         `HOME ${home} chưa có .codex/auth.json — chạy \`codex login\` với HOME đó, hoặc đặt CODEX_API_KEY trong env_file`,
       );
-    const ignored = [
-      exec.maxBudgetUsd !== undefined || exec.light?.maxBudgetUsd !== undefined ? 'max_budget_usd' : '',
-      exec.maxTurns !== undefined || exec.light?.maxTurns !== undefined ? 'max_turns' : '',
-    ].filter(Boolean);
-    if (ignored.length)
-      warnings.push(
-        `${ignored.join(', ')} không có tác dụng với codex (CLI không có trần này) — chỉ timeout_min chặn phiên`,
-      );
+    const limits = ignoredLimitsWarning(exec, 'codex');
+    if (limits) warnings.push(limits);
     return warnings;
   },
   command(ctx: ExecContext) {

@@ -36,7 +36,7 @@ export async function checkModel(p: ModelProbe, report: Report): Promise<string 
   }
   const cmd = adapter.probe(p.exec);
   const run = await sh([cmd.bin, ...cmd.args], p.cwd, p.env, PROBE_TIMEOUT_MS);
-  const probe = adapter.parseProbe(run.out);
+  const probe = adapter.parseProbe(run.out, run.err);
   if (probe.invalidModel)
     throw new CheckFailed(
       `model ${p.scope ? `${p.scope} ` : ''}${configured ?? '(mặc định)'} không hợp lệ: ${probe.error}`,
