@@ -17,7 +17,7 @@ import { errorMessage, fieldErrors } from '@/utils/errors';
 import { assetApi } from '../../api/asset.api';
 import { useAssetMutation, useSocialAccount } from '../../hooks/useAssets';
 import type { ISocialAccountDetail } from '../../types/asset.types';
-import { employeeOptions, SOCIAL_STATUS, TOKEN_STATUS } from '../../utils/labels';
+import { employeeOptions, FACEBOOK_PLATFORM, SOCIAL_STATUS, TOKEN_STATUS } from '../../utils/labels';
 import { SocialAccountFormDialog } from '../social-account-form-dialog';
 import { SocialTokenGuide } from '../social-token-guide';
 
@@ -57,7 +57,7 @@ export function SocialAccountSheet({ accountId, onClose }: { accountId: string |
                 <StatusBadge tone={TOKEN_STATUS[a.tokenStatus].tone}>{TOKEN_STATUS[a.tokenStatus].label}</StatusBadge>
               </SheetTitle>
               <SheetDescription>
-                Facebook Business Manager{a.externalId ? ` · ID ${a.externalId}` : ''}{a.loginHint ? ` · ${a.loginHint}` : ''}
+                {FACEBOOK_PLATFORM.label}{a.externalId ? ` · ID ${a.externalId}` : ''}{a.loginHint ? ` · ${a.loginHint}` : ''}
                 {a.ownerDepartmentName ? ` · ${a.ownerDepartmentName}` : ''}
               </SheetDescription>
             </SheetHeader>

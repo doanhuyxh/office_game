@@ -4,10 +4,12 @@ import { TablePagination, usePageState } from '@/components/common/pagination';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Spinner } from '@/components/feedback/Spinner';
 import { PATHS } from '@/config/paths';
+import { FACEBOOK_PLATFORM } from '@/features/assets';
 import { useMe } from '@/features/auth';
 import { useSocialPages, useSocialPosts } from '../../hooks/useSocial';
 import { PostCard } from '../post-card';
 import { PostComposer } from '../post-composer';
+import { UnsupportedNote } from '../unsupported-note';
 
 /**
  * Đăng bài lên Fanpage Facebook (qua Business Manager của công ty). HR: mọi trang; nhân viên: trang của BM đang được bàn giao.
@@ -31,8 +33,9 @@ export function SocialPage() {
             <div className="grid justify-items-center gap-2 rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground" data-testid="social-empty">
               <Megaphone className="size-8" />
               {isHr
-                ? <p>Chưa có Fanpage nào. Thêm Business Manager và token ở <Link to={PATHS.assets} search={{ tab: 'social' }} className="text-primary hover:underline">Tài sản → MXH</Link>.</p>
-                : <p>Bạn chưa được bàn giao Business Manager nào. Liên hệ HR để được giao.</p>}
+                ? <p>Chưa có Fanpage Facebook nào. Thêm {FACEBOOK_PLATFORM.label} và token ở <Link to={PATHS.assets} search={{ tab: 'social' }} className="text-primary hover:underline">Tài sản → MXH</Link>.</p>
+                : <p>Bạn chưa được bàn giao {FACEBOOK_PLATFORM.label} nào. Liên hệ HR để được giao.</p>}
+              <UnsupportedNote />
             </div>
           )}
         </div>

@@ -10,13 +10,14 @@ import { addDays, todayVn, vnInstant } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { socialApi } from '../../api/social.api';
 import { useSocialMutation } from '../../hooks/useSocial';
+import { UnsupportedNote } from '../unsupported-note';
 import type { ISocialMedia, ISocialPage, ISocialPostRequest } from '../../types/social.types';
 
 interface Upload { key: string; file: File; preview: string | null; media: ISocialMedia | null; error: string | null }
 
 const MAX_IMAGES = 10;
 
-/** Soạn bài: chọn trang (nhóm theo BM), nội dung, link hoặc ảnh / video (tải thẳng lên S3), đăng ngay hoặc hẹn giờ. */
+/** Soạn bài: chọn Fanpage Facebook (nhóm theo BM, ghi chú các nền tảng chưa hỗ trợ), nội dung, link hoặc ảnh / video (tải thẳng lên S3), đăng ngay hoặc hẹn giờ. */
 export function PostComposer({ pages }: { pages: ISocialPage[] }) {
   const [selected, setSelected] = useState<string[]>(() => (pages.length === 1 && pages[0].canPost ? [pages[0].id] : []));
   const [message, setMessage] = useState('');
@@ -81,7 +82,7 @@ export function PostComposer({ pages }: { pages: ISocialPage[] }) {
     }}>
       <div className="grid gap-2">
         <div className="flex items-center justify-between gap-2">
-          <Label>Đăng lên trang *</Label>
+          <Label>Đăng lên Fanpage Facebook *</Label>
           {postable.length > 1 && (
             <button type="button" className="text-xs text-primary hover:underline"
               onClick={() => setSelected(selected.length === postable.length ? [] : postable)}>
@@ -106,6 +107,7 @@ export function PostComposer({ pages }: { pages: ISocialPage[] }) {
           ))}
         </div>
         {errors.pageIds && <p className="text-xs text-destructive">{errors.pageIds}</p>}
+        <UnsupportedNote />
       </div>
 
       <div className="grid gap-2">

@@ -33,7 +33,7 @@ export function AssetsPage() {
 
   const actions = !isHr ? null : tab === 'devices' ? <>{excel(assetExcelUrl.devices)}{add('device', 'Thêm thiết bị')}</>
     : tab === 'services' ? <>{excel(assetExcelUrl.services)}{add('service', 'Thêm dịch vụ')}</>
-    : tab === 'social' ? add('social', 'Thêm BM')
+    : tab === 'social' ? add('social', 'Thêm BM Facebook')
     : tab === 'reviews' ? add('review', 'Bắt đầu rà soát')
     : tab === 'stocktakes' ? add('stocktake', 'Bắt đầu kiểm kê')
     : tab === 'categories' ? add('category', 'Thêm loại')

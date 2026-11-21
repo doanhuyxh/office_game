@@ -63,6 +63,7 @@ Kiểm tra bài (`SocialRules.ValidatePost`): có chữ / link / tệp; ≤ 63 2
 ## Front-end
 
 - `/assets` tab **MXH** (HR, sau Dịch vụ): bảng BM → sheet chi tiết (token chỉ ghi + hướng dẫn tạo token System User, Đồng bộ trang, người giữ, trang, lịch sử). "Của tôi" + hồ sơ nhân viên + cảnh báo nghỉ việc hiện BM đang giữ.
+- Nền tảng (TEST-203): `SOCIAL_PLATFORMS` ở `assets/utils/labels.ts` (qua `@/features/assets`); tab MXH chia 3 phần Facebook Business Manager (BM) / Zalo OA / TikTok (2 phần sau "Chưa hỗ trợ", không nút / API); `/social` ghi "Fanpage Facebook" + chú thích. Làm Zalo / TikTok → đổi ở đó.
 - `/social` **Đăng bài MXH** (`features/social`): trái soạn bài (chọn trang theo BM, nội dung, link hoặc ảnh / video tải thẳng S3, hẹn giờ giờ VN), phải danh sách bài + kết quả từng trang (link bài, lỗi, Đăng lại, Huỷ); tự làm mới 4 giây khi đang đăng. Menu chỉ hiện với HR và người có ít nhất một trang (`useNavigation`).
 
 ## Test

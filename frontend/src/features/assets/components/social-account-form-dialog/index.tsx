@@ -11,6 +11,7 @@ import { errorMessage, fieldErrors } from '@/utils/errors';
 import { assetApi } from '../../api/asset.api';
 import { useAssetMutation } from '../../hooks/useAssets';
 import type { ISocialAccount, ISocialAccountRequest } from '../../types/asset.types';
+import { FACEBOOK_PLATFORM } from '../../utils/labels';
 import { SocialTokenGuide } from '../social-token-guide';
 
 const empty = (): ISocialAccountRequest => ({ name: '', externalId: null, loginHint: null, ownerDepartmentId: null, note: null, token: null });
@@ -36,8 +37,8 @@ export function SocialAccountFormDialog({ open, onOpenChange, account, onCreated
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{account ? `Sửa ${account.name}` : 'Thêm Business Manager'}</DialogTitle>
-          <DialogDescription>Business Manager Facebook của công ty. Không lưu mật khẩu đăng nhập — chỉ lưu token System User (mã hoá) để đăng bài.</DialogDescription>
+          <DialogTitle>{account ? `Sửa ${account.name}` : `Thêm ${FACEBOOK_PLATFORM.label}`}</DialogTitle>
+          <DialogDescription>Facebook Business Manager của công ty. Không lưu mật khẩu đăng nhập — chỉ lưu token System User (mã hoá) để đăng bài.</DialogDescription>
         </DialogHeader>
         <form className="grid gap-4 sm:grid-cols-2" autoComplete="off" onSubmit={(e) => {
           e.preventDefault();

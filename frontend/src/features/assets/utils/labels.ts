@@ -44,6 +44,21 @@ export const TOKEN_STATUS: Record<SocialTokenStatus, { label: string; tone: Stat
   Invalid: { label: 'Token lỗi', tone: 'danger' },
 };
 
+/**
+ * Các nền tảng mạng xã hội hiện trên giao diện (tab MXH, trang Đăng bài MXH) — một chỗ duy nhất.
+ * Làm thêm Zalo OA / TikTok: đổi `supported` + `note` ở đây (back-end hiện chỉ có `SocialPlatform` = Facebook).
+ */
+export interface SocialPlatformInfo { key: 'facebook' | 'zalo-oa' | 'tiktok'; label: string; supported: boolean; note: string }
+export const SOCIAL_PLATFORMS: SocialPlatformInfo[] = [
+  { key: 'facebook', label: 'Facebook Business Manager (BM)', supported: true, note: 'Đăng bài lên các Fanpage Facebook của BM.' },
+  { key: 'zalo-oa', label: 'Zalo OA', supported: false, note: 'Chưa kết nối. Zalo cá nhân không có API — chỉ Zalo Official Account mới kết nối được.' },
+  { key: 'tiktok', label: 'TikTok', supported: false, note: 'Chưa kết nối.' },
+];
+export const FACEBOOK_PLATFORM = SOCIAL_PLATFORMS[0];
+export const PLATFORM_UNSUPPORTED: { label: string; tone: StatusTone } = { label: 'Chưa hỗ trợ', tone: 'muted' };
+/** "Zalo OA, TikTok" — các nền tảng chưa hỗ trợ, cho dòng chú thích. */
+export const unsupportedPlatformNames = () => SOCIAL_PLATFORMS.filter((p) => !p.supported).map((p) => p.label).join(', ');
+
 export const DEVICE_STATUS_OPTIONS = (Object.keys(DEVICE_STATUS) as DeviceStatus[]).map((v) => ({ value: v, label: DEVICE_STATUS[v].label }));
 export const BILLING_OPTIONS = (Object.keys(BILLING) as BillingCycle[]).map((v) => ({ value: v, label: BILLING[v] }));
 
