@@ -39,9 +39,13 @@ internal static class SocialAccountEndpoints
     internal static SocialAccountDto ToDto(SocialAccount a, int pages, IReadOnlyDictionary<Guid, EmployeeRef> emps, IReadOnlyDictionary<Guid, DepartmentRef> depts)
     {
         var h = a.HolderEmployeeId is { } id ? emps.GetValueOrDefault(id) : null;
+        var perms = SocialRules.ParsePermissions(a.TokenPermissions);
         return new(a.Id, a.Platform, a.Name, a.ExternalId, a.LoginHint, a.OwnerDepartmentId,
             a.OwnerDepartmentId is { } d ? depts.GetValueOrDefault(d)?.Name : null, a.Status, a.HolderEmployeeId, h?.FullName, h?.Code, a.Note,
-            a.TokenEncrypted is not null, a.TokenStatus, a.TokenError, a.TokenCheckedAt, a.TokenOwnerName, a.PagesSyncedAt, pages, a.CreatedAt);
+            a.TokenEncrypted is not null, a.TokenStatus, a.TokenError, a.TokenCheckedAt, a.TokenOwnerName, a.PagesSyncedAt, pages, a.CreatedAt,
+            perms?.Select(p => new SocialPermissionDto(p.Permission, p.Status, SocialRules.IsRequiredPermission(p.Permission))).ToList(),
+            a.TokenPermissionsError,
+            perms is null ? [] : [.. SocialRules.MissingPermissions(perms).Select(m => new SocialMissingPermissionDto(m.Permission, m.Impact))]);
     }
 
     internal static SocialPageDto ToDto(SocialPage p, string accountName) =>
@@ -146,6 +150,8 @@ internal static class SocialAccountEndpoints
         a.TokenEncrypted = enc.Encrypt(token!);
         a.TokenStatus = SocialTokenStatus.None;
         a.TokenError = null;
+        a.TokenPermissions = null; // token mới → bỏ danh sách quyền của token cũ trước khi kiểm tra
+        a.TokenPermissionsError = null;
         a.UpdatedAt = clock.Now;
         await db.SaveChangesAsync(ct);
         await social.CheckAndSyncAsync(a, ct);

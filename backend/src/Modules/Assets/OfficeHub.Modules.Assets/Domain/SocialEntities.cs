@@ -51,6 +51,13 @@ public sealed class SocialAccount
     public DateTimeOffset? TokenCheckedAt { get; set; }
     /// <summary>Tên System User trên Facebook (lấy từ /me khi kiểm tra token).</summary>
     public string? TokenOwnerName { get; set; }
+    /// <summary>
+    /// Quyền của token (JSON <c>[{"permission","status"}]</c> từ <c>GET /me/permissions</c>, xem <see cref="SocialRules.SerializePermissions"/>).
+    /// null = chưa lấy được. Token lỗi → giữ danh sách cũ; thay token → xoá.
+    /// </summary>
+    public string? TokenPermissions { get; set; }
+    /// <summary>Token hợp lệ nhưng không lấy được danh sách quyền (lý do).</summary>
+    public string? TokenPermissionsError { get; set; }
     public DateTimeOffset? PagesSyncedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }

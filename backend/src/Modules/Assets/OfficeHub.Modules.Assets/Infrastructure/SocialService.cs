@@ -61,6 +61,7 @@ internal sealed class SocialService(AssetsDbContext db, IFacebookGraph graph, IF
             }
             var seen = pages.Select(p => p.Id).ToHashSet();
             foreach (var p in existing.Where(p => !seen.Contains(p.ExternalId))) { p.IsActive = false; p.SyncedAt = now; }
+            await SyncPermissionsAsync(a, token, ct);
             await db.SaveChangesAsync(ct);
             return null;
         }
@@ -71,6 +72,23 @@ internal sealed class SocialService(AssetsDbContext db, IFacebookGraph graph, IF
             if (ex is GraphException) { a.TokenStatus = SocialTokenStatus.Invalid; a.TokenError = Trim(msg, 1000); }
             await db.SaveChangesAsync(ct);
             return msg;
+        }
+    }
+
+    /// <summary>
+    /// Lấy quyền của token (sau khi /me + trang thành công). Lỗi → token vẫn hợp lệ, danh sách để trống kèm ghi chú. Chưa SaveChanges.
+    /// </summary>
+    private async Task SyncPermissionsAsync(SocialAccount a, string token, CancellationToken ct)
+    {
+        try
+        {
+            a.TokenPermissions = SocialRules.SerializePermissions(await graph.PermissionsAsync(token, ct));
+            a.TokenPermissionsError = null;
+        }
+        catch (Exception ex) when (ex is GraphException or HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
+        {
+            a.TokenPermissions = null;
+            a.TokenPermissionsError = Trim("Không lấy được danh sách quyền: " + (ex is GraphException g ? g.Error.Message : "không kết nối được Facebook"), 500);
         }
     }
 

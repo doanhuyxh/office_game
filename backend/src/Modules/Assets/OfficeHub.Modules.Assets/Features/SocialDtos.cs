@@ -7,7 +7,14 @@ namespace OfficeHub.Modules.Assets.Features;
 public sealed record SocialAccountDto(Guid Id, SocialPlatform Platform, string Name, string? ExternalId, string? LoginHint, Guid? OwnerDepartmentId,
     string? OwnerDepartmentName, SocialAccountStatus Status, Guid? HolderEmployeeId, string? HolderName, string? HolderCode, string? Note,
     bool HasToken, SocialTokenStatus TokenStatus, string? TokenError, DateTimeOffset? TokenCheckedAt, string? TokenOwnerName,
-    DateTimeOffset? PagesSyncedAt, int PageCount, DateTimeOffset CreatedAt);
+    DateTimeOffset? PagesSyncedAt, int PageCount, DateTimeOffset CreatedAt, IReadOnlyList<SocialPermissionDto>? TokenPermissions,
+    string? TokenPermissionsError, IReadOnlyList<SocialMissingPermissionDto> MissingPermissions);
+
+/// <summary>Một quyền của token (null danh sách = chưa lấy được): <c>Required</c> = OfficeHub cần quyền này.</summary>
+public sealed record SocialPermissionDto(string Permission, string Status, bool Required);
+
+/// <summary>Quyền OfficeHub cần mà token không có + hậu quả. Chỉ tính khi đã lấy được danh sách quyền.</summary>
+public sealed record SocialMissingPermissionDto(string Permission, string Impact);
 
 public sealed record SocialPageDto(Guid Id, Guid AccountId, string AccountName, string ExternalId, string Name, string? Category, string? Link,
     string? PictureUrl, bool IsActive, bool CanPost, DateTimeOffset SyncedAt);

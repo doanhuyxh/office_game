@@ -38,6 +38,9 @@ internal interface IFacebookGraph
     /// <summary>Các trang System User được giao trong BM (kèm page token).</summary>
     Task<List<FbPage>> PagesAsync(string token, CancellationToken ct);
 
+    /// <summary>Quyền của token (<c>GET /me/permissions</c>): tên + trạng thái granted / declined / expired.</summary>
+    Task<List<SocialTokenPermission>> PermissionsAsync(string token, CancellationToken ct);
+
     /// <summary>Đăng bài: chỉ chữ / link → /feed; 1 ảnh → /photos; nhiều ảnh → tải ẩn từng ảnh rồi /feed + attached_media; 1 video → /videos.</summary>
     Task<FbPublished> PublishAsync(string pageId, string pageToken, string message, string? link, IReadOnlyList<FbMediaRef> media, CancellationToken ct);
 }
@@ -75,6 +78,25 @@ internal sealed class FacebookGraph(IHttpClientFactory factory, IOptions<Faceboo
             if (after is null) break;
         }
         return [.. pages.Where(p => p.Id.Length > 0)];
+    }
+
+    public async Task<List<SocialTokenPermission>> PermissionsAsync(string token, CancellationToken ct)
+    {
+        var perms = new List<SocialTokenPermission>();
+        string? after = null;
+        for (var i = 0; i < 10; i++)
+        {
+            // Phân trang bằng cursor after (link "next" chứa token → không theo)
+            var path = "me/permissions?limit=100" + (after is null ? "" : $"&after={Uri.EscapeDataString(after)}");
+            var doc = await SendAsync(HttpMethod.Get, Url(path), token, null, ct);
+            if (doc.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array)
+                foreach (var p in data.EnumerateArray())
+                    if (Str(p, "permission") is { Length: > 0 } name) perms.Add(new(name, Str(p, "status") ?? ""));
+            after = doc.TryGetProperty("paging", out var paging) && paging.TryGetProperty("next", out _)
+                    && paging.TryGetProperty("cursors", out var cur) ? Str(cur, "after") : null;
+            if (after is null) break;
+        }
+        return perms;
     }
 
     public async Task<FbPublished> PublishAsync(string pageId, string pageToken, string message, string? link, IReadOnlyList<FbMediaRef> media,

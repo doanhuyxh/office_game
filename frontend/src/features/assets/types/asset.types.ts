@@ -108,7 +108,16 @@ export interface ISocialAccount {
   ownerDepartmentName: string | null; status: SocialAccountStatus; holderEmployeeId: string | null; holderName: string | null; holderCode: string | null;
   note: string | null; hasToken: boolean; tokenStatus: SocialTokenStatus; tokenError: string | null; tokenCheckedAt: string | null;
   tokenOwnerName: string | null; pagesSyncedAt: string | null; pageCount: number; createdAt: string;
+  /** Quyền của token (GET /me/permissions) — null = chưa lấy được. Token lỗi → giữ danh sách của lần kiểm tra thành công trước. */
+  tokenPermissions: ISocialTokenPermission[] | null;
+  /** Token hợp lệ nhưng không lấy được danh sách quyền. */
+  tokenPermissionsError: string | null;
+  /** Quyền OfficeHub cần mà token không có (rỗng khi chưa lấy được danh sách). */
+  missingPermissions: ISocialMissingPermission[];
 }
+/** status: granted / declined / expired. required = OfficeHub cần quyền này. */
+export interface ISocialTokenPermission { permission: string; status: string; required: boolean }
+export interface ISocialMissingPermission { permission: string; impact: string }
 export interface ISocialPage {
   id: string; accountId: string; accountName: string; externalId: string; name: string; category: string | null; link: string | null;
   pictureUrl: string | null; isActive: boolean; canPost: boolean; syncedAt: string;

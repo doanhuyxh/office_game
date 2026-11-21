@@ -1,4 +1,12 @@
+using System.Text.Json;
+
 namespace OfficeHub.Modules.Assets.Domain;
+
+/// <summary>Một quyền của token (từ <c>GET /me/permissions</c>): <c>granted</c> / <c>declined</c> / <c>expired</c>.</summary>
+public sealed record SocialTokenPermission(string Permission, string Status);
+
+/// <summary>Quyền OfficeHub cần + hậu quả khi thiếu (hiện cho HR).</summary>
+public sealed record SocialRequiredPermission(string Permission, string Impact);
 
 /// <summary>Quy tắc thuần (có test) cho tài khoản mạng xã hội + đăng bài.</summary>
 public static class SocialRules
@@ -90,6 +98,46 @@ public static class SocialRules
         var failed = targets.Count(t => t == SocialTargetStatus.Failed);
         if (ok > 0) return failed > 0 ? SocialPostStatus.PartiallyFailed : SocialPostStatus.Published;
         return failed > 0 ? SocialPostStatus.Failed : SocialPostStatus.Cancelled;
+    }
+
+    // ---------------- Quyền của token ----------------
+
+    /// <summary>
+    /// Quyền token System User cần cho OfficeHub (Graph API v23): <c>pages_show_list</c> (liệt kê trang, /me/accounts),
+    /// <c>pages_manage_posts</c> + <c>pages_read_engagement</c> (đăng bài — Meta yêu cầu cả hai; đọc bài / tương tác),
+    /// <c>business_management</c> (trang được gán qua Business Manager / System User).
+    /// </summary>
+    public static readonly IReadOnlyList<SocialRequiredPermission> RequiredPermissions =
+    [
+        new("pages_show_list", "không lấy được danh sách trang"),
+        new("pages_manage_posts", "không đăng bài lên trang được"),
+        new("pages_read_engagement", "không đọc bài / tương tác được (Facebook cũng cần quyền này để đăng bài)"),
+        new("business_management", "không truy cập được các trang được gán qua Business Manager"),
+    ];
+
+    public static bool IsRequiredPermission(string permission) => RequiredPermissions.Any(r => r.Permission == permission);
+
+    /// <summary>Quyền OfficeHub cần mà token chưa được cấp (không có trong danh sách hoặc trạng thái khác <c>granted</c>).</summary>
+    public static List<SocialRequiredPermission> MissingPermissions(IEnumerable<SocialTokenPermission> permissions)
+    {
+        var granted = permissions.Where(p => p.Status == "granted").Select(p => p.Permission).ToHashSet();
+        return [.. RequiredPermissions.Where(r => !granted.Contains(r.Permission))];
+    }
+
+    private static readonly JsonSerializerOptions PermJson = new(JsonSerializerDefaults.Web);
+
+    /// <summary>Lưu danh sách quyền: bỏ trùng / rỗng, sắp theo tên, trạng thái chữ thường.</summary>
+    public static string SerializePermissions(IEnumerable<SocialTokenPermission> permissions) =>
+        JsonSerializer.Serialize(permissions.Where(p => !string.IsNullOrWhiteSpace(p.Permission))
+            .Select(p => new SocialTokenPermission(p.Permission.Trim(), (p.Status ?? "").Trim().ToLowerInvariant()))
+            .DistinctBy(p => p.Permission).OrderBy(p => p.Permission, StringComparer.Ordinal).ToList(), PermJson);
+
+    /// <summary>Đọc danh sách quyền đã lưu; null / hỏng → null (coi như chưa lấy được).</summary>
+    public static List<SocialTokenPermission>? ParsePermissions(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try { return JsonSerializer.Deserialize<List<SocialTokenPermission>>(json, PermJson)?.Where(p => p.Permission is not null).ToList(); }
+        catch (JsonException) { return null; }
     }
 
     // ---------------- Gửi lên Facebook ----------------

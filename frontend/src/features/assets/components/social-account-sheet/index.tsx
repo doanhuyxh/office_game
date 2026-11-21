@@ -20,6 +20,7 @@ import type { ISocialAccountDetail } from '../../types/asset.types';
 import { employeeOptions, FACEBOOK_PLATFORM, SOCIAL_STATUS, TOKEN_STATUS } from '../../utils/labels';
 import { SocialAccountFormDialog } from '../social-account-form-dialog';
 import { SocialTokenGuide } from '../social-token-guide';
+import { SocialTokenPermissions } from '../social-token-permissions';
 
 /** Báo kết quả kiểm tra token sau khi lưu token / đồng bộ. */
 const tokenToast = (d: ISocialAccountDetail) =>
@@ -94,6 +95,7 @@ export function SocialAccountSheet({ accountId, onClose }: { accountId: string |
                   {a.tokenCheckedAt && <><dt className="text-muted-foreground">Kiểm tra lúc</dt><dd>{formatDateTime(a.tokenCheckedAt)}</dd></>}
                   {a.tokenError && <><dt className="text-muted-foreground">Lỗi</dt><dd className="text-destructive">{a.tokenError}</dd></>}
                 </dl>
+                <SocialTokenPermissions account={a} />
                 <form className="grid gap-2" autoComplete="off" onSubmit={(e) => {
                   e.preventDefault();
                   saveToken.mutate(undefined, {

@@ -206,6 +206,8 @@ public sealed class AssetsDbContext(DbContextOptions<AssetsDbContext> options) :
             e.Property(x => x.Note).HasMaxLength(2000);
             e.Property(x => x.TokenError).HasMaxLength(1000);
             e.Property(x => x.TokenOwnerName).HasMaxLength(200);
+            e.Property(x => x.TokenPermissions).HasColumnType("jsonb");
+            e.Property(x => x.TokenPermissionsError).HasMaxLength(500);
             e.HasIndex(x => x.HolderEmployeeId).HasDatabaseName("ix_social_accounts_holder");
             e.HasIndex(x => new { x.Platform, x.ExternalId }).IsUnique().HasFilter("\"ExternalId\" IS NOT NULL").HasDatabaseName("ux_social_accounts_external");
         });

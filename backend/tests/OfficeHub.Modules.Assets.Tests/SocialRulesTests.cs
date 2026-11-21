@@ -136,4 +136,45 @@ public class SocialRulesTests
     [InlineData("123/videos/789/", "https://www.facebook.com/123/videos/789/")]
     [InlineData(null, null)]
     public void AbsolutePermalink(string? input, string? expected) => Assert.Equal(expected, SocialRules.AbsolutePermalink(input));
+
+    private static SocialTokenPermission P(string name, string status = "granted") => new(name, status);
+
+    [Fact]
+    public void MissingPermissions_AllGranted_Empty()
+    {
+        var perms = SocialRules.RequiredPermissions.Select(r => P(r.Permission)).Append(P("public_profile")).ToList();
+        Assert.Empty(SocialRules.MissingPermissions(perms));
+    }
+
+    [Fact]
+    public void MissingPermissions_AbsentOrNotGranted()
+    {
+        var perms = new[] { P("pages_show_list"), P("pages_manage_posts", "declined"), P("pages_read_engagement", "expired") };
+        var missing = SocialRules.MissingPermissions(perms).Select(m => m.Permission).ToList();
+        Assert.Equal(["pages_manage_posts", "pages_read_engagement", "business_management"], missing);
+        Assert.All(SocialRules.MissingPermissions([]), m => Assert.False(string.IsNullOrWhiteSpace(m.Impact)));
+        Assert.Equal(SocialRules.RequiredPermissions.Count, SocialRules.MissingPermissions([]).Count);
+    }
+
+    [Fact]
+    public void RequiredPermissions_ForPostingAndSync()
+    {
+        foreach (var name in new[] { "pages_show_list", "pages_manage_posts", "pages_read_engagement", "business_management" })
+            Assert.True(SocialRules.IsRequiredPermission(name));
+        Assert.False(SocialRules.IsRequiredPermission("public_profile"));
+    }
+
+    [Fact]
+    public void Permissions_RoundTrip_DedupSortLowercase()
+    {
+        var json = SocialRules.SerializePermissions([P("pages_show_list", "Granted"), P("ads_read", "declined"), P("pages_show_list", "declined"), P(" ", "granted")]);
+        var back = SocialRules.ParsePermissions(json)!;
+        Assert.Equal([P("ads_read", "declined"), P("pages_show_list", "granted")], back);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("not json")]
+    public void ParsePermissions_EmptyOrBroken_Null(string? json) => Assert.Null(SocialRules.ParsePermissions(json));
 }

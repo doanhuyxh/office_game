@@ -700,6 +700,13 @@ namespace OfficeHub.Modules.Assets.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("TokenPermissions")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("TokenPermissionsError")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<string>("TokenStatus")
                         .IsRequired()
                         .HasMaxLength(20)

@@ -12,7 +12,7 @@
 
 | Bảng | Cột chính |
 |---|---|
-| `social_accounts` `[Audited]` | `Platform` (Facebook), `Name`, `ExternalId` (ID BM, chữ số, duy nhất khi có), `LoginHint` (email / SĐT quản trị), `OwnerDepartmentId`, `Status` (Active / Disabled), `HolderEmployeeId`, `TokenEncrypted`, `TokenStatus` (None / Valid / Invalid), `TokenError`, `TokenCheckedAt`, `TokenOwnerName`, `PagesSyncedAt` |
+| `social_accounts` `[Audited]` | `Platform` (Facebook), `Name`, `ExternalId` (ID BM, chữ số, duy nhất khi có), `LoginHint` (email / SĐT quản trị), `OwnerDepartmentId`, `Status` (Active / Disabled), `HolderEmployeeId`, `TokenEncrypted`, `TokenStatus` (None / Valid / Invalid), `TokenError`, `TokenCheckedAt`, `TokenOwnerName`, `TokenPermissions` (jsonb) / `TokenPermissionsError`, `PagesSyncedAt` |
 | `social_account_assignments` | lịch sử bàn giao: chỉ thêm / đóng (`AssignedAt/By`, `ReturnedAt/By`, ghi chú) |
 | `social_pages` | Fanpage đồng bộ từ BM: `ExternalId`, `Name`, `Category`, `Link`, `PictureUrl`, `TokenEncrypted` (page token), `IsActive` (false = không còn trong BM, giữ cho lịch sử). Duy nhất `(AccountId, ExternalId)` |
 | `social_posts` | `Message`, `Link`, `ScheduledAt` (null = đăng ngay), tác giả (user / employee / tên). Không sửa — huỷ rồi tạo lại |
@@ -35,7 +35,7 @@ Thu hồi BM → huỷ bài **đang chờ** của người bị thu hồi trên 
 ## Facebook Graph API (`FacebookGraph`, mặc định `v23.0`)
 
 - Token đi qua header `Authorization: Bearer` (không nằm trong URL → không lọt log HTTP). Phân trang `/me/accounts` bằng cursor `after`, **không** theo link `next` (link đó chứa token).
-- Lưu / thay token → `GET /me` + `GET /me/accounts?fields=…,access_token` → lưu trang + page token. Trang thiếu `access_token` → `canPost = false` ("Thiếu quyền đăng"). Lỗi Facebook → `TokenStatus = Invalid` + lý do (vẫn lưu token); lỗi mạng không đổi trạng thái.
+- Lưu / thay token → `GET /me` + `GET /me/accounts?fields=…,access_token` + `GET /me/permissions` (quyền của token — [assets-social-permissions.md](assets-social-permissions.md)) → lưu trang + page token. Trang thiếu `access_token` → `canPost = false` ("Thiếu quyền đăng"). Lỗi Facebook → `TokenStatus = Invalid` + lý do (vẫn lưu token); lỗi mạng không đổi trạng thái.
 - Đăng: chỉ chữ / link → `/{page}/feed`; 1 ảnh → `/photos` (`url`, `caption`); nhiều ảnh (≤ 10) → `/photos published=false` từng ảnh rồi `/feed` + `attached_media[i]`; 1 video (≤ 1 GB) → `graph-video…/{page}/videos` (`file_url`). Facebook tự tải tệp từ link S3 có hạn 2 giờ. Sau đó `GET /{id}?fields=permalink_url` (tương đối → thêm `https://www.facebook.com`).
 - Cấu hình tuỳ chọn (không cần `.env`): `Facebook__GraphUrl`, `Facebook__VideoUrl`, `Facebook__ApiVersion` — chỉ đổi khi test (máy chủ giả).
 
@@ -62,13 +62,13 @@ Kiểm tra bài (`SocialRules.ValidatePost`): có chữ / link / tệp; ≤ 63 2
 
 ## Front-end
 
-- `/assets` tab **MXH** (HR, sau Dịch vụ): bảng BM → sheet chi tiết (token chỉ ghi + hướng dẫn tạo token System User, Đồng bộ trang, người giữ, trang, lịch sử). "Của tôi" + hồ sơ nhân viên + cảnh báo nghỉ việc hiện BM đang giữ.
+- `/assets` tab **MXH** (HR, sau Dịch vụ): bảng BM → sheet chi tiết (token chỉ ghi + khối "Quyền của token" + hướng dẫn tạo token System User, Đồng bộ trang, người giữ, trang, lịch sử). "Của tôi" + hồ sơ nhân viên + cảnh báo nghỉ việc hiện BM đang giữ.
 - Nền tảng (TEST-203): `SOCIAL_PLATFORMS` ở `assets/utils/labels.ts` (qua `@/features/assets`); tab MXH chia 3 phần Facebook Business Manager (BM) / Zalo OA / TikTok (2 phần sau "Chưa hỗ trợ", không nút / API); `/social` ghi "Fanpage Facebook" + chú thích. Làm Zalo / TikTok → đổi ở đó.
 - `/social` **Đăng bài MXH** (`features/social`): trái soạn bài (chọn trang theo BM, nội dung, link hoặc ảnh / video tải thẳng S3, hẹn giờ giờ VN), phải danh sách bài + kết quả từng trang (link bài, lỗi, Đăng lại, Huỷ); tự làm mới 4 giây khi đang đăng. Menu chỉ hiện với HR và người có ít nhất một trang (`useNavigation`).
 
 ## Test
 
-`SocialRulesTests` (29) · `scripts/dev/social-e2e.ts` (máy chủ Graph giả trong cùng tiến trình, PUT S3 thật) 68/68 trên DB tạm 2026-11-09 — [e2e.md](../e2e.md). **Chưa thử với Facebook thật** (cần chủ dự án tạo app + System User token) và chưa thử tay giao diện trên trình duyệt.
+`SocialRulesTests` (36) · `scripts/dev/social-e2e.ts` (máy chủ Graph giả trong cùng tiến trình, PUT S3 — thật hoặc RustFS tạm) 75/75 trên DB tạm 2026-11-22 — [e2e.md](../e2e.md). **Chưa thử với Facebook thật** (cần chủ dự án tạo app + System User token) và chưa thử tay giao diện trên trình duyệt.
 
 ## Chưa làm
 

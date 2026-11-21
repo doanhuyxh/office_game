@@ -4,6 +4,7 @@
 // Kiểm tra: token sai / đúng (mã hoá, không bao giờ trả ra API, lịch sử sửa che), đồng bộ trang (phân trang, trang thiếu quyền), token gửi qua header
 // (không nằm trong URL), quyền (HR / người giữ BM / người ngoài), bàn giao / thu hồi (huỷ bài chờ), đăng chữ + link, nhiều ảnh (attached_media),
 // video (file_url, permalink tương đối), Facebook tự tải ảnh / video từ link S3 (PUT S3 THẬT `assets/social/` — file giữ lại), lỗi tạm thời → thử lại,
+// quyền của token (/me/permissions: đủ quyền, thiếu pages_manage_posts, lấy quyền lỗi, token lỗi giữ danh sách cũ),
 // token bị thu hồi (190) → BM "Token lỗi" + chuông, hẹn giờ + huỷ, ngừng dùng BM, tài sản đang giữ (+ nghỉ việc), kiểm tra dữ liệu.
 // TẠO NHÂN VIÊN THẬT → CHỈ chạy trên DB tạm:
 //   E2E_LOCAL_DB=1 API_URL=http://localhost:5180 ADMIN_LOGIN=… ADMIN_PASSWORD=… bun scripts/dev/social-e2e.ts
@@ -23,14 +24,19 @@ const ok = (name: string, cond: boolean, extra?: unknown) => {
   cond ? pass++ : fail++;
   console.log(`${cond ? '✔' : '✘'} ${name}${!cond && extra !== undefined ? ' → ' + JSON.stringify(extra).slice(0, 700) : ''}`);
 };
+/** SDK S3 ký link https — S3 tạm (RustFS) chạy http trên máy → đổi giao thức cho link trỏ localhost; link S3 thật giữ nguyên. */
+const s3url = (u: string) => u.replace(/^https:\/\/(127\.0\.0\.1|localhost)([:/])/, 'http://$1$2');
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // ---------------- Máy chủ Graph giả ----------------
 const SU_GOOD = 'EAAGsuGOODtoken000000000000000001', SU_BAD = 'EAAGsuBADtoken0000000000000000002';
+// Token hợp lệ nhưng thiếu quyền đăng (pages_manage_posts bị từ chối, không có business_management)
+const SU_LIMITED = 'EAAGsuLIMITEDtoken000000000000003';
 const PT1 = 'EAAGpageONEtoken00000000000000001', PT2 = 'EAAGpageTWOtoken00000000000000002';
 interface Req { method: string; path: string; search: string; auth: string | null; form: Record<string, string> }
 const log: Req[] = [];
-const fake = { transient1002: 1, revoked1001: false, s3Fetch: [] as number[] };
+const fake = { transient1002: 1, revoked1001: false, permFail: false, s3Fetch: [] as number[] };
+const validSu = (t: string) => t === SU_GOOD || t === SU_LIMITED;
 let seq = 100;
 const err = (status: number, code: number, message: string) => Response.json({ error: { message, type: 'OAuthException', code } }, { status });
 Bun.serve({
@@ -42,9 +48,24 @@ Bun.serve({
     log.push({ method: req.method, path: u.pathname, search: u.search, auth, form });
     const token = auth?.replace(/^Bearer /, '') ?? '';
     const p = u.pathname.replace(/^\/v23\.0\//, '');
-    if (p === 'me') return token === SU_GOOD ? Response.json({ id: 'su1', name: 'OfficeHub Bot' }) : err(400, 190, 'Error validating access token: Session has expired');
+    if (p === 'me') return validSu(token) ? Response.json({ id: 'su1', name: 'OfficeHub Bot' }) : err(400, 190, 'Error validating access token: Session has expired');
+    if (p === 'me/permissions') {
+      if (!validSu(token)) return err(400, 190, 'Invalid OAuth access token');
+      if (fake.permFail) return err(500, 1, 'An unknown error occurred');
+      if (token === SU_LIMITED) return Response.json({ data: [
+        { permission: 'pages_show_list', status: 'granted' }, { permission: 'pages_read_engagement', status: 'granted' },
+        { permission: 'pages_manage_posts', status: 'declined' }, { permission: 'public_profile', status: 'granted' }] });
+      // 2 trang kết quả: cursor after, link next chứa token (không được theo)
+      return u.searchParams.get('after') === 'q1'
+        ? Response.json({ data: [{ permission: 'business_management', status: 'granted' }, { permission: 'ads_read', status: 'expired' }] })
+        : Response.json({
+          data: [{ permission: 'pages_show_list', status: 'granted' }, { permission: 'pages_manage_posts', status: 'granted' },
+            { permission: 'pages_read_engagement', status: 'granted' }, { permission: 'public_profile', status: 'granted' }],
+          paging: { cursors: { after: 'q1' }, next: `http://localhost:${FAKE_PORT}/v23.0/me/permissions?after=q1&access_token=LEAK` },
+        });
+    }
     if (p === 'me/accounts') {
-      if (token !== SU_GOOD) return err(400, 190, 'Invalid OAuth access token');
+      if (!validSu(token)) return err(400, 190, 'Invalid OAuth access token');
       const pic = (id: string) => ({ data: { url: `https://example.test/pic/${id}.jpg` } });
       return u.searchParams.get('after') === 'c1'
         ? Response.json({ data: [{ id: '1003', name: 'Trang Thiếu Quyền', category: 'Brand', picture: pic('1003') }] })
@@ -63,7 +84,7 @@ Bun.serve({
       if (page === '1001' && fake.revoked1001) return err(400, 190, 'The session has been invalidated because the user changed their password');
       if (page === '1002' && edge === 'feed' && fake.transient1002 > 0) { fake.transient1002--; return err(500, 2, 'An unexpected error has occurred. Please retry your request later.'); }
       const src = form.url ?? form.file_url;
-      if (src) fake.s3Fetch.push((await fetch(src)).status); // Facebook tự tải tệp từ link S3
+      if (src) fake.s3Fetch.push((await fetch(s3url(src))).status); // Facebook tự tải tệp từ link S3
       const id = `${page}_${++seq}`;
       if (edge === 'photos') return Response.json(form.published === 'false' ? { id: `ph${seq}` } : { id: `ph${seq}`, post_id: id });
       if (edge === 'videos') return Response.json({ id: `vid${seq}` });
@@ -111,7 +132,7 @@ const json = async (cookie: string, method: string, path: string, body?: unknown
   try { parsed = JSON.parse(text); } catch { /* rỗng */ }
   return { status: r.status, body: parsed, text };
 };
-const noSecrets = (text: string) => ![SU_GOOD, SU_BAD, PT1, PT2].some((t) => text.includes(t));
+const noSecrets = (text: string) => ![SU_GOOD, SU_BAD, SU_LIMITED, PT1, PT2].some((t) => text.includes(t));
 
 const PW = 'E2e-Local-2026';
 const admin = await login(ADMIN_LOGIN, ADMIN_PASSWORD);
@@ -155,6 +176,30 @@ ok('Gọi Graph bằng header Bearer, không đặt token trong URL, không dùn
   log.length >= 3 && log.every((r) => r.auth === `Bearer ${SU_GOOD}` && !/[?&]access_token=/.test(r.search) && !r.search.includes('LEAK')), log);
 ok('Phản hồi không chứa token System User / page token', noSecrets(t1.text));
 const audit = await json(admin, 'GET', `/api/audit/changes?entity=SocialAccount&entityId=${bm.id}`);
+const perm = (acc: any, name: string) => acc?.tokenPermissions?.find((x: any) => x.permission === name);
+const a1 = t1.body.account;
+ok('Quyền của token: đủ 4 quyền OfficeHub cần (đánh dấu required), gộp 2 trang kết quả, không thiếu quyền',
+  a1.tokenPermissions?.length === 6 && ['pages_show_list', 'pages_manage_posts', 'pages_read_engagement', 'business_management']
+    .every((n) => perm(a1, n)?.status === 'granted' && perm(a1, n)?.required) && perm(a1, 'ads_read')?.status === 'expired' && !perm(a1, 'ads_read')?.required
+  && a1.missingPermissions.length === 0 && a1.tokenPermissionsError === null, a1);
+ok('Lấy quyền qua /me/permissions bằng header, theo cursor after (không theo link next)',
+  log.filter((r) => r.path.endsWith('/me/permissions')).map((r) => r.search).join('|') === '?limit=100|?limit=100&after=q1', log.map((r) => r.path + r.search));
+
+const lim = await json(admin, 'PUT', `/api/assets/social/accounts/${bm.id}/token`, { token: SU_LIMITED });
+const la = lim.body?.account;
+ok('Token thiếu pages_manage_posts → vẫn Valid, API báo thiếu pages_manage_posts + business_management kèm hậu quả',
+  la?.tokenStatus === 'Valid' && perm(la, 'pages_manage_posts')?.status === 'declined' && !perm(la, 'ads_read')
+  && la.missingPermissions.map((m: any) => m.permission).join(',') === 'pages_manage_posts,business_management'
+  && la.missingPermissions.every((m: any) => m.impact), la);
+ok('Phản hồi token thiếu quyền không chứa token', noSecrets(lim.text));
+fake.permFail = true;
+const pf = (await json(admin, 'POST', `/api/assets/social/accounts/${bm.id}/sync`)).body?.account;
+ok('Lấy quyền lỗi nhưng /me + trang OK → token Valid, danh sách quyền trống + ghi chú', pf?.tokenStatus === 'Valid' && pf.tokenPermissions === null
+  && /Không lấy được danh sách quyền/.test(pf.tokenPermissionsError ?? '') && pf.missingPermissions.length === 0 && pf.pageCount === 3, pf);
+fake.permFail = false;
+const back = (await json(admin, 'PUT', `/api/assets/social/accounts/${bm.id}/token`, { token: SU_GOOD })).body?.account;
+ok('Thay lại token đủ quyền → danh sách mới, hết cảnh báo', back?.tokenStatus === 'Valid' && back.missingPermissions.length === 0
+  && back.tokenPermissions?.length === 6 && back.tokenPermissionsError === null, back);
 ok('Lịch sử sửa có BM nhưng che token', audit.status === 200 && audit.text.includes('TokenEncrypted') && noSecrets(audit.text)
   && !/"(old|new)":"[A-Za-z0-9+/=]{40,}"/.test(audit.text), audit.text.slice(0, 500));
 const pageId = (ext: string) => t1.body.pages.find((p: any) => p.externalId === ext).id as string;
@@ -221,7 +266,7 @@ const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAA
 const upload = async (cookie: string, name: string, bytes: Uint8Array) => {
   const t = await json(cookie, 'POST', '/api/assets/social/media', { fileName: name, size: bytes.length });
   if (t.status !== 200) return { status: t.status, body: t.body };
-  const put = await fetch(t.body.uploadUrl, { method: 'PUT', headers: { 'Content-Type': t.body.contentType }, body: bytes });
+  const put = await fetch(s3url(t.body.uploadUrl), { method: 'PUT', headers: { 'Content-Type': t.body.contentType }, body: bytes });
   const c = await json(cookie, 'POST', `/api/assets/social/media/${t.body.id}/confirm`, {});
   return { status: put.ok ? c.status : put.status, body: c.body, ticket: t.body };
 };
@@ -296,6 +341,7 @@ ok('Lỗi 190 → đích Lỗi (không thử lại), có nút đăng lại', rvD
   && /password/.test(rvDone.targets[0].error ?? ''), rvDone);
 const bmAfter = (await json(admin, 'GET', `/api/assets/social/accounts/${bm.id}`)).body;
 ok('BM chuyển "Token lỗi" kèm lý do', bmAfter?.account.tokenStatus === 'Invalid' && /password/.test(bmAfter.account.tokenError ?? ''), bmAfter?.account);
+ok('Token lỗi → giữ danh sách quyền cũ', bmAfter?.account.tokenPermissions?.length === 6, bmAfter?.account.tokenPermissions);
 const adminNotes = (await json(admin, 'GET', '/api/notifications?take=20')).body?.items ?? [];
 ok('Chuông social_post: đăng thất bại + token BM hỏng', adminNotes.filter((n: any) => n.category === 'social_post').length >= 2, adminNotes.map((n: any) => n.title));
 fake.revoked1001 = false;
