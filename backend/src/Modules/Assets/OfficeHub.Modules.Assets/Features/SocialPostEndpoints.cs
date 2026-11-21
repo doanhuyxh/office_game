@@ -21,7 +21,7 @@ internal static class SocialPostEndpoints
 {
     public static void Map(RouteGroupBuilder g)
     {
-        var s = g.MapGroup("/social").RequireAuthorization();
+        var s = g.MapGroup(SocialRules.FacebookApiPrefix).RequireAuthorization();
         s.MapGet("/pages", PagesAsync);
         s.MapPost("/media", CreateMediaAsync);
         s.MapPost("/media/{id:guid}/confirm", ConfirmMediaAsync);

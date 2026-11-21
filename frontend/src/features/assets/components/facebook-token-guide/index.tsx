@@ -2,7 +2,7 @@ import { ChevronDown } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/common/collapsible';
 
 /** Hướng dẫn tạo token System User trong Business Manager (thu gọn mặc định). */
-export function SocialTokenGuide() {
+export function FacebookTokenGuide() {
   return (
     <Collapsible className="rounded-md border bg-muted/40 text-xs">
       <CollapsibleTrigger className="group flex w-full items-center justify-between gap-2 px-3 py-2 text-left font-medium">

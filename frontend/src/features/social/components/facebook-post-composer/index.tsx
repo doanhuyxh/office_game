@@ -8,17 +8,16 @@ import { Label } from '@/components/common/label';
 import { Textarea } from '@/components/common/textarea';
 import { addDays, todayVn, vnInstant } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { socialApi } from '../../api/social.api';
-import { useSocialMutation } from '../../hooks/useSocial';
-import { UnsupportedNote } from '../unsupported-note';
-import type { ISocialMedia, ISocialPage, ISocialPostRequest } from '../../types/social.types';
+import { facebookApi } from '../../api/facebook.api';
+import { useFacebookMutation } from '../../hooks/useFacebook';
+import type { IFacebookMedia, IFacebookPage, IFacebookPostRequest } from '../../types/facebook.types';
 
-interface Upload { key: string; file: File; preview: string | null; media: ISocialMedia | null; error: string | null }
+interface Upload { key: string; file: File; preview: string | null; media: IFacebookMedia | null; error: string | null }
 
 const MAX_IMAGES = 10;
 
 /** Soạn bài: chọn Fanpage Facebook (nhóm theo BM, ghi chú các nền tảng chưa hỗ trợ), nội dung, link hoặc ảnh / video (tải thẳng lên S3), đăng ngay hoặc hẹn giờ. */
-export function PostComposer({ pages }: { pages: ISocialPage[] }) {
+export function FacebookPostComposer({ pages }: { pages: IFacebookPage[] }) {
   const [selected, setSelected] = useState<string[]>(() => (pages.length === 1 && pages[0].canPost ? [pages[0].id] : []));
   const [message, setMessage] = useState('');
   const [link, setLink] = useState('');
@@ -27,7 +26,7 @@ export function PostComposer({ pages }: { pages: ISocialPage[] }) {
   const [date, setDate] = useState(todayVn());
   const [time, setTime] = useState('09:00');
   const fileInput = useRef<HTMLInputElement>(null);
-  const create = useSocialMutation((b: ISocialPostRequest) => socialApi.create(b));
+  const create = useFacebookMutation((b: IFacebookPostRequest) => facebookApi.create(b));
   const errors = fieldErrors(create.error);
 
   const groups = [...new Set(pages.map((p) => p.accountName))].map((name) => ({ name, pages: pages.filter((p) => p.accountName === name) }));
@@ -50,7 +49,7 @@ export function PostComposer({ pages }: { pages: ISocialPage[] }) {
     setUploads((u) => [...u, ...added]);
     await Promise.all(added.map(async (u) => {
       try {
-        const media = await socialApi.upload(u.file);
+        const media = await facebookApi.upload(u.file);
         setUploads((all) => all.map((x) => (x.key === u.key ? { ...x, media } : x)));
       } catch (e) {
         setUploads((all) => all.map((x) => (x.key === u.key ? { ...x, error: errorMessage(e) } : x)));
@@ -107,7 +106,6 @@ export function PostComposer({ pages }: { pages: ISocialPage[] }) {
           ))}
         </div>
         {errors.pageIds && <p className="text-xs text-destructive">{errors.pageIds}</p>}
-        <UnsupportedNote />
       </div>
 
       <div className="grid gap-2">

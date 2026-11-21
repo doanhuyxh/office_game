@@ -8,21 +8,21 @@ import { SelectField } from '@/components/common/SelectField';
 import { Textarea } from '@/components/common/textarea';
 import { departmentOptions, useDepartments } from '@/features/employees';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { assetApi } from '../../api/asset.api';
+import { facebookApi } from '../../api/facebook.api';
 import { useAssetMutation } from '../../hooks/useAssets';
-import type { ISocialAccount, ISocialAccountRequest } from '../../types/asset.types';
-import { FACEBOOK_PLATFORM } from '../../utils/labels';
-import { SocialTokenGuide } from '../social-token-guide';
+import type { IFacebookAccount, IFacebookAccountRequest } from '../../types/facebook.types';
+import { FACEBOOK_PLATFORM } from '@/config/social-platforms';
+import { FacebookTokenGuide } from '../facebook-token-guide';
 
-const empty = (): ISocialAccountRequest => ({ name: '', externalId: null, loginHint: null, ownerDepartmentId: null, note: null, token: null });
+const empty = (): IFacebookAccountRequest => ({ name: '', externalId: null, loginHint: null, ownerDepartmentId: null, note: null, token: null });
 
 /** Thêm / sửa Business Manager. Token chỉ nhập khi thêm (đổi token: trong chi tiết BM). */
-export function SocialAccountFormDialog({ open, onOpenChange, account, onCreated }: {
-  open: boolean; onOpenChange: (o: boolean) => void; account?: ISocialAccount | null; onCreated?: (id: string) => void;
+export function FacebookAccountFormDialog({ open, onOpenChange, account, onCreated }: {
+  open: boolean; onOpenChange: (o: boolean) => void; account?: IFacebookAccount | null; onCreated?: (id: string) => void;
 }) {
   const { data: departments = [] } = useDepartments();
-  const [form, setForm] = useState<ISocialAccountRequest>(empty);
-  const save = useAssetMutation((b: ISocialAccountRequest) => assetApi.saveSocialAccount(account?.id, b));
+  const [form, setForm] = useState<IFacebookAccountRequest>(empty);
+  const save = useAssetMutation((b: IFacebookAccountRequest) => facebookApi.save(account?.id, b));
   useEffect(() => {
     if (!open) return;
     save.reset();
@@ -31,7 +31,7 @@ export function SocialAccountFormDialog({ open, onOpenChange, account, onCreated
     } : empty());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, account?.id]);
-  const set = <K extends keyof ISocialAccountRequest>(k: K, v: ISocialAccountRequest[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const set = <K extends keyof IFacebookAccountRequest>(k: K, v: IFacebookAccountRequest[K]) => setForm((f) => ({ ...f, [k]: v }));
   const errors = fieldErrors(save.error);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -66,7 +66,7 @@ export function SocialAccountFormDialog({ open, onOpenChange, account, onCreated
               <Textarea id="sa-token" rows={3} className="font-mono text-xs" value={form.token ?? ''} aria-invalid={!!errors.token} spellCheck={false}
                 placeholder="EAAG… (có thể nhập sau)" onChange={(e) => set('token', e.target.value || null)} />
               {errors.token && <p className="text-xs text-destructive">{errors.token}</p>}
-              <SocialTokenGuide />
+              <FacebookTokenGuide />
             </div>
           )}
           <div className="grid gap-2 sm:col-span-2">

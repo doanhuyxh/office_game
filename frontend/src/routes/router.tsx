@@ -5,6 +5,7 @@ import {
   lazyRouteComponent,
   notFound,
   Outlet,
+  redirect,
 } from '@tanstack/react-router';
 import type { QueryClient } from '@tanstack/react-query';
 import { guestOnly, requireAuth, requireSession, requireTwoFactorSetup } from '@/routes/guards';
@@ -141,6 +142,13 @@ const projectDetail = createRoute({
   component: lazyRouteComponent(() => import('@/features/projects/page'), 'ProjectDetailPage'),
 });
 
+// Link cũ /social (chuông / email trước TEST-207) → trang Facebook. Mỗi nền tảng MXH một trang: /social/<nền tảng> (config/social-platforms.ts).
+const socialLegacy = createRoute({
+  getParentRoute: () => main,
+  path: PATHS.social,
+  beforeLoad: () => { throw redirect({ to: PATHS.socialFacebook, replace: true }); },
+});
+
 const routeTree = root.addChildren([
   login,
   changePassword,
@@ -160,7 +168,10 @@ const routeTree = root.addChildren([
       page(PATHS.meetings, () => import('@/features/meetings/page'), 'MeetingsPage'),
       page(PATHS.documents, () => import('@/features/documents/page'), 'DocumentsPage'),
       page(PATHS.assets, () => import('@/features/assets/page'), 'AssetsPage'),
-      page(PATHS.social, () => import('@/features/social/page'), 'SocialPage'),
+      socialLegacy,
+      page(PATHS.socialFacebook, () => import('@/features/social/page'), 'FacebookPostsPage'),
+      page(PATHS.socialZaloOa, () => import('@/features/social/page'), 'ZaloOaPage'),
+      page(PATHS.socialTiktok, () => import('@/features/social/page'), 'TiktokPage'),
       page(PATHS.finance, () => import('@/features/finance/page'), 'FinancePage'),
       page(PATHS.sales, () => import('@/features/sales/page'), 'SalesPage'),
       page(PATHS.projects, () => import('@/features/projects/page'), 'ProjectsPage'),

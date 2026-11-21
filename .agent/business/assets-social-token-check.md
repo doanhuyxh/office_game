@@ -20,7 +20,7 @@
 
 - Chỉ khi token **chuyển** sang lỗi (`ShouldAlertTokenInvalid`: trạng thái trước khác `Invalid`); đang lỗi rồi thì job 5 giờ không báo lại. HR thay token → `None` → kiểm tra: hợp lệ thì không báo; hỏng lần sau lại báo.
 - Người nhận (`TokenAlertRecipients`, bỏ trùng): người đang giữ BM (còn làm việc) + **mọi HR + mọi Quản trị viên** (trước TEST-205: chỉ HR, không có HR mới tới admin).
-- Chuông + email, category `social_post`, tiêu đề `Token BM "<tên>" không còn dùng được`, link `/assets?tab=social`. Danh mục: `assets.social_post` trong `NotificationCatalog`.
+- Chuông + email, category `social_post`, tiêu đề `Token BM "<tên>" không còn dùng được`, link `/assets?tab=social&platform=facebook` (`SocialRules.FacebookAccountsLink`, TEST-207). Danh mục: `assets.social_post` trong `NotificationCatalog`.
 
 ## Giao diện
 

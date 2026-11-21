@@ -14,33 +14,35 @@ import { Spinner } from '@/components/feedback/Spinner';
 import { useEmployees } from '@/features/employees';
 import { formatDate, formatDateTime } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
-import { assetApi } from '../../api/asset.api';
-import { useAssetMutation, useSocialAccount } from '../../hooks/useAssets';
-import type { ISocialAccountDetail } from '../../types/asset.types';
-import { employeeOptions, FACEBOOK_PLATFORM, SOCIAL_STATUS, TOKEN_STATUS } from '../../utils/labels';
-import { SocialAccountFormDialog } from '../social-account-form-dialog';
-import { SocialTokenGuide } from '../social-token-guide';
-import { SocialTokenPermissions } from '../social-token-permissions';
+import { facebookApi } from '../../api/facebook.api';
+import { useAssetMutation } from '../../hooks/useAssets';
+import { useFacebookAccount } from '../../hooks/useFacebook';
+import type { IFacebookAccountDetail } from '../../types/facebook.types';
+import { FACEBOOK_PLATFORM } from '@/config/social-platforms';
+import { employeeOptions, SOCIAL_STATUS, TOKEN_STATUS } from '../../utils/labels';
+import { FacebookAccountFormDialog } from '../facebook-account-form-dialog';
+import { FacebookTokenGuide } from '../facebook-token-guide';
+import { FacebookTokenPermissions } from '../facebook-token-permissions';
 
 /** Báo kết quả kiểm tra token sau khi lưu token / đồng bộ. */
-const tokenToast = (d: ISocialAccountDetail) =>
+const tokenToast = (d: IFacebookAccountDetail) =>
   d.account.tokenStatus === 'Valid'
     ? toast.success(`Token hợp lệ · ${d.account.pageCount} trang`)
     : toast.error(`Facebook từ chối token: ${d.account.tokenError ?? 'không rõ lý do'}`);
 
 /** Chi tiết Business Manager (HR): token, đồng bộ trang, bàn giao / thu hồi, ngừng dùng, lịch sử. */
-export function SocialAccountSheet({ accountId, onClose }: { accountId: string | null; onClose: () => void }) {
-  const { data, isLoading } = useSocialAccount(accountId);
+export function FacebookAccountSheet({ accountId, onClose }: { accountId: string | null; onClose: () => void }) {
+  const { data, isLoading } = useFacebookAccount(accountId);
   const employees = useEmployees();
   const [editing, setEditing] = useState(false);
   const [token, setToken] = useState('');
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [note, setNote] = useState('');
-  const saveToken = useAssetMutation(() => assetApi.setSocialToken(accountId!, token.trim()));
-  const sync = useAssetMutation(() => assetApi.syncSocial(accountId!));
-  const assign = useAssetMutation(() => assetApi.assignSocial(accountId!, employeeId!, note.trim() || null));
-  const giveBack = useAssetMutation(() => assetApi.returnSocial(accountId!, null));
-  const setStatus = useAssetMutation((s: 'Active' | 'Disabled') => assetApi.setSocialStatus(accountId!, s));
+  const saveToken = useAssetMutation(() => facebookApi.setToken(accountId!, token.trim()));
+  const sync = useAssetMutation(() => facebookApi.sync(accountId!));
+  const assign = useAssetMutation(() => facebookApi.assign(accountId!, employeeId!, note.trim() || null));
+  const giveBack = useAssetMutation(() => facebookApi.return(accountId!, null));
+  const setStatus = useAssetMutation((s: 'Active' | 'Disabled') => facebookApi.setStatus(accountId!, s));
   const tokenErrors = fieldErrors(saveToken.error);
   const assignErrors = fieldErrors(assign.error);
   const a = data?.account;
@@ -100,7 +102,7 @@ export function SocialAccountSheet({ accountId, onClose }: { accountId: string |
                     Tự kiểm tra mỗi 5 giờ — token hỏng sẽ báo người giữ BM, HR và Quản trị viên.
                   </p>
                 )}
-                <SocialTokenPermissions account={a} />
+                <FacebookTokenPermissions account={a} />
                 <form className="grid gap-2" autoComplete="off" onSubmit={(e) => {
                   e.preventDefault();
                   saveToken.mutate(undefined, {
@@ -114,7 +116,7 @@ export function SocialAccountSheet({ accountId, onClose }: { accountId: string |
                     onChange={(e) => setToken(e.target.value)} />
                   {tokenErrors.token && <p className="text-xs text-destructive">{tokenErrors.token}</p>}
                   <div><Button type="submit" size="sm" loading={saveToken.isPending} disabled={!token.trim()} loadingText="Đang kiểm tra…">Lưu và kiểm tra</Button></div>
-                  <SocialTokenGuide />
+                  <FacebookTokenGuide />
                 </form>
               </section>
 
@@ -199,7 +201,7 @@ export function SocialAccountSheet({ accountId, onClose }: { accountId: string |
                 </section>
               )}
             </div>
-            <SocialAccountFormDialog open={editing} onOpenChange={setEditing} account={a} />
+            <FacebookAccountFormDialog open={editing} onOpenChange={setEditing} account={a} />
           </>
         )}
       </SheetContent>

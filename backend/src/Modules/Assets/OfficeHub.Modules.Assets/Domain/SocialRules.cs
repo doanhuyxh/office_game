@@ -11,6 +11,17 @@ public sealed record SocialRequiredPermission(string Permission, string Impact);
 /// <summary>Quy tắc thuần (có test) cho tài khoản mạng xã hội + đăng bài.</summary>
 public static class SocialRules
 {
+    // ---------------- Đường dẫn theo nền tảng (TEST-207) ----------------
+
+    /// <summary>Tiền tố API của Facebook trong nhóm <c>/api/assets</c>: <c>/social/facebook/…</c> (Zalo OA / TikTok sau này: <c>/social/zalo-oa</c>, <c>/social/tiktok</c>).</summary>
+    public const string FacebookApiPrefix = "/social/facebook";
+
+    /// <summary>Trang đăng bài Facebook trên web — link trong chuông / email (link cũ <c>/social</c> FE tự chuyển hướng tới đây).</summary>
+    public const string FacebookPostsLink = "/social/facebook";
+
+    /// <summary>Sub-tab Facebook BM ở Tài sản → MXH — link cảnh báo token hỏng cho HR / Quản trị viên.</summary>
+    public const string FacebookAccountsLink = "/assets?tab=social&platform=facebook";
+
     // ---------------- Bàn giao BM ----------------
 
     /// <summary>Lỗi nếu không bàn giao được; null = được.</summary>

@@ -11,7 +11,12 @@ export const PATHS = {
   meetings: '/meetings',
   documents: '/documents',
   assets: '/assets',
+  /** Link cũ (chuông / email trước TEST-207) — chuyển hướng sang `socialFacebook`. */
   social: '/social',
+  /** Mỗi nền tảng mạng xã hội một trang (TEST-207) — tên / trạng thái hỗ trợ ở `config/social-platforms.ts`. */
+  socialFacebook: '/social/facebook',
+  socialZaloOa: '/social/zalo-oa',
+  socialTiktok: '/social/tiktok',
   finance: '/finance',
   sales: '/sales',
   projects: '/projects',

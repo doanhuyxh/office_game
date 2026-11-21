@@ -154,20 +154,22 @@ ok('2 nhân viên đăng nhập', !!holder.cookie && !!outsider.cookie);
 
 // ---------------- BM: token sai → đúng ----------------
 const bmId = `9${Date.now()}`.slice(0, 15);
-const c1 = await json(admin, 'POST', '/api/assets/social/accounts', { name: `BM E2E ${stamp}`, externalId: bmId, loginHint: 'mkt@e2e.test', ownerDepartmentId: dept,
+const c1 = await json(admin, 'POST', '/api/assets/social/facebook/accounts', { name: `BM E2E ${stamp}`, externalId: bmId, loginHint: 'mkt@e2e.test', ownerDepartmentId: dept,
   note: null, token: SU_BAD });
 const bm = c1.body?.account;
 ok('Tạo BM với token sai → lưu, trạng thái "Invalid" + lý do của Facebook', c1.status === 200 && bm.hasToken && bm.tokenStatus === 'Invalid'
   && /expired/.test(bm.tokenError ?? '') && c1.body.pages.length === 0, c1.body);
 ok('Phản hồi không chứa token', noSecrets(c1.text));
-ok('Trùng ID Business Manager → 400', (await json(admin, 'POST', '/api/assets/social/accounts', { name: 'Trùng', externalId: bmId })).status === 400);
-ok('ID BM có chữ → 400', (await json(admin, 'POST', '/api/assets/social/accounts', { name: 'Sai', externalId: '12ab' })).status === 400);
-ok('Nhân viên không xem / tạo được BM (403)', (await json(holder.cookie, 'GET', '/api/assets/social/accounts')).status === 403
-  && (await json(holder.cookie, 'POST', '/api/assets/social/accounts', { name: 'x' })).status === 403);
-ok('Token có khoảng trắng → 400', (await json(admin, 'PUT', `/api/assets/social/accounts/${bm.id}/token`, { token: 'abc def' })).status === 400);
+ok('Route cũ /api/assets/social/accounts không còn (404) — API Facebook ở /api/assets/social/facebook/* (TEST-207)',
+  (await json(admin, 'GET', '/api/assets/social/accounts')).status === 404 && (await json(admin, 'GET', '/api/assets/social/pages')).status === 404);
+ok('Trùng ID Business Manager → 400', (await json(admin, 'POST', '/api/assets/social/facebook/accounts', { name: 'Trùng', externalId: bmId })).status === 400);
+ok('ID BM có chữ → 400', (await json(admin, 'POST', '/api/assets/social/facebook/accounts', { name: 'Sai', externalId: '12ab' })).status === 400);
+ok('Nhân viên không xem / tạo được BM (403)', (await json(holder.cookie, 'GET', '/api/assets/social/facebook/accounts')).status === 403
+  && (await json(holder.cookie, 'POST', '/api/assets/social/facebook/accounts', { name: 'x' })).status === 403);
+ok('Token có khoảng trắng → 400', (await json(admin, 'PUT', `/api/assets/social/facebook/accounts/${bm.id}/token`, { token: 'abc def' })).status === 400);
 
 log.length = 0;
-const t1 = await json(admin, 'PUT', `/api/assets/social/accounts/${bm.id}/token`, { token: SU_GOOD });
+const t1 = await json(admin, 'PUT', `/api/assets/social/facebook/accounts/${bm.id}/token`, { token: SU_GOOD });
 ok('Token đúng → Valid, tên System User, 3 trang (qua 2 trang kết quả)', t1.status === 200 && t1.body.account.tokenStatus === 'Valid'
   && t1.body.account.tokenOwnerName === 'OfficeHub Bot' && t1.body.pages.length === 3 && t1.body.account.pageCount === 3, t1.body);
 const p1003 = t1.body.pages.find((p: any) => p.externalId === '1003');
@@ -185,7 +187,7 @@ ok('Quyền của token: đủ 4 quyền OfficeHub cần (đánh dấu required)
 ok('Lấy quyền qua /me/permissions bằng header, theo cursor after (không theo link next)',
   log.filter((r) => r.path.endsWith('/me/permissions')).map((r) => r.search).join('|') === '?limit=100|?limit=100&after=q1', log.map((r) => r.path + r.search));
 
-const lim = await json(admin, 'PUT', `/api/assets/social/accounts/${bm.id}/token`, { token: SU_LIMITED });
+const lim = await json(admin, 'PUT', `/api/assets/social/facebook/accounts/${bm.id}/token`, { token: SU_LIMITED });
 const la = lim.body?.account;
 ok('Token thiếu pages_manage_posts → vẫn Valid, API báo thiếu pages_manage_posts + business_management kèm hậu quả',
   la?.tokenStatus === 'Valid' && perm(la, 'pages_manage_posts')?.status === 'declined' && !perm(la, 'ads_read')
@@ -193,11 +195,11 @@ ok('Token thiếu pages_manage_posts → vẫn Valid, API báo thiếu pages_man
   && la.missingPermissions.every((m: any) => m.impact), la);
 ok('Phản hồi token thiếu quyền không chứa token', noSecrets(lim.text));
 fake.permFail = true;
-const pf = (await json(admin, 'POST', `/api/assets/social/accounts/${bm.id}/sync`)).body?.account;
+const pf = (await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/sync`)).body?.account;
 ok('Lấy quyền lỗi nhưng /me + trang OK → token Valid, danh sách quyền trống + ghi chú', pf?.tokenStatus === 'Valid' && pf.tokenPermissions === null
   && /Không lấy được danh sách quyền/.test(pf.tokenPermissionsError ?? '') && pf.missingPermissions.length === 0 && pf.pageCount === 3, pf);
 fake.permFail = false;
-const back = (await json(admin, 'PUT', `/api/assets/social/accounts/${bm.id}/token`, { token: SU_GOOD })).body?.account;
+const back = (await json(admin, 'PUT', `/api/assets/social/facebook/accounts/${bm.id}/token`, { token: SU_GOOD })).body?.account;
 ok('Thay lại token đủ quyền → danh sách mới, hết cảnh báo', back?.tokenStatus === 'Valid' && back.missingPermissions.length === 0
   && back.tokenPermissions?.length === 6 && back.tokenPermissionsError === null, back);
 ok('Lịch sử sửa có BM nhưng che token', audit.status === 200 && audit.text.includes('TokenEncrypted') && noSecrets(audit.text)
@@ -206,38 +208,38 @@ const pageId = (ext: string) => t1.body.pages.find((p: any) => p.externalId === 
 const P1 = pageId('1001'), P2 = pageId('1002'), P3 = pageId('1003');
 
 // ---------------- Quyền trước khi bàn giao ----------------
-ok('Nhân viên chưa được giao: không có trang', (await json(holder.cookie, 'GET', '/api/assets/social/pages')).body?.length === 0);
-ok('Nhân viên chưa được giao: đăng bài 403', (await json(holder.cookie, 'POST', '/api/assets/social/posts', { message: 'x', pageIds: [P1] })).status === 403);
-ok('Nhân viên chưa được giao: xin link tải tệp 403', (await json(holder.cookie, 'POST', '/api/assets/social/media', { fileName: 'a.png', size: 10 })).status === 403);
+ok('Nhân viên chưa được giao: không có trang', (await json(holder.cookie, 'GET', '/api/assets/social/facebook/pages')).body?.length === 0);
+ok('Nhân viên chưa được giao: đăng bài 403', (await json(holder.cookie, 'POST', '/api/assets/social/facebook/posts', { message: 'x', pageIds: [P1] })).status === 403);
+ok('Nhân viên chưa được giao: xin link tải tệp 403', (await json(holder.cookie, 'POST', '/api/assets/social/facebook/media', { fileName: 'a.png', size: 10 })).status === 403);
 
 // ---------------- Bàn giao ----------------
-const as = await json(admin, 'POST', `/api/assets/social/accounts/${bm.id}/assign`, { employeeId: holder.e.id, note: 'Phụ trách fanpage' });
+const as = await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/assign`, { employeeId: holder.e.id, note: 'Phụ trách fanpage' });
 ok('Bàn giao BM → người giữ + lịch sử', as.status === 200 && as.body.account.holderEmployeeId === holder.e.id && as.body.history.length === 1, as.body);
-ok('Bàn giao lần nữa khi đang có người giữ → 409', (await json(admin, 'POST', `/api/assets/social/accounts/${bm.id}/assign`, { employeeId: outsider.e.id })).status === 409);
+ok('Bàn giao lần nữa khi đang có người giữ → 409', (await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/assign`, { employeeId: outsider.e.id })).status === 409);
 const nAssign = (await json(holder.cookie, 'GET', '/api/notifications?take=10')).body?.items?.find((n: any) => n.category === 'asset_assigned');
-ok('Người giữ nhận chuông bàn giao (link /social)', !!nAssign && nAssign.link === '/social' && nAssign.title.includes(`BM E2E ${stamp}`), nAssign);
+ok('Người giữ nhận chuông bàn giao (link /social/facebook)', !!nAssign && nAssign.link === '/social/facebook' && nAssign.title.includes(`BM E2E ${stamp}`), nAssign);
 const my = await json(holder.cookie, 'GET', '/api/assets/my');
 ok('Tài sản của tôi có BM (3 trang, không token)', my.body?.socials?.length === 1 && my.body.socials[0].pageCount === 3 && noSecrets(my.text), my.body);
-const hp = await json(holder.cookie, 'GET', '/api/assets/social/pages');
+const hp = await json(holder.cookie, 'GET', '/api/assets/social/facebook/pages');
 ok('Người giữ thấy 3 trang của BM', hp.status === 200 && hp.body.length === 3 && noSecrets(hp.text), hp.body);
-ok('Người ngoài vẫn không có trang', (await json(outsider.cookie, 'GET', '/api/assets/social/pages')).body?.length === 0);
+ok('Người ngoài vẫn không có trang', (await json(outsider.cookie, 'GET', '/api/assets/social/facebook/pages')).body?.length === 0);
 
 // ---------------- Kiểm tra dữ liệu ----------------
-const bad = async (body: unknown) => (await json(holder.cookie, 'POST', '/api/assets/social/posts', body)).status;
+const bad = async (body: unknown) => (await json(holder.cookie, 'POST', '/api/assets/social/facebook/posts', body)).status;
 ok('Bài rỗng → 400', (await bad({ message: ' ', pageIds: [P1] })) === 400);
 ok('Không chọn trang → 400', (await bad({ message: 'x', pageIds: [] })) === 400);
 ok('Trang thiếu quyền đăng → 400', (await bad({ message: 'x', pageIds: [P3] })) === 400);
 ok('Link không phải http(s) → 400', (await bad({ message: 'x', link: 'ftp://a.b', pageIds: [P1] })) === 400);
 ok('Hẹn giờ sau 1 phút → 400', (await bad({ message: 'x', pageIds: [P1], scheduledAt: new Date(Date.now() + 60_000).toISOString() })) === 400);
 ok('Hẹn giờ quá 180 ngày → 400', (await bad({ message: 'x', pageIds: [P1], scheduledAt: new Date(Date.now() + 200 * 86400_000).toISOString() })) === 400);
-ok('Tệp không phải ảnh / video → 400', (await json(holder.cookie, 'POST', '/api/assets/social/media', { fileName: 'a.pdf', size: 10 })).status === 400);
-ok('Ảnh > 10 MB → 400', (await json(holder.cookie, 'POST', '/api/assets/social/media', { fileName: 'a.jpg', size: 11 * 1024 * 1024 })).status === 400);
+ok('Tệp không phải ảnh / video → 400', (await json(holder.cookie, 'POST', '/api/assets/social/facebook/media', { fileName: 'a.pdf', size: 10 })).status === 400);
+ok('Ảnh > 10 MB → 400', (await json(holder.cookie, 'POST', '/api/assets/social/facebook/media', { fileName: 'a.jpg', size: 11 * 1024 * 1024 })).status === 400);
 
 const waitPost = async (cookie: string, id: string, done: (p: any) => boolean, ms = 30_000) => {
   const until = Date.now() + ms;
   let p: any = null;
   while (Date.now() < until) {
-    p = (await json(cookie, 'GET', `/api/assets/social/posts/${id}`)).body;
+    p = (await json(cookie, 'GET', `/api/assets/social/facebook/posts/${id}`)).body;
     if (p && done(p)) return p;
     await sleep(1000);
   }
@@ -246,7 +248,7 @@ const waitPost = async (cookie: string, id: string, done: (p: any) => boolean, m
 
 // ---------------- Đăng chữ + link lên 2 trang (trang 2 lỗi tạm thời 1 lần) ----------------
 log.length = 0;
-const text = await json(holder.cookie, 'POST', '/api/assets/social/posts', { message: `Xin chào từ OfficeHub ${stamp}`, link: 'https://example.com/a', pageIds: [P1, P2] });
+const text = await json(holder.cookie, 'POST', '/api/assets/social/facebook/posts', { message: `Xin chào từ OfficeHub ${stamp}`, link: 'https://example.com/a', pageIds: [P1, P2] });
 ok('Đăng ngay → 200, 2 đích Chờ', text.status === 200 && text.body.targets.length === 2 && text.body.scheduledAt == null, text.body);
 let tp = await waitPost(holder.cookie, text.body.id, (p) => p.targets.find((t: any) => t.pageId === P1).status === 'Published'
   && p.targets.find((t: any) => t.pageId === P2).attempts >= 1 && p.targets.find((t: any) => t.pageId === P2).status === 'Pending');
@@ -264,21 +266,21 @@ ok('Thử lại sau 1 phút → trang 2 đã đăng, bài "Đã đăng"', tp?.st
 // ---------------- Ảnh (S3 thật) → attached_media ----------------
 const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), (c) => c.charCodeAt(0));
 const upload = async (cookie: string, name: string, bytes: Uint8Array) => {
-  const t = await json(cookie, 'POST', '/api/assets/social/media', { fileName: name, size: bytes.length });
+  const t = await json(cookie, 'POST', '/api/assets/social/facebook/media', { fileName: name, size: bytes.length });
   if (t.status !== 200) return { status: t.status, body: t.body };
   const put = await fetch(s3url(t.body.uploadUrl), { method: 'PUT', headers: { 'Content-Type': t.body.contentType }, body: bytes });
-  const c = await json(cookie, 'POST', `/api/assets/social/media/${t.body.id}/confirm`, {});
+  const c = await json(cookie, 'POST', `/api/assets/social/facebook/media/${t.body.id}/confirm`, {});
   return { status: put.ok ? c.status : put.status, body: c.body, ticket: t.body };
 };
-const early = await json(holder.cookie, 'POST', '/api/assets/social/media', { fileName: 'chua-put.png', size: png.length });
-ok('Xác nhận khi chưa PUT → 409', (await json(holder.cookie, 'POST', `/api/assets/social/media/${early.body.id}/confirm`, {})).status === 409);
+const early = await json(holder.cookie, 'POST', '/api/assets/social/facebook/media', { fileName: 'chua-put.png', size: png.length });
+ok('Xác nhận khi chưa PUT → 409', (await json(holder.cookie, 'POST', `/api/assets/social/facebook/media/${early.body.id}/confirm`, {})).status === 409);
 const i1 = await upload(holder.cookie, 'anh 1.png', png), i2 = await upload(holder.cookie, 'anh-2.png', png);
 ok('Tải 2 ảnh lên S3 + xác nhận', i1.status === 200 && i2.status === 200 && i1.body.kind === 'Image' && i1.ticket?.uploadUrl.includes('assets/social/'), [i1, i2]);
-ok('Người khác không xác nhận được tệp của mình (404)', (await json(outsider.cookie, 'POST', `/api/assets/social/media/${i1.body.id}/confirm`, {})).status === 404);
+ok('Người khác không xác nhận được tệp của mình (404)', (await json(outsider.cookie, 'POST', `/api/assets/social/facebook/media/${i1.body.id}/confirm`, {})).status === 404);
 ok('Bài có ảnh không gắn được link xem trước → 400', (await bad({ message: 'x', link: 'https://a.b', pageIds: [P1], mediaIds: [i1.body.id] })) === 400);
 log.length = 0;
 fake.s3Fetch.length = 0;
-const pic = await json(holder.cookie, 'POST', '/api/assets/social/posts', { message: 'Album', pageIds: [P1], mediaIds: [i2.body.id, i1.body.id] });
+const pic = await json(holder.cookie, 'POST', '/api/assets/social/facebook/posts', { message: 'Album', pageIds: [P1], mediaIds: [i2.body.id, i1.body.id] });
 const picDone = await waitPost(holder.cookie, pic.body.id, (p) => p.status === 'Published');
 const photos = log.filter((r) => r.path === '/v23.0/1001/photos'), albumFeed = log.find((r) => r.path === '/v23.0/1001/feed');
 ok('2 ảnh: tải ẩn từng ảnh (published=false) rồi /feed + attached_media đúng thứ tự', picDone?.status === 'Published' && photos.length === 2
@@ -287,84 +289,84 @@ ok('2 ảnh: tải ẩn từng ảnh (published=false) rồi /feed + attached_me
 ok('Facebook tải được ảnh từ link S3 (200)', fake.s3Fetch.length === 2 && fake.s3Fetch.every((s) => s === 200), fake.s3Fetch);
 ok('Bài có 2 ảnh trả về theo thứ tự chọn', picDone?.media.map((m: any) => m.id).join() === [i2.body.id, i1.body.id].join(), picDone?.media);
 ok('Dùng lại ảnh đã gắn bài khác → 400', (await bad({ message: 'x', pageIds: [P1], mediaIds: [i1.body.id] })) === 400);
-const mu = await json(holder.cookie, 'GET', `/api/assets/social/media/${i1.body.id}/url`);
+const mu = await json(holder.cookie, 'GET', `/api/assets/social/facebook/media/${i1.body.id}/url`);
 ok('Xem ảnh: người đăng được, người ngoài 404', mu.status === 200 && mu.body.url.startsWith('http')
-  && (await json(outsider.cookie, 'GET', `/api/assets/social/media/${i1.body.id}/url`)).status === 404);
+  && (await json(outsider.cookie, 'GET', `/api/assets/social/facebook/media/${i1.body.id}/url`)).status === 404);
 
 // ---------------- Video ----------------
 const vid = await upload(holder.cookie, 'clip.mp4', new Uint8Array([0, 0, 0, 24, 102, 116, 121, 112, 109, 112, 52, 50]));
 ok('Video + ảnh cùng bài → 400', (await bad({ message: 'x', pageIds: [P1], mediaIds: [vid.body.id, (await upload(holder.cookie, 'a3.png', png)).body.id] })) === 400);
 log.length = 0;
-const vp = await json(holder.cookie, 'POST', '/api/assets/social/posts', { message: 'Video mới', pageIds: [P1], mediaIds: [vid.body.id] });
+const vp = await json(holder.cookie, 'POST', '/api/assets/social/facebook/posts', { message: 'Video mới', pageIds: [P1], mediaIds: [vid.body.id] });
 const vDone = await waitPost(holder.cookie, vp.body.id, (p) => p.status === 'Published');
 const vreq = log.find((r) => r.path === '/v23.0/1001/videos');
 ok('Video: /videos với file_url (S3) + description; permalink tương đối → tuyệt đối', vDone?.status === 'Published' && vreq?.form.description === 'Video mới'
   && vreq.form.file_url?.includes('assets/social/') && vDone.targets[0].permalink?.startsWith('https://www.facebook.com/1001/videos/vid'), { vDone, vreq });
 
 // ---------------- Xem bài: người ngoài ----------------
-ok('Người ngoài không xem được bài (404) / danh sách rỗng', (await json(outsider.cookie, 'GET', `/api/assets/social/posts/${text.body.id}`)).status === 404
-  && (await json(outsider.cookie, 'GET', '/api/assets/social/posts?page=1')).body?.total === 0);
-const hrList = await json(admin, 'GET', '/api/assets/social/posts?page=1&pageSize=50');
+ok('Người ngoài không xem được bài (404) / danh sách rỗng', (await json(outsider.cookie, 'GET', `/api/assets/social/facebook/posts/${text.body.id}`)).status === 404
+  && (await json(outsider.cookie, 'GET', '/api/assets/social/facebook/posts?page=1')).body?.total === 0);
+const hrList = await json(admin, 'GET', '/api/assets/social/facebook/posts?page=1&pageSize=50');
 ok('HR thấy mọi bài (phân trang)', hrList.status === 200 && hrList.body.total >= 3 && hrList.body.items.some((p: any) => p.id === vp.body.id), hrList.body?.total);
 
 // ---------------- Hẹn giờ + huỷ ----------------
 const at = new Date(Date.now() + 10 * 60_000).toISOString();
-const sch = await json(holder.cookie, 'POST', '/api/assets/social/posts', { message: 'Hẹn giờ', pageIds: [P1, P2], scheduledAt: at });
+const sch = await json(holder.cookie, 'POST', '/api/assets/social/facebook/posts', { message: 'Hẹn giờ', pageIds: [P1, P2], scheduledAt: at });
 ok('Hẹn giờ 10 phút → Chờ đăng, có nút huỷ', sch.status === 200 && sch.body.status === 'Scheduled' && sch.body.canCancel, sch.body);
-ok('Người ngoài không huỷ được (404)', (await json(outsider.cookie, 'POST', `/api/assets/social/posts/${sch.body.id}/cancel`)).status === 404);
-const cc = await json(holder.cookie, 'POST', `/api/assets/social/posts/${sch.body.id}/cancel`);
+ok('Người ngoài không huỷ được (404)', (await json(outsider.cookie, 'POST', `/api/assets/social/facebook/posts/${sch.body.id}/cancel`)).status === 404);
+const cc = await json(holder.cookie, 'POST', `/api/assets/social/facebook/posts/${sch.body.id}/cancel`);
 ok('Người đăng huỷ → Đã huỷ', cc.status === 200 && cc.body.status === 'Cancelled' && cc.body.targets.every((t: any) => t.cancelledByName), cc.body);
-ok('Huỷ lần nữa → 409', (await json(holder.cookie, 'POST', `/api/assets/social/posts/${sch.body.id}/cancel`)).status === 409);
-ok('Đăng lại trang không lỗi → 409', (await json(holder.cookie, 'POST', `/api/assets/social/targets/${cc.body.targets[0].id}/retry`)).status === 409);
+ok('Huỷ lần nữa → 409', (await json(holder.cookie, 'POST', `/api/assets/social/facebook/posts/${sch.body.id}/cancel`)).status === 409);
+ok('Đăng lại trang không lỗi → 409', (await json(holder.cookie, 'POST', `/api/assets/social/facebook/targets/${cc.body.targets[0].id}/retry`)).status === 409);
 
 // ---------------- Thu hồi BM → huỷ bài chờ của người giữ ----------------
-const sch2 = await json(holder.cookie, 'POST', '/api/assets/social/posts', { message: 'Hẹn giờ 2', pageIds: [P1], scheduledAt: at });
-const hrSch = await json(admin, 'POST', '/api/assets/social/posts', { message: 'HR hẹn giờ', pageIds: [P2], scheduledAt: at });
-const ret = await json(admin, 'POST', `/api/assets/social/accounts/${bm.id}/return`, { note: 'Đổi người phụ trách' });
+const sch2 = await json(holder.cookie, 'POST', '/api/assets/social/facebook/posts', { message: 'Hẹn giờ 2', pageIds: [P1], scheduledAt: at });
+const hrSch = await json(admin, 'POST', '/api/assets/social/facebook/posts', { message: 'HR hẹn giờ', pageIds: [P2], scheduledAt: at });
+const ret = await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/return`, { note: 'Đổi người phụ trách' });
 ok('Thu hồi BM → không còn người giữ, lịch sử đóng', ret.status === 200 && ret.body.account.holderEmployeeId == null && ret.body.history[0].returnedAt, ret.body);
-const s2 = (await json(admin, 'GET', `/api/assets/social/posts/${sch2.body.id}`)).body;
-const hs = (await json(admin, 'GET', `/api/assets/social/posts/${hrSch.body.id}`)).body;
+const s2 = (await json(admin, 'GET', `/api/assets/social/facebook/posts/${sch2.body.id}`)).body;
+const hs = (await json(admin, 'GET', `/api/assets/social/facebook/posts/${hrSch.body.id}`)).body;
 ok('Bài hẹn giờ của người giữ bị huỷ (ghi lý do); bài của HR vẫn chờ', s2?.status === 'Cancelled' && /thu hồi/.test(s2.targets[0].error ?? '')
   && hs?.status === 'Scheduled', { s2, hs });
-ok('Người bị thu hồi: không còn trang, đăng 403, tài sản không còn BM', (await json(holder.cookie, 'GET', '/api/assets/social/pages')).body?.length === 0
+ok('Người bị thu hồi: không còn trang, đăng 403, tài sản không còn BM', (await json(holder.cookie, 'GET', '/api/assets/social/facebook/pages')).body?.length === 0
   && (await bad({ message: 'x', pageIds: [P1] })) === 403 && (await json(holder.cookie, 'GET', '/api/assets/my')).body?.socials?.length === 0);
-ok('Người bị thu hồi vẫn xem được bài mình đã đăng', (await json(holder.cookie, 'GET', `/api/assets/social/posts/${text.body.id}`)).status === 200);
+ok('Người bị thu hồi vẫn xem được bài mình đã đăng', (await json(holder.cookie, 'GET', `/api/assets/social/facebook/posts/${text.body.id}`)).status === 200);
 const nRet = (await json(holder.cookie, 'GET', '/api/notifications?take=10')).body?.items?.find((n: any) => n.category === 'asset_returned');
 ok('Người bị thu hồi nhận chuông', !!nRet, nRet);
-await json(admin, 'POST', `/api/assets/social/posts/${hrSch.body.id}/cancel`);
+await json(admin, 'POST', `/api/assets/social/facebook/posts/${hrSch.body.id}/cancel`);
 
 // ---------------- Token bị thu hồi (190) ----------------
 fake.revoked1001 = true;
-const rv = await json(admin, 'POST', '/api/assets/social/posts', { message: 'Sau khi đổi mật khẩu', pageIds: [P1] });
+const rv = await json(admin, 'POST', '/api/assets/social/facebook/posts', { message: 'Sau khi đổi mật khẩu', pageIds: [P1] });
 const rvDone = await waitPost(admin, rv.body.id, (p) => p.status === 'Failed');
 ok('Lỗi 190 → đích Lỗi (không thử lại), có nút đăng lại', rvDone?.status === 'Failed' && rvDone.targets[0].attempts === 1 && rvDone.targets[0].canRetry
   && /password/.test(rvDone.targets[0].error ?? ''), rvDone);
-const bmAfter = (await json(admin, 'GET', `/api/assets/social/accounts/${bm.id}`)).body;
+const bmAfter = (await json(admin, 'GET', `/api/assets/social/facebook/accounts/${bm.id}`)).body;
 ok('BM chuyển "Token lỗi" kèm lý do', bmAfter?.account.tokenStatus === 'Invalid' && /password/.test(bmAfter.account.tokenError ?? ''), bmAfter?.account);
 ok('Token lỗi → giữ danh sách quyền cũ', bmAfter?.account.tokenPermissions?.length === 6, bmAfter?.account.tokenPermissions);
 const adminNotes = (await json(admin, 'GET', '/api/notifications?take=20')).body?.items ?? [];
 ok('Chuông social_post: đăng thất bại + token BM hỏng', adminNotes.filter((n: any) => n.category === 'social_post').length >= 2, adminNotes.map((n: any) => n.title));
 fake.revoked1001 = false;
-const rs = await json(admin, 'POST', `/api/assets/social/accounts/${bm.id}/sync`);
+const rs = await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/sync`);
 ok('Đồng bộ lại → token Valid', rs.body?.account.tokenStatus === 'Valid', rs.body?.account);
-const rt = await json(admin, 'POST', `/api/assets/social/targets/${rvDone.targets[0].id}/retry`);
+const rt = await json(admin, 'POST', `/api/assets/social/facebook/targets/${rvDone.targets[0].id}/retry`);
 const rtDone = await waitPost(admin, rv.body.id, (p) => p.status === 'Published');
 ok('Đăng lại trang lỗi → Đã đăng', rt.status === 200 && rtDone?.status === 'Published', rtDone);
 
 // ---------------- Nghỉ việc còn giữ BM ----------------
-await json(admin, 'POST', `/api/assets/social/accounts/${bm.id}/assign`, { employeeId: outsider.e.id });
+await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/assign`, { employeeId: outsider.e.id });
 const hold = await json(admin, 'GET', `/api/assets/employees/${outsider.e.id}/holdings`);
 ok('HR xem tài sản nhân viên: có BM', hold.body?.socials?.length === 1, hold.body);
 
 // ---------------- Ngừng dùng ----------------
-ok('Ngừng dùng khi còn người giữ → 409', (await json(admin, 'POST', `/api/assets/social/accounts/${bm.id}/status`, { status: 'Disabled' })).status === 409);
-await json(admin, 'POST', `/api/assets/social/accounts/${bm.id}/return`, { note: null });
-const dis = await json(admin, 'POST', `/api/assets/social/accounts/${bm.id}/status`, { status: 'Disabled' });
+ok('Ngừng dùng khi còn người giữ → 409', (await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/status`, { status: 'Disabled' })).status === 409);
+await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/return`, { note: null });
+const dis = await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/status`, { status: 'Disabled' });
 ok('Ngừng dùng → HR không còn trang để đăng, đăng bị chặn (400 / 403 khi không còn BM nào)', dis.body?.account.status === 'Disabled'
-  && !(await json(admin, 'GET', '/api/assets/social/pages')).body.some((p: any) => p.accountId === bm.id)
-  && [400, 403].includes((await json(admin, 'POST', '/api/assets/social/posts', { message: 'x', pageIds: [P1] })).status));
-ok('Bàn giao BM ngừng dùng → 409', (await json(admin, 'POST', `/api/assets/social/accounts/${bm.id}/assign`, { employeeId: holder.e.id })).status === 409);
-const list = await json(admin, 'GET', '/api/assets/social/accounts');
+  && !(await json(admin, 'GET', '/api/assets/social/facebook/pages')).body.some((p: any) => p.accountId === bm.id)
+  && [400, 403].includes((await json(admin, 'POST', '/api/assets/social/facebook/posts', { message: 'x', pageIds: [P1] })).status));
+ok('Bàn giao BM ngừng dùng → 409', (await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/assign`, { employeeId: holder.e.id })).status === 409);
+const list = await json(admin, 'GET', '/api/assets/social/facebook/accounts');
 ok('Danh sách BM không chứa token', list.status === 200 && list.body.some((a: any) => a.id === bm.id) && noSecrets(list.text));
 
 console.log(`\n${pass} đạt, ${fail} lỗi`);

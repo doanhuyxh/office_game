@@ -1,6 +1,6 @@
 import { ShieldAlert, ShieldCheck } from 'lucide-react';
 import { StatusBadge } from '@/components/common/StatusBadge';
-import type { ISocialAccount } from '../../types/asset.types';
+import type { IFacebookAccount } from '../../types/facebook.types';
 
 const STATUS_LABEL: Record<string, string> = { granted: 'đã cấp', declined: 'bị từ chối', expired: 'hết hạn' };
 
@@ -8,7 +8,7 @@ const STATUS_LABEL: Record<string, string> = { granted: 'đã cấp', declined: 
  * Khối "Quyền của token" dưới mục Token System User: mỗi quyền một badge (đã cấp xanh, bị từ chối / hết hạn đỏ),
  * quyền OfficeHub cần mà token không có → cảnh báo riêng. Chỉ hiện khi token hợp lệ (đã kiểm tra thành công).
  */
-export function SocialTokenPermissions({ account: a }: { account: ISocialAccount }) {
+export function FacebookTokenPermissions({ account: a }: { account: IFacebookAccount }) {
   if (a.tokenStatus !== 'Valid') return null;
   const perms = a.tokenPermissions;
 

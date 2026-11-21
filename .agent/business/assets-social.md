@@ -1,6 +1,6 @@
 # Tài khoản mạng xã hội + đăng bài (module Assets)
 
-> Nguồn sự thật là code: `backend/src/Modules/Assets/` (`Domain/Social*.cs`, `Features/Social*.cs`, `Infrastructure/FacebookGraph.cs`, `SocialService.cs`), FE `features/assets` (tab MXH) + `features/social` (trang `/social`). Về [assets.md](assets.md) · [README.md](README.md).
+> Nguồn sự thật là code: `backend/src/Modules/Assets/` (`Domain/Social*.cs`, `Features/Social*.cs`, `Infrastructure/FacebookGraph.cs`, `SocialService.cs`), FE `features/assets` (tab MXH) + `features/social` (trang `/social/<nền tảng>`). Về [assets.md](assets.md) · [README.md](README.md).
 
 ## Phạm vi (chủ dự án chốt 2026-11-09)
 
@@ -46,7 +46,7 @@ Thu hồi BM → huỷ bài **đang chờ** của người bị thu hồi trên 
 - Lỗi token (190, 102) → BM "Token lỗi" + báo người giữ + HR + Quản trị viên (hàm chung; job kiểm tra token mỗi 5 giờ — [assets-social-token-check.md](assets-social-token-check.md)). Thiếu quyền (10 / 200) chỉ lỗi bài.
 - Đăng thất bại → chuông `social_post` cho người đăng (chỉ app).
 
-## Endpoint (`/api/assets/social`)
+## Endpoint Facebook (`/api/assets/social/facebook` — mỗi nền tảng một tiền tố, TEST-207: `SocialRules.FacebookApiPrefix`)
 
 | Method | Path | Ai |
 |---|---|---|
@@ -62,13 +62,13 @@ Kiểm tra bài (`SocialRules.ValidatePost`): có chữ / link / tệp; ≤ 63 2
 
 ## Front-end
 
-- `/assets` tab **MXH** (HR, sau Dịch vụ): bảng BM → sheet chi tiết (token chỉ ghi + khối "Quyền của token" + hướng dẫn tạo token System User, Đồng bộ trang, người giữ, trang, lịch sử). "Của tôi" + hồ sơ nhân viên + cảnh báo nghỉ việc hiện BM đang giữ.
-- Nền tảng (TEST-203): `SOCIAL_PLATFORMS` ở `assets/utils/labels.ts` (qua `@/features/assets`); tab MXH chia 3 phần Facebook Business Manager (BM) / Zalo OA / TikTok (2 phần sau "Chưa hỗ trợ", không nút / API); `/social` ghi "Fanpage Facebook" + chú thích. Làm Zalo / TikTok → đổi ở đó.
-- `/social` **Đăng bài MXH** (`features/social`): trái soạn bài (chọn trang theo BM, nội dung, link hoặc ảnh / video tải thẳng S3, hẹn giờ giờ VN), phải danh sách bài + kết quả từng trang (link bài, lỗi, Đăng lại, Huỷ); tự làm mới 4 giây khi đang đăng. Menu chỉ hiện với HR và người có ít nhất một trang (`useNavigation`).
+Mỗi nền tảng một trang + một sub-tab (TEST-207) — route, cấu trúc thư mục, cách thêm nền tảng: [assets-social-platforms.md](assets-social-platforms.md).
+- `/assets?tab=social&platform=facebook` (HR): bảng BM → sheet chi tiết (token chỉ ghi + "Quyền của token" + hướng dẫn token System User, Đồng bộ trang, người giữ, trang, lịch sử). "Của tôi" + hồ sơ nhân viên + cảnh báo nghỉ việc hiện BM đang giữ.
+- `/social/facebook` (menu Mạng xã hội → Facebook): trái soạn bài (chọn trang theo BM, nội dung, link hoặc ảnh / video tải thẳng S3, hẹn giờ giờ VN), phải danh sách bài + kết quả từng trang (link bài, lỗi, Đăng lại, Huỷ); tự làm mới 4 giây khi đang đăng.
 
 ## Test
 
-`SocialRulesTests` (36) · `scripts/dev/social-e2e.ts` (máy chủ Graph giả trong cùng tiến trình, PUT S3 — thật hoặc RustFS tạm) 75/75 trên DB tạm 2026-11-22 — [e2e.md](../e2e.md). **Chưa thử với Facebook thật** (cần chủ dự án tạo app + System User token) và chưa thử tay giao diện trên trình duyệt.
+`SocialRulesTests` (37) · `scripts/dev/social-e2e.ts` (máy chủ Graph giả trong cùng tiến trình, PUT S3 — thật hoặc RustFS tạm) 76/76 trên DB tạm 2026-11-22 — [e2e.md](../e2e.md). **Chưa thử với Facebook thật** (cần chủ dự án tạo app + System User token) và chưa thử tay giao diện trên trình duyệt.
 
 ## Chưa làm
 

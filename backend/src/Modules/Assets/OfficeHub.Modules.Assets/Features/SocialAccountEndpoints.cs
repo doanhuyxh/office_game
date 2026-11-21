@@ -22,7 +22,7 @@ internal static class SocialAccountEndpoints
 {
     public static void Map(RouteGroupBuilder g)
     {
-        var hr = g.MapGroup("/social/accounts").RequireAuthorization(AuthPolicies.Hr);
+        var hr = g.MapGroup($"{SocialRules.FacebookApiPrefix}/accounts").RequireAuthorization(AuthPolicies.Hr);
         hr.MapGet("", ListAsync);
         hr.MapPost("", CreateAsync);
         hr.MapGet("/{id:guid}", GetAsync);
@@ -188,7 +188,7 @@ internal static class SocialAccountEndpoints
         await db.SaveChangesAsync(ct);
         var pages = await db.SocialPages.CountAsync(p => p.AccountId == a.Id && p.IsActive, ct);
         await ops.NotifyEmployeeAsync(emp.Id, NotificationCategories.AssetAssigned, $"Bạn được bàn giao Business Manager \"{a.Name}\"",
-            $"Bạn có thể đăng bài lên {pages} trang của BM này tại Đăng bài MXH.", email: true, link: "/social");
+            $"Bạn có thể đăng bài lên {pages} trang của BM này tại Đăng bài MXH.", email: true, link: SocialRules.FacebookPostsLink);
         return TypedResults.Ok(await DetailAsync(a, db, access, dir, ct));
     }
 
@@ -203,7 +203,7 @@ internal static class SocialAccountEndpoints
         await ReturnCoreAsync(a, holder, Clean(req.Note), me.Name, db, social, clock, ct);
         await db.SaveChangesAsync(ct);
         await ops.NotifyEmployeeAsync(holder, NotificationCategories.AssetReturned, $"Business Manager \"{a.Name}\" đã được thu hồi",
-            "Bạn không còn đăng bài lên các trang của BM này; bài hẹn giờ chưa đăng đã được huỷ.", email: false, link: "/social");
+            "Bạn không còn đăng bài lên các trang của BM này; bài hẹn giờ chưa đăng đã được huỷ.", email: false, link: SocialRules.FacebookPostsLink);
         return TypedResults.Ok(await DetailAsync(a, db, access, dir, ct));
     }
 

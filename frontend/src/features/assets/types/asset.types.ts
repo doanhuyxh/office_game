@@ -96,37 +96,8 @@ export interface IStocktakeItem {
 }
 export interface IStocktakeDetail { stocktake: IStocktake; items: IStocktakeItem[] }
 
-// ---------------- Tài khoản mạng xã hội (Facebook Business Manager) ----------------
+// ---------------- Tài khoản mạng xã hội (dùng chung các nền tảng; phần riêng Facebook BM: facebook.types.ts) ----------------
 export type SocialPlatform = 'Facebook';
 export type SocialAccountStatus = 'Active' | 'Disabled';
 /** None: chưa nhập token · Valid: dùng được · Invalid: Facebook từ chối (xem `tokenError`). */
 export type SocialTokenStatus = 'None' | 'Valid' | 'Invalid';
-
-/** Token không bao giờ trả về trình duyệt — chỉ `hasToken` + trạng thái. */
-export interface ISocialAccount {
-  id: string; platform: SocialPlatform; name: string; externalId: string | null; loginHint: string | null; ownerDepartmentId: string | null;
-  ownerDepartmentName: string | null; status: SocialAccountStatus; holderEmployeeId: string | null; holderName: string | null; holderCode: string | null;
-  note: string | null; hasToken: boolean; tokenStatus: SocialTokenStatus; tokenError: string | null; tokenCheckedAt: string | null;
-  tokenOwnerName: string | null; pagesSyncedAt: string | null; pageCount: number; createdAt: string;
-  /** Quyền của token (GET /me/permissions) — null = chưa lấy được. Token lỗi → giữ danh sách của lần kiểm tra thành công trước. */
-  tokenPermissions: ISocialTokenPermission[] | null;
-  /** Token hợp lệ nhưng không lấy được danh sách quyền. */
-  tokenPermissionsError: string | null;
-  /** Quyền OfficeHub cần mà token không có (rỗng khi chưa lấy được danh sách). */
-  missingPermissions: ISocialMissingPermission[];
-}
-/** status: granted / declined / expired. required = OfficeHub cần quyền này. */
-export interface ISocialTokenPermission { permission: string; status: string; required: boolean }
-export interface ISocialMissingPermission { permission: string; impact: string }
-export interface ISocialPage {
-  id: string; accountId: string; accountName: string; externalId: string; name: string; category: string | null; link: string | null;
-  pictureUrl: string | null; isActive: boolean; canPost: boolean; syncedAt: string;
-}
-export interface ISocialAssignment {
-  id: string; employeeId: string; employeeName: string; employeeCode: string; assignedAt: string; assignedByName: string | null;
-  assignNote: string | null; returnedAt: string | null; returnedByName: string | null; returnNote: string | null;
-}
-export interface ISocialAccountDetail { account: ISocialAccount; pages: ISocialPage[]; history: ISocialAssignment[] }
-export interface ISocialAccountRequest {
-  name: string; externalId: string | null; loginHint: string | null; ownerDepartmentId: string | null; note: string | null; token?: string | null;
-}

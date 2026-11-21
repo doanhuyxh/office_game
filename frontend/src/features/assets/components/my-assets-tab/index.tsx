@@ -80,7 +80,7 @@ export function MyAssetsTab() {
         <section className="grid gap-2" data-testid="my-socials">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-sm font-semibold">Tài khoản mạng xã hội</h3>
-            <Button size="sm" variant="outline" asChild><Link to={PATHS.social}><Megaphone /> Đăng bài</Link></Button>
+            <Button size="sm" variant="outline" asChild><Link to={PATHS.socialFacebook}><Megaphone /> Đăng bài</Link></Button>
           </div>
           <div className="rounded-xl border bg-card">
             <Table>

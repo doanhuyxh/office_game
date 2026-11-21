@@ -109,7 +109,7 @@ const hr = await mkEmp(`TR${stamp}`, 'HR Job Token', dept, `e2e.tok.hr.${stamp}`
 const outsider = await mkEmp(`TO${stamp}`, 'Người Ngoài Token', dept, `e2e.tok.out.${stamp}`, ['employee']);
 ok('Người giữ, HR, người ngoài đăng nhập', !!holder.cookie && !!hr.cookie && !!outsider.cookie);
 
-const getBm = async (id: string) => (await json(admin, 'GET', `/api/assets/social/accounts/${id}`)).body;
+const getBm = async (id: string) => (await json(admin, 'GET', `/api/assets/social/facebook/accounts/${id}`)).body;
 /** Đợi job chạy xong ít nhất `runs` lần nữa (TokenCheckedAt của BM tăng). */
 const waitChecked = async (id: string, runs = 1) => {
   let last = (await getBm(id))?.account.tokenCheckedAt ?? '';
@@ -134,11 +134,11 @@ ok('Hệ thống → Vận hành có job "Tài sản: kiểm tra token Facebook 
 
 // ---------------- Token đúng → làm mới ----------------
 const name = `BM Job ${stamp}`;
-const c = await json(admin, 'POST', '/api/assets/social/accounts', { name, externalId: `8${Date.now()}`.slice(0, 15), loginHint: null, ownerDepartmentId: dept,
+const c = await json(admin, 'POST', '/api/assets/social/facebook/accounts', { name, externalId: `8${Date.now()}`.slice(0, 15), loginHint: null, ownerDepartmentId: dept,
   note: null, token: SU });
 const bm = c.body?.account;
 ok('Tạo BM token đúng → Valid, 1 trang, 4 quyền', bm?.tokenStatus === 'Valid' && c.body.pages.length === 1 && bm.tokenPermissions?.length === 4, c.body);
-await json(admin, 'POST', `/api/assets/social/accounts/${bm.id}/assign`, { employeeId: holder.e.id });
+await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/assign`, { employeeId: holder.e.id });
 fake.extraPage = true; fake.extraPerm = true;
 const r1 = await waitChecked(bm.id);
 ok('Job chạy → TokenCheckedAt cập nhật, trang mới + quyền mới được làm mới', r1?.account.tokenStatus === 'Valid' && r1.account.tokenCheckedAt > bm.tokenCheckedAt
@@ -165,8 +165,8 @@ const r4 = await waitChecked(bm.id);
 ok('Facebook trả 190 → BM "Token lỗi" kèm lý do', r4?.account.tokenStatus === 'Invalid' && /invalidated/.test(r4.account.tokenError ?? ''), r4?.account);
 ok('Token lỗi → giữ danh sách quyền cũ', r4?.account.tokenPermissions?.length === 5, r4?.account.tokenPermissions);
 const [nh, nr, na, no] = [await tokenNotes(holder.cookie, name), await tokenNotes(hr.cookie, name), await tokenNotes(admin, name), await tokenNotes(outsider.cookie, name)];
-ok('Người giữ + HR + Quản trị viên mỗi người đúng 1 chuông, link /assets?tab=social; người ngoài không',
-  nh.length === 1 && nr.length === 1 && na.length === 1 && no.length === 0 && nh[0].link === '/assets?tab=social', { nh, nr, na, no });
+ok('Người giữ + HR + Quản trị viên mỗi người đúng 1 chuông, link /assets?tab=social&platform=facebook; người ngoài không',
+  nh.length === 1 && nr.length === 1 && na.length === 1 && no.length === 0 && nh[0].link === '/assets?tab=social&platform=facebook', { nh, nr, na, no });
 let mails: any[] = [];
 for (let i = 0; i < 40; i++) {
   mails = ((await (await fetch(`${MAILPIT}/api/v1/messages?limit=100`)).json()) as any).messages ?? [];
@@ -182,7 +182,7 @@ ok('Job chạy thêm 2 lần khi token vẫn lỗi → không báo lại', r5?.a
 
 // ---------------- HR thay token → hợp lệ (không báo); hỏng lần sau → báo lại ----------------
 fake.mode = 'ok';
-const fix = await json(hr.cookie, 'PUT', `/api/assets/social/accounts/${bm.id}/token`, { token: SU });
+const fix = await json(hr.cookie, 'PUT', `/api/assets/social/facebook/accounts/${bm.id}/token`, { token: SU });
 ok('HR thay token → Valid, không có chuông mới', fix.body?.account.tokenStatus === 'Valid' && (await tokenNotes(admin, name)).length === 1, fix.body?.account);
 fake.mode = 'revoked';
 const r6 = await waitChecked(bm.id);
@@ -191,8 +191,8 @@ ok('Hỏng lần sau → báo lại (người giữ, HR, admin: 2 chuông)', r6?
 
 // ---------------- BM ngừng dùng không bị kiểm tra ----------------
 fake.mode = 'ok';
-await json(admin, 'POST', `/api/assets/social/accounts/${bm.id}/return`, { note: null });
-await json(admin, 'POST', `/api/assets/social/accounts/${bm.id}/status`, { status: 'Disabled' });
+await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/return`, { note: null });
+await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/status`, { status: 'Disabled' });
 const calls = fake.meCalls, dis = (await getBm(bm.id))?.account.tokenCheckedAt;
 await sleep(12_000);
 const r7 = await getBm(bm.id);

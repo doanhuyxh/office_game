@@ -3,18 +3,19 @@ import { TriangleAlert } from 'lucide-react';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
 import { Spinner } from '@/components/feedback/Spinner';
-import { useSocialAccounts } from '../../hooks/useAssets';
-import { FACEBOOK_PLATFORM, PLATFORM_UNSUPPORTED, SOCIAL_PLATFORMS, SOCIAL_STATUS, TOKEN_STATUS } from '../../utils/labels';
-import { SocialAccountFormDialog } from '../social-account-form-dialog';
-import { SocialAccountSheet } from '../social-account-sheet';
+import { useFacebookAccounts } from '../../hooks/useFacebook';
+import { FACEBOOK_PLATFORM } from '@/config/social-platforms';
+import { SOCIAL_STATUS, TOKEN_STATUS } from '../../utils/labels';
+import { FacebookAccountFormDialog } from '../facebook-account-form-dialog';
+import { FacebookAccountSheet } from '../facebook-account-sheet';
 
 /**
- * Tab MXH (HR), chia theo nền tảng (`SOCIAL_PLATFORMS`): Facebook Business Manager (BM) — các BM của công ty, người đang giữ, số trang, trạng thái token
- * (bấm dòng mở chi tiết; nút "Thêm BM Facebook" ở đầu trang); Zalo OA, TikTok — chưa hỗ trợ, chỉ hiển thị, không thao tác / gọi API.
+ * Sub-tab Facebook BM của Tài sản → MXH (HR — TEST-207): các Business Manager của công ty, người đang giữ, số trang, trạng thái token
+ * (bấm dòng mở chi tiết; nút "Thêm BM Facebook" ở đầu trang, chỉ hiện ở sub-tab này).
  * BM đang dùng có token lỗi (job kiểm tra mỗi 5 giờ / đăng bài phát hiện) → hộp cảnh báo đầu bảng + badge đỏ (trên điện thoại hiện ngay dưới tên BM).
  */
-export function SocialAccountsTab({ creating, onCreatedClose }: { creating: boolean; onCreatedClose: () => void }) {
-  const { data = [], isLoading } = useSocialAccounts();
+export function FacebookAccountsPanel({ creating, onCreatedClose }: { creating: boolean; onCreatedClose: () => void }) {
+  const { data = [], isLoading } = useFacebookAccounts();
   const [openId, setOpenId] = useState<string | null>(null);
   const broken = data.filter((a) => a.status === 'Active' && a.tokenStatus === 'Invalid');
   return (
@@ -23,7 +24,7 @@ export function SocialAccountsTab({ creating, onCreatedClose }: { creating: bool
         <h2 className="text-base font-semibold">{FACEBOOK_PLATFORM.label}</h2>
         <p className="text-sm text-muted-foreground">
           Mỗi Business Manager lưu một token System User (mã hoá, không ai xem lại được) để đăng bài lên các Fanpage của BM. Bàn giao BM cho nhân viên
-          → người đó đăng bài ở menu Đăng bài MXH. Không lưu mật khẩu đăng nhập Facebook.
+          → người đó đăng bài ở menu Mạng xã hội → Facebook. Không lưu mật khẩu đăng nhập Facebook.
         </p>
         {broken.length > 0 && (
           <div className="grid gap-1 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm" role="alert" data-testid="social-token-broken">
@@ -69,19 +70,8 @@ export function SocialAccountsTab({ creating, onCreatedClose }: { creating: bool
           </Table>
         </div>
       </section>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        {SOCIAL_PLATFORMS.filter((p) => !p.supported).map((p) => (
-          <section key={p.key} className="grid content-start gap-1.5 rounded-xl border bg-card p-4" data-testid={`social-platform-${p.key}`}>
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-base font-semibold">{p.label}</h2>
-              <StatusBadge tone={PLATFORM_UNSUPPORTED.tone}>{PLATFORM_UNSUPPORTED.label}</StatusBadge>
-            </div>
-            <p className="text-sm text-muted-foreground">{p.note}</p>
-          </section>
-        ))}
-      </div>
-      <SocialAccountSheet accountId={openId} onClose={() => setOpenId(null)} />
-      <SocialAccountFormDialog open={creating} onOpenChange={(o) => !o && onCreatedClose()} onCreated={(id) => setOpenId(id)} />
+      <FacebookAccountSheet accountId={openId} onClose={() => setOpenId(null)} />
+      <FacebookAccountFormDialog open={creating} onOpenChange={(o) => !o && onCreatedClose()} onCreated={(id) => setOpenId(id)} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
-import { Banknote, Megaphone, BarChart3, FolderKanban, Handshake, Bell, Bot, MessageSquare, Newspaper, FolderOpen, Boxes, Building2, CalendarClock, CheckSquare, Clock, FileText, History, Landmark, Server, LayoutDashboard, Palmtree, UserRound, Users, Wallet, Wrench } from 'lucide-react';
+import { Banknote, BarChart3, FolderKanban, Handshake, Bell, Bot, MessageSquare, Newspaper, FolderOpen, Boxes, Building2, CalendarClock, CheckSquare, Clock, FileText, History, Landmark, Server, LayoutDashboard, Palmtree, UserRound, Users, Wallet, Wrench } from 'lucide-react';
 import { PATHS } from '@/config/paths';
+import { SOCIAL_PLATFORMS } from '@/config/social-platforms';
 
 export interface NavItem {
   to: string;
@@ -40,12 +41,16 @@ export const NAVIGATION: NavGroup[] = [
       { to: PATHS.meetings, label: 'Phòng họp', icon: CalendarClock },
       { to: PATHS.documents, label: 'Tài liệu', icon: FolderOpen },
       { to: PATHS.assets, label: 'Tài sản', icon: Boxes }, // HR: quản lý thiết bị / dịch vụ; người khác: tài sản của mình
-      { to: PATHS.social, label: 'Đăng bài MXH', icon: Megaphone }, // HR + người được bàn giao Business Manager (ẩn với người khác — useNavigation)
       { to: PATHS.projects, label: 'Dự án', icon: FolderKanban }, // thành viên + quản lý; HR / Ban giám đốc thấy tất cả (back-end)
       { to: PATHS.sales, label: 'Kinh doanh', icon: Handshake }, // khách, cơ hội, hợp đồng bán, công nợ — thấy theo người phụ trách (back-end)
       { to: PATHS.finance, label: 'Tài chính', icon: Banknote }, // mọi người: đề nghị chi; quyền tài chính theo chức vụ: sổ thu chi (kiểm tra ở back-end)
       { to: PATHS.payslips, label: 'Phiếu lương', icon: Wallet },
     ],
+  },
+  {
+    // Mỗi nền tảng một trang (TEST-207) — tên / đường dẫn / icon từ SOCIAL_PLATFORMS. Chỉ HR + người giữ tài khoản MXH thấy (useNavigation).
+    title: 'Mạng xã hội',
+    items: SOCIAL_PLATFORMS.map((p) => ({ to: p.path, label: p.name, icon: p.icon })),
   },
   {
     title: 'Tổ chức',

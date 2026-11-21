@@ -5,16 +5,16 @@ import { confirmDialog } from '@/components/common/confirm-dialog';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { formatDateTime } from '@/utils/date';
 import { errorMessage } from '@/utils/errors';
-import { socialApi } from '../../api/social.api';
-import { useSocialMutation } from '../../hooks/useSocial';
-import type { ISocialPost } from '../../types/social.types';
-import { POST_STATUS, TARGET_STATUS } from '../../utils/labels';
-import { MediaThumb } from '../media-thumb';
+import { facebookApi } from '../../api/facebook.api';
+import { useFacebookMutation } from '../../hooks/useFacebook';
+import type { IFacebookPost } from '../../types/facebook.types';
+import { POST_STATUS, TARGET_STATUS } from '../../utils/facebook-labels';
+import { FacebookMediaThumb } from '../facebook-media-thumb';
 
 /** Một bài đã gửi: nội dung, ảnh / video, kết quả từng trang (link bài, lỗi, đăng lại), huỷ phần chưa đăng. */
-export function PostCard({ post }: { post: ISocialPost }) {
-  const cancel = useSocialMutation(() => socialApi.cancel(post.id));
-  const retry = useSocialMutation((targetId: string) => socialApi.retry(targetId));
+export function FacebookPostCard({ post }: { post: IFacebookPost }) {
+  const cancel = useFacebookMutation(() => facebookApi.cancel(post.id));
+  const retry = useFacebookMutation((targetId: string) => facebookApi.retry(targetId));
   const s = POST_STATUS[post.status];
   return (
     <article className="grid gap-3 rounded-xl border bg-card p-4" data-testid="social-post">
@@ -40,7 +40,7 @@ export function PostCard({ post }: { post: ISocialPost }) {
       {post.link && <a href={post.link} target="_blank" rel="noopener noreferrer" className="truncate text-sm text-primary hover:underline">{post.link}</a>}
       {post.media.length > 0 && (
         <div className={post.media[0].kind === 'Video' ? '' : 'grid grid-cols-3 gap-2 sm:grid-cols-4'}>
-          {post.media.map((m) => <MediaThumb key={m.id} media={m} />)}
+          {post.media.map((m) => <FacebookMediaThumb key={m.id} media={m} />)}
         </div>
       )}
       <ul className="grid gap-2 border-t pt-3">
