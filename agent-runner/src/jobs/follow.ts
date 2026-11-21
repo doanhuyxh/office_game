@@ -1,3 +1,4 @@
+import { repoBaseBranches } from '../config';
 import type { AgentState } from '../core/agent';
 import { RunnerStopped, succeeded } from '../core/session';
 import type { TaskDetail } from '../hub/types';
@@ -44,17 +45,10 @@ export function followJobs(services: JobServices): JobHandler<WakeOf<'follow'>> 
     const git = services.gitFor(s.cfg);
     let cwd: string;
     if (tools === 'repo') {
-      for (const warning of await installHooks(git, s.cfg.repo, config.baseBranch))
+      for (const warning of await installHooks(git, s.cfg.repo, repoBaseBranches(config, s.cfg.repo)))
         log('warn', warning, { agent: job.agent, task: job.label });
       try {
-        cwd = await prepareFollowWorktree(
-          git,
-          s.cfg.repo,
-          config.worktreesDir,
-          job.agent,
-          job.label,
-          config.baseBranch,
-        );
+        cwd = await prepareFollowWorktree(git, s.cfg.repo, config.worktreesDir, job.agent, job.label, s.cfg.baseBranch);
       } catch (e) {
         const reason = `không tạo được worktree: ${errText(e)}`;
         skipJob(store, job, reason);
@@ -67,7 +61,7 @@ export function followJobs(services: JobServices): JobHandler<WakeOf<'follow'>> 
     const resume = await sessions.resumeFor(s, job, cwd);
     const out = await sessions.run(s, job, signal, {
       cwd,
-      prompt: followPrompt(wake, { tools, baseBranch: config.baseBranch, resumed: !!resume }),
+      prompt: followPrompt(wake, { tools, baseBranch: s.cfg.baseBranch, resumed: !!resume }),
       resume,
       // repo: chỉ đọc (hook chặn mọi push); none không shell: chỉ tool MCP
       readOnly: tools === 'repo',

@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { type AgentConfig, readEnvFile } from '../config';
-import type { Git } from '../workspace';
+import { BASE_ENV, type Git } from '../workspace';
 
 /** Biến Windows tiến trình con cần để chạy bình thường (không chứa bí mật). */
 const WINDOWS_ENV = [
@@ -62,6 +62,7 @@ export function agentEnv(a: AgentConfig, git: Git): Record<string, string> {
   copy('SSH_AUTH_SOCK'); // SSH key sẵn có của máy (ssh-agent)
   if (a.envFile && existsSync(a.envFile)) Object.assign(env, readEnvFile(a.envFile));
   env.PATH = git.pathWithGit(env.PATH);
+  if (a.baseBranch) env[BASE_ENV] = a.baseBranch; // hook pre-push: phạm vi so của nhánh mới theo nhánh gốc của agent này
   env.GIT_TERMINAL_PROMPT = '0'; // không treo chờ mật khẩu
   return env;
 }

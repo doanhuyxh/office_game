@@ -1319,3 +1319,61 @@ test('nhận tin: không hỏi lại được OfficeHub → thử lại theo nh�
     getTaskFails = 0;
   }
 }, 30000);
+
+test('nhánh gốc theo agent (base_branch): nhánh việc tách từ origin/<nhánh gốc của agent>, hook chặn push lên nhánh gốc của mọi agent dùng chung repo', async () => {
+  const seed = join(root, 'seed'),
+    repo = join(root, 'agent-repo');
+  // origin có thêm nhánh developer đi trước main một commit
+  await run(['git', 'checkout', '-b', 'developer'], seed);
+  writeFileSync(join(seed, 'dev-only.txt'), 'chỉ có trên developer\n');
+  await run(['git', 'add', 'dev-only.txt'], seed);
+  await run(['git', 'commit', '-m', 'developer đi trước main'], seed);
+  await run(['git', 'push', 'origin', 'developer'], seed);
+
+  // hai agent dùng chung một repo: agent web (NV120) base developer, agent app (NV121) base main (mặc định của runner)
+  const base = runner.config.agents[0]!;
+  const config: RunnerConfig = {
+    ...runner.config,
+    dataDir: join(root, 'data-base'),
+    worktreesDir: join(root, 'worktrees-base'),
+    agents: [
+      { ...base, baseBranch: 'developer' },
+      { ...base, employeeCode: 'NV121', telegramBot: '@agent_app01_bot' },
+    ],
+  };
+  require('node:fs').mkdirSync(config.dataDir, { recursive: true });
+  const st = new Store(join(config.dataDir, 'runner.db'));
+  const r = new Runner(config, st);
+  await r.checkAgents({ only: 'NV120', telegram: false });
+  const s = r.agents.get('NV120')!;
+  const T3 = '01a1ced9-5555-7c5f-a773-f45aea6d3777';
+  getTaskHook = () => ({
+    task: { id: T3, projectId: P, assigneeEmployeeId: 'emp-1', done: false, title: 'Việc web', code: 'TEST-77' },
+    dependsOn: [],
+  });
+  try {
+    const wake = { kind: 'task' as const, employee_code: 'NV120', project_id: P, task_id: T3, task_code: 'TEST-77' };
+    const id = (await r.accept(s, wake))!;
+    await r.process(st.claimNext(1, ['NV120'])!);
+    expect(st.getJob(id)!.status).toBe('done');
+    const wt = join(config.worktreesDir, 'NV120/TEST-77');
+    // nhánh việc tách từ origin/developer (có file chỉ developer có), không phải main
+    expect(existsSync(join(wt, 'dev-only.txt'))).toBe(true);
+    const devTip = (await sh(['git', 'rev-parse', 'origin/developer'], wt)).out;
+    expect((await sh(['git', 'merge-base', 'HEAD', 'origin/developer'], wt)).out).toBe(devTip);
+    // nhánh việc đã lên origin, chỉ hơn developer đúng commit của agent
+    expect((await sh(['git', 'ls-remote', '--heads', 'origin', 'agent/nv120/test-77'], wt)).out).not.toBe('');
+    expect((await sh(['git', 'rev-list', '--count', 'origin/developer..HEAD'], wt)).out).toBe('1');
+    // hook chung của repo chặn nhánh gốc của CẢ HAI agent
+    const hook = readFileSync(join(repo, '.git/hooks/pre-push'), 'utf8');
+    expect(hook).toContain('refs/heads/developer|refs/heads/main|refs/heads/master');
+    const toDev = await sh(['git', 'push', 'origin', 'HEAD:developer'], wt);
+    expect(toDev.code).not.toBe(0);
+    expect(toDev.err).toContain('không push lên refs/heads/developer');
+  } finally {
+    getTaskHook = null;
+    r.stop();
+    // trả hook về cấu hình của runner chính (các test khác dùng chung repo)
+    await runner.checkAgents({ only: 'NV120', telegram: false });
+  }
+}, 30000);

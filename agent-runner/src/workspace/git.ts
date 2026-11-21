@@ -82,30 +82,38 @@ export const COMMIT_MSG_MARK = '# officehub-agent-runner commit-msg';
 export const AGENT_ENV = 'OFFICEHUB_AGENT',
   TASK_ENV = 'OFFICEHUB_TASK',
   /** Phiên chỉ đọc (review, TEST-167) — hook pre-push chặn mọi push. */
-  READONLY_ENV = 'OFFICEHUB_READONLY';
+  READONLY_ENV = 'OFFICEHUB_READONLY',
+  /** Nhánh gốc của agent đang chạy (`base_branch`) — hook pre-push dùng làm mốc so cho nhánh mới (xem {@link prePushHook}). */
+  BASE_ENV = 'OFFICEHUB_BASE_BRANCH';
 
 /**
  * Hook pre-push (nằm ở .git/hooks — dùng chung cho mọi worktree của repo): chặn push lên main / master, chặn force push (commit trên remote
  * không phải tổ tiên của commit đẩy lên) và chặn nhánh có thay đổi trong agent-runner/. Áp dụng cho cả agent tự `git push` lẫn runner.
  * Lớp bảo vệ thật vẫn là branch protection + CODEOWNERS trên GitHub.
  */
-export function prePushHook(baseBranch: string) {
+export function prePushHook(baseBranches: string[]) {
+  // Repo dùng chung cho nhiều agent khác nhánh gốc: chặn push lên nhánh gốc của MỌI agent; phạm vi so `agent-runner/` của nhánh mới lấy theo
+  // nhánh gốc của agent đang push (biến BASE_ENV, runner đặt trong env của agent), không có biến → nhánh gốc đầu tiên.
+  const protectedRefs = [...new Set([...baseBranches, 'main', 'master'])].map((b) => `refs/heads/${b}`).join('|');
+  const fallbackBase = baseBranches[0] ?? 'main';
   return `#!/bin/sh
 ${PRE_PUSH_MARK} — do runner cài, đừng sửa tay (TEST-44, TEST-46)
 if [ -n "$${READONLY_ENV}" ]; then
   echo "agent-runner: phiên review chỉ đọc — không push" >&2; exit 1
 fi
 zero=0000000000000000000000000000000000000000
+base="$${BASE_ENV}"
+[ -z "$base" ] && base="${fallbackBase}"
 while read local_ref local_sha remote_ref remote_sha; do
   case "$remote_ref" in
-    refs/heads/${baseBranch}|refs/heads/main|refs/heads/master)
+    ${protectedRefs})
       echo "agent-runner: không push lên $remote_ref" >&2; exit 1 ;;
   esac
   [ "$local_sha" = "$zero" ] && continue
   if [ "$remote_sha" != "$zero" ] && ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
     echo "agent-runner: không force push $remote_ref" >&2; exit 1
   fi
-  if [ "$remote_sha" = "$zero" ]; then range="origin/${baseBranch}..$local_sha"; else range="$remote_sha..$local_sha"; fi
+  if [ "$remote_sha" = "$zero" ]; then range="origin/$base..$local_sha"; else range="$remote_sha..$local_sha"; fi
   if git diff --name-only $range 2>/dev/null | grep -q '^${PROTECTED_PATHS[0]}'; then
     echo "agent-runner: nhánh có thay đổi trong ${PROTECTED_PATHS[0]} — agent không được sửa bộ điều phối" >&2; exit 1
   fi
@@ -131,13 +139,13 @@ exit 0
 }
 
 /** Cài / cập nhật hook pre-push + commit-msg. Hook khác đã có (không phải của runner) → không ghi đè, trả cảnh báo. */
-export async function installHooks(git: Git, repo: string, baseBranch: string): Promise<string[]> {
+export async function installHooks(git: Git, repo: string, baseBranches: string[]): Promise<string[]> {
   const common = await git.out(repo, 'rev-parse', '--git-common-dir');
   const dir = join(isAbsolute(common) ? common : join(repo, common), 'hooks');
   mkdirSync(dir, { recursive: true });
   const warnings: string[] = [];
   for (const [name, mark, body] of [
-    ['pre-push', PRE_PUSH_MARK, prePushHook(baseBranch)],
+    ['pre-push', PRE_PUSH_MARK, prePushHook(baseBranches)],
     ['commit-msg', COMMIT_MSG_MARK, commitMsgHook()],
   ] as const) {
     const path = join(dir, name);

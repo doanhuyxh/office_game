@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { dirname, isAbsolute, join } from 'node:path';
-import { type AgentConfig, isInside, lightExecutor, type RunnerConfig } from '../config';
+import { type AgentConfig, isInside, lightExecutor, type RunnerConfig, repoBaseBranches } from '../config';
 import { projectFilesAbove, workDir } from '../core/paths';
 import { adapters } from '../executor/run';
 import { errText } from '../log';
@@ -150,6 +150,21 @@ async function checkRepoWorkspace(c: DoctorContext, report: Report) {
   const inPlace = agent.workspace.mode === 'in_place';
   const origin = await git.run(agent.repo, 'remote', 'get-url', 'origin');
   if (origin.code !== 0) throw new CheckFailed(`${agent.repo} không phải git repo có remote origin`);
+  if (!inPlace) {
+    // Mode worktree: nhánh việc tách từ origin/<nhánh gốc của agent>, PR merge vào nó → nhánh đó phải có trên origin.
+    // ls-remote --exit-code: 2 = origin không có nhánh; mã khác = không hỏi được origin (mạng / quyền) → chỉ cảnh báo, lúc chạy việc sẽ báo lỗi rõ.
+    const base = await git.run(agent.repo, 'ls-remote', '--exit-code', '--heads', 'origin', agent.baseBranch);
+    if (base.code === 2)
+      throw new CheckFailed(
+        `origin không có nhánh ${agent.baseBranch} (base_branch của agent) — sửa base_branch hoặc tạo nhánh trên origin`,
+      );
+    if (base.code !== 0)
+      report.warn(`không hỏi được origin để kiểm nhánh gốc ${agent.baseBranch}: ${base.err.slice(0, 200)}`);
+    else
+      report.ok(
+        `nhánh gốc ${agent.baseBranch}: nhánh việc tách từ origin/${agent.baseBranch}, PR merge vào ${agent.baseBranch}`,
+      );
+  }
   const who = await git.identity(agent.repo);
   if (!who)
     throw new CheckFailed(
@@ -166,12 +181,13 @@ async function checkRepoWorkspace(c: DoctorContext, report: Report) {
     const note = removed.length ? ` — đã gỡ hook của runner: ${removed.join(', ')}` : '';
     report.ok(`repo ${agent.repo}, mode in_place không dùng hook${note}`);
   } else {
-    for (const warning of await installHooks(git, agent.repo, config.baseBranch)) report.warn(warning);
+    for (const warning of await installHooks(git, agent.repo, repoBaseBranches(config, agent.repo)))
+      report.warn(warning);
     report.ok(
       `repo ${agent.repo}, hook pre-push (chặn main / force push / agent-runner/) + commit-msg (trailer) đã cài`,
     );
   }
-  const onMain = await mainBranchWarning(git, agent, config.baseBranch);
+  const onMain = await mainBranchWarning(git, agent, agent.baseBranch);
   if (onMain) report.warn(onMain);
   if (inPlace) await checkInPlace(c, report);
 }
@@ -182,7 +198,7 @@ const rootEnvFiles = (repo: string) =>
 
 /** in_place: CLI chạy thẳng trong repo → đọc được .env ở gốc repo (worktree ngoài repo thì không). Mặc định từ chối. */
 async function checkInPlace(c: DoctorContext, report: Report) {
-  const { agent, git, config } = c;
+  const { agent, git } = c;
   const envFiles = rootEnvFiles(agent.repo);
   if (envFiles.length && !agent.workspace.allowEnvFiles)
     throw new CheckFailed(
@@ -194,7 +210,7 @@ async function checkInPlace(c: DoctorContext, report: Report) {
   report.ok(
     `workspace in_place — commit thẳng vào nhánh đang checkout rồi runner push nhánh đó lên origin, KHÔNG PR (hiện: ${branch || 'detached HEAD'})`,
   );
-  const onBase = [config.baseBranch, 'main', 'master'].includes(branch);
+  const onBase = [agent.baseBranch, 'main', 'master'].includes(branch);
   if (!branch || (!agent.workspace.allowBaseBranch && onBase))
     report.warn('nhánh hiện tại không dùng được cho in_place — việc sẽ bị từ chối cho tới khi chuyển nhánh');
   if (dirty) report.warn('repo đang có thay đổi chưa commit — việc sẽ bị từ chối cho tới khi sạch');

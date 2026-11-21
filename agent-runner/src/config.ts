@@ -55,6 +55,11 @@ export interface AgentConfig {
   token: string;
   /** Bản clone của agent. Mode none không dùng → chuỗi rỗng. */
   repo: string;
+  /**
+   * Nhánh gốc của agent: nhánh việc tách từ `origin/<nhánh này>`, PR merge vào nó (vd agent web → `developer`, agent app → `main`).
+   * `base_branch` của agent, không khai → `runner.base_branch`. Mode none không dùng.
+   */
+  baseBranch: string;
   envFile?: string;
   workspace: WorkspaceConfig;
   executor: ExecutorConfig;
@@ -67,6 +72,7 @@ export interface RunnerConfig {
   dataDir: string;
   worktreesDir: string;
   maxParallel: number;
+  /** Nhánh gốc mặc định cho agent không khai `base_branch` riêng (`runner.base_branch`, mặc định main). */
   baseBranch: string;
   /** Định dạng log của runner: auto (terminal → pretty, còn lại json) | json | pretty. */
   logFormat: 'auto' | 'json' | 'pretty';
@@ -84,6 +90,18 @@ export class ConfigError extends Error {
     super('Cấu hình runner không hợp lệ:\n- ' + problems.join('\n- '));
   }
 }
+
+/** Tên nhánh git thông dụng (chữ, số, `._/-`; không bắt đầu bằng `-` — không bị hiểu thành cờ của lệnh git). */
+const BRANCH_NAME = /^[A-Za-z0-9_][A-Za-z0-9._/-]*$/;
+
+/**
+ * Các nhánh gốc của những agent dùng chung một repo (đã sắp xếp, không trùng) — hook pre-push nằm ở `.git/hooks` chung của repo nên phải
+ * chặn push lên nhánh gốc của MỌI agent dùng repo đó, và nội dung hook không được đổi qua lại theo agent vừa chạy.
+ */
+export const repoBaseBranches = (config: Pick<RunnerConfig, 'agents'>, repo: string): string[] =>
+  [
+    ...new Set(config.agents.filter((a) => a.repo === repo && a.workspace.mode !== 'none').map((a) => a.baseBranch)),
+  ].sort();
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
@@ -126,6 +144,8 @@ export function parseConfig(raw: unknown): RunnerConfig {
   if (rn.startup_catchup !== undefined && typeof rn.startup_catchup !== 'boolean')
     p.push('runner.startup_catchup là true hoặc false');
   const startupCatchup = rn.startup_catchup !== false;
+  const defaultBase = str(rn.base_branch) ?? 'main';
+  if (!BRANCH_NAME.test(defaultBase)) p.push('runner.base_branch phải là tên nhánh (vd main, developer)');
   const maxParallel = num(rn.max_parallel) ?? 2;
   if (maxParallel < 1 || maxParallel > 10) p.push('runner.max_parallel từ 1 đến 10');
 
@@ -230,6 +250,9 @@ export function parseConfig(raw: unknown): RunnerConfig {
     if (executor)
       for (const problem of adapters[executor.kind].configProblems?.(executor) ?? [])
         p.push(`${at}.executor.${problem}`);
+    const agentBase = str(a?.base_branch);
+    if (a?.base_branch !== undefined && !(agentBase && BRANCH_NAME.test(agentBase)))
+      p.push(`${at}.base_branch phải là tên nhánh (vd main, developer, release/2.0)`);
     if (code && bot && tgToken && token && (repo || mode === 'none') && executor)
       agents.push({
         employeeCode: code,
@@ -237,6 +260,7 @@ export function parseConfig(raw: unknown): RunnerConfig {
         telegramToken: tgToken,
         token,
         repo: repo ? resolve(repo) : '',
+        baseBranch: agentBase ?? defaultBase,
         envFile,
         workspace: {
           mode,
@@ -259,7 +283,7 @@ export function parseConfig(raw: unknown): RunnerConfig {
     dataDir: resolve(dataDir!),
     worktreesDir: resolve(worktreesDir!),
     maxParallel,
-    baseBranch: str(rn.base_branch) ?? 'main',
+    baseBranch: defaultBase,
     gitBin: gitBin ?? 'git',
     logFormat,
     activityStream,

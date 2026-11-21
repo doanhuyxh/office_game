@@ -1,6 +1,6 @@
 // Cấu hình runner (agents.yaml): parseConfig, lightExecutor, isInside.
 import { describe, expect, test } from 'bun:test';
-import { ConfigError, isInside, parseConfig } from '../src/config';
+import { ConfigError, isInside, parseConfig, repoBaseBranches } from '../src/config';
 import { baseRaw } from './fixtures/config';
 
 describe('config', () => {
@@ -11,6 +11,29 @@ describe('config', () => {
     expect(c.agents[0]!.executor.timeoutMin).toBe(60);
     expect(c.baseBranch).toBe('main');
     expect(c.telegramApiUrl).toBe('https://api.telegram.org');
+  });
+
+  test('base_branch: mỗi agent một nhánh gốc, không khai → runner.base_branch (mặc định main); tên sai → lỗi', () => {
+    const r: any = baseRaw();
+    r.agents.push({ ...r.agents[0], employee_code: 'nv121', telegram_bot: 'Agent_App01_Bot' });
+    r.agents.push({
+      ...r.agents[0],
+      employee_code: 'nv122',
+      telegram_bot: 'Agent_Ops01_Bot',
+      workspace: { mode: 'none' },
+    });
+    r.agents[0].base_branch = 'developer';
+    const c = parseConfig(r);
+    expect(c.agents.map((a) => a.baseBranch)).toEqual(['developer', 'main', 'main']);
+    // hook của repo dùng chung chặn nhánh gốc của mọi agent có repo đó (agent mode none không tính)
+    expect(repoBaseBranches(c, c.agents[0]!.repo)).toEqual(['developer', 'main']);
+    r.runner.base_branch = 'release/2.0';
+    expect(parseConfig(r).agents.map((a) => a.baseBranch)).toEqual(['developer', 'release/2.0', 'release/2.0']);
+    for (const bad of ['--force', 'a b', '', 5]) {
+      const x: any = baseRaw();
+      x.agents[0].base_branch = bad;
+      expect(() => parseConfig(x)).toThrow('base_branch phải là tên nhánh');
+    }
   });
 
   test('workspace: mặc định worktree; in_place + cờ; sai giá trị / dùng chung repo → lỗi', () => {

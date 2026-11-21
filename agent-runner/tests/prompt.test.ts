@@ -69,7 +69,7 @@ describe('prompt theo dõi (TEST-180 / 187)', () => {
     expect(p).toContain('đã đọc ở phiên trước thì không gọi lại');
   });
   test('hook pre-push chặn mọi push khi phiên chỉ đọc', () => {
-    expect(prePushHook('main')).toContain('[ -n "$OFFICEHUB_READONLY" ]');
+    expect(prePushHook(['main'])).toContain('[ -n "$OFFICEHUB_READONLY" ]');
   });
 });
 
@@ -290,11 +290,19 @@ describe('prompt / mcp / log', () => {
     expect(h).toContain('[ -z "$OFFICEHUB_AGENT" ] && exit 0');
     expect(h).toContain('--trailer "Agent: $OFFICEHUB_AGENT"');
     expect(h).toContain('--trailer "Task: $OFFICEHUB_TASK"');
-    expect(prePushHook('main')).toContain('merge-base --is-ancestor');
+    expect(prePushHook(['main'])).toContain('merge-base --is-ancestor');
+  });
+
+  test('hook pre-push: repo nhiều nhánh gốc → chặn tất cả; mốc so của nhánh mới theo nhánh gốc của agent đang push', () => {
+    const h = prePushHook(['developer', 'main']);
+    expect(h).toContain('refs/heads/developer|refs/heads/main|refs/heads/master)');
+    expect(h).toContain('base="$OFFICEHUB_BASE_BRANCH"');
+    expect(h).toContain('[ -z "$base" ] && base="developer"');
+    expect(h).toContain('range="origin/$base..$local_sha"');
   });
 
   test('hook pre-push chặn main + agent-runner/', () => {
-    const h = prePushHook('main');
+    const h = prePushHook(['main']);
     expect(h).toContain(PRE_PUSH_MARK);
     expect(h).toContain('refs/heads/main');
     expect(h).toContain('^agent-runner/');
