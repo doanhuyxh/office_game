@@ -48,20 +48,44 @@ export interface WorkspaceConfig {
   builtinTools: boolean;
 }
 
+/**
+ * Nơi làm của agent cho MỘT dự án OfficeHub (TEST-200): một agent (một mã NV, một bot) nhận việc của nhiều dự án, mỗi dự án một repo /
+ * nhánh gốc / mode riêng — một mục của `agents[].projects`, hoặc mặc định cấp agent ({@link defaultWorkspace}, `projectCode` rỗng).
+ */
+export interface ProjectWorkspace {
+  /** Mã dự án trên OfficeHub (in hoa). '' = mặc định cấp agent, dùng cho dự án không khai trong `projects`. */
+  projectCode: string;
+  /** Id dự án — runner đổi từ mã lúc khởi động / `doctor` (MCP get_project). Chưa có = chưa đổi được, mục này chưa nhận việc. */
+  projectId?: string;
+  /** Bản clone của agent cho dự án. Mode none → chuỗi rỗng. */
+  repo: string;
+  /** Nhánh việc tách từ `origin/<nhánh này>`, PR merge vào nó. Mode none không dùng. */
+  baseBranch: string;
+  workspace: WorkspaceConfig;
+  /** Lý do dự án đang tắt (mã không thấy trên OfficeHub, agent không phải thành viên, repo lỗi) — `doctor` / khởi động ghi; agent vẫn chạy. */
+  problem?: string;
+}
+
 export interface AgentConfig {
   employeeCode: string;
   telegramBot: string;
   telegramToken: string;
   token: string;
-  /** Bản clone của agent. Mode none không dùng → chuỗi rỗng. */
+  /**
+   * Bản clone MẶC ĐỊNH của agent (dự án không khai trong `projects`). Mode none không dùng → chuỗi rỗng; agent chỉ khai `projects` → chuỗi rỗng
+   * (không có mặc định). Đừng đọc thẳng trường này lúc chạy job — dùng {@link workspaceFor}.
+   */
   repo: string;
   /**
-   * Nhánh gốc của agent: nhánh việc tách từ `origin/<nhánh này>`, PR merge vào nó (vd agent web → `developer`, agent app → `main`).
+   * Nhánh gốc mặc định của agent: nhánh việc tách từ `origin/<nhánh này>`, PR merge vào nó (vd agent web → `developer`, agent app → `main`).
    * `base_branch` của agent, không khai → `runner.base_branch`. Mode none không dùng.
    */
   baseBranch: string;
   envFile?: string;
+  /** Mode mặc định của agent (mục `projects` không khai `workspace` thì theo đây). */
   workspace: WorkspaceConfig;
+  /** Repo theo dự án (TEST-200). Rỗng = cấu hình cũ: mọi dự án dùng `repo` cấp agent. */
+  projects: ProjectWorkspace[];
   executor: ExecutorConfig;
 }
 
@@ -94,13 +118,47 @@ export class ConfigError extends Error {
 /** Tên nhánh git thông dụng (chữ, số, `._/-`; không bắt đầu bằng `-` — không bị hiểu thành cờ của lệnh git). */
 const BRANCH_NAME = /^[A-Za-z0-9_][A-Za-z0-9._/-]*$/;
 
+/** Mã dự án OfficeHub (đã in hoa), vd TEST, WEB-2026. */
+const PROJECT_CODE = /^[A-Z0-9][A-Z0-9._-]{0,39}$/;
+
+/** Nơi làm mặc định cấp agent (dự án không khai trong `projects`); null = agent chỉ khai `projects`, không có mặc định. */
+export const defaultWorkspace = (a: AgentConfig): ProjectWorkspace | null =>
+  a.workspace.mode === 'none' || a.repo
+    ? { projectCode: '', repo: a.repo, baseBranch: a.baseBranch, workspace: a.workspace }
+    : null;
+
+/** Mọi nơi làm của agent: mặc định cấp agent (nếu có) + từng mục `projects`. */
+export const agentWorkspaces = (a: AgentConfig): ProjectWorkspace[] => {
+  const fallback = defaultWorkspace(a);
+  return fallback ? [fallback, ...a.projects] : [...a.projects];
+};
+
+/** Mục `projects` của một dự án (theo id đã đổi từ mã) — kể cả mục đang tắt. */
+export const declaredProject = (a: AgentConfig, projectId: string): ProjectWorkspace | undefined =>
+  a.projects.find((p) => !!p.projectId && p.projectId.toLowerCase() === projectId.toLowerCase());
+
 /**
- * Các nhánh gốc của những agent dùng chung một repo (đã sắp xếp, không trùng) — hook pre-push nằm ở `.git/hooks` chung của repo nên phải
- * chặn push lên nhánh gốc của MỌI agent dùng repo đó, và nội dung hook không được đổi qua lại theo agent vừa chạy.
+ * Nơi làm (repo / nhánh gốc / mode) của agent cho việc thuộc dự án `projectId` (TEST-200): mục `projects` của dự án đó; dự án không khai →
+ * mặc định cấp agent; không có mặc định, hoặc mục của dự án đang tắt (`problem`) → null = việc của dự án này không chạy trên máy này.
+ */
+export function workspaceFor(a: AgentConfig, projectId: string): ProjectWorkspace | null {
+  const declared = declaredProject(a, projectId);
+  if (declared) return declared.problem ? null : declared;
+  return defaultWorkspace(a);
+}
+
+/**
+ * Các nhánh gốc của mọi cặp (agent, dự án) dùng chung một repo (đã sắp xếp, không trùng) — hook pre-push nằm ở `.git/hooks` chung của repo
+ * nên phải chặn push lên nhánh gốc của MỌI nơi dùng repo đó, và nội dung hook không được đổi qua lại theo agent / dự án vừa chạy.
  */
 export const repoBaseBranches = (config: Pick<RunnerConfig, 'agents'>, repo: string): string[] =>
   [
-    ...new Set(config.agents.filter((a) => a.repo === repo && a.workspace.mode !== 'none').map((a) => a.baseBranch)),
+    ...new Set(
+      config.agents
+        .flatMap(agentWorkspaces)
+        .filter((w) => w.repo === repo && w.workspace.mode !== 'none')
+        .map((w) => w.baseBranch),
+    ),
   ].sort();
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
@@ -149,6 +207,32 @@ export function parseConfig(raw: unknown): RunnerConfig {
   const maxParallel = num(rn.max_parallel) ?? 2;
   if (maxParallel < 1 || maxParallel > 10) p.push('runner.max_parallel từ 1 đến 10');
 
+  /** `workspace` của agent / một mục projects: mode + cờ; ghi lỗi vào danh sách, luôn trả giá trị đã chuẩn hoá. */
+  const parseWorkspace = (raw: unknown, at: string): WorkspaceConfig => {
+    const w = (raw ?? {}) as Record<string, unknown>;
+    const mode = w.mode ?? 'worktree';
+    const known = mode === 'worktree' || mode === 'in_place' || mode === 'none';
+    if (!known) p.push(`${at}.workspace.mode là worktree, in_place hoặc none`);
+    for (const k of ['allow_base_branch', 'allow_env_files', 'builtin_tools'])
+      if (w[k] !== undefined && typeof w[k] !== 'boolean') p.push(`${at}.workspace.${k} là true / false`);
+    if (w.builtin_tools === true && mode !== 'none')
+      p.push(`${at}.workspace.builtin_tools chỉ dùng với mode none (worktree / in_place đã có sẵn công cụ)`);
+    return {
+      mode: known ? mode : 'worktree',
+      allowBaseBranch: w.allow_base_branch === true,
+      allowEnvFiles: w.allow_env_files === true,
+      builtinTools: w.builtin_tools === true,
+    };
+  };
+  /** Repo phải là đường dẫn tuyệt đối, ngoài `worktrees_dir`. Trả true khi đạt. */
+  const checkRepo = (repo: string | undefined, at: string): boolean => {
+    if (!repo || !isAbsolute(repo)) p.push(`${at}.repo phải là đường dẫn tuyệt đối`);
+    else if (worktreesDir && isInside(repo, worktreesDir))
+      p.push(`${at}: repo không được nằm trong runner.worktrees_dir`);
+    else return true;
+    return false;
+  };
+
   const agents: AgentConfig[] = [];
   const list = Array.isArray(o.agents) ? o.agents : [];
   if (list.length === 0) p.push('Chưa khai báo agent nào (agents: [...])');
@@ -168,25 +252,21 @@ export function parseConfig(raw: unknown): RunnerConfig {
       p.push(`${at}.telegram_token không đúng dạng 123456789:AA…`);
     const token = str(a?.token);
     if (!token || !token.startsWith('ohk_')) p.push(`${at}.token phải là token AI của OfficeHub (ohk_…)`);
-    const w = a?.workspace ?? {};
-    const mode = w.mode ?? 'worktree';
-    if (mode !== 'worktree' && mode !== 'in_place' && mode !== 'none')
-      p.push(`${at}.workspace.mode là worktree, in_place hoặc none`);
-    // Mode none (agent nghiệp vụ) không cần repo; có khai báo cũng bỏ qua.
+    const workspace = parseWorkspace(a?.workspace, at);
+    const mode = workspace.mode;
+    if (a?.projects !== undefined && !Array.isArray(a.projects))
+      p.push(`${at}.projects phải là danh sách (mỗi mục: project, repo, base_branch, workspace)`);
+    const projectList: any[] = Array.isArray(a?.projects) ? a.projects : [];
+    if (mode === 'none' && projectList.length)
+      p.push(`${at}: workspace.mode none (agent nghiệp vụ, không repo) không khai được projects`);
+    // Mode none (agent nghiệp vụ) không cần repo; có khai báo cũng bỏ qua. Có `projects` → repo cấp agent là tuỳ chọn (mặc định cho dự án không khai).
     const repo = mode === 'none' ? undefined : str(a?.repo);
-    if (mode !== 'none') {
-      if (!repo || !isAbsolute(repo)) p.push(`${at}.repo phải là đường dẫn tuyệt đối`);
-      else if (worktreesDir && isInside(repo, worktreesDir))
-        p.push(`${at}: repo không được nằm trong runner.worktrees_dir`);
-    }
+    const repoOptional = projectList.length > 0 && (a?.repo === undefined || a?.repo === null);
+    if (mode !== 'none' && !repoOptional) checkRepo(repo, at);
     // worktrees_dir NẰM TRONG repo được phép (vd .officehub-runner/worktrees): EnvLoader dừng ở gốc worktree (.git) nên không đọc .env của
     // repo chính; `doctor` / khởi động bắt buộc thư mục đó đã gitignore.
     const envFile = str(a?.env_file);
     if (envFile && !isAbsolute(envFile)) p.push(`${at}.env_file phải là đường dẫn tuyệt đối`);
-    for (const k of ['allow_base_branch', 'allow_env_files', 'builtin_tools'])
-      if (w[k] !== undefined && typeof w[k] !== 'boolean') p.push(`${at}.workspace.${k} là true / false`);
-    if (w.builtin_tools === true && mode !== 'none')
-      p.push(`${at}.workspace.builtin_tools chỉ dùng với mode none (worktree / in_place đã có sẵn công cụ)`);
     const e = a?.executor ?? {};
     const kind = e.kind;
     if (!isExecutorKind(kind)) p.push(`${at}.executor.kind phải là ${Object.keys(adapters).join(' hoặc ')}`);
@@ -253,7 +333,33 @@ export function parseConfig(raw: unknown): RunnerConfig {
     const agentBase = str(a?.base_branch);
     if (a?.base_branch !== undefined && !(agentBase && BRANCH_NAME.test(agentBase)))
       p.push(`${at}.base_branch phải là tên nhánh (vd main, developer, release/2.0)`);
-    if (code && bot && tgToken && token && (repo || mode === 'none') && executor)
+    // TEST-200: repo theo dự án — mỗi mục một dự án OfficeHub; base_branch / workspace không khai → theo cấp agent.
+    const projects: ProjectWorkspace[] = [];
+    const seenProjects = new Set<string>();
+    projectList.forEach((x: any, j: number) => {
+      const pt = `${at}.projects[${j}]`;
+      const projectCode = str(x?.project)?.toUpperCase();
+      if (!projectCode || !PROJECT_CODE.test(projectCode))
+        p.push(`${pt}.project bắt buộc — mã dự án trên OfficeHub (vd TEST, WEB-2026)`);
+      else if (seenProjects.has(projectCode)) p.push(`${pt}.project ${projectCode} bị trùng trong cùng agent`);
+      else seenProjects.add(projectCode);
+      const projectRepo = str(x?.repo);
+      const repoOk = checkRepo(projectRepo, pt);
+      const projectBase = str(x?.base_branch);
+      if (x?.base_branch !== undefined && !(projectBase && BRANCH_NAME.test(projectBase)))
+        p.push(`${pt}.base_branch phải là tên nhánh (vd main, developer, release/2.0)`);
+      const own = x?.workspace === undefined || x?.workspace === null ? workspace : parseWorkspace(x.workspace, pt);
+      if (own.mode === 'none')
+        p.push(`${pt}.workspace.mode none không dùng trong projects (dự án không repo thì không khai)`);
+      if (projectCode && repoOk)
+        projects.push({
+          projectCode,
+          repo: resolve(projectRepo!),
+          baseBranch: projectBase ?? agentBase ?? defaultBase,
+          workspace: own,
+        });
+    });
+    if (code && bot && tgToken && token && (repo || mode === 'none' || repoOptional) && executor)
       agents.push({
         employeeCode: code,
         telegramBot: normalizeBot(bot),
@@ -262,19 +368,21 @@ export function parseConfig(raw: unknown): RunnerConfig {
         repo: repo ? resolve(repo) : '',
         baseBranch: agentBase ?? defaultBase,
         envFile,
-        workspace: {
-          mode,
-          allowBaseBranch: w.allow_base_branch === true,
-          allowEnvFiles: w.allow_env_files === true,
-          builtinTools: w.builtin_tools === true,
-        },
+        workspace,
+        projects,
         executor,
       });
   });
-  // in_place làm việc thẳng trong repo → hai agent không được dùng chung một repo (không có worktree ngăn cách).
-  for (const a of agents.filter((x) => x.workspace.mode === 'in_place'))
-    if (agents.some((b) => b !== a && b.repo === a.repo))
-      p.push(`${a.employeeCode}: workspace in_place nhưng repo ${a.repo} bị agent khác dùng chung`);
+  // in_place làm việc thẳng trong repo (không có worktree ngăn cách) → repo đó không được dùng chung với agent khác hay dự án khác:
+  // xét trên từng cặp (agent, dự án).
+  const places = agents.flatMap((a) =>
+    agentWorkspaces(a)
+      .filter((w) => w.workspace.mode !== 'none')
+      .map((w) => ({ w, who: w.projectCode ? `${a.employeeCode} (dự án ${w.projectCode})` : a.employeeCode })),
+  );
+  for (const x of places.filter((y) => y.w.workspace.mode === 'in_place'))
+    if (places.some((y) => y !== x && y.w.repo === x.w.repo))
+      p.push(`${x.who}: workspace in_place nhưng repo ${x.w.repo} bị agent / dự án khác dùng chung`);
   if (p.length) throw new ConfigError(p);
   return {
     mcpUrl: mcpUrl!,

@@ -19,7 +19,7 @@
 | `hub/` | Mọi thứ nói chuyện với OfficeHub: `client.ts` (tool MCP), `types.ts` (kiểu kết quả tool: `TaskDetail`, `ChatSummary`, `MeetingState` — mọi trường tuỳ chọn, `validator.ts` kiểm tra), `endpoint.ts` (`HubEndpoint` + `FailureLog`), `presence.ts`, `activity.ts`, `usage.ts`, `transcript.ts` |
 | `executor/` | `Adapter` (`types.ts`) + `run.ts` (chạy tiến trình), `adapters/index.ts` (registry `adapters` / `ExecutorKind`), mỗi CLI một thư mục `adapters/<tên>/` (`claude/`: `index.ts` + `events.ts` + `home.ts`; `codex/`: `index.ts` + `events.ts` + `session.ts`; `custom/`), `adapters/shared.ts` (đọc JSONL, đọc MCP của job, cảnh báo HOME), `events.ts`, `model.ts` |
 | `prompt/` | Prompt theo mode (`worktree` / `in-place` / `none`) + chat / họp |
-| `workspace/` | `git.ts`: lớp `Git`, hook, lệnh git của worktree / in_place / PR. Mỗi mode một `WorkspaceStrategy` (`strategy.ts`): `worktree.ts`, `in-place.ts`, `none.ts` — `prepare(job)` trả nơi làm + hàm `publish`; registry `index.ts` |
+| `workspace/` | `git.ts`: lớp `Git`, hook, lệnh git của worktree / in_place / PR. Mỗi mode một `WorkspaceStrategy` (`strategy.ts`): `worktree.ts`, `in-place.ts`, `none.ts` — `prepare(c, job)` trả nơi làm + hàm `publish` (`c.place` = nơi làm của dự án, không đọc `agent.repo`); registry `index.ts` |
 | `store.ts`, `validator.ts`, `config.ts`, `telegram.ts`, `log.ts`, `report.ts` | Hàng đợi SQLite · kiểm tra tin đánh thức · đọc `agents.yaml` · Bot API · log · bảng `report` |
 
 ## Test (`tests/`)
@@ -32,6 +32,7 @@ Mỗi module một file cùng tên: `config`, `validator`, `executor`, `log`, `p
 - **Trả dữ liệu có cấu trúc, dựng chuỗi ở rìa**: kiểm tra trả `Finding`, chỉ `cli.ts` / log gọi `formatFinding`. Không so chuỗi `✘` / `⚠` để suy ra mức độ.
 - **Request tới endpoint phụ của OfficeHub luôn qua `HubEndpoint`** (`post` / `get` không ném lỗi, trả `ok | invalid | denied | missing | error`); lỗi lặp ghi qua `FailureLog`. Không tự viết `fetch` + xử lý 401 / 404 trong bộ gửi mới.
 - **Rẽ nhánh theo loại job / mode / CLI chỉ ở registry**: `Runner` không biết loại job cụ thể (`handlers[kind]`), handler việc không biết mode cụ thể (`workspaces[mode]`), ngoài `executor/adapters/` không có `kind === 'claude'` (`adapters[kind]`).
+- **Repo / nhánh gốc / mode của một job lấy từ `workspaceFor(agent, job.project_id)`** (`config.ts`, TEST-200) — không đọc thẳng `cfg.repo` / `cfg.baseBranch` / `cfg.workspace` ngoài `config.ts`; `null` = dự án chưa gắn repo trên máy này ([agent-runner-projects.md](agent-runner-projects.md)).
 - **Phiên CLI luôn qua `Sessions`**: loại job mới chỉ lo kiểm tra + nơi chạy + prompt, không tự ghi `task_sessions` / `jobs` / mức dùng AI.
 - **`runner.db` chỉ nâng cấp tiến, tương thích lùi**: mỗi bước `MIGRATIONS` chỉ thêm cột / điền dữ liệu. Cột `task_id` / `task_code` giữ tên cũ trong DB; mã đọc ra thành `job.key` (khoá job) / `job.label` (nhãn). `jobs.kind` luôn có giá trị (job cũ đã điền `task`).
 - **Dữ liệu từ ngoài có kiểu ở biên, không `any`**: kết quả tool MCP theo `hub/types.ts`; `any` chỉ còn trong phần đọc stream-json của CLI (`executor/adapters/`) và YAML thô (`config.ts`).

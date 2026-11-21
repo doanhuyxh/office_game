@@ -1,4 +1,4 @@
-import type { AgentConfig, RunnerConfig } from '../config';
+import { type AgentConfig, declaredProject, type ProjectWorkspace, type RunnerConfig } from '../config';
 import type { AgentState } from '../core/agent';
 import type { Sessions } from '../core/session';
 import { log } from '../log';
@@ -29,8 +29,8 @@ export interface JobServices {
   config: RunnerConfig;
   store: Store;
   sessions: Sessions;
-  /** Git với HOME / PATH của agent. */
-  gitFor(agent: AgentConfig): Git;
+  /** Git với HOME / PATH của agent; `place` = nơi làm của dự án đang chạy (nhánh gốc cho hook pre-push). */
+  gitFor(agent: AgentConfig, place?: ProjectWorkspace): Git;
   /** Nhận một tin đánh thức như khi nó tới từ Telegram (handler dùng để xếp thêm một lượt sau phiên). */
   accept(s: AgentState, wake: Wake): Promise<number | null>;
 }
@@ -60,6 +60,17 @@ export interface JobHandler<W extends Wake = Wake> {
 export function skipJob(store: Store, job: Job, reason: string) {
   store.finish(job.id, 'skipped', { reason });
   log('info', 'bỏ job', { job: job.id, reason });
+}
+
+/**
+ * Lý do việc của một dự án không chạy được trên máy này (TEST-200, `workspaceFor` trả null): mục `projects` của dự án đang tắt, hoặc dự án
+ * không khai và agent không có repo mặc định. Mã dự án lấy từ mã việc (`WEB-2026-12` → `WEB-2026`).
+ */
+export function noWorkspaceReason(agent: AgentConfig, job: Pick<Job, 'project_id' | 'label'>): string {
+  const declared = declaredProject(agent, job.project_id);
+  if (declared?.problem)
+    return `dự án ${declared.projectCode} đang tắt trên máy chạy agent (${declared.problem}) — sửa rồi khởi động lại runner`;
+  return `dự án ${job.label.replace(/-\d+$/, '').toUpperCase()} chưa gắn repo trên máy chạy agent (agents.yaml → projects)`;
 }
 
 /**

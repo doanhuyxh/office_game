@@ -1,6 +1,6 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, isAbsolute, join } from 'node:path';
-import { type AgentConfig, isInside } from '../config';
+import { isInside, type ProjectWorkspace } from '../config';
 
 export interface Sh {
   code: number;
@@ -334,15 +334,16 @@ export async function inPlaceChanges(git: Git, repo: string, startHead: string, 
 }
 
 /**
- * Repo của agent đang đứng trên main / master → câu cảnh báo (KHÔNG chặn; in ở `doctor` / khởi động và log đầu mỗi job). Nhánh khác / detached HEAD → ''.
+ * Repo (của agent cho một dự án) đang đứng trên main / master → câu cảnh báo (KHÔNG chặn; in ở `doctor` / khởi động và log đầu mỗi job). Nhánh khác / detached HEAD → ''.
  * in_place chưa bật allow_base_branch đã bị từ chối + cảnh báo riêng nên bỏ qua ở đây.
  */
-export async function mainBranchWarning(git: Git, a: AgentConfig, baseBranch: string): Promise<string> {
-  if (a.workspace.mode === 'none') return '';
-  const cur = (await git.run(a.repo, 'symbolic-ref', '--short', '-q', 'HEAD')).out;
+export async function mainBranchWarning(git: Git, place: ProjectWorkspace): Promise<string> {
+  const { repo, workspace, baseBranch } = place;
+  if (workspace.mode === 'none') return '';
+  const cur = (await git.run(repo, 'symbolic-ref', '--short', '-q', 'HEAD')).out;
   if (cur !== 'main' && cur !== 'master') return '';
-  if (a.workspace.mode === 'in_place')
-    return a.workspace.allowBaseBranch
+  if (workspace.mode === 'in_place')
+    return workspace.allowBaseBranch
       ? `repo đang ở nhánh ${cur} — commit của agent sẽ được push THẲNG lên ${cur}, không qua PR`
       : '';
   return `repo đang ở nhánh ${cur} — nhánh việc tách từ origin/${baseBranch} và PR merge vào ${baseBranch}`;

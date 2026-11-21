@@ -1,6 +1,6 @@
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { ExecutorConfig, RunnerConfig } from '../config';
+import { type ExecutorConfig, type RunnerConfig, workspaceFor } from '../config';
 import { sessionEnd, sessionStart } from '../executor/events';
 import { modelMatches } from '../executor/model';
 import { adapters, type RunOutcome, runExecutor } from '../executor/run';
@@ -73,7 +73,8 @@ export class Sessions {
     const exec = request.exec ?? s.cfg.executor;
     const files = this.writeJobFiles(dir, job, request.prompt);
     const env = {
-      ...agentEnv(s.cfg, this.git),
+      // TEST-200: nhánh gốc theo DỰ ÁN của job (hook pre-push), không theo agent; job không thuộc dự án có repo → không đặt
+      ...agentEnv(s.cfg, this.git, workspaceFor(s.cfg, job.project_id)?.baseBranch),
       OFFICEHUB_TOKEN: s.cfg.token,
       [AGENT_ENV]: job.agent,
       [TASK_ENV]: job.label,

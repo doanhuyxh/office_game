@@ -349,12 +349,24 @@ describe('pickStartupTasks (TEST-158): việc bắt bù lúc khởi động', ()
     expect(r).toEqual({ ok: false, reason: expect.stringContaining('bản cũ') });
   });
 
+  test('TEST-200: dự án chưa gắn repo trên máy → không chọn, đếm riêng noWorkspace (sau các lý do khác)', () => {
+    const other = '01a1cb11-4644-716a-bf4d-00000000beef';
+    const r = pickStartupTasks(
+      [row(1), row(2, { projectId: other }), row(3, { projectId: other, awaitingHuman: true })],
+      (projectId) => projectId !== other,
+    );
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.value.tasks.map((t) => t.code)).toEqual(['TEST-1']);
+    expect(r.value.noWorkspace).toBe(1);
+    expect(r.value.awaitingHuman).toBe(1);
+  });
+
   test('không phải danh sách → không đạt; danh sách rỗng → không có việc', () => {
     expect(pickStartupTasks('lỗi').ok).toBe(false);
     expect(pickStartupTasks(undefined).ok).toBe(false);
     expect(pickStartupTasks([])).toEqual({
       ok: true,
-      value: { tasks: [], total: 0, awaitingHuman: 0, blocked: 0, inactive: 0, invalid: 0 },
+      value: { tasks: [], total: 0, awaitingHuman: 0, blocked: 0, inactive: 0, noWorkspace: 0, invalid: 0 },
     });
   });
 });

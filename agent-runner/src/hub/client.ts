@@ -1,5 +1,5 @@
 import { errText } from '../log';
-import type { ChatSummary, MeetingState, MyTask, ProfileResult, TaskDetail } from './types';
+import type { ChatSummary, MeetingState, MyTask, ProfileResult, ProjectDetail, TaskDetail } from './types';
 
 /** Phong bì JSON-RPC và kết quả `tools/call` của MCP (chỉ phần runner đọc). */
 interface RpcMessage {
@@ -16,7 +16,7 @@ const RPC_TIMEOUT_MS = 30_000;
 
 /**
  * Gọi tool MCP của OfficeHub bằng token AI của agent (JSON-RPC qua HTTP, phản hồi JSON hoặc SSE).
- * Runner chỉ dùng vài tool đọc (get_my_profile, get_task, list_my_tasks, list_chats, get_my_meeting) + comment_task để báo PR / chi phí + pass_turn khi agent
+ * Runner chỉ dùng vài tool đọc (get_my_profile, get_task, get_project, list_my_tasks, list_chats, get_my_meeting) + comment_task để báo PR / chi phí + pass_turn khi agent
  * không dùng được lượt nói trong cuộc họp.
  */
 export class OfficeHubClient {
@@ -83,6 +83,11 @@ export class OfficeHubClient {
 
   getTask(task: string) {
     return this.callTool<TaskDetail | undefined>('get_task', { task });
+  }
+
+  /** Dự án theo mã (hoặc id) — đổi mã dự án trong `projects` thành id lúc khởi động / `doctor` (TEST-200). */
+  getProject(project: string) {
+    return this.callTool<ProjectDetail | undefined>('get_project', { project });
   }
 
   /** Việc chưa xong đang giao cho agent ở mọi dự án (tối đa 200, sắp theo hạn) — bắt bù lúc khởi động (TEST-158). */

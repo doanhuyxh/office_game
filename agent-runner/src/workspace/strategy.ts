@@ -1,11 +1,15 @@
-import type { AgentConfig, RunnerConfig, WorkspaceMode } from '../config';
+import type { AgentConfig, ProjectWorkspace, RunnerConfig, WorkspaceMode } from '../config';
 import type { Job } from '../store';
 import type { Git } from './git';
 
-/** Thứ một mode workspace cần để chuẩn bị nơi làm cho job: cấu hình runner + agent, git với HOME / PATH của agent. */
+/**
+ * Thứ một mode workspace cần để chuẩn bị nơi làm cho job: cấu hình runner + agent, nơi làm của DỰ ÁN mà job thuộc về (repo / nhánh gốc / cờ —
+ * TEST-200, không đọc thẳng `agent.repo`), git với HOME / PATH của agent.
+ */
 export interface WorkspaceContext {
   config: RunnerConfig;
   agent: AgentConfig;
+  place: ProjectWorkspace;
   git: Git;
 }
 

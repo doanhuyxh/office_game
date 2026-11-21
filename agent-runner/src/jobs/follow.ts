@@ -1,4 +1,4 @@
-import { repoBaseBranches } from '../config';
+import { repoBaseBranches, type WorkspaceConfig, workspaceFor } from '../config';
 import type { AgentState } from '../core/agent';
 import { RunnerStopped, succeeded } from '../core/session';
 import type { TaskDetail } from '../hub/types';
@@ -7,7 +7,15 @@ import { type FollowTools, followPrompt } from '../prompt/follow';
 import type { Job } from '../store';
 import { actedOnTask, checkFollow, type WakeData } from '../validator';
 import { installHooks, prepareFollowWorktree, workspaces } from '../workspace';
-import { agentScopedKey, type JobHandler, type JobServices, scopedId, skipJob, type WakeOf } from './handler';
+import {
+  agentScopedKey,
+  type JobHandler,
+  type JobServices,
+  noWorkspaceReason,
+  scopedId,
+  skipJob,
+  type WakeOf,
+} from './handler';
 import { presenceFailure, resultComment } from './task';
 
 /**
@@ -31,7 +39,10 @@ export function followJobs(services: JobServices): JobHandler<WakeOf<'follow'>> 
     const before = await s.hub.getTask(wake.task_id);
     const checked = checkFollow(before, wake, s.employeeId!);
     if (!checked.ok) return skipJob(store, job, checked.reason);
-    const tools = toolsOf(s);
+    // TEST-200: nơi chạy + công cụ theo DỰ ÁN của việc; dự án chưa gắn repo trên máy này → bỏ (lúc nhận tin đã lọc, đây là lần kiểm tra lại).
+    const place = workspaceFor(s.cfg, job.project_id);
+    if (!place) return skipJob(store, job, noWorkspaceReason(s.cfg, job));
+    const tools = toolsOf(place.workspace);
     if (!tools) {
       const reason = 'workspace in_place là thư mục làm việc thật của máy — bot theo dõi cần worktree hoặc none';
       skipJob(store, job, reason);
@@ -42,13 +53,13 @@ export function followJobs(services: JobServices): JobHandler<WakeOf<'follow'>> 
     s.presence.working(job.label, title);
     if (title.trim()) desk.task = `${job.label} · ${title.trim()}`;
 
-    const git = services.gitFor(s.cfg);
+    const git = services.gitFor(s.cfg, place);
     let cwd: string;
     if (tools === 'repo') {
-      for (const warning of await installHooks(git, s.cfg.repo, repoBaseBranches(config, s.cfg.repo)))
+      for (const warning of await installHooks(git, place.repo, repoBaseBranches(config, place.repo)))
         log('warn', warning, { agent: job.agent, task: job.label });
       try {
-        cwd = await prepareFollowWorktree(git, s.cfg.repo, config.worktreesDir, job.agent, job.label, s.cfg.baseBranch);
+        cwd = await prepareFollowWorktree(git, place.repo, config.worktreesDir, job.agent, job.label, place.baseBranch);
       } catch (e) {
         const reason = `không tạo được worktree: ${errText(e)}`;
         skipJob(store, job, reason);
@@ -56,12 +67,12 @@ export function followJobs(services: JobServices): JobHandler<WakeOf<'follow'>> 
         await s.hub.comment(wake.task_id, `**🤖 agent-runner** (${job.agent}) — KHÔNG chạy bước theo dõi: ${reason}`);
         return;
       }
-    } else cwd = (await workspaces.none.prepare({ config, agent: s.cfg, git }, job)).path;
+    } else cwd = (await workspaces.none.prepare({ config, agent: s.cfg, place, git }, job)).path;
 
     const resume = await sessions.resumeFor(s, job, cwd);
     const out = await sessions.run(s, job, signal, {
       cwd,
-      prompt: followPrompt(wake, { tools, baseBranch: s.cfg.baseBranch, resumed: !!resume }),
+      prompt: followPrompt(wake, { tools, baseBranch: place.baseBranch, resumed: !!resume }),
       resume,
       // repo: chỉ đọc (hook chặn mọi push); none không shell: chỉ tool MCP
       readOnly: tools === 'repo',
@@ -104,7 +115,16 @@ export function followJobs(services: JobServices): JobHandler<WakeOf<'follow'>> 
     projectId: (wake) => wake.project_id,
 
     async admit(s, wake) {
-      return checkFollow(await s.hub.getTask(wake.task_id), wake, s.employeeId!);
+      const checked = checkFollow(await s.hub.getTask(wake.task_id), wake, s.employeeId!);
+      if (!checked.ok) return checked;
+      // TEST-200: dự án chưa gắn repo trên máy này → không xếp hàng (bot theo dõi không bình luận lên việc không có bước của mình).
+      if (!workspaceFor(s.cfg, wake.project_id))
+        return {
+          ok: false,
+          reason: noWorkspaceReason(s.cfg, { project_id: wake.project_id, label: wake.task_code }),
+          warning: 'bỏ qua việc đang theo dõi — dự án chưa gắn repo',
+        };
+      return checked;
     },
 
     async run(s, job, signal) {
@@ -124,12 +144,11 @@ export function followJobs(services: JobServices): JobHandler<WakeOf<'follow'>> 
 }
 
 /**
- * Công cụ của phiên follow theo cấu hình agent (không theo loại việc — loại việc nằm ở hướng dẫn):
+ * Công cụ của phiên follow theo `workspace` của agent cho dự án của việc (không theo loại việc — loại việc nằm ở hướng dẫn):
  * worktree → repo chỉ đọc ở worktree tạm (review code…); none + builtin_tools → shell, không repo (deploy…); none → chỉ tool MCP (nghiệp vụ).
  * in_place → undefined: workspace thật của máy, không cho phiên của việc người khác chạy trong đó.
  */
-export function toolsOf(s: Pick<AgentState, 'cfg'>): FollowTools | undefined {
-  const w = s.cfg.workspace;
+export function toolsOf(w: Pick<WorkspaceConfig, 'mode' | 'builtinTools'>): FollowTools | undefined {
   if (w.mode === 'worktree') return 'repo';
   if (w.mode === 'none') return w.builtinTools ? 'shell' : 'mcp';
   return undefined;

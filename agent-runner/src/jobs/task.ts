@@ -1,3 +1,4 @@
+import { workspaceFor } from '../config';
 import type { AgentState } from '../core/agent';
 import { RunnerStopped, succeeded } from '../core/session';
 import { modelLine } from '../executor/model';
@@ -7,7 +8,7 @@ import { buildPrompt } from '../prompt';
 import type { Job } from '../store';
 import { checkTask } from '../validator';
 import { type PreparedWorkspace, WorkspaceRefused, workspaces } from '../workspace';
-import { type JobHandler, type JobServices, skipJob, type WakeOf } from './handler';
+import { type JobHandler, type JobServices, noWorkspaceReason, skipJob, type WakeOf } from './handler';
 
 /** Trạng thái báo lên văn phòng 3D khi job việc kết thúc: tên việc + loại lỗi ngắn (không lỗi → rảnh). */
 interface DeskNote {
@@ -34,13 +35,24 @@ export function taskJobs(services: JobServices): JobHandler<WakeOf<'task'>> {
     const checked = checkTask(await s.hub.getTask(job.key), wake, s.employeeId!);
     if (!checked.ok) return skipJob(store, job, checked.reason);
     const { title, dependsOn, blocks } = checked.value;
-    s.presence.working(job.label, title);
     if (title.trim()) desk.task = `${job.label} · ${title.trim()}`;
+    // TEST-200: repo / nhánh gốc / mode theo DỰ ÁN của việc. Dự án chưa gắn repo trên máy này → không chạy, báo trong việc để người thật
+    // gắn repo (agents.yaml → projects) hoặc giao cho agent khác.
+    const place = workspaceFor(s.cfg, job.project_id);
+    if (!place) {
+      const reason = noWorkspaceReason(s.cfg, job);
+      store.finish(job.id, 'skipped', { reason });
+      desk.failure = 'Không chạy được';
+      await s.hub.comment(job.key, `**🤖 agent-runner** (${job.agent}) — KHÔNG chạy: ${reason}`);
+      log('warn', 'bỏ job — dự án chưa gắn repo', { job: job.id, task: job.label, reason });
+      return;
+    }
+    s.presence.working(job.label, title);
 
-    const strategy = workspaces[s.cfg.workspace.mode];
+    const strategy = workspaces[place.workspace.mode];
     let ws: PreparedWorkspace;
     try {
-      ws = await strategy.prepare({ config, agent: s.cfg, git: services.gitFor(s.cfg) }, job);
+      ws = await strategy.prepare({ config, agent: s.cfg, place, git: services.gitFor(s.cfg, place) }, job);
     } catch (e) {
       if (!(e instanceof WorkspaceRefused)) throw e;
       // Workspace chưa sẵn sàng (đang bẩn / sai nhánh…) — không chạy agent, báo lại trong việc để người xử lý rồi giao lại.
@@ -56,7 +68,7 @@ export function taskJobs(services: JobServices): JobHandler<WakeOf<'task'>> {
     // Phiên mới nhưng việc đã từng làm (worktree / nhánh local hoặc origin / phiên cũ) → prompt bảo đọc Bàn giao trước
     const continued = !resume && (ws.hasHistory || workedBefore);
     // Mode none + builtin_tools (TEST-163): vẫn không repo nhưng có công cụ của CLI. Phiên chat / họp không đi qua đây → vẫn chỉ MCP.
-    const shell = strategy.mode === 'none' && s.cfg.workspace.builtinTools;
+    const shell = strategy.mode === 'none' && place.workspace.builtinTools;
     const out = await sessions.run(s, job, signal, {
       cwd: ws.path,
       prompt: buildPrompt(wake, {

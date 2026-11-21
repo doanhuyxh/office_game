@@ -1,6 +1,6 @@
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AgentConfig, RunnerConfig } from './config';
+import { type AgentConfig, agentWorkspaces, type ProjectWorkspace, type RunnerConfig, workspaceFor } from './config';
 import type { AgentState } from './core/agent';
 import { agentEnv, agentHome } from './core/env';
 import { jobDir, workDir } from './core/paths';
@@ -61,7 +61,7 @@ export class Runner {
       config,
       store,
       sessions: new Sessions(config, store, this.git),
-      gitFor: (agent) => this.gitFor(agent),
+      gitFor: (agent, place) => this.gitFor(agent, place),
       accept: (s, wake) => this.accept(s, wake),
     });
     const source = { host: sourceHost(), dbId: store.dbId() };
@@ -115,12 +115,15 @@ export class Runner {
     }
     const targets = [...this.agents.values()].filter((s) => !o.only || s.cfg.employeeCode === o.only);
     for (const [i, s] of targets.entries()) {
-      const { employeeCode: code, workspace, executor } = s.cfg;
+      const { employeeCode: code, executor } = s.cfg;
+      const places = agentWorkspaces(s.cfg);
+      const modes = [...new Set(places.map((w) => w.workspace.mode))].join(' + ');
+      const projects = s.cfg.projects.length ? `, ${s.cfg.projects.length} dự án gắn repo` : '';
       progress?.step(
-        `kiểm tra agent ${i + 1}/${targets.length} (workspace ${workspace.mode}, CLI ${executor.kind})`,
+        `kiểm tra agent ${i + 1}/${targets.length} (workspace ${modes}${projects}, CLI ${executor.kind})`,
         code,
       );
-      const needsGit = workspace.mode !== 'none';
+      const needsGit = places.some((w) => w.workspace.mode !== 'none');
       let d: Awaited<ReturnType<typeof diagnoseAgent>>;
       if (gitError && needsGit) {
         d = gitUnavailable(code, gitError);
@@ -147,14 +150,14 @@ export class Runner {
     };
   }
 
-  /** Biến môi trường cho tiến trình con của agent (xem {@link agentEnv}). */
-  envFor(a: AgentConfig): Record<string, string> {
-    return agentEnv(a, this.git);
+  /** Biến môi trường cho tiến trình con của agent (xem {@link agentEnv}); `place` = nơi làm của dự án đang chạy → nhánh gốc cho hook. */
+  envFor(a: AgentConfig, place?: ProjectWorkspace): Record<string, string> {
+    return agentEnv(a, this.git, place?.baseBranch);
   }
 
   /** Git với HOME / PATH của agent (credential helper, SSH key, user.name của HOME đó). */
-  gitFor(a: AgentConfig) {
-    return this.git.withEnv(this.envFor(a));
+  gitFor(a: AgentConfig, place?: ProjectWorkspace) {
+    return this.git.withEnv(this.envFor(a, place));
   }
 
   /** Thư mục chạy của phiên không có repo (mode none, chat, họp) — xem {@link workDir}. */
@@ -260,12 +263,13 @@ export class Runner {
       log('warn', 'bắt bù lúc khởi động: không hỏi được việc của agent', { agent, error: errText(e) });
       return null;
     }
-    const picked = pickStartupTasks(list);
+    // TEST-200: việc của dự án chưa gắn repo trên máy này không vào hàng đợi
+    const picked = pickStartupTasks(list, (projectId) => !!workspaceFor(s.cfg, projectId));
     if (!picked.ok) {
       log('warn', 'bắt bù lúc khởi động: bỏ qua', { agent, reason: picked.reason });
       return null;
     }
-    const { tasks, total, awaitingHuman, blocked, inactive, invalid } = picked.value;
+    const { tasks, total, awaitingHuman, blocked, inactive, noWorkspace, invalid } = picked.value;
     const recentSince = new Date(Date.now() - STARTUP_RECENT_JOB_MIN * 60_000).toISOString();
     let queued = 0;
     let recent = 0;
@@ -297,6 +301,7 @@ export class Runner {
       awaitingHuman,
       blocked,
       inactive,
+      noWorkspace,
       invalid,
       overLimit: tasks.length - batch.length,
     });

@@ -1,6 +1,15 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { dirname, isAbsolute, join } from 'node:path';
-import { type AgentConfig, isInside, lightExecutor, type RunnerConfig, repoBaseBranches } from '../config';
+import {
+  type AgentConfig,
+  agentWorkspaces,
+  defaultWorkspace,
+  isInside,
+  lightExecutor,
+  type ProjectWorkspace,
+  type RunnerConfig,
+  repoBaseBranches,
+} from '../config';
 import { projectFilesAbove, workDir } from '../core/paths';
 import { adapters } from '../executor/run';
 import { errText } from '../log';
@@ -42,14 +51,16 @@ export interface Diagnosis {
 }
 
 /**
- * Kiểm tra một agent theo thứ tự: CLI → token → workspace (repo / hook / nhánh) → env_file → Telegram → gh → model (sau cùng: chỉ tốn token khi
- * mọi kiểm tra khác đã qua). Lỗi đầu tiên dừng các bước sau. Có tác dụng phụ lên repo: cài hook (worktree) / gỡ hook của runner (in_place).
+ * Kiểm tra một agent theo thứ tự: CLI → token → dự án gắn repo (mã → id) → workspace (repo / hook / nhánh, TỪNG repo) → env_file → Telegram →
+ * gh → model (sau cùng: chỉ tốn token khi mọi kiểm tra khác đã qua). Lỗi đầu tiên dừng các bước sau — trừ lỗi của một mục `projects`
+ * (TEST-200): chỉ dự án đó tắt (ghi `problem` vào mục, dòng ⚠), agent vẫn chạy các dự án còn lại.
+ * Có tác dụng phụ: cài hook (worktree) / gỡ hook của runner (in_place) trên repo; ghi `projectId` / `problem` vào `agent.projects`.
  */
 export async function diagnoseAgent(c: DoctorContext, o: DoctorOptions): Promise<Diagnosis> {
   const report = new Report(c.agent.employeeCode, o.progress);
   const result: Diagnosis = { findings: report.findings };
   const probe = { env: c.env, cwd: c.config.dataDir, enabled: o.modelCheck };
-  const { executor, workspace } = c.agent;
+  const { executor } = c.agent;
   try {
     report.step(`kiểm tra CLI ${executor.kind} (${executor.bin} --version)`);
     await checkCli(c, report);
@@ -57,22 +68,34 @@ export async function diagnoseAgent(c: DoctorContext, o: DoctorOptions): Promise
     const me = await checkToken(c, report);
     result.employeeId = me.id;
     result.employeeName = me.fullName;
-    report.step(
-      workspace.mode === 'none'
-        ? 'kiểm tra workspace none (thư mục chạy)'
-        : `kiểm tra workspace ${workspace.mode}: repo, danh tính git, hook, nhánh`,
-    );
-    if (workspace.mode === 'none') checkNoneWorkspace(c, report);
-    else await checkRepoWorkspace(c, report);
+    if (c.agent.projects.length) {
+      report.step(`đổi mã dự án → id (get_project): ${c.agent.projects.map((p) => p.projectCode).join(', ')}`);
+      await resolveProjects(c, report);
+    }
+    const fallback = defaultWorkspace(c.agent);
+    if (fallback) {
+      const mode = fallback.workspace.mode;
+      report.step(
+        mode === 'none'
+          ? 'kiểm tra workspace none (thư mục chạy)'
+          : `kiểm tra workspace ${mode}: repo, danh tính git, hook, nhánh`,
+      );
+      if (mode === 'none') checkNoneWorkspace(c, report);
+      else await checkRepoWorkspace(c, report, fallback);
+    }
+    await checkProjectWorkspaces(c, report);
+    if (!fallback && c.agent.projects.every((p) => p.problem))
+      throw new CheckFailed('không dự án nào trong projects chạy được và agent không có repo mặc định');
     if (c.agent.envFile && !existsSync(c.agent.envFile))
       throw new CheckFailed(`không thấy env_file ${c.agent.envFile}`);
     if (o.telegram) {
       report.step(`kiểm tra bot Telegram ${c.agent.telegramBot} (getMe)`);
       await checkTelegram(c, report);
     }
-    if (workspace.mode === 'worktree') {
+    const prRepo = agentWorkspaces(c.agent).find((w) => w.workspace.mode === 'worktree' && !w.problem)?.repo;
+    if (prRepo) {
       report.step('kiểm tra gh (gh auth status)');
-      await checkGh(c, report);
+      await checkGh(c, report, prRepo);
     }
     if (executor.requiredBins.length) {
       report.step(`kiểm tra lệnh cần có: ${executor.requiredBins.join(', ')}`);
@@ -144,9 +167,60 @@ function checkNoneWorkspace(c: DoctorContext, report: Report) {
     );
 }
 
-/** Mode worktree / in_place: repo có origin, danh tính commit, thư mục của runner đã gitignore, hook, nhánh đang đứng. */
-async function checkRepoWorkspace(c: DoctorContext, report: Report) {
-  const { agent, git, config } = c;
+/** Phạm vi của dòng kết quả theo dự án: `NV120 (dự án OFFICE): …`. */
+const projectScope = (p: ProjectWorkspace) => `dự án ${p.projectCode}`;
+
+/**
+ * TEST-200: đổi mã dự án của từng mục `projects` thành id (tin đánh thức / việc chỉ mang `project_id`). Mã không thấy trên OfficeHub, agent
+ * không xem được hoặc không phải thành viên được làm việc → ⚠ và tắt riêng dự án đó.
+ */
+async function resolveProjects(c: DoctorContext, report: Report) {
+  for (const p of c.agent.projects) {
+    p.projectId = undefined;
+    p.problem = undefined;
+    try {
+      const found = (await c.hub.getProject(p.projectCode))?.project;
+      if (!found?.id || String(found.code ?? '').toUpperCase() !== p.projectCode)
+        throw new CheckFailed('OfficeHub không trả dự án có mã này');
+      if (found.canWork === false) throw new CheckFailed('agent không phải thành viên được làm việc của dự án');
+      p.projectId = found.id;
+      report.ok(`mã dự án → id ${found.id}`, projectScope(p));
+    } catch (e) {
+      disableProject(p, report, `không dùng được mã dự án trên OfficeHub: ${errText(e).slice(0, 200)}`);
+    }
+  }
+}
+
+/** Kiểm tra repo của từng mục `projects` còn bật; repo lỗi → chỉ dự án đó tắt. */
+async function checkProjectWorkspaces(c: DoctorContext, report: Report) {
+  for (const p of c.agent.projects) {
+    if (p.problem) continue;
+    report.step(
+      `kiểm tra dự án ${p.projectCode} (workspace ${p.workspace.mode}): repo ${p.repo}, danh tính git, hook, nhánh`,
+    );
+    try {
+      await checkRepoWorkspace(c, report, p, projectScope(p));
+    } catch (e) {
+      disableProject(p, report, errText(e));
+    }
+  }
+}
+
+function disableProject(p: ProjectWorkspace, report: Report, problem: string) {
+  p.problem = problem;
+  report.warn(`${problem} — dự án TẮT trên máy này (việc của dự án không chạy), agent vẫn chạy`, projectScope(p));
+}
+
+/**
+ * Mode worktree / in_place: repo có origin, danh tính commit, thư mục của runner đã gitignore, hook, nhánh đang đứng.
+ * @param agent nơi làm đang kiểm tra — mặc định cấp agent hoặc một mục `projects` (khi đó `scope` = "dự án <mã>").
+ */
+async function checkRepoWorkspace(c: DoctorContext, base: Report, agent: ProjectWorkspace, scope?: string) {
+  const { git, config } = c;
+  const report = {
+    ok: (text: string) => base.ok(text, scope),
+    warn: (text: string) => base.warn(text, scope),
+  };
   const inPlace = agent.workspace.mode === 'in_place';
   const origin = await git.run(agent.repo, 'remote', 'get-url', 'origin');
   if (origin.code !== 0) throw new CheckFailed(`${agent.repo} không phải git repo có remote origin`);
@@ -156,7 +230,7 @@ async function checkRepoWorkspace(c: DoctorContext, report: Report) {
     const base = await git.run(agent.repo, 'ls-remote', '--exit-code', '--heads', 'origin', agent.baseBranch);
     if (base.code === 2)
       throw new CheckFailed(
-        `origin không có nhánh ${agent.baseBranch} (base_branch của agent) — sửa base_branch hoặc tạo nhánh trên origin`,
+        `origin không có nhánh ${agent.baseBranch} (base_branch) — sửa base_branch hoặc tạo nhánh trên origin`,
       );
     if (base.code !== 0)
       report.warn(`không hỏi được origin để kiểm nhánh gốc ${agent.baseBranch}: ${base.err.slice(0, 200)}`);
@@ -187,9 +261,9 @@ async function checkRepoWorkspace(c: DoctorContext, report: Report) {
       `repo ${agent.repo}, hook pre-push (chặn main / force push / agent-runner/) + commit-msg (trailer) đã cài`,
     );
   }
-  const onMain = await mainBranchWarning(git, agent, agent.baseBranch);
+  const onMain = await mainBranchWarning(git, agent);
   if (onMain) report.warn(onMain);
-  if (inPlace) await checkInPlace(c, report);
+  if (inPlace) await checkInPlace(git, agent, report);
 }
 
 /** File .env ở gốc repo mà CLI chạy trong repo đọc được (bỏ qua .env.example / .sample / .template). */
@@ -197,8 +271,7 @@ const rootEnvFiles = (repo: string) =>
   readdirSync(repo).filter((f) => f === '.env' || (f.startsWith('.env.') && !/\.(example|sample|template)$/.test(f)));
 
 /** in_place: CLI chạy thẳng trong repo → đọc được .env ở gốc repo (worktree ngoài repo thì không). Mặc định từ chối. */
-async function checkInPlace(c: DoctorContext, report: Report) {
-  const { agent, git } = c;
+async function checkInPlace(git: Git, agent: ProjectWorkspace, report: Pick<Report, 'ok' | 'warn'>) {
   const envFiles = rootEnvFiles(agent.repo);
   if (envFiles.length && !agent.workspace.allowEnvFiles)
     throw new CheckFailed(
@@ -238,8 +311,8 @@ function checkRequiredBins(c: DoctorContext, report: Report) {
 }
 
 /** Mode worktree cần `gh` để mở PR — chưa đăng nhập chỉ cảnh báo (vẫn push được nhánh). */
-async function checkGh(c: DoctorContext, report: Report) {
-  const gh = await sh(['gh', 'auth', 'status'], c.agent.repo, c.env).catch(() => ({
+async function checkGh(c: DoctorContext, report: Report, repo: string) {
+  const gh = await sh(['gh', 'auth', 'status'], repo, c.env).catch(() => ({
     code: 1,
     out: '',
     err: 'không có gh',

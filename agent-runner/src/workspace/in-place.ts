@@ -13,14 +13,14 @@ export const inPlaceWorkspace: WorkspaceStrategy = {
   mode: 'in_place',
   noBuiltinTools: false,
   async prepare(c, job) {
-    const { git, agent } = c;
+    const { git, place } = c;
     const fields = { job: job.id, agent: job.agent };
-    const onMain = await mainBranchWarning(git, agent, agent.baseBranch);
+    const onMain = await mainBranchWarning(git, place);
     if (onMain) log('warn', 'repo đang ở main / master', { ...fields, task: job.label, message: onMain });
     // in_place không dùng hook → gỡ hook của runner nếu còn (hook của người dùng giữ nguyên).
-    const removed = await removeHooks(git, agent.repo);
+    const removed = await removeHooks(git, place.repo);
     if (removed.length) log('info', 'đã gỡ hook của runner (in_place không dùng)', { ...fields, hooks: removed });
-    const start = await prepareInPlace(git, agent.repo, agent.baseBranch, agent.workspace.allowBaseBranch);
+    const start = await prepareInPlace(git, place.repo, place.baseBranch, place.workspace.allowBaseBranch);
 
     const publish = async (): Promise<Published> => {
       const ch = await inPlaceChanges(git, start.path, start.head, start.branch);

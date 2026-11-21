@@ -33,6 +33,8 @@ let mineCalls = 0;
 let getTaskHook: ((a: any) => any) | null = null;
 /** > 0 → get_task trả lỗi MCP ngần ấy lần (máy chủ tạm lỗi — runner phải thử lại nhận tin). */
 let getTaskFails = 0;
+/** Kết quả MCP get_project theo mã dự án (TEST-200); mã không có ở đây → tool trả lỗi (không thấy dự án). */
+let hubProjects: Record<string, any> = {};
 /** Kết quả MCP list_chats (TEST-81). */
 let chats: any[] = [];
 let updatesServed = false;
@@ -122,6 +124,12 @@ beforeAll(async () => {
         return reply({ isError: true, content: [{ type: 'text', text: 'máy chủ đang khởi động lại' }] });
       }
       if (name === 'get_task') return text(getTaskHook?.(a) ?? tasks[a.task] ?? tasks[T1]);
+      if (name === 'get_project') {
+        const found = hubProjects[String(a.project).toUpperCase()];
+        return found
+          ? text(found)
+          : reply({ isError: true, content: [{ type: 'text', text: 'Không tìm thấy dự án' }] });
+      }
       if (name === 'list_chats') return text(chats);
       if (name === 'list_my_tasks') {
         mineCalls++;
@@ -197,7 +205,7 @@ case "$cwd" in
   *) f=note-$(date +%s%N).txt && echo "đã sửa" > "$f" ;;
 esac
 git add "$f" && git commit -qm "agent commit" || exit 4
-echo '{"session_id":"sess-xyz","model":"fake-model-1","cost_usd":0.42,"input_tokens":1000,"output_tokens":200,"summary":"token='$tok' home='$HOME' secret='$LEAK'"}'
+echo '{"session_id":"sess-xyz","model":"fake-model-1","cost_usd":0.42,"input_tokens":1000,"output_tokens":200,"summary":"token='$tok' home='$HOME' secret='$LEAK' base='$OFFICEHUB_BASE_BRANCH'"}'
 `,
   );
   chmodSync(bin, 0o755);
@@ -1377,3 +1385,189 @@ test('nhánh gốc theo agent (base_branch): nhánh việc tách từ origin/<nh
     await runner.checkAgents({ only: 'NV120', telegram: false });
   }
 }, 30000);
+
+test('TEST-200: một agent nhiều dự án — việc dự án A vào repo A (nhánh gốc A), dự án B vào repo B; dự án chưa gắn / đang tắt → skipped + bình luận; doctor chỉ tắt dự án lỗi; bắt bù bỏ việc dự án chưa gắn', async () => {
+  const seed = join(root, 'seed'),
+    repoA = join(root, 'agent-repo');
+  // Dự án A: repo có sẵn, nhánh gốc riêng release-a (đi trước main một commit)
+  await run(['git', 'checkout', '-B', 'release-a', 'main'], seed);
+  writeFileSync(join(seed, 'a-only.txt'), 'chỉ có trên release-a\n');
+  await run(['git', 'add', 'a-only.txt'], seed);
+  await run(['git', 'commit', '-m', 'release-a đi trước main'], seed);
+  await run(['git', 'push', 'origin', 'release-a'], seed);
+  // Dự án B: origin + bản clone KHÁC hẳn
+  const originB = join(root, 'origin-b.git'),
+    seedB = join(root, 'seed-b'),
+    repoB = join(root, 'agent-repo-b');
+  await run(['git', 'init', '--bare', '-b', 'main', originB], root);
+  await run(['git', 'init', '-b', 'main', seedB], root);
+  writeFileSync(join(seedB, 'b-only.txt'), 'repo của dự án B\n');
+  await run(['git', 'add', '.'], seedB);
+  await run(['git', 'commit', '-m', 'init B'], seedB);
+  await run(['git', 'remote', 'add', 'origin', originB], seedB);
+  await run(['git', 'push', 'origin', 'main'], seedB);
+  await run(['git', 'clone', originB, repoB], root);
+  await run(['git', 'config', 'user.name', 'Chu Du An'], repoB);
+  await run(['git', 'config', 'user.email', 'owner@example.vn'], repoB);
+
+  const pid = (n: number) => `01a1cb11-4644-716a-bf4d-${String(n).padStart(12, '0')}`;
+  const PA = pid(1),
+    PB = pid(2),
+    BAD = pid(3);
+  hubProjects = {
+    PA: { project: { id: PA, code: 'PA', canWork: true } },
+    PB: { project: { id: PB, code: 'PB', canWork: true } },
+    BAD: { project: { id: BAD, code: 'BAD', canWork: true } },
+    NOMEM: { project: { id: pid(4), code: 'NOMEM', canWork: false } },
+  };
+  const base = runner.config.agents[0]!;
+  const project = (projectCode: string, repo: string, baseBranch = 'main') => ({
+    projectCode,
+    repo,
+    baseBranch,
+    workspace: base.workspace,
+  });
+  // Agent CHỈ khai projects (không repo mặc định): 2 dự án chạy được + 3 dự án lỗi theo 3 kiểu
+  const config: RunnerConfig = {
+    ...runner.config,
+    dataDir: join(root, 'data-multi'),
+    worktreesDir: join(root, 'worktrees-multi'),
+    agents: [
+      {
+        ...base,
+        repo: '',
+        projects: [
+          project('PA', repoA, 'release-a'),
+          project('PB', repoB),
+          project('GONE', repoB), // mã không có trên OfficeHub
+          project('NOMEM', repoB), // agent không phải thành viên
+          project('BAD', join(root, 'khong-co-repo')), // repo lỗi
+        ],
+      },
+    ],
+  };
+  require('node:fs').mkdirSync(config.dataDir, { recursive: true });
+  const st = new Store(join(config.dataDir, 'runner.db'));
+  const r = new Runner(config, st);
+  const tid = (n: number) => `01a1ced9-7777-7c5f-a773-${String(n).padStart(12, '0')}`;
+  const detail = (id: string, projectId: string, code: string) => ({
+    task: { id, projectId, assigneeEmployeeId: 'emp-1', done: false, title: `Việc ${code}`, code },
+    dependsOn: [],
+  });
+  const all: Record<string, any> = {
+    [tid(1)]: detail(tid(1), PA, 'PA-1'),
+    [tid(2)]: detail(tid(2), PB, 'PB-2'),
+    [tid(3)]: detail(tid(3), P, 'TEST-90'), // dự án không khai trong projects
+    [tid(4)]: detail(tid(4), BAD, 'BAD-3'),
+    [tid(5)]: detail(tid(5), PA, 'PA-5'),
+  };
+  getTaskHook = (a) => all[a.task];
+  const runTask = async (n: number) => {
+    const t = all[tid(n)].task;
+    const wake = {
+      kind: 'task' as const,
+      employee_code: 'NV120',
+      project_id: t.projectId,
+      task_id: t.id,
+      task_code: t.code,
+    };
+    const id = (await r.accept(r.agents.get('NV120')!, wake))!;
+    await r.process(st.claimNext(1, ['NV120'])!);
+    return st.getJob(id)!;
+  };
+  const outputOf = (jobId: number) => readFileSync(join(config.dataDir, 'jobs', String(jobId), 'output.log'), 'utf8');
+  try {
+    // doctor: dự án lỗi chỉ tắt riêng dự án đó (⚠), agent vẫn bật
+    const lines = (await r.checkAgents({ only: 'NV120', telegram: false })).map(formatFinding);
+    const text = lines.join('\n');
+    expect(lines.filter((l) => l.startsWith('✘'))).toEqual([]);
+    expect(text).toContain(`✔ NV120 (dự án PA): mã dự án → id ${PA}`);
+    expect(text).toContain('✔ NV120 (dự án PA): nhánh gốc release-a');
+    expect(text).toContain(`✔ NV120 (dự án PB): repo ${repoB}`);
+    for (const code of ['GONE', 'NOMEM', 'BAD'])
+      expect(lines.some((l) => l.startsWith(`⚠ NV120 (dự án ${code}):`) && l.includes('dự án TẮT'))).toBe(true);
+    expect(text).toContain('agent không phải thành viên');
+    const s = r.agents.get('NV120')!;
+    expect(s.enabled).toBe(true);
+    expect(s.cfg.projects.map((p) => !!p.problem)).toEqual([false, false, true, true, true]);
+
+    // việc dự án A → worktree của repo A, tách từ origin/release-a, push lên origin A; hook chặn nhánh gốc của dự án
+    const a = await runTask(1);
+    expect(a.status).toBe('done');
+    const wtA = join(config.worktreesDir, 'NV120/PA-1');
+    expect(existsSync(join(wtA, 'a-only.txt'))).toBe(true);
+    expect((await sh(['git', 'rev-list', '--count', 'origin/release-a..HEAD'], wtA)).out).toBe('1');
+    expect((await sh(['git', 'ls-remote', '--heads', 'origin', 'agent/nv120/pa-1'], repoA)).out).not.toBe('');
+    expect(outputOf(a.id)).toContain('base=release-a"'); // OFFICEHUB_BASE_BRANCH theo dự án của job
+    expect(readFileSync(join(repoA, '.git/hooks/pre-push'), 'utf8')).toContain('refs/heads/release-a|');
+
+    // việc dự án B → repo B (origin khác), nhánh gốc main
+    const b = await runTask(2);
+    expect(b.status).toBe('done');
+    const wtB = join(config.worktreesDir, 'NV120/PB-2');
+    expect(existsSync(join(wtB, 'b-only.txt'))).toBe(true);
+    expect(existsSync(join(wtB, 'AGENTS.md'))).toBe(false); // không phải repo A
+    expect((await sh(['git', 'ls-remote', '--heads', originB, 'agent/nv120/pb-2'], root)).out).not.toBe('');
+    expect((await sh(['git', 'ls-remote', '--heads', 'origin', 'agent/nv120/pb-2'], repoA)).out).toBe('');
+    expect(outputOf(b.id)).toContain('base=main"');
+
+    // dự án không khai (agent không có repo mặc định) → skipped + bình luận, không chạy CLI
+    const before = comments.length;
+    const none = await runTask(3);
+    expect(none.status).toBe('skipped');
+    expect(none.session_id).toBeNull();
+    expect(comments.length).toBe(before + 1);
+    expect(comments.at(-1)).toEqual({
+      task: tid(3),
+      content:
+        '**🤖 agent-runner** (NV120) — KHÔNG chạy: dự án TEST chưa gắn repo trên máy chạy agent (agents.yaml → projects)',
+    });
+    expect(existsSync(join(config.worktreesDir, 'NV120/TEST-90'))).toBe(false);
+
+    // dự án đang tắt (repo lỗi) → skipped + bình luận nêu lý do, KHÔNG rơi về repo khác
+    const off = await runTask(4);
+    expect(off.status).toBe('skipped');
+    expect(comments.at(-1)!.content).toContain('KHÔNG chạy: dự án BAD đang tắt trên máy chạy agent');
+
+    // tin column_entered của dự án chưa gắn repo → không xếp hàng
+    all[tid(3)] = { ...followTask(), task: { ...followTask().task, id: tid(3), projectId: P, code: 'TEST-90' } };
+    const follow = {
+      kind: 'follow' as const,
+      employee_code: 'NV120',
+      project_id: P,
+      task_id: tid(3),
+      task_code: 'TEST-90',
+    };
+    expect(await r.accept(s, follow)).toBeNull();
+
+    // bắt bù lúc khởi động: chỉ việc của dự án có repo vào hàng đợi
+    const row = (n: number) => {
+      const t = all[tid(n)].task;
+      return {
+        id: t.id,
+        projectId: t.projectId,
+        code: t.code,
+        waitingOn: 0,
+        awaitingHuman: false,
+        projectActive: true,
+      };
+    };
+    mine = [row(3), row(4), row(5)];
+    expect(await r.catchUp(s)).toBe(1);
+    const queued = st.db.query<any, []>(`SELECT task_code FROM jobs WHERE status = 'queued'`).all();
+    expect(queued).toEqual([{ task_code: 'PA-5' }]);
+
+    // mọi dự án lỗi + không có repo mặc định → agent tắt
+    hubProjects = {};
+    const dead = (await r.checkAgents({ only: 'NV120', telegram: false })).map(formatFinding);
+    expect(dead.some((l) => l.startsWith('✘ NV120: không dự án nào trong projects chạy được'))).toBe(true);
+    expect(s.enabled).toBe(false);
+  } finally {
+    getTaskHook = null;
+    mine = null;
+    hubProjects = {};
+    r.stop();
+    // trả hook của repo A về cấu hình của runner chính (các test khác dùng chung repo)
+    await runner.checkAgents({ only: 'NV120', telegram: false });
+  }
+}, 60000);

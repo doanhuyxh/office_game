@@ -294,6 +294,8 @@ export interface StartupPick {
   blocked: number;
   /** Dự án không còn chạy. */
   inactive: number;
+  /** Dự án chưa gắn repo trên máy chạy agent (TEST-200: `agents.yaml → projects`). */
+  noWorkspace: number;
   /** Dòng thiếu / sai id, dự án hoặc mã việc. */
   invalid: number;
 }
@@ -303,10 +305,23 @@ export interface StartupPick {
  * khác, và không phải việc bot đã báo xong đang chờ người (`awaitingHuman`, luật `BotWaitRules` của OfficeHub — TEST-157).
  * OfficeHub bản cũ không trả `awaitingHuman` → không đạt (không đoán: chạy lại việc đang chờ duyệt là đốt token).
  * Đây chỉ là bước chọn; từng việc vẫn qua `checkTask` (hỏi lại `get_task`) như tin đánh thức thường.
+ * @param hasWorkspace TEST-200: dự án của việc có nơi làm trên máy này không (`workspaceFor`) — không có thì việc không vào hàng đợi
+ *   (không mở job chỉ để bình luận "KHÔNG chạy" mỗi lần khởi động). Bỏ trống = dự án nào cũng có.
  */
-export function pickStartupTasks(list: unknown): Check<StartupPick> {
+export function pickStartupTasks(
+  list: unknown,
+  hasWorkspace: (projectId: string) => boolean = () => true,
+): Check<StartupPick> {
   if (!Array.isArray(list)) return { ok: false, reason: 'list_my_tasks không trả danh sách' };
-  const pick: StartupPick = { tasks: [], total: list.length, awaitingHuman: 0, blocked: 0, inactive: 0, invalid: 0 };
+  const pick: StartupPick = {
+    tasks: [],
+    total: list.length,
+    awaitingHuman: 0,
+    blocked: 0,
+    inactive: 0,
+    noWorkspace: 0,
+    invalid: 0,
+  };
   for (const row of list as (MyTask | null | undefined)[]) {
     const { id, projectId, code } = row ?? {};
     if (
@@ -325,6 +340,7 @@ export function pickStartupTasks(list: unknown): Check<StartupPick> {
     if (row!.projectActive !== true) pick.inactive++;
     else if (Number(row!.waitingOn ?? 0) > 0) pick.blocked++;
     else if (row!.awaitingHuman) pick.awaitingHuman++;
+    else if (!hasWorkspace(projectId)) pick.noWorkspace++;
     else pick.tasks.push({ id, projectId, code });
   }
   return { ok: true, value: pick };

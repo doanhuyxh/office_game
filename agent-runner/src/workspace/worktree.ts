@@ -11,19 +11,19 @@ export const worktreeWorkspace: WorkspaceStrategy = {
   mode: 'worktree',
   noBuiltinTools: false,
   async prepare(c, job) {
-    const { git, agent, config } = c;
+    const { git, place, config } = c;
     const fields = { job: job.id, agent: job.agent };
-    const onMain = await mainBranchWarning(git, agent, agent.baseBranch);
+    const onMain = await mainBranchWarning(git, place);
     if (onMain) log('warn', 'repo đang ở main / master', { ...fields, task: job.label, message: onMain });
     // Hook có thể bị xoá sau lúc khởi động → trước mỗi job kiểm tra, thiếu thì tạo lại (hook khác của người dùng: không ghi đè, chỉ cảnh báo).
-    for (const message of await installHooks(git, agent.repo, repoBaseBranches(config, agent.repo)))
+    for (const message of await installHooks(git, place.repo, repoBaseBranches(config, place.repo)))
       log('warn', 'hook git', { ...fields, message });
-    const ws = await prepareWorktree(git, agent.repo, config.worktreesDir, job.agent, job.label, agent.baseBranch);
+    const ws = await prepareWorktree(git, place.repo, config.worktreesDir, job.agent, job.label, place.baseBranch);
     if (ws.existing === 'origin')
       log('info', 'máy chưa có nhánh việc — lấy lại từ origin để làm tiếp', { ...fields, branch: ws.branch });
 
     const publish = async (title: string): Promise<Published> => {
-      const ch = await branchChanges(git, ws.path, agent.baseBranch);
+      const ch = await branchChanges(git, ws.path, place.baseBranch);
       const dirty = ch.dirty ? 'Còn thay đổi chưa commit trong worktree.' : '';
       const withDirty = (note: string) => [note, dirty].filter(Boolean).join(' ');
       if (ch.touchesProtected)
@@ -36,7 +36,7 @@ export const worktreeWorkspace: WorkspaceStrategy = {
       if (ch.ahead === 0) return { note: withDirty('Phiên kết thúc, nhánh không có commit mới.') };
       const body = `Việc OfficeHub **${job.label}** — agent ${job.agent}, tạo tự động bởi agent-runner (TEST-44). Người thật review trước khi merge.`;
       try {
-        const prUrl = await pushAndOpenPr(git, ws.path, ws.branch, agent.baseBranch, title, body);
+        const prUrl = await pushAndOpenPr(git, ws.path, ws.branch, place.baseBranch, title, body);
         return { prUrl, note: dirty };
       } catch (e) {
         const error = errText(e);

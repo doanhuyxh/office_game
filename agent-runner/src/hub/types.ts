@@ -34,6 +34,16 @@ export interface TaskDetail {
   blocks?: TaskRef[];
 }
 
+/** `get_project` — runner chỉ đọc id / mã / quyền làm việc để đổi mã dự án trong `agents.yaml → projects` thành id (TEST-200). */
+export interface ProjectDetail {
+  project?: {
+    id?: string;
+    code?: string;
+    /** Tài khoản của token được tạo / chuyển việc trong dự án (thành viên dự án đang chạy). */
+    canWork?: boolean;
+  };
+}
+
 /** Một việc liên quan trong `get_task` (dependsOn / blocks). */
 export interface TaskRef {
   code?: string;

@@ -39,8 +39,9 @@ export const agentHome = (a: AgentConfig) => a.executor.home ?? process.env.HOME
 /**
  * Biến môi trường cho tiến trình con của một agent: KHÔNG kế thừa toàn bộ env của runner (tránh lộ bí mật khác) — chỉ PATH / ngôn ngữ /
  * HOME + SSH_AUTH_SOCK + `env_file`. PATH có thư mục của git cấu hình ở đầu (CLI agent / gh / hook gọi đúng git đó).
+ * @param baseBranch nhánh gốc của DỰ ÁN mà job thuộc về (TEST-200: `workspaceFor(agent, job.project_id)`) — phiên không có repo thì bỏ trống.
  */
-export function agentEnv(a: AgentConfig, git: Git): Record<string, string> {
+export function agentEnv(a: AgentConfig, git: Git, baseBranch?: string): Record<string, string> {
   const env: Record<string, string> = {};
   const copy = (target: string, source = target) => {
     const value = process.env[source];
@@ -62,7 +63,7 @@ export function agentEnv(a: AgentConfig, git: Git): Record<string, string> {
   copy('SSH_AUTH_SOCK'); // SSH key sẵn có của máy (ssh-agent)
   if (a.envFile && existsSync(a.envFile)) Object.assign(env, readEnvFile(a.envFile));
   env.PATH = git.pathWithGit(env.PATH);
-  if (a.baseBranch) env[BASE_ENV] = a.baseBranch; // hook pre-push: phạm vi so của nhánh mới theo nhánh gốc của agent này
+  if (baseBranch) env[BASE_ENV] = baseBranch; // hook pre-push: phạm vi so của nhánh mới theo nhánh gốc của dự án đang làm
   env.GIT_TERMINAL_PROMPT = '0'; // không treo chờ mật khẩu
   return env;
 }
