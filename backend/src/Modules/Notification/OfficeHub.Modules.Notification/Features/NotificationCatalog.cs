@@ -80,7 +80,7 @@ internal static class NotificationCatalog
             "Thành viên dự án được @mã-nhân-viên trong bình luận (Telegram: chỉ tài khoản bot, kể cả người làm việc; không gửi khi bot tự nhắc mình).",
             NotificationCategories.ProjectTask, Telegram: nameof(ITelegramWakeup.TaskMentionedAsync)),
         new("projects.task_ready", "projects", "Việc sẵn sàng",
-            "Người làm (chưa giao thì quản lý dự án) khi mọi việc phải xong trước đã xong; bỏ người vừa thao tác (Telegram: chỉ khi có người làm là tài khoản bot).",
+            "Người làm (chưa giao thì quản lý dự án) khi việc vừa hết phải chờ: việc trước cuối cùng xong, sửa danh sách việc phải chờ hoặc xoá việc đứng trước; bỏ người vừa thao tác (Telegram: chỉ khi có người làm là tài khoản bot).",
             NotificationCategories.ProjectTask, Telegram: nameof(ITelegramWakeup.TaskReadyAsync)),
         new("projects.task_bot_blocked", "projects", "Bot bị chặn vì thao tác liên tiếp",
             "Quản lý dự án (trừ tài khoản bot) khi bot bị chặn trên một việc vì đã thao tác tới giới hạn lần liên tiếp mà chưa có người thật xem; " +

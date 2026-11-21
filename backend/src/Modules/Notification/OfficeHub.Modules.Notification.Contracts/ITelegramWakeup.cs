@@ -14,7 +14,7 @@ public interface ITelegramWakeup
     /// <summary>Việc bị trả lại (lùi kèm lý do) cho người làm là bot → cùng tin JSON như giao việc; agent kiểm tra lại việc qua MCP rồi làm lại.</summary>
     Task TaskReturnedAsync(Guid assigneeUserId, string employeeCode, Guid projectId, Guid taskId, string taskCode, CancellationToken ct = default);
 
-    /// <summary>Việc bot đang làm hết phải chờ (TEST-86: mọi việc trong dependsOn đã xong) → tin <c>event: ready</c>, cùng 4 trường như giao việc;
+    /// <summary>Việc bot đang làm hết phải chờ (TEST-86: mọi việc trong dependsOn đã xong; TEST-198: cả khi sửa dependsOn / xoá việc đứng trước) → tin <c>event: ready</c>, cùng 4 trường như giao việc;
     /// runner kiểm tra lại việc qua MCP rồi bắt đầu. Người gọi chỉ gửi khi việc có người làm và người làm không phải người vừa thao tác.</summary>
     Task TaskReadyAsync(Guid assigneeUserId, string employeeCode, Guid projectId, Guid taskId, string taskCode, CancellationToken ct = default);
 

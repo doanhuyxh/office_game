@@ -239,6 +239,39 @@ ok('B còn chờ: việc trước cuối cùng sang Xong → 204', (await finish
 ok('… đúng 1 tin ready cho bot 2', await until(() => wakes().length === before + 1) && (await sleep(3500), wakes().length === before + 1)
   && wakeData(wakes().at(-1)!).event === 'ready' && wakeData(wakes().at(-1)!).employee_code === B2.code && wakeData(wakes().at(-1)!).task_id === B3t,
   wakes().slice(before).map((x) => x.text));
+
+// ---- TEST-198: hết chờ vì sửa danh sách việc phải chờ / xoá việc đứng trước → cũng ready + chuông "Sẵn sàng" ----
+const notifs = async (c: string) => ((await json(c, 'GET', '/api/notifications?take=50')).body?.items ?? []) as any[];
+const bell = async (c: string, title: string) => (await notifs(c)).filter((n) => n.title.startsWith('Sẵn sàng') && n.title.includes(title)).length;
+const A6 = await mk('Trước 6'), B6t = await mk('Sau 6 (bot, bỏ chờ)', B1.e.id);
+const A7 = await mk('Trước 7 (bị xoá)'), B7t = await mk('Sau 7 (bot, việc trước bị xoá)', B2.e.id);
+const A8 = await mk('Trước 8a (bị xoá)'), C8 = await mk('Trước 8b'), B8t = await mk('Sau 8 (bot, còn chờ 8b)', B1.e.id);
+const D9 = await mk('Trước 9 (đã xong)'), A9 = await mk('Trước 9b'), B9t = await mk('Sau 9 (bot, thêm việc đã xong)', B1.e.id), B9u = await mk('Sau 9u (bot, vẫn chờ)', B2.e.id);
+ok('TEST-198: đặt việc phải chờ → 204', [await deps(B6t, [A6]), await deps(B7t, [A7]), await deps(B8t, [A8, C8]), await deps(B9u, [A9])].every((x) => x === 204));
+ok('… việc trước 9 sang Xong → 204', (await finish(D9)) === 204);
+await sleep(4000);
+before = wakes().length;
+ok('(a) sửa dependsOn của việc chờ thành rỗng → 204', (await deps(B6t, [])) === 204);
+ok('… đúng 1 tin ready cho bot làm việc đó', await until(() => wakes().length === before + 1) && (await sleep(3500), wakes().length === before + 1)
+  && wakeData(wakes().at(-1)!).event === 'ready' && wakeData(wakes().at(-1)!).employee_code === B1.code && wakeData(wakes().at(-1)!).task_id === B6t,
+  wakes().slice(before).map((x) => x.text));
+ok('… và đúng 1 chuông "Sẵn sàng" cho người làm', (await bell(B1.cookie, 'Sau 6')) === 1);
+ok('… lặp lại PUT rỗng → không gửi thêm', (await deps(B6t, [])) === 204 && (await sleep(3000), wakes().length === before + 1));
+before = wakes().length;
+ok('(b) xoá việc đứng trước → 204', (await json(PM.cookie, 'DELETE', `/api/projects/tasks/${A7}`)).status === 204);
+ok('… đúng 1 tin ready cho bot làm việc sau', await until(() => wakes().length === before + 1) && (await sleep(3500), wakes().length === before + 1)
+  && wakeData(wakes().at(-1)!).event === 'ready' && wakeData(wakes().at(-1)!).employee_code === B2.code && wakeData(wakes().at(-1)!).task_id === B7t,
+  wakes().slice(before).map((x) => x.text));
+ok('… và đúng 1 chuông "Sẵn sàng" (nêu việc bị xoá)', (await bell(B2.cookie, 'Sau 7')) === 1
+  && (await notifs(B2.cookie)).some((n) => n.title.includes('Sau 7') && n.body.includes('đã bị xoá')));
+before = wakes().length;
+ok('(c) xoá một việc trước nhưng việc kia chưa xong → 204', (await json(PM.cookie, 'DELETE', `/api/projects/tasks/${A8}`)).status === 204);
+ok('(d) thêm việc đã xong vào việc không chờ → 204', (await deps(B9t, [D9])) === 204);
+ok('(d\') thêm việc đã xong vào việc vẫn còn chờ → 204', (await deps(B9u, [A9, D9])) === 204);
+await sleep(4000);
+ok('… (c) (d) không gửi tin nào', wakes().length === before, wakes().slice(before).map((x) => x.text));
+ok('… và không có chuông "Sẵn sàng"', (await bell(B1.cookie, 'Sau 8')) === 0 && (await bell(B1.cookie, 'Sau 9')) === 0 && (await bell(B2.cookie, 'Sau 9u')) === 0);
+
 const A5 = await mk('Trước 5 (kênh tắt)'), B5t = await mk('Sau 5 (bot, kênh tắt)', B1.e.id);
 await deps(B5t, [A5]);
 await sleep(4000);

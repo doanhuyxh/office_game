@@ -430,25 +430,35 @@ internal static class TaskEndpoints
             var stillWaiting = await (from d in db.Dependencies.AsNoTracking() join y in db.Tasks.AsNoTracking() on d.DependsOnId equals y.Id
                                       where d.TaskId == x.Id && y.CompletedAt == null select d).AnyAsync(ct);
             if (stillWaiting) continue;
-            var to = new List<Guid>();
-            if (x.AssigneeEmployeeId is { } a)
-            {
-                if (await dir.GetAsync(a, ct) is { UserId: { } u } emp)
-                {
-                    to.Add(u);
-                    // TEST-86: đánh thức bot làm việc này qua Telegram (runner chỉ nghe Telegram). Việc chưa giao → không gửi.
-                    if (u != v.UserId) await telegram.TaskReadyAsync(u, emp.Code, p.Id, x.Id, EffortRules.TaskCode(p.Code, x.Number), ct);
-                }
-            }
-            else
-                foreach (var m in p.Members.Where(m => m.Role == ProjectMemberRole.Manager))
-                    if (await UserOfAsync(dir, m.EmployeeId, ct) is { } u) to.Add(u);
-            to.Remove(v.UserId);
-            if (to.Count == 0) continue;
-            await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.ProjectTask,
-                $"Sẵn sàng: {EffortRules.TaskCode(p.Code, x.Number)} {x.Title}",
-                $"{EffortRules.TaskCode(p.Code, done.Number)} \"{done.Title}\" đã xong — việc này hết phải chờ, có thể bắt đầu.", TaskNotifyRules.Link(p.Id, x.Id), SendEmail: false), ct);
+            await NotifyReadyAsync(notifier, dir, telegram, p, x, $"{EffortRules.TaskCode(p.Code, done.Number)} \"{done.Title}\" đã xong", v, ct);
         }
+    }
+
+    /// <summary>
+    /// Một việc vừa hết phải chờ (<see cref="DependencyRules.BecameReady"/>) — dùng chung cho 3 đường: việc trước xong, sửa danh sách việc phải chờ,
+    /// xoá việc đứng trước (TEST-198). Chuông "Sẵn sàng" cho người làm (chưa giao → quản lý dự án) + Telegram <c>ready</c> cho người làm; bỏ người thao tác.
+    /// </summary>
+    private static async Task NotifyReadyAsync(INotifier notifier, IEmployeeDirectory dir, ITelegramWakeup telegram, Project p, TaskItem x, string reason,
+        ProjectViewer v, CancellationToken ct)
+    {
+        var to = new List<Guid>();
+        if (x.AssigneeEmployeeId is { } a)
+        {
+            if (await dir.GetAsync(a, ct) is { UserId: { } u } emp)
+            {
+                to.Add(u);
+                // TEST-86: đánh thức bot làm việc này qua Telegram (runner chỉ nghe Telegram). Việc chưa giao → không gửi.
+                if (u != v.UserId) await telegram.TaskReadyAsync(u, emp.Code, p.Id, x.Id, EffortRules.TaskCode(p.Code, x.Number), ct);
+            }
+        }
+        else
+            foreach (var m in p.Members.Where(m => m.Role == ProjectMemberRole.Manager))
+                if (await UserOfAsync(dir, m.EmployeeId, ct) is { } u) to.Add(u);
+        to.Remove(v.UserId);
+        if (to.Count == 0) return;
+        await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.ProjectTask,
+            $"Sẵn sàng: {EffortRules.TaskCode(p.Code, x.Number)} {x.Title}",
+            $"{reason} — việc này hết phải chờ, có thể bắt đầu.", TaskNotifyRules.Link(p.Id, x.Id), SendEmail: false), ct);
     }
 
     /// <summary>
@@ -492,7 +502,8 @@ internal static class TaskEndpoints
 
     /// <summary>Đặt danh sách việc phải chờ (thay toàn bộ). Thành viên dự án đang chạy; cùng dự án, không vòng, ≤ 10.</summary>
     private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> SetDependenciesAsync(Guid tid, SetDependencies r, ClaimsPrincipal user,
-        ProjectsDbContext db, ProjectAccess access, ProjectClock clock, BotStreakGuard streak, CancellationToken ct)
+        ProjectsDbContext db, ProjectAccess access, ProjectClock clock, BotStreakGuard streak, IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram,
+        CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var (t, p) = await LoadAsync(tid, db, ct);
@@ -510,17 +521,22 @@ internal static class TaskEndpoints
         var current = await db.Dependencies.Where(d => d.TaskId == tid).ToListAsync(ct);
         var before = current.Select(d => d.DependsOnId).ToHashSet();
         if (before.SetEquals(wanted)) return TypedResults.NoContent();
+        // TEST-198: bỏ hết việc chưa xong khỏi danh sách → việc hết chờ, báo "Sẵn sàng" như khi việc trước xong
+        var all = before.Concat(wanted).ToList();
+        var unfinished = (await db.Tasks.AsNoTracking().Where(x => all.Contains(x.Id) && x.CompletedAt == null).Select(x => x.Id).ToListAsync(ct)).ToHashSet();
+        var ready = DependencyRules.BecameReady(t.CompletedAt != null, before.Count(unfinished.Contains), wanted.Count(unfinished.Contains));
         db.Dependencies.RemoveRange(current.Where(d => !wanted.Contains(d.DependsOnId)));
         var now = clock.Now;
         foreach (var id in wanted.Where(x => !before.Contains(x))) db.Dependencies.Add(new TaskDependency { TaskId = tid, DependsOnId = id, CreatedAt = now });
         string Codes(IEnumerable<Guid> ids) => string.Join(", ", ids.Select(i => EffortRules.TaskCode(p.Code, numbers[i])).Order());
         db.Activities.Add(Activity(t, TaskActivityKind.Depends, v, user, now, before.Count == 0 ? null : Codes(before), wanted.Count == 0 ? null : Codes(wanted)));
         await db.SaveChangesAsync(ct);
+        if (ready) await NotifyReadyAsync(notifier, dir, telegram, p, t, "Danh sách việc phải chờ vừa đổi", v, ct);
         return TypedResults.NoContent();
     }
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteAsync(Guid tid, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
-        IFileStorage files, CancellationToken ct)
+        IFileStorage files, IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var (t, p) = await LoadAsync(tid, db, ct);
@@ -537,9 +553,21 @@ internal static class TaskEndpoints
         // TEST-153: bình luận + tệp xoá theo cascade trong DB → xoá file S3 sau khi lưu
         var keys = await (from a in db.CommentAttachments.AsNoTracking() join c in db.Comments.AsNoTracking() on a.CommentId equals c.Id
                           where c.TaskId == t.Id select a.FileKey).ToListAsync(ct);
+        // TEST-198: việc đang chờ việc bị xoá (lấy TRƯỚC khi cascade xoá task_dependencies) + số việc chưa xong mỗi việc đang chờ
+        var open = t.CompletedAt == null; // việc đã xong thì không ai đang chờ nó
+        var dependents = await (
+            from d in db.Dependencies.AsNoTracking() join x in db.Tasks.AsNoTracking() on d.TaskId equals x.Id
+            where open && d.DependsOnId == t.Id && x.CompletedAt == null
+            select new
+            {
+                Task = x,
+                Unfinished = (from d2 in db.Dependencies join y in db.Tasks on d2.DependsOnId equals y.Id where d2.TaskId == x.Id && y.CompletedAt == null select d2).Count(),
+            }).ToListAsync(ct);
         db.Tasks.Remove(t);
         await db.SaveChangesAsync(ct);
         await CommentFileEndpoints.DeleteFilesAsync(files, keys, ct);
+        foreach (var x in dependents.Where(x => DependencyRules.BecameReady(false, x.Unfinished, x.Unfinished - 1)))
+            await NotifyReadyAsync(notifier, dir, telegram, p, x.Task, $"{EffortRules.TaskCode(p.Code, t.Number)} \"{t.Title}\" đã bị xoá", v, ct);
         return TypedResults.NoContent();
     }
 

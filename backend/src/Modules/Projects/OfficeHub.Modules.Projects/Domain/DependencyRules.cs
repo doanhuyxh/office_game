@@ -33,4 +33,12 @@ public static class DependencyRules
         byBot && leavingFirstColumn && unfinishedDependencies > 0
             ? $"Việc còn chờ {unfinishedDependencies} việc khác chưa xong — làm việc khác trước, sẽ có thông báo khi việc này sẵn sàng"
             : null;
+
+    /// <summary>
+    /// Việc vừa HẾT phải chờ (→ báo "Sẵn sàng"): chưa xong, trước đó còn chờ ít nhất một việc chưa xong, nay không còn.
+    /// Dùng cho cả 3 đường: việc trước xong, sửa danh sách việc phải chờ, xoá việc đứng trước (TEST-198).
+    /// Thêm một việc đã xong / sửa mà vẫn còn chờ / trước đó vốn không chờ → không báo.
+    /// </summary>
+    public static bool BecameReady(bool taskDone, int unfinishedBefore, int unfinishedAfter) =>
+        !taskDone && unfinishedBefore > 0 && unfinishedAfter == 0;
 }

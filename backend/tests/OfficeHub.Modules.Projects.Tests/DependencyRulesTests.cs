@@ -41,4 +41,15 @@ public class DependencyRulesTests
     [InlineData(1, true, false, false)]   // người thật: chỉ cảnh báo trên giao diện
     public void Bot_cannot_start_waiting_task(int unfinished, bool leaving, bool byBot, bool blocked) =>
         Assert.Equal(blocked, DependencyRules.StartError(unfinished, leaving, byBot) is not null);
+
+    // TEST-198: số việc chưa xong trước / sau thao tác → có báo "Sẵn sàng" không
+    [Theory]
+    [InlineData(false, 1, 0, true)]    // (a) A chờ B chưa xong → sửa dependsOn thành rỗng; (b) A chờ B → xoá B; việc trước xong
+    [InlineData(false, 2, 1, false)]   // (c) A chờ B, C → xoá B, C chưa xong
+    [InlineData(false, 0, 0, false)]   // (d) thêm một việc đã xong (trước đó không chờ)
+    [InlineData(false, 1, 1, false)]   // sửa mà vẫn còn chờ (thêm việc đã xong / đổi việc chưa xong khác)
+    [InlineData(false, 0, 1, false)]   // thêm việc chưa xong
+    [InlineData(true, 1, 0, false)]    // việc đã xong rồi
+    public void Became_ready_only_on_transition(bool done, int before, int after, bool ready) =>
+        Assert.Equal(ready, DependencyRules.BecameReady(done, before, after));
 }
