@@ -102,6 +102,19 @@ export function taskJobs(services: JobServices): JobHandler<WakeOf<'task'>> {
       const desk: DeskNote = { task: job.label };
       try {
         await work(s, job, signal, desk);
+        // Tin đánh thức mới tới giữa phiên (người thật trả việc / bình luận / @nhắc trong lúc bot đang làm → `rerun`) → hỏi lại OfficeHub
+        // và chạy thêm một lượt (vừa chạy xong nên thường nối phiên, prompt chỉ đọc phần mới). Không làm thì tin đó mất: sau phiên bot đã bình
+        // luận nên việc thành "chờ người", cả bắt bù lúc khởi động cũng bỏ qua.
+        if (store.getJob(job.id)?.rerun) {
+          log('info', 'có tin đánh thức mới giữa phiên — kiểm tra lại việc', { job: job.id, task: job.label });
+          await services.accept(s, {
+            kind: 'task',
+            employee_code: job.agent,
+            project_id: job.project_id,
+            task_id: job.key,
+            task_code: job.label,
+          });
+        }
       } catch (e) {
         if (!(e instanceof RunnerStopped)) desk.failure = 'Runner lỗi'; // Runner.process ghi failed + log
         throw e;

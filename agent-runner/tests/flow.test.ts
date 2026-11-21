@@ -31,6 +31,8 @@ let mine: any[] | null = null;
 let mineCalls = 0;
 /** Thay kết quả MCP get_task trong một test (TEST-180: đọc lại việc sau phiên follow); null = dùng `tasks`. */
 let getTaskHook: ((a: any) => any) | null = null;
+/** > 0 → get_task trả lỗi MCP ngần ấy lần (máy chủ tạm lỗi — runner phải thử lại nhận tin). */
+let getTaskFails = 0;
 /** Kết quả MCP list_chats (TEST-81). */
 let chats: any[] = [];
 let updatesServed = false;
@@ -115,6 +117,10 @@ beforeAll(async () => {
       const { name, arguments: a } = m.params;
       const text = (o: unknown) => reply({ content: [{ type: 'text', text: JSON.stringify(o) }] });
       if (name === 'get_my_profile') return text({ employee: { id: 'emp-1', code: 'NV120', fullName: 'Bot Thử' } });
+      if (name === 'get_task' && getTaskFails > 0) {
+        getTaskFails--;
+        return reply({ isError: true, content: [{ type: 'text', text: 'máy chủ đang khởi động lại' }] });
+      }
       if (name === 'get_task') return text(getTaskHook?.(a) ?? tasks[a.task] ?? tasks[T1]);
       if (name === 'list_chats') return text(chats);
       if (name === 'list_my_tasks') {
@@ -1244,5 +1250,72 @@ test('chat_mention: tin nhắc mới tới khi job cùng hội thoại đang ch�
     st.finish(next.id, 'skipped');
   } finally {
     rmSync(join(root, 'slow'), { force: true });
+  }
+}, 30000);
+
+test('việc: tin đánh thức mới tới khi job cùng việc đang chạy (người trả việc / bình luận) → xong thì chạy thêm một lượt, nối phiên', async () => {
+  const { r, st, dataDir } = await noneSetup();
+  const s = r.agents.get('NV120')!;
+  const wake = { kind: 'task' as const, employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' };
+  st.db.run(`DELETE FROM jobs WHERE task_id = ? AND status IN ('queued', 'running')`, [T1]);
+  writeFileSync(join(root, 'slow'), ''); // CLI giả chạy 1 giây
+  try {
+    const id = (await r.accept(s, wake))!;
+    const running = r.process(st.claimNext(1, ['NV120'])!);
+    await Bun.sleep(300);
+    expect(await r.accept(s, wake)).toBeNull(); // đang chạy → không xếp thêm, đánh dấu rerun
+    expect(st.getJob(id)!.rerun).toBe(1);
+    await running;
+    expect(st.getJob(id)!.status).toBe('done');
+    const next = st.db.query<any, [string]>(`SELECT * FROM jobs WHERE task_id = ? AND status = 'queued'`).get(T1);
+    expect(next).toMatchObject({ kind: 'task', task_code: 'TEST-45' }); // lượt chạy thêm đã vào hàng đợi
+    rmSync(join(root, 'slow'), { force: true });
+    await r.process(st.claimNext(1, ['NV120'])!);
+    expect(st.getJob(next.id)!.status).toBe('done');
+    expect(st.getJob(next.id)!.rerun).toBeNull(); // không có tin mới giữa lượt này → không chạy thêm nữa
+    expect(readFileSync(join(dataDir, 'jobs', String(next.id), 'args.txt'), 'utf8')).toContain('--session sess-biz');
+    expect(st.db.query(`SELECT 1 FROM jobs WHERE task_id = ? AND status = 'queued'`).get(T1)).toBeNull();
+  } finally {
+    rmSync(join(root, 'slow'), { force: true });
+  }
+}, 30000);
+
+test('nhận tin: không hỏi lại được OfficeHub → thử lại theo nhịp rồi xếp hàng; hết lượt thì bỏ; lệnh run và stop() không thử lại', async () => {
+  const { r, st } = await noneSetup();
+  const s = r.agents.get('NV120')!;
+  const wake = { kind: 'task' as const, employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' };
+  const queued = () => st.db.query<any, [string]>(`SELECT * FROM jobs WHERE task_id = ? AND status = 'queued'`).get(T1);
+  st.db.run(`DELETE FROM jobs WHERE task_id = ? AND status IN ('queued', 'running')`, [T1]);
+  r.admitRetryMs = [50, 50];
+  try {
+    // lỗi 2 lần → lần thử lại thứ 2 thành công
+    getTaskFails = 2;
+    expect(await r.accept(s, wake)).toBeNull();
+    expect(await waitFor(() => !!queued(), 3000)).toBe(true);
+    expect(getTaskFails).toBe(0);
+    st.finish(queued().id, 'skipped');
+
+    // lỗi quá số lượt thử lại → bỏ hẳn
+    getTaskFails = 5;
+    await r.accept(s, wake);
+    await Bun.sleep(400);
+    expect(getTaskFails).toBe(2); // 1 lần đầu + 2 lần thử lại
+    expect(queued()).toBeNull();
+
+    // lệnh run: không thử lại
+    getTaskFails = 1;
+    expect(await r.runNow(s, wake)).toEqual({ problem: 'Việc không chạy được (xem log ở trên)' });
+    await Bun.sleep(200);
+    expect(queued()).toBeNull();
+
+    // stop() huỷ lần thử lại đang chờ
+    getTaskFails = 1;
+    r.admitRetryMs = [150];
+    await r.accept(s, wake);
+    r.stop();
+    await Bun.sleep(300);
+    expect(queued()).toBeNull();
+  } finally {
+    getTaskFails = 0;
   }
 }, 30000);

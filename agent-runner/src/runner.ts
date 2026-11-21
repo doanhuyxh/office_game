@@ -17,6 +17,7 @@ import { sourceHost, USAGE_RETRY_MS, UsageReporter } from './hub/usage';
 import { createJobHandlers, type JobHandler, type JobHandlers } from './jobs';
 import { errText, log, registerSecret } from './log';
 import {
+  ADMIT_RETRY_SEC,
   MEETING_HOLD_SEC,
   SCHEDULE_POLL_MS,
   STARTUP_CATCHUP_MAX,
@@ -43,6 +44,10 @@ export class Runner {
   private readonly abort = new AbortController();
   private readonly running = new Map<number, AbortController>();
   private usageTimer?: ReturnType<typeof setInterval>;
+  /** Lần thử lại hỏi OfficeHub đang chờ ({@link accept}) — `stop()` huỷ hết. */
+  private readonly admitRetries = new Set<ReturnType<typeof setTimeout>>();
+  /** Nhịp thử lại khi không hỏi lại được OfficeHub (ms); test đặt ngắn hơn. */
+  admitRetryMs = ADMIT_RETRY_SEC.map((sec) => sec * 1000);
   /** Git của runner (env của runner); thao tác cho agent dùng `gitFor(agent)` (HOME / PATH của agent). */
   readonly git: Git;
   private readonly handlers: JobHandlers;
@@ -190,9 +195,11 @@ export class Runner {
 
   /**
    * Nhận một tin đánh thức: handler của loại job hỏi lại OfficeHub bằng token của agent (lớp bảo vệ thật) rồi xếp hàng.
-   * Trả id job; null = bỏ qua, hoặc khoá đã có job đang chờ / chạy (job chat / họp đang chạy được đánh dấu chạy thêm một lượt).
+   * Trả id job; null = bỏ qua, hoặc khoá đã có job đang chờ / chạy (job đang chạy được đánh dấu chạy thêm một lượt).
+   * Không hỏi được OfficeHub (mạng / máy chủ đang deploy) → thử lại nền theo {@link admitRetryMs} (trả null ngay); `retry: false` (lệnh `run`)
+   * thì bỏ luôn.
    */
-  async accept(s: AgentState, wake: Wake): Promise<number | null> {
+  async accept(s: AgentState, wake: Wake, o: { retry?: boolean; attempt?: number } = {}): Promise<number | null> {
     const handler = this.handlerOf(wake.kind);
     const agent = s.cfg.employeeCode;
     const label = handler.label(wake);
@@ -209,7 +216,26 @@ export class Runner {
         return null;
       }
     } catch (e) {
-      log('warn', handler.text.checkFailed, { ...fields, error: errText(e) });
+      const attempt = o.attempt ?? 0;
+      const delay = o.retry === false || this.abort.signal.aborted ? undefined : this.admitRetryMs[attempt];
+      if (delay === undefined) {
+        log('warn', handler.text.checkFailed, { ...fields, error: errText(e), attempts: attempt + 1 });
+        return null;
+      }
+      log('warn', `${handler.text.checkFailed} — thử lại sau ${Math.round(delay / 1000)} giây`, {
+        ...fields,
+        error: errText(e),
+        attempt: attempt + 1,
+      });
+      const timer = setTimeout(() => {
+        this.admitRetries.delete(timer);
+        if (this.abort.signal.aborted) return;
+        void this.accept(s, wake, { attempt: attempt + 1 }).catch((err) =>
+          log('warn', 'thử lại nhận tin lỗi', { ...fields, error: errText(err) }),
+        );
+      }, delay);
+      timer.unref?.(); // không giữ tiến trình sống chỉ vì lần thử lại (listener / scheduler đã giữ)
+      this.admitRetries.add(timer);
       return null;
     }
     const id = this.store.enqueue(agent, handler.key(wake, agent), label, handler.projectId(wake), handler.kind);
@@ -300,7 +326,7 @@ export class Runner {
    */
   async runNow(s: AgentState, wake: Wake): Promise<{ job?: Job; problem?: string }> {
     const agent = s.cfg.employeeCode;
-    if (!(await this.accept(s, wake))) return { problem: 'Việc không chạy được (xem log ở trên)' };
+    if (!(await this.accept(s, wake, { retry: false }))) return { problem: 'Việc không chạy được (xem log ở trên)' };
     const job = this.store.claimNext(1, [agent]);
     if (!job) return { problem: 'Agent đang có job khác chạy' };
     await this.process(job);
@@ -429,6 +455,8 @@ export class Runner {
   stop() {
     this.abort.abort();
     clearInterval(this.usageTimer);
+    for (const t of this.admitRetries) clearTimeout(t);
+    this.admitRetries.clear();
     for (const s of this.agents.values()) {
       s.presence.stop();
       s.activity.stop();

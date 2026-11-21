@@ -23,3 +23,9 @@ export const STARTUP_CATCHUP_MAX = 20;
 
 /** Bắt bù lúc khởi động: việc có job vừa kết thúc trong ngần này phút thì bỏ qua (runner khởi động lại liên tục không chạy lại cùng một việc). */
 export const STARTUP_RECENT_JOB_MIN = 10;
+
+/**
+ * Nhận tin: không hỏi lại được OfficeHub (mạng / máy chủ đang deploy) → thử lại sau lần lượt ngần này giây rồi mới bỏ. Lệnh `run` không thử lại.
+ * Hết lượt mà vẫn lỗi: job việc còn được bắt bù ở lần khởi động sau; chat / họp thì mất.
+ */
+export const ADMIT_RETRY_SEC = [30, 120, 600];

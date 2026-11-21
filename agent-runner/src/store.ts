@@ -259,14 +259,14 @@ export class Store {
   /** Job đang chạy khi runner tắt đột ngột → đưa lại vào hàng đợi (phiên cũ nối tiếp được nếu CLI hỗ trợ). */
   recoverRunning(): number {
     return this.db.run(
-      `UPDATE jobs SET status = 'queued', started_at = NULL, reason = 'runner khởi động lại' WHERE status = 'running'`,
+      `UPDATE jobs SET status = 'queued', started_at = NULL, rerun = NULL, reason = 'runner khởi động lại' WHERE status = 'running'`,
     ).changes;
   }
 
   /**
    * Thêm job; khoá đã có job đang chờ / chạy → null (khoá theo task_id, không chạy trùng).
-   * Job không phải việc (chat): khoá đang CHẠY → đánh dấu `rerun` để xong thì runner kiểm tra lại (tin mới tới giữa phiên không bị rơi);
-   * đang chờ thì không cần (lúc chạy sẽ đọc cả tin mới).
+   * Khoá đang CHẠY → đánh dấu `rerun` để xong thì handler kiểm tra lại (tin mới tới giữa phiên không bị rơi — mọi loại job, kể cả việc:
+   * người thật trả việc / bình luận trong lúc bot đang làm); đang chờ thì không cần (lúc chạy sẽ đọc cả tin mới).
    */
   enqueue(agent: string, key: string, label: string, projectId: string, kind: JobKind = 'task'): number | null {
     try {
@@ -277,7 +277,7 @@ export class Store {
       return Number(r.lastInsertRowid);
     } catch (e) {
       if (!String(e).includes('UNIQUE')) throw e;
-      if (kind !== 'task') this.db.run(`UPDATE jobs SET rerun = 1 WHERE task_id = ? AND status = 'running'`, [key]);
+      this.db.run(`UPDATE jobs SET rerun = 1 WHERE task_id = ? AND status = 'running'`, [key]);
       return null;
     }
   }
@@ -304,19 +304,21 @@ export class Store {
     })();
   }
 
-  /** Hoãn job đang chạy dở khâu chuẩn bị (agent đang họp): về hàng đợi, tới `untilIso` mới được lấy lại. */
+  /**
+   * Hoãn job đang chạy dở khâu chuẩn bị (agent đang họp): về hàng đợi, tới `untilIso` mới được lấy lại.
+   * Về hàng đợi = lúc chạy sẽ đọc trạng thái mới → bỏ `rerun` (như {@link requeue}, {@link recoverRunning}).
+   */
   hold(id: number, untilIso: string, reason: string) {
-    this.db.run(`UPDATE jobs SET status = 'queued', started_at = NULL, not_before = ?, reason = ? WHERE id = ?`, [
-      untilIso,
-      reason,
-      id,
-    ]);
+    this.db.run(
+      `UPDATE jobs SET status = 'queued', started_at = NULL, rerun = NULL, not_before = ?, reason = ? WHERE id = ?`,
+      [untilIso, reason, id],
+    );
   }
 
   /** Runner được dừng giữa phiên (SIGTERM / deploy): job đang chạy về hàng đợi, lần khởi động sau chạy lại — không tính là phiên lỗi. */
   requeue(id: number, reason: string) {
     this.db.run(
-      `UPDATE jobs SET status = 'queued', started_at = NULL, reason = ? WHERE id = ? AND status = 'running'`,
+      `UPDATE jobs SET status = 'queued', started_at = NULL, rerun = NULL, reason = ? WHERE id = ? AND status = 'running'`,
       [reason, id],
     );
   }

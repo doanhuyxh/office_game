@@ -39,7 +39,18 @@ describe('store', () => {
     expect(s.claimNext(2, ['NV1'])!.id).toBe(t);
     expect(s.claimNext(2, ['NV1'])).toBeNull(); // agent đang làm việc → chat chờ (mỗi agent 1 phiên)
     expect(s.enqueue('NV1', 't1', 'A-1', 'p')).toBeNull();
-    expect(s.getJob(t)!.rerun).toBeNull(); // job việc không dùng rerun
+    expect(s.getJob(t)!.rerun).toBe(1); // việc đang chạy cũng đánh dấu rerun (tin mới giữa phiên không rơi)
+    s.requeue(t, 'runner dừng');
+    expect(s.getJob(t)!.rerun).toBeNull(); // về hàng đợi → lúc chạy đọc trạng thái mới, bỏ rerun
+    expect(s.claimNext(2, ['NV1'])!.id).toBe(t);
+    s.enqueue('NV1', 't1', 'A-1', 'p');
+    s.hold(t, new Date(0).toISOString(), 'đang họp');
+    expect(s.getJob(t)!.rerun).toBeNull();
+    expect(s.claimNext(2, ['NV1'])!.id).toBe(t);
+    s.enqueue('NV1', 't1', 'A-1', 'p');
+    expect(s.recoverRunning()).toBe(1);
+    expect(s.getJob(t)!.rerun).toBeNull();
+    expect(s.claimNext(2, ['NV1'])!.id).toBe(t);
     s.finish(t, 'done');
     expect(s.claimNext(2, ['NV1'])!.id).toBe(c);
     expect(s.enqueue('NV1', 'conv1', 'chat:conv1', '', 'chat')).toBeNull(); // đang chạy → rerun

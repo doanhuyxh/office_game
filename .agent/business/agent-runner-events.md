@@ -45,6 +45,6 @@ Mỗi tin = **một lượt nói** = một job ngắn.
 
 ## Test / chưa làm
 
-`validator.test.ts` (parseWake / check*), `prompt.test.ts`, `store.test.ts`, `flow.test.ts` (chat: xếp hàng, gộp, nối phiên, quá 10 phút, đã đọc → bỏ, rerun, kênh office), `meeting.test.ts` (MCP giả giữ lượt + CLI giả phát biểu: hai agent nói lần lượt, nối phiên, bỏ lượt thay, lượt đã qua, việc hoãn khi đang họp, đang làm việc → bỏ lượt, lượt mới giữa phiên).
+`validator.test.ts` (parseWake / check*), `prompt.test.ts`, `store.test.ts`, `flow.test.ts` (chat: xếp hàng, gộp, nối phiên, quá 10 phút, đã đọc → bỏ, rerun, kênh office; việc: rerun → chạy thêm một lượt nối phiên; thử lại khi không hỏi được OfficeHub), `meeting.test.ts` (MCP giả giữ lượt + CLI giả phát biểu: hai agent nói lần lượt, nối phiên, bỏ lượt thay, lượt đã qua, việc hoãn khi đang họp, đang làm việc → bỏ lượt, lượt mới giữa phiên).
 
 Chưa thử với OfficeHub thật (người thật @nhắc bot; mở họp 2–3 agent). Chưa có: trần chi phí riêng mỗi cuộc họp, tin tổng chi phí vào kênh phòng.
