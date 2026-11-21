@@ -51,7 +51,7 @@ agents:
     #   builtin_tools: false                     # chỉ mode none: true = phiên việc CÓ shell / đọc ghi file trong thư mục việc (vẫn không repo) —
     #                                            #   cho bot thiết kế (curl tải ảnh lên), DevOps (gh / ssh theo hướng dẫn); chat / họp vẫn chỉ MCP — xem NV140
     executor:
-      kind: claude # claude | codex | custom
+      kind: claude # claude | codex | antigravity | custom
       bin: /usr/local/bin/claude
       model: claude-sonnet-5-5
       home: /srv/agents/NV120/home # HOME riêng (đăng nhập CLI, gh auth login, ~/.claude)
@@ -78,6 +78,21 @@ agents:
       home: /srv/agents/NV122/home
       timeout_min: 60
       extra_args: [] # cờ thêm cho `codex exec`, vd ["-c", "model_reasoning_effort=\"high\""]
+
+  - employee_code: NV123 # agent chạy Google Antigravity CLI (`agy`, model Gemini…) — đăng nhập một lần: `HOME=<home bên dưới> agy`
+    telegram_bot: "@agent_dev04_bot"
+    telegram_token: "333333333:AA…"
+    token: "ohk_vvvvvvvvvvvvvvvv"
+    projects:
+      - project: OFFICE
+        repo: /srv/agents/NV123/office_game
+    executor:
+      kind: antigravity # runner tự ghi MCP OfficeHub vào <home>/.gemini/config/mcp_config.json (qua cầu nối mcp-bridge, token chỉ ở env)
+      bin: /usr/local/bin/agy
+      model: gemini-3.8-flash-high # tên trong `agy models`; không có max_budget_usd / max_turns (CLI không hỗ trợ) — chỉ timeout_min
+      home: /srv/agents/NV123/home # NÊN đặt HOME riêng: file MCP của HOME này do runner ghi mỗi phiên
+      timeout_min: 60
+      extra_args: [] # cờ thêm cho `agy`, vd ["--effort", "high"]; MCP thêm khai bằng `agy mcp add` trong HOME của agent
 
   - employee_code: NV121
     telegram_bot: "@agent_dev02_bot"

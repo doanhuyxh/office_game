@@ -9,6 +9,7 @@ import { run } from './commands/run';
 import { start } from './commands/start';
 import { usagePush } from './commands/usage-push';
 import { ConfigError, loadConfig } from './config';
+import { BRIDGE_COMMAND, runMcpBridge, stdinLines } from './hub/mcp-bridge';
 import { errText, log, setLogFormat } from './log';
 import { Runner } from './runner';
 import { Store } from './store';
@@ -30,7 +31,10 @@ const HELP = `officehub-agent-runner — bộ điều phối agent (TEST-44)
   --no-model-check  không chạy thử CLI để đọc model thật (mỗi agent tốn vài trăm token)
   --no-catchup      start: không bắt bù việc lúc khởi động (hoặc runner.startup_catchup: false trong agents.yaml)
 
-  --config <file>   mặc định $RUNNER_CONFIG hoặc /etc/officehub-runner/agents.yaml`;
+  --config <file>   mặc định $RUNNER_CONFIG hoặc /etc/officehub-runner/agents.yaml
+
+  mcp-bridge --url <mcp> [--bearer-env OFFICEHUB_TOKEN]
+                                      (CLI agent tự gọi) cầu nối MCP stdio → HTTP, token lấy từ biến môi trường`;
 
 const DEFAULT_CONFIG = '/etc/officehub-runner/agents.yaml';
 
@@ -52,6 +56,8 @@ function readArgs(argv: string[]) {
       'no-model-check': { type: 'boolean' },
       'no-catchup': { type: 'boolean' },
       'dry-run': { type: 'boolean' },
+      url: { type: 'string' },
+      'bearer-env': { type: 'string' },
       help: { type: 'boolean' },
     },
   });
@@ -65,7 +71,15 @@ function readArgs(argv: string[]) {
     catchUp: !values['no-catchup'],
     dryRun: !!values['dry-run'],
   };
-  return { command: positionals[0], args: positionals.slice(1), flags, config: values.config, help: !!values.help };
+  const bridge = { url: values.url, bearerEnv: values['bearer-env'] };
+  return {
+    command: positionals[0],
+    args: positionals.slice(1),
+    flags,
+    config: values.config,
+    help: !!values.help,
+    bridge,
+  };
 }
 
 async function main(): Promise<number> {
@@ -78,6 +92,15 @@ async function main(): Promise<number> {
   }
   if (!cli.command || cli.help || cli.command === 'help') {
     console.log(HELP);
+    return 0;
+  }
+  // Cầu nối MCP stdio → HTTP cho CLI agent (TEST-201): CLI agent tự gọi lệnh này, không đọc agents.yaml, stdout chỉ có JSON-RPC.
+  if (cli.command === BRIDGE_COMMAND) {
+    if (!cli.bridge.url) {
+      console.error(`${BRIDGE_COMMAND} cần --url <địa chỉ MCP>`);
+      return 2;
+    }
+    await runMcpBridge(cli.bridge.url, cli.bridge.bearerEnv, stdinLines(), (line) => process.stdout.write(`${line}\n`));
     return 0;
   }
   const command = COMMANDS[cli.command];

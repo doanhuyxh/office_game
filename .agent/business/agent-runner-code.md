@@ -7,7 +7,7 @@
 | Nơi | Việc |
 |---|---|
 | `cli.ts` | Đọc dòng lệnh (`node:util` `parseArgs` — cờ lạ báo lỗi, mã thoát 2), đọc cấu hình, mở `Store` + `Runner`, gọi lệnh trong bảng `COMMANDS` |
-| `commands/` | Mỗi lệnh một file trả mã thoát: `start.ts`, `doctor.ts`, `run.ts`, `report.ts`, `usage-push.ts`; `context.ts` (`CliContext`, `CliFlags`) |
+| `commands/` | Mỗi lệnh một file trả mã thoát: `start.ts`, `doctor.ts`, `run.ts`, `report.ts`, `usage-push.ts`; `context.ts` (`CliContext`, `CliFlags`). Lệnh `mcp-bridge` (CLI agent tự gọi, không đọc `agents.yaml`) xử lý thẳng trong `cli.ts` → `hub/mcp-bridge.ts` |
 | `runner.ts` | Nối dây: tạo agent, Listener (Telegram), `accept(agent, wake)` (nhận tin, chung cho mọi loại), Scheduler, `process(job)` gọi handler của loại job |
 | `jobs/` | Mỗi loại job một handler (`JobHandler` ở `handler.ts`): `task.ts`, `chat.ts`, `meeting.ts`, `follow.ts` (người theo dõi, TEST-180); registry `index.ts` theo `Wake['kind']` (job loại cũ trong DB → `currentKind`). Handler khai: khoá + nhãn job, câu log, `admit` (hỏi lại OfficeHub lúc nhận tin), `run` (kiểm tra lại → phiên CLI → kết quả) |
 | `policy.ts` | Mọi hằng số chính sách: `RESUME_MAX_GAP_MIN`, `MEETING_*`, `SCHEDULE_POLL_MS`, `TELEGRAM_RETRY_SEC` |
@@ -17,7 +17,7 @@
 | `core/session.ts` | `Sessions`: vòng đời một phiên CLI dùng chung cho mọi loại job — `resumeFor` → `run` → `record` (phiên + transcript) → `finish` (kết quả + mức dùng AI); `succeeded(out)`; `RunnerStopped` |
 | `doctor/` | `agent.ts`: mỗi bước kiểm tra một hàm, lỗi ném `CheckFailed`; `model.ts`: chạy thử model; `finding.ts`: `Finding { level, agent, scope, text }` + `formatFinding` / `hasFailure` |
 | `hub/` | Mọi thứ nói chuyện với OfficeHub: `client.ts` (tool MCP), `types.ts` (kiểu kết quả tool: `TaskDetail`, `ChatSummary`, `MeetingState` — mọi trường tuỳ chọn, `validator.ts` kiểm tra), `endpoint.ts` (`HubEndpoint` + `FailureLog`), `presence.ts`, `activity.ts`, `usage.ts`, `transcript.ts` |
-| `executor/` | `Adapter` (`types.ts`) + `run.ts` (chạy tiến trình), `adapters/index.ts` (registry `adapters` / `ExecutorKind`), mỗi CLI một thư mục `adapters/<tên>/` (`claude/`: `index.ts` + `events.ts` + `home.ts`; `codex/`: `index.ts` + `events.ts` + `session.ts`; `custom/`), `adapters/shared.ts` (đọc JSONL, đọc MCP của job, cảnh báo HOME), `events.ts`, `model.ts` |
+| `executor/` | `Adapter` (`types.ts`) + `run.ts` (chạy tiến trình), `adapters/index.ts` (registry `adapters` / `ExecutorKind`), mỗi CLI một thư mục `adapters/<tên>/` (`claude/`: `index.ts` + `events.ts` + `home.ts`; `codex/`, `antigravity/`: `index.ts` + `events.ts` + `session.ts`; `custom/`), `adapters/shared.ts` (đọc JSONL, đọc MCP của job, cảnh báo HOME), `events.ts`, `model.ts` |
 | `prompt/` | Prompt theo mode (`worktree` / `in-place` / `none`) + chat / họp |
 | `workspace/` | `git.ts`: lớp `Git`, hook, lệnh git của worktree / in_place / PR. Mỗi mode một `WorkspaceStrategy` (`strategy.ts`): `worktree.ts`, `in-place.ts`, `none.ts` — `prepare(c, job)` trả nơi làm + hàm `publish` (`c.place` = nơi làm của dự án, không đọc `agent.repo`); registry `index.ts` |
 | `store.ts`, `validator.ts`, `config.ts`, `telegram.ts`, `log.ts`, `report.ts` | Hàng đợi SQLite · kiểm tra tin đánh thức · đọc `agents.yaml` · Bot API · log · bảng `report` |

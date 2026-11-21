@@ -1,4 +1,4 @@
-// Adapter CLI (claude, codex, custom): lệnh, đọc output, model thật, transcript, HOME.
+// Adapter CLI (claude, codex, antigravity, custom): lệnh, đọc output, model thật, transcript, HOME.
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -10,6 +10,9 @@ import { resultComment } from '../src/jobs/task';
 import { codexAdapter, codexMcpArgs } from '../src/executor/adapters/codex';
 import { codexEvents } from '../src/executor/adapters/codex/events';
 import { codexHasSession, codexSessionModel } from '../src/executor/adapters/codex/session';
+import { antigravityAdapter, antigravitySettings, parseProbe as agyProbe } from '../src/executor/adapters/antigravity';
+import { antigravityEvents } from '../src/executor/adapters/antigravity/events';
+import { antigravityHasSession, antigravityMcpFile } from '../src/executor/adapters/antigravity/session';
 import { customAdapter, fillArgs } from '../src/executor/adapters/custom';
 import type { ExecContext, ExecResult } from '../src/executor/types';
 import { MCP_SYSTEM_PROMPT } from '../src/prompt/system';
@@ -443,6 +446,203 @@ describe('executor adapters', () => {
       expect(w).toContain('auth.json');
       expect(w).toContain('max_budget_usd');
       rmSync(dir, { recursive: true, force: true });
+    });
+  });
+
+  describe('antigravity (TEST-201)', () => {
+    const home = mkdtempSync(join(tmpdir(), 'agy-'));
+    const mcp = join(home, 'job-mcp.json');
+    writeFileSync(
+      mcp,
+      JSON.stringify({
+        mcpServers: {
+          officehub: {
+            type: 'http',
+            url: 'https://x.test/mcp?profile=task',
+            headers: { Authorization: 'Bearer ${OFFICEHUB_TOKEN}' },
+          },
+        },
+      }),
+    );
+    const ax: ExecContext = {
+      ...ctx,
+      mcpConfigFile: mcp,
+      exec: { ...exec, kind: 'antigravity', bin: '/usr/local/bin/agy', model: 'gemini-x', home },
+    };
+    const fixture = (name: string) =>
+      readFileSync(join(import.meta.dir, 'fixtures', name), 'utf8')
+        .split('\n')
+        .filter(Boolean);
+
+    test('cấu hình kind antigravity hợp lệ; --mcp-config trong extra_args → lỗi', () => {
+      const raw = baseRaw();
+      (raw.agents[0] as any).executor = { kind: 'antigravity', bin: '/usr/local/bin/agy' };
+      expect(parseConfig(raw).agents[0]!.executor.kind).toBe('antigravity');
+      (raw.agents[0] as any).executor.extra_args = ['--mcp-config', '/x/mcp.json'];
+      expect(() => parseConfig(raw)).toThrow('--mcp-config');
+    });
+
+    test('lệnh phiên có công cụ: stream-json, model, tự duyệt, prompt là giá trị của -p ở cuối; MCP ghi vào HOME qua cầu nối, không có token', () => {
+      const c = antigravityAdapter.command({ ...ax, prompt: '-bắt đầu bằng gạch' });
+      expect(c.bin).toBe('/usr/local/bin/agy');
+      expect(c.args.slice(0, 2)).toEqual(['--output-format', 'stream-json']);
+      expect(c.args).toContain('--dangerously-skip-permissions');
+      expect(c.args).not.toContain('--sandbox');
+      expect(c.args.slice(c.args.indexOf('--model'), c.args.indexOf('--model') + 2)).toEqual(['--model', 'gemini-x']);
+      expect(c.args.slice(-2)).toEqual(['-p', '-bắt đầu bằng gạch']);
+      expect(JSON.parse(c.args[c.args.indexOf('--settings') + 1]!)).toEqual({
+        permissions: { allow: ['mcp(officehub/*)'] },
+      });
+      // file MCP trong HOME của agent: máy chủ stdio = cầu nối của runner, chỉ có URL + TÊN biến môi trường
+      const file = JSON.parse(readFileSync(antigravityMcpFile(home), 'utf8'));
+      const server = file.mcpServers.officehub;
+      expect(server.args.slice(-5)).toEqual([
+        'mcp-bridge',
+        '--url',
+        'https://x.test/mcp?profile=task',
+        '--bearer-env',
+        'OFFICEHUB_TOKEN',
+      ]);
+      expect(server.command).toBe(process.execPath);
+      expect(JSON.stringify(file) + c.args.join(' ')).not.toContain('Bearer');
+    });
+
+    test('lệnh phiên chỉ MCP: không tự duyệt, sandbox + cấm lệnh; nối phiên --conversation; máy chủ MCP người dùng tự khai được giữ', () => {
+      const file = antigravityMcpFile(home);
+      mkdirSync(join(home, '.gemini', 'config'), { recursive: true });
+      writeFileSync(
+        file,
+        JSON.stringify({ mcpServers: { stitch: { serverUrl: 'https://stitch.test/mcp' } }, khac: 1 }),
+      );
+      const c = antigravityAdapter.command({ ...ax, noBuiltinTools: true, resumeSessionId: 'conv-1' });
+      expect(c.args).not.toContain('--dangerously-skip-permissions');
+      expect(c.args).toContain('--sandbox');
+      expect(c.args.slice(c.args.indexOf('--conversation'), c.args.indexOf('--conversation') + 2)).toEqual([
+        '--conversation',
+        'conv-1',
+      ]);
+      expect(antigravitySettings(['officehub'], true)).toBe(
+        '{"permissions":{"allow":["mcp(officehub/*)"],"deny":["command(*)"]}}',
+      );
+      expect(c.args).toContain(antigravitySettings(['officehub'], true));
+      const written = JSON.parse(readFileSync(file, 'utf8'));
+      expect(written.khac).toBe(1);
+      expect(Object.keys(written.mcpServers).sort()).toEqual(['officehub', 'stitch']);
+      expect(antigravityAdapter.caps).toEqual({ resume: true, toolRestriction: false });
+      // file MCP hỏng → ghi lại từ đầu, không ném lỗi
+      writeFileSync(file, '');
+      antigravityAdapter.command(ax);
+      expect(Object.keys(JSON.parse(readFileSync(file, 'utf8')).mcpServers)).toEqual(['officehub']);
+    });
+
+    test('đọc output thật (agy 1.5.14): phiên, model, tóm tắt, token cộng theo bước (vào gồm cache), số lượt', () => {
+      const r: ExecResult = {};
+      for (const l of fixture('antigravity-stream.jsonl')) antigravityAdapter.parseLine(l, r);
+      expect(r).toEqual({
+        sessionId: '11111111-2222-4333-8444-555555555555',
+        model: 'gemini-3.8-flash-low',
+        summary: 'Lệnh `echo hi` đã chạy, nội dung note.txt là "xin chao".',
+        inputTokens: 9458 + 2347 + 7411,
+        outputTokens: 127 + 108,
+        cacheReadTokens: 7411,
+        turns: 3, // 2 công cụ + lượt trả lời cuối
+        isError: false,
+      });
+      // không có chi phí USD → bình luận chỉ ghi token
+      const out = { ...r, exitCode: 0, timedOut: false, durationSec: 60, stderrTail: '' } as any;
+      expect(resultComment({ agent: 'NV170' }, out, undefined, '', true)).toContain(
+        '- Token: 19,216 token vào (7,411 đọc từ cache) / 235 ra',
+      );
+    });
+
+    test('thao tác bị từ chối ở headless (CLI vẫn thoát 0, SUCCESS) → báo lỗi, không thành công giả; trạng thái khác SUCCESS → lỗi', () => {
+      const r: ExecResult = {};
+      for (const l of fixture('antigravity-denied.jsonl')) antigravityAdapter.parseLine(l, r);
+      expect(r.isError).toBe(true);
+      expect(r.errorKind).toBe('denied_actions');
+      expect(r.summary).toContain('từ chối thao tác cần duyệt (mcp)');
+      expect(r.inputTokens).toBe(9820); // không có số theo bước trong đoạn này → lấy số của result
+      const f: ExecResult = {};
+      antigravityAdapter.parseLine(
+        '{"event":"result","result":{"conversation_id":"","status":"ERROR","response":"","error":"quota exceeded\\nchi tiết"}}',
+        f,
+      );
+      expect(f).toMatchObject({ isError: true, errorKind: 'ERROR', summary: 'quota exceeded' });
+    });
+
+    test('log tiến độ + sự kiện xem trực tiếp: lệnh kèm output, file chỉ đường dẫn, MCP chỉ tên, lời agent gom text_delta', () => {
+      const lines = fixture('antigravity-stream.jsonl');
+      expect(lines.flatMap((l) => antigravityAdapter.activity!(l, '/w'))).toEqual(['Chạy: echo hi', 'Đọc note.txt']);
+      const ev = antigravityEvents('/w');
+      const all = lines.flatMap((l) => ev(l));
+      expect(all.filter((e) => e.kind === 'command')).toEqual([
+        { id: 'step-2', kind: 'command', title: 'Chạy lệnh', text: 'echo hi' },
+        { id: 'step-2', kind: 'command', title: 'Chạy lệnh', text: 'echo hi', ok: true, output: 'hi' },
+      ]);
+      expect(all.filter((e) => e.kind === 'file_read').at(-1)).toEqual({
+        id: 'step-3',
+        kind: 'file_read',
+        title: 'Đọc note.txt',
+        path: 'note.txt',
+        ok: true,
+      });
+      expect(all.at(-1)).toEqual({
+        id: 'step-4',
+        kind: 'say',
+        title: 'Nói',
+        text: 'Lệnh `echo hi` đã chạy, nội dung note.txt là "xin chao".',
+      });
+      const denied = fixture('antigravity-denied.jsonl');
+      expect(antigravityAdapter.activity!(denied[0]!, '/w')).toEqual(['OfficeHub ping']);
+      const dv = antigravityEvents('/w');
+      expect(denied.flatMap((l) => dv(l)).at(-1)).toEqual({
+        id: 'step-3',
+        kind: 'tool',
+        title: 'OfficeHub ping',
+        ok: false,
+      });
+      // lệnh đụng file bí mật → ẩn output
+      const secret =
+        '{"event":"step_update","step_update":{"step_index":7,"state":"DONE","step_type":"tool","tool_name":"run_command","tool_info":{"parameters":{"CommandLine":"cat .env"},"output":"Command exited with code 0.\\n\\nCommand output:\\nKEY=1"}}}';
+      expect(antigravityEvents('/w')(secret)[0]!.output).not.toContain('KEY=1');
+    });
+
+    test('chạy thử model: model thật từ init; model sai (thoát 1, result ERROR) → invalidModel', () => {
+      expect(antigravityAdapter.probe!(ax.exec).args).toEqual([
+        '--output-format',
+        'stream-json',
+        '--model',
+        'gemini-x',
+        '-p',
+        'ok',
+      ]);
+      expect(agyProbe(fixture('antigravity-stream.jsonl').join('\n'))).toEqual({ model: 'gemini-3.8-flash-low' });
+      const bad =
+        '{"event":"result","result":{"conversation_id":"","status":"ERROR","response":"","error":"invalid model selection (--model \\"x\\" --effort \\"\\"): model x is not recognized as a known model or custom model in settings\\nAvailable models:\\n  A"}}';
+      expect(agyProbe(bad)).toMatchObject({
+        invalidModel: true,
+        error: expect.stringContaining('invalid model selection'),
+      });
+      expect(agyProbe('không phải json')).toEqual({ model: undefined, error: 'CLI không trả sự kiện result' });
+    });
+
+    test('còn phiên ở máy (conversations/<id>.db); cảnh báo HOME: chưa từng chạy agy, trần không có tác dụng', () => {
+      const w = antigravityAdapter.homeWarnings!({ ...ax.exec, maxTurns: 5 }, home).join('\n');
+      expect(w).toContain('chưa từng chạy agy');
+      expect(w).toContain('max_turns không có tác dụng');
+      const cli = join(home, '.gemini', 'antigravity-cli');
+      mkdirSync(join(cli, 'conversations'), { recursive: true });
+      writeFileSync(join(cli, 'installation_id'), 'x');
+      writeFileSync(join(cli, 'conversations', 'conv-1.db'), '');
+      expect(antigravityAdapter.homeWarnings!({ ...ax.exec, maxBudgetUsd: undefined }, home)).toEqual([]);
+      expect(antigravityHasSession(home, '/w', 'conv-1')).toBe(true);
+      expect(antigravityHasSession(home, '/w', 'conv-0')).toBe(false);
+      expect(antigravityHasSession(home, '/w', '../conv-1')).toBe(false);
+      // không đặt executor.home → cảnh báo runner sẽ ghi file MCP vào HOME đang dùng chung
+      expect(antigravityAdapter.homeWarnings!({ ...ax.exec, home: undefined }, home).join('\n')).toContain(
+        '.gemini/config/mcp_config.json',
+      );
+      rmSync(home, { recursive: true, force: true });
     });
   });
 });

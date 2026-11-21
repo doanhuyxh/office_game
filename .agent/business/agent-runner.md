@@ -16,6 +16,7 @@ Dự án bun + TypeScript độc lập ở gốc repo, **không thư viện runt
 5. **Executor** (`executor/`): chạy CLI theo đường dẫn cấu hình, adapter:
    - `claude` (kiểm với Claude Code 2.1.x): `-p … --output-format stream-json --verbose --mcp-config <job>/mcp.json --strict-mcp-config --setting-sources user --permission-mode bypassPermissions [--model] [--max-budget-usd] [--resume <session>]`. `--setting-sources user` = không nạp `.claude/settings.json` của repo (agent sửa được file đó); `CLAUDE.md` / `AGENTS.md` vẫn đọc.
    - `codex` (OpenAI Codex CLI, kiểm với 0.170): `exec [resume] --json`, MCP qua `-c mcp_servers.…`, không có chi phí USD / trần ngân sách — [agent-runner-codex.md](agent-runner-codex.md).
+   - `antigravity` (Google Antigravity CLI `agy`, kiểm với 1.5.14): `-p … --output-format stream-json`, MCP qua cầu nối `mcp-bridge` của runner (token chỉ ở env), không có chi phí USD — [agent-runner-antigravity.md](agent-runner-antigravity.md).
    - `custom`: `args` / `resume_args` với `{cwd} {model} {mcp_config} {prompt_file} {session_id}`; output `text` (2000 ký tự cuối) hoặc `json` (dòng JSON có `session_id`, `cost_usd`, `summary`, `model`…).
    - **Model thật** (TEST-64): đọc `modelUsage` của `result`, lưu `jobs.model` / `model_usage`, ghi vào log + bình luận; khởi động / `doctor` chạy thử → model sai thì agent tắt — [agent-runner-model.md](agent-runner-model.md).
    - **Log tiến độ:** adapter có `activity(line, cwd)` (tuỳ chọn) → mỗi thao tác agent làm (đọc / sửa / ghi file, chạy lệnh, tìm kiếm, gọi tool OfficeHub, đoạn agent nói) thành một dòng log `agent đang làm` kèm `job`, `agent`, `task`, `action` (đã che bí mật). Adapter `claude` và `codex` có; `custom` chỉ có output.log.
@@ -70,6 +71,7 @@ Tắt: `runner.startup_catchup: false` hoặc `start --no-catchup`. Lệnh `run`
 | `bun src/cli.ts run --agent NV120 --task TEST-45` | Chạy ngay một việc (bỏ qua Telegram, vẫn hỏi lại OfficeHub) |
 | `bun src/cli.ts report [--days 1]` | Chi phí theo agent, theo loại job (token không cache / ghi / đọc cache, tỉ lệ đọc cache) và theo model |
 | `bun src/cli.ts usage push [--since yyyy-MM-dd] [--agent NV018] [--dry-run]` | Gửi bù chi phí / token các phiên chưa gửi lên OfficeHub ("Mức dùng AI") — [agent-runner-usage.md](agent-runner-usage.md) |
+| `bun src/cli.ts mcp-bridge --url <mcp> [--bearer-env OFFICEHUB_TOKEN]` | Không chạy tay: CLI agent (adapter `antigravity`) tự gọi làm máy chủ MCP stdio → HTTP, token lấy từ biến môi trường |
 | `bun run build` | Một file chạy `dist/officehub-runner` — build từ commit đã merge `main`, cài `/opt/officehub-runner/` |
 | `bun run typecheck`, `bun test` | Bắt buộc khi đổi `agent-runner/` (CI job `agent-runner`) |
 | `bun run format` | Định dạng `src/` + `tests/` bằng Biome (`biome.json`: rộng 120, nháy đơn); CI chạy `bun run format:check` |
