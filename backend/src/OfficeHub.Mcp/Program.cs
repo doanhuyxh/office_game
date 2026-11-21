@@ -224,7 +224,7 @@ public partial class Program
           cần ai đọc / trả lời → comment_task với mention; việc cần thông tin từ việc khác → bình luận ở việc đó + mention người làm.
           Qua kênh này KHÔNG BAO GIỜ duyệt (vào / ra trạng thái cần duyệt) — kể cả khi bạn là quản lý dự án; người thật duyệt.
           Việc nối tiếp nhau → create_task / update_task với dependsOn (việc phải xong trước); việc có waitingOn > 0 thì CHƯA bắt đầu
-          (bot bị chặn chuyển khỏi trạng thái đầu) — khi việc trước xong, người làm nhận thông báo "Sẵn sàng".
+          (bot bị chặn chuyển khỏi trạng thái đầu) — khi việc trước xong / tới cột unblocksDependents (get_task → dependsOn[].ready), người làm nhận thông báo "Sẵn sàng".
           Có webhook (cài ở trang Kết nối AI) → thông báo / tin nhắn 1-1 được đẩy tới agent ngay; không có → hỏi định kỳ list_notifications.
           Giới hạn (quản trị viên đặt, lỗi trả về ghi số cụ thể): số việc tạo / ngày; số lần một việc qua tay bot (chuyển / giao / bình luận) liên tiếp mà chưa có người xem → bị chặn,
           hãy dừng và mention quản lý dự án.

@@ -17,7 +17,7 @@ using OfficeHub.Modules.Projects.Infrastructure;
 namespace OfficeHub.Modules.Projects.Features;
 
 /// <param name="CreatedByBot">Tạo qua token AI / MCP (nhãn BOT).</param>
-/// <param name="WaitingOn">Số việc phải chờ chưa xong (0 = bắt đầu được).</param>
+/// <param name="WaitingOn">Số việc phải chờ chưa "đủ" (0 = bắt đầu được) — đủ = đã xong hoặc ở cột "Việc sau được bắt đầu từ cột này" (TEST-199, <see cref="DependencyRules.IsReady"/>).</param>
 /// <param name="Done">Đang ở cột hoàn thành.</param>
 /// <param name="AwaitingHuman">Chỉ <c>/tasks/mine</c> (TEST-157): người làm là bot và đã báo, đang chờ người duyệt / trả lời (<see cref="BotWaitRules.AwaitingHuman"/>).</param>
 /// <param name="ProjectActive">Chỉ <c>/tasks/mine</c> tính thật (nơi khác mặc định true): dự án đang chạy.</param>
@@ -27,7 +27,8 @@ public sealed record TaskDto(Guid Id, Guid ProjectId, string Code, string Title,
     List<string> MediaLinks, string? ProjectName = null, bool CreatedByBot = false, int WaitingOn = 0,
     bool AwaitingHuman = false, bool ProjectActive = true, int FollowerCount = 0);
 /// <summary>Việc liên quan (chờ / đang chặn) — mã, tên, đã xong chưa.</summary>
-public sealed record TaskRefDto(Guid Id, string Code, string Title, bool Done);
+/// <param name="Ready">TEST-199: việc này "đủ" cho việc đang chờ nó (đã xong, hoặc đã tới cột "Việc sau được bắt đầu từ cột này") — <see cref="DependencyRules.IsReady"/>.</param>
+public sealed record TaskRefDto(Guid Id, string Code, string Title, bool Done, bool Ready);
 /// <param name="DependsOn">Mã / id các việc phải xong trước (tối đa 10, cùng dự án) — thay toàn bộ danh sách; rỗng = bỏ hết.</param>
 public sealed record SetDependencies(List<Guid> DependsOn);
 /// <param name="ColumnId">Cột trạng thái — tạo: bỏ trống = cột đầu; sửa: bỏ trống = giữ nguyên.</param>
@@ -86,9 +87,10 @@ internal static class TaskEndpoints
         var columns = await db.Columns.AsNoTracking().Where(c => columnIds.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => new { c.Name, c.Color }, ct);
         var emps = await access.EmployeesAsync(ct);
         var today = clock.Today;
+        var ready = await db.UnblockingColumnIdsAsync(ct);
         var waiting = await (from d in db.Dependencies.AsNoTracking()
                              join x in db.Tasks.AsNoTracking() on d.DependsOnId equals x.Id
-                             where ids.Contains(d.TaskId) && x.CompletedAt == null
+                             where ids.Contains(d.TaskId) && x.CompletedAt == null && !ready.Contains(x.ColumnId)
                              group d by d.TaskId into g
                              select new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
         var followers = await db.Followers.AsNoTracking().Where(f => ids.Contains(f.TaskId)).GroupBy(f => f.TaskId).Select(g => new { g.Key, N = g.Count() })
@@ -151,16 +153,19 @@ internal static class TaskEndpoints
         var activities = await db.Activities.AsNoTracking().Where(a => a.TaskId == tid).OrderBy(a => a.At)
             .Select(a => new TaskActivityDto(a.Id, a.Kind, a.From, a.To, a.Note, a.ActorName, a.ByBot, a.At)).ToListAsync(ct);
         var code = dto.Code[..dto.Code.LastIndexOf('-')];
+        var ready = await db.UnblockingColumnIdsAsync(ct);
         var dependsOn = await (from d in db.Dependencies.AsNoTracking() join x in db.Tasks.AsNoTracking() on d.DependsOnId equals x.Id
-                               where d.TaskId == tid orderby x.Number select new { x.Id, x.Number, x.Title, Done = x.CompletedAt != null }).ToListAsync(ct);
+                               where d.TaskId == tid orderby x.Number
+                               select new { x.Id, x.Number, x.Title, Done = x.CompletedAt != null, Ready = x.CompletedAt != null || ready.Contains(x.ColumnId) }).ToListAsync(ct);
         var blocks = await (from d in db.Dependencies.AsNoTracking() join x in db.Tasks.AsNoTracking() on d.TaskId equals x.Id
-                            where d.DependsOnId == tid orderby x.Number select new { x.Id, x.Number, x.Title, Done = x.CompletedAt != null }).ToListAsync(ct);
+                            where d.DependsOnId == tid orderby x.Number
+                            select new { x.Id, x.Number, x.Title, Done = x.CompletedAt != null, Ready = x.CompletedAt != null || ready.Contains(x.ColumnId) }).ToListAsync(ct);
         var columns = await TaskColumnEndpoints.ListForAsync(db, t.ProjectId, ct);
         var current = columns.FirstOrDefault(c => c.Id == t.ColumnId);
         return TypedResults.Ok(new TaskDetailDto(dto, commentList, activities, sequential, CanApprove(v, user, t.ProjectId),
             columns,
-            dependsOn.Select(x => new TaskRefDto(x.Id, EffortRules.TaskCode(code, x.Number), x.Title, x.Done)).ToList(),
-            blocks.Select(x => new TaskRefDto(x.Id, EffortRules.TaskCode(code, x.Number), x.Title, x.Done)).ToList(),
+            dependsOn.Select(x => new TaskRefDto(x.Id, EffortRules.TaskCode(code, x.Number), x.Title, x.Done, x.Ready)).ToList(),
+            blocks.Select(x => new TaskRefDto(x.Id, EffortRules.TaskCode(code, x.Number), x.Title, x.Done, x.Ready)).ToList(),
             await TaskFollowerEndpoints.ListAsync(db, access, accounts, tid, ct),
             current is { HasGuide: true } ? current.Guide : null));
     }
@@ -351,7 +356,8 @@ internal static class TaskEndpoints
         var now = clock.Now;
         var from = t.ColumnId;
         var cols = TaskColumnEndpoints.Infos(await TaskColumnEndpoints.LoadAsync(db, p.Id, ct));
-        var wasDone = t.CompletedAt != null;
+        var readyCols = DependencyRules.ReadyColumnIds(cols, p.Sequential);
+        var wasReady = DependencyRules.IsReady(t.CompletedAt != null, t.ColumnId, readyCols);
         if (r.ColumnId is { } sc && await StartErrorAsync(user, t, cols, sc, db, ct) is { } startErr) return Problems.Conflict(startErr);
         if (r.ColumnId is { } cid && ApplyColumn(t, p, cols, cid, r.Note, v, user, db, now) is { } stateErr) return Problems.Conflict(stateErr);
         var reassigned = r.AssigneeEmployeeId != t.AssigneeEmployeeId;
@@ -373,7 +379,7 @@ internal static class TaskEndpoints
         var note = ProjectEndpoints.Clean(r.Note);
         notified.AddRange(await NotifyMovedAsync(notifier, dir, telegram, p, t, cols, from, note, v, ct));
         await NotifyMembersMovedAsync(notifier, access, p, t, cols, from, note, v, notified, ct);
-        if (!wasDone && t.CompletedAt != null) await NotifyUnblockedAsync(notifier, dir, telegram, db, p, t, v, ct);
+        await NotifyReadinessChangedAsync(notifier, dir, telegram, db, p, t, cols, wasReady, DependencyRules.IsReady(t.CompletedAt != null, t.ColumnId, readyCols), v, ct);
         if (FollowerWakeRules.ShouldWake(cols, from, t.ColumnId))
             await WakeFollowersAsync(dir, telegram, webhooks, accounts, access, db, p, t, cols, v, user, ct);
         return TypedResults.NoContent();
@@ -392,7 +398,8 @@ internal static class TaskEndpoints
         var cols = TaskColumnEndpoints.Infos(await TaskColumnEndpoints.LoadAsync(db, p.Id, ct));
         if (cols.All(c => c.Id != r.ColumnId)) return Problems.Conflict("Trạng thái không thuộc dự án");
         var from = t.ColumnId;
-        var wasDone = t.CompletedAt != null;
+        var readyCols = DependencyRules.ReadyColumnIds(cols, p.Sequential);
+        var wasReady = DependencyRules.IsReady(t.CompletedAt != null, t.ColumnId, readyCols);
         if (r.ColumnId != t.ColumnId && await streak.ErrorAsync(user.IsAccessToken(), t, p, v, ct) is { } streakErr) return Problems.Conflict(streakErr);
         if (await StartErrorAsync(user, t, cols, r.ColumnId, db, ct) is { } startErr) return Problems.Conflict(startErr);
         if (ApplyColumn(t, p, cols, r.ColumnId, r.Note, v, user, db, clock.Now) is { } err) return Problems.Conflict(err);
@@ -401,7 +408,7 @@ internal static class TaskEndpoints
         var note = ProjectEndpoints.Clean(r.Note);
         var notified = await NotifyMovedAsync(notifier, dir, telegram, p, t, cols, from, note, v, ct);
         await NotifyMembersMovedAsync(notifier, access, p, t, cols, from, note, v, notified, ct);
-        if (!wasDone && t.CompletedAt != null) await NotifyUnblockedAsync(notifier, dir, telegram, db, p, t, v, ct);
+        await NotifyReadinessChangedAsync(notifier, dir, telegram, db, p, t, cols, wasReady, DependencyRules.IsReady(t.CompletedAt != null, t.ColumnId, readyCols), v, ct);
         if (FollowerWakeRules.ShouldWake(cols, from, t.ColumnId))
             await WakeFollowersAsync(dir, telegram, webhooks, accounts, access, db, p, t, cols, v, user, ct);
         return TypedResults.NoContent();
@@ -411,26 +418,62 @@ internal static class TaskEndpoints
     private static async Task<string?> StartErrorAsync(ClaimsPrincipal user, TaskItem t, List<ColumnInfo> cols, Guid to, ProjectsDbContext db, CancellationToken ct)
     {
         if (!user.IsAccessToken() || cols.Count == 0 || t.ColumnId != cols[0].Id || to == t.ColumnId) return null;
+        var ready = await db.UnblockingColumnIdsAsync(ct);
         var unfinished = await (from d in db.Dependencies join x in db.Tasks on d.DependsOnId equals x.Id
-                                where d.TaskId == t.Id && x.CompletedAt == null select d).CountAsync(ct);
+                                where d.TaskId == t.Id && x.CompletedAt == null && !ready.Contains(x.ColumnId) select d).CountAsync(ct);
         return DependencyRules.StartError(unfinished, leavingFirstColumn: true, byBot: true);
     }
 
     /// <summary>
-    /// <paramref name="done"/> vừa xong → các việc đang chờ nó mà nay đã hết chờ: báo người làm (chưa giao → quản lý dự án).
+    /// TEST-199: việc <paramref name="t"/> vừa đổi cột (đã lưu). Chuyển từ chưa "đủ" sang "đủ" (<see cref="DependencyRules.IsReady"/> — tới cột hoàn thành hoặc cột
+    /// "Việc sau được bắt đầu từ cột này") → các việc đang chờ nó mà nay hết chờ: báo "Sẵn sàng" (<see cref="NotifyReadyAsync"/>). Đi tiếp trong vùng "đủ" (vd Deploy → Xong)
+    /// không báo lại. Bị kéo lùi ra khỏi vùng "đủ" → việc đang chờ đã bắt đầu thì chỉ chuông người làm kiểm tra lại đầu vào (<see cref="NotifyRegressedAsync"/>).
+    /// </summary>
+    private static async Task NotifyReadinessChangedAsync(INotifier notifier, IEmployeeDirectory dir, ITelegramWakeup telegram, ProjectsDbContext db, Project p, TaskItem t,
+        List<ColumnInfo> cols, bool wasReady, bool isReady, ProjectViewer v, CancellationToken ct)
+    {
+        if (wasReady == isReady) return;
+        var column = cols.FirstOrDefault(c => c.Id == t.ColumnId)?.Name ?? "?";
+        if (isReady) await NotifyUnblockedAsync(notifier, dir, telegram, db, p, t, t.CompletedAt != null ? "đã xong" : $"đã tới \"{column}\"", v, ct);
+        else await NotifyRegressedAsync(notifier, dir, db, p, t, cols, column, v, ct);
+    }
+
+    /// <summary>
+    /// <paramref name="done"/> vừa "đủ" → các việc đang chờ nó mà nay đã hết chờ: báo người làm (chưa giao → quản lý dự án).
     /// Chuông + webhook → agent được giao tự bắt đầu, không cần ai điều phối.
     /// </summary>
     private static async Task NotifyUnblockedAsync(INotifier notifier, IEmployeeDirectory dir, ITelegramWakeup telegram, ProjectsDbContext db, Project p, TaskItem done,
-        ProjectViewer v, CancellationToken ct)
+        string what, ProjectViewer v, CancellationToken ct)
     {
+        var ready = await db.UnblockingColumnIdsAsync(ct);
         var dependents = await (from d in db.Dependencies.AsNoTracking() join x in db.Tasks.AsNoTracking() on d.TaskId equals x.Id
                                 where d.DependsOnId == done.Id && x.CompletedAt == null select x).ToListAsync(ct);
         foreach (var x in dependents)
         {
             var stillWaiting = await (from d in db.Dependencies.AsNoTracking() join y in db.Tasks.AsNoTracking() on d.DependsOnId equals y.Id
-                                      where d.TaskId == x.Id && y.CompletedAt == null select d).AnyAsync(ct);
+                                      where d.TaskId == x.Id && y.CompletedAt == null && !ready.Contains(y.ColumnId) select d).AnyAsync(ct);
             if (stillWaiting) continue;
-            await NotifyReadyAsync(notifier, dir, telegram, p, x, $"{EffortRules.TaskCode(p.Code, done.Number)} \"{done.Title}\" đã xong", v, ct);
+            await NotifyReadyAsync(notifier, dir, telegram, p, x, $"{EffortRules.TaskCode(p.Code, done.Number)} \"{done.Title}\" {what}", v, ct);
+        }
+    }
+
+    /// <summary>
+    /// TEST-199: <paramref name="back"/> bị kéo lùi khỏi vùng "đủ" → việc đang chờ nó còn ở cột đầu tự bị chặn lại (<c>waitingOn</c> tăng, không báo); việc đã rời cột đầu
+    /// (<see cref="DependencyRules.ShouldWarnRegressed"/>) không dừng, chỉ chuông người làm kiểm tra lại đầu vào. Không Telegram (không đánh thức bot làm lại).
+    /// </summary>
+    private static async Task NotifyRegressedAsync(INotifier notifier, IEmployeeDirectory dir, ProjectsDbContext db, Project p, TaskItem back, List<ColumnInfo> cols,
+        string column, ProjectViewer v, CancellationToken ct)
+    {
+        var firstColumn = cols.Count > 0 ? cols[0].Id : Guid.Empty;
+        var dependents = await (from d in db.Dependencies.AsNoTracking() join x in db.Tasks.AsNoTracking() on d.TaskId equals x.Id
+                                where d.DependsOnId == back.Id select x).ToListAsync(ct);
+        var backCode = EffortRules.TaskCode(p.Code, back.Number);
+        foreach (var x in dependents.Where(x => DependencyRules.ShouldWarnRegressed(x.CompletedAt != null, x.ColumnId == firstColumn)))
+        {
+            if (x.AssigneeEmployeeId is not { } a || await UserOfAsync(dir, a, ct) is not { } u || u == v.UserId) continue;
+            await notifier.NotifyAsync(new NotificationRequest([u], NotificationCategories.ProjectTask,
+                $"Việc trước bị kéo lùi: {EffortRules.TaskCode(p.Code, x.Number)} {x.Title}",
+                $"{backCode} \"{back.Title}\" bị kéo lùi về \"{column}\" — kiểm tra lại đầu vào của việc này.", TaskNotifyRules.Link(p.Id, x.Id), SendEmail: false), ct);
         }
     }
 
@@ -521,9 +564,11 @@ internal static class TaskEndpoints
         var current = await db.Dependencies.Where(d => d.TaskId == tid).ToListAsync(ct);
         var before = current.Select(d => d.DependsOnId).ToHashSet();
         if (before.SetEquals(wanted)) return TypedResults.NoContent();
-        // TEST-198: bỏ hết việc chưa xong khỏi danh sách → việc hết chờ, báo "Sẵn sàng" như khi việc trước xong
+        // TEST-198: bỏ hết việc chưa "đủ" (TEST-199) khỏi danh sách → việc hết chờ, báo "Sẵn sàng" như khi việc trước xong
         var all = before.Concat(wanted).ToList();
-        var unfinished = (await db.Tasks.AsNoTracking().Where(x => all.Contains(x.Id) && x.CompletedAt == null).Select(x => x.Id).ToListAsync(ct)).ToHashSet();
+        var readyCols = await db.UnblockingColumnIdsAsync(ct);
+        var unfinished = (await db.Tasks.AsNoTracking().Where(x => all.Contains(x.Id) && x.CompletedAt == null && !readyCols.Contains(x.ColumnId))
+            .Select(x => x.Id).ToListAsync(ct)).ToHashSet();
         var ready = DependencyRules.BecameReady(t.CompletedAt != null, before.Count(unfinished.Contains), wanted.Count(unfinished.Contains));
         db.Dependencies.RemoveRange(current.Where(d => !wanted.Contains(d.DependsOnId)));
         var now = clock.Now;
@@ -554,14 +599,16 @@ internal static class TaskEndpoints
         var keys = await (from a in db.CommentAttachments.AsNoTracking() join c in db.Comments.AsNoTracking() on a.CommentId equals c.Id
                           where c.TaskId == t.Id select a.FileKey).ToListAsync(ct);
         // TEST-198: việc đang chờ việc bị xoá (lấy TRƯỚC khi cascade xoá task_dependencies) + số việc chưa xong mỗi việc đang chờ
-        var open = t.CompletedAt == null; // việc đã xong thì không ai đang chờ nó
+        var readyCols = await db.UnblockingColumnIdsAsync(ct);
+        var open = !DependencyRules.IsReady(t.CompletedAt != null, t.ColumnId, readyCols.ToHashSet()); // việc đã "đủ" thì không ai đang chờ nó (TEST-199)
         var dependents = await (
             from d in db.Dependencies.AsNoTracking() join x in db.Tasks.AsNoTracking() on d.TaskId equals x.Id
             where open && d.DependsOnId == t.Id && x.CompletedAt == null
             select new
             {
                 Task = x,
-                Unfinished = (from d2 in db.Dependencies join y in db.Tasks on d2.DependsOnId equals y.Id where d2.TaskId == x.Id && y.CompletedAt == null select d2).Count(),
+                Unfinished = (from d2 in db.Dependencies join y in db.Tasks on d2.DependsOnId equals y.Id
+                              where d2.TaskId == x.Id && y.CompletedAt == null && !readyCols.Contains(y.ColumnId) select d2).Count(),
             }).ToListAsync(ct);
         db.Tasks.Remove(t);
         await db.SaveChangesAsync(ct);

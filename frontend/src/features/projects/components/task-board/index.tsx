@@ -253,7 +253,7 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
                     flash[t.id] === 'ok' && 'animate-in fade-in ring-2 ring-primary/60 duration-500', flash[t.id] === 'err' && 'ring-2 ring-destructive')}
                   data-testid="task-card">
                   <span className="flex items-center gap-1 text-xs text-muted-foreground">{t.code}{busy && <Loader2 className="size-3 animate-spin" aria-label="Đang lưu" />}{t.createdByBot && <BotBadge />}
-                    {!!t.waitingOn && !t.done && <span className="rounded bg-warning/15 px-1 text-[10px] font-medium text-warning" title="Còn chờ việc khác xong" data-testid="task-waiting">Chờ {t.waitingOn} việc</span>}</span>
+                    {!!t.waitingOn && !t.done && <span className="rounded bg-warning/15 px-1 text-[10px] font-medium text-warning" title="Còn chờ việc khác chưa xong / chưa tới trạng thái cho việc sau bắt đầu" data-testid="task-waiting">Chờ {t.waitingOn} việc</span>}</span>
                   <span className={t.done ? 'text-muted-foreground line-through' : 'font-medium'}>{t.title}</span>
                   <span className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
                     {t.assigneeName ?? 'Chưa giao'}

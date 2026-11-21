@@ -37,12 +37,13 @@ internal static class BotWaitingEndpoints
         if (userOf.Count == 0) return TypedResults.Ok(new List<BotWaiting>());
         var empIds = userOf.Keys.ToList();
 
-        // Việc mở của các bot, dự án đang chạy, không còn việc phụ thuộc chưa xong
+        // Việc mở của các bot, dự án đang chạy, không còn việc phụ thuộc chưa "đủ" (TEST-199: đã xong hoặc ở cột "Việc sau được bắt đầu từ cột này")
+        var ready = await db.UnblockingColumnIdsAsync(ct);
         var tasks = await (from t in db.Tasks.AsNoTracking()
                            join p in db.Projects.AsNoTracking() on t.ProjectId equals p.Id
                            where t.AssigneeEmployeeId != null && empIds.Contains(t.AssigneeEmployeeId.Value)
                                  && t.CompletedAt == null && p.Status == ProjectStatus.Active
-                                 && !db.Dependencies.Any(d => d.TaskId == t.Id && db.Tasks.Any(o => o.Id == d.DependsOnId && o.CompletedAt == null))
+                                 && !db.Dependencies.Any(d => d.TaskId == t.Id && db.Tasks.Any(o => o.Id == d.DependsOnId && o.CompletedAt == null && !ready.Contains(o.ColumnId)))
                            select new { t.Id, t.ProjectId, t.Number, t.Title, t.ColumnId, Assignee = t.AssigneeEmployeeId!.Value, ProjectCode = p.Code })
             .ToListAsync(ct);
         if (tasks.Count == 0) return TypedResults.Ok(new List<BotWaiting>());

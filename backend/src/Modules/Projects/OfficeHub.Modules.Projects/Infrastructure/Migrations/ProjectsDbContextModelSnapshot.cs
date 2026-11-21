@@ -559,6 +559,9 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("UnblocksDependents")
+                        .HasColumnType("boolean");
+
                     b.PrimitiveCollection<List<Guid>>("WakeBotIds")
                         .IsRequired()
                         .ValueGeneratedOnAdd()

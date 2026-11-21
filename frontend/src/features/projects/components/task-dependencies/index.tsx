@@ -38,9 +38,12 @@ function columnRank(columns: ITaskColumn[]): Map<string, number> {
 function RefLine({ r, onRemove, removing, busy }: { r: ITaskRef; onRemove?: () => void; removing?: boolean; busy?: boolean }) {
   return (
     <li className="flex items-center gap-2 text-sm">
-      {r.done ? <CheckCircle2 className="size-4 shrink-0 text-success" /> : <CircleDashed className="size-4 shrink-0 text-warning" />}
+      {/* TEST-199: "đủ" (ready) = đã xong hoặc đã tới cột "Việc sau được bắt đầu từ cột này"; client cũ không có ready → theo done */}
+      {(r.ready ?? r.done) ? <CheckCircle2 className={cn('size-4 shrink-0', r.done ? 'text-success' : 'text-info')} /> : <CircleDashed className="size-4 shrink-0 text-warning" />}
       <span className="font-mono text-xs text-muted-foreground">{r.code}</span>
       <span className={r.done ? 'text-muted-foreground line-through' : ''}>{r.title}</span>
+      {!r.done && r.ready && <span className="shrink-0 rounded bg-info/15 px-1 text-[10px] font-medium text-info" title="Việc này đã tới trạng thái cho việc sau bắt đầu (chưa xong)"
+        data-testid="dependency-ready">Đã cho bắt đầu</span>}
       {onRemove && <Button type="button" size="icon" variant="ghost" className="ml-auto size-6" aria-label={`Bỏ chờ ${r.code}`}
         loading={removing} disabled={busy} onClick={onRemove}><X className="size-3.5" /></Button>}
     </li>
@@ -48,7 +51,7 @@ function RefLine({ r, onRemove, removing, busy }: { r: ITaskRef; onRemove?: () =
 }
 
 /**
- * Việc phải chờ (xong hết → người làm nhận thông báo "Sẵn sàng", kể cả bot qua webhook) + việc đang chờ việc này.
+ * Việc phải chờ (đủ hết — xong hoặc tới cột "Việc sau được bắt đầu từ cột này", TEST-199 — → người làm nhận thông báo "Sẵn sàng", kể cả bot qua webhook) + việc đang chờ việc này.
  * Ô "Thêm việc phải xong trước" kiểu tìm rồi chọn (TEST-133): gợi ý việc chưa xong (đang làm → cần làm → chờ review → khác, mới nhất trước),
  * gõ mã / tên không dấu (khớp mã xếp trước), 15 dòng + "Xem thêm", không dùng thanh phân trang bảng. Cả dòng là nút, chỉ dòng được bấm xoay;
  * ↑ ↓ Enter, Esc xoá ô tìm. `useTasks` đã tải đủ việc cho kanban nên lọc / sắp ở FE; back-end chặn vòng, việc ngoài dự án, quá 10.

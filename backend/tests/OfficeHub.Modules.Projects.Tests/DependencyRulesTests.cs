@@ -52,4 +52,56 @@ public class DependencyRulesTests
     [InlineData(true, 1, 0, false)]    // việc đã xong rồi
     public void Became_ready_only_on_transition(bool done, int before, int after, bool ready) =>
         Assert.Equal(ready, DependencyRules.BecameReady(done, before, after));
+
+    // TEST-199: cột "Việc sau được bắt đầu từ cột này"
+    private static readonly Guid Todo = Guid.NewGuid(), Doing = Guid.NewGuid(), Review = Guid.NewGuid(), Deploy = Guid.NewGuid(), Done = Guid.NewGuid();
+
+    private static List<ColumnInfo> Board(Guid? flagged) =>
+    [
+        new(Todo, "Cần làm", 0, false, false), new(Doing, "Đang làm", 1, false, false), new(Review, "Chờ review", 2, false, false, UnblocksDependents: flagged == Review),
+        new(Deploy, "Deploy", 3, false, false, UnblocksDependents: flagged == Deploy), new(Done, "Xong", 4, true, true),
+    ];
+
+    [Fact]
+    public void No_flag_only_done_column_is_ready()
+    {
+        Assert.Equal([Done], DependencyRules.ReadyColumnIds(Board(null), sequential: true));
+        Assert.Equal([Done], DependencyRules.ReadyColumnIds(Board(null), sequential: false));
+    }
+
+    [Fact]
+    public void Sequential_counts_columns_after_first_flag()
+    {
+        var ready = DependencyRules.ReadyColumnIds(Board(Review), sequential: true);
+        Assert.Equal(new HashSet<Guid> { Review, Deploy, Done }, ready);
+    }
+
+    [Fact]
+    public void Non_sequential_counts_only_flagged_and_done()
+    {
+        var ready = DependencyRules.ReadyColumnIds(Board(Review), sequential: false);
+        Assert.Equal(new HashSet<Guid> { Review, Done }, ready);
+    }
+
+    [Fact]
+    public void Flag_order_follows_position_not_list_order()
+    {
+        var cols = Board(Deploy);
+        cols.Reverse();
+        Assert.Equal(new HashSet<Guid> { Deploy, Done }, DependencyRules.ReadyColumnIds(cols, sequential: true));
+    }
+
+    [Theory]
+    [InlineData(true, "doing", true)]     // đã xong (CompletedAt) luôn đủ
+    [InlineData(false, "deploy", true)]   // cột có cờ
+    [InlineData(false, "doing", false)]   // cột trước cờ
+    public void Is_ready(bool completed, string column, bool ready) =>
+        Assert.Equal(ready, DependencyRules.IsReady(completed, column == "deploy" ? Deploy : Doing, DependencyRules.ReadyColumnIds(Board(Deploy), true)));
+
+    [Theory]
+    [InlineData(false, false, true)]   // việc sau đã bắt đầu → báo kiểm tra lại đầu vào
+    [InlineData(false, true, false)]   // còn ở cột đầu → chỉ bị chặn
+    [InlineData(true, false, false)]   // đã xong → không báo
+    public void Warn_regressed_only_started_dependents(bool done, bool inFirst, bool warn) =>
+        Assert.Equal(warn, DependencyRules.ShouldWarnRegressed(done, inFirst));
 }

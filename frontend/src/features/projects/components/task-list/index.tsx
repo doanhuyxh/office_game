@@ -259,7 +259,7 @@ function TaskMeta({ t }: { t: ITask }) {
     <span className="flex min-w-0 flex-wrap items-center gap-1 text-xs text-muted-foreground">
       <span className="font-medium">{t.code}</span>
       {t.createdByBot && <BotBadge />}
-      {!!t.waitingOn && !t.done && <span className="rounded bg-warning/15 px-1 text-[10px] font-medium text-warning" title="Còn chờ việc khác xong"
+      {!!t.waitingOn && !t.done && <span className="rounded bg-warning/15 px-1 text-[10px] font-medium text-warning" title="Còn chờ việc khác chưa xong / chưa tới trạng thái cho việc sau bắt đầu"
         data-testid="task-waiting">Chờ {t.waitingOn} việc</span>}
     </span>
   );
@@ -271,7 +271,7 @@ function TaskTitle({ t }: { t: ITask }) {
       <span className="shrink-0 text-xs text-muted-foreground">{t.code}</span>
       <span className={cn('min-w-0 truncate', t.done ? 'text-muted-foreground line-through' : 'font-medium')} title={t.title}>{t.title}</span>
       {t.createdByBot && <BotBadge className="shrink-0" />}
-      {!!t.waitingOn && !t.done && <span className="shrink-0 rounded bg-warning/15 px-1 text-[10px] font-medium text-warning" title="Còn chờ việc khác xong"
+      {!!t.waitingOn && !t.done && <span className="shrink-0 rounded bg-warning/15 px-1 text-[10px] font-medium text-warning" title="Còn chờ việc khác chưa xong / chưa tới trạng thái cho việc sau bắt đầu"
         data-testid="task-waiting">Chờ {t.waitingOn} việc</span>}
     </div>
   );

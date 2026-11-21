@@ -50,6 +50,23 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             .ToLookup(x => x.TaskId, x => x.Event);
     }
 
+    /// <summary>
+    /// TEST-199: cột "đủ" (<see cref="DependencyRules.ReadyColumnIds"/>) không phải cột hoàn thành, của mọi dự án có cột bật "Việc sau được bắt đầu từ cột này".
+    /// Việc trước "đủ" ⇔ <c>CompletedAt != null</c> hoặc <c>ColumnId</c> nằm trong danh sách này — dùng trong truy vấn đếm việc còn chờ (không N+1).
+    /// Không dự án nào bật cờ → rỗng (như trước: chỉ việc đã xong mới đủ).
+    /// </summary>
+    public async Task<List<Guid>> UnblockingColumnIdsAsync(CancellationToken ct)
+    {
+        var cols = await (from c in Columns.AsNoTracking()
+                          join p in Projects.AsNoTracking() on c.ProjectId equals p.Id
+                          where Columns.Any(f => f.ProjectId == c.ProjectId && f.UnblocksDependents)
+                          select new { c.Id, c.ProjectId, c.Name, c.Position, c.IsDone, c.UnblocksDependents, p.Sequential }).ToListAsync(ct);
+        return cols.GroupBy(c => c.ProjectId)
+            .SelectMany(g => DependencyRules.ReadyColumnIds(g.Select(c => new ColumnInfo(c.Id, c.Name, c.Position, c.IsDone, false, UnblocksDependents: c.UnblocksDependents)),
+                g.First().Sequential))
+            .Except(cols.Where(c => c.IsDone).Select(c => c.Id)).ToList();
+    }
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.HasDefaultSchema(Schema);

@@ -1,5 +1,5 @@
 // E2E TEST-42 / TEST-48 / TEST-63 / TEST-86: kênh Telegram đánh thức agent khi việc được giao cho tài khoản bot, bot được @nhắc trong bình luận việc,
-// hoặc việc bot làm hết phải chờ (việc trước sang Xong → event ready).
+// hoặc việc bot làm hết phải chờ (việc trước sang Xong → event ready; TEST-199: hoặc tới cột "Việc sau được bắt đầu từ cột này", vd Deploy).
 // MÁY CHỦ TELEGRAM GIẢ trong cùng tiến trình (cổng FAKE_PORT, mặc định 5198) — không gọi Telegram thật. Api phải chạy với Telegram__ApiUrl trỏ vào đây.
 // TẠO DỮ LIỆU THẬT → CHỈ DB tạm (container như security-e2e.ts):
 //   Api (từ backend/): env ASPNETCORE_URLS=http://localhost:5185 'ConnectionStrings__Default=Host=127.0.0.1;Port=55461;Database=e2e;Username=e2e;Password=e2e'
@@ -88,7 +88,7 @@ const admin = await login(ADMIN_LOGIN, ADMIN_PASSWORD);
 if (!admin) throw new Error('Không đăng nhập được admin seed');
 const stamp = Date.now().toString(36).slice(-5);
 const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
-const pos = (await json(admin, 'POST', '/api/org/positions', { name: `NV TG ${stamp}`, level: 7, financePermissions: 0 })).body;
+const pos = (await json(admin, 'POST', '/api/org/positions', { name: `NV TG ${stamp}`, level: 7, financePermissions: 0, manageTaskColumns: true })).body;
 const dept = (await json(admin, 'POST', '/api/org/departments', { name: `Telegram E2E ${stamp}`, code: `TG${stamp}` })).body;
 const mkEmp = async (code: string, name: string, user: string, roles: string[]) => {
   const e = (await json(admin, 'POST', '/api/org/employees', { code, fullName: name, email: `${user}@e2e.test`, phone: null, dateOfBirth: null,
@@ -271,6 +271,70 @@ ok('(d\') thêm việc đã xong vào việc vẫn còn chờ → 204', (await d
 await sleep(4000);
 ok('… (c) (d) không gửi tin nào', wakes().length === before, wakes().slice(before).map((x) => x.text));
 ok('… và không có chuông "Sẵn sàng"', (await bell(B1.cookie, 'Sau 8')) === 0 && (await bell(B1.cookie, 'Sau 9')) === 0 && (await bell(B2.cookie, 'Sau 9u')) === 0);
+
+// ---- TEST-199: cột "Việc sau được bắt đầu từ cột này" (Deploy) — việc sau hết chờ khi việc trước tới Deploy, không cần Xong ----
+const P9 = (await json(PM.cookie, 'POST', '/api/projects', { code: `tu-${stamp}`, name: 'Unblock E2E', kind: 'Internal', startOn: today, memberIds: [B1.e.id, B2.e.id, HU.e.id] })).body as string;
+const cols9 = async () => (await json(PM.cookie, 'GET', `/api/projects/${P9}`)).body.columns as any[];
+r = await json(PM.cookie, 'POST', `/api/projects/${P9}/columns`, { name: 'Deploy', isDone: false, approverOnly: false, unblocksDependents: true });
+ok('TEST-199: thêm cột Deploy có tick "Việc sau được bắt đầu" → 201', r.status === 201, r.body);
+let c9 = await cols9();
+const id9 = (n: string) => c9.find((c) => c.name === n)?.id as string;
+ok('… sắp Cần làm · Đang làm · Chờ review · Deploy · Xong → 204', (await json(PM.cookie, 'PUT', `/api/projects/${P9}/columns/order`,
+  { ids: ['Cần làm', 'Đang làm', 'Chờ review', 'Deploy', 'Xong'].map(id9) })).status === 204);
+c9 = await cols9();
+ok('… GET dự án: columns[].unblocksDependents chỉ Deploy = true', c9.map((c) => `${c.name}:${c.unblocksDependents}`).join(',')
+  === 'Cần làm:false,Đang làm:false,Chờ review:false,Deploy:true,Xong:false', c9.map((c) => [c.name, c.unblocksDependents]));
+const mk9 = async (title: string, assigneeEmployeeId?: string) =>
+  (await json(PM.cookie, 'POST', `/api/projects/${P9}/tasks`, { title, ...(assigneeEmployeeId ? { assigneeEmployeeId } : {}) })).body as string;
+const move9 = (c: string, id: string, col: string, note?: string) => json(c, 'POST', `/api/projects/tasks/${id}/move`, { columnId: id9(col), ...(note ? { note } : {}) });
+const detail9 = async (id: string) => (await json(PM.cookie, 'GET', `/api/projects/tasks/${id}`)).body;
+const U1 = await mk9('Trước U (B)'), U2 = await mk9('Sau U (A, bot 1)', B1.e.id), U3 = await mk9('Sau U3 (bot 2, chưa bắt đầu)', B2.e.id);
+ok('… A chờ B, A3 chờ B → 204', (await deps(U2, [U1])) === 204 && (await deps(U3, [U1])) === 204);
+const b1tok = (await json(B1.cookie, 'POST', '/api/auth/access-tokens', { name: `b1 ${stamp}`, expiresInDays: 30 })).body?.token as string;
+const bot1 = (method: string, path: string, body?: unknown) => call({ authorization: `Bearer ${b1tok}` }, method, path, body);
+ok('… token bot 1', !!b1tok);
+ok('… B ở Cần làm: waitingOn A = 1, bot chưa chuyển được A khỏi cột đầu (409)', (await detail9(U2)).task.waitingOn === 1
+  && (await bot1('POST', `/api/projects/tasks/${U2}/move`, { columnId: id9('Đang làm') })).status === 409);
+await sleep(4000);
+before = wakes().length;
+ok('… B → Đang làm → Chờ review (chưa tới cột có tick) → 204', (await move9(PM.cookie, U1, 'Đang làm')).status === 204 && (await move9(PM.cookie, U1, 'Chờ review')).status === 204);
+await sleep(3500);
+ok('… chưa gửi ready, A vẫn chờ 1', wakes().length === before && (await detail9(U2)).task.waitingOn === 1, wakes().slice(before).map((x) => x.text));
+ok('B → Deploy (có tick) → 204', (await move9(PM.cookie, U1, 'Deploy')).status === 204);
+ok('… đúng 2 tin ready (bot 1 cho A, bot 2 cho A3)', await until(() => wakes().length === before + 2) && (await sleep(3500), wakes().length === before + 2)
+  && wakes().slice(before).every((x) => wakeData(x).event === 'ready')
+  && wakes().slice(before).some((x) => wakeData(x).employee_code === B1.code && wakeData(x).task_id === U2)
+  && wakes().slice(before).some((x) => wakeData(x).employee_code === B2.code && wakeData(x).task_id === U3), wakes().slice(before).map((x) => x.text));
+ok('… chuông "Sẵn sàng" cho người làm A, nêu "đã tới \"Deploy\""', (await bell(B1.cookie, 'Sau U (A')) === 1
+  && (await notifs(B1.cookie)).some((n) => n.title.includes('Sau U (A') && n.body.includes('đã tới "Deploy"')));
+let d9 = await detail9(U2);
+ok('… A: waitingOn = 0, dependsOn[0].ready = true, done = false', d9.task.waitingOn === 0 && d9.dependsOn?.[0]?.ready === true && d9.dependsOn?.[0]?.done === false, d9.dependsOn);
+ok('… danh sách việc: A waitingOn = 0', ((await json(PM.cookie, 'GET', `/api/projects/${P9}/tasks`)).body as any[]).find((t) => t.id === U2)?.waitingOn === 0);
+ok('… bot 1 chuyển A khỏi cột đầu → 204', (await bot1('POST', `/api/projects/tasks/${U2}/move`, { columnId: id9('Đang làm') })).status === 204);
+if (MCP) {
+  const res = await fetch(MCP, { method: 'POST', headers: { authorization: `Bearer ${b1tok}`, 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'get_task', arguments: { task: U2 } } }) });
+  const text = await res.text();
+  const out = JSON.parse(JSON.parse(text.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5)).pop() ?? text).result?.content?.[0]?.text ?? '{}');
+  ok('… MCP get_task A → dependsOn[0].ready = true, done = false', out.dependsOn?.[0]?.ready === true && out.dependsOn?.[0]?.done === false, out.dependsOn);
+  const res2 = await fetch(MCP, { method: 'POST', headers: { authorization: `Bearer ${b1tok}`, 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'get_project', arguments: { project: P9 } } }) });
+  const t2 = await res2.text();
+  const pj = JSON.parse(JSON.parse(t2.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5)).pop() ?? t2).result?.content?.[0]?.text ?? '{}');
+  ok('… MCP get_project → columns[].unblocksDependents (Deploy)', pj.columns?.find((c: any) => c.name === 'Deploy')?.unblocksDependents === true, pj.columns);
+}
+before = wakes().length;
+ok('B Deploy → Xong → 204', (await move9(PM.cookie, U1, 'Xong')).status === 204);
+await sleep(4000);
+ok('… không gửi lại ready, không thêm chuông "Sẵn sàng"', wakes().length === before && (await bell(B1.cookie, 'Sau U (A')) === 1, wakes().slice(before).map((x) => x.text));
+ok('B kéo lùi về Đang làm (có lý do) → 204', (await move9(PM.cookie, U1, 'Đang làm', 'Lỗi sau deploy, làm lại')).status === 204);
+await sleep(3500);
+d9 = await detail9(U2);
+ok('… A (đã bắt đầu): waitingOn = 1, dependsOn[0].ready = false, vẫn ở Đang làm', d9.task.waitingOn === 1 && d9.dependsOn?.[0]?.ready === false && d9.task.columnName === 'Đang làm', d9.task);
+ok('… người làm A nhận chuông "Việc trước bị kéo lùi"', (await notifs(B1.cookie)).filter((n) => n.title.startsWith('Việc trước bị kéo lùi') && n.title.includes('Sau U (A')).length === 1);
+ok('… A3 (còn ở cột đầu): waitingOn = 1, không chuông kéo lùi', (await detail9(U3)).task.waitingOn === 1
+  && (await notifs(B2.cookie)).every((n) => !n.title.startsWith('Việc trước bị kéo lùi')));
+ok('… không gửi Telegram', wakes().length === before, wakes().slice(before).map((x) => x.text));
 
 const A5 = await mk('Trước 5 (kênh tắt)'), B5t = await mk('Sau 5 (bot, kênh tắt)', B1.e.id);
 await deps(B5t, [A5]);

@@ -193,6 +193,9 @@ public sealed class TaskColumn
     /// <summary>Hướng dẫn cho bot được đánh thức ở cột này (TEST-186, Markdown ≤ <see cref="TaskColumnRules.MaxGuide"/>): bot đọc qua <c>columnGuide</c> của get_task
     /// thay vì cả workGuide. Chỉ có hiệu lực khi <see cref="WakeFollowers"/> bật (<see cref="TaskColumnRules.ActiveGuide"/>); tắt thì giữ nguyên nội dung để bật lại không mất.</summary>
     public string? Guide { get; set; }
+    /// <summary>"Việc sau được bắt đầu từ cột này" (TEST-199): việc trước tới cột này (dự án đi lần lượt: hoặc cột đứng sau) là "đủ" — việc đang chờ nó hết chờ,
+    /// không cần tới cột hoàn thành (<see cref="DependencyRules.ReadyColumnIds"/>). Cột hoàn thành luôn tính là đủ.</summary>
+    public bool UnblocksDependents { get; set; }
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<TaskActivityKind>))]

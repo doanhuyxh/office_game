@@ -5,7 +5,7 @@
 ## Trạng thái (cột) tự do — chủ dự án chốt 2026-11-11
 
 - Mỗi dự án có danh sách cột riêng `projects.task_columns` (`Name` ≤ 50, không trùng không phân biệt hoa thường; `Position` 0..n-1 liên tục; `Color` `#rrggbb`; tối đa 15 cột).
-- Hai cờ: **`IsDone`** (hoàn thành: việc ở đây có `CompletedAt` → không quá hạn, không nhắc, tính vào % tiến độ; luôn còn ≥ 1 cột hoàn thành) và **`ApproverOnly`** (cần người duyệt: chỉ quản lý dự án / HR chuyển việc vào hoặc kéo lùi ra).
+- Hai cờ: **`IsDone`** (hoàn thành: việc ở đây có `CompletedAt` → không quá hạn, không nhắc, tính vào % tiến độ; luôn còn ≥ 1 cột hoàn thành) và **`ApproverOnly`** (cần người duyệt: chỉ quản lý dự án / HR chuyển việc vào hoặc kéo lùi ra). Cờ **`UnblocksDependents`** (TEST-199, "Việc sau được bắt đầu từ cột này"): việc trước tới cột này (dự án đi lần lượt: cả cột sau) là việc chờ nó hết chờ — [agent-team.md](agent-team.md#3-việc-phụ-thuộc-projectstask_dependencies-dependencyrules).
 - Dự án mới: 4 cột **Cần làm · Đang làm · Chờ review · Xong** (Xong = hoàn thành + cần người duyệt). Dự án cũ (migration `TaskColumns`): cũng 4 cột, việc gán theo `State` cũ, Xong cần người duyệt nếu dự án từng bật "Xong cần duyệt"; cột `tasks.State` đã xoá. `ProjectsMigrator` thêm 4 cột cho dự án chưa có cột (vd vừa chép từ Documents).
 - **Quyền sửa cột theo chức vụ**: cờ `org.positions.ManageTaskColumns` ("Quản lý trạng thái công việc", HR bật trong hộp sửa chức vụ). Người giữ chức vụ đó sửa cột ở **mọi dự án họ xem được**; vai trò admin / hr **không** thay thế. Dự án đóng → 409. Token AI chỉ đọc (`GET /{id}/columns`).
 - Bật / tắt `IsDone` → đặt / xoá `CompletedAt` của việc trong cột. Xoá cột còn việc → bắt buộc `moveTo` (ghi lịch sử Moved, note "Xoá trạng thái …"); không xoá cột hoàn thành cuối cùng.

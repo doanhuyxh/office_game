@@ -8,13 +8,15 @@ export type MilestoneStatus = 'Open' | 'Accepted';
  * wakeFollowers (TEST-178): việc vào cột này → đánh thức các bot theo dõi việc (sự kiện column_entered).
  * wakeBotIds (TEST-184): Id nhân viên bot được đánh thức — rỗng = mọi bot theo dõi việc; có giá trị = chỉ các bot này (vẫn phải đang theo dõi việc).
  * guide / hasGuide (TEST-186): hướng dẫn cho bot được đánh thức ở cột (Markdown); hasGuide = đang hiệu lực (bật đánh thức + có nội dung). Tắt đánh thức → guide vẫn giữ.
+ * unblocksDependents (TEST-199): "Việc sau được bắt đầu từ cột này" — việc trước tới đây (dự án đi lần lượt: cả cột sau) là việc chờ nó hết chờ.
  */
 export interface ITaskColumn {
   id: string; name: string; position: number; color: string; isDone: boolean; approverOnly: boolean; taskCount: number; wakeFollowers?: boolean; wakeBotIds?: string[] | null;
-  hasGuide?: boolean; guide?: string | null;
+  hasGuide?: boolean; guide?: string | null; unblocksDependents?: boolean;
 }
 /** guide: bỏ trống (undefined) = giữ nguyên khi sửa, '' = xoá; chỉ gửi nội dung khi bật wakeFollowers (back-end trả 400 nếu không). */
-export interface ITaskColumnRequest { name: string; color?: string | null; isDone: boolean; approverOnly: boolean; wakeFollowers: boolean; wakeBotIds: string[]; guide?: string }
+export interface ITaskColumnRequest { name: string; color?: string | null; isDone: boolean; approverOnly: boolean; wakeFollowers: boolean; wakeBotIds: string[]; guide?: string;
+  unblocksDependents: boolean }
 
 export interface ISalesContractRef { id: string; code: string; title: string; customerName: string; status: string; businessLineId: string | null }
 export interface IInstallmentRef { id: string; contractId: string; title: string; dueOn: string; cancelled: boolean }
@@ -71,8 +73,8 @@ export interface ITask {
   /** Số người theo dõi (TEST-160). */
   followerCount?: number;
 }
-/** Việc liên quan (phải chờ / đang chặn). */
-export interface ITaskRef { id: string; code: string; title: string; done: boolean }
+/** Việc liên quan (phải chờ / đang chặn). ready (TEST-199): đủ để việc sau bắt đầu — đã xong hoặc đã tới cột "Việc sau được bắt đầu từ cột này". */
+export interface ITaskRef { id: string; code: string; title: string; done: boolean; ready?: boolean }
 /** Người theo dõi việc (TEST-160) — thành viên dự án, người hoặc bot. */
 export interface ITaskFollower { employeeId: string; code: string | null; fullName: string; isBot: boolean }
 /** Ảnh / tệp đính kèm bình luận việc (TEST-153). url = link presigned (hạn 60 phút): ảnh mở trực tiếp, tệp khác tải về. */

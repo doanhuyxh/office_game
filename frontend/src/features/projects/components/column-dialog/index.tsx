@@ -59,12 +59,13 @@ function SwitchRow({ id, title, hint, info, checked, disabled, onChange }: {
  * Hướng dẫn cho bot ở cột (TEST-186): chỉ soạn khi bật đánh thức; tắt thì không gửi `guide` → nội dung đã lưu giữ nguyên (bật lại không mất).
  * Bố cục (TEST-189): bật đánh thức → hai cột "Cài đặt" | "Hướng dẫn cho bot" (màn hẹp: hai tab), khung soạn cao hết hộp thoại (một thanh cuộn),
  * phóng to được; tắt → một cột hẹp. Thanh đáy cố định: Xoá (trái) · Huỷ · Lưu.
+ * "Việc sau được bắt đầu từ cột này" (TEST-199): việc trước tới cột này là việc chờ nó hết chờ; cột hoàn thành luôn tính nên công tắc khoá khi bật hoàn thành.
  */
 export function ColumnDialog({ projectId, column, columns, members, onClose }: {
   projectId: string; column: ITaskColumn | null | undefined; columns: ITaskColumn[]; members: IMember[]; onClose: () => void;
 }) {
   const open = column !== undefined;
-  const [f, setF] = useState<ITaskColumnRequest>({ name: '', color: COLUMN_PALETTE[0], isDone: false, approverOnly: false, wakeFollowers: false, wakeBotIds: [] });
+  const [f, setF] = useState<ITaskColumnRequest>({ name: '', color: COLUMN_PALETTE[0], isDone: false, approverOnly: false, wakeFollowers: false, wakeBotIds: [], unblocksDependents: false });
   const bots = members.filter((m) => m.isBot);
   const [moveTo, setMoveTo] = useState<string | null>(null);
   const [guide, setGuide] = useState('');
@@ -81,8 +82,9 @@ export function ColumnDialog({ projectId, column, columns, members, onClose }: {
     setGuide(column?.guide ?? ''); setGuidePreview(!!column?.guide);
     // Bot đã rời dự án không hiện ở danh sách → bỏ khỏi lựa chọn (lưu lại sẽ xoá).
     const botIds = (column?.wakeBotIds ?? []).filter((id) => bots.some((b) => b.employeeId === id));
-    setF(column ? { name: column.name, color: column.color, isDone: column.isDone, approverOnly: column.approverOnly, wakeFollowers: !!column.wakeFollowers, wakeBotIds: botIds }
-      : { name: '', color: COLUMN_PALETTE[columns.length % COLUMN_PALETTE.length], isDone: false, approverOnly: false, wakeFollowers: false, wakeBotIds: [] });
+    setF(column ? { name: column.name, color: column.color, isDone: column.isDone, approverOnly: column.approverOnly, wakeFollowers: !!column.wakeFollowers, wakeBotIds: botIds,
+      unblocksDependents: !!column.unblocksDependents }
+      : { name: '', color: COLUMN_PALETTE[columns.length % COLUMN_PALETTE.length], isDone: false, approverOnly: false, wakeFollowers: false, wakeBotIds: [], unblocksDependents: false });
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [open, column?.id]);
   const errors = fieldErrors(save.error);
@@ -168,6 +170,10 @@ export function ColumnDialog({ projectId, column, columns, members, onClose }: {
                 <SwitchRow id="col-approver" title="Cần người duyệt" checked={f.approverOnly} onChange={(v) => set('approverOnly', v)}
                   hint="Chỉ quản lý dự án chuyển việc vào / ra."
                   info="Chỉ quản lý dự án được chuyển việc vào trạng thái này, hoặc trả việc về trạng thái trước. Bot không bao giờ chuyển việc vào / ra trạng thái cần duyệt." />
+                <SwitchRow id="col-unblocks" title="Việc sau được bắt đầu từ cột này" checked={f.isDone || f.unblocksDependents} disabled={f.isDone}
+                  onChange={(v) => set('unblocksDependents', v)}
+                  hint={f.isDone ? 'Trạng thái hoàn thành luôn cho việc sau bắt đầu.' : 'Chỉ tick ở cột mà code / kết quả của việc trước đã dùng được (đã merge).'}
+                  info="Việc đang chờ một việc khác hết chờ khi việc đó tới trạng thái này (dự án đi lần lượt: cả các trạng thái sau nó), không cần tới trạng thái hoàn thành. Người làm việc sau nhận thông báo “Sẵn sàng”; việc trước bị kéo lùi thì việc chưa bắt đầu bị chặn lại." />
                 <SwitchRow id="col-wake" title="Đánh thức bot theo dõi" checked={f.wakeFollowers} onChange={(v) => { set('wakeFollowers', v); if (!v) setMaxed(false); }}
                   hint="Việc vào đây thì gọi bot theo dõi việc."
                   info="Việc chuyển vào trạng thái này thì các bot đang theo dõi việc được gọi. Bot làm theo hướng dẫn cho bot của cột; chưa có thì tự xem hướng dẫn dự án để biết bước của mình." />

@@ -28,6 +28,20 @@ public static class DependencyRules
         return null;
     }
 
+    /// <summary>
+    /// TEST-199: cột mà việc trước nằm ở đó là "đủ" cho việc đang chờ nó — cột hoàn thành, cột có cờ <see cref="ColumnInfo.UnblocksDependents"/>, và (dự án đi lần lượt)
+    /// mọi cột đứng sau cột có cờ đầu tiên. Không cột nào có cờ → chỉ cột hoàn thành (như trước TEST-199).
+    /// </summary>
+    public static HashSet<Guid> ReadyColumnIds(IEnumerable<ColumnInfo> columns, bool sequential)
+    {
+        var cols = columns.OrderBy(c => c.Position).ThenBy(c => c.Id).ToList();
+        var first = cols.FindIndex(c => c.UnblocksDependents);
+        return cols.Where((c, i) => c.IsDone || c.UnblocksDependents || (sequential && first >= 0 && i >= first)).Select(c => c.Id).ToHashSet();
+    }
+
+    /// <summary>TEST-199: việc trước "đủ" (việc chờ nó được bắt đầu): đã xong (<c>CompletedAt != null</c>) hoặc đang ở cột thuộc <paramref name="readyColumns"/>.</summary>
+    public static bool IsReady(bool completed, Guid columnId, IReadOnlySet<Guid> readyColumns) => completed || readyColumns.Contains(columnId);
+
     /// <summary>Bot (token AI) không đưa việc còn chờ ra khỏi cột đầu tiên. Người thật: chỉ cảnh báo trên giao diện.</summary>
     public static string? StartError(int unfinishedDependencies, bool leavingFirstColumn, bool byBot) =>
         byBot && leavingFirstColumn && unfinishedDependencies > 0
@@ -35,10 +49,14 @@ public static class DependencyRules
             : null;
 
     /// <summary>
-    /// Việc vừa HẾT phải chờ (→ báo "Sẵn sàng"): chưa xong, trước đó còn chờ ít nhất một việc chưa xong, nay không còn.
-    /// Dùng cho cả 3 đường: việc trước xong, sửa danh sách việc phải chờ, xoá việc đứng trước (TEST-198).
+    /// Việc vừa HẾT phải chờ (→ báo "Sẵn sàng"): chưa xong, trước đó còn chờ ít nhất một việc chưa "đủ" (<see cref="IsReady"/>), nay không còn.
+    /// Dùng cho cả 3 đường: việc trước tới cột "đủ", sửa danh sách việc phải chờ, xoá việc đứng trước (TEST-198).
     /// Thêm một việc đã xong / sửa mà vẫn còn chờ / trước đó vốn không chờ → không báo.
     /// </summary>
     public static bool BecameReady(bool taskDone, int unfinishedBefore, int unfinishedAfter) =>
         !taskDone && unfinishedBefore > 0 && unfinishedAfter == 0;
+
+    /// <summary>TEST-199: việc trước bị kéo lùi khỏi vùng "đủ" → việc đang chờ nó đã rời cột đầu (đã bắt đầu, chưa xong) thì không dừng, chỉ báo người làm
+    /// kiểm tra lại đầu vào; việc còn ở cột đầu thì chỉ bị chặn lại (không báo).</summary>
+    public static bool ShouldWarnRegressed(bool dependentDone, bool dependentInFirstColumn) => !dependentDone && !dependentInFirstColumn;
 }

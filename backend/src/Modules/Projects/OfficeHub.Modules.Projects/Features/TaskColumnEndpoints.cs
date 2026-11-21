@@ -18,15 +18,17 @@ namespace OfficeHub.Modules.Projects.Features;
 /// <param name="WakeBotIds">TEST-184: bot (Id nhân viên) được đánh thức; rỗng = mọi bot theo dõi việc, có giá trị = chỉ các bot này và phải đang theo dõi việc.</param>
 /// <param name="HasGuide">TEST-186: cột có hướng dẫn đang hiệu lực (bật đánh thức + có nội dung).</param>
 /// <param name="Guide">TEST-186: nội dung hướng dẫn đã lưu (cho web; còn giữ cả khi tắt đánh thức). MCP get_project / get_task bỏ trường này.</param>
+/// <param name="UnblocksDependents">TEST-199: "Việc sau được bắt đầu từ cột này".</param>
 public sealed record TaskColumnDto(Guid Id, string Name, int Position, string Color, bool IsDone, bool ApproverOnly, int TaskCount, bool WakeFollowers = false,
-    IReadOnlyList<Guid>? WakeBotIds = null, bool HasGuide = false, string? Guide = null);
+    IReadOnlyList<Guid>? WakeBotIds = null, bool HasGuide = false, string? Guide = null, bool UnblocksDependents = false);
 /// <param name="WakeFollowers">null (bỏ trống) = giữ nguyên khi sửa, false khi thêm.</param>
 /// <param name="WakeBotIds">TEST-184: null (bỏ trống) = giữ nguyên khi sửa, rỗng = mọi bot theo dõi; mỗi Id phải là bot thành viên dự án (sai → 400).
 /// Tắt <paramref name="WakeFollowers"/> → danh sách bị xoá.</param>
 /// <param name="Guide">TEST-186: hướng dẫn cho bot ở cột (Markdown ≤ 10.000 ký tự). null (bỏ trống) = giữ nguyên khi sửa, "" = xoá;
 /// có nội dung thì cột phải bật <paramref name="WakeFollowers"/> (400 <c>guide</c>).</param>
+/// <param name="UnblocksDependents">TEST-199: "Việc sau được bắt đầu từ cột này". null (bỏ trống) = giữ nguyên khi sửa, false khi thêm.</param>
 public sealed record UpsertTaskColumn(string Name, string? Color = null, bool IsDone = false, bool ApproverOnly = false, bool? WakeFollowers = null,
-    List<Guid>? WakeBotIds = null, string? Guide = null);
+    List<Guid>? WakeBotIds = null, string? Guide = null, bool? UnblocksDependents = null);
 public sealed record ReorderTaskColumns(List<Guid> Ids);
 
 /// <summary>
@@ -49,7 +51,8 @@ internal static class TaskColumnEndpoints
         await db.Columns.Where(c => c.ProjectId == projectId).OrderBy(c => c.Position).ThenBy(c => c.Id).ToListAsync(ct);
 
     internal static List<ColumnInfo> Infos(IEnumerable<TaskColumn> cols) =>
-        cols.OrderBy(c => c.Position).ThenBy(c => c.Id).Select(c => new ColumnInfo(c.Id, c.Name, c.Position, c.IsDone, c.ApproverOnly, c.WakeFollowers, c.WakeBotIds)).ToList();
+        cols.OrderBy(c => c.Position).ThenBy(c => c.Id).Select(c => new ColumnInfo(c.Id, c.Name, c.Position, c.IsDone, c.ApproverOnly, c.WakeFollowers, c.WakeBotIds,
+            c.UnblocksDependents)).ToList();
 
     internal static async Task<List<TaskColumnDto>> ListForAsync(ProjectsDbContext db, Guid projectId, CancellationToken ct)
     {
@@ -57,7 +60,7 @@ internal static class TaskColumnEndpoints
         var counts = await db.Tasks.AsNoTracking().Where(t => t.ProjectId == projectId).GroupBy(t => t.ColumnId).Select(g => new { g.Key, N = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.N, ct);
         return cols.Select(c => new TaskColumnDto(c.Id, c.Name, c.Position, c.Color, c.IsDone, c.ApproverOnly, counts.GetValueOrDefault(c.Id), c.WakeFollowers,
-            c.WakeBotIds, TaskColumnRules.ActiveGuide(c.WakeFollowers, c.Guide) is not null, c.Guide)).ToList();
+            c.WakeBotIds, TaskColumnRules.ActiveGuide(c.WakeFollowers, c.Guide) is not null, c.Guide, c.UnblocksDependents)).ToList();
     }
 
     private static async Task<Results<Ok<List<TaskColumnDto>>, NotFound>> ListAsync(Guid id, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
@@ -124,7 +127,7 @@ internal static class TaskColumnEndpoints
         var c = new TaskColumn
         {
             ProjectId = id, Name = name, Position = cols.Count, IsDone = r.IsDone, ApproverOnly = r.ApproverOnly, WakeFollowers = wake, WakeBotIds = botIds,
-            Guide = TaskColumnRules.CleanGuide(r.Guide),
+            Guide = TaskColumnRules.CleanGuide(r.Guide), UnblocksDependents = r.UnblocksDependents ?? false,
             Color = r.Color?.ToLowerInvariant() ?? TaskColumnRules.Palette[cols.Count % TaskColumnRules.Palette.Length],
         };
         db.Columns.Add(c);
@@ -159,6 +162,7 @@ internal static class TaskColumnEndpoints
         c.ApproverOnly = r.ApproverOnly;
         c.WakeFollowers = wake;
         if (botIds is not null) c.WakeBotIds = botIds;
+        if (r.UnblocksDependents is { } unblocks) c.UnblocksDependents = unblocks;
         if (r.Guide is not null) c.Guide = TaskColumnRules.CleanGuide(r.Guide); // "" → xoá; tắt đánh thức thì nội dung giữ nguyên (không dùng)
         await db.SaveChangesAsync(ct);
         return TypedResults.NoContent();

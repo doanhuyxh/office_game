@@ -80,8 +80,13 @@ internal static class NotificationCatalog
             "Thành viên dự án được @mã-nhân-viên trong bình luận (Telegram: chỉ tài khoản bot, kể cả người làm việc; không gửi khi bot tự nhắc mình).",
             NotificationCategories.ProjectTask, Telegram: nameof(ITelegramWakeup.TaskMentionedAsync)),
         new("projects.task_ready", "projects", "Việc sẵn sàng",
-            "Người làm (chưa giao thì quản lý dự án) khi việc vừa hết phải chờ: việc trước cuối cùng xong, sửa danh sách việc phải chờ hoặc xoá việc đứng trước; bỏ người vừa thao tác (Telegram: chỉ khi có người làm là tài khoản bot).",
+            "Người làm (chưa giao thì quản lý dự án) khi việc vừa hết phải chờ: việc trước cuối cùng \"đủ\" (xong, hoặc tới trạng thái có tick \"Việc sau được bắt đầu từ cột này\" — đi tiếp sang Xong không báo lại), " +
+            "sửa danh sách việc phải chờ hoặc xoá việc đứng trước; bỏ người vừa thao tác (Telegram: chỉ khi có người làm là tài khoản bot).",
             NotificationCategories.ProjectTask, Telegram: nameof(ITelegramWakeup.TaskReadyAsync)),
+        new("projects.task_dependency_regressed", "projects", "Việc trước bị kéo lùi",
+            "Người làm việc đã bắt đầu (rời trạng thái đầu, chưa xong) khi việc nó chờ bị kéo lùi ra khỏi vùng \"đủ\" — kiểm tra lại đầu vào; việc còn ở trạng thái đầu chỉ bị chặn lại, không báo. " +
+            "Bỏ người vừa thao tác; không Telegram.",
+            NotificationCategories.ProjectTask),
         new("projects.task_bot_blocked", "projects", "Bot bị chặn vì thao tác liên tiếp",
             "Quản lý dự án (trừ tài khoản bot) khi bot bị chặn trên một việc vì đã thao tác tới giới hạn lần liên tiếp mà chưa có người thật xem; " +
             "một chuông cho mỗi lần chạm giới hạn — bot thử lại không báo thêm, có người thật thao tác rồi bot lại chạm giới hạn thì báo lại.",
