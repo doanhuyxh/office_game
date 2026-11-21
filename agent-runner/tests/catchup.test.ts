@@ -84,6 +84,7 @@ function setup() {
   const s = runner.agents.get('NV120')!;
   s.enabled = true;
   s.employeeId = 'emp-1';
+  s.cfg.projects[0]!.projectId = P; // `doctor` đã đổi mã dự án TEST → id (TEST-200)
   const queued = () =>
     store.db
       .query<{ label: string }, []>(`SELECT task_code AS label FROM jobs WHERE status = 'queued' ORDER BY id`)

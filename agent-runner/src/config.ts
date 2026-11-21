@@ -50,10 +50,11 @@ export interface WorkspaceConfig {
 
 /**
  * Nơi làm của agent cho MỘT dự án OfficeHub (TEST-200): một agent (một mã NV, một bot) nhận việc của nhiều dự án, mỗi dự án một repo /
- * nhánh gốc / mode riêng — một mục của `agents[].projects`, hoặc mặc định cấp agent ({@link defaultWorkspace}, `projectCode` rỗng).
+ * nhánh gốc / mode riêng — một mục của `agents[].projects`. Agent nghiệp vụ (mode none) không khai `projects`: mọi dự án dùng chung nơi
+ * làm không repo ({@link defaultWorkspace}, `projectCode` rỗng).
  */
 export interface ProjectWorkspace {
-  /** Mã dự án trên OfficeHub (in hoa). '' = mặc định cấp agent, dùng cho dự án không khai trong `projects`. */
+  /** Mã dự án trên OfficeHub (in hoa). '' = nơi làm không repo của agent mode none (mọi dự án). */
   projectCode: string;
   /** Id dự án — runner đổi từ mã lúc khởi động / `doctor` (MCP get_project). Chưa có = chưa đổi được, mục này chưa nhận việc. */
   projectId?: string;
@@ -71,20 +72,13 @@ export interface AgentConfig {
   telegramBot: string;
   telegramToken: string;
   token: string;
-  /**
-   * Bản clone MẶC ĐỊNH của agent (dự án không khai trong `projects`). Mode none không dùng → chuỗi rỗng; agent chỉ khai `projects` → chuỗi rỗng
-   * (không có mặc định). Đừng đọc thẳng trường này lúc chạy job — dùng {@link workspaceFor}.
-   */
-  repo: string;
-  /**
-   * Nhánh gốc mặc định của agent: nhánh việc tách từ `origin/<nhánh này>`, PR merge vào nó (vd agent web → `developer`, agent app → `main`).
-   * `base_branch` của agent, không khai → `runner.base_branch`. Mode none không dùng.
-   */
-  baseBranch: string;
   envFile?: string;
-  /** Mode mặc định của agent (mục `projects` không khai `workspace` thì theo đây). */
+  /**
+   * `workspace` cấp agent: mode none = agent nghiệp vụ (không repo, không `projects`); mode khác = mặc định cho mục `projects` không khai
+   * `workspace`. Lúc chạy job đừng đọc trường này — dùng {@link workspaceFor}.
+   */
   workspace: WorkspaceConfig;
-  /** Repo theo dự án (TEST-200). Rỗng = cấu hình cũ: mọi dự án dùng `repo` cấp agent. */
+  /** Repo theo dự án (TEST-200) — agent có repo BẮT BUỘC khai ít nhất một mục; agent mode none thì rỗng. */
   projects: ProjectWorkspace[];
   executor: ExecutorConfig;
 }
@@ -121,13 +115,11 @@ const BRANCH_NAME = /^[A-Za-z0-9_][A-Za-z0-9._/-]*$/;
 /** Mã dự án OfficeHub (đã in hoa), vd TEST, WEB-2026. */
 const PROJECT_CODE = /^[A-Z0-9][A-Z0-9._-]{0,39}$/;
 
-/** Nơi làm mặc định cấp agent (dự án không khai trong `projects`); null = agent chỉ khai `projects`, không có mặc định. */
+/** Nơi làm dùng cho MỌI dự án của agent mode none (không repo); agent có repo → null (chỉ dự án khai trong `projects` mới có nơi làm). */
 export const defaultWorkspace = (a: AgentConfig): ProjectWorkspace | null =>
-  a.workspace.mode === 'none' || a.repo
-    ? { projectCode: '', repo: a.repo, baseBranch: a.baseBranch, workspace: a.workspace }
-    : null;
+  a.workspace.mode === 'none' ? { projectCode: '', repo: '', baseBranch: '', workspace: a.workspace } : null;
 
-/** Mọi nơi làm của agent: mặc định cấp agent (nếu có) + từng mục `projects`. */
+/** Mọi nơi làm của agent: nơi làm không repo (mode none) hoặc từng mục `projects`. */
 export const agentWorkspaces = (a: AgentConfig): ProjectWorkspace[] => {
   const fallback = defaultWorkspace(a);
   return fallback ? [fallback, ...a.projects] : [...a.projects];
@@ -138,8 +130,8 @@ export const declaredProject = (a: AgentConfig, projectId: string): ProjectWorks
   a.projects.find((p) => !!p.projectId && p.projectId.toLowerCase() === projectId.toLowerCase());
 
 /**
- * Nơi làm (repo / nhánh gốc / mode) của agent cho việc thuộc dự án `projectId` (TEST-200): mục `projects` của dự án đó; dự án không khai →
- * mặc định cấp agent; không có mặc định, hoặc mục của dự án đang tắt (`problem`) → null = việc của dự án này không chạy trên máy này.
+ * Nơi làm (repo / nhánh gốc / mode) của agent cho việc thuộc dự án `projectId` (TEST-200): mục `projects` của dự án đó; agent mode none →
+ * nơi làm không repo cho mọi dự án; dự án không khai, hoặc mục của dự án đang tắt (`problem`) → null = việc của dự án này không chạy trên máy này.
  */
 export function workspaceFor(a: AgentConfig, projectId: string): ProjectWorkspace | null {
   const declared = declaredProject(a, projectId);
@@ -259,10 +251,17 @@ export function parseConfig(raw: unknown): RunnerConfig {
     const projectList: any[] = Array.isArray(a?.projects) ? a.projects : [];
     if (mode === 'none' && projectList.length)
       p.push(`${at}: workspace.mode none (agent nghiệp vụ, không repo) không khai được projects`);
-    // Mode none (agent nghiệp vụ) không cần repo; có khai báo cũng bỏ qua. Có `projects` → repo cấp agent là tuỳ chọn (mặc định cho dự án không khai).
-    const repo = mode === 'none' ? undefined : str(a?.repo);
-    const repoOptional = projectList.length > 0 && (a?.repo === undefined || a?.repo === null);
-    if (mode !== 'none' && !repoOptional) checkRepo(repo, at);
+    // Repo chỉ khai theo dự án (TEST-200). Mode none (agent nghiệp vụ) không có repo; `repo` khai ở cấp agent thì bỏ qua.
+    if (mode !== 'none') {
+      if (a?.repo !== undefined && a?.repo !== null)
+        p.push(`${at}.repo không còn dùng — chuyển vào ${at}.projects: [{ project: <mã dự án OfficeHub>, repo: … }]`);
+      if (Array.isArray(a?.projects) && projectList.length === 0)
+        p.push(`${at}.projects phải có ít nhất một dự án (project + repo)`);
+      if (a?.projects === undefined || a?.projects === null)
+        p.push(
+          `${at}.projects bắt buộc — mỗi dự án OfficeHub agent làm một mục (project + repo); agent không repo dùng workspace.mode none`,
+        );
+    }
     // worktrees_dir NẰM TRONG repo được phép (vd .officehub-runner/worktrees): EnvLoader dừng ở gốc worktree (.git) nên không đọc .env của
     // repo chính; `doctor` / khởi động bắt buộc thư mục đó đã gitignore.
     const envFile = str(a?.env_file);
@@ -359,14 +358,12 @@ export function parseConfig(raw: unknown): RunnerConfig {
           workspace: own,
         });
     });
-    if (code && bot && tgToken && token && (repo || mode === 'none' || repoOptional) && executor)
+    if (code && bot && tgToken && token && executor)
       agents.push({
         employeeCode: code,
         telegramBot: normalizeBot(bot),
         telegramToken: tgToken,
         token,
-        repo: repo ? resolve(repo) : '',
-        baseBranch: agentBase ?? defaultBase,
         envFile,
         workspace,
         projects,

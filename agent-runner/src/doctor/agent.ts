@@ -72,20 +72,14 @@ export async function diagnoseAgent(c: DoctorContext, o: DoctorOptions): Promise
       report.step(`đổi mã dự án → id (get_project): ${c.agent.projects.map((p) => p.projectCode).join(', ')}`);
       await resolveProjects(c, report);
     }
-    const fallback = defaultWorkspace(c.agent);
-    if (fallback) {
-      const mode = fallback.workspace.mode;
-      report.step(
-        mode === 'none'
-          ? 'kiểm tra workspace none (thư mục chạy)'
-          : `kiểm tra workspace ${mode}: repo, danh tính git, hook, nhánh`,
-      );
-      if (mode === 'none') checkNoneWorkspace(c, report);
-      else await checkRepoWorkspace(c, report, fallback);
+    if (defaultWorkspace(c.agent)) {
+      report.step('kiểm tra workspace none (thư mục chạy)');
+      checkNoneWorkspace(c, report);
+    } else {
+      await checkProjectWorkspaces(c, report);
+      if (c.agent.projects.every((p) => p.problem))
+        throw new CheckFailed('không dự án nào trong projects chạy được — xem các dòng ⚠ (dự án …) ở trên');
     }
-    await checkProjectWorkspaces(c, report);
-    if (!fallback && c.agent.projects.every((p) => p.problem))
-      throw new CheckFailed('không dự án nào trong projects chạy được và agent không có repo mặc định');
     if (c.agent.envFile && !existsSync(c.agent.envFile))
       throw new CheckFailed(`không thấy env_file ${c.agent.envFile}`);
     if (o.telegram) {
@@ -208,14 +202,14 @@ async function checkProjectWorkspaces(c: DoctorContext, report: Report) {
 
 function disableProject(p: ProjectWorkspace, report: Report, problem: string) {
   p.problem = problem;
-  report.warn(`${problem} — dự án TẮT trên máy này (việc của dự án không chạy), agent vẫn chạy`, projectScope(p));
+  report.warn(`${problem} — dự án TẮT trên máy này (việc của dự án không chạy)`, projectScope(p));
 }
 
 /**
  * Mode worktree / in_place: repo có origin, danh tính commit, thư mục của runner đã gitignore, hook, nhánh đang đứng.
- * @param agent nơi làm đang kiểm tra — mặc định cấp agent hoặc một mục `projects` (khi đó `scope` = "dự án <mã>").
+ * @param agent mục `projects` đang kiểm tra; dòng kết quả in theo phạm vi `scope` ("dự án <mã>").
  */
-async function checkRepoWorkspace(c: DoctorContext, base: Report, agent: ProjectWorkspace, scope?: string) {
+async function checkRepoWorkspace(c: DoctorContext, base: Report, agent: ProjectWorkspace, scope: string) {
   const { git, config } = c;
   const report = {
     ok: (text: string) => base.ok(text, scope),

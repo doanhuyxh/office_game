@@ -64,7 +64,7 @@ export function skipJob(store: Store, job: Job, reason: string) {
 
 /**
  * Lý do việc của một dự án không chạy được trên máy này (TEST-200, `workspaceFor` trả null): mục `projects` của dự án đang tắt, hoặc dự án
- * không khai và agent không có repo mặc định. Mã dự án lấy từ mã việc (`WEB-2026-12` → `WEB-2026`).
+ * không khai trong `projects`. Mã dự án lấy từ mã việc (`WEB-2026-12` → `WEB-2026`).
  */
 export function noWorkspaceReason(agent: AgentConfig, job: Pick<Job, 'project_id' | 'label'>): string {
   const declared = declaredProject(agent, job.project_id);

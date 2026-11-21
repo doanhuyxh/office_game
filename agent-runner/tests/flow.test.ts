@@ -34,7 +34,8 @@ let getTaskHook: ((a: any) => any) | null = null;
 /** > 0 → get_task trả lỗi MCP ngần ấy lần (máy chủ tạm lỗi — runner phải thử lại nhận tin). */
 let getTaskFails = 0;
 /** Kết quả MCP get_project theo mã dự án (TEST-200); mã không có ở đây → tool trả lỗi (không thấy dự án). */
-let hubProjects: Record<string, any> = {};
+const HUB_PROJECTS: Record<string, any> = { TEST: { project: { id: P, code: 'TEST', canWork: true } } };
+let hubProjects = HUB_PROJECTS;
 /** Kết quả MCP list_chats (TEST-81). */
 let chats: any[] = [];
 let updatesServed = false;
@@ -229,7 +230,7 @@ echo '{"session_id":"sess-xyz","model":"fake-model-1","cost_usd":0.42,"input_tok
         telegram_bot: '@agent_dev01_bot',
         telegram_token: TG,
         token: TOKEN,
-        repo,
+        projects: [{ project: 'TEST', repo }],
         env_file: envFile,
         executor: {
           kind: 'custom',
@@ -268,7 +269,7 @@ test('doctor: CLI, token đúng nhân viên, repo + hook, bot Telegram', async (
   expect(lines.join('\n')).toContain('commit đứng tên Chu Du An <owner@example.vn>');
   expect(lines[0]).toContain(`(${gitBin})`);
   expect(lines.join('\n')).toContain(
-    '⚠ NV120: repo đang ở nhánh main — nhánh việc tách từ origin/main và PR merge vào main',
+    '⚠ NV120 (dự án TEST): repo đang ở nhánh main — nhánh việc tách từ origin/main và PR merge vào main',
   ); // cảnh báo, không chặn
   expect(existsSync(join(root, 'agent-repo/.git/hooks/commit-msg'))).toBe(true);
   expect(readFileSync(join(root, 'agent-repo/.git/hooks/pre-push'), 'utf8')).toContain('officehub-agent-runner');
@@ -504,14 +505,15 @@ const inPlaceSetup = async (name = 'agent-repo-ip', branch = 'work') => {
     await run(['git', 'checkout', '-b', branch], repo);
   }
   const base = runner.config.agents[0]!;
+  const workspace = { mode: 'in_place' as const, allowBaseBranch: false, allowEnvFiles: false, builtinTools: false };
   const config: RunnerConfig = {
     ...runner.config,
     dataDir: join(root, `data-${name}`),
     agents: [
       {
         ...base,
-        repo,
-        workspace: { mode: 'in_place', allowBaseBranch: false, allowEnvFiles: false, builtinTools: false },
+        workspace,
+        projects: [{ projectCode: 'TEST', repo, baseBranch: 'main', workspace }],
       },
     ],
   };
@@ -1090,7 +1092,8 @@ test('TEST-159: checkAgents có progress → mỗi bước báo TRƯỚC kết q
     'kiểm tra agent 1/1',
     'kiểm tra CLI',
     'kiểm tra token AI',
-    'kiểm tra workspace',
+    'đổi mã dự án → id',
+    'kiểm tra dự án TEST',
     'kiểm tra bot Telegram',
   ];
   const at = order.map((o) => steps.findIndex((e) => e.text.startsWith(o)));
@@ -1345,8 +1348,8 @@ test('nhánh gốc theo agent (base_branch): nhánh việc tách từ origin/<nh
     dataDir: join(root, 'data-base'),
     worktreesDir: join(root, 'worktrees-base'),
     agents: [
-      { ...base, baseBranch: 'developer' },
-      { ...base, employeeCode: 'NV121', telegramBot: '@agent_app01_bot' },
+      { ...base, projects: [{ ...base.projects[0]!, baseBranch: 'developer' }] },
+      { ...base, employeeCode: 'NV121', telegramBot: '@agent_app01_bot', projects: [{ ...base.projects[0]! }] },
     ],
   };
   require('node:fs').mkdirSync(config.dataDir, { recursive: true });
@@ -1427,7 +1430,7 @@ test('TEST-200: một agent nhiều dự án — việc dự án A vào repo A (
     baseBranch,
     workspace: base.workspace,
   });
-  // Agent CHỈ khai projects (không repo mặc định): 2 dự án chạy được + 3 dự án lỗi theo 3 kiểu
+  // 2 dự án chạy được + 3 dự án lỗi theo 3 kiểu
   const config: RunnerConfig = {
     ...runner.config,
     dataDir: join(root, 'data-multi'),
@@ -1435,7 +1438,6 @@ test('TEST-200: một agent nhiều dự án — việc dự án A vào repo A (
     agents: [
       {
         ...base,
-        repo: '',
         projects: [
           project('PA', repoA, 'release-a'),
           project('PB', repoB),
@@ -1511,7 +1513,7 @@ test('TEST-200: một agent nhiều dự án — việc dự án A vào repo A (
     expect((await sh(['git', 'ls-remote', '--heads', 'origin', 'agent/nv120/pb-2'], repoA)).out).toBe('');
     expect(outputOf(b.id)).toContain('base=main"');
 
-    // dự án không khai (agent không có repo mặc định) → skipped + bình luận, không chạy CLI
+    // dự án không khai trong projects → skipped + bình luận, không chạy CLI
     const before = comments.length;
     const none = await runTask(3);
     expect(none.status).toBe('skipped');
@@ -1557,7 +1559,7 @@ test('TEST-200: một agent nhiều dự án — việc dự án A vào repo A (
     const queued = st.db.query<any, []>(`SELECT task_code FROM jobs WHERE status = 'queued'`).all();
     expect(queued).toEqual([{ task_code: 'PA-5' }]);
 
-    // mọi dự án lỗi + không có repo mặc định → agent tắt
+    // mọi dự án lỗi → agent tắt
     hubProjects = {};
     const dead = (await r.checkAgents({ only: 'NV120', telegram: false })).map(formatFinding);
     expect(dead.some((l) => l.startsWith('✘ NV120: không dự án nào trong projects chạy được'))).toBe(true);
@@ -1565,7 +1567,7 @@ test('TEST-200: một agent nhiều dự án — việc dự án A vào repo A (
   } finally {
     getTaskHook = null;
     mine = null;
-    hubProjects = {};
+    hubProjects = HUB_PROJECTS;
     r.stop();
     // trả hook của repo A về cấu hình của runner chính (các test khác dùng chung repo)
     await runner.checkAgents({ only: 'NV120', telegram: false });

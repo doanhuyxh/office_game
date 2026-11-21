@@ -10,7 +10,7 @@ export const baseRaw = () => ({
       telegram_bot: 'Agent_Dev01_Bot',
       telegram_token: TG,
       token: 'ohk_abcdefgh12345678',
-      repo: '/srv/agents/NV120/office_game',
+      projects: [{ project: 'TEST', repo: '/srv/agents/NV120/office_game' }],
       executor: { kind: 'claude', bin: '/usr/local/bin/claude', model: 'claude-sonnet-5-5', max_budget_usd: 5 },
     },
   ],
