@@ -1331,7 +1331,7 @@ test('nhận tin: không hỏi lại được OfficeHub → thử lại theo nh�
   }
 }, 30000);
 
-test('nhánh gốc theo agent (base_branch): nhánh việc tách từ origin/<nhánh gốc của agent>, hook chặn push lên nhánh gốc của mọi agent dùng chung repo', async () => {
+test('nhánh gốc theo dự án (projects[].base_branch): nhánh việc tách từ origin/<nhánh gốc của dự án>, hook chặn push lên nhánh gốc của mọi agent dùng chung repo', async () => {
   const seed = join(root, 'seed'),
     repo = join(root, 'agent-repo');
   // origin có thêm nhánh developer đi trước main một commit

@@ -21,7 +21,7 @@ describe('config', () => {
     expect(c.telegramApiUrl).toBe('https://api.telegram.org');
   });
 
-  test('base_branch: mục projects → cấp agent → runner.base_branch (mặc định main); tên sai → lỗi', () => {
+  test('base_branch: theo mục projects → runner.base_branch (mặc định main); tên sai / khai ở cấp agent → lỗi', () => {
     const r: any = baseRaw();
     r.agents.push({ ...baseRaw().agents[0], employee_code: 'nv121', telegram_bot: 'Agent_App01_Bot' });
     r.agents.push({
@@ -31,7 +31,7 @@ describe('config', () => {
       workspace: { mode: 'none' },
       projects: undefined,
     });
-    r.agents[0].base_branch = 'developer';
+    r.agents[0].projects[0].base_branch = 'developer';
     const bases = (c: ReturnType<typeof parseConfig>) => c.agents.map((a) => a.projects.map((p) => p.baseBranch));
     const c = parseConfig(r);
     expect(bases(c)).toEqual([['developer'], ['main'], []]);
@@ -41,9 +41,15 @@ describe('config', () => {
     expect(bases(parseConfig(r))).toEqual([['developer'], ['release/2.0'], []]);
     for (const bad of ['--force', 'a b', '', 5]) {
       const x: any = baseRaw();
-      x.agents[0].base_branch = bad;
-      expect(() => parseConfig(x)).toThrow('base_branch phải là tên nhánh');
+      x.agents[0].projects[0].base_branch = bad;
+      expect(() => parseConfig(x)).toThrow('projects[0].base_branch phải là tên nhánh');
     }
+    // nhánh gốc đi theo dự án: khai ở cấp agent → lỗi kèm chỗ chuyển tới
+    const old: any = baseRaw();
+    old.agents[0].base_branch = 'developer';
+    expect(() => parseConfig(old)).toThrow(
+      'agents[0].base_branch không còn dùng — khai ở từng mục agents[0].projects[].base_branch',
+    );
   });
 
   test('workspace: mặc định worktree; in_place + cờ; sai giá trị / dùng chung repo → lỗi', () => {
@@ -125,7 +131,7 @@ describe('config', () => {
     expect(() => parseConfig(r)).toThrow(ConfigError);
   });
 
-  test('TEST-200: projects hợp lệ — repo theo dự án; base_branch / workspace không khai → cấp agent → runner', () => {
+  test('TEST-200: projects hợp lệ — repo theo dự án; base_branch không khai → runner, workspace không khai → cấp agent', () => {
     const r: any = baseRaw();
     r.runner.base_branch = 'release';
     r.agents[0].projects = [
@@ -149,15 +155,14 @@ describe('config', () => {
         workspace: { mode: 'in_place', allowBaseBranch: false, allowEnvFiles: true, builtinTools: false },
       },
     ]);
-    // base_branch / workspace cấp agent là mặc định của mục không khai
-    r.agents[0].base_branch = 'main';
+    // workspace cấp agent là mặc định của mục không khai
     r.agents[0].workspace = { mode: 'in_place', allow_base_branch: true };
     r.agents[0].projects[1] = { project: 'SHOP', repo: '/srv/agents/NV120/shop' };
     r.agents[0].projects[0].workspace = { mode: 'worktree' };
     const b = parseConfig(r).agents[0]!;
     expect(b.projects.map((p) => [p.baseBranch, p.workspace.mode, p.workspace.allowBaseBranch])).toEqual([
       ['developer', 'worktree', false],
-      ['main', 'in_place', true],
+      ['release', 'in_place', true],
     ]);
   });
 
@@ -227,11 +232,10 @@ describe('config', () => {
   test('TEST-200: repoBaseBranches gom nhánh gốc của MỌI cặp (agent, dự án) dùng chung repo', () => {
     const shared = '/srv/agents/shared/shop';
     const r: any = baseRaw();
-    r.agents[0].base_branch = 'developer';
     r.agents[0].projects = [
       { project: 'SHOP', repo: shared, base_branch: 'release/2.0' },
-      { project: 'WEB', repo: shared }, // theo cấp agent: developer
-      { project: 'OFFICE', repo: '/srv/agents/NV120/office_game' },
+      { project: 'WEB', repo: shared, base_branch: 'developer' },
+      { project: 'OFFICE', repo: '/srv/agents/NV120/office_game', base_branch: 'developer' },
     ];
     r.agents.push({
       ...baseRaw().agents[0],

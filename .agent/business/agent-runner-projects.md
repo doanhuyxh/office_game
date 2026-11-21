@@ -12,7 +12,7 @@ Một agent (một mã NV, một bot Telegram, một token AI) nhận việc c�
 agents:
   - employee_code: NV120
     executor: { … }                     # dùng chung mọi dự án
-    # base_branch / workspace ở cấp agent: tuỳ chọn — mặc định cho các mục projects không khai
+    # workspace ở cấp agent: tuỳ chọn — mặc định cho các mục projects không khai; base_branch KHÔNG khai ở cấp agent
     projects:                           # BẮT BUỘC với agent có repo, ít nhất một mục
       - project: OFFICE                 # mã dự án trên OfficeHub
         repo: /srv/agents/NV120/office_game
@@ -24,7 +24,7 @@ agents:
 
 - Agent có repo (mode `worktree` / `in_place`) **bắt buộc** có `projects` (≥ 1 mục). Việc của dự án không khai → không chạy.
 - Agent nghiệp vụ (`workspace.mode: none` ở cấp agent) không có `projects` / repo, nhận việc của **mọi** dự án như trước.
-- Mỗi mục: `project` bắt buộc, không trùng trong cùng agent (không phân biệt hoa thường); `repo` tuyệt đối, ngoài `worktrees_dir`; `base_branch` không khai → `base_branch` cấp agent → `runner.base_branch`; `workspace` không khai → theo cấp agent, **có khai thì thay cả mục** (cờ không ghi = false, `mode` không ghi = worktree).
+- Mỗi mục: `project` bắt buộc, không trùng trong cùng agent (không phân biệt hoa thường); `repo` tuyệt đối, ngoài `worktrees_dir`; `base_branch` không khai → `runner.base_branch` (nhánh gốc đi theo dự án: khai `base_branch` ở cấp agent → lỗi cấu hình); `workspace` không khai → theo cấp agent, **có khai thì thay cả mục** (cờ không ghi = false, `mode` không ghi = worktree).
 - Lỗi cấu hình: `workspace.mode: none` ở cấp agent mà khai `projects`; mục `projects` có mode `none`; repo `in_place` bị dùng chung — xét trên từng cặp (agent, dự án), kể cả hai mục của cùng một agent. Worktree dùng chung repo thì được.
 
 ## Runner chọn nơi làm thế nào

@@ -90,7 +90,7 @@ export interface RunnerConfig {
   dataDir: string;
   worktreesDir: string;
   maxParallel: number;
-  /** Nhánh gốc mặc định cho agent không khai `base_branch` riêng (`runner.base_branch`, mặc định main). */
+  /** Nhánh gốc mặc định cho mục `projects` không khai `base_branch` riêng (`runner.base_branch`, mặc định main). */
   baseBranch: string;
   /** Định dạng log của runner: auto (terminal → pretty, còn lại json) | json | pretty. */
   logFormat: 'auto' | 'json' | 'pretty';
@@ -329,10 +329,12 @@ export function parseConfig(raw: unknown): RunnerConfig {
     if (executor)
       for (const problem of adapters[executor.kind].configProblems?.(executor) ?? [])
         p.push(`${at}.executor.${problem}`);
-    const agentBase = str(a?.base_branch);
-    if (a?.base_branch !== undefined && !(agentBase && BRANCH_NAME.test(agentBase)))
-      p.push(`${at}.base_branch phải là tên nhánh (vd main, developer, release/2.0)`);
-    // TEST-200: repo theo dự án — mỗi mục một dự án OfficeHub; base_branch / workspace không khai → theo cấp agent.
+    // Nhánh gốc đi theo DỰ ÁN (repo nào nhánh nấy) — không khai ở cấp agent.
+    if (a?.base_branch !== undefined && a?.base_branch !== null)
+      p.push(
+        `${at}.base_branch không còn dùng — khai ở từng mục ${at}.projects[].base_branch (bỏ trống = runner.base_branch)`,
+      );
+    // TEST-200: repo theo dự án — mỗi mục một dự án OfficeHub; base_branch không khai → runner.base_branch, workspace không khai → cấp agent.
     const projects: ProjectWorkspace[] = [];
     const seenProjects = new Set<string>();
     projectList.forEach((x: any, j: number) => {
@@ -354,7 +356,7 @@ export function parseConfig(raw: unknown): RunnerConfig {
         projects.push({
           projectCode,
           repo: resolve(projectRepo!),
-          baseBranch: projectBase ?? agentBase ?? defaultBase,
+          baseBranch: projectBase ?? defaultBase,
           workspace: own,
         });
     });
