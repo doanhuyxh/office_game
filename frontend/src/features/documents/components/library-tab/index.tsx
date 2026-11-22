@@ -140,7 +140,7 @@ export function LibraryTab({ initialSpace, onOpen }: { initialSpace: ISpaceRef |
             </>
           )}
         </div>
-        {current?.closed && <p className="rounded-md bg-muted p-2 text-sm text-muted-foreground">Dự án đã đóng — kho chỉ đọc.</p>}
+        {current?.closed && !current.canWrite && <p className="rounded-md bg-muted p-2 text-sm text-muted-foreground">Dự án đã đóng — kho chỉ đọc.</p>}
 
         <UploadPanel items={uploads.items} onClear={uploads.clear} />
 

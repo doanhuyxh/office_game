@@ -132,8 +132,8 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
   const byId = new Map(d.columns.map((c) => [c.id, c]));
   const columns = pendingOrder ? pendingOrder.map((id) => byId.get(id)).filter((c): c is ITaskColumn => !!c) : d.columns;
   const creatable = new Set(createColumns(columns, p.sequential, p.canManage).map((c) => c.id));
-  /** Chỉ xem (TEST-192): không có quyền làm việc hoặc dự án không chạy. */
-  const readOnly = !p.canWork || p.status !== 'Active';
+  /** Chỉ xem (TEST-192): không có quyền làm việc. Dự án đã đóng: back-end chỉ cho quản lý dự án / HR canWork (TEST-213). */
+  const readOnly = !p.canWork;
   const firstCreatable = columns.find((c) => creatable.has(c.id));
   const opened: ITask | undefined = search.task && !missing ? data.find((t) => t.id === search.task) ?? linked.data?.task : undefined;
   const shown = mine ? data.filter((t) => t.assigneeEmployeeId === myEmployeeId) : data;
@@ -189,7 +189,9 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
       <div className={cn('flex flex-wrap items-center gap-3 bg-muted px-3 pt-3', view === 'list' ? 'pb-2' : 'border-b pb-3')}>
         <ViewToggle view={view} onChange={setView} />
         <label className="flex items-center gap-2 text-sm"><Checkbox checked={mine} onCheckedChange={(c) => setMine(c === true)} data-testid="only-mine" /> Chỉ việc của tôi</label>
-        {!p.canWork && <span className="text-xs text-muted-foreground">{p.status === 'Closed' ? 'Dự án đã đóng — chỉ xem.' : 'Bạn chỉ xem (không phải thành viên).'}</span>}
+        {!p.canWork && <span className="text-xs text-muted-foreground" data-testid="readonly-hint">
+          {p.status === 'Closed' ? (p.canComment ? 'Dự án đã đóng — bạn chỉ bình luận được.' : 'Dự án đã đóng — chỉ xem.') : 'Bạn chỉ xem (không phải thành viên).'}</span>}
+        {p.canWork && p.status === 'Closed' && <span className="text-xs text-muted-foreground" data-testid="readonly-hint">Dự án đã đóng — bạn là quản lý nên vẫn sửa được việc.</span>}
         {(p.sequential || columns.some((c) => c.approverOnly)) && <span className="text-xs text-muted-foreground" data-testid="review-hint">
           Quy trình:{p.sequential && ' đi lần lượt từng cột · chuyển lùi phải ghi lý do'}
           {columns.some((c) => c.approverOnly) && `${p.sequential ? ' ·' : ''} chỉ quản lý dự án chuyển sang ${columns.filter((c) => c.approverOnly).map((c) => `"${c.name}"`).join(', ')}`}.
@@ -271,7 +273,8 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
         })}
       </div>}
       <TaskDialog projectId={p.id} task={opened ?? (create ? null : undefined)} initialColumnId={create?.columnId} columns={columns} members={d.members}
-        milestones={d.milestones} canWork={p.canWork} canDelete={p.canManage} sequential={p.sequential} focusCommentId={opened ? search.comment : undefined}
+        milestones={d.milestones} canWork={p.canWork} canComment={p.canComment}
+        uploadLinks={p.status === 'Active'} canDelete={p.canManage && p.canWork} sequential={p.sequential} focusCommentId={opened ? search.comment : undefined}
         onClose={() => (opened ? openTask(undefined) : setCreate(null))} />
       <ColumnDialog projectId={p.id} column={colEdit} columns={columns} members={d.members} onClose={() => setColEdit(undefined)} />
     </div>

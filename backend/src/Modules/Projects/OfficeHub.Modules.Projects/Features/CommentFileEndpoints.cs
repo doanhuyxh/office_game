@@ -47,8 +47,7 @@ internal static class CommentFileEndpoints
         var v = await access.ViewerAsync(user, ct);
         var t = await db.Tasks.AsNoTracking().FirstOrDefaultAsync(x => x.Id == tid, ct);
         if (t is null || !v.CanSee(t.ProjectId)) return TypedResults.NotFound();
-        if (!v.CanWork(t.ProjectId)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được bình luận");
-        if (await db.Projects.Where(p => p.Id == t.ProjectId).Select(p => p.Status).FirstAsync(ct) != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
+        if (!v.CanComment(t.ProjectId)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được bình luận"); // dự án đóng vẫn được (TEST-213)
 
         var now = clock.Now;
         var byBot = user.IsAccessToken();

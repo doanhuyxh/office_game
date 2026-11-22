@@ -23,10 +23,12 @@ public sealed record TaskCounts(int Open, int Done, int Overdue);
 public sealed record ProjectDepartmentDto(Guid Id, string Name, bool IsLead);
 /// <param name="Departments">Phòng ban tham gia (chủ trì đứng đầu) — TEST-40.</param>
 /// <param name="ViaDepartment">Người xem chỉ thấy dự án nhờ phòng ban của mình tham gia → chỉ đọc.</param>
+/// <param name="CanWork">Tạo / sửa / chuyển việc — dự án đã đóng: chỉ quản lý dự án / HR trên web (TEST-213).</param>
+/// <param name="CanComment">Bình luận việc (kèm ảnh / tệp) — thành viên + quản lý, kể cả khi dự án đã đóng (TEST-213).</param>
 public sealed record ProjectDto(Guid Id, string Code, string Name, string? Description, ProjectKind Kind, ProjectStatus Status, List<ProjectDepartmentDto> Departments,
     Guid? BusinessLineId, List<SalesContractRef> Contracts, DateOnly? StartOn, DateOnly? EndOn, decimal? BudgetManDays, ProjectMemberRole? MyRole, bool CanManage, bool CanWork,
     int MemberCount, TaskCounts Tasks, int MilestonesOpen, int MilestonesAccepted, DateTimeOffset CreatedAt, ProjectProgress Progress, bool Sequential,
-    bool CanManageColumns = false, bool ViaDepartment = false);
+    bool CanManageColumns = false, bool ViaDepartment = false, bool CanComment = false);
 /// <param name="WorkGuide">Hướng dẫn làm việc (Markdown) — chỉ ở chi tiết, không ở danh sách (dài).</param>
 /// <param name="Columns">Cột trạng thái công việc theo thứ tự.</param>
 /// <param name="WorkGuide">Hướng dẫn làm việc mới (Markdown, thay toàn bộ); null / "" = xoá.</param>
@@ -154,10 +156,10 @@ internal static class ProjectEndpoints
                 p.Status == ProjectStatus.Active, today);
             return new ProjectDto(p.Id, p.Code, p.Name, p.Description, p.Kind, p.Status, DepartmentsOf(p, depts), p.BusinessLineId,
                 links.Where(l => l.ProjectId == p.Id).Select(l => contracts.GetValueOrDefault(l.ContractId)).OfType<SalesContractRef>().ToList(), p.StartOn, p.EndOn, p.BudgetManDays,
-                v.Roles.TryGetValue(p.Id, out var r) ? r : null, v.CanManage(p.Id), v.CanWork(p.Id) && p.Status == ProjectStatus.Active, p.Members.Count,
+                v.Roles.TryGetValue(p.Id, out var r) ? r : null, v.CanManage(p.Id), v.CanWorkOn(p.Id, p.Status == ProjectStatus.Active), p.Members.Count,
                 new TaskCounts(t.Count(x => !x.Done), t.Count(x => x.Done), t.Count(x => EffortRules.IsOverdue(x.DueOn, x.Done, today))),
                 ms.Count(x => x.ProjectId == p.Id && x.Status == MilestoneStatus.Open), ms.Count(x => x.ProjectId == p.Id && x.Status == MilestoneStatus.Accepted), p.CreatedAt, progress, p.Sequential,
-                v.CanManageColumns(p.Id), v.ViaDepartment(p.Id));
+                v.CanManageColumns(p.Id), v.ViaDepartment(p.Id), v.CanComment(p.Id));
         }).ToList();
     }
 

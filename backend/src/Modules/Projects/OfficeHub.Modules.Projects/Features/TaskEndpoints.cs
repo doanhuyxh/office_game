@@ -36,7 +36,7 @@ public sealed record SetDependencies(List<Guid> DependsOn);
 public sealed record UpsertTask(string Title, string? Description = null, Guid? ColumnId = null, Guid? AssigneeEmployeeId = null, Guid? MilestoneId = null,
     DateOnly? DueOn = null, decimal? EstimateDays = null, List<string>? MediaLinks = null, string? Note = null);
 public sealed record MoveTask(Guid ColumnId, double? Rank = null, string? Note = null);
-/// <param name="CanDelete">Người xem được xoá (chỉ chính người viết, trên web, dự án đang chạy — TEST-39).</param>
+/// <param name="CanDelete">Người xem được xoá (chỉ chính người viết, trên web — TEST-39; dự án đã đóng vẫn xoá được — TEST-213).</param>
 /// <param name="Attachments">Ảnh / tệp đính kèm (TEST-153) — link presigned cấp mỗi lần đọc.</param>
 /// <param name="ViaUploadLink">Gửi qua link tải lên từ thiết bị khác (TEST-175) — nhãn "Qua link tải lên".</param>
 public sealed record CommentDto(Guid Id, string Content, string AuthorName, DateTimeOffset CreatedAt, bool ByBot, bool CanDelete = false,
@@ -149,7 +149,7 @@ internal static class TaskEndpoints
         var proj = await db.Projects.Where(p => p.Id == t.ProjectId).Select(p => new { p.Sequential, p.Status }).FirstAsync(ct);
         var sequential = proj.Sequential;
         var dto = (await ToDtosAsync([t], db, access, clock, ct, withProject: true))[0];
-        var commentList = comments ? await CommentListAsync(db, files, tid, CommentDeleter(v, user, proj.Status), ct) : [];
+        var commentList = comments ? await CommentListAsync(db, files, tid, CommentDeleter(v, user), ct) : [];
         var activities = await db.Activities.AsNoTracking().Where(a => a.TaskId == tid).OrderBy(a => a.At)
             .Select(a => new TaskActivityDto(a.Id, a.Kind, a.From, a.To, a.Note, a.ActorName, a.ByBot, a.At)).ToListAsync(ct);
         var code = dto.Code[..dto.Code.LastIndexOf('-')];
@@ -204,7 +204,7 @@ internal static class TaskEndpoints
         if (t.AssigneeEmployeeId is not { } a || a == v.Employee?.Id) return null;
         if (await dir.GetAsync(a, ct) is not { UserId: { } uid } emp) return null;
         // TEST-42: tài khoản bot có bot Telegram → một tin đánh thức vào nhóm (Notification tự kiểm tra kênh bật / IsBot / username).
-        await telegram.TaskAssignedAsync(uid, emp.Code, p.Id, t.Id, EffortRules.TaskCode(p.Code, t.Number), ct);
+        if (ClosedProjectRules.WakesBots(p.Status == ProjectStatus.Active)) await telegram.TaskAssignedAsync(uid, emp.Code, p.Id, t.Id, EffortRules.TaskCode(p.Code, t.Number), ct);
         await notifier.NotifyAsync(new NotificationRequest([uid], NotificationCategories.ProjectTask, $"Bạn được giao việc {EffortRules.TaskCode(p.Code, t.Number)}: {t.Title}",
             $"{v.Name} giao trong dự án {p.Name}{(t.DueOn is { } d ? $", hạn {d:dd/MM/yyyy}" : "")}.", TaskNotifyRules.Link(p.Id, t.Id), SendEmail: false), ct);
         return uid;
@@ -254,7 +254,7 @@ internal static class TaskEndpoints
         {
             to.Add(u);
             // Trả lại việc (lùi kèm lý do) cho bot → đánh thức lại qua Telegram (cùng tin JSON; runner kiểm tra lại việc qua MCP).
-            if (kind != MoveNotice.Approved) await telegram.TaskReturnedAsync(u, (await dir.GetAsync(t.AssigneeEmployeeId!.Value, ct))!.Code, p.Id, t.Id, code, ct);
+            if (kind != MoveNotice.Approved && ClosedProjectRules.WakesBots(p.Status == ProjectStatus.Active)) await telegram.TaskReturnedAsync(u, (await dir.GetAsync(t.AssigneeEmployeeId!.Value, ct))!.Code, p.Id, t.Id, code, ct);
             (title, body) = kind == MoveNotice.Approved
                 ? ($"Đã duyệt: {code} {t.Title}", $"{v.Name} chuyển sang \"{Name(t.ColumnId)}\" trong dự án {p.Name}.")
                 : ($"Trả lại việc: {code} {t.Title}", $"{v.Name} ({Name(from)} → {Name(t.ColumnId)}): {note}");
@@ -273,7 +273,7 @@ internal static class TaskEndpoints
         var p = await db.Projects.AsNoTracking().Include(x => x.Members).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (p is null || !v.CanSee(id)) return TypedResults.NotFound();
         if (!v.CanWork(id)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được tạo việc");
-        if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
+        if (v.ClosedError(p.Id, p.Status == ProjectStatus.Active) is { } closed) return Problems.Conflict(closed); // TEST-213: dự án đóng → chỉ quản lý dự án / HR
         var val = await ValidateAsync(r, p, db, clock.Today, null, ct);
         var cols = TaskColumnEndpoints.Infos(await TaskColumnEndpoints.LoadAsync(db, id, ct));
         if (cols.Count == 0) return Problems.Conflict("Dự án chưa có trạng thái công việc");
@@ -348,7 +348,7 @@ internal static class TaskEndpoints
         var (t, p) = await LoadAsync(tid, db, ct);
         if (t is null || p is null || !v.CanSee(p.Id)) return TypedResults.NotFound();
         if (!v.CanWork(p.Id)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được sửa việc");
-        if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
+        if (v.ClosedError(p.Id, p.Status == ProjectStatus.Active) is { } closed) return Problems.Conflict(closed); // TEST-213: dự án đóng → chỉ quản lý dự án / HR
         var val = await ValidateAsync(r, p, db, clock.Today, t.DueOn, ct);
         if (val.Failed) return val.Problem();
         var changesFlow = (r.ColumnId is { } nc && nc != t.ColumnId) || r.AssigneeEmployeeId != t.AssigneeEmployeeId;
@@ -393,7 +393,7 @@ internal static class TaskEndpoints
         var (t, p) = await LoadAsync(tid, db, ct);
         if (t is null || p is null || !v.CanSee(p.Id)) return TypedResults.NotFound();
         if (!v.CanWork(p.Id)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được chuyển việc");
-        if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
+        if (v.ClosedError(p.Id, p.Status == ProjectStatus.Active) is { } closed) return Problems.Conflict(closed); // TEST-213: dự án đóng → chỉ quản lý dự án / HR
         if (r.Note is { Length: > TaskWorkflow.MaxNote }) return Problems.Conflict($"Lý do dài quá {TaskWorkflow.MaxNote} ký tự");
         var cols = TaskColumnEndpoints.Infos(await TaskColumnEndpoints.LoadAsync(db, p.Id, ct));
         if (cols.All(c => c.Id != r.ColumnId)) return Problems.Conflict("Trạng thái không thuộc dự án");
@@ -491,7 +491,7 @@ internal static class TaskEndpoints
             {
                 to.Add(u);
                 // TEST-86: đánh thức bot làm việc này qua Telegram (runner chỉ nghe Telegram). Việc chưa giao → không gửi.
-                if (u != v.UserId) await telegram.TaskReadyAsync(u, emp.Code, p.Id, x.Id, EffortRules.TaskCode(p.Code, x.Number), ct);
+                if (u != v.UserId && ClosedProjectRules.WakesBots(p.Status == ProjectStatus.Active)) await telegram.TaskReadyAsync(u, emp.Code, p.Id, x.Id, EffortRules.TaskCode(p.Code, x.Number), ct);
             }
         }
         else
@@ -513,6 +513,7 @@ internal static class TaskEndpoints
     private static async Task WakeFollowersAsync(IEmployeeDirectory dir, ITelegramWakeup telegram, IWebhookPublisher webhooks, IAccountService accounts,
         ProjectAccess access, ProjectsDbContext db, Project p, TaskItem t, List<ColumnInfo> cols, ProjectViewer v, ClaimsPrincipal user, CancellationToken ct)
     {
+        if (!ClosedProjectRules.WakesBots(p.Status == ProjectStatus.Active)) return; // TEST-213: dự án đã đóng không đánh thức bot
         var ids = await db.Followers.AsNoTracking().Where(f => f.TaskId == t.Id).Select(f => f.EmployeeId).ToListAsync(ct);
         if (ids.Count == 0) return;
         var emps = await access.EmployeesAsync(ct);
@@ -543,7 +544,7 @@ internal static class TaskEndpoints
         }, ct);
     }
 
-    /// <summary>Đặt danh sách việc phải chờ (thay toàn bộ). Thành viên dự án đang chạy; cùng dự án, không vòng, ≤ 10.</summary>
+    /// <summary>Đặt danh sách việc phải chờ (thay toàn bộ). Thành viên (dự án đã đóng: quản lý dự án / HR trên web — TEST-213); cùng dự án, không vòng, ≤ 10.</summary>
     private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> SetDependenciesAsync(Guid tid, SetDependencies r, ClaimsPrincipal user,
         ProjectsDbContext db, ProjectAccess access, ProjectClock clock, BotStreakGuard streak, IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram,
         CancellationToken ct)
@@ -552,7 +553,7 @@ internal static class TaskEndpoints
         var (t, p) = await LoadAsync(tid, db, ct);
         if (t is null || p is null || !v.CanSee(p.Id)) return TypedResults.NotFound();
         if (!v.CanWork(p.Id)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được sửa việc phải chờ");
-        if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
+        if (v.ClosedError(p.Id, p.Status == ProjectStatus.Active) is { } closed) return Problems.Conflict(closed); // TEST-213: dự án đóng → chỉ quản lý dự án / HR
         if (await streak.ErrorAsync(user.IsAccessToken(), t, p, v, ct) is { } streakErr) return Problems.Conflict(streakErr);
         var wanted = (r.DependsOn ?? []).Where(x => x != Guid.Empty).Distinct().ToList();
         var projectTasks = (await db.Tasks.AsNoTracking().Where(x => x.ProjectId == p.Id).Select(x => new { x.Id, x.Number }).ToListAsync(ct));
@@ -595,6 +596,7 @@ internal static class TaskEndpoints
             if (!v.CanWork(p.Id) || v.Employee?.Id is not { } me || creator != me)
                 return ProjectEndpoints.Forbidden("Chỉ người tạo việc hoặc quản lý dự án được xoá");
         }
+        if (v.ClosedError(p.Id, p.Status == ProjectStatus.Active) is { } closed) return Problems.Conflict(closed); // TEST-213: dự án đóng → chỉ quản lý dự án / HR
         // TEST-153: bình luận + tệp xoá theo cascade trong DB → xoá file S3 sau khi lưu
         var keys = await (from a in db.CommentAttachments.AsNoTracking() join c in db.Comments.AsNoTracking() on a.CommentId equals c.Id
                           where c.TaskId == t.Id select a.FileKey).ToListAsync(ct);
@@ -624,13 +626,11 @@ internal static class TaskEndpoints
         var v = await access.ViewerAsync(user, ct);
         var t = await db.Tasks.AsNoTracking().FirstOrDefaultAsync(x => x.Id == tid, ct);
         if (t is null || !v.CanSee(t.ProjectId)) return TypedResults.NotFound();
-        var status = await db.Projects.Where(p => p.Id == t.ProjectId).Select(p => p.Status).FirstAsync(ct);
-        return TypedResults.Ok(await CommentListAsync(db, files, tid, CommentDeleter(v, user, status), ct));
+        return TypedResults.Ok(await CommentListAsync(db, files, tid, CommentDeleter(v, user), ct));
     }
 
-    /// <summary>Nhân viên được xoá bình luận CỦA CHÍNH MÌNH (null = không xoá được gì): trên web (không qua token AI), dự án đang chạy.</summary>
-    private static Guid? CommentDeleter(ProjectViewer v, ClaimsPrincipal user, ProjectStatus status) =>
-        status == ProjectStatus.Active && !user.IsAccessToken() ? v.Employee?.Id : null;
+    /// <summary>Nhân viên được xoá bình luận CỦA CHÍNH MÌNH (null = không xoá được gì): trên web (không qua token AI), kể cả dự án đã đóng (TEST-213).</summary>
+    private static Guid? CommentDeleter(ProjectViewer v, ClaimsPrincipal user) => !user.IsAccessToken() ? v.Employee?.Id : null;
 
     private static async Task<List<CommentDto>> CommentListAsync(ProjectsDbContext db, IFileStorage files, Guid tid, Guid? deleter, CancellationToken ct)
     {
@@ -655,7 +655,6 @@ internal static class TaskEndpoints
         if (c is null || t is null || !v.CanSee(t.ProjectId)) return TypedResults.NotFound();
         if (user.IsAccessToken()) return ProjectEndpoints.Forbidden("Xoá bình luận chỉ làm trên web");
         if (v.Employee?.Id is not { } me || c.AuthorEmployeeId != me) return ProjectEndpoints.Forbidden("Chỉ người viết được xoá bình luận");
-        if (await db.Projects.Where(p => p.Id == t.ProjectId).Select(p => p.Status).FirstAsync(ct) != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
         var keys = await db.CommentAttachments.Where(a => a.CommentId == c.Id).Select(a => a.FileKey).ToListAsync(ct);
         db.Comments.Remove(c);
         db.Activities.Add(Activity(t, TaskActivityKind.CommentDeleted, v, user, clock.Now));
@@ -671,7 +670,7 @@ internal static class TaskEndpoints
         var v = await access.ViewerAsync(user, ct);
         var (t, p) = await LoadAsync(tid, db, ct);
         if (t is null || p is null || !v.CanSee(p.Id)) return TypedResults.NotFound();
-        if (!v.CanWork(p.Id)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được bình luận");
+        if (!v.CanComment(p.Id)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được bình luận");
         return await PostCommentAsync(t, p, v, user.IsAccessToken(), r, null, db, access, dir, notifier, telegram, clock, files, streak, ct);
     }
 
@@ -689,7 +688,8 @@ internal static class TaskEndpoints
         var val = new Validation();
         foreach (var (field, message) in CommentFileRules.ValidateComment(r.Content, uploadIds.Count)) val.Add(field, message);
         if (val.Failed) return val.Problem();
-        if (uploadIds.Count > 0 && p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
+        // TEST-213: dự án đóng vẫn bình luận kèm tệp được, trừ qua link tải lên từ thiết bị khác
+        if (uploadIds.Count > 0 && !ClosedProjectRules.CanAttachFiles(p.Status == ProjectStatus.Active, via is not null)) return Problems.Conflict(ClosedProjectRules.Closed);
         if (await streak.ErrorAsync(byBot, t, p, v, ct) is { } streakErr) return Problems.Conflict(streakErr);
         var tickets = uploadIds.Count == 0 ? []
             : await db.CommentUploadTickets.Where(x => uploadIds.Contains(x.Id) && x.UserId == v.UserId && x.TaskId == tid && x.UploadLinkId == linkId).ToListAsync(ct);
@@ -741,8 +741,9 @@ internal static class TaskEndpoints
                     preview, TaskNotifyRules.Link(p.Id, t.Id, c.Id), SendEmail: false), ct);
             notified.AddRange(mentioned);
             // Telegram đánh thức bot được nhắc (TEST-63) — gồm cả người làm việc là bot; người không phải bot / đã khoá bị bỏ trong ITelegramWakeup
-            foreach (var (botUid, botCode) in AgentTeamRules.MentionWakeTargets(members, codes, v.Employee?.Id))
-                await telegram.TaskMentionedAsync(botUid, botCode, p.Id, t.Id, code, c.Id, ct);
+            if (ClosedProjectRules.WakesBots(p.Status == ProjectStatus.Active)) // TEST-213: dự án đã đóng không đánh thức bot
+                foreach (var (botUid, botCode) in AgentTeamRules.MentionWakeTargets(members, codes, v.Employee?.Id))
+                    await telegram.TaskMentionedAsync(botUid, botCode, p.Id, t.Id, code, c.Id, ct);
         }
         await NotifyMembersAsync(notifier, access, p, v, notified, $"{v.Name} bình luận việc {code}", $"{t.Title}: {preview}", TaskNotifyRules.Link(p.Id, t.Id, c.Id), ct);
         return TypedResults.Created($"/api/projects/comments/{c.Id}", c.Id);

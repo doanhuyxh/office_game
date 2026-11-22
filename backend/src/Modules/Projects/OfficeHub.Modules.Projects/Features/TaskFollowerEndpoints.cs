@@ -49,7 +49,7 @@ internal static class TaskFollowerEndpoints
         var (t, p) = await TaskEndpoints.LoadAsync(tid, db, ct);
         if (t is null || p is null || !v.CanSee(p.Id)) return TypedResults.NotFound();
         if (!v.CanWork(p.Id)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được sửa người theo dõi");
-        if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
+        if (v.ClosedError(p.Id, p.Status == ProjectStatus.Active) is { } closed) return Problems.Conflict(closed); // TEST-213: dự án đóng → chỉ quản lý dự án / HR
         var already = await db.Followers.AnyAsync(f => f.TaskId == tid && f.EmployeeId == employeeId, ct);
         if (already) return TypedResults.NoContent();
         var count = await db.Followers.CountAsync(f => f.TaskId == tid, ct);
@@ -71,7 +71,7 @@ internal static class TaskFollowerEndpoints
         var (t, p) = await TaskEndpoints.LoadAsync(tid, db, ct);
         if (t is null || p is null || !v.CanSee(p.Id)) return TypedResults.NotFound();
         if (!v.CanWork(p.Id)) return ProjectEndpoints.Forbidden("Chỉ thành viên dự án được sửa người theo dõi");
-        if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng");
+        if (v.ClosedError(p.Id, p.Status == ProjectStatus.Active) is { } closed) return Problems.Conflict(closed); // TEST-213: dự án đóng → chỉ quản lý dự án / HR
         var row = await db.Followers.FirstOrDefaultAsync(f => f.TaskId == tid && f.EmployeeId == employeeId, ct);
         if (row is null) return TypedResults.NoContent();
         if (await streak.ErrorAsync(user.IsAccessToken(), t, p, v, ct) is { } streakErr) return Problems.Conflict(streakErr);

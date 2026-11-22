@@ -24,7 +24,7 @@ mình có việc không (vd bot review làm ở "Chờ review", bot DevOps làm 
 
 | Method | Path | |
 |---|---|---|
-| POST | `/tasks/{tid}/followers/{employeeId}` | Thêm. Người gọi: thành viên có quyền làm (`CanWork`, cả token AI); dự án đóng → 409; người được thêm phải là thành viên dự án → 400 (`FollowerRules.AddError`, tối đa 30 / việc). Đã theo dõi → 204, không ghi gì |
+| POST | `/tasks/{tid}/followers/{employeeId}` | Thêm. Người gọi: thành viên có quyền làm (`CanWork`, cả token AI); dự án đóng → chỉ quản lý dự án / HR trên web, còn lại 409 ([projects-closed.md](projects-closed.md)); người được thêm phải là thành viên dự án → 400 (`FollowerRules.AddError`, tối đa 30 / việc). Đã theo dõi → 204, không ghi gì |
 | DELETE | `/tasks/{tid}/followers/{employeeId}` | Bỏ. Cùng quyền; không theo dõi → 204, không ghi gì |
 
 - Không xem được dự án → 404. Token AI: có trong allowlist (`AccessTokenAuth`), áp dụng chặn chuỗi thao tác bot như việc phải chờ.

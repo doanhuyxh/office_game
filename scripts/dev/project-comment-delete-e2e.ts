@@ -1,5 +1,5 @@
 // E2E TEST-39: chỉ chính người viết xoá được bình luận của mình (DELETE /api/projects/comments/{id}); quản lý dự án / HR / admin / người khác 403,
-// token AI 403, dự án đóng 409; xoá xong giảm số bình luận + lịch sử "CommentDeleted" (không chép nội dung); canDelete do back-end tính.
+// token AI 403, dự án đóng vẫn xoá được (TEST-213); xoá xong giảm số bình luận + lịch sử "CommentDeleted" (không chép nội dung); canDelete do back-end tính.
 // TẠO DỮ LIỆU THẬT → CHỈ chạy trên DB tạm (Api :5180 trỏ DB tạm, `dotnet run --no-launch-profile`).
 //   E2E_LOCAL_DB=1 API_URL=http://localhost:5180 ADMIN_LOGIN=… ADMIN_PASSWORD=… bun scripts/dev/project-comment-delete-e2e.ts
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -110,11 +110,11 @@ await json(A.cookie, 'POST', `/api/projects/tasks/${T}/move`, { columnId: c0.id,
 const noteC = (await detail(A.cookie)).comments.find((x: any) => x.content.includes('Thiếu thông tin'));
 ok('Bình luận lý do chuyển lùi: người chuyển xoá được', noteC?.canDelete === true && (await json(A.cookie, 'DELETE', `/api/projects/comments/${noteC.id}`)).status === 204, noteC);
 
-// Dự án đóng → 409, canDelete = false
+// Dự án đóng (TEST-213) → vẫn xoá được bình luận của chính mình
 const pj = p2.project;
 await json(PM.cookie, 'PUT', `/api/projects/${P}`, { code: pj.code, name: pj.name, kind: pj.kind, startOn: pj.startOn, status: 'Closed', sequential: pj.sequential });
-ok('Dự án đóng: canDelete = false, DELETE → 409', (await detail(B.cookie)).comments.every((x: any) => !x.canDelete)
-  && (await json(B.cookie, 'DELETE', `/api/projects/comments/${cB}`)).status === 409);
+ok('Dự án đóng: bình luận của mình canDelete = true, DELETE → 204 (TEST-213)', (await detail(B.cookie)).comments.some((x: any) => x.id === cB && x.canDelete)
+  && (await json(B.cookie, 'DELETE', `/api/projects/comments/${cB}`)).status === 204);
 
 console.log(`\n${pass} đạt / ${fail} lỗi`);
 process.exit(fail ? 1 : 0);

@@ -53,8 +53,13 @@ function ActivityLine({ a }: { a: ITaskActivity }) {
  * `sequential`: dự án đi lần lượt → việc mới chỉ ở các cột trước cột cần duyệt / hoàn thành; lưu với trạng thái lùi → hỏi lý do.
  * `focusCommentId` (link chuông bình luận / @nhắc): cuộn tới bình luận đó và tô sáng.
  */
-export function TaskDialog({ projectId, task, initialColumnId, columns, members, milestones, canWork, canDelete, sequential = false, focusCommentId, onClose }: {
+export function TaskDialog({ projectId, task, initialColumnId, columns, members, milestones, canWork, canComment, uploadLinks = true, canDelete, sequential = false, focusCommentId,
+  onClose }: {
   projectId: string; task: ITask | null | undefined; initialColumnId?: string; columns: ITaskColumn[]; members: IMember[]; milestones: IMilestone[]; canWork: boolean;
+  /** Bình luận (kèm tệp) — dự án đã đóng thành viên thường vẫn bình luận được dù canWork = false (TEST-213). */
+  canComment: boolean;
+  /** Link tải lên từ thiết bị khác — chỉ dự án đang chạy. */
+  uploadLinks?: boolean;
   /** Quản lý dự án / HR: xoá việc, tạo việc ở cột cần người duyệt. */
   canDelete: boolean;
   sequential?: boolean; focusCommentId?: string; onClose: () => void;
@@ -162,10 +167,10 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
               {task && (
                 <div className="grid gap-2 border-t pt-3">
                   <TaskCommentList taskId={task.id} commentCount={task.commentCount} mentions={mentionNames} focusCommentId={focusCommentId} />
-                  {canWork && <TaskCommentInput members={members} value={comment} onChange={setComment} onSubmit={postComment} pending={addComment.isPending}
+                  {canComment && <TaskCommentInput members={members} value={comment} onChange={setComment} onSubmit={postComment} pending={addComment.isPending}
                     files={commentFiles} onAddFiles={addCommentFiles} onRemoveFile={(i) => setCommentFiles((x) => x.filter((_, j) => j !== i))}
-                    onUploadLink={() => setUploadLinkOpen(true)} />}
-                  {canWork && <UploadLinkDialog taskId={task.id} taskCode={task.code} open={uploadLinkOpen} onClose={() => setUploadLinkOpen(false)} />}
+                    onUploadLink={uploadLinks ? () => setUploadLinkOpen(true) : undefined} />}
+                  {canComment && uploadLinks && <UploadLinkDialog taskId={task.id} taskCode={task.code} open={uploadLinkOpen} onClose={() => setUploadLinkOpen(false)} />}
                   <p className="text-xs text-muted-foreground">Tạo bởi {task.createdByName}{task.createdByBot && <BotBadge className="ml-1" />} · {fmtTime(task.createdAt)}{task.completedAt && ` · xong ${fmtTime(task.completedAt)}`}
                     {activities.length > 0 && <button type="button" className="ml-2 underline" onClick={() => setShowHistory((x) => !x)}>{showHistory ? 'Ẩn lịch sử' : `Lịch sử (${activities.length})`}</button>}</p>
                   {showHistory && <ul className="grid gap-1 rounded-md border p-2" data-testid="task-history">{[...activities].reverse().map((a) => <ActivityLine key={a.id} a={a} />)}</ul>}

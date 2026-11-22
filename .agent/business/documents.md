@@ -10,7 +10,7 @@ Video, ảnh, văn bản công việc là **tài sản của công ty**: mỗi f
 |---|---|---|
 | `Company` (SpaceId null, mã `CTY`) | Mọi người | HR / admin |
 | `Department` (SpaceId = Id phòng, mã = mã phòng) | Phòng mình + các phòng cha; trưởng phòng thêm mọi phòng con | Trưởng phòng (+ phòng con), HR |
-| `Project` (SpaceId = Id dự án, mã = mã dự án) | Thành viên; dự án `Closed` → chỉ đọc | Quản lý dự án (`ProjectRole.Manager`), HR |
+| `Project` (SpaceId = Id dự án, mã = mã dự án) | Thành viên; dự án `Closed` → thành viên chỉ đọc, quản lý dự án + HR vẫn ghi (TEST-213, [projects-closed.md](projects-closed.md)) | Quản lý dự án (`ProjectRole.Manager`), HR |
 
 - HR / admin: toàn quyền mọi kho. "Quản lý kho" = xoá / sửa thư mục và tài liệu của người khác, đổi người phụ trách, lưu trữ, xem nhật ký truy cập. Người tạo / người phụ trách (`IsOwner`) có các quyền này trên tài liệu của mình.
 - `Classification`: `Internal` (mặc định) · `Restricted` / `Confidential` → chỉ admin / HR + người tạo; PDF trả bản đóng dấu — [documents-security.md](documents-security.md).

@@ -36,8 +36,10 @@ internal sealed class ProjectClock(TimeProvider clock, IOptions<OfficeSettings> 
 /// <param name="FinanceAdmin">quyền Quản trị tài chính: thêm chi phí nhân công theo từng người, sửa % phân bổ tháng đã chốt.</param>
 /// <param name="ManageColumns">Chức vụ có cờ "Quản lý trạng thái công việc" (vai trò admin / hr không thay thế — chủ dự án chốt 2026-11-11).</param>
 /// <param name="DeptProjects">Dự án có phòng ban của người xem tham gia (đúng phòng, không tính phòng con — TEST-40): chỉ được XEM.</param>
+/// <param name="ByToken">Gọi qua token AI (MCP) — ở dự án đã đóng không ghi việc (<see cref="ClosedProjectRules"/>).</param>
 internal sealed record ProjectViewer(Guid UserId, string Name, bool IsHr, bool CanCreate, bool FinanceView, EmployeeRef? Employee,
-    IReadOnlyDictionary<Guid, ProjectMemberRole> Roles, bool FinanceAdmin = false, bool ManageColumns = false, IReadOnlySet<Guid>? DeptProjects = null)
+    IReadOnlyDictionary<Guid, ProjectMemberRole> Roles, bool FinanceAdmin = false, bool ManageColumns = false, IReadOnlySet<Guid>? DeptProjects = null,
+    bool ByToken = false)
 {
     private bool SeesAll => IsHr || FinanceView;
     /// <summary>Thấy dự án đầy đủ (không phải chỉ nhờ phòng ban).</summary>
@@ -51,6 +53,15 @@ internal sealed record ProjectViewer(Guid UserId, string Name, bool IsHr, bool C
     public bool CanManage(Guid projectId) => IsHr || (Roles.TryGetValue(projectId, out var r) && r == ProjectMemberRole.Manager);
     /// <summary>Tạo / sửa việc, bình luận: thành viên hoặc người quản lý.</summary>
     public bool CanWork(Guid projectId) => IsMember(projectId) || CanManage(projectId);
+    /// <summary>Bình luận việc (kèm ảnh / tệp), xoá bình luận của mình: như <see cref="CanWork"/>, kể cả khi dự án đã đóng (TEST-213).</summary>
+    public bool CanComment(Guid projectId) => CanWork(projectId);
+    /// <summary>
+    /// Tạo / sửa / chuyển / xoá việc, việc phải chờ, người theo dõi theo trạng thái dự án (TEST-213): đang chạy → <see cref="CanWork"/>;
+    /// đã đóng → chỉ quản lý dự án / HR trên web (<see cref="ClosedProjectRules.CanWriteTasks"/>).
+    /// </summary>
+    public bool CanWorkOn(Guid projectId, bool active) => CanWork(projectId) && ClosedProjectRules.CanWriteTasks(active, CanManage(projectId), ByToken);
+    /// <summary>Lỗi 409 ghi việc ở dự án đã đóng (null = được) — gọi sau khi đã kiểm <see cref="CanWork"/> (403).</summary>
+    public string? ClosedError(Guid projectId, bool active) => ClosedProjectRules.TaskWriteError(active, CanManage(projectId), ByToken);
     /// <summary>Tab Ngày công: quản lý dự án / HR / quyền Xem tài chính.</summary>
     public bool CanSeeEffort(Guid projectId) => CanManage(projectId) || (FinanceView && CanSee(projectId));
     /// <summary>Lãi / lỗ: quyền Xem tài chính.</summary>
@@ -119,7 +130,8 @@ internal sealed class ProjectAccess(ProjectsDbContext db, IEmployeeDirectory dir
             ? (await db.ProjectDepartments.AsNoTracking().Where(d => d.DepartmentId == dep).Select(d => d.ProjectId).ToListAsync(ct)).ToHashSet()
             : [];
         return _viewer = new ProjectViewer(uid, user.FindFirstValue(ClaimNames.FullName) ?? user.Identity?.Name ?? "?", isHr,
-            isHr || user.IsInRole(Roles.Manager), fin.Has(FinancePermission.View), emp, roles, fin.Has(FinancePermission.Admin), manageColumns, deptProjects);
+            isHr || user.IsInRole(Roles.Manager), fin.Has(FinancePermission.View), emp, roles, fin.Has(FinancePermission.Admin), manageColumns, deptProjects,
+            user.IsAccessToken());
     }
 
     /// <summary>

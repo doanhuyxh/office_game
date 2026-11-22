@@ -24,7 +24,7 @@ internal sealed record Viewer(
 /// <summary>
 /// Phân quyền kho tài liệu — MỌI kiểm tra quyền đi qua đây (FE chỉ hiển thị theo cờ can… trả về).
 /// Kho công ty: mọi người đọc / ghi, HR quản lý. Kho phòng ban: thành viên (gồm phòng cha / con như trên), trưởng phòng quản lý.
-/// Kho dự án: thành viên, quản lý dự án quản lý; dự án đã đóng chỉ đọc. HR / admin: toàn quyền mọi kho.
+/// Kho dự án: thành viên, quản lý dự án quản lý; dự án đã đóng: thành viên chỉ đọc, quản lý dự án vẫn ghi (TEST-213). HR / admin: toàn quyền mọi kho.
 /// Mức bảo mật: hiện chỉ "Nội bộ"; Restricted / Confidential (để sẵn) → chỉ HR xem.
 /// </summary>
 /// Dự án + thành viên thuộc module Projects (đọc qua <see cref="IProjectDirectory"/>, từ 2026-11-08).
@@ -84,13 +84,16 @@ internal sealed class DocumentAccess(IEmployeeDirectory dir, IProjectDirectory p
         _ => false,
     };
 
-    /// <summary>Ghi (tải lên, tạo thư mục, sửa thông tin): như đọc; dự án đã đóng thì không ai ghi được.</summary>
+    /// <summary>Ghi (tải lên, tạo thư mục, sửa thông tin): như đọc; dự án đã đóng chỉ quản lý dự án / HR ghi được (TEST-213).</summary>
     public async Task<bool> CanWriteAsync(Viewer v, SpaceKind kind, Guid? spaceId, CancellationToken ct)
     {
         if (!CanRead(v, kind, spaceId)) return false;
         if (kind != SpaceKind.Project) return true;
-        return spaceId is { } id && (await projectDir.GetAsync(id, ct))?.IsActive == true;
+        return spaceId is { } id && await projectDir.GetAsync(id, ct) is { } p && CanWriteProject(v, p);
     }
+
+    /// <summary>Ghi kho dự án <paramref name="p"/> (đã kiểm đọc được kho) — <see cref="DocumentRules.CanWriteProjectSpace"/>.</summary>
+    public static bool CanWriteProject(Viewer v, ProjectRef p) => DocumentRules.CanWriteProjectSpace(p.IsActive, CanManage(v, SpaceKind.Project, p.Id));
 
     /// <summary>Quản lý kho: xoá / sửa thư mục và tài liệu của người khác, đổi người phụ trách, lưu trữ, xem nhật ký truy cập.</summary>
     public static bool CanManage(Viewer v, SpaceKind kind, Guid? spaceId) => v.IsHr || kind switch

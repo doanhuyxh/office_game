@@ -29,7 +29,8 @@ export interface IProject {
   /** Chỉ thấy dự án nhờ phòng ban của mình tham gia → chỉ đọc. */
   viaDepartment: boolean;
   businessLineId: string | null; contracts: ISalesContractRef[]; startOn: string | null; endOn: string | null; budgetManDays: number | null; myRole: MemberRole | null;
-  canManage: boolean; canWork: boolean; memberCount: number; tasks: { open: number; done: number; overdue: number }; milestonesOpen: number; milestonesAccepted: number; createdAt: string;
+  /** canWork: tạo / sửa / chuyển việc — dự án đã đóng chỉ quản lý dự án / HR (TEST-213). canComment: bình luận việc, kể cả dự án đã đóng. */
+  canManage: boolean; canWork: boolean; canComment: boolean; memberCount: number; tasks: { open: number; done: number; overdue: number }; milestonesOpen: number; milestonesAccepted: number; createdAt: string;
   progress: IProjectProgress;
   /** "Đi lần lượt": tiến từng cột một, lùi phải ghi lý do (back-end kiểm). */
   sequential: boolean;

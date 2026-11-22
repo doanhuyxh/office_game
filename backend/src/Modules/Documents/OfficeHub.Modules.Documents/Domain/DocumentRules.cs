@@ -6,6 +6,12 @@ namespace OfficeHub.Modules.Documents.Domain;
 /// <summary>Quy tắc thuần của kho tài liệu (không truy cập DB) — test ở OfficeHub.Modules.Documents.Tests.</summary>
 public static class DocumentRules
 {
+    /// <summary>
+    /// Ghi kho dự án (tải lên, tạo / đổi tên / xoá thư mục, sửa tài liệu): dự án đang chạy → mọi người đọc được kho; dự án đã đóng → chỉ người quản lý kho
+    /// (quản lý dự án / HR) — thành viên thường chỉ đọc / tải về (chủ dự án chốt 2026-11-23, TEST-213).
+    /// </summary>
+    public static bool CanWriteProjectSpace(bool projectActive, bool canManage) => projectActive || canManage;
+
     // ---------------- Tài liệu chữ do trợ lý AI tạo (TEST-54) ----------------
 
     public static readonly string[] TextFormats = ["md", "txt", "csv"];

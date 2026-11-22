@@ -40,7 +40,7 @@ internal static class SpaceEndpoints
                 list.Add(new(SpaceKind.Department, d.Id, d.Name, DocumentRules.SpaceCode(SpaceKind.Department, d.Code), d.ParentId, true,
                     DocumentAccess.CanManage(v, SpaceKind.Department, d.Id), false));
         foreach (var p in (await access.ProjectsAsync(ct)).Where(p => DocumentAccess.CanRead(v, SpaceKind.Project, p.Id)))
-            list.Add(new(SpaceKind.Project, p.Id, p.Name, DocumentRules.SpaceCode(SpaceKind.Project, p.Code), null, p.IsActive,
+            list.Add(new(SpaceKind.Project, p.Id, p.Name, DocumentRules.SpaceCode(SpaceKind.Project, p.Code), null, DocumentAccess.CanWriteProject(v, p),
                 DocumentAccess.CanManage(v, SpaceKind.Project, p.Id), !p.IsActive));
         return TypedResults.Ok(list);
     }
