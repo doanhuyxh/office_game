@@ -236,11 +236,16 @@ internal sealed class SocialService(AssetsDbContext db, IFacebookGraph graph, IF
             .Take(take).ToListAsync(ct);
     }
 
-    /// <summary>Nhận một đích (Chờ → Đang đăng, nguyên tử) rồi gửi lên Facebook. false = đích đã được xử lý nơi khác / bị huỷ.</summary>
+    /// <summary>
+    /// Nhận một đích (Chờ → Đang đăng, nguyên tử) rồi gửi lên Facebook. false = đích đã được xử lý nơi khác / bị huỷ / bị dời giờ.
+    /// Điều kiện nhận kiểm tra lại <c>DueAt</c>: sửa bài (TEST-208) giữ khoá dòng đích trong transaction — UPDATE này chờ commit rồi đánh giá lại
+    /// trên dòng mới (đã dời giờ → không nhận; đã xoá → không nhận). Sau khi nhận, đích ở Đang đăng nên sửa bài bị chặn (409) → nội dung /
+    /// ảnh đọc ở dưới luôn là bản cuối cùng.
+    /// </summary>
     public async Task<bool> PublishTargetAsync(Guid targetId, CancellationToken ct)
     {
         var now = clock.Now;
-        var claimed = await db.SocialTargets.Where(t => t.Id == targetId && t.Status == SocialTargetStatus.Pending)
+        var claimed = await db.SocialTargets.Where(t => t.Id == targetId && t.Status == SocialTargetStatus.Pending && t.DueAt <= now)
             .ExecuteUpdateAsync(s => s.SetProperty(t => t.Status, SocialTargetStatus.Publishing).SetProperty(t => t.StartedAt, now)
                 .SetProperty(t => t.Attempts, t => t.Attempts + 1), ct);
         if (claimed == 0) return false;

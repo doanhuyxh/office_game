@@ -1,4 +1,5 @@
-import { CalendarClock, ExternalLink, RotateCcw, XCircle } from 'lucide-react';
+import { useState } from 'react';
+import { CalendarClock, ExternalLink, Pencil, RotateCcw, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { confirmDialog } from '@/components/common/confirm-dialog';
@@ -10,11 +11,13 @@ import { useFacebookMutation } from '../../hooks/useFacebook';
 import type { IFacebookPost } from '../../types/facebook.types';
 import { POST_STATUS, TARGET_STATUS } from '../../utils/facebook-labels';
 import { FacebookMediaThumb } from '../facebook-media-thumb';
+import { FacebookPostEditDialog } from '../facebook-post-edit-dialog';
 
-/** Một bài đã gửi: nội dung, ảnh / video, kết quả từng trang (link bài, lỗi, đăng lại), huỷ phần chưa đăng. */
+/** Một bài đã gửi: nội dung, ảnh / video, kết quả từng trang (link bài, lỗi, đăng lại), sửa bài còn chờ (TEST-208), huỷ phần chưa đăng. */
 export function FacebookPostCard({ post }: { post: IFacebookPost }) {
   const cancel = useFacebookMutation(() => facebookApi.cancel(post.id));
   const retry = useFacebookMutation((targetId: string) => facebookApi.retry(targetId));
+  const [editing, setEditing] = useState(false);
   const s = POST_STATUS[post.status];
   return (
     <article className="grid gap-3 rounded-xl border bg-card p-4" data-testid="social-post">
@@ -25,9 +28,15 @@ export function FacebookPostCard({ post }: { post: IFacebookPost }) {
           {post.scheduledAt && (
             <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground"><CalendarClock className="size-3.5" /> Hẹn đăng {formatDateTime(post.scheduledAt)}</div>
           )}
+          {post.editedAt && (
+            <div className="mt-0.5 text-xs text-muted-foreground" data-testid="post-edited">Đã sửa lúc {formatDateTime(post.editedAt)}{post.editedByName ? ` bởi ${post.editedByName}` : ''}</div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge tone={s.tone}>{s.label}</StatusBadge>
+          {post.canEdit && (
+            <Button size="sm" variant="ghost" onClick={() => setEditing(true)} data-testid="post-edit"><Pencil /> Sửa</Button>
+          )}
           {post.canCancel && (
             <Button size="sm" variant="ghost" loading={cancel.isPending} onClick={async () => {
               if (await confirmDialog({ title: 'Huỷ đăng bài?', description: 'Các trang chưa đăng sẽ không đăng nữa. Trang đã đăng giữ nguyên.', confirmText: 'Huỷ đăng', destructive: true,
@@ -70,6 +79,7 @@ export function FacebookPostCard({ post }: { post: IFacebookPost }) {
           );
         })}
       </ul>
+      {editing && <FacebookPostEditDialog post={post} open={editing} onOpenChange={setEditing} />}
     </article>
   );
 }

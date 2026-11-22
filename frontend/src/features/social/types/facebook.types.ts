@@ -16,6 +16,8 @@ export interface IFacebookTarget {
 export interface IFacebookPost {
   id: string; message: string; link: string | null; scheduledAt: string | null; createdAt: string; authorName: string; status: FacebookPostStatus;
   targets: IFacebookTarget[]; media: IFacebookMedia[]; canCancel: boolean;
+  /** Sửa được (TEST-208): người đăng / HR và chưa trang nào được gửi đi. `editedAt` / `editedByName` = lần sửa gần nhất. */
+  canEdit: boolean; editedAt: string | null; editedByName: string | null;
 }
 /** Chi tiết Fanpage (TEST-206). `canSync` = trang còn trong BM + có page token; `postsSyncing` = đang đồng bộ. */
 export interface IFacebookPageDetail {

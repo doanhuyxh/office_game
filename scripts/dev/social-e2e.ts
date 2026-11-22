@@ -8,6 +8,8 @@
 // token bị thu hồi (190) → BM "Token lỗi" + chuông, hẹn giờ + huỷ, ngừng dùng BM, tài sản đang giữ (+ nghỉ việc), kiểm tra dữ liệu.
 // TEST-206: chi tiết Fanpage + đồng bộ bài viết hiện có (/published_posts: chỉ 100 bài mới nhất qua cursor after, lần 2 không trùng + cập nhật số tương tác,
 // nhãn "đăng từ OfficeHub", chặn bấm dồn < 1 phút, thiếu quyền → PostsSyncError, 190 → BM token lỗi + chuông, quyền HR / người giữ / người ngoài 404).
+// TEST-208: sửa bài đã hẹn (nội dung + giờ hẹn → giờ cũ không đăng, giờ mới đăng nội dung mới; bỏ / thêm / đổi thứ tự ảnh + xoá tệp trên S3; bỏ / thêm trang;
+// chuyển sang đăng ngay; đã đăng / đã huỷ / chờ thử lại → 409; người ngoài 404, người giữ BM sửa bài HR 403; sửa song song với job → luôn đăng bản cuối). Mất ~4 phút.
 // TẠO NHÂN VIÊN THẬT → CHỈ chạy trên DB tạm:
 //   E2E_LOCAL_DB=1 API_URL=http://localhost:5180 ADMIN_LOGIN=… ADMIN_PASSWORD=… bun scripts/dev/social-e2e.ts
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -407,6 +409,103 @@ const cc = await json(holder.cookie, 'POST', `/api/assets/social/facebook/posts/
 ok('Người đăng huỷ → Đã huỷ', cc.status === 200 && cc.body.status === 'Cancelled' && cc.body.targets.every((t: any) => t.cancelledByName), cc.body);
 ok('Huỷ lần nữa → 409', (await json(holder.cookie, 'POST', `/api/assets/social/facebook/posts/${sch.body.id}/cancel`)).status === 409);
 ok('Đăng lại trang không lỗi → 409', (await json(holder.cookie, 'POST', `/api/assets/social/facebook/targets/${cc.body.targets[0].id}/retry`)).status === 409);
+
+// ---------------- TEST-208: sửa bài đã hẹn còn chờ ----------------
+const FB = '/api/assets/social/facebook';
+const put = (cookie: string, id: string, body: unknown) => json(cookie, 'PUT', `${FB}/posts/${id}`, body);
+const feedMsgs = (prefix: string) => log.filter((r) => /\/v23\.0\/\d+\/feed$/.test(r.path) && (r.form.message ?? '').startsWith(prefix));
+const inMin = (m: number) => new Date(Date.now() + m * 60_000).toISOString();
+// (1) Nội dung + giờ hẹn: giờ cũ ~2 phút 10 giây, sửa sang ~3 phút 10 giây — kiểm tra ở cuối mục (chạy song song các bước khác)
+const oldAt = new Date(Date.now() + 130_000).toISOString();
+const ed = await json(holder.cookie, 'POST', `${FB}/posts`, { message: `EDIT-old ${stamp}`, pageIds: [P1], scheduledAt: oldAt });
+ok('[208] Bài hẹn giờ của mình: canEdit = true, chưa sửa', ed.status === 200 && ed.body.canEdit === true && ed.body.editedAt == null, ed.body);
+const newAt = inMin(3 + 1 / 6);
+const ed1 = await put(holder.cookie, ed.body.id, { message: `EDIT-new ${stamp}`, pageIds: [P1], scheduledAt: newAt });
+ok('[208] Sửa nội dung + giờ hẹn → 200, ghi "đã sửa lúc … bởi …"', ed1.status === 200 && ed1.body.message === `EDIT-new ${stamp}`
+  && Date.parse(ed1.body.scheduledAt) === Date.parse(newAt) && Date.parse(ed1.body.targets[0].dueAt) === Date.parse(newAt)
+  && !!ed1.body.editedAt && ed1.body.editedByName === 'Người Giữ BM' && ed1.body.status === 'Scheduled', ed1.body);
+ok('[208] Giờ hẹn mới < hiện tại + 2 phút → 400', (await put(holder.cookie, ed.body.id, { message: 'x', pageIds: [P1], scheduledAt: inMin(1) })).status === 400);
+ok('[208] Kiểm tra như lúc tạo: không trang → 400', (await put(holder.cookie, ed.body.id, { message: 'x', pageIds: [], scheduledAt: newAt })).status === 400);
+ok('[208] Thêm trang chưa có quyền đăng (thiếu page token) → 400', (await put(holder.cookie, ed.body.id, { message: 'x', pageIds: [P1, P3], scheduledAt: newAt })).status === 400);
+ok('[208] Người ngoài sửa → 404', (await put(outsider.cookie, ed.body.id, { message: 'x', pageIds: [P1], scheduledAt: newAt })).status === 404);
+ok('[208] Lần sửa bị từ chối không đổi bài', (await json(holder.cookie, 'GET', `${FB}/posts/${ed.body.id}`)).body?.message === `EDIT-new ${stamp}`);
+
+// (2) Người giữ BM không phải tác giả: chỉ huỷ, không sửa; HR sửa được bài của người khác
+const hrPost = await json(admin, 'POST', `${FB}/posts`, { message: `HR-post ${stamp}`, pageIds: [P2], scheduledAt: inMin(20) });
+const hrSeen = (await json(holder.cookie, 'GET', `${FB}/posts/${hrPost.body.id}`)).body;
+ok('[208] Người giữ BM xem bài HR: canCancel nhưng không canEdit', hrSeen?.canCancel === true && hrSeen?.canEdit === false, hrSeen);
+ok('[208] Người giữ BM sửa bài HR → 403', (await put(holder.cookie, hrPost.body.id, { message: 'sửa trộm', pageIds: [P2], scheduledAt: inMin(20) })).status === 403);
+const hrEd = await put(admin, ed.body.id, { message: `EDIT-new ${stamp}`, pageIds: [P1], scheduledAt: newAt });
+ok('[208] HR sửa bài của người giữ → 200 (ghi tên HR)', hrEd.status === 200 && hrEd.body.editedByName !== 'Người Giữ BM' && hrEd.body.canEdit, hrEd.body);
+await json(admin, 'POST', `${FB}/posts/${hrPost.body.id}/cancel`);
+
+// (3) Ảnh: bỏ một, thêm một, đổi thứ tự + bỏ trang 1 thêm trang 2 + chuyển sang đăng ngay
+const m1 = await upload(holder.cookie, 'sua-1.png', png), m2 = await upload(holder.cookie, 'sua-2.png', png), m3 = await upload(holder.cookie, 'sua-3.png', png);
+const im = await json(holder.cookie, 'POST', `${FB}/posts`, { message: `IMG-old ${stamp}`, pageIds: [P1], mediaIds: [m1.body.id, m2.body.id], scheduledAt: inMin(30) });
+const m1Url = (await json(holder.cookie, 'GET', `${FB}/media/${m1.body.id}/url`)).body?.url as string;
+ok('[208] Ảnh sắp bỏ còn trên S3 trước khi sửa', !!m1Url && (await fetch(s3url(m1Url))).status === 200);
+const foreign = await upload(admin, 'cua-hr.png', png);
+ok('[208] Thêm ảnh do người khác tải lên → 400', (await put(holder.cookie, im.body.id, { message: 'x', pageIds: [P1], mediaIds: [foreign.body.id], scheduledAt: inMin(30) })).status === 400);
+const logBefore = log.length;
+const im1 = await put(holder.cookie, im.body.id, { message: `IMG-new ${stamp}`, pageIds: [P2], mediaIds: [m3.body.id, m2.body.id], scheduledAt: null });
+ok('[208] Sửa ảnh + trang + đăng ngay → 200: trang 2, ảnh [3, 2]', im1.status === 200 && im1.body.targets.length === 1 && im1.body.targets[0].pageId === P2
+  && im1.body.media.map((m: any) => m.id).join() === [m3.body.id, m2.body.id].join() && im1.body.scheduledAt == null, im1.body);
+const imDone = await waitPost(holder.cookie, im.body.id, (p) => p.status === 'Published', 20_000);
+const after = log.slice(logBefore);
+const imPhotos = after.filter((r) => r.path === '/v23.0/1002/photos');
+const keyOf = (m: any) => (m.body.id as string).replaceAll('-', '');
+ok('[208] Chuyển sang đăng ngay → đăng trong vài giây', imDone?.status === 'Published', imDone);
+ok('[208] Graph nhận đúng bộ ảnh mới theo thứ tự [3, 2] lên trang 2, nội dung mới', imPhotos.length === 2 && imPhotos[0].form.url?.includes(keyOf(m3))
+  && imPhotos[1].form.url?.includes(keyOf(m2)) && after.some((r) => r.path === '/v23.0/1002/feed' && r.form.message === `IMG-new ${stamp}`),
+  imPhotos.map((r) => r.form.url?.slice(0, 120)));
+ok('[208] Không đăng lên trang đã bỏ, không dùng ảnh đã bỏ', !after.some((r) => r.path.startsWith('/v23.0/1001/')) && !after.some((r) => r.form.url?.includes(keyOf(m1))));
+ok('[208] Ảnh bị bỏ: hết link xem (404) + tệp không còn trên S3', (await json(holder.cookie, 'GET', `${FB}/media/${m1.body.id}/url`)).status === 404
+  && (await fetch(s3url(m1Url))).status === 404);
+
+// (4) Đã đăng / đã huỷ → 409
+const pubSeen = (await json(holder.cookie, 'GET', `${FB}/posts/${text.body.id}`)).body;
+ok('[208] Bài đã đăng: canEdit = false', pubSeen?.canEdit === false);
+const pub409 = await put(holder.cookie, text.body.id, { message: 'x', pageIds: [P1], scheduledAt: null });
+ok('[208] Sửa bài đã đăng → 409 kèm lý do', pub409.status === 409 && /đã gửi lên Facebook/.test(pub409.body?.detail ?? ''), pub409.body);
+ok('[208] Sửa bài đã huỷ → 409', (await put(holder.cookie, sch.body.id, { message: 'x', pageIds: [P1], scheduledAt: inMin(30) })).status === 409);
+
+// (5) Sửa đúng lúc job đăng: 6 vòng, mỗi vòng một bài hẹn giờ + 3 lần sửa song song cùng chuyển "đăng ngay" (lần commit đầu đánh thức job,
+// các lần sau chạy đua với job nhận đích: thắng → 200, thua → 409) → nội dung lên Facebook luôn là bản cuối đã lưu, đúng một lần
+let raceOk = true, raceWins = 0, race409 = 0;
+for (let i = 0; i < 6; i++) {
+  const v0 = `RACE${i}-v0 ${stamp}`;
+  const rp = await json(holder.cookie, 'POST', `${FB}/posts`, { message: v0, pageIds: [P1], scheduledAt: inMin(30) });
+  const rs = await Promise.all([1, 2, 3].map((k) => put(holder.cookie, rp.body.id, { message: `RACE${i}-v${k} ${stamp}`, pageIds: [P1], scheduledAt: null })));
+  const okMsgs = rs.filter((r) => r.status === 200).map((r) => r.body.message);
+  raceWins += okMsgs.length;
+  race409 += rs.filter((r) => r.status === 409).length;
+  const done = await waitPost(holder.cookie, rp.body.id, (p) => p.status === 'Published', 20_000);
+  const sent = feedMsgs(`RACE${i}-`);
+  const good = done?.status === 'Published' && sent.length === 1 && sent[0].form.message === done.message
+    && okMsgs.length > 0 && okMsgs.includes(sent[0].form.message)
+    && rs.every((r) => r.status === 200 || r.status === 409);
+  if (!good) { raceOk = false; console.log('  vòng', i, rs.map((r) => r.status), okMsgs, sent.map((s) => s.form.message), done?.message, done?.status); }
+}
+ok(`[208] Sửa song song với job (6 vòng × 3 lần): đăng đúng 1 lần, luôn là nội dung cuối đã lưu (200: ${raceWins}, 409: ${race409})`, raceOk && raceWins >= 6);
+
+// (6) Đang chờ thử lại (lỗi tạm thời) → 409
+fake.transient1002 = 1;
+const tr = await json(holder.cookie, 'POST', `${FB}/posts`, { message: `RETRY-208 ${stamp}`, pageIds: [P2] });
+const trWait = await waitPost(holder.cookie, tr.body.id, (p) => p.targets[0].status === 'Pending' && p.targets[0].attempts === 1, 20_000);
+const tr409 = await put(holder.cookie, tr.body.id, { message: 'x', pageIds: [P2], scheduledAt: null });
+ok('[208] Bài đang chờ thử lại: canEdit = false, sửa → 409', trWait?.canEdit === false && tr409.status === 409 && /thử lại/.test(tr409.body?.detail ?? ''), [trWait, tr409.body]);
+await json(holder.cookie, 'POST', `${FB}/posts/${tr.body.id}/cancel`);
+
+// (1, tiếp) Tới giờ cũ: chưa đăng; tới giờ mới: đăng nội dung mới
+await sleep(Math.max(0, Date.parse(oldAt) + 40_000 - Date.now()));
+const atOld = (await json(holder.cookie, 'GET', `${FB}/posts/${ed.body.id}`)).body;
+ok('[208] Qua giờ hẹn cũ: chưa đăng, Graph chưa nhận gì', atOld?.status === 'Scheduled' && feedMsgs('EDIT-').length === 0, [atOld?.status, feedMsgs('EDIT-').length]);
+await sleep(Math.max(0, Date.parse(newAt) - Date.now()));
+const atNew = await waitPost(holder.cookie, ed.body.id, (p) => p.status === 'Published', 60_000);
+const editSent = feedMsgs('EDIT-');
+ok('[208] Tới giờ mới: đăng đúng nội dung mới, một lần', atNew?.status === 'Published' && editSent.length === 1 && editSent[0].form.message === `EDIT-new ${stamp}`
+  && Date.parse(atNew.targets[0].publishedAt) >= Date.parse(newAt), [atNew?.status, editSent.map((r) => r.form.message)]);
+ok('[208] Bài đã đăng sau khi sửa vẫn giữ dấu "đã sửa"', !!atNew?.editedAt && atNew?.canEdit === false);
 
 // ---------------- Thu hồi BM → huỷ bài chờ của người giữ ----------------
 const sch2 = await json(holder.cookie, 'POST', '/api/assets/social/facebook/posts', { message: 'Hẹn giờ 2', pageIds: [P1], scheduledAt: at });

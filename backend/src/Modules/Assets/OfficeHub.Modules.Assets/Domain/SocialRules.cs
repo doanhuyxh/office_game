@@ -111,6 +111,26 @@ public static class SocialRules
         return failed > 0 ? SocialPostStatus.Failed : SocialPostStatus.Cancelled;
     }
 
+    // ---------------- Sửa bài đã hẹn (TEST-208) ----------------
+
+    /// <summary>
+    /// Bài còn sửa được không (null = được; khác = lý do, API trả 409): chưa đích nào từng được gửi đi — mọi đích đang Chờ với
+    /// <c>Attempts = 0</c> hoặc Đã huỷ — và còn ít nhất một đích Chờ. Đang đăng / đã đăng / lỗi / đang chờ thử lại → không sửa.
+    /// </summary>
+    public static string? CannotEditPost(IReadOnlyCollection<(SocialTargetStatus Status, int Attempts)> targets)
+    {
+        if (targets.Any(t => t.Status == SocialTargetStatus.Publishing)) return "Bài đang được đăng, không sửa được nữa";
+        if (targets.Any(t => t.Status is SocialTargetStatus.Published or SocialTargetStatus.Failed))
+            return "Bài đã gửi lên Facebook (đã đăng hoặc lỗi) ở ít nhất một trang, không sửa được — huỷ phần còn chờ rồi tạo bài mới";
+        if (targets.Any(t => t.Status == SocialTargetStatus.Pending && t.Attempts > 0))
+            return "Bài đang chờ thử lại sau lỗi tạm thời, không sửa được — huỷ rồi tạo bài mới";
+        if (!targets.Any(t => t.Status == SocialTargetStatus.Pending)) return "Bài không còn trang nào đang chờ đăng";
+        return null;
+    }
+
+    /// <summary>Người được sửa nội dung bài: người đăng hoặc HR / admin. Người giữ BM không phải tác giả chỉ được huỷ.</summary>
+    public static bool CanEditAuthor(bool isHr, Guid viewerUserId, Guid authorUserId) => isHr || viewerUserId == authorUserId;
+
     // ---------------- Quyền của token ----------------
 
     /// <summary>

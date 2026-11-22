@@ -29,6 +29,7 @@ internal static class SocialPostEndpoints
         s.MapGet("/posts", ListAsync);
         s.MapGet("/posts/{id:guid}", GetAsync);
         s.MapPost("/posts", CreateAsync);
+        s.MapPut("/posts/{id:guid}", UpdateAsync);
         s.MapPost("/posts/{id:guid}/cancel", CancelAsync);
         s.MapPost("/targets/{id:guid}/retry", RetryAsync);
     }
@@ -164,6 +165,8 @@ internal static class SocialPostEndpoints
         {
             var ts = targets.Where(t => t.PostId == p.Id).OrderBy(t => pages.GetValueOrDefault(t.PageId)?.Name).ToList();
             var manage = me.IsHr || p.AuthorUserId == me.UserId || ts.Any(t => held.Contains(t.PageId));
+            var canEdit = SocialRules.CanEditAuthor(me.IsHr, me.UserId, p.AuthorUserId)
+                && SocialRules.CannotEditPost([.. ts.Select(t => (t.Status, t.Attempts))]) is null;
             return new SocialPostDto(p.Id, p.Message, p.Link, p.ScheduledAt, p.CreatedAt, p.AuthorName, SocialRules.PostStatus([.. ts.Select(t => t.Status)]),
                 [.. ts.Select(t =>
                 {
@@ -173,7 +176,7 @@ internal static class SocialPostEndpoints
                         t.Permalink, t.Error, t.CancelledAt, t.CancelledByName, canRetry);
                 })],
                 [.. media.Where(m => m.PostId == p.Id).Select(ToDto)],
-                manage && ts.Any(t => t.Status == SocialTargetStatus.Pending));
+                manage && ts.Any(t => t.Status == SocialTargetStatus.Pending), canEdit, p.EditedAt, p.EditedByName);
         })];
     }
 
@@ -244,6 +247,101 @@ internal static class SocialPostEndpoints
             m.SortOrder = i;
         }
         await db.SaveChangesAsync(ct);
+        if (r.ScheduledAt is null) signal.Poke();
+        return TypedResults.Ok((await ToDtosAsync([post], me, db, ct))[0]);
+    }
+
+    /// <summary>
+    /// Sửa bài đã hẹn còn chờ (TEST-208): nội dung, link, ảnh / video (thêm / bỏ / đổi thứ tự), trang đích, giờ hẹn hoặc chuyển sang đăng ngay.
+    /// Chỉ người đăng + HR (người giữ BM chỉ huỷ được). Chạy trong một transaction, khoá mọi dòng đích của bài (<c>FOR UPDATE</c>) rồi mới kiểm tra
+    /// <see cref="SocialRules.CannotEditPost"/>: job đã nhận một đích trước → 409; sửa giữ khoá trước → job chờ commit rồi đăng nội dung mới
+    /// (điều kiện nhận đích của <see cref="SocialService.PublishTargetAsync"/> đánh giá lại trên dòng đã sửa).
+    /// </summary>
+    private static async Task<Results<Ok<SocialPostDto>, ValidationProblem, ProblemHttpResult>> UpdateAsync(Guid id, SocialPostRequest r,
+        ClaimsPrincipal user, AssetsDbContext db, AssetAccess access, AssetClock clock, SocialPublishSignal signal, IFileStorage files,
+        CancellationToken ct)
+    {
+        var me = await access.ViewerAsync(user, ct);
+        var visible = await (await VisibleAsync(me, db, ct)).AnyAsync(x => x.Id == id, ct);
+        if (!visible) return Problems.NotFound("bài đăng");
+        var accountIds = await PostableAccountIdsAsync(me, db, ct);
+
+        List<string> dropKeys;
+        SocialPost post;
+        await using (var tx = await db.Database.BeginTransactionAsync(ct))
+        {
+            // Khoá các đích trước mọi kiểm tra: job đăng nhận đích bằng UPDATE có điều kiện nên phải chờ transaction này.
+            var targets = await db.SocialTargets
+                .FromSqlInterpolated($"SELECT * FROM assets.social_post_targets WHERE \"PostId\" = {id} FOR UPDATE").ToListAsync(ct);
+            post = await db.SocialPosts.FirstAsync(x => x.Id == id, ct);
+            if (!SocialRules.CanEditAuthor(me.IsHr, me.UserId, post.AuthorUserId))
+                return Forbidden("Chỉ người đăng bài hoặc HR được sửa bài — bạn chỉ huỷ được phần chưa đăng");
+            if (SocialRules.CannotEditPost([.. targets.Select(t => (t.Status, t.Attempts))]) is { } why) return Problems.Conflict(why);
+            if (accountIds.Count == 0) return NoAccount(me);
+
+            var pageIds = (r.PageIds ?? []).Distinct().ToList();
+            var mediaIds = (r.MediaIds ?? []).Distinct().ToList();
+            var pages = await db.SocialPages.AsNoTracking().Where(p => pageIds.Contains(p.Id)).ToListAsync(ct);
+            var current = await db.SocialMedia.Where(m => m.PostId == id).ToListAsync(ct);
+            var added = await db.SocialMedia.Where(m => mediaIds.Contains(m.Id) && m.PostId != id).ToListAsync(ct);
+            var now = clock.Now;
+            var link = string.IsNullOrWhiteSpace(r.Link) ? null : r.Link.Trim();
+            var v = new Validation();
+            var kinds = mediaIds.Select(mid => current.FirstOrDefault(m => m.Id == mid && m.Ready) ?? added.FirstOrDefault(m => m.Id == mid))
+                .Where(m => m is not null).Select(m => m!.Kind).ToList();
+            foreach (var (field, msg) in SocialRules.ValidatePost(r.Message, link, pageIds.Count, kinds, r.ScheduledAt, now)) v.Add(field, msg);
+            if (pages.Count != pageIds.Count) v.Add("pageIds", "Có trang không tồn tại");
+            foreach (var p in pages.Where(p => !accountIds.Contains(p.AccountId) || !p.IsActive))
+                v.Add("pageIds", $"Bạn không được đăng lên trang \"{p.Name}\"");
+            foreach (var p in pages.Where(p => accountIds.Contains(p.AccountId) && p.IsActive && p.TokenEncrypted is null))
+                v.Add("pageIds", $"Chưa có quyền đăng lên trang \"{p.Name}\" — nhờ HR kiểm tra quyền System User rồi đồng bộ lại");
+            if (kinds.Count != mediaIds.Count || added.Any(m => m.CreatedByUserId != me.UserId || !m.Ready || m.PostId is not null))
+                v.Add("mediaIds", "Ảnh / video không hợp lệ hoặc đã dùng cho bài khác — tải lên lại");
+            if (v.Failed) return v.Problem();
+
+            post.Message = r.Message?.Trim() ?? "";
+            post.Link = link;
+            post.ScheduledAt = r.ScheduledAt;
+            post.EditedAt = now;
+            post.EditedByName = me.Name;
+            var due = r.ScheduledAt ?? now;
+            foreach (var t in targets.Where(t => t.Status == SocialTargetStatus.Pending && !pageIds.Contains(t.PageId)))
+                db.SocialTargets.Remove(t); // trang bị bỏ: đích chưa từng chạy → xoá dòng
+            foreach (var pid in pageIds)
+            {
+                var t = targets.FirstOrDefault(x => x.PageId == pid && x.Status == SocialTargetStatus.Pending)
+                    ?? targets.FirstOrDefault(x => x.PageId == pid && x.Status == SocialTargetStatus.Cancelled);
+                if (t is null)
+                {
+                    db.SocialTargets.Add(new SocialPostTarget { PostId = id, PageId = pid, Status = SocialTargetStatus.Pending, DueAt = due });
+                    continue;
+                }
+                t.Status = SocialTargetStatus.Pending; // trang đã huỷ được chọn lại → chờ đăng lại từ đầu
+                t.DueAt = due;
+                t.Attempts = 0;
+                t.Error = null;
+                t.CancelledAt = null;
+                t.CancelledByName = null;
+            }
+            var dropped = current.Where(m => !mediaIds.Contains(m.Id)).ToList();
+            dropKeys = [.. dropped.Select(m => m.FileKey)];
+            db.SocialMedia.RemoveRange(dropped);
+            for (var i = 0; i < mediaIds.Count; i++)
+            {
+                var m = current.FirstOrDefault(x => x.Id == mediaIds[i]) ?? added.First(x => x.Id == mediaIds[i]);
+                m.PostId = id;
+                m.SortOrder = i;
+            }
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+
+        // Tệp bị bỏ: xoá trên S3 sau khi commit (transaction lỗi thì tệp vẫn còn cho bài cũ)
+        foreach (var key in dropKeys)
+        {
+            try { await files.DeleteAsync(key, CancellationToken.None); }
+            catch (Exception) { /* tệp mồ côi trên S3 không ảnh hưởng bài; không làm hỏng lần sửa đã commit */ }
+        }
         if (r.ScheduledAt is null) signal.Poke();
         return TypedResults.Ok((await ToDtosAsync([post], me, db, ct))[0]);
     }

@@ -121,7 +121,9 @@ public sealed class SocialPagePost
     public Guid? PostTargetId { get; set; }
 }
 
-/// <summary>Bài đăng (nội dung chung cho mọi trang được chọn). Không sửa sau khi tạo — huỷ rồi tạo lại.</summary>
+/// <summary>
+/// Bài đăng (nội dung chung cho mọi trang được chọn). Sửa được khi chưa đích nào được gửi đi (<see cref="SocialRules.CannotEditPost"/>, TEST-208).
+/// </summary>
 public sealed class SocialPost
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
@@ -133,6 +135,9 @@ public sealed class SocialPost
     public Guid AuthorUserId { get; set; }
     public Guid? AuthorEmployeeId { get; set; }
     public required string AuthorName { get; set; }
+    /// <summary>Lần sửa gần nhất (TEST-208); null = chưa sửa.</summary>
+    public DateTimeOffset? EditedAt { get; set; }
+    public string? EditedByName { get; set; }
     public List<SocialPostTarget> Targets { get; set; } = [];
 }
 

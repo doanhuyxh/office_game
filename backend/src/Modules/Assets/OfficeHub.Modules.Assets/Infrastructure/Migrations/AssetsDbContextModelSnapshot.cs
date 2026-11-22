@@ -962,6 +962,13 @@ namespace OfficeHub.Modules.Assets.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTimeOffset?>("EditedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EditedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<string>("Link")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");

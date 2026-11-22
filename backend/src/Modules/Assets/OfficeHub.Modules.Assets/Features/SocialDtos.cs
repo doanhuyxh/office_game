@@ -33,13 +33,15 @@ public sealed record SocialMediaUploadRequest(string? FileName, long Size);
 public sealed record SocialMediaUploadDto(Guid Id, string UploadUrl, string ContentType, SocialMediaKind Kind, DateTimeOffset ExpiresAt);
 public sealed record SocialMediaDto(Guid Id, SocialMediaKind Kind, string FileName, string ContentType, long Size);
 
+/// <summary>Tạo bài (POST) và sửa bài đã hẹn (PUT /posts/{id}, TEST-208) dùng chung body. <c>MediaIds</c> theo thứ tự hiển thị.</summary>
 public sealed record SocialPostRequest(string? Message, string? Link, IReadOnlyList<Guid>? PageIds, IReadOnlyList<Guid>? MediaIds, DateTimeOffset? ScheduledAt);
 
 public sealed record SocialTargetDto(Guid Id, Guid PageId, string PageName, string? PagePictureUrl, SocialTargetStatus Status, DateTimeOffset DueAt,
     int Attempts, DateTimeOffset? PublishedAt, string? Permalink, string? Error, DateTimeOffset? CancelledAt, string? CancelledByName, bool CanRetry);
 
 public sealed record SocialPostDto(Guid Id, string Message, string? Link, DateTimeOffset? ScheduledAt, DateTimeOffset CreatedAt, string AuthorName,
-    SocialPostStatus Status, IReadOnlyList<SocialTargetDto> Targets, IReadOnlyList<SocialMediaDto> Media, bool CanCancel);
+    SocialPostStatus Status, IReadOnlyList<SocialTargetDto> Targets, IReadOnlyList<SocialMediaDto> Media, bool CanCancel, bool CanEdit = false,
+    DateTimeOffset? EditedAt = null, string? EditedByName = null);
 
 public sealed record HeldSocialDto(Guid Id, SocialPlatform Platform, string Name, string? ExternalId, string? LoginHint, int PageCount, DateTimeOffset AssignedAt);
 

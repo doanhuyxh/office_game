@@ -250,4 +250,44 @@ public class SocialRulesTests
     [Fact]
     public void RequiredPermissions_IncludeReadUserContentForPostSync() =>
         Assert.True(SocialRules.IsRequiredPermission("pages_read_user_content"));
+
+    // ---------------- Sửa bài đã hẹn (TEST-208) ----------------
+
+    private static (SocialTargetStatus, int) T(SocialTargetStatus s, int attempts = 0) => (s, attempts);
+
+    [Fact]
+    public void CannotEditPost_OnlyWhenNothingSentYet()
+    {
+        Assert.Null(SocialRules.CannotEditPost([T(SocialTargetStatus.Pending)]));
+        Assert.Null(SocialRules.CannotEditPost([T(SocialTargetStatus.Pending), T(SocialTargetStatus.Cancelled)]));
+        Assert.Null(SocialRules.CannotEditPost([T(SocialTargetStatus.Pending), T(SocialTargetStatus.Cancelled, 1)]));
+    }
+
+    [Theory]
+    [InlineData(SocialTargetStatus.Publishing, 1, "đang được đăng")]
+    [InlineData(SocialTargetStatus.Published, 1, "đã gửi lên Facebook")]
+    [InlineData(SocialTargetStatus.Failed, 3, "đã gửi lên Facebook")]
+    [InlineData(SocialTargetStatus.Pending, 1, "chờ thử lại")]
+    public void CannotEditPost_SentOrRetrying_Blocked(SocialTargetStatus other, int attempts, string reason)
+    {
+        var why = SocialRules.CannotEditPost([T(SocialTargetStatus.Pending), T(other, attempts)]);
+        Assert.NotNull(why);
+        Assert.Contains(reason, why);
+    }
+
+    [Fact]
+    public void CannotEditPost_NoPendingTarget_Blocked()
+    {
+        Assert.Equal("Bài không còn trang nào đang chờ đăng", SocialRules.CannotEditPost([T(SocialTargetStatus.Cancelled)]));
+        Assert.Equal("Bài không còn trang nào đang chờ đăng", SocialRules.CannotEditPost([]));
+    }
+
+    [Fact]
+    public void CanEditAuthor_AuthorOrHrOnly()
+    {
+        var author = Guid.NewGuid();
+        Assert.True(SocialRules.CanEditAuthor(false, author, author));
+        Assert.True(SocialRules.CanEditAuthor(true, Guid.NewGuid(), author));
+        Assert.False(SocialRules.CanEditAuthor(false, Guid.NewGuid(), author)); // người giữ BM không phải tác giả: chỉ huỷ
+    }
 }
