@@ -23,8 +23,9 @@
 |---|---|
 | `pages_show_list` | không lấy được danh sách trang |
 | `pages_manage_posts` | không đăng bài lên trang được |
-| `pages_read_engagement` | không đọc bài / tương tác được (Meta cũng bắt buộc khi đăng bài; đồng bộ bài viết sau này cần) |
+| `pages_read_engagement` | không đọc bài / tương tác được (Meta cũng bắt buộc khi đăng bài; đồng bộ bài viết cần) |
 | `business_management` | không truy cập được trang được gán qua Business Manager (System User) |
+| `pages_read_user_content` | không đồng bộ được bài viết / số bình luận của trang (TEST-206 — [assets-social-page-posts.md](assets-social-page-posts.md)) |
 
 Thêm quyền cần → sửa `RequiredPermissions` + hướng dẫn tạo token (`social-token-guide`) + `SocialRulesTests`.
 

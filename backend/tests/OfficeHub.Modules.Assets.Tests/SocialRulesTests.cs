@@ -151,7 +151,7 @@ public class SocialRulesTests
     {
         var perms = new[] { P("pages_show_list"), P("pages_manage_posts", "declined"), P("pages_read_engagement", "expired") };
         var missing = SocialRules.MissingPermissions(perms).Select(m => m.Permission).ToList();
-        Assert.Equal(["pages_manage_posts", "pages_read_engagement", "business_management"], missing);
+        Assert.Equal(["pages_manage_posts", "pages_read_engagement", "business_management", "pages_read_user_content"], missing);
         Assert.All(SocialRules.MissingPermissions([]), m => Assert.False(string.IsNullOrWhiteSpace(m.Impact)));
         Assert.Equal(SocialRules.RequiredPermissions.Count, SocialRules.MissingPermissions([]).Count);
     }
@@ -224,4 +224,30 @@ public class SocialRulesTests
         Assert.Equal("/social/facebook", SocialRules.FacebookPostsLink);
         Assert.Equal("/assets?tab=social&platform=facebook", SocialRules.FacebookAccountsLink);
     }
+
+    // ---------------- TEST-206: bài viết hiện có của Fanpage ----------------
+
+    [Fact]
+    public void PostsSyncTooSoon_OneMinuteCooldown()
+    {
+        Assert.False(SocialRules.PostsSyncTooSoon(null, Now));
+        Assert.True(SocialRules.PostsSyncTooSoon(Now.AddSeconds(-59), Now));
+        Assert.False(SocialRules.PostsSyncTooSoon(Now.AddMinutes(-1), Now));
+        Assert.Equal(100, SocialRules.PagePostsLimit);
+    }
+
+    [Fact]
+    public void CanViewPage_HrOrActiveHolder()
+    {
+        var other = Guid.NewGuid();
+        Assert.True(SocialRules.CanViewPage(true, null, SocialAccountStatus.Disabled, null));
+        Assert.True(SocialRules.CanViewPage(false, Emp, SocialAccountStatus.Active, Emp));
+        Assert.False(SocialRules.CanViewPage(false, Emp, SocialAccountStatus.Disabled, Emp));
+        Assert.False(SocialRules.CanViewPage(false, other, SocialAccountStatus.Active, Emp));
+        Assert.False(SocialRules.CanViewPage(false, null, SocialAccountStatus.Active, null));
+    }
+
+    [Fact]
+    public void RequiredPermissions_IncludeReadUserContentForPostSync() =>
+        Assert.True(SocialRules.IsRequiredPermission("pages_read_user_content"));
 }

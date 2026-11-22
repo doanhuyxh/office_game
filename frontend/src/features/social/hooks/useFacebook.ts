@@ -23,6 +23,14 @@ export const useFacebookPosts = (q: IPageQuery) =>
 export const useFacebookMediaUrl = (id: string) =>
   useQuery({ queryKey: facebookKeys.mediaUrl(id), queryFn: () => facebookApi.mediaUrl(id), staleTime: 8 * 60_000, retry: false, meta: { quiet: true } });
 
+/** Chi tiết Fanpage; đang đồng bộ (job / người khác bấm) → hỏi lại mỗi 3 giây. */
+export const useFacebookPageDetail = (id: string) =>
+  useQuery({ queryKey: facebookKeys.page(id), queryFn: () => facebookApi.page(id), retry: false,
+    refetchInterval: (query) => (query.state.data?.postsSyncing ? 3_000 : false) });
+
+export const useFacebookPagePosts = (id: string, q: IPageQuery) =>
+  useQuery({ queryKey: facebookKeys.pagePosts(id, q), queryFn: () => facebookApi.pagePosts(id, q), placeholderData: (prev) => prev });
+
 export function useFacebookMutation<A, R>(fn: (a: A) => Promise<R>) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: fn, onSuccess: () => qc.invalidateQueries({ queryKey: facebookKeys.all }) });

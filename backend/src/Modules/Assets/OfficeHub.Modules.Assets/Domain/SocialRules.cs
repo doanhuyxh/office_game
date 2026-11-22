@@ -116,7 +116,8 @@ public static class SocialRules
     /// <summary>
     /// Quyền token System User cần cho OfficeHub (Graph API v23): <c>pages_show_list</c> (liệt kê trang, /me/accounts),
     /// <c>pages_manage_posts</c> + <c>pages_read_engagement</c> (đăng bài — Meta yêu cầu cả hai; đọc bài / tương tác),
-    /// <c>business_management</c> (trang được gán qua Business Manager / System User).
+    /// <c>business_management</c> (trang được gán qua Business Manager / System User), <c>pages_read_user_content</c>
+    /// (đọc bài + tổng bình luận khi đồng bộ bài viết của trang — TEST-206).
     /// </summary>
     public static readonly IReadOnlyList<SocialRequiredPermission> RequiredPermissions =
     [
@@ -124,6 +125,7 @@ public static class SocialRules
         new("pages_manage_posts", "không đăng bài lên trang được"),
         new("pages_read_engagement", "không đọc bài / tương tác được (Facebook cũng cần quyền này để đăng bài)"),
         new("business_management", "không truy cập được các trang được gán qua Business Manager"),
+        new("pages_read_user_content", "không đồng bộ được bài viết / số bình luận của trang"),
     ];
 
     public static bool IsRequiredPermission(string permission) => RequiredPermissions.Any(r => r.Permission == permission);
@@ -184,6 +186,20 @@ public static class SocialRules
     /// <summary>Người nhận báo token hỏng: người đang giữ BM (còn làm việc) + mọi HR + mọi Quản trị viên, bỏ trùng, giữ thứ tự.</summary>
     public static IReadOnlyList<Guid> TokenAlertRecipients(Guid? holderUserId, IEnumerable<Guid> hrUserIds, IEnumerable<Guid> adminUserIds) =>
         [.. (holderUserId is { } h ? new[] { h } : []).Concat(hrUserIds).Concat(adminUserIds).Distinct()];
+
+    // ---------------- Bài viết hiện có của Fanpage (TEST-206) ----------------
+
+    /// <summary>Số bài mới nhất lấy về mỗi lần đồng bộ một trang.</summary>
+    public const int PagePostsLimit = 100;
+    /// <summary>Bấm "Đồng bộ bài viết" khi vừa đồng bộ chưa tới mức này → trả kết quả hiện có, không gọi Facebook.</summary>
+    public static readonly TimeSpan PostsSyncCooldown = TimeSpan.FromMinutes(1);
+
+    /// <summary>Vừa đồng bộ (thành công hoặc lỗi) chưa quá <see cref="PostsSyncCooldown"/> → bỏ qua lần bấm này.</summary>
+    public static bool PostsSyncTooSoon(DateTimeOffset? lastAttempt, DateTimeOffset now) => lastAttempt is { } t && now - t < PostsSyncCooldown;
+
+    /// <summary>Người xem chi tiết / bài / đồng bộ bài của trang: HR, hoặc người đang giữ BM (BM đang dùng). Người khác → 404.</summary>
+    public static bool CanViewPage(bool isHr, Guid? viewerEmployeeId, SocialAccountStatus status, Guid? holder) =>
+        isHr || (status == SocialAccountStatus.Active && viewerEmployeeId is { } e && holder == e);
 
     /// <summary>Lần thử kế tiếp: 1 → +1 phút, 2 → +5 phút.</summary>
     public static TimeSpan Backoff(int attempts) => attempts <= 1 ? TimeSpan.FromMinutes(1) : TimeSpan.FromMinutes(5);

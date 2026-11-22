@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -83,12 +84,100 @@ internal sealed class SocialService(AssetsDbContext db, IFacebookGraph graph, IF
     public Task<List<Guid>> AccountsToCheckAsync(CancellationToken ct) =>
         db.SocialAccounts.Where(a => a.Status == SocialAccountStatus.Active && a.TokenEncrypted != null).OrderBy(a => a.Name).Select(a => a.Id).ToListAsync(ct);
 
-    /// <summary>Job: kiểm tra token + đồng bộ trang + làm mới quyền một BM (bỏ qua BM đã ngừng dùng / không còn token).</summary>
-    public async Task CheckAccountAsync(Guid accountId, CancellationToken ct)
+    /// <summary>
+    /// Job: kiểm tra token + đồng bộ trang + làm mới quyền một BM (bỏ qua BM đã ngừng dùng / không còn token). true = token kiểm tra thành công
+    /// (job đồng bộ tiếp bài viết của các trang).
+    /// </summary>
+    public async Task<bool> CheckAccountAsync(Guid accountId, CancellationToken ct)
     {
         var a = await db.SocialAccounts.FirstOrDefaultAsync(x => x.Id == accountId, ct);
-        if (a is null || a.Status != SocialAccountStatus.Active || a.TokenEncrypted is null) return;
-        await CheckAndSyncAsync(a, ct);
+        if (a is null || a.Status != SocialAccountStatus.Active || a.TokenEncrypted is null) return false;
+        return await CheckAndSyncAsync(a, ct) is null;
+    }
+
+    // ---------------- Bài viết hiện có của Fanpage (TEST-206) ----------------
+
+    /// <summary>Trang đang đồng bộ bài (giả định một instance Api) — chặn bấm dồn / job chạy trùng.</summary>
+    private static readonly ConcurrentDictionary<Guid, byte> SyncingPages = new();
+
+    public static bool IsSyncingPosts(Guid pageId) => SyncingPages.ContainsKey(pageId);
+
+    /// <summary>Trang của BM có page token (còn trong BM) → job đồng bộ bài.</summary>
+    public Task<List<Guid>> PagesToSyncAsync(Guid accountId, CancellationToken ct) =>
+        db.SocialPages.Where(p => p.AccountId == accountId && p.IsActive && p.TokenEncrypted != null).OrderBy(p => p.Name).Select(p => p.Id).ToListAsync(ct);
+
+    public async Task SyncPagePostsAsync(Guid pageId, CancellationToken ct)
+    {
+        var page = await db.SocialPages.FirstOrDefaultAsync(p => p.Id == pageId, ct);
+        if (page is not null) await SyncPagePostsAsync(page, ct);
+    }
+
+    /// <summary>
+    /// Lấy <see cref="SocialRules.PagePostsLimit"/> bài mới nhất của trang rồi upsert (thêm bài mới, cập nhật nội dung + số tương tác bài cũ;
+    /// không xoá bài ngoài khoảng). Lỗi → ghi <c>PostsSyncError</c>, không ném; lỗi token 190 / 102 → BM "Token lỗi" + báo (hàm chung).
+    /// Đang đồng bộ ở nơi khác → bỏ qua. Đã SaveChanges.
+    /// </summary>
+    public async Task SyncPagePostsAsync(SocialPage page, CancellationToken ct)
+    {
+        if (!SyncingPages.TryAdd(page.Id, 0)) return;
+        try
+        {
+            if (!page.IsActive || page.TokenEncrypted is null)
+            {
+                page.PostsSyncError = !page.IsActive ? "Trang không còn trong BM" : "Chưa có page token — kiểm tra quyền System User rồi đồng bộ lại BM";
+                await db.SaveChangesAsync(ct);
+                return;
+            }
+            try
+            {
+                var posts = await graph.PagePostsAsync(page.ExternalId, enc.Decrypt(page.TokenEncrypted), SocialRules.PagePostsLimit, ct);
+                await UpsertPostsAsync(page, posts, ct);
+                page.PostsSyncedAt = clock.Now;
+                page.PostsSyncError = null;
+                await db.SaveChangesAsync(ct);
+            }
+            catch (GraphException g)
+            {
+                page.PostsSyncError = Trim(g.Error.Message, 1000);
+                var account = SocialRules.IsTokenError(g.Error.Code) ? await db.SocialAccounts.FirstOrDefaultAsync(a => a.Id == page.AccountId, ct) : null;
+                if (account is not null) await MarkTokenInvalidAsync(account, g.Error.Message, ct); // đã SaveChanges (gồm lỗi của trang)
+                else await db.SaveChangesAsync(ct);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
+            {
+                page.PostsSyncError = "Không kết nối được Facebook";
+                await db.SaveChangesAsync(ct);
+            }
+        }
+        finally { SyncingPages.TryRemove(page.Id, out _); }
+    }
+
+    private async Task UpsertPostsAsync(SocialPage page, List<FbPagePost> posts, CancellationToken ct)
+    {
+        var now = clock.Now;
+        var ids = posts.Select(p => p.Id).Distinct().ToList();
+        var existing = await db.SocialPagePosts.Where(x => x.PageId == page.Id && ids.Contains(x.ExternalPostId)).ToDictionaryAsync(x => x.ExternalPostId, ct);
+        // Bài đăng từ OfficeHub: đích trên trang này có cùng ExternalPostId
+        var targets = (await db.SocialTargets.AsNoTracking().Where(t => t.PageId == page.Id && t.ExternalPostId != null && ids.Contains(t.ExternalPostId))
+            .Select(t => new { t.Id, t.ExternalPostId }).ToListAsync(ct)).DistinctBy(t => t.ExternalPostId).ToDictionary(t => t.ExternalPostId!, t => t.Id);
+        foreach (var fp in posts.DistinctBy(p => p.Id))
+        {
+            if (!existing.TryGetValue(fp.Id, out var row))
+            {
+                row = new SocialPagePost { PageId = page.Id, ExternalPostId = Trim(fp.Id, 100)! };
+                db.SocialPagePosts.Add(row);
+            }
+            row.Message = string.IsNullOrWhiteSpace(fp.Message) ? null : fp.Message;
+            row.CreatedTime = fp.CreatedTime;
+            row.Permalink = Trim(fp.Permalink, 1000);
+            row.PictureUrl = Trim(fp.PictureUrl, 2000);
+            row.StatusType = Trim(fp.StatusType, 50);
+            row.ReactionCount = fp.Reactions;
+            row.CommentCount = fp.Comments;
+            row.ShareCount = fp.Shares;
+            row.SyncedAt = now;
+            if (targets.TryGetValue(fp.Id, out var tid)) row.PostTargetId = tid;
+        }
     }
 
     /// <summary>
@@ -252,7 +341,7 @@ internal sealed class SocialService(AssetsDbContext db, IFacebookGraph graph, IF
 /// </summary>
 /// <summary>
 /// Kiểm tra lại token System User của mọi BM đang dùng (TEST-205): <see cref="SocialRules.TokenCheckFirstDelay"/> sau khi Api khởi động,
-/// sau đó mỗi <see cref="SocialRules.TokenCheckInterval"/> (5 giờ). Mỗi BM một scope — lỗi một BM không chặn BM khác. Giả định một instance Api.
+/// sau đó mỗi <see cref="SocialRules.TokenCheckInterval"/> (5 giờ); token đúng → đồng bộ bài viết các trang (TEST-206). Mỗi BM / trang một scope — lỗi một BM không chặn BM khác. Giả định một instance Api.
 /// <c>Facebook__TokenCheckInterval</c> (chỉ dùng khi test) rút chu kỳ + lần chạy đầu.
 /// </summary>
 internal sealed class SocialTokenCheckJob(IServiceScopeFactory scopes, IOptions<FacebookSettings> settings, ILogger<SocialTokenCheckJob> log,
@@ -280,11 +369,26 @@ internal sealed class SocialTokenCheckJob(IServiceScopeFactory scopes, IOptions<
         var failed = 0;
         foreach (var id in ids)
         {
-            using var scope = scopes.CreateScope();
-            try { await scope.ServiceProvider.GetRequiredService<SocialService>().CheckAccountAsync(id, ct); }
-            catch (Exception ex) when (!ct.IsCancellationRequested) { failed++; log.LogError(ex, "Lỗi khi kiểm tra token BM {AccountId}", id); }
+            List<Guid> pages = [];
+            using (var scope = scopes.CreateScope())
+            {
+                try
+                {
+                    var social = scope.ServiceProvider.GetRequiredService<SocialService>();
+                    // Token kiểm tra thành công → đồng bộ bài viết từng trang (TEST-206)
+                    if (await social.CheckAccountAsync(id, ct)) pages = await social.PagesToSyncAsync(id, ct);
+                }
+                catch (Exception ex) when (!ct.IsCancellationRequested) { failed++; log.LogError(ex, "Lỗi khi kiểm tra token BM {AccountId}", id); }
+            }
+            foreach (var pageId in pages)
+            {
+                // Mỗi trang một scope — lỗi một trang không chặn trang khác
+                using var scope = scopes.CreateScope();
+                try { await scope.ServiceProvider.GetRequiredService<SocialService>().SyncPagePostsAsync(pageId, ct); }
+                catch (Exception ex) when (!ct.IsCancellationRequested) { failed++; log.LogError(ex, "Lỗi khi đồng bộ bài trang {PageId}", pageId); }
+            }
         }
-        if (failed > 0) throw new InvalidOperationException($"{failed}/{ids.Count} BM kiểm tra token bị lỗi (xem log)");
+        if (failed > 0) throw new InvalidOperationException($"{failed} lỗi khi kiểm tra token BM / đồng bộ bài trang (xem log)");
     }
 }
 

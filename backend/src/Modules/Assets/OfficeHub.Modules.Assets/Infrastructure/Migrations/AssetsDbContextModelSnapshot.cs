@@ -859,6 +859,13 @@ namespace OfficeHub.Modules.Assets.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<string>("PostsSyncError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTimeOffset?>("PostsSyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset>("SyncedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -872,6 +879,67 @@ namespace OfficeHub.Modules.Assets.Infrastructure.Migrations
                         .HasDatabaseName("ux_social_pages_account_external");
 
                     b.ToTable("social_pages", "assets");
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Assets.Domain.SocialPagePost", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CommentCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ExternalPostId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Message")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("PageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Permalink")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("PictureUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid?>("PostTargetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ReactionCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ShareCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StatusType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTimeOffset>("SyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PostTargetId");
+
+                    b.HasIndex("PageId", "CreatedTime")
+                        .HasDatabaseName("ix_social_page_posts_page_created");
+
+                    b.HasIndex("PageId", "ExternalPostId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_social_page_posts_external");
+
+                    b.ToTable("social_page_posts", "assets");
                 });
 
             modelBuilder.Entity("OfficeHub.Modules.Assets.Domain.SocialPost", b =>
@@ -1149,6 +1217,20 @@ namespace OfficeHub.Modules.Assets.Infrastructure.Migrations
                         .HasForeignKey("AccountId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Assets.Domain.SocialPagePost", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Assets.Domain.SocialPage", null)
+                        .WithMany()
+                        .HasForeignKey("PageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("OfficeHub.Modules.Assets.Domain.SocialPostTarget", null)
+                        .WithMany()
+                        .HasForeignKey("PostTargetId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("OfficeHub.Modules.Assets.Domain.SocialPostTarget", b =>

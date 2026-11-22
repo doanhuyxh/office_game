@@ -42,3 +42,11 @@ public sealed record SocialPostDto(Guid Id, string Message, string? Link, DateTi
     SocialPostStatus Status, IReadOnlyList<SocialTargetDto> Targets, IReadOnlyList<SocialMediaDto> Media, bool CanCancel);
 
 public sealed record HeldSocialDto(Guid Id, SocialPlatform Platform, string Name, string? ExternalId, string? LoginHint, int PageCount, DateTimeOffset AssignedAt);
+
+/// <summary>Chi tiết Fanpage (TEST-206): trang + BM + trạng thái đồng bộ bài viết. <c>CanSync</c> = trang còn trong BM và có page token.</summary>
+public sealed record SocialPageDetailDto(SocialPageDto Page, SocialAccountStatus AccountStatus, SocialTokenStatus AccountTokenStatus, string? HolderName,
+    DateTimeOffset? PostsSyncedAt, string? PostsSyncError, bool PostsSyncing, int PostCount, bool CanSync);
+
+/// <summary>Bài viết hiện có trên trang (đồng bộ từ Facebook). <c>PostId</c> = bài OfficeHub tương ứng (nếu đăng từ OfficeHub).</summary>
+public sealed record SocialPagePostDto(Guid Id, string ExternalPostId, string? Message, DateTimeOffset CreatedTime, string? Permalink, string? PictureUrl,
+    string? StatusType, int ReactionCount, int CommentCount, int ShareCount, DateTimeOffset SyncedAt, bool FromOfficeHub, Guid? PostId);

@@ -91,6 +91,34 @@ public sealed class SocialPage
     public string? TokenEncrypted { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTimeOffset SyncedAt { get; set; }
+    /// <summary>Lần đồng bộ bài viết thành công gần nhất (TEST-206).</summary>
+    public DateTimeOffset? PostsSyncedAt { get; set; }
+    /// <summary>Lỗi lần đồng bộ bài gần nhất (thiếu quyền, lỗi Facebook…); null = lần gần nhất thành công.</summary>
+    public string? PostsSyncError { get; set; }
+}
+
+/// <summary>
+/// Bài viết hiện có trên Fanpage, đồng bộ từ Facebook (<c>/{page}/published_posts</c>, 100 bài mới nhất mỗi lần — TEST-206). Chỉ thêm / cập nhật,
+/// không xoá bài ngoài khoảng 100 bài. <see cref="PictureUrl"/> là link CDN Facebook (có thể hết hạn), không chép về S3.
+/// </summary>
+public sealed class SocialPagePost
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid PageId { get; set; }
+    /// <summary>ID bài trên Facebook (<c>{pageId}_{postId}</c>). Duy nhất theo <c>(PageId, ExternalPostId)</c>.</summary>
+    public required string ExternalPostId { get; set; }
+    public string? Message { get; set; }
+    /// <summary>Giờ đăng trên Facebook (UTC).</summary>
+    public DateTimeOffset CreatedTime { get; set; }
+    public string? Permalink { get; set; }
+    public string? PictureUrl { get; set; }
+    public string? StatusType { get; set; }
+    public int ReactionCount { get; set; }
+    public int CommentCount { get; set; }
+    public int ShareCount { get; set; }
+    public DateTimeOffset SyncedAt { get; set; }
+    /// <summary>Bài đăng từ OfficeHub: đích <c>social_post_targets</c> có cùng <c>ExternalPostId</c> trên trang này.</summary>
+    public Guid? PostTargetId { get; set; }
 }
 
 /// <summary>Bài đăng (nội dung chung cho mọi trang được chọn). Không sửa sau khi tạo — huỷ rồi tạo lại.</summary>

@@ -17,6 +17,7 @@
 | `social_pages` | Fanpage đồng bộ từ BM: `ExternalId`, `Name`, `Category`, `Link`, `PictureUrl`, `TokenEncrypted` (page token), `IsActive` (false = không còn trong BM, giữ cho lịch sử). Duy nhất `(AccountId, ExternalId)` |
 | `social_posts` | `Message`, `Link`, `ScheduledAt` (null = đăng ngay), tác giả (user / employee / tên). Không sửa — huỷ rồi tạo lại |
 | `social_post_targets` | mỗi trang một dòng: `Status` Pending → Publishing → Published / Failed; Pending → Cancelled. `DueAt`, `Attempts`, `ExternalPostId`, `Permalink`, `Error`, `Cancelled*` |
+| `social_page_posts` | bài viết hiện có của trang, đồng bộ từ Facebook (100 bài mới nhất + số tương tác) — [assets-social-page-posts.md](assets-social-page-posts.md) |
 | `social_media` | ảnh / video S3 `assets/social/{yyyyMM}/{id}/…`: xin link → PUT → xác nhận (HEAD); gắn `PostId` khi tạo bài |
 
 Trạng thái bài tính từ các đích (`SocialRules.PostStatus`): Đang đăng › Chờ đăng › Đã đăng / Lỗi một phần / Lỗi / Đã huỷ.
@@ -57,6 +58,7 @@ Thu hồi BM → huỷ bài **đang chờ** của người bị thu hồi trên 
 | POST | `/media` `{ fileName, size }` → presigned PUT · `/media/{id}/confirm` · GET `/media/{id}/url` | người có trang |
 | GET/POST | `/posts?page=&pageSize=` (phân trang) · GET `/posts/{id}` | theo quyền ở trên |
 | POST | `/posts/{id}/cancel` · `/targets/{id}/retry` | |
+| GET | `/pages/{id}` · `/pages/{id}/posts` · POST `/pages/{id}/sync-posts` | HR + người giữ BM, khác → 404 (TEST-206) |
 
 Kiểm tra bài (`SocialRules.ValidatePost`): có chữ / link / tệp; ≤ 63 206 ký tự; link http(s) và không kèm ảnh / video; 1–50 trang; ≤ 10 ảnh hoặc đúng 1 video; hẹn giờ từ +2 phút tới +180 ngày.
 
@@ -64,6 +66,7 @@ Kiểm tra bài (`SocialRules.ValidatePost`): có chữ / link / tệp; ≤ 63 2
 
 Mỗi nền tảng một trang + một sub-tab (TEST-207) — route, cấu trúc thư mục, cách thêm nền tảng: [assets-social-platforms.md](assets-social-platforms.md).
 - `/assets?tab=social&platform=facebook` (HR): bảng BM → sheet chi tiết (token chỉ ghi + "Quyền của token" + hướng dẫn token System User, Đồng bộ trang, người giữ, trang, lịch sử). "Của tôi" + hồ sơ nhân viên + cảnh báo nghỉ việc hiện BM đang giữ.
+- `/social/facebook/pages/$pageId`: chi tiết Fanpage + bài viết đồng bộ từ Facebook — [assets-social-page-posts.md](assets-social-page-posts.md).
 - `/social/facebook` (menu Mạng xã hội → Facebook): trái soạn bài (chọn trang theo BM, nội dung, link hoặc ảnh / video tải thẳng S3, hẹn giờ giờ VN), phải danh sách bài + kết quả từng trang (link bài, lỗi, Đăng lại, Huỷ); tự làm mới 4 giây khi đang đăng.
 
 ## Test
@@ -72,4 +75,4 @@ Mỗi nền tảng một trang + một sub-tab (TEST-207) — route, cấu trúc
 
 ## Chưa làm
 
-Zalo OA, TikTok, Instagram; sửa bài đã hẹn; số liệu tương tác / bình luận; `appsecret_proof` (đừng bật "Require App Secret" trong app Meta); BM chưa có trong Rà soát quyền / Excel.
+Zalo OA, TikTok, Instagram; sửa bài đã hẹn; nội dung bình luận (chỉ có số đếm — TEST-206); `appsecret_proof` (đừng bật "Require App Secret" trong app Meta); BM chưa có trong Rà soát quyền / Excel.

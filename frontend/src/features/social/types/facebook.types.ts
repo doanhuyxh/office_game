@@ -17,5 +17,15 @@ export interface IFacebookPost {
   id: string; message: string; link: string | null; scheduledAt: string | null; createdAt: string; authorName: string; status: FacebookPostStatus;
   targets: IFacebookTarget[]; media: IFacebookMedia[]; canCancel: boolean;
 }
+/** Chi tiết Fanpage (TEST-206). `canSync` = trang còn trong BM + có page token; `postsSyncing` = đang đồng bộ. */
+export interface IFacebookPageDetail {
+  page: IFacebookPage; accountStatus: 'Active' | 'Disabled'; accountTokenStatus: 'None' | 'Valid' | 'Invalid'; holderName: string | null;
+  postsSyncedAt: string | null; postsSyncError: string | null; postsSyncing: boolean; postCount: number; canSync: boolean;
+}
+/** Bài viết hiện có trên trang (đồng bộ từ Facebook). `pictureUrl` = link CDN Facebook, có thể hết hạn. */
+export interface IFacebookPagePost {
+  id: string; externalPostId: string; message: string | null; createdTime: string; permalink: string | null; pictureUrl: string | null;
+  statusType: string | null; reactionCount: number; commentCount: number; shareCount: number; syncedAt: string; fromOfficeHub: boolean; postId: string | null;
+}
 /** `scheduledAt` null = đăng ngay. */
 export interface IFacebookPostRequest { message: string; link: string | null; pageIds: string[]; mediaIds: string[]; scheduledAt: string | null }

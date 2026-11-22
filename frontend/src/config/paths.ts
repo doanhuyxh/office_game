@@ -15,6 +15,8 @@ export const PATHS = {
   social: '/social',
   /** Mỗi nền tảng mạng xã hội một trang (TEST-207) — tên / trạng thái hỗ trợ ở `config/social-platforms.ts`. */
   socialFacebook: '/social/facebook',
+  /** Chi tiết Fanpage Facebook + bài viết đồng bộ từ Facebook (TEST-206). */
+  socialFacebookPage: '/social/facebook/pages/$pageId',
   socialZaloOa: '/social/zalo-oa',
   socialTiktok: '/social/tiktok',
   finance: '/finance',

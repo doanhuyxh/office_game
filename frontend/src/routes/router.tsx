@@ -170,6 +170,7 @@ const routeTree = root.addChildren([
       page(PATHS.assets, () => import('@/features/assets/page'), 'AssetsPage'),
       socialLegacy,
       page(PATHS.socialFacebook, () => import('@/features/social/page'), 'FacebookPostsPage'),
+      page(PATHS.socialFacebookPage, () => import('@/features/social/page'), 'FacebookPageDetailPage'),
       page(PATHS.socialZaloOa, () => import('@/features/social/page'), 'ZaloOaPage'),
       page(PATHS.socialTiktok, () => import('@/features/social/page'), 'TiktokPage'),
       page(PATHS.finance, () => import('@/features/finance/page'), 'FinancePage'),

@@ -55,5 +55,6 @@ public sealed class AssetsModule : IModule
         AttachmentEndpoints.Map(g);
         SocialAccountEndpoints.Map(g);
         SocialPostEndpoints.Map(g);
+        SocialPageEndpoints.Map(g);
     }
 }

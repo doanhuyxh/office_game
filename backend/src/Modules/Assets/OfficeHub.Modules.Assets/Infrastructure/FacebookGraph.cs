@@ -30,6 +30,8 @@ internal sealed record FbMe(string Id, string Name);
 internal sealed record FbPage(string Id, string Name, string? Category, string? Link, string? PictureUrl, string? AccessToken);
 internal sealed record FbPublished(string Id, string? Permalink);
 internal sealed record FbMediaRef(SocialMediaKind Kind, string Url);
+internal sealed record FbPagePost(string Id, string? Message, DateTimeOffset CreatedTime, string? Permalink, string? PictureUrl, string? StatusType,
+    int Reactions, int Comments, int Shares);
 
 /// <summary>Các lời gọi Graph API cần cho đăng bài lên Fanpage.</summary>
 internal interface IFacebookGraph
@@ -42,6 +44,12 @@ internal interface IFacebookGraph
 
     /// <summary>Quyền của token (<c>GET /me/permissions</c>): tên + trạng thái granted / declined / expired.</summary>
     Task<List<SocialTokenPermission>> PermissionsAsync(string token, CancellationToken ct);
+
+    /// <summary>
+    /// Bài đã đăng của trang, mới nhất trước (<c>/{page}/published_posts</c>, page token) — tối đa <paramref name="limit"/> bài, kèm số cảm xúc /
+    /// bình luận / chia sẻ (chỉ số đếm).
+    /// </summary>
+    Task<List<FbPagePost>> PagePostsAsync(string pageId, string pageToken, int limit, CancellationToken ct);
 
     /// <summary>Đăng bài: chỉ chữ / link → /feed; 1 ảnh → /photos; nhiều ảnh → tải ẩn từng ảnh rồi /feed + attached_media; 1 video → /videos.</summary>
     Task<FbPublished> PublishAsync(string pageId, string pageToken, string message, string? link, IReadOnlyList<FbMediaRef> media, CancellationToken ct);
@@ -100,6 +108,43 @@ internal sealed class FacebookGraph(IHttpClientFactory factory, IOptions<Faceboo
         }
         return perms;
     }
+
+    private const string PostFields =
+        "id,message,created_time,permalink_url,full_picture,status_type,shares,reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0)";
+
+    public async Task<List<FbPagePost>> PagePostsAsync(string pageId, string pageToken, int limit, CancellationToken ct)
+    {
+        var posts = new List<FbPagePost>();
+        string? after = null;
+        while (posts.Count < limit)
+        {
+            // Phân trang bằng cursor after tới khi đủ (link "next" chứa token → không theo)
+            var path = $"{Uri.EscapeDataString(pageId)}/published_posts?fields={Uri.EscapeDataString(PostFields)}&limit={Math.Min(100, limit - posts.Count)}"
+                       + (after is null ? "" : $"&after={Uri.EscapeDataString(after)}");
+            var doc = await SendAsync(HttpMethod.Get, Url(path), pageToken, null, ct);
+            var got = 0;
+            if (doc.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array)
+                foreach (var p in data.EnumerateArray())
+                {
+                    if (Str(p, "id") is not { Length: > 0 } id || posts.Count >= limit) continue;
+                    got++;
+                    var created = DateTimeOffset.TryParse(Str(p, "created_time"), System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.AssumeUniversal, out var c) ? c.ToUniversalTime() : DateTimeOffset.UnixEpoch;
+                    posts.Add(new(id, Str(p, "message"), created, SocialRules.AbsolutePermalink(Str(p, "permalink_url")), Str(p, "full_picture"),
+                        Str(p, "status_type"), Total(p, "reactions"), Total(p, "comments"),
+                        p.TryGetProperty("shares", out var sh) && sh.ValueKind == JsonValueKind.Object ? Int(sh, "count") ?? 0 : 0));
+                }
+            after = doc.TryGetProperty("paging", out var paging) && paging.TryGetProperty("next", out _)
+                    && paging.TryGetProperty("cursors", out var cur) ? Str(cur, "after") : null;
+            if (after is null || got == 0) break;
+        }
+        return posts;
+    }
+
+    /// <summary><c>{"reactions":{"summary":{"total_count":N}}}</c> → N (thiếu → 0).</summary>
+    private static int Total(JsonElement post, string edge) =>
+        post.TryGetProperty(edge, out var e) && e.ValueKind == JsonValueKind.Object && e.TryGetProperty("summary", out var s) && s.ValueKind == JsonValueKind.Object
+            ? Int(s, "total_count") ?? 0 : 0;
 
     public async Task<FbPublished> PublishAsync(string pageId, string pageToken, string message, string? link, IReadOnlyList<FbMediaRef> media,
         CancellationToken ct)

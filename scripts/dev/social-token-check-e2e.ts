@@ -1,6 +1,7 @@
 // E2E TEST-205: job kiểm tra token Facebook BM định kỳ (`SocialTokenCheckJob`, mặc định 5 giờ) — token đúng → TokenCheckedAt + trang + quyền
 // được làm mới; Facebook trả 190 → BM "Token lỗi" + chuông / email cho người giữ + HR + Quản trị viên (một lần mỗi lần chuyển sang lỗi);
 // chạy lần nữa không báo lại; lỗi mạng / lỗi tạm thời của Facebook không đổi trạng thái; BM ngừng dùng không bị kiểm tra; job có ở Hệ thống → Vận hành.
+// TEST-206: token đúng → job đồng bộ bài viết từng trang (/published_posts), số tương tác cập nhật lần sau, lỗi một trang không chặn trang khác.
 // Máy chủ Graph giả trong cùng tiến trình (cổng FAKE_PORT, mặc định 5198). Api rút chu kỳ job bằng cấu hình CHỈ DÙNG KHI TEST:
 //   docker run -d --name e2e-tok-pg -e POSTGRES_DB=e2e -e POSTGRES_USER=e2e -e POSTGRES_PASSWORD=e2e -p 127.0.0.1:15462:5432 postgres:18-alpine
 //   docker run -d --name e2e-tok-mail -p 127.0.0.1:11062:1025 -p 127.0.0.1:18062:8025 axllent/mailpit
@@ -28,7 +29,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // ---------------- Máy chủ Graph giả ----------------
 const SU = 'EAAGsuTOKENcheck00000000000000001', PT1 = 'EAAGpageTOKcheck00000000000000001';
 // mode: ok | revoked (190) | transient (500, mã 2)
-const fake = { mode: 'ok' as 'ok' | 'revoked' | 'transient', extraPage: false, extraPerm: false, meCalls: 0 };
+const fake = { mode: 'ok' as 'ok' | 'revoked' | 'transient', extraPage: false, extraPerm: false, meCalls: 0, likes: 1, postCalls: 0 };
 const err = (status: number, code: number, message: string) => Response.json({ error: { message, type: 'OAuthException', code } }, { status });
 const serve = () => Bun.serve({
   port: FAKE_PORT,
@@ -36,6 +37,13 @@ const serve = () => Bun.serve({
     const u = new URL(req.url);
     const token = req.headers.get('authorization')?.replace(/^Bearer /, '') ?? '';
     const p = u.pathname.replace(/^\/v23\.0\//, '');
+    // TEST-206: bài viết của trang — 2001 có 3 bài, 2002 thiếu quyền đọc (#10)
+    if (p === '2001/published_posts' && token === PT1) {
+      fake.postCalls++;
+      return Response.json({ data: [3, 2, 1].map((n) => ({ id: `2001_${n}`, message: `Bài job ${n}`, created_time: `2026-11-0${n}T03:00:00+0000`,
+        reactions: { data: [], summary: { total_count: fake.likes * n } }, comments: { data: [], summary: { total_count: n } } })) });
+    }
+    if (p === '2002/published_posts' && token === PT1) return err(403, 10, '(#10) This endpoint requires the pages_read_engagement permission');
     if (token !== SU) return err(400, 190, 'Invalid OAuth access token');
     if (p === 'me') {
       fake.meCalls++;
@@ -137,12 +145,22 @@ const name = `BM Job ${stamp}`;
 const c = await json(admin, 'POST', '/api/assets/social/facebook/accounts', { name, externalId: `8${Date.now()}`.slice(0, 15), loginHint: null, ownerDepartmentId: dept,
   note: null, token: SU });
 const bm = c.body?.account;
-ok('Tạo BM token đúng → Valid, 1 trang, 4 quyền', bm?.tokenStatus === 'Valid' && c.body.pages.length === 1 && bm.tokenPermissions?.length === 4, c.body);
+ok('Tạo BM token đúng → Valid, 1 trang, 4 quyền (thiếu pages_read_user_content)', bm?.tokenStatus === 'Valid' && c.body.pages.length === 1 && bm.tokenPermissions?.length === 4, c.body);
 await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/assign`, { employeeId: holder.e.id });
 fake.extraPage = true; fake.extraPerm = true;
 const r1 = await waitChecked(bm.id);
 ok('Job chạy → TokenCheckedAt cập nhật, trang mới + quyền mới được làm mới', r1?.account.tokenStatus === 'Valid' && r1.account.tokenCheckedAt > bm.tokenCheckedAt
   && r1.pages.length === 2 && r1.account.tokenPermissions?.some((p: any) => p.permission === 'read_insights'), r1?.account);
+const pageOf = (detail: any, ext: string) => detail?.pages.find((x: any) => x.externalId === ext)?.id as string;
+const pd1 = (await json(admin, 'GET', `/api/assets/social/facebook/pages/${pageOf(r1, '2001')}`)).body;
+const pd2 = (await json(admin, 'GET', `/api/assets/social/facebook/pages/${pageOf(r1, '2002')}`)).body;
+ok('TEST-206: job token đúng → đồng bộ bài viết trang 2001 (3 bài); trang 2002 thiếu quyền chỉ ghi lỗi, không chặn trang khác',
+  pd1?.postCount === 3 && !!pd1.postsSyncedAt && pd1.postsSyncError === null && pd2?.postCount === 0 && /#10/.test(pd2?.postsSyncError ?? ''), { pd1, pd2 });
+fake.likes = 5;
+const r1b = await waitChecked(bm.id);
+const posts1 = (await json(admin, 'GET', `/api/assets/social/facebook/pages/${pageOf(r1, '2001')}/posts?page=1`)).body;
+ok('TEST-206: lần chạy sau cập nhật số thích, không trùng bài', !!r1b && posts1?.total === 3 && posts1.items[0].externalPostId === '2001_3'
+  && posts1.items[0].reactionCount === 15 && posts1.items[0].commentCount === 3, posts1);
 ok('Token đúng → không ai nhận chuông token hỏng', (await tokenNotes(admin, name)).length === 0 && (await tokenNotes(hr.cookie, name)).length === 0);
 
 // ---------------- Lỗi tạm thời / lỗi mạng → giữ nguyên ----------------
@@ -151,10 +169,11 @@ const r2 = await waitChecked(bm.id);
 ok('Facebook lỗi tạm thời (500, mã 2) → token vẫn Valid, không lỗi', r2?.account.tokenStatus === 'Valid' && !r2.account.tokenError, r2?.account);
 fake.mode = 'ok';
 server.stop(true);
+const postCallsBefore = fake.postCalls;
 const before = fake.meCalls;
 await sleep(12_000); // ≥ 2 chu kỳ 5 giây khi máy chủ Graph tắt
 const r3 = await getBm(bm.id);
-ok('Không kết nối được Facebook → trạng thái không đổi', before === fake.meCalls && r3?.account.tokenStatus === 'Valid' && !r3.account.tokenError, r3?.account);
+ok('Không kết nối được Facebook → trạng thái không đổi, không đồng bộ bài', before === fake.meCalls && postCallsBefore === fake.postCalls && r3?.account.tokenStatus === 'Valid' && !r3.account.tokenError, r3?.account);
 server = serve();
 ok('Lỗi mạng / tạm thời → không báo token hỏng', (await tokenNotes(admin, name)).length === 0);
 

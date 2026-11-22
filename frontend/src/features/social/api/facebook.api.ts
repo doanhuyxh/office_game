@@ -1,6 +1,8 @@
 import { http, httpPost, pageQs } from '@/services/api-client';
 import type { IPaged, IPageQuery } from '@/types/api';
-import type { IFacebookMedia, IFacebookPage, IFacebookPost, IFacebookPostRequest, FacebookMediaKind } from '../types/facebook.types';
+import type {
+  IFacebookMedia, IFacebookPage, IFacebookPageDetail, IFacebookPagePost, IFacebookPost, IFacebookPostRequest, FacebookMediaKind,
+} from '../types/facebook.types';
 
 /** Facebook (Fanpage của BM) — mỗi nền tảng một tiền tố API (TEST-207). */
 const base = '/api/assets/social/facebook';
@@ -10,6 +12,8 @@ export const facebookKeys = {
   pages: ['social', 'facebook', 'pages'] as const,
   posts: (q: IPageQuery) => ['social', 'facebook', 'posts', q] as const,
   mediaUrl: (id: string) => ['social', 'facebook', 'media-url', id] as const,
+  page: (id: string) => ['social', 'facebook', 'page', id] as const,
+  pagePosts: (id: string, q: IPageQuery) => ['social', 'facebook', 'page', id, 'posts', q] as const,
 };
 
 export const facebookApi = {
@@ -19,6 +23,10 @@ export const facebookApi = {
   cancel: (id: string) => httpPost<IFacebookPost>(`${base}/posts/${id}/cancel`),
   retry: (targetId: string) => httpPost<IFacebookPost>(`${base}/targets/${targetId}/retry`),
   mediaUrl: (id: string) => http<{ url: string }>(`${base}/media/${id}/url`),
+  /** Chi tiết Fanpage + bài đồng bộ từ Facebook (TEST-206): HR / người giữ BM; người khác 404. */
+  page: (id: string) => http<IFacebookPageDetail>(`${base}/pages/${id}`),
+  pagePosts: (id: string, q: IPageQuery) => http<IPaged<IFacebookPagePost>>(`${base}/pages/${id}/posts?${pageQs(q)}`),
+  syncPosts: (id: string) => httpPost<IFacebookPageDetail>(`${base}/pages/${id}/sync-posts`),
   /** Xin link → trình duyệt PUT thẳng lên S3 (đúng Content-Type) → xác nhận. */
   upload: async (file: File) => {
     const t = await httpPost<{ id: string; uploadUrl: string; contentType: string; kind: FacebookMediaKind }>(`${base}/media`, { fileName: file.name, size: file.size });

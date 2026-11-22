@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import { ExternalLink, KeyRound, Pause, Pencil, Play, RefreshCw, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
@@ -19,6 +20,7 @@ import { useAssetMutation } from '../../hooks/useAssets';
 import { useFacebookAccount } from '../../hooks/useFacebook';
 import type { IFacebookAccountDetail } from '../../types/facebook.types';
 import { FACEBOOK_PLATFORM } from '@/config/social-platforms';
+import { PATHS } from '@/config/paths';
 import { employeeOptions, SOCIAL_STATUS, TOKEN_STATUS } from '../../utils/labels';
 import { FacebookAccountFormDialog } from '../facebook-account-form-dialog';
 import { FacebookTokenGuide } from '../facebook-token-guide';
@@ -167,7 +169,8 @@ export function FacebookAccountSheet({ accountId, onClose }: { accountId: string
                         {p.pictureUrl ? <img src={p.pictureUrl} alt="" className="size-8 shrink-0 rounded-full object-cover" referrerPolicy="no-referrer" />
                           : <div className="size-8 shrink-0 rounded-full bg-muted" />}
                         <div className="min-w-0 flex-1">
-                          <div className="truncate font-medium">{p.name}</div>
+                          <Link to={PATHS.socialFacebookPage} params={{ pageId: p.id }} className="block truncate font-medium hover:underline" data-testid="social-page-detail-link"
+                            title="Xem chi tiết trang + bài viết">{p.name}</Link>
                           <div className="truncate text-xs text-muted-foreground">{[p.category, `ID ${p.externalId}`].filter(Boolean).join(' · ')}</div>
                         </div>
                         {!p.isActive ? <StatusBadge tone="muted">Không còn trong BM</StatusBadge>

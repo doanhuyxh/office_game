@@ -6,7 +6,7 @@
 ## Job `SocialTokenCheckJob` (`assets.social-token-check` · "Tài sản: kiểm tra token Facebook BM")
 
 - Chạy 3 phút sau khi Api khởi động (`TokenCheckFirstDelay`), sau đó mỗi **5 giờ** (`SocialRules.TokenCheckInterval`). Giả định một instance Api như `SocialPublishJob`.
-- Mỗi BM **Đang dùng** có token: một scope riêng → `CheckAndSyncAsync` = `GET /me` + đồng bộ trang + làm mới quyền ([assets-social-permissions.md](assets-social-permissions.md)), cập nhật `TokenCheckedAt`. Lỗi một BM không chặn BM khác (lần chạy báo lỗi ở Hệ thống → Vận hành kèm số BM lỗi).
+- Mỗi BM **Đang dùng** có token: một scope riêng → `CheckAndSyncAsync` = `GET /me` + đồng bộ trang + làm mới quyền ([assets-social-permissions.md](assets-social-permissions.md)), cập nhật `TokenCheckedAt`. Token đúng → đồng bộ 100 bài mới nhất từng trang có page token, mỗi trang một scope ([assets-social-page-posts.md](assets-social-page-posts.md), TEST-206). Lỗi một BM / trang không chặn BM / trang khác (lần chạy báo lỗi ở Hệ thống → Vận hành kèm số BM lỗi).
 - BM ngừng dùng / không có token → bỏ qua.
 - `Facebook__TokenCheckInterval` (vd `00:00:05`) **chỉ dùng khi test**: rút cả chu kỳ lẫn lần chạy đầu. Production không đặt.
 

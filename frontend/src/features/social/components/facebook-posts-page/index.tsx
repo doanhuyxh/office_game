@@ -8,6 +8,7 @@ import { FACEBOOK_PLATFORM } from '@/config/social-platforms';
 import { useMe } from '@/features/auth';
 import { useFacebookPages, useFacebookPosts } from '../../hooks/useFacebook';
 import { FacebookPostCard } from '../facebook-post-card';
+import { FacebookPageList } from '../facebook-page-list';
 import { FacebookPostComposer } from '../facebook-post-composer';
 
 /**
@@ -27,8 +28,8 @@ export function FacebookPostsPage() {
     <div className="grid grid-cols-1 gap-4">
       <PageHeader title="Facebook — đăng bài lên Fanpage" />
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)]">
-        <div className="lg:sticky lg:top-4">
-          {pages.isLoading ? <Spinner /> : list.length > 0 ? <FacebookPostComposer pages={list} /> : (
+        <div className="grid gap-4 lg:sticky lg:top-4">
+          {pages.isLoading ? <Spinner /> : list.length > 0 ? <><FacebookPostComposer pages={list} /><FacebookPageList pages={list} /></> : (
             <div className="grid justify-items-center gap-2 rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground" data-testid="social-empty">
               <Megaphone className="size-8" />
               {isHr

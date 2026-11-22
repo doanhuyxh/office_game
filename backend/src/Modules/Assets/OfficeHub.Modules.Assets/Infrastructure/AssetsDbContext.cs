@@ -30,6 +30,7 @@ public sealed class AssetsDbContext(DbContextOptions<AssetsDbContext> options) :
     public DbSet<SocialPost> SocialPosts => Set<SocialPost>();
     public DbSet<SocialPostTarget> SocialTargets => Set<SocialPostTarget>();
     public DbSet<SocialMedia> SocialMedia => Set<SocialMedia>();
+    public DbSet<SocialPagePost> SocialPagePosts => Set<SocialPagePost>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -230,6 +231,7 @@ public sealed class AssetsDbContext(DbContextOptions<AssetsDbContext> options) :
             e.Property(x => x.Category).HasMaxLength(200);
             e.Property(x => x.Link).HasMaxLength(500);
             e.Property(x => x.PictureUrl).HasMaxLength(2000);
+            e.Property(x => x.PostsSyncError).HasMaxLength(1000);
             e.HasIndex(x => new { x.AccountId, x.ExternalId }).IsUnique().HasDatabaseName("ux_social_pages_account_external");
             e.HasOne<SocialAccount>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Restrict).IsRequired();
         });
@@ -263,6 +265,18 @@ public sealed class AssetsDbContext(DbContextOptions<AssetsDbContext> options) :
             e.Property(x => x.FileKey).HasMaxLength(400);
             e.HasIndex(x => x.PostId).HasDatabaseName("ix_social_media_post");
             e.HasOne<SocialPost>().WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<SocialPagePost>(e =>
+        {
+            e.ToTable("social_page_posts");
+            e.Property(x => x.ExternalPostId).HasMaxLength(100);
+            e.Property(x => x.Permalink).HasMaxLength(1000);
+            e.Property(x => x.PictureUrl).HasMaxLength(2000);
+            e.Property(x => x.StatusType).HasMaxLength(50);
+            e.HasIndex(x => new { x.PageId, x.ExternalPostId }).IsUnique().HasDatabaseName("ux_social_page_posts_external");
+            e.HasIndex(x => new { x.PageId, x.CreatedTime }).HasDatabaseName("ix_social_page_posts_page_created");
+            e.HasOne<SocialPage>().WithMany().HasForeignKey(x => x.PageId).OnDelete(DeleteBehavior.Restrict).IsRequired();
+            e.HasOne<SocialPostTarget>().WithMany().HasForeignKey(x => x.PostTargetId).OnDelete(DeleteBehavior.SetNull);
         });
     }
 
