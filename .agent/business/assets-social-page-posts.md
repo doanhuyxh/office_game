@@ -18,6 +18,7 @@ Chủ dự án chốt 2026-11-22: lấy **100 bài mới nhất** mỗi trang; �
 ## Đồng bộ (`SocialService.SyncPagePostsAsync`)
 
 - Lấy 100 bài mới nhất → upsert: thêm bài mới, cập nhật nội dung + số tương tác bài cũ. **Không xoá** bài ngoài khoảng 100; chưa phát hiện bài bị xoá trên Facebook (để sau).
+- Ẩn / hiện lại / xoá bài từ OfficeHub + bài đã xoá không hiện lại khi đồng bộ: [assets-social-page-post-moderation.md](assets-social-page-post-moderation.md) (TEST-211).
 - `PostTargetId`: đích OfficeHub trên cùng trang có cùng `ExternalPostId` (bài chữ / ảnh; video có id riêng nên không khớp). Danh sách bài cũng tra lại lúc đọc → cờ "Đăng từ OfficeHub" + `postId`.
 - Chỉ trang `IsActive` có page token. Thiếu quyền (10 / 200), lỗi Facebook khác, lỗi mạng → ghi `PostsSyncError`, không ném, BM không đổi. Lỗi token (190 / 102) → hàm chung `MarkTokenInvalidAsync` (BM "Token lỗi" + báo người giữ / HR / Quản trị viên — [assets-social-token-check.md](assets-social-token-check.md)).
 - Đang đồng bộ trang đó (bấm / job) → bỏ qua (khoá trong RAM, giả định một instance Api).

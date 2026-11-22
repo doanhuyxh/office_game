@@ -61,7 +61,12 @@ export function FacebookPostCard({ post }: { post: IFacebookPost }) {
                 : <div className="size-6 shrink-0 rounded-full bg-muted" />}
               <span className="min-w-0 flex-1 truncate font-medium">{t.pageName}</span>
               <StatusBadge tone={ts.tone}>{ts.label}</StatusBadge>
-              {t.permalink && (
+              {t.deletedOnFacebookAt && (
+                <span data-testid="social-target-deleted" title={`Xoá lúc ${formatDateTime(t.deletedOnFacebookAt)}`}>
+                  <StatusBadge tone="muted">Đã xoá trên Facebook</StatusBadge>
+                </span>
+              )}
+              {t.permalink && !t.deletedOnFacebookAt && (
                 <a href={t.permalink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
                   Xem bài <ExternalLink className="size-3" />
                 </a>

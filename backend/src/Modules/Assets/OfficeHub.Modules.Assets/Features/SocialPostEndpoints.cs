@@ -156,6 +156,12 @@ internal static class SocialPostEndpoints
         var pages = await db.SocialPages.AsNoTracking().Where(p => pageIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id, ct);
         var media = await db.SocialMedia.AsNoTracking().Where(m => m.PostId != null && ids.Contains(m.PostId.Value) && m.Ready).OrderBy(m => m.SortOrder)
             .ToListAsync(ct);
+        var targetIds = targets.Select(t => t.Id).ToList();
+        // Bài đăng từ OfficeHub đã bị xoá trên Facebook (TEST-211)
+        var deleted = (await db.SocialPagePosts.AsNoTracking()
+            .Where(x => x.PostTargetId != null && targetIds.Contains(x.PostTargetId.Value) && x.DeletedAt != null)
+            .Select(x => new { x.PostTargetId, x.DeletedAt }).ToListAsync(ct))
+            .DistinctBy(x => x.PostTargetId).ToDictionary(x => x.PostTargetId!.Value, x => x.DeletedAt);
         var held = await HeldPageIdsAsync(me, db, ct);
         var postable = me.IsHr
             ? (await (from p in db.SocialPages.AsNoTracking() join a in db.SocialAccounts.AsNoTracking() on p.AccountId equals a.Id
@@ -173,7 +179,7 @@ internal static class SocialPostEndpoints
                     var pg = pages.GetValueOrDefault(t.PageId);
                     var canRetry = t.Status == SocialTargetStatus.Failed && postable.Contains(t.PageId) && pg is { IsActive: true, TokenEncrypted: not null };
                     return new SocialTargetDto(t.Id, t.PageId, pg?.Name ?? "(trang đã xoá)", pg?.PictureUrl, t.Status, t.DueAt, t.Attempts, t.PublishedAt,
-                        t.Permalink, t.Error, t.CancelledAt, t.CancelledByName, canRetry);
+                        t.Permalink, t.Error, t.CancelledAt, t.CancelledByName, canRetry, deleted.GetValueOrDefault(t.Id)?.ToUniversalTime());
                 })],
                 [.. media.Where(m => m.PostId == p.Id).Select(ToDto)],
                 manage && ts.Any(t => t.Status == SocialTargetStatus.Pending), canEdit, p.EditedAt, p.EditedByName);

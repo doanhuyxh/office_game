@@ -274,6 +274,8 @@ public sealed class AssetsDbContext(DbContextOptions<AssetsDbContext> options) :
             e.Property(x => x.Permalink).HasMaxLength(1000);
             e.Property(x => x.PictureUrl).HasMaxLength(2000);
             e.Property(x => x.StatusType).HasMaxLength(50);
+            e.Property(x => x.HiddenByName).HasMaxLength(200);
+            e.Property(x => x.DeletedByName).HasMaxLength(200);
             e.HasIndex(x => new { x.PageId, x.ExternalPostId }).IsUnique().HasDatabaseName("ux_social_page_posts_external");
             e.HasIndex(x => new { x.PageId, x.CreatedTime }).HasDatabaseName("ix_social_page_posts_page_created");
             e.HasOne<SocialPage>().WithMany().HasForeignKey(x => x.PageId).OnDelete(DeleteBehavior.Restrict).IsRequired();

@@ -24,6 +24,9 @@ internal sealed class SocialPublishSignal
     public void Drain() { while (_ch.Reader.TryRead(out _)) { } }
 }
 
+/// <summary>Thao tác trên bài hiện có của Fanpage (TEST-211).</summary>
+internal enum PagePostAction { Hide, Unhide, Delete }
+
 /// <summary>Nghiệp vụ mạng xã hội dùng chung cho endpoint + job: kiểm tra token, đồng bộ trang, huỷ bài chờ, đăng một đích.</summary>
 internal sealed class SocialService(AssetsDbContext db, IFacebookGraph graph, IFieldEncryptor enc, IFileStorage files, AssetClock clock, AssetOps ops,
     IAccountService accounts, AssetAccess access)
@@ -167,6 +170,15 @@ internal sealed class SocialService(AssetsDbContext db, IFacebookGraph graph, IF
                 row = new SocialPagePost { PageId = page.Id, ExternalPostId = Trim(fp.Id, 100)! };
                 db.SocialPagePosts.Add(row);
             }
+            // Đã xoá từ OfficeHub (TEST-211): Facebook có thể còn trả bài trong chốc lát → giữ nguyên, không hiện lại
+            else if (row.DeletedAt is not null) continue;
+            // Trạng thái ẩn theo Facebook (nếu trả is_hidden): ẩn trên Facebook → không rõ ai ẩn; hiện lại → xoá dấu vết ẩn
+            if (fp.IsHidden is { } hidden && hidden != row.IsHidden)
+            {
+                row.IsHidden = hidden;
+                row.HiddenAt = null;
+                row.HiddenByName = null;
+            }
             row.Message = string.IsNullOrWhiteSpace(fp.Message) ? null : fp.Message;
             row.CreatedTime = fp.CreatedTime;
             row.Permalink = Trim(fp.Permalink, 1000);
@@ -178,6 +190,71 @@ internal sealed class SocialService(AssetsDbContext db, IFacebookGraph graph, IF
             row.SyncedAt = now;
             if (targets.TryGetValue(fp.Id, out var tid)) row.PostTargetId = tid;
         }
+    }
+
+    // ---------------- Ẩn / hiện / xoá bài của Fanpage (TEST-211) ----------------
+
+    /// <summary>
+    /// Gửi lệnh ẩn / hiện lại / xoá một bài của trang lên Facebook (page token) rồi ghi lại. null = thành công; khác = lý do (API trả 409).
+    /// Xoá chỉ đánh dấu <c>DeletedAt</c> (không xoá dòng); bài đã xoá rồi → coi như thành công. Facebook báo bài không còn → đánh dấu đã xoá.
+    /// Lỗi token 190 / 102 → BM "Token lỗi" + báo (hàm chung). Quyền xem trang kiểm tra ở endpoint. Đã SaveChanges.
+    /// </summary>
+    public async Task<string?> ModeratePagePostAsync(SocialPage page, SocialPagePost row, PagePostAction action, string byName, CancellationToken ct)
+    {
+        if (action == PagePostAction.Delete && row.DeletedAt is not null) return null;
+        if (SocialRules.CannotModeratePagePost(page.IsActive, page.TokenEncrypted is not null, row.DeletedAt is not null) is { } blocked) return blocked;
+        var token = enc.Decrypt(page.TokenEncrypted!);
+        try
+        {
+            if (action == PagePostAction.Delete) await graph.DeletePostAsync(row.ExternalPostId, token, ct);
+            else await graph.SetPostHiddenAsync(row.ExternalPostId, token, action == PagePostAction.Hide, ct);
+        }
+        catch (GraphException g) when (SocialRules.IsPostGone(g.Error.HttpStatus, g.Error.Code, g.Error.Subcode))
+        {
+            // Bài đã bị xoá trên Facebook trước đó: xoá → coi như xong; ẩn / hiện → đánh dấu đã xoá rồi báo
+            await MarkDeletedAsync(page, row, action == PagePostAction.Delete ? byName : null, ct);
+            return action == PagePostAction.Delete ? null : "Bài đã bị xoá trên Facebook — đã bỏ khỏi danh sách";
+        }
+        catch (GraphException g)
+        {
+            if (!SocialRules.IsTokenError(g.Error.Code)) return SocialRules.ModerationError(g.Error.Code, g.Error.Message);
+            var account = await db.SocialAccounts.FirstAsync(a => a.Id == page.AccountId, ct);
+            await MarkTokenInvalidAsync(account, g.Error.Message, ct);
+            return $"Token BM không còn dùng được ({g.Error.Message}) — HR cần cập nhật token tại Tài sản → MXH";
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
+        {
+            return "Không kết nối được Facebook — thử lại sau";
+        }
+
+        switch (action)
+        {
+            case PagePostAction.Hide:
+                row.IsHidden = true;
+                row.HiddenAt = clock.Now;
+                row.HiddenByName = Trim(byName, 200);
+                break;
+            case PagePostAction.Unhide:
+                row.IsHidden = false;
+                row.HiddenAt = null;
+                row.HiddenByName = null;
+                break;
+            default:
+                await MarkDeletedAsync(page, row, byName, ct);
+                return null;
+        }
+        await db.SaveChangesAsync(ct);
+        return null;
+    }
+
+    /// <summary>Đánh dấu đã xoá + gắn đích OfficeHub cùng ID bài (bài gốc hiện "Đã xoá trên Facebook"). Đã SaveChanges.</summary>
+    private async Task MarkDeletedAsync(SocialPage page, SocialPagePost row, string? byName, CancellationToken ct)
+    {
+        row.DeletedAt = clock.Now;
+        row.DeletedByName = Trim(byName, 200);
+        row.PostTargetId ??= await db.SocialTargets.AsNoTracking().Where(t => t.PageId == page.Id && t.ExternalPostId == row.ExternalPostId)
+            .Select(t => (Guid?)t.Id).FirstOrDefaultAsync(ct);
+        await db.SaveChangesAsync(ct);
     }
 
     /// <summary>

@@ -28,8 +28,8 @@ export const useFacebookPageDetail = (id: string) =>
   useQuery({ queryKey: facebookKeys.page(id), queryFn: () => facebookApi.page(id), retry: false,
     refetchInterval: (query) => (query.state.data?.postsSyncing ? 3_000 : false) });
 
-export const useFacebookPagePosts = (id: string, q: IPageQuery) =>
-  useQuery({ queryKey: facebookKeys.pagePosts(id, q), queryFn: () => facebookApi.pagePosts(id, q), placeholderData: (prev) => prev });
+export const useFacebookPagePosts = (id: string, q: IPageQuery, deleted = false) =>
+  useQuery({ queryKey: facebookKeys.pagePosts(id, q, deleted), queryFn: () => facebookApi.pagePosts(id, q, deleted), placeholderData: (prev) => prev });
 
 export function useFacebookMutation<A, R>(fn: (a: A) => Promise<R>) {
   const qc = useQueryClient();

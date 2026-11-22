@@ -22,6 +22,13 @@ internal static class SocialPageEndpoints
         s.MapGet("", GetAsync);
         s.MapGet("/posts", PostsAsync);
         s.MapPost("/sync-posts", SyncAsync);
+        // Ẩn / hiện lại / xoá bài trên Facebook (TEST-211)
+        s.MapPost("/posts/{postId:guid}/hide", (Guid id, Guid postId, ClaimsPrincipal user, AssetsDbContext db, AssetAccess access, SocialService social,
+            CancellationToken ct) => ModerateAsync(id, postId, PagePostAction.Hide, user, db, access, social, ct));
+        s.MapPost("/posts/{postId:guid}/unhide", (Guid id, Guid postId, ClaimsPrincipal user, AssetsDbContext db, AssetAccess access, SocialService social,
+            CancellationToken ct) => ModerateAsync(id, postId, PagePostAction.Unhide, user, db, access, social, ct));
+        s.MapDelete("/posts/{postId:guid}", (Guid id, Guid postId, ClaimsPrincipal user, AssetsDbContext db, AssetAccess access, SocialService social,
+            CancellationToken ct) => ModerateAsync(id, postId, PagePostAction.Delete, user, db, access, social, ct));
     }
 
     /// <summary>Trang + BM nếu người xem được xem (HR / người đang giữ BM đang dùng); null → 404.</summary>
@@ -41,31 +48,57 @@ internal static class SocialPageEndpoints
         // Đọc lại BM: đồng bộ bài có thể vừa đánh dấu token lỗi
         var account = await db.SocialAccounts.AsNoTracking().FirstAsync(a => a.Id == page.AccountId, ct);
         var holder = account.HolderEmployeeId is { } h ? (await access.EmployeesAsync(ct)).GetValueOrDefault(h) : null;
-        var count = await db.SocialPagePosts.CountAsync(p => p.PageId == page.Id, ct);
+        var count = await db.SocialPagePosts.CountAsync(p => p.PageId == page.Id && p.DeletedAt == null, ct);
+        var deleted = await db.SocialPagePosts.CountAsync(p => p.PageId == page.Id && p.DeletedAt != null, ct);
         return new(SocialAccountEndpoints.ToDto(page, account.Name), account.Status, account.TokenStatus, holder?.FullName, page.PostsSyncedAt?.ToUniversalTime(),
-            page.PostsSyncError, SocialService.IsSyncingPosts(page.Id), count, page.IsActive && page.TokenEncrypted is not null);
+            page.PostsSyncError, SocialService.IsSyncingPosts(page.Id), count, page.IsActive && page.TokenEncrypted is not null, deleted);
     }
 
     private static async Task<Results<Ok<SocialPageDetailDto>, ProblemHttpResult>> GetAsync(Guid id, ClaimsPrincipal user, AssetsDbContext db,
         AssetAccess access, CancellationToken ct) =>
         await FindAsync(id, user, db, access, false, ct) is { } f ? TypedResults.Ok(await DetailAsync(f.Page, db, access, ct)) : Problems.NotFound("trang");
 
-    /// <summary>Bài đã đồng bộ, mới nhất trước; cờ "đăng từ OfficeHub" theo đích có cùng ID bài trên trang.</summary>
-    private static async Task<Results<Ok<PagedResult<SocialPagePostDto>>, ProblemHttpResult>> PostsAsync(Guid id, int? page, int? pageSize,
+    /// <summary>
+    /// Bài đã đồng bộ, mới nhất trước; cờ "đăng từ OfficeHub" theo đích có cùng ID bài trên trang. Mặc định bỏ bài đã xoá (TEST-211);
+    /// <c>deleted=true</c> → chỉ bài đã xoá (xem lại).
+    /// </summary>
+    private static async Task<Results<Ok<PagedResult<SocialPagePostDto>>, ProblemHttpResult>> PostsAsync(Guid id, int? page, int? pageSize, bool? deleted,
         ClaimsPrincipal user, AssetsDbContext db, AssetAccess access, CancellationToken ct)
     {
         if (await FindAsync(id, user, db, access, false, ct) is not { } f) return Problems.NotFound("trang");
-        var rows = await db.SocialPagePosts.AsNoTracking().Where(p => p.PageId == f.Page.Id).OrderByDescending(p => p.CreatedTime).ThenByDescending(p => p.Id)
-            .ToPagedAsync(page ?? 1, pageSize, ct);
+        var q = db.SocialPagePosts.AsNoTracking().Where(p => p.PageId == f.Page.Id);
+        q = deleted == true ? q.Where(p => p.DeletedAt != null) : q.Where(p => p.DeletedAt == null);
+        var rows = await q.OrderByDescending(p => p.CreatedTime).ThenByDescending(p => p.Id).ToPagedAsync(page ?? 1, pageSize, ct);
         var ext = rows.Items.Select(p => p.ExternalPostId).ToList();
         var targets = (await db.SocialTargets.AsNoTracking().Where(t => t.PageId == f.Page.Id && t.ExternalPostId != null && ext.Contains(t.ExternalPostId))
             .Select(t => new { t.ExternalPostId, t.PostId }).ToListAsync(ct)).DistinctBy(t => t.ExternalPostId).ToDictionary(t => t.ExternalPostId!, t => t.PostId);
         return TypedResults.Ok(rows.With<SocialPagePost, SocialPagePostDto>([.. rows.Items.Select(p =>
-        {
-            Guid? postId = targets.TryGetValue(p.ExternalPostId, out var pid) ? pid : null;
-            return new SocialPagePostDto(p.Id, p.ExternalPostId, p.Message, p.CreatedTime, p.Permalink, p.PictureUrl, p.StatusType, p.ReactionCount,
-                p.CommentCount, p.ShareCount, p.SyncedAt, postId is not null || p.PostTargetId is not null, postId);
-        })]));
+            ToDto(p, f.Page, targets.TryGetValue(p.ExternalPostId, out var pid) ? pid : null))]));
+    }
+
+    private static SocialPagePostDto ToDto(SocialPagePost p, SocialPage page, Guid? postId) =>
+        new(p.Id, p.ExternalPostId, p.Message, p.CreatedTime, p.Permalink, p.PictureUrl, p.StatusType, p.ReactionCount, p.CommentCount, p.ShareCount,
+            p.SyncedAt, postId is not null || p.PostTargetId is not null, postId, p.IsHidden, p.HiddenAt?.ToUniversalTime(), p.HiddenByName,
+            p.DeletedAt?.ToUniversalTime(), p.DeletedByName,
+            SocialRules.CannotModeratePagePost(page.IsActive, page.TokenEncrypted is not null, p.DeletedAt is not null) is null);
+
+    /// <summary>
+    /// Ẩn / hiện lại / xoá một bài của trang trên Facebook (TEST-211). Quyền như xem trang (<see cref="SocialRules.CanModeratePagePost"/>: HR gồm
+    /// Quản trị viên / người đang giữ BM) — khác → 404. Facebook từ chối, trang không còn / không có page token, token hỏng, bài đã xoá (khi ẩn /
+    /// hiện) → 409 kèm lý do. Xoá bài đã xoá rồi → 200. Trả bài sau khi đổi.
+    /// </summary>
+    private static async Task<Results<Ok<SocialPagePostDto>, ProblemHttpResult>> ModerateAsync(Guid id, Guid postId, PagePostAction action,
+        ClaimsPrincipal user, AssetsDbContext db, AssetAccess access, SocialService social, CancellationToken ct)
+    {
+        if (await FindAsync(id, user, db, access, false, ct) is not { } f) return Problems.NotFound("trang");
+        var row = await db.SocialPagePosts.FirstOrDefaultAsync(p => p.Id == postId && p.PageId == f.Page.Id, ct);
+        if (row is null) return Problems.NotFound("bài viết");
+        var me = await access.ViewerAsync(user, ct);
+        if (await social.ModeratePagePostAsync(f.Page, row, action, me.Name, ct) is { } error) return Problems.Conflict(error);
+        var origin = await db.SocialTargets.AsNoTracking()
+            .Where(t => t.PageId == f.Page.Id && (t.Id == row.PostTargetId || t.ExternalPostId == row.ExternalPostId))
+            .Select(t => (Guid?)t.PostId).FirstOrDefaultAsync(ct);
+        return TypedResults.Ok(ToDto(row, f.Page, origin));
     }
 
     /// <summary>

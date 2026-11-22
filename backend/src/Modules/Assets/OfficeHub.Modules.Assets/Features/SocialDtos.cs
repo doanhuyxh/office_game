@@ -37,7 +37,8 @@ public sealed record SocialMediaDto(Guid Id, SocialMediaKind Kind, string FileNa
 public sealed record SocialPostRequest(string? Message, string? Link, IReadOnlyList<Guid>? PageIds, IReadOnlyList<Guid>? MediaIds, DateTimeOffset? ScheduledAt);
 
 public sealed record SocialTargetDto(Guid Id, Guid PageId, string PageName, string? PagePictureUrl, SocialTargetStatus Status, DateTimeOffset DueAt,
-    int Attempts, DateTimeOffset? PublishedAt, string? Permalink, string? Error, DateTimeOffset? CancelledAt, string? CancelledByName, bool CanRetry);
+    int Attempts, DateTimeOffset? PublishedAt, string? Permalink, string? Error, DateTimeOffset? CancelledAt, string? CancelledByName, bool CanRetry,
+    DateTimeOffset? DeletedOnFacebookAt = null);
 
 public sealed record SocialPostDto(Guid Id, string Message, string? Link, DateTimeOffset? ScheduledAt, DateTimeOffset CreatedAt, string AuthorName,
     SocialPostStatus Status, IReadOnlyList<SocialTargetDto> Targets, IReadOnlyList<SocialMediaDto> Media, bool CanCancel, bool CanEdit = false,
@@ -47,8 +48,13 @@ public sealed record HeldSocialDto(Guid Id, SocialPlatform Platform, string Name
 
 /// <summary>Chi tiết Fanpage (TEST-206): trang + BM + trạng thái đồng bộ bài viết. <c>CanSync</c> = trang còn trong BM và có page token.</summary>
 public sealed record SocialPageDetailDto(SocialPageDto Page, SocialAccountStatus AccountStatus, SocialTokenStatus AccountTokenStatus, string? HolderName,
-    DateTimeOffset? PostsSyncedAt, string? PostsSyncError, bool PostsSyncing, int PostCount, bool CanSync);
+    DateTimeOffset? PostsSyncedAt, string? PostsSyncError, bool PostsSyncing, int PostCount, bool CanSync, int DeletedCount = 0);
 
-/// <summary>Bài viết hiện có trên trang (đồng bộ từ Facebook). <c>PostId</c> = bài OfficeHub tương ứng (nếu đăng từ OfficeHub).</summary>
+/// <summary>
+/// Bài viết hiện có trên trang (đồng bộ từ Facebook). <c>PostId</c> = bài OfficeHub tương ứng (nếu đăng từ OfficeHub). Ẩn / xoá (TEST-211):
+/// <c>CanModerate</c> = được ẩn / hiện / xoá (trang còn trong BM, có page token, bài chưa xoá).
+/// </summary>
 public sealed record SocialPagePostDto(Guid Id, string ExternalPostId, string? Message, DateTimeOffset CreatedTime, string? Permalink, string? PictureUrl,
-    string? StatusType, int ReactionCount, int CommentCount, int ShareCount, DateTimeOffset SyncedAt, bool FromOfficeHub, Guid? PostId);
+    string? StatusType, int ReactionCount, int CommentCount, int ShareCount, DateTimeOffset SyncedAt, bool FromOfficeHub, Guid? PostId,
+    bool IsHidden = false, DateTimeOffset? HiddenAt = null, string? HiddenByName = null, DateTimeOffset? DeletedAt = null, string? DeletedByName = null,
+    bool CanModerate = false);

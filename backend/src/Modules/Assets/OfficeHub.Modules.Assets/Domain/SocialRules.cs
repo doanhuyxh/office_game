@@ -221,6 +221,36 @@ public static class SocialRules
     public static bool CanViewPage(bool isHr, Guid? viewerEmployeeId, SocialAccountStatus status, Guid? holder) =>
         isHr || (status == SocialAccountStatus.Active && viewerEmployeeId is { } e && holder == e);
 
+    // ---------------- Ẩn / hiện / xoá bài của Fanpage (TEST-211) ----------------
+
+    /// <summary>
+    /// Người được ẩn / hiện lại / xoá bài của trang: như <see cref="CanViewPage"/> — HR (gồm Quản trị viên) hoặc người đang giữ BM đang dùng.
+    /// Người khác → 404.
+    /// </summary>
+    public static bool CanModeratePagePost(bool isHr, Guid? viewerEmployeeId, SocialAccountStatus status, Guid? holder) =>
+        CanViewPage(isHr, viewerEmployeeId, status, holder);
+
+    /// <summary>Lý do không gửi được lệnh ẩn / hiện / xoá lên Facebook (409); null = được. Bài đã xoá chỉ còn xem lại.</summary>
+    public static string? CannotModeratePagePost(bool pageActive, bool hasPageToken, bool deleted)
+    {
+        if (deleted) return "Bài đã bị xoá trên Facebook";
+        if (!pageActive) return "Trang không còn trong BM — đồng bộ lại BM để kiểm tra";
+        if (!hasPageToken) return "Chưa có quyền với trang này — nhờ HR kiểm tra quyền System User rồi đồng bộ lại BM";
+        return null;
+    }
+
+    /// <summary>
+    /// Facebook báo bài không còn (đã bị xoá trên Facebook): HTTP 404, hoặc mã 100 kèm subcode 33 ("Object … does not exist"). Xoá → coi như
+    /// đã xoá; ẩn / hiện → đánh dấu đã xoá + báo.
+    /// </summary>
+    public static bool IsPostGone(int? httpStatus, int? code, int? subcode) => httpStatus == 404 || (code == 100 && subcode == 33);
+
+    /// <summary>Thông điệp lỗi Facebook khi ẩn / xoá cho người dùng: thiếu quyền (10, 200–299) → thêm gợi ý kiểm tra quyền token.</summary>
+    public static string ModerationError(int? code, string message) =>
+        code is 10 or (>= 200 and < 300)
+            ? $"Facebook từ chối: {message} — chỉ ẩn / xoá được bài do Trang đăng; kiểm tra quyền pages_manage_posts / pages_manage_engagement của token BM"
+            : $"Facebook từ chối: {message}";
+
     /// <summary>Lần thử kế tiếp: 1 → +1 phút, 2 → +5 phút.</summary>
     public static TimeSpan Backoff(int attempts) => attempts <= 1 ? TimeSpan.FromMinutes(1) : TimeSpan.FromMinutes(5);
 

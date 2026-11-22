@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from '@tanstack/react-router';
-import { AlertTriangle, ArrowLeft, ExternalLink, Newspaper, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ExternalLink, Newspaper, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { TablePagination, usePageState } from '@/components/common/pagination';
@@ -17,12 +17,14 @@ import { FacebookPagePostCard } from '../facebook-page-post-card';
 /**
  * Chi tiết Fanpage Facebook (`/social/facebook/pages/$pageId`, TEST-206): thông tin trang + BM, trạng thái đồng bộ bài, nút "Đồng bộ bài viết"
  * (100 bài mới nhất — back-end chặn bấm dồn), danh sách bài đã đồng bộ (phân trang). Chỉ HR + người giữ BM; người khác → 404 từ API.
+ * TEST-211: mỗi bài có menu Ẩn / Hiện lại / Xoá; bài đã xoá bỏ khỏi danh sách, xem lại ở bộ lọc "Đã xoá".
  */
 export function FacebookPageDetailPage() {
   const { pageId } = useParams({ strict: false }) as { pageId: string };
   const detail = useFacebookPageDetail(pageId);
-  const pg = usePageState('social-page-posts');
-  const posts = useFacebookPagePosts(pageId, pg.query);
+  const [showDeleted, setShowDeleted] = useState(false);
+  const pg = usePageState('social-page-posts', showDeleted ? 'deleted' : '');
+  const posts = useFacebookPagePosts(pageId, pg.query, showDeleted);
   const sync = useFacebookMutation(() => facebookApi.syncPosts(pageId));
   const [avatarBroken, setAvatarBroken] = useState(false);
   const d = detail.data;
@@ -96,14 +98,28 @@ export function FacebookPageDetailPage() {
       </section>
 
       <section className="grid gap-3">
+        {(d.deletedCount > 0 || showDeleted) && (
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Lọc bài" data-testid="page-posts-filter">
+            <Button size="sm" variant={showDeleted ? 'outline' : 'secondary'} aria-pressed={!showDeleted} onClick={() => setShowDeleted(false)}>
+              Bài trên trang ({d.postCount})
+            </Button>
+            <Button size="sm" variant={showDeleted ? 'secondary' : 'outline'} aria-pressed={showDeleted} data-testid="page-posts-show-deleted"
+              onClick={() => setShowDeleted(true)}>
+              <Trash2 /> Đã xoá ({d.deletedCount})
+            </Button>
+          </div>
+        )}
         {posts.isLoading && <Spinner />}
-        {!posts.isLoading && items.length === 0 && (
+        {!posts.isLoading && items.length === 0 && showDeleted && (
+          <p className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground" data-testid="page-posts-empty">Chưa xoá bài nào.</p>
+        )}
+        {!posts.isLoading && items.length === 0 && !showDeleted && (
           <div className="grid justify-items-center gap-2 rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground" data-testid="page-posts-empty">
             <Newspaper className="size-8" />
             <p>{d.postsSyncedAt ? 'Trang chưa có bài viết nào.' : d.canSync ? 'Chưa có bài nào — bấm "Đồng bộ bài viết" để lấy 100 bài mới nhất từ Facebook.' : 'Chưa có bài nào.'}</p>
           </div>
         )}
-        {items.map((x) => <FacebookPagePostCard key={x.id} post={x} />)}
+        {items.map((x) => <FacebookPagePostCard key={x.id} post={x} pageId={pageId} />)}
         {(posts.data?.total ?? 0) > 0 && (
           <div className="rounded-xl border bg-card"><TablePagination state={pg} total={posts.data?.total} unit="bài" className="border-t-0" /></div>
         )}

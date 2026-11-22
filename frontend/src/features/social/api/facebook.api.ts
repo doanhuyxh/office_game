@@ -13,7 +13,7 @@ export const facebookKeys = {
   posts: (q: IPageQuery) => ['social', 'facebook', 'posts', q] as const,
   mediaUrl: (id: string) => ['social', 'facebook', 'media-url', id] as const,
   page: (id: string) => ['social', 'facebook', 'page', id] as const,
-  pagePosts: (id: string, q: IPageQuery) => ['social', 'facebook', 'page', id, 'posts', q] as const,
+  pagePosts: (id: string, q: IPageQuery, deleted = false) => ['social', 'facebook', 'page', id, 'posts', deleted, q] as const,
 };
 
 export const facebookApi = {
@@ -27,8 +27,14 @@ export const facebookApi = {
   mediaUrl: (id: string) => http<{ url: string }>(`${base}/media/${id}/url`),
   /** Chi tiết Fanpage + bài đồng bộ từ Facebook (TEST-206): HR / người giữ BM; người khác 404. */
   page: (id: string) => http<IFacebookPageDetail>(`${base}/pages/${id}`),
-  pagePosts: (id: string, q: IPageQuery) => http<IPaged<IFacebookPagePost>>(`${base}/pages/${id}/posts?${pageQs(q)}`),
+  /** `deleted` = chỉ bài đã xoá trên Facebook từ OfficeHub (TEST-211); mặc định bỏ bài đã xoá. */
+  pagePosts: (id: string, q: IPageQuery, deleted = false) =>
+    http<IPaged<IFacebookPagePost>>(`${base}/pages/${id}/posts?${pageQs(q)}${deleted ? '&deleted=true' : ''}`),
   syncPosts: (id: string) => httpPost<IFacebookPageDetail>(`${base}/pages/${id}/sync-posts`),
+  /** Ẩn / hiện lại / xoá bài trên Facebook (TEST-211): 409 = Facebook từ chối / token lỗi / bài đã xoá (kèm lý do). */
+  hidePagePost: (id: string, postId: string) => httpPost<IFacebookPagePost>(`${base}/pages/${id}/posts/${postId}/hide`),
+  unhidePagePost: (id: string, postId: string) => httpPost<IFacebookPagePost>(`${base}/pages/${id}/posts/${postId}/unhide`),
+  deletePagePost: (id: string, postId: string) => http<IFacebookPagePost>(`${base}/pages/${id}/posts/${postId}`, { method: 'DELETE' }),
   /** Xin link → trình duyệt PUT thẳng lên S3 (đúng Content-Type) → xác nhận. */
   upload: async (file: File) => {
     const t = await httpPost<{ id: string; uploadUrl: string; contentType: string; kind: FacebookMediaKind }>(`${base}/media`, { fileName: file.name, size: file.size });

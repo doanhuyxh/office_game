@@ -99,7 +99,7 @@ public sealed class SocialPage
 
 /// <summary>
 /// Bài viết hiện có trên Fanpage, đồng bộ từ Facebook (<c>/{page}/published_posts</c>, 100 bài mới nhất mỗi lần — TEST-206). Chỉ thêm / cập nhật,
-/// không xoá bài ngoài khoảng 100 bài. <see cref="PictureUrl"/> là link CDN Facebook (có thể hết hạn), không chép về S3.
+/// không xoá bài ngoài khoảng 100 bài. Ẩn / hiện / xoá trên Facebook từ OfficeHub (TEST-211): xoá chỉ đánh dấu <see cref="DeletedAt"/>. <see cref="PictureUrl"/> là link CDN Facebook (có thể hết hạn), không chép về S3.
 /// </summary>
 public sealed class SocialPagePost
 {
@@ -119,6 +119,14 @@ public sealed class SocialPagePost
     public DateTimeOffset SyncedAt { get; set; }
     /// <summary>Bài đăng từ OfficeHub: đích <c>social_post_targets</c> có cùng <c>ExternalPostId</c> trên trang này.</summary>
     public Guid? PostTargetId { get; set; }
+    /// <summary>Bài đang ẩn khỏi dòng thời gian trang (TEST-211): ẩn từ OfficeHub, hoặc Facebook trả <c>is_hidden</c> khi đồng bộ.</summary>
+    public bool IsHidden { get; set; }
+    /// <summary>Lần ẩn gần nhất từ OfficeHub (hiện lại → xoá); ẩn trên Facebook rồi đồng bộ về → null.</summary>
+    public DateTimeOffset? HiddenAt { get; set; }
+    public string? HiddenByName { get; set; }
+    /// <summary>Đã xoá trên Facebook (từ OfficeHub, hoặc Facebook báo bài không còn) — không xoá cứng dòng; đồng bộ sau bỏ qua bài này.</summary>
+    public DateTimeOffset? DeletedAt { get; set; }
+    public string? DeletedByName { get; set; }
 }
 
 /// <summary>

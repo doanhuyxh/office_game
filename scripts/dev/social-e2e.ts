@@ -8,6 +8,9 @@
 // token bị thu hồi (190) → BM "Token lỗi" + chuông, hẹn giờ + huỷ, ngừng dùng BM, tài sản đang giữ (+ nghỉ việc), kiểm tra dữ liệu.
 // TEST-206: chi tiết Fanpage + đồng bộ bài viết hiện có (/published_posts: chỉ 100 bài mới nhất qua cursor after, lần 2 không trùng + cập nhật số tương tác,
 // nhãn "đăng từ OfficeHub", chặn bấm dồn < 1 phút, thiếu quyền → PostsSyncError, 190 → BM token lỗi + chuông, quyền HR / người giữ / người ngoài 404).
+// TEST-211: ẩn / hiện lại / xoá bài của Fanpage (POST /{post} is_hidden, DELETE /{post} bằng page token; người ngoài 404; xoá → bỏ khỏi danh sách +
+// bộ lọc "đã xoá", bài gốc OfficeHub "đã xoá trên Facebook"; bài đã mất (100/33); (#200) → 409 + gợi ý quyền; 190 → token lỗi; đồng bộ lại không hiện
+// bài đã xoá, giữ nhãn ẩn). Thêm ~1 phút đợi chặn bấm dồn.
 // TEST-208: sửa bài đã hẹn (nội dung + giờ hẹn → giờ cũ không đăng, giờ mới đăng nội dung mới; bỏ / thêm / đổi thứ tự ảnh + xoá tệp trên S3; bỏ / thêm trang;
 // chuyển sang đăng ngay; đã đăng / đã huỷ / chờ thử lại → 409; người ngoài 404, người giữ BM sửa bài HR 403; sửa song song với job → luôn đăng bản cuối). Mất ~4 phút.
 // TẠO NHÂN VIÊN THẬT → CHỈ chạy trên DB tạm:
@@ -19,8 +22,9 @@ import { totp } from './totp';
 if (process.env.E2E_LOCAL_DB !== '1') throw new Error('Chỉ chạy với DB tạm: đặt E2E_LOCAL_DB=1');
 const API = process.env.API_URL ?? 'http://localhost:5180';
 const FAKE_PORT = Number(process.env.FAKE_PORT ?? 5199);
+// Chỉ đọc .env khi không truyền ADMIN_LOGIN / ADMIN_PASSWORD (TEST-211: agent truyền tài khoản admin của DB tạm, không chạm .env)
 const envFile = Bun.file(new URL('../../.env', import.meta.url));
-const env: Record<string, string> = (await envFile.exists()) ? Object.fromEntries((await envFile.text()).split('\n')
+const env: Record<string, string> = !(process.env.ADMIN_LOGIN && process.env.ADMIN_PASSWORD) && (await envFile.exists()) ? Object.fromEntries((await envFile.text()).split('\n')
   .filter((l) => /^[A-Za-z_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim()])) : {};
 const ADMIN_LOGIN = process.env.ADMIN_LOGIN ?? env.Seed__AdminEmail, ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? env.Seed__AdminPassword;
 let pass = 0, fail = 0;
@@ -41,7 +45,10 @@ interface Req { method: string; path: string; search: string; auth: string | nul
 const log: Req[] = [];
 const fake = { transient1002: 1, revoked1001: false, permFail: false, s3Fetch: [] as number[],
   // TEST-206: bài hiện có của trang 1001 (130 bài cũ + bài đăng từ OfficeHub), số thích cộng thêm, bài mới thêm sau; trang 1002: lỗi khi đọc bài
-  published1001: [] as string[], likeBoost: 0, newPosts: 0, posts1002: 'perm' as 'perm' | 'revoked' | 'ok' };
+  published1001: [] as string[], likeBoost: 0, newPosts: 0, posts1002: 'perm' as 'perm' | 'revoked' | 'ok',
+  // TEST-211: bài đang ẩn / đã xoá trên Facebook (bài đã xoá VẪN trả trong /published_posts — giả lập Facebook trả trễ), bài đã mất từ trước,
+  // lỗi quyền / token khi ẩn / xoá
+  hidden: new Set<string>(), deleted: new Set<string>(), gone: new Set<string>(), modPerm: false, modRevoked: false };
 const validSu = (t: string) => t === SU_GOOD || t === SU_LIMITED;
 let seq = 100;
 const err = (status: number, code: number, message: string) => Response.json({ error: { message, type: 'OAuthException', code } }, { status });
@@ -99,7 +106,7 @@ Bun.serve({
       const day = (i: number) => new Date(Date.UTC(2026, 10, 20) - i * 3_600_000).toISOString().replace('.000Z', '+0000');
       const data = all.slice(start, start + size).map((id, k) => ({
         id, message: id.endsWith('old1') ? 'Bài cũ nhất' : `Nội dung ${id}`, created_time: day(start + k), permalink_url: `https://www.facebook.com/${id}`,
-        full_picture: `https://example.test/cdn/${id}.jpg`, status_type: 'mobile_status_update',
+        full_picture: `https://example.test/cdn/${id}.jpg`, status_type: 'mobile_status_update', is_hidden: fake.hidden.has(id),
         ...(start + k === 0 ? { shares: { count: 4 + fake.likeBoost } } : {}),
         reactions: { data: [], summary: { total_count: 10 + fake.likeBoost } }, comments: { data: [], summary: { total_count: 2 } },
       }));
@@ -120,6 +127,23 @@ Bun.serve({
       if (edge === 'photos') return Response.json(form.published === 'false' ? { id: `ph${seq}` } : { id: `ph${seq}`, post_id: id });
       if (edge === 'videos') return Response.json({ id: `vid${seq}` });
       return Response.json({ id });
+    }
+    // TEST-211: ẩn / hiện (POST /{post} is_hidden) + xoá (DELETE /{post}) bằng page token
+    const po = p.match(/^(\d+_\w+)$/);
+    if (po && (req.method === 'POST' || req.method === 'DELETE')) {
+      const id = po[1];
+      if (token !== (id.startsWith('1001_') ? PT1 : id.startsWith('1002_') ? PT2 : '-')) return err(400, 190, 'Invalid page token');
+      if (fake.modRevoked) return err(400, 190, 'Error validating access token: The session has been invalidated because the user changed their password');
+      if (fake.modPerm) return err(403, 200, '(#200) Permissions error');
+      if (fake.gone.has(id) || fake.deleted.has(id)) {
+        return Response.json({ error: { message: `Unsupported ${req.method === 'DELETE' ? 'delete' : 'post'} request. Object with ID '${id}' does not exist`,
+          type: 'GraphMethodException', code: 100, error_subcode: 33 } }, { status: 400 });
+      }
+      if (req.method === 'DELETE') { fake.deleted.add(id); return Response.json({ success: true }); }
+      if (form.is_hidden === 'true') fake.hidden.add(id);
+      else if (form.is_hidden === 'false') fake.hidden.delete(id);
+      else return err(400, 100, '(#100) is_hidden thiếu');
+      return Response.json({ success: true });
     }
     if (req.method === 'GET' && u.searchParams.get('fields') === 'permalink_url') {
       return Response.json({ permalink_url: p.startsWith('vid') ? `/1001/videos/${p}/` : `https://www.facebook.com/${p}` });
@@ -393,6 +417,96 @@ ok('Đồng bộ lần 2: thêm 2 bài mới, giữ bài cũ ngoài khoảng 100
   && Date.parse(s2b.body.postsSyncedAt) > Date.parse(s1.body.postsSyncedAt) && l2.body.total === 102 && new Set(ids2).size === ids2.length && ids2[0] === '1001_new2', s2b.body);
 const same = l2.body?.items?.find((x: any) => x.externalPostId === ohId);
 ok('Đồng bộ lần 2: cập nhật số tương tác bài cũ', same?.reactionCount === 17 && same.fromOfficeHub, same);
+
+// ---------------- TEST-211: ẩn / hiện lại / xoá bài của Fanpage ----------------
+{
+  const pp = (id: string, rest = '') => `${pageApi(P1)}/posts/${id}${rest}`;
+  const listAll = async (deleted = false) =>
+    (await json(holder.cookie, 'GET', `${pageApi(P1)}/posts?page=1&pageSize=200${deleted ? '&deleted=true' : ''}`)).body;
+  const items0: any[] = l2.body.items;
+  const olds = items0.filter((x) => x.externalPostId.startsWith('1001_old'));
+  const [vHide, vDel, vGoneA, vGoneB, vPerm, vFbHidden] = olds;
+  const total0 = l2.body.total as number;
+  ok('[211] Bài có canModerate, chưa ẩn / xoá', vHide?.canModerate === true && vHide.isHidden === false && vHide.deletedAt === null, vHide);
+  ok('[211] Người ngoài ẩn / hiện / xoá → 404', (await json(outsider.cookie, 'POST', pp(vHide.id, '/hide'))).status === 404
+    && (await json(outsider.cookie, 'POST', pp(vHide.id, '/unhide'))).status === 404 && (await json(outsider.cookie, 'DELETE', pp(vHide.id))).status === 404);
+  ok('[211] Bài không thuộc trang trong URL → 404', (await json(admin, 'POST', `${pageApi(P2)}/posts/${vHide.id}/hide`)).status === 404
+    && (await json(admin, 'DELETE', `${pageApi(P1)}/posts/${crypto.randomUUID()}`)).status === 404);
+  ok('[211] Người ngoài không làm gì được: Facebook không nhận lệnh', !fake.hidden.has(vHide.externalPostId) && !fake.deleted.has(vHide.externalPostId));
+
+  log.length = 0;
+  const h1 = await json(holder.cookie, 'POST', pp(vHide.id, '/hide'));
+  const hreq = log.find((r) => r.method === 'POST' && r.path === `/v23.0/${vHide.externalPostId}`);
+  ok('[211] Người giữ ẩn → 200, "Đã ẩn bởi Người Giữ BM", Graph POST /{post} is_hidden=true bằng page token qua header',
+    h1.status === 200 && h1.body.isHidden && h1.body.hiddenByName === 'Người Giữ BM' && !!h1.body.hiddenAt && hreq?.form.is_hidden === 'true'
+    && hreq.auth === `Bearer ${PT1}` && !/access_token/.test(hreq.search) && fake.hidden.has(vHide.externalPostId) && noSecrets(h1.text), { h1: h1.body, hreq });
+  log.length = 0;
+  const u1 = await json(admin, 'POST', pp(vHide.id, '/unhide'));
+  ok('[211] HR hiện lại → 200, xoá dấu ẩn, Graph is_hidden=false', u1.status === 200 && !u1.body.isHidden && u1.body.hiddenByName === null
+    && u1.body.hiddenAt === null && !fake.hidden.has(vHide.externalPostId) && log.some((r) => r.form.is_hidden === 'false'), u1.body);
+  const h2 = await json(holder.cookie, 'POST', pp(vHide.id, '/hide'));
+  ok('[211] Ẩn lại → bài vẫn trong danh sách với nhãn ẩn', h2.status === 200 && (await listAll()).items.find((x: any) => x.id === vHide.id)?.isHidden === true);
+
+  log.length = 0;
+  const del = await json(holder.cookie, 'DELETE', pp(vDel.id));
+  ok('[211] Xoá → 200, đánh dấu đã xoá + người xoá, hết canModerate; Graph DELETE /{post} bằng page token',
+    del.status === 200 && !!del.body.deletedAt && del.body.deletedByName === 'Người Giữ BM' && del.body.canModerate === false
+    && log.some((r) => r.method === 'DELETE' && r.path === `/v23.0/${vDel.externalPostId}` && r.auth === `Bearer ${PT1}`), del.body);
+  const la = await listAll(), ld = await listAll(true), dd = (await json(holder.cookie, 'GET', pageApi(P1))).body;
+  ok('[211] Bài đã xoá bỏ khỏi danh sách, xem lại ở bộ lọc "Đã xoá"; đếm đúng', !la.items.some((x: any) => x.id === vDel.id) && la.total === total0 - 1
+    && ld.total === 1 && ld.items[0].id === vDel.id && dd.postCount === total0 - 1 && dd.deletedCount === 1, { la: la.total, ld: ld.total, dd });
+  log.length = 0;
+  const del2 = await json(holder.cookie, 'DELETE', pp(vDel.id));
+  ok('[211] Xoá lại bài đã xoá → 200, không gọi Facebook', del2.status === 200 && !!del2.body.deletedAt && log.length === 0, del2.body);
+  const hDel = await json(holder.cookie, 'POST', pp(vDel.id, '/hide'));
+  ok('[211] Ẩn bài đã xoá → 409 kèm lý do', hDel.status === 409 && /đã bị xoá/.test(hDel.body?.detail ?? ''), hDel.body);
+
+  fake.gone.add(vGoneA.externalPostId); fake.gone.add(vGoneB.externalPostId);
+  const gA = await json(holder.cookie, 'POST', pp(vGoneA.id, '/hide'));
+  const gB = await json(holder.cookie, 'DELETE', pp(vGoneB.id));
+  const ld2 = await listAll(true);
+  ok('[211] Bài đã bị xoá trên Facebook từ trước: ẩn → 409 + chuyển sang "Đã xoá"; xoá → 200 coi như đã xoá',
+    gA.status === 409 && /đã bị xoá trên Facebook/.test(gA.body?.detail ?? '') && gB.status === 200 && !!gB.body.deletedAt
+    && ld2.items.some((x: any) => x.id === vGoneA.id && x.deletedByName === null) && ld2.items.some((x: any) => x.id === vGoneB.id), { gA: gA.body, gB: gB.body });
+
+  fake.modPerm = true;
+  const pe = await json(holder.cookie, 'POST', pp(vPerm.id, '/hide'));
+  const peD = await json(holder.cookie, 'DELETE', pp(vPerm.id));
+  fake.modPerm = false;
+  const peRow = (await listAll()).items.find((x: any) => x.id === vPerm.id);
+  ok('[211] Facebook từ chối (#200) → 409 kèm lý do + gợi ý quyền; bài không đổi, BM vẫn Valid',
+    pe.status === 409 && /Permissions error/.test(pe.body?.detail ?? '') && /pages_manage_posts/.test(pe.body?.detail ?? '') && peD.status === 409
+    && peRow && !peRow.isHidden && peRow.deletedAt === null && (await json(holder.cookie, 'GET', pageApi(P1))).body?.accountTokenStatus === 'Valid', { pe: pe.body, peRow });
+
+  const ohRow = items0.find((x) => x.externalPostId === ohId);
+  const ohDel = await json(holder.cookie, 'DELETE', pp(ohRow.id));
+  const orig = await json(holder.cookie, 'GET', `/api/assets/social/facebook/posts/${text.body.id}`);
+  const origT = orig.body?.targets?.find((t: any) => t.pageId === P1);
+  ok('[211] Xoá bài đăng từ OfficeHub → bài gốc hiện "Đã xoá trên Facebook"', ohDel.status === 200 && ohDel.body.postId === text.body.id
+    && !!origT?.deletedOnFacebookAt && orig.body.targets.filter((t: any) => t.deletedOnFacebookAt).length === 1, { ohDel: ohDel.body, origT });
+
+  // Đồng bộ lại: Facebook vẫn trả bài đã xoá (trễ) → không hiện lại; bài ẩn giữ nhãn; bài ẩn thẳng trên Facebook → nhãn ẩn không rõ người
+  fake.hidden.add(vFbHidden.externalPostId);
+  console.log('  … đợi hết 1 phút chặn bấm dồn để đồng bộ lại sau khi xoá');
+  await sleep(Math.max(0, Date.parse(s2b.body.postsSyncedAt) + 61_000 - Date.now()));
+  const s3 = await json(holder.cookie, 'POST', `${pageApi(P1)}/sync-posts`);
+  const la3 = await listAll(), ld3 = await listAll(true);
+  const deletedIds = [vDel.id, vGoneA.id, vGoneB.id, ohRow.id];
+  const fbH = la3.items.find((x: any) => x.id === vFbHidden.id), myH = la3.items.find((x: any) => x.id === vHide.id);
+  ok('[211] Đồng bộ lại sau khi xoá: bài đã xoá không hiện lại, vẫn ở "Đã xoá"', s3.status === 200 && Date.parse(s3.body.postsSyncedAt) > Date.parse(s2b.body.postsSyncedAt)
+    && !la3.items.some((x: any) => deletedIds.includes(x.id)) && ld3.total === 4 && la3.total === total0 - 4 && s3.body.postCount === total0 - 4
+    && s3.body.deletedCount === 4, { s3: s3.body, la3: la3.total, ld3: ld3.total });
+  ok('[211] Đồng bộ lại: bài ẩn từ OfficeHub giữ "bởi …"; bài ẩn trên Facebook → isHidden, không rõ người', myH?.isHidden && myH.hiddenByName === 'Người Giữ BM'
+    && fbH?.isHidden === true && fbH.hiddenByName === null, { myH, fbH });
+
+  fake.modRevoked = true;
+  const rv = await json(holder.cookie, 'POST', pp(vPerm.id, '/hide'));
+  fake.modRevoked = false;
+  await sleep(300);
+  ok('[211] Token hỏng (190) khi ẩn → 409 + BM "Token lỗi"', rv.status === 409 && /Token BM/.test(rv.body?.detail ?? '')
+    && (await json(holder.cookie, 'GET', pageApi(P1))).body?.accountTokenStatus === 'Invalid', rv.body);
+  ok('[211] Đồng bộ lại BM → token Valid', (await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/sync`)).body?.account.tokenStatus === 'Valid');
+}
 
 // ---------------- Xem bài: người ngoài ----------------
 ok('Người ngoài không xem được bài (404) / danh sách rỗng', (await json(outsider.cookie, 'GET', `/api/assets/social/facebook/posts/${text.body.id}`)).status === 404

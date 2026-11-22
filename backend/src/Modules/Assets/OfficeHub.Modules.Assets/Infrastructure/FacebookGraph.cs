@@ -31,7 +31,7 @@ internal sealed record FbPage(string Id, string Name, string? Category, string? 
 internal sealed record FbPublished(string Id, string? Permalink);
 internal sealed record FbMediaRef(SocialMediaKind Kind, string Url);
 internal sealed record FbPagePost(string Id, string? Message, DateTimeOffset CreatedTime, string? Permalink, string? PictureUrl, string? StatusType,
-    int Reactions, int Comments, int Shares);
+    int Reactions, int Comments, int Shares, bool? IsHidden = null);
 
 /// <summary>Các lời gọi Graph API cần cho đăng bài lên Fanpage.</summary>
 internal interface IFacebookGraph
@@ -50,6 +50,12 @@ internal interface IFacebookGraph
     /// bình luận / chia sẻ (chỉ số đếm).
     /// </summary>
     Task<List<FbPagePost>> PagePostsAsync(string pageId, string pageToken, int limit, CancellationToken ct);
+
+    /// <summary>Ẩn / hiện lại bài của trang trên dòng thời gian (<c>POST /{post-id}</c> với <c>is_hidden</c>, page token) — TEST-211.</summary>
+    Task SetPostHiddenAsync(string postId, string pageToken, bool hidden, CancellationToken ct);
+
+    /// <summary>Xoá vĩnh viễn bài của trang (<c>DELETE /{post-id}</c>, page token) — TEST-211.</summary>
+    Task DeletePostAsync(string postId, string pageToken, CancellationToken ct);
 
     /// <summary>Đăng bài: chỉ chữ / link → /feed; 1 ảnh → /photos; nhiều ảnh → tải ẩn từng ảnh rồi /feed + attached_media; 1 video → /videos.</summary>
     Task<FbPublished> PublishAsync(string pageId, string pageToken, string message, string? link, IReadOnlyList<FbMediaRef> media, CancellationToken ct);
@@ -110,7 +116,7 @@ internal sealed class FacebookGraph(IHttpClientFactory factory, IOptions<Faceboo
     }
 
     private const string PostFields =
-        "id,message,created_time,permalink_url,full_picture,status_type,shares,reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0)";
+        "id,message,created_time,permalink_url,full_picture,status_type,is_hidden,shares,reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0)";
 
     public async Task<List<FbPagePost>> PagePostsAsync(string pageId, string pageToken, int limit, CancellationToken ct)
     {
@@ -132,7 +138,8 @@ internal sealed class FacebookGraph(IHttpClientFactory factory, IOptions<Faceboo
                         System.Globalization.DateTimeStyles.AssumeUniversal, out var c) ? c.ToUniversalTime() : DateTimeOffset.UnixEpoch;
                     posts.Add(new(id, Str(p, "message"), created, SocialRules.AbsolutePermalink(Str(p, "permalink_url")), Str(p, "full_picture"),
                         Str(p, "status_type"), Total(p, "reactions"), Total(p, "comments"),
-                        p.TryGetProperty("shares", out var sh) && sh.ValueKind == JsonValueKind.Object ? Int(sh, "count") ?? 0 : 0));
+                        p.TryGetProperty("shares", out var sh) && sh.ValueKind == JsonValueKind.Object ? Int(sh, "count") ?? 0 : 0,
+                        p.TryGetProperty("is_hidden", out var hid) && hid.ValueKind is JsonValueKind.True or JsonValueKind.False ? hid.GetBoolean() : null));
                 }
             after = doc.TryGetProperty("paging", out var paging) && paging.TryGetProperty("next", out _)
                     && paging.TryGetProperty("cursors", out var cur) ? Str(cur, "after") : null;
@@ -145,6 +152,19 @@ internal sealed class FacebookGraph(IHttpClientFactory factory, IOptions<Faceboo
     private static int Total(JsonElement post, string edge) =>
         post.TryGetProperty(edge, out var e) && e.ValueKind == JsonValueKind.Object && e.TryGetProperty("summary", out var s) && s.ValueKind == JsonValueKind.Object
             ? Int(s, "total_count") ?? 0 : 0;
+
+    public async Task SetPostHiddenAsync(string postId, string pageToken, bool hidden, CancellationToken ct) =>
+        EnsureSuccess(await PostAsync(Url(Uri.EscapeDataString(postId)), pageToken, [new("is_hidden", hidden ? "true" : "false")], ct));
+
+    public async Task DeletePostAsync(string postId, string pageToken, CancellationToken ct) =>
+        EnsureSuccess(await SendAsync(HttpMethod.Delete, Url(Uri.EscapeDataString(postId)), pageToken, null, ct));
+
+    /// <summary>Graph trả <c>{"success":false}</c> (hiếm) → lỗi đọc được.</summary>
+    private static void EnsureSuccess(JsonElement doc)
+    {
+        if (doc.ValueKind == JsonValueKind.Object && doc.TryGetProperty("success", out var ok) && ok.ValueKind == JsonValueKind.False)
+            throw new GraphException(new(null, null, null, "Facebook không thực hiện được yêu cầu"));
+    }
 
     public async Task<FbPublished> PublishAsync(string pageId, string pageToken, string message, string? link, IReadOnlyList<FbMediaRef> media,
         CancellationToken ct)

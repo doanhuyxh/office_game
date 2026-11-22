@@ -12,6 +12,8 @@ export interface IFacebookMedia { id: string; kind: FacebookMediaKind; fileName:
 export interface IFacebookTarget {
   id: string; pageId: string; pageName: string; pagePictureUrl: string | null; status: FacebookTargetStatus; dueAt: string; attempts: number;
   publishedAt: string | null; permalink: string | null; error: string | null; cancelledAt: string | null; cancelledByName: string | null; canRetry: boolean;
+  /** Bài đã bị xoá trên Facebook từ trang chi tiết Fanpage (TEST-211). */
+  deletedOnFacebookAt: string | null;
 }
 export interface IFacebookPost {
   id: string; message: string; link: string | null; scheduledAt: string | null; createdAt: string; authorName: string; status: FacebookPostStatus;
@@ -23,11 +25,15 @@ export interface IFacebookPost {
 export interface IFacebookPageDetail {
   page: IFacebookPage; accountStatus: 'Active' | 'Disabled'; accountTokenStatus: 'None' | 'Valid' | 'Invalid'; holderName: string | null;
   postsSyncedAt: string | null; postsSyncError: string | null; postsSyncing: boolean; postCount: number; canSync: boolean;
+  /** Số bài đã xoá trên Facebook từ OfficeHub (TEST-211) — xem lại bằng bộ lọc "Đã xoá". */
+  deletedCount: number;
 }
 /** Bài viết hiện có trên trang (đồng bộ từ Facebook). `pictureUrl` = link CDN Facebook, có thể hết hạn. */
 export interface IFacebookPagePost {
   id: string; externalPostId: string; message: string | null; createdTime: string; permalink: string | null; pictureUrl: string | null;
   statusType: string | null; reactionCount: number; commentCount: number; shareCount: number; syncedAt: string; fromOfficeHub: boolean; postId: string | null;
+  /** Ẩn / xoá (TEST-211): `hiddenAt` / `hiddenByName` null khi ẩn trên Facebook; `canModerate` = được ẩn / hiện / xoá. */
+  isHidden: boolean; hiddenAt: string | null; hiddenByName: string | null; deletedAt: string | null; deletedByName: string | null; canModerate: boolean;
 }
 /** `scheduledAt` null = đăng ngay. */
 export interface IFacebookPostRequest { message: string; link: string | null; pageIds: string[]; mediaIds: string[]; scheduledAt: string | null }

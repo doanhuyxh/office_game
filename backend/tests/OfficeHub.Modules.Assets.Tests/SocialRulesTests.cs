@@ -290,4 +290,45 @@ public class SocialRulesTests
         Assert.True(SocialRules.CanEditAuthor(true, Guid.NewGuid(), author));
         Assert.False(SocialRules.CanEditAuthor(false, Guid.NewGuid(), author)); // người giữ BM không phải tác giả: chỉ huỷ
     }
+
+    // ---------------- Ẩn / hiện / xoá bài của Fanpage (TEST-211) ----------------
+
+    [Fact]
+    public void CanModeratePagePost_HolderHrAdminOnly()
+    {
+        var other = Guid.NewGuid();
+        Assert.True(SocialRules.CanModeratePagePost(true, null, SocialAccountStatus.Active, Emp)); // HR / Quản trị viên (IsHr gồm admin)
+        Assert.True(SocialRules.CanModeratePagePost(true, null, SocialAccountStatus.Disabled, null));
+        Assert.True(SocialRules.CanModeratePagePost(false, Emp, SocialAccountStatus.Active, Emp)); // người đang giữ BM
+        Assert.False(SocialRules.CanModeratePagePost(false, Emp, SocialAccountStatus.Disabled, Emp)); // BM ngừng dùng: người giữ cũ không còn quyền
+        Assert.False(SocialRules.CanModeratePagePost(false, other, SocialAccountStatus.Active, Emp)); // người ngoài
+        Assert.False(SocialRules.CanModeratePagePost(false, null, SocialAccountStatus.Active, null));
+    }
+
+    [Fact]
+    public void CannotModeratePagePost_NeedsActivePageTokenAndNotDeleted()
+    {
+        Assert.Null(SocialRules.CannotModeratePagePost(true, true, false));
+        Assert.Contains("đã bị xoá", SocialRules.CannotModeratePagePost(true, true, true));
+        Assert.Contains("không còn trong BM", SocialRules.CannotModeratePagePost(false, true, false));
+        Assert.Contains("Chưa có quyền", SocialRules.CannotModeratePagePost(true, false, false));
+    }
+
+    [Theory]
+    [InlineData(404, null, null, true)]
+    [InlineData(400, 100, 33, true)]
+    [InlineData(400, 100, null, false)]
+    [InlineData(400, 10, null, false)]
+    [InlineData(400, 190, null, false)]
+    public void IsPostGone_404Or100Subcode33(int? http, int? code, int? subcode, bool expected) =>
+        Assert.Equal(expected, SocialRules.IsPostGone(http, code, subcode));
+
+    [Fact]
+    public void ModerationError_AddsPermissionHintForPermissionCodes()
+    {
+        Assert.Contains("pages_manage_posts", SocialRules.ModerationError(10, "x"));
+        Assert.Contains("pages_manage_posts", SocialRules.ModerationError(200, "x"));
+        Assert.DoesNotContain("pages_manage_posts", SocialRules.ModerationError(100, "Invalid parameter"));
+        Assert.Contains("Invalid parameter", SocialRules.ModerationError(100, "Invalid parameter"));
+    }
 }
