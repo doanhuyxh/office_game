@@ -5,12 +5,12 @@ import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { confirmDialog } from '@/components/common/confirm-dialog';
 import { FormField } from '@/components/common/FormField';
+import { Input } from '@/components/common/input';
 import { Label } from '@/components/common/label';
 import { SearchSelectField } from '@/components/common/SearchSelectField';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/common/sheet';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/common/table';
-import { Textarea } from '@/components/common/textarea';
 import { Spinner } from '@/components/feedback/Spinner';
 import { useEmployees } from '@/features/employees';
 import { formatDate, formatDateTime } from '@/utils/date';
@@ -113,11 +113,15 @@ export function FacebookAccountSheet({ accountId, onClose }: { accountId: string
                   });
                 }}>
                   <Label htmlFor="sa-new-token">{a.hasToken ? 'Thay token' : 'Nhập token'}</Label>
-                  <Textarea id="sa-new-token" rows={2} className="font-mono text-xs" spellCheck={false} value={token} aria-invalid={!!tokenErrors.token}
-                    placeholder={a.hasToken ? 'Token đã lưu (mã hoá, không hiển thị lại). Dán token mới để thay.' : 'EAAG…'}
-                    onChange={(e) => setToken(e.target.value)} />
+                  {/* Ô 1 dòng + nút cùng hàng (cả trên điện thoại): token dài cuộn trong ô, Enter gửi form. */}
+                  <div className="flex items-start gap-2">
+                    <Input id="sa-new-token" className="h-8 min-w-0 flex-1 font-mono text-xs md:text-xs" autoComplete="off" spellCheck={false} value={token}
+                      aria-invalid={!!tokenErrors.token}
+                      placeholder={a.hasToken ? 'Token đã lưu (mã hoá, không hiển thị lại). Dán token mới để thay.' : 'EAAG…'}
+                      onChange={(e) => setToken(e.target.value)} />
+                    <Button type="submit" size="sm" className="shrink-0" loading={saveToken.isPending} disabled={!token.trim()} loadingText="Đang kiểm tra…">Lưu và kiểm tra</Button>
+                  </div>
                   {tokenErrors.token && <p className="text-xs text-destructive">{tokenErrors.token}</p>}
-                  <div><Button type="submit" size="sm" loading={saveToken.isPending} disabled={!token.trim()} loadingText="Đang kiểm tra…">Lưu và kiểm tra</Button></div>
                   <FacebookTokenGuide />
                 </form>
               </section>
