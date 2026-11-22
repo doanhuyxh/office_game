@@ -773,6 +773,55 @@ namespace OfficeHub.Modules.Assets.Infrastructure.Migrations
                     b.ToTable("social_account_assignments", "assets");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Assets.Domain.SocialCommentReply", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ByName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("ByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FacebookCommentId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)");
+
+                    b.Property<Guid>("PagePostId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReplyFacebookId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PagePostId")
+                        .HasDatabaseName("ix_social_comment_replies_post");
+
+                    b.HasIndex("ReplyFacebookId")
+                        .HasDatabaseName("ix_social_comment_replies_reply");
+
+                    b.HasIndex("FacebookCommentId", "ByUserId", "CreatedAt")
+                        .HasDatabaseName("ix_social_comment_replies_comment_user");
+
+                    b.ToTable("social_comment_replies", "assets");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Assets.Domain.SocialMedia", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1223,6 +1272,15 @@ namespace OfficeHub.Modules.Assets.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("AccountId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Assets.Domain.SocialCommentReply", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Assets.Domain.SocialPagePost", null)
+                        .WithMany()
+                        .HasForeignKey("PagePostId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

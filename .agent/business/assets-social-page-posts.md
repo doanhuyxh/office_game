@@ -42,3 +42,5 @@ Quyền (`SocialRules.CanViewPage`, kiểm tra ở back-end): HR (mọi trang, k
 ## Test
 
 `SocialRulesTests` (cooldown, `CanViewPage`, quyền mới) · `social-e2e.ts` (130 bài → lưu 100, 3 lượt cursor, nhãn OfficeHub, bấm dồn, #10 → lỗi, 190 → token lỗi + chuông, lần 2 thêm bài mới + giữ bài cũ + cập nhật số, quyền 404) · `social-token-check-e2e.ts` (job đồng bộ bài, trang thiếu quyền không chặn trang khác, số thích cập nhật lần sau).
+
+Bình luận + trả lời bình luận của bài (TEST-212, lấy thẳng từ Facebook, không lưu): [assets-social-comments.md](assets-social-comments.md).

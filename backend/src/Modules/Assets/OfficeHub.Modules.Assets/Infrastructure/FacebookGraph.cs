@@ -32,6 +32,11 @@ internal sealed record FbPublished(string Id, string? Permalink);
 internal sealed record FbMediaRef(SocialMediaKind Kind, string Url);
 internal sealed record FbPagePost(string Id, string? Message, DateTimeOffset CreatedTime, string? Permalink, string? PictureUrl, string? StatusType,
     int Reactions, int Comments, int Shares, bool? IsHidden = null);
+/// <summary>Bình luận / trả lời trên Facebook (TEST-212). <c>FromId</c> / <c>FromName</c> null khi Facebook không trả <c>from</c>.</summary>
+internal sealed record FbComment(string Id, string? Message, string? FromId, string? FromName, string? FromPictureUrl, DateTimeOffset CreatedTime,
+    int LikeCount, int CommentCount, string? AttachmentType, string? AttachmentImageUrl, string? AttachmentUrl);
+/// <summary>Một trang bình luận + cursor <c>after</c> của trang kế (null = hết).</summary>
+internal sealed record FbCommentPage(List<FbComment> Items, string? After);
 
 /// <summary>Các lời gọi Graph API cần cho đăng bài lên Fanpage.</summary>
 internal interface IFacebookGraph
@@ -56,6 +61,15 @@ internal interface IFacebookGraph
 
     /// <summary>Xoá vĩnh viễn bài của trang (<c>DELETE /{post-id}</c>, page token) — TEST-211.</summary>
     Task DeletePostAsync(string postId, string pageToken, CancellationToken ct);
+
+    /// <summary>
+    /// Bình luận của một bài (<paramref name="topLevel"/> = true: cấp 1, mới nhất trước) hoặc trả lời của một bình luận (cũ nhất trước) —
+    /// <c>GET /{id}/comments</c>, page token, <paramref name="limit"/> mỗi lần, cursor <paramref name="after"/> — TEST-212.
+    /// </summary>
+    Task<FbCommentPage> CommentsAsync(string objectId, string pageToken, bool topLevel, string? after, int limit, CancellationToken ct);
+
+    /// <summary>Trả lời một bình luận dưới tên Trang (<c>POST /{comment-id}/comments</c> với <c>message</c>) → id trả lời mới — TEST-212.</summary>
+    Task<string> ReplyCommentAsync(string commentId, string pageToken, string message, CancellationToken ct);
 
     /// <summary>Đăng bài: chỉ chữ / link → /feed; 1 ảnh → /photos; nhiều ảnh → tải ẩn từng ảnh rồi /feed + attached_media; 1 video → /videos.</summary>
     Task<FbPublished> PublishAsync(string pageId, string pageToken, string message, string? link, IReadOnlyList<FbMediaRef> media, CancellationToken ct);
@@ -159,6 +173,39 @@ internal sealed class FacebookGraph(IHttpClientFactory factory, IOptions<Faceboo
     public async Task DeletePostAsync(string postId, string pageToken, CancellationToken ct) =>
         EnsureSuccess(await SendAsync(HttpMethod.Delete, Url(Uri.EscapeDataString(postId)), pageToken, null, ct));
 
+    private const string CommentFields = "id,message,from{id,name,picture},created_time,like_count,comment_count,attachment,can_reply_privately";
+
+    public async Task<FbCommentPage> CommentsAsync(string objectId, string pageToken, bool topLevel, string? after, int limit, CancellationToken ct)
+    {
+        var path = $"{Uri.EscapeDataString(objectId)}/comments?fields={Uri.EscapeDataString(CommentFields)}"
+                   + (topLevel ? "&filter=toplevel&order=reverse_chronological" : "&order=chronological")
+                   + $"&limit={limit}" + (string.IsNullOrEmpty(after) ? "" : $"&after={Uri.EscapeDataString(after)}");
+        var doc = await SendAsync(HttpMethod.Get, Url(path), pageToken, null, ct);
+        var items = new List<FbComment>();
+        if (doc.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array)
+            foreach (var c in data.EnumerateArray())
+            {
+                if (Str(c, "id") is not { Length: > 0 } id) continue;
+                var from = c.TryGetProperty("from", out var f) && f.ValueKind == JsonValueKind.Object ? f : default;
+                var pic = from.ValueKind == JsonValueKind.Object && from.TryGetProperty("picture", out var pc) && pc.ValueKind == JsonValueKind.Object
+                          && pc.TryGetProperty("data", out var pd) ? Str(pd, "url") : null;
+                var att = c.TryGetProperty("attachment", out var a) && a.ValueKind == JsonValueKind.Object ? a : default;
+                var img = att.ValueKind == JsonValueKind.Object && att.TryGetProperty("media", out var m) && m.ValueKind == JsonValueKind.Object
+                          && m.TryGetProperty("image", out var im) ? Str(im, "src") : null;
+                var created = DateTimeOffset.TryParse(Str(c, "created_time"), System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AssumeUniversal, out var t) ? t.ToUniversalTime() : DateTimeOffset.UnixEpoch;
+                items.Add(new(id, Str(c, "message"), Str(from, "id"), Str(from, "name"), pic, created, Int(c, "like_count") ?? 0,
+                    Int(c, "comment_count") ?? 0, Str(att, "type"), img, Str(att, "url")));
+            }
+        // Cursor after (link "next" chứa token → không theo); không có "next" = hết
+        var next = doc.TryGetProperty("paging", out var paging) && paging.ValueKind == JsonValueKind.Object && paging.TryGetProperty("next", out _)
+                   && paging.TryGetProperty("cursors", out var cur) ? Str(cur, "after") : null;
+        return new(items, items.Count == 0 ? null : next);
+    }
+
+    public async Task<string> ReplyCommentAsync(string commentId, string pageToken, string message, CancellationToken ct) =>
+        Str(await PostAsync(Url($"{Uri.EscapeDataString(commentId)}/comments"), pageToken, [new("message", message)], ct), "id") ?? throw Unexpected();
+
     /// <summary>Graph trả <c>{"success":false}</c> (hiếm) → lỗi đọc được.</summary>
     private static void EnsureSuccess(JsonElement doc)
     {
@@ -233,5 +280,5 @@ internal sealed class FacebookGraph(IHttpClientFactory factory, IOptions<Faceboo
             : null;
 
     private static int? Int(JsonElement e, string name) =>
-        e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out var i) ? i : null;
+        e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out var i) ? i : null;
 }

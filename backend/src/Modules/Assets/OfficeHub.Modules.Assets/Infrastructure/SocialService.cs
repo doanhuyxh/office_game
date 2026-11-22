@@ -248,7 +248,7 @@ internal sealed class SocialService(AssetsDbContext db, IFacebookGraph graph, IF
     }
 
     /// <summary>Đánh dấu đã xoá + gắn đích OfficeHub cùng ID bài (bài gốc hiện "Đã xoá trên Facebook"). Đã SaveChanges.</summary>
-    private async Task MarkDeletedAsync(SocialPage page, SocialPagePost row, string? byName, CancellationToken ct)
+    internal async Task MarkDeletedAsync(SocialPage page, SocialPagePost row, string? byName, CancellationToken ct)
     {
         row.DeletedAt = clock.Now;
         row.DeletedByName = Trim(byName, 200);
@@ -399,7 +399,7 @@ internal sealed class SocialService(AssetsDbContext db, IFacebookGraph graph, IF
     /// Hàm dùng chung cho mọi đường phát hiện token BM hỏng (job 5 giờ, đăng bài lỗi 190 / 102, HR đồng bộ / thay token): đánh dấu lỗi
     /// + báo người đang giữ + mọi HR + mọi Quản trị viên (chuông + email) — chỉ một lần mỗi lần chuyển sang lỗi.
     /// </summary>
-    private async Task MarkTokenInvalidAsync(SocialAccount a, string error, CancellationToken ct)
+    internal async Task MarkTokenInvalidAsync(SocialAccount a, string error, CancellationToken ct)
     {
         var was = a.TokenStatus;
         a.TokenStatus = SocialTokenStatus.Invalid;

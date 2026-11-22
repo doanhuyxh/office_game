@@ -1,7 +1,8 @@
 import { http, httpPost, pageQs } from '@/services/api-client';
 import type { IPaged, IPageQuery } from '@/types/api';
 import type {
-  IFacebookMedia, IFacebookPage, IFacebookPageDetail, IFacebookPagePost, IFacebookPost, IFacebookPostRequest, FacebookMediaKind,
+  IFacebookCommentList, IFacebookMedia, IFacebookPage, IFacebookPageDetail, IFacebookPagePost, IFacebookPost, IFacebookPostRequest, IFacebookReplyResult,
+  FacebookMediaKind,
 } from '../types/facebook.types';
 
 /** Facebook (Fanpage của BM) — mỗi nền tảng một tiền tố API (TEST-207). */
@@ -14,7 +15,12 @@ export const facebookKeys = {
   mediaUrl: (id: string) => ['social', 'facebook', 'media-url', id] as const,
   page: (id: string) => ['social', 'facebook', 'page', id] as const,
   pagePosts: (id: string, q: IPageQuery, deleted = false) => ['social', 'facebook', 'page', id, 'posts', deleted, q] as const,
+  /** Bình luận (TEST-212) — không nằm dưới `all` để làm mới danh sách bài không tải lại bình luận từ Facebook. */
+  comments: (pageId: string, postId: string) => ['social-comments', 'facebook', pageId, postId] as const,
+  replies: (pageId: string, postId: string, commentId: string) => ['social-comments', 'facebook', pageId, postId, commentId] as const,
 };
+
+const afterQs = (after: string | null) => (after ? `?after=${encodeURIComponent(after)}` : '');
 
 export const facebookApi = {
   pages: () => http<IFacebookPage[]>(`${base}/pages`),
@@ -35,6 +41,15 @@ export const facebookApi = {
   hidePagePost: (id: string, postId: string) => httpPost<IFacebookPagePost>(`${base}/pages/${id}/posts/${postId}/hide`),
   unhidePagePost: (id: string, postId: string) => httpPost<IFacebookPagePost>(`${base}/pages/${id}/posts/${postId}/unhide`),
   deletePagePost: (id: string, postId: string) => http<IFacebookPagePost>(`${base}/pages/${id}/posts/${postId}`, { method: 'DELETE' }),
+  /** Bình luận cấp 1 của bài, mới nhất trước, 25 / lượt — lấy thẳng từ Facebook (TEST-212). 404 = bài không còn; 502 = không gọi được Facebook. */
+  comments: (id: string, postId: string, after: string | null) =>
+    http<IFacebookCommentList>(`${base}/pages/${id}/posts/${postId}/comments${afterQs(after)}`),
+  /** Trả lời của một bình luận, cũ nhất trước. */
+  replies: (id: string, postId: string, commentId: string, after: string | null) =>
+    http<IFacebookCommentList>(`${base}/pages/${id}/posts/${postId}/comments/${commentId}/replies${afterQs(after)}`),
+  /** Trả lời dưới tên Trang: 409 = token thiếu quyền / lỗi; 404 = bình luận đã xoá; bấm trùng 30 giây → trả lại trả lời cũ. */
+  reply: (id: string, postId: string, commentId: string, message: string) =>
+    httpPost<IFacebookReplyResult>(`${base}/pages/${id}/posts/${postId}/comments/${commentId}/replies`, { message }),
   /** Xin link → trình duyệt PUT thẳng lên S3 (đúng Content-Type) → xác nhận. */
   upload: async (file: File) => {
     const t = await httpPost<{ id: string; uploadUrl: string; contentType: string; kind: FacebookMediaKind }>(`${base}/media`, { fileName: file.name, size: file.size });

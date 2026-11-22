@@ -26,8 +26,9 @@
 | `pages_read_engagement` | không đọc bài / tương tác được (Meta cũng bắt buộc khi đăng bài; đồng bộ bài viết cần) |
 | `business_management` | không truy cập được trang được gán qua Business Manager (System User) |
 | `pages_read_user_content` | không đồng bộ được bài viết / số bình luận của trang (TEST-206 — [assets-social-page-posts.md](assets-social-page-posts.md)) |
+| `pages_manage_engagement` | không trả lời được bình luận dưới tên Trang (TEST-212 — [assets-social-comments.md](assets-social-comments.md)); token cũ báo "thiếu quyền" tới khi người giữ BM tạo lại token |
 
-Thêm quyền cần → sửa `RequiredPermissions` + hướng dẫn tạo token (`social-token-guide`) + `SocialRulesTests`.
+Thêm quyền cần → sửa `RequiredPermissions` + hướng dẫn tạo token (`facebook-token-guide`) + `SocialRulesTests` + quyền trả về của Graph giả trong `social-e2e.ts`.
 
 ## API
 

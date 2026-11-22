@@ -11,6 +11,9 @@
 // TEST-211: ẩn / hiện lại / xoá bài của Fanpage (POST /{post} is_hidden, DELETE /{post} bằng page token; người ngoài 404; xoá → bỏ khỏi danh sách +
 // bộ lọc "đã xoá", bài gốc OfficeHub "đã xoá trên Facebook"; bài đã mất (100/33); (#200) → 409 + gợi ý quyền; 190 → token lỗi; đồng bộ lại không hiện
 // bài đã xoá, giữ nhãn ẩn). Thêm ~1 phút đợi chặn bấm dồn.
+// TEST-212: bình luận + trả lời bình luận dưới tên Trang (GET /{post}/comments cấp 1 + cursor after, GET /{comment}/comments, POST /{comment}/comments
+// bằng page token; nhật ký "Trả lời bởi …"; bấm 2 lần chỉ 1 trả lời; token thiếu pages_manage_engagement → 409 + ẩn ô trả lời; 190 → token lỗi;
+// bình luận đã xoá → 404; người ngoài 404; không có `from` → fromName null).
 // TEST-208: sửa bài đã hẹn (nội dung + giờ hẹn → giờ cũ không đăng, giờ mới đăng nội dung mới; bỏ / thêm / đổi thứ tự ảnh + xoá tệp trên S3; bỏ / thêm trang;
 // chuyển sang đăng ngay; đã đăng / đã huỷ / chờ thử lại → 409; người ngoài 404, người giữ BM sửa bài HR 403; sửa song song với job → luôn đăng bản cuối). Mất ~4 phút.
 // TẠO NHÂN VIÊN THẬT → CHỈ chạy trên DB tạm:
@@ -48,7 +51,9 @@ const fake = { transient1002: 1, revoked1001: false, permFail: false, s3Fetch: [
   published1001: [] as string[], likeBoost: 0, newPosts: 0, posts1002: 'perm' as 'perm' | 'revoked' | 'ok',
   // TEST-211: bài đang ẩn / đã xoá trên Facebook (bài đã xoá VẪN trả trong /published_posts — giả lập Facebook trả trễ), bài đã mất từ trước,
   // lỗi quyền / token khi ẩn / xoá
-  hidden: new Set<string>(), deleted: new Set<string>(), gone: new Set<string>(), modPerm: false, modRevoked: false };
+  hidden: new Set<string>(), deleted: new Set<string>(), gone: new Set<string>(), modPerm: false, modRevoked: false,
+  // TEST-212: token có pages_manage_engagement không; bình luận cấp 1 / trả lời theo id bình luận; token hỏng / lỗi quyền khi trả lời
+  engagement: true, comments: new Map<string, any[]>(), replies: new Map<string, any[]>(), cmtRevoked: false, cmtPerm: false };
 const validSu = (t: string) => t === SU_GOOD || t === SU_LIMITED;
 let seq = 100;
 const err = (status: number, code: number, message: string) => Response.json({ error: { message, type: 'OAuthException', code } }, { status });
@@ -71,7 +76,7 @@ Bun.serve({
       // 2 trang kết quả: cursor after, link next chứa token (không được theo)
       return u.searchParams.get('after') === 'q1'
         ? Response.json({ data: [{ permission: 'business_management', status: 'granted' }, { permission: 'pages_read_user_content', status: 'granted' },
-          { permission: 'ads_read', status: 'expired' }] })
+          { permission: 'ads_read', status: 'expired' }, ...(fake.engagement ? [{ permission: 'pages_manage_engagement', status: 'granted' }] : [])] })
         : Response.json({
           data: [{ permission: 'pages_show_list', status: 'granted' }, { permission: 'pages_manage_posts', status: 'granted' },
             { permission: 'pages_read_engagement', status: 'granted' }, { permission: 'public_profile', status: 'granted' }],
@@ -113,6 +118,34 @@ Bun.serve({
       const next = start + size < all.length;
       return Response.json({ data, ...(next ? { paging: { cursors: { after: String(start + size) },
         next: `http://localhost:${FAKE_PORT}/v23.0/${page}/published_posts?after=${start + size}&access_token=LEAK` } } : {}) });
+    }
+    // TEST-212: bình luận cấp 1 của bài / trả lời của bình luận (GET), trả lời bình luận (POST) — page token trang 1001
+    const cm = p.match(/^(\d+_\w+)\/comments$/);
+    if (cm) {
+      const id = cm[1];
+      if (token !== PT1) return err(400, 190, 'Invalid page token');
+      if (fake.cmtRevoked) return err(400, 190, 'Error validating access token: The session has been invalidated because the user changed their password');
+      const isPost = fake.comments.has(id);
+      if (!isPost && !fake.replies.has(id)) {
+        return Response.json({ error: { message: `Unsupported request. Object with ID '${id}' does not exist`, type: 'GraphMethodException', code: 100,
+          error_subcode: 33 } }, { status: 400 });
+      }
+      if (req.method === 'POST') {
+        if (isPost) return err(400, 100, '(#100) chỉ trả lời bình luận trong e2e');
+        if (fake.cmtPerm) return err(403, 200, '(#200) The permission(s) pages_manage_engagement are not available');
+        if (!form.message) return err(400, 100, '(#100) message thiếu');
+        const reply = { id: `7003_${++seq}`, message: form.message, from: { id: '1001', name: 'Trang Một' }, created_time: new Date().toISOString(),
+          like_count: 0, comment_count: 0 };
+        fake.replies.get(id)!.push(reply);
+        return Response.json({ id: reply.id });
+      }
+      // Cấp 1: mới nhất trước (filter=toplevel, order=reverse_chronological); trả lời: cũ nhất trước (order=chronological)
+      const all = isPost ? fake.comments.get(id)!.toReversed() : fake.replies.get(id)!;
+      const start = Number(u.searchParams.get('after') ?? 0), size = Number(u.searchParams.get('limit') ?? 25);
+      const data = all.slice(start, start + size).map((c) => ({ ...c, ...(isPost ? { comment_count: fake.replies.get(c.id)?.length ?? 0 } : {}) }));
+      const next = start + size < all.length;
+      return Response.json({ data, paging: { cursors: { before: 'b', after: String(start + size) },
+        ...(next ? { next: `http://localhost:${FAKE_PORT}/v23.0/${id}/comments?after=${start + size}&access_token=LEAK` } : {}) } });
     }
     const m = p.match(/^(\d+)\/(feed|photos|videos)$/);
     if (m && req.method === 'POST') {
@@ -235,8 +268,9 @@ ok('Phản hồi không chứa token System User / page token', noSecrets(t1.tex
 const audit = await json(admin, 'GET', `/api/audit/changes?entity=SocialAccount&entityId=${bm.id}`);
 const perm = (acc: any, name: string) => acc?.tokenPermissions?.find((x: any) => x.permission === name);
 const a1 = t1.body.account;
-ok('Quyền của token: đủ 5 quyền OfficeHub cần (đánh dấu required), gộp 2 trang kết quả, không thiếu quyền',
-  a1.tokenPermissions?.length === 7 && ['pages_show_list', 'pages_manage_posts', 'pages_read_engagement', 'business_management', 'pages_read_user_content']
+ok('Quyền của token: đủ 6 quyền OfficeHub cần (đánh dấu required), gộp 2 trang kết quả, không thiếu quyền',
+  a1.tokenPermissions?.length === 8 && ['pages_show_list', 'pages_manage_posts', 'pages_read_engagement', 'business_management', 'pages_read_user_content',
+    'pages_manage_engagement']
     .every((n) => perm(a1, n)?.status === 'granted' && perm(a1, n)?.required) && perm(a1, 'ads_read')?.status === 'expired' && !perm(a1, 'ads_read')?.required
   && a1.missingPermissions.length === 0 && a1.tokenPermissionsError === null, a1);
 ok('Lấy quyền qua /me/permissions bằng header, theo cursor after (không theo link next)',
@@ -244,9 +278,9 @@ ok('Lấy quyền qua /me/permissions bằng header, theo cursor after (không t
 
 const lim = await json(admin, 'PUT', `/api/assets/social/facebook/accounts/${bm.id}/token`, { token: SU_LIMITED });
 const la = lim.body?.account;
-ok('Token thiếu pages_manage_posts → vẫn Valid, API báo thiếu pages_manage_posts + business_management + pages_read_user_content kèm hậu quả',
+ok('Token thiếu pages_manage_posts → vẫn Valid, API báo thiếu pages_manage_posts + business_management + pages_read_user_content + pages_manage_engagement kèm hậu quả',
   la?.tokenStatus === 'Valid' && perm(la, 'pages_manage_posts')?.status === 'declined' && !perm(la, 'ads_read')
-  && la.missingPermissions.map((m: any) => m.permission).join(',') === 'pages_manage_posts,business_management,pages_read_user_content'
+  && la.missingPermissions.map((m: any) => m.permission).join(',') === 'pages_manage_posts,business_management,pages_read_user_content,pages_manage_engagement'
   && la.missingPermissions.every((m: any) => m.impact), la);
 ok('Phản hồi token thiếu quyền không chứa token', noSecrets(lim.text));
 fake.permFail = true;
@@ -256,7 +290,7 @@ ok('Lấy quyền lỗi nhưng /me + trang OK → token Valid, danh sách quyề
 fake.permFail = false;
 const back = (await json(admin, 'PUT', `/api/assets/social/facebook/accounts/${bm.id}/token`, { token: SU_GOOD })).body?.account;
 ok('Thay lại token đủ quyền → danh sách mới, hết cảnh báo', back?.tokenStatus === 'Valid' && back.missingPermissions.length === 0
-  && back.tokenPermissions?.length === 7 && back.tokenPermissionsError === null, back);
+  && back.tokenPermissions?.length === 8 && back.tokenPermissionsError === null, back);
 ok('Lịch sử sửa có BM nhưng che token', audit.status === 200 && audit.text.includes('TokenEncrypted') && noSecrets(audit.text)
   && !/"(old|new)":"[A-Za-z0-9+/=]{40,}"/.test(audit.text), audit.text.slice(0, 500));
 const pageId = (ext: string) => t1.body.pages.find((p: any) => p.externalId === ext).id as string;
@@ -508,6 +542,149 @@ ok('Đồng bộ lần 2: cập nhật số tương tác bài cũ', same?.reacti
   ok('[211] Đồng bộ lại BM → token Valid', (await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/sync`)).body?.account.tokenStatus === 'Valid');
 }
 
+// ---------------- TEST-212: bình luận + trả lời bình luận dưới tên Trang ----------------
+{
+  const cur = (await json(holder.cookie, 'GET', `${pageApi(P1)}/posts?page=1&pageSize=200`)).body.items as any[];
+  // Bài cũ chưa dùng ở [211] (bỏ 6 bài đầu), chưa ẩn
+  const free = cur.filter((x) => x.externalPostId.startsWith('1001_old') && !x.isHidden).slice(8);
+  const [post, postB] = free;
+  const POST_EXT = post.externalPostId as string;
+  const t0 = Date.UTC(2026, 10, 21, 1);
+  const iso = (i: number) => new Date(t0 + i * 60_000).toISOString().replace('.000Z', '+0000');
+  // 30 bình luận cấp 1 (cũ → mới); #1 không có `from` (Facebook ẩn người bình luận), #2 có ảnh; #30 có sẵn 2 trả lời
+  fake.comments.set(POST_EXT, Array.from({ length: 30 }, (_, k) => {
+    const i = k + 1;
+    return { id: `7001_${i}`, message: `Bình luận ${i}`, created_time: iso(i), like_count: i % 3, comment_count: 0,
+      ...(i === 1 ? {} : { from: { id: `u${i}`, name: `Khách ${i}`, picture: { data: { url: `https://example.test/u${i}.jpg` } } } }),
+      ...(i === 2 ? { attachment: { type: 'photo', media: { image: { src: 'https://example.test/cmt.jpg' } }, url: 'https://facebook.com/photo/1' } } : {}) };
+  }));
+  for (let i = 1; i <= 30; i++) fake.replies.set(`7001_${i}`, []);
+  fake.replies.get('7001_30')!.push(
+    { id: '7002_1', message: 'Trả lời cũ 1', from: { id: 'u5', name: 'Khách 5' }, created_time: iso(31), like_count: 0, comment_count: 0 },
+    { id: '7002_2', message: 'Trả lời cũ 2', from: { id: '1001', name: 'Trang Một' }, created_time: iso(32), like_count: 1, comment_count: 0 });
+  fake.comments.set(postB.externalPostId, []);
+  const ca = (id: string, rest = '') => `${pageApi(P1)}/posts/${id}/comments${rest}`;
+
+  log.length = 0;
+  const c1 = await json(holder.cookie, 'GET', ca(post.id));
+  const creq = log.find((r) => r.path === `/v23.0/${POST_EXT}/comments`);
+  const q = new URLSearchParams(creq?.search ?? '');
+  ok('[212] Bình luận cấp 1: 25 mới nhất trước + cursor after, canReply', c1.status === 200 && c1.body.items.length === 25
+    && c1.body.items[0].id === '7001_30' && c1.body.items[24].id === '7001_6' && c1.body.after === '25' && c1.body.canReply === true
+    && c1.body.replyBlockedReason === null, c1.body);
+  ok('[212] Graph GET /{post}/comments bằng page token qua header, filter=toplevel, order=reverse_chronological, limit=25, đủ trường',
+    creq?.auth === `Bearer ${PT1}` && q.get('filter') === 'toplevel' && q.get('order') === 'reverse_chronological' && q.get('limit') === '25'
+    && q.get('fields') === 'id,message,from{id,name,picture},created_time,like_count,comment_count,attachment,can_reply_privately'
+    && !/access_token|LEAK/.test(creq.search), creq);
+  const first = c1.body.items[0];
+  ok('[212] Bình luận có người viết + ảnh đại diện, số trả lời', first.fromName === 'Khách 30' && first.fromPictureUrl === 'https://example.test/u30.jpg'
+    && first.replyCount === 2 && first.fromPage === false && first.repliedByName === null, first);
+  const c2 = await json(holder.cookie, 'GET', ca(post.id, `?after=${c1.body.after}`));
+  const noFrom = c2.body?.items?.find((x: any) => x.id === '7001_1'), withPic = c2.body?.items?.find((x: any) => x.id === '7001_2');
+  ok('[212] "Xem thêm" (after) → 5 bình luận cũ nhất, hết cursor', c2.status === 200 && c2.body.items.length === 5 && c2.body.after === null
+    && !!log.filter((r) => r.path === `/v23.0/${POST_EXT}/comments`).at(-1)?.search.includes('after=25'), c2.body);
+  ok('[212] Facebook không trả `from` → fromName null (FE hiện "Người dùng Facebook"); ảnh đính kèm', noFrom?.fromName === null && noFrom.fromId === null
+    && withPic?.attachmentType === 'photo' && withPic.attachmentImageUrl === 'https://example.test/cmt.jpg', { noFrom, withPic });
+  const r1 = await json(holder.cookie, 'GET', ca(post.id, '/7001_30/replies'));
+  const rreq = log.find((r) => r.path === '/v23.0/7001_30/comments');
+  ok('[212] Trả lời của bình luận: cũ nhất trước (order=chronological), trả lời của Trang có fromPage', r1.status === 200 && r1.body.items.length === 2
+    && r1.body.items[0].id === '7002_1' && r1.body.items[1].fromPage === true && new URLSearchParams(rreq?.search ?? '').get('order') === 'chronological'
+    && rreq?.auth === `Bearer ${PT1}`, r1.body);
+  ok('[212] Bài không có bình luận → danh sách rỗng', (await json(holder.cookie, 'GET', ca(postB.id))).body?.items?.length === 0);
+
+  // Người ngoài / bài không thuộc trang / id bình luận lạ → 404, không gọi Facebook
+  log.length = 0;
+  const outs = [await json(outsider.cookie, 'GET', ca(post.id)), await json(outsider.cookie, 'GET', ca(post.id, '/7001_30/replies')),
+    await json(outsider.cookie, 'POST', ca(post.id, '/7001_30/replies'), { message: 'Xen ngang' }),
+    await json(admin, 'GET', `${pageApi(P2)}/posts/${post.id}/comments`), await json(admin, 'GET', ca(post.id, '/me/replies')),
+    await json(admin, 'POST', ca(post.id, '/1_2%3Ffields%3Daccess_token/replies'), { message: 'x' })];
+  ok('[212] Người ngoài / bài không thuộc trang / id bình luận lạ → 404, Facebook không nhận gì', outs.every((r) => r.status === 404) && log.length === 0,
+    outs.map((r) => r.status));
+
+  // Nội dung trả lời không hợp lệ → 400 theo field message
+  const blank = await json(holder.cookie, 'POST', ca(post.id, '/7001_30/replies'), { message: '   \n ' });
+  const long = await json(holder.cookie, 'POST', ca(post.id, '/7001_30/replies'), { message: 'a'.repeat(8001) });
+  ok('[212] Trả lời rỗng / > 8000 ký tự → 400 (field message), không gọi Facebook', blank.status === 400 && !!blank.body?.errors?.message
+    && long.status === 400 && !!long.body?.errors?.message && log.length === 0, [blank.body, long.body]);
+
+  // Trả lời thành công + nhật ký + nhãn người trả lời
+  const msg = `Cảm ơn bạn đã quan tâm! ${stamp}`;
+  const rep1 = await json(holder.cookie, 'POST', ca(post.id, '/7001_30/replies'), { message: `  ${msg}  ` });
+  const preq = log.find((r) => r.method === 'POST' && r.path === '/v23.0/7001_30/comments');
+  ok('[212] Trả lời → 200, Graph POST /{comment}/comments message (đã bỏ khoảng trắng) bằng page token; trả lại trả lời dưới tên Trang + "bởi Người Giữ BM"',
+    rep1.status === 200 && rep1.body.duplicate === false && rep1.body.reply.id.startsWith('7003_') && rep1.body.reply.message === msg
+    && rep1.body.reply.fromPage === true && rep1.body.reply.fromName === 'Trang Một' && rep1.body.reply.repliedByName === 'Người Giữ BM'
+    && !!rep1.body.reply.repliedAt && preq?.form.message === msg && preq?.auth === `Bearer ${PT1}`, { body: rep1.body, preq });
+  const r2 = await json(admin, 'GET', ca(post.id, '/7001_30/replies'));
+  const mine = r2.body?.items?.find((x: any) => x.id === rep1.body.reply.id);
+  ok('[212] Danh sách trả lời (HR xem) có trả lời mới với nhãn "Trả lời bởi Người Giữ BM lúc …"; trả lời cũ không có nhãn', r2.status === 200
+    && r2.body.items.length === 3 && mine?.repliedByName === 'Người Giữ BM' && !!mine.repliedAt && r2.body.items[0].repliedByName === null, r2.body);
+  const c3 = await json(holder.cookie, 'GET', ca(post.id));
+  ok('[212] Số trả lời của bình luận cập nhật (3)', c3.body?.items?.[0]?.replyCount === 3, c3.body?.items?.[0]);
+
+  // Bấm 2 lần (song song) cùng nội dung → chỉ 1 trả lời trên Facebook
+  log.length = 0;
+  const msg2 = `Inbox giúp mình nhé ${stamp}`;
+  const [d1, d2] = await Promise.all([json(holder.cookie, 'POST', ca(post.id, '/7001_29/replies'), { message: msg2 }),
+    json(holder.cookie, 'POST', ca(post.id, '/7001_29/replies'), { message: msg2 })]);
+  const d3 = await json(holder.cookie, 'POST', ca(post.id, '/7001_29/replies'), { message: ` ${msg2}` });
+  ok('[212] Bấm 2 lần song song + lần 3 trong 30 giây → 1 lời gọi Facebook, cùng id, lần sau duplicate',
+    d1.status === 200 && d2.status === 200 && d3.status === 200 && d1.body.reply.id === d2.body.reply.id && d3.body.reply.id === d1.body.reply.id
+    && [d1.body.duplicate, d2.body.duplicate].filter(Boolean).length === 1 && d3.body.duplicate === true
+    && log.filter((r) => r.method === 'POST' && r.path === '/v23.0/7001_29/comments').length === 1 && fake.replies.get('7001_29')!.length === 1,
+    [d1.body, d2.body, d3.body]);
+  const other = await json(holder.cookie, 'POST', ca(post.id, '/7001_29/replies'), { message: `${msg2} — thêm` });
+  const hrSame = await json(admin, 'POST', ca(post.id, '/7001_29/replies'), { message: msg2 });
+  ok('[212] Nội dung khác, hoặc người khác (HR) cùng nội dung → gửi bình thường', other.status === 200 && other.body.duplicate === false
+    && hrSame.status === 200 && hrSame.body.duplicate === false && hrSame.body.reply.repliedByName !== 'Người Giữ BM'
+    && fake.replies.get('7001_29')!.length === 3, [other.body, hrSame.body]);
+
+  // Bình luận đã bị xoá trên Facebook → 404
+  const goneR = await json(holder.cookie, 'POST', ca(post.id, '/7001_404/replies'), { message: 'Còn không?' });
+  const goneL = await json(holder.cookie, 'GET', ca(post.id, '/7001_404/replies'));
+  ok('[212] Bình luận đã xoá trên Facebook → 404 "Bình luận không còn trên Facebook"', goneR.status === 404 && goneL.status === 404
+    && /Bình luận không còn trên Facebook/.test(goneR.body?.detail ?? ''), [goneR.body, goneL.body]);
+  // Bài đã xoá (TEST-211) → 404, không gọi Facebook
+  const delPost = (await json(holder.cookie, 'GET', `${pageApi(P1)}/posts?page=1&pageSize=5&deleted=true`)).body?.items?.[0];
+  log.length = 0;
+  const dl = await json(holder.cookie, 'GET', ca(delPost.id));
+  ok('[212] Bài đã xoá → 404 "Bài viết không còn trên Facebook", không gọi Facebook', dl.status === 404 && /Bài viết không còn/.test(dl.body?.detail ?? '')
+    && log.length === 0, dl.body);
+
+  // Facebook từ chối vì quyền (#200) khi trả lời → 409 kèm tên quyền
+  fake.cmtPerm = true;
+  const pe = await json(holder.cookie, 'POST', ca(post.id, '/7001_28/replies'), { message: 'Thử quyền' });
+  fake.cmtPerm = false;
+  ok('[212] Facebook (#200) khi trả lời → 409 "Token thiếu quyền pages_manage_engagement"', pe.status === 409
+    && /Token thiếu quyền pages_manage_engagement/.test(pe.body?.detail ?? ''), pe.body);
+
+  // Token thiếu pages_manage_engagement (theo danh sách quyền đã lưu) → canReply false + lý do, trả lời → 409 không gọi Facebook
+  fake.engagement = false;
+  const noEng = (await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/sync`)).body?.account;
+  log.length = 0;
+  const ne1 = await json(holder.cookie, 'GET', ca(post.id));
+  const ne2 = await json(holder.cookie, 'POST', ca(post.id, '/7001_27/replies'), { message: 'Không được gửi' });
+  ok('[212] Token thiếu pages_manage_engagement → BM báo thiếu quyền; xem được nhưng canReply false + lý do; trả lời → 409, Facebook không nhận POST',
+    noEng?.missingPermissions?.some((m: any) => m.permission === 'pages_manage_engagement') && ne1.status === 200 && ne1.body.canReply === false
+    && /pages_manage_engagement/.test(ne1.body.replyBlockedReason ?? '') && ne2.status === 409
+    && /Token thiếu quyền pages_manage_engagement/.test(ne2.body?.detail ?? '') && !log.some((r) => r.method === 'POST'), { ne1: ne1.body, ne2: ne2.body });
+  fake.engagement = true;
+  const okEng = (await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/sync`)).body?.account;
+  ok('[212] Tạo lại token có quyền → trả lời lại được', okEng?.missingPermissions?.length === 0
+    && (await json(holder.cookie, 'POST', ca(post.id, '/7001_27/replies'), { message: 'Giờ thì được' })).status === 200);
+
+  // Token hỏng (190) khi trả lời → 409 + BM "Token lỗi"; sau đó ô trả lời bị khoá với lý do
+  fake.cmtRevoked = true;
+  const rv = await json(holder.cookie, 'POST', ca(post.id, '/7001_26/replies'), { message: 'Token hỏng' });
+  fake.cmtRevoked = false;
+  await sleep(300);
+  const after190 = await json(holder.cookie, 'GET', ca(post.id));
+  ok('[212] Token hỏng (190) → 409 + BM "Token lỗi"; danh sách sau đó canReply false', rv.status === 409 && /Token BM/.test(rv.body?.detail ?? '')
+    && (await json(holder.cookie, 'GET', pageApi(P1))).body?.accountTokenStatus === 'Invalid' && after190.body?.canReply === false, [rv.body, after190.body]);
+  ok('[212] Đồng bộ lại BM → token Valid', (await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/sync`)).body?.account.tokenStatus === 'Valid');
+  ok('[212] Phản hồi bình luận không chứa token', noSecrets(c1.text + r1.text + rep1.text));
+}
+
 // ---------------- Xem bài: người ngoài ----------------
 ok('Người ngoài không xem được bài (404) / danh sách rỗng', (await json(outsider.cookie, 'GET', `/api/assets/social/facebook/posts/${text.body.id}`)).status === 404
   && (await json(outsider.cookie, 'GET', '/api/assets/social/facebook/posts?page=1')).body?.total === 0);
@@ -645,7 +822,7 @@ ok('Lỗi 190 → đích Lỗi (không thử lại), có nút đăng lại', rvD
   && /password/.test(rvDone.targets[0].error ?? ''), rvDone);
 const bmAfter = (await json(admin, 'GET', `/api/assets/social/facebook/accounts/${bm.id}`)).body;
 ok('BM chuyển "Token lỗi" kèm lý do', bmAfter?.account.tokenStatus === 'Invalid' && /password/.test(bmAfter.account.tokenError ?? ''), bmAfter?.account);
-ok('Token lỗi → giữ danh sách quyền cũ', bmAfter?.account.tokenPermissions?.length === 7, bmAfter?.account.tokenPermissions);
+ok('Token lỗi → giữ danh sách quyền cũ', bmAfter?.account.tokenPermissions?.length === 8, bmAfter?.account.tokenPermissions);
 const adminNotes = (await json(admin, 'GET', '/api/notifications?take=20')).body?.items ?? [];
 ok('Chuông social_post: đăng thất bại + token BM hỏng', adminNotes.filter((n: any) => n.category === 'social_post').length >= 2, adminNotes.map((n: any) => n.title));
 fake.revoked1001 = false;

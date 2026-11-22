@@ -151,7 +151,7 @@ public class SocialRulesTests
     {
         var perms = new[] { P("pages_show_list"), P("pages_manage_posts", "declined"), P("pages_read_engagement", "expired") };
         var missing = SocialRules.MissingPermissions(perms).Select(m => m.Permission).ToList();
-        Assert.Equal(["pages_manage_posts", "pages_read_engagement", "business_management", "pages_read_user_content"], missing);
+        Assert.Equal(["pages_manage_posts", "pages_read_engagement", "business_management", "pages_read_user_content", "pages_manage_engagement"], missing);
         Assert.All(SocialRules.MissingPermissions([]), m => Assert.False(string.IsNullOrWhiteSpace(m.Impact)));
         Assert.Equal(SocialRules.RequiredPermissions.Count, SocialRules.MissingPermissions([]).Count);
     }
@@ -331,4 +331,70 @@ public class SocialRulesTests
         Assert.DoesNotContain("pages_manage_posts", SocialRules.ModerationError(100, "Invalid parameter"));
         Assert.Contains("Invalid parameter", SocialRules.ModerationError(100, "Invalid parameter"));
     }
+    // ---------------- Bình luận + trả lời bình luận (TEST-212) ----------------
+
+    [Fact]
+    public void RequiredPermissions_IncludeManageEngagementForReplies() =>
+        Assert.True(SocialRules.IsRequiredPermission("pages_manage_engagement"));
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("   \n\t ", false)]
+    [InlineData("Cảm ơn bạn!", true)]
+    [InlineData("  a  ", true)]
+    public void ValidateReply_NotBlank(string? message, bool ok) =>
+        Assert.Equal(ok, SocialRules.ValidateReply(message) is null);
+
+    [Fact]
+    public void ValidateReply_Max8000AfterTrim()
+    {
+        Assert.Null(SocialRules.ValidateReply(new string('a', 8000)));
+        Assert.Null(SocialRules.ValidateReply("  " + new string('a', 8000) + "  "));
+        Assert.Contains("8", SocialRules.ValidateReply(new string('a', 8001)));
+    }
+
+    [Fact]
+    public void IsDuplicateReply_SameMessageWithin30Seconds()
+    {
+        var at = new DateTimeOffset(2026, 11, 22, 3, 0, 0, TimeSpan.Zero);
+        Assert.True(SocialRules.IsDuplicateReply("Cảm ơn", at, "Cảm ơn", at.AddSeconds(1)));
+        Assert.True(SocialRules.IsDuplicateReply("Cảm ơn", at, "  Cảm ơn \n", at.AddSeconds(29))); // khác khoảng trắng đầu / cuối vẫn trùng
+        Assert.False(SocialRules.IsDuplicateReply("Cảm ơn", at, "Cảm ơn", at.AddSeconds(30))); // hết 30 giây: gửi được
+        Assert.False(SocialRules.IsDuplicateReply("Cảm ơn", at, "Cảm ơn bạn", at.AddSeconds(5))); // nội dung khác: gửi được
+        Assert.False(SocialRules.IsDuplicateReply("cảm ơn", at, "Cảm ơn", at.AddSeconds(5))); // phân biệt hoa thường
+    }
+
+    [Fact]
+    public void CannotReply_ChecksPageTokenAndEngagementPermission()
+    {
+        var granted = new[] { P("pages_manage_engagement"), P("pages_show_list") };
+        Assert.Null(SocialRules.CannotReply(true, true, false, SocialTokenStatus.Valid, granted));
+        Assert.Null(SocialRules.CannotReply(true, true, false, SocialTokenStatus.Valid, null)); // chưa lấy được danh sách quyền: cứ gửi
+        Assert.Contains("pages_manage_engagement", SocialRules.CannotReply(true, true, false, SocialTokenStatus.Valid, [P("pages_show_list")]));
+        Assert.Contains("pages_manage_engagement",
+            SocialRules.CannotReply(true, true, false, SocialTokenStatus.Valid, [P("pages_manage_engagement", "declined")]));
+        Assert.Contains("đã bị xoá", SocialRules.CannotReply(true, true, true, SocialTokenStatus.Valid, granted));
+        Assert.Contains("không còn trong BM", SocialRules.CannotReply(false, true, false, SocialTokenStatus.Valid, granted));
+        Assert.Contains("Chưa có quyền", SocialRules.CannotReply(true, false, false, SocialTokenStatus.Valid, granted));
+        Assert.Contains("Token BM đang lỗi", SocialRules.CannotReply(true, true, false, SocialTokenStatus.Invalid, granted));
+    }
+
+    [Fact]
+    public void CommentError_NamesEngagementPermissionForPermissionCodes()
+    {
+        Assert.Contains("Token thiếu quyền pages_manage_engagement", SocialRules.CommentError(200, "x"));
+        Assert.Contains("Token thiếu quyền pages_manage_engagement", SocialRules.CommentError(10, "x"));
+        Assert.Equal("Facebook từ chối: Invalid parameter", SocialRules.CommentError(100, "Invalid parameter"));
+    }
+
+    [Theory]
+    [InlineData("123_456", true)]
+    [InlineData("789", true)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    [InlineData("123/456", false)]
+    [InlineData("me", false)]
+    [InlineData("1_2?fields=access_token", false)]
+    public void IsCommentId_DigitsAndUnderscoreOnly(string? id, bool ok) => Assert.Equal(ok, SocialRules.IsCommentId(id));
 }

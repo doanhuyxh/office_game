@@ -37,6 +37,7 @@ public sealed class AssetsModule : IModule
         services.AddHttpClient(FacebookGraph.HttpClientName, c => c.Timeout = TimeSpan.FromSeconds(120));
         services.AddScoped<IFacebookGraph, FacebookGraph>();
         services.AddScoped<SocialService>();
+        services.AddScoped<SocialCommentService>();
         services.AddSingleton<SocialPublishSignal>();
         services.AddHostedService<SocialPublishJob>();
         services.AddHostedService<SocialTokenCheckJob>();

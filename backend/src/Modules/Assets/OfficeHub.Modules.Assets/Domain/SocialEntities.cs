@@ -183,3 +183,21 @@ public sealed class SocialMedia
     public DateTimeOffset CreatedAt { get; set; }
     public Guid CreatedByUserId { get; set; }
 }
+
+/// <summary>
+/// Nhật ký trả lời bình luận gửi từ OfficeHub (TEST-212). Bình luận không lưu (lấy từ Facebook mỗi lần xem); chỉ lưu trả lời để biết ai trong
+/// OfficeHub đã trả lời (trên Facebook chỉ hiện tên Trang) + chặn gửi dồn.
+/// </summary>
+public sealed class SocialCommentReply
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid PagePostId { get; set; }
+    /// <summary>Bình luận được trả lời (id Facebook).</summary>
+    public required string FacebookCommentId { get; set; }
+    /// <summary>Id Facebook của trả lời mới (khớp với danh sách trả lời để hiện "Trả lời bởi …").</summary>
+    public required string ReplyFacebookId { get; set; }
+    public required string Message { get; set; }
+    public Guid ByUserId { get; set; }
+    public required string ByName { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}

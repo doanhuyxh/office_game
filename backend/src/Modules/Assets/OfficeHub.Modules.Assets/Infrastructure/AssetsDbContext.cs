@@ -31,6 +31,7 @@ public sealed class AssetsDbContext(DbContextOptions<AssetsDbContext> options) :
     public DbSet<SocialPostTarget> SocialTargets => Set<SocialPostTarget>();
     public DbSet<SocialMedia> SocialMedia => Set<SocialMedia>();
     public DbSet<SocialPagePost> SocialPagePosts => Set<SocialPagePost>();
+    public DbSet<SocialCommentReply> SocialCommentReplies => Set<SocialCommentReply>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -280,6 +281,18 @@ public sealed class AssetsDbContext(DbContextOptions<AssetsDbContext> options) :
             e.HasIndex(x => new { x.PageId, x.CreatedTime }).HasDatabaseName("ix_social_page_posts_page_created");
             e.HasOne<SocialPage>().WithMany().HasForeignKey(x => x.PageId).OnDelete(DeleteBehavior.Restrict).IsRequired();
             e.HasOne<SocialPostTarget>().WithMany().HasForeignKey(x => x.PostTargetId).OnDelete(DeleteBehavior.SetNull);
+        });
+        b.Entity<SocialCommentReply>(e =>
+        {
+            e.ToTable("social_comment_replies");
+            e.Property(x => x.FacebookCommentId).HasMaxLength(100);
+            e.Property(x => x.ReplyFacebookId).HasMaxLength(100);
+            e.Property(x => x.Message).HasMaxLength(SocialRules.MaxReplyLength);
+            e.Property(x => x.ByName).HasMaxLength(200);
+            e.HasIndex(x => x.ReplyFacebookId).HasDatabaseName("ix_social_comment_replies_reply");
+            e.HasIndex(x => new { x.FacebookCommentId, x.ByUserId, x.CreatedAt }).HasDatabaseName("ix_social_comment_replies_comment_user");
+            e.HasIndex(x => x.PagePostId).HasDatabaseName("ix_social_comment_replies_post");
+            e.HasOne<SocialPagePost>().WithMany().HasForeignKey(x => x.PagePostId).OnDelete(DeleteBehavior.Cascade).IsRequired();
         });
     }
 

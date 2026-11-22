@@ -15,7 +15,8 @@ export function FacebookTokenGuide() {
           <li>Cài đặt doanh nghiệp → Người dùng → <b>Người dùng hệ thống</b> → Thêm (vai trò Quản trị viên).</li>
           <li>Chọn người dùng hệ thống → <b>Gán tài sản</b> → Trang → chọn các Fanpage cần đăng, bật quyền tạo nội dung (hoặc toàn quyền).</li>
           <li><b>Tạo mã mới</b> → chọn app ở bước 1 → Hết hạn: <b>Không bao giờ</b> → quyền <code>pages_show_list</code>, <code>pages_read_engagement</code>,{' '}
-            <code>pages_manage_posts</code>, <code>business_management</code>, <code>pages_read_user_content</code> (đồng bộ bài viết của trang).</li>
+            <code>pages_manage_posts</code>, <code>business_management</code>, <code>pages_read_user_content</code> (đồng bộ bài viết của trang),{' '}
+            <code>pages_manage_engagement</code> (trả lời bình luận dưới tên Trang).</li>
           <li>Dán token vào đây. Hệ thống kiểm tra với Facebook và tự lấy danh sách trang. Thêm / bớt trang trong BM → bấm "Đồng bộ trang".</li>
         </ol>
       </CollapsibleContent>

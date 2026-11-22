@@ -29,6 +29,10 @@ internal static class SocialPageEndpoints
             CancellationToken ct) => ModerateAsync(id, postId, PagePostAction.Unhide, user, db, access, social, ct));
         s.MapDelete("/posts/{postId:guid}", (Guid id, Guid postId, ClaimsPrincipal user, AssetsDbContext db, AssetAccess access, SocialService social,
             CancellationToken ct) => ModerateAsync(id, postId, PagePostAction.Delete, user, db, access, social, ct));
+        // Bình luận + trả lời bình luận dưới tên Trang (TEST-212)
+        s.MapGet("/posts/{postId:guid}/comments", CommentsAsync);
+        s.MapGet("/posts/{postId:guid}/comments/{commentId}/replies", RepliesAsync);
+        s.MapPost("/posts/{postId:guid}/comments/{commentId}/replies", ReplyAsync);
     }
 
     /// <summary>Trang + BM nếu người xem được xem (HR / người đang giữ BM đang dùng); null → 404.</summary>
@@ -99,6 +103,73 @@ internal static class SocialPageEndpoints
             .Where(t => t.PageId == f.Page.Id && (t.Id == row.PostTargetId || t.ExternalPostId == row.ExternalPostId))
             .Select(t => (Guid?)t.PostId).FirstOrDefaultAsync(ct);
         return TypedResults.Ok(ToDto(row, f.Page, origin));
+    }
+
+    /// <summary>Trang + bài (theo dõi để đánh dấu đã xoá) nếu người xem được xem trang; null → 404.</summary>
+    private static async Task<(SocialPage Page, SocialAccount Account, SocialPagePost Row)?> FindPostAsync(Guid id, Guid postId, ClaimsPrincipal user,
+        AssetsDbContext db, AssetAccess access, CancellationToken ct)
+    {
+        if (await FindAsync(id, user, db, access, false, ct) is not { } f) return null;
+        var row = await db.SocialPagePosts.FirstOrDefaultAsync(p => p.Id == postId && p.PageId == f.Page.Id, ct);
+        return row is null ? null : (f.Page, f.Account, row);
+    }
+
+    private static ProblemHttpResult Problem(SocialCallError e) => TypedResults.Problem(e.Message, statusCode: e.Status);
+
+    private static string? Cursor(string? after) => string.IsNullOrWhiteSpace(after) ? null : after.Length <= 500 ? after.Trim() : null;
+
+    private static async Task<SocialCommentListDto> ListDtoAsync(FbCommentPage list, SocialPage page, SocialAccount account, SocialPagePost row,
+        SocialCommentService comments, CancellationToken ct)
+    {
+        var log = await comments.RepliesByFacebookIdAsync(list.Items.Select(c => c.Id), ct);
+        var blocked = SocialCommentService.ReplyBlockedReason(page, account, row);
+        return new([.. list.Items.Select(c => ToDto(c, page, log.GetValueOrDefault(c.Id)))], list.After, blocked is null, blocked);
+    }
+
+    private static SocialCommentDto ToDto(FbComment c, SocialPage page, SocialCommentReply? log) =>
+        new(c.Id, c.Message, c.FromId, c.FromName, c.FromPictureUrl, c.FromId is not null && c.FromId == page.ExternalId, c.CreatedTime, c.LikeCount,
+            c.CommentCount, c.AttachmentType, c.AttachmentImageUrl, c.AttachmentUrl, log?.ByName, log?.CreatedAt.ToUniversalTime());
+
+    /// <summary>
+    /// Bình luận cấp 1 của bài, mới nhất trước, 25 / lần (<c>after</c> = cursor từ lần trước) — lấy thẳng từ Facebook (TEST-212). Quyền như xem trang
+    /// (HR / người đang giữ BM), khác → 404. Bài đã mất trên Facebook → 404 + đánh dấu đã xoá; token hỏng → 409; lỗi mạng → 502.
+    /// </summary>
+    private static async Task<Results<Ok<SocialCommentListDto>, ProblemHttpResult>> CommentsAsync(Guid id, Guid postId, string? after,
+        ClaimsPrincipal user, AssetsDbContext db, AssetAccess access, SocialCommentService comments, CancellationToken ct)
+    {
+        if (await FindPostAsync(id, postId, user, db, access, ct) is not { } f) return Problems.NotFound("bài viết");
+        var (list, error) = await comments.ListAsync(f.Page, f.Row, null, Cursor(after), ct);
+        return error is not null ? Problem(error) : TypedResults.Ok(await ListDtoAsync(list!, f.Page, f.Account, f.Row, comments, ct));
+    }
+
+    /// <summary>Trả lời của một bình luận, cũ nhất trước, 25 / lần. Bình luận không còn → 404 "Bình luận không còn trên Facebook".</summary>
+    private static async Task<Results<Ok<SocialCommentListDto>, ProblemHttpResult>> RepliesAsync(Guid id, Guid postId, string commentId, string? after,
+        ClaimsPrincipal user, AssetsDbContext db, AssetAccess access, SocialCommentService comments, CancellationToken ct)
+    {
+        if (!SocialRules.IsCommentId(commentId)) return Problems.NotFound("bình luận");
+        if (await FindPostAsync(id, postId, user, db, access, ct) is not { } f) return Problems.NotFound("bài viết");
+        var (list, error) = await comments.ListAsync(f.Page, f.Row, commentId, Cursor(after), ct);
+        return error is not null ? Problem(error) : TypedResults.Ok(await ListDtoAsync(list!, f.Page, f.Account, f.Row, comments, ct));
+    }
+
+    /// <summary>
+    /// Trả lời bình luận dưới tên Trang (TEST-212): nội dung 1–8 000 ký tự (400 theo field <c>message</c>). Token thiếu
+    /// <c>pages_manage_engagement</c> / token lỗi / trang không còn → 409; bình luận đã xoá → 404; lỗi mạng → 502. Bấm trùng trong 30 giây → trả
+    /// trả lời cũ, không gửi lần nữa.
+    /// </summary>
+    private static async Task<Results<Ok<SocialCommentReplyResultDto>, ValidationProblem, ProblemHttpResult>> ReplyAsync(Guid id, Guid postId,
+        string commentId, SocialCommentReplyRequest req, ClaimsPrincipal user, AssetsDbContext db, AssetAccess access, SocialCommentService comments,
+        CancellationToken ct)
+    {
+        if (!SocialRules.IsCommentId(commentId)) return Problems.NotFound("bình luận");
+        if (await FindPostAsync(id, postId, user, db, access, ct) is not { } f) return Problems.NotFound("bài viết");
+        if (SocialRules.ValidateReply(req.Message) is { } invalid) return new Validation().Add("message", invalid).Problem();
+        var me = await access.ViewerAsync(user, ct);
+        var (reply, duplicate, error) = await comments.ReplyAsync(f.Page, f.Account, f.Row, commentId, req.Message!, me.UserId, me.Name, ct);
+        if (error is not null) return Problem(error);
+        var r = reply!;
+        return TypedResults.Ok(new SocialCommentReplyResultDto(new(r.ReplyFacebookId, r.Message, f.Page.ExternalId, f.Page.Name, f.Page.PictureUrl, true,
+            r.CreatedAt.ToUniversalTime(), 0, 0, null, null, null, r.ByName, r.CreatedAt.ToUniversalTime()), duplicate));
     }
 
     /// <summary>

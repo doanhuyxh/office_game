@@ -1,8 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import type { IPageQuery } from '@/types/api';
 import { facebookApi, facebookKeys } from '../api/facebook.api';
 import type { IPaged } from '@/types/api';
-import type { IFacebookPost } from '../types/facebook.types';
+import type { IFacebookComment, IFacebookCommentList, IFacebookPost } from '../types/facebook.types';
 
 /** Trang được đăng. `quiet`: dùng cả cho menu (lỗi không hiện toast). */
 export const useFacebookPages = (enabled = true) =>
@@ -34,4 +34,51 @@ export const useFacebookPagePosts = (id: string, q: IPageQuery, deleted = false)
 export function useFacebookMutation<A, R>(fn: (a: A) => Promise<R>) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: fn, onSuccess: () => qc.invalidateQueries({ queryKey: facebookKeys.all }) });
+}
+
+/** Bình luận cấp 1 của bài (TEST-212): cuộn "Xem thêm" bằng cursor `after` của Facebook. Chỉ tải khi mở khung bình luận. */
+export const useFacebookComments = (pageId: string, postId: string, enabled: boolean) =>
+  useInfiniteQuery({
+    queryKey: facebookKeys.comments(pageId, postId), enabled, retry: false, staleTime: 30_000, meta: { quiet: true },
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => facebookApi.comments(pageId, postId, pageParam),
+    getNextPageParam: (last) => last.after,
+  });
+
+/** Trả lời của một bình luận — chỉ tải khi bấm "Xem N trả lời". */
+export const useFacebookReplies = (pageId: string, postId: string, commentId: string, enabled: boolean) =>
+  useInfiniteQuery({
+    queryKey: facebookKeys.replies(pageId, postId, commentId), enabled, retry: false, staleTime: 30_000, meta: { quiet: true },
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => facebookApi.replies(pageId, postId, commentId, pageParam),
+    getNextPageParam: (last) => last.after,
+  });
+
+type CommentPages = InfiniteData<IFacebookCommentList, string | null>;
+
+/**
+ * Gửi trả lời bình luận dưới tên Trang. Xong: thêm trả lời vào cuối danh sách trả lời đã tải (bỏ qua nếu đã có — lần bấm trùng server trả lại
+ * trả lời cũ), tăng số trả lời của bình luận cha (trừ lần bấm trùng); danh sách trả lời chưa tải thì để lần mở sau lấy từ Facebook.
+ */
+export function useFacebookReply(pageId: string, postId: string, commentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (message: string) => facebookApi.reply(pageId, postId, commentId, message),
+    onSuccess: ({ reply, duplicate }) => {
+      qc.setQueryData<CommentPages>(facebookKeys.replies(pageId, postId, commentId), (old) => {
+        if (!old || old.pages.some((p) => p.items.some((c) => c.id === reply.id))) return old;
+        const pages = [...old.pages];
+        const last = pages[pages.length - 1];
+        pages[pages.length - 1] = { ...last, items: [...last.items, reply] };
+        return { ...old, pages };
+      });
+      if (duplicate) return; // lần bấm trùng: trả lời đã tính rồi
+      qc.setQueryData<CommentPages>(facebookKeys.comments(pageId, postId), (old) => old && {
+        ...old,
+        pages: old.pages.map((p) => ({
+          ...p, items: p.items.map((c: IFacebookComment) => (c.id === commentId ? { ...c, replyCount: c.replyCount + 1 } : c)),
+        })),
+      });
+    },
+  });
 }

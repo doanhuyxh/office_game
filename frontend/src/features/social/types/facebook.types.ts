@@ -35,5 +35,18 @@ export interface IFacebookPagePost {
   /** Ẩn / xoá (TEST-211): `hiddenAt` / `hiddenByName` null khi ẩn trên Facebook; `canModerate` = được ẩn / hiện / xoá. */
   isHidden: boolean; hiddenAt: string | null; hiddenByName: string | null; deletedAt: string | null; deletedByName: string | null; canModerate: boolean;
 }
+/**
+ * Bình luận / trả lời lấy thẳng từ Facebook (TEST-212). `fromName` null = Facebook không trả người bình luận → hiện "Người dùng Facebook";
+ * `fromPage` = do chính Trang viết; `repliedByName` / `repliedAt` = người trong OfficeHub đã gửi trả lời này.
+ */
+export interface IFacebookComment {
+  id: string; message: string | null; fromId: string | null; fromName: string | null; fromPictureUrl: string | null; fromPage: boolean;
+  createdTime: string; likeCount: number; replyCount: number; attachmentType: string | null; attachmentImageUrl: string | null;
+  attachmentUrl: string | null; repliedByName: string | null; repliedAt: string | null;
+}
+/** Một lượt tải bình luận: `after` = cursor lượt sau (null = hết). `canReply` false → ẩn ô trả lời + hiện `replyBlockedReason`. */
+export interface IFacebookCommentList { items: IFacebookComment[]; after: string | null; canReply: boolean; replyBlockedReason: string | null }
+/** Trả lời vừa gửi; `duplicate` = bấm trùng trong 30 giây, server trả lại trả lời đã gửi. */
+export interface IFacebookReplyResult { reply: IFacebookComment; duplicate: boolean }
 /** `scheduledAt` null = đăng ngay. */
 export interface IFacebookPostRequest { message: string; link: string | null; pageIds: string[]; mediaIds: string[]; scheduledAt: string | null }

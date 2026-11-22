@@ -58,3 +58,19 @@ public sealed record SocialPagePostDto(Guid Id, string ExternalPostId, string? M
     string? StatusType, int ReactionCount, int CommentCount, int ShareCount, DateTimeOffset SyncedAt, bool FromOfficeHub, Guid? PostId,
     bool IsHidden = false, DateTimeOffset? HiddenAt = null, string? HiddenByName = null, DateTimeOffset? DeletedAt = null, string? DeletedByName = null,
     bool CanModerate = false);
+
+/// <summary>
+/// Bình luận / trả lời lấy trực tiếp từ Facebook (TEST-212). <c>FromName</c> null = Facebook không trả người bình luận (FE hiện "Người dùng Facebook");
+/// <c>FromPage</c> = do chính Trang viết; <c>RepliedByName</c> / <c>RepliedAt</c> = người trong OfficeHub đã gửi trả lời này.
+/// </summary>
+public sealed record SocialCommentDto(string Id, string? Message, string? FromId, string? FromName, string? FromPictureUrl, bool FromPage,
+    DateTimeOffset CreatedTime, int LikeCount, int ReplyCount, string? AttachmentType, string? AttachmentImageUrl, string? AttachmentUrl,
+    string? RepliedByName, DateTimeOffset? RepliedAt);
+
+/// <summary>Một trang bình luận: <c>After</c> = cursor trang kế (null = hết). <c>CanReply</c> false → <c>ReplyBlockedReason</c> (vd token thiếu quyền).</summary>
+public sealed record SocialCommentListDto(IReadOnlyList<SocialCommentDto> Items, string? After, bool CanReply, string? ReplyBlockedReason);
+
+public sealed record SocialCommentReplyRequest(string? Message);
+
+/// <summary>Trả lời vừa gửi. <c>Duplicate</c> = lần bấm trùng trong 30 giây, trả lại trả lời đã gửi (không gửi lần nữa).</summary>
+public sealed record SocialCommentReplyResultDto(SocialCommentDto Reply, bool Duplicate);

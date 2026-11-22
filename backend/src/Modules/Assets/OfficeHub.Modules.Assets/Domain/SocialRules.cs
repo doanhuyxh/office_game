@@ -137,7 +137,7 @@ public static class SocialRules
     /// Quyền token System User cần cho OfficeHub (Graph API v23): <c>pages_show_list</c> (liệt kê trang, /me/accounts),
     /// <c>pages_manage_posts</c> + <c>pages_read_engagement</c> (đăng bài — Meta yêu cầu cả hai; đọc bài / tương tác),
     /// <c>business_management</c> (trang được gán qua Business Manager / System User), <c>pages_read_user_content</c>
-    /// (đọc bài + tổng bình luận khi đồng bộ bài viết của trang — TEST-206).
+    /// (đọc bài + tổng bình luận khi đồng bộ bài viết của trang — TEST-206), <c>pages_manage_engagement</c> (trả lời bình luận dưới tên Trang — TEST-212).
     /// </summary>
     public static readonly IReadOnlyList<SocialRequiredPermission> RequiredPermissions =
     [
@@ -146,7 +146,11 @@ public static class SocialRules
         new("pages_read_engagement", "không đọc bài / tương tác được (Facebook cũng cần quyền này để đăng bài)"),
         new("business_management", "không truy cập được các trang được gán qua Business Manager"),
         new("pages_read_user_content", "không đồng bộ được bài viết / số bình luận của trang"),
+        new(EngagementPermission, "không trả lời được bình luận dưới tên Trang"),
     ];
+
+    /// <summary>Quyền Graph cần để trả lời bình luận dưới tên Trang (TEST-212).</summary>
+    public const string EngagementPermission = "pages_manage_engagement";
 
     public static bool IsRequiredPermission(string permission) => RequiredPermissions.Any(r => r.Permission == permission);
 
@@ -250,6 +254,60 @@ public static class SocialRules
         code is 10 or (>= 200 and < 300)
             ? $"Facebook từ chối: {message} — chỉ ẩn / xoá được bài do Trang đăng; kiểm tra quyền pages_manage_posts / pages_manage_engagement của token BM"
             : $"Facebook từ chối: {message}";
+
+    // ---------------- Bình luận + trả lời bình luận (TEST-212) ----------------
+
+    /// <summary>Số bình luận / trả lời mỗi lần tải từ Facebook.</summary>
+    public const int CommentsPageSize = 25;
+    /// <summary>Giới hạn nội dung trả lời (Facebook nhận 8 000 ký tự cho bình luận).</summary>
+    public const int MaxReplyLength = 8000;
+    /// <summary>Cùng người + cùng bình luận + cùng nội dung trong khoảng này → bỏ qua lần gửi sau (bấm 2 lần không thành 2 trả lời).</summary>
+    public static readonly TimeSpan ReplyDedupeWindow = TimeSpan.FromSeconds(30);
+
+    /// <summary>Nội dung trả lời đã chuẩn hoá (bỏ khoảng trắng đầu / cuối); null → rỗng.</summary>
+    public static string NormalizeReply(string? message) => message?.Trim() ?? "";
+
+    /// <summary>Lỗi nội dung trả lời (null = hợp lệ): 1–8 000 ký tự, không rỗng / chỉ khoảng trắng.</summary>
+    public static string? ValidateReply(string? message)
+    {
+        var msg = NormalizeReply(message);
+        if (msg.Length == 0) return "Nhập nội dung trả lời";
+        if (msg.Length > MaxReplyLength) return $"Trả lời tối đa {MaxReplyLength:N0} ký tự";
+        return null;
+    }
+
+    /// <summary>
+    /// Trả lời trước đó (cùng người + cùng bình luận) có trùng lần gửi này không: cùng nội dung (sau chuẩn hoá) và chưa quá
+    /// <see cref="ReplyDedupeWindow"/> → trùng, trả lại trả lời cũ thay vì gửi lên Facebook lần nữa.
+    /// </summary>
+    public static bool IsDuplicateReply(string previousMessage, DateTimeOffset previousAt, string message, DateTimeOffset now) =>
+        NormalizeReply(previousMessage) == NormalizeReply(message) && now - previousAt >= TimeSpan.Zero && now - previousAt < ReplyDedupeWindow;
+
+    /// <summary>
+    /// Lý do không trả lời được bình luận (null = được): bài đã xoá, trang không còn / chưa có page token, token BM đang lỗi, token thiếu
+    /// <c>pages_manage_engagement</c> (chỉ khi đã lấy được danh sách quyền — chưa lấy được thì cứ gửi, Facebook sẽ báo).
+    /// </summary>
+    public static string? CannotReply(bool pageActive, bool hasPageToken, bool postDeleted, SocialTokenStatus tokenStatus,
+        IReadOnlyCollection<SocialTokenPermission>? permissions)
+    {
+        if (postDeleted) return "Bài đã bị xoá trên Facebook";
+        if (!pageActive) return "Trang không còn trong BM — đồng bộ lại BM để kiểm tra";
+        if (!hasPageToken) return "Chưa có quyền với trang này — nhờ HR kiểm tra quyền System User rồi đồng bộ lại BM";
+        if (tokenStatus == SocialTokenStatus.Invalid) return "Token BM đang lỗi — HR cần cập nhật token tại Tài sản → MXH";
+        if (permissions is not null && !permissions.Any(p => p.Permission == EngagementPermission && p.Status == "granted"))
+            return $"Token thiếu quyền {EngagementPermission} — người giữ BM tạo lại token có quyền này rồi lưu ở Tài sản → MXH";
+        return null;
+    }
+
+    /// <summary>Thông điệp lỗi Facebook khi đọc / trả lời bình luận: thiếu quyền (10, 200–299) → nói rõ quyền <c>pages_manage_engagement</c>.</summary>
+    public static string CommentError(int? code, string message) =>
+        code is 10 or (>= 200 and < 300)
+            ? $"Token thiếu quyền {EngagementPermission} ({message}) — người giữ BM tạo lại token có quyền này"
+            : $"Facebook từ chối: {message}";
+
+    /// <summary>Id bình luận Facebook hợp lệ cho đường dẫn: chữ số và dấu gạch dưới, ≤ 100 ký tự (khác → 404, không gọi Facebook).</summary>
+    public static bool IsCommentId(string? id) =>
+        id is { Length: > 0 and <= 100 } && id.All(c => char.IsAsciiDigit(c) || c == '_');
 
     /// <summary>Lần thử kế tiếp: 1 → +1 phút, 2 → +5 phút.</summary>
     public static TimeSpan Backoff(int attempts) => attempts <= 1 ? TimeSpan.FromMinutes(1) : TimeSpan.FromMinutes(5);
