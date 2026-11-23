@@ -10,7 +10,6 @@
 //        Telegram__ApiUrl=http://127.0.0.1:9 Firebase__CredentialsPath= Database__MigrateOnStartup=true   (.env nạp NoClobber — không để Telegram / FCM thật)
 //        Seed__AdminEmail=e2e220-admin@officehub-e2e.vn Seed__AdminPassword=E2e220-Admin-2026 dotnet run --project src/OfficeHub.Api --no-launch-profile
 //   E2E_LOCAL_DB=1 API_URL=http://localhost:5196 ADMIN_LOGIN=… ADMIN_PASSWORD=… bun scripts/dev/finance-dashboard-e2e.ts
-//   E2E_LOCAL_DB=1 API_URL=http://localhost:5196 ADMIN_LOGIN=… ADMIN_PASSWORD=… bun scripts/dev/project-wiki-e2e.ts
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { totp } from './totp';
