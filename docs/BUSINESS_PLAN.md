@@ -148,7 +148,9 @@ Mảng đang dự định triển khai → làm **bản tối thiểu**, mở r�
 
 ## 7. Giai đoạn 5 — Tổng quan cho giám đốc
 
-> **Trạng thái 2026-11-12: Lưu trữ** (để sau, chưa làm) — bảng dự án `TEST`, việc TEST-50.
+> **Trạng thái 2026-11-23: đang làm, 1/3 xong** — bảng dự án `TEST`, việc gốc TEST-50 (chủ dự án duyệt kế hoạch 2026-11-23), chia 3 việc:
+> ✅ 1/3 back-end TEST-220: `GET /api/finance/dashboard` (thu / chi / lãi theo tháng × mảng — tiền thực thu / chi của sổ, công nợ quá hạn + tuổi nợ, pipeline có trọng số) + `GET /api/projects/financials/alerts` (dự án lỗ / vượt / sắp vượt ngân sách ngày công) — [.agent/business/finance-dashboard.md](../.agent/business/finance-dashboard.md).
+> ⏳ 2/3 dự báo dòng tiền 13 tuần (TEST-221) · ⏳ 3/3 giao diện tab Tổng quan ở `/finance` (TEST-223).
 
 - Màn hình `/finance` → Tổng quan: số dư các quỹ, thu / chi / lãi theo tháng và theo mảng, công nợ quá hạn, pipeline có trọng số, dự án lỗ / sắp vượt ngân sách ngày công.
 - **Dự báo dòng tiền 13 tuần**: số dư hiện tại + đợt thu sắp đến hạn + cơ hội × xác suất − lương dự kiến − gia hạn dịch vụ − đề nghị chi đã duyệt chưa chi.
@@ -164,7 +166,7 @@ Mảng đang dự định triển khai → làm **bản tối thiểu**, mở r�
 
 ## 9. Ước lượng
 
-> Giai đoạn 1 + 2 đã xong. Giai đoạn 3 và 5: Lưu trữ (TEST-51, TEST-50). Giai đoạn 4: Không làm (TEST-49). Phần lẻ của giai đoạn 1 (PDF báo giá, ký hợp đồng bán điện tử, đối soát sao kê, đề nghị chi từ lương, 2FA + thông báo đổi quyền tài chính): Lưu trữ (TEST-52).
+> Giai đoạn 1 + 2 đã xong. Giai đoạn 3: Lưu trữ (TEST-51). Giai đoạn 5: đang làm, 1/3 xong (TEST-50 → TEST-220 / 221 / 223). Giai đoạn 4: Không làm (TEST-49). Phần lẻ của giai đoạn 1 (PDF báo giá, ký hợp đồng bán điện tử, đối soát sao kê, đề nghị chi từ lương, 2FA + thông báo đổi quyền tài chính): Lưu trữ (TEST-52).
 
 | Giai đoạn | Khối lượng |
 |---|---|

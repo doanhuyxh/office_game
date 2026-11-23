@@ -22,6 +22,7 @@ Ghi / Duyệt / Quản trị **bao hàm Xem**. Mọi người đăng nhập đ�
 | Method | Path | Quyền | Ghi chú |
 |---|---|---|---|
 | GET | `/overview` | Xem | Tổng số dư quỹ đang dùng, thu / chi **tháng này** theo mảng (không tính chuyển quỹ), số + tiền đề nghị chờ duyệt / chờ chi, `lockedThrough` |
+| GET | `/dashboard?months` | Xem | Tổng quan giám đốc: thu / chi / lãi nhiều tháng × mảng + công nợ + pipeline (token AI 403) — [finance-dashboard.md](finance-dashboard.md) |
 | GET/POST/PUT | `/accounts[/{id}]` | Xem / Quản trị | Số dư tính khi đọc. Tên duy nhất; `last4` đúng 4 số. **Đổi số dư / ngày đầu kỳ khi quỹ đã có giao dịch → 409** |
 | GET/POST/PUT | `/lines`, `/categories` | ai cũng đọc / Quản trị | Mã mảng viết hoa, duy nhất. Danh mục (`Kind` Thu / Chi) duy nhất theo loại; đã có giao dịch thì không đổi loại (409) |
 | GET/PUT | `/lock` | Xem / Quản trị | `{ lockedThrough }` — khoá đến hết ngày đó (không ở tương lai); `null` = mở khoá |

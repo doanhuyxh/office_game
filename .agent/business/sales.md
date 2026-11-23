@@ -38,7 +38,7 @@ Không thấy → **404** (không lộ sự tồn tại). Thấy nhưng không s
 | POST | `/contracts/{id}/installments` | Chỉ HĐ Active; tổng đợt (không huỷ) ≤ giá trị sau thuế |
 | POST | `/installments/{id}/cancel` | `{ reason }` bắt buộc; đợt đã có tiền thu (dòng sổ hiệu lực) → 409 |
 | POST | `/installments/{id}/collect` | **Ghi sổ**. `{ amount (≤ còn lại), date, accountId, categoryId?, invoiceNumber? }` → dòng THU ở Finance |
-| GET | `/receivables?state&ownerId&customerId` | Đợt chưa thu đủ của HĐ Active (tối đa 1000) + tổng còn phải thu / quá hạn / sắp đến hạn + tuổi nợ 1-30 / 31-60 / 61-90 / >90 |
+| GET | `/receivables?state&ownerId&customerId` | Đợt chưa thu đủ của HĐ Active (tối đa 1000) + tổng còn phải thu / quá hạn / sắp đến hạn + tuổi nợ 1-30 / 31-60 / 61-90 / >90. Số toàn công ty cho Tổng quan giám đốc: `ISalesOutlook` (Contracts, có tiền — chỉ sau khi kiểm tra Xem tài chính) — [finance-dashboard.md](finance-dashboard.md) |
 
 ## Quy tắc (`Domain/SalesRules.cs`, test `tests/OfficeHub.Modules.Sales.Tests`)
 

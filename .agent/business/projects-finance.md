@@ -54,6 +54,7 @@ Chỉ gọi sau khi kiểm tra quyền. Mỗi hợp đồng: trước / sau thu�
 |---|---|---|---|
 | GET | `/{id}/financials` | **Xem tài chính** (quản lý dự án / thành viên 403, người không thấy dự án 404) | Tổng + hợp đồng + theo tháng (ngày công, nhân công, ước tính?, chi trực tiếp, thu khác, khách đã trả) + danh mục. `people` (nhân công theo người) **chỉ Quản trị tài chính**, người khác `null` |
 | GET | `/financials?status` | Xem tài chính | Mọi dự án, bỏ `months` / `categories` / `people` |
+| GET | `/financials/alerts` | Xem tài chính | Dự án đang chạy lỗ / vượt / sắp vượt (≥ 80 %) ngân sách ngày công (`ProjectCostRules.Alerts`), token AI 403 — [finance-dashboard.md](finance-dashboard.md) |
 
 Tính khi đọc (24 tháng gần nhất như ngày công), không lưu số tiền. Token AI: `/api/projects` ngoài allowlist → 403. Không có tool MCP.
 
