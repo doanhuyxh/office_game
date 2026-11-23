@@ -291,6 +291,40 @@ public class SocialRulesTests
         Assert.False(SocialRules.CanEditAuthor(false, Guid.NewGuid(), author)); // người giữ BM không phải tác giả: chỉ huỷ
     }
 
+    // ---------------- Xoá mềm bài ở /social/facebook (TEST-214) ----------------
+
+    [Theory]
+    [InlineData(new[] { SocialTargetStatus.Published })]
+    [InlineData(new[] { SocialTargetStatus.Published, SocialTargetStatus.Failed })] // lỗi một phần
+    [InlineData(new[] { SocialTargetStatus.Failed })]
+    [InlineData(new[] { SocialTargetStatus.Cancelled })]
+    [InlineData(new[] { SocialTargetStatus.Published, SocialTargetStatus.Cancelled })]
+    [InlineData(new SocialTargetStatus[0])]
+    public void CannotDeletePost_FinishedPost_Allowed(SocialTargetStatus[] targets) => Assert.Null(SocialRules.CannotDeletePost(targets));
+
+    [Fact]
+    public void CannotDeletePost_PendingOrPublishing_Blocked()
+    {
+        Assert.Contains("Huỷ", SocialRules.CannotDeletePost([SocialTargetStatus.Published, SocialTargetStatus.Pending]));
+        Assert.Contains("đang được đăng", SocialRules.CannotDeletePost([SocialTargetStatus.Publishing, SocialTargetStatus.Failed]));
+    }
+
+    [Fact]
+    public void CanDeletePost_AuthorOrHrOnly()
+    {
+        var author = Guid.NewGuid();
+        Assert.True(SocialRules.CanDeletePost(false, author, author));
+        Assert.True(SocialRules.CanDeletePost(true, Guid.NewGuid(), author)); // HR / Quản trị viên (IsHr gồm admin)
+        Assert.False(SocialRules.CanDeletePost(false, Guid.NewGuid(), author)); // người giữ BM không phải tác giả → 403
+    }
+
+    [Fact]
+    public void CanViewDeletedPosts_HrOnly()
+    {
+        Assert.True(SocialRules.CanViewDeletedPosts(true));
+        Assert.False(SocialRules.CanViewDeletedPosts(false));
+    }
+
     // ---------------- Ẩn / hiện / xoá bài của Fanpage (TEST-211) ----------------
 
     [Fact]

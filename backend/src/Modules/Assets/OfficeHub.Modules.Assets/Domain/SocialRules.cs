@@ -131,6 +131,28 @@ public static class SocialRules
     /// <summary>Người được sửa nội dung bài: người đăng hoặc HR / admin. Người giữ BM không phải tác giả chỉ được huỷ.</summary>
     public static bool CanEditAuthor(bool isHr, Guid viewerUserId, Guid authorUserId) => isHr || viewerUserId == authorUserId;
 
+    // ---------------- Xoá mềm bài ở /social/facebook (TEST-214) ----------------
+
+    /// <summary>Lý do bài đã xoá (khỏi danh sách OfficeHub) không thao tác được nữa — Sửa / Huỷ / Đăng lại → 409. Không có khôi phục.</summary>
+    public const string PostDeletedReason = "Bài đã bị xoá khỏi danh sách OfficeHub, chỉ còn xem lại";
+
+    /// <summary>
+    /// Bài còn xoá (mềm) được không (null = được; khác = lý do, API trả 409): không còn đích Chờ / Đang đăng — tức bài Đã đăng, Lỗi một phần,
+    /// Lỗi hoặc Đã huỷ. Còn đích chờ → phải Huỷ trước. Bài đã xoá rồi → được (xoá lại trả 200, không đổi gì).
+    /// </summary>
+    public static string? CannotDeletePost(IReadOnlyCollection<SocialTargetStatus> targets)
+    {
+        if (targets.Any(t => t == SocialTargetStatus.Publishing)) return "Bài đang được đăng, chờ đăng xong rồi mới xoá được";
+        if (targets.Any(t => t == SocialTargetStatus.Pending)) return "Bài còn trang đang chờ đăng — bấm Huỷ phần chưa đăng trước rồi mới xoá";
+        return null;
+    }
+
+    /// <summary>Người được xoá bài: người đăng hoặc HR / Quản trị viên. Người giữ BM không phải tác giả không xoá được (403).</summary>
+    public static bool CanDeletePost(bool isHr, Guid viewerUserId, Guid authorUserId) => isHr || viewerUserId == authorUserId;
+
+    /// <summary>Ai xem được bài đã xoá (danh sách "Đã xoá", chi tiết, số đếm): chỉ HR / Quản trị viên.</summary>
+    public static bool CanViewDeletedPosts(bool isHr) => isHr;
+
     // ---------------- Quyền của token ----------------
 
     /// <summary>

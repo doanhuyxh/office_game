@@ -27,9 +27,11 @@ internal static class SocialPostEndpoints
         s.MapPost("/media/{id:guid}/confirm", ConfirmMediaAsync);
         s.MapGet("/media/{id:guid}/url", MediaUrlAsync);
         s.MapGet("/posts", ListAsync);
+        s.MapGet("/posts/counts", CountsAsync);
         s.MapGet("/posts/{id:guid}", GetAsync);
         s.MapPost("/posts", CreateAsync);
         s.MapPut("/posts/{id:guid}", UpdateAsync);
+        s.MapDelete("/posts/{id:guid}", DeleteAsync);
         s.MapPost("/posts/{id:guid}/cancel", CancelAsync);
         s.MapPost("/targets/{id:guid}/retry", RetryAsync);
     }
@@ -137,6 +139,9 @@ internal static class SocialPostEndpoints
         var m = await db.SocialMedia.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && x.Ready, ct);
         if (m is null) return TypedResults.NotFound();
         var me = await access.ViewerAsync(user, ct);
+        // Bài đã xoá khỏi danh sách (TEST-214): chỉ HR / Quản trị viên còn mở được ảnh / video
+        if (!SocialRules.CanViewDeletedPosts(me.IsHr) && m.PostId is { } postId
+            && await db.SocialPosts.AnyAsync(x => x.Id == postId && x.DeletedAt != null, ct)) return TypedResults.NotFound();
         if (m.CreatedByUserId != me.UserId && !me.IsHr)
         {
             if (m.PostId is not { } pid) return TypedResults.NotFound();
@@ -170,46 +175,72 @@ internal static class SocialPostEndpoints
         return [.. posts.Select(p =>
         {
             var ts = targets.Where(t => t.PostId == p.Id).OrderBy(t => pages.GetValueOrDefault(t.PageId)?.Name).ToList();
-            var manage = me.IsHr || p.AuthorUserId == me.UserId || ts.Any(t => held.Contains(t.PageId));
-            var canEdit = SocialRules.CanEditAuthor(me.IsHr, me.UserId, p.AuthorUserId)
+            var live = p.DeletedAt is null; // bài đã xoá: chỉ đọc, không nút thao tác (TEST-214)
+            var manage = live && (me.IsHr || p.AuthorUserId == me.UserId || ts.Any(t => held.Contains(t.PageId)));
+            var canEdit = live && SocialRules.CanEditAuthor(me.IsHr, me.UserId, p.AuthorUserId)
                 && SocialRules.CannotEditPost([.. ts.Select(t => (t.Status, t.Attempts))]) is null;
+            var canDelete = live && SocialRules.CanDeletePost(me.IsHr, me.UserId, p.AuthorUserId)
+                && SocialRules.CannotDeletePost([.. ts.Select(t => t.Status)]) is null;
             return new SocialPostDto(p.Id, p.Message, p.Link, p.ScheduledAt, p.CreatedAt, p.AuthorName, SocialRules.PostStatus([.. ts.Select(t => t.Status)]),
                 [.. ts.Select(t =>
                 {
                     var pg = pages.GetValueOrDefault(t.PageId);
-                    var canRetry = t.Status == SocialTargetStatus.Failed && postable.Contains(t.PageId) && pg is { IsActive: true, TokenEncrypted: not null };
+                    var canRetry = live && t.Status == SocialTargetStatus.Failed && postable.Contains(t.PageId) && pg is { IsActive: true, TokenEncrypted: not null };
                     return new SocialTargetDto(t.Id, t.PageId, pg?.Name ?? "(trang đã xoá)", pg?.PictureUrl, t.Status, t.DueAt, t.Attempts, t.PublishedAt,
                         t.Permalink, t.Error, t.CancelledAt, t.CancelledByName, canRetry, deleted.GetValueOrDefault(t.Id)?.ToUniversalTime());
                 })],
                 [.. media.Where(m => m.PostId == p.Id).Select(ToDto)],
-                manage && ts.Any(t => t.Status == SocialTargetStatus.Pending), canEdit, p.EditedAt, p.EditedByName);
+                manage && ts.Any(t => t.Status == SocialTargetStatus.Pending), canEdit, p.EditedAt, p.EditedByName, canDelete, p.DeletedAt,
+                p.DeletedByName);
         })];
     }
 
-    /// <summary>HR: mọi bài; nhân viên: bài mình đăng + bài lên trang thuộc BM mình đang giữ.</summary>
-    private static async Task<IQueryable<SocialPost>> VisibleAsync(Viewer me, AssetsDbContext db, CancellationToken ct)
+    /// <summary>
+    /// HR: mọi bài; nhân viên: bài mình đăng + bài lên trang thuộc BM mình đang giữ. Bài đã xoá (TEST-214) bị bỏ trừ khi
+    /// <paramref name="includeDeleted"/> (xem: chỉ HR; thao tác: để trả 409 thay vì 404 cho người từng thấy bài).
+    /// </summary>
+    private static async Task<IQueryable<SocialPost>> VisibleAsync(Viewer me, AssetsDbContext db, CancellationToken ct, bool includeDeleted = false)
     {
         var q = db.SocialPosts.AsNoTracking();
+        if (!includeDeleted) q = q.Where(p => p.DeletedAt == null);
         if (me.IsHr) return q;
         var held = (await HeldPageIdsAsync(me, db, ct)).ToList();
         var uid = me.UserId;
         return q.Where(p => p.AuthorUserId == uid || db.SocialTargets.Any(t => t.PostId == p.Id && held.Contains(t.PageId)));
     }
 
-    private static async Task<Results<Ok<PagedResult<SocialPostDto>>, ProblemHttpResult>> ListAsync(int? page, int? pageSize, ClaimsPrincipal user,
-        AssetsDbContext db, AssetAccess access, CancellationToken ct)
+    /// <summary>Mặc định bỏ bài đã xoá; <c>deleted=true</c> → chỉ bài đã xoá, mới xoá trước (HR / Quản trị viên, người khác 403).</summary>
+    private static async Task<Results<Ok<PagedResult<SocialPostDto>>, ProblemHttpResult>> ListAsync(int? page, int? pageSize, bool? deleted,
+        ClaimsPrincipal user, AssetsDbContext db, AssetAccess access, CancellationToken ct)
     {
         var me = await access.ViewerAsync(user, ct);
-        var rows = await (await VisibleAsync(me, db, ct)).OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id)
-            .ToPagedAsync(page ?? 1, pageSize, ct);
+        IQueryable<SocialPost> q;
+        if (deleted == true)
+        {
+            if (!SocialRules.CanViewDeletedPosts(me.IsHr)) return Forbidden("Chỉ HR / Quản trị viên xem được bài đã xoá");
+            q = (await VisibleAsync(me, db, ct, includeDeleted: true)).Where(p => p.DeletedAt != null)
+                .OrderByDescending(p => p.DeletedAt).ThenByDescending(p => p.Id);
+        }
+        else q = (await VisibleAsync(me, db, ct)).OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id);
+        var rows = await q.ToPagedAsync(page ?? 1, pageSize, ct);
         return TypedResults.Ok(rows.With(await ToDtosAsync(rows.Items, me, db, ct)));
+    }
+
+    /// <summary>Số đếm cho bộ lọc "Bài đăng / Đã xoá (N)" — chỉ HR / Quản trị viên (người khác 403).</summary>
+    private static async Task<Results<Ok<SocialPostCountsDto>, ProblemHttpResult>> CountsAsync(ClaimsPrincipal user, AssetsDbContext db,
+        AssetAccess access, CancellationToken ct)
+    {
+        var me = await access.ViewerAsync(user, ct);
+        if (!SocialRules.CanViewDeletedPosts(me.IsHr)) return Forbidden("Chỉ HR / Quản trị viên xem được bài đã xoá");
+        return TypedResults.Ok(new SocialPostCountsDto(await db.SocialPosts.CountAsync(p => p.DeletedAt != null, ct)));
     }
 
     private static async Task<Results<Ok<SocialPostDto>, ProblemHttpResult>> GetAsync(Guid id, ClaimsPrincipal user, AssetsDbContext db, AssetAccess access,
         CancellationToken ct)
     {
         var me = await access.ViewerAsync(user, ct);
-        var p = await (await VisibleAsync(me, db, ct)).FirstOrDefaultAsync(x => x.Id == id, ct);
+        var p = await (await VisibleAsync(me, db, ct, includeDeleted: SocialRules.CanViewDeletedPosts(me.IsHr)))
+            .FirstOrDefaultAsync(x => x.Id == id, ct);
         return p is null ? Problems.NotFound("bài đăng") : TypedResults.Ok((await ToDtosAsync([p], me, db, ct))[0]);
     }
 
@@ -268,7 +299,7 @@ internal static class SocialPostEndpoints
         CancellationToken ct)
     {
         var me = await access.ViewerAsync(user, ct);
-        var visible = await (await VisibleAsync(me, db, ct)).AnyAsync(x => x.Id == id, ct);
+        var visible = await (await VisibleAsync(me, db, ct, includeDeleted: true)).AnyAsync(x => x.Id == id, ct);
         if (!visible) return Problems.NotFound("bài đăng");
         var accountIds = await PostableAccountIdsAsync(me, db, ct);
 
@@ -280,6 +311,7 @@ internal static class SocialPostEndpoints
             var targets = await db.SocialTargets
                 .FromSqlInterpolated($"SELECT * FROM assets.social_post_targets WHERE \"PostId\" = {id} FOR UPDATE").ToListAsync(ct);
             post = await db.SocialPosts.FirstAsync(x => x.Id == id, ct);
+            if (post.DeletedAt is not null) return Problems.Conflict(SocialRules.PostDeletedReason);
             if (!SocialRules.CanEditAuthor(me.IsHr, me.UserId, post.AuthorUserId))
                 return Forbidden("Chỉ người đăng bài hoặc HR được sửa bài — bạn chỉ huỷ được phần chưa đăng");
             if (SocialRules.CannotEditPost([.. targets.Select(t => (t.Status, t.Attempts))]) is { } why) return Problems.Conflict(why);
@@ -352,13 +384,45 @@ internal static class SocialPostEndpoints
         return TypedResults.Ok((await ToDtosAsync([post], me, db, ct))[0]);
     }
 
+    /// <summary>
+    /// Xoá mềm bài khỏi danh sách OfficeHub (TEST-214): chỉ đánh dấu <c>DeletedAt</c> / <c>DeletedByName</c> — không xoá dòng, đích, ảnh / video
+    /// trên S3, không gọi Facebook. Người đăng + HR / Quản trị viên (người giữ BM khác 403, không xem được bài 404). Còn đích Chờ / Đang đăng
+    /// → 409 (<see cref="SocialRules.CannotDeletePost"/>); bài đã xoá → 200 không đổi. Khoá các đích (<c>FOR UPDATE</c>) để không chen với job
+    /// nhận đích / đăng lại.
+    /// </summary>
+    private static async Task<Results<Ok<SocialPostDto>, ProblemHttpResult>> DeleteAsync(Guid id, ClaimsPrincipal user, AssetsDbContext db,
+        AssetAccess access, AssetClock clock, CancellationToken ct)
+    {
+        var me = await access.ViewerAsync(user, ct);
+        if (!await (await VisibleAsync(me, db, ct, includeDeleted: true)).AnyAsync(x => x.Id == id, ct)) return Problems.NotFound("bài đăng");
+        SocialPost post;
+        await using (var tx = await db.Database.BeginTransactionAsync(ct))
+        {
+            var targets = await db.SocialTargets
+                .FromSqlInterpolated($"SELECT * FROM assets.social_post_targets WHERE \"PostId\" = {id} FOR UPDATE").ToListAsync(ct);
+            post = await db.SocialPosts.FirstAsync(x => x.Id == id, ct);
+            if (!SocialRules.CanDeletePost(me.IsHr, me.UserId, post.AuthorUserId))
+                return Forbidden("Chỉ người đăng bài hoặc HR / Quản trị viên được xoá bài");
+            if (post.DeletedAt is null)
+            {
+                if (SocialRules.CannotDeletePost([.. targets.Select(t => t.Status)]) is { } why) return Problems.Conflict(why);
+                post.DeletedAt = clock.Now;
+                post.DeletedByName = me.Name;
+                await db.SaveChangesAsync(ct);
+            }
+            await tx.CommitAsync(ct);
+        }
+        return TypedResults.Ok((await ToDtosAsync([post], me, db, ct))[0]);
+    }
+
     /// <summary>Huỷ các trang chưa đăng (Chờ). HR, người đăng, người giữ BM của trang.</summary>
     private static async Task<Results<Ok<SocialPostDto>, ProblemHttpResult>> CancelAsync(Guid id, ClaimsPrincipal user, AssetsDbContext db,
         AssetAccess access, AssetClock clock, CancellationToken ct)
     {
         var me = await access.ViewerAsync(user, ct);
-        var post = await (await VisibleAsync(me, db, ct)).FirstOrDefaultAsync(x => x.Id == id, ct);
+        var post = await (await VisibleAsync(me, db, ct, includeDeleted: true)).FirstOrDefaultAsync(x => x.Id == id, ct);
         if (post is null) return Problems.NotFound("bài đăng");
+        if (post.DeletedAt is not null) return Problems.Conflict(SocialRules.PostDeletedReason);
         var held = await HeldPageIdsAsync(me, db, ct);
         var all = me.IsHr || post.AuthorUserId == me.UserId;
         var pending = await db.SocialTargets.Where(t => t.PostId == id && t.Status == SocialTargetStatus.Pending).ToListAsync(ct);
@@ -379,18 +443,28 @@ internal static class SocialPostEndpoints
         AssetAccess access, AssetClock clock, SocialPublishSignal signal, CancellationToken ct)
     {
         var me = await access.ViewerAsync(user, ct);
-        var t = await db.SocialTargets.FirstOrDefaultAsync(x => x.Id == id, ct);
-        var post = t is null ? null : await (await VisibleAsync(me, db, ct)).FirstOrDefaultAsync(x => x.Id == t.PostId, ct);
-        if (t is null || post is null) return Problems.NotFound("bài đăng");
-        if (t.Status != SocialTargetStatus.Failed) return Problems.Conflict("Chỉ đăng lại được trang bị lỗi");
-        var page = await db.SocialPages.AsNoTracking().FirstAsync(p => p.Id == t.PageId, ct);
-        if (!(await PostableAccountIdsAsync(me, db, ct)).Contains(page.AccountId)) return Forbidden("Bạn không còn quyền đăng lên trang này");
-        if (!page.IsActive || page.TokenEncrypted is null) return Problems.Conflict("Chưa có quyền đăng lên trang này — nhờ HR đồng bộ lại BM");
-        t.Status = SocialTargetStatus.Pending;
-        t.DueAt = clock.Now;
-        t.Attempts = 0;
-        t.Error = null;
-        await db.SaveChangesAsync(ct);
+        var found = await db.SocialTargets.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+        var post = found is null ? null : await (await VisibleAsync(me, db, ct, includeDeleted: true)).FirstOrDefaultAsync(x => x.Id == found.PostId, ct);
+        if (found is null || post is null) return Problems.NotFound("bài đăng");
+        var page = await db.SocialPages.AsNoTracking().FirstAsync(p => p.Id == found.PageId, ct);
+        var accountIds = await PostableAccountIdsAsync(me, db, ct);
+        await using (var tx = await db.Database.BeginTransactionAsync(ct))
+        {
+            // Khoá các đích của bài như khi xoá (TEST-214): xoá và đăng lại không chen nhau → không có bài đã xoá mà còn đích chờ.
+            var targets = await db.SocialTargets
+                .FromSqlInterpolated($"SELECT * FROM assets.social_post_targets WHERE \"PostId\" = {post.Id} FOR UPDATE").ToListAsync(ct);
+            if (await db.SocialPosts.AnyAsync(x => x.Id == post.Id && x.DeletedAt != null, ct)) return Problems.Conflict(SocialRules.PostDeletedReason);
+            var t = targets.First(x => x.Id == id);
+            if (t.Status != SocialTargetStatus.Failed) return Problems.Conflict("Chỉ đăng lại được trang bị lỗi");
+            if (!accountIds.Contains(page.AccountId)) return Forbidden("Bạn không còn quyền đăng lên trang này");
+            if (!page.IsActive || page.TokenEncrypted is null) return Problems.Conflict("Chưa có quyền đăng lên trang này — nhờ HR đồng bộ lại BM");
+            t.Status = SocialTargetStatus.Pending;
+            t.DueAt = clock.Now;
+            t.Attempts = 0;
+            t.Error = null;
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
         signal.Poke();
         return TypedResults.Ok((await ToDtosAsync([post], me, db, ct))[0]);
     }

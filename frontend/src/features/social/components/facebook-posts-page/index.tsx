@@ -1,12 +1,14 @@
+import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Megaphone } from 'lucide-react';
+import { Megaphone, Trash2 } from 'lucide-react';
+import { Button } from '@/components/common/button';
 import { TablePagination, usePageState } from '@/components/common/pagination';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Spinner } from '@/components/feedback/Spinner';
 import { PATHS } from '@/config/paths';
 import { FACEBOOK_PLATFORM } from '@/config/social-platforms';
 import { useMe } from '@/features/auth';
-import { useFacebookPages, useFacebookPosts } from '../../hooks/useFacebook';
+import { useFacebookPages, useFacebookPostCounts, useFacebookPosts } from '../../hooks/useFacebook';
 import { FacebookPostCard } from '../facebook-post-card';
 import { FacebookPageList } from '../facebook-page-list';
 import { FacebookPostComposer } from '../facebook-post-composer';
@@ -14,13 +16,18 @@ import { FacebookPostComposer } from '../facebook-post-composer';
 /**
  * Trang Facebook (`/social/facebook`, TEST-207 — `/social` cũ chuyển hướng tới đây). Đăng bài lên Fanpage Facebook (qua Business Manager của công ty). HR: mọi trang; nhân viên: trang của BM đang được bàn giao.
  * Trái: soạn bài; phải: bài đã gửi + kết quả từng trang (tự làm mới khi đang đăng).
+ * TEST-214: bài xoá khỏi danh sách; HR / Quản trị viên xem lại ở bộ lọc "Đã xoá (N)".
  */
 export function FacebookPostsPage() {
   const me = useMe();
   const isHr = !!me.data?.roles.some((r) => r === 'admin' || r === 'hr');
   const pages = useFacebookPages();
-  const pg = usePageState('social-posts');
-  const posts = useFacebookPosts(pg.query);
+  const [showDeleted, setShowDeleted] = useState(false);
+  const deleted = isHr && showDeleted;
+  const counts = useFacebookPostCounts(isHr);
+  const deletedCount = counts.data?.deletedCount ?? 0;
+  const pg = usePageState('social-posts', deleted ? 'deleted' : '');
+  const posts = useFacebookPosts(pg.query, deleted);
   const list = pages.data ?? [];
   const items = posts.data?.items ?? [];
 
@@ -39,9 +46,20 @@ export function FacebookPostsPage() {
           )}
         </div>
         <section className="grid gap-3">
+          {isHr && (deletedCount > 0 || deleted) && (
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Lọc bài" data-testid="social-posts-filter">
+              <Button size="sm" variant={deleted ? 'outline' : 'secondary'} aria-pressed={!deleted} onClick={() => setShowDeleted(false)}>Bài đăng</Button>
+              <Button size="sm" variant={deleted ? 'secondary' : 'outline'} aria-pressed={deleted} data-testid="social-posts-show-deleted"
+                onClick={() => setShowDeleted(true)}>
+                <Trash2 /> Đã xoá ({deletedCount})
+              </Button>
+            </div>
+          )}
           {posts.isLoading && <Spinner />}
           {!posts.isLoading && items.length === 0 && (
-            <p className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground">Chưa có bài nào.</p>
+            <p className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground" data-testid="social-posts-empty">
+              {deleted ? 'Chưa xoá bài nào.' : 'Chưa có bài nào.'}
+            </p>
           )}
           {items.map((p) => <FacebookPostCard key={p.id} post={p} />)}
           {(posts.data?.total ?? 0) > 0 && (

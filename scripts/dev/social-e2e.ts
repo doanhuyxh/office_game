@@ -16,6 +16,8 @@
 // bình luận đã xoá → 404; người ngoài 404; không có `from` → fromName null).
 // TEST-208: sửa bài đã hẹn (nội dung + giờ hẹn → giờ cũ không đăng, giờ mới đăng nội dung mới; bỏ / thêm / đổi thứ tự ảnh + xoá tệp trên S3; bỏ / thêm trang;
 // chuyển sang đăng ngay; đã đăng / đã huỷ / chờ thử lại → 409; người ngoài 404, người giữ BM sửa bài HR 403; sửa song song với job → luôn đăng bản cuối). Mất ~4 phút.
+// TEST-214: xoá mềm bài ở /social/facebook (DELETE /posts/{id}: bỏ khỏi danh sách, HR xem ở ?deleted=true + /posts/counts; người giữ BM không phải
+// tác giả 403, người ngoài 404; còn đích chờ 409; xoá lại 200; bài đã xoá Sửa / Huỷ / Đăng lại 409; bài trên trang Fanpage + tệp S3 còn nguyên, không gọi Graph).
 // TẠO NHÂN VIÊN THẬT → CHỈ chạy trên DB tạm:
 //   E2E_LOCAL_DB=1 API_URL=http://localhost:5180 ADMIN_LOGIN=… ADMIN_PASSWORD=… bun scripts/dev/social-e2e.ts
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -156,7 +158,8 @@ Bun.serve({
       const src = form.url ?? form.file_url;
       if (src) fake.s3Fetch.push((await fetch(s3url(src))).status); // Facebook tự tải tệp từ link S3
       const id = `${page}_${++seq}`;
-      if (page === '1001' && edge === 'feed') fake.published1001.push(id);
+      // Bài hiện trên trang: /feed, hoặc /photos đăng ngay 1 ảnh (TEST-214) — ảnh published=false của album chưa phải bài
+      if (page === '1001' && (edge === 'feed' || (edge === 'photos' && form.published !== 'false'))) fake.published1001.push(id);
       if (edge === 'photos') return Response.json(form.published === 'false' ? { id: `ph${seq}` } : { id: `ph${seq}`, post_id: id });
       if (edge === 'videos') return Response.json({ id: `vid${seq}` });
       return Response.json({ id });
@@ -700,6 +703,91 @@ const cc = await json(holder.cookie, 'POST', `/api/assets/social/facebook/posts/
 ok('Người đăng huỷ → Đã huỷ', cc.status === 200 && cc.body.status === 'Cancelled' && cc.body.targets.every((t: any) => t.cancelledByName), cc.body);
 ok('Huỷ lần nữa → 409', (await json(holder.cookie, 'POST', `/api/assets/social/facebook/posts/${sch.body.id}/cancel`)).status === 409);
 ok('Đăng lại trang không lỗi → 409', (await json(holder.cookie, 'POST', `/api/assets/social/facebook/targets/${cc.body.targets[0].id}/retry`)).status === 409);
+
+// ---------------- TEST-214: xoá mềm bài ở /social/facebook ----------------
+{
+  const FBP = '/api/assets/social/facebook/posts';
+  const del = (cookie: string, id: string) => json(cookie, 'DELETE', `${FBP}/${id}`);
+  const listIds = async (cookie: string, deleted = false) =>
+    ((await json(cookie, 'GET', `${FBP}?page=1&pageSize=200${deleted ? '&deleted=true' : ''}`)).body?.items ?? []).map((x: any) => x.id) as string[];
+  const counts = async (cookie: string) => json(cookie, 'GET', `${FBP}/counts`);
+  const c0 = (await counts(admin)).body?.deletedCount as number;
+  ok('[214] HR: /posts/counts → số bài đã xoá', typeof c0 === 'number', c0);
+
+  // Bài của người giữ có ảnh, đã đăng; HR đồng bộ trang 1 để có bài trên trang chi tiết Fanpage
+  const dm = await upload(holder.cookie, 'xoa-mem.png', png);
+  const dp = await json(holder.cookie, 'POST', FBP, { message: `DEL-214 ${stamp}`, pageIds: [P1], mediaIds: [dm.body.id] });
+  const dpDone = await waitPost(holder.cookie, dp.body.id, (p) => p.status === 'Published');
+  ok('[214] Bài đã đăng của mình: canDelete = true, chưa xoá', dpDone?.canDelete === true && dpDone.deletedAt === null, dpDone);
+  // Đồng bộ < 1 phút sau lần trước chỉ trả kết quả cũ (chặn bấm dồn) → đợi cho hết
+  const lastSync = (await json(admin, 'GET', pageApi(P1))).body?.postsSyncedAt as string | null;
+  const wait = lastSync ? Date.parse(lastSync) + 61_000 - Date.now() : 0;
+  if (wait > 0) { console.log(`  … đợi ${Math.ceil(wait / 1000)} giây hết chặn bấm dồn để đồng bộ trang 1`); await sleep(wait); }
+  const sy = await json(admin, 'POST', `${pageApi(P1)}/sync-posts`);
+  const pagePost = async () => ((await json(admin, 'GET', `${pageApi(P1)}/posts?page=1&pageSize=200`)).body?.items ?? [])
+    .find((x: any) => x.postId === dp.body.id);
+  const pp0 = await pagePost();
+  ok('[214] Bài có trên trang chi tiết Fanpage (đăng từ OfficeHub)', sy.status === 200 && pp0?.fromOfficeHub === true, [sy.status, pp0]);
+  const mediaUrl0 = (await json(admin, 'GET', `/api/assets/social/facebook/media/${dm.body.id}/url`)).body?.url as string;
+
+  // Quyền: người ngoài 404, người giữ BM không phải tác giả 403
+  const hrp = await json(admin, 'POST', FBP, { message: `HR-DEL-214 ${stamp}`, pageIds: [P1] });
+  const hrpDone = await waitPost(admin, hrp.body.id, (p) => p.status === 'Published');
+  const hrpSeen = (await json(holder.cookie, 'GET', `${FBP}/${hrp.body.id}`)).body;
+  ok('[214] Người giữ BM xem bài HR đã đăng: canDelete = false', hrpDone?.status === 'Published' && hrpSeen?.canDelete === false, hrpSeen);
+  ok('[214] Người giữ BM không phải tác giả xoá → 403', (await del(holder.cookie, hrp.body.id)).status === 403);
+  ok('[214] Người ngoài xoá → 404', (await del(outsider.cookie, dp.body.id)).status === 404);
+  ok('[214] Id lạ → 404', (await del(holder.cookie, crypto.randomUUID())).status === 404);
+
+  // Còn đích chờ → 409; huỷ xong thì xoá được
+  const sp = await json(holder.cookie, 'POST', FBP, { message: `SCH-DEL-214 ${stamp}`, pageIds: [P1, P2], scheduledAt: new Date(Date.now() + 30 * 60_000).toISOString() });
+  const sp409 = await del(holder.cookie, sp.body.id);
+  ok('[214] Bài còn trang chờ đăng: canDelete = false, xoá → 409 kèm lý do "Huỷ"', sp.body?.canDelete === false && sp409.status === 409
+    && /Huỷ/.test(sp409.body?.detail ?? ''), [sp.body?.canDelete, sp409.body]);
+  const spc = await json(holder.cookie, 'POST', `${FBP}/${sp.body.id}/cancel`);
+  ok('[214] Đã huỷ → canDelete = true', spc.body?.canDelete === true, spc.body);
+  ok('[214] Xoá bài đã huỷ → 200', (await del(holder.cookie, sp.body.id)).status === 200);
+
+  // Xoá bài đã đăng
+  const before = log.length;
+  const d1 = await del(holder.cookie, dp.body.id);
+  ok('[214] Người đăng xoá → 200, ghi người xoá / lúc xoá, hết nút thao tác', d1.status === 200 && d1.body.deletedByName === 'Người Giữ BM' && !!d1.body.deletedAt
+    && !d1.body.canDelete && !d1.body.canEdit && !d1.body.canCancel && d1.body.targets.every((t: any) => !t.canRetry), d1.body);
+  ok('[214] Mất khỏi danh sách thường (người giữ + HR)', !(await listIds(holder.cookie)).includes(dp.body.id) && !(await listIds(admin)).includes(dp.body.id));
+  ok('[214] Người giữ mở lại bài đã xoá → 404; ảnh / video → 404', (await json(holder.cookie, 'GET', `${FBP}/${dp.body.id}`)).status === 404
+    && (await json(holder.cookie, 'GET', `/api/assets/social/facebook/media/${dm.body.id}/url`)).status === 404);
+  const hrDel = (await json(admin, 'GET', `${FBP}?page=1&pageSize=200&deleted=true`)).body;
+  const hrOne = hrDel?.items?.find((x: any) => x.id === dp.body.id);
+  ok('[214] HR thấy ở "Đã xoá" kèm người xoá / lúc xoá, nội dung + ảnh đủ; chỉ bài đã xoá', !!hrOne && hrOne.deletedByName === 'Người Giữ BM' && !!hrOne.deletedAt
+    && hrOne.message === `DEL-214 ${stamp}` && hrOne.media.length === 1 && hrDel.items.every((x: any) => !!x.deletedAt), hrDel?.items?.map((x: any) => x.id));
+  const hrGet = await json(admin, 'GET', `${FBP}/${dp.body.id}`);
+  ok('[214] HR mở chi tiết bài đã xoá → 200, chỉ đọc', hrGet.status === 200 && !!hrGet.body.deletedAt && !hrGet.body.canDelete && !hrGet.body.canEdit, hrGet.body);
+  const c1 = (await counts(admin)).body?.deletedCount;
+  ok('[214] Số bài đã xoá cho HR tăng 2', c1 === c0 + 2, [c0, c1]);
+  ok('[214] Nhân viên gọi ?deleted=true → 403; /posts/counts → 403', (await json(holder.cookie, 'GET', `${FBP}?deleted=true`)).status === 403
+    && (await json(outsider.cookie, 'GET', `${FBP}?deleted=true`)).status === 403 && (await counts(holder.cookie)).status === 403);
+  const d2 = await del(holder.cookie, dp.body.id);
+  ok('[214] Xoá lại bài đã xoá → 200, giữ người xoá cũ', d2.status === 200 && d2.body.deletedByName === 'Người Giữ BM'
+    && Date.parse(d2.body.deletedAt) === Date.parse(d1.body.deletedAt), [d1.body.deletedAt, d2.body.deletedAt]);
+  ok('[214] HR xoá lại bài đã xoá → 200', (await del(admin, dp.body.id)).status === 200
+    && (await json(admin, 'GET', `${FBP}/${dp.body.id}`)).body?.deletedByName === 'Người Giữ BM');
+
+  // Bài đã xoá: Sửa / Huỷ / Đăng lại → 409
+  const tgt = d1.body.targets[0].id;
+  const edit409 = await json(holder.cookie, 'PUT', `${FBP}/${dp.body.id}`, { message: 'x', pageIds: [P1], scheduledAt: null });
+  const editHr = await json(admin, 'PUT', `${FBP}/${dp.body.id}`, { message: 'x', pageIds: [P1], scheduledAt: null });
+  const cancel409 = await json(holder.cookie, 'POST', `${FBP}/${dp.body.id}/cancel`);
+  const retry409 = await json(admin, 'POST', `/api/assets/social/facebook/targets/${tgt}/retry`);
+  ok('[214] Bài đã xoá: Sửa / Huỷ / Đăng lại → 409 "đã bị xoá khỏi danh sách"', [edit409, editHr, cancel409, retry409].every((r) => r.status === 409
+    && /đã bị xoá khỏi danh sách/.test(r.body?.detail ?? '')), [edit409, editHr, cancel409, retry409].map((r) => [r.status, r.body?.detail]));
+
+  // Không đổi gì ngoài OfficeHub
+  ok('[214] Xoá không gọi Graph lần nào', log.length === before, log.slice(before).map((r) => `${r.method} ${r.path}`));
+  const pp1 = await pagePost();
+  ok('[214] Bài trên trang chi tiết Fanpage vẫn còn, không bị đánh dấu xoá', !!pp1 && pp1.id === pp0?.id && pp1.deletedAt === null, pp1);
+  const mediaUrl1 = (await json(admin, 'GET', `/api/assets/social/facebook/media/${dm.body.id}/url`)).body?.url as string;
+  ok('[214] Tệp trên S3 vẫn còn (HR mở ảnh được)', !!mediaUrl0 && !!mediaUrl1 && (await fetch(s3url(mediaUrl1))).status === 200);
+}
 
 // ---------------- TEST-208: sửa bài đã hẹn còn chờ ----------------
 const FB = '/api/assets/social/facebook';

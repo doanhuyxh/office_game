@@ -15,7 +15,7 @@
 | `social_accounts` `[Audited]` | `Platform` (Facebook), `Name`, `ExternalId` (ID BM, chữ số, duy nhất khi có), `LoginHint` (email / SĐT quản trị), `OwnerDepartmentId`, `Status` (Active / Disabled), `HolderEmployeeId`, `TokenEncrypted`, `TokenStatus` (None / Valid / Invalid), `TokenError`, `TokenCheckedAt`, `TokenOwnerName`, `TokenPermissions` (jsonb) / `TokenPermissionsError`, `PagesSyncedAt` |
 | `social_account_assignments` | lịch sử bàn giao: chỉ thêm / đóng (`AssignedAt/By`, `ReturnedAt/By`, ghi chú) |
 | `social_pages` | Fanpage đồng bộ từ BM: `ExternalId`, `Name`, `Category`, `Link`, `PictureUrl`, `TokenEncrypted` (page token), `IsActive` (false = không còn trong BM, giữ cho lịch sử). Duy nhất `(AccountId, ExternalId)` |
-| `social_posts` | `Message`, `Link`, `ScheduledAt` (null = đăng ngay), tác giả (user / employee / tên), `EditedAt` / `EditedByName`. Sửa được khi chưa trang nào được gửi đi — [assets-social-post-edit.md](assets-social-post-edit.md) |
+| `social_posts` | `Message`, `Link`, `ScheduledAt` (null = đăng ngay), tác giả (user / employee / tên), `EditedAt` / `EditedByName`. Sửa được khi chưa trang nào được gửi đi — [assets-social-post-edit.md](assets-social-post-edit.md). `DeletedAt` / `DeletedByName` = xoá mềm — [assets-social-post-delete.md](assets-social-post-delete.md) |
 | `social_post_targets` | mỗi trang một dòng: `Status` Pending → Publishing → Published / Failed; Pending → Cancelled. `DueAt`, `Attempts`, `ExternalPostId`, `Permalink`, `Error`, `Cancelled*` |
 | `social_page_posts` | bài viết hiện có của trang, đồng bộ từ Facebook (100 bài mới nhất + số tương tác) — [assets-social-page-posts.md](assets-social-page-posts.md) |
 | `social_media` | ảnh / video S3 `assets/social/{yyyyMM}/{id}/…`: xin link → PUT → xác nhận (HEAD); gắn `PostId` khi tạo bài |
@@ -59,6 +59,7 @@ Thu hồi BM → huỷ bài **đang chờ** của người bị thu hồi trên 
 | GET/POST | `/posts?page=&pageSize=` (phân trang) · GET `/posts/{id}` | theo quyền ở trên |
 | PUT | `/posts/{id}` (sửa bài còn chờ, body như tạo) | người đăng + HR; 409 khi đã / đang gửi đi (TEST-208) |
 | POST | `/posts/{id}/cancel` · `/targets/{id}/retry` | |
+| DELETE | `/posts/{id}` · GET `/posts?deleted=true` · `/posts/counts` | xoá mềm: người đăng + HR; bài đã xoá chỉ HR xem (TEST-214) |
 | GET | `/pages/{id}` · `/pages/{id}/posts` · POST `/pages/{id}/sync-posts` | HR + người giữ BM, khác → 404 (TEST-206) |
 
 Kiểm tra bài (`SocialRules.ValidatePost`): có chữ / link / tệp; ≤ 63 206 ký tự; link http(s) và không kèm ảnh / video; 1–50 trang; ≤ 10 ảnh hoặc đúng 1 video; hẹn giờ từ +2 phút tới +180 ngày.
@@ -72,7 +73,7 @@ Mỗi nền tảng một trang + một sub-tab (TEST-207) — route, cấu trúc
 
 ## Test
 
-`SocialRulesTests` · `scripts/dev/social-e2e.ts` (máy chủ Graph giả trong cùng tiến trình, PUT S3 — thật hoặc RustFS tạm) 118/118 trên DB tạm 2026-11-22 (TEST-208) — [e2e.md](../e2e.md). **Chưa thử với Facebook thật** (cần chủ dự án tạo app + System User token) và chưa thử tay giao diện trên trình duyệt.
+`SocialRulesTests` · `scripts/dev/social-e2e.ts` (máy chủ Graph giả trong cùng tiến trình, PUT S3 — thật hoặc RustFS tạm) 181/181 trên DB tạm 2026-11-23 (TEST-214) — [e2e.md](../e2e.md). **Chưa thử với Facebook thật** (cần chủ dự án tạo app + System User token) và chưa thử tay giao diện trên trình duyệt.
 
 ## Chưa làm
 

@@ -42,7 +42,10 @@ public sealed record SocialTargetDto(Guid Id, Guid PageId, string PageName, stri
 
 public sealed record SocialPostDto(Guid Id, string Message, string? Link, DateTimeOffset? ScheduledAt, DateTimeOffset CreatedAt, string AuthorName,
     SocialPostStatus Status, IReadOnlyList<SocialTargetDto> Targets, IReadOnlyList<SocialMediaDto> Media, bool CanCancel, bool CanEdit = false,
-    DateTimeOffset? EditedAt = null, string? EditedByName = null);
+    DateTimeOffset? EditedAt = null, string? EditedByName = null, bool CanDelete = false, DateTimeOffset? DeletedAt = null, string? DeletedByName = null);
+
+/// <summary>Số bài đã xoá (khỏi danh sách OfficeHub) cho bộ lọc "Đã xoá (N)" — chỉ HR / Quản trị viên (TEST-214).</summary>
+public sealed record SocialPostCountsDto(int DeletedCount);
 
 public sealed record HeldSocialDto(Guid Id, SocialPlatform Platform, string Name, string? ExternalId, string? LoginHint, int PageCount, DateTimeOffset AssignedAt);
 

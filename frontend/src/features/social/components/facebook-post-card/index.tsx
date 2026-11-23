@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarClock, ExternalLink, Pencil, RotateCcw, XCircle } from 'lucide-react';
+import { CalendarClock, ExternalLink, Pencil, RotateCcw, Trash2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { confirmDialog } from '@/components/common/confirm-dialog';
@@ -13,14 +13,19 @@ import { POST_STATUS, TARGET_STATUS } from '../../utils/facebook-labels';
 import { FacebookMediaThumb } from '../facebook-media-thumb';
 import { FacebookPostEditDialog } from '../facebook-post-edit-dialog';
 
-/** Một bài đã gửi: nội dung, ảnh / video, kết quả từng trang (link bài, lỗi, đăng lại), sửa bài còn chờ (TEST-208), huỷ phần chưa đăng. */
+/**
+ * Một bài đã gửi: nội dung, ảnh / video, kết quả từng trang (link bài, lỗi, đăng lại), sửa bài còn chờ (TEST-208), huỷ phần chưa đăng,
+ * xoá khỏi danh sách OfficeHub khi đã xong (TEST-214 — bài trên Facebook giữ nguyên). Bài đã xoá: nhãn "Đã xoá · bởi … lúc …", không nút thao tác.
+ */
 export function FacebookPostCard({ post }: { post: IFacebookPost }) {
   const cancel = useFacebookMutation(() => facebookApi.cancel(post.id));
   const retry = useFacebookMutation((targetId: string) => facebookApi.retry(targetId));
+  const remove = useFacebookMutation(() => facebookApi.remove(post.id));
   const [editing, setEditing] = useState(false);
   const s = POST_STATUS[post.status];
   return (
-    <article className="grid gap-3 rounded-xl border bg-card p-4" data-testid="social-post">
+    <article className={`grid gap-3 rounded-xl border bg-card p-4 ${post.deletedAt ? 'border-dashed' : ''}`} data-testid="social-post"
+      data-deleted={post.deletedAt ? 'true' : undefined}>
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 text-sm">
           <span className="font-medium">{post.authorName}</span>
@@ -30,6 +35,13 @@ export function FacebookPostCard({ post }: { post: IFacebookPost }) {
           )}
           {post.editedAt && (
             <div className="mt-0.5 text-xs text-muted-foreground" data-testid="post-edited">Đã sửa lúc {formatDateTime(post.editedAt)}{post.editedByName ? ` bởi ${post.editedByName}` : ''}</div>
+          )}
+          {post.deletedAt && (
+            <div className="mt-1" data-testid="post-deleted">
+              <StatusBadge tone="danger" className="text-[11px]">
+                {`Đã xoá${post.deletedByName ? ` · bởi ${post.deletedByName}` : ''} lúc ${formatDateTime(post.deletedAt)}`}
+              </StatusBadge>
+            </div>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -42,6 +54,15 @@ export function FacebookPostCard({ post }: { post: IFacebookPost }) {
               if (await confirmDialog({ title: 'Huỷ đăng bài?', description: 'Các trang chưa đăng sẽ không đăng nữa. Trang đã đăng giữ nguyên.', confirmText: 'Huỷ đăng', destructive: true,
                 onConfirm: () => cancel.mutateAsync(undefined) })) toast.success('Đã huỷ');
             }}><XCircle /> Huỷ</Button>
+          )}
+          {post.canDelete && (
+            <Button size="sm" variant="ghost" loading={remove.isPending} data-testid="post-delete" onClick={async () => {
+              if (await confirmDialog({
+                title: 'Xoá bài khỏi danh sách?',
+                description: 'Chỉ gỡ bài khỏi danh sách OfficeHub, bài trên Facebook vẫn còn. Không khôi phục được.',
+                confirmText: 'Xoá', destructive: true, onConfirm: () => remove.mutateAsync(undefined),
+              })) toast.success('Đã xoá khỏi danh sách');
+            }}><Trash2 /> Xoá</Button>
           )}
         </div>
       </header>

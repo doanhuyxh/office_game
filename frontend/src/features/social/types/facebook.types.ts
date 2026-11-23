@@ -20,7 +20,11 @@ export interface IFacebookPost {
   targets: IFacebookTarget[]; media: IFacebookMedia[]; canCancel: boolean;
   /** Sửa được (TEST-208): người đăng / HR và chưa trang nào được gửi đi. `editedAt` / `editedByName` = lần sửa gần nhất. */
   canEdit: boolean; editedAt: string | null; editedByName: string | null;
+  /** Xoá mềm khỏi danh sách OfficeHub (TEST-214): `canDelete` = người đăng / HR và không còn trang chờ đăng; bài đã xoá chỉ đọc. */
+  canDelete: boolean; deletedAt: string | null; deletedByName: string | null;
 }
+/** Số đếm cho bộ lọc "Đã xoá (N)" (TEST-214, chỉ HR / Quản trị viên). */
+export interface IFacebookPostCounts { deletedCount: number }
 /** Chi tiết Fanpage (TEST-206). `canSync` = trang còn trong BM + có page token; `postsSyncing` = đang đồng bộ. */
 export interface IFacebookPageDetail {
   page: IFacebookPage; accountStatus: 'Active' | 'Disabled'; accountTokenStatus: 'None' | 'Valid' | 'Invalid'; holderName: string | null;

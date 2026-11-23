@@ -1,7 +1,7 @@
 import { http, httpPost, pageQs } from '@/services/api-client';
 import type { IPaged, IPageQuery } from '@/types/api';
 import type {
-  IFacebookCommentList, IFacebookMedia, IFacebookPage, IFacebookPageDetail, IFacebookPagePost, IFacebookPost, IFacebookPostRequest, IFacebookReplyResult,
+  IFacebookCommentList, IFacebookMedia, IFacebookPage, IFacebookPageDetail, IFacebookPagePost, IFacebookPost, IFacebookPostCounts, IFacebookPostRequest, IFacebookReplyResult,
   FacebookMediaKind,
 } from '../types/facebook.types';
 
@@ -11,7 +11,8 @@ const base = '/api/assets/social/facebook';
 export const facebookKeys = {
   all: ['social', 'facebook'] as const,
   pages: ['social', 'facebook', 'pages'] as const,
-  posts: (q: IPageQuery) => ['social', 'facebook', 'posts', q] as const,
+  posts: (q: IPageQuery, deleted = false) => ['social', 'facebook', 'posts', deleted, q] as const,
+  postCounts: ['social', 'facebook', 'post-counts'] as const,
   mediaUrl: (id: string) => ['social', 'facebook', 'media-url', id] as const,
   page: (id: string) => ['social', 'facebook', 'page', id] as const,
   pagePosts: (id: string, q: IPageQuery, deleted = false) => ['social', 'facebook', 'page', id, 'posts', deleted, q] as const,
@@ -24,7 +25,12 @@ const afterQs = (after: string | null) => (after ? `?after=${encodeURIComponent(
 
 export const facebookApi = {
   pages: () => http<IFacebookPage[]>(`${base}/pages`),
-  posts: (q: IPageQuery) => http<IPaged<IFacebookPost>>(`${base}/posts?${pageQs(q)}`),
+  /** `deleted` = chỉ bài đã xoá khỏi danh sách OfficeHub (TEST-214, HR / Quản trị viên — người khác 403); mặc định bỏ bài đã xoá. */
+  posts: (q: IPageQuery, deleted = false) => http<IPaged<IFacebookPost>>(`${base}/posts?${pageQs(q)}${deleted ? '&deleted=true' : ''}`),
+  /** Số bài đã xoá cho bộ lọc "Đã xoá (N)" — chỉ HR / Quản trị viên. */
+  postCounts: () => http<IFacebookPostCounts>(`${base}/posts/counts`),
+  /** Xoá mềm (TEST-214): chỉ gỡ khỏi danh sách OfficeHub, không gọi Facebook. 409 = còn trang chờ đăng; 403 = không phải người đăng / HR. */
+  remove: (id: string) => http<IFacebookPost>(`${base}/posts/${id}`, { method: 'DELETE' }),
   create: (body: IFacebookPostRequest) => httpPost<IFacebookPost>(`${base}/posts`, body),
   /** Sửa bài đã hẹn còn chờ (TEST-208): 409 = đã / đang gửi đi, không sửa được nữa. */
   update: (id: string, body: IFacebookPostRequest) => http<IFacebookPost>(`${base}/posts/${id}`, { method: 'PUT', body: JSON.stringify(body) }),

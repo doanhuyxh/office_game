@@ -14,11 +14,15 @@ const busy = (page: IPaged<IFacebookPost> | undefined) => {
   return !!page?.items.some((p) => p.targets.some((t) => t.status === 'Publishing' || (t.status === 'Pending' && Date.parse(t.dueAt) <= soon)));
 };
 
-export const useFacebookPosts = (q: IPageQuery) =>
+export const useFacebookPosts = (q: IPageQuery, deleted = false) =>
   useQuery({
-    queryKey: facebookKeys.posts(q), queryFn: () => facebookApi.posts(q), placeholderData: (prev) => prev,
+    queryKey: facebookKeys.posts(q, deleted), queryFn: () => facebookApi.posts(q, deleted), placeholderData: (prev) => prev,
     refetchInterval: (query) => (busy(query.state.data) ? 4_000 : 60_000),
   });
+
+/** Số bài đã xoá (TEST-214) — chỉ gọi khi là HR / Quản trị viên. */
+export const useFacebookPostCounts = (enabled: boolean) =>
+  useQuery({ queryKey: facebookKeys.postCounts, queryFn: facebookApi.postCounts, enabled, retry: false, meta: { quiet: true } });
 
 export const useFacebookMediaUrl = (id: string) =>
   useQuery({ queryKey: facebookKeys.mediaUrl(id), queryFn: () => facebookApi.mediaUrl(id), staleTime: 8 * 60_000, retry: false, meta: { quiet: true } });

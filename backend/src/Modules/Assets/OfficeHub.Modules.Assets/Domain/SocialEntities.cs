@@ -146,6 +146,9 @@ public sealed class SocialPost
     /// <summary>Lần sửa gần nhất (TEST-208); null = chưa sửa.</summary>
     public DateTimeOffset? EditedAt { get; set; }
     public string? EditedByName { get; set; }
+    /// <summary>Xoá mềm khỏi danh sách OfficeHub (TEST-214): giữ dòng, đích, ảnh / video; bài trên Facebook không đổi. null = chưa xoá.</summary>
+    public DateTimeOffset? DeletedAt { get; set; }
+    public string? DeletedByName { get; set; }
     public List<SocialPostTarget> Targets { get; set; } = [];
 }
 

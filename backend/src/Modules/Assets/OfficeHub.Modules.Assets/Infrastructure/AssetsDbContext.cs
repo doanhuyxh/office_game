@@ -242,6 +242,7 @@ public sealed class AssetsDbContext(DbContextOptions<AssetsDbContext> options) :
             e.Property(x => x.Link).HasMaxLength(2000);
             e.Property(x => x.AuthorName).HasMaxLength(200);
             e.Property(x => x.EditedByName).HasMaxLength(200);
+            e.Property(x => x.DeletedByName).HasMaxLength(200);
             e.HasIndex(x => new { x.CreatedAt, x.Id }).HasDatabaseName("ix_social_posts_created");
             e.HasIndex(x => x.AuthorUserId).HasDatabaseName("ix_social_posts_author");
             e.HasMany(x => x.Targets).WithOne().HasForeignKey(t => t.PostId).OnDelete(DeleteBehavior.Cascade);
