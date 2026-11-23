@@ -48,6 +48,18 @@ export function bucketLabel(bucket: string, long = false): string {
   return bucket;
 }
 
+const WEEKDAY = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+
+/** Nhãn kỳ đầy đủ cho thẻ nổi: 2026-11-17 → "Thứ Ba, 17/11/2026" · 2026-11 → "Tháng 11/2026" · 2026 → "Năm 2026". */
+export function bucketLongLabel(bucket: string): string {
+  if (bucket.length === 10) {
+    const [y, m, d] = bucket.split('-').map(Number);
+    return `${WEEKDAY[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]}, ${bucketLabel(bucket, true)}`;
+  }
+  if (bucket.length === 7) return `Tháng ${bucketLabel(bucket)}`;
+  return `Năm ${bucket}`;
+}
+
 /** Mọi kỳ trong khoảng (trục X liên tục, kỳ không có dữ liệu = cột trống). Năm: từ năm đầu có dữ liệu (`firstData`). */
 export function allBuckets(group: AiUsageGroupBy, from: string, to: string, firstData?: string): string[] {
   const out: string[] = [];

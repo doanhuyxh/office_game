@@ -5,6 +5,9 @@
 // admin có ô chọn người / bot (Tất cả / một người), người thường không có ô + API người khác / all → 403, biểu đồ (chú thích ẩn / hiện, Token ↔ Chi phí),
 // bảng theo model, danh sách phiên (lỗi tô đỏ, link việc), Xuất Excel, thẻ Hồ sơ khớp tháng hiện tại (admin không có dữ liệu → không có thẻ),
 // theme tối, điện thoại 390 px (thẻ 2 cột, không tràn ngang). Ảnh vào SHOTS_DIR.
+// TEST-224: thẻ nổi tự vẽ thay `title` của trình duyệt (ChartHoverCard): nội dung Token / Chi phí, số rút gọn, %, dòng cảnh báo phiên thiếu chi phí,
+// hiện ngay, nằm trên cột + lật trái ở mép phải, cột khác mờ, ẩn model ở chú thích, Tháng / Năm, bàn phím, điện thoại chạm hiện / chạm ngoài tắt,
+// cuộn ngang không cắt thẻ, biểu đồ Báo cáo → Trợ lý AI; ảnh 6-card-* / 7-card-* / 8-phone-card / 9-report-card.
 // TEST-195: lọc trạng thái phiên (?status=done|failed|skipped) — API (400, quyền, AND với kind), ô "Trạng thái" ngay sau "Loại phiên", về trang 1,
 // số trang đúng, thẻ / bảng / Excel cùng bộ lọc, giá trị lạ trên URL = không lọc, tải lại giữ bộ lọc, theme sáng + tối (ảnh 5-status-*.png).
 // CHỈ DB tạm. Api (backend/): env ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5283
@@ -164,6 +167,29 @@ const text = (id: string) => `(document.querySelector('[data-testid="${id}"]')?.
 const bars = `document.querySelectorAll('[data-testid="ai-usage-bar"]').length`;
 const statCost = text('ai-usage-stat-cost'), statSessions = text('ai-usage-stat-sessions');
 const loaded = (sessions: number) => `${statSessions}.includes('${sessions}')`;
+// TEST-224: thẻ nổi
+const CARD = `document.querySelector('[data-testid="chart-hover-card"]')`;
+const cardText = `(${CARD}?.innerText ?? '')`;
+const cardShown = `(!!${CARD} && getComputedStyle(${CARD}).visibility === 'visible')`;
+const barSel = (bucket: string) => `document.querySelector('[data-testid="ai-usage-bar"][data-bucket="${bucket}"]')`;
+const geom = (bar: string) => `(() => { const c = ${CARD}?.getBoundingClientRect(), b = ${bar}.getBoundingClientRect();
+  return c ? { cl: c.left, cr: c.right, ct: c.top, cb: c.bottom, bt: b.top, mid: b.left + b.width / 2, vw: document.documentElement.clientWidth, vh: innerHeight } : null; })()`;
+type Geom = { cl: number; cr: number; ct: number; cb: number; bt: number; mid: number; vw: number; vh: number } | null;
+const inView = (g: Geom) => !!g && g.cl >= 0 && g.cr <= g.vw + 0.5 && g.ct >= 0;
+const pointOf = (b: Br, expr: string) => b.evalJs(`(() => { const e = ${expr}; if (!e) return null; e.scrollIntoView({ block: 'center', inline: 'nearest' });
+  const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.bottom - 4 }; })()`) as Promise<{ x: number; y: number } | null>;
+const hoverEl = async (b: Br, expr: string) => {
+  const r = await pointOf(b, expr);
+  if (!r) throw new Error(`Không thấy phần tử: ${expr}`);
+  await b.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: r.x - 1, y: r.y });
+  await b.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: r.x, y: r.y });
+};
+const moveAway = async (b: Br) => { await b.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 3, y: 3 }); await until(b, `!${CARD}`, 2000); };
+const setTheme = async (b: Br, dark: boolean) => {
+  await b.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' }] });
+  await b.evalJs(`document.documentElement.classList.${dark ? 'add' : 'remove'}('dark')`);
+  await b.sleep(300);
+};
 const browserLogin = async (br: Br, user: string, password: string, key?: string) => {
   await br.go(`${BASE}/login`, 1500);
   const st = await br.evalJs(`fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({login:${JSON.stringify(user)},password:${JSON.stringify(password)}})}).then(r=>r.status)`);
@@ -201,25 +227,83 @@ try {
   ok('thời lượng "12 phút 34 giây"', rows.every((r) => r.t.includes('12 phút 34 giây')), rows[0]);
   if (SHOTS) await br.shot(`${SHOTS}/1-day-all.png`);
 
+  // ── TEST-224: thẻ nổi (Token) — hôm nay: opus 1.053.000 token $1,20 + sonnet 1.400 token (s2 không chi phí, h1 $0,10) ──
+  await setTheme(br, false);
+  await hoverEl(br, barSel(today));
+  ok('[224] trỏ cột hôm nay → thẻ hiện ngay (≤ 300 ms), không còn thuộc tính title', await until(br, cardShown, 300)
+    && await br.evalJs(`[...document.querySelectorAll('[data-testid="ai-usage-bar"]')].every(b => !b.hasAttribute('title'))`));
+  const tk = await br.evalJs(cardText) as string;
+  ok('[224] Token: "Thứ …, dd/mm/yyyy" + tổng "1,1 tr token" + chỉ số phụ "· $1,30"', /^(Thứ (Hai|Ba|Tư|Năm|Sáu|Bảy)|Chủ nhật), \d\d\/\d\d\/\d{4}/.test(tk)
+    && tk.includes('1,1 tr token') && tk.includes('· $1,30'), tk);
+  ok('[224] Token: opus "1,1 tr" 99,9 % trước sonnet "1.400" 0,1 %, chữ "token" chỉ một lần, không số đầy đủ', tk.indexOf(OPUS) >= 0 && tk.indexOf(OPUS) < tk.indexOf(SONNET)
+    && /1,1 tr\s+99,9 %/.test(tk) && /1\.400\s+0,1 %/.test(tk) && tk.split('token').length === 2 && !tk.includes('1.053.000'), tk);
+  ok('[224] dòng cuối cảnh báo "⚠ 1 phiên không có chi phí" màu warning, không ghi sau từng model', tk.includes('⚠ 1 phiên không có chi phí') && !tk.includes('(1 phiên')
+    && await br.evalJs(`(() => { const n = [...${CARD}.querySelectorAll('div')].find(d => d.innerText.startsWith('⚠')); return !!n && n.className.includes('text-warning'); })()`), tk);
+  const aria = String(await br.evalJs(`${barSel(today)}.getAttribute('aria-label')`));
+  ok('[224] aria-label của cột mang nội dung tương đương', aria.includes(`${OPUS} 1,1 tr (99,9 %)`) && aria.includes('1 phiên không có chi phí'), aria);
+  await br.sleep(300);
+  const gT = await br.evalJs(geom(barSel(today))) as Geom;
+  ok('[224] thẻ nằm trên vùng cột (không che cột / nhãn trục X), cột cuối sát mép phải → lật sang trái, không tràn màn hình', !!gT && gT.cb <= gT.bt + 1 && gT.cr <= gT.mid + 1 && inView(gT), gT);
+  ok('[224] cột đang trỏ giữ màu, cột khác mờ đi', await br.evalJs(`(() => { const bs = [...document.querySelectorAll('[data-testid="ai-usage-bar"]')];
+    return getComputedStyle(${barSel(today)}).opacity === '1' && bs.filter(b => b.dataset.bucket !== '${today}').every(b => Number(getComputedStyle(b).opacity) < 0.5); })()`));
+  if (SHOTS) await br.shot(`${SHOTS}/6-card-token-light.png`);
+  await hoverEl(br, `document.querySelector('[data-testid="ai-usage-bar"]')`);
+  await until(br, `${cardShown} && !${cardText}.includes('${OPUS}')`, 1000);
+  const gF = await br.evalJs(geom(`document.querySelector('[data-testid="ai-usage-bar"]')`)) as Geom;
+  ok('[224] cột đầu (trống): thẻ mở sang phải (mép trái ở giữa cột), "0 token", không có dòng model', !!gF && gF.cl >= gF.mid - 1 && inView(gF)
+    && await br.evalJs(`${cardText}.includes('0 token') && !${cardText}.includes('%')`), [gF, await br.evalJs(cardText)]);
+  await moveAway(br);
+  ok('[224] rời chuột → thẻ tắt, các cột hết mờ', await br.evalJs(`!${CARD}`) && await until(br, `[...document.querySelectorAll('[data-testid="ai-usage-bar"]')].every(b => getComputedStyle(b).opacity === '1')`, 1500));
+
   // Chú thích ẩn / hiện + Token ↔ Chi phí
   const segs = `[...document.querySelectorAll('[data-testid="ai-usage-bar"] > div > div')].length`;
   const before = await br.evalJs(segs) as number;
   await br.evalJs(`[...document.querySelectorAll('[data-testid="ai-usage-legend"]')].find(b => b.innerText.includes('${OPUS}')).click()`);
   ok('bấm chú thích opus → ẩn phần opus (aria-pressed=false)', await until(br, `${segs} < ${before}`)
     && await br.evalJs(`[...document.querySelectorAll('[data-testid="ai-usage-legend"]')].find(b => b.innerText.includes('${OPUS}')).getAttribute('aria-pressed') === 'false'`));
+  await hoverEl(br, barSel(today));
+  ok('[224] ẩn opus ở chú thích → thẻ không còn dòng opus, tổng chỉ tính sonnet (1.400 token · $0,10, 100 %)', await until(br, `${cardShown} && !${cardText}.includes('${OPUS}')`, 1500)
+    && await br.evalJs(`${cardText}.includes('${SONNET}') && ${cardText}.includes('1.400 token') && ${cardText}.includes('$0,10') && ${cardText}.includes('100 %')`), await br.evalJs(cardText));
+  await moveAway(br);
   await br.evalJs(`[...document.querySelectorAll('[data-testid="ai-usage-legend"]')].find(b => b.innerText.includes('${OPUS}')).click()`);
   ok('bấm lại → hiện lại', await until(br, `${segs} === ${before}`));
   await br.evalJs(`document.querySelector('[data-testid="ai-usage-metric-cost"]').click()`);
-  ok('chuyển "Chi phí": tooltip cột theo $', await until(br, `[...document.querySelectorAll('[data-testid="ai-usage-bar"]')].some(b => b.title.includes('$1,20'))`));
-  ok('chi phí: cột ngày có phiên thiếu chi phí ghi chú trong tooltip', await br.evalJs(`[...document.querySelectorAll('[data-testid="ai-usage-bar"]')].some(b => b.title.includes('phiên không có chi phí'))`));
+  ok('chuyển "Chi phí": aria-label cột theo $ ($1,20)', await until(br, `[...document.querySelectorAll('[data-testid="ai-usage-bar"]')].some(b => (b.getAttribute('aria-label') ?? '').includes('$1,20'))`));
+  await hoverEl(br, barSel(today));
+  await until(br, `${cardShown} && ${cardText}.includes('92,3 %')`, 1500);
+  const ck = await br.evalJs(cardText) as string;
+  ok('[224] Chi phí: tổng "$1,30" + "· 1,1 tr token", opus $1,20 92,3 % trước sonnet $0,10 7,7 %', /\$1,30\s+· 1,1 tr token/.test(ck) && /\$1,20\s+92,3 %/.test(ck) && /\$0,10\s+7,7 %/.test(ck)
+    && ck.indexOf(OPUS) < ck.indexOf(SONNET), ck);
+  ok('chi phí: cột ngày có phiên thiếu chi phí → dòng cảnh báo trong thẻ', ck.includes('⚠ 1 phiên không có chi phí'), ck);
+  if (SHOTS) await br.shot(`${SHOTS}/6-card-cost-light.png`);
+  await setTheme(br, true);
+  await hoverEl(br, barSel(today));
+  const lum = `((c) => { const m = c.match(/oklch\\(([\\d.]+)/); if (m) return Number(m[1]); const n = c.match(/[\\d.]+/g).map(Number); return (n[0] + n[1] + n[2]) / 765; })`;
+  ok('[224] theme tối: thẻ nền popover tối, chữ sáng', await until(br, cardShown, 1500)
+    && await br.evalJs(`${lum}(getComputedStyle(${CARD}).backgroundColor) < 0.4 && ${lum}(getComputedStyle(${CARD}).color) > 0.7`),
+    await br.evalJs(`[getComputedStyle(${CARD}).backgroundColor, getComputedStyle(${CARD}).color]`));
+  if (SHOTS) await br.shot(`${SHOTS}/6-card-cost-dark.png`);
+  await moveAway(br);
+  await setTheme(br, false);
+  await br.evalJs(`${barSel(today)}.focus()`);
+  ok('[224] bàn phím: focus cột → thẻ hiện; blur → tắt', await until(br, `${cardShown} && ${cardText}.includes('$1,30')`, 1000)
+    && await br.evalJs(`(${barSel(today)}.blur(), true)`) && await until(br, `!${CARD}`, 1000));
 
   // Tháng / Năm
   await br.evalJs(`document.querySelector('[data-testid="ai-usage-group-month"]').click()`);
   ok('Tháng: URL ?usage=month, 12 cột, 6 phiên, $4,35', await until(br, `location.search.includes('usage=month') && ${loaded(6)} && ${bars} === 12 && ${statCost}.includes('$4,35')`),
     [await br.evalJs('location.search'), await br.evalJs(bars), await br.evalJs(statCost)]);
+  await hoverEl(br, barSel(thisMonth));
+  ok('[224] Tháng: thẻ dòng đầu "Tháng mm/yyyy"', await until(br, `${cardShown} && ${cardText}.startsWith('Tháng ${thisMonth.slice(5, 7)}/${thisMonth.slice(0, 4)}')`, 1500), await br.evalJs(cardText));
+  if (SHOTS) await br.shot(`${SHOTS}/7-card-month.png`);
+  await moveAway(br);
   await br.evalJs(`document.querySelector('[data-testid="ai-usage-group-year"]').click()`);
   ok('Năm (tất cả): 7 phiên, $7,35, cột 2025 → nay', await until(br, `location.search.includes('usage=year') && ${loaded(7)} && ${statCost}.includes('$7,35')`)
     && await br.evalJs(`document.querySelector('[data-testid="ai-usage-bar"]').dataset.bucket === '2025'`), [await br.evalJs(statCost), await br.evalJs(bars)]);
+  await hoverEl(br, barSel('2025'));
+  ok('[224] Năm: thẻ "Năm 2025", $3,00, opus 100 %', await until(br, `${cardShown} && ${cardText}.startsWith('Năm 2025')`, 1500)
+    && await br.evalJs(`${cardText}.includes('$3,00') && ${cardText}.includes('100 %')`), await br.evalJs(cardText));
+  await moveAway(br);
   await br.go(`${BASE}/ai-access?tab=usage&usage=year`, 2500);
   ok('tải lại giữ bộ lọc Năm từ URL', await until(br, `${loaded(7)} && document.querySelector('[data-testid="ai-usage-group-year"]').getAttribute('aria-pressed') === 'true'`));
 
@@ -314,6 +398,19 @@ try {
   if (SHOTS) await br.shot(`${SHOTS}/2-month-dark.png`);
   await br.evalJs(`document.documentElement.classList.remove('dark')`);
 
+  // TEST-224: biểu đồ Báo cáo → Trợ lý AI dùng cùng thẻ nổi
+  await br.go(`${BASE}/reports?tab=ai`, 3000);
+  const dayBars = `document.querySelectorAll('[data-testid="ai-usage-day-bar"]')`;
+  ok('[224] Báo cáo → Trợ lý AI: biểu đồ có cột ngày', await until(br, `${dayBars}.length > 0`, 10000), await br.evalJs(`${dayBars}.length`));
+  await hoverEl(br, `[...${dayBars}].at(-1)`);
+  const shownR = await until(br, cardShown, 1000);
+  const rk = await br.evalJs(cardText) as string;
+  ok('[224] Báo cáo: trỏ cột → thẻ "Thứ …, dd/mm/yyyy" + "… request" + Thành công / Lỗi / Bị chặn kèm ô màu, không title', shownR
+    && /^(Thứ|Chủ nhật).*\d{4}/.test(rk) && rk.includes('request') && ['Thành công', 'Lỗi', 'Bị chặn'].every((t) => rk.includes(t))
+    && await br.evalJs(`${CARD}.querySelectorAll('.bg-primary, .bg-destructive, .bg-warning').length === 3 && ![...${dayBars}].some(b => b.hasAttribute('title'))`), rk);
+  if (SHOTS) await br.shot(`${SHOTS}/9-report-card.png`);
+  await moveAway(br);
+
   // Hồ sơ admin (không có phiên) → không có thẻ
   await br.go(`${BASE}/profile`, 3000);
   ok('Hồ sơ admin không có phiên → không có thẻ "AI tháng này"', await br.evalJs(`!document.querySelector('[data-testid="ai-month-card"]')`));
@@ -347,6 +444,29 @@ try {
   ok('điện thoại: trang không tràn ngang', await ph.evalJs(`document.documentElement.scrollWidth <= 391`), await ph.evalJs('document.documentElement.scrollWidth'));
   ok('điện thoại: biểu đồ 30 cột, mỗi cột ≥ 13 px (cuộn ngang trong khung)', await ph.evalJs(`[...document.querySelectorAll('[data-testid="ai-usage-bar"]')].every(b => b.getBoundingClientRect().width >= 12.5)
     && (() => { const s = document.querySelector('[data-testid="ai-session-usage-chart"] > div'); return s.scrollWidth > s.clientWidth; })()`));
+  // TEST-224: chạm cột hiện thẻ, cuộn ngang không cắt thẻ, chạm ngoài tắt
+  await ph.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+  const tap = async (x: number, y: number) => {
+    await ph.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    await ph.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await ph.sleep(400);
+  };
+  const scroller = `document.querySelector('[data-testid="ai-session-usage-chart"] > div')`;
+  await ph.evalJs(`(${scroller}.scrollLeft = ${scroller}.scrollWidth, true)`);
+  await ph.sleep(200);
+  const pt = await pointOf(ph, barSel(today));
+  if (pt) await tap(pt.x, pt.y);
+  ok('[224] điện thoại: chạm cột hôm nay → thẻ hiện (200 token · $0,10, sonnet 100 %)', await until(ph, `${cardShown} && ${cardText}.includes('200 token') && ${cardText}.includes('$0,10')`, 2000), await ph.evalJs(cardText));
+  const gP = await ph.evalJs(geom(barSel(today))) as Geom;
+  ok('[224] điện thoại: thẻ trong màn hình 390 px, phía trên cột', inView(gP) && !!gP && gP.cb <= gP.bt + 1, gP);
+  if (SHOTS) await ph.shot(`${SHOTS}/8-phone-card.png`);
+  await ph.evalJs(`(${scroller}.scrollLeft -= 120, true)`);
+  await ph.sleep(300);
+  const gS = await ph.evalJs(geom(barSel(today))) as Geom;
+  ok('[224] điện thoại: cuộn ngang biểu đồ → thẻ đi theo cột, không bị cắt / tràn', inView(gS) && !!gP && !!gS && gS.mid !== gP.mid, [gP, gS]);
+  const out = await pointOf(ph, `document.querySelector('[data-testid="ai-usage-stat-input"]')`);
+  if (out) await tap(out.x, out.y - 10);
+  ok('[224] điện thoại: chạm ra ngoài biểu đồ → thẻ tắt', await until(ph, `!${CARD}`, 2000));
   ok('điện thoại: bảng phiên có nút "Cột"', await ph.evalJs(`!!document.querySelector('[data-testid="ai-usage-tab"] [data-testid="columns-menu"]')`));
   if (SHOTS) await ph.shot(`${SHOTS}/4-phone.png`);
   await ph.go(`${BASE}/profile`, 3000);
