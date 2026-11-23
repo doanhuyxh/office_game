@@ -30,7 +30,10 @@ export interface IProject {
   viaDepartment: boolean;
   businessLineId: string | null; contracts: ISalesContractRef[]; startOn: string | null; endOn: string | null; budgetManDays: number | null; myRole: MemberRole | null;
   /** canWork: tạo / sửa / chuyển việc — dự án đã đóng chỉ quản lý dự án / HR (TEST-213). canComment: bình luận việc, kể cả dự án đã đóng. */
-  canManage: boolean; canWork: boolean; canComment: boolean; memberCount: number; tasks: { open: number; done: number; overdue: number }; milestonesOpen: number; milestonesAccepted: number; createdAt: string;
+  canManage: boolean; canWork: boolean; canComment: boolean; memberCount: number;
+  /** Số trang sổ tay dự án chưa xoá (TEST-215). */
+  wikiPages: number;
+  tasks: { open: number; done: number; overdue: number }; milestonesOpen: number; milestonesAccepted: number; createdAt: string;
   progress: IProjectProgress;
   /** "Đi lần lượt": tiến từng cột một, lùi phải ghi lý do (back-end kiểm). */
   sequential: boolean;
@@ -49,7 +52,7 @@ export interface IMilestone {
 }
 /** workGuide: hướng dẫn làm việc (Markdown) do quản lý dự án soạn — người và BOT đọc trước khi làm. */
 /** Khoá quyền trong dự án (back-end sinh từ ProjectViewer). */
-export type ProjectAccess = 'view' | 'work' | 'manage' | 'columns' | 'effort' | 'finance' | 'documents';
+export type ProjectAccess = 'view' | 'work' | 'manage' | 'columns' | 'effort' | 'finance' | 'documents' | 'wiki' | 'wikiEdit' | 'wikiManage';
 /** myAccess: quyền của người xem trong dự án. */
 export interface IProjectDetail { project: IProject; members: IMember[]; milestones: IMilestone[]; workGuide: string | null; columns: ITaskColumn[]; myAccess: ProjectAccess[] }
 /** Tab Phụ lục: quyền theo vai trò (personas) + phòng ban + thành viên. */

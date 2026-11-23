@@ -63,6 +63,7 @@ export function ProjectOverview({ d, onTab, onEdit, canEffort }: { d: IProjectDe
             ({g.nextMilestone.overdue ? 'quá hạn ' : 'hạn '}{fmtDate(g.nextMilestone.dueOn)})</span>}</> : <span className="text-muted-foreground">—</span>}
           <div className="text-xs text-muted-foreground">Đã nghiệm thu {p.milestonesAccepted}/{p.milestonesOpen + p.milestonesAccepted}</div>
         </Item>}
+        <Item label="Sổ tay" tab="wiki" onTab={onTab} testId="overview-wiki">{p.wikiPages > 0 ? `${p.wikiPages} trang` : <span className="text-muted-foreground">Chưa có trang</span>}</Item>
         <Item label="Thành viên" tab="members" onTab={onTab}>{p.memberCount} người</Item>
       </aside>
     </div>

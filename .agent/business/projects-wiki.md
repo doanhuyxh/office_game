@@ -7,7 +7,7 @@ Tài liệu chữ ở phạm vi **toàn dự án** cho người và agent cùng 
 - **Kho tài liệu** (module Documents, file S3, ban hành / số hiệu / hạn lưu trữ): file chính thức — giữ nguyên vai trò.
 
 Back-end: `Domain/WikiRules.cs` (quy tắc thuần, test `WikiRulesTests`), `Features/WikiEndpoints.cs`, entity `WikiPage` / `WikiPageVersion` trong `Domain/Entities.cs`.
-Tool MCP: TEST-216 (mục [Tool MCP](#tool-mcp-test-216) dưới đây). Phần tiếp: TEST-217 (tab "Sổ tay" trên web).
+Tool MCP: TEST-216 (mục [Tool MCP](#tool-mcp-test-216) dưới đây). Giao diện (tab "Sổ tay" trên web, TEST-217): [projects-wiki-ui.md](projects-wiki-ui.md).
 
 ## Schema (`projects`, migration `ProjectsWiki`)
 

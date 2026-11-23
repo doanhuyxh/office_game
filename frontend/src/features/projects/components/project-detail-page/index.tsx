@@ -29,6 +29,7 @@ import { MilestonesPanel } from '../milestones-panel';
 import { ProjectAppendix } from '../project-appendix';
 import { ProjectFormDialog } from '../project-form-dialog';
 import { ProjectOverview } from '../project-overview';
+import { ProjectWiki } from '../project-wiki';
 import { TaskBoard } from '../task-board';
 import { WorkflowSummary } from '../workflow-summary';
 import { WorkGuideToc } from '../work-guide-toc';
@@ -52,6 +53,9 @@ function ProjectTab({ value, count, children }: { value: string; count?: number 
   );
 }
 
+/** Đổi tab → bỏ `?page=` (trang sổ tay đang mở, chỉ có nghĩa ở tab Sổ tay). */
+const WIKI_TAB_OPTS = { reset: ['page'] } as const;
+
 /** Tiền tố id tiêu đề hướng dẫn (mục lục cuộn tới). */
 const GUIDE_HEADING_PREFIX = 'guide';
 
@@ -62,7 +66,7 @@ const projectQueryFilter = (projectId: string) => ({
     && (q.queryKey.includes(projectId) || ((q.queryKey[1] === 'task' || q.queryKey[1] === 'comments') && q.getObserversCount() > 0)),
 });
 
-/** /projects/$projectId: Công việc · Tổng quan (mô tả Markdown + thông tin nhanh) · Hướng dẫn làm việc · Mốc nghiệm thu · Thay đổi (CR) · Thành viên · Ngày công / Tài chính (theo myAccess) · Phụ lục (phòng ban, thành viên, quyền hạn). */
+/** /projects/$projectId: Công việc · Tổng quan (mô tả Markdown + thông tin nhanh) · Hướng dẫn làm việc · Sổ tay (wiki, `?tab=wiki&page=`) · Mốc nghiệm thu · Thay đổi (CR) · Thành viên · Ngày công / Tài chính (theo myAccess) · Phụ lục (phòng ban, thành viên, quyền hạn). */
 export function ProjectDetailPage() {
   const { projectId } = useParams({ strict: false }) as { projectId: string };
   const { data: d, isLoading, error } = useProject(projectId);
@@ -72,7 +76,7 @@ export function ProjectDetailPage() {
   const access = d?.myAccess ?? [];
   const canEffort = access.includes('effort');
   const canFinance = access.includes('finance') && finance.view;
-  const [tab, setTab] = useTabParam('tasks', ['tasks', 'overview', 'guide', 'milestones', 'changes', 'members', 'appendix', ...(canEffort ? ['effort'] : []), ...(canFinance ? ['finance'] : [])]);
+  const [tab, setTab] = useTabParam('tasks', ['tasks', 'overview', 'guide', 'wiki', 'milestones', 'changes', 'members', 'appendix', ...(canEffort ? ['effort'] : []), ...(canFinance ? ['finance'] : [])], WIKI_TAB_OPTS);
   const [editing, setEditing] = useState(false);
   // "Làm mới" (TEST-150): đánh dấu cũ mọi query của dự án → query đang mở tải lại, query khác chỉ bị đánh dấu (không gọi API thừa).
   // Tab / bộ lọc / vị trí cuộn giữ nguyên vì không remount.
@@ -117,6 +121,7 @@ export function ProjectDetailPage() {
             <ProjectTab value="tasks" count={p.tasks.open}>Công việc</ProjectTab>
             <ProjectTab value="overview">Tổng quan</ProjectTab>
             <ProjectTab value="guide">Hướng dẫn</ProjectTab>
+            <ProjectTab value="wiki" count={p.wikiPages > 0 ? p.wikiPages : undefined}>Sổ tay</ProjectTab>
             <ProjectTab value="milestones" count={`${p.milestonesAccepted}/${p.milestonesOpen + p.milestonesAccepted}`}>Mốc</ProjectTab>
             <ProjectTab value="changes">Thay đổi</ProjectTab>
             <ProjectTab value="members" count={p.memberCount}>Thành viên</ProjectTab>
@@ -153,6 +158,7 @@ export function ProjectDetailPage() {
             </div>
           </div>
         </TabsContent>
+        <TabsContent value="wiki" className="mt-4"><ProjectWiki d={d} /></TabsContent>
         <TabsContent value="milestones" className="mt-4"><MilestonesPanel d={d} /></TabsContent>
         <TabsContent value="changes" className="mt-4"><ChangeRequestsPanel d={d} /></TabsContent>
         <TabsContent value="members" className="mt-4"><MembersPanel d={d} /></TabsContent>
