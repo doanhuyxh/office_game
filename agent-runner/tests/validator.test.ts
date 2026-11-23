@@ -6,6 +6,7 @@ import {
   checkFollow,
   checkMeeting,
   checkTask,
+  commitRefs,
   parseWake,
   pickStartupTasks,
 } from '../src/validator';
@@ -158,6 +159,44 @@ describe('validator', () => {
     expect(actedOnTask(undefined, { comments: [{ id: 'c1', authorName: 'Bot Thử', byBot: true }] }, 'Bot Thử')).toBe(
       true,
     );
+  });
+
+  test('commitRefs (TEST-225): hash commit trong bình luận mới nhất của người khác', () => {
+    const c = (id: string, content: string, authorName = 'Dev Thử', byBot = true) => ({
+      id,
+      authorName,
+      byBot,
+      content,
+    });
+    // hash ngắn trong backtick + hash đầy đủ trong link; không lặp
+    const full = '7ac93010550e4b403ce5cd2edfe3501eb78fde6e';
+    expect(
+      commitRefs(
+        { comments: [c('1', `Commit \`7ac9301\` trên main, xem https://git.example/x/commit/${full}. Lại 7ac9301.`)] },
+        'Bot Thử',
+      ),
+    ).toEqual(['7ac9301', full]);
+    // không phải hash: đoạn UUID, số token, từ toàn chữ, hex quá ngắn / quá dài, chữ hoa, dính tên nhánh / tên file
+    const noise =
+      'Phiên 01a207dd-27e8-729b-96c6-dd356390e2e9 · 19025523 token · defaced · abc123 · ' +
+      `${'a1'.repeat(21)} · 7AC9301 · agent/nv018/test-1a2b3c4 · anh_1a2b3c4d.png`;
+    expect(commitRefs({ comments: [c('1', noise)] }, 'Bot Thử')).toEqual([]);
+    // bình luận của chính agent không tính (cùng tên nhưng không qua token AI = người thật → vẫn tính)
+    expect(commitRefs({ comments: [c('1', 'Không thấy abc1234', 'Bot Thử')] }, 'Bot Thử')).toEqual([]);
+    expect(commitRefs({ comments: [c('1', 'Đã push abc1234', 'Bot Thử', false)] }, 'Bot Thử')).toEqual(['abc1234']);
+    // chỉ 5 bình luận mới nhất của người khác (danh sách cũ → mới); bình luận của agent không chiếm chỗ
+    const many = [
+      c('0', 'cũ quá aaaaaa0'),
+      ...[1, 2, 3, 4].map((i) => c(String(i), `vòng ${i}: bbbbbb${i}`)),
+      c('5', 'review 0000eee', 'Bot Thử'),
+      c('6', 'mới nhất cccccc6'),
+    ];
+    expect(commitRefs({ comments: many }, 'Bot Thử')).toEqual(['bbbbbb1', 'bbbbbb2', 'bbbbbb3', 'bbbbbb4', 'cccccc6']);
+    // tối đa 10 hash; thiếu nội dung / thiếu việc → rỗng
+    const lots = Array.from({ length: 14 }, (_, i) => `a${String(i).padStart(6, '0')}`).join(' ');
+    expect(commitRefs({ comments: [c('1', lots)] }, 'Bot Thử')).toHaveLength(10);
+    expect(commitRefs({ comments: [{ id: 'x', authorName: 'Dev Thử', byBot: true }] }, 'Bot Thử')).toEqual([]);
+    expect(commitRefs(undefined, 'Bot Thử')).toEqual([]);
   });
 
   test('tin đúng', () => {

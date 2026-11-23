@@ -242,6 +242,20 @@ export async function prepareFollowWorktree(
   return path;
 }
 
+/**
+ * Fetch mọi nhánh của origin rồi trả các hash CHƯA nằm trong nhánh nào của origin (TEST-225) — hash lạ / mơ hồ / không phải commit cũng
+ * tính là chưa có. `hashes` phải là hex thuần (`commitRefs`). Fetch lỗi → ném.
+ */
+export async function commitsMissingOnOrigin(git: Git, repo: string, hashes: string[]): Promise<string[]> {
+  await git.out(repo, 'fetch', '--quiet', 'origin');
+  const missing: string[] = [];
+  for (const hash of hashes) {
+    const r = await git.run(repo, 'for-each-ref', '--count=1', `--contains=${hash}`, 'refs/remotes/origin');
+    if (r.code !== 0 || !r.out) missing.push(hash);
+  }
+  return missing;
+}
+
 /** Số commit của nhánh chưa có trên origin/{base} + file đổi (để chặn agent-runner/). */
 export async function branchChanges(git: Git, worktree: string, baseBranch: string) {
   const ahead = Number(await git.out(worktree, 'rev-list', '--count', `origin/${baseBranch}..HEAD`));

@@ -4,7 +4,7 @@
 
 Chủ dự án chốt 2026-11-19: việc chỉ có **người làm** + **người theo dõi** (người review, DevOps… đều là người theo dõi). Việc vào cột có tick **"Đánh thức bot theo dõi"** → OfficeHub gửi tin `column_entered` cho mọi bot theo dõi (trừ người chuyển). Runner **không biết** bot phải làm gì ở cột đó: agent tự đọc hướng dẫn của cột (`columnGuide`, không có thì workGuide) + hướng dẫn chức vụ; cột không phải bước của vai trò mình thì dừng, không bình luận. Thay job `review` (TEST-167) + `deploy` (TEST-168) cũ — hai job đó viết cứng việc của từng vai trò.
 
-Code: `src/jobs/follow.ts`, `src/prompt/follow.ts`, `checkFollow` / `actedOnTask` ở `src/validator.ts`, `prepareFollowWorktree` ở `src/workspace/git.ts`.
+Code: `src/jobs/follow.ts`, `src/prompt/follow.ts`, `checkFollow` / `actedOnTask` / `commitRefs` ở `src/validator.ts`, `prepareFollowWorktree` / `commitsMissingOnOrigin` ở `src/workspace/git.ts`.
 
 ## Nhận tin
 
@@ -27,6 +27,10 @@ Code: `src/jobs/follow.ts`, `src/prompt/follow.ts`, `checkFollow` / `actedOnTask
 | `in_place` | — | bỏ job + bình luận "KHÔNG chạy bước theo dõi" (workspace thật của máy) |
 
 Nối phiên theo quy tắc chung (≤ 10 phút + còn transcript, cùng thư mục). Runner không publish (không push / PR). Văn phòng 3D: đang làm → rảnh / lỗi như việc.
+
+## Chờ commit của người làm có trên origin (TEST-225)
+
+Agent `worktree`: trước khi tạo worktree, runner chờ các commit ghi trong bình luận của việc có trên origin (tối đa 180 giây) — [agent-runner-follow-commits.md](agent-runner-follow-commits.md).
 
 ## Prompt (`prompt/follow.ts`)
 
@@ -56,4 +60,4 @@ Danh sách tên lệnh (hoặc đường dẫn tuyệt đối) mà hướng dẫ
 
 ## Test
 
-`tests/flow.test.ts`: worktree (không theo dõi / cột không đánh thức / cột chọn bot khác → bỏ; worktree `FOLLOW-`, không push / PR, hook chặn push khi `OFFICEHUB_READONLY`, lần sau đưa về origin/main; agent có bình luận mới → bình luận chi phí, không có → không bình luận nhưng vẫn ghi chi phí), none + builtin_tools (cột hoàn thành không tick → bỏ; prompt có shell), none chỉ MCP (chạy được), in_place (bình luận lý do, không chạy CLI), job `deploy` cũ trong hàng đợi → handler follow, `required_bins` thiếu → agent tắt. `validator.test.ts` (`parseWake` column_entered + tin cũ, `checkFollow` cả máy chủ cũ + `wakeBotIds`, `actedOnTask`), `prompt.test.ts` (thứ tự đọc `get_task` → `columnGuide` trước `get_project`, prompt theo 3 loại công cụ, phiên nối tiếp).
+`tests/flow.test.ts`: worktree (không theo dõi / cột không đánh thức / cột chọn bot khác → bỏ; worktree `FOLLOW-`, không push / PR, hook chặn push khi `OFFICEHUB_READONLY`, lần sau đưa về origin/main; agent có bình luận mới → bình luận chi phí, không có → không bình luận nhưng vẫn ghi chi phí), none + builtin_tools (cột hoàn thành không tick → bỏ; prompt có shell), none chỉ MCP (chạy được), in_place (bình luận lý do, không chạy CLI), job `deploy` cũ trong hàng đợi → handler follow, commit trong bình luận chưa có trên origin → chưa chạy CLI, push lên thì chạy, hết trần vẫn chạy (TEST-225), `required_bins` thiếu → agent tắt. `validator.test.ts` (`parseWake` column_entered + tin cũ, `checkFollow` cả máy chủ cũ + `wakeBotIds`, `actedOnTask`, `commitRefs`), `prompt.test.ts` (thứ tự đọc `get_task` → `columnGuide` trước `get_project`, prompt theo 3 loại công cụ, phiên nối tiếp).

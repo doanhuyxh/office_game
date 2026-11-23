@@ -736,6 +736,62 @@ test('column_entered (TEST-180) mode worktree: không theo dõi / cột không �
   }
 }, 40000);
 
+test('column_entered (TEST-225): commit trong bình luận chưa có trên origin → chờ người làm push rồi mới chạy; hết trần vẫn chạy', async () => {
+  const s = runner.agents.get('NV120')!;
+  const seed = join(root, 'seed');
+  const savedWait = runner.followCommitWait;
+  const withComment = (content: string) => {
+    const d = followTask();
+    return { ...d, comments: [...d.comments, { id: 'c-kq', authorName: 'Dev Thử', byBot: true, content }] };
+  };
+  const started = (id: number) => existsSync(join(root, 'data/jobs', String(id), 'args.txt'));
+  try {
+    // người làm đã commit (ở máy họ) và ghi hash vào bình luận, nhưng runner của họ chưa push
+    await run(['git', 'checkout', '-q', '-b', 'viec-nguoi-lam'], seed);
+    writeFileSync(join(seed, 'ket-qua.txt'), 'xong\n');
+    await run(['git', 'add', '.'], seed);
+    await run(['git', 'commit', '-q', '-m', 'feat: việc của người làm'], seed);
+    const hash = await run(['git', 'rev-parse', 'HEAD'], seed);
+    getTaskHook = () =>
+      withComment(
+        `Commit \`${hash.slice(0, 7)}\` trên nhánh viec-nguoi-lam. Phiên 01a207dd-27e8-729b, 19025523 token.`,
+      );
+    runner.followCommitWait = { pollMs: 100, maxMs: 20_000 };
+    const id = await runner.accept(s, followWake);
+    expect(id).not.toBeNull();
+    expect(await waitFor(() => store.getJob(id!)?.status === 'running')).toBe(true);
+    await Bun.sleep(700); // vài nhịp fetch: vẫn chưa có trên origin → CLI chưa được chạy
+    expect(started(id!)).toBe(false);
+    expect(store.getJob(id!)!.status).toBe('running');
+    await run(['git', 'push', '-q', 'origin', 'viec-nguoi-lam'], seed);
+    expect(await waitFor(() => store.getJob(id!)?.status === 'done', 15000)).toBe(true);
+    expect(started(id!)).toBe(true);
+    // repo của agent đã fetch được commit → agent checkout được trong worktree chỉ đọc
+    const wt = join(root, 'worktrees/NV120/FOLLOW-TEST-45');
+    expect((await sh(['git', 'cat-file', '-t', hash], wt)).out).toBe('commit');
+
+    // hash không bao giờ có trên origin (người làm "CHƯA push" / chuỗi không phải commit) → hết trần vẫn chạy
+    getTaskHook = () => withComment('Commit abc1234 trên main');
+    runner.followCommitWait = { pollMs: 100, maxMs: 400 };
+    const late = await runner.accept(s, followWake);
+    expect(await waitFor(() => store.getJob(late!)?.status === 'done', 15000)).toBe(true);
+    expect(started(late!)).toBe(true);
+
+    // hash chỉ có trong bình luận của CHÍNH agent (bot review nhắc lại hash không tìm thấy) → không chờ
+    getTaskHook = () => {
+      const d = followTask();
+      return { ...d, comments: [{ id: 'c-old', authorName: 'Bot Thử', byBot: true, content: 'Không thấy abc1234' }] };
+    };
+    runner.followCommitWait = { pollMs: 60_000, maxMs: 600_000 };
+    const own = await runner.accept(s, followWake);
+    expect(await waitFor(() => store.getJob(own!)?.status === 'done', 15000)).toBe(true);
+  } finally {
+    runner.followCommitWait = savedWait;
+    getTaskHook = null;
+    await run(['git', 'checkout', '-q', 'main'], seed);
+  }
+}, 60000);
+
 test('in_place: gỡ hook do runner cài, giữ nguyên hook của người dùng', async () => {
   const { repo, exec } = await inPlaceSetup();
   const hooks = join(repo, '.git/hooks');

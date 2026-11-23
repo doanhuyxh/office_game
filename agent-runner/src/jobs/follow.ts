@@ -5,8 +5,8 @@ import type { TaskDetail } from '../hub/types';
 import { errText, log } from '../log';
 import { type FollowTools, followPrompt } from '../prompt/follow';
 import type { Job } from '../store';
-import { actedOnTask, checkFollow, type WakeData } from '../validator';
-import { installHooks, prepareFollowWorktree, workspaces } from '../workspace';
+import { actedOnTask, checkFollow, commitRefs, type WakeData } from '../validator';
+import { commitsMissingOnOrigin, type Git, installHooks, prepareFollowWorktree, workspaces } from '../workspace';
 import {
   agentScopedKey,
   type JobHandler,
@@ -36,8 +36,8 @@ export function followJobs(services: JobServices): JobHandler<WakeOf<'follow'>> 
       task_id: scopedId(job),
       task_code: job.label,
     };
-    const before = await s.hub.getTask(wake.task_id);
-    const checked = checkFollow(before, wake, s.employeeId!);
+    let before = await s.hub.getTask(wake.task_id);
+    let checked = checkFollow(before, wake, s.employeeId!);
     if (!checked.ok) return skipJob(store, job, checked.reason);
     // TEST-200: nơi chạy + công cụ theo DỰ ÁN của việc; dự án chưa gắn repo trên máy này → bỏ (lúc nhận tin đã lọc, đây là lần kiểm tra lại).
     const place = workspaceFor(s.cfg, job.project_id);
@@ -58,6 +58,13 @@ export function followJobs(services: JobServices): JobHandler<WakeOf<'follow'>> 
     if (tools === 'repo') {
       for (const warning of await installHooks(git, place.repo, repoBaseBranches(config, place.repo)))
         log('warn', warning, { agent: job.agent, task: job.label });
+      // TEST-225: người làm đổi cột trong phiên, runner của họ push sau phiên → chờ commit ghi trong bình luận có trên origin.
+      if (await awaitCommits(s, job, git, place.repo, before, signal)) {
+        // Đã chờ → việc có thể đã sang cột khác / agent bị bỏ theo dõi: hỏi lại như lúc bắt đầu.
+        before = await s.hub.getTask(wake.task_id);
+        checked = checkFollow(before, wake, s.employeeId!);
+        if (!checked.ok) return skipJob(store, job, checked.reason);
+      }
       try {
         cwd = await prepareFollowWorktree(git, place.repo, config.worktreesDir, job.agent, job.label, place.baseBranch);
       } catch (e) {
@@ -90,6 +97,53 @@ export function followJobs(services: JobServices): JobHandler<WakeOf<'follow'>> 
     sessions.finish(s, job, out, { note });
     // Việc vào cột đánh thức khác giữa phiên (tin mới → `rerun`) → hỏi lại và chạy thêm một lượt.
     if (store.getJob(job.id)?.rerun) await services.accept(s, { kind: 'follow', ...wake });
+  }
+
+  /**
+   * Chờ các commit ghi trong bình luận của việc ({@link commitRefs}) có trên origin: fetch lại theo nhịp, tới trần thì thôi (người làm chưa push
+   * được, hoặc chuỗi đó không phải commit) — bước theo dõi vẫn chạy và agent báo theo hướng dẫn. Trả true nếu đã phải chờ.
+   * Fetch lỗi → không chờ (khâu tạo worktree ngay sau sẽ báo lỗi đó lên việc). Runner dừng lúc đang chờ → {@link RunnerStopped}.
+   */
+  async function awaitCommits(
+    s: AgentState,
+    job: Job,
+    git: Git,
+    repo: string,
+    detail: TaskDetail | undefined,
+    signal: AbortSignal,
+  ): Promise<boolean> {
+    let missing = commitRefs(detail, s.employeeName);
+    if (!missing.length) return false;
+    const { pollMs, maxMs } = services.commitWait();
+    const deadline = Date.now() + maxMs;
+    const ctx = { job: job.id, agent: job.agent, task: job.label };
+    let waited = false;
+    for (;;) {
+      try {
+        missing = await commitsMissingOnOrigin(git, repo, missing);
+      } catch (e) {
+        log('warn', 'không fetch được origin để kiểm tra commit — không chờ', { ...ctx, error: errText(e) });
+        return waited;
+      }
+      if (!missing.length) {
+        if (waited) log('info', 'commit trong bình luận đã có trên origin — chạy bước theo dõi', ctx);
+        return waited;
+      }
+      if (Date.now() + pollMs > deadline) break;
+      if (!waited)
+        log('info', 'commit trong bình luận chưa có trên origin — chờ người làm push', {
+          ...ctx,
+          commits: missing.join(', '),
+          maxSec: Math.round(maxMs / 1000),
+        });
+      waited = true;
+      await pause(pollMs, signal);
+    }
+    log('warn', 'hết thời gian chờ, commit trong bình luận vẫn chưa có trên origin — vẫn chạy bước theo dõi', {
+      ...ctx,
+      commits: missing.join(', '),
+    });
+    return waited;
   }
 
   /** Agent có để lại bình luận / thao tác mới trên việc không (lỗi đọc → coi như có). */
@@ -141,6 +195,22 @@ export function followJobs(services: JobServices): JobHandler<WakeOf<'follow'>> 
       }
     },
   };
+}
+
+/** Ngủ `ms`; runner dừng (signal) → ném {@link RunnerStopped} ngay để job về hàng đợi. */
+function pause(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(new RunnerStopped());
+    const stop = () => {
+      clearTimeout(timer);
+      reject(new RunnerStopped());
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', stop);
+      resolve();
+    }, ms);
+    signal.addEventListener('abort', stop, { once: true });
+  });
 }
 
 /**

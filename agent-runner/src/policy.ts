@@ -29,3 +29,14 @@ export const STARTUP_RECENT_JOB_MIN = 10;
  * Hết lượt mà vẫn lỗi: job việc còn được bắt bù ở lần khởi động sau; chat / họp thì mất.
  */
 export const ADMIT_RETRY_SEC = [30, 120, 600];
+
+/**
+ * Bước theo dõi có repo (TEST-225): commit ghi trong bình luận của việc chưa có trên origin (người làm đổi cột TRONG phiên, runner của họ
+ * push SAU phiên) → fetch lại mỗi ngần này giây, tối đa {@link FOLLOW_COMMIT_WAIT_SEC} giây rồi vẫn chạy.
+ */
+export const FOLLOW_COMMIT_POLL_SEC = 10;
+export const FOLLOW_COMMIT_WAIT_SEC = 180;
+
+/** Chỉ tìm hash commit trong ngần này bình luận mới nhất (không tính bình luận của chính agent), lấy tối đa ngần này hash. */
+export const FOLLOW_COMMIT_COMMENTS = 5;
+export const FOLLOW_COMMIT_MAX_REFS = 10;

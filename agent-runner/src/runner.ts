@@ -23,6 +23,8 @@ import {
   STARTUP_CATCHUP_MAX,
   STARTUP_RECENT_JOB_MIN,
   TELEGRAM_RETRY_SEC,
+  FOLLOW_COMMIT_POLL_SEC,
+  FOLLOW_COMMIT_WAIT_SEC,
 } from './policy';
 import { currentKind, type Job, type JobKind, type Store } from './store';
 import { TelegramClient, type TgMessage } from './telegram';
@@ -48,6 +50,8 @@ export class Runner {
   private readonly admitRetries = new Set<ReturnType<typeof setTimeout>>();
   /** Nhịp thử lại khi không hỏi lại được OfficeHub (ms); test đặt ngắn hơn. */
   admitRetryMs = ADMIT_RETRY_SEC.map((sec) => sec * 1000);
+  /** Bước theo dõi chờ commit của người làm có trên origin (TEST-225): nhịp fetch lại + trần chờ (ms); test đặt ngắn hơn. */
+  followCommitWait = { pollMs: FOLLOW_COMMIT_POLL_SEC * 1000, maxMs: FOLLOW_COMMIT_WAIT_SEC * 1000 };
   /** Git của runner (env của runner); thao tác cho agent dùng `gitFor(agent)` (HOME / PATH của agent). */
   readonly git: Git;
   private readonly handlers: JobHandlers;
@@ -62,6 +66,7 @@ export class Runner {
       store,
       sessions: new Sessions(config, store, this.git),
       gitFor: (agent, place) => this.gitFor(agent, place),
+      commitWait: () => this.followCommitWait,
       accept: (s, wake) => this.accept(s, wake),
     });
     const source = { host: sourceHost(), dbId: store.dbId() };

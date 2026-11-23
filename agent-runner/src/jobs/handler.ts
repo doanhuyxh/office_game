@@ -31,6 +31,8 @@ export interface JobServices {
   sessions: Sessions;
   /** Git với HOME / PATH của agent; `place` = nơi làm của dự án đang chạy (nhánh gốc cho hook pre-push). */
   gitFor(agent: AgentConfig, place?: ProjectWorkspace): Git;
+  /** Bước theo dõi chờ commit có trên origin (TEST-225): nhịp fetch lại + trần chờ (ms) — đọc mỗi lần chạy, test đặt ngắn hơn. */
+  commitWait(): { pollMs: number; maxMs: number };
   /** Nhận một tin đánh thức như khi nó tới từ Telegram (handler dùng để xếp thêm một lượt sau phiên). */
   accept(s: AgentState, wake: Wake): Promise<number | null>;
 }

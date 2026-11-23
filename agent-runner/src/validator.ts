@@ -1,4 +1,5 @@
 import type { ChatSummary, MeetingState, MyTask, TaskDetail, TaskRef } from './hub/types';
+import { FOLLOW_COMMIT_COMMENTS, FOLLOW_COMMIT_MAX_REFS } from './policy';
 import type { TgMessage } from './telegram';
 
 /** Dữ liệu tin đánh thức VIỆC (TEST-42): JSON có 4 trường (+ `event` assigned / returned / ready / mentioned — runner chưa phân biệt). */
@@ -226,6 +227,25 @@ export function actedOnTask(
     (after.comments ?? []).some((c) => mine(c, c?.authorName)) ||
     (after.activities ?? []).some((a) => mine(a, a?.actorName))
   );
+}
+
+/** Chuỗi hex 7–40 ký tự đứng riêng (không dính chữ / số / `_` / `-` hai bên — loại đoạn của UUID, tên nhánh, tên file). */
+const HEX_TOKEN = /(?<![\w-])[0-9a-f]{7,40}(?![\w-])/g;
+
+/**
+ * Hash commit người làm ghi trong bình luận của việc (TEST-225) — bước theo dõi có repo chờ chúng có trên origin rồi mới chạy: người làm
+ * đổi cột TRONG phiên, runner của họ push SAU phiên, nên bot theo dõi có thể được đánh thức trước khi commit lên origin.
+ * Chỉ xét {@link FOLLOW_COMMIT_COMMENTS} bình luận mới nhất KHÔNG phải của chính agent (bot review hay nhắc lại hash không tìm thấy).
+ * Phải có cả chữ lẫn số (loại số token "19025523", từ toàn chữ); nhận nhầm một chuỗi không phải commit chỉ làm bước theo dõi chờ hết trần.
+ * Kết quả là hex thuần → an toàn làm tham số lệnh git.
+ */
+export function commitRefs(detail: TaskDetail | null | undefined, myName: string | undefined): string[] {
+  const others = (detail?.comments ?? []).filter((c) => !(c?.byBot === true && !!myName && c.authorName === myName));
+  const refs = new Set<string>();
+  for (const c of others.slice(-FOLLOW_COMMIT_COMMENTS))
+    for (const hex of (typeof c?.content === 'string' ? c.content : '').match(HEX_TOKEN) ?? [])
+      if (/\d/.test(hex) && /[a-f]/.test(hex)) refs.add(hex);
+  return [...refs].slice(0, FOLLOW_COMMIT_MAX_REFS);
 }
 
 /** Việc đã kiểm tra xong: tên, mã + mã các việc liên quan để đưa vào prompt (TEST-164). */

@@ -24,8 +24,11 @@ export interface TaskDetail {
   columns?: { id?: string; wakeFollowers?: boolean; wakeBotIds?: string[]; isReview?: boolean }[];
   /** Người theo dõi (TEST-160). */
   followers?: { employeeId?: string }[];
-  /** Bình luận mới nhất (mặc định 20) — runner chỉ xét id / người viết / cờ BOT, không đọc nội dung. */
-  comments?: { id?: string; authorName?: string; byBot?: boolean }[];
+  /**
+   * Bình luận mới nhất (mặc định 20, cũ → mới) — runner xét id / người viết / cờ BOT; `content` chỉ để tìm hash commit cần chờ có trên
+   * origin trước bước theo dõi (`commitRefs`, TEST-225), không đưa vào prompt / lệnh nào khác.
+   */
+  comments?: { id?: string; authorName?: string; byBot?: boolean; content?: string }[];
   /** Lịch sử mới nhất (mặc định 20) — như trên. */
   activities?: { id?: string; actorName?: string; byBot?: boolean }[];
   /** Việc đứng trước: phải `ready` (không có trường → `done`) thì việc này mới bắt đầu. */
