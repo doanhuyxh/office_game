@@ -18,6 +18,9 @@
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.129 0.042 264.695);
   --popover: oklch(1 0 0);
+  /* Lớp phủ modal (TEST-226): sáng = ám slate nhẹ, không quá đen; nested = modal mở chồng trên modal khác, chỉ phủ thêm nhẹ. */
+  --overlay: oklch(0.129 0.042 264.695 / 40%);
+  --overlay-nested: oklch(0.129 0.042 264.695 / 15%);
   --popover-foreground: oklch(0.129 0.042 264.695);
   --primary: oklch(0.208 0.042 265.755);
   --primary-foreground: oklch(0.984 0.003 247.858);
@@ -60,6 +63,9 @@
   --card: oklch(0.14 0.04 259.21);
   --card-foreground: oklch(0.984 0.003 247.858);
   --popover: oklch(0.208 0.042 265.755);
+  /* Tối: nền đã gần đen → phủ đen đậm hơn để modal (bg-background + viền) tách hẳn khỏi nền. */
+  --overlay: oklch(0 0 0 / 65%);
+  --overlay-nested: oklch(0 0 0 / 30%);
   --popover-foreground: oklch(0.984 0.003 247.858);
   --primary: oklch(0.929 0.013 255.508);
   --primary-foreground: oklch(0.208 0.042 265.755);
@@ -107,6 +113,7 @@
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
+  --color-overlay: var(--overlay);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
@@ -185,5 +192,37 @@
   button:not(:disabled),
   [role='button']:not(:disabled) {
     cursor: pointer;
+  }
+}
+
+/*
+ * Lớp phủ modal dùng chung (TEST-226) — class gắn ở components/common/modal-overlay.ts (Dialog, AlertDialog, Sheet, confirmDialog).
+ * Nền phía sau mờ đi = phủ màu --overlay theo theme + blur nhẹ. Ở @layer components → className truyền tại chỗ dùng vẫn ghi đè được.
+ * - Modal lồng nhau (vd confirmDialog mở trên Dialog): Radix portal thẳng lớp phủ vào <body> (không có div bọc), modal mở sau đứng sau
+ *   → lớp phủ đứng sau một lớp phủ khác chỉ phủ --overlay-nested, không blur → không chồng thành đen kịt.
+ * - Văn phòng 3D (.office-root): blur trên canvas WebGL bắt trình duyệt làm mờ lại mỗi khung hình → chỉ phủ tối.
+ * - prefers-reduced-transparency: chỉ phủ tối.
+ * Toast (sonner, z-index rất cao) vẽ trên lớp phủ nên không bị mờ.
+ */
+@layer components {
+  .modal-overlay {
+    background-color: var(--overlay);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
+  body > .modal-overlay ~ .modal-overlay {
+    background-color: var(--overlay-nested);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  body:has(.office-root) .modal-overlay {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .modal-overlay {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
   }
 }
