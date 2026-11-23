@@ -91,6 +91,12 @@ public sealed record ProjectFinancialsDto(Guid ProjectId, string Code, string Na
     long DirectExpense, long Profit, decimal? MarginPercent, long Collected, long Outstanding, decimal ManDays, decimal? BudgetManDays, bool HasEstimate,
     List<ContractMoneyDto> Contracts, List<MonthMoneyDto> Months, List<CategoryMoneyDto> Categories, List<PersonMoneyDto>? People);
 
+/// <summary>Dự án đang chạy cần chú ý (<c>GET /api/projects/financials/alerts</c>): cờ lỗ / vượt / sắp vượt ngân sách ngày công (<see cref="ProjectCostRules.Alerts"/>).</summary>
+/// <param name="BudgetUsedPercent">% ngân sách ngày công đã dùng; không có ngân sách → null.</param>
+/// <param name="HasEstimate">Có tháng nhân công ước tính (chưa chốt lương).</param>
+public sealed record ProjectAlertDto(Guid ProjectId, string Code, string Name, ProjectKind Kind, long Revenue, long Profit, decimal? MarginPercent, decimal ManDays,
+    decimal? BudgetManDays, decimal? BudgetUsedPercent, bool HasEstimate, bool Loss, bool OverBudget, bool NearBudget);
+
 /// <summary>
 /// Lãi / lỗ dự án (<see cref="ProjectCostRules"/>): hợp đồng bán (Sales) + thu / chi gắn dự án (Finance) + nhân công = ngày công × chi phí lương (Payroll).
 /// Tính khi đọc, không lưu số tiền. CHỈ gọi sau khi đã kiểm tra quyền Xem tài chính.

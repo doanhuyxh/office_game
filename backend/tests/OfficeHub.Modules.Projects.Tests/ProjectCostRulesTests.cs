@@ -71,4 +71,23 @@ public class ProjectCostRulesTests
         Assert.Null(CheckTotal(33.33m, 66.66m));
         Assert.NotNull(CheckTotal(50, 50.01m));
     }
+
+    [Theory]
+    [InlineData(-1L, 10.0, null, true, false, false)]
+    [InlineData(0L, 10.0, null, false, false, false)]
+    [InlineData(5L, 79.9, 100.0, false, false, false)]
+    [InlineData(5L, 80.0, 100.0, false, false, true)]      // sắp vượt: ≥ 80 %
+    [InlineData(5L, 100.0, 100.0, false, false, true)]     // đúng bằng ngân sách: chưa vượt
+    [InlineData(-5L, 100.5, 100.0, true, true, false)]   // vượt thì không còn "sắp vượt"
+    [InlineData(5L, 50.0, 0.0, false, false, false)]       // ngân sách 0 = không có
+    public void Alerts_flag_loss_over_and_near_budget(long profit, double manDays, double? budget, bool loss, bool over, bool near) =>
+        Assert.Equal((loss, over, near), Alerts(profit, (decimal)manDays, (decimal?)budget));
+
+    [Fact]
+    public void Budget_used_percent()
+    {
+        Assert.Equal(85.3m, BudgetUsedPercent(25.6m, 30));
+        Assert.Null(BudgetUsedPercent(5, null));
+        Assert.Null(BudgetUsedPercent(5, 0));
+    }
 }

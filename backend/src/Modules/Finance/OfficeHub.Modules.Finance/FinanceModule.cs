@@ -34,6 +34,8 @@ public sealed class FinanceModule : IModule
         var g = api.MapGroup("/finance").WithTags("Finance").RequireAuthorization();
         SetupEndpoints.Map(g);
         LedgerEndpoints.Map(g);
+        DashboardEndpoints.Map(g);
+        DashboardEndpoints.Map(g);
         ExpenseEndpoints.Map(g);
         AttachmentEndpoints.Map(g);
     }

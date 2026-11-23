@@ -55,6 +55,46 @@ public static class SalesRules
         return days <= 0 ? null : days <= 30 ? "1-30" : days <= 60 ? "31-60" : days <= 90 ? "61-90" : ">90";
     }
 
+    public static readonly string[] AgingBuckets = ["1-30", "31-60", "61-90", ">90"];
+
+    /// <summary>
+    /// Tổng hợp công nợ toàn công ty (Tổng quan giám đốc, TEST-220) — cùng quy tắc với <c>GET /api/sales/receivables</c>:
+    /// mỗi đợt (chưa huỷ, của hợp đồng đang hiệu lực) theo <see cref="InstallmentStatus"/>; đợt đã thu đủ bỏ qua; tuổi nợ theo <see cref="AgingBucket"/>.
+    /// </summary>
+    public static Contracts.ReceivablesOutlook SummarizeReceivables(IEnumerable<(long Amount, long Collected, DateOnly DueOn)> items, DateOnly today)
+    {
+        long outstanding = 0, overdue = 0, dueSoon = 0;
+        var overdueCount = 0;
+        var buckets = AgingBuckets.ToDictionary(b => b, _ => (Amount: 0L, Count: 0));
+        foreach (var (amount, collected, dueOn) in items)
+        {
+            var st = InstallmentStatus(false, amount, collected, dueOn, today);
+            if (st == InstallmentState.Paid) continue;
+            var remaining = Math.Max(0, amount - collected);
+            outstanding += remaining;
+            if (st == InstallmentState.DueSoon) dueSoon += remaining;
+            if (st != InstallmentState.Overdue) continue;
+            overdue += remaining;
+            overdueCount++;
+            if (AgingBucket(dueOn, today) is { } b) buckets[b] = (buckets[b].Amount + remaining, buckets[b].Count + 1);
+        }
+        return new(outstanding, overdue, overdueCount, dueSoon, [.. AgingBuckets.Select(b => new Contracts.AgingBucketSum(b, buckets[b].Amount, buckets[b].Count))]);
+    }
+
+    private static readonly OpportunityStage[] OpenStages = [OpportunityStage.Lead, OpportunityStage.Contacted, OpportunityStage.Quoted, OpportunityStage.Negotiating];
+
+    /// <summary>Pipeline toàn công ty: chỉ cơ hội đang mở (<see cref="IsClosed"/> = false), trọng số theo <see cref="Weighted"/>; đủ 4 giai đoạn mở.</summary>
+    public static Contracts.PipelineOutlook SummarizePipeline(IEnumerable<(OpportunityStage Stage, long Value, int Probability)> opportunities)
+    {
+        var open = opportunities.Where(o => !IsClosed(o.Stage)).ToList();
+        var byStage = OpenStages.Select(s =>
+        {
+            var rows = open.Where(o => o.Stage == s).ToList();
+            return new Contracts.PipelineStageSum(s.ToString(), rows.Count, rows.Sum(o => o.Value), rows.Sum(o => Weighted(o.Value, o.Probability, o.Stage)));
+        }).ToList();
+        return new(open.Count, byStage.Sum(x => x.Value), byStage.Sum(x => x.Weighted), byStage);
+    }
+
     /// <summary>Lịch thu hằng tháng: <paramref name="count"/> đợt, cùng ngày trong tháng (tháng ngắn → ngày cuối tháng).</summary>
     public static List<(string Title, DateOnly DueOn, long Amount)> MonthlySchedule(DateOnly firstDue, int count, long amountPerMonth)
     {

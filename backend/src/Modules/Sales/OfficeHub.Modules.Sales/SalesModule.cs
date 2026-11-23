@@ -27,6 +27,7 @@ public sealed class SalesModule : IModule
         services.AddScoped<OfficeHub.Modules.Approval.Contracts.IApprovalHandler, QuoteApprovalHandler>();
         services.AddScoped<OfficeHub.Modules.Sales.Contracts.ISalesContractsLookup, SalesContractsLookup>();
         services.AddScoped<OfficeHub.Modules.Sales.Contracts.ISalesRevenueLookup, SalesRevenueLookup>();
+        services.AddScoped<OfficeHub.Modules.Sales.Contracts.ISalesOutlook, SalesOutlook>();
         services.AddHostedService<SalesMigrator>();
         services.AddHostedService<SalesReminderJob>();
     }

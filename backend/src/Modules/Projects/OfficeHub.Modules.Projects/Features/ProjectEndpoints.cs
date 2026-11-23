@@ -78,6 +78,7 @@ internal static class ProjectEndpoints
         g.MapGet("/{id:guid}/installments", ProjectInstallmentsAsync);
         g.MapGet("/{id:guid}/financials", FinancialsAsync);
         g.MapGet("/financials", AllFinancialsAsync);
+        g.MapGet("/financials/alerts", FinancialAlertsAsync);
     }
 
     internal static async Task<List<Guid>> ContractIdsAsync(ProjectsDbContext db, Guid projectId, CancellationToken ct) =>
@@ -120,6 +121,25 @@ internal static class ProjectEndpoints
         if (status is { } s) q = q.Where(p => p.Status == s);
         var rows = await finance.ComputeAsync(await q.OrderBy(p => p.Status).ThenBy(p => p.Name).ToListAsync(ct), false, ct);
         return TypedResults.Ok(rows.Select(r => r with { Months = [], Categories = [] }).ToList());
+    }
+
+    /// <summary>
+    /// Dự án đang chạy cần chú ý (Tổng quan giám đốc, TEST-220): lỗ / vượt / sắp vượt ngân sách ngày công (<see cref="ProjectCostRules.Alerts"/>).
+    /// Chỉ quyền Xem tài chính; tách khỏi /api/finance/dashboard vì tính nhân công chậm. Token AI không có route này.
+    /// </summary>
+    private static async Task<Results<Ok<List<ProjectAlertDto>>, ProblemHttpResult>> FinancialAlertsAsync(ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
+        ProjectFinance finance, CancellationToken ct)
+    {
+        var v = await access.ViewerAsync(user, ct);
+        if (!v.FinanceView) return Forbidden("Chỉ người có quyền Xem tài chính xem lãi / lỗ dự án");
+        var projects = await db.Projects.AsNoTracking().Include(x => x.Members).Where(p => p.Status == ProjectStatus.Active).OrderBy(p => p.Name).ToListAsync(ct);
+        var rows = await finance.ComputeAsync(projects, false, ct);
+        return TypedResults.Ok(rows.Select(r =>
+        {
+            var (loss, over, near) = ProjectCostRules.Alerts(r.Profit, r.ManDays, r.BudgetManDays);
+            return new ProjectAlertDto(r.ProjectId, r.Code, r.Name, r.Kind, r.Revenue, r.Profit, r.MarginPercent, r.ManDays, r.BudgetManDays,
+                ProjectCostRules.BudgetUsedPercent(r.ManDays, r.BudgetManDays), r.HasEstimate, loss, over, near);
+        }).Where(a => a.Loss || a.OverBudget || a.NearBudget).OrderBy(a => a.Profit).ToList());
     }
 
     private static async Task<IReadOnlySet<Guid>> DepartmentIdsAsync(IEmployeeDirectory dir, CancellationToken ct) =>

@@ -30,4 +30,23 @@ public static class ProjectCostRules
     /// <summary>% lãi trên tổng thu (doanh thu + thu khác), 1 chữ số thập phân. Chưa có thu → null.</summary>
     public static decimal? MarginPercent(long profit, long revenue, long otherIncome) =>
         revenue + otherIncome <= 0 ? null : Math.Round(profit * 100m / (revenue + otherIncome), 1, MidpointRounding.AwayFromZero);
+
+    /// <summary>Ngưỡng "sắp vượt" ngân sách ngày công: đã dùng ≥ 80 % (Tổng quan giám đốc, TEST-220).</summary>
+    public const decimal NearBudgetPercent = 80m;
+
+    /// <summary>
+    /// Cờ cảnh báo của một dự án đang chạy: lỗ (lãi &lt; 0); vượt ngân sách ngày công (công &gt; ngân sách);
+    /// sắp vượt (công ≥ 80 % ngân sách, chưa vượt). Không có ngân sách (null / ≤ 0) → không có cờ ngân sách.
+    /// </summary>
+    public static (bool Loss, bool OverBudget, bool NearBudget) Alerts(long profit, decimal manDays, decimal? budgetManDays)
+    {
+        var loss = profit < 0;
+        if (budgetManDays is not { } b || b <= 0) return (loss, false, false);
+        var over = manDays > b;
+        return (loss, over, !over && manDays * 100m >= b * NearBudgetPercent);
+    }
+
+    /// <summary>% ngân sách ngày công đã dùng, 1 chữ số thập phân; không có ngân sách → null.</summary>
+    public static decimal? BudgetUsedPercent(decimal manDays, decimal? budgetManDays) =>
+        budgetManDays is { } b && b > 0 ? Math.Round(manDays * 100m / b, 1, MidpointRounding.AwayFromZero) : null;
 }
