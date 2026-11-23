@@ -31,6 +31,8 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
     public DbSet<TaskDependency> Dependencies => Set<TaskDependency>();
     public DbSet<TaskFollower> Followers => Set<TaskFollower>();
     public DbSet<AgentSettings> AgentSettings => Set<AgentSettings>();
+    public DbSet<WikiPage> WikiPages => Set<WikiPage>();
+    public DbSet<WikiPageVersion> WikiPageVersions => Set<WikiPageVersion>();
 
     /// <summary>Giới hạn đội agent đang áp dụng (đọc mỗi lần: chỉ request qua token AI cần, truy vấn theo khoá chính).</summary>
     public async Task<AgentLimits> AgentLimitsAsync(CancellationToken ct) =>
@@ -239,6 +241,32 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.HasIndex(x => new { x.TaskId, x.At }).HasDatabaseName("ix_task_activities_task");
             e.HasIndex(x => x.At).HasDatabaseName("ix_task_activities_time"); // luồng thay đổi (/activity)
             e.HasOne<TaskItem>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
+        });
+        // Sổ tay dự án (TEST-215): trang Markdown theo cây + mọi phiên bản. Tên trang không trùng trong cùng cha — kiểm ở WikiEndpoints (xoá mềm, gốc ParentId null).
+        b.Entity<WikiPage>(e =>
+        {
+            e.ToTable("wiki_pages");
+            e.Property(x => x.Title).HasMaxLength(WikiRules.MaxTitle);
+            e.Property(x => x.Summary).HasMaxLength(WikiRules.MaxSummary);
+            e.Property(x => x.Content).HasMaxLength(WikiRules.MaxContent);
+            e.Property(x => x.LockedByName).HasMaxLength(200);
+            e.Property(x => x.CreatedByName).HasMaxLength(200);
+            e.Property(x => x.UpdatedByName).HasMaxLength(200);
+            e.Property(x => x.DeletedByName).HasMaxLength(200);
+            e.HasIndex(x => new { x.ProjectId, x.ParentId, x.Position }).HasDatabaseName("ix_wiki_pages_tree");
+            e.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<WikiPage>().WithMany().HasForeignKey(x => x.ParentId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<WikiPageVersion>(e =>
+        {
+            e.ToTable("wiki_page_versions");
+            e.Property(x => x.Title).HasMaxLength(WikiRules.MaxTitle);
+            e.Property(x => x.Summary).HasMaxLength(WikiRules.MaxSummary);
+            e.Property(x => x.Content).HasMaxLength(WikiRules.MaxContent);
+            e.Property(x => x.EditedByName).HasMaxLength(200);
+            e.Property(x => x.Note).HasMaxLength(WikiRules.MaxNote);
+            e.HasIndex(x => new { x.PageId, x.Version }).IsUnique().HasDatabaseName("ux_wiki_page_versions_page_version");
+            e.HasOne<WikiPage>().WithMany().HasForeignKey(x => x.PageId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

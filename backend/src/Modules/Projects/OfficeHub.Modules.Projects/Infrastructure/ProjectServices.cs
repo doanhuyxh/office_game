@@ -88,6 +88,10 @@ internal static class ProjectPermissions
         new("effort", "Xem ngày công", (v, id) => v.CanSeeEffort(id)),
         new("finance", "Xem lãi / lỗ dự án", (v, id) => v.CanSeeFinance(id)),
         new("documents", "Kho tài liệu dự án", (v, id) => v.CanSeeDocuments(id)),
+        // Sổ tay dự án (TEST-215, WikiRules): trang khoá / dự án đóng / token AI xét thêm ở WikiEndpoints
+        new("wiki", "Đọc sổ tay dự án (mục lục, trang, lịch sử, tìm)", (v, id) => v.CanSee(id)),
+        new("wikiEdit", "Tạo / sửa / nối thêm / di chuyển trang sổ tay (trang chưa khoá)", (v, id) => v.CanWork(id)),
+        new("wikiManage", "Xoá / khoá / mở khoá trang sổ tay, khôi phục phiên bản (trên web)", (v, id) => v.CanManage(id)),
     ];
 
     public static List<string> Allowed(ProjectViewer v, Guid projectId) => All.Where(c => c.Allowed(v, projectId)).Select(c => c.Key).ToList();

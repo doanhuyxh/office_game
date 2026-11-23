@@ -171,6 +171,12 @@ public class ProjectDocumentScopeTests
     [InlineData("GET", "/api/projects/comment-attachments/" + G + "/preview")]
     [InlineData("PUT", "/api/projects/" + G + "/guide")]                  // chỉ hướng dẫn làm việc (TEST-35)
     [InlineData("PUT", "/api/projects/" + G + "/description")]            // chỉ mô tả dự án (TEST-103)
+    [InlineData("GET", "/api/projects/" + G + "/wiki")]                   // TEST-215: sổ tay dự án — mục lục, tìm, đọc, tạo, sửa, nối thêm
+    [InlineData("GET", "/api/projects/" + G + "/wiki/search")]
+    [InlineData("GET", "/api/projects/" + G + "/wiki/pages/" + G)]
+    [InlineData("POST", "/api/projects/" + G + "/wiki/pages")]
+    [InlineData("PUT", "/api/projects/" + G + "/wiki/pages/" + G)]
+    [InlineData("POST", "/api/projects/" + G + "/wiki/pages/" + G + "/append")]
     [InlineData("GET", "/api/documents/spaces")]
     [InlineData("GET", "/api/documents/folders")]
     [InlineData("GET", "/api/documents/assets")]
@@ -198,6 +204,13 @@ public class ProjectDocumentScopeTests
     [InlineData("PUT", "/api/projects/" + G + "/guide/x")]
     [InlineData("GET", "/api/projects/" + G + "/description")]
     [InlineData("POST", "/api/projects/" + G + "/description")]
+    [InlineData("DELETE", "/api/projects/" + G + "/wiki/pages/" + G)]    // TEST-215: xoá / khoá / khôi phục / di chuyển / lịch sử sổ tay: chỉ web
+    [InlineData("POST", "/api/projects/" + G + "/wiki/pages/" + G + "/lock")]
+    [InlineData("POST", "/api/projects/" + G + "/wiki/pages/" + G + "/unlock")]
+    [InlineData("POST", "/api/projects/" + G + "/wiki/pages/" + G + "/versions/2/restore")]
+    [InlineData("PUT", "/api/projects/" + G + "/wiki/pages/" + G + "/move")]
+    [InlineData("GET", "/api/projects/" + G + "/wiki/pages/" + G + "/versions")]
+    [InlineData("POST", "/api/projects/" + G + "/wiki/pages/not-a-guid/append")]
     [InlineData("PUT", "/api/projects/" + G + "/description/x")]
     [InlineData("POST", "/api/projects/" + G + "/members")]
     [InlineData("PUT", "/api/projects/" + G + "/allocations")]

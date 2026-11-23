@@ -47,6 +47,7 @@ public sealed class ProjectsModule : IModule
         AgentSettingsEndpoints.Map(g); // /agent-settings — giới hạn bot, chỉ admin
         MilestoneEndpoints.Map(g);
         ChangeRequestEndpoints.Map(g);
+        WikiEndpoints.Map(g); // /{id}/wiki — sổ tay dự án (TEST-215)
         ProjectAppendixEndpoints.Map(g); // /{id}/appendix — tab Phụ lục (TEST-40)
         ProjectEndpoints.Map(g);
         // Trang công khai /u/{token} (TEST-175): không đăng nhập, chỉ token link; giới hạn theo IP

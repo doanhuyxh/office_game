@@ -334,3 +334,54 @@ public sealed class TaskFollower
     public Guid EmployeeId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
+
+/// <summary>
+/// Trang sổ tay dự án (wiki, TEST-215): Markdown lưu DB, theo cây (<see cref="ParentId"/> null = gốc, sâu ≤ <see cref="WikiRules.MaxDepth"/>).
+/// Mỗi lần lưu có thay đổi → <see cref="Version"/> + 1 và thêm một dòng <see cref="WikiPageVersion"/> (giữ mọi phiên bản). Xoá mềm (<see cref="DeletedAt"/>).
+/// Quyền: <see cref="WikiRules"/>.
+/// </summary>
+public sealed class WikiPage
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid ProjectId { get; set; }
+    public Guid? ParentId { get; set; }
+    public required string Title { get; set; }
+    /// <summary>Tóm tắt một dòng (mục lục cho agent) — có thể trống.</summary>
+    public string? Summary { get; set; }
+    public string Content { get; set; } = "";
+    public int Version { get; set; }
+    /// <summary>Thứ tự trong cùng cha (0, 1, 2…).</summary>
+    public int Position { get; set; }
+    /// <summary>Khoá: chỉ quản lý dự án / HR (trên web) sửa được.</summary>
+    public bool Locked { get; set; }
+    public string? LockedByName { get; set; }
+    public DateTimeOffset? LockedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public Guid? CreatedByEmployeeId { get; set; }
+    public string CreatedByName { get; set; } = "";
+    public bool CreatedByBot { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+    public Guid? UpdatedByEmployeeId { get; set; }
+    public string UpdatedByName { get; set; } = "";
+    /// <summary>Lần lưu gần nhất qua token AI / MCP (nhãn BOT).</summary>
+    public bool UpdatedByBot { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
+    public string? DeletedByName { get; set; }
+}
+
+/// <summary>Một phiên bản của trang sổ tay (chỉ thêm). Phiên bản 1 = lúc tạo; khôi phục bản cũ = thêm phiên bản mới có nội dung cũ.</summary>
+public sealed class WikiPageVersion
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid PageId { get; set; }
+    public int Version { get; set; }
+    public required string Title { get; set; }
+    public string? Summary { get; set; }
+    public string Content { get; set; } = "";
+    public DateTimeOffset EditedAt { get; set; }
+    public Guid? EditedByEmployeeId { get; set; }
+    public string EditedByName { get; set; } = "";
+    public bool EditedByBot { get; set; }
+    /// <summary>Ghi chú lần sửa (tuỳ chọn, ≤ <see cref="WikiRules.MaxNote"/>).</summary>
+    public string? Note { get; set; }
+}

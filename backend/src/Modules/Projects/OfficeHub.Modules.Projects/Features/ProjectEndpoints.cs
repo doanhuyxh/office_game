@@ -25,10 +25,11 @@ public sealed record ProjectDepartmentDto(Guid Id, string Name, bool IsLead);
 /// <param name="ViaDepartment">Người xem chỉ thấy dự án nhờ phòng ban của mình tham gia → chỉ đọc.</param>
 /// <param name="CanWork">Tạo / sửa / chuyển việc — dự án đã đóng: chỉ quản lý dự án / HR trên web (TEST-213).</param>
 /// <param name="CanComment">Bình luận việc (kèm ảnh / tệp) — thành viên + quản lý, kể cả khi dự án đã đóng (TEST-213).</param>
+/// <param name="WikiPages">Số trang sổ tay dự án chưa xoá (TEST-215).</param>
 public sealed record ProjectDto(Guid Id, string Code, string Name, string? Description, ProjectKind Kind, ProjectStatus Status, List<ProjectDepartmentDto> Departments,
     Guid? BusinessLineId, List<SalesContractRef> Contracts, DateOnly? StartOn, DateOnly? EndOn, decimal? BudgetManDays, ProjectMemberRole? MyRole, bool CanManage, bool CanWork,
     int MemberCount, TaskCounts Tasks, int MilestonesOpen, int MilestonesAccepted, DateTimeOffset CreatedAt, ProjectProgress Progress, bool Sequential,
-    bool CanManageColumns = false, bool ViaDepartment = false, bool CanComment = false);
+    bool CanManageColumns = false, bool ViaDepartment = false, bool CanComment = false, int WikiPages = 0);
 /// <param name="WorkGuide">Hướng dẫn làm việc (Markdown) — chỉ ở chi tiết, không ở danh sách (dài).</param>
 /// <param name="Columns">Cột trạng thái công việc theo thứ tự.</param>
 /// <param name="WorkGuide">Hướng dẫn làm việc mới (Markdown, thay toàn bộ); null / "" = xoá.</param>
@@ -37,7 +38,7 @@ public sealed record ProjectGuideDto(string? WorkGuide);
 /// <param name="Description">Mô tả dự án mới (thay toàn bộ, ≤ 2000); null / "" = xoá.</param>
 public sealed record UpdateProjectDescription(string? Description);
 public sealed record ProjectDescriptionDto(string? Description);
-/// <param name="MyAccess">Quyền của người xem trong dự án (khoá của <see cref="ProjectPermissions"/>: view, work, manage, columns, effort, finance, documents).</param>
+/// <param name="MyAccess">Quyền của người xem trong dự án (khoá của <see cref="ProjectPermissions"/>: view, work, manage, columns, effort, finance, documents, wiki, wikiEdit, wikiManage).</param>
 public sealed record ProjectDetail(ProjectDto Project, List<MemberDto> Members, List<MilestoneDto> Milestones, string? WorkGuide, List<TaskColumnDto> Columns,
     List<string>? MyAccess = null);
 /// <param name="DepartmentIds">Phòng ban tham gia (≤ 20); null = giữ nguyên khi sửa.</param><param name="LeadDepartmentId">Phòng chủ trì — phải nằm trong DepartmentIds.</param>
@@ -146,6 +147,8 @@ internal static class ProjectEndpoints
         var tasks = await db.Tasks.AsNoTracking().Where(t => ids.Contains(t.ProjectId)).Select(t => new { t.ProjectId, Done = t.CompletedAt != null, t.DueOn }).ToListAsync(ct);
         var ms = await db.Milestones.AsNoTracking().Where(m => ids.Contains(m.ProjectId)).Select(m => new { m.ProjectId, m.Status, m.Order, m.Title, m.DueOn }).ToListAsync(ct);
         var depts = (await dir.ListDepartmentsAsync(ct)).ToDictionary(d => d.Id, d => d.Name);
+        var wiki = await db.WikiPages.AsNoTracking().Where(w => ids.Contains(w.ProjectId) && w.DeletedAt == null).GroupBy(w => w.ProjectId)
+            .Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct);
         var links = await db.ProjectContracts.AsNoTracking().Where(x => ids.Contains(x.ProjectId)).OrderBy(x => x.LinkedAt).ToListAsync(ct);
         var contracts = (await sales.GetManyAsync(links.Select(l => l.ContractId).Distinct().ToList(), ct)).ToDictionary(c => c.Id);
         return rows.Select(p =>
@@ -159,7 +162,7 @@ internal static class ProjectEndpoints
                 v.Roles.TryGetValue(p.Id, out var r) ? r : null, v.CanManage(p.Id), v.CanWorkOn(p.Id, p.Status == ProjectStatus.Active), p.Members.Count,
                 new TaskCounts(t.Count(x => !x.Done), t.Count(x => x.Done), t.Count(x => EffortRules.IsOverdue(x.DueOn, x.Done, today))),
                 ms.Count(x => x.ProjectId == p.Id && x.Status == MilestoneStatus.Open), ms.Count(x => x.ProjectId == p.Id && x.Status == MilestoneStatus.Accepted), p.CreatedAt, progress, p.Sequential,
-                v.CanManageColumns(p.Id), v.ViaDepartment(p.Id), v.CanComment(p.Id));
+                v.CanManageColumns(p.Id), v.ViaDepartment(p.Id), v.CanComment(p.Id), wiki.GetValueOrDefault(p.Id));
         }).ToList();
     }
 

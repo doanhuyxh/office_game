@@ -41,12 +41,12 @@ public class ProjectDepartmentAccessTests
 
     // Kỳ vọng từng vai trò — đổi quy tắc ProjectViewer thì test này fail, nhắc kiểm tra lại phụ lục / tài liệu.
     [Theory]
-    [InlineData("manager", "view,work,manage,effort,documents")]
-    [InlineData("member", "view,work,documents")]
-    [InlineData("department", "view")]
-    [InlineData("hr", "view,work,manage,effort,documents")]
-    [InlineData("finance", "view,effort,finance")]
-    [InlineData("columns", "view,work,columns,documents")]
+    [InlineData("manager", "view,work,manage,effort,documents,wiki,wikiEdit,wikiManage")]
+    [InlineData("member", "view,work,documents,wiki,wikiEdit")]
+    [InlineData("department", "view,wiki")]
+    [InlineData("hr", "view,work,manage,effort,documents,wiki,wikiEdit,wikiManage")]
+    [InlineData("finance", "view,effort,finance,wiki")]
+    [InlineData("columns", "view,work,columns,documents,wiki,wikiEdit")]
     public void Appendix_permissions_per_role(string persona, string expected)
     {
         var x = ProjectPermissions.Personas(P).Single(p => p.Key == persona);

@@ -18,7 +18,7 @@
 
 ## Bảng quyền + tab Phụ lục
 
-- `ProjectPermissions.All` — 7 quyền, mỗi quyền gọi đúng một hàm của `ProjectViewer`: `view`, `work`, `manage`, `columns`, `effort`, `finance`, `documents` (`CanSeeDocuments` khớp `DocumentAccess.CanRead` của Documents: HR / thành viên).
+- `ProjectPermissions.All` — 10 quyền, mỗi quyền gọi đúng một hàm của `ProjectViewer`: `view`, `work`, `manage`, `columns`, `effort`, `finance`, `documents` (`CanSeeDocuments` khớp `DocumentAccess.CanRead` của Documents: HR / thành viên), `wiki` / `wikiEdit` / `wikiManage` (sổ tay dự án = `CanSee` / `CanWork` / `CanManage`; trang khoá, dự án đóng, token AI xét thêm ở endpoint — [projects-wiki.md](projects-wiki.md)).
 - `GET /api/projects/{id}/appendix` (ai xem được dự án; token AI không có trong allowlist): `capabilities`, `personas` (Quản lý dự án, Thành viên, Nhân viên phòng ban tham gia, HR / quản trị, Quyền Xem tài chính, Thành viên có chức vụ "Quản lý trạng thái công việc" — quyền tính bằng `ProjectViewer` giả lập), `departments` (chủ trì trước, số nhân viên đang làm), `members` (mã, phòng ban, vai trò, `isBot` từ `IAccountService`, đã nghỉ). FE chỉ hiển thị, không viết cứng quyền. Test `ProjectDepartmentAccessTests` khoá kỳ vọng từng vai trò — đổi quy tắc mà quên cập nhật thì test fail.
 - `GET /api/projects/{id}` trả thêm `myAccess` (khoá quyền của người xem) → FE ẩn / hiện tab Ngày công, Tài chính, nút "Tài liệu dự án"; MCP `get_project` trả kèm để bot biết mình được làm gì.
 
