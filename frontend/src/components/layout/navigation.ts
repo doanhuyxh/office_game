@@ -30,6 +30,7 @@ export const NAVIGATION: NavGroup[] = [
       { to: PATHS.news, label: 'Bảng tin', icon: Newspaper },
       { to: PATHS.chat, label: 'Tin nhắn', icon: MessageSquare },
       { to: PATHS.aiAccess, label: 'Kết nối AI', icon: Bot },
+      { to: PATHS.mcpTools, label: 'Công cụ AI (MCP)', icon: Wrench }, // mọi nhân viên: danh mục tool của máy chủ MCP (tham chiếu; quyền thật Api kiểm tra)
     ],
   },
   {
@@ -65,7 +66,6 @@ export const NAVIGATION: NavGroup[] = [
   {
     title: 'Quản trị',
     items: [
-      { to: PATHS.mcpTools, label: 'Công cụ AI (MCP)', icon: Wrench }, // chỉ admin: danh mục tool của máy chủ MCP
       { to: PATHS.system, label: 'Hệ thống', icon: Server }, // chỉ admin: tài liệu API, log, mail server, tình trạng dịch vụ
     ],
   },

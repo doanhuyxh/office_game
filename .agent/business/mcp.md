@@ -37,7 +37,7 @@ AI client ──POST /mcp (Bearer ohk_…)──▶ OfficeHub.Mcp (BearerGate �
 
 ## Tool (110)
 
-> Màn hình quản trị **"Công cụ AI (MCP)"** (`/mcp-tools`, chỉ admin — `features/mcp-tools/`) liệt kê đầy đủ 110 tool kèm chi tiết (tên, tiêu đề, mô tả, tham số, loại read/write/destructive, endpoint). Catalog `features/mcp-tools/utils/catalog.ts` **bảo trì thủ công** — đổi tool trong `OfficeHub.Mcp/Tools/*.cs` phải cập nhật catalog (luật #9 [AGENTS.md](../../AGENTS.md)).
+> Màn hình **"Công cụ AI (MCP)"** (`/mcp-tools`, mọi nhân viên xem được — menu nhóm Chung dưới "Kết nối AI" + link ở tab Của tôi của `/ai-access`, TEST-219; `features/mcp-tools/`; chỉ là tham chiếu, quyền thật Api kiểm tra theo người dùng) liệt kê đầy đủ 110 tool kèm chi tiết (tên, tiêu đề, mô tả, tham số, loại read/write/destructive, endpoint). Catalog `features/mcp-tools/utils/catalog.ts` **bảo trì thủ công** — đổi tool trong `OfficeHub.Mcp/Tools/*.cs` phải cập nhật catalog (luật #9 [AGENTS.md](../../AGENTS.md)).
 
 Danh sách theo nhóm (tool, endpoint, giới hạn từng tool): [mcp-tools.md](mcp-tools.md).
 

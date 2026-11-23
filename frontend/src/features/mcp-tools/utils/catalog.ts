@@ -3,7 +3,7 @@
  *
  * ⚠️ Khi thêm / sửa / xoá tool trong `backend/src/OfficeHub.Mcp/Tools/*.cs`
  *    PHẢI cập nhật file này cho khớp (tên, tiêu đề, mô tả, tham số, loại, endpoint).
- *    Đây là màn hình tham chiếu cho quản trị viên nên không được để lệch với code.
+ *    Đây là màn hình tham chiếu cho mọi nhân viên (xem trợ lý AI làm được gì) nên không được để lệch với code.
  *    Xem thêm: .agent/business/mcp.md.
  */
 

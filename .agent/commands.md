@@ -24,7 +24,7 @@ dotnet run --project src/OfficeHub.Mcp        # http://localhost:5100/mcp (tuỳ
 
 # 3) Front-end (từ frontend/)
 bun install
-bun run dev                                   # http://localhost:5173, proxy /api → 5080, /rt → 5090 (ws), /mcp + /.well-known/oauth-* → 5100
+bun run dev                                   # http://localhost:5173, proxy /api → 5080, /rt → 5090 (ws), /mcp + /mcp/… (regex, không gồm trang /mcp-tools) + /.well-known/oauth-* → 5100
 ```
 
 `EnvLoader.Load()` tìm `.env` ngược từ thư mục hiện tại → chạy `dotnet` ở đâu trong repo cũng đọc được `.env` gốc.

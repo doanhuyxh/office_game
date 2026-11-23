@@ -1,6 +1,6 @@
 # Tool MCP theo nhóm
 
-> Về [mcp.md](mcp.md) (quyết định, luồng, token, số lượng tool). Nguồn sự thật: `backend/src/OfficeHub.Mcp/Tools/*.cs`; catalog FE `frontend/src/features/mcp-tools/utils/catalog.ts` bảo trì thủ công (luật #9 [AGENTS.md](../../AGENTS.md)). Đổi tool → sửa bảng này + số lượng ở [mcp.md](mcp.md#tool-110).
+> Về [mcp.md](mcp.md) (quyết định, luồng, token, số lượng tool). Nguồn sự thật: `backend/src/OfficeHub.Mcp/Tools/*.cs`; catalog FE `frontend/src/features/mcp-tools/utils/catalog.ts` (màn hình `/mcp-tools`, mọi nhân viên xem được) bảo trì thủ công (luật #9 [AGENTS.md](../../AGENTS.md)). Đổi tool → sửa bảng này + số lượng ở [mcp.md](mcp.md#tool-110).
 
 | Nhóm | Tool |
 |---|---|

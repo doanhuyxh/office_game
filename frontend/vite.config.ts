@@ -29,7 +29,8 @@ export default defineConfig(({ mode }) => {
         '/api': { target: env.VITE_API_TARGET ?? 'http://localhost:5080' },
         '/health': { target: env.VITE_API_TARGET ?? 'http://localhost:5080' }, // trang bảo trì tự kiểm tra API còn sống
         '/rt': { target: env.VITE_RT_TARGET ?? 'http://localhost:5090', ws: true },
-        '/mcp': { target: env.VITE_MCP_TARGET ?? 'http://localhost:5100' }, // máy chủ MCP cho trợ lý AI
+        // Máy chủ MCP cho trợ lý AI — chỉ `/mcp` và `/mcp/…` (regex), KHÔNG nuốt trang SPA `/mcp-tools` (mở thẳng / tải lại → 502). Giống nginx `location = /mcp`.
+        '^/mcp(/|$|\\?)': { target: env.VITE_MCP_TARGET ?? 'http://localhost:5100' },
         '/.well-known/oauth-': { target: env.VITE_MCP_TARGET ?? 'http://localhost:5100' }, // OAuth discovery
       },
     },

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
-import { AppWindow, Ban, Check, KeyRound, Plus, RefreshCw, X } from 'lucide-react';
+import { AppWindow, Ban, Check, KeyRound, Plus, RefreshCw, Wrench, X } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -13,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { TablePagination, usePageState } from '@/components/common/pagination';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
 import { Spinner } from '@/components/feedback/Spinner';
+import { PATHS } from '@/config/paths';
 import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
 import { hasRole, useMe } from '@/features/auth';
 import { formatDate, formatDateTime } from '@/utils/date';
@@ -102,6 +104,9 @@ function MyTab({ onCreate, newToken }: { onCreate: () => void; newToken: string 
             <ul className="grid gap-2 text-sm">
               {CAN.map((t) => <li key={t} className="flex gap-2"><Check className="mt-0.5 size-4 shrink-0 text-success" />{t}</li>)}
             </ul>
+            <Link to={PATHS.mcpTools} className="mt-3 inline-flex items-center gap-1.5 text-sm text-primary hover:underline" data-testid="ai-access-mcp-tools-link">
+              <Wrench className="size-4" /> Xem các công cụ AI đang có
+            </Link>
           </CardContent>
         </Card>
         <Card>

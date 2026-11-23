@@ -58,7 +58,10 @@ function ToolCard({ t }: { t: McpTool }) {
   );
 }
 
-/** Trang quản trị: danh mục công cụ máy chủ MCP OfficeHub (chỉ admin — PAGE_ROLES). Dữ liệu từ utils/catalog.ts (bảo trì thủ công). */
+/**
+ * Danh mục công cụ máy chủ MCP OfficeHub — mọi nhân viên đăng nhập đều xem được (TEST-219), mở từ menu Chung / trang Kết nối AI.
+ * Chỉ là tham chiếu: quyền thật của từng tool do Api kiểm tra theo người dùng. Dữ liệu từ utils/catalog.ts (bảo trì thủ công).
+ */
 export function McpToolsPage() {
   const [q, setQ] = useState('');
   const groups = useMemo(() => {
