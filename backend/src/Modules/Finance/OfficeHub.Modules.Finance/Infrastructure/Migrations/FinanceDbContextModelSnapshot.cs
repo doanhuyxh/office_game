@@ -202,6 +202,14 @@ namespace OfficeHub.Modules.Finance.Infrastructure.Migrations
                     b.Property<DateOnly?>("LockedThrough")
                         .HasColumnType("date");
 
+                    b.Property<int>("PayrollPayDay")
+                        .HasColumnType("integer")
+                        .HasDefaultValue(10);
+
+                    b.Property<int>("PipelineDelayDays")
+                        .HasColumnType("integer")
+                        .HasDefaultValue(30);
+
                     b.HasKey("Id");
 
                     b.ToTable("settings", "finance");
@@ -356,6 +364,55 @@ namespace OfficeHub.Modules.Finance.Infrastructure.Migrations
                     b.ToTable("accounts", "finance");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Finance.Domain.RecurringItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("BusinessLineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DayOfMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessLineId");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_recurring_items_name");
+
+                    b.ToTable("recurring_items", "finance");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Finance.Domain.TxCategory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -421,6 +478,14 @@ namespace OfficeHub.Modules.Finance.Infrastructure.Migrations
                     b.HasOne("OfficeHub.Modules.Finance.Domain.MoneyAccount", null)
                         .WithMany()
                         .HasForeignKey("ToAccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Finance.Domain.RecurringItem", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Finance.Domain.BusinessLine", null)
+                        .WithMany()
+                        .HasForeignKey("BusinessLineId")
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 #pragma warning restore 612, 618

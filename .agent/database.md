@@ -96,9 +96,9 @@ Bảng + index: [business/projects.md](business/projects.md#schema-projects-proj
 
 Bảng + index: [business/sales.md](business/sales.md#schema-sales-salesdbcontext-migration-initialsales). `collections.LedgerEntryId` trỏ sang `finance.entries` **không** FK (ranh giới module). `AddQuotes`: `quotes`, `quote_lines`, `settings` — [business/sales-quotes.md](business/sales-quotes.md). `AddContractAppendices`: `contract_appendices` (unique HĐ + số; `ChangeRequestId` unique khi chưa huỷ, không FK sang `projects`) + `installments.AppendixId` — [business/projects-changes.md](business/projects-changes.md).
 
-## Schema `finance` — `FinanceDbContext` (migration `InitialFinance`, `AddProjectToEntries`, `AddFinanceAttachments`)
+## Schema `finance` — `FinanceDbContext` (migration `InitialFinance`, `AddProjectToEntries`, `AddFinanceAttachments`, `AddCashForecast`)
 
-Bảng + index + seed: [business/finance.md](business/finance.md#schema-finance-financedbcontext-migration-initialfinance). Tiền `bigint` VND; dòng sổ không xoá (huỷ = `Status`). `AddProjectToEntries`: `entries.ProjectId` (index lọc khác null) + `expense_requests.ProjectId`, không FK sang schema `projects`. `AddFinanceAttachments`: `attachments` (chủ = dòng sổ / đề nghị chi, index chủ, xoá mềm) — [business/finance-docs.md](business/finance-docs.md).
+Bảng + index + seed: [business/finance.md](business/finance.md#schema-finance-financedbcontext-migration-initialfinance). Tiền `bigint` VND; dòng sổ không xoá (huỷ = `Status`). `AddProjectToEntries`: `entries.ProjectId` (index lọc khác null) + `expense_requests.ProjectId`, không FK sang schema `projects`. `AddFinanceAttachments`: `attachments` (chủ = dòng sổ / đề nghị chi, index chủ, xoá mềm) — [business/finance-docs.md](business/finance-docs.md). `AddCashForecast` (2026-11-23, TEST-221): `settings.PayrollPayDay` (mặc định 10) + `settings.PipelineDelayDays` (mặc định 30); bảng `recurring_items` (`Name` varchar 200 unique `ux_recurring_items_name`, `Kind` Income/Expense, `Amount` bigint, `DayOfMonth` 1–28, `BusinessLineId` FK restrict → `business_lines`, `IsActive`, `Note` varchar 1000, `CreatedAt` / `UpdatedAt`; không xoá) — [business/finance-forecast.md](business/finance-forecast.md).
 
 ## Schema `news` — `NewsDbContext` (migration `InitialNews`)
 

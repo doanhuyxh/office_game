@@ -45,7 +45,7 @@ Chủ dự án chốt 2026-11-06: **tính đầy đủ theo luật VN**, mọi t
 
 `/api/payroll` bị chặn với token AI (`AccessTokenAuth`) — lương không bao giờ ra MCP.
 
-**Cho module khác**: `Payroll.Contracts.IPayrollCosts.MonthCostsAsync` = Gross + BH phần công ty theo người × tháng (kỳ đã chốt → phiếu đã lưu; tháng đang chạy → `BuildAsync(assumeFullAttendance: true)` = lương hợp đồng đủ công; tháng đã qua chưa chốt → tính như bảng lương; hai trường hợp sau `Estimated`). Dùng cho chi phí nhân công dự án — [projects-finance.md](projects-finance.md).
+**Cho module khác**: `Payroll.Contracts.IPayrollCosts.MonthCostsAsync` = Gross + BH phần công ty theo người × tháng (kỳ đã chốt → phiếu đã lưu; tháng đang chạy → `BuildAsync(assumeFullAttendance: true)` = lương hợp đồng đủ công; tháng đã qua chưa chốt → tính như bảng lương; hai trường hợp sau `Estimated`). Dùng cho chi phí nhân công dự án — [projects-finance.md](projects-finance.md). `MonthTotalAsync(month)` (TEST-221) = **tổng** chi phí công ty cả tháng (mọi phiếu, cùng công thức; chưa chốt → `Estimated`), **không trả theo người** — cho dự báo dòng tiền 13 tuần ([finance-forecast.md](finance-forecast.md)). Cả hai hàm CÓ SỐ TIỀN: chỉ gọi sau khi kiểm tra quyền Xem tài chính, không ra kênh AI.
 
 ## UI (`frontend/src/features/payroll/`)
 

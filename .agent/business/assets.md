@@ -41,7 +41,7 @@ Tham chiếu nhân viên bằng `EmployeeId` thuần (không FK chéo schema); t
 
 | Ai | Được |
 |---|---|
-| HR / admin (`AuthPolicies.Hr`) | Toàn bộ: danh mục, thiết bị, dịch vụ, cấp / thu hồi, tổng quan. Chỉ HR thấy giá mua / chi phí |
+| HR / admin (`AuthPolicies.Hr`) | Toàn bộ: danh mục, thiết bị, dịch vụ, cấp / thu hồi, tổng quan. Chỉ HR thấy giá mua / chi phí trên trang Tài sản — riêng **chi phí + ngày gia hạn dịch vụ** người có quyền Xem tài chính thấy trong dự báo dòng tiền (TEST-221) |
 | Manager | Xem tài sản đang giữ của bản thân + cấp dưới (`GetSubordinateIdsAsync`), không thấy giá |
 | Nhân viên | Chỉ xem tài sản đang giữ của mình (tên, mã, serial, tên đăng nhập; không giá) |
 
@@ -80,4 +80,4 @@ Tham chiếu nhân viên bằng `EmployeeId` thuần (không FK chéo schema); t
 
 ## Test
 
-`tests/OfficeHub.Modules.Assets.Tests/AssetRulesTests.cs` (35: mã, cấp, đổi trạng thái, hết ghế, hạn nhắc, chi phí/tháng) · `ModuleBoundaryTests` (Assets chỉ dùng `Organization/Notification/Identity.Contracts`) · `scripts/dev/assets-e2e.ts a|b` trên DB tạm: 97 + 2 kiểm tra đạt 2026-11-08 ([e2e.md](../e2e.md)).
+`tests/OfficeHub.Modules.Assets.Tests/AssetRulesTests.cs` (35: mã, cấp, đổi trạng thái, hết ghế, hạn nhắc, chi phí/tháng) · `ModuleBoundaryTests` (Assets chỉ dùng `Organization/Notification/Identity.Contracts`). **Cho module khác** (TEST-221): project `OfficeHub.Modules.Assets.Contracts` — `IServiceRenewals.ActiveRenewalsAsync` (dịch vụ Active, chu kỳ ≠ None, `Cost` > 0, có `RenewalDate` — `AssetRules.HasRenewalCost`), CÓ SỐ TIỀN: chỉ gọi sau khi kiểm tra quyền Xem tài chính, không ra kênh AI; Finance dùng cho [finance-forecast.md](finance-forecast.md) · `scripts/dev/assets-e2e.ts a|b` trên DB tạm: 97 + 2 kiểm tra đạt 2026-11-08 ([e2e.md](../e2e.md)).

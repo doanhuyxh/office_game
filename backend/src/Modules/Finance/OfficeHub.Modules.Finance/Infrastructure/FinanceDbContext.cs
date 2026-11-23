@@ -17,6 +17,7 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
     public DbSet<ExpenseRequest> Expenses => Set<ExpenseRequest>();
     public DbSet<FinanceAttachment> Attachments => Set<FinanceAttachment>();
     public DbSet<FinanceSettings> Settings => Set<FinanceSettings>();
+    public DbSet<RecurringItem> RecurringItems => Set<RecurringItem>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -96,6 +97,17 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
         {
             e.ToTable("settings");
             e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.PayrollPayDay).HasDefaultValue(CashForecastRules.DefaultPayrollPayDay).ValueGeneratedNever();
+            e.Property(x => x.PipelineDelayDays).HasDefaultValue(CashForecastRules.DefaultPipelineDelayDays).ValueGeneratedNever();
+        });
+        b.Entity<RecurringItem>(e =>
+        {
+            e.ToTable("recurring_items");
+            e.Property(x => x.Name).HasMaxLength(200);
+            e.Property(x => x.Note).HasMaxLength(1000);
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(10);
+            e.HasIndex(x => x.Name).IsUnique().HasDatabaseName("ux_recurring_items_name");
+            e.HasOne<BusinessLine>().WithMany().HasForeignKey(x => x.BusinessLineId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

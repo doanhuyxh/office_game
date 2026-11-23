@@ -26,6 +26,7 @@ public sealed class AssetsModule : IModule
         services.AddSingleton<AssetClock>();
         services.AddScoped<AssetAccess>();
         services.AddScoped<AssetOps>();
+        services.AddScoped<OfficeHub.Modules.Assets.Contracts.IServiceRenewals, ServiceRenewals>();
         services.AddHostedService<AssetsMigrator>();
         services.AddHostedService<AssetsMaintenanceJob>();
         // Mạng xã hội (Facebook BM): token mã hoá bằng Encryption__Key, gọi Graph API, job đăng bài

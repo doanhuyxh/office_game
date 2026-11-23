@@ -2,7 +2,7 @@
 
 > Nguồn sự thật là code: `Finance/Features/DashboardEndpoints.cs` + `Domain/DashboardRules.cs`, `Sales.Contracts/ISalesOutlook.cs` + `Sales/Infrastructure/SalesOutlook.cs` + `SalesRules.SummarizeReceivables / SummarizePipeline`, `Projects/Features/ProjectEndpoints.cs` (`FinancialAlertsAsync`) + `ProjectCostRules.Alerts`. Kế hoạch: [docs/BUSINESS_PLAN.md](../../docs/BUSINESS_PLAN.md) §7 (TEST-50). Về [README.md](README.md) · [finance.md](finance.md) · [sales.md](sales.md) · [projects-finance.md](projects-finance.md).
 
-Giai đoạn 5, chia 3 việc: **1/3 back-end số liệu (TEST-220, xong)** · 2/3 dự báo dòng tiền 13 tuần (TEST-221) · 3/3 giao diện tab Tổng quan ở `/finance` (TEST-223).
+Giai đoạn 5, chia 3 việc: **1/3 back-end số liệu (TEST-220, xong)** · **2/3 dự báo dòng tiền 13 tuần (TEST-221) → [finance-forecast.md](finance-forecast.md)** · 3/3 giao diện tab Tổng quan ở `/finance` (TEST-223).
 
 ## Nguyên tắc
 
@@ -39,7 +39,7 @@ Hai route tách riêng vì tính nhân công dự án chậm — giao diện g�
 ## Ranh giới module
 
 - Finance tham chiếu thêm `OfficeHub.Modules.Sales.Contracts` (Sales đã tham chiếu `Finance.Contracts`; hai project Contracts không tham chiếu nhau → không vòng).
-- `ISalesOutlook` **CÓ SỐ TIỀN**, toàn công ty (không lọc người phụ trách): chỉ gọi sau khi đã kiểm tra quyền Xem tài chính. Việc 2/3 thêm hàm (đợt thu sắp đến hạn, cơ hội theo ngày dự kiến chốt) vào cùng interface.
+- `ISalesOutlook` **CÓ SỐ TIỀN**, toàn công ty (không lọc người phụ trách): chỉ gọi sau khi đã kiểm tra quyền Xem tài chính. Việc 2/3 đã thêm `OpenInstallmentsAsync` / `OpenOpportunitiesAsync` (từng đợt / cơ hội, cho dự báo) — [finance-forecast.md](finance-forecast.md).
 
 ## Kiểm thử
 

@@ -65,4 +65,18 @@ public class AssetRulesTests
         Assert.Equal(0m, AssetRules.MonthlyCost(BillingCycle.None, 999m));
         Assert.Equal(0m, AssetRules.MonthlyCost(BillingCycle.Monthly, null));
     }
+
+    [Fact]
+    public void HasRenewalCost_OnlyActiveCyclicWithCostAndDate()
+    {
+        var d = new DateOnly(2026, 12, 1);
+        Assert.True(AssetRules.HasRenewalCost(ServiceStatus.Active, BillingCycle.Monthly, 100m, d));
+        Assert.True(AssetRules.HasRenewalCost(ServiceStatus.Active, BillingCycle.Yearly, 100m, d));
+        Assert.False(AssetRules.HasRenewalCost(ServiceStatus.Cancelled, BillingCycle.Monthly, 100m, d));
+        Assert.False(AssetRules.HasRenewalCost(ServiceStatus.Active, BillingCycle.None, 100m, d));
+        Assert.False(AssetRules.HasRenewalCost(ServiceStatus.Active, BillingCycle.Monthly, null, d));
+        Assert.False(AssetRules.HasRenewalCost(ServiceStatus.Active, BillingCycle.Monthly, 0m, d));
+        Assert.False(AssetRules.HasRenewalCost(ServiceStatus.Active, BillingCycle.Monthly, 100m, null));
+        Assert.Equal(100_001L, AssetRules.CostVnd(100_000.5m));
+    }
 }

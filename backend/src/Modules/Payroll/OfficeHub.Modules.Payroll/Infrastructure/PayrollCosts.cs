@@ -26,6 +26,21 @@ internal sealed class PayrollCosts(PayrollDbContext db, PayrollService svc) : IP
         return built.ToDictionary(x => x.EmployeeId, x => new EmployeeMonthCost(x.EmployeeId, CostOf(x.Data), true));
     }
 
+    public async Task<PayrollMonthTotal> MonthTotalAsync(DateOnly month, CancellationToken ct = default)
+    {
+        var from = new DateOnly(month.Year, month.Month, 1);
+        if (from > svc.Today) return new PayrollMonthTotal(0, true);
+        var period = await db.Periods.AsNoTracking().FirstOrDefaultAsync(p => p.Month == from, ct);
+        if (period is { Status: PeriodStatus.Locked })
+        {
+            var slips = await db.Payslips.AsNoTracking().Where(p => p.PeriodId == period.Id).ToListAsync(ct);
+            return new PayrollMonthTotal(slips.Sum(p => CostOf(svc.Read(p))), false);
+        }
+        var current = from == new DateOnly(svc.Today.Year, svc.Today.Month, 1);
+        var (_, built) = await svc.BuildAsync(from, period?.Id, null, ct, assumeFullAttendance: current);
+        return new PayrollMonthTotal(built.Sum(x => CostOf(x.Data)), true);
+    }
+
     /// <summary>Chi phí công ty = tổng thu nhập + BH phần công ty (<see cref="PayslipData.EmployerCost"/>; không gồm khoản không chịu thuế như tạm ứng).</summary>
     internal static long CostOf(PayslipData d) => (long)Math.Round(d.EmployerCost, MidpointRounding.AwayFromZero);
 }

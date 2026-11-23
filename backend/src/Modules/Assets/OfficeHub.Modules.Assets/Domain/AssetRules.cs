@@ -59,6 +59,15 @@ public static class AssetRules
         _ => 0,
     };
 
+    /// <summary>
+    /// Dịch vụ có vào dự báo dòng tiền không (TEST-221): đang dùng, có chu kỳ (không phải "Không định kỳ"), chi phí &gt; 0 và có ngày gia hạn.
+    /// </summary>
+    public static bool HasRenewalCost(ServiceStatus status, BillingCycle cycle, decimal? cost, DateOnly? renewalDate) =>
+        status == ServiceStatus.Active && cycle != BillingCycle.None && cost is > 0 && renewalDate is not null;
+
+    /// <summary>Chi phí mỗi kỳ quy ra đồng (làm tròn nửa lên).</summary>
+    public static long CostVnd(decimal cost) => (long)Math.Round(cost, MidpointRounding.AwayFromZero);
+
     // ---------------- Khấu hao (đường thẳng theo tháng, không giá trị thu hồi) ----------------
 
     public const int MaxDepreciationMonths = 600;

@@ -109,12 +109,37 @@ public sealed class ExpenseRequest
     public DateTimeOffset CreatedAt { get; set; }
 }
 
-/// <summary>Cấu hình một dòng (Id = 1): khoá sổ đến hết ngày <see cref="LockedThrough"/>.</summary>
+/// <summary>
+/// Cấu hình một dòng (Id = 1): khoá sổ đến hết ngày <see cref="LockedThrough"/>; tham số dự báo dòng tiền 13 tuần (TEST-221).
+/// </summary>
 [Audited]
 public sealed class FinanceSettings
 {
     public int Id { get; set; } = 1;
     public DateOnly? LockedThrough { get; set; }
+    /// <summary>Ngày trả lương trong tháng (1–28): lương tháng M trả ngày này của tháng M+1.</summary>
+    public int PayrollPayDay { get; set; } = CashForecastRules.DefaultPayrollPayDay;
+    /// <summary>Số ngày từ ngày dự kiến chốt cơ hội tới ngày tiền về (0–180).</summary>
+    public int PipelineDelayDays { get; set; } = CashForecastRules.DefaultPipelineDelayDays;
+}
+
+/// <summary>
+/// Khoản thu / chi định kỳ hằng tháng NGOÀI hệ thống (thuê văn phòng, thuế, điện nước…) — chỉ là số dự kiến cho dự báo dòng tiền (TEST-221):
+/// không sinh dòng sổ, không sinh đề nghị chi. Không xoá — chỉ ngừng (<see cref="IsActive"/>). Không [Audited]: có số tiền (như quỹ).
+/// </summary>
+public sealed class RecurringItem
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public required string Name { get; set; }
+    public CategoryKind Kind { get; set; }
+    public long Amount { get; set; }
+    /// <summary>Ngày trong tháng (1–28).</summary>
+    public int DayOfMonth { get; set; }
+    public Guid? BusinessLineId { get; set; }
+    public bool IsActive { get; set; } = true;
+    public string? Note { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<AttachmentOwner>))]

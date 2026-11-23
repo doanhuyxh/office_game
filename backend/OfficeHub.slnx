@@ -43,6 +43,7 @@
     <Project Path="src/Modules/Finance/OfficeHub.Modules.Finance.Contracts/OfficeHub.Modules.Finance.Contracts.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Assets/">
+    <Project Path="src/Modules/Assets/OfficeHub.Modules.Assets.Contracts/OfficeHub.Modules.Assets.Contracts.csproj" />
     <Project Path="src/Modules/Assets/OfficeHub.Modules.Assets/OfficeHub.Modules.Assets.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Documents/">

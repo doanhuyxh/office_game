@@ -2,6 +2,8 @@
 // công nợ quá hạn + tuổi nợ khớp /api/sales/receivables, pipeline khớp /api/sales/opportunities) + GET /api/projects/financials/alerts
 // (dự án đang chạy lỗ / vượt / sắp vượt ngân sách ngày công; dự án đã đóng không ra) + quyền (Xem tài chính 200; HR, admin seed, quản lý dự án,
 // nhân viên thường 403; token AI kể cả của người có Xem → 403). So sánh theo phần chênh trước / sau khi seed → chạy lại được trên cùng DB.
+// TEST-221: GET /api/finance/forecast (dự báo dòng tiền 13 tuần: đợt thu, công nợ quá hạn, cơ hội × xác suất, lương, gia hạn dịch vụ, đề nghị chi,
+// khoản định kỳ) + PUT /forecast/settings + /recurring — kiểm theo id từng khoản nên cũng chạy lại được.
 // TẠO DỮ LIỆU THẬT → CHỈ DB tạm (không cần S3). Dựng như project-wiki-e2e.ts:
 //   docker run -d --name e2e220-pg -e POSTGRES_USER=e2e -e POSTGRES_PASSWORD=e2e -e POSTGRES_DB=e2e -p 15476:5432 postgres:17-alpine
 //   Api (từ backend/): env ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5196
@@ -223,6 +225,173 @@ ok('Mọi dòng có ít nhất một cờ, không có months / categories / peop
   && rows.every((x) => !('months' in x) && !('categories' in x) && !('people' in x)));
 ok('Sắp theo lãi tăng dần (lỗ nặng trước)', rows.every((x, i, arr) => i === 0 || arr[i - 1].profit <= x.profit));
 ok('Quản lý của chính các dự án này → 403', (await alerts(PM.cookie)).status === 403);
+
+// ================= TEST-221: dự báo dòng tiền 13 tuần =================
+const fc = (c: string) => json(c, 'GET', '/api/finance/forecast');
+const setFc = (c: string, payrollPayDay: number, pipelineDelayDays: number) => json(c, 'PUT', '/api/finance/forecast/settings', { payrollPayDay, pipelineDelayDays });
+for (const [name, c] of [['HR', H.cookie], ['admin seed', admin], ['quản lý dự án', PM.cookie], ['nhân viên thường', E.cookie]] as const) {
+  ok(`${name}: /forecast, /recurring, PUT settings, POST recurring → 403`, (await fc(c)).status === 403 && (await json(c, 'GET', '/api/finance/recurring')).status === 403
+    && (await setFc(c, 10, 30)).status === 403 && (await json(c, 'POST', '/api/finance/recurring', { name: 'x', kind: 'Expense', amount: 1, dayOfMonth: 1 })).status === 403);
+}
+ok('Xem tài chính (không Quản trị): đọc 200, sửa cấu hình / khoản định kỳ 403', (await fc(V.cookie)).status === 200 && (await json(V.cookie, 'GET', '/api/finance/recurring')).status === 200
+  && (await setFc(V.cookie, 10, 30)).status === 403 && (await json(V.cookie, 'POST', '/api/finance/recurring', { name: 'x', kind: 'Expense', amount: 1, dayOfMonth: 1 })).status === 403);
+ok('Token AI của người có Xem: /forecast, /recurring → 403', (await bearer(tokV, 'GET', '/api/finance/forecast')).status === 403
+  && (await bearer(tokV, 'GET', '/api/finance/recurring')).status === 403);
+ok('Cấu hình sai: ngày trả lương 0 / 29, trễ −1 / 181 → 400 theo field', !!(await setFc(D.cookie, 0, 30)).body?.errors?.payrollPayDay
+  && (await setFc(D.cookie, 29, 30)).status === 400 && !!(await setFc(D.cookie, 10, -1)).body?.errors?.pipelineDelayDays && (await setFc(D.cookie, 10, 181)).status === 400);
+ok('Quản trị tài chính đặt cấu hình mặc định 10 / 30 → 204', (await setFc(D.cookie, 10, 30)).status === 204);
+
+// --- ngày theo cửa sổ (như CashForecastRules) ---
+const dim = (y: number, m: number) => new Date(Date.UTC(y, m, 0)).getUTCDate();           // m 1-based
+const ymd = (y: number, m: number, d: number) => new Date(Date.UTC(y, m - 1, Math.min(d, dim(y, m)))).toISOString().slice(0, 10);
+const addMonths = (iso: string, k: number) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1 + k, 1));
+  return ymd(t.getUTCFullYear(), t.getUTCMonth() + 1, d);
+};
+const monthDay = (k: number, dd: number) => addMonths(monthStart(0).slice(0, 8) + String(dd).padStart(2, '0'), k);   // ngày dd của tháng này + k
+const payDates = (to: string, pd: number) => [-1, 0, 1, 2, 3, 4].map((j) => monthDay(j + 1, pd)).filter((d) => d > today && d <= to);
+const recDates = (to: string, dd: number) => [0, 1, 2, 3, 4].map((j) => monthDay(j, dd)).filter((d) => d > today && d <= to);
+const weekOf = (f: any, d: string) => d < today ? 1 : f.weeks.find((w: any) => w.from <= d && d <= w.to)?.week ?? null;
+const itemsOf = (f: any, refId: string) => f.items.filter((i: any) => i.refId === refId);
+const dow = (d: string) => new Date(d + 'T00:00:00Z').getUTCDay();
+
+const f0 = (await fc(V.cookie)).body;
+ok('13 tuần: tuần 1 từ hôm nay tới Chủ nhật, các tuần sau Thứ Hai → Chủ nhật, liền nhau', f0.weeks.length === 13 && f0.weeks[0].from === today && f0.today === today
+  && f0.weeks.every((w: any) => dow(w.to) === 0) && f0.weeks.slice(1).every((w: any) => dow(w.from) === 1)
+  && f0.weeks.every((w: any, i: number) => i === 0 || Date.parse(w.from) - Date.parse(f0.weeks[i - 1].to) === 86400000) && f0.to === f0.weeks[12].to,
+  f0.weeks.map((w: any) => [w.from, w.to]));
+ok('Cấu hình đọc kèm /forecast: 10 / 30', f0.settings.payrollPayDay === 10 && f0.settings.pipelineDelayDays === 30, f0.settings);
+const accs = (await json(V.cookie, 'GET', '/api/finance/accounts')).body as any[];
+ok('Số dư đầu = tổng số dư quỹ đang dùng', f0.opening === accs.filter((a) => a.isActive).reduce((t, a) => t + a.balance, 0), { opening: f0.opening });
+
+// --- Đợt thu (hợp đồng k ở trên): 3 đợt quá hạn → tuần 1 đường Kỳ vọng; đợt +60 ngày → tuần chứa hạn ---
+const kItems = itemsOf(f0, k.body);
+const kOver = kItems.filter((i: any) => i.line === 'Overdue'), kInst = kItems.filter((i: any) => i.line === 'Installment');
+ok('Đợt quá hạn: 3 khoản ở tuần 1 (10tr, 5tr, phần còn lại 2tr), cờ Late, có mã HĐ + khách', kOver.length === 3 && kOver.every((i: any) => i.week === 1 && i.late
+  && i.refCode === `HD-TQ-${stamp}` && i.customerId === cust) && same(kOver.map((i: any) => i.amount).sort((a: number, b: number) => a - b), [2_000_000, 5_000_000, 10_000_000]), kItems);
+ok('Đợt chưa tới hạn (+60 ngày, 2tr) → đúng tuần, đường Thận trọng', kInst.length === 1 && kInst[0].amount === 2_000_000 && kInst[0].week === weekOf(f0, addDays(60))
+  && kInst[0].date === addDays(60) && !kInst[0].late, kInst);
+
+// --- Huỷ dòng thu ở sổ → đợt thu quay lại dự báo ---
+const iLater = kd.installments.find((i: any) => i.title === 'Đợt sau');
+const col = await json(A.cookie, 'POST', `/api/sales/installments/${iLater.id}/collect`, { amount: 500_000, date: today, accountId: cash });
+const fCol = (await fc(V.cookie)).body;
+ok('Thu 500k đợt sau → dự báo còn 1,5tr', col.status === 201 && itemsOf(fCol, k.body).find((i: any) => i.line === 'Installment')?.amount === 1_500_000, col);
+const ent = ((await json(V.cookie, 'GET', '/api/finance/entries?page=1&pageSize=200')).body.items as any[]).find((e) => e.sourceId === col.body);
+ok('Huỷ dòng thu ở sổ → đợt thu quay lại 2tr', !!ent && (await json(A.cookie, 'POST', `/api/finance/entries/${ent.id}/void`, { reason: 'e2e' })).status === 204
+  && itemsOf((await fc(V.cookie)).body, k.body).find((i: any) => i.line === 'Installment')?.amount === 2_000_000, ent);
+
+// --- Cơ hội × xác suất ---
+const oPast = await opp({ stage: 'Negotiating', value: 10_000_000, probability: 50, expectedCloseOn: addDays(-40) });   // tiền về −10 → tuần 1
+const oSoon = await opp({ stage: 'Quoted', value: 20_000_000, probability: 40, expectedCloseOn: addDays(10) });         // tiền về +40
+const oFar = await opp({ stage: 'Lead', value: 30_000_000, probability: 10, expectedCloseOn: addDays(70) });            // tiền về +100 → ngoài
+const oNone = await opp({ stage: 'Contacted', value: 4_000_000 });
+ok('Tạo 4 cơ hội (3 có ngày dự kiến chốt)', [oPast, oSoon, oFar, oNone].every((x) => x.status === 201), [oPast, oSoon, oFar, oNone]);
+const f1 = (await fc(V.cookie)).body;
+const pPast = itemsOf(f1, oPast.body), pSoon = itemsOf(f1, oSoon.body);
+ok('Cơ hội tiền về đã qua → tuần 1 (Late), 10tr × 50 %', pPast.length === 1 && pPast[0].week === 1 && pPast[0].late && pPast[0].amount === 5_000_000
+  && pPast[0].line === 'Pipeline' && pPast[0].date === addDays(-10), pPast);
+ok('Cơ hội chốt +10 → tiền về +40 (8tr)', pSoon.length === 1 && pSoon[0].week === weekOf(f1, addDays(40)) && pSoon[0].amount === 8_000_000, pSoon);
+ok('Cơ hội tiền về +100 ngày → ngoài 13 tuần; cơ hội không ngày không vào', itemsOf(f1, oFar.body).length === 0 && itemsOf(f1, oNone.body).length === 0);
+const opAll = (await json(V.cookie, 'GET', '/api/sales/opportunities')).body as any[];
+const undated = opAll.filter((o) => o.stage !== 'Won' && o.stage !== 'Lost' && !o.expectedCloseOn);
+ok('Cơ hội chưa có ngày: chỉ đếm + tổng (khớp /sales/opportunities)', f1.undatedOpportunities === undated.length && undated.length >= 4
+  && f1.undatedValue === undated.reduce((t, o) => t + o.value, 0) && f1.undatedWeighted === undated.reduce((t, o) => t + o.weighted, 0), f1.undatedOpportunities);
+ok('Đổi số ngày trễ 30 → 0 (204)', (await setFc(D.cookie, 10, 0)).status === 204);
+const f2 = (await fc(V.cookie)).body;
+ok('… cơ hội +70 vào dự báo đúng tuần (3tr); +10 dời về tuần chứa +10', itemsOf(f2, oFar.body)[0]?.week === weekOf(f2, addDays(70))
+  && itemsOf(f2, oSoon.body)[0]?.week === weekOf(f2, addDays(10)) && itemsOf(f2, oFar.body)[0]?.amount === 3_000_000, [itemsOf(f2, oFar.body), itemsOf(f2, oSoon.body)]);
+
+// --- Lương: hợp đồng lao động 20tr cho DevS → tổng chi phí > 0, lặp ở mỗi kỳ trả ---
+const lc = await json(admin, 'POST', '/api/contracts', { employeeId: DevS.e.id, number: `E2E-TQ-${stamp}`, type: 'Indefinite', signedDate: null,
+  startDate: '2025-01-05', endDate: null, jobTitle: 'Dev', salary: 20_000_000, allowance: null, note: null });
+ok('Tạo hợp đồng lao động 20tr', [200, 201].includes(lc.status), lc);
+const f3 = (await fc(V.cookie)).body;
+const pays3 = f3.items.filter((i: any) => i.line === 'Payroll');
+ok('Lương: tổng tháng này > 0, cờ ước tính, chỉ trả tổng (không theo người)', f3.payroll.monthlyCost > 0 && f3.payroll.estimated === true
+  && Object.keys(f3.payroll).sort().join() === 'estimated,monthlyCost' && pays3.every((i: any) => i.refId === null && i.customerId === null), f3.payroll);
+ok('Ngày 10: kỳ trả = ngày 10 tháng sau, > hôm nay, trong cửa sổ, mỗi kỳ = tổng tháng', same(pays3.map((i: any) => i.date), payDates(f3.to, 10))
+  && pays3.every((i: any) => i.amount === f3.payroll.monthlyCost && i.week === weekOf(f3, i.date)), { got: pays3.map((i: any) => i.date), want: payDates(f3.to, 10) });
+const pdToday = Number(today.slice(8)) <= 28 ? Number(today.slice(8)) : 5;
+ok(`Đổi ngày trả lương → ${pdToday} (204)`, (await setFc(D.cookie, pdToday, 0)).status === 204);
+const f4 = (await fc(V.cookie)).body;
+const pays4 = f4.items.filter((i: any) => i.line === 'Payroll').map((i: any) => i.date);
+ok('… kỳ trả dời theo ngày mới; kỳ trùng hôm nay không tính', same(pays4, payDates(f4.to, pdToday)) && !pays4.includes(today) && pays4.length > 0,
+  { got: pays4, want: payDates(f4.to, pdToday) });
+ok('Trả cấu hình 10 / 30', (await setFc(D.cookie, 10, 30)).status === 204);
+
+// --- Gia hạn dịch vụ ---
+const svc = (b: object) => json(admin, 'POST', '/api/assets/services', { vendor: 'E2E', plan: null, url: null, seatLimit: null, ownerDepartmentId: null, adminEmployeeId: null, note: null, ...b });
+const sM = await svc({ name: `Figma TQ ${stamp}`, billingCycle: 'Monthly', cost: 1_000_000, renewalDate: addDays(5) });
+const sY = await svc({ name: `Slack TQ ${stamp}`, billingCycle: 'Yearly', cost: 12_000_000, renewalDate: addDays(-3) });
+const sN = await svc({ name: `Mua đứt TQ ${stamp}`, billingCycle: 'None', cost: 5_000_000, renewalDate: addDays(5) });
+const svcId = (r: Res) => (typeof r.body === 'string' ? r.body : r.body?.id) as string;
+ok('Tạo 3 dịch vụ (hằng tháng, hằng năm quá ngày gia hạn, không định kỳ)', [sM, sY, sN].every((x) => [200, 201].includes(x.status)), [sM, sY, sN]);
+const f5 = (await fc(V.cookie)).body;
+const rM = itemsOf(f5, svcId(sM)), rY = itemsOf(f5, svcId(sY));
+const wantM = [0, 1, 2, 3].map((kk) => addMonths(addDays(5), kk)).filter((d) => d <= f5.to);
+ok('Hằng tháng: lặp mỗi tháng từ ngày gia hạn, 1tr / kỳ, đúng tuần', same(rM.map((i: any) => i.date), wantM) && rM.every((i: any) => i.amount === 1_000_000
+  && i.line === 'Renewal' && i.week === weekOf(f5, i.date) && !i.late), { got: rM.map((i: any) => i.date), wantM });
+ok('Hằng năm quá ngày gia hạn → tuần 1, cờ quá ngày (Late), 12tr, một lần', rY.length === 1 && rY[0].week === 1 && rY[0].late && rY[0].amount === 12_000_000, rY);
+ok('Dịch vụ không định kỳ không vào dự báo', itemsOf(f5, svcId(sN)).length === 0);
+
+// --- Đề nghị chi đã duyệt chưa chi ---
+const exp = async (amount: number, neededBy: string | null) => {
+  const r = await json(E.cookie, 'POST', '/api/finance/expenses', { amount, reason: `Chi TQ ${amount} ${stamp}`, neededBy });
+  const row = ((await json(E.cookie, 'GET', '/api/finance/expenses?page=1&pageSize=50')).body.items as any[]).find((x) => x.id === r.body);
+  const s1 = (await json(PM.cookie, 'POST', `/api/approval/${row?.approvalRequestId}/approve`, {})).status;
+  const s2 = (await json(D.cookie, 'POST', `/api/approval/${row?.approvalRequestId}/approve`, {})).status;
+  return { id: r.body as string, code: row?.code as string, ok: r.status === 201 && s1 === 200 && s2 === 200, dbg: [r.status, s1, s2] };
+};
+const xPending = await json(E.cookie, 'POST', '/api/finance/expenses', { amount: 777_000, reason: `Chờ duyệt ${stamp}`, neededBy: addDays(3) });
+const x14 = await exp(3_000_000, addDays(14)), xNone = await exp(1_000_000, null);
+ok('2 đề nghị chi đã duyệt (+14 ngày, không ngày) + 1 chờ duyệt', x14.ok && xNone.ok && xPending.status === 201, [x14.dbg, xNone.dbg, xPending.status]);
+const f6 = (await fc(V.cookie)).body;
+ok('Đề nghị +14 ngày → tuần chứa ngày cần, có mã CP', itemsOf(f6, x14.id)[0]?.week === weekOf(f6, addDays(14)) && itemsOf(f6, x14.id)[0]?.refCode === x14.code
+  && itemsOf(f6, x14.id)[0]?.line === 'Expense', itemsOf(f6, x14.id));
+ok('Đề nghị không có ngày cần → tuần 1; đề nghị chờ duyệt không tính', itemsOf(f6, xNone.id)[0]?.week === 1 && itemsOf(f6, xPending.body).length === 0);
+ok('Đề nghị "Đã chi" → rời dự báo', (await json(A.cookie, 'POST', `/api/finance/expenses/${xNone.id}/pay`, { accountId: cash, date: today })).status === 204
+  && itemsOf((await fc(V.cookie)).body, xNone.id).length === 0);
+
+// --- Khoản định kỳ dự kiến ---
+const rec = (c: string, b: object) => json(c, 'POST', '/api/finance/recurring', { kind: 'Expense', amount: 1_000, dayOfMonth: 5, businessLineId: null, ...b });
+const bad = await rec(D.cookie, { name: '', amount: 0, dayOfMonth: 29 });
+ok('Khoản định kỳ sai: thiếu tên, số tiền 0, ngày 29 → 400 theo field', bad.status === 400 && Object.keys(bad.body?.errors ?? {}).sort().join() === 'amount,dayOfMonth,name', bad);
+const dIn = 25, dOut = 15;
+const rIn = await rec(D.cookie, { name: `Cho thuê lại ${stamp}`, kind: 'Income', amount: 2_500_000, dayOfMonth: dIn, businessLineId: L1 });
+const rOut = await rec(D.cookie, { name: `Thuê văn phòng ${stamp}`, kind: 'Expense', amount: 15_000_000, dayOfMonth: dOut, note: 'HĐ thuê 2 năm' });
+ok('Tạo 2 khoản định kỳ (thu / chi) → 201; tên trùng → 400', rIn.status === 201 && rOut.status === 201
+  && !!(await rec(D.cookie, { name: `Thuê văn phòng ${stamp}` })).body?.errors?.name, [rIn, rOut]);
+const lst = (await json(V.cookie, 'GET', '/api/finance/recurring')).body as any[];
+ok('Danh sách khoản định kỳ: có tên mảng, ghi chú, đang dùng', lst.find((x) => x.id === rIn.body)?.businessLineName === `Web ${stamp}`
+  && lst.find((x) => x.id === rOut.body)?.note === 'HĐ thuê 2 năm' && lst.find((x) => x.id === rOut.body)?.isActive === true, lst.slice(0, 3));
+const f7 = (await fc(V.cookie)).body;
+ok('Định kỳ thu: lặp ngày 25 hằng tháng (> hôm nay), đường RecurringIncome', same(itemsOf(f7, rIn.body).map((i: any) => i.date), recDates(f7.to, dIn))
+  && itemsOf(f7, rIn.body).every((i: any) => i.line === 'RecurringIncome' && i.amount === 2_500_000), itemsOf(f7, rIn.body));
+ok('Định kỳ chi: lặp ngày 15 hằng tháng, đường RecurringExpense', same(itemsOf(f7, rOut.body).map((i: any) => i.date), recDates(f7.to, dOut))
+  && itemsOf(f7, rOut.body).every((i: any) => i.line === 'RecurringExpense'), itemsOf(f7, rOut.body));
+ok('Ngừng khoản định kỳ → không tính', (await json(D.cookie, 'PUT', `/api/finance/recurring/${rOut.body}`, { name: `Thuê văn phòng ${stamp}`, kind: 'Expense', amount: 15_000_000,
+  dayOfMonth: dOut, businessLineId: null, isActive: false, note: null })).status === 204 && itemsOf((await fc(V.cookie)).body, rOut.body).length === 0);
+
+// --- Số tuần khớp danh sách khoản; Thận trọng không gồm quá hạn + cơ hội ---
+const F = (await fc(V.cookie)).body;
+const LINES: Record<string, string> = { Installment: 'installments', Overdue: 'overdue', Pipeline: 'pipeline', RecurringIncome: 'recurringIncome', Payroll: 'payroll',
+  Renewal: 'renewals', Expense: 'expenses', RecurringExpense: 'recurringExpense' };
+ok('Mỗi ô (tuần × dòng) = tổng các khoản tạo nên nó', F.weeks.every((w: any) => Object.entries(LINES).every(([line, field]) =>
+  w[field] === F.items.filter((i: any) => i.week === w.week && i.line === line).reduce((t: number, i: any) => t + i.amount, 0))));
+let cs = F.opening, ce = F.opening, okChain = true;
+for (const w of F.weeks) {
+  okChain &&= w.inConservative === w.installments + w.recurringIncome && w.inExpected === w.inConservative + w.overdue + w.pipeline
+    && w.out === w.payroll + w.renewals + w.expenses + w.recurringExpense;
+  cs += w.inConservative - w.out; ce += w.inExpected - w.out;
+  okChain &&= w.closingConservative === cs && w.closingExpected === ce;
+}
+ok('Số dư cuối tuần cộng dồn đúng; Thận trọng = chưa quá hạn + định kỳ thu − chi; Kỳ vọng + quá hạn + cơ hội', okChain);
+const firstNeg = (key: string) => F.weeks.find((w: any) => w[key] < 0)?.week ?? null;
+ok('Tuần âm đầu tiên mỗi đường khớp số dư', F.firstNegativeConservative === firstNeg('closingConservative') && F.firstNegativeExpected === firstNeg('closingExpected'),
+  [F.firstNegativeConservative, F.firstNegativeExpected]);
+ok('Mọi khoản trong tuần 1–13; khoản Late chỉ ở tuần 1', F.items.every((i: any) => i.week >= 1 && i.week <= 13 && (!i.late || i.week === 1)));
 
 console.log(`\n${pass} đạt, ${fail} lỗi`);
 process.exit(fail ? 1 : 0);
