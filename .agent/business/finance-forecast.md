@@ -2,6 +2,8 @@
 
 > Nguồn sự thật là code: `Finance/Domain/CashForecastRules.cs` (hàm thuần) + `Finance/Features/ForecastEndpoints.cs`; dữ liệu từ `Sales.Contracts/ISalesOutlook` (`OpenInstallmentsAsync`, `OpenOpportunitiesAsync`), `Payroll.Contracts/IPayrollCosts.MonthTotalAsync`, `Assets.Contracts/IServiceRenewals`. Tổng quan giám đốc 2/3 (TEST-221) — về [finance-dashboard.md](finance-dashboard.md) · kế hoạch [docs/BUSINESS_PLAN.md](../../docs/BUSINESS_PLAN.md) §7.
 
+Giao diện tab **Dự báo** (`/finance?tab=forecast`, TEST-223): [finance-dashboard.md](finance-dashboard.md) mục Giao diện.
+
 ## Nguyên tắc
 
 - Tính **khi đọc, không lưu**. Endpoint chỉ gom dữ liệu rồi gọi `CashForecastRules.Build`.

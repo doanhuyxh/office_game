@@ -1,8 +1,8 @@
-# Tổng quan giám đốc (back-end)
+# Tổng quan giám đốc (back-end + giao diện)
 
 > Nguồn sự thật là code: `Finance/Features/DashboardEndpoints.cs` + `Domain/DashboardRules.cs`, `Sales.Contracts/ISalesOutlook.cs` + `Sales/Infrastructure/SalesOutlook.cs` + `SalesRules.SummarizeReceivables / SummarizePipeline`, `Projects/Features/ProjectEndpoints.cs` (`FinancialAlertsAsync`) + `ProjectCostRules.Alerts`. Kế hoạch: [docs/BUSINESS_PLAN.md](../../docs/BUSINESS_PLAN.md) §7 (TEST-50). Về [README.md](README.md) · [finance.md](finance.md) · [sales.md](sales.md) · [projects-finance.md](projects-finance.md).
 
-Giai đoạn 5, chia 3 việc: **1/3 back-end số liệu (TEST-220, xong)** · **2/3 dự báo dòng tiền 13 tuần (TEST-221) → [finance-forecast.md](finance-forecast.md)** · 3/3 giao diện tab Tổng quan ở `/finance` (TEST-223).
+Giai đoạn 5, chia 3 việc: **1/3 back-end số liệu (TEST-220, xong)** · **2/3 dự báo dòng tiền 13 tuần (TEST-221) → [finance-forecast.md](finance-forecast.md)** · **3/3 giao diện tab Tổng quan + Dự báo ở `/finance` (TEST-223, xong)** — mục [Giao diện](#giao-diện-test-223) bên dưới. Để sau: bảng số trong 3D + tool MCP (TEST-222).
 
 ## Nguyên tắc
 
@@ -35,6 +35,17 @@ Hai route tách riêng vì tính nhân công dự án chậm — giao diện g�
 - Cờ (`ProjectCostRules.Alerts`, unit test): `loss` = lãi < 0 · `overBudget` = ngày công > ngân sách · `nearBudget` = ngày công ≥ **80 %** ngân sách và chưa vượt (`NearBudgetPercent`). Không có ngân sách (null / ≤ 0) → không có cờ ngân sách. Chỉ trả dự án có ít nhất một cờ, **lãi thấp nhất trước**.
 - Mỗi dòng: `projectId`, `code`, `name`, `kind`, `revenue`, `profit`, `marginPercent`, `manDays`, `budgetManDays`, `budgetUsedPercent` (1 chữ số, không ngân sách → null), `hasEstimate` (có tháng nhân công ước tính), `loss`, `overBudget`, `nearBudget`. Không có `months` / `categories` / `people`.
 - Lưu ý: dự án **nội bộ** không có doanh thu → có chi phí nhân công / chi trực tiếp là `loss`; giao diện dựa vào `kind` để trình bày.
+
+## Giao diện (TEST-223)
+
+`frontend/src/features/finance/` — FE **chỉ hiển thị** số API trả, không tự tính dự báo / quyền (nút sửa theo `useFinancePerms().admin`). Chỉ người có quyền Xem thấy 2 tab; người khác chỉ "Đề nghị chi" và **không gọi** các API này.
+
+- **Tổng quan** (`overview-tab`, mặc định): 7 thẻ số (`/overview` + `/dashboard`). `month-flow-chart`: cột thu – chi + đường lãi 12 tháng + bảng số (mới → cũ, dòng Cộng). `line-month-card`: theo mảng, chọn tháng (mặc định tháng này). `receivables-card` (tuổi nợ 4 nhóm → `/sales?tab=receivables`), `pipeline-card` (theo giai đoạn → `/sales?tab=opportunities`), `project-alerts-card` (tải riêng `/api/projects/financials/alerts`, nhãn Lỗ / Vượt ngân sách / Sắp vượt → `/projects/<id>?tab=finance`; rỗng → "Không có dự án cần chú ý"), bảng quỹ.
+- **Dự báo** (`?tab=forecast`, `forecast-tab`): dòng cảnh báo "Thận trọng / Kỳ vọng: âm tiền từ tuần N (ngày)" (`firstNegative*`), `forecast-chart` (2 đường số dư cuối tuần, vạch 0), `forecast-table` (13 cột tuần; dòng theo `FORECAST_LINES` ở `utils/labels.ts` — dòng ra dấu −, dòng chỉ thuộc Kỳ vọng có nhãn; ô âm destructive; cột tên dính, bảng cuộn ngang trong khung), bấm ô có tiền → `forecast-cell-sheet` (`items` theo tuần + dòng, có link; lương chỉ tổng). Ghi chú giả định dưới bảng (ngày trả lương, số ngày trễ, `undated*`, kỳ lương đã qua coi như đã chi).
+- **Quản trị tài chính**: nút "Cấu hình dự báo" (`forecast-settings-dialog`: ngày trả lương, số ngày trễ) và "Khoản định kỳ" (`recurring-items-dialog` + `recurring-item-form-dialog`: thêm / sửa / ngừng, không xoá) trên hàng tab (`PageToolbar`). Lỗi server hiện theo field; lưu xong làm mới `['finance']` → dự báo tự cập nhật.
+- Biểu đồ: **SVG thuần** (FE không có thư viện biểu đồ), vẽ theo bề ngang thật (`hooks/useElementWidth.ts`, thang trục `utils/chart.ts`), màu token (`success`, `destructive`, `primary`, `chart-1/2`) → sáng / tối; rê chuột / Tab → dòng giá trị phía trên. Khung bọc phải `grid-cols-1` + `min-w-0` (track `auto` sẽ nở theo SVG và tràn thẻ ở 375 px).
+- Mỗi khối tự xử lý đang tải (skeleton) / lỗi (`block-state`, nút Thử lại) / rỗng — một API lỗi không làm trắng cả tab.
+- e2e: `scripts/dev/finance-dashboard-ui-e2e.ts` (Chrome headless, DB tạm) — [e2e.md](../e2e.md).
 
 ## Ranh giới module
 

@@ -18,6 +18,10 @@ export function useFinancePerms() {
 }
 
 export const useOverview = (enabled: boolean) => useQuery({ queryKey: financeKeys.overview, queryFn: financeApi.overview, enabled });
+export const useDashboard = (months = 12) => useQuery({ queryKey: financeKeys.dashboard(months), queryFn: () => financeApi.dashboard(months) });
+export const useProjectAlerts = () => useQuery({ queryKey: financeKeys.projectAlerts, queryFn: financeApi.projectAlerts, staleTime: 60_000 });
+export const useForecast = () => useQuery({ queryKey: financeKeys.forecast, queryFn: financeApi.forecast });
+export const useRecurring = (enabled = true) => useQuery({ queryKey: financeKeys.recurring, queryFn: financeApi.recurring, enabled });
 export const useAccounts = (enabled = true) => useQuery({ queryKey: financeKeys.accounts, queryFn: financeApi.accounts, enabled });
 export const useLines = () => useQuery({ queryKey: financeKeys.lines, queryFn: financeApi.lines, staleTime: 5 * 60_000 });
 export const useCategories = () => useQuery({ queryKey: financeKeys.categories, queryFn: financeApi.categories, staleTime: 5 * 60_000 });

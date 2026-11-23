@@ -60,7 +60,7 @@ Token AI (TEST-78, chủ dự án chốt 2026-11-13 — giai đoạn đầu **ch
 
 ## UI (`/finance`, menu "Tài chính" mọi người thấy)
 
-`FinancePage`: người có quyền Xem → Tổng quan · Sổ thu chi · Đề nghị chi (Của tôi / Tất cả) · Cấu hình (chỉ Quản trị sửa được); người khác chỉ "Đề nghị chi". Nút trên hàng tab: "Ghi giao dịch" (Ghi sổ), "Đề nghị chi". Ô tiền nhập có dấu chấm nghìn (`parseMoney`).
+`FinancePage`: người có quyền Xem → Tổng quan (giám đốc) · Dự báo (`?tab=forecast`, 13 tuần — [finance-dashboard.md](finance-dashboard.md) mục Giao diện) · Sổ thu chi · Đề nghị chi (Của tôi / Tất cả) · Cấu hình (chỉ Quản trị sửa được); người khác chỉ "Đề nghị chi". Nút trên hàng tab: "Ghi giao dịch" (Ghi sổ), "Đề nghị chi". Ô tiền nhập có dấu chấm nghìn (`parseMoney`).
 
 ## Chưa làm
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { CalendarClock, Plus, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
 import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
@@ -8,21 +8,26 @@ import { useTabParam } from '@/hooks/useTabParam';
 import { useFinancePerms } from '../../hooks/useFinance';
 import { EntriesTab } from '../entries-tab';
 import { ExpensesTab } from '../expenses-tab';
+import { ForecastTab } from '../forecast-tab';
 import { OverviewTab } from '../overview-tab';
 import { SettingsTab } from '../settings-tab';
 
 /**
  * Tài chính. Mọi nhân viên: tab "Đề nghị chi" (của mình). Người có quyền tài chính theo CHỨC VỤ (không theo vai trò admin / hr):
- * Tổng quan · Sổ thu chi · Đề nghị chi (tất cả) · Cấu hình. Quyền kiểm tra lại ở back-end cho mọi request.
+ * Tổng quan · Dự báo (13 tuần, `?tab=forecast`) · Sổ thu chi · Đề nghị chi (tất cả) · Cấu hình. Quyền kiểm tra lại ở back-end cho mọi request.
  */
 export function FinancePage() {
   const perms = useFinancePerms();
-  const tabs = perms.view ? ['overview', 'entries', 'expenses', 'settings'] : ['expenses'];
+  const tabs = perms.view ? ['overview', 'forecast', 'entries', 'expenses', 'settings'] : ['expenses'];
   const [tab, setTab] = useTabParam(perms.view ? 'overview' : 'expenses', tabs);
   const [creating, setCreating] = useState<string | null>(null);
   if (perms.loading) return <Spinner />;
   const actions = tab === 'entries' && perms.record ? <Button size="sm" onClick={() => setCreating('entry')}><Plus /> Ghi giao dịch</Button>
     : tab === 'expenses' ? <Button size="sm" onClick={() => setCreating('expense')}><Plus /> Đề nghị chi</Button>
+    : tab === 'forecast' && perms.admin ? <>
+      <Button size="sm" variant="outline" onClick={() => setCreating('forecast-settings')} data-testid="forecast-settings-open"><SlidersHorizontal /> Cấu hình dự báo</Button>
+      <Button size="sm" variant="outline" onClick={() => setCreating('recurring')} data-testid="recurring-open"><CalendarClock /> Khoản định kỳ</Button>
+    </>
     : null;
   return (
     <div className="grid grid-cols-1 gap-4">
@@ -31,12 +36,16 @@ export function FinancePage() {
         <PageToolbar actions={actions}>
           <TabsList>
             {perms.view && <TabsTrigger value="overview">Tổng quan</TabsTrigger>}
+            {perms.view && <TabsTrigger value="forecast">Dự báo</TabsTrigger>}
             {perms.view && <TabsTrigger value="entries">Sổ thu chi</TabsTrigger>}
             <TabsTrigger value="expenses">Đề nghị chi</TabsTrigger>
             {perms.view && <TabsTrigger value="settings">Cấu hình</TabsTrigger>}
           </TabsList>
         </PageToolbar>
         {perms.view && <TabsContent value="overview" className="mt-4"><OverviewTab /></TabsContent>}
+        {perms.view && <TabsContent value="forecast" className="mt-4">
+          <ForecastTab dialog={creating === 'forecast-settings' ? 'settings' : creating === 'recurring' ? 'recurring' : null} onDialogClose={() => setCreating(null)} />
+        </TabsContent>}
         {perms.view && <TabsContent value="entries" className="mt-4"><EntriesTab creating={creating === 'entry'} onCreatedClose={() => setCreating(null)} /></TabsContent>}
         <TabsContent value="expenses" className="mt-4"><ExpensesTab creating={creating === 'expense'} onCreatedClose={() => setCreating(null)} /></TabsContent>
         {perms.view && <TabsContent value="settings" className="mt-4"><SettingsTab /></TabsContent>}

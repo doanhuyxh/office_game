@@ -3,6 +3,7 @@ import type { IPaged, IPageQuery } from '@/types/api';
 import type {
   ExpenseStatus, IAccount, IAccountRequest, ICategory, ICategoryRequest, IEntry, IEntryFilter, IEntryRequest, IExpense, IExpenseRequest, ILine, ILineRequest,
   AttachmentOwner, IAttachment, IOverview, IPayExpense, IProjectOption,
+  IDashboard, IForecast, IForecastSettings, IProjectAlert, IRecurringItem, IRecurringItemRequest,
 } from '../types/finance.types';
 
 const base = '/api/finance';
@@ -13,6 +14,10 @@ const qs = (o: Record<string, string | number | boolean | undefined | null>) =>
 export const financeKeys = {
   all: ['finance'] as const,
   overview: ['finance', 'overview'] as const,
+  dashboard: (months: number) => ['finance', 'dashboard', months] as const,
+  projectAlerts: ['finance', 'project-alerts'] as const,
+  forecast: ['finance', 'forecast'] as const,
+  recurring: ['finance', 'recurring'] as const,
   accounts: ['finance', 'accounts'] as const,
   lines: ['finance', 'lines'] as const,
   categories: ['finance', 'categories'] as const,
@@ -25,6 +30,15 @@ export const financeKeys = {
 
 export const financeApi = {
   overview: () => http<IOverview>(`${base}/overview`),
+  /** Tổng quan giám đốc: thu / chi / lãi theo tháng × mảng + công nợ + pipeline (quyền Xem tài chính). */
+  dashboard: (months: number) => http<IDashboard>(`${base}/dashboard?months=${months}`),
+  /** Dự án đang chạy lỗ / vượt / sắp vượt ngân sách — route module Projects, tải riêng vì tính nhân công chậm. */
+  projectAlerts: () => http<IProjectAlert[]>('/api/projects/financials/alerts'),
+  forecast: () => http<IForecast>(`${base}/forecast`),
+  saveForecastSettings: (b: IForecastSettings) => send<void>('PUT', `${base}/forecast/settings`, b),
+  recurring: () => http<IRecurringItem[]>(`${base}/recurring`),
+  saveRecurring: (id: string | undefined, b: IRecurringItemRequest): Promise<unknown> =>
+    (id ? send<void>('PUT', `${base}/recurring/${id}`, b) : httpPost<string>(`${base}/recurring`, b)),
   accounts: () => http<IAccount[]>(`${base}/accounts`),
   saveAccount: (id: string | undefined, b: IAccountRequest): Promise<unknown> => (id ? send<void>('PUT', `${base}/accounts/${id}`, b) : httpPost<string>(`${base}/accounts`, b)),
   lines: () => http<ILine[]>(`${base}/lines`),
