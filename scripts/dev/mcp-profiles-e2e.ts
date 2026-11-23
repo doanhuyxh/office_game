@@ -1,5 +1,5 @@
 // E2E TEST-143: hồ sơ tool MCP theo loại phiên agent + cắt gọn kết quả, Api + Mcp THẬT trên DB tạm.
-// Kiểm tra: tools/list không profile = đủ 104 tool; ?profile=chat|meeting|task chỉ trả tool hợp loại phiên (đo kích thước schema từng hồ sơ),
+// Kiểm tra: tools/list không profile = đủ 110 tool; ?profile=chat|meeting|task chỉ trả tool hợp loại phiên (đo kích thước schema từng hồ sơ),
 // profile lạ = đủ; tool ngoài hồ sơ vẫn gọi được (không phải lớp bảo mật); get_task mặc định 20 bình luận mới nhất + commentsTotal, comments=0,
 // không có trường null; read_chat since = chỉ tin mới, không có olderBefore null.
 // CHỈ DB tạm (lệnh dựng: .agent/e2e.md "mcp-profiles-e2e.ts"):
@@ -97,16 +97,16 @@ await rpc(null, 'initialize', { protocolVersion: '2025-06-18', capabilities: {},
 const all = await list(null), chat = await list('chat'), meeting = await list('meeting'), task = await list('task'), odd = await list('abc');
 console.log(`  schema tools/list: đủ ${all.names.length} tool ${all.bytes} B · chat ${chat.names.length} / ${chat.bytes} B · meeting ${meeting.names.length} / ${meeting.bytes} B`
   + ` · task ${task.names.length} / ${task.bytes} B`);
-ok('không profile → đủ 104 tool', all.names.length === 104, all.names.length);
-ok('profile lạ → đủ tool', odd.names.length === 104, odd.names.length);
+ok('không profile → đủ 110 tool', all.names.length === 110, all.names.length);
+ok('profile lạ → đủ tool', odd.names.length === 110, odd.names.length);
 ok('chat: có read_chat / send_chat_message / create_task / go_to, không approve / check_in_out / speak_in_meeting',
   ['read_chat', 'send_chat_message', 'create_task', 'go_to'].every((n) => chat.names.includes(n))
   && !['approve_request', 'check_in_out', 'speak_in_meeting'].some((n) => chat.names.includes(n)), chat.names.length);
 ok('meeting: có get_my_meeting / speak_in_meeting / pass_turn / tool đọc nghiệp vụ, không send_chat_message / update_task_status',
   ['get_my_meeting', 'speak_in_meeting', 'pass_turn', 'get_finance_overview'].every((n) => meeting.names.includes(n))
   && !['send_chat_message', 'update_task_status', 'approve_request'].some((n) => meeting.names.includes(n)), meeting.names.length);
-ok('task: 89 tool (có create_upload / view_attachment — TEST-153), không tool họp / chat / duyệt / chấm công',
-  task.names.length === 89 && ['create_upload', 'view_attachment'].every((n) => task.names.includes(n))
+ok('task: 95 tool (có create_upload / view_attachment — TEST-153), không tool họp / chat / duyệt / chấm công',
+  task.names.length === 95 && ['create_upload', 'view_attachment'].every((n) => task.names.includes(n))
   && !['speak_in_meeting', 'read_chat', 'approve_request', 'check_in_out'].some((n) => task.names.includes(n)), task.names.length);
 ok('schema mỗi hồ sơ nhỏ hơn đủ tool', [chat, meeting, task].every((p) => p.bytes < all.bytes));
 // Không phải lớp bảo mật: tool ngoài hồ sơ vẫn gọi được, quyền do Api

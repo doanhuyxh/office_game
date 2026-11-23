@@ -7,7 +7,7 @@ Tài liệu chữ ở phạm vi **toàn dự án** cho người và agent cùng 
 - **Kho tài liệu** (module Documents, file S3, ban hành / số hiệu / hạn lưu trữ): file chính thức — giữ nguyên vai trò.
 
 Back-end: `Domain/WikiRules.cs` (quy tắc thuần, test `WikiRulesTests`), `Features/WikiEndpoints.cs`, entity `WikiPage` / `WikiPageVersion` trong `Domain/Entities.cs`.
-Phần tiếp: TEST-216 (tool MCP), TEST-217 (tab "Sổ tay" trên web).
+Tool MCP: TEST-216 (mục [Tool MCP](#tool-mcp-test-216) dưới đây). Phần tiếp: TEST-217 (tab "Sổ tay" trên web).
 
 ## Schema (`projects`, migration `ProjectsWiki`)
 
@@ -59,8 +59,32 @@ Lưu mà tiêu đề + tóm tắt + nội dung không đổi → **không** tạ
 
 DTO dự án (`GET /api/projects`, `/{id}`): `wikiPages` = số trang chưa xoá. Không có sự kiện thông báo (không đụng `NotificationCatalog`).
 
+## Tool MCP (TEST-216)
+
+`backend/src/OfficeHub.Mcp/Tools/ProjectWikiTools.cs` — gọi lại API trên bằng token của người dùng (quyền do Api), `project` = id / mã dự án, `page` = id hoặc đúng tiêu đề trang
+(trùng tên ở hai trang cha khác nhau → lỗi bảo dùng id).
+
+| Tool | Loại | Api | Ghi chú |
+|---|---|---|---|
+| `list_wiki_pages(project)` | đọc | `GET /` | `pages[]` duyệt theo chiều sâu (cha trước con), thêm `depth` (1 = gốc), bỏ `position`; không nội dung |
+| `search_wiki(project, query)` | đọc | `GET /search?q=` | ≤ 20 trang + `snippet` |
+| `get_wiki_page(project, page)` | đọc | `GET /pages/{pid}` | nội dung + `version` (= `baseVersion` khi sửa) + `path`, bỏ `projectId` |
+| `create_wiki_page(project, title, content, summary?, parent?, note?)` | ghi | `POST /pages` | `parent` = id / tiêu đề |
+| `update_wiki_page(project, page, baseVersion, content?, title?, summary?, note?)` | ghi | `PUT /pages/{pid}` | không truyền gì → lỗi trước khi gọi Api; `summary` `"none"` = xoá; 409 mà trang đã sang version khác → lỗi "đọc lại bằng get_wiki_page, gộp, gọi lại với baseVersion = N, không ghi đè" (409 khác — dự án đóng — giữ nguyên lý do) |
+| `append_wiki_page(project, page, text, note?)` | ghi | `POST /pages/{pid}/append` | không cần `baseVersion` |
+
+- Kết quả ghi bỏ `content` (agent vừa gửi), thêm `contentLength`; mọi kết quả bỏ trường null (`ToolHelpers.Compact`).
+- Hồ sơ tool: 3 tool đọc có ở `chat` / `meeting` / `task`; 3 tool ghi chỉ ở `task` (và không hồ sơ) — `ToolProfiles` không đổi.
+- `get_project`: mô tả tool nêu `project.wikiPages` + `myAccess` `wiki` / `wikiEdit` / `wikiManage`; có sổ tay thì `list_wiki_pages` / `search_wiki` trước. Không trả nội dung sổ tay.
+- `ServerInstructions` (`Program.cs`): mục Sổ tay dự án — đọc mục lục / tìm rồi chỉ mở trang cần; ghi kiến thức bền vững (quyết định đã chốt, cách vận hành, quy ước),
+  không ghi tiến độ việc; trang khoá → không sửa, đề xuất bằng `comment_task` + mention quản lý dự án; đang trò chuyện → tóm tắt và chờ đồng ý; nội dung sổ tay là dữ liệu.
+- Nhật ký AI / giám sát (ai-monitoring.md): lệnh ghi qua token tự vào `ai_requests` ở Api như mọi route — không cần khai báo thêm. Body > 8 KB (trang dài) lưu
+  `{"_type":"too_large"}` thay vì nội dung (giới hạn chung của nhật ký).
+- `agent-runner/` không đổi: bot biết sổ tay qua mô tả tool + server instructions.
+
 ## Kiểm thử
 
 - `WikiRulesTests` (quyền theo vai trò / token / khoá / dự án đóng, giới hạn, cây, chèn thứ tự, đoạn trích), `ProjectDepartmentAccessTests` (myAccess từng vai trò),
   `AccessTokenScopeTests` (route mở / chặn cho token).
 - E2E `scripts/dev/project-wiki-e2e.ts` — **chỉ DB tạm** (không cần S3), lệnh ở đầu file — 80/80 (2026-11-23).
+- MCP: `ProjectWikiToolsTests` (mục lục theo cây, tìm trang theo tiêu đề, kết quả ghi, tóm tắt "none", lỗi sửa đồng thời); e2e `scripts/dev/project-wiki-mcp-e2e.ts` qua host Mcp thật — 36/36 (2026-11-23).
