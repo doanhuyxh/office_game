@@ -15,6 +15,7 @@ Không bao giờ để người dùng thấy "Something went wrong!" mặc đị
 ## Lỗi tải chunk sau deploy — `utils/chunk-reload.ts`
 
 - Tab còn bản cũ, chuyển trang → file JS lazy cũ đã bị xoá ("Failed to fetch dynamically imported module" / Firefox "error loading dynamically imported module" / Safari "Importing a module script failed").
+- Chủ động nhắc tải lại khi có bản mới (tab đứng yên một trang, chưa lỗi chunk): `/version.json` + toast ở `pwa.ts` — xem [frontend-layout.md](frontend-layout.md) mục PWA (TEST-227).
 - `registerChunkReload()` (gọi ở `main.tsx`) bắt `vite:preloadError` → `reloadOnceForChunkError()`: tải lại **một lần**, ghi mốc thời gian `sessionStorage['officehub:chunk-reload']`; trong 60 giây đã thử rồi thì không tải lại nữa (chống lặp).
 - `lazyRouteComponent` của TanStack tự tải lại một lần (khoá `tanstack_router_reload:<message>`); vẫn lỗi → `ErrorPage` nhận ra lỗi chunk, thử `reloadOnceForChunkError()`, hết lượt → trang **"Hệ thống vừa được cập nhật"** (không hiện mã lỗi).
 

@@ -2,13 +2,14 @@
 // - KHÔNG bao giờ cache API / realtime / MCP / LiveKit: dữ liệu nhân sự luôn lấy mới, đăng xuất không để lại dữ liệu.
 // - Trang (navigation): luôn lấy mạng; mất mạng → offline.html (không mở app khi không gọi được API — tránh trạng thái nửa vời).
 // - /assets/* (tên có hash, không đổi nội dung): cache trước. Font Google: cache rồi làm mới nền.
-// Đổi VERSION khi sửa file này → cache cũ bị xoá ở bước activate.
+// Đổi VERSION khi sửa file này → cache cũ bị xoá ở bước activate. Lúc build, VERSION được nối thêm mã build
+// (scripts/build-version.ts) → mỗi deploy sw.js đổi nội dung → toast "Có bản mới" + dọn cache /assets cũ.
 const VERSION = 'v2';
 const SHELL = `officehub-shell-${VERSION}`;
 const ASSETS = `officehub-assets-${VERSION}`;
 const FONTS = `officehub-fonts-${VERSION}`;
 const PRECACHE = ['/offline.html', '/offline.js', '/icons/icon-192.png'];
-const NEVER = ['/api/', '/rt/', '/mcp', '/livekit/', '/.well-known/', '/health', '/oauth/'];
+const NEVER = ['/version.json', '/api/', '/rt/', '/mcp', '/livekit/', '/.well-known/', '/health', '/oauth/'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(SHELL).then((c) => c.addAll(PRECACHE)));

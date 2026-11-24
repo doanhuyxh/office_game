@@ -4,6 +4,8 @@ interface ImportMetaEnv {
   /** Commit Git + giờ build của bản web (frontend/Dockerfile ← scripts/deploy.sh) — trang Hệ thống → Vận hành. */
   readonly VITE_APP_COMMIT?: string;
   readonly VITE_APP_BUILD_TIME?: string;
+  /** Mã build sinh lúc `bun run build` (scripts/build-version.ts) — trùng `/version.json` của bản đang chạy; khác → nhắc tải lại. */
+  readonly VITE_APP_BUILD_ID: string;
   readonly VITE_FIREBASE_API_KEY?: string;
   readonly VITE_FIREBASE_AUTH_DOMAIN?: string;
   readonly VITE_FIREBASE_PROJECT_ID?: string;

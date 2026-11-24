@@ -3,16 +3,20 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
 import { legacyColorFallback } from './scripts/legacy-color-fallback.ts';
+import { buildVersion, makeBuildId } from './scripts/build-version.ts';
 
 const shared = fileURLToPath(new URL('../shared', import.meta.url));
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
+  const buildId = makeBuildId(); // TEST-227: so với /version.json → nhắc tải lại khi có bản mới
   return {
+    define: { 'import.meta.env.VITE_APP_BUILD_ID': JSON.stringify(buildId) },
     plugins: [
       react(),
       tailwindcss(),
       legacyColorFallback(fileURLToPath(new URL('./src/assets/styles/global.css', import.meta.url))),
+      buildVersion(buildId),
     ],
     resolve: {
       alias: {
