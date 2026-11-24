@@ -2,15 +2,13 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import { useMutationState } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { toast } from 'sonner';
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, CheckCircle2, Columns3, GripVertical, List, Loader2, Plus, Settings2, ShieldCheck } from 'lucide-react';
-import { BotBadge } from '@/components/common/bot-badge';
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, CheckCircle2, Columns3, GripVertical, List, Loader2, Plus, Settings2, ShieldCheck, Square, SquareCheck, SquareMinus } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { Checkbox } from '@/components/common/checkbox';
 import { promptDialog } from '@/components/common/confirm-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/common/tooltip';
 import { Spinner } from '@/components/feedback/Spinner';
 import { STORAGE_KEY } from '@/config/env';
-import { fmtDate } from '@/features/finance';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errors';
 import { projectApi } from '../../api/project.api';
@@ -21,6 +19,7 @@ import { checkState, rangeIds, withIds } from '../../utils/task-bulk';
 import { readStored, writeStored, type TaskView } from '../../utils/task-list';
 import { ColumnDialog } from '../column-dialog';
 import { ColumnWakeIcon } from '../column-wake-icon';
+import { KanbanTaskCard } from '../kanban-task-card';
 import { TaskBulkBar } from '../task-bulk-bar';
 import { TaskDialog } from '../task-dialog';
 import { TaskList } from '../task-list';
@@ -79,6 +78,20 @@ function ViewToggle({ view, onChange }: { view: TaskView; onChange: (v: TaskView
 }
 
 /** Đưa cột `id` tới vị trí của cột `target` (kéo thả tiêu đề cột). */
+/** Nút chọn / bỏ chọn cả cột (thao tác hàng loạt) — cùng kiểu nút biểu tượng với sắp xếp / cài đặt; biểu tượng theo trạng thái: không / một phần / cả cột. */
+function ColumnSelectButton({ name, state, onToggle }: { name: string; state: boolean | 'indeterminate'; onToggle: (on: boolean) => void }) {
+  const Icon = state === true ? SquareCheck : state === 'indeterminate' ? SquareMinus : Square;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button size="icon" variant="ghost" className={cn('size-7', state !== false && 'text-primary')} data-testid="column-check" aria-pressed={state === true ? true : state === 'indeterminate' ? 'mixed' : false}
+          aria-label={state === true ? `Bỏ chọn cả cột ${name}` : `Chọn cả cột ${name}`} onClick={() => onToggle(state !== true)}><Icon /></Button>
+      </TooltipTrigger>
+      <TooltipContent>{state === true ? 'Bỏ chọn tất cả việc trong cột' : 'Chọn tất cả việc trong cột'}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function reorder(ids: string[], id: string, target: string) {
   const rest = ids.filter((x) => x !== id);
   const at = rest.indexOf(target) + (ids.indexOf(id) < ids.indexOf(target) ? 1 : 0);
@@ -237,9 +250,6 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
                 onDragStart={(e) => { e.dataTransfer.setData(COLUMN, c.id); e.dataTransfer.effectAllowed = 'move'; setDragCol(c.id); }}
                 onDragEnd={() => setDragCol(null)}>
                 {manage && <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground" aria-hidden />}
-                {selectable && col.length > 0 && <Checkbox checked={checkState(selected, col.map((t) => t.id))} aria-label={`Chọn cả cột ${c.name}`} data-testid="column-check"
-                  className={cn(selected.size === 0 && 'opacity-0 group-hover/col:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100')}
-                  onCheckedChange={(v) => setIds(col.map((t) => t.id), v === true)} />}
                 <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
                 <span className="min-w-0 truncate font-medium" title={c.name}>{c.name}</span>
                 <span className="text-muted-foreground">({col.length})</span>
@@ -257,6 +267,8 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
                     </TooltipTrigger>
                     <TooltipContent>{isDesc ? 'Đang giảm dần (mới nhất lên đầu) — bấm để xếp tăng dần' : 'Đang tăng dần — bấm để xếp giảm dần (mới nhất lên đầu)'}</TooltipContent>
                   </Tooltip>
+                  {selectable && col.length > 0 && <ColumnSelectButton name={c.name} state={checkState(selected, col.map((t) => t.id))}
+                    onToggle={(on) => setIds(col.map((t) => t.id), on)} />}
                   {manage && <Button size="icon" variant="ghost" className="size-7" aria-label={`Sửa trạng thái ${c.name}`} onClick={() => setColEdit(c)}><Settings2 /></Button>}
                   {p.canWork && creatable.has(c.id) && <Button size="icon" variant="ghost" className="size-7" aria-label={`Thêm việc vào ${c.name}`}
                     onClick={() => setCreate({ columnId: c.id })}><Plus /></Button>}
@@ -265,34 +277,13 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
               {why && <p className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground" data-testid="drop-blocked">{why}</p>}
               <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-1 pb-1">
               {col.map((t) => {
-                const busy = moving.has(t.id);
                 const order = col.map((x) => x.id);
-                const isSel = selected.has(t.id);
                 return (
-                <div key={t.id} className="group/card relative">
-                <button type="button" draggable={p.canWork && !busy} disabled={busy} aria-busy={busy} onClick={() => openTask(t.id)}
-                  onDragStart={(e) => { e.dataTransfer.setData(TASK, t.id); e.dataTransfer.effectAllowed = 'move'; setDragTask(t); }}
-                  onDragEnd={() => { setDragTask(null); setOver(null); }}
-                  className={cn('grid gap-1 rounded-lg border bg-card p-2 text-left text-sm shadow-xs transition-opacity hover:border-primary/50 disabled:cursor-progress',
-                    dragTask?.id === t.id && 'opacity-50', busy && 'opacity-80', isSel && 'border-primary/60 bg-primary/5',
-                    flash[t.id] === 'ok' && 'animate-in fade-in ring-2 ring-primary/60 duration-500', flash[t.id] === 'err' && 'ring-2 ring-destructive')}
-                  data-testid="task-card" data-selected={isSel ? '' : undefined}>
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">{t.code}{busy && <Loader2 className="size-3 animate-spin" aria-label="Đang lưu" />}{t.createdByBot && <BotBadge />}
-                    {!!t.waitingOn && !t.done && <span className="rounded bg-warning/15 px-1 text-[10px] font-medium text-warning" title="Còn chờ việc khác chưa xong / chưa tới trạng thái cho việc sau bắt đầu" data-testid="task-waiting">Chờ {t.waitingOn} việc</span>}</span>
-                  <span className={t.done ? 'text-muted-foreground line-through' : 'font-medium'}>{t.title}</span>
-                  <span className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
-                    {t.assigneeName ?? 'Chưa giao'}
-                    {t.dueOn && <span className={t.overdue ? 'text-rose-600' : ''}>hạn {fmtDate(t.dueOn)}</span>}
-                    {t.estimateDays != null && <span>{t.estimateDays}d</span>}
-                    {t.commentCount > 0 && <span>💬 {t.commentCount}</span>}
-                    {t.mediaLinks.length > 0 && <span title="Ảnh / video">🖼 {t.mediaLinks.length}</span>}
-                  </span>
-                </button>
-                {selectable && <Checkbox checked={isSel} aria-label={`Chọn ${t.code}`} data-testid="task-check"
-                  className={cn('absolute top-2 right-2 bg-background', selected.size === 0 && !isSel && 'opacity-0 group-hover/card:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100')}
-                  onCheckedChange={() => { /* xử lý ở onClick để biết phím Shift */ }}
-                  onClick={(e) => { e.stopPropagation(); pickCard(t.id, !isSel, e.shiftKey, order); }} />}
-                </div>
+                  <KanbanTaskCard key={t.id} t={t} busy={moving.has(t.id)} dragging={dragTask?.id === t.id} flash={flash[t.id]} selected={selected.has(t.id)}
+                    selectable={selectable} selectionActive={selected.size > 0} draggable={p.canWork && !moving.has(t.id)} onOpen={() => openTask(t.id)}
+                    onDragStart={(e) => { e.dataTransfer.setData(TASK, t.id); e.dataTransfer.effectAllowed = 'move'; setDragTask(t); }}
+                    onDragEnd={() => { setDragTask(null); setOver(null); }}
+                    onPick={(on, shift) => pickCard(t.id, on, shift, order)} />
                 );
               })}
               </div>

@@ -26,6 +26,7 @@ Body `{ taskIds[], action, … }` — `action` + trường đi kèm:
 
 | File | Việc |
 |---|---|
+| `components/kanban-task-card` | Thẻ việc kanban + ô tích chọn trong thẻ |
 | `components/task-bulk-bar` | Thanh dính đáy khung tab: "Đã chọn N việc · Bỏ chọn", Chuyển trạng thái, Giao cho, Đổi hạn, Theo dõi ▾ (thêm / bỏ), ⋯ Xoá; giữ ca "một phần": việc đã làm bỏ chọn, việc bỏ qua giữ chọn |
 | `components/task-bulk-dialog` | Hộp thoại 5 thao tác; **xem trước** chuyển trạng thái ở FE (`movePlan` = `moveBlockReason` của kanban: "N chuyển được · M bỏ qua" + lý do), ô lý do khi có việc lùi, đổi hạn 3 cách (đặt / dời N ngày / xoá, báo số việc chưa có hạn) |
 | `components/task-bulk-delete-dialog` | Xoá: cảnh báo không hoàn tác, liệt kê việc, **phải gõ tay `delete`** mới bật nút (back-end kiểm lại) |
@@ -33,6 +34,7 @@ Body `{ taskIds[], action, … }` — `action` + trường đi kèm:
 | `utils/task-bulk.ts` | Hàm thuần: `movePlan`, `rangeIds` (Shift+click), `withIds`, `checkState`, hằng khớp back-end |
 | `hooks/useProjects.ts` | `useBulkTasks` (làm mới như mọi lệnh ghi dự án) |
 
-- **Chọn**: tập chọn ở `TaskBoard` dùng chung hai chế độ. Danh sách: cột ô tích đầu bảng (thẻ ở màn hẹp), ô tiêu đề = tất cả dòng đang hiện (nhóm thu gọn không tính, có trạng thái "một phần"), ô ở tiêu đề nhóm = cả nhóm, Shift+click chọn dải. Kanban: ô tích góc thẻ (hiện khi rê chuột / khi đã có chọn / màn cảm ứng), ô ở tiêu đề cột = cả cột.
+- **Chọn**: tập chọn ở `TaskBoard` dùng chung hai chế độ. Danh sách: cột ô tích đầu bảng (thẻ ở màn hẹp), ô tiêu đề = tất cả dòng đang hiện (nhóm thu gọn không tính, có trạng thái "một phần"), ô ở tiêu đề nhóm = cả nhóm, Shift+click chọn dải. Kanban (`components/kanban-task-card`): ô tích nhỏ 16 px nằm **trong** thẻ, cuối dòng đầu (dòng đầu chừa `pr-6` nên không nhảy bố cục), hiện khi rê chuột / khi đã có việc được chọn / màn cảm ứng, là phần tử anh em của nút thẻ (không lồng nút trong nút); thẻ đã chọn: nền `primary/5`, viền `primary/50` + vạch dọc 3 px `primary` mép trái. Chọn cả cột: nút biểu tượng ☑ / ▣ / ☐ (không / một phần / cả cột) trong cụm nút bên phải tiêu đề cột, cùng kiểu với sắp xếp / cài đặt.
+- **Thẻ kanban**: dòng đầu mã + BOT; tên việc; dòng cuối chip chữ cái đầu + tên người làm (chưa giao: chữ nghiêng), chip "⏳ Chờ N việc", rồi hạn / ước lượng / bình luận / ảnh dồn phải (quá hạn chữ đỏ). Khối bọc và thẻ đều `w-full` (trước đây thẻ có ô tích bị hẹp hơn).
 - **Gắn với bộ lọc**: đổi lọc / tìm / "Chỉ việc của tôi" hoặc việc bị xoá → bỏ chọn việc không còn hiện (`keepOnly`). Chỉ `canWork` thấy ô tích.
 - Kéo thẻ kanban vẫn chỉ chuyển một thẻ.
