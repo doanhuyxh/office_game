@@ -1,6 +1,6 @@
 import { http, httpPost } from '@/services/api-client';
 import type {
-  IComment, ICommentUploadTicket, IUploadLink, IUploadLinkCreated, IEffort, ITaskDetail, IInstallmentRef, IMilestoneRequest, IProject, IProjectDetail, IProjectFinancials, IProjectRequest, ISalesContractRef, ITask, ITaskRequest, MemberRole,
+  IBulkTasksRequest, IBulkTasksResult, IComment, ICommentUploadTicket, IUploadLink, IUploadLinkCreated, IEffort, ITaskDetail, IInstallmentRef, IMilestoneRequest, IProject, IProjectDetail, IProjectFinancials, IProjectRequest, ISalesContractRef, ITask, ITaskRequest, MemberRole,
   ProjectStatus, ITaskColumnRequest, ChangeRequestStatus, IChangeRequest, IChangeRequestRequest, IProjectActivityFeed, IAgentSettings, IAgentSettingsRequest, IProjectAppendix,
 } from '../types/project.types';
 
@@ -49,6 +49,7 @@ export const projectApi = {
   deleteMilestone: (mid: string) => send<void>('DELETE', `${base}/milestones/${mid}`),
   acceptMilestone: (mid: string, acceptedOn: string, note: string | null) => httpPost<void>(`${base}/milestones/${mid}/accept`, { acceptedOn, note }),
   tasks: (id: string) => http<ITask[]>(`${base}/${id}/tasks`),
+  bulkTasks: (projectId: string, b: IBulkTasksRequest) => httpPost<IBulkTasksResult>(`${base}/${projectId}/tasks/bulk`, b),
   myTasks: () => http<ITask[]>(`${base}/tasks/mine`),
   createTask: (id: string, b: ITaskRequest) => httpPost<string>(`${base}/${id}/tasks`, b),
   updateTask: (tid: string, b: ITaskRequest) => send<void>('PUT', `${base}/tasks/${tid}`, b),

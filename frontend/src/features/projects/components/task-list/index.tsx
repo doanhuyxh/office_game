@@ -1,8 +1,9 @@
-import { useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useMutationState } from '@tanstack/react-query';
 import { AlertCircle, CalendarDays, ChevronDown, ChevronRight, Eye, FilterX, Loader2, MessageSquare, Plus, Search, SearchX, User } from 'lucide-react';
 import { BotBadge } from '@/components/common/bot-badge';
 import { Button } from '@/components/common/button';
+import { Checkbox } from '@/components/common/checkbox';
 import { promptDialog } from '@/components/common/confirm-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/common/dropdown-menu';
 import { Input } from '@/components/common/input';
@@ -16,13 +17,14 @@ import { todayVn } from '@/utils/date';
 import { moveTaskKey, useMoveTask, useTaskDetail, type IMoveTaskArgs } from '../../hooks/useProjects';
 import type { IProjectDetail, ITask, ITaskColumn } from '../../types/project.types';
 import { moveBlockReason, needsMoveNote } from '../../utils/labels';
+import { checkState, rangeIds, withIds } from '../../utils/task-bulk';
 import {
   DUE_LABEL, EMPTY_FILTER, GROUP_LABEL, SORT_LABEL, filterTasks, groupTasks, isFiltered, sortTasks,
   type ITaskGroup, type ITaskListFilter, type TaskDueFilter, type TaskGroupBy, type TaskSort,
 } from '../../utils/task-list';
 import { ColumnBadge } from '../column-badge';
 
-/** Số cột của bảng (dòng nhóm / trống / đang tải trải hết). */
+/** Số cột của bảng không tính ô tích chọn (dòng nhóm / trống / đang tải trải hết = COLS + 1 khi có ô tích). */
 const COLS = 7;
 
 interface Props {
@@ -41,6 +43,10 @@ interface Props {
   onCreate: (() => void) | null;
   /** Chỉ xem: trạng thái là nhãn tĩnh. */
   readOnly: boolean;
+  /** Tập việc đang chọn cho thao tác hàng loạt (state ở `TaskBoard`, dùng chung với kanban). null = không có ô tích (chỉ xem). */
+  selection: { selected: ReadonlySet<string>; onChange: (next: Set<string>) => void } | null;
+  /** Báo danh sách id đang hiện theo bộ lọc — `TaskBoard` bỏ chọn việc không còn hiện (lựa chọn gắn với bộ lọc như danh sách nhân viên). */
+  onVisible: (ids: string[]) => void;
 }
 
 /**
@@ -49,7 +55,7 @@ interface Props {
  * thứ tự cột của dự án, nhóm của cột hoàn thành thu gọn sẵn. Đổi trạng thái trên dòng: menu chỉ gồm cột được phép (`moveBlockReason`),
  * lùi hỏi lý do (`needsMoveNote`), lưu qua `useMoveTask` (optimistic, lỗi → trả về cột cũ + toast) — cùng quy tắc với kanban.
  */
-export function TaskList({ d, tasks, isLoading, isError, isFetching, onRetry, myEmployeeId, mine, onMine, onOpen, onCreate, readOnly }: Props) {
+export function TaskList({ d, tasks, isLoading, isError, isFetching, onRetry, myEmployeeId, mine, onMine, onOpen, onCreate, readOnly, selection, onVisible }: Props) {
   const p = d.project;
   const columns = d.columns;
   const [filter, setFilter] = useState<ITaskListFilter>({ ...EMPTY_FILTER, mine });
@@ -69,6 +75,15 @@ export function TaskList({ d, tasks, isLoading, isError, isFetching, onRetry, my
   const shown = sortTasks(filterTasks(tasks, f, myEmployeeId, today), sort);
   const groups = groupTasks(shown, groupBy, columns, d.members, today, !isFiltered(f));
   const open = (g: ITaskGroup) => toggled[g.key] ?? !g.isDone;
+  // Thao tác hàng loạt (ô tích): chọn theo dòng đang hiện (nhóm thu gọn không tính vào ô tích tổng), Shift+click chọn dải.
+  const sel = selection?.selected;
+  const cols = selection ? COLS + 1 : COLS;
+  const order = groups.filter((g) => groupBy === 'none' || open(g)).flatMap((g) => g.tasks.map((t) => t.id));
+  const lastPick = useRef<string | null>(null);
+  const setIds = (ids: string[], on: boolean) => { if (selection) selection.onChange(withIds(selection.selected, ids, on)); };
+  const pick = (id: string, on: boolean, shift: boolean) => { setIds(shift ? rangeIds(order, lastPick.current, id) : [id], on); lastPick.current = id; };
+  const visibleKey = shown.map((t) => t.id).join(',');
+  useEffect(() => { if (!isLoading) onVisible(visibleKey ? visibleKey.split(',') : []); }, [visibleKey, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
   const toggle = (g: ITaskGroup) => setToggled((t) => ({ ...t, [g.key]: !open(g) }));
   const clear = () => { setFilter(EMPTY_FILTER); onMine(false); };
 
@@ -89,10 +104,12 @@ export function TaskList({ d, tasks, isLoading, isError, isFetching, onRetry, my
   const empty = !isLoading && !isError && shown.length === 0;
   const tableHead = <>
     <colgroup>
-      <col /><col className="w-36" /><col className="w-40" /><col className="w-24" /><col className="w-36" /><col className="w-24" /><col className="w-24" />
+      {selection && <col className="w-10" />}<col /><col className="w-36" /><col className="w-40" /><col className="w-24" /><col className="w-36" /><col className="w-24" /><col className="w-24" />
     </colgroup>
     <TableHeader className="bg-muted/40 text-xs uppercase">
       <TableRow>
+        {selection && <TableHead className="w-10"><Checkbox checked={checkState(sel!, order)} disabled={order.length === 0} aria-label="Chọn tất cả việc đang hiện"
+          onCheckedChange={(c) => setIds(order, c === true)} data-testid="task-check-all" /></TableHead>}
         <TableHead>Việc</TableHead><TableHead>Trạng thái</TableHead><TableHead>Người làm</TableHead><TableHead>Theo dõi</TableHead>
         <TableHead>Hạn</TableHead><TableHead className="text-right">Ước lượng</TableHead><TableHead className="text-right">Bình luận</TableHead>
       </TableRow>
@@ -140,13 +157,15 @@ export function TaskList({ d, tasks, isLoading, isError, isFetching, onRetry, my
               <TableBody>
                 {isLoading ? Array.from({ length: 6 }, (_, i) => (
                   <TableRow key={i} data-testid="task-row-skeleton">
-                    {Array.from({ length: COLS }, (__, j) => <TableCell key={j}><Skeleton className={cn('h-4', j === 0 ? 'w-4/5' : 'w-16')} /></TableCell>)}
+                    {Array.from({ length: cols }, (__, j) => <TableCell key={j}><Skeleton className={cn('h-4', j === (selection ? 1 : 0) ? 'w-4/5' : 'w-16')} /></TableCell>)}
                   </TableRow>
                 )) : groups.map((g) => (
-                  <GroupRows key={g.key} g={g} open={open(g)} onToggle={groupBy === 'none' ? undefined : () => toggle(g)}>
+                  <GroupRows key={g.key} g={g} open={open(g)} onToggle={groupBy === 'none' ? undefined : () => toggle(g)} cols={cols}
+                    check={selection ? <GroupCheck g={g} sel={sel!} onChange={setIds} /> : undefined}>
                     {g.tasks.map((t) => (
                       <TableRow key={t.id} className={cn('cursor-pointer', moving.has(t.id) && 'opacity-80')} tabIndex={0} data-testid="task-row"
-                        data-task={t.code} onClick={() => onOpen(t.id)} onKeyDown={rowKey(() => onOpen(t.id))}>
+                        data-task={t.code} data-selected={sel?.has(t.id) ? '' : undefined} onClick={() => onOpen(t.id)} onKeyDown={rowKey(() => onOpen(t.id))}>
+                        {selection && <TableCell className="w-10" onClick={(e) => e.stopPropagation()}><RowCheck t={t} checked={sel!.has(t.id)} onPick={pick} /></TableCell>}
                         <TableCell className="min-w-0"><TaskTitle t={t} /></TableCell>
                         <TableCell>{status(t)}</TableCell>
                         <TableCell className="truncate" title={t.assigneeName ?? undefined}>
@@ -170,11 +189,16 @@ export function TaskList({ d, tasks, isLoading, isError, isFetching, onRetry, my
             {isLoading ? Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-24 w-full rounded-lg" />)
               : groups.map((g) => (
                 <section key={g.key} className="grid gap-2" data-testid="task-group" data-group={g.label}>
-                  {groupBy !== 'none' && <GroupHeader g={g} open={open(g)} onToggle={() => toggle(g)} />}
+                  {groupBy !== 'none' && <div className="flex min-w-0 items-center gap-2">
+                    {selection && <GroupCheck g={g} sel={sel!} onChange={setIds} />}
+                    <div className="min-w-0 flex-1"><GroupHeader g={g} open={open(g)} onToggle={() => toggle(g)} /></div>
+                  </div>}
                   {open(g) && g.tasks.map((t) => (
                     <div key={t.id} role="button" tabIndex={0} onClick={() => onOpen(t.id)} onKeyDown={rowKey(() => onOpen(t.id))} data-testid="task-card-row"
-                      data-task={t.code} className={cn('grid min-w-0 cursor-pointer gap-1.5 rounded-lg border bg-card p-3 text-sm shadow-xs hover:border-primary/50', moving.has(t.id) && 'opacity-80')}>
+                      data-task={t.code} data-selected={sel?.has(t.id) ? '' : undefined}
+                      className={cn('grid min-w-0 cursor-pointer gap-1.5 rounded-lg border bg-card p-3 text-sm shadow-xs hover:border-primary/50', moving.has(t.id) && 'opacity-80', sel?.has(t.id) && 'border-primary/60 bg-primary/5')}>
                       <div className="flex min-w-0 items-start justify-between gap-2">
+                        {selection && <span onClick={(e) => e.stopPropagation()}><RowCheck t={t} checked={sel!.has(t.id)} onPick={pick} /></span>}
                         <TaskMeta t={t} />
                         <div className="shrink-0">{status(t)}</div>
                       </div>
@@ -242,16 +266,30 @@ function GroupHeader({ g, open, onToggle }: { g: ITaskGroup; open: boolean; onTo
 }
 
 /** Dòng tiêu đề nhóm (bấm để mở / thu) + các dòng việc khi đang mở. Không nhóm → chỉ các dòng. */
-function GroupRows({ g, open, onToggle, children }: { g: ITaskGroup; open: boolean; onToggle?: () => void; children: ReactNode }) {
+function GroupRows({ g, open, onToggle, cols, check, children }: { g: ITaskGroup; open: boolean; onToggle?: () => void; cols: number; check?: ReactNode; children: ReactNode }) {
   if (!onToggle) return <>{children}</>;
   return (
     <>
       <TableRow className="bg-muted/30 hover:bg-muted/50" data-testid="task-group" data-group={g.label}>
-        <TableCell colSpan={COLS} className="py-1"><GroupHeader g={g} open={open} onToggle={onToggle} /></TableCell>
+        {check && <TableCell className="w-10 py-1">{check}</TableCell>}
+        <TableCell colSpan={check ? cols - 1 : cols} className="py-1"><GroupHeader g={g} open={open} onToggle={onToggle} /></TableCell>
       </TableRow>
       {open && children}
     </>
   );
+}
+
+/** Ô tích chọn một việc (Shift+click = chọn cả dải từ lần tích trước). */
+function RowCheck({ t, checked, onPick }: { t: ITask; checked: boolean; onPick: (id: string, on: boolean, shift: boolean) => void }) {
+  return <Checkbox checked={checked} aria-label={`Chọn ${t.code}`} data-testid="task-check" onCheckedChange={() => { /* xử lý ở onClick để biết phím Shift */ }}
+    onClick={(e) => { e.stopPropagation(); onPick(t.id, !checked, e.shiftKey); }} />;
+}
+
+/** Ô tích cả nhóm (true / một phần / không). */
+function GroupCheck({ g, sel, onChange }: { g: ITaskGroup; sel: ReadonlySet<string>; onChange: (ids: string[], on: boolean) => void }) {
+  const ids = g.tasks.map((t) => t.id);
+  return <Checkbox checked={checkState(sel, ids)} disabled={ids.length === 0} aria-label={`Chọn cả nhóm ${g.label}`} data-testid="group-check"
+    onCheckedChange={(c) => onChange(ids, c === true)} />;
 }
 
 function TaskMeta({ t }: { t: ITask }) {

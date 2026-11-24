@@ -41,6 +41,7 @@ public sealed class ProjectsModule : IModule
         TaskEndpoints.Map(g);       // trước ProjectEndpoints: "/tasks/mine" không bị "/{id:guid}" nuốt (guid constraint đã chặn, giữ thứ tự cho rõ)
         CommentFileEndpoints.Map(g); // tệp đính kèm bình luận việc (TEST-153)
         UploadLinkEndpoints.Map(g);  // link tải tệp từ thiết bị khác (TEST-175)
+        BulkTaskEndpoints.Map(g);     // thao tác hàng loạt trên việc (web)
         TaskFollowerEndpoints.Map(g); // người theo dõi việc (TEST-160)
         TaskColumnEndpoints.Map(g);
         ActivityFeedEndpoints.Map(g); // /activity — bảng việc tự cập nhật + toast

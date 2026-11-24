@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { errorMessage } from '@/utils/errors';
 import { projectApi, projectKeys } from '../api/project.api';
-import type { ITask, ITaskColumn, ProjectStatus } from '../types/project.types';
+import type { IBulkTasksRequest, ITask, ITaskColumn, ProjectStatus } from '../types/project.types';
 
 export const useProjectList = (mine: boolean) => useQuery({ queryKey: projectKeys.list(mine), queryFn: () => projectApi.list(mine) });
 export const useProject = (id: string) => useQuery({ queryKey: projectKeys.detail(id), queryFn: () => projectApi.get(id) });
@@ -75,3 +75,6 @@ export function useProjectMutation<A, R>(fn: (a: A) => Promise<R>) {
     onSuccess: () => { for (const k of ['projects', 'documents', 'sales']) void qc.invalidateQueries({ queryKey: [k] }); },
   });
 }
+
+/** Thao tác hàng loạt trên việc của dự án (`POST /tasks/bulk`, thành công từng phần) — làm mới như mọi lệnh ghi dự án. */
+export const useBulkTasks = (projectId: string) => useProjectMutation((b: IBulkTasksRequest) => projectApi.bulkTasks(projectId, b));

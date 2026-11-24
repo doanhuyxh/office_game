@@ -159,3 +159,17 @@ export interface IAgentSettings {
   defaultTasksPerDay: number; defaultStreak: number; tasksPerDayMin: number; tasksPerDayMax: number; streakMin: number; streakMax: number;
 }
 export interface IAgentSettingsRequest { maxBotTasksPerDay: number; maxBotStreak: number }
+
+/** Thao tác hàng loạt trên việc (web, danh sách + kanban). */
+export type BulkTaskAction = 'move' | 'assign' | 'due' | 'follow' | 'unfollow' | 'delete';
+export type BulkDueMode = 'set' | 'clear' | 'shift';
+export interface IBulkTasksRequest {
+  taskIds: string[]; action: BulkTaskAction;
+  /** move */ columnId?: string; note?: string | null;
+  /** assign (null = bỏ giao) */ assigneeEmployeeId?: string | null;
+  /** due */ dueMode?: BulkDueMode; dueOn?: string; shiftDays?: number;
+  /** follow / unfollow */ followerEmployeeId?: string;
+  /** delete: phải là chữ "delete" */ confirm?: string;
+}
+/** Thành công từng phần: `applied` đã làm, `skipped` bị bỏ qua kèm lý do (việc đó không đổi gì). */
+export interface IBulkTasksResult { applied: string[]; skipped: { taskId: string; code: string; reason: string }[] }

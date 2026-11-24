@@ -42,7 +42,7 @@ internal static class TaskFollowerEndpoints
             .OrderBy(f => f.FullName, StringComparer.CurrentCulture).ToList();
     }
 
-    private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> AddAsync(Guid tid, Guid employeeId, ClaimsPrincipal user,
+    internal static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> AddAsync(Guid tid, Guid employeeId, ClaimsPrincipal user,
         ProjectsDbContext db, ProjectAccess access, ProjectClock clock, BotStreakGuard streak, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
@@ -64,7 +64,7 @@ internal static class TaskFollowerEndpoints
         return TypedResults.NoContent();
     }
 
-    private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> RemoveAsync(Guid tid, Guid employeeId, ClaimsPrincipal user,
+    internal static async Task<Results<NoContent, NotFound, ProblemHttpResult>> RemoveAsync(Guid tid, Guid employeeId, ClaimsPrincipal user,
         ProjectsDbContext db, ProjectAccess access, ProjectClock clock, BotStreakGuard streak, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);

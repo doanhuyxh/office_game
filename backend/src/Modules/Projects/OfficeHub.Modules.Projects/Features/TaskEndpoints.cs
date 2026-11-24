@@ -340,7 +340,7 @@ internal static class TaskEndpoints
         return null;
     }
 
-    private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> UpdateAsync(Guid tid, UpsertTask r, ClaimsPrincipal user, ProjectsDbContext db,
+    internal static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> UpdateAsync(Guid tid, UpsertTask r, ClaimsPrincipal user, ProjectsDbContext db,
         ProjectAccess access, IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, IWebhookPublisher webhooks, IAccountService accounts, ProjectClock clock,
         BotStreakGuard streak, CancellationToken ct)
     {
@@ -385,7 +385,7 @@ internal static class TaskEndpoints
         return TypedResults.NoContent();
     }
 
-    private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> MoveAsync(Guid tid, MoveTask r, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
+    internal static async Task<Results<NoContent, NotFound, ProblemHttpResult>> MoveAsync(Guid tid, MoveTask r, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
         IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, IWebhookPublisher webhooks, IAccountService accounts, ProjectClock clock, BotStreakGuard streak,
         CancellationToken ct)
     {
@@ -581,7 +581,7 @@ internal static class TaskEndpoints
         return TypedResults.NoContent();
     }
 
-    private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteAsync(Guid tid, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
+    internal static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteAsync(Guid tid, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access,
         IFileStorage files, IEmployeeDirectory dir, INotifier notifier, ITelegramWakeup telegram, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);

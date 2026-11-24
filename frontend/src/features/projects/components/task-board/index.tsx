@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react';
 import { useMutationState } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { toast } from 'sonner';
@@ -17,9 +17,11 @@ import { projectApi } from '../../api/project.api';
 import { moveTaskKey, useMoveTask, useProjectMutation, useTaskDetail, useTasks, type IMoveTaskArgs } from '../../hooks/useProjects';
 import type { IProjectDetail, ITask, ITaskColumn } from '../../types/project.types';
 import { createColumns, moveBlockReason, needsMoveNote } from '../../utils/labels';
+import { checkState, rangeIds, withIds } from '../../utils/task-bulk';
 import { readStored, writeStored, type TaskView } from '../../utils/task-list';
 import { ColumnDialog } from '../column-dialog';
 import { ColumnWakeIcon } from '../column-wake-icon';
+import { TaskBulkBar } from '../task-bulk-bar';
 import { TaskDialog } from '../task-dialog';
 import { TaskList } from '../task-list';
 
@@ -127,6 +129,17 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
   const moving = new Set(useMutationState({ filters: { mutationKey: moveTaskKey(p.id), status: 'pending' },
     select: (m) => (m.state.variables as IMoveTaskArgs | undefined)?.task.id }));
   const reorderCols = useProjectMutation((ids: string[]) => projectApi.reorderColumns(p.id, ids));
+  // Thao tác hàng loạt (danh sách + kanban dùng chung một tập chọn); lựa chọn gắn với việc đang hiện: bộ lọc / "Chỉ việc của tôi" / việc bị xoá → bỏ chọn.
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const lastPick = useRef<string | null>(null);
+  const keepOnly = useCallback((ids: string[]) => setSelected((prev) => {
+    const keep = new Set(ids);
+    const next = new Set([...prev].filter((id) => keep.has(id)));
+    return next.size === prev.size ? prev : next;
+  }), []);
+  useEffect(() => {
+    if (view === 'board' && !isLoading) keepOnly(data.filter((t) => !mine || t.assigneeEmployeeId === myEmployeeId).map((t) => t.id));
+  }, [view, isLoading, data, mine, myEmployeeId, keepOnly]);
   if (isLoading && view === 'board') return <Spinner />;
   const manage = p.canManageColumns && p.status === 'Active';
   const byId = new Map(d.columns.map((c) => [c.id, c]));
@@ -137,6 +150,9 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
   const firstCreatable = columns.find((c) => creatable.has(c.id));
   const opened: ITask | undefined = search.task && !missing ? data.find((t) => t.id === search.task) ?? linked.data?.task : undefined;
   const shown = mine ? data.filter((t) => t.assigneeEmployeeId === myEmployeeId) : data;
+  const selectable = p.canWork;
+  const setIds = (ids: string[], on: boolean) => setSelected((prev) => withIds(prev, ids, on));
+  const pickCard = (id: string, on: boolean, shift: boolean, order: string[]) => { setIds(shift ? rangeIds(order, lastPick.current, id) : [id], on); lastPick.current = id; };
   const dropTask = async (columnId: string, id: string) => {
     const t = data.find((x) => x.id === id);
     const column = byId.get(columnId);
@@ -201,7 +217,8 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
       </div>
       {view === 'list' ? <TaskList d={d} tasks={data} isLoading={isLoading} isError={tasks.isError && !tasks.data} isFetching={tasks.isFetching}
         onRetry={() => void tasks.refetch()} myEmployeeId={myEmployeeId} mine={mine} onMine={setMine} onOpen={(id) => openTask(id)}
-        onCreate={!readOnly && firstCreatable ? () => setCreate({ columnId: firstCreatable.id }) : null} readOnly={readOnly} />
+        onCreate={!readOnly && firstCreatable ? () => setCreate({ columnId: firstCreatable.id }) : null} readOnly={readOnly}
+        selection={selectable ? { selected, onChange: setSelected } : null} onVisible={keepOnly} />
       : <div ref={board.ref} style={board.height ? { '--board-h': `${board.height}px` } as CSSProperties : undefined}
         className="flex gap-3 overflow-x-auto p-3 xl:h-(--board-h)">
         {columns.map((c) => {
@@ -213,13 +230,16 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
           return (
             <div key={c.id} data-testid={`col-${c.name}`} onDragOver={(e) => onDragOver(e, c.id)} onDragLeave={() => setOver(null)} onDrop={(e) => onDrop(e, c.id)}
               style={{ borderTopColor: c.color }}
-              className={cn('flex max-h-[70dvh] min-h-48 w-72 shrink-0 flex-col gap-2 rounded-xl border border-t-4 p-2 xl:max-h-none xl:min-h-0',
+              className={cn('group/col flex max-h-[70dvh] min-h-48 w-72 shrink-0 flex-col gap-2 rounded-xl border border-t-4 p-2 xl:max-h-none xl:min-h-0',
                 over === c.id ? 'border-x-primary border-b-primary bg-primary/5' : 'bg-muted/30', (dragCol === c.id || why) && 'cursor-not-allowed opacity-50')}
               title={why ?? undefined} data-blocked={why ? '' : undefined}>
               <div className="flex items-center gap-1 px-1 text-sm" draggable={manage} data-testid="column-header"
                 onDragStart={(e) => { e.dataTransfer.setData(COLUMN, c.id); e.dataTransfer.effectAllowed = 'move'; setDragCol(c.id); }}
                 onDragEnd={() => setDragCol(null)}>
                 {manage && <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground" aria-hidden />}
+                {selectable && col.length > 0 && <Checkbox checked={checkState(selected, col.map((t) => t.id))} aria-label={`Chọn cả cột ${c.name}`} data-testid="column-check"
+                  className={cn(selected.size === 0 && 'opacity-0 group-hover/col:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100')}
+                  onCheckedChange={(v) => setIds(col.map((t) => t.id), v === true)} />}
                 <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
                 <span className="min-w-0 truncate font-medium" title={c.name}>{c.name}</span>
                 <span className="text-muted-foreground">({col.length})</span>
@@ -246,14 +266,17 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
               <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-1 pb-1">
               {col.map((t) => {
                 const busy = moving.has(t.id);
+                const order = col.map((x) => x.id);
+                const isSel = selected.has(t.id);
                 return (
-                <button key={t.id} type="button" draggable={p.canWork && !busy} disabled={busy} aria-busy={busy} onClick={() => openTask(t.id)}
+                <div key={t.id} className="group/card relative">
+                <button type="button" draggable={p.canWork && !busy} disabled={busy} aria-busy={busy} onClick={() => openTask(t.id)}
                   onDragStart={(e) => { e.dataTransfer.setData(TASK, t.id); e.dataTransfer.effectAllowed = 'move'; setDragTask(t); }}
                   onDragEnd={() => { setDragTask(null); setOver(null); }}
                   className={cn('grid gap-1 rounded-lg border bg-card p-2 text-left text-sm shadow-xs transition-opacity hover:border-primary/50 disabled:cursor-progress',
-                    dragTask?.id === t.id && 'opacity-50', busy && 'opacity-80',
+                    dragTask?.id === t.id && 'opacity-50', busy && 'opacity-80', isSel && 'border-primary/60 bg-primary/5',
                     flash[t.id] === 'ok' && 'animate-in fade-in ring-2 ring-primary/60 duration-500', flash[t.id] === 'err' && 'ring-2 ring-destructive')}
-                  data-testid="task-card">
+                  data-testid="task-card" data-selected={isSel ? '' : undefined}>
                   <span className="flex items-center gap-1 text-xs text-muted-foreground">{t.code}{busy && <Loader2 className="size-3 animate-spin" aria-label="Đang lưu" />}{t.createdByBot && <BotBadge />}
                     {!!t.waitingOn && !t.done && <span className="rounded bg-warning/15 px-1 text-[10px] font-medium text-warning" title="Còn chờ việc khác chưa xong / chưa tới trạng thái cho việc sau bắt đầu" data-testid="task-waiting">Chờ {t.waitingOn} việc</span>}</span>
                   <span className={t.done ? 'text-muted-foreground line-through' : 'font-medium'}>{t.title}</span>
@@ -265,6 +288,11 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
                     {t.mediaLinks.length > 0 && <span title="Ảnh / video">🖼 {t.mediaLinks.length}</span>}
                   </span>
                 </button>
+                {selectable && <Checkbox checked={isSel} aria-label={`Chọn ${t.code}`} data-testid="task-check"
+                  className={cn('absolute top-2 right-2 bg-background', selected.size === 0 && !isSel && 'opacity-0 group-hover/card:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100')}
+                  onCheckedChange={() => { /* xử lý ở onClick để biết phím Shift */ }}
+                  onClick={(e) => { e.stopPropagation(); pickCard(t.id, !isSel, e.shiftKey, order); }} />}
+                </div>
                 );
               })}
               </div>
@@ -272,6 +300,8 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
           );
         })}
       </div>}
+      {selectable && <TaskBulkBar d={d} selected={data.filter((t) => selected.has(t.id))} onClear={() => setSelected(new Set())}
+        onRemove={(ids) => setSelected((prev) => withIds(prev, ids, false))} />}
       <TaskDialog projectId={p.id} task={opened ?? (create ? null : undefined)} initialColumnId={create?.columnId} columns={columns} members={d.members}
         milestones={d.milestones} canWork={p.canWork} canComment={p.canComment}
         uploadLinks={p.status === 'Active'} canDelete={p.canManage && p.canWork} sequential={p.sequential} focusCommentId={opened ? search.comment : undefined}
