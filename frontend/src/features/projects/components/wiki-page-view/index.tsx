@@ -11,18 +11,16 @@ import { errorMessage } from '@/utils/errors';
 import { wikiApi } from '../../api/wiki.api';
 import { useWikiMutation } from '../../hooks/useWiki';
 import type { IWikiPage } from '../../types/wiki.types';
-import { markdownHeadings } from '../../utils/headings';
 import type { IWikiNode } from '../../utils/wiki-tree';
 import { WikiHistorySheet } from '../wiki-history-sheet';
 import { WikiMoveDialog } from '../wiki-move-dialog';
-import { WorkGuideToc } from '../work-guide-toc';
 
-/** Tiền tố id tiêu đề trong trang sổ tay (mục lục cuộn tới). */
-const HEADING_PREFIX = 'wiki';
+/** Tiền tố id tiêu đề trong trang sổ tay (mục lục ở `ProjectWiki` cuộn tới). */
+export const WIKI_HEADING_PREFIX = 'wiki';
 
 /**
  * Xem một trang sổ tay (TEST-217): đường dẫn trang cha, tiêu đề, tóm tắt, "Sửa lần cuối bởi … lúc …" (BOT), nhãn "Đã khoá bởi …",
- * mục lục tiêu đề `##` (dùng lại `WorkGuideToc`), nội dung Markdown. Nút / menu theo cờ API: Sửa (canEdit), Trang con (canEdit + chưa đủ cấp),
+ * nội dung Markdown (mục lục tiêu đề `##` do `ProjectWiki` dựng ở cột trái / phải). Nút / menu theo cờ API: Sửa (canEdit), Trang con (canEdit + chưa đủ cấp),
  * Lịch sử (mọi người xem), ⋯ Đổi tên / Chuyển trang cha / Lên / Xuống (canEdit), Khoá / Mở khoá / Xoá (canManage).
  */
 export function WikiPageView({ projectId, page, node, siblings, tree, maxDepth, canCreate, onEdit, onNewChild, onSelect, onDeleted }: {
@@ -33,7 +31,6 @@ export function WikiPageView({ projectId, page, node, siblings, tree, maxDepth, 
 }) {
   const [history, setHistory] = useState(false);
   const [moving, setMoving] = useState(false);
-  const headings = markdownHeadings(page.content);
   const idx = siblings.findIndex((s) => s.page.id === page.id);
   const canChild = page.canEdit && canCreate && !!node && node.depth < maxDepth;
 
@@ -104,12 +101,8 @@ export function WikiPageView({ projectId, page, node, siblings, tree, maxDepth, 
             <Lock className="size-3" /> Đã khoá{page.lockedByName && ` bởi ${page.lockedByName}`}{page.lockedAt && ` lúc ${formatDateTime(page.lockedAt)}`}</span>}
         </div>
       </header>
-      {headings.length > 1 && <details className="rounded-lg border px-3 py-2" open>
-        <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-muted-foreground">Mục lục ({headings.length})</summary>
-        <WorkGuideToc headings={headings} prefix={HEADING_PREFIX} className="mt-2 -mx-2" />
-      </details>}
       <div className="min-w-0 rounded-lg border p-4 wrap-anywhere @4xl/content:p-6" data-testid="wiki-page-content">
-        {page.content.trim() ? <Markdown text={page.content} headingIds={HEADING_PREFIX} /> : <p className="text-sm text-muted-foreground">Trang chưa có nội dung.{page.canEdit && ' Bấm "Sửa" để viết.'}</p>}
+        {page.content.trim() ? <Markdown text={page.content} headingIds={WIKI_HEADING_PREFIX} /> : <p className="text-sm text-muted-foreground">Trang chưa có nội dung.{page.canEdit && ' Bấm "Sửa" để viết.'}</p>}
       </div>
       <WikiHistorySheet projectId={projectId} page={page} open={history} onClose={() => setHistory(false)} />
       {node && moving && <WikiMoveDialog projectId={projectId} node={node} tree={tree} maxDepth={maxDepth} open={moving} onClose={() => setMoving(false)} />}

@@ -1,5 +1,5 @@
 import { http, httpPost } from '@/services/api-client';
-import type { IWikiCreate, IWikiPage, IWikiSearchHit, IWikiTree, IWikiUpdate, IWikiVersion, IWikiVersionList } from '../types/wiki.types';
+import type { IWikiCreate, IWikiPrefs, IWikiPage, IWikiSearchHit, IWikiTree, IWikiUpdate, IWikiVersion, IWikiVersionList } from '../types/wiki.types';
 
 const base = (projectId: string) => `/api/projects/${projectId}/wiki`;
 const send = <T>(method: string, url: string, body?: unknown) => http<T>(url, { method, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -19,6 +19,7 @@ export const wikiKeys = {
 
 export const wikiApi = {
   tree: (projectId: string) => http<IWikiTree>(base(projectId)),
+  updatePrefs: (projectId: string, b: Partial<IWikiPrefs>) => send<IWikiPrefs>('PUT', `${base(projectId)}/prefs`, b),
   search: (projectId: string, q: string) => http<IWikiSearchHit[]>(`${base(projectId)}/search?q=${encodeURIComponent(q)}`),
   page: (projectId: string, pageId: string) => http<IWikiPage>(`${base(projectId)}/pages/${pageId}`),
   create: (projectId: string, b: IWikiCreate) => httpPost<IWikiPage>(`${base(projectId)}/pages`, b),

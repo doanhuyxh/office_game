@@ -6,7 +6,11 @@ export interface IWikiTreeItem {
   updatedAt: string; updatedByName: string; updatedByBot: boolean; contentLength: number;
 }
 /** Cây trang + cờ quyền của người gọi (back-end tính — FE chỉ dùng để hiện nút). */
-export interface IWikiTree { pages: IWikiTreeItem[]; canEdit: boolean; canManage: boolean; maxPages: number; maxDepth: number; maxContent: number }
+export interface IWikiTree { pages: IWikiTreeItem[]; canEdit: boolean; canManage: boolean; maxPages: number; maxDepth: number; maxContent: number; prefs: IWikiPrefs }
+/** Vị trí mục lục: cột trái (dưới cây trang) hoặc cột phải. */
+export type WikiTocSide = 'left' | 'right';
+/** Tuỳ chọn giao diện của CHÍNH người xem ở dự án này (lưu ở server theo tài khoản + dự án). */
+export interface IWikiPrefs { tocSide: WikiTocSide; tocCollapsed: boolean }
 export interface IWikiCrumb { id: string; title: string }
 /** Trang đầy đủ; `canEdit` đã xét trang khoá / dự án đóng; `path` = các trang cha từ gốc. */
 export interface IWikiPage {

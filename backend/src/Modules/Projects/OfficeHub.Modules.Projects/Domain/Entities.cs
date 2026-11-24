@@ -385,3 +385,24 @@ public sealed class WikiPageVersion
     /// <summary>Ghi chú lần sửa (tuỳ chọn, ≤ <see cref="WikiRules.MaxNote"/>).</summary>
     public string? Note { get; set; }
 }
+
+/// <summary>
+/// Tuỳ chọn giao diện sổ tay của MỘT người ở MỘT dự án (mục lục bên trái / phải, thu gọn). Khoá (ProjectId, UserId) — UserId là tài khoản đăng nhập
+/// (admin không có hồ sơ nhân viên vẫn lưu được). Không phải dữ liệu nghiệp vụ, không có quyền riêng: ai xem được dự án thì lưu được của mình.
+/// </summary>
+public sealed class WikiViewPref
+{
+    public Guid ProjectId { get; set; }
+    public Guid UserId { get; set; }
+    /// <summary><see cref="WikiTocSides"/>: "left" | "right".</summary>
+    public string TocSide { get; set; } = WikiTocSides.Right;
+    public bool TocCollapsed { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
+public static class WikiTocSides
+{
+    public const string Left = "left";
+    public const string Right = "right";
+    public static bool IsValid(string? v) => v is Left or Right;
+}

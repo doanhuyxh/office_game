@@ -887,6 +887,30 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.ToTable("wiki_page_versions", "projects");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.WikiViewPref", b =>
+                {
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("TocCollapsed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("TocSide")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ProjectId", "UserId");
+
+                    b.ToTable("wiki_view_prefs", "projects");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.Allocation", b =>
                 {
                     b.HasOne("OfficeHub.Modules.Projects.Domain.Project", null)
@@ -1049,6 +1073,15 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.HasOne("OfficeHub.Modules.Projects.Domain.WikiPage", null)
                         .WithMany()
                         .HasForeignKey("PageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.WikiViewPref", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Projects.Domain.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

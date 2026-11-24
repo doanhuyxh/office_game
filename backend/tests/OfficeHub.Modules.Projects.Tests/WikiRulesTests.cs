@@ -171,4 +171,17 @@ public class WikiRulesTests
         Assert.EndsWith("…", s);
         Assert.Equal("", WikiRules.Snippet("", "x"));
     }
+
+    // ---- Tuỳ chọn giao diện (vị trí mục lục) ----
+    [Theory]
+    [InlineData("left", true)]
+    [InlineData("right", true)]
+    [InlineData("Left", false)]
+    [InlineData("top", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void Toc_side_accepts_only_left_or_right(string? side, bool ok) => Assert.Equal(ok, WikiTocSides.IsValid(side));
+
+    [Fact]
+    public void Toc_side_defaults_to_right() => Assert.Equal(WikiTocSides.Right, new WikiViewPref().TocSide);
 }

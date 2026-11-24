@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { errorMessage } from '@/utils/errors';
 import { wikiApi, wikiKeys } from '../api/wiki.api';
+import type { IWikiPrefs, IWikiTree } from '../types/wiki.types';
 import { projectKeys } from '../api/project.api';
 
 /** Cây trang sổ tay (không nội dung) + cờ quyền. */
@@ -28,4 +31,27 @@ export function useWikiMutation<A, R>(projectId: string, fn: (a: A) => Promise<R
       void qc.invalidateQueries({ queryKey: projectKeys.detail(projectId) });
     },
   });
+}
+
+/**
+ * Tuỳ chọn giao diện sổ tay của người xem (vị trí / thu gọn mục lục) — đọc từ cây (`tree.prefs`), ghi `PUT /wiki/prefs`.
+ * Cập nhật lạc quan ngay trong cache cây; lỗi → về giá trị cũ + toast. Không làm mới cây / trang (chỉ là tuỳ chọn cá nhân).
+ */
+export function useWikiPrefs(projectId: string) {
+  const qc = useQueryClient();
+  const key = wikiKeys.tree(projectId);
+  const m = useMutation({
+    mutationFn: (b: Partial<IWikiPrefs>) => wikiApi.updatePrefs(projectId, b),
+    onMutate: async (b) => {
+      await qc.cancelQueries({ queryKey: key });
+      const prev = qc.getQueryData<IWikiTree>(key);
+      if (prev) qc.setQueryData<IWikiTree>(key, { ...prev, prefs: { ...prev.prefs, ...b } });
+      return { prev };
+    },
+    onError: (err, _b, ctx) => {
+      if (ctx?.prev) qc.setQueryData(key, ctx.prev);
+      toast.error(errorMessage(err, 'Không lưu được tuỳ chọn mục lục'));
+    },
+  });
+  return { save: m.mutate };
 }

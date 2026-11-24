@@ -7,8 +7,10 @@ import type { IMarkdownHeading } from '../../utils/headings';
  * (component `Markdown` với `headingIds={prefix}`). `extra` (TEST-186): mục thêm sau tiêu đề (hướng dẫn từng cột) — id phần tử + chữ, nhãn màu tuỳ chọn.
  * Không có mục nào → không hiện gì.
  */
-export function WorkGuideToc({ headings, prefix, extra = [], className }: {
+export function WorkGuideToc({ headings, prefix, extra = [], className, activeId }: {
   headings: IMarkdownHeading[]; prefix: string; extra?: { id: string; text: string; color?: string }[]; className?: string;
+  /** Id tiêu đề đang đọc (sổ tay: scroll-spy) — tô sáng dòng tương ứng. */
+  activeId?: string;
 }) {
   if (headings.length === 0 && extra.length === 0) return null;
   const go = (id: string) => {
@@ -20,8 +22,9 @@ export function WorkGuideToc({ headings, prefix, extra = [], className }: {
   return (
     <nav aria-label="Mục lục" className={cn('grid gap-0.5', className)} data-testid="work-guide-toc">
       {headings.map((h) => (
-        <a key={h.line} href={`#${markdownHeadingId(prefix, h.line)}`} title={h.text}
-          className="truncate rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+        <a key={h.line} href={`#${markdownHeadingId(prefix, h.line)}`} title={h.text} aria-current={activeId === markdownHeadingId(prefix, h.line) ? 'location' : undefined}
+          className={cn('truncate rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted hover:text-foreground',
+            activeId === markdownHeadingId(prefix, h.line) && 'bg-muted font-medium text-foreground')}
           onClick={(e) => { e.preventDefault(); go(markdownHeadingId(prefix, h.line)); }}>{h.text}</a>
       ))}
       {extra.map((x) => (

@@ -33,6 +33,7 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
     public DbSet<AgentSettings> AgentSettings => Set<AgentSettings>();
     public DbSet<WikiPage> WikiPages => Set<WikiPage>();
     public DbSet<WikiPageVersion> WikiPageVersions => Set<WikiPageVersion>();
+    public DbSet<WikiViewPref> WikiViewPrefs => Set<WikiViewPref>();
 
     /// <summary>Giới hạn đội agent đang áp dụng (đọc mỗi lần: chỉ request qua token AI cần, truy vấn theo khoá chính).</summary>
     public async Task<AgentLimits> AgentLimitsAsync(CancellationToken ct) =>
@@ -267,6 +268,14 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.Property(x => x.Note).HasMaxLength(WikiRules.MaxNote);
             e.HasIndex(x => new { x.PageId, x.Version }).IsUnique().HasDatabaseName("ux_wiki_page_versions_page_version");
             e.HasOne<WikiPage>().WithMany().HasForeignKey(x => x.PageId).OnDelete(DeleteBehavior.Cascade);
+        });
+        // Tuỳ chọn giao diện sổ tay theo người + dự án (vị trí mục lục). Không FK sang Identity (khác schema).
+        b.Entity<WikiViewPref>(e =>
+        {
+            e.ToTable("wiki_view_prefs");
+            e.HasKey(x => new { x.ProjectId, x.UserId });
+            e.Property(x => x.TocSide).HasMaxLength(5);
+            e.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

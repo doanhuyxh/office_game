@@ -15,7 +15,11 @@ namespace OfficeHub.Modules.Projects.Features;
 public sealed record WikiTreeItem(Guid Id, Guid? ParentId, string Title, string? Summary, int Position, int Version, bool Locked,
     DateTimeOffset UpdatedAt, string UpdatedByName, bool UpdatedByBot, int ContentLength);
 /// <param name="CanEdit">Người gọi tạo / sửa trang được (trang chưa khoá).</param><param name="CanManage">Người gọi xoá / khoá / khôi phục được.</param>
-public sealed record WikiTreeDto(List<WikiTreeItem> Pages, bool CanEdit, bool CanManage, int MaxPages, int MaxDepth, int MaxContent);
+/// <param name="Prefs">Tuỳ chọn giao diện của chính người gọi ở dự án này (mặc định: mục lục bên phải, không thu gọn).</param>
+public sealed record WikiTreeDto(List<WikiTreeItem> Pages, bool CanEdit, bool CanManage, int MaxPages, int MaxDepth, int MaxContent, WikiPrefsDto Prefs);
+public sealed record WikiPrefsDto(string TocSide, bool TocCollapsed);
+/// <param name="TocSide">"left" | "right"; null = giữ nguyên.</param><param name="TocCollapsed">null = giữ nguyên.</param>
+public sealed record UpdateWikiPrefs(string? TocSide = null, bool? TocCollapsed = null);
 public sealed record WikiCrumb(Guid Id, string Title);
 /// <param name="Path">Các trang cha từ gốc xuống (không gồm trang này).</param>
 public sealed record WikiPageDto(Guid Id, Guid ProjectId, Guid? ParentId, string Title, string? Summary, string Content, int Version, int Position,
@@ -46,6 +50,7 @@ internal static class WikiEndpoints
         var w = g.MapGroup("/{id:guid}/wiki");
         w.MapGet("/", TreeAsync);
         w.MapGet("/search", SearchAsync);
+        w.MapPut("/prefs", UpdatePrefsAsync);
         w.MapPost("/pages", CreateAsync);
         w.MapGet("/pages/{pageId:guid}", GetAsync);
         w.MapPut("/pages/{pageId:guid}", UpdateAsync);
@@ -136,7 +141,35 @@ internal static class WikiEndpoints
             .Select(x => new WikiTreeItem(x.Id, x.ParentId, x.Title, x.Summary, x.Position, x.Version, x.Locked, x.UpdatedAt, x.UpdatedByName, x.UpdatedByBot, x.Content.Length))
             .ToListAsync(ct);
         var (canEdit, canManage) = c.Flags(false);
-        return TypedResults.Ok(new WikiTreeDto(pages, canEdit, canManage, WikiRules.MaxPagesPerProject, WikiRules.MaxDepth, WikiRules.MaxContent));
+        var pref = await db.WikiViewPrefs.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == id && x.UserId == c.V.UserId, ct);
+        return TypedResults.Ok(new WikiTreeDto(pages, canEdit, canManage, WikiRules.MaxPagesPerProject, WikiRules.MaxDepth, WikiRules.MaxContent,
+            new WikiPrefsDto(pref?.TocSide ?? WikiTocSides.Right, pref?.TocCollapsed ?? false)));
+    }
+
+    /// <summary>Lưu tuỳ chọn giao diện của CHÍNH người gọi (vị trí / thu gọn mục lục). Ai xem được dự án đều lưu được — kể cả dự án đóng (không phải ghi dữ liệu dự án).</summary>
+    private static async Task<Results<Ok<WikiPrefsDto>, NotFound, ValidationProblem>> UpdatePrefsAsync(Guid id, UpdateWikiPrefs req, ClaimsPrincipal user,
+        ProjectsDbContext db, ProjectAccess access, ProjectClock clock, CancellationToken ct)
+    {
+        if (await CtxAsync(id, user, db, access, ct) is not { } c) return TypedResults.NotFound();
+        if (req.TocSide is not null && !WikiTocSides.IsValid(req.TocSide))
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["tocSide"] = ["Vị trí mục lục chỉ là left hoặc right"] });
+        var pref = await db.WikiViewPrefs.FirstOrDefaultAsync(x => x.ProjectId == id && x.UserId == c.V.UserId, ct);
+        if (pref is null) db.WikiViewPrefs.Add(pref = new WikiViewPref { ProjectId = id, UserId = c.V.UserId });
+        if (req.TocSide is not null) pref.TocSide = req.TocSide;
+        if (req.TocCollapsed is { } col) pref.TocCollapsed = col;
+        pref.UpdatedAt = clock.Now;
+        try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateException) // hai lần lưu đầu tiên cùng lúc (khoá chính) → ghi đè lên dòng vừa có
+        {
+            db.ChangeTracker.Clear();
+            var cur = await db.WikiViewPrefs.FirstAsync(x => x.ProjectId == id && x.UserId == c.V.UserId, ct);
+            if (req.TocSide is not null) cur.TocSide = req.TocSide;
+            if (req.TocCollapsed is { } c2) cur.TocCollapsed = c2;
+            cur.UpdatedAt = clock.Now;
+            await db.SaveChangesAsync(ct);
+            pref = cur;
+        }
+        return TypedResults.Ok(new WikiPrefsDto(pref.TocSide, pref.TocCollapsed));
     }
 
     private static async Task<Results<Ok<List<WikiSearchHit>>, NotFound, ValidationProblem>> SearchAsync(Guid id, string? q, ClaimsPrincipal user, ProjectsDbContext db,

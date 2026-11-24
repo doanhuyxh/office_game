@@ -141,8 +141,31 @@ try {
   ok('Tạo trang → URL ?page=<id>, xem trang mới', !!rootId && (await text(brA, 'wiki-page-title')) === 'Quy trình triển khai', { rootId });
   ok('Trang: tóm tắt + "Sửa lần cuối bởi Thành Viên Một lúc …" + phiên bản 1', (await text(brA, 'wiki-page-summary')) === 'Cách đưa bản mới lên máy chủ'
     && /Sửa lần cuối bởi Thành Viên Một lúc \d{2}\/\d{2}\/\d{4} \d{2}:\d{2} · phiên bản 1/.test((await text(brA, 'wiki-page-updated')) ?? ''), await text(brA, 'wiki-page-updated'));
-  ok('Mục lục tiêu đề ## (2 mục) + nội dung render', await brA.evalJs(`document.querySelectorAll('[data-testid="wiki-page"] [data-testid="work-guide-toc"] a').length === 2
-    && ${q('wiki-page-content')}.querySelectorAll('h2').length === 2`));
+  ok('Mục lục tiêu đề ## (2 mục) mặc định ở CỘT PHẢI, nội dung render', await brA.evalJs(`(() => { const t = ${q('wiki-toc')}, c = ${q('wiki-page-content')};
+    return t?.querySelectorAll('a').length === 2 && c.querySelectorAll('h2').length === 2 && ${q('wiki-layout')}.dataset.tocSide === 'right'
+      && t.getBoundingClientRect().left > c.getBoundingClientRect().right; })()`));
+  ok('Nội dung chiếm hết phần còn lại (không giới hạn 88rem)', await brA.evalJs(`(() => { const c = ${q('wiki-page-content')}.getBoundingClientRect(), t = ${q('wiki-toc')}.getBoundingClientRect();
+    return t.left - c.right < 40; })()`));
+  // Tuỳ chọn mục lục lưu ở server theo tài khoản + dự án: đổi bằng menu ⋯ → trái (dưới cây trang) → tải lại vẫn trái
+  await click(brA, q('wiki-toc-menu'), 400);
+  await click(brA, q('wiki-toc-move'), 1000);
+  ok('Menu "Chuyển sang trái": mục lục vào rail trái, dưới cây trang', await brA.evalJs(`(() => { const t = ${q('wiki-toc')}, tr = ${q('wiki-tree')};
+    return ${q('wiki-layout')}.dataset.tocSide === 'left' && !!t && t.getBoundingClientRect().top > tr.getBoundingClientRect().top && t.getBoundingClientRect().right < ${q('wiki-page-content')}.getBoundingClientRect().left; })()`));
+  await brA.evalJs(`location.reload()`); await brA.sleep(2500);
+  ok('Tải lại: mục lục vẫn bên trái (lưu ở server)', await brA.evalJs(`${q('wiki-layout')}?.dataset.tocSide === 'left'`));
+  // Kéo thả: mô phỏng DragEvent (tay nắm → vùng thả bên phải)
+  await brA.evalJs(`(() => { const dt = new DataTransfer(); ${q('wiki-toc-handle')}.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt })); window.__dt = dt; })()`);
+  await brA.sleep(300);
+  ok('Đang kéo: hiện hai vùng thả', await has(brA, 'wiki-toc-drop-left') && await has(brA, 'wiki-toc-drop-right'));
+  await brA.evalJs(`(() => { const z = ${q('wiki-toc-drop-right')}; z.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: window.__dt }));
+    z.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: window.__dt })); })()`);
+  await brA.sleep(1000);
+  ok('Thả vào vùng phải: mục lục về cột phải, vùng thả biến mất', await brA.evalJs(`${q('wiki-layout')}.dataset.tocSide === 'right'`) && !(await has(brA, 'wiki-toc-drop-right')));
+  await click(brA, q('wiki-toc-toggle'), 800);
+  ok('Thu gọn mục lục: chỉ còn tiêu đề', await brA.evalJs(`${q('wiki-toc')}.querySelectorAll('a').length === 0`));
+  await brA.evalJs(`location.reload()`); await brA.sleep(2500);
+  ok('Tải lại: vẫn bên phải + đang thu gọn', await brA.evalJs(`${q('wiki-layout')}?.dataset.tocSide === 'right' && ${q('wiki-toc')}.querySelectorAll('a').length === 0`));
+  await click(brA, q('wiki-toc-toggle'), 800);
 
   // ── Trang con ──
   await click(brA, q('wiki-new-child'));
