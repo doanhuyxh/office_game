@@ -186,10 +186,10 @@ if (process.env.BASE_URL) {
     ok('UI HUD: nút mở hộp thoại, điền sẵn phòng đang đứng', await waitJs(n, `document.getElementById('am-room')?.textContent.includes('Hội trường') === true`),
       await n.evalJs(`document.getElementById('am-room')?.textContent ?? null`));
 
-    // Admin: thẻ "Cuộc họp với AI" ở Hệ thống → Cấu hình (cookie admin đặt thẳng vào Chrome — login 2FA đã làm qua API)
+    // Admin: thẻ "Cuộc họp với AI" ở Hệ thống → Cấu hình → Trợ lý AI → Họp với AI (cookie admin đặt thẳng vào Chrome — login 2FA đã làm qua API)
     const cookieName = admin.split('=')[0];
     await ad.send('Network.setCookie', { name: cookieName, value: admin.slice(cookieName.length + 1), url: BASE });
-    await ad.go(`${BASE}/system?tab=config`, 4000);
+    await ad.go(`${BASE}/system?tab=config&section=ai-meetings`, 4000);
     ok('UI admin: thẻ "Cuộc họp với AI" với trần hiện tại', await waitJs(ad, `(() => { const c = document.querySelector('[data-testid="agent-meeting-limits"]');
       return !!c && /^\\d+$/.test(document.getElementById('agent-meeting-turns')?.value ?? '') && !!document.getElementById('agent-meeting-minutes'); })()`));
     await snap(ad, '6-config');

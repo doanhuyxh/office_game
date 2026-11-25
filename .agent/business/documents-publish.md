@@ -1,6 +1,6 @@
 # Kho tài liệu: tải lên là ban hành luôn, duyệt thành cấu hình bật / tắt (TEST-111)
 
-> Phần mở rộng của [documents.md](documents.md). Code: `Features/SettingsEndpoints.cs`, `Features/AssetEndpoints.cs` (CreateAsync, SubmitAsync, ApproversAsync, AddVersionAsync, TrashAsync), `Domain/DocumentRules.cs` (`CanChangeFile` / `CanTrash`), `Domain/Entities.cs` (`DocumentSettings`, `Asset.AutoPublished`); FE thẻ `features/documents/components/document-settings-card` trong Hệ thống → Cấu hình.
+> Phần mở rộng của [documents.md](documents.md). Code: `Features/SettingsEndpoints.cs`, `Features/AssetEndpoints.cs` (CreateAsync, SubmitAsync, ApproversAsync, AddVersionAsync, TrashAsync), `Domain/DocumentRules.cs` (`CanChangeFile` / `CanTrash`), `Domain/Entities.cs` (`DocumentSettings`, `Asset.AutoPublished`); FE thẻ `features/documents/components/document-settings-card` trong Hệ thống → Cấu hình → Tài liệu → Ban hành tài liệu (`?tab=config&section=documents`).
 
 Chủ dự án chốt 2026-11-15: tải lên là **Ban hành luôn**; quy trình duyệt cũ giữ nguyên nhưng thành cấu hình admin bật / tắt, mặc định **tắt**.
 
@@ -25,7 +25,7 @@ Quy trình như trước: tải lên → Nháp → gửi duyệt (quản lý tr�
 
 ## FE
 
-- Thẻ "Tài liệu: duyệt trước khi ban hành" (checkbox + Lưu, người / lúc sửa cuối) ở tab Cấu hình trang Hệ thống (chỉ admin vào trang).
+- Thẻ "Tài liệu: duyệt trước khi ban hành" (checkbox + Lưu, người / lúc sửa cuối) ở tab Cấu hình trang Hệ thống, mục Tài liệu → Ban hành tài liệu (chỉ admin vào trang).
 - Hàng đợi tải lên ghi "Đã ban hành" / "Nháp" từng file; sheet chi tiết ghi "tự động khi tải lên (không qua duyệt)" cạnh ngày ban hành. Nút thay file / xoá theo cờ `can` của API.
 
 ## Test

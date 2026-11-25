@@ -19,6 +19,12 @@ Theo mẫu [shadcn-admin](https://github.com/satnaing/shadcn-admin) (MIT), chỉ
 - Màn đăng nhập / đặt mật khẩu: `features/auth/components/AuthShell` (logo + thẻ giữa trang).
 - Văn phòng 3D (`/office`) toàn màn hình, không nằm trong `MainLayout`.
 
+## Trang cài đặt nhiều mục (Hệ thống → Cấu hình)
+
+TEST-234: tab Cấu hình của `/system` = menu mục dọc bên trái (tiêu đề nhóm, icon, mục đang mở tô `bg-accent`) + nội dung mục bên phải; vùng nội dung < 48rem (`@3xl/content`, điện thoại) → menu thành `Select` có nhóm ở đầu nội dung, không cuộn ngang. Mục lưu trên URL `?tab=config&section=smtp` (`useTabParam(…, { param: 'section' })`; mục mặc định `s3` không ghi, `section` lạ → mặc định); đổi tab ngang xoá `section` (`reset` ở `useTabParam` của trang). **Chỉ render mục đang mở** → API của mục chỉ tải khi mở.
+- **Thêm cấu hình mới** = thêm một dòng `{ id, group, label, icon, render }` vào `CONFIG_SECTIONS` (`features/system/utils/config-sections.tsx`) + component của nó; nhóm mới thêm vào `CONFIG_GROUPS`. Không sửa layout (`config-tab`, `config-nav`).
+- Khung của module khác (vd `AgentLimitsCard`) giữ ở feature gốc, import qua `@/features/<x>`. Cấu hình lưu trong DB (`/api/system/settings`) bọc `DbSettingsSection group=…` (một query `useSystemSettings()` chung, có ghi chú "ưu tiên hơn .env") và đặt `settingsGroup` để tab Kênh thông báo dẫn sang đúng mục.
+
 ## PWA (cài như ứng dụng, không push)
 
 `public/manifest.webmanifest`, icon `public/icons/*` (sinh bằng `bun scripts/dev/make-icons.ts`), `public/sw.js` (tăng `VERSION` khi đổi chiến lược cache), `public/offline.html`. `src/pwa.ts`: `registerPwa()` chỉ đăng ký ở bản build (toast "Có bản mới" → "Tải lại" = skip-waiting), `usePwaInstall()` → mục "Cài ứng dụng" trong menu người dùng (iOS: hướng dẫn Chia sẻ → Thêm vào MH chính). Service worker **không bao giờ** cache `/api`, `/rt`, `/mcp`, `/livekit`, `/oauth`, `/.well-known`, `/health`; điều hướng khi mất mạng → `offline.html`; `/assets/*` cache-first (tên có hash). 

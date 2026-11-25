@@ -6,7 +6,7 @@
 
 ## Cấu hình
 
-- Trang Hệ thống → Cấu hình → khung **Telegram (đánh thức agent)** = nhóm `telegram` trong `settings.system_settings`: `enabled`, `chatId` (số, nhóm dạng `-100…`, hoặc `@tenkenh`), bí mật `botToken` (dạng `123456789:AA…`, mã hoá, API không trả lại). Bật thì bắt buộc đủ chat id + token; tắt thì lưu trống được. Không có biến `.env` (chưa lưu = chưa cấu hình). Nút **Gửi thử** gửi ngay một tin thử (không qua hàng đợi).
+- Trang Hệ thống → Cấu hình → Thông báo → Telegram (`?tab=config&section=telegram`) → khung **Telegram (đánh thức agent)** = nhóm `telegram` trong `settings.system_settings`: `enabled`, `chatId` (số, nhóm dạng `-100…`, hoặc `@tenkenh`), bí mật `botToken` (dạng `123456789:AA…`, mã hoá, API không trả lại). Bật thì bắt buộc đủ chat id + token; tắt thì lưu trống được. Không có biến `.env` (chưa lưu = chưa cấu hình). Nút **Gửi thử** gửi ngay một tin thử (không qua hàng đợi).
 - Không gán bot Telegram theo từng nhân sự (TEST-48 bỏ trường `identity.users.TelegramBot`, API `PUT …/account/telegram` và menu "Bot Telegram…"; migration `DropUserTelegramBot` xoá cột). Agent đọc nhóm và tự nhận việc theo `employee_code` trong JSON.
 
 ## Khi nào gửi

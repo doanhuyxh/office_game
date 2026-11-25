@@ -44,7 +44,7 @@ Job `AiAlertMonitor` (Api, `JobMonitor` key `audit.ai-alerts`): chạy 50 s sau 
 - `GET / PUT / DELETE /api/audit/ai-alert-settings` — `AuthPolicies.Admin`, **token AI 403** (ngoài allowlist `AccessTokenAuth` + endpoint tự chặn): bot không tự nới ngưỡng. `DELETE` = khôi phục mặc định (xoá dòng). DTO kèm `defaults`, `ranges`, `intervalMinutes`.
 - `AiAlertMonitor.RunOnceAsync` đọc dòng này **mỗi lần chạy** (không cache) → đổi xong áp dụng ở lần quét kế tiếp. `bot_approval` luôn bật, không có ngưỡng.
 - **Chỉ cảnh báo**, không tự chặn bot; hạn mức cứng ở "Giới hạn trợ lý AI" (`projects.agent_settings`) và 60 tin chat / giờ giữ nguyên.
-- FE: thẻ "Ngưỡng cảnh báo trợ lý AI" ở `/system?tab=config` (dưới thẻ giới hạn bot), `features/reports/components/ai-alert-settings-card/`: 7 ô số (min / max / gợi ý mặc định từ DTO), Lưu (`loading`), "Khôi phục mặc định" (hộp xác nhận `onConfirm`).
+- FE: thẻ "Ngưỡng cảnh báo trợ lý AI" ở Hệ thống → Cấu hình → Trợ lý AI → Ngưỡng cảnh báo (`/system?tab=config&section=ai-alerts`), `features/reports/components/ai-alert-settings-card/`: 7 ô số (min / max / gợi ý mặc định từ DTO), Lưu (`loading`), "Khôi phục mặc định" (hộp xác nhận `onConfirm`).
 
 ## C. Mức dùng AI theo phiên agent (chi phí / token)
 

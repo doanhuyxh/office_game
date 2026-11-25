@@ -29,6 +29,6 @@ Chủ dự án chốt 2026-11-13: **chỉ người thật mở và dừng**; tr�
 
 ## Cấu hình trần
 
-Hệ thống → Cấu hình (`/system?tab=config`, trang chỉ admin): thẻ **"Cuộc họp với AI"** (`AgentMeetingSettingsCard`, kiểu thẻ "Giới hạn trợ lý AI") — số lượt / số phút tối đa với khoảng + mặc định từ `GET /agent-settings`, lưu `PUT` (`AuthPolicies.Admin`; người khác 403). Áp dụng cho phiên mở sau đó.
+Hệ thống → Cấu hình → Trợ lý AI → Họp với AI (`/system?tab=config&section=ai-meetings`, trang chỉ admin): thẻ **"Cuộc họp với AI"** (`AgentMeetingSettingsCard`, kiểu thẻ "Giới hạn trợ lý AI") — số lượt / số phút tối đa với khoảng + mặc định từ `GET /agent-settings`, lưu `PUT` (`AuthPolicies.Admin`; người khác 403). Áp dụng cho phiên mở sau đó.
 
 E2E: `scripts/dev/agent-meeting-ui-e2e.ts` ([../e2e.md](../e2e.md)).

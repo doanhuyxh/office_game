@@ -17,7 +17,7 @@ Một file `.env` ở gốc repo cho BE + Docker Compose. `EnvLoader` dò ngư�
 | `Encryption__Key` | ✔ | Base64 của 32 byte (`openssl rand -base64 32`), AES-256-GCM cho trường nhạy cảm (lương, CCCD, số tài khoản, token MXH, secret webhook, transcript phiên agent trên S3 — TEST-144). **Mất khoá = mất dữ liệu đã mã hoá** → sao lưu cùng DB. Sai định dạng → app dừng. Đổi khoá → xoay bằng 2 biến dưới, không thay thẳng |
 | `Encryption__KeyId` / `Encryption__PreviousKeys` | – | Xoay khoá (TEST-17): tên khoá hiện hành (mặc định `k1`, ghi vào mỗi giá trị `v2:<id>:…`) + khoá cũ chỉ để giải mã `id:base64;id:base64`. Quy trình ở [ops.md](ops.md#xoay-khoá-mã-hoá-trường). Transcript agent trên S3 không được mã hoá lại → giữ khoá cũ ≥ 90 ngày |
 | `Office__TimeZone` | ✔ | Múi giờ tính công (`Asia/Ho_Chi_Minh`) |
-| `Office__IpRanges` | – | CIDR, cách nhau dấu phẩy. Trống → mọi lần chấm công là "Remote". Ghi đè được trên trang Hệ thống → Cấu hình ([mục dưới](#cấu-hình-lưu-trong-db-test-41)) |
+| `Office__IpRanges` | – | CIDR, cách nhau dấu phẩy. Trống → mọi lần chấm công là "Remote". Ghi đè được trên trang Hệ thống → Cấu hình → IP văn phòng ([mục dưới](#cấu-hình-lưu-trong-db-test-41)) |
 | `Office__InactiveMinutes` | – | Khai báo nhưng **chưa được code dùng** |
 | `S3__Region`, `S3__AccessKey`, `S3__SecretKey`, `S3__BucketFiles` | ✔ | S3 cho file nghiệp vụ |
 | `S3__ServiceUrl`, `S3__ForcePathStyle` | – | Để trống/false với AWS; điền khi dùng S3-compatible (RustFS, MinIO) |
@@ -54,7 +54,7 @@ FE (`frontend/.env`, không có bí mật): `VITE_API_TARGET`, `VITE_RT_TARGET` 
 
 ## Cấu hình lưu trong DB (TEST-41)
 
-Admin sửa **S3 (file nghiệp vụ), SMTP, FCM, IP văn phòng** ở trang Hệ thống → Cấu hình; lưu là có hiệu lực ngay (cache 30 giây, lưu thì xoá cache — client S3 / Firebase tự tạo lại). Nhóm đã lưu trong DB (`settings.system_settings`) **được ưu tiên hơn `.env`**; nhóm chưa lưu (hoặc bấm "Dùng lại .env") đọc biến dưới đây như cũ. Biến `.env` vẫn là mặc định và vẫn bắt buộc như bảng trên (`S3__Region/AccessKey/SecretKey/BucketFiles`, `Smtp__Host/FromEmail`) — app chưa khởi động được nếu thiếu, kể cả khi DB đã có cấu hình.
+Admin sửa **S3 (file nghiệp vụ), SMTP, FCM, IP văn phòng** ở trang Hệ thống → Cấu hình (mục Hạ tầng → Lưu trữ (S3) / Email (SMTP), Thông báo → Thông báo đẩy (FCM), Chấm công → IP văn phòng; `?tab=config&section=s3|smtp|fcm|office-ips`); lưu là có hiệu lực ngay (cache 30 giây, lưu thì xoá cache — client S3 / Firebase tự tạo lại). Nhóm đã lưu trong DB (`settings.system_settings`) **được ưu tiên hơn `.env`**; nhóm chưa lưu (hoặc bấm "Dùng lại .env") đọc biến dưới đây như cũ. Biến `.env` vẫn là mặc định và vẫn bắt buộc như bảng trên (`S3__Region/AccessKey/SecretKey/BucketFiles`, `Smtp__Host/FromEmail`) — app chưa khởi động được nếu thiếu, kể cả khi DB đã có cấu hình.
 
 | Nhóm trong DB | Thay cho biến | Còn ở `.env` |
 |---|---|---|

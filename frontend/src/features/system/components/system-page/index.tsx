@@ -1,6 +1,8 @@
 import { BookOpen, ExternalLink, Mail, PanelsTopLeft, RefreshCw, ScrollText } from 'lucide-react';
 import { useState } from 'react';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
+import { DEFAULT_CONFIG_SECTION, sectionOfSettingsGroup } from '../../utils/config-sections';
 import { systemKeys } from '../../api/system.api';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import type { LucideIcon } from 'lucide-react';
@@ -116,25 +118,27 @@ const TABS = [
   { id: 'channels', label: 'Kênh thông báo' },
   { id: 'config', label: 'Cấu hình' },
 ] as const;
+const TAB_IDS = TABS.map((t) => t.id);
+/** Đổi tab ngang → xoá mục con của tab Cấu hình (`?section=`). */
+const TAB_OPTS = { reset: ['section'] } as const;
 
 /** Trang Hệ thống — chỉ quản trị viên (PAGE_ROLES + back-end AuthPolicies.Admin). Mỗi phần một tab, tab lưu trên URL (?tab=). */
 export function SystemPage() {
-  const [tab, setTab] = useTabParam('overview', TABS.map((t) => t.id));
+  const [tab, setTab] = useTabParam('overview', TAB_IDS, TAB_OPTS);
+  const navigate = useNavigate();
   const [embed, setEmbed] = useState<ISystemLink | null>(null);
   const { data, isLoading, isFetching, error, refetch } = useSystemInfo();
   const qc = useQueryClient();
   const opsFetching = useIsFetching({ queryKey: systemKeys.ops }) > 0;
   const channelsFetching = useIsFetching({ queryKey: systemKeys.channels }) > 0;
-  /** Từ tab Kênh thông báo sang đúng khung ở tab Cấu hình. */
+  /** Từ tab Kênh thông báo sang đúng mục ở tab Cấu hình (`?tab=config&section=…`). */
   const openConfig = (group: SettingsGroupKey) => {
-    setTab('config');
-    let tries = 0;
-    const scroll = () => {
-      const el = document.getElementById(`settings-${group}`);
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      else if (++tries < 20) setTimeout(scroll, 150);
-    };
-    setTimeout(scroll, 50);
+    const section = sectionOfSettingsGroup(group);
+    void navigate({
+      to: '.',
+      search: ((prev: Record<string, unknown>) => ({ ...prev, tab: 'config', section: section === DEFAULT_CONFIG_SECTION ? undefined : section })) as never,
+      replace: true,
+    });
   };
   const info = isLoading ? <Spinner /> : error || !data ? <p className="text-sm text-destructive">{errorMessage(error)}</p> : null;
   return (
