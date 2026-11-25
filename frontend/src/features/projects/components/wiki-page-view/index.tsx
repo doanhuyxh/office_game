@@ -22,7 +22,7 @@ export const WIKI_HEADING_PREFIX = 'wiki';
 /**
  * Xem một trang sổ tay (TEST-217): đường dẫn trang cha, tiêu đề, tóm tắt, "Sửa lần cuối bởi … lúc …" (BOT), nhãn "Đã khoá bởi …",
  * nội dung Markdown (mục lục tiêu đề `##` do `ProjectWiki` dựng ở cột trái / phải). Nút / menu theo cờ API: Sửa (canEdit), Trang con (canEdit + chưa đủ cấp),
- * Lịch sử (mọi người xem), Chia sẻ link công khai cho khách (canManage — TEST-229), ⋯ Đổi tên / Chuyển trang cha / Lên / Xuống (canEdit), Khoá / Mở khoá / Xoá (canManage).
+ * Lịch sử (mọi người xem), Chia sẻ link công khai cho khách (canManage — TEST-229; mở sẵn phạm vi "Chọn trang" với trang này — TEST-230), ⋯ Đổi tên / Chuyển trang cha / Lên / Xuống (canEdit), Khoá / Mở khoá / Xoá (canManage).
  */
 export function WikiPageView({ projectId, page, node, siblings, tree, maxDepth, canCreate, onEdit, onNewChild, onSelect, onDeleted }: {
   projectId: string; page: IWikiPage;
@@ -108,8 +108,7 @@ export function WikiPageView({ projectId, page, node, siblings, tree, maxDepth, 
         {page.content.trim() ? <Markdown text={page.content} headingIds={WIKI_HEADING_PREFIX} /> : <p className="text-sm text-muted-foreground">Trang chưa có nội dung.{page.canEdit && ' Bấm "Sửa" để viết.'}</p>}
       </div>
       <WikiHistorySheet projectId={projectId} page={page} open={history} onClose={() => setHistory(false)} />
-      {page.canManage && <WikiShareDialog projectId={projectId} pageId={page.id} pageTitle={page.title} hasChildren={(node?.children.length ?? 0) > 0}
-        open={sharing} onClose={() => setSharing(false)} />}
+      {page.canManage && <WikiShareDialog projectId={projectId} tree={tree} pageId={page.id} open={sharing} onClose={() => setSharing(false)} />}
       {node && moving && <WikiMoveDialog projectId={projectId} node={node} tree={tree} maxDepth={maxDepth} open={moving} onClose={() => setMoving(false)} />}
     </article>
   );

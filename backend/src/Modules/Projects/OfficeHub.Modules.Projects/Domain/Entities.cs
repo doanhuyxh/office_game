@@ -408,7 +408,8 @@ public static class WikiTocSides
 }
 
 /// <summary>
-/// Link chia sẻ công khai một trang sổ tay (+ tuỳ chọn trang con) cho người ngoài, có thời hạn (TEST-228). Luôn hiện bản mới nhất.
+/// Link chia sẻ công khai sổ tay cho người ngoài, có thời hạn (TEST-228). Phạm vi (TEST-230): toàn bộ sổ tay hoặc các trang được chọn
+/// (<see cref="WikiSharePage"/>). Luôn hiện bản mới nhất.
 /// DB chỉ giữ SHA-256 của token (<see cref="WikiShareRules"/>); mật khẩu tuỳ chọn lưu dạng băm (PasswordHasher). Thu hồi = <see cref="RevokedAt"/>.
 /// </summary>
 [Audited]
@@ -416,8 +417,10 @@ public sealed class WikiShareLink
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
     public Guid ProjectId { get; set; }
-    public Guid RootPageId { get; set; }
-    public bool IncludeChildren { get; set; }
+    /// <summary><see cref="WikiShareRules.ScopeAll"/> (toàn bộ sổ tay, kể cả trang tạo sau) | <see cref="WikiShareRules.ScopePages"/> (trang được chọn).</summary>
+    public string Scope { get; set; } = WikiShareRules.ScopePages;
+    /// <summary>Trang gốc của link kiểu cũ (TEST-228). Không dùng nữa — migration TEST-230 đã chép sang <see cref="WikiSharePage"/>; link mới để null.</summary>
+    public Guid? RootPageId { get; set; }
     /// <summary>Nhãn nội bộ (vd "Gửi khách duyệt bản nháp").</summary>
     public string? Label { get; set; }
     /// <summary>Tên người nhận — hiện trên trang công khai ("Gửi tới …").</summary>
@@ -435,6 +438,14 @@ public sealed class WikiShareLink
     public DateTimeOffset? LastViewedAt { get; set; }
     /// <summary>Lần báo người tạo gần nhất — báo tối đa 1 lần / giờ / link.</summary>
     public DateTimeOffset? LastNotifiedAt { get; set; }
+}
+
+/// <summary>Trang được chọn của link phạm vi "pages" (TEST-230). <see cref="IncludeChildren"/> = kèm cả cây con, gồm trang con tạo sau.</summary>
+public sealed class WikiSharePage
+{
+    public Guid LinkId { get; set; }
+    public Guid PageId { get; set; }
+    public bool IncludeChildren { get; set; }
 }
 
 /// <summary>Nhật ký mở link chia sẻ sổ tay (chỉ thêm): thời điểm, IP, trình duyệt. Xoá link → xoá theo (cascade).</summary>

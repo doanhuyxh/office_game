@@ -142,7 +142,7 @@ ok('Token không tồn tại → 404', (await pub('GET', 'x'.repeat(43))).status
 
 // ---------- HR tạo link kèm trang con ----------
 const l2 = await json(admin, 'POST', S, { pageId: R, includeChildren: true, expiresOn: '2026-12-31' });
-ok('HR tạo link kèm trang con, ngày tự chọn', l2.status === 200 && l2.body.share.includeChildren === true, l2);
+ok('HR tạo link kèm trang con, ngày tự chọn', l2.status === 200 && l2.body.share.scope === 'pages' && l2.body.share.pages[0]?.includeChildren === true, l2);
 const T2 = l2.body.token as string;
 const i2 = await pub('GET', T2);
 ok('Kèm trang con: cây gốc → Phạm vi → Chi tiết', i2.status === 200 && i2.body.pages.map((x: any) => x.id).join(',') === [R, A, A1].join(',')

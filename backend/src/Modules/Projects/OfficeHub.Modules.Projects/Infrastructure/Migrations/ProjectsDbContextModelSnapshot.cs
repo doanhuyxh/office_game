@@ -907,9 +907,6 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool>("IncludeChildren")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("Label")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
@@ -938,8 +935,15 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<Guid>("RootPageId")
+                    b.Property<Guid?>("RootPageId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("pages");
 
                     b.Property<string>("TokenHash")
                         .IsRequired()
@@ -961,6 +965,25 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                         .HasDatabaseName("ix_wiki_share_links_project_page");
 
                     b.ToTable("wiki_share_links", "projects");
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.WikiSharePage", b =>
+                {
+                    b.Property<Guid>("LinkId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IncludeChildren")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("LinkId", "PageId");
+
+                    b.HasIndex("PageId")
+                        .HasDatabaseName("ix_wiki_share_link_pages_page");
+
+                    b.ToTable("wiki_share_link_pages", "projects");
                 });
 
             modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.WikiShareView", b =>
@@ -1192,6 +1215,20 @@ namespace OfficeHub.Modules.Projects.Infrastructure.Migrations
                     b.HasOne("OfficeHub.Modules.Projects.Domain.WikiPage", null)
                         .WithMany()
                         .HasForeignKey("RootPageId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("OfficeHub.Modules.Projects.Domain.WikiSharePage", b =>
+                {
+                    b.HasOne("OfficeHub.Modules.Projects.Domain.WikiShareLink", null)
+                        .WithMany()
+                        .HasForeignKey("LinkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OfficeHub.Modules.Projects.Domain.WikiPage", null)
+                        .WithMany()
+                        .HasForeignKey("PageId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

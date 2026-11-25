@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { wikiShareApi, wikiShareKeys } from '../api/wiki-share.api';
 
-/** Link chia sẻ của một trang (mới nhất trước) — chỉ quản lý dự án / HR gọi được. */
-export const useWikiShares = (projectId: string, pageId: string, enabled: boolean) =>
+/** Link chia sẻ của dự án (mới nhất trước), `pageId` → chỉ link có chứa trang đó — chỉ quản lý dự án / HR gọi được. */
+export const useWikiShares = (projectId: string, pageId: string | null, enabled: boolean) =>
   useQuery({ queryKey: wikiShareKeys.list(projectId, pageId), queryFn: () => wikiShareApi.list(projectId, pageId), enabled });
 
 /** Nhật ký mở một link (phân trang ở server). */

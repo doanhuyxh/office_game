@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { BookOpen, FilePlus, Search, X } from 'lucide-react';
+import { BookOpen, FilePlus, Search, Share2, X } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { Input } from '@/components/common/input';
 import { Spinner } from '@/components/feedback/Spinner';
@@ -17,6 +17,7 @@ import { buildWikiTree, flattenWikiTree, type IWikiNode } from '../../utils/wiki
 import { WikiPageEditor } from '../wiki-page-editor';
 import { WikiPageTree } from '../wiki-page-tree';
 import { WIKI_HEADING_PREFIX, WikiPageView } from '../wiki-page-view';
+import { WikiShareDialog } from '../wiki-share-dialog';
 import { WIKI_TOC_DRAG_TYPE, WikiTocPanel } from '../wiki-toc-panel';
 import { WorkGuideToc } from '../work-guide-toc';
 
@@ -28,6 +29,7 @@ type Mode = { kind: 'view' } | { kind: 'edit'; id: string } | { kind: 'new'; par
  * Từ `@4xl/content`: cây trang (trái) | nội dung (chiếm hết phần còn lại) | mục lục (phải, mặc định). Mục lục kéo thả được sang cột trái (dưới cây trang) —
  * vị trí + thu gọn lưu ở server theo tài khoản + dự án (`tree.prefs`, `useWikiPrefs`). Chỉ hiện ở chế độ xem trang có ≥ 2 tiêu đề `##`.
  * Hẹp → 1 cột: cây thu gọn phía trên, mục lục là khối "Mục lục (N)" dưới đó. Nút theo cờ API (`canEdit`, `canManage`) — FE không tự suy quyền.
+ * Nút "Chia sẻ" cạnh "Trang mới" (canManage, TEST-230) → hộp thoại quản lý mọi link chia sẻ của dự án (toàn bộ sổ tay / chọn trang).
  */
 export function ProjectWiki({ d }: { d: IProjectDetail }) {
   const p = d.project;
@@ -47,6 +49,7 @@ export function ProjectWiki({ d }: { d: IProjectDetail }) {
   const { save: savePrefs } = useWikiPrefs(p.id);
   const [dragging, setDragging] = useState(false);
   const [hoverSide, setHoverSide] = useState<WikiTocSide | null>(null);
+  const [sharing, setSharing] = useState(false);
   const headings = useMemo(() => markdownHeadings(page.data?.content), [page.data?.content]);
 
   // Đổi trang (cây, link, đường dẫn cha) → thoát chế độ sửa / tạo. Chỉ đổi SAU khi URL đã đổi: còn chữ chưa lưu thì editor hỏi trước (useBlocker),
@@ -116,8 +119,12 @@ export function ProjectWiki({ d }: { d: IProjectDetail }) {
         <button type="button" className="text-xs font-medium uppercase tracking-wide text-muted-foreground @4xl/content:pointer-events-none" onClick={() => setTreeOpen((v) => !v)}
           aria-expanded={treeOpen} data-testid="wiki-tree-toggle">
           Trang ({t.pages.length})<span className="@4xl/content:hidden"> {treeOpen ? '▴' : '▾'}</span></button>
-        {t.canEdit && <Button size="sm" variant="outline" className="h-7" disabled={full} title={full ? `Sổ tay tối đa ${t.maxPages} trang` : undefined} onClick={newRoot} data-testid="wiki-new">
-          <FilePlus /> Trang mới</Button>}
+        <div className="flex items-center gap-1">
+          {t.canManage && <Button size="sm" variant="outline" className="h-7" onClick={() => setSharing(true)} title="Chia sẻ sổ tay cho khách" data-testid="wiki-share-all">
+            <Share2 /> Chia sẻ</Button>}
+          {t.canEdit && <Button size="sm" variant="outline" className="h-7" disabled={full} title={full ? `Sổ tay tối đa ${t.maxPages} trang` : undefined} onClick={newRoot} data-testid="wiki-new">
+            <FilePlus /> Trang mới</Button>}
+        </div>
       </div>
       <div className={treeOpen || term ? 'block' : 'hidden @4xl/content:block'}>{treePanel}</div>
       {showToc && tocSide === 'left' && <div className="hidden border-t pt-3 @4xl/content:block">{tocPanel('wiki-toc', 'border-0 p-0')}</div>}
@@ -149,7 +156,10 @@ export function ProjectWiki({ d }: { d: IProjectDetail }) {
             <p className="text-sm text-muted-foreground">Sổ tay là nơi ghi kiến thức dùng chung của dự án cho cả người và trợ lý AI: quyết định đã chốt, cách vận hành,
               quy ước, tài liệu kỹ thuật… Mỗi trang viết bằng Markdown, sắp theo cây, có lịch sử phiên bản. Luật làm việc ngắn vẫn ở tab "Hướng dẫn",
               file chính thức vẫn ở kho tài liệu.</p>
-            {t.canEdit && <Button size="sm" onClick={newRoot} data-testid="wiki-create-first"><FilePlus /> Tạo trang đầu tiên</Button>}
+            <div className="flex flex-wrap gap-2">
+              {t.canEdit && <Button size="sm" onClick={newRoot} data-testid="wiki-create-first"><FilePlus /> Tạo trang đầu tiên</Button>}
+              {t.canManage && <Button size="sm" variant="outline" onClick={() => setSharing(true)} data-testid="wiki-share-all"><Share2 /> Chia sẻ</Button>}
+            </div>
           </div>
         : <div className={cn('relative grid items-start gap-4 @4xl/content:gap-6', showToc && tocSide === 'right'
               ? '@4xl/content:grid-cols-[16rem_minmax(0,1fr)_14rem] @6xl/content:grid-cols-[18rem_minmax(0,1fr)_16rem]'
@@ -172,6 +182,7 @@ export function ProjectWiki({ d }: { d: IProjectDetail }) {
               </div>
             ))}
           </div>}
+      {t.canManage && <WikiShareDialog projectId={p.id} tree={nodes} pageId={null} open={sharing} onClose={() => setSharing(false)} />}
     </div>
   );
 }

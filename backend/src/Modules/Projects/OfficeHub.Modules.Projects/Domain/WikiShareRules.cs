@@ -6,17 +6,20 @@ namespace OfficeHub.Modules.Projects.Domain;
 public enum WikiShareState
 {
     Active,
-    /// <summary>Hết hạn / thu hồi / trang gốc bị xoá / dự án đóng → 410 "Link đã hết hạn hoặc bị thu hồi".</summary>
+    /// <summary>Hết hạn / thu hồi / mọi trang được chọn đã xoá (phạm vi "pages") / dự án đóng → 410 "Link đã hết hạn hoặc bị thu hồi".</summary>
     Gone,
 }
 
 /// <summary>Một trang trong cây khi dựng phần được chia sẻ.</summary>
 public sealed record WikiShareNode(Guid Id, Guid? ParentId, int Position, string Title);
 
+/// <summary>Một trang được chọn trong link phạm vi "pages"; <see cref="IncludeChildren"/> = kèm cả cây con (kể cả trang con tạo sau).</summary>
+public sealed record WikiShareSelection(Guid PageId, bool IncludeChildren);
+
 /// <summary>
 /// Chia sẻ công khai trang sổ tay có thời hạn (TEST-228 — chủ dự án chốt 2026-11-25). Hàm thuần — test: tests/OfficeHub.Modules.Projects.Tests/WikiShareRulesTests.cs.
 /// <list type="bullet">
-/// <item>Mỗi link một trang gốc (+ tuỳ chọn trang con), luôn hiện bản mới nhất. Chỉ quản lý dự án + HR / admin tạo, chỉ trên web (token AI → 403).</item>
+/// <item>Phạm vi: toàn bộ sổ tay hoặc nhiều trang được chọn (mỗi trang tuỳ chọn kèm cây con — TEST-230), luôn hiện bản mới nhất. Chỉ quản lý dự án + HR / admin tạo, chỉ trên web (token AI → 403).</item>
 /// <item>Hạn 1 / 7 / 30 ngày hoặc ngày tự chọn (hết ngày giờ văn phòng), tối đa 90 ngày. Thu hồi được, không gia hạn.</item>
 /// <item>Token như <see cref="UploadLinkRules"/> (32 byte base64url, DB giữ SHA-256 hex). Mật khẩu tuỳ chọn, lưu băm; nhập sai bị giới hạn.</item>
 /// </list>
@@ -84,8 +87,8 @@ public static class WikiShareRules
         : password.Length < MinPassword ? $"Mật khẩu tối thiểu {MinPassword} ký tự"
         : password.Length > MaxPassword ? $"Mật khẩu tối đa {MaxPassword} ký tự" : null;
 
-    public static WikiShareState State(DateTimeOffset expiresAt, DateTimeOffset? revokedAt, DateTimeOffset now, bool projectActive, bool rootExists) =>
-        revokedAt is null && expiresAt > now && projectActive && rootExists ? WikiShareState.Active : WikiShareState.Gone;
+    public static WikiShareState State(DateTimeOffset expiresAt, DateTimeOffset? revokedAt, DateTimeOffset now, bool projectActive, bool hasContent) =>
+        revokedAt is null && expiresAt > now && projectActive && hasContent ? WikiShareState.Active : WikiShareState.Gone;
 
     /// <summary>Link còn hiệu lực ở phía quản lý (danh sách): chưa thu hồi, chưa hết hạn.</summary>
     public static bool IsActive(DateTimeOffset expiresAt, DateTimeOffset? revokedAt, DateTimeOffset now) => revokedAt is null && expiresAt > now;
@@ -103,31 +106,61 @@ public static class WikiShareRules
     public static bool ShouldNotify(bool firstView, bool newDevice, DateTimeOffset? lastNotifiedAt, DateTimeOffset now) =>
         (firstView || newDevice) && (lastNotifiedAt is null || now - lastNotifiedAt.Value >= NotifyInterval);
 
+    /// <summary>Phạm vi link: toàn bộ sổ tay (kể cả trang tạo sau) hoặc danh sách trang được chọn (TEST-230).</summary>
+    public const string ScopeAll = "all";
+    public const string ScopePages = "pages";
+    /// <summary>Số trang được chọn tối đa / link.</summary>
+    public const int MaxSelectedPages = 200;
+
     /// <summary>
-    /// Các trang được chia sẻ, theo thứ tự cây (trang gốc trước, con theo Position rồi tên). Không kèm con → chỉ gốc.
-    /// Trang con của trang đã xoá không có trong <paramref name="pages"/> nên tự ẩn. Gốc không có → rỗng.
+    /// Chuẩn hoá phạm vi + danh sách trang từ yêu cầu tạo link. <paramref name="scope"/> trống → "pages" (nếu có trang) — cách viết tắt cũ
+    /// <paramref name="pageId"/> + <paramref name="includeChildren"/> = một trang. Lỗi → (Error = (field, câu lỗi)).
+    /// Chỉ kiểm hình thức (1–200 trang, không trùng); trang thuộc dự án / chưa xoá do endpoint kiểm.
     /// </summary>
-    public static List<WikiShareNode> SharedPages(Guid rootId, bool includeChildren, IReadOnlyCollection<WikiShareNode> pages)
+    public static (string Scope, List<WikiShareSelection> Pages, (string Field, string Message)? Error) Selection(string? scope,
+        IReadOnlyList<WikiShareSelection>? pages, Guid? pageId, bool includeChildren)
     {
-        var root = pages.FirstOrDefault(p => p.Id == rootId);
-        if (root is null) return [];
-        var result = new List<WikiShareNode> { root };
-        if (!includeChildren) return result;
-        var children = pages.Where(p => p.ParentId is not null).ToLookup(p => p.ParentId!.Value);
-        var seen = new HashSet<Guid> { root.Id };
-        void Walk(Guid id, int depth)
+        var s = string.IsNullOrWhiteSpace(scope) ? ScopePages : scope.Trim().ToLowerInvariant();
+        if (s == ScopeAll) return (ScopeAll, [], null);
+        if (s != ScopePages) return (s, [], ("scope", "Phạm vi chỉ là toàn bộ sổ tay (all) hoặc chọn trang (pages)"));
+        var list = pages is { Count: > 0 } ? pages.ToList() : pageId is { } one ? [new WikiShareSelection(one, includeChildren)] : [];
+        if (list.Count == 0) return (s, [], ("pages", "Chọn ít nhất một trang để chia sẻ"));
+        if (list.Count > MaxSelectedPages) return (s, [], ("pages", $"Chọn tối đa {MaxSelectedPages} trang"));
+        if (list.Select(x => x.PageId).Distinct().Count() != list.Count) return (s, [], ("pages", "Danh sách trang bị trùng"));
+        return (s, list, null);
+    }
+
+    /// <summary>
+    /// Các trang được chia sẻ theo phạm vi, thứ tự cây như sổ tay (Position rồi tên). <paramref name="pages"/> = trang chưa xoá của dự án;
+    /// trang có tổ tiên đã xoá (không có trong danh sách) cũng bị bỏ. Phạm vi "all" → mọi trang. Phạm vi "pages" → trang được chọn
+    /// + cây con (kể cả trang tạo sau) của trang có IncludeChildren. ParentId của kết quả = tổ tiên gần nhất CÓ trong bản chia sẻ, không có → null (đứng ở gốc).
+    /// </summary>
+    public static List<WikiShareNode> SharedPages(string scope, IReadOnlyCollection<WikiShareSelection> selected, IReadOnlyCollection<WikiShareNode> pages)
+    {
+        var children = pages.ToLookup(p => p.ParentId);
+        var all = scope == ScopeAll;
+        var pick = selected.GroupBy(x => x.PageId).ToDictionary(g => g.Key, g => g.Any(x => x.IncludeChildren));
+        var result = new List<WikiShareNode>();
+        var seen = new HashSet<Guid>();
+        // Duyệt cây từ gốc (chỉ trang còn sống mới tới được); sharedAncestor = tổ tiên gần nhất đã vào bản chia sẻ; underIncluded = nằm dưới trang "kèm con".
+        void Walk(Guid? parent, Guid? sharedAncestor, bool underIncluded, int depth)
         {
-            if (depth > WikiRules.MaxDepth) return;
-            foreach (var c in children[id].OrderBy(x => x.Position).ThenBy(x => x.Title, StringComparer.OrdinalIgnoreCase))
+            if (depth > WikiRules.MaxDepth + 1) return;
+            foreach (var c in children[parent].OrderBy(x => x.Position).ThenBy(x => x.Title, StringComparer.OrdinalIgnoreCase))
             {
                 if (!seen.Add(c.Id)) continue;
-                result.Add(c);
-                Walk(c.Id, depth + 1);
+                var picked = pick.TryGetValue(c.Id, out var inc);
+                var shared = all || underIncluded || picked;
+                if (shared) result.Add(c with { ParentId = sharedAncestor });
+                Walk(c.Id, shared ? c.Id : sharedAncestor, underIncluded || (picked && inc), depth + 1);
             }
         }
-        Walk(root.Id, 1);
+        Walk(null, null, false, 1);
         return result;
     }
+
+    /// <summary>Link phạm vi "pages" mà không còn trang nào (mọi trang chọn đã xoá) → hết hiệu lực. Phạm vi "all" sổ tay trống vẫn hiệu lực (cây rỗng).</summary>
+    public static bool HasContent(string scope, int sharedCount) => scope == ScopeAll || sharedCount > 0;
 
     // Link Markdown "[chữ](url)" — url không chứa khoảng trắng / ngoặc đóng; có thể kèm "title".
     private static readonly Regex MdLink = new(@"\]\((?<url>[^)\s]+)(?<rest>(?:\s+""[^""]*"")?)\)", RegexOptions.Compiled | RegexOptions.CultureInvariant);

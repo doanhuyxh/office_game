@@ -1,4 +1,4 @@
-// E2E TEST-229: giao diện chia sẻ sổ tay + trang công khai /s/{token} (Chrome headless, 3 phiên: quản lý dự án PM, thành viên M, khách ẩn danh).
+// E2E TEST-229 (cập nhật theo hộp thoại phạm vi TEST-230): giao diện chia sẻ sổ tay + trang công khai /s/{token} (Chrome headless, 3 phiên: quản lý dự án PM, thành viên M, khách ẩn danh).
 // PM: nút "Chia sẻ" ở trang sổ tay → hộp thoại tạo link (người nhận, hạn, kèm trang con, mật khẩu) → URL /s/{token} + QR + "chỉ hiện một lần",
 // danh sách link (lượt xem, mật khẩu), Nhật ký xem (IP + trình duyệt), chuông "Khách đã mở link chia sẻ sổ tay" → mở đúng trang, Thu hồi (xác nhận).
 // M (thành viên thường): không thấy nút "Chia sẻ". Khách: mở link không cần đăng nhập — tên dự án, "Hết hạn sau", watermark, cây trang + ?page=,
@@ -139,8 +139,10 @@ try {
   await theme(brA, 'light', URL_ROOT);
   ok('quản lý dự án thấy nút "Chia sẻ"', await has(brA, 'wiki-share-open'));
   await clickAt(brA, q('wiki-share-open'));
-  ok('hộp thoại chia sẻ mở, "Kèm các trang con" sẵn tích (trang có con)', await has(brA, 'wiki-share-form')
-    && await brA.evalJs(`${q('wiki-share-children')}?.getAttribute('data-state') === 'checked'`));
+  // TEST-230: mở từ trang → phạm vi "Chọn trang" tích sẵn trang + cả cây con (thay ô "Kèm các trang con" cũ)
+  ok('hộp thoại chia sẻ mở, phạm vi "Chọn trang" tích sẵn trang gốc + con', await has(brA, 'wiki-share-form')
+    && await brA.evalJs(`${q('wiki-share-scope-pages')}?.getAttribute('aria-checked') === 'true'`)
+    && await brA.evalJs(`[...document.querySelectorAll('[data-testid="wiki-share-pick"]')].filter((e) => e.dataset.state === 'checked').length === 2`));
   ok('danh sách link của trang: 1 link tạo qua API ("Thử khoá", có mật khẩu); link của trang con không lẫn vào', await waitFor(brA, `${q('wiki-share-list')}`)
     && await brA.evalJs(`(() => { const it = [...document.querySelectorAll('[data-testid="wiki-share-item"]')]; return it.length === 1 && it[0].innerText.includes('Thử khoá') && it[0].innerText.includes('Mật khẩu'); })()`));
   await setVal(brA, '#wiki-share-recipient', 'Anh Khách');
@@ -158,21 +160,22 @@ try {
   const url1 = await brA.evalJs(`${q('wiki-share-url')}?.value ?? ''`) as string;
   ok('tạo xong: URL /s/{token} (43 ký tự) + QR + "chỉ hiện một lần"', /\/s\/[A-Za-z0-9_-]{43}$/.test(url1) && await has(brA, 'wiki-share-qr')
     && (await text(brA, 'wiki-share-created'))?.includes('một lần') === true, url1);
-  ok('danh sách link: thêm dòng "Anh Khách" (mới nhất trước) · Còn hạn · kèm trang con', await brA.evalJs(`(() => { const it = [...document.querySelectorAll('[data-testid="wiki-share-item"]')];
-    return it.length === 2 && it[0].innerText.includes('Anh Khách') && it[0].innerText.includes('Còn hạn') && it[0].innerText.includes('kèm trang con'); })()`));
+  ok('danh sách link: thêm dòng "Anh Khách" (mới nhất trước) · Còn hạn · phạm vi 1 trang', await brA.evalJs(`(() => { const it = [...document.querySelectorAll('[data-testid="wiki-share-item"]')];
+    return it.length === 2 && it[0].innerText.includes('Anh Khách') && it[0].innerText.includes('Còn hạn') && it[0].querySelector('[data-testid="wiki-share-scope"]')?.innerText.includes('1 trang'); })()`));
   await brA.shot(`${SHOTS}/1-share-dialog-created-light.png`);
 
   // ── PM: link thứ hai có mật khẩu, không kèm trang con ──
   await click(brA, btnIn('Tạo link khác', q('wiki-share-dialog')));
   ok('"Tạo link khác" → form trống (không mang người nhận / nhãn của link trước)', await brA.evalJs(`document.querySelector('#wiki-share-recipient').value === '' && document.querySelector('#wiki-share-label').value === ''`));
   await setVal(brA, '#wiki-share-recipient', 'Chị Mật Khẩu');
-  await clickAt(brA, q('wiki-share-children'));
+  // Bỏ tích trang con "Phạm vi" → trang gốc vẫn tích nhưng không còn kèm con (gạch ngang)
+  await clickAt(brA, `[...document.querySelectorAll('[data-testid="wiki-share-pick"]')].find((e) => e.innerText.includes('Phạm vi'))?.querySelector('button')`);
   await setVal(brA, '#wiki-share-password', 'mat-khau-229');
   await click(brA, q('wiki-share-create'), 1800);
   const url2 = await brA.evalJs(`${q('wiki-share-url')}?.value ?? ''`) as string;
   ok('link 2 tạo được, khác link 1, có "cần mật khẩu"', /\/s\/[A-Za-z0-9_-]{43}$/.test(url2) && url2 !== url1 && (await text(brA, 'wiki-share-created'))?.includes('cần mật khẩu') === true);
   ok('danh sách: 3 link của trang gốc, link 2 có nhãn Mật khẩu', await brA.evalJs(`(() => { const it = [...document.querySelectorAll('[data-testid="wiki-share-item"]')];
-    const m = it.find((e) => e.innerText.includes('Chị Mật Khẩu')); return it.length === 3 && !!m && m.innerText.includes('Mật khẩu') && !m.innerText.includes('kèm trang con')
+    const m = it.find((e) => e.innerText.includes('Chị Mật Khẩu')); return it.length === 3 && !!m && m.innerText.includes('Mật khẩu')
       && !m.innerText.includes('Bản nháp tuần 48'); })()`),
     await brA.evalJs(`[...document.querySelectorAll('[data-testid="wiki-share-item"]')].map((e) => e.innerText)`));
   await brA.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });

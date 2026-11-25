@@ -2,7 +2,7 @@ using OfficeHub.Modules.Projects.Domain;
 
 namespace OfficeHub.Modules.Projects.Tests;
 
-/// <summary>Chia sẻ công khai trang sổ tay có thời hạn (TEST-228).</summary>
+/// <summary>Chia sẻ công khai trang sổ tay có thời hạn (TEST-228) + phạm vi toàn bộ sổ tay / chọn nhiều trang (TEST-230).</summary>
 public class WikiShareRulesTests
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 25, 3, 0, 0, TimeSpan.Zero);
@@ -96,7 +96,7 @@ public class WikiShareRulesTests
     [InlineData(0, false, true, true, WikiShareState.Gone)]   // đúng lúc hết hạn
     [InlineData(1, true, true, true, WikiShareState.Gone)]    // thu hồi
     [InlineData(1, false, false, true, WikiShareState.Gone)]  // dự án đóng
-    [InlineData(1, false, true, false, WikiShareState.Gone)]  // trang gốc bị xoá
+    [InlineData(1, false, true, false, WikiShareState.Gone)]  // mọi trang được chọn đã xoá
     public void State(int hours, bool revoked, bool active, bool root, WikiShareState expected) =>
         Assert.Equal(expected, WikiShareRules.State(Now.AddHours(hours), revoked ? Now : null, Now, active, root));
 
@@ -138,20 +138,120 @@ public class WikiShareRulesTests
         new(A1, A, 0, "A1"),
     ];
 
-    [Fact]
-    public void SharedPages_root_only() => Assert.Equal([Root], WikiShareRules.SharedPages(Root, false, Tree).Select(x => x.Id));
+    private static List<WikiShareSelection> Sel(params (Guid Id, bool Kids)[] xs) => xs.Select(x => new WikiShareSelection(x.Id, x.Kids)).ToList();
+    private static List<Guid> Ids(List<WikiShareNode> r) => r.Select(x => x.Id).ToList();
 
     [Fact]
-    public void SharedPages_with_children_in_tree_order() =>
-        Assert.Equal([Root, A, A1, B], WikiShareRules.SharedPages(Root, true, Tree).Select(x => x.Id));
+    public void SharedPages_root_only() =>
+        Assert.Equal([Root], Ids(WikiShareRules.SharedPages(WikiShareRules.ScopePages, Sel((Root, false)), Tree)));
+
+    [Fact]
+    public void SharedPages_with_children_in_tree_order()
+    {
+        var r = WikiShareRules.SharedPages(WikiShareRules.ScopePages, Sel((Root, true)), Tree);
+        Assert.Equal([Root, A, A1, B], Ids(r));
+        Assert.Null(r[0].ParentId); // trang chọn đứng ở gốc của bản chia sẻ
+        Assert.Equal(Root, r.Single(x => x.Id == A).ParentId);
+    }
 
     [Fact]
     public void SharedPages_deleted_parent_hides_subtree() =>
         // A đã xoá mềm → không có trong danh sách → A1 cũng ẩn
-        Assert.Equal([Root, B], WikiShareRules.SharedPages(Root, true, Tree.Where(x => x.Id != A).ToList()).Select(x => x.Id));
+        Assert.Equal([Root, B], Ids(WikiShareRules.SharedPages(WikiShareRules.ScopePages, Sel((Root, true)), Tree.Where(x => x.Id != A).ToList())));
 
     [Fact]
-    public void SharedPages_missing_root_is_empty() => Assert.Empty(WikiShareRules.SharedPages(Guid.NewGuid(), true, Tree));
+    public void SharedPages_missing_selection_is_empty() =>
+        Assert.Empty(WikiShareRules.SharedPages(WikiShareRules.ScopePages, Sel((Guid.NewGuid(), true)), Tree));
+
+    [Fact]
+    public void SharedPages_all_scope_every_page_tree_order() =>
+        Assert.Equal([Other, Root, A, A1, B], Ids(WikiShareRules.SharedPages(WikiShareRules.ScopeAll, [], Tree)));
+
+    [Fact]
+    public void SharedPages_all_scope_includes_page_created_later()
+    {
+        var c = Guid.NewGuid();
+        var later = Tree.Append(new WikiShareNode(c, Other, 0, "Mới")).ToList();
+        Assert.Contains(c, Ids(WikiShareRules.SharedPages(WikiShareRules.ScopeAll, [], later)));
+    }
+
+    [Fact]
+    public void SharedPages_scattered_pages_attach_to_nearest_shared_ancestor()
+    {
+        // Chọn Root (không kèm con), A1 (cháu, A không chọn) và Other ở nhánh khác → A1 nối thẳng vào Root, Other đứng ở gốc.
+        var r = WikiShareRules.SharedPages(WikiShareRules.ScopePages, Sel((A1, false), (Other, false), (Root, false)), Tree);
+        Assert.Equal([Other, Root, A1], Ids(r));
+        Assert.Null(r.Single(x => x.Id == Other).ParentId);
+        Assert.Null(r.Single(x => x.Id == Root).ParentId);
+        Assert.Equal(Root, r.Single(x => x.Id == A1).ParentId);
+    }
+
+    [Fact]
+    public void SharedPages_selected_without_shared_ancestor_stands_at_root()
+    {
+        var r = WikiShareRules.SharedPages(WikiShareRules.ScopePages, Sel((A1, false), (B, false)), Tree);
+        Assert.Equal([A1, B], Ids(r));
+        Assert.All(r, x => Assert.Null(x.ParentId));
+    }
+
+    [Fact]
+    public void SharedPages_child_created_later_under_included_page_shows()
+    {
+        var c = Guid.NewGuid();
+        var later = Tree.Append(new WikiShareNode(c, A1, 0, "Con mới")).ToList();
+        var withKids = WikiShareRules.SharedPages(WikiShareRules.ScopePages, Sel((A, true)), later);
+        Assert.Equal([A, A1, c], Ids(withKids));
+        Assert.Equal(A1, withKids.Single(x => x.Id == c).ParentId);
+        // Không kèm con → trang con mới không hiện
+        Assert.Equal([A], Ids(WikiShareRules.SharedPages(WikiShareRules.ScopePages, Sel((A, false)), later)));
+    }
+
+    [Fact]
+    public void SharedPages_selected_page_under_deleted_ancestor_hidden() =>
+        // A1 được chọn nhưng A (cha) đã xoá mềm → A1 không còn trong sổ tay → không hiện
+        Assert.Equal([B], Ids(WikiShareRules.SharedPages(WikiShareRules.ScopePages, Sel((A1, true), (B, false)), Tree.Where(x => x.Id != A).ToList())));
+
+    [Theory]
+    [InlineData("pages", 0, false)] // mọi trang chọn đã xoá → 410
+    [InlineData("pages", 2, true)]
+    [InlineData("all", 0, true)]    // sổ tay trống: cây rỗng, không 410
+    public void HasContent(string scope, int count, bool expected) => Assert.Equal(expected, WikiShareRules.HasContent(scope, count));
+
+    [Fact]
+    public void Gone_when_all_selected_pages_deleted()
+    {
+        var shared = WikiShareRules.SharedPages(WikiShareRules.ScopePages, Sel((A, true), (B, false)), Tree.Where(x => x.Id != A && x.Id != B).ToList());
+        Assert.Equal(WikiShareState.Gone, WikiShareRules.State(Now.AddDays(1), null, Now, true, WikiShareRules.HasContent(WikiShareRules.ScopePages, shared.Count)));
+    }
+
+    [Fact]
+    public void Selection_all_ignores_pages()
+    {
+        var (scope, pages, err) = WikiShareRules.Selection("all", Sel((A, true)), null, false);
+        Assert.Equal(WikiShareRules.ScopeAll, scope);
+        Assert.Empty(pages);
+        Assert.Null(err);
+    }
+
+    [Fact]
+    public void Selection_legacy_single_page_shorthand()
+    {
+        var (scope, pages, err) = WikiShareRules.Selection(null, null, A, true);
+        Assert.Null(err);
+        Assert.Equal(WikiShareRules.ScopePages, scope);
+        Assert.Equal([new WikiShareSelection(A, true)], pages);
+    }
+
+    [Fact]
+    public void Selection_errors()
+    {
+        Assert.Equal("pages", WikiShareRules.Selection("pages", [], null, false).Error?.Field);
+        Assert.Equal("pages", WikiShareRules.Selection("pages", Sel((A, false), (A, true)), null, false).Error?.Field);
+        Assert.Equal("scope", WikiShareRules.Selection("x", Sel((A, false)), null, false).Error?.Field);
+        var many = Enumerable.Range(0, WikiShareRules.MaxSelectedPages + 1).Select(_ => new WikiShareSelection(Guid.NewGuid(), false)).ToList();
+        Assert.Equal("pages", WikiShareRules.Selection("pages", many, null, false).Error?.Field);
+        Assert.Null(WikiShareRules.Selection("pages", many.Take(WikiShareRules.MaxSelectedPages).ToList(), null, false).Error);
+    }
 
     [Theory]
     [InlineData("https://office.lokid.me/projects/01a1cb11-4644-716a-bf4d-8ab17b2f159b?tab=wiki&page=00000000-0000-0000-0000-00000000000a", true)]

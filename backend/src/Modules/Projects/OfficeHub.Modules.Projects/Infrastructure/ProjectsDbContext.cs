@@ -35,6 +35,7 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
     public DbSet<WikiPageVersion> WikiPageVersions => Set<WikiPageVersion>();
     public DbSet<WikiViewPref> WikiViewPrefs => Set<WikiViewPref>();
     public DbSet<WikiShareLink> WikiShareLinks => Set<WikiShareLink>();
+    public DbSet<WikiSharePage> WikiSharePages => Set<WikiSharePage>();
     public DbSet<WikiShareView> WikiShareViews => Set<WikiShareView>();
 
     /// <summary>Giới hạn đội agent đang áp dụng (đọc mỗi lần: chỉ request qua token AI cần, truy vấn theo khoá chính).</summary>
@@ -283,6 +284,7 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
         b.Entity<WikiShareLink>(e =>
         {
             e.ToTable("wiki_share_links");
+            e.Property(x => x.Scope).HasMaxLength(10).HasDefaultValue(WikiShareRules.ScopePages);
             e.Property(x => x.Label).HasMaxLength(WikiShareRules.MaxLabel);
             e.Property(x => x.RecipientName).HasMaxLength(WikiShareRules.MaxRecipient);
             e.Property(x => x.TokenHash).HasMaxLength(64);
@@ -293,6 +295,14 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.HasIndex(x => new { x.ProjectId, x.RootPageId }).HasDatabaseName("ix_wiki_share_links_project_page");
             e.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<WikiPage>().WithMany().HasForeignKey(x => x.RootPageId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<WikiSharePage>(e =>
+        {
+            e.ToTable("wiki_share_link_pages");
+            e.HasKey(x => new { x.LinkId, x.PageId });
+            e.HasIndex(x => x.PageId).HasDatabaseName("ix_wiki_share_link_pages_page");
+            e.HasOne<WikiShareLink>().WithMany().HasForeignKey(x => x.LinkId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<WikiPage>().WithMany().HasForeignKey(x => x.PageId).OnDelete(DeleteBehavior.Restrict);
         });
         b.Entity<WikiShareView>(e =>
         {

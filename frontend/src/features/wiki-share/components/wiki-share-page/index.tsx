@@ -147,7 +147,8 @@ function Watermark({ recipient }: { recipient: string | null }) {
 
 /**
  * Trang công khai `/s/$token` (TEST-229, API TEST-228): khách xem trang sổ tay được chia sẻ, KHÔNG cần đăng nhập. Luôn là bản mới nhất.
- * Link có mật khẩu → ô nhập trước (sai báo lỗi, 429 báo chờ). Kèm trang con → mục lục cây bên trái (điện thoại: ngăn kéo), chọn trang bằng `?page=`.
+ * Link có mật khẩu → ô nhập trước (sai báo lỗi, 429 báo chờ). Từ 2 trang trở lên → mục lục cây bên trái (điện thoại: ngăn kéo), chọn trang bằng `?page=`;
+ * phạm vi toàn bộ sổ tay mà sổ tay trống → "Chưa có trang nào" (TEST-230).
  * Markdown dùng chung bộ hiển thị với sổ tay; link tới trang trong bản chia sẻ mở ngay tại đây, link tới trang ngoài hiện chữ thường + "không thuộc bản xem trước".
  * Watermark "Bản xem trước cho …"; 404 → "Link không tồn tại"; 410 hoặc đếm ngược về 0 → "Link đã hết hạn hoặc bị thu hồi". Thêm `<meta robots noindex>`.
  */
@@ -206,6 +207,20 @@ export function WikiSharePage() {
   if (!data) return null;
   if (remaining <= 0 || status(page.error) === 410) return <Gone notFound={false} />;
   if (data.locked) return <PasswordGate token={token} info={data} onUnlocked={() => void qc.invalidateQueries({ queryKey: ['wiki-share', token] })} />;
+
+  // Phạm vi "toàn bộ sổ tay" mà sổ tay chưa có trang (TEST-230) — link vẫn hiệu lực, trang tạo sau sẽ tự hiện.
+  if (data.pages.length === 0) return (
+    <Centered projectName={data.projectName}>
+      <Card data-testid="wiki-share-empty">
+        <CardContent className="grid justify-items-center gap-3 py-8 text-center">
+          <BookOpen className="size-10 text-muted-foreground" />
+          <p className="text-base font-medium">Chưa có trang nào</p>
+          <p className="text-sm text-muted-foreground">Sổ tay được chia sẻ hiện chưa có trang. Quay lại sau — trang mới sẽ tự hiện ở link này.</p>
+          <p className="text-xs text-muted-foreground">Hết hạn lúc {formatDateTime(data.expiresAt)}</p>
+        </CardContent>
+      </Card>
+    </Centered>
+  );
 
   const hasTree = data.pages.length > 1;
   const p = page.data && !page.data.locked ? page.data.page : null;

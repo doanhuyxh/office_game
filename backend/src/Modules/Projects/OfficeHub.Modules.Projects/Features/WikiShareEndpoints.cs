@@ -18,21 +18,30 @@ using OfficeHub.Modules.Projects.Infrastructure;
 
 namespace OfficeHub.Modules.Projects.Features;
 
+public sealed record NewWikiSharePage(Guid PageId, bool IncludeChildren = false);
+/// <param name="Scope">"all" (toàn bộ sổ tay) | "pages" (trang được chọn — mặc định).</param>
+/// <param name="Pages">Bắt buộc khi scope = pages: 1–200 trang, không trùng, cùng dự án, chưa xoá.</param>
+/// <param name="PageId">Cách viết tắt cũ (TEST-228) cho MỘT trang khi không gửi <paramref name="Pages"/>.</param>
 /// <param name="Days">1 / 7 / 30 (bỏ trống và không có <paramref name="ExpiresOn"/> = 7).</param>
 /// <param name="ExpiresOn">Ngày tự chọn (giờ văn phòng) — link hết hiệu lực khi hết ngày đó; ≤ 90 ngày.</param>
 /// <param name="Password">Tuỳ chọn, 4–100 ký tự — lưu dạng băm.</param>
-public sealed record NewWikiShare(Guid PageId, bool IncludeChildren = false, int? Days = null, DateOnly? ExpiresOn = null,
-    string? Label = null, string? RecipientName = null, string? Password = null);
+public sealed record NewWikiShare(string? Scope = null, List<NewWikiSharePage>? Pages = null, Guid? PageId = null, bool IncludeChildren = false,
+    int? Days = null, DateOnly? ExpiresOn = null, string? Label = null, string? RecipientName = null, string? Password = null);
 /// <param name="Token">Chỉ trả MỘT lần lúc tạo (DB giữ hash) — FE dựng URL công khai <c>/s/{token}</c>.</param>
 public sealed record WikiShareCreatedDto(Guid Id, string Token, DateTimeOffset ExpiresAt, WikiShareDto Share);
-/// <param name="Status">"active" | "expired" | "revoked" | "gone" (trang gốc bị xoá / dự án đóng).</param>
-public sealed record WikiShareDto(Guid Id, Guid RootPageId, string RootPageTitle, bool IncludeChildren, string? Label, string? RecipientName, bool HasPassword,
+/// <param name="Title">Tiêu đề trang; trang đã xoá → "(trang đã xoá)" + <paramref name="Deleted"/>.</param>
+public sealed record WikiSharePageDto(Guid Id, string Title, bool IncludeChildren, bool Deleted);
+/// <param name="Scope">"all" | "pages".</param>
+/// <param name="PageCount">Số trang được chọn (phạm vi pages; all = 0).</param>
+/// <param name="Status">"active" | "expired" | "revoked" | "gone" (mọi trang được chọn đã xoá / dự án đóng).</param>
+public sealed record WikiShareDto(Guid Id, string Scope, int PageCount, List<WikiSharePageDto> Pages, string? Label, string? RecipientName, bool HasPassword,
     DateTimeOffset ExpiresAt, DateTimeOffset? RevokedAt, string? RevokedByName, DateTimeOffset CreatedAt, string CreatedByName, int ViewCount,
     DateTimeOffset? LastViewedAt, string Status);
 public sealed record WikiShareViewItem(DateTimeOffset At, string? Ip, string? UserAgent);
 public sealed record WikiShareViewList(List<WikiShareViewItem> Items, int Total, int Page, int PageSize);
 
 public sealed record PublicWikiShareNode(Guid Id, Guid? ParentId, string Title);
+/// <param name="RootPageId">Trang mở đầu tiên (trang đầu của cây); cây rỗng (phạm vi all, sổ tay trống) → null.</param>
 /// <param name="Locked">Cần mật khẩu mà chưa mở khoá → <paramref name="Pages"/> rỗng, <paramref name="RootPageId"/> null.</param>
 public sealed record PublicWikiShareDto(string ProjectName, Guid? RootPageId, List<PublicWikiShareNode> Pages, DateTimeOffset ExpiresAt, string? RecipientName,
     bool RequiresPassword, bool Locked, string NotSharedHref);
@@ -148,12 +157,31 @@ internal static class WikiShareEndpoints
 
     private static ProblemHttpResult Deny(WikiDenial d) => TypedResults.Problem(d.Message, statusCode: d.Status);
 
-    private static string StatusOf(WikiShareLink l, DateTimeOffset now, bool projectActive, bool rootExists) =>
-        l.RevokedAt is not null ? "revoked" : l.ExpiresAt <= now ? "expired" : !projectActive || !rootExists ? "gone" : "active";
+    private static string StatusOf(WikiShareLink l, DateTimeOffset now, bool projectActive, bool hasContent) =>
+        l.RevokedAt is not null ? "revoked" : l.ExpiresAt <= now ? "expired" : !projectActive || !hasContent ? "gone" : "active";
 
-    private static WikiShareDto ToDto(WikiShareLink l, string? rootTitle, DateTimeOffset now, bool projectActive) =>
-        new(l.Id, l.RootPageId, rootTitle ?? "(trang đã xoá)", l.IncludeChildren, l.Label, l.RecipientName, l.PasswordHash is not null, l.ExpiresAt,
-            l.RevokedAt, l.RevokedByName, l.CreatedAt, l.CreatedByName, l.ViewCount, l.LastViewedAt, StatusOf(l, now, projectActive, rootTitle is not null));
+    /// <summary>Trang chưa xoá của dự án (để dựng cây chia sẻ).</summary>
+    private static Task<List<WikiShareNode>> NodesAsync(ProjectsDbContext db, Guid projectId, CancellationToken ct) =>
+        db.WikiPages.AsNoTracking().Where(x => x.ProjectId == projectId && x.DeletedAt == null)
+            .Select(x => new WikiShareNode(x.Id, x.ParentId, x.Position, x.Title)).ToListAsync(ct);
+
+    private static List<WikiShareSelection> SelectionOf(IEnumerable<WikiSharePage> rows) => rows.Select(x => new WikiShareSelection(x.PageId, x.IncludeChildren)).ToList();
+
+    /// <param name="order">Id trang → thứ tự trong cây sổ tay (để liệt kê trang được chọn như trong sổ tay).</param>
+    private static WikiShareDto ToDto(WikiShareLink l, List<WikiShareSelection> sel, int sharedCount, IReadOnlyDictionary<Guid, (int Order, string Title)> order,
+        DateTimeOffset now, bool projectActive)
+    {
+        var pages = sel.Select(x => order.TryGetValue(x.PageId, out var o)
+                ? (o.Order, Dto: new WikiSharePageDto(x.PageId, o.Title, x.IncludeChildren, false))
+                : (int.MaxValue, Dto: new WikiSharePageDto(x.PageId, "(trang đã xoá)", x.IncludeChildren, true)))
+            .OrderBy(x => x.Item1).Select(x => x.Dto).ToList();
+        return new(l.Id, l.Scope, l.Scope == WikiShareRules.ScopeAll ? 0 : sel.Count, pages, l.Label, l.RecipientName, l.PasswordHash is not null, l.ExpiresAt,
+            l.RevokedAt, l.RevokedByName, l.CreatedAt, l.CreatedByName, l.ViewCount, l.LastViewedAt,
+            StatusOf(l, now, projectActive, WikiShareRules.HasContent(l.Scope, sharedCount)));
+    }
+
+    private static Dictionary<Guid, (int Order, string Title)> TreeOrder(IReadOnlyCollection<WikiShareNode> nodes) =>
+        WikiShareRules.SharedPages(WikiShareRules.ScopeAll, [], nodes).Select((x, i) => (x, i)).ToDictionary(t => t.x.Id, t => (t.i, t.x.Title));
 
     private static async Task<Results<Ok<WikiShareCreatedDto>, NotFound, ValidationProblem, ProblemHttpResult>> CreateAsync(Guid id, NewWikiShare r,
         ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, ProjectClock clock, CancellationToken ct)
@@ -161,14 +189,19 @@ internal static class WikiShareEndpoints
         if (await CtxAsync(id, user, db, access, ct) is not { } c) return TypedResults.NotFound();
         if (c.Manage() is { } d) return Deny(d);
         if (c.P.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng — không tạo link chia sẻ");
-        var page = await db.WikiPages.AsNoTracking().FirstOrDefaultAsync(x => x.Id == r.PageId && x.ProjectId == id && x.DeletedAt == null, ct);
         var now = clock.Now;
         var label = WikiShareRules.OneLine(r.Label);
         var recipient = WikiShareRules.OneLine(r.RecipientName);
         var val = new Validation()
             .MaxLength(label, WikiShareRules.MaxLabel, "label", "Nhãn")
             .MaxLength(recipient, WikiShareRules.MaxRecipient, "recipientName", "Người nhận");
-        if (page is null) val.Add("pageId", "Trang không tồn tại trong sổ tay dự án");
+        var (scope, selected, selErr) = WikiShareRules.Selection(r.Scope,
+            r.Pages?.Select(x => new WikiShareSelection(x.PageId, x.IncludeChildren)).ToList(), r.PageId, r.IncludeChildren);
+        var nodes = await NodesAsync(db, id, ct);
+        var order = TreeOrder(nodes);
+        if (selErr is { } se) val.Add(se.Field, se.Message);
+        // Trang phải thuộc dự án, chưa xoá và còn hiện trong sổ tay (không nằm dưới trang đã xoá).
+        else if (selected.Any(x => !order.ContainsKey(x.PageId))) val.Add(r.Pages is { Count: > 0 } ? "pages" : "pageId", "Trang không tồn tại trong sổ tay dự án");
         var (expiresAt, expErr) = WikiShareRules.ExpiresAt(r.Days, r.ExpiresOn, now, clock.EndOfDay);
         if (expErr is not null) val.Add(r.ExpiresOn is not null ? "expiresOn" : "days", expErr);
         if (WikiShareRules.PasswordError(r.Password) is { } pe) val.Add("password", pe);
@@ -179,30 +212,39 @@ internal static class WikiShareEndpoints
         var token = UploadLinkRules.NewToken();
         var link = new WikiShareLink
         {
-            ProjectId = id, RootPageId = page!.Id, IncludeChildren = r.IncludeChildren, Label = label, RecipientName = recipient,
+            ProjectId = id, Scope = scope, Label = label, RecipientName = recipient,
             TokenHash = UploadLinkRules.Hash(token), ExpiresAt = expiresAt!.Value, CreatedAt = now, CreatedByUserId = c.V.UserId, CreatedByName = c.V.Name,
         };
         if (!string.IsNullOrEmpty(r.Password)) link.PasswordHash = Hasher.HashPassword(link, r.Password);
         db.WikiShareLinks.Add(link);
+        db.WikiSharePages.AddRange(selected.Select(x => new WikiSharePage { LinkId = link.Id, PageId = x.PageId, IncludeChildren = x.IncludeChildren }));
         await db.SaveChangesAsync(ct);
-        return TypedResults.Ok(new WikiShareCreatedDto(link.Id, token, link.ExpiresAt, ToDto(link, page.Title, now, true)));
+        var shared = WikiShareRules.SharedPages(scope, selected, nodes).Count;
+        return TypedResults.Ok(new WikiShareCreatedDto(link.Id, token, link.ExpiresAt, ToDto(link, selected, shared, order, now, true)));
     }
 
-    /// <summary>Mọi link của dự án (mới nhất trước), lọc được theo <paramref name="pageId"/> (trang gốc). Không có token.</summary>
+    /// <summary>Mọi link của dự án (mới nhất trước); <paramref name="pageId"/> → chỉ link có chứa trang đó (kể cả qua "kèm con" / toàn bộ sổ tay). Không có token.</summary>
     private static async Task<Results<Ok<List<WikiShareDto>>, NotFound, ProblemHttpResult>> ListAsync(Guid id, Guid? pageId, ClaimsPrincipal user,
         ProjectsDbContext db, ProjectAccess access, ProjectClock clock, CancellationToken ct)
     {
         if (await CtxAsync(id, user, db, access, ct) is not { } c) return TypedResults.NotFound();
         if (c.Manage() is { } d) return Deny(d);
-        var q = db.WikiShareLinks.AsNoTracking().Where(x => x.ProjectId == id);
-        if (pageId is { } pid) q = q.Where(x => x.RootPageId == pid);
-        var links = await q.OrderByDescending(x => x.CreatedAt).Take(500).ToListAsync(ct);
-        var rootIds = links.Select(x => x.RootPageId).Distinct().ToList();
-        var titles = await db.WikiPages.AsNoTracking().Where(x => rootIds.Contains(x.Id) && x.DeletedAt == null)
-            .ToDictionaryAsync(x => x.Id, x => x.Title, ct);
+        var links = await db.WikiShareLinks.AsNoTracking().Where(x => x.ProjectId == id).OrderByDescending(x => x.CreatedAt).Take(500).ToListAsync(ct);
+        var linkIds = links.Select(x => x.Id).ToList();
+        var rows = (await db.WikiSharePages.AsNoTracking().Where(x => linkIds.Contains(x.LinkId)).ToListAsync(ct)).ToLookup(x => x.LinkId);
+        var nodes = await NodesAsync(db, id, ct);
+        var order = TreeOrder(nodes);
         var now = clock.Now;
         var active = c.P.Status == ProjectStatus.Active;
-        return TypedResults.Ok(links.Select(l => ToDto(l, titles.GetValueOrDefault(l.RootPageId), now, active)).ToList());
+        var result = new List<WikiShareDto>();
+        foreach (var l in links)
+        {
+            var sel = SelectionOf(rows[l.Id]);
+            var shared = WikiShareRules.SharedPages(l.Scope, sel, nodes);
+            if (pageId is { } pid && !shared.Any(x => x.Id == pid) && !sel.Any(x => x.PageId == pid)) continue;
+            result.Add(ToDto(l, sel, shared.Count, order, now, active));
+        }
+        return TypedResults.Ok(result);
     }
 
     /// <summary>Thu hồi (204). Đã thu hồi → vẫn 204. Quản lý dự án / HR trên web (dự án đóng vẫn thu hồi được).</summary>
@@ -242,11 +284,13 @@ internal static class WikiShareEndpoints
 
     // ---- Công khai ----
 
-    private sealed record Resolved(WikiShareLink Link, Project Project, List<WikiShareNode> Pages);
+    /// <param name="Pages">Cây chia sẻ theo thứ tự sổ tay; ParentId = tổ tiên gần nhất có trong bản chia sẻ (null = đứng ở gốc).</param>
+    /// <param name="Selected">Trang được chọn (phạm vi pages) — rỗng với phạm vi all.</param>
+    private sealed record Resolved(WikiShareLink Link, Project Project, List<WikiShareNode> Pages, List<WikiShareSelection> Selected);
 
     private static ProblemHttpResult Gone() => TypedResults.Problem(WikiShareRules.GoneMessage, statusCode: StatusCodes.Status410Gone);
 
-    /// <summary>Token → link còn hiệu lực + các trang được chia sẻ. Sai dạng / không có → 404; hết hạn / thu hồi / trang gốc xoá / dự án đóng → 410.</summary>
+    /// <summary>Token → link còn hiệu lực + các trang được chia sẻ. Sai dạng / không có → 404; hết hạn / thu hồi / mọi trang chọn đã xoá / dự án đóng → 410.</summary>
     private static async Task<(Resolved? Ok, IResult? Error)> ResolveAsync(string token, ProjectsDbContext db, ProjectClock clock, bool track, CancellationToken ct)
     {
         if (!UploadLinkRules.LooksLikeToken(token)) return (null, TypedResults.NotFound());
@@ -256,11 +300,13 @@ internal static class WikiShareEndpoints
         if (link is null) return (null, TypedResults.NotFound());
         var p = await db.Projects.AsNoTracking().FirstOrDefaultAsync(x => x.Id == link.ProjectId, ct);
         if (p is null) return (null, TypedResults.NotFound());
-        var nodes = await db.WikiPages.AsNoTracking().Where(x => x.ProjectId == p.Id && x.DeletedAt == null)
-            .Select(x => new WikiShareNode(x.Id, x.ParentId, x.Position, x.Title)).ToListAsync(ct);
-        var shared = WikiShareRules.SharedPages(link.RootPageId, link.IncludeChildren, nodes);
-        var state = WikiShareRules.State(link.ExpiresAt, link.RevokedAt, clock.Now, p.Status == ProjectStatus.Active, shared.Count > 0);
-        return state == WikiShareState.Active ? (new Resolved(link, p, shared), null) : (null, Gone());
+        var nodes = await NodesAsync(db, p.Id, ct);
+        var selected = link.Scope == WikiShareRules.ScopeAll ? []
+            : SelectionOf(await db.WikiSharePages.AsNoTracking().Where(x => x.LinkId == link.Id).ToListAsync(ct));
+        var shared = WikiShareRules.SharedPages(link.Scope, selected, nodes);
+        var state = WikiShareRules.State(link.ExpiresAt, link.RevokedAt, clock.Now, p.Status == ProjectStatus.Active,
+            WikiShareRules.HasContent(link.Scope, shared.Count));
+        return state == WikiShareState.Active ? (new Resolved(link, p, shared, selected), null) : (null, Gone());
     }
 
     private static string CookieName(WikiShareLink l) => CookiePrefix + l.Id.ToString("N");
@@ -286,7 +332,7 @@ internal static class WikiShareEndpoints
         if (!Unlocked(http, l, dp))
             return TypedResults.Ok(new PublicWikiShareDto(ok.Project.Name, null, [], l.ExpiresAt, l.RecipientName, true, true, WikiShareRules.NotSharedHref));
         await RecordViewAsync(ok, http, db, clock, notifier, ct);
-        return TypedResults.Ok(new PublicWikiShareDto(ok.Project.Name, l.RootPageId, ok.Pages.Select(x => new PublicWikiShareNode(x.Id, x.Id == l.RootPageId ? null : x.ParentId, x.Title)).ToList(),
+        return TypedResults.Ok(new PublicWikiShareDto(ok.Project.Name, ok.Pages.FirstOrDefault()?.Id, ok.Pages.Select(x => new PublicWikiShareNode(x.Id, x.ParentId, x.Title)).ToList(),
             l.ExpiresAt, l.RecipientName, l.PasswordHash is not null, false, WikiShareRules.NotSharedHref));
     }
 
@@ -306,13 +352,33 @@ internal static class WikiShareEndpoints
         if (notify) l.LastNotifiedAt = now;
         await db.SaveChangesAsync(ct);
         if (!notify) return;
-        var root = ok.Pages.FirstOrDefault(x => x.Id == l.RootPageId)?.Title ?? "";
         var who = l.RecipientName is { } r ? $" ({r})" : "";
-        var title = firstView ? $"Link chia sẻ sổ tay \"{root}\" vừa được mở lần đầu" : $"Link chia sẻ sổ tay \"{root}\" được mở từ thiết bị mới";
+        var what = DescribeScope(ok);
+        var title = firstView ? $"Link chia sẻ sổ tay {what} vừa được mở lần đầu" : $"Link chia sẻ sổ tay {what} được mở từ thiết bị mới";
         await notifier.NotifyAsync(new NotificationRequest([l.CreatedByUserId], NotificationCategories.WikiShareViewed, title,
-            $"Dự án {ok.Project.Code}{who} · IP {ip ?? "?"} · {ua ?? "trình duyệt không rõ"}",
-            $"/projects/{ok.Project.Id}?tab=wiki&page={l.RootPageId}", SendEmail: false), ct);
+            $"Dự án {ok.Project.Code}{who} · IP {ip ?? "?"} · {ua ?? "trình duyệt không rõ"}", NotifyLink(ok), SendEmail: false), ct);
     }
+
+    /// <summary>Trang được chọn đầu tiên theo thứ tự sổ tay (còn hiện trong bản chia sẻ); phạm vi all → null.</summary>
+    private static WikiShareNode? FirstSelected(Resolved ok)
+    {
+        var ids = ok.Selected.Select(x => x.PageId).ToHashSet();
+        return ok.Pages.FirstOrDefault(x => ids.Contains(x.Id));
+    }
+
+    /// <summary>Tên phạm vi trong chuông: "toàn bộ sổ tay" / "\"Trang\"" / "\"Trang\" và N trang khác".</summary>
+    private static string DescribeScope(Resolved ok)
+    {
+        if (ok.Link.Scope == WikiShareRules.ScopeAll) return "toàn bộ sổ tay";
+        var first = FirstSelected(ok)?.Title ?? "";
+        return ok.Selected.Count > 1 ? $"\"{first}\" và {ok.Selected.Count - 1} trang khác" : $"\"{first}\"";
+    }
+
+    /// <summary>Link chuông: phạm vi all → tab Sổ tay; phạm vi pages → trang được chọn đầu tiên.</summary>
+    private static string NotifyLink(Resolved ok) =>
+        ok.Link.Scope != WikiShareRules.ScopeAll && FirstSelected(ok) is { } f
+            ? $"/projects/{ok.Project.Id}?tab=wiki&page={f.Id}"
+            : $"/projects/{ok.Project.Id}?tab=wiki";
 
     /// <summary>Mở khoá bằng mật khẩu → cookie riêng của link (HttpOnly, ≤ 24 giờ, không quá hạn link). Sai → 400; sai quá nhiều → 429.</summary>
     private static async Task<IResult> UnlockAsync(string token, WikiShareUnlock r, HttpContext http, ProjectsDbContext db, ProjectClock clock,
@@ -348,16 +414,15 @@ internal static class WikiShareEndpoints
         var (ok, error) = await ResolveAsync(token, db, clock, false, ct);
         if (ok is null) return error!;
         if (!Unlocked(http, ok.Link, dp)) return TypedResults.Problem("Link cần mật khẩu", statusCode: StatusCodes.Status401Unauthorized);
-        var ids = ok.Pages.Select(x => x.Id).ToHashSet();
-        if (!ids.Contains(pageId)) return TypedResults.NotFound();
+        var byId = ok.Pages.ToDictionary(x => x.Id);
+        if (!byId.TryGetValue(pageId, out var node)) return TypedResults.NotFound();
         var p = await db.WikiPages.AsNoTracking().FirstOrDefaultAsync(x => x.Id == pageId && x.DeletedAt == null, ct);
         if (p is null) return TypedResults.NotFound();
-        var byId = ok.Pages.ToDictionary(x => x.Id);
+        // Đường dẫn theo cây chia sẻ (tổ tiên gần nhất có trong bản chia sẻ), không lộ trang ngoài phạm vi.
         var path = new List<PublicWikiCrumb>();
-        if (p.Id != ok.Link.RootPageId)
-            for (var x = p.ParentId; x is { } pid && byId.TryGetValue(pid, out var n) && path.Count < WikiRules.MaxDepth; x = pid == ok.Link.RootPageId ? null : n.ParentId)
-                path.Insert(0, new(n.Id, n.Title));
-        var content = WikiShareRules.RewriteLinks(p.Content, ids, id => $"/s/{token}?page={id}");
-        return TypedResults.Ok(new PublicWikiPageDto(p.Id, p.Id == ok.Link.RootPageId ? null : p.ParentId, p.Title, p.Summary, content, p.UpdatedAt, path));
+        for (var x = node.ParentId; x is { } pid && byId.TryGetValue(pid, out var n) && path.Count < WikiRules.MaxDepth; x = n.ParentId)
+            path.Insert(0, new(n.Id, n.Title));
+        var content = WikiShareRules.RewriteLinks(p.Content, byId.Keys.ToHashSet(), id => $"/s/{token}?page={id}");
+        return TypedResults.Ok(new PublicWikiPageDto(p.Id, node.ParentId, p.Title, p.Summary, content, p.UpdatedAt, path));
     }
 }
