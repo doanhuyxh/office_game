@@ -41,4 +41,6 @@ export const PATHS = {
   resetPassword: '/reset-password',
   /** Trang công khai gửi tệp vào bình luận việc qua link (TEST-175) — không cần đăng nhập. */
   uploadLink: '/u/$token',
+  /** Trang công khai xem trang sổ tay được chia sẻ (TEST-229, `?page=`) — không cần đăng nhập. */
+  wikiShare: '/s/$token',
 } as const;

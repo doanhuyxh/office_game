@@ -18,6 +18,7 @@ số trang (`project.wikiPages`) là nhãn đếm trên tab. FE **chỉ hiển t
 | `components/wiki-toc-panel` | Bảng mục lục: tay nắm kéo thả, menu / phím chuyển trái-phải, thu gọn, scroll-spy |
 | `components/wiki-page-editor` | Soạn / sửa (dùng lại `markdown-editor`), xung đột phiên bản, chặn rời trang |
 | `components/wiki-history-sheet` · `wiki-move-dialog` | Lịch sử phiên bản + khôi phục · chuyển trang cha |
+| `components/wiki-share-dialog` · `wiki-share-views-dialog` | Chia sẻ link công khai cho khách + nhật ký xem (TEST-229 — [projects-wiki-share.md](projects-wiki-share.md)) |
 
 ## Hành vi
 
@@ -32,7 +33,7 @@ số trang (`project.wikiPages`) là nhãn đếm trên tab. FE **chỉ hiển t
   `PUT /wiki/prefs` — [projects-wiki-api.md](projects-wiki-api.md)). Đi theo người dùng qua máy khác; mỗi dự án một lựa chọn, mặc định phải / mở.
 - **Xem trang**: đường dẫn trang cha (bấm được), tiêu đề, tóm tắt, "Sửa lần cuối bởi … lúc … · phiên bản N" (`BotBadge` khi `updatedByBot`, giờ VN `formatDateTime`),
   nhãn "Đã khoá bởi … lúc …"; có ≥ 2 tiêu đề `##` → mục lục ở cột bên (`markdownHeadings` + `WorkGuideToc`, id tiêu đề tiền tố `wiki`); nội dung `components/common/markdown.tsx`.
-- **Nút**: Sửa / Trang con (`canEdit`; Trang con ẩn khi trang đã ở cấp `maxDepth` hoặc đủ `maxPages`), Lịch sử (mọi người xem), ⋯ Đổi tên (`promptDialog`) /
+- **Nút** (hàng nút xuống dòng khi hẹp, không cuộn ngang): Sửa / Trang con (`canEdit`; Trang con ẩn khi trang đã ở cấp `maxDepth` hoặc đủ `maxPages`), Lịch sử (mọi người xem), Chia sẻ (`canManage`), ⋯ Đổi tên (`promptDialog`) /
   Chuyển trang cha (hộp chọn bỏ chính trang + con cháu + trang cha làm vượt số cấp, đặt cuối) / Lên trên / Xuống dưới (`canEdit`), Khoá / Mở khoá / Xoá (`canManage`;
   xoá `confirmDialog` destructive — còn trang con → hộp toast lý do server, giữ mở). Người chỉ đọc (phòng ban tham gia, dự án đóng) không thấy nút sửa / menu.
 - **Soạn / sửa**: tiêu đề, tóm tắt (một dòng), nội dung Markdown Viết / Xem trước (đếm ký tự / `maxContent`), ghi chú thay đổi; nút Lưu `loading`. Sửa chỉ gửi trường đã đổi

@@ -78,6 +78,14 @@ const uploadLink = createRoute({
   component: lazyRouteComponent(() => import('@/features/upload-link/page'), 'UploadLinkPage'),
 });
 
+// Trang sổ tay chia sẻ công khai (TEST-229): ngoài layout đăng nhập, gói tải riêng — chọn trang bằng `?page=`.
+const wikiShare = createRoute({
+  getParentRoute: () => root,
+  path: PATHS.wikiShare,
+  validateSearch: (s: Record<string, unknown>): { page?: string } => ({ page: typeof s.page === 'string' && s.page ? s.page : undefined }),
+  component: lazyRouteComponent(() => import('@/features/wiki-share/page'), 'WikiSharePage'),
+});
+
 // ---- Cần đăng nhập ----
 const protectedRoute = createRoute({
   getParentRoute: () => root,
@@ -157,6 +165,7 @@ const routeTree = root.addChildren([
   acceptInvite,
   resetPassword,
   uploadLink,
+  wikiShare,
   protectedRoute.addChildren([
     office,
     oauthAuthorize,

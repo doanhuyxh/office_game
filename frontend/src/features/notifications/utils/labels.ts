@@ -1,9 +1,9 @@
 import type { LucideIcon } from 'lucide-react';
-import { AlarmClock, Bot, Boxes, ClipboardCheck, Laptop, Undo2, AtSign, Ban, Bell, MessageCircle, Megaphone, BadgeCheck, UserRoundCog, CalendarClock, CalendarX, CheckCircle2, FileClock, FileInput, FilePen, FileSignature, FolderKanban, Inbox, ShieldAlert, UserCheck, UserPen, UserX, Wallet, XCircle } from 'lucide-react';
+import { AlarmClock, BookOpenCheck, Bot, Boxes, ClipboardCheck, Laptop, Undo2, AtSign, Ban, Bell, MessageCircle, Megaphone, BadgeCheck, UserRoundCog, CalendarClock, CalendarX, CheckCircle2, FileClock, FileInput, FilePen, FileSignature, FolderKanban, Inbox, ShieldAlert, UserCheck, UserPen, UserX, Wallet, XCircle } from 'lucide-react';
 import { formatDate } from '@/utils/date';
 
-/** Icon + màu (token theme) theo loại thông báo. */
-export const CATEGORY: Record<string, { icon: LucideIcon; className: string }> = {
+/** Icon + màu (token theme) theo loại thông báo; `label` = nhãn loại hiện trên dòng thông báo (loại cần giải thích thêm). */
+export const CATEGORY: Record<string, { icon: LucideIcon; className: string; label?: string }> = {
   approval_requested: { icon: Inbox, className: 'text-primary' },
   approval_approved: { icon: CheckCircle2, className: 'text-success' },
   approval_rejected: { icon: XCircle, className: 'text-destructive' },
@@ -33,10 +33,11 @@ export const CATEGORY: Record<string, { icon: LucideIcon; className: string }> =
   asset_expiring: { icon: Boxes, className: 'text-warning' },
   asset_offboarding: { icon: UserX, className: 'text-warning' },
   asset_review: { icon: ClipboardCheck, className: 'text-info' },
+  wiki_share_viewed: { icon: BookOpenCheck, className: 'text-info', label: 'Khách đã mở link chia sẻ sổ tay' },
   social_post: { icon: Megaphone, className: 'text-destructive' },
   ai_alert: { icon: Bot, className: 'text-destructive' },
 };
-export const FALLBACK = { icon: Bell, className: 'text-muted-foreground' };
+export const FALLBACK: { icon: LucideIcon; className: string; label?: string } = { icon: Bell, className: 'text-muted-foreground' };
 
 /** "vừa xong" / "5 phút trước" / "3 giờ trước" / "2 ngày trước" / dd/MM/yyyy */
 export function timeAgo(iso: string, now = Date.now()) {

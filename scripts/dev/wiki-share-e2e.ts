@@ -148,7 +148,7 @@ const i2 = await pub('GET', T2);
 ok('Kèm trang con: cây gốc → Phạm vi → Chi tiết', i2.status === 200 && i2.body.pages.map((x: any) => x.id).join(',') === [R, A, A1].join(',')
   && i2.body.pages[0].parentId === null, i2.body);
 const p2 = await pub('GET', `${T2}/pages/${R}`);
-ok('Link tới trang trong bản chia sẻ → /w/{token}?page=', p2.body?.content?.includes(`[Phạm vi](/w/${T2}?page=${A})`) && p2.body.content.includes('wiki-share:not-shared'), p2.body);
+ok('Link tới trang trong bản chia sẻ → /s/{token}?page=', p2.body?.content?.includes(`[Phạm vi](/s/${T2}?page=${A})`) && p2.body.content.includes('wiki-share:not-shared'), p2.body);
 const pa1 = await pub('GET', `${T2}/pages/${A1}`);
 ok('Trang cháu: path từ gốc', pa1.status === 200 && pa1.body.path.map((x: any) => x.id).join(',') === [R, A].join(','), pa1.body);
 const NEW = await mk('Trang thêm sau', R);

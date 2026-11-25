@@ -1,6 +1,6 @@
 import { type ReactNode, useMemo } from 'react';
 import type { Parent, Root, RootContent, Text } from 'mdast';
-import ReactMarkdown, { type Components } from 'react-markdown';
+import ReactMarkdown, { type Components, defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { PluggableList } from 'unified';
 import { cn } from '@/utils/cn';
@@ -78,16 +78,25 @@ function remarkMentions(names: ReadonlyMap<string, string>) {
  * An toàn: react-markdown không render HTML thô và lọc URL `javascript:` — không dùng rehype-raw. `noImages`: không tải ảnh nhúng.
  * `headingIds`: tiền tố id cho tiêu đề h1–h3 (theo dòng nguồn) để mục lục cuộn tới.
  * `mentions` (mã nhân viên viết HOA → họ tên): "@mã" khớp hiện thành tên nổi bật (bình luận việc), mã khác giữ chữ thường.
+ * `renderLink`: tự vẽ thẻ link (trả `undefined` = dùng mặc định) — vd trang sổ tay chia sẻ công khai (TEST-229) đổi link nội bộ / link ngoài bản chia sẻ.
+ * `keepUrl`: URL được giữ nguyên dù không phải giao thức an toàn mặc định (vd `wiki-share:not-shared` để `renderLink` nhận ra) — chỉ để nhận dạng, không đưa vào `href`.
  */
-export function Markdown({ text, className, noImages, mentions, headingIds }: { text: string; className?: string; noImages?: boolean; mentions?: ReadonlyMap<string, string>; headingIds?: string }) {
+export function Markdown({ text, className, noImages, mentions, headingIds, renderLink, keepUrl }: {
+  text: string; className?: string; noImages?: boolean; mentions?: ReadonlyMap<string, string>; headingIds?: string;
+  renderLink?: (href: string | undefined, children: ReactNode) => ReactNode | undefined; keepUrl?: (url: string) => boolean;
+}) {
   const components = useMemo(() => {
     const base = noImages ? NO_IMAGES : COMPONENTS;
-    return headingIds ? withHeadingIds(base, headingIds) : base;
-  }, [noImages, headingIds]);
+    const withIds = headingIds ? withHeadingIds(base, headingIds) : base;
+    if (!renderLink) return withIds;
+    const Default = withIds.a as (p: object) => ReactNode;
+    return { ...withIds, a: (p) => renderLink(p.href, p.children) ?? Default(p) } satisfies Components;
+  }, [noImages, headingIds, renderLink]);
+  const urlTransform = useMemo(() => (keepUrl ? (url: string) => (keepUrl(url) ? url : defaultUrlTransform(url)) : defaultUrlTransform), [keepUrl]);
   const plugins = useMemo<PluggableList>(() => (mentions && mentions.size > 0 ? [remarkGfm, [remarkMentions, mentions]] : [remarkGfm]), [mentions]);
   return (
     <div className={cn('text-sm leading-relaxed break-words', className)}>
-      <ReactMarkdown remarkPlugins={plugins} components={components}>{text}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={plugins} components={components} urlTransform={urlTransform}>{text}</ReactMarkdown>
     </div>
   );
 }

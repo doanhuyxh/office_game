@@ -23,7 +23,7 @@ namespace OfficeHub.Modules.Projects.Features;
 /// <param name="Password">Tuỳ chọn, 4–100 ký tự — lưu dạng băm.</param>
 public sealed record NewWikiShare(Guid PageId, bool IncludeChildren = false, int? Days = null, DateOnly? ExpiresOn = null,
     string? Label = null, string? RecipientName = null, string? Password = null);
-/// <param name="Token">Chỉ trả MỘT lần lúc tạo (DB giữ hash) — FE dựng URL công khai <c>/w/{token}</c>.</param>
+/// <param name="Token">Chỉ trả MỘT lần lúc tạo (DB giữ hash) — FE dựng URL công khai <c>/s/{token}</c>.</param>
 public sealed record WikiShareCreatedDto(Guid Id, string Token, DateTimeOffset ExpiresAt, WikiShareDto Share);
 /// <param name="Status">"active" | "expired" | "revoked" | "gone" (trang gốc bị xoá / dự án đóng).</param>
 public sealed record WikiShareDto(Guid Id, Guid RootPageId, string RootPageTitle, bool IncludeChildren, string? Label, string? RecipientName, bool HasPassword,
@@ -37,7 +37,7 @@ public sealed record PublicWikiShareNode(Guid Id, Guid? ParentId, string Title);
 public sealed record PublicWikiShareDto(string ProjectName, Guid? RootPageId, List<PublicWikiShareNode> Pages, DateTimeOffset ExpiresAt, string? RecipientName,
     bool RequiresPassword, bool Locked, string NotSharedHref);
 public sealed record PublicWikiCrumb(Guid Id, string Title);
-/// <param name="Content">Markdown đã đổi link: trang trong bản chia sẻ → <c>/w/{token}?page={id}</c>, trang ngoài → <c>wiki-share:not-shared</c>.</param>
+/// <param name="Content">Markdown đã đổi link: trang trong bản chia sẻ → <c>/s/{token}?page={id}</c>, trang ngoài → <c>wiki-share:not-shared</c>.</param>
 public sealed record PublicWikiPageDto(Guid Id, Guid? ParentId, string Title, string? Summary, string Content, DateTimeOffset UpdatedAt, List<PublicWikiCrumb> Path);
 public sealed record WikiShareUnlock(string? Password);
 
@@ -357,7 +357,7 @@ internal static class WikiShareEndpoints
         if (p.Id != ok.Link.RootPageId)
             for (var x = p.ParentId; x is { } pid && byId.TryGetValue(pid, out var n) && path.Count < WikiRules.MaxDepth; x = pid == ok.Link.RootPageId ? null : n.ParentId)
                 path.Insert(0, new(n.Id, n.Title));
-        var content = WikiShareRules.RewriteLinks(p.Content, ids, id => $"/w/{token}?page={id}");
+        var content = WikiShareRules.RewriteLinks(p.Content, ids, id => $"/s/{token}?page={id}");
         return TypedResults.Ok(new PublicWikiPageDto(p.Id, p.Id == ok.Link.RootPageId ? null : p.ParentId, p.Title, p.Summary, content, p.UpdatedAt, path));
     }
 }

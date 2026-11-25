@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, FilePlus, FolderInput, History, Lock, LockOpen, MoreHorizontal, Pencil, PencilLine, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, FilePlus, FolderInput, History, Lock, LockOpen, MoreHorizontal, Pencil, PencilLine, Share2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { BotBadge } from '@/components/common/bot-badge';
 import { Button } from '@/components/common/button';
@@ -14,6 +14,7 @@ import type { IWikiPage } from '../../types/wiki.types';
 import type { IWikiNode } from '../../utils/wiki-tree';
 import { WikiHistorySheet } from '../wiki-history-sheet';
 import { WikiMoveDialog } from '../wiki-move-dialog';
+import { WikiShareDialog } from '../wiki-share-dialog';
 
 /** Tiền tố id tiêu đề trong trang sổ tay (mục lục ở `ProjectWiki` cuộn tới). */
 export const WIKI_HEADING_PREFIX = 'wiki';
@@ -21,7 +22,7 @@ export const WIKI_HEADING_PREFIX = 'wiki';
 /**
  * Xem một trang sổ tay (TEST-217): đường dẫn trang cha, tiêu đề, tóm tắt, "Sửa lần cuối bởi … lúc …" (BOT), nhãn "Đã khoá bởi …",
  * nội dung Markdown (mục lục tiêu đề `##` do `ProjectWiki` dựng ở cột trái / phải). Nút / menu theo cờ API: Sửa (canEdit), Trang con (canEdit + chưa đủ cấp),
- * Lịch sử (mọi người xem), ⋯ Đổi tên / Chuyển trang cha / Lên / Xuống (canEdit), Khoá / Mở khoá / Xoá (canManage).
+ * Lịch sử (mọi người xem), Chia sẻ link công khai cho khách (canManage — TEST-229), ⋯ Đổi tên / Chuyển trang cha / Lên / Xuống (canEdit), Khoá / Mở khoá / Xoá (canManage).
  */
 export function WikiPageView({ projectId, page, node, siblings, tree, maxDepth, canCreate, onEdit, onNewChild, onSelect, onDeleted }: {
   projectId: string; page: IWikiPage;
@@ -31,6 +32,7 @@ export function WikiPageView({ projectId, page, node, siblings, tree, maxDepth, 
 }) {
   const [history, setHistory] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const idx = siblings.findIndex((s) => s.page.id === page.id);
   const canChild = page.canEdit && canCreate && !!node && node.depth < maxDepth;
 
@@ -68,10 +70,11 @@ export function WikiPageView({ projectId, page, node, siblings, tree, maxDepth, 
         </nav>}
         <div className="flex flex-wrap items-start justify-between gap-2">
           <h2 className="min-w-0 text-xl font-semibold wrap-anywhere" data-testid="wiki-page-title">{page.title}</h2>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div className="flex max-w-full flex-wrap items-center gap-2">
             {page.canEdit && <Button size="sm" onClick={onEdit} data-testid="wiki-edit"><Pencil /> Sửa</Button>}
             {canChild && <Button size="sm" variant="outline" onClick={onNewChild} data-testid="wiki-new-child"><FilePlus /> Trang con</Button>}
             <Button size="sm" variant="outline" onClick={() => setHistory(true)} data-testid="wiki-history-open"><History /> Lịch sử</Button>
+            {page.canManage && <Button size="sm" variant="outline" onClick={() => setSharing(true)} data-testid="wiki-share-open"><Share2 /> Chia sẻ</Button>}
             {hasMenu && <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button size="icon-sm" variant="ghost" aria-label="Thao tác khác" data-testid="wiki-menu"><MoreHorizontal /></Button>
@@ -105,6 +108,8 @@ export function WikiPageView({ projectId, page, node, siblings, tree, maxDepth, 
         {page.content.trim() ? <Markdown text={page.content} headingIds={WIKI_HEADING_PREFIX} /> : <p className="text-sm text-muted-foreground">Trang chưa có nội dung.{page.canEdit && ' Bấm "Sửa" để viết.'}</p>}
       </div>
       <WikiHistorySheet projectId={projectId} page={page} open={history} onClose={() => setHistory(false)} />
+      {page.canManage && <WikiShareDialog projectId={projectId} pageId={page.id} pageTitle={page.title} hasChildren={(node?.children.length ?? 0) > 0}
+        open={sharing} onClose={() => setSharing(false)} />}
       {node && moving && <WikiMoveDialog projectId={projectId} node={node} tree={tree} maxDepth={maxDepth} open={moving} onClose={() => setMoving(false)} />}
     </article>
   );

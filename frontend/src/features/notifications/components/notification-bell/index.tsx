@@ -95,6 +95,7 @@ export function NotificationBell({ office = false, triggerClassName }: { office?
               <DropdownMenuItem key={n.id} onSelect={() => open(n)} className="items-start gap-3 py-2.5" data-testid="notification-item">
                 <c.icon className={cn('mt-0.5 size-4 shrink-0', c.className)} />
                 <div className="grid min-w-0 flex-1 gap-0.5">
+                  {c.label && <span className={cn('text-[11px] font-medium', c.className)} data-testid="notification-label">{c.label}</span>}
                   <span className={cn('text-sm leading-snug', !n.read && 'font-semibold')}>{n.title}</span>
                   <span className="line-clamp-2 text-xs whitespace-pre-line text-muted-foreground">{n.body}</span>
                   <span className="text-[11px] text-muted-foreground/80">{timeAgo(n.createdAt)}</span>

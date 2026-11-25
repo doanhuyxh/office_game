@@ -2,8 +2,8 @@
 
 > Về [projects-wiki.md](projects-wiki.md) (sổ tay dự án, TEST-215) · mẫu token như [projects-comment-upload-links.md](projects-comment-upload-links.md) (TEST-175) · e2e [../e2e.md](../e2e.md)
 
-Gửi một trang sổ tay (kèm trang con nếu muốn) cho **khách không có tài khoản** qua link công khai có hạn. Chủ dự án chốt 2026-11-25. Đợt này chỉ **back-end**;
-giao diện web (nút chia sẻ ở tab Sổ tay, trang công khai `/w/{token}`) làm ở việc sau.
+Gửi một trang sổ tay (kèm trang con nếu muốn) cho **khách không có tài khoản** qua link công khai có hạn. Chủ dự án chốt 2026-11-25. Back-end TEST-228,
+giao diện web TEST-229 (mục "Giao diện" cuối file). Đường dẫn công khai **`/s/{token}`** (theo TEST-229; TEST-228 lúc đầu đặt `/w/`, đã đổi cả `RewriteLinks`).
 
 Back-end: `Domain/WikiShareRules.cs` (quy tắc thuần, test `WikiShareRulesTests`), `Features/WikiShareEndpoints.cs`, entity `WikiShareLink` / `WikiShareView` trong `Domain/Entities.cs`.
 
@@ -24,7 +24,7 @@ Back-end: `Domain/WikiShareRules.cs` (quy tắc thuần, test `WikiShareRulesTes
   Xem nhật ký: người tạo link, quản lý dự án, HR (không qua token AI).
 - **Thông báo** người tạo link (chuông, không email — `NotificationCategories.WikiShareViewed`, catalog `projects.wiki_share_viewed`): lần mở đầu tiên, hoặc thiết bị mới
   (cặp IP + User-Agent chưa gặp với link này); tối đa **1 lần / giờ / link** (`LastNotifiedAt`). Link chuông → `/projects/{id}?tab=wiki&page={rootId}`.
-- **Link Markdown giữa các trang** (`RewriteLinks`): url có `page={guid}` và `/projects/` hoặc `tab=wiki` → trang trong bản chia sẻ đổi thành `/w/{token}?page={id}`;
+- **Link Markdown giữa các trang** (`RewriteLinks`): url có `page={guid}` và `/projects/` hoặc `tab=wiki` → trang trong bản chia sẻ đổi thành `/s/{token}?page={id}`;
   trang ngoài (ngoài cây, dự án khác, đã xoá) đổi thành `wiki-share:not-shared` (FE hiện chữ thường, không lộ id nội bộ). Link khác giữ nguyên.
 
 ## Schema `projects` (migration `WikiShareLinks`)
@@ -49,8 +49,14 @@ Back-end: `Domain/WikiShareRules.cs` (quy tắc thuần, test `WikiShareRulesTes
 Nhóm công khai `AllowAnonymous` (không dùng cookie đăng nhập), rate-limit **60 request / phút / IP / đường dẫn** (policy `projects-wiki-share`, đăng ký ở `ProjectsModule`),
 mọi phản hồi có `X-Robots-Tag: noindex, nofollow` + `Cache-Control: no-store`. Không trả tên người sửa, id dự án hay trang ngoài bản chia sẻ.
 
+## Giao diện (TEST-229)
+
+Nút "Chia sẻ" ở tab Sổ tay (quản lý dự án / HR) → hộp thoại tạo link + danh sách link của trang + thu hồi + nhật ký xem; chuông có nhãn riêng;
+trang công khai `/s/$token` (`features/wiki-share`). Chi tiết: [projects-wiki-share-ui.md](projects-wiki-share-ui.md).
+
 ## Kiểm thử
 
 - `WikiShareRulesTests` (quyền, hạn + ngày tự chọn theo giờ VN + trần 90 ngày, mật khẩu, trạng thái 410, cookie ≤ 24 giờ, giới hạn nhập sai, chống báo lặp, cây chia sẻ, đổi link),
   `AccessTokenScopeTests` (4 route quản lý bị chặn với token AI), `NotificationCatalogTests` (hằng mới có trong catalog).
-- E2E `scripts/dev/wiki-share-e2e.ts` — **chỉ DB tạm** (sửa hạn / lần báo bằng SQL qua `docker exec`), lệnh ở đầu file — 57/57 (2026-11-25).
+- E2E `scripts/dev/wiki-share-e2e.ts` — **chỉ DB tạm** (sửa hạn / lần báo bằng SQL qua `docker exec`), lệnh ở đầu file — 57/57 (2026-11-25, chạy lại sau khi đổi `/s/`).
+- E2E giao diện `scripts/dev/wiki-share-ui-e2e.ts` (Chrome headless, chỉ DB tạm) — 59/59 (2026-11-25).

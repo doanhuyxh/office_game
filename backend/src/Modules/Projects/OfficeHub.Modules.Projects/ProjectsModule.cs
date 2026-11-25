@@ -56,7 +56,7 @@ public sealed class ProjectsModule : IModule
         // Trang công khai /u/{token} (TEST-175): không đăng nhập, chỉ token link; giới hạn theo IP
         UploadLinkEndpoints.MapPublic(api.MapGroup("/projects/public/upload-links").WithTags("Projects").AllowAnonymous()
             .RequireRateLimiting(UploadLinkEndpoints.RateLimitPolicy));
-        // Trang sổ tay chia sẻ công khai /w/{token} (TEST-228): không đăng nhập, chỉ token link (+ cookie mở khoá riêng); giới hạn theo IP
+        // Trang sổ tay chia sẻ công khai /s/{token} (TEST-228): không đăng nhập, chỉ token link (+ cookie mở khoá riêng); giới hạn theo IP
         WikiShareEndpoints.MapPublic(api.MapGroup("/projects/public/wiki-shares").WithTags("Projects").AllowAnonymous()
             .RequireRateLimiting(WikiShareEndpoints.RateLimitPolicy));
         // Realtime hỏi việc bot đang chờ người (TEST-119) — khoá nội bộ, không cookie; nginx chặn từ ngoài
