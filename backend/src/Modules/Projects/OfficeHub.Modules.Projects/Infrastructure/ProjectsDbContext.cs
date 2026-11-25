@@ -34,6 +34,8 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
     public DbSet<WikiPage> WikiPages => Set<WikiPage>();
     public DbSet<WikiPageVersion> WikiPageVersions => Set<WikiPageVersion>();
     public DbSet<WikiViewPref> WikiViewPrefs => Set<WikiViewPref>();
+    public DbSet<WikiShareLink> WikiShareLinks => Set<WikiShareLink>();
+    public DbSet<WikiShareView> WikiShareViews => Set<WikiShareView>();
 
     /// <summary>Giới hạn đội agent đang áp dụng (đọc mỗi lần: chỉ request qua token AI cần, truy vấn theo khoá chính).</summary>
     public async Task<AgentLimits> AgentLimitsAsync(CancellationToken ct) =>
@@ -276,6 +278,29 @@ public sealed class ProjectsDbContext(DbContextOptions<ProjectsDbContext> option
             e.HasKey(x => new { x.ProjectId, x.UserId });
             e.Property(x => x.TocSide).HasMaxLength(5);
             e.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+        // Chia sẻ công khai trang sổ tay có thời hạn (TEST-228). DB giữ SHA-256 token (unique) + mật khẩu băm.
+        b.Entity<WikiShareLink>(e =>
+        {
+            e.ToTable("wiki_share_links");
+            e.Property(x => x.Label).HasMaxLength(WikiShareRules.MaxLabel);
+            e.Property(x => x.RecipientName).HasMaxLength(WikiShareRules.MaxRecipient);
+            e.Property(x => x.TokenHash).HasMaxLength(64);
+            e.Property(x => x.PasswordHash).HasMaxLength(200);
+            e.Property(x => x.CreatedByName).HasMaxLength(200);
+            e.Property(x => x.RevokedByName).HasMaxLength(200);
+            e.HasIndex(x => x.TokenHash).IsUnique().HasDatabaseName("ux_wiki_share_links_token");
+            e.HasIndex(x => new { x.ProjectId, x.RootPageId }).HasDatabaseName("ix_wiki_share_links_project_page");
+            e.HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<WikiPage>().WithMany().HasForeignKey(x => x.RootPageId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<WikiShareView>(e =>
+        {
+            e.ToTable("wiki_share_views");
+            e.Property(x => x.Ip).HasMaxLength(64);
+            e.Property(x => x.UserAgent).HasMaxLength(UploadLinkRules.MaxUserAgent);
+            e.HasIndex(x => new { x.LinkId, x.At }).HasDatabaseName("ix_wiki_share_views_link_at");
+            e.HasOne<WikiShareLink>().WithMany().HasForeignKey(x => x.LinkId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

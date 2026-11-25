@@ -8,6 +8,7 @@ Tài liệu chữ ở phạm vi **toàn dự án** cho người và agent cùng 
 
 Back-end: `Domain/WikiRules.cs` (quy tắc thuần, test `WikiRulesTests`), `Features/WikiEndpoints.cs`, entity `WikiPage` / `WikiPageVersion` trong `Domain/Entities.cs`.
 API: [projects-wiki-api.md](projects-wiki-api.md). Tool MCP: TEST-216 ([projects-wiki-mcp.md](projects-wiki-mcp.md)). Giao diện (tab "Sổ tay" trên web, TEST-217): [projects-wiki-ui.md](projects-wiki-ui.md).
+Chia sẻ công khai trang cho người ngoài có thời hạn (TEST-228): [projects-wiki-share.md](projects-wiki-share.md).
 
 ## Schema (`projects`, migration `ProjectsWiki`)
 

@@ -83,6 +83,8 @@ public static class NotificationCategories
     public const string CustomerFollowUp = "customer_follow_up";
     /// <summary>Được giao việc / việc đến hạn, quá hạn — module Projects.</summary>
     public const string ProjectTask = "project_task";
+    /// <summary>Link chia sẻ công khai trang sổ tay được mở lần đầu / từ thiết bị mới (gửi người tạo link, ≤ 1 lần / giờ / link) — module Projects (TEST-228).</summary>
+    public const string WikiShareViewed = "wiki_share_viewed";
     /// <summary>Yêu cầu thay đổi (CR) của dự án được khách đồng ý, có tính tiền → người phụ trách hợp đồng + kế toán lập phụ lục.</summary>
     public const string ChangeRequestApproved = "change_request_approved";
     /// <summary>Trợ lý AI / bot hoạt động bất thường (bị chặn nhiều, lỗi liên tục, ghi dồn dập, bot duyệt đơn) → mọi admin — module Audit.</summary>

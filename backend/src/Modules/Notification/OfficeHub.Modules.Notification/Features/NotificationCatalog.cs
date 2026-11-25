@@ -98,6 +98,9 @@ internal static class NotificationCatalog
             null, Telegram: nameof(ITelegramWakeup.TaskColumnEnteredAsync), WebhookEvent: WebhookEvents.TaskColumnEntered),
         new("projects.task_due", "projects", "Việc đến hạn / quá hạn", "Người làm, một lần khi việc chưa xong đến hạn hoặc quá hạn.", NotificationCategories.ProjectTask),
         new("projects.updated", "projects", "Dự án được cập nhật", "Thành viên dự án khi thông tin chung / hướng dẫn làm việc của dự án đổi.", NotificationCategories.ProjectTask),
+        new("projects.wiki_share_viewed", "projects", "Link chia sẻ sổ tay được mở",
+            "Người tạo link chia sẻ công khai trang sổ tay khi link được mở lần đầu hoặc từ thiết bị mới (cặp IP + trình duyệt chưa gặp với link này); " +
+            "tối đa 1 lần / giờ / link. Chỉ chuông.", NotificationCategories.WikiShareViewed),
         new("projects.member_added", "projects", "Thêm vào dự án", "Nhân viên được thêm vào dự án (mở công việc + kho tài liệu dự án).", NotificationCategories.ProjectMemberAdded),
 
         new("meetings.invited", "meetings", "Mời họp", "Người được mời khi có lịch họp mới.", NotificationCategories.MeetingInvited, EmailMode.Optional),

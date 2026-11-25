@@ -406,3 +406,43 @@ public static class WikiTocSides
     public const string Right = "right";
     public static bool IsValid(string? v) => v is Left or Right;
 }
+
+/// <summary>
+/// Link chia sẻ công khai một trang sổ tay (+ tuỳ chọn trang con) cho người ngoài, có thời hạn (TEST-228). Luôn hiện bản mới nhất.
+/// DB chỉ giữ SHA-256 của token (<see cref="WikiShareRules"/>); mật khẩu tuỳ chọn lưu dạng băm (PasswordHasher). Thu hồi = <see cref="RevokedAt"/>.
+/// </summary>
+[Audited]
+public sealed class WikiShareLink
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid ProjectId { get; set; }
+    public Guid RootPageId { get; set; }
+    public bool IncludeChildren { get; set; }
+    /// <summary>Nhãn nội bộ (vd "Gửi khách duyệt bản nháp").</summary>
+    public string? Label { get; set; }
+    /// <summary>Tên người nhận — hiện trên trang công khai ("Gửi tới …").</summary>
+    public string? RecipientName { get; set; }
+    public required string TokenHash { get; set; }
+    public string? PasswordHash { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+    public string? RevokedByName { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    /// <summary>Tài khoản tạo link (nhận thông báo khi link được mở).</summary>
+    public Guid CreatedByUserId { get; set; }
+    public string CreatedByName { get; set; } = "";
+    public int ViewCount { get; set; }
+    public DateTimeOffset? LastViewedAt { get; set; }
+    /// <summary>Lần báo người tạo gần nhất — báo tối đa 1 lần / giờ / link.</summary>
+    public DateTimeOffset? LastNotifiedAt { get; set; }
+}
+
+/// <summary>Nhật ký mở link chia sẻ sổ tay (chỉ thêm): thời điểm, IP, trình duyệt. Xoá link → xoá theo (cascade).</summary>
+public sealed class WikiShareView
+{
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid LinkId { get; set; }
+    public DateTimeOffset At { get; set; }
+    public string? Ip { get; set; }
+    public string? UserAgent { get; set; }
+}

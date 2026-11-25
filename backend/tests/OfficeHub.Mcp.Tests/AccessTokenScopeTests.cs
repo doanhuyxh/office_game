@@ -211,6 +211,10 @@ public class ProjectDocumentScopeTests
     [InlineData("PUT", "/api/projects/" + G + "/wiki/pages/" + G + "/move")]
     [InlineData("GET", "/api/projects/" + G + "/wiki/pages/" + G + "/versions")]
     [InlineData("POST", "/api/projects/" + G + "/wiki/pages/not-a-guid/append")]
+    [InlineData("POST", "/api/projects/" + G + "/wiki/shares")]             // TEST-228: link chia sẻ sổ tay công khai — chỉ quản lý dự án / HR trên web
+    [InlineData("GET", "/api/projects/" + G + "/wiki/shares")]
+    [InlineData("DELETE", "/api/projects/" + G + "/wiki/shares/" + G)]
+    [InlineData("GET", "/api/projects/" + G + "/wiki/shares/" + G + "/views")]
     [InlineData("PUT", "/api/projects/" + G + "/description/x")]
     [InlineData("POST", "/api/projects/" + G + "/members")]
     [InlineData("PUT", "/api/projects/" + G + "/allocations")]

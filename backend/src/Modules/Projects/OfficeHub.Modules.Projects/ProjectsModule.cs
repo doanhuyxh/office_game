@@ -30,6 +30,7 @@ public sealed class ProjectsModule : IModule
         services.AddScoped<IProjectDirectory, ProjectDirectory>();
         services.AddScoped<ICommentFileLookup, CommentFileLookup>(); // Chat chuyển tiếp tệp bình luận việc (TEST-156)
         UploadLinkEndpoints.AddRateLimit(services); // link tải lên từ thiết bị khác — endpoint công khai theo IP (TEST-175)
+        WikiShareEndpoints.AddServices(services);   // chia sẻ công khai trang sổ tay — rate-limit theo IP + đếm nhập sai mật khẩu (TEST-228)
         services.AddHostedService<ProjectsMigrator>();
         services.AddHostedService<TaskReminderJob>();
         services.AddHostedService<AllocationFreezeJob>();
@@ -49,11 +50,15 @@ public sealed class ProjectsModule : IModule
         MilestoneEndpoints.Map(g);
         ChangeRequestEndpoints.Map(g);
         WikiEndpoints.Map(g); // /{id}/wiki — sổ tay dự án (TEST-215)
+        WikiShareEndpoints.Map(g); // /{id}/wiki/shares — link chia sẻ công khai trang sổ tay (TEST-228)
         ProjectAppendixEndpoints.Map(g); // /{id}/appendix — tab Phụ lục (TEST-40)
         ProjectEndpoints.Map(g);
         // Trang công khai /u/{token} (TEST-175): không đăng nhập, chỉ token link; giới hạn theo IP
         UploadLinkEndpoints.MapPublic(api.MapGroup("/projects/public/upload-links").WithTags("Projects").AllowAnonymous()
             .RequireRateLimiting(UploadLinkEndpoints.RateLimitPolicy));
+        // Trang sổ tay chia sẻ công khai /w/{token} (TEST-228): không đăng nhập, chỉ token link (+ cookie mở khoá riêng); giới hạn theo IP
+        WikiShareEndpoints.MapPublic(api.MapGroup("/projects/public/wiki-shares").WithTags("Projects").AllowAnonymous()
+            .RequireRateLimiting(WikiShareEndpoints.RateLimitPolicy));
         // Realtime hỏi việc bot đang chờ người (TEST-119) — khoá nội bộ, không cookie; nginx chặn từ ngoài
         BotWaitingEndpoints.Map(api.MapGroup("/projects/internal").WithTags("Projects").AllowAnonymous()
             .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(16 * 1024)));
