@@ -6,6 +6,7 @@ import type { IWikiNode } from '../../utils/wiki-tree';
 /**
  * Cây trang sổ tay (TEST-217): thu / mở từng nhánh (mặc định mở hết; nhánh chứa trang đang chọn luôn mở được), trang đang chọn tô nền,
  * 🔒 trang đã khoá, số trang con ở nhánh đang thu. Bấm tên → `onSelect`.
+ * Lưới 1 cột `minmax(0,1fr)` (TEST-231): tiêu đề dài / không dấu cách cắt `truncate` (title = tên đầy đủ) thay vì đẩy rộng cột trang.
  */
 export function WikiPageTree({ nodes, selectedId, onSelect }: { nodes: IWikiNode[]; selectedId: string | null; onSelect: (id: string) => void }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
@@ -30,9 +31,9 @@ export function WikiPageTree({ nodes, selectedId, onSelect }: { nodes: IWikiNode
           {page.locked && <Lock className="size-3 shrink-0 opacity-70" aria-label="Đã khoá" />}
           {!open && <span className="shrink-0 rounded-full bg-muted px-1.5 text-[10px] leading-4 tabular-nums">{children.length}</span>}
         </div>
-        {children.length > 0 && open && <ul role="group" className="grid gap-px">{render(children)}</ul>}
+        {children.length > 0 && open && <ul role="group" className="grid grid-cols-[minmax(0,1fr)] gap-px">{render(children)}</ul>}
       </li>
     );
   });
-  return <ul role="tree" aria-label="Các trang sổ tay" className="grid gap-px" data-testid="wiki-tree">{render(nodes)}</ul>;
+  return <ul role="tree" aria-label="Các trang sổ tay" className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-px" data-testid="wiki-tree">{render(nodes)}</ul>;
 }

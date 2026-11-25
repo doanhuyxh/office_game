@@ -12,7 +12,7 @@ số trang (`project.wikiPages`) là nhãn đếm trên tab. FE **chỉ hiển t
 | `api/wiki.api.ts` | Gọi `/api/projects/{id}/wiki*` + `wikiKeys` — mọi key `['projects', 'wiki', projectId, …]` nên nút "Làm mới" của trang dự án (TEST-150) và lệnh ghi làm mới cả cây / trang / tìm / lịch sử |
 | `hooks/useWiki.ts` | `useWikiTree` / `useWikiPage` / `useWikiSearch` / `useWikiVersions` / `useWikiVersion`; `useWikiMutation` (invalidate `wikiKeys.all` + chi tiết dự án vì số trang) |
 | `types/wiki.types.ts` · `utils/wiki-tree.ts` | DTO; dựng cây từ danh sách phẳng (`buildWikiTree`, `flattenWikiTree`, `subtreeHeight`, `subtreeIds`) |
-| `components/project-wiki` | Khung tab: trái ô tìm + cây + "Trang mới", phải trang đang chọn (xem / sửa / tạo); trạng thái rỗng; chú thích dự án đóng |
+| `components/project-wiki` | Khung tab: trái ô tìm + cây + "Trang mới", phải trang đang chọn (xem / sửa / tạo); trạng thái rỗng; chú thích dự án đóng. Hàng "Trang (N)": "Chia sẻ" / "Trang mới" chỉ là nút icon 28px + tooltip (`components/common/tooltip`) + `aria-label`; đầy trang → "Trang mới" mờ, tooltip "Sổ tay tối đa N trang" (nút bọc `span` vì nút disabled không nhận rê chuột). Cột trang (`aside`, cây `ul` lưới `minmax(0,1fr)`) không cuộn ngang — tiêu đề dài cắt `truncate` (TEST-231). Màn sổ tay trống giữ nút có chữ |
 | `components/wiki-page-tree` | Cây thu / mở nhánh, 🔒 trang khoá, số trang con ở nhánh đang thu |
 | `components/wiki-page-view` | Xem trang + nút / menu ⋯ (xuất `WIKI_HEADING_PREFIX`) |
 | `components/wiki-toc-panel` | Bảng mục lục: tay nắm kéo thả, menu / phím chuyển trái-phải, thu gọn, scroll-spy |

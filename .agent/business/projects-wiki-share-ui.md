@@ -3,7 +3,7 @@
 > Về [projects-wiki-share.md](projects-wiki-share.md) (quy tắc, API — TEST-228) · tab Sổ tay [projects-wiki-ui.md](projects-wiki-ui.md) · mẫu trang công khai `/u/$token`
 > [projects-comment-upload-links.md](projects-comment-upload-links.md) · e2e `scripts/dev/wiki-share-ui-e2e.ts` ([../e2e.md](../e2e.md)).
 
-- **Tab Sổ tay** (`features/projects`): nút **"Chia sẻ"** trên thanh công cụ sổ tay (cạnh "Trang mới", cả màn sổ tay trống — `tree.canManage`, TEST-230) → hộp thoại
+- **Tab Sổ tay** (`features/projects`): nút **"Chia sẻ"** trên thanh công cụ sổ tay (cạnh "Trang mới" — ở cột trang chỉ còn icon + tooltip từ TEST-231; màn sổ tay trống vẫn có chữ — `tree.canManage`, TEST-230) → hộp thoại
   quản lý **mọi link của dự án**, mặc định phạm vi "Toàn bộ sổ tay"; nút "Chia sẻ" trên từng trang (`page.canManage`) vẫn giữ — mở sẵn "Chọn trang" với trang đó + cây con
   đã tích, danh sách lọc theo trang (nút "Xem mọi link" / "Chỉ link có trang này"). Server vẫn kiểm quyền.
   Hộp thoại `components/wiki-share-dialog`: **Phạm vi** Toàn bộ sổ tay / Chọn trang — "Chọn trang" hiện `components/wiki-share-page-picker` (cây có ô tích: tích trang cha

@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { BookOpen, FilePlus, Search, Share2, X } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { Input } from '@/components/common/input';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/common/tooltip';
 import { Spinner } from '@/components/feedback/Spinner';
 import { useDebounce } from '@/hooks/useDebounce';
 import { cn } from '@/utils/cn';
@@ -30,6 +31,7 @@ type Mode = { kind: 'view' } | { kind: 'edit'; id: string } | { kind: 'new'; par
  * vị trí + thu gọn lưu ở server theo tài khoản + dự án (`tree.prefs`, `useWikiPrefs`). Chỉ hiện ở chế độ xem trang có ≥ 2 tiêu đề `##`.
  * Hẹp → 1 cột: cây thu gọn phía trên, mục lục là khối "Mục lục (N)" dưới đó. Nút theo cờ API (`canEdit`, `canManage`) — FE không tự suy quyền.
  * Nút "Chia sẻ" cạnh "Trang mới" (canManage, TEST-230) → hộp thoại quản lý mọi link chia sẻ của dự án (toàn bộ sổ tay / chọn trang).
+ * Hàng "Trang (N)": hai nút chỉ có icon + tooltip + aria-label (TEST-231) để vừa cột 16rem; cột trang không cuộn ngang (tiêu đề dài cắt `truncate`).
  */
 export function ProjectWiki({ d }: { d: IProjectDetail }) {
   const p = d.project;
@@ -92,7 +94,7 @@ export function ProjectWiki({ d }: { d: IProjectDetail }) {
   });
 
   const treePanel = (
-    <div className="grid gap-2">
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2">
       {term ? (search.isLoading ? <Spinner /> : search.error ? <p className="text-xs text-destructive">{errorMessage(search.error)}</p>
         : (search.data?.length ?? 0) === 0 ? <p className="px-2 text-sm text-muted-foreground">Không có trang nào khớp "{term}".</p>
         : <ul className="grid gap-1" data-testid="wiki-search-results">
@@ -109,7 +111,7 @@ export function ProjectWiki({ d }: { d: IProjectDetail }) {
   );
 
   const aside = (
-    <aside className="grid content-start gap-3 rounded-lg border p-3 @4xl/content:sticky @4xl/content:top-20 @4xl/content:max-h-[calc(100dvh-6rem)] @4xl/content:overflow-y-auto">
+    <aside className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-3 overflow-x-hidden rounded-lg border p-3 @4xl/content:sticky @4xl/content:top-20 @4xl/content:max-h-[calc(100dvh-6rem)] @4xl/content:overflow-y-auto">
       <div className="relative">
         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm trong sổ tay…" className="h-8 pr-8 pl-8" aria-label="Tìm trong sổ tay" maxLength={200} data-testid="wiki-search" />
@@ -119,11 +121,25 @@ export function ProjectWiki({ d }: { d: IProjectDetail }) {
         <button type="button" className="text-xs font-medium uppercase tracking-wide text-muted-foreground @4xl/content:pointer-events-none" onClick={() => setTreeOpen((v) => !v)}
           aria-expanded={treeOpen} data-testid="wiki-tree-toggle">
           Trang ({t.pages.length})<span className="@4xl/content:hidden"> {treeOpen ? '▴' : '▾'}</span></button>
-        <div className="flex items-center gap-1">
-          {t.canManage && <Button size="sm" variant="outline" className="h-7" onClick={() => setSharing(true)} title="Chia sẻ sổ tay cho khách" data-testid="wiki-share-all">
-            <Share2 /> Chia sẻ</Button>}
-          {t.canEdit && <Button size="sm" variant="outline" className="h-7" disabled={full} title={full ? `Sổ tay tối đa ${t.maxPages} trang` : undefined} onClick={newRoot} data-testid="wiki-new">
-            <FilePlus /> Trang mới</Button>}
+        <div className="flex shrink-0 items-center gap-1">
+          {t.canManage && <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="icon" variant="outline" className="size-7" onClick={() => setSharing(true)} aria-label="Chia sẻ sổ tay cho khách" data-testid="wiki-share-all">
+                <Share2 /></Button>
+            </TooltipTrigger>
+            <TooltipContent data-testid="wiki-share-all-tip">Chia sẻ sổ tay cho khách</TooltipContent>
+          </Tooltip>}
+          {t.canEdit && <Tooltip>
+            {/* Nút disabled không nhận sự kiện chuột → bọc span để tooltip "tối đa N trang" vẫn hiện khi đầy. */}
+            <TooltipTrigger asChild>
+              <span tabIndex={full ? 0 : -1} className="inline-flex" data-testid="wiki-new-wrap">
+                <Button size="icon" variant="outline" className="size-7" disabled={full} onClick={newRoot} data-testid="wiki-new"
+                  aria-label={full ? `Trang mới — sổ tay tối đa ${t.maxPages} trang` : 'Trang mới'}>
+                  <FilePlus /></Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent data-testid="wiki-new-tip">{full ? `Sổ tay tối đa ${t.maxPages} trang` : 'Trang mới'}</TooltipContent>
+          </Tooltip>}
         </div>
       </div>
       <div className={treeOpen || term ? 'block' : 'hidden @4xl/content:block'}>{treePanel}</div>
