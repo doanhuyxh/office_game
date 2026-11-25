@@ -85,7 +85,8 @@ const BASE_RULES = `- Không chuyển việc sang trạng thái hoàn thành, kh
 - Không sửa hướng dẫn dự án / cột / chức vụ / phòng ban; không gửi thông tin cá nhân / lương / tài chính của người khác ra ngoài phạm vi việc.`;
 
 const SECRET_RULES = `- Không đọc / tạo / sửa / in file .env, khoá, token, biến môi trường, ~/.ssh; output có bí mật thì che trước khi bình luận.
-- Không cài phần mềm, không sửa cấu hình git / gh / hệ thống.`;
+- Không cài phần mềm hệ thống / toàn cục, không sửa cấu hình git / gh / hệ thống. Được cài dependency của repo theo lockfile
+  (vd bun install --frozen-lockfile, dotnet restore) khi hướng dẫn cột / dự án / chức vụ ghi.`;
 
 const RULES: Record<FollowTools, string> = {
   repo: `- Repo CHỈ ĐỌC: không sửa / tạo file trong repo, không commit, không push (bị chặn).
