@@ -11,7 +11,7 @@ using OfficeHub.Modules.Notification.Contracts;
 namespace OfficeHub.Modules.Audit.Infrastructure;
 
 /// <summary>
-/// Mỗi 5 phút quét <c>audit.ai_requests</c> 15 phút gần nhất theo từng người, áp <see cref="AiAlertRules"/> →
+/// Mỗi 5 phút quét <c>audit.ai_requests</c> trong cửa sổ gần nhất (mặc định 15 phút, admin chỉnh — TEST-232) theo từng người, áp <see cref="AiAlertRules"/> →
 /// lưu <c>audit.ai_alerts</c> + báo mọi admin đang hoạt động (chuông + push; email chỉ khi bot duyệt đơn).
 /// Không tự thu hồi token — chỉ báo, người quyết. Chỉ chạy trong host Api, giả định một instance.
 /// </summary>
@@ -36,7 +36,8 @@ internal sealed class AiAlertMonitor(IServiceScopeFactory scopes, TimeProvider c
         var sp = scope.ServiceProvider;
         var db = sp.GetRequiredService<AuditDbContext>();
         var now = clock.GetUtcNow();
-        var from = now - AiAlertRules.Window;
+        var t = await ThresholdsAsync(db, ct); // đọc mỗi lần chạy (không cache) → admin đổi ngưỡng là áp dụng ở lần quét kế tiếp
+        var from = now - t.Window;
         var expired = now.AddDays(-AuditRules.AiRetentionDays);
         await db.AiAlerts.Where(a => a.CreatedAt < expired).ExecuteDeleteAsync(ct); // cùng hạn lưu với nhật ký AI
 
@@ -45,7 +46,7 @@ internal sealed class AiAlertMonitor(IServiceScopeFactory scopes, TimeProvider c
 
         var accounts = sp.GetRequiredService<IAccountService>();
         var people = await accounts.GetManyAsync(stats.Select(s => s.UserId).ToList(), ct);
-        var since = now - AiAlertRules.Cooldown;
+        var since = now - t.Cooldown;
         var recent = (await db.AiAlerts.AsNoTracking().Where(a => a.CreatedAt > since)
             .Select(a => new { a.UserId, a.Rule, a.CreatedAt }).ToListAsync(ct))
             .GroupBy(a => (a.UserId, a.Rule)).ToDictionary(g => g.Key, g => g.Max(a => a.CreatedAt));
@@ -54,9 +55,9 @@ internal sealed class AiAlertMonitor(IServiceScopeFactory scopes, TimeProvider c
         foreach (var s in stats)
         {
             people.TryGetValue(s.UserId, out var acc);
-            foreach (var hit in AiAlertRules.Evaluate(s, acc?.IsBot == true))
+            foreach (var hit in AiAlertRules.Evaluate(s, acc?.IsBot == true, t))
             {
-                if (AiAlertRules.InCooldown(recent.GetValueOrDefault((s.UserId, hit.Rule)), now)) continue;
+                if (AiAlertRules.InCooldown(recent.GetValueOrDefault((s.UserId, hit.Rule)), now, t.Cooldown)) continue;
                 created.Add(new AiAlert { CreatedAt = now, UserId = s.UserId, Rule = hit.Rule, WindowStart = from, WindowEnd = now, Count = hit.Count, Total = s.Total });
             }
         }
@@ -78,7 +79,7 @@ internal sealed class AiAlertMonitor(IServiceScopeFactory scopes, TimeProvider c
             try
             {
                 await notifier.NotifyAsync(new NotificationRequest(admins, NotificationCategories.AiAlert,
-                    AiAlertRules.Title(a.Rule, name), AiAlertRules.Body(a.Rule, a.Count, a.Total), "/reports?tab=ai",
+                    AiAlertRules.Title(a.Rule, name), AiAlertRules.Body(a.Rule, a.Count, a.Total, t.WindowMinutes), "/reports?tab=ai",
                     SendEmail: AiAlertRules.SendsEmail(a.Rule)), ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -89,6 +90,11 @@ internal sealed class AiAlertMonitor(IServiceScopeFactory scopes, TimeProvider c
         log.LogInformation("Đã gửi {Count} cảnh báo AI cho {Admins} admin", created.Count, admins.Count);
         return created.Count;
     }
+
+    /// <summary>Ngưỡng admin đặt (<c>audit.ai_alert_settings</c>, TEST-232); chưa có dòng → mặc định.</summary>
+    internal static async Task<AiAlertThresholds> ThresholdsAsync(AuditDbContext db, CancellationToken ct) =>
+        (await db.AiAlertSettings.AsNoTracking().FirstOrDefaultAsync(x => x.Id == AiAlertSettings.SingletonId, ct))?.ToThresholds()
+        ?? AiAlertThresholds.Default;
 
     /// <summary>GROUP BY theo người trong [from, to). Phân loại giống báo cáo sử dụng (AiUsageQueries).</summary>
     internal static Task<List<AiWindowStats>> WindowStatsAsync(AuditDbContext db, DateTimeOffset from, DateTimeOffset to, CancellationToken ct) =>

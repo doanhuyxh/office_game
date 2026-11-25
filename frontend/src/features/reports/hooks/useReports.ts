@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { IPageQuery } from '@/types/api';
 import type { AiUsageSort, IAiUsageFilter } from '../types/report.types';
 import { reportApi, reportKeys } from '../api/report.api';
@@ -19,3 +19,14 @@ export const useAiUsageUsersPage = (f: IAiUsageFilter, sort: AiUsageSort, q: IPa
 /** Cảnh báo trợ lý AI bất thường (job quét 5 phút / lần). */
 export const useAiAlertsPage = (q: IPageQuery) =>
   useQuery({ queryKey: reportKeys.aiAlerts(q), queryFn: () => reportApi.aiAlerts(q), placeholderData: (prev) => prev, refetchInterval: 60_000 });
+
+/** Ngưỡng cảnh báo AI (TEST-232, chỉ admin — trang Hệ thống → Cấu hình). */
+export const useAiAlertSettings = () => useQuery({ queryKey: reportKeys.aiAlertSettings, queryFn: reportApi.aiAlertSettings });
+export function useSaveAiAlertSettings() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: reportApi.saveAiAlertSettings, onSuccess: (d) => qc.setQueryData(reportKeys.aiAlertSettings, d) });
+}
+export function useResetAiAlertSettings() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: reportApi.resetAiAlertSettings, onSuccess: (d) => qc.setQueryData(reportKeys.aiAlertSettings, d) });
+}

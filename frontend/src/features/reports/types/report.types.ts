@@ -156,7 +156,7 @@ export interface IAiAlert {
   rule: AiAlertRule | string;
   title: string;
   body: string;
-  /** Số lệnh khớp luật / tổng lệnh trong cửa sổ 15 phút. */
+  /** Số lệnh khớp luật / tổng lệnh trong cửa sổ (mặc định 15 phút, admin chỉnh — TEST-232). */
   count: number;
   total: number;
   windowStart: string;
@@ -164,3 +164,28 @@ export interface IAiAlert {
 }
 
 export type IAiAlertPage = IPaged<IAiAlert>;
+
+/** Ngưỡng cảnh báo AI chỉnh được (TEST-232, `PUT /api/audit/ai-alert-settings`). `bot_approval` luôn bật, không có ngưỡng. */
+export interface IAiAlertSettingsRequest {
+  blockedThreshold: number;
+  errorsThreshold: number;
+  /** Lỗi phải chiếm HƠN số % này trên tổng lệnh. */
+  errorsPercent: number;
+  burstWritesThreshold: number;
+  chatSpamThreshold: number;
+  windowMinutes: number;
+  cooldownMinutes: number;
+}
+
+/** `GET /api/audit/ai-alert-settings` (chỉ admin trên web). */
+export interface IAiAlertSettings extends IAiAlertSettingsRequest {
+  /** Chưa ai chỉnh / đã khôi phục mặc định. */
+  isDefault: boolean;
+  updatedAt: string | null;
+  updatedByName: string | null;
+  defaults: IAiAlertSettingsRequest;
+  /** Khoảng cho phép theo tên trường (min / max). */
+  ranges: Record<keyof IAiAlertSettingsRequest, { min: number; max: number }>;
+  /** Chu kỳ quét của job (phút, cố định). */
+  intervalMinutes: number;
+}

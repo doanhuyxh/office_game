@@ -62,6 +62,87 @@ public class AiAlertRulesTests
         Assert.False(AiAlertRules.InCooldown(now.AddMinutes(-60), now));
     }
 
+    // ---- Ngưỡng chỉnh được (TEST-232) ----
+
+    [Fact]
+    public void Default_thresholds_match_original_constants()
+    {
+        var d = AiAlertThresholds.Default;
+        Assert.Equal((10, 20, 50, 60, 20, 15, 60), (d.Blocked, d.Errors, d.ErrorsPercent, d.BurstWrites, d.ChatSpam, d.WindowMinutes, d.CooldownMinutes));
+        Assert.Empty(d.Validate());
+        Assert.Equal(TimeSpan.FromMinutes(15), d.Window);
+        Assert.Equal(TimeSpan.FromHours(1), d.Cooldown);
+    }
+
+    [Fact]
+    public void Custom_thresholds_are_applied()
+    {
+        var t = AiAlertThresholds.Default with { Blocked = 3, Errors = 5, ErrorsPercent = 20, BurstWrites = 10, ChatSpam = 4 };
+        string[] R(AiWindowStats s, bool bot = false) => AiAlertRules.Evaluate(s, bot, t).Select(h => h.Rule).ToArray();
+        Assert.Equal([AiAlertRules.Blocked], R(S(total: 3, blocked: 3)));
+        Assert.Empty(R(S(total: 3, blocked: 2)));
+        Assert.Equal([AiAlertRules.Errors], R(S(total: 20, errors: 5))); // 25 % > 20 %
+        Assert.Empty(R(S(total: 25, errors: 5))); // đúng 20 % → chưa báo
+        Assert.Equal([AiAlertRules.BurstWrites], R(S(total: 10, writes: 10)));
+        Assert.Equal([AiAlertRules.ChatSpam], R(S(total: 4, chats: 4)));
+        // Ngưỡng cao hơn mặc định → hoạt động mặc định vốn báo nay không báo.
+        var high = AiAlertThresholds.Default with { Blocked = 50 };
+        Assert.Empty(AiAlertRules.Evaluate(S(total: 12, blocked: 10), false, high));
+    }
+
+    [Fact]
+    public void Errors_percent_zero_means_count_only() =>
+        Assert.Equal([AiAlertRules.Errors],
+            AiAlertRules.Evaluate(S(total: 1000, errors: 20), false, AiAlertThresholds.Default with { ErrorsPercent = 0 }).Select(h => h.Rule));
+
+    [Fact]
+    public void Bot_approval_always_on_regardless_of_thresholds()
+    {
+        var t = new AiAlertThresholds(1000, 1000, 99, 10_000, 1000, 1440, 10_080);
+        Assert.Equal([AiAlertRules.BotApproval], AiAlertRules.Evaluate(S(total: 1, approvals: 1), true, t).Select(h => h.Rule));
+    }
+
+    [Fact]
+    public void Custom_cooldown()
+    {
+        var now = new DateTimeOffset(2026, 11, 25, 10, 0, 0, TimeSpan.Zero);
+        Assert.True(AiAlertRules.InCooldown(now.AddMinutes(-9), now, TimeSpan.FromMinutes(10)));
+        Assert.False(AiAlertRules.InCooldown(now.AddMinutes(-10), now, TimeSpan.FromMinutes(10)));
+        Assert.True(AiAlertRules.InCooldown(now.AddHours(-3), now, TimeSpan.FromHours(4)));
+    }
+
+    [Fact]
+    public void Validate_reports_ranges_with_numbers()
+    {
+        var e = new AiAlertThresholds(0, 1001, 100, 10_001, 0, 4, 10_081).Validate();
+        Assert.Equal(["blockedThreshold", "burstWritesThreshold", "chatSpamThreshold", "cooldownMinutes", "errorsPercent", "errorsThreshold", "windowMinutes"],
+            e.Keys.Order().ToArray());
+        Assert.Equal("Số lệnh bị chặn phải từ 1 đến 1000", e["blockedThreshold"]);
+        Assert.Equal("Cửa sổ thời gian (phút) phải từ 5 đến 1440", e["windowMinutes"]);
+        Assert.Empty(new AiAlertThresholds(1, 1, 0, 1, 1, 5, 5).Validate());
+        Assert.Empty(new AiAlertThresholds(1000, 1000, 99, 10_000, 1000, 1440, 10_080).Validate());
+    }
+
+    [Fact]
+    public void Settings_row_round_trips_thresholds()
+    {
+        var t = new AiAlertThresholds(3, 4, 5, 6, 7, 30, 120);
+        var row = new AiAlertSettings();
+        row.Apply(t);
+        Assert.Equal(t, row.ToThresholds());
+    }
+
+    [Fact]
+    public void Body_uses_alert_window()
+    {
+        Assert.Contains("trong 15 phút qua", AiAlertRules.Body(AiAlertRules.Blocked, 10, 12));
+        Assert.Contains("trong 30 phút qua", AiAlertRules.Body(AiAlertRules.Blocked, 10, 12, 30));
+        Assert.Contains("trong 2 giờ qua", AiAlertRules.Body(AiAlertRules.Errors, 10, 12, 120));
+        Assert.Contains("trong 1 giờ 30 phút qua", AiAlertRules.Body(AiAlertRules.ChatSpam, 10, 12, 90));
+        var a = new AiAlert { WindowStart = DateTimeOffset.UnixEpoch, WindowEnd = DateTimeOffset.UnixEpoch.AddMinutes(45) };
+        Assert.Equal(45, AiAlertRules.WindowMinutesOf(a));
+    }
+
     [Fact]
     public void Email_only_for_bot_approval()
     {

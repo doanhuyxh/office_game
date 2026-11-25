@@ -48,7 +48,7 @@ internal static class AiAlertEndpoints
             scope.Employees.TryGetValue(a.UserId, out var emp);
             var name = acc is null ? "(tài khoản đã xoá)" : string.IsNullOrWhiteSpace(acc.FullName) ? acc.UserName : acc.FullName;
             return new AiAlertDto(a.Id, a.CreatedAt, a.UserId, acc?.FullName, acc?.UserName, emp?.DepartmentName, acc?.IsBot == true, a.Rule,
-                AiAlertRules.Title(a.Rule, name), AiAlertRules.Body(a.Rule, a.Count, a.Total), a.Count, a.Total, a.WindowStart, a.WindowEnd);
+                AiAlertRules.Title(a.Rule, name), AiAlertRules.Body(a.Rule, a.Count, a.Total, AiAlertRules.WindowMinutesOf(a)), a.Count, a.Total, a.WindowStart, a.WindowEnd);
         }).ToList();
         return TypedResults.Ok(paged.With(dtos));
     }

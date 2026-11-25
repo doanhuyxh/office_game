@@ -14,6 +14,7 @@ public sealed class AuditDbContext(DbContextOptions<AuditDbContext> options) : D
     public DbSet<AiRequestLog> AiRequests => Set<AiRequestLog>();
     public DbSet<ChangeLog> Changes => Set<ChangeLog>();
     public DbSet<AiAlert> AiAlerts => Set<AiAlert>();
+    public DbSet<AiAlertSettings> AiAlertSettings => Set<AiAlertSettings>();
     public DbSet<AiSessionUsage> AiUsageSessions => Set<AiSessionUsage>();
     public DbSet<AiSessionModel> AiUsageModels => Set<AiSessionModel>();
     public DbSet<AgentTranscript> AgentTranscripts => Set<AgentTranscript>();
@@ -76,6 +77,13 @@ public sealed class AuditDbContext(DbContextOptions<AuditDbContext> options) : D
             e.Property(x => x.Rule).HasMaxLength(30).IsRequired();
             e.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_ai_alerts_time");
             e.HasIndex(x => new { x.UserId, x.Rule, x.CreatedAt }).HasDatabaseName("ix_ai_alerts_user_rule");
+        });
+        // Ngưỡng cảnh báo AI (TEST-232): một dòng Id = 1, chưa có → mặc định.
+        b.Entity<AiAlertSettings>(e =>
+        {
+            e.ToTable("ai_alert_settings");
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.UpdatedByName).HasMaxLength(200);
         });
         b.Entity<ChangeLog>(e =>
         {

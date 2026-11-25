@@ -44,6 +44,7 @@ public sealed class AuditModule : IModule
         AiRequestEndpoints.Map(g);
         AiUsageEndpoints.Map(g);
         AiAlertEndpoints.Map(g);
+        AiAlertSettingsEndpoints.Map(g); // /ai-alert-settings — ngưỡng cảnh báo AI, chỉ admin trên web (TEST-232)
         ChangeEndpoints.Map(g);
         // Mức dùng AI theo phiên agent (TEST-134): đọc bằng cookie; ghi qua đường nội bộ Mcp → Api (nginx chặn /api/audit/internal/ từ ngoài).
         AiSessionUsageEndpoints.Map(api.MapGroup("/ai-usage").WithTags("Audit").RequireAuthorization());

@@ -135,6 +135,44 @@ namespace OfficeHub.Modules.Audit.Infrastructure.Migrations
                     b.ToTable("ai_alerts", "audit");
                 });
 
+            modelBuilder.Entity("OfficeHub.Modules.Audit.Domain.AiAlertSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("BlockedThreshold")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("BurstWritesThreshold")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ChatSpamThreshold")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CooldownMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ErrorsPercent")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ErrorsThreshold")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("WindowMinutes")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ai_alert_settings", "audit");
+                });
+
             modelBuilder.Entity("OfficeHub.Modules.Audit.Domain.AiRequestLog", b =>
                 {
                     b.Property<Guid>("Id")

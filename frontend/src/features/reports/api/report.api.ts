@@ -1,7 +1,7 @@
 import { http, pageQs } from '@/services/api-client';
 import type { IPageQuery } from '@/types/api';
 import type {
-  AiUsageSort, IAiAlertPage, IAiUsageFilter, IAiUsageReport, IAiUsageUsersPage, ILeavePayoutPage, ILeavePayoutRow, IOvertimePayPage,
+  AiUsageSort, IAiAlertPage, IAiAlertSettings, IAiAlertSettingsRequest, IAiUsageFilter, IAiUsageReport, IAiUsageUsersPage, ILeavePayoutPage, ILeavePayoutRow, IOvertimePayPage,
 } from '../types/report.types';
 
 export const reportKeys = {
@@ -12,6 +12,7 @@ export const reportKeys = {
   aiUsage: (f: IAiUsageFilter, userId: string | null) => ['reports', 'ai-usage', f, userId] as const,
   aiUsageUsers: (f: IAiUsageFilter, sort: AiUsageSort, q: IPageQuery) => ['reports', 'ai-usage', 'users', f, sort, q] as const,
   aiAlerts: (q: IPageQuery) => ['reports', 'ai-alerts', q] as const,
+  aiAlertSettings: ['reports', 'ai-alert-settings'] as const,
 };
 
 /** Query string bộ lọc báo cáo AI (bỏ giá trị trống). */
@@ -29,6 +30,11 @@ export const reportApi = {
   aiUsageUsers: (f: IAiUsageFilter, sort: AiUsageSort, q: IPageQuery) =>
     http<IAiUsageUsersPage>(`/api/audit/ai-usage/users?${aiUsageQs(f, { sort })}&${pageQs(q)}`),
   aiAlerts: (q: IPageQuery) => http<IAiAlertPage>(`/api/audit/ai-alerts?${pageQs(q)}`),
+  aiAlertSettings: () => http<IAiAlertSettings>('/api/audit/ai-alert-settings'),
+  saveAiAlertSettings: (b: IAiAlertSettingsRequest) =>
+    http<IAiAlertSettings>('/api/audit/ai-alert-settings', { method: 'PUT', body: JSON.stringify(b) }),
+  /** Khôi phục mặc định (xoá dòng cấu hình). */
+  resetAiAlertSettings: () => http<IAiAlertSettings>('/api/audit/ai-alert-settings', { method: 'DELETE' }),
 };
 
 /** Link tải Excel (GET, cookie cùng origin). */
