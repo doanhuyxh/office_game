@@ -1,6 +1,6 @@
 # Kinh doanh: khách hàng, cơ hội, hợp đồng bán, công nợ (module Sales)
 
-> Nguồn sự thật là code (`backend/src/Modules/Sales/`, `frontend/src/features/sales/`); nếu code khác tài liệu, tin code và sửa tài liệu. Kế hoạch: [docs/BUSINESS_PLAN.md](../../docs/BUSINESS_PLAN.md) giai đoạn 1. Sổ thu chi: [finance.md](finance.md). Về [README.md](README.md).
+> Nguồn sự thật là code (`backend/src/Modules/Sales/OfficeHub.Modules.Sales/` — đường dẫn `Domain/…`, `Features/…` dưới đây tính từ đó; `frontend/src/features/sales/`); nếu code khác tài liệu, tin code và sửa tài liệu. Kế hoạch: [docs/BUSINESS_PLAN.md](../../docs/BUSINESS_PLAN.md) giai đoạn 1. Sổ thu chi: [finance.md](finance.md). Về [README.md](README.md).
 
 Dùng cho mảng **Outsource** và **Xây kênh MXH thuê** (có khách, hợp đồng, đợt thu). Chỉ VND. **Báo giá** (mẫu Word, duyệt chiết khấu): [sales-quotes.md](sales-quotes.md). Chưa có: gắn file hợp đồng đã ký, tool MCP. **Phụ lục** tăng / giảm giá trị (từ yêu cầu thay đổi của dự án): [projects-changes.md](projects-changes.md).
 
@@ -36,6 +36,8 @@ Không thấy → **404** (không lộ sự tồn tại). Thấy nhưng không s
 | POST | `/contracts` | `{ code (duy nhất), customerId, title, valueBeforeTax, vatRate ∈ 0/5/8/10, signedOn (≤ hôm nay), billing: Milestone/Monthly/OneTime, installments[{title, dueOn, amount}], endOn?, opportunityId?, businessLineId?, note? }`. Từ cơ hội → cơ hội **Thắng** |
 | PUT | `/contracts/{id}` | `{ title, status: Active/Completed/Cancelled, endOn?, note? }` — **không** đổi giá trị (dùng phụ lục). Trạng thái theo `SalesRules.CanChangeStatus`: Active → Completed / Cancelled, Completed → Active; **Cancelled là cuối** (→ 400 `errors.status`) |
 | POST | `/contracts/{id}/installments` | Chỉ HĐ Active; tổng đợt (không huỷ) ≤ giá trị sau thuế |
+| POST | `/contracts/{id}/appendices` | Lập phụ lục (`Features/AppendixEndpoints.cs`, quyền như sửa HĐ, chỉ HĐ Active) — chi tiết [projects-changes.md](projects-changes.md) |
+| POST | `/appendices/{id}/cancel` | Huỷ phụ lục `{ reason }`; đợt của nó đã có tiền thu → 409 |
 | POST | `/installments/{id}/cancel` | `{ reason }` bắt buộc; đợt đã có tiền thu (dòng sổ hiệu lực) → 409 |
 | POST | `/installments/{id}/collect` | **Ghi sổ**. `{ amount (≤ còn lại), date, accountId, categoryId?, invoiceNumber? }` → dòng THU ở Finance |
 | GET | `/receivables?state&ownerId&customerId` | Đợt chưa thu đủ của HĐ Active (tối đa 1000) + tổng còn phải thu / quá hạn / sắp đến hạn + tuổi nợ 1-30 / 31-60 / 61-90 / >90. Số toàn công ty cho Tổng quan giám đốc: `ISalesOutlook` (Contracts, có tiền — chỉ sau khi kiểm tra Xem tài chính) — [finance-dashboard.md](finance-dashboard.md) |

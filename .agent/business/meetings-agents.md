@@ -26,6 +26,8 @@ TEST-74 làm phần nền (bảng, API mở / dừng / xem, trần, job hết gi
 | POST | `/sessions/{id}/pass` | **Bot dự họp đang giữ lượt** bỏ lượt (token AI được — allowlist). Không giữ lượt / phiên đã kết thúc → 409; không dự → 404 |
 | POST | `/sessions/{id}/assign` | `{ employeeId }` — **bot chủ trì đang giữ lượt** chỉ định bot dự họp khác nói kế. Tự chỉ định / bot ngoài họp / không phải chủ trì / không giữ lượt → 409 |
 
+**Nội bộ (không đăng nhập)** — `GET /api/meetings/internal/live` (`Features/AgentMeetingLiveEndpoints.cs`, TEST-76): Realtime (`AgentMeetingWatch`) hỏi **mỗi 3 giây** bằng header khoá `Chat__RealtimeToApiKey` (trống = `Chat__InternalKey`), sai / thiếu → 401; nginx chặn `/api/meetings/internal/` từ ngoài. Trả các phiên Đang họp chưa chạm trần + bot dự họp (chủ trì đầu) để bot 3D đi vào phòng họp — chi tiết [meetings-agents-3d.md](meetings-agents-3d.md).
+
 `pass` / `assign` / `mine`: tài khoản không phải bot (token AI của người thật hay cookie) → **403** trước mọi kiểm tra khác.
 DTO phiên có thêm `currentSpeakerEmployeeId`, `turnDeadline` (quá giờ này chưa nói = bỏ lượt), `isMyTurn` (người gọi đang giữ lượt); `bots[]` có `isSpeaking`, `queuePosition` (1 = kế tiếp).
 Enum trả dạng chữ (`Active` / `Ended`, `Stopped` …). Allowlist token AI cho Meetings giờ liệt kê từng nhánh GET (`/rooms`, `/bookings`, `/sessions`) thay cho cả tiền tố `/api/meetings` — để `/agent-settings` không lọt.

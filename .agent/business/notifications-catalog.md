@@ -12,6 +12,26 @@
 
 **FE**: trang Hệ thống → tab Kênh thông báo, dưới bảng kênh: `components/notification-events-card` — bảng theo nhóm, cột Chuông / Email / Push / Webhook AI / Telegram (✓ + ghi chú). Chỉ hiển thị.
 
+## Danh sách sự kiện (54, theo thứ tự `Groups`)
+
+Mã đầy đủ = `nhóm.tên` (vd `projects.task_bot_blocked`). Kênh / email / Telegram từng sự kiện xem trong code hoặc trang Hệ thống → Kênh thông báo. Thêm / xoá sự kiện → sửa cả bảng này.
+
+| Nhóm | Sự kiện |
+|---|---|
+| Phê duyệt (`approval`) | `requested` Có đơn chờ duyệt · `approved` Đơn được duyệt · `rejected` Đơn bị từ chối · `cancelled` Đơn bị huỷ · `delegation` Uỷ quyền duyệt |
+| Chấm công (`attendance`) | `reminder` Nhắc chấm công |
+| Nhân sự & tài khoản (`people`) | `profile_change_requested` Đề nghị sửa hồ sơ · `profile_change_approved` Hồ sơ được duyệt · `profile_change_rejected` Hồ sơ bị từ chối · `account_security` Bảo mật tài khoản |
+| Hợp đồng & lương (`contracts`) | `expiring` Hợp đồng sắp hết hạn · `probation_ending` Sắp hết thử việc · `sign_requested` Chờ ký hợp đồng · `signed` Đã ký hợp đồng · `payslip_ready` Phiếu lương |
+| Dự án / công việc (`projects`) | `task_assigned` Được giao việc · `task_returned` Việc bị trả lại · `task_awaiting_approval` Việc chờ duyệt · `task_approved` Việc đã duyệt · `task_activity` Hoạt động việc · `task_comment` Bình luận việc · `task_mention` Được nhắc trong việc · `task_ready` Việc sẵn sàng · `task_dependency_regressed` Việc trước bị kéo lùi · `task_bot_blocked` Bot bị chặn vì thao tác liên tiếp · `task_column_entered` Việc vào cột đánh thức bot theo dõi · `task_due` Việc đến hạn / quá hạn · `updated` Dự án được cập nhật · `wiki_share_viewed` Link chia sẻ sổ tay được mở · `member_added` Thêm vào dự án |
+| Lịch họp (`meetings`) | `invited` Mời họp · `cancelled` Huỷ họp · `agent_turn` Tới lượt nói trong họp agent |
+| Tài liệu (`documents`) | `retention` Hạn lưu trữ tài liệu · `handover` Bàn giao tài liệu |
+| Tài sản (`assets`) | `assigned` Được cấp tài sản · `returned` Thu hồi tài sản · `expiring` Tài sản sắp hết hạn · `offboarding` Nghỉ việc còn giữ tài sản · `review` Rà soát quyền dịch vụ · `social_post` Mạng xã hội |
+| Bảng tin (`news`) | `published` Bài viết mới · `comment` Bình luận bảng tin · `mention` Được nhắc tên · `moderated` Bài bị ẩn / gỡ |
+| Kinh doanh (`sales`) | `receivable_due` Đợt thu đến hạn · `customer_follow_up` Chăm sóc khách hàng · `change_request_approved` Yêu cầu thay đổi được duyệt |
+| Tài chính (`finance`) | `expense_ready` Đề nghị chi chờ chi · `expense_paid` Đã chi tiền |
+| Tin nhắn (`chat`) | `direct` Tin nhắn 1-1 · `room` Tin nhắn kênh phòng · `mention` Được nhắc trong tin nhắn |
+| Hệ thống (`system`) | `ai_alert` Cảnh báo trợ lý AI |
+
 ## Bắt buộc đồng bộ khi thêm / xoá sự kiện
 
 Thêm / đổi / xoá nơi phát thông báo → sửa `NotificationCatalog` **trong cùng commit**:

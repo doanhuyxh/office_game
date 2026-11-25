@@ -81,7 +81,6 @@ Test: đơn vị (cấu hình, validator, adapter + mẫu stream-json, store, pr
 
 ## Chưa làm (bước sau của TEST-44)
 
-Đã làm (TEST-135): **gửi mức dùng AI** sau mỗi phiên (`POST /mcp/usage`) + `usage push` gửi bù — [agent-runner-usage.md](agent-runner-usage.md). Chưa thử với OfficeHub thật.
+Đã làm (TEST-135): **gửi mức dùng AI** sau mỗi phiên (`POST /mcp/usage`) + `usage push` gửi bù — [agent-runner-usage.md](agent-runner-usage.md). Chưa thử với OfficeHub thật. Adapter `codex` / `antigravity` / `cursor` đã có (xem các file `agent-runner-*.md` ở bảng định tuyến); cây `src/` đầy đủ: [agent-runner-code.md](agent-runner-code.md).
 
-
-Bắt bù tin @nhắc chat chưa đọc lúc khởi động (`list_chats` có `mentionedUnread`; hiện chỉ bắt bù việc). Đọc trường `event` / `comment_id` (OfficeHub đã gửi từ TEST-63: assigned / returned / mentioned — `mentioned` không bắt buộc việc giao cho bot, prompt chỉ trả lời bằng bình luận; cancelled → dừng phiên chưa có), HMAC tin, tổng kết chi phí hằng ngày vào nhóm, adapter `codex` / `gemini`, user Linux riêng từng agent, chỉ chạy khi người giao nằm trong danh sách cho phép (prompt injection).
+Còn lại: bắt bù tin @nhắc chat chưa đọc lúc khởi động (`list_chats` có `mentionedUnread`; hiện chỉ bắt bù việc). Đọc trường `event` / `comment_id` (OfficeHub đã gửi từ TEST-63: assigned / returned / mentioned — `mentioned` không bắt buộc việc giao cho bot, prompt chỉ trả lời bằng bình luận; cancelled → dừng phiên chưa có), HMAC tin, tổng kết chi phí hằng ngày vào nhóm, adapter `gemini`, user Linux riêng từng agent, chỉ chạy khi người giao nằm trong danh sách cho phép (prompt injection).

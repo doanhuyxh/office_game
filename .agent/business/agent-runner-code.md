@@ -16,9 +16,9 @@
 | `core/paths.ts` | `workDir`, `jobDir`, `projectFilesAbove` |
 | `core/session.ts` | `Sessions`: vòng đời một phiên CLI dùng chung cho mọi loại job — `resumeFor` → `run` → `record` (phiên + transcript) → `finish` (kết quả + mức dùng AI); `succeeded(out)`; `RunnerStopped` |
 | `doctor/` | `agent.ts`: mỗi bước kiểm tra một hàm, lỗi ném `CheckFailed`; `model.ts`: chạy thử model; `finding.ts`: `Finding { level, agent, scope, text }` + `formatFinding` / `hasFailure` |
-| `hub/` | Mọi thứ nói chuyện với OfficeHub: `client.ts` (tool MCP), `types.ts` (kiểu kết quả tool: `TaskDetail`, `ChatSummary`, `MeetingState` — mọi trường tuỳ chọn, `validator.ts` kiểm tra), `endpoint.ts` (`HubEndpoint` + `FailureLog`), `presence.ts`, `activity.ts`, `usage.ts`, `transcript.ts` |
+| `hub/` | Mọi thứ nói chuyện với OfficeHub: `client.ts` (tool MCP), `types.ts` (kiểu kết quả tool: `TaskDetail`, `ChatSummary`, `MeetingState` — mọi trường tuỳ chọn, `validator.ts` kiểm tra), `endpoint.ts` (`HubEndpoint` + `FailureLog`), `presence.ts`, `activity.ts`, `usage.ts`, `transcript.ts`, `mcp-bridge.ts` (cầu nối MCP stdio → HTTP) |
 | `executor/` | `Adapter` (`types.ts`) + `run.ts` (chạy tiến trình), `adapters/index.ts` (registry `adapters` / `ExecutorKind`), mỗi CLI một thư mục `adapters/<tên>/` (`claude/`: `index.ts` + `events.ts` + `home.ts`; `codex/`, `antigravity/`, `cursor/`: `index.ts` + `events.ts` + `session.ts`; `custom/`), `adapters/shared.ts` (đọc JSONL, đọc MCP của job, cảnh báo HOME), `events.ts`, `model.ts` |
-| `prompt/` | Prompt theo mode (`worktree` / `in-place` / `none`) + chat / họp |
+| `prompt/` | Prompt theo mode (`worktree.ts` / `in-place.ts` / `none.ts`) + `chat.ts` / `meeting.ts` / `follow.ts`; `common.ts` (phần chung mọi mode), `system.ts` (system prompt ngắn cho phiên chỉ MCP), `index.ts` (ghép theo mode) |
 | `workspace/` | `git.ts`: lớp `Git`, hook, lệnh git của worktree / in_place / PR. Mỗi mode một `WorkspaceStrategy` (`strategy.ts`): `worktree.ts`, `in-place.ts`, `none.ts` — `prepare(c, job)` trả nơi làm + hàm `publish` (`c.place` = nơi làm của dự án, không đọc `agent.repo`); registry `index.ts` |
 | `store.ts`, `validator.ts`, `config.ts`, `telegram.ts`, `log.ts`, `report.ts` | Hàng đợi SQLite · kiểm tra tin đánh thức · đọc `agents.yaml` · Bot API · log · bảng `report` |
 

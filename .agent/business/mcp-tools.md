@@ -1,6 +1,6 @@
 # Tool MCP theo nhóm
 
-> Về [mcp.md](mcp.md) (quyết định, luồng, token, số lượng tool). Nguồn sự thật: `backend/src/OfficeHub.Mcp/Tools/*.cs`; catalog FE `frontend/src/features/mcp-tools/utils/catalog.ts` (màn hình `/mcp-tools`, mọi nhân viên xem được) bảo trì thủ công (luật #9 [AGENTS.md](../../AGENTS.md)). Đổi tool → sửa bảng này + số lượng ở [mcp.md](mcp.md#tool-110).
+> Về [mcp.md](mcp.md) (quyết định, luồng, token, số lượng tool). Nguồn sự thật: `backend/src/OfficeHub.Mcp/Tools/*.cs`; catalog FE `frontend/src/features/mcp-tools/utils/catalog.ts` (màn hình `/mcp-tools`, mọi nhân viên xem được) bảo trì thủ công (luật #9 [AGENTS.md](../../AGENTS.md)). Đổi tool → sửa bảng này + số lượng ở [mcp.md](mcp.md#tool-110). Nhóm xếp theo **người dùng tool** (giống nhóm của catalog), không theo file: vd `get_employee` nằm ở `DirectoryTools.cs` nhưng thuộc nhóm Quản lý / HR; `list_team_leave` / `get_employee_leave_balance` ở `LeaveTools.cs`, tool quản lý chấm công ở `AttendanceTools.cs`, `update_*_guide` ở `OrgGuideTools.cs`. Số tool / nhóm (110): Chung 9 · Chấm công 10 · Nghỉ phép 5 · Duyệt 6 · Phòng họp 4 · Văn phòng 3D 6 · Tin nhắn 6 · Cuộc họp agent 4 · Bảng tin 3 · Tài sản 2 · Kinh doanh 9 · Tài chính 6 · Dự án 13 + Sổ tay 6 · Tài liệu 8 · Quản lý / HR 13.
 
 | Nhóm | Tool |
 |---|---|
