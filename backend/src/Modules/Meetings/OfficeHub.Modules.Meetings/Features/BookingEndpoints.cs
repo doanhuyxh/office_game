@@ -154,7 +154,7 @@ internal static class BookingEndpoints
         if (recipients.Count > 0)
             await notifier.NotifyAsync(new NotificationRequest(recipients, NotificationCategories.MeetingInvited,
                 $"Mời họp: {booking.Title}",
-                $"{me.FullName} mời bạn họp tại {room.Name}, {Range(booking.StartAt, booking.EndAt, tzInfo)}.", "/meetings"), ct);
+                $"{me.FullName} mời bạn họp tại {room.Name}, {Range(booking.StartAt, booking.EndAt, tzInfo)}.", NotificationTarget.MeetingBooking(booking.Id)), ct);
 
         return TypedResults.Ok(new BookingCreatedDto(ToDto(booking, rooms, me.Id, user.IsHr(), now), warnings));
     }
@@ -179,7 +179,7 @@ internal static class BookingEndpoints
         if (recipients.Count > 0)
             await notifier.NotifyAsync(new NotificationRequest(recipients, NotificationCategories.MeetingCancelled,
                 $"Huỷ họp: {b.Title}",
-                $"Lịch họp tại {rooms.Find(b.RoomId)?.Name ?? b.RoomId}, {Range(b.StartAt, b.EndAt, tz)} đã bị huỷ.", "/meetings"), ct);
+                $"Lịch họp tại {rooms.Find(b.RoomId)?.Name ?? b.RoomId}, {Range(b.StartAt, b.EndAt, tz)} đã bị huỷ.", NotificationTarget.MeetingBooking(b.Id)), ct);
         return TypedResults.NoContent();
     }
 

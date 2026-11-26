@@ -105,10 +105,10 @@ public sealed class NewsStore(NewsDbContext db, IEmployeeDirectory directory, IA
     }
 
     /// <summary>Gửi thông báo, không bao giờ ném lỗi (đã lưu dữ liệu xong).</summary>
-    public async Task NotifyAsync(IReadOnlyCollection<Guid> to, string category, string title, string body, string link, bool email, CancellationToken ct)
+    public async Task NotifyAsync(IReadOnlyCollection<Guid> to, string category, string title, string body, NotificationTarget target, bool email, CancellationToken ct)
     {
         if (to.Count == 0) return;
-        try { await notifier.NotifyAsync(new NotificationRequest(to, category, title, body, link, email), ct); }
+        try { await notifier.NotifyAsync(new NotificationRequest(to, category, title, body, target, email), ct); }
         catch { /* thông báo là phụ — bài / bình luận đã lưu */ }
     }
 

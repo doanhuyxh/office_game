@@ -302,16 +302,18 @@ public static class ChatEndpoints
         // recipients == null ↔ kênh Office (toàn công ty) — không push, quá ồn; Direct/Room/Group thì push cho người nhận (trừ người gửi).
         // Người được @nhắc nhận push riêng "… nhắc bạn" (kể cả ở Office) ở MentionNotifyAsync — không push hai lần.
         if (recipients is not null)
-            await push.PushAsync(recipients.Where(r => r != me && !msg.MentionedUserIds.Contains(r)), msg.SenderName, preview, $"/chat?c={conv.Id}", ct);
+            await push.PushAsync(recipients.Where(r => r != me && !msg.MentionedUserIds.Contains(r)), msg.SenderName, preview, NotificationTarget.ChatConversation(conv.Id, msg.Id), ct);
         // Đổi lượt sau khi lưu; bot vừa nhận lượt đã được đánh thức bằng meeting_turn → bỏ chat_mention trùng
         var woken = gate is null ? [] : await meetings.OnMessageAsync(conv.RoomId!, conv.Id, me, msg.MentionedUserIds, ct);
         await MentionNotifyAsync(user, conv, msg, msg.MentionedUserIds, preview, store, push, accounts, webhooks, telegram, ct, woken);
         // Tin 1-1 → webhook cá nhân của người nhận (đánh thức agent; người không đặt webhook bỏ qua). Office / kênh phòng: không (quá ồn).
+        var chatTarget = NotificationTarget.ChatConversation(conv.Id, msg.Id);
         if (conv.Type == ConversationType.Direct && recipients is not null)
             await webhooks.PublishAsync(recipients.Where(r => r != me).ToList(), WebhookEvents.ChatMessage, new
             {
                 conversationId = conv.Id, messageId = msg.Id, seq = msg.Seq, senderId = me, senderName = msg.SenderName, byBot = msg.ByBot,
-                text = msg.Text, files = msg.Attachments.Select(a => a.FileName).ToList(), createdAt = msg.CreatedAt, link = $"/chat?c={conv.Id}",
+                text = msg.Text, files = msg.Attachments.Select(a => a.FileName).ToList(), createdAt = msg.CreatedAt,
+                target = new { type = chatTarget.Type, id = chatTarget.Id, @params = chatTarget.Params }, link = NotificationLinkBuilder.Build(chatTarget),
             }, ct);
 
         return TypedResults.Ok(new SendResultDto(await store.ToDtoAsync(msg), conv.Type, conv.RoomId, store.RoomNameOf(conv), recipients));
@@ -453,8 +455,8 @@ public static class ChatEndpoints
             ConversationType.Room => store.RoomNameOf(conv) ?? "Phòng",
             _ => conv.Title ?? "Nhóm",
         };
-        var link = $"/chat?c={conv.Id}";
-        await push.PushAsync(targets, ChatRules.MentionPushTitle(msg.SenderName, where), preview, link, ct);
+        var target = NotificationTarget.ChatConversation(conv.Id, msg.Id);
+        await push.PushAsync(targets, ChatRules.MentionPushTitle(msg.SenderName, where), preview, target, ct);
 
         var senderIsBot = msg.ByBot || (await accounts.GetAsync(msg.SenderId, ct))?.IsBot == true;
         if (senderIsBot) return;
@@ -463,7 +465,8 @@ public static class ChatEndpoints
         await webhooks.PublishAsync(targets.ToList(), WebhookEvents.ChatMention, new
         {
             conversationId = conv.Id, conversationType = conv.Type.ToString(), title = where, messageId = msg.Id, seq = msg.Seq, senderId = msg.SenderId,
-            senderName = msg.SenderName, text = msg.Text, createdAt = msg.CreatedAt, link,
+            senderName = msg.SenderName, text = msg.Text, createdAt = msg.CreatedAt,
+            target = new { type = target.Type, id = target.Id, @params = target.Params }, link = NotificationLinkBuilder.Build(target),
         }, ct);
         var people = await store.PeopleAsync(ct);
         foreach (var u in targets)

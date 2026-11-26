@@ -90,7 +90,7 @@ internal sealed class PushSender(NotificationDbContext db, FirebaseProvider fire
         }
     }
 
-    public async Task PushAsync(IEnumerable<Guid> recipientUserIds, string title, string body, string? link, CancellationToken ct = default)
+    public async Task PushAsync(IEnumerable<Guid> recipientUserIds, string title, string body, NotificationTarget? target, CancellationToken ct = default)
     {
         _messaging = firebase.Get().Messaging;
         if (_messaging is null) return;
@@ -100,15 +100,27 @@ internal sealed class PushSender(NotificationDbContext db, FirebaseProvider fire
         var tokens = await _db.PushTokens.Where(t => ids.Contains(t.UserId)).Select(t => t.Token).ToListAsync(ct);
         if (tokens.Count == 0) return;
 
+        var data = Data(target);
         const int batchSize = 500; // giới hạn multicast của FCM
         for (var i = 0; i < tokens.Count; i += batchSize)
         {
             var batch = tokens.GetRange(i, Math.Min(batchSize, tokens.Count - i));
-            await SendBatchAsync(batch, title, body, link, ct);
+            await SendBatchAsync(batch, title, body, data, ct);
         }
     }
 
-    private async Task SendBatchAsync(List<string> batch, string title, string body, string? link, CancellationToken ct)
+    /// <summary>FCM <c>data</c> (map chuỗi — TEST-237): targetType, targetId, targetParams (JSON) + link (sinh từ target, cho client cũ).</summary>
+    internal static Dictionary<string, string>? Data(NotificationTarget? target)
+    {
+        if (target is null) return null;
+        var d = new Dictionary<string, string> { ["targetType"] = target.Type };
+        if (target.Id is { } id) d["targetId"] = id.ToString();
+        if (Domain.NotificationTargets.ParamsJson(target) is { } p) d["targetParams"] = p;
+        if (NotificationLinkBuilder.Build(target) is { } link) d["link"] = link;
+        return d;
+    }
+
+    private async Task SendBatchAsync(List<string> batch, string title, string body, Dictionary<string, string>? data, CancellationToken ct)
     {
         // Tokens (không phải Fids — FID là Firebase Installation ID, khác khái niệm với registration token mà web FCM trả về) bị đánh [Obsolete]
         // nhưng vẫn là API đúng cho token từ getToken() ở trình duyệt.
@@ -117,7 +129,7 @@ internal sealed class PushSender(NotificationDbContext db, FirebaseProvider fire
         {
             Tokens = batch,
             Notification = new FbNotification { Title = title, Body = body },
-            Data = link is null ? null : new Dictionary<string, string> { ["link"] = link },
+            Data = data,
         };
 #pragma warning restore CS0618
         try

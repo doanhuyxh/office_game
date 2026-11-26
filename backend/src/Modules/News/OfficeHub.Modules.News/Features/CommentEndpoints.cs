@@ -108,16 +108,16 @@ public static class CommentEndpoints
 
         // Thông báo (chỉ chuông): chủ bài, người được trả lời, người được @nhắc — mỗi người một thông báo
         var notified = new HashSet<Guid> { me };
-        var link = $"/news/{id}?comment={c.Id}";
+        var target = NotificationTarget.NewsPost(id, c.Id);
         var preview = text is null ? "[Ảnh]" : NewsRules.Preview(text, 120);
         if (notified.Add(post.AuthorUserId))
-            await store.NotifyAsync([post.AuthorUserId], NotificationCategories.NewsComment, $"{c.AuthorName} đã bình luận bài viết của bạn", preview, link, false, ct);
+            await store.NotifyAsync([post.AuthorUserId], NotificationCategories.NewsComment, $"{c.AuthorName} đã bình luận bài viết của bạn", preview, target, false, ct);
         if (parent is not null && notified.Add(parent.AuthorUserId))
-            await store.NotifyAsync([parent.AuthorUserId], NotificationCategories.NewsComment, $"{c.AuthorName} đã trả lời bình luận của bạn", preview, link, false, ct);
+            await store.NotifyAsync([parent.AuthorUserId], NotificationCategories.NewsComment, $"{c.AuthorName} đã trả lời bình luận của bạn", preview, target, false, ct);
         var mentions = NewsRules.ExtractMentions(text).Where(notified.Add).Take(10).ToList();
         if (mentions.Count > 0)
             await store.NotifyAsync(await store.FilterVisibleAsync(post, mentions, ct), NotificationCategories.NewsMention,
-                $"{c.AuthorName} đã nhắc đến bạn trong một bình luận", preview, link, false, ct);
+                $"{c.AuthorName} đã nhắc đến bạn trong một bình luận", preview, target, false, ct);
 
         return TypedResults.Ok((await store.ToCommentDtosAsync([c], v, false, ct))[0]);
     }
@@ -155,7 +155,7 @@ public static class CommentEndpoints
         await store.RecountCommentsAsync(c.PostId, ct);
         if (c.AuthorUserId != me)
             await store.NotifyAsync([c.AuthorUserId], NotificationCategories.NewsModerated, "Bình luận của bạn đã bị gỡ",
-                $"Bình luận \"{NewsRules.Preview(c.Text, 80)}\" đã bị gỡ khỏi bài viết.", $"/news/{c.PostId}", false, ct);
+                $"Bình luận \"{NewsRules.Preview(c.Text, 80)}\" đã bị gỡ khỏi bài viết.", NotificationTarget.NewsPost(c.PostId), false, ct);
         return TypedResults.NoContent();
     }
 

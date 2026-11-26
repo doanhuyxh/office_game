@@ -121,7 +121,7 @@ internal static class ServiceEndpoints
         await db.SaveChangesAsync(ct);
         foreach (var seat in seats)
             await ops.NotifyEmployeeAsync(seat.EmployeeId, NotificationCategories.AssetReturned, $"Tài khoản {s.Name} đã bị thu hồi",
-                $"Dịch vụ {s.Name} đã ngừng sử dụng ({seat.AccountLogin}).", email: false);
+                $"Dịch vụ {s.Name} đã ngừng sử dụng ({seat.AccountLogin}).", email: false, target: NotificationTarget.AssetService(s.Id));
         return TypedResults.Ok(ToDto(s, 0, await access.EmployeesAsync(ct), await DeptsAsync(dir, ct)));
     }
 
@@ -167,7 +167,7 @@ internal static class ServiceEndpoints
         db.Seats.Add(seat);
         await db.SaveChangesAsync(ct);
         await ops.NotifyEmployeeAsync(emp.Id, NotificationCategories.AssetAssigned, $"Bạn được cấp tài khoản {svc.Name}",
-            $"Tài khoản: {seat.AccountLogin}{(seat.Role is { } r ? $" · vai trò {r}" : "")}. Xem tại Tài sản → Của tôi.", email: true);
+            $"Tài khoản: {seat.AccountLogin}{(seat.Role is { } r ? $" · vai trò {r}" : "")}. Xem tại Tài sản → Của tôi.", email: true, target: NotificationTarget.AssetService(svc.Id));
         return TypedResults.Ok(ToDto(seat, svc.Name, await access.EmployeesAsync(ct)));
     }
 
@@ -182,7 +182,7 @@ internal static class ServiceEndpoints
         ops.Revoke(seat, me.Name);
         await db.SaveChangesAsync(ct);
         await ops.NotifyEmployeeAsync(seat.EmployeeId, NotificationCategories.AssetReturned, $"Tài khoản {svc.Name} đã bị thu hồi",
-            $"Tài khoản {seat.AccountLogin} không còn được cấp cho bạn.", email: false);
+            $"Tài khoản {seat.AccountLogin} không còn được cấp cho bạn.", email: false, target: NotificationTarget.AssetService(svc.Id));
         return TypedResults.Ok(ToDto(seat, svc.Name, await access.EmployeesAsync(ct)));
     }
 }

@@ -356,7 +356,7 @@ internal static class WikiShareEndpoints
         var what = DescribeScope(ok);
         var title = firstView ? $"Link chia sẻ sổ tay {what} vừa được mở lần đầu" : $"Link chia sẻ sổ tay {what} được mở từ thiết bị mới";
         await notifier.NotifyAsync(new NotificationRequest([l.CreatedByUserId], NotificationCategories.WikiShareViewed, title,
-            $"Dự án {ok.Project.Code}{who} · IP {ip ?? "?"} · {ua ?? "trình duyệt không rõ"}", NotifyLink(ok), SendEmail: false), ct);
+            $"Dự án {ok.Project.Code}{who} · IP {ip ?? "?"} · {ua ?? "trình duyệt không rõ"}", NotifyTarget(ok), SendEmail: false), ct);
     }
 
     /// <summary>Trang được chọn đầu tiên theo thứ tự sổ tay (còn hiện trong bản chia sẻ); phạm vi all → null.</summary>
@@ -374,11 +374,9 @@ internal static class WikiShareEndpoints
         return ok.Selected.Count > 1 ? $"\"{first}\" và {ok.Selected.Count - 1} trang khác" : $"\"{first}\"";
     }
 
-    /// <summary>Link chuông: phạm vi all → tab Sổ tay; phạm vi pages → trang được chọn đầu tiên.</summary>
-    private static string NotifyLink(Resolved ok) =>
-        ok.Link.Scope != WikiShareRules.ScopeAll && FirstSelected(ok) is { } f
-            ? $"/projects/{ok.Project.Id}?tab=wiki&page={f.Id}"
-            : $"/projects/{ok.Project.Id}?tab=wiki";
+    /// <summary>Đối tượng chuông (TEST-237): link chia sẻ; phạm vi pages kèm trang được chọn đầu tiên (web mở trang đó, phạm vi all → tab Sổ tay).</summary>
+    private static NotificationTarget NotifyTarget(Resolved ok) =>
+        NotificationTarget.WikiShare(ok.Project.Id, ok.Link.Id, ok.Link.Scope != WikiShareRules.ScopeAll ? FirstSelected(ok)?.Id : null);
 
     /// <summary>Mở khoá bằng mật khẩu → cookie riêng của link (HttpOnly, ≤ 24 giờ, không quá hạn link). Sai → 400; sai quá nhiều → 429.</summary>
     private static async Task<IResult> UnlockAsync(string token, WikiShareUnlock r, HttpContext http, ProjectsDbContext db, ProjectClock clock,

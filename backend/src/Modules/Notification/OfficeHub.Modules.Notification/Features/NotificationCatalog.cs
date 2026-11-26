@@ -161,6 +161,62 @@ internal static class NotificationCatalog
     /// <summary>Mọi hằng category khai báo trong <see cref="NotificationCategories"/>.</summary>
     public static IReadOnlyList<string> AllCategoryKeys { get; } = ConstantsOf(typeof(NotificationCategories));
 
+    /// <summary>
+    /// TEST-237: loại đối tượng (<see cref="NotificationTargetTypes"/>) được phép gửi kèm mỗi category. Gửi loại khác → Notifier ghi cảnh báo;
+    /// NotificationCatalogTests quét code (category + factory NotificationTarget trong cùng câu lệnh) và fail nếu lệch, hoặc thiếu category / loại
+    /// mà NotificationLinkBuilder chưa xử lý. <c>page</c> chỉ dùng khi không có đối tượng cụ thể.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> CategoryTargets = new Dictionary<string, IReadOnlySet<string>>
+    {
+        [NotificationCategories.ApprovalRequested] = Set(NotificationTargetTypes.ApprovalRequest),
+        [NotificationCategories.ApprovalApproved] = Set(NotificationTargetTypes.ApprovalRequest),
+        [NotificationCategories.ApprovalRejected] = Set(NotificationTargetTypes.ApprovalRequest),
+        [NotificationCategories.ApprovalCancelled] = Set(NotificationTargetTypes.ApprovalRequest),
+        [NotificationCategories.ApprovalDelegation] = Set(NotificationTargetTypes.ApprovalDelegation),
+        [NotificationCategories.ContractExpiring] = Set(NotificationTargetTypes.LaborContract),
+        [NotificationCategories.ProbationEnding] = Set(NotificationTargetTypes.LaborContract),
+        [NotificationCategories.MeetingInvited] = Set(NotificationTargetTypes.MeetingBooking),
+        [NotificationCategories.MeetingCancelled] = Set(NotificationTargetTypes.MeetingBooking),
+        [NotificationCategories.AttendanceReminder] = Set(NotificationTargetTypes.Page),
+        [NotificationCategories.PayslipReady] = Set(NotificationTargetTypes.Payslip),
+        [NotificationCategories.ContractSignRequested] = Set(NotificationTargetTypes.LaborContract),
+        [NotificationCategories.ContractSigned] = Set(NotificationTargetTypes.LaborContract),
+        [NotificationCategories.ProfileChangeRequested] = Set(NotificationTargetTypes.ProfileChangeRequest),
+        [NotificationCategories.ProfileChangeApproved] = Set(NotificationTargetTypes.ProfileChangeRequest),
+        [NotificationCategories.ProfileChangeRejected] = Set(NotificationTargetTypes.ProfileChangeRequest),
+        [NotificationCategories.DocumentRetention] = Set(NotificationTargetTypes.DocumentAsset),
+        [NotificationCategories.DocumentHandover] = Set(NotificationTargetTypes.Page),
+        [NotificationCategories.ProjectMemberAdded] = Set(NotificationTargetTypes.Project),
+        [NotificationCategories.AccountSecurity] = Set(NotificationTargetTypes.Page),
+        [NotificationCategories.NewsPublished] = Set(NotificationTargetTypes.NewsPost),
+        [NotificationCategories.NewsComment] = Set(NotificationTargetTypes.NewsPost),
+        [NotificationCategories.NewsMention] = Set(NotificationTargetTypes.NewsPost),
+        [NotificationCategories.NewsModerated] = Set(NotificationTargetTypes.NewsPost, NotificationTargetTypes.Page),
+        [NotificationCategories.AssetAssigned] = Set(NotificationTargetTypes.AssetDevice, NotificationTargetTypes.AssetService, NotificationTargetTypes.SocialAccount,
+            NotificationTargetTypes.AssetHandover),
+        [NotificationCategories.AssetReturned] = Set(NotificationTargetTypes.AssetDevice, NotificationTargetTypes.AssetService, NotificationTargetTypes.SocialAccount),
+        [NotificationCategories.AssetExpiring] = Set(NotificationTargetTypes.AssetDevice, NotificationTargetTypes.AssetService),
+        [NotificationCategories.AssetOffboarding] = Set(NotificationTargetTypes.Employee),
+        [NotificationCategories.AssetReview] = Set(NotificationTargetTypes.AssetReview),
+        [NotificationCategories.SocialPost] = Set(NotificationTargetTypes.SocialPost, NotificationTargetTypes.SocialAccount),
+        [NotificationCategories.ExpenseReady] = Set(NotificationTargetTypes.ExpenseRequest),
+        [NotificationCategories.ExpensePaid] = Set(NotificationTargetTypes.ExpenseRequest),
+        [NotificationCategories.ReceivableDue] = Set(NotificationTargetTypes.SalesReceivable),
+        [NotificationCategories.CustomerFollowUp] = Set(NotificationTargetTypes.SalesCustomer),
+        [NotificationCategories.ProjectTask] = Set(NotificationTargetTypes.ProjectTask, NotificationTargetTypes.Project),
+        [NotificationCategories.WikiShareViewed] = Set(NotificationTargetTypes.WikiShare),
+        [NotificationCategories.ChangeRequestApproved] = Set(NotificationTargetTypes.SalesContract),
+        [NotificationCategories.AiAlert] = Set(NotificationTargetTypes.Page),
+    };
+
+    /// <summary>Loại đối tượng của push tin nhắn (không qua chuông).</summary>
+    public static readonly IReadOnlySet<string> ChatPushTargets = Set(NotificationTargetTypes.ChatConversation);
+
+    public static bool AllowsTarget(string category, string targetType) =>
+        CategoryTargets.TryGetValue(category, out var allowed) && allowed.Contains(targetType);
+
+    private static IReadOnlySet<string> Set(params string[] types) => new HashSet<string>(types);
+
     public static IReadOnlyList<string> ConstantsOf(Type t) =>
         [.. t.GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.IsLiteral && f.FieldType == typeof(string)).Select(f => (string)f.GetRawConstantValue()!)];
 

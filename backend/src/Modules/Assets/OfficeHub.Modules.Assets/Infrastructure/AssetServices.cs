@@ -113,20 +113,20 @@ internal sealed class AssetOps(AssetsDbContext db, AssetClock clock, IEmployeeDi
 
     // ---------------- Thông báo (không bao giờ ném lỗi) ----------------
 
-    public async Task NotifyEmployeeAsync(Guid employeeId, string category, string title, string body, bool email, string link = "/assets")
+    public async Task NotifyEmployeeAsync(Guid employeeId, string category, string title, string body, bool email, NotificationTarget target)
     {
         try
         {
             if (await dir.GetAsync(employeeId) is { UserId: { } uid })
-                await notifier.NotifyAsync(new NotificationRequest([uid], category, title, body, link, email));
+                await notifier.NotifyAsync(new NotificationRequest([uid], category, title, body, target, email));
         }
         catch { /* thông báo là phụ: lỗi không làm hỏng thao tác chính */ }
     }
 
-    public async Task NotifyUsersAsync(IReadOnlyCollection<Guid> userIds, string category, string title, string body, bool email = true, string link = "/assets")
+    public async Task NotifyUsersAsync(IReadOnlyCollection<Guid> userIds, string category, string title, string body, NotificationTarget target, bool email = true)
     {
         if (userIds.Count == 0) return;
-        try { await notifier.NotifyAsync(new NotificationRequest(userIds, category, title, body, link, email)); }
+        try { await notifier.NotifyAsync(new NotificationRequest(userIds, category, title, body, target, email)); }
         catch { }
     }
 }

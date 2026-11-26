@@ -66,7 +66,7 @@ internal sealed class ContractReminderJob(IServiceScopeFactory scopes, IOptions<
             await notifier.NotifyAsync(new NotificationRequest(recipients, NotificationCategories.ContractExpiring,
                 $"Hợp đồng {c.Number} của {emp.FullName} sắp hết hạn ({(left == 0 ? "hôm nay" : $"còn {left} ngày")})",
                 $"{Who(emp)}\nHết hạn: {c.EndDate:dd/MM/yyyy}. Cần ký hợp đồng mới hoặc chấm dứt.",
-                "/contracts"), ct);
+                NotificationTarget.LaborContract(c.Id)), ct);
             var now = clock.GetUtcNow();
             c.Reminded30At ??= now; // nhắc 7 ngày thì không nhắc 30 ngày nữa
             if (kind == ReminderKind.Days7) c.Reminded7At = now;
@@ -115,7 +115,7 @@ internal sealed class ContractReminderJob(IServiceScopeFactory scopes, IOptions<
                    $"{Who(emp)}\n{range}\nTrước khi hết thử việc (BLLĐ 2019 Điều 27):\n" +
                    "1. Đánh giá kết quả thử việc.\n2. Thông báo kết quả thử việc cho người lao động.\n" +
                    "3. Đạt yêu cầu → ký hợp đồng lao động; không đạt → chấm dứt hợp đồng thử việc.");
-            await notifier.NotifyAsync(new NotificationRequest(recipients, NotificationCategories.ProbationEnding, title, body, "/contracts"), ct);
+            await notifier.NotifyAsync(new NotificationRequest(recipients, NotificationCategories.ProbationEnding, title, body, NotificationTarget.LaborContract(c.Id)), ct);
 
             var now = clock.GetUtcNow();
             c.Reminded7At ??= now; // mốc sau bao hàm mốc trước: không nhắc bù mốc đã qua

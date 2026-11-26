@@ -6,6 +6,8 @@ Ba kênh: **chuông trong app** + **email** (chốt 2026-11-05) + **push FCM** (
 
 > Kênh Telegram đánh thức agent (giao việc cho bot): [notifications-telegram.md](notifications-telegram.md).
 >
+> **Đối tượng thông báo `target` (TEST-237)**: nơi gửi truyền `NotificationTarget` (type / id / params), không tự ghép URL; link web sinh ở `NotificationLinkBuilder` — [notifications-target.md](notifications-target.md).
+>
 > **Danh sách kênh (TEST-43):** `GET /api/system/notification-channels` (chỉ admin, ngoài allowlist token AI) → trang Hệ thống → tab **Kênh thông báo**. Mỗi kênh là một `INotificationChannel` trong `Features/ChannelEndpoints.cs`, đăng ký ở `NotificationModule` (thêm kênh = thêm class + một dòng đăng ký, FE tự hiện): chuông, email (SMTP), push FCM, webhook AI, Telegram. Trả: đã cấu hình / bật, nguồn (`builtin` / `db` / `env` / `user` / `none`), `configGroup` (FE dẫn sang đúng mục ở tab Cấu hình, `?section=` — TEST-234), `health` (`off` / `ok` / `error` = lỗi gần nhất mới hơn lần thành công, trong 24 giờ, **sau** lần lưu cấu hình gần nhất), sự kiện dùng kênh (chip "Dùng cho" lấy từ danh mục sự kiện — [notifications-catalog.md](notifications-catalog.md), TEST-59), lần gửi thành công / lỗi gần nhất (email: bảng `notifications`; webhook / Telegram: bảng hàng đợi; push: chỉ RAM từ lúc Api khởi động — `statsSince`). Không trả giá trị bí mật.
 
 ## Push (FCM)
@@ -50,7 +52,7 @@ Người duyệt: bước `Manager` → tài khoản của quản lý (`Employee
 
 | Method | Path | Kết quả |
 |---|---|---|
-| GET | `/?take=20` (1–100) | Chuông: `{ unreadCount, items: [{ id, category, title, body, link, createdAt, read }] }` mới nhất trước |
+| GET | `/?take=20` (1–100) | Chuông: `{ unreadCount, items: [{ id, category, title, body, link, target: { type, id, params }, createdAt, read }] }` mới nhất trước |
 | GET | `/?page=&pageSize=&unread=true` | Trang `/notifications`: `NotificationPage` = `PagedResult` + `unreadCount` (tổng chưa đọc, không theo bộ lọc); `unread=true` chỉ lấy chưa đọc |
 | GET | `/unread-count` | `{ count }` |
 | POST | `/{id}/read` | 204; thông báo của người khác → **404** |

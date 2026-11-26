@@ -392,7 +392,7 @@ internal sealed class SocialService(AssetsDbContext db, IFacebookGraph graph, IF
         t.Error = Trim(error, 1000);
         await db.SaveChangesAsync(ct);
         await ops.NotifyUsersAsync([post.AuthorUserId], NotificationCategories.SocialPost, $"Đăng bài lên \"{page.Name}\" thất bại",
-            $"{error} Xem tại Đăng bài MXH.", email: false, link: SocialRules.FacebookPostsLink);
+            $"{error} Xem tại Đăng bài MXH.", email: false, target: NotificationTarget.SocialPost(post.Id));
     }
 
     /// <summary>
@@ -412,7 +412,7 @@ internal sealed class SocialService(AssetsDbContext db, IFacebookGraph graph, IF
         Guid? holder = a.HolderEmployeeId is { } h && (await access.EmployeesAsync(ct)).GetValueOrDefault(h) is { IsActive: true, UserId: { } u } ? u : null;
         var to = SocialRules.TokenAlertRecipients(holder, hr.Select(x => x.Id), admins.Select(x => x.Id));
         await ops.NotifyUsersAsync(to, NotificationCategories.SocialPost, $"Token BM \"{a.Name}\" không còn dùng được",
-            $"{error} HR cần tạo token System User mới và cập nhật tại Tài sản → MXH.", email: true, link: SocialRules.FacebookAccountsLink);
+            $"{error} HR cần tạo token System User mới và cập nhật tại Tài sản → MXH.", email: true, target: NotificationTarget.SocialAccount(a.Id));
     }
 
     private static string? Trim(string? s, int max) => string.IsNullOrWhiteSpace(s) ? null : s.Length <= max ? s.Trim() : s[..max];

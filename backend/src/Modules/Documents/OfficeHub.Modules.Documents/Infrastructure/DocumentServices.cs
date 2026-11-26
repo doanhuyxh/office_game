@@ -112,7 +112,7 @@ internal sealed class DocumentsMaintenanceJob(IServiceScopeFactory scopes, ILogg
                 await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.DocumentRetention,
                     $"Tài liệu {a.Code} {(left <= 0 ? "đã hết" : $"còn {left} ngày là hết")} hạn lưu trữ",
                     $"{a.Title}\nHạn lưu trữ: {a.RetentionUntil:dd/MM/yyyy}. Xem xét gia hạn hoặc huỷ tại Tài liệu → Quản trị.",
-                    $"/documents?asset={a.Id}"), ct);
+                    NotificationTarget.DocumentAsset(a.Id)), ct);
                 a.RetentionNotifiedAt = clock.Now;
             }
             await db.SaveChangesAsync(ct);

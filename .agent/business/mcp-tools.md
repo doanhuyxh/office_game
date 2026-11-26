@@ -4,7 +4,7 @@
 
 | Nhóm | Tool |
 |---|---|
-| Chung | `get_my_profile` (tài khoản, hồ sơ, `now` giờ VN), `list_notifications`, `mark_notifications_read`, `search_colleagues` (bỏ thông tin tài khoản; có `jobTitle`, `positionLevel`), `list_departments`, `list_positions`, `get_my_role`, `get_department`, `get_position` (vai trò + hướng dẫn: [org-guides.md](org-guides.md)) |
+| Chung | `get_my_profile` (tài khoản, hồ sơ, `now` giờ VN), `list_notifications` (mỗi mục có `target` { type, id, params } + `link` — TEST-237), `mark_notifications_read`, `search_colleagues` (bỏ thông tin tài khoản; có `jobTitle`, `positionLevel`), `list_departments`, `list_positions`, `get_my_role`, `get_department`, `get_position` (vai trò + hướng dẫn: [org-guides.md](org-guides.md)) |
 | Chấm công | `get_today_attendance`, `check_in_out`, `get_my_timesheet`, `list_holidays`, `list_shifts`, `list_my_corrections`, `submit_attendance_correction`, `list_my_overtime`, `preview_overtime`, `register_overtime` |
 | Nghỉ phép | `list_leave_types`, `get_leave_balance`, `list_my_leave_requests`, `preview_leave`, `submit_leave_request` (`leaveType` = mã / tên / id) |
 | Duyệt | `list_approval_inbox` (gồm đơn duyệt thay theo uỷ quyền), `list_my_approval_requests`, `get_approval_request`, `approve_request`, `reject_request` (bắt buộc lý do), `cancel_my_request`. Tạo / thu hồi uỷ quyền duyệt **không** qua token AI (chỉ GET `/api/approval/delegations`). Duyệt / từ chối qua token AI là **cố ý** (giám đốc chốt 2026-11-12, TEST-11): server không chặn, chỉ có lời dặn "không tự ý duyệt" trong hướng dẫn MCP — lý do đơn là dữ liệu người gửi nhập, có thể chứa prompt injection |

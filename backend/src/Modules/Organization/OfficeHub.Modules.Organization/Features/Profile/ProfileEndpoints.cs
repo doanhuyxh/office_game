@@ -246,7 +246,7 @@ internal static class ProfileEndpoints
         var hr = (await accounts.ListByRoleAsync(Roles.Hr, ct)).Select(a => a.Id).Where(id => id != user.GetUserId()).ToList();
         if (hr.Count > 0)
             await notifier.NotifyAsync(new NotificationRequest(hr, NotificationCategories.ProfileChangeRequested, $"{e.FullName} đề nghị cập nhật thông tin cá nhân",
-                "Ngày sinh / CCCD / tài khoản ngân hàng — vào Nhân viên → Yêu cầu cập nhật để duyệt.", "/employees", SendEmail: false), ct);
+                "Ngày sinh / CCCD / tài khoản ngân hàng — vào Nhân viên → Yêu cầu cập nhật để duyệt.", NotificationTarget.ProfileChangeRequest(r.Id), SendEmail: false), ct);
         return TypedResults.Ok(ToDto(r, e, enc));
     }
 
@@ -291,7 +291,7 @@ internal static class ProfileEndpoints
         await db.SaveChangesAsync(ct);
         if (e.UserId is { } uid)
             await notifier.NotifyAsync(new NotificationRequest([uid], NotificationCategories.ProfileChangeApproved, "Thông tin cá nhân đã được cập nhật",
-                $"HR đã duyệt yêu cầu cập nhật: {string.Join(", ", dto.Changes.Select(c => c.Label))}.", "/profile", SendEmail: false), ct);
+                $"HR đã duyệt yêu cầu cập nhật: {string.Join(", ", dto.Changes.Select(c => c.Label))}.", NotificationTarget.ProfileChangeRequest(r.Id, "profile"), SendEmail: false), ct);
         return TypedResults.Ok(dto with { Status = r.Status.ToString(), DecidedAt = r.DecidedAt, DecidedByName = r.DecidedByName });
     }
 
@@ -311,7 +311,7 @@ internal static class ProfileEndpoints
         var uid = await db.Employees.Where(x => x.Id == r.EmployeeId).Select(x => x.UserId).FirstOrDefaultAsync(ct);
         if (uid is { } u)
             await notifier.NotifyAsync(new NotificationRequest([u], NotificationCategories.ProfileChangeRejected, "Yêu cầu cập nhật thông tin bị từ chối",
-                $"Lý do: {r.RejectReason}", "/profile", SendEmail: false), ct);
+                $"Lý do: {r.RejectReason}", NotificationTarget.ProfileChangeRequest(r.Id, "profile"), SendEmail: false), ct);
         return TypedResults.NoContent();
     }
 

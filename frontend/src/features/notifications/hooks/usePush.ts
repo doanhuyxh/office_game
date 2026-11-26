@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { clearPushToken, currentPushTokenIfGranted, onForegroundPush, pushAvailable, requestPushToken } from '@/services/firebase';
 import { useQueryClient } from '@tanstack/react-query';
 import { notificationApi, notificationKeys } from '../api/notification.api';
-import { linkTarget } from '../utils/labels';
+import { pushRoute } from '../utils/target';
 import { playNotificationSound } from '../utils/sound';
 import { getPushSnapshot, setPushEnabledFlag, subscribePush } from '../utils/push';
 
@@ -51,10 +51,11 @@ export function usePushForeground({ quiet = false }: { quiet?: boolean } = {}) {
   useEffect(() => {
     void syncPushTokenIfEnabled();
     let unsub: (() => void) | undefined;
-    void onForegroundPush((title, body, link) => {
+    void onForegroundPush((title, body, data) => {
       if (quiet) { void qc.invalidateQueries({ queryKey: notificationKeys.list }); return; }
       playNotificationSound();
-      toast.info(title, { description: body, action: link ? { label: 'Xem', onClick: () => void navigate(linkTarget(link)) } : undefined });
+      const route = pushRoute(data); // target (TEST-237), thiếu thì link
+      toast.info(title, { description: body, action: route ? { label: 'Xem', onClick: () => void navigate(route) } : undefined });
     }).then((u) => (unsub = u));
     return () => unsub?.();
   }, [navigate, qc, quiet]);

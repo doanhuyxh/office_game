@@ -216,7 +216,7 @@ internal static class AdminEndpoints
             await notifier.NotifyAsync(new NotificationRequest([uid], NotificationCategories.DocumentHandover,
                 $"Bạn được bàn giao {n} tài liệu của {from!.FullName}",
                 $"{v.Name} đã chuyển cho bạn phụ trách {n} tài liệu{(projectCount > 0 ? $" và {projectCount} dự án" : "")} của {from.Code} · {from.FullName}.",
-                "/documents"), ct);
+                NotificationTarget.Page("documents")), ct);
         return TypedResults.Ok(n);
     }
 }

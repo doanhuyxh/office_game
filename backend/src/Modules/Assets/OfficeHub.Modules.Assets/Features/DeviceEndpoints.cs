@@ -236,7 +236,7 @@ internal static class DeviceEndpoints
         var h = await ops.CreateHandoverAsync(HandoverKind.Assign, d, a, emp!, note, me.Name, ct);
         await db.SaveChangesAsync(ct);
         await ops.NotifyEmployeeAsync(emp!.Id, NotificationCategories.AssetAssigned, $"Bạn được cấp thiết bị {d.Code}",
-            $"{d.Name}{(d.SerialNumber is { } s ? $" · serial {s}" : "")}. Vui lòng xác nhận biên bản {h.Number} tại Tài sản → Của tôi.", email: true);
+            $"{d.Name}{(d.SerialNumber is { } s ? $" · serial {s}" : "")}. Vui lòng xác nhận biên bản {h.Number} tại Tài sản → Của tôi.", email: true, target: NotificationTarget.AssetDevice(d.Id));
         return TypedResults.Ok(await DetailAsync(d, db, access, clock, ct));
     }
 
@@ -256,7 +256,7 @@ internal static class DeviceEndpoints
         await db.SaveChangesAsync(ct);
         await ops.NotifyEmployeeAsync(holder, NotificationCategories.AssetReturned, $"Đã thu hồi thiết bị {d.Code}",
             $"{d.Name} đã được thu hồi về kho.{(h is { RequiresConfirmation: true } ? $" Vui lòng xác nhận biên bản {h.Number} tại Tài sản → Của tôi." : "")}",
-            email: false);
+            email: false, target: NotificationTarget.AssetDevice(d.Id));
         return TypedResults.Ok(await DetailAsync(d, db, access, clock, ct));
     }
 
@@ -278,7 +278,7 @@ internal static class DeviceEndpoints
         d.UpdatedAt = clock.Now;
         await db.SaveChangesAsync(ct);
         if (holder is { } h)
-            await ops.NotifyEmployeeAsync(h, NotificationCategories.AssetReturned, $"Thiết bị {d.Code} không còn ghi nhận ở bạn", $"{d.Name}: {reason}", email: false);
+            await ops.NotifyEmployeeAsync(h, NotificationCategories.AssetReturned, $"Thiết bị {d.Code} không còn ghi nhận ở bạn", $"{d.Name}: {reason}", email: false, target: NotificationTarget.AssetDevice(d.Id));
         return TypedResults.Ok(await DetailAsync(d, db, access, clock, ct));
     }
 }

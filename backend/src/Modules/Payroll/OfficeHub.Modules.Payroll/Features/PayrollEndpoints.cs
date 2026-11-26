@@ -204,12 +204,12 @@ internal static class PayrollEndpoints
         p.LockedByName = Actor(user);
         await db.SaveChangesAsync(ct);
 
-        var empIds = await db.Payslips.AsNoTracking().Where(s => s.PeriodId == id).Select(s => s.EmployeeId).ToListAsync(ct);
-        var users = new List<Guid>();
-        foreach (var e in empIds) if ((await dir.GetAsync(e, ct))?.UserId is { } u) users.Add(u);
-        if (users.Count > 0)
-            await notifier.NotifyAsync(new NotificationRequest(users, NotificationCategories.PayslipReady, $"Phiếu lương tháng {p.Month:MM/yyyy}",
-                "Phiếu lương của bạn đã có. Mở để xem chi tiết.", "/payslips", SendEmail: false), ct);
+        // Mỗi người một thông báo trỏ đúng phiếu của mình (TEST-237).
+        var slips = await db.Payslips.AsNoTracking().Where(s => s.PeriodId == id).Select(s => new { s.Id, s.EmployeeId }).ToListAsync(ct);
+        foreach (var s in slips)
+            if ((await dir.GetAsync(s.EmployeeId, ct))?.UserId is { } u)
+                await notifier.NotifyAsync(new NotificationRequest([u], NotificationCategories.PayslipReady, $"Phiếu lương tháng {p.Month:MM/yyyy}",
+                    "Phiếu lương của bạn đã có. Mở để xem chi tiết.", NotificationTarget.Payslip(s.Id), SendEmail: false), ct);
         return TypedResults.NoContent();
     }
 

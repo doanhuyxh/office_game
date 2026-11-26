@@ -58,7 +58,7 @@ internal sealed class AssetsMaintenanceJob(IServiceScopeFactory scopes, ILogger<
             if (due == 0) continue;
             var left = d.WarrantyUntil!.Value.DayNumber - today.DayNumber;
             await ops.NotifyUsersAsync(hrIds, NotificationCategories.AssetExpiring, $"Thiết bị {d.Code} còn {left} ngày hết bảo hành",
-                $"{d.Name}. Hết bảo hành: {d.WarrantyUntil:dd/MM/yyyy}.");
+                $"{d.Name}. Hết bảo hành: {d.WarrantyUntil:dd/MM/yyyy}.", target: NotificationTarget.AssetDevice(d.Id));
             var now = clock.Now;
             d.WarrantyReminded30At ??= now;
             if (due == AssetRules.UrgentReminderDays) d.WarrantyReminded7At = now;
@@ -75,7 +75,7 @@ internal sealed class AssetsMaintenanceJob(IServiceScopeFactory scopes, ILogger<
             if (s.AdminEmployeeId is { } a && emps.GetValueOrDefault(a) is { IsActive: true, UserId: { } au }) to.Add(au);
             var left = s.RenewalDate!.Value.DayNumber - today.DayNumber;
             await ops.NotifyUsersAsync(to, NotificationCategories.AssetExpiring, $"Dịch vụ {s.Name} còn {left} ngày tới hạn gia hạn",
-                $"Ngày gia hạn: {s.RenewalDate:dd/MM/yyyy}. Xem xét gia hạn hoặc huỷ tại Tài sản → Dịch vụ.");
+                $"Ngày gia hạn: {s.RenewalDate:dd/MM/yyyy}. Xem xét gia hạn hoặc huỷ tại Tài sản → Dịch vụ.", target: NotificationTarget.AssetService(s.Id));
             var now = clock.Now;
             s.RenewalReminded30At ??= now;
             if (due == AssetRules.UrgentReminderDays) s.RenewalReminded7At = now;
@@ -91,7 +91,7 @@ internal sealed class AssetsMaintenanceJob(IServiceScopeFactory scopes, ILogger<
             if (e.ManagerId is { } m && emps.GetValueOrDefault(m) is { IsActive: true, UserId: { } mu }) to.Add(mu);
             await ops.NotifyUsersAsync(to, NotificationCategories.AssetOffboarding, $"{e.FullName} đã nghỉ việc nhưng còn giữ tài sản",
                 $"{e.Code} · {e.FullName}: {r.Devices} thiết bị, {r.Seats} tài khoản dịch vụ"
-                + (r.Socials > 0 ? $", {r.Socials} Business Manager" : "") + " cần thu hồi (Tài sản → Tổng quan).");
+                + (r.Socials > 0 ? $", {r.Socials} Business Manager" : "") + " cần thu hồi (Tài sản → Tổng quan).", target: NotificationTarget.Employee(r.EmployeeId, "assets"));
             db.OffboardingNotices.Add(new OffboardingNotice { EmployeeId = r.EmployeeId, NotifiedAt = clock.Now });
             await db.SaveChangesAsync(ct);
         }
@@ -102,10 +102,10 @@ internal sealed class AssetsMaintenanceJob(IServiceScopeFactory scopes, ILogger<
         {
             foreach (var grp in r.Items.Where(i => i.Decision == ReviewDecision.Pending && i.ReviewerEmployeeId != null).GroupBy(i => i.ReviewerEmployeeId!.Value))
                 await ops.NotifyEmployeeAsync(grp.Key, NotificationCategories.AssetReview, $"Đến hạn rà soát: còn {grp.Count()} tài khoản chưa quyết",
-                    $"{r.Title}. Hạn: {r.DueDate:dd/MM/yyyy}.", email: true);
+                    $"{r.Title}. Hạn: {r.DueDate:dd/MM/yyyy}.", email: true, target: NotificationTarget.AssetReview(r.Id));
             var hrPending = r.Items.Count(i => i.Decision == ReviewDecision.Pending && i.ReviewerEmployeeId == null);
             if (hrPending > 0)
-                await ops.NotifyUsersAsync(hrIds, NotificationCategories.AssetReview, $"Đến hạn rà soát: còn {hrPending} tài khoản HR chưa quyết", $"{r.Title}.");
+                await ops.NotifyUsersAsync(hrIds, NotificationCategories.AssetReview, $"Đến hạn rà soát: còn {hrPending} tài khoản HR chưa quyết", $"{r.Title}.", target: NotificationTarget.AssetReview(r.Id));
             r.RemindedAt = clock.Now;
         }
         if (reviews.Count > 0) await db.SaveChangesAsync(ct);
@@ -119,7 +119,7 @@ internal sealed class AssetsMaintenanceJob(IServiceScopeFactory scopes, ILogger<
             if (emps.GetValueOrDefault(h.EmployeeId) is { IsActive: true })
                 await ops.NotifyEmployeeAsync(h.EmployeeId, NotificationCategories.AssetAssigned, $"Nhắc xác nhận biên bản {h.Number}",
                     $"Biên bản {(h.Kind == HandoverKind.Assign ? "bàn giao" : "thu hồi")} thiết bị {h.DeviceCode} · {h.DeviceName} chưa được xác nhận. "
-                    + "Vào Tài sản → Của tôi để xác nhận.", email: true);
+                    + "Vào Tài sản → Của tôi để xác nhận.", email: true, target: NotificationTarget.AssetHandover(h.Id));
             h.RemindedAt = clock.Now;
         }
         if (handovers.Count > 0) await db.SaveChangesAsync(ct);

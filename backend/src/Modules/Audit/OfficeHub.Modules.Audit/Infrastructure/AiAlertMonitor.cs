@@ -79,7 +79,7 @@ internal sealed class AiAlertMonitor(IServiceScopeFactory scopes, TimeProvider c
             try
             {
                 await notifier.NotifyAsync(new NotificationRequest(admins, NotificationCategories.AiAlert,
-                    AiAlertRules.Title(a.Rule, name), AiAlertRules.Body(a.Rule, a.Count, a.Total, t.WindowMinutes), "/reports?tab=ai",
+                    AiAlertRules.Title(a.Rule, name), AiAlertRules.Body(a.Rule, a.Count, a.Total, t.WindowMinutes), NotificationTarget.Page("reports", ("tab", "ai")),
                     SendEmail: AiAlertRules.SendsEmail(a.Rule)), ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

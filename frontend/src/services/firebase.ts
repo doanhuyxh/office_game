@@ -55,10 +55,11 @@ export async function clearPushToken(): Promise<void> {
   await deleteToken(messaging).catch(() => {});
 }
 
-/** Tin đến khi tab đang mở (không qua Service Worker `push` event). Trả về hàm huỷ lắng nghe. */
-export async function onForegroundPush(cb: (title: string, body: string, link?: string) => void): Promise<() => void> {
+/** Tin đến khi tab đang mở (không qua Service Worker `push` event). Trả về hàm huỷ lắng nghe.
+ * `data` (map chuỗi): targetType / targetId / targetParams (JSON) + link — TEST-237. */
+export async function onForegroundPush(cb: (title: string, body: string, data?: Record<string, string>) => void): Promise<() => void> {
   const m = await getMessagingInstance();
   if (!m) return () => {};
   const { onMessage } = await import('firebase/messaging');
-  return onMessage(m, (payload) => cb(payload.notification?.title ?? 'OfficeHub', payload.notification?.body ?? '', payload.data?.link));
+  return onMessage(m, (payload) => cb(payload.notification?.title ?? 'OfficeHub', payload.notification?.body ?? '', payload.data));
 }

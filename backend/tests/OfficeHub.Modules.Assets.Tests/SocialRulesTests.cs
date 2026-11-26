@@ -219,10 +219,8 @@ public class SocialRulesTests
     [Fact]
     public void Facebook_routes_and_notification_links_are_per_platform()
     {
-        // TEST-207: mỗi nền tảng một tiền tố API + trang riêng; link chuông trỏ trang Facebook / sub-tab Facebook BM (khớp FE PATHS.socialFacebook).
+        // TEST-207: mỗi nền tảng một tiền tố API + trang riêng; link chuông sinh từ target ở module Notification (TEST-237, NotificationLinkBuilderTests).
         Assert.Equal("/social/facebook", SocialRules.FacebookApiPrefix);
-        Assert.Equal("/social/facebook", SocialRules.FacebookPostsLink);
-        Assert.Equal("/assets?tab=social&platform=facebook", SocialRules.FacebookAccountsLink);
     }
 
     // ---------------- TEST-206: bài viết hiện có của Fanpage ----------------

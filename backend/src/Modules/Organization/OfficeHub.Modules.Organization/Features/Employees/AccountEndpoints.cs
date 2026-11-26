@@ -110,7 +110,7 @@ internal static class AccountEndpoints
             await notifier.NotifyAsync(new NotificationRequest([uid], NotificationCategories.AccountSecurity, "Mật khẩu đã được đặt lại",
                 $"{user.FindFirstValue(ClaimNames.FullName) ?? "Bộ phận Nhân sự"} vừa đặt lại mật khẩu tài khoản của bạn bằng mật khẩu tạm. " +
                 "Mọi phiên đăng nhập và kết nối AI cũ đã bị đăng xuất. Nếu bạn không yêu cầu, hãy báo ngay cho bộ phận Nhân sự.",
-                "/profile"), ct);
+                NotificationTarget.Page("profile")), ct);
         return TypedResults.Ok(new TempPasswordResponse(temp));
     }
 
@@ -144,7 +144,7 @@ internal static class AccountEndpoints
         await notifier.NotifyAsync(new NotificationRequest([uid], NotificationCategories.AccountSecurity, "Xác thực 2 lớp đã được đặt lại",
             $"{user.FindFirstValue(ClaimNames.FullName) ?? "Bộ phận Nhân sự"} vừa đặt lại xác thực 2 lớp cho tài khoản của bạn. " +
             "Đăng nhập lại và quét mã QR mới trong ứng dụng xác thực. Nếu bạn không yêu cầu, hãy báo ngay cho bộ phận Nhân sự.",
-            "/profile"), ct);
+            NotificationTarget.Page("profile")), ct);
         return TypedResults.NoContent();
     }
 

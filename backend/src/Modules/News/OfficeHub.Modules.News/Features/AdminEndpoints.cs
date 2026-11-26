@@ -44,7 +44,7 @@ public static class AdminEndpoints
             await db.SaveChangesAsync(ct);
             if (p.AuthorUserId != me)
                 await store.NotifyAsync([p.AuthorUserId], NotificationCategories.NewsModerated, "Bài viết của bạn đã bị ẩn",
-                    $"Lý do: {p.HiddenReason}", $"/news/{p.Id}", false, ct);
+                    $"Lý do: {p.HiddenReason}", NotificationTarget.NewsPost(p.Id), false, ct);
         }
         return TypedResults.NoContent();
     }
@@ -96,7 +96,7 @@ public static class AdminEndpoints
             await db.SaveChangesAsync(ct);
             if (c.AuthorUserId != me)
                 await store.NotifyAsync([c.AuthorUserId], NotificationCategories.NewsModerated, "Bình luận của bạn đã bị ẩn",
-                    $"Lý do: {c.HiddenReason}", $"/news/{c.PostId}", false, ct);
+                    $"Lý do: {c.HiddenReason}", NotificationTarget.NewsPost(c.PostId), false, ct);
         }
         return TypedResults.NoContent();
     }

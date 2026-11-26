@@ -188,7 +188,7 @@ internal static class SocialAccountEndpoints
         await db.SaveChangesAsync(ct);
         var pages = await db.SocialPages.CountAsync(p => p.AccountId == a.Id && p.IsActive, ct);
         await ops.NotifyEmployeeAsync(emp.Id, NotificationCategories.AssetAssigned, $"Bạn được bàn giao Business Manager \"{a.Name}\"",
-            $"Bạn có thể đăng bài lên {pages} trang của BM này tại Đăng bài MXH.", email: true, link: SocialRules.FacebookPostsLink);
+            $"Bạn có thể đăng bài lên {pages} trang của BM này tại Đăng bài MXH.", email: true, target: NotificationTarget.SocialAccount(a.Id, "posts"));
         return TypedResults.Ok(await DetailAsync(a, db, access, dir, ct));
     }
 
@@ -203,7 +203,7 @@ internal static class SocialAccountEndpoints
         await ReturnCoreAsync(a, holder, Clean(req.Note), me.Name, db, social, clock, ct);
         await db.SaveChangesAsync(ct);
         await ops.NotifyEmployeeAsync(holder, NotificationCategories.AssetReturned, $"Business Manager \"{a.Name}\" đã được thu hồi",
-            "Bạn không còn đăng bài lên các trang của BM này; bài hẹn giờ chưa đăng đã được huỷ.", email: false, link: SocialRules.FacebookPostsLink);
+            "Bạn không còn đăng bài lên các trang của BM này; bài hẹn giờ chưa đăng đã được huỷ.", email: false, target: NotificationTarget.SocialAccount(a.Id, "posts"));
         return TypedResults.Ok(await DetailAsync(a, db, access, dir, ct));
     }
 

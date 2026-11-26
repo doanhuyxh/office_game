@@ -96,14 +96,14 @@ internal static class ReviewEndpoints
 
         foreach (var grp in review.Items.Where(i => i.ReviewerEmployeeId is not null).GroupBy(i => i.ReviewerEmployeeId!.Value))
             await ops.NotifyEmployeeAsync(grp.Key, NotificationCategories.AssetReview, $"Cần rà soát {grp.Count()} tài khoản dịch vụ của nhóm bạn",
-                $"{title}. Hạn: {review.DueDate:dd/MM/yyyy}. Mở Tài sản → Của tôi để chọn giữ hoặc thu hồi.", email: true);
+                $"{title}. Hạn: {review.DueDate:dd/MM/yyyy}. Mở Tài sản → Của tôi để chọn giữ hoặc thu hồi.", email: true, target: NotificationTarget.AssetReview(review.Id));
         if (review.Items.Any(i => i.ReviewerEmployeeId is null))
         {
             var hr = await accounts.ListByRoleAsync(Roles.Hr, ct);
             if (hr.Count == 0) hr = await accounts.ListByRoleAsync(Roles.Admin, ct);
             await ops.NotifyUsersAsync([.. hr.Select(a => a.Id)], NotificationCategories.AssetReview,
                 $"Có {review.Items.Count(i => i.ReviewerEmployeeId is null)} tài khoản dịch vụ cần HR rà soát",
-                $"{title}. Hạn: {review.DueDate:dd/MM/yyyy}.");
+                $"{title}. Hạn: {review.DueDate:dd/MM/yyyy}.", target: NotificationTarget.AssetReview(review.Id));
         }
         return TypedResults.Ok(ToDto(review, review.Items.Count, 0, 0));
     }
@@ -161,7 +161,7 @@ internal static class ReviewEndpoints
         await db.SaveChangesAsync(ct);
         foreach (var s in seats)
             await ops.NotifyEmployeeAsync(s.EmployeeId, NotificationCategories.AssetReturned, $"Tài khoản {names.GetValueOrDefault(s.Id)} đã bị thu hồi",
-                $"Sau đợt rà soát \"{r.Title}\", tài khoản {s.AccountLogin} không còn được cấp cho bạn.", email: false);
+                $"Sau đợt rà soát \"{r.Title}\", tài khoản {s.AccountLogin} không còn được cấp cho bạn.", email: false, target: NotificationTarget.AssetService(s.ServiceId));
         return TypedResults.Ok(ToDto(r, r.Items.Count, r.Items.Count(i => i.Decision != ReviewDecision.Pending), r.Items.Count(i => i.Decision == ReviewDecision.Revoke)));
     }
 }

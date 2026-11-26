@@ -59,7 +59,7 @@ internal sealed class ExpenseApprovalHandler(FinanceDbContext db, IFinanceAccess
         {
             var recorders = await access.ListUserIdsAsync(FinancePermission.Record, ct);
             await notifier.NotifyAsync(new NotificationRequest(recorders, NotificationCategories.ExpenseReady,
-                $"Đề nghị chi {LedgerRules.ExpenseCode(e.Number)} đã duyệt, chờ chi", $"{e.Amount:N0} đ · {e.Reason}", "/finance", SendEmail: false), ct);
+                $"Đề nghị chi {LedgerRules.ExpenseCode(e.Number)} đã duyệt, chờ chi", $"{e.Amount:N0} đ · {e.Reason}", NotificationTarget.ExpenseRequest(e.Id), SendEmail: false), ct);
         }
         catch (Exception ex) { log.LogWarning(ex, "Không gửi được thông báo chờ chi cho đề nghị {Id}", subjectId); }
     }

@@ -7,7 +7,8 @@ namespace OfficeHub.Modules.Notification.Contracts;
 /// </summary>
 public interface IPushSender
 {
-    Task PushAsync(IEnumerable<Guid> recipientUserIds, string title, string body, string? link, CancellationToken ct = default);
+    /// <param name="target">Đối tượng mở khi bấm (TEST-237): gửi trong <c>data</c> là targetType / targetId / targetParams (JSON) + link (sinh từ target).</param>
+    Task PushAsync(IEnumerable<Guid> recipientUserIds, string title, string body, NotificationTarget? target, CancellationToken ct = default);
 
     /// <summary>Gửi thử dry run (FCM chỉ kiểm tra, không tới thiết bị nào) — nút "Kiểm tra" của nhóm FCM. Trả (thành công, thông điệp).</summary>
     Task<(bool Ok, string Message)> DryRunAsync(CancellationToken ct = default);

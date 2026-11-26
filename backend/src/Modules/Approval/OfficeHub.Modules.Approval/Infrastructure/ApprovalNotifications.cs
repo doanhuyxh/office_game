@@ -21,8 +21,6 @@ namespace OfficeHub.Modules.Approval.Infrastructure;
 internal sealed class ApprovalNotifications(INotifier notifier, IEmployeeDirectory dir, IAccountService accounts, DelegationLookup delegations, IFinanceAccess finance,
     ILogger<ApprovalNotifications> log)
 {
-    private const string Link = "/approvals";
-
     /// <summary>
     /// Tài khoản đang phải duyệt: bước Manager → tài khoản của quản lý + người được quản lý đó uỷ quyền hôm nay;
     /// bước Hr → mọi tài khoản vai trò hr (không có HR → admin).
@@ -65,7 +63,7 @@ internal sealed class ApprovalNotifications(INotifier notifier, IEmployeeDirecto
     {
         var who = await RequesterAsync(r, ct);
         await notifier.NotifyAsync(new NotificationRequest(await CurrentApproversAsync(r, ct), NotificationCategories.ApprovalRequested,
-            $"Đơn chờ bạn duyệt: {r.Title}", $"{who} gửi đơn.\n{r.Summary}", Link), ct);
+            $"Đơn chờ bạn duyệt: {r.Title}", $"{who} gửi đơn.\n{r.Summary}", NotificationTarget.ApprovalRequest(r.Id)), ct);
     });
 
     /// <summary>Bước trung gian được duyệt: báo người duyệt kế tiếp + báo người gửi đơn đang đi tiếp.</summary>
@@ -73,10 +71,10 @@ internal sealed class ApprovalNotifications(INotifier notifier, IEmployeeDirecto
     {
         var who = await RequesterAsync(r, ct);
         await notifier.NotifyAsync(new NotificationRequest(await CurrentApproversAsync(r, ct), NotificationCategories.ApprovalRequested,
-            $"Đơn chờ bạn duyệt: {r.Title}", $"{who} gửi đơn, {decidedBy} đã duyệt bước trước.\n{r.Summary}", Link), ct);
+            $"Đơn chờ bạn duyệt: {r.Title}", $"{who} gửi đơn, {decidedBy} đã duyệt bước trước.\n{r.Summary}", NotificationTarget.ApprovalRequest(r.Id)), ct);
         if (await RequesterUserAsync(r, ct) is { } requester)
             await notifier.NotifyAsync(new NotificationRequest([requester], NotificationCategories.ApprovalApproved,
-                $"{r.Title}: {decidedBy} đã duyệt", "Đơn đang chờ bước duyệt tiếp theo.", Link, SendEmail: false), ct);
+                $"{r.Title}: {decidedBy} đã duyệt", "Đơn đang chờ bước duyệt tiếp theo.", NotificationTarget.ApprovalRequest(r.Id), SendEmail: false), ct);
     });
 
     public Task DecidedAsync(ApprovalRequest r, bool approved, string decidedBy, string? comment, CancellationToken ct) => SafeAsync(r, async () =>
@@ -86,14 +84,14 @@ internal sealed class ApprovalNotifications(INotifier notifier, IEmployeeDirecto
             ? (NotificationCategories.ApprovalApproved, $"Đơn đã được duyệt: {r.Title}", $"{decidedBy} đã duyệt đơn của bạn.")
             : (NotificationCategories.ApprovalRejected, $"Đơn bị từ chối: {r.Title}", $"{decidedBy} đã từ chối đơn của bạn.\nLý do: {comment}");
         if (approved && !string.IsNullOrWhiteSpace(comment)) body += $"\nGhi chú: {comment}";
-        await notifier.NotifyAsync(new NotificationRequest([requester], category, title, body, Link), ct);
+        await notifier.NotifyAsync(new NotificationRequest([requester], category, title, body, NotificationTarget.ApprovalRequest(r.Id)), ct);
     });
 
     public Task CancelledAsync(ApprovalRequest r, List<Guid> approversBeforeCancel, CancellationToken ct) => SafeAsync(r, async () =>
     {
         var who = await RequesterAsync(r, ct);
         await notifier.NotifyAsync(new NotificationRequest(approversBeforeCancel, NotificationCategories.ApprovalCancelled,
-            $"Đơn đã bị huỷ: {r.Title}", $"{who} đã huỷ đơn, bạn không cần duyệt nữa.", Link, SendEmail: false), ct);
+            $"Đơn đã bị huỷ: {r.Title}", $"{who} đã huỷ đơn, bạn không cần duyệt nữa.", NotificationTarget.ApprovalRequest(r.Id), SendEmail: false), ct);
     });
 
     /// <summary>Uỷ quyền mới: báo người được uỷ quyền (email + app); HR tạo thay → báo cả người uỷ quyền (chỉ app).</summary>
@@ -109,11 +107,11 @@ internal sealed class ApprovalNotifications(INotifier notifier, IEmployeeDirecto
                            (d.Note is { Length: > 0 } n ? $"\nGhi chú: {n}" : "") +
                            (pendingNow > 0 ? $"\nHiện có {pendingNow} đơn đang chờ." : "");
                 await notifier.NotifyAsync(new NotificationRequest([delegateUser], NotificationCategories.ApprovalDelegation,
-                    $"{from?.FullName} uỷ quyền duyệt cho bạn ({range})", body, Link), ct);
+                    $"{from?.FullName} uỷ quyền duyệt cho bạn ({range})", body, NotificationTarget.ApprovalDelegation(d.Id)), ct);
             }
             if (from?.UserId is { } delegatorUser && delegatorUser != actorUserId)
                 await notifier.NotifyAsync(new NotificationRequest([delegatorUser], NotificationCategories.ApprovalDelegation,
-                    $"HR đã đặt uỷ quyền duyệt của bạn cho {to?.FullName} ({range})", $"{d.CreatedByName} tạo uỷ quyền.", Link, SendEmail: false), ct);
+                    $"HR đã đặt uỷ quyền duyệt của bạn cho {to?.FullName} ({range})", $"{d.CreatedByName} tạo uỷ quyền.", NotificationTarget.ApprovalDelegation(d.Id), SendEmail: false), ct);
         }
         catch (Exception ex) { log.LogWarning(ex, "Gửi thông báo uỷ quyền {Id} lỗi", d.Id); }
     }
@@ -127,10 +125,10 @@ internal sealed class ApprovalNotifications(INotifier notifier, IEmployeeDirecto
             var range = $"{d.FromDate:dd/MM/yyyy} – {d.ToDate:dd/MM/yyyy}";
             if (to?.UserId is { } delegateUser && delegateUser != actorUserId)
                 await notifier.NotifyAsync(new NotificationRequest([delegateUser], NotificationCategories.ApprovalDelegation,
-                    $"Đã thu hồi uỷ quyền duyệt của {from?.FullName} ({range})", $"{d.RevokedByName} đã thu hồi. Bạn không còn duyệt thay {from?.FullName}.", Link), ct);
+                    $"Đã thu hồi uỷ quyền duyệt của {from?.FullName} ({range})", $"{d.RevokedByName} đã thu hồi. Bạn không còn duyệt thay {from?.FullName}.", NotificationTarget.ApprovalDelegation(d.Id)), ct);
             if (from?.UserId is { } delegatorUser && delegatorUser != actorUserId)
                 await notifier.NotifyAsync(new NotificationRequest([delegatorUser], NotificationCategories.ApprovalDelegation,
-                    $"Đã thu hồi uỷ quyền duyệt cho {to?.FullName} ({range})", $"{d.RevokedByName} đã thu hồi.", Link, SendEmail: false), ct);
+                    $"Đã thu hồi uỷ quyền duyệt cho {to?.FullName} ({range})", $"{d.RevokedByName} đã thu hồi.", NotificationTarget.ApprovalDelegation(d.Id), SendEmail: false), ct);
         }
         catch (Exception ex) { log.LogWarning(ex, "Gửi thông báo thu hồi uỷ quyền {Id} lỗi", d.Id); }
     }

@@ -134,7 +134,7 @@ internal sealed class SalesReminderJob(IServiceScopeFactory scopes, ILogger<Sale
                     SalesRules.Reminder.DueToday => $"Đến hạn thu hôm nay: {left:N0} đ",
                     _ => $"Quá hạn thu {today.DayNumber - i.DueOn.DayNumber} ngày: {left:N0} đ",
                 };
-                await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.ReceivableDue, title, what, "/sales?tab=receivables",
+                await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.ReceivableDue, title, what, NotificationTarget.SalesReceivable(i.Id, c.Id),
                     SendEmail: r != SalesRules.Reminder.DueSoon), ct);
                 var now = clock.Now;
                 if (r == SalesRules.Reminder.DueSoon) i.RemindedSoonAt = now;
@@ -153,7 +153,7 @@ internal sealed class SalesReminderJob(IServiceScopeFactory scopes, ILogger<Sale
             var cust = custNames.GetValueOrDefault(a.CustomerId, "?");
             if (uid is { } u)
                 await notifier.NotifyAsync(new NotificationRequest([u], NotificationCategories.CustomerFollowUp, $"Việc cần làm với {cust}: {a.NextAction}",
-                    $"Hẹn ngày {a.NextActionOn:dd/MM/yyyy}.", $"/sales?customer={a.CustomerId}", SendEmail: false), ct);
+                    $"Hẹn ngày {a.NextActionOn:dd/MM/yyyy}.", NotificationTarget.SalesCustomer(a.CustomerId), SendEmail: false), ct);
             a.NextActionRemindedAt = clock.Now;
         }
         if (follow.Count > 0) await db.SaveChangesAsync(ct);

@@ -11,7 +11,8 @@ import { useNotificationSound } from '../../hooks/useNotificationSound';
 import { useMarkAllRead, useMarkRead, useNotifications } from '../../hooks/useNotifications';
 import { usePush } from '../../hooks/usePush';
 import type { INotification } from '../../types/notification.types';
-import { CATEGORY, FALLBACK, linkTarget, timeAgo } from '../../utils/labels';
+import { CATEGORY, FALLBACK, timeAgo } from '../../utils/labels';
+import { notificationRoute, routeHref, type IRoute } from '../../utils/target';
 
 /**
  * Chuông thông báo trên header: badge số chưa đọc, danh sách 20 thông báo mới nhất + "Xem tất cả" → /notifications. Bấm một thông báo → đánh dấu đã đọc + mở link.
@@ -36,15 +37,16 @@ export function NotificationBell({ office = false, triggerClassName }: { office?
     setAlignOffset(r && window.innerWidth < 640 ? Math.min(0, r.right - window.innerWidth + 8) : 0);
   };
 
-  const go = (link: string) => {
-    if (office) window.open(link, '_blank', 'noopener');
-    else void navigate(linkTarget(link));
+  const go = (route: IRoute) => {
+    if (office) window.open(routeHref(route), '_blank', 'noopener');
+    else void navigate(route);
   };
   const open = (n: INotification) => {
     if (!n.read) markRead.mutate(n.id);
-    if (n.link) go(n.link);
+    const route = notificationRoute(n);
+    if (route) go(route);
   };
-  useNewNotificationToasts(data, office, open, () => go(PATHS.notifications));
+  useNewNotificationToasts(data, office, open, () => go({ to: PATHS.notifications }));
 
   return (
     <DropdownMenu modal={false} onOpenChange={onOpenChange}>
@@ -106,7 +108,7 @@ export function NotificationBell({ office = false, triggerClassName }: { office?
           })}
         </div>
         <DropdownMenuSeparator className="m-0" />
-        <DropdownMenuItem onSelect={() => go(PATHS.notifications)} className="justify-center rounded-none py-2 text-sm text-primary" data-testid="notification-all">
+        <DropdownMenuItem onSelect={() => go({ to: PATHS.notifications })} className="justify-center rounded-none py-2 text-sm text-primary" data-testid="notification-all">
           Xem tất cả thông báo
         </DropdownMenuItem>
       </DropdownMenuContent>

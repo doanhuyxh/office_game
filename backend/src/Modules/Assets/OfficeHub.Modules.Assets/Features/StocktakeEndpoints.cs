@@ -122,7 +122,7 @@ internal static class StocktakeEndpoints
         st.ClosedByName = me.Name;
         await db.SaveChangesAsync(ct);
         foreach (var (emp, d) in lostHolders)
-            await ops.NotifyEmployeeAsync(emp, NotificationCategories.AssetReturned, $"Thiết bị {d.Code} không còn ghi nhận ở bạn", $"{d.Name}: {d.StatusReason}", email: false);
+            await ops.NotifyEmployeeAsync(emp, NotificationCategories.AssetReturned, $"Thiết bị {d.Code} không còn ghi nhận ở bạn", $"{d.Name}: {d.StatusReason}", email: false, target: NotificationTarget.AssetDevice(d.Id));
         return TypedResults.Ok(ToDto(st, st.Items.Count, st.Items.Count, st.Items.Count(i => i.Result == StocktakeResult.Missing)));
     }
 }

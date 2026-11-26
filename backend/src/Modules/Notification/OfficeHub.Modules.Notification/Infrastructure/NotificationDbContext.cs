@@ -24,6 +24,9 @@ public sealed class NotificationDbContext(DbContextOptions<NotificationDbContext
             e.Property(x => x.Title).HasMaxLength(300);
             e.Property(x => x.Body).HasMaxLength(2000);
             e.Property(x => x.Link).HasMaxLength(300);
+            e.Property(x => x.TargetType).HasMaxLength(40);
+            e.Property(x => x.TargetParams).HasColumnType("jsonb");
+            e.HasIndex(x => new { x.TargetType, x.TargetId });
             e.Property(x => x.EmailTo).HasMaxLength(256);
             e.Property(x => x.EmailToName).HasMaxLength(200);
             e.Property(x => x.EmailStatus).HasConversion<string>().HasMaxLength(20);

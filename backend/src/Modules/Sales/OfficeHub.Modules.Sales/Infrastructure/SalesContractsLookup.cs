@@ -61,7 +61,7 @@ internal sealed class SalesContractsLookup(SalesDbContext db, IEmployeeDirectory
         var owner = (await dir.GetAsync(c.OwnerEmployeeId, ct))?.UserId;
         var to = (await finance.ListUserIdsAsync(FinancePermission.Record, ct)).Concat(owner is { } o ? [o] : []).Distinct().ToList();
         await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.ReceivableDue, $"Đã nghiệm thu: {milestoneTitle} — đến hạn thu HĐ {c.Code}",
-            $"Dự án {projectName} nghiệm thu ngày {acceptedOn:dd/MM/yyyy}. Đợt thu \"{i.Title}\" đến hạn {i.DueOn:dd/MM/yyyy}.", "/sales?tab=receivables"), ct);
+            $"Dự án {projectName} nghiệm thu ngày {acceptedOn:dd/MM/yyyy}. Đợt thu \"{i.Title}\" đến hạn {i.DueOn:dd/MM/yyyy}.", NotificationTarget.SalesReceivable(i.Id, c.Id)), ct);
         return true;
     }
 
@@ -85,6 +85,6 @@ internal sealed class SalesContractsLookup(SalesDbContext db, IEmployeeDirectory
         var to = (await finance.ListUserIdsAsync(FinancePermission.Record, ct)).Concat(owners).Distinct().ToList();
         await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.ChangeRequestApproved,
             $"Khách đồng ý thay đổi {changeRequestCode} — lập phụ lục", $"Dự án {projectName}: \"{changeRequestTitle}\". Lập phụ lục ở HĐ {string.Join(", ", contracts.Select(c => c.Code))}.",
-            $"/sales?customer={contracts[0].CustomerId}"), ct);
+            NotificationTarget.SalesContract(contracts[0].Id, contracts[0].CustomerId)), ct);
     }
 }

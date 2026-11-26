@@ -95,6 +95,84 @@ public partial class NotificationCatalogTests
         Assert.DoesNotContain(NotificationCatalog.UsedBy(NotificationCatalog.Email), u => u.Key == "projects.task_assigned");
     }
 
+    // ---------------- TEST-237: target (type / id / params) ----------------
+
+    [Fact]
+    public void Every_category_declares_target_types_and_every_type_has_link()
+    {
+        var types = NotificationCatalog.ConstantsOf(typeof(NotificationTargetTypes)).ToHashSet();
+        var missing = NotificationCatalog.AllCategoryKeys.Where(c => !NotificationCatalog.CategoryTargets.ContainsKey(c)).ToList();
+        Assert.True(missing.Count == 0, "Khai báo targetType được phép trong NotificationCatalog.CategoryTargets cho: " + string.Join(", ", missing));
+        var unknownCategory = NotificationCatalog.CategoryTargets.Keys.Except(NotificationCatalog.AllCategoryKeys).ToList();
+        Assert.True(unknownCategory.Count == 0, "CategoryTargets có category không còn: " + string.Join(", ", unknownCategory));
+        var declared = NotificationCatalog.CategoryTargets.Values.SelectMany(v => v).Concat(NotificationCatalog.ChatPushTargets).ToHashSet();
+        var unknownType = declared.Except(types).ToList();
+        Assert.True(unknownType.Count == 0, "Loại không có trong NotificationTargetTypes: " + string.Join(", ", unknownType));
+        // Mọi loại có factory + NotificationLinkBuilder sinh được link (gọi factory với tham số mẫu).
+        var noLink = Factories().Where(f => NotificationLinkBuilder.Build(f.Sample) is null).Select(f => f.Sample.Type).ToList();
+        Assert.True(noLink.Count == 0, "NotificationLinkBuilder chưa xử lý loại: " + string.Join(", ", noLink));
+        var noFactory = types.Except(Factories().Select(f => f.Sample.Type)).ToList();
+        Assert.True(noFactory.Count == 0, "Thiếu factory NotificationTarget cho loại: " + string.Join(", ", noFactory));
+        Assert.True(types.SetEquals(declared), "Loại khai báo nhưng không category nào dùng: " + string.Join(", ", types.Except(declared)));
+    }
+
+    [Fact]
+    public void Target_factory_name_matches_type()
+    {
+        foreach (var (name, sample) in Factories())
+            Assert.Equal(Snake(name), sample.Type);
+    }
+
+    /// <summary>Câu lệnh có cả NotificationCategories.X và NotificationTarget.Y(…) → loại Y phải nằm trong danh mục của X (bắt gửi sai loại lúc build test).</summary>
+    [Fact]
+    public void Notifications_send_allowed_target_type()
+    {
+        var bad = new List<string>();
+        var checkedCount = 0;
+        foreach (var (path, text) in Files.Where(f => !f.Path.Contains($"OfficeHub.Modules.Notification{Path.DirectorySeparatorChar}")))
+            foreach (var stmt in text.Split(';'))
+            {
+                var cats = CategoryRef().Matches(stmt).Select(m => m.Groups[1].Value).Distinct().ToList();
+                var targets = TargetRef().Matches(stmt).Select(m => Snake(m.Groups[1].Value)).Distinct().ToList();
+                if (cats.Count != 1 || targets.Count == 0) continue;
+                var cat = (string)typeof(NotificationCategories).GetField(cats[0])!.GetValue(null)!;
+                checkedCount++;
+                bad.AddRange(targets.Where(t => !NotificationCatalog.AllowsTarget(cat, t)).Select(t => $"{Path.GetFileName(path)}: {cats[0]} → {t}"));
+            }
+        Assert.True(bad.Count == 0, "Gửi targetType ngoài danh mục NotificationCatalog.CategoryTargets: " + string.Join("; ", bad));
+        Assert.True(checkedCount > 30, $"Chỉ quét được {checkedCount} chỗ gửi — regex lệch code?");
+    }
+
+    [Fact]
+    public void Business_modules_do_not_build_web_links_for_notifications()
+    {
+        // Module nghiệp vụ không tự ghép URL cho thông báo (link sinh ở NotificationLinkBuilder) — chặn quay lại kiểu cũ.
+        var bad = Files.Where(f => !f.Path.Contains($"OfficeHub.Modules.Notification{Path.DirectorySeparatorChar}"))
+            .Where(f => OldLinkArg().IsMatch(f.Text)).Select(f => Path.GetFileName(f.Path)).ToList();
+        Assert.True(bad.Count == 0, "Truyền NotificationTarget thay cho chuỗi link: " + string.Join(", ", bad));
+    }
+
+    private static IEnumerable<(string Name, NotificationTarget Sample)> Factories() =>
+        typeof(NotificationTarget).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .Where(m => m.ReturnType == typeof(NotificationTarget))
+            .Select(m => (m.Name, (NotificationTarget)m.Invoke(null, [.. m.GetParameters().Select(SampleArg)])!));
+
+    private static object? SampleArg(System.Reflection.ParameterInfo p) =>
+        p.ParameterType == typeof(Guid) ? Guid.NewGuid()
+        : p.ParameterType == typeof(Guid?) ? null
+        : p.ParameterType == typeof(string) ? (p.HasDefaultValue ? null : "attendance")
+        : p.ParameterType.IsArray ? Array.CreateInstance(p.ParameterType.GetElementType()!, 0)
+        : null;
+
+    private static string Snake(string pascal) => Regex.Replace(pascal, "(?<=[a-z0-9])([A-Z])", "_$1").ToLowerInvariant();
+
+    [GeneratedRegex(@"NotificationTarget\.(\w+)\(")]
+    private static partial Regex TargetRef();
+
+    /// <summary>Chuỗi đường dẫn web truyền vào NotificationRequest / PushAsync (kiểu trước TEST-237).</summary>
+    [GeneratedRegex(@"(NotificationRequest|PushAsync)\([^;]*,\s*\$?""/[a-z]")]
+    private static partial Regex OldLinkArg();
+
     [GeneratedRegex(@"NotificationCategories\.(\w+)")]
     private static partial Regex CategoryRef();
 

@@ -142,7 +142,7 @@ internal static class ExpenseEndpoints
         {
             if ((await dir.GetAsync(e.RequesterEmployeeId, ct))?.UserId is { } requester)
                 await notifier.NotifyAsync(new NotificationRequest([requester], NotificationCategories.ExpensePaid,
-                    $"Đề nghị chi {LedgerRules.ExpenseCode(e.Number)} đã được chi", $"{e.Amount:N0} đ · {e.Reason}", "/finance", SendEmail: false), ct);
+                    $"Đề nghị chi {LedgerRules.ExpenseCode(e.Number)} đã được chi", $"{e.Amount:N0} đ · {e.Reason}", NotificationTarget.ExpenseRequest(e.Id), SendEmail: false), ct);
         }
         catch { /* thông báo phụ — không làm hỏng việc ghi sổ */ }
         return TypedResults.NoContent();

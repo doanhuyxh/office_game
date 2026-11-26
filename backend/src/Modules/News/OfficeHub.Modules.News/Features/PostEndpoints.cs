@@ -221,7 +221,7 @@ public static class PostEndpoints
         await db.SaveChangesAsync(ct);
         if (post.AuthorUserId != me)
             await store.NotifyAsync([post.AuthorUserId], NotificationCategories.NewsModerated, "Bài viết của bạn đã bị gỡ",
-                $"Quản trị đã gỡ bài \"{NewsRules.Preview(post.PlainText, 80)}\".", "/news", false, ct);
+                $"Quản trị đã gỡ bài \"{NewsRules.Preview(post.PlainText, 80)}\".", NotificationTarget.Page("news"), false, ct);
         return TypedResults.NoContent();
     }
 
@@ -393,7 +393,7 @@ public static class PostEndpoints
         {
             foreach (var u in await store.AudienceUsersAsync(post, ct)) emailTo.Add(u);
             await store.NotifyAsync(emailTo, NotificationCategories.NewsPublished, $"{post.AuthorName} vừa đăng bài trên Bảng tin",
-                NewsRules.Preview(post.PlainText), $"/news/{post.Id}", true, ct);
+                NewsRules.Preview(post.PlainText), NotificationTarget.NewsPost(post.Id), true, ct);
         }
         await NotifyMentionsAsync(post, mentionIds, emailTo, store, ct);
     }
@@ -403,7 +403,7 @@ public static class PostEndpoints
         if (mentionIds.Count == 0) return;
         var visible = (await store.FilterVisibleAsync(post, mentionIds, ct)).Where(u => !alreadyNotified.Contains(u) && u != post.AuthorUserId).ToList();
         await store.NotifyAsync(visible, NotificationCategories.NewsMention, $"{post.AuthorName} đã nhắc đến bạn trong một bài viết",
-            NewsRules.Preview(post.PlainText, 120), $"/news/{post.Id}", false, ct);
+            NewsRules.Preview(post.PlainText, 120), NotificationTarget.NewsPost(post.Id), false, ct);
     }
 }
 

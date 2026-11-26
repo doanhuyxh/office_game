@@ -69,7 +69,7 @@ internal sealed class CheckoutReminderJob(IServiceScopeFactory scopes, IOptionsM
             if (await MarkAsync(db, x.EmployeeId, today, ReminderKind.Checkout, svc.Now, ct) is false) continue;
             await notifier.NotifyAsync(new NotificationRequest([employees[x.EmployeeId].UserId!.Value], NotificationCategories.AttendanceReminder,
                 "Bạn chưa chấm công ra", "Đã quá giờ kết thúc ca mà bạn vẫn đang ở trạng thái làm việc. Nhớ chấm công ra trước khi về.",
-                "/attendance", SendEmail: s.Email), ct);
+                NotificationTarget.Page("attendance"), SendEmail: s.Email), ct);
             count++;
         }
 
@@ -88,7 +88,7 @@ internal sealed class CheckoutReminderJob(IServiceScopeFactory scopes, IOptionsM
                 if (await MarkAsync(db, emp, yesterday, ReminderKind.MissingCheckout, svc.Now, ct) is false) continue;
                 await notifier.NotifyAsync(new NotificationRequest([employees[emp].UserId!.Value], NotificationCategories.AttendanceReminder,
                     $"Hôm qua ({yesterday:dd/MM}) bạn quên chấm công ra",
-                    "Bảng công hôm qua đang thiếu giờ ra. Gửi giải trình để quản lý duyệt bổ sung.", "/attendance", SendEmail: s.Email), ct);
+                    "Bảng công hôm qua đang thiếu giờ ra. Gửi giải trình để quản lý duyệt bổ sung.", NotificationTarget.Page("attendance"), SendEmail: s.Email), ct);
                 count++;
             }
         }

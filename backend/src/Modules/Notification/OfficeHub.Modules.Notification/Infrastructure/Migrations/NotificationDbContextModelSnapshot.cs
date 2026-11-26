@@ -75,6 +75,16 @@ namespace OfficeHub.Modules.Notification.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("ReadAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("TargetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TargetParams")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("TargetType")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(300)
@@ -87,6 +97,8 @@ namespace OfficeHub.Modules.Notification.Infrastructure.Migrations
 
                     b.HasIndex("EmailNextAttemptAt")
                         .HasFilter("\"EmailStatus\" = 'Pending'");
+
+                    b.HasIndex("TargetType", "TargetId");
 
                     b.HasIndex("UserId", "CreatedAt");
 

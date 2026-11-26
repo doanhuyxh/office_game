@@ -86,7 +86,7 @@ internal static class SignEndpoints
         db.SignRequests.Add(r);
         await db.SaveChangesAsync(ct);
         await notifier.NotifyAsync(new NotificationRequest([signerUser], NotificationCategories.ContractSignRequested,
-            $"Hợp đồng {c.Number} chờ bạn ký", $"HR đã gửi hợp đồng {c.Number} để bạn xem và ký điện tử (hạn {SignRules.RequestLifetime.TotalDays:0} ngày).", "/contracts"), ct);
+            $"Hợp đồng {c.Number} chờ bạn ký", $"HR đã gửi hợp đồng {c.Number} để bạn xem và ký điện tử (hạn {SignRules.RequestLifetime.TotalDays:0} ngày).", NotificationTarget.LaborContract(c.Id)), ct);
         return TypedResults.Ok((await ToDtosAsync([r], db, dir, user.GetUserId(), now, ct))[0]);
     }
 
@@ -220,7 +220,7 @@ internal static class SignEndpoints
         var hr = (await accounts.ListByRoleAsync(Roles.Hr, ct)).Select(a => a.Id).Where(id => id != r.SignerUserId).ToList();
         if (hr.Count > 0)
             await notifier.NotifyAsync(new NotificationRequest(hr, NotificationCategories.ContractSigned, $"{emp?.FullName} đã ký hợp đồng {c.Number}",
-                "Bản đã ký điện tử được lưu làm file của hợp đồng.", "/contracts", SendEmail: false), ct);
+                "Bản đã ký điện tử được lưu làm file của hợp đồng.", NotificationTarget.LaborContract(c.Id), SendEmail: false), ct);
         return TypedResults.Ok((await ToDtosAsync([r], db, dir, user.GetUserId(), now, ct))[0]);
     }
 }

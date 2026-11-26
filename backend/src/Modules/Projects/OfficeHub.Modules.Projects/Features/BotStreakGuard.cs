@@ -53,6 +53,6 @@ internal sealed class BotStreakGuard(ProjectsDbContext db, ProjectAccess access,
         if (to.Count == 0) return;
         await notifier.NotifyAsync(new NotificationRequest([.. to], NotificationCategories.ProjectTask, AgentTeamRules.StreakAlertTitle(code, limit),
             TaskNotifyRules.Body($"{v.Name} bị chặn trên việc \"{t.Title}\" (dự án {p.Name}). Bình luận hoặc chuyển trạng thái trên web để bot làm tiếp."),
-            TaskNotifyRules.Link(p.Id, t.Id), SendEmail: false), ct);
+            NotificationTarget.ProjectTask(p.Id, t.Id), SendEmail: false), ct);
     }
 }

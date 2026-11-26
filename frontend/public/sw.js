@@ -73,7 +73,47 @@ self.addEventListener('push', (e) => {
   }));
 });
 
+// TEST-237: dựng URL từ target (targetType / targetId / targetParams) — bản rút gọn của features/notifications/utils/target.ts
+// (SW không import được module app; giữ khớp BE NotificationLinkBuilder). Loại chưa biết / thiếu → `link` (G1), không có → '/'.
+function targetUrl(d) {
+  if (!d || !d.targetType) return null;
+  let p = {};
+  try { p = d.targetParams ? JSON.parse(d.targetParams) : {}; } catch { p = {}; }
+  const id = d.targetId || '';
+  const q = (path, o) => {
+    const s = new URLSearchParams(Object.entries(o).filter(([, v]) => v)).toString();
+    return s ? `${path}?${s}` : path;
+  };
+  switch (d.targetType) {
+    case 'project_task': return p.projectId && id ? q(`/projects/${p.projectId}`, { task: id, comment: p.commentId }) : null;
+    case 'project': return id ? q(`/projects/${id}`, { tab: p.tab, page: p.tab ? p.page : undefined }) : null;
+    case 'wiki_share': return p.projectId ? q(`/projects/${p.projectId}`, { tab: 'wiki', page: p.pageId }) : null;
+    case 'approval_request': case 'approval_delegation': return '/approvals';
+    case 'chat_conversation': return id ? q('/chat', { c: id }) : null;
+    case 'news_post': return id ? q(`/news/${id}`, { comment: p.commentId }) : null;
+    case 'meeting_booking': return '/meetings';
+    case 'labor_contract': return '/contracts';
+    case 'payslip': return '/payslips';
+    case 'asset_device': case 'asset_service': case 'asset_review': case 'asset_handover': return '/assets';
+    case 'employee': return p.view === 'assets' ? '/assets' : '/employees';
+    case 'social_account': return p.view === 'posts' ? '/social/facebook' : '/assets?tab=social&platform=facebook';
+    case 'social_post': return '/social/facebook';
+    case 'document_asset': return id ? q('/documents', { asset: id }) : null;
+    case 'expense_request': return '/finance';
+    case 'sales_customer': return id ? q('/sales', { customer: id }) : null;
+    case 'sales_contract': return p.customerId ? q('/sales', { customer: p.customerId }) : null;
+    case 'sales_receivable': return '/sales?tab=receivables';
+    case 'profile_change_request': return p.view === 'profile' ? '/profile' : '/employees';
+    case 'page': {
+      const { key, ...rest } = p;
+      return typeof key === 'string' && /^([a-z0-9-]+(\/[a-z0-9-]+)*)?$/.test(key) ? q(`/${key}`, rest) : null;
+    }
+    default: return null;
+  }
+}
+
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
-  e.waitUntil(self.clients.openWindow(e.notification.data?.link ?? '/'));
+  const d = e.notification.data;
+  e.waitUntil(self.clients.openWindow(targetUrl(d) ?? d?.link ?? '/'));
 });

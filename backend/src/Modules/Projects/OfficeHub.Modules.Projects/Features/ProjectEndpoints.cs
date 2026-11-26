@@ -358,7 +358,7 @@ internal static class ProjectEndpoints
         if (to.Count == 0) return;
         var guideOnly = changes.All(c => c.StartsWith(ProjectChangeRules.GuideField, StringComparison.Ordinal));
         await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.ProjectTask, $"Dự án {p.Code} đã được cập nhật",
-            ProjectChangeRules.Body(ProjectChangeRules.Actor(v.Name, byToken), changes), $"/projects/{p.Id}{(guideOnly ? "?tab=guide" : "")}", SendEmail: false), ct);
+            ProjectChangeRules.Body(ProjectChangeRules.Actor(v.Name, byToken), changes), NotificationTarget.Project(p.Id, guideOnly ? "guide" : null), SendEmail: false), ct);
     }
 
     /// <summary>
@@ -417,7 +417,7 @@ internal static class ProjectEndpoints
         foreach (var id in employeeIds) if ((await dir.GetAsync(id, ct))?.UserId is { } u && u != v.UserId) to.Add(u);
         if (to.Count == 0) return;
         await notifier.NotifyAsync(new NotificationRequest(to, NotificationCategories.ProjectMemberAdded, $"Bạn được thêm vào dự án {p.Code} · {p.Name}",
-            $"{v.Name} đã thêm bạn vào dự án. Công việc và kho tài liệu dự án đã mở cho bạn.", $"/projects/{p.Id}", SendEmail: false), ct);
+            $"{v.Name} đã thêm bạn vào dự án. Công việc và kho tài liệu dự án đã mở cho bạn.", NotificationTarget.Project(p.Id), SendEmail: false), ct);
     }
 
     private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> AddMembersAsync(Guid id, AddMembers r, ClaimsPrincipal user, ProjectsDbContext db,
