@@ -147,6 +147,14 @@ const projectDetail = createRoute({
   getParentRoute: () => main,
   path: '/projects/$projectId',
   validateSearch: (s: Record<string, unknown>): { tab?: string; task?: string; comment?: string } => ({ tab: str(s.tab), task: str(s.task), comment: str(s.comment) }),
+  // TEST-241: bắt đầu tải chi tiết dự án + danh sách việc (tab Công việc / link ?task=) ngay khi khớp route — song song với tải chunk trang,
+  // không chờ (trang tự hiện trạng thái tải). Query giữ quyền quyết định độ mới (staleTime 30 giây), loader không trả dữ liệu.
+  // Import động: module `@/features/projects` là chunk riêng (Header tải lazy cho ProjectLiveUpdates, thường đã có sẵn) — import tĩnh kéo nó vào bundle chính.
+  loader: ({ context, params, location }) => {
+    const search = location.search as { tab?: string; task?: string };
+    const tasks = !search.tab || search.tab === 'tasks' || !!search.task;
+    void import('@/features/projects').then((m) => m.prefetchProject(context.queryClient, params.projectId, tasks)).catch(() => undefined);
+  },
   component: lazyRouteComponent(() => import('@/features/projects/page'), 'ProjectDetailPage'),
 });
 

@@ -68,6 +68,7 @@ Bảng tiền tố `/api/*` → module và danh sách trang / guard: [routes.md]
 | `['attendance', …]` | `features/attendance/api/attendance.api.ts` (`attendanceKeys`) | `today`, `board` tự refetch 60s; `useCheck` ghi thẳng `today` rồi invalidate phần còn lại |
 | `['leave', …]` | `features/leave/api/leave.api.ts` (`leaveKeys`) | gửi đơn / điều chỉnh → invalidate `['leave']` + `['approval']` |
 | `['approval', …]` | `features/approvals/api/approval.api.ts` (`approvalKeys`) | inbox count refetch 60s; duyệt / từ chối / huỷ → invalidate `approval`, `leave`, `attendance` |
+| `['projects', …]` | `features/projects/api/project.api.ts` (`projectKeys`) | `detail` / `tasks` `staleTime` 30s, loader route prefetch song song; `ProjectLiveUpdates` invalidate khoá hẹp ([business/projects-loading.md](business/projects-loading.md)); mutation → invalidate `['projects']` |
 
 - Đăng xuất (`useLogout`): `me` = null, xoá mọi query khác, về `/login`.
 - Không có cache phía server (không Redis), trừ `RuntimeConfig` (cấu hình S3 / SMTP / FCM / IP văn phòng từ DB, giữ 30 giây trong RAM, lưu trên trang Hệ thống thì xoá ngay — [env.md](env.md#cấu-hình-lưu-trong-db-test-41)). Bảng công tính lại mỗi lần đọc ([business/attendance.md](business/attendance.md)).

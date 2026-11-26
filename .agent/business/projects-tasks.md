@@ -43,7 +43,7 @@
 ## Tự cập nhật + toast (2026-11-11)
 
 - `GET /api/projects/activity?after=` (ISO kèm múi giờ; không có → chỉ trả `cursor`): thay đổi ở các dự án người xem thấy được — lịch sử việc (`task_activities`) + bình luận, **bỏ thao tác của chính mình**, ≤ 50 mục, lùi tối đa 1 giờ; `member` = người xem là thành viên. Lý do chuyển lùi (vừa là Moved vừa là bình luận) chỉ trả 1 mục. `cursor` lùi 10 giây (bản ghi lưu muộn không bị sót) → FE bỏ trùng theo `id`. Index `ix_task_activities_time`, `ix_task_comments_time` (migration `ActivityFeedIndexes`). Token AI 403.
-- FE `ProjectLiveUpdates` (gắn lazy ở `Header`, không vẽ gì): hỏi mỗi **5 giây khi tab đang mở** (mở lại tab → hỏi ngay) → có thay đổi thì làm mới mọi query `['projects']` (bảng việc, hộp thoại việc, việc của tôi); **toast** chỉ khi `member` và KHÔNG đang ở `/projects/<chính dự án đó>` — > 2 thay đổi / dự án / lần hỏi → gộp 1 toast; nút "Mở" → trang dự án. HR / người xem tài chính (không là thành viên): tự cập nhật, không toast.
+- FE `ProjectLiveUpdates` (gắn lazy ở `Header`, không vẽ gì): hỏi mỗi **5 giây khi tab đang mở** (mở lại tab → hỏi ngay) → có thay đổi thì làm mới đúng khoá liên quan (chi tiết + việc của dự án đó, việc + bình luận, hộp thoại đang mở, việc của tôi, danh sách dự án — [projects-loading.md](projects-loading.md), TEST-241); **toast** chỉ khi `member` và KHÔNG đang ở `/projects/<chính dự án đó>` — > 2 thay đổi / dự án / lần hỏi → gộp 1 toast; nút "Mở" → trang dự án. HR / người xem tài chính (không là thành viên): tự cập nhật, không toast.
 - Chọn hỏi định kỳ thay vì đẩy qua Realtime vì Api chưa có địa chỉ Realtime (cần biến `.env` mới). Muốn đẩy tức thì: thêm biến đó rồi Api báo Realtime như `ChatRelay`.
 
 ## UI

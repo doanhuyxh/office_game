@@ -14,7 +14,7 @@ Chỉ front-end, **không API mới**: dùng dữ liệu `useTasks` mà kanban �
 
 - Nút **Cột / Danh sách** đầu hàng công cụ tab Công việc (`ViewToggle` trong `task-board`). Mặc định Cột; lựa chọn nhớ theo trình duyệt ở localStorage `STORAGE_KEY.projectTaskView` (`officehub:projects.taskView`, `config/env.ts`), đọc / ghi bọc try/catch (`readStored` / `writeStored` trong `utils/task-list.ts`).
 - "Chỉ việc của tôi" (Checkbox) dùng chung hai chế độ. "Kéo tiêu đề cột…" + "Thêm trạng thái" chỉ ở chế độ Cột. Chế độ Cột không đổi hành vi.
-- Hộp thoại chi tiết (`?task=<id>`) và hộp thoại tạo việc vẫn do `TaskBoard` giữ → bấm dòng = bấm thẻ kanban; cập nhật tự động (`project-live-updates` invalidate `projects`) chạy cho cả hai chế độ.
+- Hộp thoại chi tiết (`?task=<id>`) và hộp thoại tạo việc vẫn do `TaskBoard` giữ → bấm dòng = bấm thẻ kanban; cập nhật tự động (`project-live-updates` invalidate khoá của dự án, [projects-loading.md](projects-loading.md)) chạy cho cả hai chế độ.
 
 ## Danh sách (`components/task-list`)
 

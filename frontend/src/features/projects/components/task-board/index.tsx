@@ -7,7 +7,6 @@ import { Button } from '@/components/common/button';
 import { Checkbox } from '@/components/common/checkbox';
 import { promptDialog } from '@/components/common/confirm-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/common/tooltip';
-import { Spinner } from '@/components/feedback/Spinner';
 import { STORAGE_KEY } from '@/config/env';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errors';
@@ -19,6 +18,7 @@ import { checkState, rangeIds, withIds } from '../../utils/task-bulk';
 import { readStored, writeStored, type TaskView } from '../../utils/task-list';
 import { ColumnDialog } from '../column-dialog';
 import { ColumnWakeIcon } from '../column-wake-icon';
+import { KanbanSkeleton } from '../kanban-skeleton';
 import { KanbanTaskCard } from '../kanban-task-card';
 import { TaskBulkBar } from '../task-bulk-bar';
 import { TaskDialog } from '../task-dialog';
@@ -153,7 +153,8 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
   useEffect(() => {
     if (view === 'board' && !isLoading) keepOnly(data.filter((t) => !mine || t.assigneeEmployeeId === myEmployeeId).map((t) => t.id));
   }, [view, isLoading, data, mine, myEmployeeId, keepOnly]);
-  if (isLoading && view === 'board') return <Spinner />;
+  // TEST-241: danh sách việc tải song song với chi tiết dự án — chi tiết về trước thì hiện khung kanban giả theo cột của dự án
+  if (isLoading && view === 'board') return <KanbanSkeleton columns={d.columns} />;
   const manage = p.canManageColumns && p.status === 'Active';
   const byId = new Map(d.columns.map((c) => [c.id, c]));
   const columns = pendingOrder ? pendingOrder.map((id) => byId.get(id)).filter((c): c is ITaskColumn => !!c) : d.columns;

@@ -15,7 +15,7 @@ import { fmtDate, useFinancePerms } from '@/features/finance';
 import { useEmployees } from '@/features/employees';
 import { useTabParam } from '@/hooks/useTabParam';
 import { errorMessage } from '@/utils/errors';
-import { useProject } from '../../hooks/useProjects';
+import { useProject, useTasks } from '../../hooks/useProjects';
 import { PROJECT_KIND, PROJECT_STATUS } from '../../utils/labels';
 import { columnGuideId, guidedColumns } from '../../utils/column-guides';
 import { markdownHeadings } from '../../utils/headings';
@@ -78,12 +78,16 @@ export function ProjectDetailPage() {
   const canFinance = access.includes('finance') && finance.view;
   const [tab, setTab] = useTabParam('tasks', ['tasks', 'overview', 'guide', 'wiki', 'milestones', 'changes', 'members', 'appendix', ...(canEffort ? ['effort'] : []), ...(canFinance ? ['finance'] : [])], WIKI_TAB_OPTS);
   const [editing, setEditing] = useState(false);
+  // TEST-241: tải danh sách việc CÙNG LÚC với chi tiết dự án (projectId có sẵn từ URL, tab đọc từ URL) thay vì đợi chi tiết xong mới dựng TaskBoard rồi mới gọi —
+  // bỏ thác nước 2 request nối tiếp. TaskBoard dùng lại cùng query (cache), không gọi lại. Chỉ bật ở tab Công việc (hoặc link ?task=): tab khác không giữ
+  // query việc "đang dùng" → hoạt động mới (ProjectLiveUpdates) không tải lại cả danh sách việc khi đang xem sổ tay / mốc…
+  const openTask = (useSearch({ strict: false }) as { task?: string }).task;
+  useTasks(projectId, tab === 'tasks' || !!openTask);
   // "Làm mới" (TEST-150): đánh dấu cũ mọi query của dự án → query đang mở tải lại, query khác chỉ bị đánh dấu (không gọi API thừa).
   // Tab / bộ lọc / vị trí cuộn giữ nguyên vì không remount.
   const qc = useQueryClient();
   const reloading = useIsFetching(projectQueryFilter(projectId)) > 0;
   // Link chuông ?task=… (TEST-66) → luôn ở tab Công việc để hộp thoại việc mở được
-  const openTask = (useSearch({ strict: false }) as { task?: string }).task;
   useEffect(() => { if (openTask && tab !== 'tasks') setTab('tasks'); }, [openTask, tab, setTab]);
   if (isLoading) return <Spinner />;
   if (error || !d) return <div className="grid gap-2"><p className="text-sm text-destructive">{errorMessage(error, 'Không tìm thấy dự án')}</p><Link to={PATHS.projects} className="text-sm underline">← Danh sách dự án</Link></div>;

@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type Query, type QueryKey } from '@tanstack/react-query';
 import { useNavigate, useRouterState } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { projectApi, projectKeys } from '../../api/project.api';
-import type { IProjectActivity } from '../../types/project.types';
+import type { IProjectActivity, ITaskDetail } from '../../types/project.types';
 import { stateLabel } from '../../utils/labels';
 
 const INTERVAL = 5000;
@@ -30,8 +30,30 @@ export function describeActivity(a: IProjectActivity): string {
 }
 
 /**
+ * Khoá cần làm mới khi có hoạt động mới (TEST-241 — thay cho invalidate cả tiền tố ['projects'], vốn tải lại mọi query dự án đang mở:
+ * sổ tay, ngày công, tài chính, phụ lục…): mỗi dự án có hoạt động → chi tiết (đếm / tiến độ) + danh sách việc; mỗi việc → chi tiết việc + bình luận
+ * (hộp thoại đang mở); thêm "việc của tôi" + danh sách dự án (đếm việc, tiến độ). Invalidate chỉ gọi lại query đang có người dùng, còn lại chỉ đánh dấu cũ.
+ */
+export function liveUpdateKeys(items: Pick<IProjectActivity, 'projectId' | 'taskId'>[]): QueryKey[] {
+  const projects = [...new Set(items.map((a) => a.projectId))];
+  const tasks = [...new Set(items.map((a) => a.taskId).filter(Boolean))];
+  return [
+    ...projects.flatMap((id) => [projectKeys.detail(id), projectKeys.tasks(id)]),
+    ...tasks.flatMap((id) => [projectKeys.task(id), projectKeys.comments(id)]),
+    projectKeys.myTasks,
+    ['projects', 'list'],
+  ];
+}
+
+/** Hộp thoại việc ĐANG MỞ của một dự án có hoạt động (vd việc nó chờ vừa xong / đổi phụ thuộc) — cũng làm mới phần "phải chờ" / "đang chờ việc này". */
+const openTaskOf = (projects: Set<string>) => ({
+  predicate: (q: Query) => q.queryKey[0] === 'projects' && q.queryKey[1] === 'task' && q.getObserversCount() > 0
+    && projects.has((q.state.data as ITaskDetail | undefined)?.task.projectId ?? ''),
+});
+
+/**
  * Theo dõi thay đổi ở các dự án (hỏi /api/projects/activity mỗi 5 giây khi tab đang mở, con trỏ thời gian, bỏ trùng theo id):
- * có thay đổi → làm mới dữ liệu dự án (bảng việc, hộp thoại việc, việc của tôi tự cập nhật);
+ * có thay đổi → làm mới đúng dữ liệu liên quan (`liveUpdateKeys`: bảng việc, chi tiết dự án, hộp thoại việc + bình luận, việc của tôi);
  * toast chỉ khi KHÔNG đang xem đúng dự án đó (ở trang khác / dự án khác) và mình là thành viên. Gắn một lần ở Header, không vẽ gì.
  */
 export function ProjectLiveUpdates() {
@@ -75,7 +97,8 @@ export function ProjectLiveUpdates() {
           for (const a of feed.items) seen.add(a.id);
           if (seen.size > 2000) [...seen].slice(0, 1000).forEach((id) => seen.delete(id));
           if (fresh.length > 0) {
-            void qc.invalidateQueries({ queryKey: projectKeys.all });
+            for (const queryKey of liveUpdateKeys(fresh)) void qc.invalidateQueries({ queryKey });
+            void qc.invalidateQueries(openTaskOf(new Set(fresh.map((a) => a.projectId))));
             notify(fresh);
           }
         }

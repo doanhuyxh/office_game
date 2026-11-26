@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
+import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { SelectField } from '@/components/common/SelectField';
@@ -10,7 +11,7 @@ import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
 import { useMe } from '@/features/auth';
 import { useTabParam } from '@/hooks/useTabParam';
 import { fmtDate, useFinancePerms } from '@/features/finance';
-import { useMyTasks, useProjectList } from '../../hooks/useProjects';
+import { prefetchProject, useMyTasks, useProjectList } from '../../hooks/useProjects';
 import { PROJECT_HEALTH, PROJECT_KIND, PROJECT_STATUS } from '../../utils/labels';
 import { ColumnBadge } from '../column-badge';
 import { ProgressBar } from '../progress-bar';
@@ -30,6 +31,13 @@ export function ProjectsPage() {
   const myTasks = useMyTasks().data ?? [];
   const [creating, setCreating] = useState(false);
   const navigate = useNavigate();
+  // TEST-241: rê chuột / focus thẻ dự án → tải trước chunk trang chi tiết + chi tiết dự án + danh sách việc (còn mới < 30 giây thì không gọi lại)
+  const qc = useQueryClient();
+  const router = useRouter();
+  const prefetch = (projectId: string) => {
+    prefetchProject(qc, projectId);
+    void router.preloadRoute({ to: '/projects/$projectId', params: { projectId } }).catch(() => undefined);
+  };
   const [dept, setDept] = useState<string | null>(null);
   const deptOptions = [...new Map(data.flatMap((p) => p.departments).map((d) => [d.id, d.name])).entries()]
     .map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, 'vi'));
@@ -67,6 +75,7 @@ export function ProjectsPage() {
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 @7xl/content:grid-cols-4 @min-[112rem]/content:grid-cols-5 @min-[160rem]/content:grid-cols-6">
           {shown.map((p) => (
             <button key={p.id} type="button" onClick={() => void navigate({ to: '/projects/$projectId', params: { projectId: p.id } })} data-testid="project-card"
+              onMouseEnter={() => prefetch(p.id)} onFocus={() => prefetch(p.id)}
               className="grid gap-2 rounded-xl border bg-card p-4 text-left hover:border-primary/50">
               <div className="flex items-start justify-between gap-2">
                 <div><div className="text-xs text-muted-foreground">{p.code} · {PROJECT_KIND[p.kind]}</div><div className="font-semibold">{p.name}</div></div>

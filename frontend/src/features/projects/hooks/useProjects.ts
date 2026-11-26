@@ -1,16 +1,31 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { errorMessage } from '@/utils/errors';
 import { projectApi, projectKeys } from '../api/project.api';
 import type { IBulkTasksRequest, ITask, ITaskColumn, ProjectStatus } from '../types/project.types';
 
 export const useProjectList = (mine: boolean) => useQuery({ queryKey: projectKeys.list(mine), queryFn: () => projectApi.list(mine) });
-export const useProject = (id: string) => useQuery({ queryKey: projectKeys.detail(id), queryFn: () => projectApi.get(id) });
-export const useTasks = (id: string) => useQuery({ queryKey: projectKeys.tasks(id), queryFn: () => projectApi.tasks(id) });
+/**
+ * Chi tiết dự án + danh sách việc (bản gọn) — TEST-241: `staleTime` 30 giây → quay lại trang / dự án trong 30 giây hiện ngay cache, không gọi lại;
+ * quá 30 giây hiện cache rồi làm mới nền. Thay đổi của người khác vẫn tới qua `ProjectLiveUpdates` (invalidate bỏ qua staleTime),
+ * lệnh ghi của mình qua `useProjectMutation` / `useMoveTask`. Dùng chung cho `useProject` / `useTasks` và prefetch (rê chuột ở /projects).
+ */
+export const PROJECT_STALE_MS = 30_000;
+export const projectDetailQuery = (id: string) => queryOptions({ queryKey: projectKeys.detail(id), queryFn: () => projectApi.get(id), staleTime: PROJECT_STALE_MS });
+export const projectTasksQuery = (id: string) => queryOptions({ queryKey: projectKeys.tasks(id), queryFn: () => projectApi.tasks(id), staleTime: PROJECT_STALE_MS });
+export const useProject = (id: string) => useQuery(projectDetailQuery(id));
+export const useTasks = (id: string, enabled = true) => useQuery({ ...projectTasksQuery(id), enabled });
+/** Tải trước chi tiết (+ danh sách việc) của một dự án — loader route `/projects/$projectId` (chạy song song với tải chunk trang),
+ *  rê chuột / focus thẻ dự án ở /projects. Không chờ (fire-and-forget); còn mới (< 30 giây) thì không gọi. */
+export const prefetchProject = (qc: QueryClient, id: string, tasks = true) => {
+  void qc.prefetchQuery(projectDetailQuery(id));
+  if (tasks) void qc.prefetchQuery(projectTasksQuery(id));
+};
 export const useMyTasks = () => useQuery({ queryKey: projectKeys.myTasks, queryFn: projectApi.myTasks });
 /** Việc + lịch sử (hộp thoại việc) — không kèm bình luận, dùng `useTaskComments`. */
 export const useTaskDetail = (taskId: string | null) => useQuery({ queryKey: projectKeys.task(taskId ?? ''), queryFn: () => projectApi.task(taskId!), enabled: !!taskId });
-/** Bình luận của việc (TEST-194). Làm mới: `useProjectMutation` + `ProjectLiveUpdates` invalidate cả tiền tố ['projects'] nên gồm luôn khoá này. */
+/** Bình luận của việc (TEST-194). Làm mới: `useProjectMutation` invalidate cả tiền tố ['projects'] nên gồm luôn khoá này;
+ *  `ProjectLiveUpdates` (TEST-241) invalidate đúng `comments(taskId)` của việc có hoạt động. */
 export const useTaskComments = (taskId: string | null) =>
   useQuery({ queryKey: projectKeys.comments(taskId ?? ''), queryFn: () => projectApi.comments(taskId!), enabled: !!taskId });
 /** Link tải lên còn hạn của tôi trên việc (TEST-175). */
