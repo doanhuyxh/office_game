@@ -22,10 +22,11 @@ namespace OfficeHub.Modules.Projects.Features;
 /// <param name="AwaitingHuman">Chỉ <c>/tasks/mine</c> (TEST-157): người làm là bot và đã báo, đang chờ người duyệt / trả lời (<see cref="BotWaitRules.AwaitingHuman"/>).</param>
 /// <param name="ProjectActive">Chỉ <c>/tasks/mine</c> tính thật (nơi khác mặc định true): dự án đang chạy.</param>
 /// <param name="FollowerCount">Số người theo dõi (TEST-160).</param>
+/// <param name="MediaCount">Số link ảnh / video (TEST-240) — luôn có; bản gọn <c>?summary=true</c> để <c>Description</c> = null, <c>MediaLinks</c> rỗng.</param>
 public sealed record TaskDto(Guid Id, Guid ProjectId, string Code, string Title, string? Description, Guid ColumnId, string ColumnName, string ColumnColor, bool Done, double Rank, Guid? AssigneeEmployeeId, string? AssigneeName,
     Guid? MilestoneId, DateOnly? DueOn, decimal? EstimateDays, bool Overdue, int CommentCount, DateTimeOffset CreatedAt, string CreatedByName, DateTimeOffset? CompletedAt,
     List<string> MediaLinks, string? ProjectName = null, bool CreatedByBot = false, int WaitingOn = 0,
-    bool AwaitingHuman = false, bool ProjectActive = true, int FollowerCount = 0);
+    bool AwaitingHuman = false, bool ProjectActive = true, int FollowerCount = 0, int MediaCount = 0);
 /// <summary>Việc liên quan (chờ / đang chặn) — mã, tên, đã xong chưa.</summary>
 /// <param name="Ready">TEST-199: việc này "đủ" cho việc đang chờ nó (đã xong, hoặc đã tới cột "Việc sau được bắt đầu từ cột này") — <see cref="DependencyRules.IsReady"/>.</param>
 public sealed record TaskRefDto(Guid Id, string Code, string Title, bool Done, bool Ready);
@@ -76,40 +77,58 @@ internal static class TaskEndpoints
         g.MapPut("/tasks/{tid:guid}/dependencies", SetDependenciesAsync);
     }
 
-    private static async Task<List<TaskDto>> ToDtosAsync(IReadOnlyList<TaskItem> rows, ProjectsDbContext db, ProjectAccess access, ProjectClock clock, CancellationToken ct,
-        bool withProject = false)
+    /// <summary>Một dòng việc đã chiếu từ DB (TEST-240): tên cột / mã dự án + đếm bình luận / theo dõi / việc còn chờ trong CÙNG truy vấn (subquery).</summary>
+    private sealed record TaskRow(Guid Id, Guid ProjectId, string ProjectCode, string ProjectName, int Number, string Title, string? Description, Guid ColumnId,
+        string? ColumnName, string? ColumnColor, double Rank, Guid? AssigneeEmployeeId, Guid? MilestoneId, DateOnly? DueOn, decimal? EstimateDays,
+        DateTimeOffset CreatedAt, string CreatedByName, DateTimeOffset? CompletedAt, List<string>? MediaLinks, int MediaCount, bool CreatedByBot,
+        int CommentCount, int FollowerCount, int WaitingOn);
+
+    /// <summary>
+    /// Chiếu <paramref name="tasks"/> (đã lọc + sắp xếp) sang <see cref="TaskDto"/> — TEST-240: 1 truy vấn cột "đủ" của các dự án liên quan + 1 truy vấn việc gộp
+    /// (projection, subquery Count) + 1 tra tên người làm theo id. <paramref name="summary"/> = true (danh sách web): không đọc Description / MediaLinks, chỉ MediaCount.
+    /// </summary>
+    private static async Task<List<TaskDto>> ToDtosAsync(IQueryable<TaskItem> tasks, IReadOnlyCollection<Guid> projectIds, ProjectsDbContext db, ProjectAccess access,
+        ProjectClock clock, CancellationToken ct, bool withProject = false, bool summary = false)
     {
-        var ids = rows.Select(t => t.Id).ToList();
-        var counts = await db.Comments.AsNoTracking().Where(c => ids.Contains(c.TaskId)).GroupBy(c => c.TaskId).Select(g => new { g.Key, N = g.Count() })
-            .ToDictionaryAsync(x => x.Key, x => x.N, ct);
-        var projects = await db.Projects.AsNoTracking().Where(p => rows.Select(t => t.ProjectId).Contains(p.Id)).ToDictionaryAsync(p => p.Id, p => new { p.Code, p.Name }, ct);
-        var columnIds = rows.Select(t => t.ColumnId).Distinct().ToList();
-        var columns = await db.Columns.AsNoTracking().Where(c => columnIds.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => new { c.Name, c.Color }, ct);
-        var emps = await access.EmployeesAsync(ct);
+        var ready = await db.UnblockingColumnIdsAsync(ct, projectIds);
+        var rows = await tasks.Select(t => new TaskRow(t.Id, t.ProjectId,
+                db.Projects.Where(p => p.Id == t.ProjectId).Select(p => p.Code).First(),
+                db.Projects.Where(p => p.Id == t.ProjectId).Select(p => p.Name).First(),
+                t.Number, t.Title, summary ? null : t.Description, t.ColumnId,
+                db.Columns.Where(c => c.Id == t.ColumnId).Select(c => c.Name).FirstOrDefault(),
+                db.Columns.Where(c => c.Id == t.ColumnId).Select(c => c.Color).FirstOrDefault(),
+                t.Rank, t.AssigneeEmployeeId, t.MilestoneId, t.DueOn, t.EstimateDays, t.CreatedAt, t.CreatedByName, t.CompletedAt,
+                summary ? null : t.MediaLinks, t.MediaLinks.Count, t.CreatedByBot,
+                db.Comments.Count(c => c.TaskId == t.Id),
+                db.Followers.Count(f => f.TaskId == t.Id),
+                (from d in db.Dependencies
+                 join x in db.Tasks on d.DependsOnId equals x.Id
+                 where d.TaskId == t.Id && x.CompletedAt == null && !ready.Contains(x.ColumnId)
+                 select d.TaskId).Count()))
+            .AsNoTracking().ToListAsync(ct);
+        var emps = await access.EmployeesByIdAsync(rows.Where(t => t.AssigneeEmployeeId != null).Select(t => t.AssigneeEmployeeId!.Value).Distinct().ToList(), ct);
         var today = clock.Today;
-        var ready = await db.UnblockingColumnIdsAsync(ct);
-        var waiting = await (from d in db.Dependencies.AsNoTracking()
-                             join x in db.Tasks.AsNoTracking() on d.DependsOnId equals x.Id
-                             where ids.Contains(d.TaskId) && x.CompletedAt == null && !ready.Contains(x.ColumnId)
-                             group d by d.TaskId into g
-                             select new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
-        var followers = await db.Followers.AsNoTracking().Where(f => ids.Contains(f.TaskId)).GroupBy(f => f.TaskId).Select(g => new { g.Key, N = g.Count() })
-            .ToDictionaryAsync(x => x.Key, x => x.N, ct);
-        return rows.Select(t => new TaskDto(t.Id, t.ProjectId, EffortRules.TaskCode(projects[t.ProjectId].Code, t.Number), t.Title, t.Description, t.ColumnId,
-            columns.GetValueOrDefault(t.ColumnId)?.Name ?? "?", columns.GetValueOrDefault(t.ColumnId)?.Color ?? TaskColumnRules.DefaultColor, t.CompletedAt != null, t.Rank,
+        return rows.Select(t => new TaskDto(t.Id, t.ProjectId, EffortRules.TaskCode(t.ProjectCode, t.Number), t.Title, t.Description, t.ColumnId,
+            t.ColumnName ?? "?", t.ColumnColor ?? TaskColumnRules.DefaultColor, t.CompletedAt != null, t.Rank,
             t.AssigneeEmployeeId, t.AssigneeEmployeeId is { } a && emps.TryGetValue(a, out var e) ? e.FullName : null, t.MilestoneId, t.DueOn, t.EstimateDays,
-            EffortRules.IsOverdue(t.DueOn, t.CompletedAt != null, today), counts.GetValueOrDefault(t.Id), t.CreatedAt, t.CreatedByName, t.CompletedAt, t.MediaLinks,
-            withProject ? projects[t.ProjectId].Name : null, t.CreatedByBot, waiting.GetValueOrDefault(t.Id),
-            FollowerCount: followers.GetValueOrDefault(t.Id))).ToList();
+            EffortRules.IsOverdue(t.DueOn, t.CompletedAt != null, today), t.CommentCount, t.CreatedAt, t.CreatedByName, t.CompletedAt, t.MediaLinks ?? [],
+            withProject ? t.ProjectName : null, t.CreatedByBot, t.WaitingOn,
+            FollowerCount: t.FollowerCount, MediaCount: t.MediaCount)).ToList();
     }
 
+    /// <summary>
+    /// Việc của một dự án. <paramref name="summary"/> = true (web: kanban / danh sách, TEST-240): bỏ <c>description</c> / <c>mediaLinks</c> (chỉ <c>mediaCount</c>) —
+    /// hộp thoại việc lấy chi tiết riêng qua <c>GET /tasks/{tid}</c>. Mặc định false giữ nguyên cho MCP (list_project_tasks, create_task).
+    /// </summary>
     private static async Task<Results<Ok<List<TaskDto>>, NotFound>> ListAsync(Guid id, ClaimsPrincipal user, ProjectsDbContext db, ProjectAccess access, ProjectClock clock,
-        CancellationToken ct)
+        CancellationToken ct, bool summary = false)
     {
         var v = await access.ViewerAsync(user, ct);
-        if (!v.CanSee(id) || !await db.Projects.AnyAsync(p => p.Id == id, ct)) return TypedResults.NotFound();
-        var rows = await db.Tasks.AsNoTracking().Where(t => t.ProjectId == id).OrderBy(t => t.Rank).ThenBy(t => t.Number).ToListAsync(ct);
-        return TypedResults.Ok(await ToDtosAsync(rows, db, access, clock, ct));
+        if (!v.CanSee(id)) return TypedResults.NotFound();
+        var dtos = await ToDtosAsync(db.Tasks.Where(t => t.ProjectId == id).OrderBy(t => t.Rank).ThenBy(t => t.Number), [id], db, access, clock, ct, summary: summary);
+        // Dự án chưa có việc: chỉ lúc này mới kiểm tra dự án có tồn tại (dự án có việc thì chắc chắn tồn tại).
+        if (dtos.Count == 0 && !await db.Projects.AnyAsync(p => p.Id == id, ct)) return TypedResults.NotFound();
+        return TypedResults.Ok(dtos);
     }
 
     /// <summary>Việc chưa xong được giao cho tôi, ở mọi dự án. Thêm <c>awaitingHuman</c> + <c>projectActive</c> để agent-runner bỏ qua việc
@@ -120,15 +139,15 @@ internal static class TaskEndpoints
         var v = await access.ViewerAsync(user, ct);
         if (v.Employee is null) return TypedResults.Ok(new List<TaskDto>());
         var me = v.Employee.Id;
-        var rows = await db.Tasks.AsNoTracking().Where(t => t.AssigneeEmployeeId == me && t.CompletedAt == null)
-            .OrderBy(t => t.DueOn == null).ThenBy(t => t.DueOn).ThenBy(t => t.Id).Take(200).ToListAsync(ct);
-        var dtos = await ToDtosAsync(rows, db, access, clock, ct, withProject: true);
-        if (dtos.Count == 0) return TypedResults.Ok(dtos);
-        var projectIds = rows.Select(t => t.ProjectId).Distinct().ToList();
+        var mine = db.Tasks.Where(t => t.AssigneeEmployeeId == me && t.CompletedAt == null);
+        var projectIds = await mine.Select(t => t.ProjectId).Distinct().ToListAsync(ct);
+        if (projectIds.Count == 0) return TypedResults.Ok(new List<TaskDto>());
+        var dtos = await ToDtosAsync(mine.OrderBy(t => t.DueOn == null).ThenBy(t => t.DueOn).ThenBy(t => t.Id).Take(200), projectIds, db, access, clock, ct,
+            withProject: true);
         var active = (await db.Projects.AsNoTracking().Where(p => projectIds.Contains(p.Id) && p.Status == ProjectStatus.Active).Select(p => p.Id).ToListAsync(ct))
             .ToHashSet();
         var isBot = (await accounts.GetAsync(v.UserId, ct))?.IsBot ?? false;
-        var events = isBot ? await db.WaitEventsAsync(rows.Select(t => t.Id).ToList(), ct) : null;
+        var events = isBot ? await db.WaitEventsAsync(dtos.Select(t => t.Id).ToList(), ct) : null;
         return TypedResults.Ok(dtos.Select(d => d with
         {
             AwaitingHuman = events is not null && BotWaitRules.AwaitingHuman(events[d.Id], me, isBot),
@@ -148,12 +167,12 @@ internal static class TaskEndpoints
         if (t is null || !v.CanSee(t.ProjectId)) return TypedResults.NotFound();
         var proj = await db.Projects.Where(p => p.Id == t.ProjectId).Select(p => new { p.Sequential, p.Status }).FirstAsync(ct);
         var sequential = proj.Sequential;
-        var dto = (await ToDtosAsync([t], db, access, clock, ct, withProject: true))[0];
+        var dto = (await ToDtosAsync(db.Tasks.Where(x => x.Id == tid), [t.ProjectId], db, access, clock, ct, withProject: true))[0];
         var commentList = comments ? await CommentListAsync(db, files, tid, CommentDeleter(v, user), ct) : [];
         var activities = await db.Activities.AsNoTracking().Where(a => a.TaskId == tid).OrderBy(a => a.At)
             .Select(a => new TaskActivityDto(a.Id, a.Kind, a.From, a.To, a.Note, a.ActorName, a.ByBot, a.At)).ToListAsync(ct);
         var code = dto.Code[..dto.Code.LastIndexOf('-')];
-        var ready = await db.UnblockingColumnIdsAsync(ct);
+        var ready = await db.UnblockingColumnIdsAsync(ct, [t.ProjectId]);
         var dependsOn = await (from d in db.Dependencies.AsNoTracking() join x in db.Tasks.AsNoTracking() on d.DependsOnId equals x.Id
                                where d.TaskId == tid orderby x.Number
                                select new { x.Id, x.Number, x.Title, Done = x.CompletedAt != null, Ready = x.CompletedAt != null || ready.Contains(x.ColumnId) }).ToListAsync(ct);

@@ -157,6 +157,10 @@ internal sealed class ProjectAccess(ProjectsDbContext db, IEmployeeDirectory dir
 
     public async Task<IReadOnlyDictionary<Guid, EmployeeRef>> EmployeesAsync(CancellationToken ct) =>
         _employees ??= (await dir.ListEmployedAsync(new DateOnly(2000, 1, 1), new DateOnly(2200, 1, 1), ct)).DistinctBy(e => e.Id).ToDictionary(e => e.Id);
+
+    /// <summary>Chỉ các nhân viên theo id (TEST-240, danh sách việc) — dùng bộ nhớ đệm nếu <see cref="EmployeesAsync"/> đã tải, không thì tra theo lô.</summary>
+    public async Task<IReadOnlyDictionary<Guid, EmployeeRef>> EmployeesByIdAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct) =>
+        _employees ?? (ids.Count == 0 ? new Dictionary<Guid, EmployeeRef>() : await dir.GetManyAsync(ids, ct));
 }
 
 /// <summary>Cài đặt <see cref="IProjectDirectory"/> cho module Documents (kho tài liệu dự án).</summary>

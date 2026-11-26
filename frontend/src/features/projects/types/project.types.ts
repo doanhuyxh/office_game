@@ -70,8 +70,10 @@ export interface ITask {
   createdByName: string; completedAt: string | null; projectName: string | null;
   /** Tạo qua token AI / MCP. */
   createdByBot: boolean;
-  /** Link ảnh / video (http/https). */
+  /** Link ảnh / video (http/https). Danh sách việc dự án (`projectApi.tasks`, bản gọn — TEST-240) luôn rỗng, `description` = null: đọc từ chi tiết việc. */
   mediaLinks: string[];
+  /** Số link ảnh / video — có ở cả bản gọn (thẻ kanban). */
+  mediaCount: number;
   /** Số việc phải chờ chưa xong (0 = bắt đầu được). */
   waitingOn?: number;
   /** Số người theo dõi (TEST-160). */

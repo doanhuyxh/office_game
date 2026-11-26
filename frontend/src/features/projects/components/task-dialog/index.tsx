@@ -85,6 +85,9 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
   });
   const detail = useTaskDetail(task?.id ?? null).data;
   const activities = detail?.activities ?? [];
+  // TEST-240: danh sách việc là bản gọn (không mô tả / media) → mô tả + link lấy từ chi tiết; chưa tải xong thì khoá sửa + nút Lưu (tránh ghi đè mô tả thành rỗng).
+  const full = task && detail?.task.id === task.id ? detail.task : null;
+  const loaded = !task || !!full;
   const [showHistory, setShowHistory] = useState(false);
   // @mã thành viên trong bình luận → hiện họ tên nổi bật (mã HOA → họ tên)
   const mentionNames = useMemo(() => new Map(members.filter((m) => m.code).map((m) => [m.code!.toUpperCase(), m.fullName])), [members]);
@@ -92,12 +95,19 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
   useEffect(() => {
     if (!open) return;
     save.reset(); setComment(''); setCommentFiles([]); setShowHistory(false); setUploadLinkOpen(false);
-    setPreview(!!task?.description); // việc đã có mô tả → mở ở chế độ xem Markdown
-    setLinks(task?.mediaLinks.length ? [...task.mediaLinks] : []);
-    setF(task ? { title: task.title, description: task.description ?? '', columnId: task.columnId, assigneeEmployeeId: task.assigneeEmployeeId, milestoneId: task.milestoneId,
+    setPreview(!!task); setLinks([]); // việc có sẵn mở ở chế độ xem; mô tả / link điền khi chi tiết tải xong (effect dưới)
+    setF(task ? { title: task.title, description: '', columnId: task.columnId, assigneeEmployeeId: task.assigneeEmployeeId, milestoneId: task.milestoneId,
       dueOn: task.dueOn ?? '', estimateDays: task.estimateDays } : { title: '', description: '', columnId: createCols.find((c) => c.id === initialColumnId)?.id ?? createCols[0]?.id ?? null, assigneeEmployeeId: null, milestoneId: null, dueOn: '', estimateDays: null });
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [open, task?.id]);
+  // Chi tiết tải xong (một lần mỗi lần mở) → điền mô tả + link; refetch sau đó (bình luận mới…) không ghi đè thứ người dùng đang sửa.
+  useEffect(() => {
+    if (!open || !full) return;
+    setPreview(!!full.description); // việc đã có mô tả → mở ở chế độ xem Markdown
+    setLinks(full.mediaLinks.length ? [...full.mediaLinks] : []);
+    setF((x) => ({ ...x, description: full.description ?? '' }));
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [open, full?.id]);
   const errors = fieldErrors(save.error);
   const set = <K extends keyof ITaskRequest>(k: K, v: ITaskRequest[K]) => setF((x) => ({ ...x, [k]: v }));
   const postComment = () => {
@@ -143,13 +153,13 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
               <fieldset disabled={!canWork} className="grid min-w-0 grid-cols-1 gap-3">
                 <FormField id="tk-title" label="Tên việc *" required autoFocus maxLength={300} value={f.title} onChange={(e) => set('title', e.target.value)} error={errors.title} />
                 <MarkdownEditor id="tk-desc" label={<>Nội dung <span className="font-normal text-muted-foreground">(Markdown)</span></>}
-                  value={f.description ?? ''} onChange={(v) => set('description', v)} preview={preview} onPreviewChange={setPreview} editable={canWork}
+                  value={f.description ?? ''} onChange={(v) => set('description', v)} preview={preview} onPreviewChange={setPreview} editable={canWork && loaded}
                   rows={10} maxLength={20000} error={errors.description}
                   placeholder={'## Mục tiêu\n- [ ] Việc cần làm\n**đậm**, *nghiêng*, `code`, [link](https://...), ![ảnh](https://.../a.png)'} />
                 <div className="grid grid-cols-1 gap-2">
                   <div className="flex items-center justify-between">
                     <Label>Ảnh / video <span className="font-normal text-muted-foreground">(link)</span></Label>
-                    {canWork && links.length < 20 && <Button type="button" size="sm" variant="ghost" className="h-7" onClick={() => setLinks((x) => [...x, ''])}><ImagePlus /> Thêm link</Button>}
+                    {canWork && loaded && links.length < 20 && <Button type="button" size="sm" variant="ghost" className="h-7" onClick={() => setLinks((x) => [...x, ''])}><ImagePlus /> Thêm link</Button>}
                   </div>
                   {canWork && links.map((l, i) => (
                     <div key={i} className="flex gap-1">
@@ -161,7 +171,7 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
                   ))}
                   {errors.mediaLinks && <p className="text-xs text-destructive">{errors.mediaLinks}</p>}
                   <TaskMedia links={links.map((l) => l.trim()).filter(isHttpUrl)} />
-                  {!canWork && !links.length && <p className="text-sm text-muted-foreground">Không có.</p>}
+                  {!canWork && loaded && !links.length && <p className="text-sm text-muted-foreground">Không có.</p>}
                 </div>
               </fieldset>
               {task && (
@@ -203,7 +213,7 @@ export function TaskDialog({ projectId, task, initialColumnId, columns, members,
               toast.success('Đã xoá'); onClose();
             }}><Trash2 /> Xoá</Button>}
             <Button type="button" variant="outline" onClick={onClose}>Đóng</Button>
-            {canWork && <Button type="submit" loading={save.isPending} loadingText="Đang lưu…">Lưu</Button>}
+            {canWork && <Button type="submit" disabled={!loaded} loading={save.isPending} loadingText="Đang lưu…">Lưu</Button>}
           </DialogFooter>
         </form>
       </DialogContent>

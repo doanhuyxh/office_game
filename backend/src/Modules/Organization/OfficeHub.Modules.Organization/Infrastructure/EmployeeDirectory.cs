@@ -22,6 +22,13 @@ internal sealed class EmployeeDirectory(OrgDbContext db, IFieldEncryptor enc) : 
     public Task<EmployeeRef?> GetAsync(Guid employeeId, CancellationToken ct = default) =>
         Project(db.Employees.Where(e => e.Id == employeeId)).FirstOrDefaultAsync(ct);
 
+    public async Task<IReadOnlyDictionary<Guid, EmployeeRef>> GetManyAsync(IReadOnlyCollection<Guid> employeeIds, CancellationToken ct = default)
+    {
+        if (employeeIds.Count == 0) return new Dictionary<Guid, EmployeeRef>();
+        var ids = employeeIds.Distinct().ToList();
+        return (await Project(db.Employees.Where(e => ids.Contains(e.Id))).ToListAsync(ct)).ToDictionary(e => e.Id);
+    }
+
     public async Task<IReadOnlyList<EmployeeRef>> ListActiveAsync(CancellationToken ct = default) =>
         await Project(db.Employees.Where(e => e.Status != EmployeeStatus.Resigned).OrderBy(e => e.Code)).ToListAsync(ct);
 

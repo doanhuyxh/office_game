@@ -8,6 +8,9 @@ public interface IEmployeeDirectory
 
     Task<EmployeeRef?> GetAsync(Guid employeeId, CancellationToken ct = default);
 
+    /// <summary>Nhiều nhân viên theo id (gồm cả người đã nghỉ) — tra tên theo lô thay vì tải mọi nhân viên (TEST-240). Id không có thì không có trong kết quả.</summary>
+    Task<IReadOnlyDictionary<Guid, EmployeeRef>> GetManyAsync(IReadOnlyCollection<Guid> employeeIds, CancellationToken ct = default);
+
     /// <summary>Nhân viên đang làm việc (chưa nghỉ việc).</summary>
     Task<IReadOnlyList<EmployeeRef>> ListActiveAsync(CancellationToken ct = default);
 

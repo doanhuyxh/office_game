@@ -46,7 +46,7 @@ export function KanbanTaskCard({ t, busy, dragging, flash, selected, selectable,
             {t.dueOn && <span className={cn('inline-flex items-center gap-1', t.overdue && 'text-destructive')} title={t.overdue ? 'Quá hạn' : 'Hạn'}><CalendarDays className="size-3" aria-hidden />{fmtDate(t.dueOn)}</span>}
             {t.estimateDays != null && <span title="Ước lượng">{t.estimateDays}d</span>}
             {t.commentCount > 0 && <span className="inline-flex items-center gap-0.5" title="Bình luận"><MessageSquare className="size-3" aria-hidden />{t.commentCount}</span>}
-            {t.mediaLinks.length > 0 && <span className="inline-flex items-center gap-0.5" title="Ảnh / video"><ImageIcon className="size-3" aria-hidden />{t.mediaLinks.length}</span>}
+            {t.mediaCount > 0 && <span className="inline-flex items-center gap-0.5" title="Ảnh / video"><ImageIcon className="size-3" aria-hidden />{t.mediaCount}</span>}
           </span>
         </span>
       </button>

@@ -48,7 +48,8 @@ export const projectApi = {
   updateMilestone: (mid: string, b: IMilestoneRequest) => send<void>('PUT', `${base}/milestones/${mid}`, b),
   deleteMilestone: (mid: string) => send<void>('DELETE', `${base}/milestones/${mid}`),
   acceptMilestone: (mid: string, acceptedOn: string, note: string | null) => httpPost<void>(`${base}/milestones/${mid}/accept`, { acceptedOn, note }),
-  tasks: (id: string) => http<ITask[]>(`${base}/${id}/tasks`),
+  /** Bản gọn (TEST-240): description = null, mediaLinks rỗng, chỉ mediaCount — hộp thoại việc lấy chi tiết qua `task(tid)`. */
+  tasks: (id: string) => http<ITask[]>(`${base}/${id}/tasks?summary=true`),
   bulkTasks: (projectId: string, b: IBulkTasksRequest) => httpPost<IBulkTasksResult>(`${base}/${projectId}/tasks/bulk`, b),
   myTasks: () => http<ITask[]>(`${base}/tasks/mine`),
   createTask: (id: string, b: ITaskRequest) => httpPost<string>(`${base}/${id}/tasks`, b),

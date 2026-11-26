@@ -29,6 +29,12 @@ Chỉ front-end, **không API mới**: dùng dữ liệu `useTasks` mà kanban �
 - **Chỉ xem** (`!canWork` hoặc dự án không `Active`, vd thấy dự án nhờ phòng ban): ẩn "Tạo công việc", trạng thái là nhãn tĩnh; bấm dòng vẫn mở chi tiết.
 - **Đang tải**: hàng lọc giữ nguyên + dòng skeleton (bảng) / thẻ skeleton (hẹp). **Lỗi tải** (chưa có dữ liệu cũ): khung "Không tải được công việc" + chỉ nút "Thử lại" (`loading` khi đang tải lại). **Trống**: nằm trong khung — vùng rộng vẫn có hàng tiêu đề bảng, giữa là biểu tượng tròn + "Không tìm thấy công việc" + nút chính "Xoá bộ lọc" khi đang lọc, chân vẫn đếm "Hiển thị 0 / Y"; dự án chưa có việc → "Chưa có công việc".
 
+## Danh sách bản gọn (TEST-240)
+
+- `GET /api/projects/{id}/tasks?summary=true` (web: kanban + Danh sách + phụ thuộc, `projectApi.tasks`): `description = null`, `mediaLinks = []`, có `mediaCount`. Không có `summary` (mặc định false) = bản đầy đủ như cũ — **MCP** `list_project_tasks` / `create_task` đọc bản này. `TaskDto.mediaCount` luôn có (cả `/tasks/mine`, chi tiết).
+- Hộp thoại việc lấy mô tả + link từ chi tiết `GET /tasks/{tid}` (`useTaskDetail`), không từ phần tử danh sách: chưa tải xong → ô mô tả / thêm link khoá, nút **Lưu** tắt (tránh ghi đè mô tả thành rỗng); mô tả / link điền **một lần** mỗi lần mở (refetch sau đó không ghi đè thứ đang sửa). Tạo việc mới không chờ.
+- BE `TaskEndpoints.ToDtosAsync` nhận `IQueryable` đã lọc + sắp: 1 truy vấn cột "đủ" chỉ của các dự án liên quan (`UnblockingColumnIdsAsync(ct, projectIds)`), 1 truy vấn việc gộp (projection; mã / tên dự án, tên / màu cột, đếm bình luận / theo dõi / việc còn chờ là subquery; bản gọn không đọc `Description` / `MediaLinks`, chỉ `cardinality`), 1 tra tên người làm theo id (`IEmployeeDirectory.GetManyAsync`, không tải mọi nhân viên). Dự án không có việc mới kiểm tra dự án tồn tại. Đo DB tạm 240 việc: endpoint 9 → 3 truy vấn (cả request 21 → 15 gồm xác thực + quyền), JSON 624 KB → 158 KB.
+
 ## Mã
 
 `frontend/src/features/projects/utils/task-list.ts` (lọc / nhóm / sắp xếp thuần), `components/task-list/index.tsx`, `components/task-board/index.tsx` (`ViewToggle`, chuyển chế độ). E2E: `scripts/dev/task-list-view-e2e.ts` ([e2e.md](../e2e.md)).
