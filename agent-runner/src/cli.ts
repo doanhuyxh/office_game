@@ -2,6 +2,7 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
+import { cleanup } from './commands/cleanup';
 import type { CliFlags, Command } from './commands/context';
 import { doctor } from './commands/doctor';
 import { report } from './commands/report';
@@ -27,6 +28,8 @@ const HELP = `officehub-agent-runner — bộ điều phối agent (TEST-44)
   usage push [--since 2026-11-01] [--agent NV120] [--dry-run]
                                       gửi chi phí / token các phiên chưa gửi lên OfficeHub ("Mức dùng AI") — gồm phiên cũ
                                       trước khi có tính năng này và phiên từng bị từ chối; gửi lại không tạo trùng
+  cleanup [--agent NV120] [--dry-run] dọn worktree / transcript / thư mục chạy của việc đã Xong (hoặc lâu không chạy) và log job cũ
+                                      theo runner.cleanup — chỉ xoá khi đã có trên origin + cloud; start tự chạy mỗi 6 giờ
 
   --no-model-check  không chạy thử CLI để đọc model thật (mỗi agent tốn vài trăm token)
   --no-catchup      start: không bắt bù việc lúc khởi động (hoặc runner.startup_catchup: false trong agents.yaml)
@@ -39,7 +42,7 @@ const HELP = `officehub-agent-runner — bộ điều phối agent (TEST-44)
 const DEFAULT_CONFIG = '/etc/officehub-runner/agents.yaml';
 
 /** Lệnh theo tên. Thêm lệnh mới = một file trong `commands/` + một dòng ở đây + một dòng trong `HELP`. */
-const COMMANDS: Record<string, Command> = { start, doctor, run, report, usage: usagePush };
+const COMMANDS: Record<string, Command> = { start, doctor, run, report, usage: usagePush, cleanup };
 
 /** Đọc dòng lệnh. Cờ lạ / thiếu giá trị → ném lỗi (không âm thầm bỏ qua cờ gõ sai). */
 function readArgs(argv: string[]) {

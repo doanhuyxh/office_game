@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { type AgentConfig, agentWorkspaces, type ProjectWorkspace, type RunnerConfig, workspaceFor } from './config';
 import type { AgentState } from './core/agent';
 import { agentEnv, agentHome } from './core/env';
+import { Cleaner, type CleanupReport, formatBytes } from './core/cleanup';
 import { jobDir, workDir } from './core/paths';
 import { RunnerStopped, Sessions } from './core/session';
 import { type DoctorContext, type DoctorOptions, diagnoseAgent, gitUnavailable } from './doctor/agent';
@@ -18,6 +19,7 @@ import { createJobHandlers, type JobHandler, type JobHandlers } from './jobs';
 import { errText, log, registerSecret } from './log';
 import {
   ADMIT_RETRY_SEC,
+  CLEANUP_INTERVAL_MIN,
   MEETING_HOLD_SEC,
   SCHEDULE_POLL_MS,
   STARTUP_CATCHUP_MAX,
@@ -46,6 +48,9 @@ export class Runner {
   private readonly abort = new AbortController();
   private readonly running = new Map<number, AbortController>();
   private usageTimer?: ReturnType<typeof setInterval>;
+  private cleanupTimer?: ReturnType<typeof setInterval>;
+  /** Lượt dọn đang chạy — nhịp tới khi lượt trước chưa xong thì bỏ. */
+  private cleaning = false;
   /** Lần thử lại hỏi OfficeHub đang chờ ({@link accept}) — `stop()` huỷ hết. */
   private readonly admitRetries = new Set<ReturnType<typeof setTimeout>>();
   /** Nhịp thử lại khi không hỏi lại được OfficeHub (ms); test đặt ngắn hơn. */
@@ -454,6 +459,11 @@ export class Runner {
     };
     flushPending();
     this.usageTimer = setInterval(flushPending, USAGE_RETRY_MS);
+    // Dọn dữ liệu việc đã xong khỏi máy (TEST-247): ngay lúc khởi động rồi theo nhịp, ở nền
+    if (this.config.cleanup.enabled) {
+      void this.cleanupInBackground();
+      this.cleanupTimer = setInterval(() => void this.cleanupInBackground(), CLEANUP_INTERVAL_MIN * 60_000);
+    }
 
     phase(6, 'sẵn sàng — chờ tin đánh thức và chạy hàng đợi', {
       agents: enabled.map((a) => a.cfg.employeeCode).join(', '),
@@ -462,9 +472,38 @@ export class Runner {
     await this.schedule();
   }
 
+  /**
+   * Dọn worktree / transcript / thư mục chạy của việc đã xong + log job cũ (TEST-247, `core/cleanup.ts`). Lệnh `cleanup` và nhịp nền của
+   * `start` gọi; `dryRun` chỉ liệt kê.
+   */
+  cleanup(o: { dryRun?: boolean; agent?: string } = {}): Promise<CleanupReport> {
+    return new Cleaner(this.config, this.store, this.git, this.agents).run(o);
+  }
+
+  private async cleanupInBackground() {
+    if (this.cleaning) return;
+    this.cleaning = true;
+    try {
+      const r = await this.cleanup();
+      const cleaned = r.items.filter((i) => !i.kept).length;
+      if (cleaned || r.logDirs)
+        log('info', 'dọn dẹp xong', {
+          sessions: cleaned,
+          kept: r.items.length - cleaned,
+          logs: r.logDirs,
+          freed: formatBytes(r.bytes),
+        });
+    } catch (e) {
+      log('warn', 'dọn dẹp lỗi', { error: errText(e) });
+    } finally {
+      this.cleaning = false;
+    }
+  }
+
   stop() {
     this.abort.abort();
     clearInterval(this.usageTimer);
+    clearInterval(this.cleanupTimer);
     for (const t of this.admitRetries) clearTimeout(t);
     this.admitRetries.clear();
     for (const s of this.agents.values()) {

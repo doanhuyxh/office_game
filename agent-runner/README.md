@@ -16,6 +16,7 @@ cp agents.example.yaml /etc/officehub-runner/agents.yaml && chmod 600 /etc/offic
 bun src/cli.ts doctor --config /etc/officehub-runner/agents.yaml
 bun src/cli.ts run --agent NV120 --task TEST-45 --config …   # thử một việc
 bun src/cli.ts usage push --since 2026-11-01 --dry-run --config …   # xem / gửi bù mức dùng AI các phiên cũ
+bun src/cli.ts cleanup --dry-run --config …   # xem worktree / transcript / log của việc đã Xong sẽ được dọn (bỏ --dry-run để xoá)
 ```
 
 Kiến trúc, cấu hình, triển khai systemd, giới hạn: [`.agent/business/agent-runner.md`](../.agent/business/agent-runner.md).

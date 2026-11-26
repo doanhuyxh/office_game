@@ -79,6 +79,16 @@ export interface Adapter {
    * khôi phục lại khi máy mất file (TEST-144).
    */
   transcriptFile?(home: string, cwd: string, sessionId: string): string;
+  /**
+   * File / thư mục CLI lưu cho một phiên chạy ở `cwd` (transcript + phần phụ) — runner xoá khi dọn việc đã xong (TEST-247). Chỉ trả đường dẫn
+   * riêng của phiên đó: `cwd` có thể là repo dùng chung với người (mode in_place). Không có hàm này → runner không xoá gì của CLI.
+   */
+  sessionPaths?(home: string, cwd: string, sessionId: string): string[];
+  /**
+   * Thư mục CLI lưu cho CẢ `cwd` (mọi phiên chạy ở đó) — runner chỉ gọi khi `cwd` là thư mục riêng của runner (worktree / thư mục chạy
+   * dưới `data_dir`), không bao giờ với repo của người.
+   */
+  cwdPaths?(home: string, cwd: string): string[];
   command(ctx: ExecContext): Command;
   /** Đọc từng dòng stdout, cập nhật kết quả. */
   parseLine(line: string, r: ExecResult): void;

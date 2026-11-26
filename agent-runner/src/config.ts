@@ -83,6 +83,21 @@ export interface AgentConfig {
   executor: ExecutorConfig;
 }
 
+/**
+ * Dọn dữ liệu việc đã xong khỏi máy (`runner.cleanup`, TEST-247): worktree, transcript CLI, thư mục chạy, log job.
+ * Chỉ xoá khi không mất gì (không còn thay đổi chưa commit, commit đã có trên origin, transcript đã gửi lên cloud).
+ */
+export interface CleanupConfig {
+  /** Mặc định bật. Tắt → không dọn theo nhịp; lệnh `cleanup` vẫn chạy được. */
+  enabled: boolean;
+  /** Việc đã Xong, phiên chat / họp: dọn khi lần chạy cuối đã cách ngần này giờ (mặc định 24 — việc bị mở lại ngay vẫn còn worktree). */
+  afterDoneHours: number;
+  /** Việc chưa Xong mà không chạy ngần này ngày (bị bỏ / xoá / đổi người) → cũng dọn (mặc định 30). */
+  staleDays: number;
+  /** Thư mục log `jobs/{id}` (output.log, activity.log) giữ ngần này ngày sau khi job kết thúc (mặc định 14). */
+  logsKeepDays: number;
+}
+
 export interface RunnerConfig {
   mcpUrl: string;
   telegramApiUrl: string;
@@ -100,6 +115,7 @@ export interface RunnerConfig {
   startupCatchup: boolean;
   /** File chạy git (TEST-46). Không đặt = "git" trong PATH. */
   gitBin: string;
+  cleanup: CleanupConfig;
   agents: AgentConfig[];
 }
 
@@ -198,6 +214,7 @@ export function parseConfig(raw: unknown): RunnerConfig {
   if (!BRANCH_NAME.test(defaultBase)) p.push('runner.base_branch phải là tên nhánh (vd main, developer)');
   const maxParallel = num(rn.max_parallel) ?? 2;
   if (maxParallel < 1 || maxParallel > 10) p.push('runner.max_parallel từ 1 đến 10');
+  const cleanup = parseCleanup(rn.cleanup, p);
 
   /** `workspace` của agent / một mục projects: mode + cờ; ghi lỗi vào danh sách, luôn trả giá trị đã chuẩn hoá. */
   const parseWorkspace = (raw: unknown, at: string): WorkspaceConfig => {
@@ -395,7 +412,31 @@ export function parseConfig(raw: unknown): RunnerConfig {
     logFormat,
     activityStream,
     startupCatchup,
+    cleanup,
     agents,
+  };
+}
+
+/** `runner.cleanup` (TEST-247): mọi trường tuỳ chọn; sai kiểu / ngoài khoảng → ghi lỗi vào `p`. */
+function parseCleanup(raw: unknown, p: string[]): CleanupConfig {
+  const c = (raw ?? {}) as Record<string, unknown>;
+  if (raw !== undefined && (typeof raw !== 'object' || raw === null))
+    p.push('runner.cleanup phải là một mục (enabled, after_done_hours…)');
+  if (c.enabled !== undefined && typeof c.enabled !== 'boolean') p.push('runner.cleanup.enabled là true hoặc false');
+  const field = (key: string, fallback: number, min: number, max: number) => {
+    const v = c[key];
+    if (v === undefined) return fallback;
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max) {
+      p.push(`runner.cleanup.${key} là số từ ${min} đến ${max}`);
+      return fallback;
+    }
+    return v;
+  };
+  return {
+    enabled: c.enabled !== false,
+    afterDoneHours: field('after_done_hours', 24, 0, 24 * 90),
+    staleDays: field('stale_days', 30, 1, 365),
+    logsKeepDays: field('logs_keep_days', 14, 1, 365),
   };
 }
 

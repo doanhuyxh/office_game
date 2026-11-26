@@ -40,3 +40,9 @@ export const FOLLOW_COMMIT_WAIT_SEC = 180;
 /** Chỉ tìm hash commit trong ngần này bình luận mới nhất (không tính bình luận của chính agent), lấy tối đa ngần này hash. */
 export const FOLLOW_COMMIT_COMMENTS = 5;
 export const FOLLOW_COMMIT_MAX_REFS = 10;
+
+/** Dọn dữ liệu việc đã xong khỏi máy (TEST-247): chạy lúc khởi động rồi mỗi ngần này phút. Ngưỡng ngày / giờ ở `runner.cleanup`. */
+export const CLEANUP_INTERVAL_MIN = 360;
+
+/** Mỗi lượt dọn hỏi OfficeHub `get_task` tối đa ngần này việc (phần còn lại lượt sau). */
+export const CLEANUP_MAX_TASK_CHECKS = 50;

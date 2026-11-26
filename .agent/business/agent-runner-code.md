@@ -7,12 +7,13 @@
 | Nơi | Việc |
 |---|---|
 | `cli.ts` | Đọc dòng lệnh (`node:util` `parseArgs` — cờ lạ báo lỗi, mã thoát 2), đọc cấu hình, mở `Store` + `Runner`, gọi lệnh trong bảng `COMMANDS` |
-| `commands/` | Mỗi lệnh một file trả mã thoát: `start.ts`, `doctor.ts`, `run.ts`, `report.ts`, `usage-push.ts`; `context.ts` (`CliContext`, `CliFlags`). Lệnh `mcp-bridge` (CLI agent tự gọi, không đọc `agents.yaml`) xử lý thẳng trong `cli.ts` → `hub/mcp-bridge.ts` |
+| `commands/` | Mỗi lệnh một file trả mã thoát: `start.ts`, `doctor.ts`, `run.ts`, `report.ts`, `usage-push.ts`, `cleanup.ts`; `context.ts` (`CliContext`, `CliFlags`). Lệnh `mcp-bridge` (CLI agent tự gọi, không đọc `agents.yaml`) xử lý thẳng trong `cli.ts` → `hub/mcp-bridge.ts` |
 | `runner.ts` | Nối dây: tạo agent, Listener (Telegram), `accept(agent, wake)` (nhận tin, chung cho mọi loại), Scheduler, `process(job)` gọi handler của loại job |
 | `jobs/` | Mỗi loại job một handler (`JobHandler` ở `handler.ts`): `task.ts`, `chat.ts`, `meeting.ts`, `follow.ts` (người theo dõi, TEST-180); registry `index.ts` theo `Wake['kind']` (job loại cũ trong DB → `currentKind`). Handler khai: khoá + nhãn job, câu log, `admit` (hỏi lại OfficeHub lúc nhận tin), `run` (kiểm tra lại → phiên CLI → kết quả) |
 | `policy.ts` | Mọi hằng số chính sách: `RESUME_MAX_GAP_MIN`, `MEETING_*`, `SCHEDULE_POLL_MS`, `TELEGRAM_RETRY_SEC` |
 | `core/agent.ts` | `AgentState` (cấu hình + client + bộ gửi + kết quả kiểm tra của một agent) |
 | `core/env.ts` | `agentEnv` (env của tiến trình con, không kế thừa env runner), `agentHome` |
+| `core/cleanup.ts` | `Cleaner`: dọn việc đã xong khỏi máy ([agent-runner-cleanup.md](agent-runner-cleanup.md)) |
 | `core/paths.ts` | `workDir`, `jobDir`, `projectFilesAbove` |
 | `core/session.ts` | `Sessions`: vòng đời một phiên CLI dùng chung cho mọi loại job — `resumeFor` → `run` → `record` (phiên + transcript) → `finish` (kết quả + mức dùng AI); `succeeded(out)`; `RunnerStopped` |
 | `doctor/` | `agent.ts`: mỗi bước kiểm tra một hàm, lỗi ném `CheckFailed`; `model.ts`: chạy thử model; `finding.ts`: `Finding { level, agent, scope, text }` + `formatFinding` / `hasFailure` |

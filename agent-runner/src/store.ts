@@ -134,6 +134,14 @@ export interface SessionRow {
   transcript_pending: number | null;
   transcript_sha: string | null;
   transcript_error: string | null;
+  /** Lúc runner đã dọn worktree / transcript / thư mục chạy trên máy (TEST-247); null = chưa dọn, hoặc chạy lại sau khi dọn. */
+  cleaned_at: string | null;
+}
+
+/** Phiên chờ xét dọn (TEST-247): dòng `task_sessions` + loại job mới nhất của khoá + khoá còn job đang chờ / chạy. */
+export interface CleanupCandidate extends SessionRow {
+  job_kind: string | null;
+  active: number;
 }
 
 /** Kết quả phiên ghi vào job khi xong. */
@@ -164,7 +172,7 @@ const JOB_SELECT = `SELECT id, agent, task_id AS "key", task_code AS label, proj
   session_id, cost_usd, input_tokens, output_tokens, turns, pr_url, model, model_usage, kind, cache_read_tokens, cache_write_tokens,
   executor, cli_ran, usage_sent_at, usage_error, rerun, not_before FROM jobs`;
 const SESSION_SELECT = `SELECT task_id AS "key", agent, session_id, branch, worktree, updated_at, resumes, kind, summary,
-  transcript_pending, transcript_sha, transcript_error FROM task_sessions`;
+  transcript_pending, transcript_sha, transcript_error, cleaned_at FROM task_sessions`;
 
 const columnsOf = (db: Database, table: string) =>
   new Set(
@@ -209,6 +217,10 @@ const MIGRATIONS: ((db: Database) => void)[] = [
   // 2: job cũ (trước khi có chat / họp) để `kind` trống = việc → điền hẳn 'task', mã không còn phải đoán `kind ?? 'task'`.
   (db) => {
     db.run(`UPDATE jobs SET kind = 'task' WHERE kind IS NULL`);
+  },
+  // 3 (TEST-247): đánh dấu phiên đã được dọn khỏi máy (worktree, transcript, thư mục chạy).
+  (db) => {
+    addMissingColumns(db, 'task_sessions', [['cleaned_at', 'TEXT']]);
   },
 ];
 
@@ -410,7 +422,7 @@ export class Store {
     this.db.run(
       `INSERT INTO task_sessions (task_id, agent, session_id, branch, worktree, updated_at, resumes) VALUES (?, ?, ?, ?, ?, ?, 0)
       ON CONFLICT(task_id) DO UPDATE SET agent = excluded.agent, session_id = COALESCE(excluded.session_id, task_sessions.session_id),
-        branch = excluded.branch, worktree = excluded.worktree, updated_at = excluded.updated_at,
+        branch = excluded.branch, worktree = excluded.worktree, updated_at = excluded.updated_at, cleaned_at = NULL,
         resumes = CASE WHEN ? THEN COALESCE(task_sessions.resumes, 0) + 1 ELSE 0 END`,
       [key, agent, sessionId, branch, worktree, this.now(), resumed ? 1 : 0],
     );
@@ -439,6 +451,56 @@ export class Store {
       `UPDATE task_sessions SET transcript_pending = 0, transcript_sha = COALESCE(?, transcript_sha), transcript_error = ? WHERE task_id = ?`,
       [r.sha ?? null, r.error ?? null, key],
     );
+  }
+
+  /**
+   * Phiên chưa dọn, chạy lần cuối trước `beforeIso` (TEST-247), cũ trước. `job_kind` = loại job mới nhất của khoá (task / follow / chat / meeting);
+   * `active` = khoá còn job đang chờ / chạy.
+   */
+  cleanupCandidates(beforeIso: string): CleanupCandidate[] {
+    return this.db
+      .query<CleanupCandidate, [string]>(
+        `SELECT task_id AS "key", agent, session_id, branch, worktree, updated_at, resumes, kind, summary, transcript_pending,
+          transcript_sha, transcript_error, cleaned_at,
+          (SELECT j.kind FROM jobs j WHERE j.task_id = s.task_id ORDER BY j.id DESC LIMIT 1) AS job_kind,
+          EXISTS (SELECT 1 FROM jobs j WHERE j.task_id = s.task_id AND j.status IN ('queued', 'running')) AS active
+        FROM task_sessions s WHERE cleaned_at IS NULL AND updated_at < ? ORDER BY updated_at`,
+      )
+      .all(beforeIso);
+  }
+
+  /** Khoá còn job đang chờ / chạy. */
+  hasActiveJob(key: string): boolean {
+    return !!this.db
+      .query<{ n: number }, [string]>(
+        `SELECT 1 AS n FROM jobs WHERE task_id = ? AND status IN ('queued', 'running') LIMIT 1`,
+      )
+      .get(key);
+  }
+
+  /** Mọi id phiên CLI từng chạy cho một khoá của agent (mỗi lần mở phiên mới là một transcript riêng trên máy). */
+  sessionIdsOf(key: string, agent: string): string[] {
+    return this.db
+      .query<{ session_id: string }, [string, string]>(
+        `SELECT DISTINCT session_id FROM jobs WHERE task_id = ? AND agent = ? AND session_id IS NOT NULL`,
+      )
+      .all(key, agent)
+      .map((r) => r.session_id);
+  }
+
+  /** Đã dọn phiên khỏi máy: bỏ id phiên (lần sau mở phiên mới, không thử nối) + ghi lúc dọn. */
+  markCleaned(key: string) {
+    this.db.run(`UPDATE task_sessions SET session_id = NULL, cleaned_at = ? WHERE task_id = ?`, [this.now(), key]);
+  }
+
+  /** Job đã kết thúc trước `beforeIso` (dọn thư mục log `jobs/{id}`). */
+  jobsFinishedBefore(beforeIso: string): number[] {
+    return this.db
+      .query<{ id: number }, [string]>(
+        `SELECT id FROM jobs WHERE status NOT IN ('queued', 'running') AND finished_at IS NOT NULL AND finished_at < ?`,
+      )
+      .all(beforeIso)
+      .map((r) => r.id);
   }
 
   offset(bot: string) {

@@ -362,3 +362,22 @@ export async function mainBranchWarning(git: Git, place: ProjectWorkspace): Prom
       : '';
   return `repo đang ở nhánh ${cur} — nhánh việc tách từ origin/${baseBranch} và PR merge vào ${baseBranch}`;
 }
+
+/**
+ * Worktree của việc còn thứ chưa nằm trên origin không (dọn việc đã xong, TEST-247): thay đổi chưa commit (kể cả file mới không bị ignore),
+ * commit chưa có ở nhánh nào của origin. Trả lý do không xoá được; undefined = xoá an toàn. Lệnh git lỗi → ném.
+ */
+export async function worktreeLeftovers(git: Git, path: string): Promise<string | undefined> {
+  if ((await git.out(path, 'status', '--porcelain')).trim()) return 'còn thay đổi chưa commit';
+  const ahead = Number(await git.out(path, 'rev-list', '--count', 'HEAD', '--not', '--remotes=origin'));
+  if (ahead > 0) return `${ahead} commit chưa có trên origin`;
+  return undefined;
+}
+
+/** Gỡ worktree khỏi repo của nó (`git worktree remove`, metadata cũng mất) và xoá nhánh local `branch` nếu có — nhánh lấy lại được từ origin. */
+export async function removeWorktree(git: Git, path: string, branch?: string): Promise<void> {
+  const common = await git.out(path, 'rev-parse', '--path-format=absolute', '--git-common-dir');
+  const repo = dirname(common);
+  await git.out(repo, 'worktree', 'remove', '--force', path);
+  if (branch) await git.run(repo, 'branch', '-D', branch);
+}

@@ -72,6 +72,7 @@ Tắt: `runner.startup_catchup: false` hoặc `start --no-catchup`. Lệnh `run`
 | `bun src/cli.ts run --agent NV120 --task TEST-45` | Chạy ngay một việc (bỏ qua Telegram, vẫn hỏi lại OfficeHub) |
 | `bun src/cli.ts report [--days 1]` | Chi phí theo agent, theo loại job (token không cache / ghi / đọc cache, tỉ lệ đọc cache) và theo model |
 | `bun src/cli.ts usage push [--since yyyy-MM-dd] [--agent NV018] [--dry-run]` | Gửi bù chi phí / token các phiên chưa gửi lên OfficeHub ("Mức dùng AI") — [agent-runner-usage.md](agent-runner-usage.md) |
+| `bun src/cli.ts cleanup [--agent NV018] [--dry-run]` | Dọn worktree / transcript / thư mục chạy của việc đã Xong + log job cũ (`start` tự chạy mỗi 6 giờ) — [agent-runner-cleanup.md](agent-runner-cleanup.md) |
 | `bun src/cli.ts mcp-bridge --url <mcp> [--bearer-env OFFICEHUB_TOKEN]` | Không chạy tay: CLI agent (adapter `antigravity`) tự gọi làm máy chủ MCP stdio → HTTP, token lấy từ biến môi trường |
 | `bun run build` | Một file chạy `dist/officehub-runner` — build từ commit đã merge `main`, cài `/opt/officehub-runner/` |
 | `bun run typecheck`, `bun test` | Bắt buộc khi đổi `agent-runner/` (CI job `agent-runner`) |

@@ -122,6 +122,16 @@ export function claudeHasSession(home: string, cwd: string, sessionId: string): 
   return dirs.some((d) => existsSync(join(claudeProjectDir(home, d), `${sessionId}.jsonl`)));
 }
 
+/** cwd + đường dẫn thật của nó (macOS /tmp → /private/tmp) — CLI ghi theo đường dẫn nó thấy. */
+function cwdVariants(cwd: string): string[] {
+  try {
+    const real = realpathSync(cwd);
+    return real === cwd ? [cwd] : [cwd, real];
+  } catch {
+    return [cwd];
+  }
+}
+
 export const claudeAdapter: Adapter = {
   kind: 'claude',
   caps: { resume: true, toolRestriction: true },
@@ -137,6 +147,13 @@ export const claudeAdapter: Adapter = {
     return warnings;
   },
   transcriptFile: (home, cwd, sessionId) => join(claudeProjectDir(home, cwd), `${sessionId}.jsonl`),
+  // `<session>.jsonl` + thư mục `<session>/` (subagent, kết quả tool lớn) — kiểm với CLI 2.1.x
+  sessionPaths: (home, cwd, sessionId) =>
+    cwdVariants(cwd).flatMap((d) => {
+      const dir = claudeProjectDir(home, d);
+      return [join(dir, `${sessionId}.jsonl`), join(dir, sessionId)];
+    }),
+  cwdPaths: (home, cwd) => cwdVariants(cwd).map((d) => claudeProjectDir(home, d)),
   command(ctx: ExecContext) {
     const e = ctx.exec;
     const args = [

@@ -117,10 +117,16 @@ describe('store', () => {
 
       const s = new Store(path);
       const version = () => s.db.query<{ user_version: number }, []>('PRAGMA user_version').get()!.user_version;
-      expect(version()).toBe(2);
+      expect(version()).toBe(3);
       // trong mã: key / label; cột trong DB vẫn là task_id / task_code
       expect(s.getJob(1)).toMatchObject({ key: 't0', label: 'A-0', kind: 'task', status: 'queued' });
-      expect(s.session('t0')).toMatchObject({ key: 't0', agent: 'NV1', session_id: 'sess-old', resumes: null });
+      expect(s.session('t0')).toMatchObject({
+        key: 't0',
+        agent: 'NV1',
+        session_id: 'sess-old',
+        resumes: null,
+        cleaned_at: null,
+      });
       expect(s.claimNext(1, ['NV1'])).toMatchObject({ id: 1, key: 't0', label: 'A-0', kind: 'task' });
       expect(s.enqueue('NV1', 't0', 'A-0', 'p')).toBeNull(); // khoá vẫn chặn job trùng
       // bản runner cũ đọc bằng tên cột gốc vẫn được (migration không đổi tên / xoá cột)
