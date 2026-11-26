@@ -59,6 +59,21 @@ describe('prompt theo dõi (TEST-180 / 187)', () => {
     for (const t of ['CHỈ có tool MCP', 'view_attachment', 'không tìm cách chạy lệnh']) expect(mcp).toContain(t);
     expect(mcp).not.toContain('create_upload');
   });
+  test('review tự chạy lại e2e, không tin số liệu người làm báo; không chạy được → không kết luận đạt', () => {
+    const repo = followPrompt(w, { tools: 'repo', baseBranch: 'main', resumed: false });
+    for (const t of [
+      'KHÔNG tin số liệu build / test / e2e người làm báo',
+      'scripts/dev/*-e2e.ts',
+      '.agent/e2e.md',
+      'docker rm -f',
+      'CHƯA TỰ KIỂM ĐƯỢC E2E',
+      'KHÔNG kết luận đạt',
+      'chỉ trỏ container docker tạm / 127.0.0.1 / localhost',
+    ])
+      expect(repo).toContain(t);
+    for (const tools of ['shell', 'mcp'] as const)
+      expect(followPrompt(w, { tools, baseBranch: 'main', resumed: false })).not.toContain('CHƯA TỰ KIỂM ĐƯỢC E2E');
+  });
   test('phiên nối tiếp: bỏ đọc lại vai trò, xem lại trạng thái hiện tại', () => {
     const p = followPrompt(w, { tools: 'mcp', baseBranch: 'main', resumed: true });
     expect(p).toContain('NỐI TIẾP');
