@@ -1,14 +1,13 @@
 import { BookOpen, ExternalLink, Mail, PanelsTopLeft, RefreshCw, ScrollText } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { DEFAULT_CONFIG_SECTION, sectionOfSettingsGroup } from '../../utils/config-sections';
 import { systemKeys } from '../../api/system.api';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/common/dialog';
 import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/card';
-import { StatusBadge, type StatusTone } from '@/components/common/StatusBadge';
 import { Spinner } from '@/components/feedback/Spinner';
 import { PageHeader, PageToolbar } from '@/components/layout/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/common/tabs';
@@ -20,16 +19,10 @@ import { ConfigTab } from '../config-tab';
 import { NotificationChannelsTab } from '../notification-channels-tab';
 import { OpsTab } from '../ops-tab';
 import { ServerResourceRows } from '../server-resources';
-import { StorageCard } from '../storage-card';
-import type { IHealthItem, ISystemLink, SettingsGroupKey } from '../../types/system.types';
+import { HealthRow, InfoRow as Row } from '../service-info';
+import type { ISystemLink, SettingsGroupKey } from '../../types/system.types';
 
 const LINK_ICON: Record<string, LucideIcon> = { docs: BookOpen, logs: ScrollText, mail: Mail };
-const HEALTH_NAME: Record<string, string> = { postgres: 'Cơ sở dữ liệu (PostgreSQL)', s3: 'Lưu trữ file (S3)', smtp: 'Máy chủ gửi mail (SMTP)' };
-const HEALTH: Record<string, { tone: StatusTone; label: string }> = {
-  Healthy: { tone: 'success', label: 'Hoạt động' },
-  Degraded: { tone: 'warning', label: 'Chậm / một phần' },
-  Unhealthy: { tone: 'danger', label: 'Lỗi' },
-};
 
 /** Ghi chú có đoạn `lệnh` → hiện dạng code. */
 function Note({ text }: { text: string }) {
@@ -88,32 +81,9 @@ function EmbedDialog({ link, onClose }: { link: ISystemLink | null; onClose: () 
   );
 }
 
-function HealthRow({ h }: { h: IHealthItem }) {
-  const s = HEALTH[h.status] ?? { tone: 'muted' as const, label: h.status };
-  return (
-    <div className="flex flex-wrap items-center gap-2 border-b py-2.5 last:border-0">
-      <span className="font-medium">{HEALTH_NAME[h.name] ?? h.name}</span>
-      <StatusBadge tone={s.tone}>{s.label}</StatusBadge>
-      <span className="ms-auto text-xs text-muted-foreground">{h.durationMs} ms</span>
-      {h.detail && <p className="basis-full text-sm text-destructive">{h.detail}</p>}
-    </div>
-  );
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-[140px_1fr] gap-2 border-b py-2 text-sm last:border-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="break-all">{children}</span>
-    </div>
-  );
-}
-
 /** Tab của trang Hệ thống — thêm trang báo cáo / xem hệ thống mới: thêm một mục ở đây + component của nó. */
 const TABS = [
   { id: 'overview', label: 'Tổng quan' },
-  { id: 'smtp', label: 'Email (SMTP)' },
-  { id: 'storage', label: 'Lưu trữ S3' },
   { id: 'ops', label: 'Vận hành' },
   { id: 'channels', label: 'Kênh thông báo' },
   { id: 'config', label: 'Cấu hình' },
@@ -121,25 +91,32 @@ const TABS = [
 const TAB_IDS = TABS.map((t) => t.id);
 /** Đổi tab ngang → xoá mục con của tab Cấu hình (`?section=`). */
 const TAB_OPTS = { reset: ['section'] } as const;
+/** Tab cũ đã gộp vào Cấu hình (TEST-235) → mục tương ứng; link / bookmark cũ `?tab=smtp|storage` tự chuyển (replace). */
+const LEGACY_TABS: Record<string, string> = { smtp: 'smtp', storage: 's3' };
 
 /** Trang Hệ thống — chỉ quản trị viên (PAGE_ROLES + back-end AuthPolicies.Admin). Mỗi phần một tab, tab lưu trên URL (?tab=). */
 export function SystemPage() {
   const [tab, setTab] = useTabParam('overview', TAB_IDS, TAB_OPTS);
   const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as Record<string, unknown>;
+  const legacy = typeof search.tab === 'string' ? LEGACY_TABS[search.tab] : undefined;
   const [embed, setEmbed] = useState<ISystemLink | null>(null);
   const { data, isLoading, isFetching, error, refetch } = useSystemInfo();
   const qc = useQueryClient();
   const opsFetching = useIsFetching({ queryKey: systemKeys.ops }) > 0;
   const channelsFetching = useIsFetching({ queryKey: systemKeys.channels }) > 0;
-  /** Từ tab Kênh thông báo sang đúng mục ở tab Cấu hình (`?tab=config&section=…`). */
-  const openConfig = (group: SettingsGroupKey) => {
-    const section = sectionOfSettingsGroup(group);
+  /** Mở một mục của tab Cấu hình (`?tab=config&section=…`, replace — không thêm lịch sử). */
+  const goConfig = useCallback((section: string) => {
     void navigate({
       to: '.',
       search: ((prev: Record<string, unknown>) => ({ ...prev, tab: 'config', section: section === DEFAULT_CONFIG_SECTION ? undefined : section })) as never,
       replace: true,
     });
-  };
+  }, [navigate]);
+  useEffect(() => { if (legacy) goConfig(legacy); }, [legacy, goConfig]);
+  /** Từ tab Kênh thông báo sang đúng mục ở tab Cấu hình (vd `office_ips` → `office-ips`). */
+  const openConfig = (group: SettingsGroupKey) => goConfig(sectionOfSettingsGroup(group));
+  if (legacy) return null; // đang chuyển link cũ sang Cấu hình
   const info = isLoading ? <Spinner /> : error || !data ? <p className="text-sm text-destructive">{errorMessage(error)}</p> : null;
   return (
     <div className="grid grid-cols-1 gap-6">
@@ -151,7 +128,7 @@ export function SystemPage() {
                 disabled={tab === 'ops' ? opsFetching : channelsFetching}>
                 <RefreshCw className={(tab === 'ops' ? opsFetching : channelsFetching) ? 'animate-spin' : ''} /> Làm mới
               </Button>
-            : tab !== 'storage' && <Button variant="outline" size="sm" onClick={() => void refetch()} disabled={isFetching}><RefreshCw className={isFetching ? 'animate-spin' : ''} /> Kiểm tra lại</Button>}>
+            : tab === 'overview' && <Button variant="outline" size="sm" onClick={() => void refetch()} disabled={isFetching}><RefreshCw className={isFetching ? 'animate-spin' : ''} /> Kiểm tra lại</Button>}>
           <TabsList>{TABS.map((t) => <TabsTrigger key={t.id} value={t.id}>{t.label}</TabsTrigger>)}</TabsList>
         </PageToolbar>
 
@@ -184,24 +161,6 @@ export function SystemPage() {
           ))}
         </TabsContent>
 
-        <TabsContent value="smtp" className="mt-4">
-          {info ?? (data && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Cấu hình gửi mail (SMTP)</CardTitle>
-                <CardDescription>Sửa ở tab Cấu hình (có hiệu lực ngay) — chưa lưu ở đó thì lấy từ <code className="rounded bg-muted px-1 text-xs">.env</code> (<code className="rounded bg-muted px-1 text-xs">Smtp__*</code>). Mật khẩu không hiển thị.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Row label="Máy chủ">{data.smtp.host}:{data.smtp.port} · {data.smtp.useSsl ? 'SSL' : 'STARTTLS / không mã hoá'}</Row>
-                <Row label="Tài khoản">{data.smtp.username ?? '—'}</Row>
-                <Row label="Gửi từ">{data.smtp.fromName} &lt;{data.smtp.fromEmail}&gt;</Row>
-                {data.health.filter((h) => h.name === 'smtp').map((h) => <HealthRow key={h.name} h={h} />)}
-              </CardContent>
-            </Card>
-          ))}
-        </TabsContent>
-
-        <TabsContent value="storage" className="mt-4"><StorageCard /></TabsContent>
         <TabsContent value="ops" className="mt-4"><OpsTab active={tab === 'ops'} /></TabsContent>
         <TabsContent value="channels" className="mt-4"><NotificationChannelsTab active={tab === 'channels'} onOpenConfig={openConfig} /></TabsContent>
         <TabsContent value="config" className="mt-4">{tab === 'config' && <ConfigTab />}</TabsContent>

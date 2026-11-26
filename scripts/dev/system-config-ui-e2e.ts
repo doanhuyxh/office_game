@@ -2,6 +2,9 @@
 // mặc định mục S3, bấm mục → URL `?tab=config&section=…` (S3 không ghi), reload vẫn đúng mục, `section` lạ → S3, đổi tab ngang xoá `section`,
 // chỉ tải API của mục đang mở, tab Kênh thông báo → "Cấu hình" mở đúng mục, IP văn phòng Lưu + Kiểm tra vẫn chạy, 375px: menu thành Select (chọn được),
 // không cuộn ngang trang; sáng + tối; không lỗi console (bỏ lỗi SignalR khi không chạy Realtime).
+// TEST-235: tab ngang còn 4 (Tổng quan · Vận hành · Kênh thông báo · Cấu hình); link cũ `?tab=smtp` / `?tab=storage` tự chuyển (replace) sang mục SMTP / S3;
+// mục SMTP có khung "Đang dùng" + tình trạng, mục S3 có dung lượng (StorageCard) dưới form; Kênh thông báo → Cấu hình của Email / FCM / Telegram mở đúng mục;
+// tab Cấu hình không còn nút "Kiểm tra lại" trên thanh công cụ.
 // GHI CẤU HÌNH IP VĂN PHÒNG → CHỈ DB tạm (không cần S3 / Realtime). Dựng như finance-dashboard-e2e.ts (Api + DB tạm) + Vite trỏ Api:
 //   docker run -d --name e2e234-pg -e POSTGRES_USER=e2e -e POSTGRES_PASSWORD=e2e -e POSTGRES_DB=e2e -p 127.0.0.1:15434:5432 postgres:17-alpine
 //   Api cổng 5234 (biến như đầu finance-dashboard-e2e.ts) · VITE_API_TARGET=http://localhost:5234 bunx vite --port 5334 --strictPort   (trong frontend/)
@@ -108,6 +111,29 @@ try {
   ok('Mở mục Ngưỡng cảnh báo mới gọi /ai-alert-settings', (await resources(br)).some((p) => p.startsWith('/api/') && p.includes('/ai-alert-settings')));
   await br.shot(`${SHOTS}/2-ai-alerts-light.png`);
 
+  ok('Tab ngang còn 4: Tổng quan · Vận hành · Kênh thông báo · Cấu hình', JSON.stringify(await br.evalJs(`[...document.querySelectorAll('[role="tab"]')].map((t) => t.textContent.trim())`))
+    === JSON.stringify(['Tổng quan', 'Vận hành', 'Kênh thông báo', 'Cấu hình']));
+  ok('Tab Cấu hình: thanh công cụ không có "Kiểm tra lại"', await br.evalJs(`[...document.querySelectorAll('button')].filter((b) => b.textContent.includes('Kiểm tra lại') && !b.closest('[data-testid="config-tab"]')).length === 0`));
+
+  // Link cũ (bookmark / tài liệu): chuyển hướng replace, không thêm lịch sử
+  const h0 = await br.evalJs(`history.length`) as number;
+  await br.go(`${BASE}/system?tab=smtp`, 3500);
+  const sSmtp = await search(br);
+  ok('?tab=smtp → ?tab=config&section=smtp', sSmtp.includes('tab=config') && sSmtp.includes('section=smtp') && await has(br, 'settings-smtp'), sSmtp);
+  ok('Mục SMTP: khung "Đang dùng" + tình trạng SMTP ở trên form', await has(br, 'system-smtp-status') && await waitJs(br, `!!${q('system-smtp-status')}.querySelector('[data-testid="system-health-smtp"]')`, 15000)
+    && await br.evalJs(`!!(${q('system-smtp-status')}.compareDocumentPosition(${q('settings-smtp')}) & Node.DOCUMENT_POSITION_FOLLOWING)`));
+  await br.shot(`${SHOTS}/7-smtp-status-light.png`);
+  await br.go(`${BASE}/system?tab=storage`, 3500);
+  const sSto = await search(br);
+  ok('?tab=storage → ?tab=config (mục S3, không ghi section)', sSto.includes('tab=config') && !sSto.includes('section=') && await has(br, 'settings-s3'), sSto);
+  ok('Mục S3: dung lượng (StorageCard) dưới form', await has(br, 'system-storage')
+    && await br.evalJs(`!!(${q('settings-s3')}.compareDocumentPosition(${q('system-storage')}) & Node.DOCUMENT_POSITION_FOLLOWING)`));
+  ok('Chuyển link cũ không thêm lịch sử (replace)', (await br.evalJs(`history.length`) as number) <= h0 + 2, { h0 });
+  await br.shot(`${SHOTS}/8-s3-storage-light.png`);
+  apiCalls.length = 0;
+  await click(br, q('config-nav-smtp'), 1500);
+  ok('Rời mục S3 → không quét dung lượng lại', !(await resources(br)).some((p) => p.startsWith('/api/system/storage')));
+
   await br.go(`${URL_CFG}&section=smtp`, 3000);
   ok('Reload ?section=smtp → mục SMTP', await has(br, 'settings-smtp') && await br.evalJs(`${q('config-nav-smtp')}?.getAttribute('aria-current') === 'page'`));
   await br.go(`${URL_CFG}&section=khong-co`, 3000);
@@ -122,11 +148,14 @@ try {
 
   await br.go(`${BASE}/system?tab=channels`, 3500);
   const cfgBtn = await br.evalJs(`[...document.querySelectorAll('[data-testid^="channel-"][data-testid$="-config"]')].map((b) => b.dataset.testid)`) as string[];
-  const tgBtn = cfgBtn.find((x) => x.includes('telegram'));
-  if (tgBtn) {
-    await click(br, q(tgBtn), 2000);
-    ok('Kênh thông báo → Cấu hình Telegram mở đúng mục', (await search(br)).includes('section=telegram') && await has(br, 'settings-telegram'), await search(br));
-  } else ok('Kênh thông báo có nút Cấu hình Telegram', false, cfgBtn);
+  /** Kênh → mục Cấu hình + thẻ phải hiện. */
+  const CHANNEL_SECTION: Record<string, [string, string]> = { email: ['smtp', 'settings-smtp'], push: ['fcm', 'settings-fcm'], telegram: ['telegram', 'settings-telegram'] };
+  for (const [key, [sec, card]] of Object.entries(CHANNEL_SECTION)) {
+    await br.go(`${BASE}/system?tab=channels`, 3500);
+    if (!cfgBtn.includes(`channel-${key}-config`)) { ok(`Kênh thông báo có nút Cấu hình ${key}`, false, cfgBtn); continue; }
+    await click(br, q(`channel-${key}-config`), 2000);
+    ok(`Kênh thông báo → Cấu hình ${key} mở thẳng mục ${sec}`, (await search(br)).includes(`section=${sec}`) && await has(br, card), await search(br));
+  }
 
   // IP văn phòng: Lưu + Kiểm tra vẫn chạy như trước
   await br.go(`${URL_CFG}&section=office-ips`, 3000);
@@ -149,6 +178,8 @@ try {
   await br.go(`${URL_CFG}&section=smtp`, 3000);
   ok('375px: Select hiện, menu trái ẩn, không cuộn ngang', await br.evalJs(`!!${q('config-nav-select')}?.offsetParent && getComputedStyle(${q('config-nav')}).display === 'none'`)
     && await noHScroll(br));
+  ok('375px: mục SMTP có khung tình trạng', await has(br, 'system-smtp-status') && await waitJs(br, `!!${q('system-health-smtp')}`, 60000) && await noHScroll(br)); // info chậm ở Api tạm (S3 / SMTP giả)
+  await br.shot(`${SHOTS}/5a-mobile-smtp-dark.png`);
   await br.evalJs(`(() => { const t = ${q('config-nav-select')}; t.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' })); t.click(); })()`);
   await br.sleep(600);
   const groups = await br.evalJs(`[...document.querySelectorAll('[role="listbox"] [role="group"]')].length`);

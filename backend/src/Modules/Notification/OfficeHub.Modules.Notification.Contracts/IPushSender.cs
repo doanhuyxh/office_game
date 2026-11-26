@@ -3,7 +3,7 @@ namespace OfficeHub.Modules.Notification.Contracts;
 /// <summary>
 /// Đẩy thông báo qua Firebase Cloud Messaging tới thiết bị đã đăng ký của tài khoản.
 /// Best-effort: không ghi bảng <c>notifications</c> (không phải bell/email), không bao giờ ném lỗi,
-/// và không làm gì nếu chưa cấu hình FCM (trang Hệ thống → Cấu hình, hoặc <c>Firebase__CredentialsPath</c>) hoặc tài khoản chưa đăng ký thiết bị nào.
+/// và không làm gì nếu chưa cấu hình FCM (trang Hệ thống → Cấu hình → Thông báo đẩy (FCM), hoặc <c>Firebase__CredentialsPath</c>) hoặc tài khoản chưa đăng ký thiết bị nào.
 /// </summary>
 public interface IPushSender
 {

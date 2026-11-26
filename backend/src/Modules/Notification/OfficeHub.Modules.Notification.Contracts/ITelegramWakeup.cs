@@ -5,7 +5,7 @@ namespace OfficeHub.Modules.Notification.Contracts;
 
 /// <summary>
 /// Kênh Telegram đánh thức agent (TEST-42): khi một việc được giao cho tài khoản bot, OfficeHub đưa ĐÚNG MỘT tin vào
-/// hàng đợi gửi nhóm Telegram đã cấu hình (trang Hệ thống → Cấu hình). Không làm gì khi kênh tắt / chưa cấu hình / người nhận không phải bot. Không bao giờ ném lỗi (gửi nền, lỗi chỉ ghi log + hàng đợi) — luồng giao việc không bị chặn.
+/// hàng đợi gửi nhóm Telegram đã cấu hình (trang Hệ thống → Cấu hình → Telegram). Không làm gì khi kênh tắt / chưa cấu hình / người nhận không phải bot. Không bao giờ ném lỗi (gửi nền, lỗi chỉ ghi log + hàng đợi) — luồng giao việc không bị chặn.
 /// </summary>
 public interface ITelegramWakeup
 {

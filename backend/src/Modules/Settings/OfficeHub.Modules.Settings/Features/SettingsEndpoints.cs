@@ -159,7 +159,7 @@ internal static class SettingsEndpoints
         if (string.IsNullOrWhiteSpace(to)) return new(false, "Nhập email nhận thư thử (tài khoản của bạn chưa có email)");
         var smtp = runtime.Smtp;
         await email.SendAsync(to, string.IsNullOrEmpty(requested) ? user.FindFirstValue(ClaimNames.FullName) ?? to : to, "OfficeHub — thư thử cấu hình SMTP",
-            $"<p>Thư thử từ trang Hệ thống → Cấu hình lúc {clock.GetUtcNow():yyyy-MM-dd HH:mm:ss} UTC.</p><p>Máy chủ: {System.Net.WebUtility.HtmlEncode(smtp.Host)}:{smtp.Port}</p>", ct);
+            $"<p>Thư thử từ trang Hệ thống → Cấu hình → Email (SMTP) lúc {clock.GetUtcNow():yyyy-MM-dd HH:mm:ss} UTC.</p><p>Máy chủ: {System.Net.WebUtility.HtmlEncode(smtp.Host)}:{smtp.Port}</p>", ct);
         return new(true, $"Đã gửi thư thử tới {to} qua {smtp.Host}:{smtp.Port}");
     }
 

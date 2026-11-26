@@ -54,7 +54,7 @@ FE (`frontend/.env`, không có bí mật): `VITE_API_TARGET`, `VITE_RT_TARGET` 
 
 ## Cấu hình lưu trong DB (TEST-41)
 
-Admin sửa **S3 (file nghiệp vụ), SMTP, FCM, IP văn phòng** ở trang Hệ thống → Cấu hình (mục Hạ tầng → Lưu trữ (S3) / Email (SMTP), Thông báo → Thông báo đẩy (FCM), Chấm công → IP văn phòng; `?tab=config&section=s3|smtp|fcm|office-ips`); lưu là có hiệu lực ngay (cache 30 giây, lưu thì xoá cache — client S3 / Firebase tự tạo lại). Nhóm đã lưu trong DB (`settings.system_settings`) **được ưu tiên hơn `.env`**; nhóm chưa lưu (hoặc bấm "Dùng lại .env") đọc biến dưới đây như cũ. Biến `.env` vẫn là mặc định và vẫn bắt buộc như bảng trên (`S3__Region/AccessKey/SecretKey/BucketFiles`, `Smtp__Host/FromEmail`) — app chưa khởi động được nếu thiếu, kể cả khi DB đã có cấu hình.
+Admin sửa **S3 (file nghiệp vụ), SMTP, FCM, IP văn phòng** ở trang Hệ thống → Cấu hình (mục Hạ tầng → Lưu trữ (S3) / Email (SMTP), Thông báo → Thông báo đẩy (FCM), Chấm công → IP văn phòng; `?tab=config&section=s3|smtp|fcm|office-ips`; mục SMTP có khung "Đang dùng" + tình trạng kết nối, mục S3 có báo cáo dung lượng); lưu là có hiệu lực ngay (cache 30 giây, lưu thì xoá cache — client S3 / Firebase tự tạo lại). Nhóm đã lưu trong DB (`settings.system_settings`) **được ưu tiên hơn `.env`**; nhóm chưa lưu (hoặc bấm "Dùng lại .env") đọc biến dưới đây như cũ. Biến `.env` vẫn là mặc định và vẫn bắt buộc như bảng trên (`S3__Region/AccessKey/SecretKey/BucketFiles`, `Smtp__Host/FromEmail`) — app chưa khởi động được nếu thiếu, kể cả khi DB đã có cấu hình.
 
 | Nhóm trong DB | Thay cho biến | Còn ở `.env` |
 |---|---|---|

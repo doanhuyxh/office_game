@@ -54,7 +54,7 @@ internal sealed class FirebaseProvider(RuntimeConfig config, TimeProvider clock,
             catch (Exception ex)
             {
                 _error = ex.Message;
-                log.LogError(ex, "Không khởi tạo được Firebase — kiểm tra cấu hình FCM (trang Hệ thống → Cấu hình / Firebase__CredentialsPath); push bị tắt");
+                log.LogError(ex, "Không khởi tạo được Firebase — kiểm tra cấu hình FCM (trang Hệ thống → Cấu hình → Thông báo đẩy (FCM) / Firebase__CredentialsPath); push bị tắt");
             }
             return (_messaging, _error);
         }
