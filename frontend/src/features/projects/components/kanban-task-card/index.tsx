@@ -13,15 +13,19 @@ import type { ITask } from '../../types/project.types';
  * khi đang có việc được chọn, hoặc trên màn cảm ứng); thẻ đã chọn có nền nhạt + vạch dọc primary ở mép trái. Ô tích là phần tử anh em của nút thẻ
  * (không lồng nút trong nút).
  */
-export function KanbanTaskCard({ t, busy, dragging, flash, selected, selectable, selectionActive, draggable, onOpen, onDragStart, onDragEnd, onPick }: {
+export function KanbanTaskCard({ t, busy, dragging, flash, selected, selectable, selectionActive, draggable, onOpen, onHover, onDragStart, onDragEnd, onPick }: {
   t: ITask; busy: boolean; dragging: boolean; flash?: 'ok' | 'err'; selected: boolean; selectable: boolean;
   /** Đang có ít nhất một việc được chọn (mọi ô tích hiện rõ). */
   selectionActive: boolean; draggable: boolean;
-  onOpen: () => void; onDragStart: (e: DragEvent) => void; onDragEnd: () => void; onPick: (on: boolean, shift: boolean) => void;
+  onOpen: () => void;
+  /** Rê chuột / focus vào (true) hoặc rời (false) thẻ → tải trước chi tiết việc (TEST-242). */
+  onHover?: (on: boolean) => void;
+  onDragStart: (e: DragEvent) => void; onDragEnd: () => void; onPick: (on: boolean, shift: boolean) => void;
 }) {
   return (
     <div className="group/card relative w-full">
-      <button type="button" draggable={draggable} disabled={busy} aria-busy={busy} onClick={onOpen} onDragStart={onDragStart} onDragEnd={onDragEnd}
+      <button type="button" draggable={draggable} disabled={busy} aria-busy={busy} onClick={onOpen} onMouseEnter={() => onHover?.(true)} onMouseLeave={() => onHover?.(false)}
+        onFocus={() => onHover?.(true)} onBlur={() => onHover?.(false)} onDragStart={onDragStart} onDragEnd={onDragEnd}
         data-testid="task-card" data-selected={selected ? '' : undefined}
         className={cn('relative grid w-full gap-1.5 overflow-hidden rounded-lg border bg-card p-2 text-left text-sm shadow-xs transition-opacity hover:border-primary/50 disabled:cursor-progress',
           dragging && 'opacity-50', busy && 'opacity-80', selected && 'border-primary/50 bg-primary/5',

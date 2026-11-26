@@ -39,6 +39,8 @@ interface Props {
   onMine: (v: boolean) => void;
   /** Mở hộp thoại chi tiết việc (`?task=<id>` như bảng kanban). */
   onOpen: (id: string) => void;
+  /** Rê chuột / focus dòng (id) hoặc rời (null) → tải trước chi tiết việc (TEST-242). */
+  onHover?: (id: string | null) => void;
   /** null = không có nút "Tạo công việc" (chỉ xem / không cột nào tạo được). */
   onCreate: (() => void) | null;
   /** Chỉ xem: trạng thái là nhãn tĩnh. */
@@ -55,7 +57,7 @@ interface Props {
  * thứ tự cột của dự án, nhóm của cột hoàn thành thu gọn sẵn. Đổi trạng thái trên dòng: menu chỉ gồm cột được phép (`moveBlockReason`),
  * lùi hỏi lý do (`needsMoveNote`), lưu qua `useMoveTask` (optimistic, lỗi → trả về cột cũ + toast) — cùng quy tắc với kanban.
  */
-export function TaskList({ d, tasks, isLoading, isError, isFetching, onRetry, myEmployeeId, mine, onMine, onOpen, onCreate, readOnly, selection, onVisible }: Props) {
+export function TaskList({ d, tasks, isLoading, isError, isFetching, onRetry, myEmployeeId, mine, onMine, onOpen, onHover, onCreate, readOnly, selection, onVisible }: Props) {
   const p = d.project;
   const columns = d.columns;
   const [filter, setFilter] = useState<ITaskListFilter>({ ...EMPTY_FILTER, mine });
@@ -164,7 +166,7 @@ export function TaskList({ d, tasks, isLoading, isError, isFetching, onRetry, my
                     check={selection ? <GroupCheck g={g} sel={sel!} onChange={setIds} /> : undefined}>
                     {g.tasks.map((t) => (
                       <TableRow key={t.id} className={cn('cursor-pointer', moving.has(t.id) && 'opacity-80')} tabIndex={0} data-testid="task-row"
-                        data-task={t.code} data-selected={sel?.has(t.id) ? '' : undefined} onClick={() => onOpen(t.id)} onKeyDown={rowKey(() => onOpen(t.id))}>
+                        data-task={t.code} data-selected={sel?.has(t.id) ? '' : undefined} onClick={() => onOpen(t.id)} {...hoverProps(onHover, t.id)} onKeyDown={rowKey(() => onOpen(t.id))}>
                         {selection && <TableCell className="w-10" onClick={(e) => e.stopPropagation()}><RowCheck t={t} checked={sel!.has(t.id)} onPick={pick} /></TableCell>}
                         <TableCell className="min-w-0"><TaskTitle t={t} /></TableCell>
                         <TableCell>{status(t)}</TableCell>
@@ -194,7 +196,7 @@ export function TaskList({ d, tasks, isLoading, isError, isFetching, onRetry, my
                     <div className="min-w-0 flex-1"><GroupHeader g={g} open={open(g)} onToggle={() => toggle(g)} /></div>
                   </div>}
                   {open(g) && g.tasks.map((t) => (
-                    <div key={t.id} role="button" tabIndex={0} onClick={() => onOpen(t.id)} onKeyDown={rowKey(() => onOpen(t.id))} data-testid="task-card-row"
+                    <div key={t.id} role="button" tabIndex={0} onClick={() => onOpen(t.id)} {...hoverProps(onHover, t.id)} onKeyDown={rowKey(() => onOpen(t.id))} data-testid="task-card-row"
                       data-task={t.code} data-selected={sel?.has(t.id) ? '' : undefined}
                       className={cn('grid min-w-0 cursor-pointer gap-1.5 rounded-lg border bg-card p-3 text-sm shadow-xs hover:border-primary/50', moving.has(t.id) && 'opacity-80', sel?.has(t.id) && 'border-primary/60 bg-primary/5')}>
                       <div className="flex min-w-0 items-start justify-between gap-2">
@@ -226,6 +228,11 @@ export function TaskList({ d, tasks, isLoading, isError, isFetching, onRetry, my
     </div>
   );
 }
+
+/** Rê chuột / focus dòng → báo id, rời → null (tải trước chi tiết việc, TEST-242). */
+const hoverProps = (onHover: ((id: string | null) => void) | undefined, id: string) => onHover ? {
+  onMouseEnter: () => onHover(id), onMouseLeave: () => onHover(null), onFocus: () => onHover(id), onBlur: () => onHover(null),
+} : {};
 
 /** Enter / Space trên dòng = bấm (dòng là phần tử bấm được bằng bàn phím). */
 const rowKey = (fn: () => void) => (e: KeyboardEvent) => {

@@ -11,6 +11,14 @@ Prod mỗi lượt API ↔ DB ~30 ms → số request **nối tiếp** quyết �
 - `/projects`: rê chuột / focus thẻ dự án → `prefetchProject` + `router.preloadRoute` (chunk trang).
 - Chi tiết về trước, việc chưa về → `KanbanSkeleton` (khung kanban giả theo tên / màu / thứ tự cột của `d.columns`, `data-testid="kanban-skeleton"`) thay spinner toàn tab. Chế độ Danh sách giữ skeleton dòng của `TaskList`.
 
+## Hộp thoại việc (TEST-242)
+
+- Danh sách là bản gọn (TEST-240) → mô tả / media / người theo dõi / việc phải chờ / lịch sử lấy từ `useTaskDetail` (`GET /tasks/{tid}?comments=false`). Chưa về: phần có từ danh sách (tên, trạng thái, người làm, hạn, ước lượng, mốc) hiện ngay; phần còn lại là **khung xương cùng cỡ** (`task-desc-skeleton` cao ≈ ô Markdown 10 dòng, `task-media-skeleton` theo `mediaCount`, `task-followers-skeleton` / `task-dependencies-skeleton` theo `followerCount` / `waitingOn` + ô chọn nếu sửa được, `task-history-skeleton`); Lưu + sửa mô tả / link khoá.
+- Khởi tạo form khi mở + điền mô tả / link khi chi tiết về đặt state **ngay khi render** (so `openKey` / `filledFor`, mẫu "điều chỉnh state khi prop đổi"), không qua `useEffect` → không có khung hình form của việc trước / mô tả rỗng / đổi chế độ xem–sửa. Điền **một lần** mỗi lần mở: refetch sau đó và tên gõ trong lúc chờ không bị ghi đè.
+- Đã có cache → hiện ngay, không khung xương. Rê chuột / focus thẻ kanban hoặc dòng Danh sách ≥ 150 ms → `prefetchTask` (staleTime 30 giây cho lần tải trước; `useTaskDetail` vẫn staleTime 0, làm mới nền khi mở). Lướt nhanh qua bảng không bắn request.
+- Lỗi tải chi tiết (500, mạng) → vùng mô tả "Không tải được chi tiết việc" + Thử lại, hết khung xương, Lưu vẫn khoá. `TaskBoard` chỉ đóng hộp thoại + "Không tìm thấy việc" khi lỗi 4xx hoặc việc không có trong danh sách (link `?task=`).
+- Tạo việc mới: form trống như cũ, không khung xương. e2e `scripts/dev/task-dialog-skeleton-e2e.ts` (Slow 4G, ghi mọi trạng thái DOM của hộp thoại bằng MutationObserver).
+
 ## Cache
 
 - `projectDetailQuery(id)` / `projectTasksQuery(id)` (`hooks/useProjects.ts`, `queryOptions`) dùng chung cho hook, loader, prefetch; `staleTime` `PROJECT_STALE_MS` = 30 giây: quay lại trang / dự án trong 30 giây hiện cache, không gọi; quá 30 giây hiện cache + làm mới nền.

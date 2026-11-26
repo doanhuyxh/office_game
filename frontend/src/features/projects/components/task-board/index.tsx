@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react';
-import { useMutationState } from '@tanstack/react-query';
+import { useMutationState, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, CheckCircle2, Columns3, GripVertical, List, Loader2, Plus, Settings2, ShieldCheck, Square, SquareCheck, SquareMinus } from 'lucide-react';
@@ -8,10 +8,11 @@ import { Checkbox } from '@/components/common/checkbox';
 import { promptDialog } from '@/components/common/confirm-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/common/tooltip';
 import { STORAGE_KEY } from '@/config/env';
+import { ApiError } from '@/services/api-client';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errors';
 import { projectApi } from '../../api/project.api';
-import { moveTaskKey, useMoveTask, useProjectMutation, useTaskDetail, useTasks, type IMoveTaskArgs } from '../../hooks/useProjects';
+import { moveTaskKey, prefetchTask, useMoveTask, useProjectMutation, useTaskDetail, useTasks, type IMoveTaskArgs } from '../../hooks/useProjects';
 import type { IProjectDetail, ITask, ITaskColumn } from '../../types/project.types';
 import { createColumns, moveBlockReason, needsMoveNote } from '../../utils/labels';
 import { checkState, rangeIds, withIds } from '../../utils/task-bulk';
@@ -121,10 +122,21 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
   const openTask = (task: string | undefined) =>
     void navigate({ to: '.', search: ((prev: Record<string, unknown>) => ({ ...prev, task, comment: undefined })) as never, replace: true });
   const linked = useTaskDetail(search.task ?? null);
-  const missing = !!search.task && (linked.isError || (!!linked.data && linked.data.task.projectId !== p.id));
+  // TEST-242: rê chuột / focus thẻ hoặc dòng ≥ 150 ms → tải trước chi tiết việc (lướt chuột qua bảng không bắn request cho từng thẻ)
+  const qc = useQueryClient();
+  const hoverTimer = useRef<number | undefined>(undefined);
+  const hoverTask = (id: string | null) => {
+    window.clearTimeout(hoverTimer.current);
+    if (id) hoverTimer.current = window.setTimeout(() => prefetchTask(qc, id), 150);
+  };
+  useEffect(() => () => window.clearTimeout(hoverTimer.current), []);
+  // TEST-242: chỉ 4xx (không có / không có quyền) hoặc việc không nằm trong danh sách mới đóng hộp thoại; lỗi tạm (500, mạng) với việc đang có trong
+  // danh sách → giữ hộp thoại, vùng mô tả hiện "Không tải được chi tiết việc" + Thử lại.
+  const notFound = linked.error instanceof ApiError && linked.error.status >= 400 && linked.error.status < 500;
+  const missing = !!search.task && ((linked.isError && (notFound || !data.some((t) => t.id === search.task))) || (!!linked.data && linked.data.task.projectId !== p.id));
   useEffect(() => {
     if (!missing) return;
-    toast.error('Không tìm thấy việc');
+    toast.error(linked.isError && !notFound ? errorMessage(linked.error, 'Không tải được việc') : 'Không tìm thấy việc');
     openTask(undefined);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [missing]);
@@ -230,7 +242,7 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
         {manage && view === 'board' && <Button size="sm" variant="outline" className="ml-auto" onClick={() => setColEdit(null)}><Plus /> Thêm trạng thái</Button>}
       </div>
       {view === 'list' ? <TaskList d={d} tasks={data} isLoading={isLoading} isError={tasks.isError && !tasks.data} isFetching={tasks.isFetching}
-        onRetry={() => void tasks.refetch()} myEmployeeId={myEmployeeId} mine={mine} onMine={setMine} onOpen={(id) => openTask(id)}
+        onRetry={() => void tasks.refetch()} myEmployeeId={myEmployeeId} mine={mine} onMine={setMine} onOpen={(id) => openTask(id)} onHover={hoverTask}
         onCreate={!readOnly && firstCreatable ? () => setCreate({ columnId: firstCreatable.id }) : null} readOnly={readOnly}
         selection={selectable ? { selected, onChange: setSelected } : null} onVisible={keepOnly} />
       : <div ref={board.ref} style={board.height ? { '--board-h': `${board.height}px` } as CSSProperties : undefined}
@@ -281,7 +293,7 @@ export function TaskBoard({ d, myEmployeeId }: { d: IProjectDetail; myEmployeeId
                 const order = col.map((x) => x.id);
                 return (
                   <KanbanTaskCard key={t.id} t={t} busy={moving.has(t.id)} dragging={dragTask?.id === t.id} flash={flash[t.id]} selected={selected.has(t.id)}
-                    selectable={selectable} selectionActive={selected.size > 0} draggable={p.canWork && !moving.has(t.id)} onOpen={() => openTask(t.id)}
+                    selectable={selectable} selectionActive={selected.size > 0} draggable={p.canWork && !moving.has(t.id)} onOpen={() => openTask(t.id)} onHover={(on) => hoverTask(on ? t.id : null)}
                     onDragStart={(e) => { e.dataTransfer.setData(TASK, t.id); e.dataTransfer.effectAllowed = 'move'; setDragTask(t); }}
                     onDragEnd={() => { setDragTask(null); setOver(null); }}
                     onPick={(on, shift) => pickCard(t.id, on, shift, order)} />

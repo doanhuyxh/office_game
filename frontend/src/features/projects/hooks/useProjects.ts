@@ -23,7 +23,11 @@ export const prefetchProject = (qc: QueryClient, id: string, tasks = true) => {
 };
 export const useMyTasks = () => useQuery({ queryKey: projectKeys.myTasks, queryFn: projectApi.myTasks });
 /** Việc + lịch sử (hộp thoại việc) — không kèm bình luận, dùng `useTaskComments`. */
-export const useTaskDetail = (taskId: string | null) => useQuery({ queryKey: projectKeys.task(taskId ?? ''), queryFn: () => projectApi.task(taskId!), enabled: !!taskId });
+export const taskDetailQuery = (taskId: string) => queryOptions({ queryKey: projectKeys.task(taskId), queryFn: () => projectApi.task(taskId) });
+export const useTaskDetail = (taskId: string | null) => useQuery({ ...taskDetailQuery(taskId ?? ''), enabled: !!taskId });
+/** Tải trước chi tiết việc (TEST-242) khi rê chuột / focus thẻ kanban hoặc dòng Danh sách → mở hộp thoại hiện ngay, không khung xương.
+ *  Đã tải trong 30 giây thì không gọi lại; `useTaskDetail` (staleTime 0) vẫn làm mới nền khi mở. */
+export const prefetchTask = (qc: QueryClient, taskId: string) => void qc.prefetchQuery({ ...taskDetailQuery(taskId), staleTime: PROJECT_STALE_MS });
 /** Bình luận của việc (TEST-194). Làm mới: `useProjectMutation` invalidate cả tiền tố ['projects'] nên gồm luôn khoá này;
  *  `ProjectLiveUpdates` (TEST-241) invalidate đúng `comments(taskId)` của việc có hoạt động. */
 export const useTaskComments = (taskId: string | null) =>
