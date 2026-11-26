@@ -176,8 +176,8 @@ const notifs = async () => ((await json(PM.cookie, 'GET', '/api/notifications?ta
 const ns = await notifs();
 const nAll = ns.find((n: any) => n.title.includes('toàn bộ sổ tay'));
 const nPages = ns.find((n: any) => n.title.includes('"Một — Tổng quan" và 3 trang khác'));
-ok('Chuông link toàn bộ → /projects/{id}?tab=wiki', nAll?.link === `/projects/${P}?tab=wiki`, ns);
-ok('Chuông link chọn trang → trang được chọn đầu tiên', nPages?.link === `/projects/${P}?tab=wiki&page=${R1}`, ns);
+ok('Chuông link toàn bộ → target wiki_share không có pageId', nAll?.target?.type === 'wiki_share' && nAll.target.params?.projectId === P && !nAll.target.params?.pageId, ns);
+ok('Chuông link chọn trang → trang được chọn đầu tiên', nPages?.target?.type === 'wiki_share' && nPages.target.params?.pageId === R1, ns);
 
 // ---------- Xoá hết trang đã chọn → 410 ----------
 const ld = await json(PM.cookie, 'POST', S, { scope: 'pages', pages: [{ pageId: R2a }, { pageId: R2bx }], days: 1 });

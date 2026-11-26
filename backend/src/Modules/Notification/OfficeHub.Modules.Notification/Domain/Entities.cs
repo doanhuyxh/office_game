@@ -21,10 +21,9 @@ public sealed class Notification
     public required string Category { get; set; }
     public required string Title { get; set; }
     public required string Body { get; set; }
-    /// <summary>Đường dẫn web — G1 (TEST-237) sinh từ target bằng <see cref="Contracts.NotificationLinkBuilder"/>, giữ cho client cũ; G2 (TEST-238) bỏ.</summary>
-    public string? Link { get; set; }
-    /// <summary>Loại đối tượng (<see cref="Contracts.NotificationTargetTypes"/>). Null chỉ với dòng cũ chưa backfill (backfill chạy sau migration).</summary>
-    public string? TargetType { get; set; }
+    /// <summary>Loại đối tượng (<see cref="Contracts.NotificationTargetTypes"/>) — nguồn duy nhất để client định tuyến (TEST-238 bỏ cột Link);
+    /// URL web chỉ dựng lúc gửi email bằng <see cref="Contracts.NotificationLinkBuilder"/>.</summary>
+    public required string TargetType { get; set; }
     public Guid? TargetId { get; set; }
     /// <summary>Tham số phụ của target — JSON object chuỗi → chuỗi (jsonb).</summary>
     public string? TargetParams { get; set; }

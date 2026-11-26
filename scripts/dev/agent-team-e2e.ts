@@ -179,8 +179,8 @@ ok('2 bot bình luận qua lại: 10 lần được, lần 11 → 409', lastOk =
 const t2Code = (await json(PM.cookie, 'GET', `/api/projects/tasks/${t2}`)).body?.task?.code as string;
 const blockedBells = async () => (await notifs(PM.cookie)).filter((n) => String(n.title).includes(`Việc ${t2Code} đang chờ người thật xem`));
 const bell1 = await blockedBells();
-ok('bot chạm trần → quản lý dự án có đúng 1 chuông, link mở thẳng việc', bell1.length === 1 && String(bell1[0]?.title).includes('10 lần liên tiếp')
-  && String(bell1[0]?.link ?? '').includes(`task=${t2}`), bell1);
+ok('bot chạm trần → quản lý dự án có đúng 1 chuông, target mở thẳng việc', bell1.length === 1 && String(bell1[0]?.title).includes('10 lần liên tiếp')
+  && bell1[0]?.target?.type === 'project_task' && bell1[0]?.target?.id === t2, bell1);
 ok('bị chặn cả chuyển trạng thái', (await tk(W.token, 'POST', `/api/projects/tasks/${t2}/move`, { columnId: DOING })).status === 409);
 ok('bot thử lại (bình luận, chuyển) → không thêm chuông', (await tk(L.token, 'POST', `/api/projects/tasks/${t2}/comments`, { content: 'thử lại' })).status === 409
   && (await blockedBells()).length === 1);

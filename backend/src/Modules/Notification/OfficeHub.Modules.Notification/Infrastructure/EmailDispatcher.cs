@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.BuildingBlocks.Email;
+using OfficeHub.Modules.Notification.Contracts;
 using OfficeHub.Modules.Notification.Domain;
 
 namespace OfficeHub.Modules.Notification.Infrastructure;
@@ -66,7 +67,8 @@ internal sealed class EmailDispatcher(IServiceScopeFactory scopes, IOptions<AppS
     private string Html(Domain.Notification n)
     {
         static string e(string? s) => WebUtility.HtmlEncode(s ?? "");
-        var url = $"{app.Value.BaseUrl.TrimEnd('/')}{n.Link ?? "/"}";
+        // TEST-238: không lưu link — dựng URL ngay lúc gửi từ target (App__BaseUrl + NotificationLinkBuilder); loại chưa biết → trang chủ.
+        var url = $"{app.Value.BaseUrl.TrimEnd('/')}{NotificationLinkBuilder.Build(NotificationTargets.ToTarget(n)) ?? "/"}";
         return $"""
             <div style="font-family:Arial,sans-serif;max-width:560px;color:#0f172a">
               <p>Chào {e(n.EmailToName ?? "")},</p>

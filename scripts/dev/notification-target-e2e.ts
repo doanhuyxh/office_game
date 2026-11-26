@@ -1,22 +1,26 @@
-// E2E TEST-237 (G1): thông báo mang target (type / id / params), link vẫn chạy song song.
-// Pha a: giao việc / bình luận / gửi đơn phê duyệt / tin chat 1-1 → API chuông + trang trả đúng target + link (client cũ), webhook `notification`
-//        + `chat.message` có target, email (Mailpit) nút mở đúng URL, FE `targetToRoute` (import thẳng từ Vite) + `public/sw.js` targetUrl
-//        ra cùng URL với link BE cho mọi thông báo, bấm chuông (Chrome headless) mở đúng việc. Ảnh vào SHOTS_DIR.
-// Pha prep + b: backfill thông báo cũ (chỉ có link) sau migration NotificationTargets.
+// E2E TEST-237 (G1) + TEST-238 (G2): thông báo chỉ mang target (type / id / params) — không còn link ở API chuông / trang, webhook, push.
+// Pha a: giao việc / bình luận / gửi đơn phê duyệt / tin chat 1-1 → API chuông + trang trả đúng target và KHÔNG có `link`, webhook `notification`
+//        + `chat.message` có target, không có link / url, email (Mailpit) nút mở đúng URL (App__BaseUrl + NotificationLinkBuilder lúc gửi),
+//        FE `notificationRoute` (import thẳng từ Vite) = `public/sw.js` targetUrl cho mọi thông báo, loại lạ → /notifications,
+//        bấm chuông (Chrome headless) mở đúng việc. Ảnh vào SHOTS_DIR.
+// Pha prep + b: DB có dữ liệu G1 (cột Link còn, TargetType rỗng ở dòng cũ) → khởi động Api: NotificationMigrator backfill nốt rồi
+//        migration NotificationDropLink xoá cột Link + TargetType NOT NULL.
 // TẠO DỮ LIỆU THẬT → CHỈ DB tạm + Mailpit:
 //   docker run -d --name e2e237-pg -e POSTGRES_DB=e2e -e POSTGRES_USER=e2e -e POSTGRES_PASSWORD=e2e -p 127.0.0.1:15437:5432 postgres:17-alpine
 //   docker run -d --name e2e237-mail -p 127.0.0.1:11237:1025 -p 127.0.0.1:18237:8025 axllent/mailpit
 //   Api (từ backend/): env ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5237
 //        'ConnectionStrings__Default=Host=127.0.0.1;Port=15437;Database=e2e;Username=e2e;Password=e2e' Encryption__Key=<base64 32 byte>
-//        Smtp__Host=127.0.0.1 Smtp__Port=11237 Smtp__UseSsl=false Smtp__Username= Smtp__Password= Sentry__Dsn= Seq__Url= App__BaseUrl=http://localhost:5238
+//        Smtp__Host=127.0.0.1 Smtp__Port=11237 Smtp__UseSsl=false Smtp__Username= Smtp__Password= Sentry__Dsn= Seq__Url= App__BaseUrl=http://localhost:5238 (= BASE_URL: email so nút mở theo BASE)
 //        Chat__InternalKey=<≥32> Chat__RealtimeToApiKey=<cùng> Chat__McpToApiKey=<cùng> Telegram__ApiUrl=http://127.0.0.1:9 Firebase__CredentialsPath=
 //        Database__MigrateOnStartup=true Seed__AdminEmail=e2e237-admin@officehub-e2e.vn Seed__AdminPassword=E2e237-Admin-2026
 //        dotnet run --project src/OfficeHub.Api --no-launch-profile
 //   Vite (frontend/): VITE_API_TARGET=http://localhost:5237 bunx vite --port 5238 --strictPort
 //   Pha a: E2E_LOCAL_DB=1 API_URL=http://localhost:5237 BASE_URL=http://localhost:5238 MAILPIT_URL=http://127.0.0.1:18237 SHOTS_DIR=… bun scripts/dev/notification-target-e2e.ts a
-//   Backfill: dừng Api → (backend/) dotnet ef database update TelegramMessages --project src/Modules/Notification/OfficeHub.Modules.Notification
-//        --startup-project src/OfficeHub.Api --context NotificationDbContext --connection "<chuỗi DB tạm>" --no-build
-//        → E2E_LOCAL_DB=1 PG_CONTAINER=e2e237-pg bun scripts/dev/notification-target-e2e.ts prep → khởi động lại Api → … notification-target-e2e.ts b
+//   Migration G2: dừng Api → (backend/) dotnet ef database update NotificationTargets --project src/Modules/Notification/OfficeHub.Modules.Notification
+//        --startup-project src/OfficeHub.Api --context NotificationDbContext --connection "<chuỗi DB tạm>" --no-build   (về G1: cột Link rỗng)
+//        → E2E_LOCAL_DB=1 PG_CONTAINER=e2e237-pg bun scripts/dev/notification-target-e2e.ts prep   (chèn dòng kiểu cũ: chỉ Link, TargetType rỗng)
+//        → (tuỳ chọn) dotnet ef database update (không qua Api) phải LỖI "còn thông báo chưa có TargetType" — migration tự dừng, không mất dữ liệu
+//        → khởi động lại Api (backfill + xoá cột) → … notification-target-e2e.ts b
 import { $ } from 'bun';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -129,11 +133,10 @@ if (phase === 'a') {
   const assigned = sBell.find((n) => n.title.startsWith('Bạn được giao việc'));
   ok('chuông S: giao việc → target project_task (id = việc, params.projectId)', assigned?.target?.type === 'project_task' && assigned.target.id === T
     && assigned.target.params?.projectId === P && !assigned.target.params?.commentId, assigned);
-  ok('… link giữ như cũ /projects/{p}?task={t}', assigned?.link === `/projects/${P}?task=${T}`, assigned?.link);
+  ok('… không còn trường link (TEST-238)', !!assigned && !('link' in assigned), assigned);
   const commented = sBell.find((n) => n.title.includes('bình luận việc'));
   ok('chuông S: bình luận → target project_task + params.commentId', commented?.target?.type === 'project_task' && commented.target.id === T
     && commented.target.params?.commentId === C, commented);
-  ok('… link /projects/{p}?task={t}&comment={c}', commented?.link === `/projects/${P}?task=${T}&comment=${C}`, commented?.link);
 
   // ---- đơn phê duyệt ----
   const types = (await json(S.cookie, 'GET', '/api/leave/types')).body as any[];
@@ -147,20 +150,19 @@ if (phase === 'a') {
   const mBell = await bell(M.cookie);
   const appr = mBell.find((n) => n.category === 'approval_requested');
   ok('chuông M: đơn chờ duyệt → target approval_request đúng id đơn', appr?.target?.type === 'approval_request' && appr.target.id === A && appr.target.params === null, appr);
-  ok('… link vẫn /approvals (web chưa mở theo id)', appr?.link === '/approvals', appr?.link);
 
   // ---- trang /notifications (phân trang) ----
   const page = (await json(S.cookie, 'GET', '/api/notifications?page=1&pageSize=20')).body;
-  ok('trang thông báo (page) cũng có target + link', page?.items?.length >= 2 && page.items.every((n: any) => n.target?.type && 'link' in n), page?.items?.[0]);
+  ok('trang thông báo (page): mọi dòng có target, không có link', page?.items?.length >= 2 && page.items.every((n: any) => n.target?.type && !('link' in n)), page?.items?.[0]);
 
   // ---- webhook ----
   await until(() => hits.some((h) => h.event === 'notification' && h.json.data?.target?.type === 'approval_request'));
   const hookAssigned = hits.find((h) => h.event === 'notification' && h.json.data?.target?.id === T && !h.json.data.target.params?.commentId);
-  ok('webhook notification: data.target { type, id, params } + link + url', hookAssigned?.json.data.target.type === 'project_task'
-    && hookAssigned.json.data.target.params?.projectId === P && hookAssigned.json.data.link === `/projects/${P}?task=${T}`
-    && hookAssigned.json.data.url === `http://localhost:5238/projects/${P}?task=${T}`, hookAssigned?.json ?? hits.map((h) => h.event));
+  ok('webhook notification: data.target { type, id, params }, không có link / url', hookAssigned?.json.data.target.type === 'project_task'
+    && hookAssigned.json.data.target.params?.projectId === P && !('link' in hookAssigned.json.data) && !('url' in hookAssigned.json.data),
+    hookAssigned?.json ?? hits.map((h) => h.event));
   const hookAppr = hits.find((h) => h.event === 'notification' && h.json.data?.target?.type === 'approval_request');
-  ok('webhook notification (đơn): target có id đơn', hookAppr?.json.data.target.id === A && hookAppr.json.data.link === '/approvals', hookAppr?.json);
+  ok('webhook notification (đơn): target có id đơn', hookAppr?.json.data.target.id === A && !('link' in hookAppr.json.data), hookAppr?.json);
 
   // ---- chat 1-1 → webhook chat.message ----
   const DM = (await json(S.cookie, 'POST', '/api/chat/conversations/direct', { userId: M.userId })).body?.id as string;
@@ -168,8 +170,8 @@ if (phase === 'a') {
   const msgId = msg.body?.message?.id ?? msg.body?.id;
   await until(() => hits.some((h) => h.event === 'chat.message' && h.json.data?.conversationId === DM));
   const hookChat = hits.find((h) => h.event === 'chat.message' && h.json.data?.conversationId === DM);
-  ok('webhook chat.message: target chat_conversation (id hội thoại, params.messageId) + link /chat?c=', hookChat?.json.data.target?.type === 'chat_conversation'
-    && hookChat.json.data.target.id === DM && hookChat.json.data.target.params?.messageId === msgId && hookChat.json.data.link === `/chat?c=${DM}`, hookChat?.json ?? msg);
+  ok('webhook chat.message: target chat_conversation (id hội thoại, params.messageId), không link', hookChat?.json.data.target?.type === 'chat_conversation'
+    && hookChat.json.data.target.id === DM && hookChat.json.data.target.params?.messageId === msgId && !('link' in hookChat.json.data), hookChat?.json ?? msg);
 
   // ---- email ----
   let mail: any = null;
@@ -179,13 +181,17 @@ if (phase === 'a') {
     if (!mail) await sleep(500);
   }
   const html = mail ? ((await (await fetch(`${MAILPIT}/api/v1/message/${mail.ID}`)).json()) as any).HTML as string : '';
-  ok('email "Đơn chờ bạn duyệt" có nút mở đúng URL (App__BaseUrl + link)', html.includes('href="http://localhost:5238/approvals"'), html.slice(0, 400));
+  ok('email "Đơn chờ bạn duyệt" có nút mở đúng URL (App__BaseUrl + target dựng lúc gửi)', html.includes(`href="${BASE}/approvals"`), html.slice(0, 400));
 
-  // ---- client: sw.js + FE target.ts ra cùng URL với link BE ----
+  // ---- client: sw.js + FE target.ts ra cùng màn hình (không dùng link) ----
   const all = [...await bell(S.cookie), ...await bell(M.cookie)];
-  const swBad = all.filter((n) => targetUrl(pushData(n.target)) !== n.link).map((n) => ({ t: n.target, link: n.link, sw: targetUrl(pushData(n.target)) }));
-  ok(`sw.js targetUrl(data push) = link BE cho ${all.length} thông báo`, all.length >= 4 && swBad.length === 0, swBad);
-  ok('sw.js: thiếu target → null (dùng data.link)', targetUrl({ link: '/x' } as any) === null && targetUrl({ targetType: 'la_lam' } as any) === null);
+  const want = (n: any) => ({ project_task: `/projects/${P}?task=${T}` + (n.target.params?.commentId ? `&comment=${n.target.params.commentId}` : ''),
+    approval_request: '/approvals', project: `/projects/${P}` } as Record<string, string>)[n.target.type];
+  const swBad = all.filter((n) => want(n) && targetUrl(pushData(n.target)) !== want(n)).map((n) => ({ t: n.target, want: want(n), sw: targetUrl(pushData(n.target)) }));
+  ok(`sw.js targetUrl(data push) ra đúng màn hình cho ${all.length} thông báo`, all.length >= 4 && swBad.length === 0, swBad);
+  const swClick = swSrc.slice(swSrc.indexOf("self.addEventListener('notificationclick'"));
+  ok('sw.js: không đọc data.link; thiếu / loại lạ → null → mở /notifications', !/\blink\b/.test(swClick) && swClick.includes("?? '/notifications'")
+    && targetUrl({ link: '/x' } as any) === null && targetUrl({ targetType: 'la_lam' } as any) === null);
 
   writeFileSync(STATE, JSON.stringify({ S: { user: S.user, userId: S.userId }, P, T, C }));
   const br = await launch(9337, `${tmpdir()}/t237-chrome`, 1440, 900);
@@ -197,15 +203,20 @@ if (phase === 'a') {
     const feCheck = await br.evalJs(`(async () => {
       const m = await import('/src/features/notifications/utils/target.ts');
       const r = await fetch('/api/notifications?take=50').then((x) => x.json());
-      const bad = r.items.filter((n) => m.routeHref(m.notificationRoute(n)) !== n.link).map((n) => ({ t: n.target, link: n.link, fe: m.routeHref(m.notificationRoute(n)) }));
-      const legacy = m.routeHref(m.notificationRoute({ target: null, link: '/news/abc?comment=1' }));
-      const unknown = m.routeHref(m.notificationRoute({ target: { type: 'la_lam', id: null, params: null }, link: '/approvals' }));
+      const targetUrl = new Function(${JSON.stringify(swFn)} + '; return targetUrl;')();
+      const data = (t) => ({ targetType: t.type, ...(t.id ? { targetId: t.id } : {}), ...(t.params ? { targetParams: JSON.stringify(t.params) } : {}) });
+      const bad = r.items.filter((n) => 'link' in n || m.routeHref(m.notificationRoute(n)) !== targetUrl(data(n.target)))
+        .map((n) => ({ t: n.target, fe: m.routeHref(m.notificationRoute(n)), sw: targetUrl(data(n.target)) }));
+      const missing = m.routeHref(m.notificationRoute({ target: null }));
+      const unknown = m.routeHref(m.notificationRoute({ target: { type: 'la_lam', id: null, params: null } }));
+      const noId = m.routeHref(m.notificationRoute({ target: { type: 'project_task', id: null, params: null } }));
       const push = m.routeHref(m.pushRoute({ targetType: 'project_task', targetId: 't1', targetParams: JSON.stringify({ projectId: 'p1' }), link: '/x' }));
-      return { n: r.items.length, bad, legacy, unknown, push };
+      const pushNone = m.routeHref(m.pushRoute({ link: '/approvals' }));
+      return { n: r.items.length, bad, missing, unknown, noId, push, pushNone };
     })()`);
-    ok('FE targetToRoute (chuông / trang) = link BE cho mọi thông báo của S', feCheck.n >= 2 && feCheck.bad.length === 0, feCheck);
-    ok('FE: thiếu target → link cũ; loại lạ → link; push data → route', feCheck.legacy === '/news/abc?comment=1' && feCheck.unknown === '/approvals'
-      && feCheck.push === '/projects/p1?task=t1', feCheck);
+    ok('FE notificationRoute (chuông / trang) = sw.js cho mọi thông báo của S, không dòng nào có link', feCheck.n >= 2 && feCheck.bad.length === 0, feCheck);
+    ok('FE: thiếu target / loại lạ / thiếu id → /notifications; push bỏ qua data.link', feCheck.missing === '/notifications' && feCheck.unknown === '/notifications'
+      && feCheck.noId === '/notifications' && feCheck.push === '/projects/p1?task=t1' && feCheck.pushNone === '/notifications', feCheck);
     await br.evalJs(`document.querySelector('[data-testid="notification-bell"]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' }))`);
     await br.sleep(1200);
     await br.shot(`${SHOTS}/t237-bell.png`);
@@ -226,33 +237,42 @@ if (phase === 'a') {
 }
 
 if (phase === 'prep') {
-  // DB đã hạ migration NotificationTargets (không còn cột Target*): chèn thông báo kiểu cũ cho S.
+  // DB đã hạ về migration NotificationTargets (G1): cột Link có lại (rỗng), TargetType cho phép null. Chèn thông báo kiểu cũ (chỉ link) cho S.
   const s = JSON.parse(readFileSync(STATE, 'utf8'));
-  const cols = await sql(`select string_agg(column_name, ',') from information_schema.columns where table_schema='notifications' and table_name='notifications' and column_name like 'Target%'`);
-  ok('DB đã hạ migration (không còn cột Target*)', cols.trim() === '', cols);
+  const col = (c: string) => sql(`select is_nullable from information_schema.columns where table_schema='notifications' and table_name='notifications' and column_name='${c}'`);
+  const linkCol = (await col('Link')).trim(), ttNull = (await col('TargetType')).trim();
+  ok('DB ở G1 (có cột Link, TargetType cho phép null)', linkCol === 'YES' && ttNull === 'YES', { linkCol, ttNull });
+  const g1 = Number((await sql(`select count(*) from notifications.notifications where "TargetType" is not null`)).trim());
+  ok('DB còn dữ liệu G1 (thông báo đã có target từ pha a)', g1 >= 4, g1);
   const links = [`/projects/${s.P}?task=${s.T}&comment=${s.C}`, `/projects/${s.P}?tab=guide`, '/approvals', '/reports?tab=ai', '/sales?tab=receivables', null];
   for (const [i, l] of links.entries())
     await sql(`insert into notifications.notifications ("Id","UserId","Category","Title","Body","Link","CreatedAt","EmailStatus","EmailAttempts") values
       (gen_random_uuid(), '${s.S.userId}', 'project_task', 'Cũ ${i} e2e237', 'Thông báo cũ', ${l === null ? 'null' : `'${l}'`}, now() - interval '${i + 1} minute', 'None', 0)`);
-  ok('chèn 6 thông báo kiểu cũ (chỉ link)', Number((await sql(`select count(*) from notifications.notifications where "Title" like 'Cũ % e2e237'`)).trim()) >= 6);
+  ok('chèn 6 thông báo kiểu cũ (chỉ link, TargetType rỗng)',
+    Number((await sql(`select count(*) from notifications.notifications where "TargetType" is null and "Title" like 'Cũ % e2e237'`)).trim()) === 6);
 }
 
 if (phase === 'b') {
   const s = JSON.parse(readFileSync(STATE, 'utf8'));
-  const nulls = Number((await sql(`select count(*) from notifications.notifications where "TargetType" is null`)).trim());
-  ok('sau migration + backfill: không dòng nào TargetType rỗng', nulls === 0, nulls);
+  const cols = await sql(`select string_agg(column_name || ':' || is_nullable, ',') from information_schema.columns where table_schema='notifications' and table_name='notifications' and column_name in ('Link','TargetType')`);
+  ok('sau migration G2: cột Link đã xoá, TargetType NOT NULL', cols.trim() === 'TargetType:NO', cols);
+  const applied = await sql(`select count(*) from notifications.__ef_migrations where "MigrationId" like '%_NotificationDropLink'`);
+  ok('… migration NotificationDropLink đã ghi lịch sử', applied.trim() === '1', applied);
   const cookie = await login(s.S.user, PW);
-  const old = (await bell(cookie)).filter((n) => n.title.endsWith('e2e237'));
+  const items = await bell(cookie);
+  const old = items.filter((n) => n.title.endsWith('e2e237'));
   const by = (i: number) => old.find((n) => n.title === `Cũ ${i} e2e237`);
+  ok('6 thông báo cũ được backfill trước khi xoá cột (không còn link)', old.length === 6 && old.every((n) => n.target?.type && !('link' in n)), old);
   ok('việc + bình luận cũ → project_task (id việc, projectId, commentId)', by(0)?.target?.type === 'project_task' && by(0).target.id === s.T
     && by(0).target.params?.projectId === s.P && by(0).target.params?.commentId === s.C, by(0));
   ok('dự án ?tab=guide → project + params.tab', by(1)?.target?.type === 'project' && by(1).target.id === s.P && by(1).target.params?.tab === 'guide', by(1));
   ok('/approvals → page key approvals', by(2)?.target?.type === 'page' && by(2).target.params?.key === 'approvals', by(2));
   ok('/reports?tab=ai → page key reports + tab', by(3)?.target?.params?.key === 'reports' && by(3).target.params?.tab === 'ai', by(3));
-  ok('link null → page key rỗng', by(5)?.target?.type === 'page' && by(5).target.params?.key === '' && by(5).link === null, by(5));
-  ok('cột link cũ giữ nguyên (client cũ)', by(0)?.link === `/projects/${s.P}?task=${s.T}&comment=${s.C}` && by(4)?.link === '/sales?tab=receivables', old.map((n) => n.link));
-  const swBad = old.filter((n) => n.link && targetUrl(pushData(n.target)) !== n.link).map((n) => ({ t: n.target, link: n.link }));
-  ok('target backfill dựng lại đúng link (sw.js)', swBad.length === 0, swBad);
+  ok('link null → page key rỗng', by(5)?.target?.type === 'page' && by(5).target.params?.key === '', by(5));
+  const swMap: [number, string][] = [[0, `/projects/${s.P}?task=${s.T}&comment=${s.C}`], [1, `/projects/${s.P}?tab=guide`], [2, '/approvals'], [4, '/sales?tab=receivables']];
+  const swBad = swMap.filter(([i, u]) => targetUrl(pushData(by(i)?.target ?? {})) !== u).map(([i, u]) => ({ i, u, sw: targetUrl(pushData(by(i)?.target ?? {})) }));
+  ok('target backfill mở đúng màn hình cũ (sw.js)', swBad.length === 0, swBad);
+  ok('dữ liệu G1 (pha a) vẫn còn, có target', items.some((n) => n.title.startsWith('Bạn được giao việc') && n.target?.type === 'project_task' && n.target.id === s.T));
 }
 
 console.log(`\n${pass}/${pass + fail} đạt`);

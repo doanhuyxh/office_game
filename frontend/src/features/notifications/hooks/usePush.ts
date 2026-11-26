@@ -54,8 +54,8 @@ export function usePushForeground({ quiet = false }: { quiet?: boolean } = {}) {
     void onForegroundPush((title, body, data) => {
       if (quiet) { void qc.invalidateQueries({ queryKey: notificationKeys.list }); return; }
       playNotificationSound();
-      const route = pushRoute(data); // target (TEST-237), thiếu thì link
-      toast.info(title, { description: body, action: route ? { label: 'Xem', onClick: () => void navigate(route) } : undefined });
+      const route = pushRoute(data); // target (TEST-237); loại chưa biết → /notifications
+      toast.info(title, { description: body, action: { label: 'Xem', onClick: () => void navigate(route) } });
     }).then((u) => (unsub = u));
     return () => unsub?.();
   }, [navigate, qc, quiet]);

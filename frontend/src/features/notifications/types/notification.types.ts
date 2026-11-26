@@ -20,9 +20,8 @@ export interface INotification {
   category: NotificationCategory | string;
   title: string;
   body: string;
-  /** Đường dẫn trong app, vd "/approvals" — G1 (TEST-237) giữ song song với `target`, chỉ dùng khi thiếu target. */
-  link: string | null;
-  target?: INotificationTarget | null;
+  /** Đối tượng trỏ tới — nguồn duy nhất để định tuyến (TEST-238 bỏ `link`); loại chưa biết → trang /notifications. */
+  target: INotificationTarget;
   createdAt: string;
   read: boolean;
 }

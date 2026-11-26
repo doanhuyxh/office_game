@@ -3,9 +3,9 @@ using System.Text.RegularExpressions;
 namespace OfficeHub.Modules.Notification.Contracts;
 
 /// <summary>
-/// TEST-237 (G1): <see cref="NotificationTarget"/> → đường dẫn web — MỘT chỗ duy nhất cho chuông (cột link), email, push, webhook.
-/// Đường dẫn giữ đúng như trước khi có target (client cũ chỉ đọc link vẫn chạy). Màn hình web chưa mở được theo id (phê duyệt, lịch họp,
-/// hợp đồng, phiếu lương, tài sản, đề nghị chi…) vẫn trỏ trang danh sách; app mobile / agent dùng target có id.
+/// <see cref="NotificationTarget"/> → đường dẫn web (TEST-237). Từ G2 (TEST-238) thông báo không lưu / trả link nữa: chỉ dựng URL lúc cần
+/// (nút "Mở OfficeHub" trong email = <c>App__BaseUrl</c> + đường dẫn này). Màn hình web chưa mở được theo id (phê duyệt, lịch họp,
+/// hợp đồng, phiếu lương, tài sản, đề nghị chi…) vẫn trỏ trang danh sách; client (web, app mobile, agent) tự định tuyến theo target.
 /// </summary>
 public static partial class NotificationLinkBuilder
 {

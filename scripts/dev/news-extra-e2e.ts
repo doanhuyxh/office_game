@@ -90,7 +90,7 @@ const S = sch.body.id as string;
 ok('B (chưa tới giờ) → 404 chi tiết, không có trong feed', (await json(B.cookie, 'GET', `/api/news/posts/${S}`)).status === 404 && !(await feedIds(B)).includes(S));
 ok('admin / HR cũng không thấy bài chưa đăng', (await json(admin, 'GET', `/api/news/posts/${S}`)).status === 404);
 ok('A thấy bài hẹn trong "Bài của tôi"', (((await json(A.cookie, 'GET', '/api/news/feed?mine=true')).body?.items ?? []) as any[]).some((p) => p.id === S && p.publishAt));
-ok('B chưa nhận chuông @nhắc', !(await notes(B)).some((n) => n.link === `/news/${S}`));
+ok('B chưa nhận chuông @nhắc', !(await notes(B)).some((n) => n.target?.type === 'news_post' && n.target.id === S));
 const later = await post(C, { contentHtml: '<p>Bài thường của C (đăng sau khi A hẹn)</p>' });
 const unseenBefore = (await json(B.cookie, 'GET', '/api/news/unseen-count')).body?.count ?? 0;
 
@@ -103,7 +103,7 @@ ok('bài vừa đăng nổi lên đầu feed (trên bài C đăng sau lúc hẹn
 const sp = (await json(A.cookie, 'GET', `/api/news/posts/${S}`)).body;
 ok('sau khi đăng: publishAt null, createdAt = lúc đăng', sp.publishAt == null && new Date(sp.createdAt).getTime() > new Date(later.body.createdAt).getTime(), sp);
 ok('B được tính thêm bài mới', ((await json(B.cookie, 'GET', '/api/news/unseen-count')).body?.count ?? 0) > unseenBefore);
-ok('B nhận chuông @nhắc lúc đăng', (await notes(B)).some((n) => n.link === `/news/${S}`));
+ok('B nhận chuông @nhắc lúc đăng', (await notes(B)).some((n) => n.target?.type === 'news_post' && n.target.id === S));
 
 const sch2 = await post(A, { contentHtml: '<p>Hẹn rồi đăng ngay</p>', publishAt: iso(3 * 3600_000) });
 const S2 = sch2.body.id as string;

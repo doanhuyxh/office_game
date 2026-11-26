@@ -95,7 +95,7 @@ let got = await fresh(before);
 ok('Tạo việc: PM + Bot nhận "Việc mới"', [got.PM, got.Bot].every((l) => l.length === 1 && l[0].title === `Việc mới ${CODE}-1: Viết tài liệu`), got);
 ok('Tạo việc: người được giao nhận đúng 1 chuông (giao việc, không thêm "Việc mới")', got.B.length === 1 && got.B[0].title.startsWith('Bạn được giao việc'), got.B);
 ok('Tạo việc: người tạo + người ngoài dự án không nhận', got.A.length === 0 && got.O.length === 0, { A: got.A, O: got.O });
-ok('Chuông dẫn về trang dự án', got.PM[0]?.link === `/projects/${P}`, got.PM[0]);
+ok('Chuông dẫn về việc trong dự án (target project_task)', got.PM[0]?.target?.type === 'project_task' && got.PM[0].target.params?.projectId === P, got.PM[0]);
 
 // 2) B kéo sang "Đang làm" → mọi thành viên trừ B
 before = await snap();
@@ -156,7 +156,7 @@ ok('PM sửa tên + kết thúc dự kiến (204)', (await putProject(PM.cookie,
 got = await fresh(before);
 ok('Sửa dự án (web): A, B, Bot mỗi người 1 chuông "đã được cập nhật"', [got.A, got.B, got.Bot].every((l) => l.length === 1 && l[0].title === UPD), got);
 ok('Nội dung: người sửa + đúng các trường', got.A[0]?.body?.startsWith('Quản Lý NT đã sửa:') && got.A[0].body.includes('Tên: "Thông báo NT" → "Thông báo NT 2"')
-  && got.A[0].body.includes('Kết thúc dự kiến: trống → 15/12/2026') && got.A[0].link === `/projects/${P}`, got.A[0]);
+  && got.A[0].body.includes('Kết thúc dự kiến: trống → 15/12/2026') && got.A[0].target?.type === 'project' && got.A[0].target.id === P, got.A[0]);
 ok('Sửa dự án (web): người sửa + người ngoài không nhận', got.PM.length === 0 && got.O.length === 0, { PM: got.PM, O: got.O });
 before = await snap();
 ok('Lưu lại y nguyên (204)', (await putProject(PM.cookie, {})).status === 204);
@@ -173,7 +173,7 @@ before = await snap();
 ok('Token: PUT /guide (200)', (await call(pmBearer, 'PUT', `/api/projects/${P}/guide`, { workGuide: '## Bản do bot sửa' })).status === 200);
 got = await fresh(before);
 ok('Sửa qua token: PM (chủ token) + A + B + Bot đều nhận, nhãn BOT, link tab Hướng dẫn', [got.PM, got.A, got.B, got.Bot].every((l) => l.length === 1 && l[0].title === UPD
-  && l[0].body.startsWith('BOT (token của Quản Lý NT) đã sửa: Hướng dẫn làm việc: đã sửa') && l[0].link === `/projects/${P}?tab=guide`) && got.O.length === 0, got);
+  && l[0].body.startsWith('BOT (token của Quản Lý NT) đã sửa: Hướng dẫn làm việc: đã sửa') && l[0].target?.type === 'project' && l[0].target.id === P && l[0].target.params?.tab === 'guide') && got.O.length === 0, got);
 before = await snap();
 await call(pmBearer, 'PUT', `/api/projects/${P}/guide`, { workGuide: '## Bản do bot sửa' });
 ok('Token gửi lại cùng hướng dẫn → không ai nhận', Object.values(await fresh(before)).every((l) => l.length === 0));

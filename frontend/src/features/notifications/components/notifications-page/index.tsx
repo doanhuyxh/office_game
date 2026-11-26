@@ -29,8 +29,7 @@ export function NotificationsPage() {
 
   const open = (n: INotification) => {
     if (!n.read) markRead.mutate(n.id);
-    const route = notificationRoute(n);
-    if (route) void navigate(route);
+    void navigate(notificationRoute(n));
   };
 
   return (
@@ -63,7 +62,7 @@ export function NotificationsPage() {
                   <c.icon className={cn('mt-0.5 size-4 shrink-0', c.className)} />
                   <button type="button" className="grid min-w-0 flex-1 gap-0.5 text-left" onClick={() => open(n)}>
                     {c.label && <span className={cn('text-xs font-medium', c.className)} data-testid="notification-label">{c.label}</span>}
-                    <span className={cn('text-sm leading-snug', !n.read && 'font-semibold', (n.target || n.link) && 'hover:underline')}>{n.title}</span>
+                    <span className={cn('text-sm leading-snug', !n.read && 'font-semibold', 'hover:underline')}>{n.title}</span>
                     <span className="text-sm whitespace-pre-line text-muted-foreground">{n.body}</span>
                     <span className="text-xs text-muted-foreground/80" title={formatDateTime(n.createdAt)}>{timeAgo(n.createdAt)}</span>
                   </button>

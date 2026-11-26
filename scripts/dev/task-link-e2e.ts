@@ -72,18 +72,18 @@ const cols = (await json(PM.cookie, 'GET', `/api/projects/${P}`)).body.columns a
 const T = (await json(PM.cookie, 'POST', `/api/projects/${P}/tasks`, { title: 'Việc giao qua chuông', assigneeEmployeeId: A.e.id })).body as string;
 const notes = async (cookie: string) => (await json(cookie, 'GET', '/api/notifications?take=50')).body.items as any[];
 const assigned = (await notes(A.cookie)).find((n) => n.title.includes('Bạn được giao việc'));
-ok('chuông giao việc → /projects/{pid}?task={tid}', assigned?.link === `/projects/${P}?task=${T}`, assigned);
+ok('chuông giao việc → target project_task {pid, tid}', assigned?.target?.type === 'project_task' && assigned.target.id === T && assigned.target.params?.projectId === P, assigned);
 const C = (await json(PM.cookie, 'POST', `/api/projects/tasks/${T}/comments`, { content: `Nhờ @${A.e.code} xem giúp` })).body as string;
 const commented = (await notes(A.cookie)).find((n) => n.title.includes('bình luận việc'));
-ok('chuông bình luận (người làm) → &comment={cid}', commented?.link === `/projects/${P}?task=${T}&comment=${C}`, commented);
+ok('chuông bình luận (người làm) → target có commentId', commented?.target?.id === T && commented.target.params?.projectId === P && commented.target.params?.commentId === C, commented);
 // bình luận dài để bình luận cần tìm nằm dưới, phải cuộn
 for (let i = 0; i < 12; i++) await json(A.cookie, 'POST', `/api/projects/tasks/${T}/comments`, { content: `Ghi chú ${i}\n\n${'Nội dung dài. '.repeat(30)}` });
 const C2 = (await json(PM.cookie, 'POST', `/api/projects/tasks/${T}/comments`, { content: `Bình luận cuối cho @${A.e.code}` })).body as string;
 await json(A.cookie, 'POST', `/api/projects/tasks/${T}/move`, { columnId: cols[1].id });
 const moved = (await notes(PM.cookie)).find((n) => n.title.includes('chuyển'));
-ok('chuông chung đổi cột → ?task=', moved?.link === `/projects/${P}?task=${T}`, moved);
+ok('chuông chung đổi cột → target project_task', moved?.target?.type === 'project_task' && moved.target.id === T, moved);
 const memberAdded = (await notes(A.cookie)).find((n) => n.category !== 'project_task');
-ok('chuông không gắn việc (thêm thành viên) giữ link cũ', !memberAdded || !String(memberAdded.link).includes('task='), memberAdded);
+ok('chuông không gắn việc (thêm thành viên) → target project', !memberAdded || memberAdded.target?.type === 'project', memberAdded);
 // việc đã xong (không hiện khi lọc "việc của tôi"): PM tự giao cho mình rồi đi lần lượt tới cột hoàn thành
 const D = (await json(PM.cookie, 'POST', `/api/projects/${P}/tasks`, { title: 'Việc đã xong từ trước', assigneeEmployeeId: PM.e.id })).body as string;
 for (const c of cols.slice(1)) { await json(PM.cookie, 'POST', `/api/projects/tasks/${D}/move`, { columnId: c.id }); if (c.isDone) break; }

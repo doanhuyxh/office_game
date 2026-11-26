@@ -313,7 +313,7 @@ public static class ChatEndpoints
             {
                 conversationId = conv.Id, messageId = msg.Id, seq = msg.Seq, senderId = me, senderName = msg.SenderName, byBot = msg.ByBot,
                 text = msg.Text, files = msg.Attachments.Select(a => a.FileName).ToList(), createdAt = msg.CreatedAt,
-                target = new { type = chatTarget.Type, id = chatTarget.Id, @params = chatTarget.Params }, link = NotificationLinkBuilder.Build(chatTarget),
+                target = new { type = chatTarget.Type, id = chatTarget.Id, @params = chatTarget.Params },
             }, ct);
 
         return TypedResults.Ok(new SendResultDto(await store.ToDtoAsync(msg), conv.Type, conv.RoomId, store.RoomNameOf(conv), recipients));
@@ -466,7 +466,7 @@ public static class ChatEndpoints
         {
             conversationId = conv.Id, conversationType = conv.Type.ToString(), title = where, messageId = msg.Id, seq = msg.Seq, senderId = msg.SenderId,
             senderName = msg.SenderName, text = msg.Text, createdAt = msg.CreatedAt,
-            target = new { type = target.Type, id = target.Id, @params = target.Params }, link = NotificationLinkBuilder.Build(target),
+            target = new { type = target.Type, id = target.Id, @params = target.Params },
         }, ct);
         var people = await store.PeopleAsync(ct);
         foreach (var u in targets)

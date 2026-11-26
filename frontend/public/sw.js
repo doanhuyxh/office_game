@@ -74,7 +74,7 @@ self.addEventListener('push', (e) => {
 });
 
 // TEST-237: dựng URL từ target (targetType / targetId / targetParams) — bản rút gọn của features/notifications/utils/target.ts
-// (SW không import được module app; giữ khớp BE NotificationLinkBuilder). Loại chưa biết / thiếu → `link` (G1), không có → '/'.
+// (SW không import được module app; giữ khớp BE NotificationLinkBuilder). TEST-238: không còn `link` — loại chưa biết / thiếu → '/notifications'.
 function targetUrl(d) {
   if (!d || !d.targetType) return null;
   let p = {};
@@ -115,5 +115,5 @@ function targetUrl(d) {
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
   const d = e.notification.data;
-  e.waitUntil(self.clients.openWindow(targetUrl(d) ?? d?.link ?? '/'));
+  e.waitUntil(self.clients.openWindow(targetUrl(d) ?? '/notifications'));
 });

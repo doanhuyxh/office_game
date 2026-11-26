@@ -120,7 +120,7 @@ ok('Đang dùng → Bảo trì bị chặn (phải thu hồi trước) → 409',
 ok('Không xoá được thiết bị đã cấp → 409', (await json(admin, 'DELETE', `/api/assets/devices/${devId}`)).status === 409);
 
 const myNotes = await json(staff.cookie, 'GET', '/api/notifications?take=20');
-ok('Người được cấp nhận thông báo asset_assigned', myNotes.body?.items?.some((n: any) => n.category === 'asset_assigned' && n.link === '/assets'), myNotes.body);
+ok('Người được cấp nhận thông báo asset_assigned', myNotes.body?.items?.some((n: any) => n.category === 'asset_assigned' && String(n.target?.type).startsWith('asset_')), myNotes.body);
 
 // quyền xem tài sản đang giữ
 const my = await json(staff.cookie, 'GET', '/api/assets/my');

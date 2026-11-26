@@ -11,9 +11,9 @@ using OfficeHub.Modules.Notification.Infrastructure;
 
 namespace OfficeHub.Modules.Notification.Features;
 
-/// <summary>Đối tượng thông báo trỏ tới (TEST-237): client tự định tuyến theo type / id / params; <c>link</c> vẫn trả song song (G1).</summary>
+/// <summary>Đối tượng thông báo trỏ tới (TEST-237): client tự định tuyến theo type / id / params — nguồn duy nhất, không còn <c>link</c> (TEST-238).</summary>
 public sealed record NotificationTargetDto(string Type, Guid? Id, IReadOnlyDictionary<string, string>? Params);
-public sealed record NotificationDto(Guid Id, string Category, string Title, string Body, string? Link, NotificationTargetDto? Target, DateTimeOffset CreatedAt, bool Read);
+public sealed record NotificationDto(Guid Id, string Category, string Title, string Body, NotificationTargetDto Target, DateTimeOffset CreatedAt, bool Read);
 public sealed record NotificationListDto(int UnreadCount, IReadOnlyList<NotificationDto> Items);
 public sealed record UnreadCountDto(int Count);
 public sealed record PushTokenRequest(string Token);
@@ -50,7 +50,7 @@ internal static class NotificationEndpoints
         var unreadCount = await mine.CountAsync(x => x.ReadAt == null, ct);
         var q = unread == true ? mine.Where(x => x.ReadAt == null) : mine;
         var rows = q.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
-            .Select(x => new Row(x.Id, x.Category, x.Title, x.Body, x.Link, x.TargetType, x.TargetId, x.TargetParams, x.CreatedAt, x.ReadAt != null));
+            .Select(x => new Row(x.Id, x.Category, x.Title, x.Body, x.TargetType, x.TargetId, x.TargetParams, x.CreatedAt, x.ReadAt != null));
         if (page is { } pg)
         {
             var p = await rows.ToPagedAsync(pg, pageSize, ct);
@@ -60,11 +60,11 @@ internal static class NotificationEndpoints
         return TypedResults.Ok(new NotificationListDto(unreadCount, [.. items.Select(ToDto)]));
     }
 
-    private sealed record Row(Guid Id, string Category, string Title, string Body, string? Link, string? TargetType, Guid? TargetId, string? TargetParams,
+    private sealed record Row(Guid Id, string Category, string Title, string Body, string TargetType, Guid? TargetId, string? TargetParams,
         DateTimeOffset CreatedAt, bool Read);
 
-    private static NotificationDto ToDto(Row r) => new(r.Id, r.Category, r.Title, r.Body, r.Link,
-        r.TargetType is null ? null : new NotificationTargetDto(r.TargetType, r.TargetId, Domain.NotificationTargets.ParseParams(r.TargetParams)),
+    private static NotificationDto ToDto(Row r) => new(r.Id, r.Category, r.Title, r.Body,
+        new NotificationTargetDto(r.TargetType, r.TargetId, Domain.NotificationTargets.ParseParams(r.TargetParams)),
         r.CreatedAt, r.Read);
 
     private static async Task<Ok<UnreadCountDto>> UnreadCountAsync(ClaimsPrincipal user, NotificationDbContext db, CancellationToken ct)

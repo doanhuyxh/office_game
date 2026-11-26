@@ -95,7 +95,7 @@ if (phase === 'a') {
   const emp = await login('e2e.quanly', PW);
   const n = await (await call(emp.cookie, 'GET', '/api/notifications?take=10')).json();
   const rem = n.items?.filter((x: any) => x.category === 'attendance_reminder') ?? [];
-  ok('nhận nhắc "chưa chấm công ra" (chuông)', rem.length === 1 && rem[0].title.includes('chưa chấm công ra') && rem[0].link === '/attendance', n.items);
+  ok('nhận nhắc "chưa chấm công ra" (chuông)', rem.length === 1 && rem[0].title.includes('chưa chấm công ra') && rem[0].target?.type === 'page' && rem[0].target.params?.key === 'attendance', n.items);
   const changes = await (await call(admin.cookie, 'GET', '/api/audit/changes?entity=ScheduleEntry')).json();
   ok('lịch sử: lịch tuần riêng được ghi', changes.length >= 7, changes.length);
 }

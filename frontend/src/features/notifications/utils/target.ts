@@ -1,6 +1,5 @@
 import { PATHS } from '@/config/paths';
 import type { INotificationTarget } from '../types/notification.types';
-import { linkTarget } from './labels';
 
 /** Đích điều hướng cho `navigate({ to, search })`. */
 export interface IRoute {
@@ -19,7 +18,7 @@ const PAGE_KEY = /^([a-z0-9-]+(\/[a-z0-9-]+)*)?$/;
 /**
  * TEST-237: đối tượng thông báo (`target`) → màn hình web, theo từng loại (BE `NotificationTargetTypes`). Khớp `NotificationLinkBuilder` ở BE:
  * màn hình chưa mở được theo id (phê duyệt, lịch họp, hợp đồng, phiếu lương, tài sản, đề nghị chi) vẫn về trang danh sách.
- * Loại chưa biết → null (người gọi quay về `link`).
+ * Loại chưa biết / thiếu id → null (người gọi mở trang `/notifications`).
  */
 export function targetToRoute(t: INotificationTarget | null | undefined): IRoute | null {
   if (!t) return null;
@@ -78,14 +77,14 @@ export function targetToRoute(t: INotificationTarget | null | undefined): IRoute
   }
 }
 
-/** Đích của một thông báo: theo `target`; thiếu / loại chưa biết → tách `link` (client G1, thông báo cũ). */
-export function notificationRoute(n: { target?: INotificationTarget | null; link?: string | null }): IRoute | null {
-  return targetToRoute(n.target) ?? (n.link ? linkTarget(n.link) : null);
+/** Đích của một thông báo: theo `target` (nguồn duy nhất — TEST-238 bỏ `link`); loại chưa biết / thiếu → trang `/notifications`. */
+export function notificationRoute(n: { target?: INotificationTarget | null }): IRoute {
+  return targetToRoute(n.target) ?? { to: PATHS.notifications };
 }
 
-/** Đích từ `data` của push FCM (map chuỗi: targetType / targetId / targetParams JSON + link). */
-export function pushRoute(data: Record<string, string> | undefined): IRoute | null {
-  if (!data) return null;
+/** Đích từ `data` của push FCM (map chuỗi: targetType / targetId / targetParams JSON). */
+export function pushRoute(data: Record<string, string> | undefined): IRoute {
+  if (!data) return { to: PATHS.notifications };
   let params: Record<string, string> | null = null;
   try {
     params = data.targetParams ? (JSON.parse(data.targetParams) as Record<string, string>) : null;
@@ -93,7 +92,7 @@ export function pushRoute(data: Record<string, string> | undefined): IRoute | nu
     params = null;
   }
   const target = data.targetType ? { type: data.targetType, id: data.targetId ?? null, params } : null;
-  return notificationRoute({ target, link: data.link });
+  return notificationRoute({ target });
 }
 
 /** Chuỗi URL của đích (mở tab mới ở văn phòng ảo). */

@@ -13,6 +13,9 @@ internal static partial class NotificationTargets
     public static IReadOnlyDictionary<string, string>? ParseParams(string? json) =>
         string.IsNullOrWhiteSpace(json) ? null : JsonSerializer.Deserialize<Dictionary<string, string>>(json);
 
+    /// <summary>Target đã lưu của một dòng thông báo (dựng URL nút email — TEST-238).</summary>
+    public static NotificationTarget ToTarget(Notification n) => new(n.TargetType, n.TargetId, ParseParams(n.TargetParams));
+
     /// <summary>
     /// Backfill thông báo cũ (chỉ có link): tách link theo các mẫu đã biết → target có id; không khớp mẫu nào → <c>page</c> + key lấy từ path
     /// (+ tham số truy vấn). Link null → trang chủ (key rỗng). Luôn trả target (không dòng nào còn TargetType rỗng).

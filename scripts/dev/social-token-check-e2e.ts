@@ -185,7 +185,7 @@ ok('Facebook trả 190 → BM "Token lỗi" kèm lý do', r4?.account.tokenStatu
 ok('Token lỗi → giữ danh sách quyền cũ', r4?.account.tokenPermissions?.length === 5, r4?.account.tokenPermissions);
 const [nh, nr, na, no] = [await tokenNotes(holder.cookie, name), await tokenNotes(hr.cookie, name), await tokenNotes(admin, name), await tokenNotes(outsider.cookie, name)];
 ok('Người giữ + HR + Quản trị viên mỗi người đúng 1 chuông, link /assets?tab=social&platform=facebook; người ngoài không',
-  nh.length === 1 && nr.length === 1 && na.length === 1 && no.length === 0 && nh[0].link === '/assets?tab=social&platform=facebook', { nh, nr, na, no });
+  nh.length === 1 && nr.length === 1 && na.length === 1 && no.length === 0 && nh[0].target?.type === 'social_account' && nh[0].target.params?.view !== 'posts', { nh, nr, na, no });
 let mails: any[] = [];
 for (let i = 0; i < 40; i++) {
   mails = ((await (await fetch(`${MAILPIT}/api/v1/messages?limit=100`)).json()) as any).messages ?? [];

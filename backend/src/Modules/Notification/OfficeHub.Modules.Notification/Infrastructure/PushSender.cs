@@ -90,7 +90,7 @@ internal sealed class PushSender(NotificationDbContext db, FirebaseProvider fire
         }
     }
 
-    public async Task PushAsync(IEnumerable<Guid> recipientUserIds, string title, string body, NotificationTarget? target, CancellationToken ct = default)
+    public async Task PushAsync(IEnumerable<Guid> recipientUserIds, string title, string body, NotificationTarget target, CancellationToken ct = default)
     {
         _messaging = firebase.Get().Messaging;
         if (_messaging is null) return;
@@ -109,14 +109,12 @@ internal sealed class PushSender(NotificationDbContext db, FirebaseProvider fire
         }
     }
 
-    /// <summary>FCM <c>data</c> (map chuỗi — TEST-237): targetType, targetId, targetParams (JSON) + link (sinh từ target, cho client cũ).</summary>
-    internal static Dictionary<string, string>? Data(NotificationTarget? target)
+    /// <summary>FCM <c>data</c> (map chuỗi — TEST-237): targetType, targetId, targetParams (JSON). Không có link (TEST-238): client tự định tuyến theo target.</summary>
+    internal static Dictionary<string, string> Data(NotificationTarget target)
     {
-        if (target is null) return null;
         var d = new Dictionary<string, string> { ["targetType"] = target.Type };
         if (target.Id is { } id) d["targetId"] = id.ToString();
         if (Domain.NotificationTargets.ParamsJson(target) is { } p) d["targetParams"] = p;
-        if (NotificationLinkBuilder.Build(target) is { } link) d["link"] = link;
         return d;
     }
 

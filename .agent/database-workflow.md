@@ -24,7 +24,7 @@ Quỹ phép **không lưu**: tính khi đọc ([business/leave.md](business/leav
 
 | Bảng | Field chính | Ràng buộc / index |
 |---|---|---|
-| `notifications` | `UserId` (tài khoản nhận, `identity.users.Id`), `Category` (≤50), `Title` (≤300), `Body` (≤2000), `Link` (≤300, sinh từ target), `TargetType` (≤40), `TargetId`, `TargetParams` (jsonb) — TEST-237 [notifications-target.md](business/notifications-target.md), `CreatedAt`, `ReadAt`; hàng đợi email: `EmailTo`, `EmailToName`, `EmailStatus` (`None`/`Pending`/`Sent`/`Failed`/`Skipped`), `EmailAttempts`, `EmailNextAttemptAt`, `EmailSentAt`, `EmailError` (≤1000) | index (`UserId`,`CreatedAt`); index (`TargetType`,`TargetId`); index `EmailNextAttemptAt` lọc `"EmailStatus" = 'Pending'` |
+| `notifications` | `UserId` (tài khoản nhận, `identity.users.Id`), `Category` (≤50), `Title` (≤300), `Body` (≤2000), `TargetType` (≤40, not null), `TargetId`, `TargetParams` (jsonb) — TEST-237; cột `Link` đã xoá (TEST-238, migration `NotificationDropLink`) [notifications-target.md](business/notifications-target.md), `CreatedAt`, `ReadAt`; hàng đợi email: `EmailTo`, `EmailToName`, `EmailStatus` (`None`/`Pending`/`Sent`/`Failed`/`Skipped`), `EmailAttempts`, `EmailNextAttemptAt`, `EmailSentAt`, `EmailError` (≤1000) | index (`UserId`,`CreatedAt`); index (`TargetType`,`TargetId`); index `EmailNextAttemptAt` lọc `"EmailStatus" = 'Pending'` |
 
 `preferences` (migration `AddNotificationPreferences`): PK `UserId`, `EmailEnabled`, `UpdatedAt` — tuỳ chọn tắt email thông báo; không có dòng = nhận email.
 

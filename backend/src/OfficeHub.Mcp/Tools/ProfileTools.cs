@@ -32,7 +32,7 @@ public sealed class ProfileTools
     }
 
     [McpServerTool(Name = "list_notifications", Title = "Thông báo của tôi", ReadOnly = true, OpenWorld = false)]
-    [Description("Thông báo trong chuông OfficeHub (mới nhất trước) kèm số chưa đọc. Mỗi thông báo có target = đối tượng trỏ tới { type, id, params } (vd project_task + params.projectId → get_task; approval_request → get_approval_request; chat_conversation → read_chat) và link web (giữ cho client cũ).")]
+    [Description("Thông báo trong chuông OfficeHub (mới nhất trước) kèm số chưa đọc. Mỗi thông báo có target = đối tượng trỏ tới { type, id, params } (vd project_task + params.projectId → get_task; approval_request → get_approval_request; chat_conversation → read_chat); client tự định tuyến theo target, không có link web.")]
     public static async Task<string> ListNotifications(OfficeHubApi api,
         [Description("Số thông báo lấy về (1–100, mặc định 20)")] int take = 20, CancellationToken ct = default) =>
         Out(await api.GetAsync($"/api/notifications?take={Math.Clamp(take, 1, 100)}", ct));

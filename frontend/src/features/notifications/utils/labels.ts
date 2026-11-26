@@ -48,10 +48,3 @@ export function timeAgo(iso: string, now = Date.now()) {
   if (s < 7 * 86400) return `${Math.floor(s / 86400)} ngày trước`;
   return formatDate(iso);
 }
-
-/** Link thông báo có thể kèm query (`/news/<id>?comment=<id>`): tách ra cho `navigate({ to, search })` (TanStack không tự đọc query trong `to`). */
-export function linkTarget(link: string): { to: string; search?: Record<string, string> } {
-  const i = link.indexOf('?');
-  if (i < 0) return { to: link };
-  return { to: link.slice(0, i), search: Object.fromEntries(new URLSearchParams(link.slice(i + 1))) };
-}

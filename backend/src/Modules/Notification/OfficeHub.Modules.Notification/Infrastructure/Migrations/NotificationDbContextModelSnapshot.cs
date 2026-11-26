@@ -68,10 +68,6 @@ namespace OfficeHub.Modules.Notification.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<string>("Link")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
                     b.Property<DateTimeOffset?>("ReadAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -82,6 +78,7 @@ namespace OfficeHub.Modules.Notification.Infrastructure.Migrations
                         .HasColumnType("jsonb");
 
                     b.Property<string>("TargetType")
+                        .IsRequired()
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 

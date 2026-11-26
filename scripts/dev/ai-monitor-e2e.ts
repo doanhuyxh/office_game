@@ -118,7 +118,7 @@ ok('bot gọi duyệt đơn → cảnh báo bot_approval (isBot)', ba?.count ===
 ok('≥ 10 lệnh bị chặn → cảnh báo blocked', ob?.count >= 10 && ob.isBot === false, ob);
 ok('người thường không có bot_approval, B không có blocked', !find(O.userId, 'bot_approval') && !find(B.userId, 'blocked'));
 const bell = (await json(admin, 'GET', '/api/notifications?take=50')).body;
-ok('admin nhận chuông ai_alert (link /reports?tab=ai)', bell?.items?.filter((n: any) => n.category === 'ai_alert' && n.link === '/reports?tab=ai').length >= 2, bell?.items?.slice(0, 3));
+ok('admin nhận chuông ai_alert (target page reports, tab ai)', bell?.items?.filter((n: any) => n.category === 'ai_alert' && n.target?.type === 'page' && n.target.params?.key === 'reports' && n.target.params?.tab === 'ai').length >= 2, bell?.items?.slice(0, 3));
 const mBell = (await json(M.cookie, 'GET', '/api/notifications?take=50')).body;
 ok('quản lý (không phải admin) không nhận chuông ai_alert', !mBell?.items?.some((n: any) => n.category === 'ai_alert'));
 const mAlerts = (await json(M.cookie, 'GET', '/api/audit/ai-alerts?page=1')).body;

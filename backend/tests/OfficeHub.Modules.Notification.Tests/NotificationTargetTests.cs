@@ -137,16 +137,15 @@ public class NotificationTargetTests
     }
 
     [Fact]
-    public void Push_data_carries_target_and_link()
+    public void Push_data_carries_target_only()
     {
-        var d = PushSender.Data(NotificationTarget.ProjectTask(P, T, C))!;
+        var d = PushSender.Data(NotificationTarget.ProjectTask(P, T, C));
         Assert.Equal(NotificationTargetTypes.ProjectTask, d["targetType"]);
         Assert.Equal(T.ToString(), d["targetId"]);
         Assert.Equal(C.ToString(), JsonSerializer.Deserialize<Dictionary<string, string>>(d["targetParams"])!["commentId"]);
-        Assert.Equal($"/projects/{P}?task={T}&comment={C}", d["link"]);
-        var page = PushSender.Data(NotificationTarget.Page("attendance"))!;
+        Assert.False(d.ContainsKey("link")); // TEST-238: không còn link
+        var page = PushSender.Data(NotificationTarget.Page("attendance"));
         Assert.False(page.ContainsKey("targetId"));
-        Assert.Equal("/attendance", page["link"]);
-        Assert.Null(PushSender.Data(null));
+        Assert.Equal("attendance", JsonSerializer.Deserialize<Dictionary<string, string>>(page["targetParams"])!["key"]);
     }
 }

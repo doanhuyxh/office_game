@@ -43,8 +43,7 @@ export function NotificationBell({ office = false, triggerClassName }: { office?
   };
   const open = (n: INotification) => {
     if (!n.read) markRead.mutate(n.id);
-    const route = notificationRoute(n);
-    if (route) go(route);
+    go(notificationRoute(n));
   };
   useNewNotificationToasts(data, office, open, () => go({ to: PATHS.notifications }));
 

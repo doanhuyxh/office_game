@@ -11,21 +11,17 @@ public interface INotifier
 
 /// <param name="RecipientUserIds">Id tài khoản nhận (trùng lặp tự bỏ).</param>
 /// <param name="Category">Nhóm để FE chọn icon: xem <see cref="NotificationCategories"/>.</param>
-/// <param name="Target">Đối tượng thông báo trỏ tới (TEST-237) — loại phải nằm trong danh mục targetType của category (NotificationCatalog).
-/// Đường dẫn web (chuông, email, push, webhook) sinh từ đây ở module Notification.</param>
+/// <param name="Target">Đối tượng thông báo trỏ tới (TEST-237) — nguồn duy nhất để client định tuyến (TEST-238 bỏ link); loại phải nằm trong danh mục
+/// targetType của category (NotificationCatalog). Thông báo không trỏ tới đối tượng nào → <see cref="NotificationTarget.Page"/> + key phù hợp.
+/// URL web chỉ dựng lúc cần (nút email) bằng <see cref="NotificationLinkBuilder"/>.</param>
 /// <param name="SendEmail">false = chỉ hiện trong app (thông báo phụ, tránh spam email).</param>
 public sealed record NotificationRequest(
     IReadOnlyCollection<Guid> RecipientUserIds,
     string Category,
     string Title,
     string Body,
-    NotificationTarget? Target = null,
-    bool SendEmail = true)
-{
-    /// <summary>Đường dẫn trong app ghép sẵn — chỉ dùng khi không có <see cref="Target"/>. G2 (TEST-238) bỏ hẳn.</summary>
-    [Obsolete("Dùng Target (TEST-237); đường dẫn web sinh từ Target ở module Notification.")]
-    public string? Link { get; init; }
-}
+    NotificationTarget Target,
+    bool SendEmail = true);
 
 /// <summary>Thêm / xoá hằng → sửa danh mục sự kiện NotificationCatalog (module Notification) trong cùng commit; NotificationCatalogTests fail nếu lệch.</summary>
 public static class NotificationCategories

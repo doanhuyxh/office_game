@@ -76,7 +76,7 @@ export const MCP_TOOL_GROUPS: McpToolGroup[] = [
         description: 'Thông tin người đang kết nối: tài khoản, vai trò (employee / manager / hr / admin), hồ sơ nhân viên (mã, phòng ban, chức vụ, quản lý trực tiếp) và ngày giờ hiện tại theo giờ Việt Nam. Gọi đầu tiên khi cần biết "hôm nay" là ngày nào hoặc người dùng có quyền gì.',
         params: [] },
       { name: 'list_notifications', title: 'Thông báo của tôi', kind: 'read', endpoint: 'GET /api/notifications',
-        description: 'Thông báo trong chuông OfficeHub (mới nhất trước) kèm số chưa đọc. Mỗi thông báo có target = đối tượng trỏ tới { type, id, params } (vd project_task + params.projectId → get_task; approval_request → get_approval_request; chat_conversation → read_chat) và link web (giữ cho client cũ).',
+        description: 'Thông báo trong chuông OfficeHub (mới nhất trước) kèm số chưa đọc. Mỗi thông báo có target = đối tượng trỏ tới { type, id, params } (vd project_task + params.projectId → get_task; approval_request → get_approval_request; chat_conversation → read_chat); client tự định tuyến theo target, không có link web.',
         params: [{ name: 'take', type: 'int', required: false, description: 'Số thông báo lấy về (1–100)', default: '20' }] },
       { name: 'mark_notifications_read', title: 'Đánh dấu đã đọc', kind: 'write', idempotent: true, endpoint: 'POST /api/notifications/{id}/read · /read-all',
         description: 'Đánh dấu một thông báo (truyền notificationId) hoặc TẤT CẢ thông báo (bỏ trống) là đã đọc.',

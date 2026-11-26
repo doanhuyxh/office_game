@@ -152,6 +152,29 @@ public partial class NotificationCatalogTests
         Assert.True(bad.Count == 0, "Truyền NotificationTarget thay cho chuỗi link: " + string.Join(", ", bad));
     }
 
+    [Fact]
+    public void Notifications_carry_target_only_no_link()
+    {
+        // TEST-238 (G2): target là nguồn duy nhất — không còn Link trên yêu cầu / dòng lưu / API chuông; URL chỉ dựng lúc gửi email.
+        Assert.Null(typeof(NotificationRequest).GetProperty("Link"));
+        var target = typeof(NotificationRequest).GetProperty(nameof(NotificationRequest.Target))!;
+        Assert.Equal(System.Reflection.NullabilityState.NotNull, new System.Reflection.NullabilityInfoContext().Create(target).ReadState); // Target bắt buộc
+        Assert.Null(typeof(Domain.Notification).GetProperty("Link"));
+        Assert.Null(typeof(NotificationDto).GetProperty("Link"));
+        var push = typeof(IPushSender).GetMethod(nameof(IPushSender.PushAsync))!.GetParameters().Select(p => p.Name).ToList();
+        Assert.DoesNotContain("link", push);
+
+        // Không chỗ nào còn gán / đọc Link của thông báo: nơi gọi NotificationRequest (mọi module) và module Notification (trừ migration +
+        // NotificationMigrator — backfill đọc cột Link cũ bằng SQL thô trước khi migration xoá cột).
+        var callers = Files.Where(f => LinkInit().IsMatch(f.Text)).Select(f => Path.GetFileName(f.Path)).ToList();
+        Assert.True(callers.Count == 0, "Còn truyền Link vào NotificationRequest: " + string.Join(", ", callers));
+        var sep = Path.DirectorySeparatorChar;
+        var module = Directory.EnumerateFiles(Path.Combine(Src, "Modules", "Notification"), "*.cs", SearchOption.AllDirectories)
+            .Where(f => !f.Contains($"{sep}obj{sep}") && !f.Contains($"{sep}bin{sep}") && !f.Contains($"{sep}Migrations{sep}") && !f.EndsWith("NotificationMigrator.cs"))
+            .Where(f => LinkMember().IsMatch(File.ReadAllText(f))).Select(Path.GetFileName).ToList();
+        Assert.True(module.Count == 0, "Module Notification còn tham chiếu Link của thông báo: " + string.Join(", ", module));
+    }
+
     private static IEnumerable<(string Name, NotificationTarget Sample)> Factories() =>
         typeof(NotificationTarget).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
             .Where(m => m.ReturnType == typeof(NotificationTarget))
@@ -172,6 +195,14 @@ public partial class NotificationCatalogTests
     /// <summary>Chuỗi đường dẫn web truyền vào NotificationRequest / PushAsync (kiểu trước TEST-237).</summary>
     [GeneratedRegex(@"(NotificationRequest|PushAsync)\([^;]*,\s*\$?""/[a-z]")]
     private static partial Regex OldLinkArg();
+
+    /// <summary>new NotificationRequest(…) { Link = … } — kiểu G1 (TEST-237), bỏ ở TEST-238.</summary>
+    [GeneratedRegex(@"NotificationRequest\([^;]*\)\s*\{[^;}]*Link\s*=")]
+    private static partial Regex LinkInit();
+
+    /// <summary>Thuộc tính / cột Link của thông báo (n.Link, Link = …, string? Link, "link" trong payload).</summary>
+    [GeneratedRegex(@"\.Link|Link\s*=|string\??\s+Link|[\s,{]link\s*=|""link""")]
+    private static partial Regex LinkMember();
 
     [GeneratedRegex(@"NotificationCategories\.(\w+)")]
     private static partial Regex CategoryRef();

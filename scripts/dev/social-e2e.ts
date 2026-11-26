@@ -309,7 +309,7 @@ const as = await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.
 ok('Bàn giao BM → người giữ + lịch sử', as.status === 200 && as.body.account.holderEmployeeId === holder.e.id && as.body.history.length === 1, as.body);
 ok('Bàn giao lần nữa khi đang có người giữ → 409', (await json(admin, 'POST', `/api/assets/social/facebook/accounts/${bm.id}/assign`, { employeeId: outsider.e.id })).status === 409);
 const nAssign = (await json(holder.cookie, 'GET', '/api/notifications?take=10')).body?.items?.find((n: any) => n.category === 'asset_assigned');
-ok('Người giữ nhận chuông bàn giao (link /social/facebook)', !!nAssign && nAssign.link === '/social/facebook' && nAssign.title.includes(`BM E2E ${stamp}`), nAssign);
+ok('Người giữ nhận chuông bàn giao (target social_account, xem bài)', !!nAssign && nAssign.target?.type === 'social_account' && nAssign.target.params?.view === 'posts' && nAssign.title.includes(`BM E2E ${stamp}`), nAssign);
 const my = await json(holder.cookie, 'GET', '/api/assets/my');
 ok('Tài sản của tôi có BM (3 trang, không token)', my.body?.socials?.length === 1 && my.body.socials[0].pageCount === 3 && noSecrets(my.text), my.body);
 const hp = await json(holder.cookie, 'GET', '/api/assets/social/facebook/pages');

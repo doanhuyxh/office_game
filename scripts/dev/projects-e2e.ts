@@ -105,7 +105,7 @@ ok('Không đổi mã dự án → 400', (await json(PM.cookie, 'PUT', `/api/pro
 // ---------- Thành viên ----------
 ok('Thành viên không thêm người → 403', (await json(Dev1.cookie, 'POST', `/api/projects/${P1}/members`, { employeeIds: [Dev2.e.id] })).status === 403);
 ok('Quản lý thêm Dev2', (await json(PM.cookie, 'POST', `/api/projects/${P1}/members`, { employeeIds: [Dev2.e.id], role: 'Member' })).status === 204);
-ok('Dev2 nhận chuông được thêm vào dự án (link /projects)', ((await json(Dev2.cookie, 'GET', '/api/notifications?take=20')).body?.items ?? []).some((n: any) => n.category === 'project_member_added' && n.link === `/projects/${P1}`));
+ok('Dev2 nhận chuông được thêm vào dự án (target project)', ((await json(Dev2.cookie, 'GET', '/api/notifications?take=20')).body?.items ?? []).some((n: any) => n.category === 'project_member_added' && n.target?.type === 'project' && n.target.id === P1));
 ok('Bỏ quản lý cuối cùng → 409', (await json(PM.cookie, 'DELETE', `/api/projects/${P1}/members/${PM.e.id}`)).status === 409
   && (await json(PM.cookie, 'PUT', `/api/projects/${P1}/members/${PM.e.id}`, { role: 'Member' })).status === 409);
 
