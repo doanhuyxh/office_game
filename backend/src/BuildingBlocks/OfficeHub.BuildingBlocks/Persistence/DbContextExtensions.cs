@@ -23,9 +23,10 @@ public static class DbContextExtensions
         services.AddHttpContextAccessor();
         services.TryAddSingleton<IChangeAuditSink, NullChangeAuditSink>();
         services.TryAddSingleton<AuditSaveChangesInterceptor>();
+        services.TryAddSingleton<DbQueryCountInterceptor>(); // đếm câu lệnh / request (DbQueryStats.cs — TEST-243)
         services.AddDbContext<TContext>((sp, o) => o
             .UseNpgsql(cs, npg => npg.MigrationsHistoryTable("__ef_migrations", schema))
-            .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>())
+            .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>(), sp.GetRequiredService<DbQueryCountInterceptor>())
             .UseSnakeCaseNamingConventionIfAvailable());
         return services;
     }

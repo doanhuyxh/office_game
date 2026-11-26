@@ -10,6 +10,7 @@ using OfficeHub.BuildingBlocks.Email;
 using OfficeHub.BuildingBlocks.Health;
 using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.BuildingBlocks.Office;
+using OfficeHub.BuildingBlocks.Persistence;
 using OfficeHub.BuildingBlocks.Storage;
 using Serilog;
 
@@ -109,11 +110,20 @@ public static class HostingExtensions
         app.UseForwardedHeaders();
         app.UseExceptionHandler();
         app.UseStatusCodePages();
+        // Đếm truy vấn DB / request (TEST-243): DbQueries, DbMs, Route, Auth trên dòng log request; Server-Timing ở Development.
+        var diag = DiagnosticsSettings.From(app.Configuration);
+        app.UseDbQueryStats(diag, app.Environment);
         // Realtime hỏi phiên họp agent mỗi 3 giây (TEST-76) → không ghi log mỗi lần thành công
-        app.UseSerilogRequestLogging(o => o.GetLevel = (ctx, _, ex) =>
-            ex is not null || ctx.Response.StatusCode > 499 ? Serilog.Events.LogEventLevel.Error
-            : ctx.Request.Path.StartsWithSegments(Office.AgentMeetingLiveRoute.Path) ? Serilog.Events.LogEventLevel.Verbose
-            : Serilog.Events.LogEventLevel.Information);
+        app.UseSerilogRequestLogging(o =>
+        {
+            o.EnrichDiagnosticContext = DbQueryStatsExtensions.EnrichDbQueryStats;
+            if (diag.DbQueryStats) o.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms · {DbQueries} db / {DbMs} ms";
+            o.GetLevel = (ctx, _, ex) =>
+                ex is not null || ctx.Response.StatusCode > 499 ? Serilog.Events.LogEventLevel.Error
+                : ctx.Request.Path.StartsWithSegments(Office.AgentMeetingLiveRoute.Path) ? Serilog.Events.LogEventLevel.Verbose
+                : diag.DbQueryWarnAt > 0 && ctx.GetDbQueryStats()?.Count >= diag.DbQueryWarnAt ? Serilog.Events.LogEventLevel.Warning
+                : Serilog.Events.LogEventLevel.Information;
+        });
         app.MapOfficeHubHealth();
         return app;
     }

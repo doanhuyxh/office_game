@@ -4,6 +4,8 @@
 
 Tab **Cấu hình** (`?tab=config&section=…`, TEST-234): menu mục bên trái theo nhóm (Hạ tầng: `s3`, `smtp` · Thông báo: `fcm`, `telegram` · Chấm công: `office-ips` · Trợ lý AI: `ai-limits`, `ai-alerts`, `ai-meetings` · Tài liệu: `documents`), danh mục ở `features/system/utils/config-sections.tsx` — cách thêm mục: [frontend-layout.md](frontend-layout.md#trang-cài-đặt-nhiều-mục-hệ-thống--cấu-hình).
 
+**Log request** (mọi host): dòng `HTTP … responded … · N db / M ms` có thuộc tính `DbQueries`, `DbMs`, `Route`, `Auth` — tìm request nhiều truy vấn trong Seq; tắt / ngưỡng Warning bằng `Diagnostics__DbQueryStats` / `Diagnostics__DbQueryWarnAt` ([architecture.md](architecture.md#đo-số-truy-vấn-db--request-test-243), TEST-243).
+
 Tab **Vận hành** (`GET /api/system/ops`, chỉ admin, `OfficeHub.Api/OpsReport.cs`):
 - **Phiên bản**: `scripts/deploy.sh` đặt `GIT_SHA` + `BUILD_TIME` → build-arg của `backend/Dockerfile` (env `OFFICEHUB_COMMIT/BUILD_TIME`, chung image Api / Realtime / MCP) và
   `frontend/Dockerfile` (`VITE_APP_COMMIT/BUILD_TIME`). Dev: lấy sha trong `AssemblyInformationalVersion`. Web khác back-end → nhắc tải lại trang.
