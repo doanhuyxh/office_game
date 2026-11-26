@@ -247,7 +247,10 @@ await measure('MCP get_task ③ GET /api/projects/tasks/{id}', M, `/api/projects
 // ---- kiểm tra ----
 for (const r of rows) ok(`${r.auth.padEnd(6)} ${r.label}: HTTP ${r.status}`, r.label.startsWith('rỗng') ? r.status === 404 : r.status === 200);
 ok('dòng log request có "· N db" khớp Server-Timing (mọi request)', rows.every((r) => r.logOk), rows.filter((r) => !r.logOk).map((r) => r.label));
-ok('request rỗng đã đăng nhập (cookie) có ≥ 1 câu (chi phí xác thực đo được)', (rows.find((r) => r.auth === 'cookie' && r.label.startsWith('rỗng'))?.queries ?? 0) >= 1);
+// Từ TEST-244 xác thực (cookie + token) đọc qua cache trong RAM → request rỗng 0 câu. Đo Api trước cache (B1): đặt BEFORE_AUTH_CACHE=1.
+const emptyQ = (auth: string) => rows.find((r) => r.auth === auth && r.label.startsWith('rỗng'))?.queries ?? -1;
+if (process.env.BEFORE_AUTH_CACHE === '1') ok('request rỗng đã đăng nhập (cookie) có ≥ 1 câu (chi phí xác thực đo được)', emptyQ('cookie') >= 1);
+else ok(`request rỗng đã đăng nhập: cache xác thực trúng → cookie ${emptyQ('cookie')} câu, token ${emptyQ('token')} câu (= 0)`, emptyQ('cookie') === 0 && emptyQ('token') === 0);
 const anon = await call({}, 'GET', NONE);
 ok('request ẩn danh: 0 câu', parseTiming(anon.timing)?.queries === 0, anon.timing);
 // N+1: cùng request ở dự án nhỏ hơn? → so số câu GET /tasks với số việc: bản gọn không tăng theo số dòng (TEST-240: 3 câu endpoint)

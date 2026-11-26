@@ -48,7 +48,8 @@ internal static class PasswordEndpoints
     }
 
     private static async Task<Results<NoContent, ValidationProblem, ProblemHttpResult>> ResetAsync(
-        ResetPasswordRequest req, UserManager<AppUser> users, OfficeIdentityDbContext db, TimeProvider clock, CancellationToken ct)
+        ResetPasswordRequest req, UserManager<AppUser> users, OfficeIdentityDbContext db, AuthCacheInvalidator cache, TimeProvider clock,
+        CancellationToken ct)
     {
         var user = await users.FindByIdAsync(req.UserId.ToString());
         if (user is not { IsActive: true })
@@ -75,7 +76,7 @@ internal static class PasswordEndpoints
         await users.UpdateAsync(user);
         await users.SetLockoutEndDateAsync(user, null);
         // ResetPasswordAsync đã đổi security stamp (đăng xuất mọi phiên); quên mật khẩu = có thể bị lộ → thu hồi luôn token AI.
-        await AiAccessRevoker.RevokeAllAsync(db, user.Id, clock.GetUtcNow(), ct);
+        await AiAccessRevoker.RevokeAllAsync(db, cache, user.Id, clock.GetUtcNow(), ct);
         return TypedResults.NoContent();
     }
 }

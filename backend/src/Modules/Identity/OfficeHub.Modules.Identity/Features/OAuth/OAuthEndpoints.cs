@@ -203,7 +203,7 @@ internal static class OAuthEndpoints
 
     // ---------------- Cấp token ----------------
 
-    private static async Task<IResult> TokenAsync(HttpContext http, OfficeIdentityDbContext db, UserManager<AppUser> users,
+    private static async Task<IResult> TokenAsync(HttpContext http, OfficeIdentityDbContext db, AuthCacheInvalidator cache, UserManager<AppUser> users,
         IOptions<AppSettings> app, IOptionsMonitor<AccessTokenSettings> settings, TimeProvider clock, ILogger<OAuthClient> log, CancellationToken ct)
     {
         if (!http.Request.HasFormContentType) return Error("invalid_request", "Cần Content-Type application/x-www-form-urlencoded");
@@ -225,7 +225,10 @@ internal static class OAuthEndpoints
                 {
                     // Mã bị dùng lại → có thể bị đánh cắp: thu hồi grant đã cấp từ mã này.
                     if (code.GrantId is { } gid)
+                    {
                         await db.OAuthGrants.Where(g => g.Id == gid && g.RevokedAt == null).ExecuteUpdateAsync(s => s.SetProperty(g => g.RevokedAt, now), ct);
+                        await cache.InvalidateAsync([AuthCacheTags.Grant(gid)]); // ExecuteUpdate không qua SaveChanges
+                    }
                     log.LogWarning("OAuth: mã ủy quyền bị dùng lại (client {ClientId}) → thu hồi grant", client.ClientId);
                     return Error("invalid_grant", "Mã ủy quyền đã được dùng");
                 }
@@ -332,7 +335,8 @@ internal static class OAuthEndpoints
     }
 
     /// <summary>RFC 7009: luôn 200 kể cả token không tồn tại.</summary>
-    private static async Task<IResult> RevokeTokenAsync(HttpContext http, OfficeIdentityDbContext db, TimeProvider clock, CancellationToken ct)
+    private static async Task<IResult> RevokeTokenAsync(HttpContext http, OfficeIdentityDbContext db, AuthCacheInvalidator cache, TimeProvider clock,
+        CancellationToken ct)
     {
         if (!http.Request.HasFormContentType) return Error("invalid_request", "Cần Content-Type application/x-www-form-urlencoded");
         var form = await http.Request.ReadFormAsync(ct);
@@ -345,6 +349,8 @@ internal static class OAuthEndpoints
                 .ExecuteUpdateAsync(s => s.SetProperty(g => g.RevokedAt, now), ct);
         await db.AccessTokens.Where(t => t.TokenHash == hash && t.GrantId != null && t.RevokedAt == null)
             .ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, now), ct);
+        // ExecuteUpdate không qua SaveChanges; grant tìm theo refresh token (chưa biết id) → xoá cache mọi token AI (hiếm gọi).
+        await cache.InvalidateAsync([AuthCacheTags.Tokens]);
         return Results.Ok();
     }
 

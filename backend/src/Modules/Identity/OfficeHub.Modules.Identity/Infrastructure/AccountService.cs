@@ -16,6 +16,7 @@ namespace OfficeHub.Modules.Identity.Infrastructure;
 internal sealed class AccountService(
     UserManager<AppUser> users,
     OfficeIdentityDbContext db,
+    AuthCacheInvalidator authCache,
     IEmailSender email,
     IOptions<AppSettings> app,
     TimeProvider clock,
@@ -76,7 +77,7 @@ internal sealed class AccountService(
         await users.UpdateAsync(user);
         await users.SetLockoutEndDateAsync(user, null);
         await users.UpdateSecurityStampAsync(user); // đăng xuất mọi phiên cũ
-        await AiAccessRevoker.RevokeAllAsync(db, user.Id, clock.GetUtcNow(), ct); // + token AI / ứng dụng OAuth
+        await AiAccessRevoker.RevokeAllAsync(db, authCache, user.Id, clock.GetUtcNow(), ct); // + token AI / ứng dụng OAuth
         return AccountResult.Ok(user.Id);
     }
 
@@ -114,7 +115,7 @@ internal sealed class AccountService(
         await users.SetLockoutEndDateAsync(user, null);
         await users.ResetAccessFailedCountAsync(user);
         await users.UpdateSecurityStampAsync(user); // đăng xuất mọi phiên cũ
-        await AiAccessRevoker.RevokeAllAsync(db, user.Id, clock.GetUtcNow(), ct); // + token AI / ứng dụng OAuth
+        await AiAccessRevoker.RevokeAllAsync(db, authCache, user.Id, clock.GetUtcNow(), ct); // + token AI / ứng dụng OAuth
         return AccountResult.Ok(user.Id);
     }
 
@@ -126,7 +127,7 @@ internal sealed class AccountService(
         await users.UpdateAsync(user);
         if (active) return;
         await users.UpdateSecurityStampAsync(user); // vô hiệu cookie đang dùng
-        await AiAccessRevoker.RevokeAllAsync(db, user.Id, clock.GetUtcNow(), ct); // mở lại tài khoản không làm sống lại token cũ
+        await AiAccessRevoker.RevokeAllAsync(db, authCache, user.Id, clock.GetUtcNow(), ct); // mở lại tài khoản không làm sống lại token cũ
     }
 
     public async Task<bool> SetBotAsync(Guid userId, bool isBot, CancellationToken ct = default)

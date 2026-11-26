@@ -2,8 +2,11 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using OfficeHub.BuildingBlocks.Auth;
+using OfficeHub.BuildingBlocks.Caching;
 using OfficeHub.BuildingBlocks.Modules;
 using OfficeHub.BuildingBlocks.Persistence;
 using OfficeHub.Modules.Identity.Contracts;
@@ -22,6 +25,13 @@ public sealed class IdentityModule : IModule
     public void Register(IServiceCollection services, IConfiguration config)
     {
         services.AddModuleDbContext<OfficeIdentityDbContext>(config, OfficeIdentityDbContext.Schema);
+        // Cache xác thực trong RAM (TEST-244, AuthCache.cs): mọi SaveChanges đổi users / user_roles / user_claims / roles / token / grant
+        // → xoá cache ngay (interceptor); ExecuteUpdate tự xoá ở nơi gọi. Chỉ đúng với MỘT bản Api (≥ 2 bản → B3: Redis + phát lệnh xoá).
+        services.AddOfficeHubCache();
+        services.AddSingleton<AuthCacheInvalidator>();
+        services.AddSingleton<AuthCacheSaveChangesInterceptor>();
+        services.AddScoped<AuthCache>();
+        services.ConfigureDbContext<OfficeIdentityDbContext>((sp, o) => o.AddInterceptors(sp.GetRequiredService<AuthCacheSaveChangesInterceptor>()));
 
         // Mặc định: cookie trình duyệt. Có "Authorization: Bearer ohk_…" (trợ lý AI qua MCP) → token truy cập.
         services.AddAuthentication(AccessTokenAuth.SelectorScheme)
@@ -52,9 +62,9 @@ public sealed class IdentityModule : IModule
             .AddDefaultTokenProviders()
             .AddTokenProvider<ResetTokenProvider>(PasswordResetTokens.ResetProvider);
 
-        // Kiểm tra lại security stamp ở MỌI request: khoá tài khoản / đổi vai trò / cấp lại mật khẩu có hiệu lực ngay
-        // (mặc định của Identity là 30 phút). Công ty ~12 người → thêm 1 truy vấn user mỗi request là không đáng kể.
-        services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.Zero);
+        // Kiểm tra security stamp ở MỌI request (khoá tài khoản / đổi vai trò / cấp lại mật khẩu có hiệu lực ngay — mặc định của Identity
+        // là 30 phút), stamp + claim lấy từ AuthCache thay vì 3 + 2 × số vai trò câu truy vấn / request (TEST-244).
+        services.Replace(ServiceDescriptor.Scoped<ISecurityStampValidator, CachedSecurityStampValidator>());
 
         // Link mời / quên mật khẩu hết hạn sau 72 giờ
         services.Configure<DataProtectionTokenProviderOptions>(o => o.TokenLifespan = TimeSpan.FromHours(72));

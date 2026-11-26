@@ -11,6 +11,7 @@ OfficeHub là công cụ nội bộ của **một công ty** (~12 nhân sự, 1 
 | Đăng nhập, cookie, mật khẩu, quên mật khẩu, link mời, admin seed, `IAccountService` (+ `ListByRoleAsync`) | [auth.md](auth.md) |
 | Xác thực 2 lớp (TOTP): bật / tắt, mã dự phòng, đăng nhập 2 bước, bắt buộc admin / HR (cổng 403, token AI), HR đặt lại | [auth-2fa.md](auth-2fa.md) |
 | Huỷ phiên & token AI: đăng xuất, đổi / đặt lại mật khẩu, khoá, mật khẩu tạm bị chặn ở server, xác nhận lại khi tạo token | [auth-sessions.md](auth-sessions.md) |
+| Cache xác thực trong RAM (HybridCache): ảnh chụp tài khoản / token, xoá cache ngay khi đổi trạng thái, giới hạn 1 bản Api | [auth-cache.md](auth-cache.md) |
 | Hồ sơ nhân viên, phòng ban, chức vụ, nghỉ việc, `IEmployeeDirectory` | [organization.md](organization.md) |
 | Cấp / mời tài khoản, vai trò, bảo vệ admin | [organization-accounts.md](organization-accounts.md) |
 | Nút chấm công, cách tính đi muộn / thiếu giờ, bảng công | [attendance.md](attendance.md) |

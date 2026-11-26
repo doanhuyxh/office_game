@@ -113,7 +113,7 @@ internal static class AuthEndpoints
 
     private static async Task<Results<NoContent, ValidationProblem, UnauthorizedHttpResult>> ChangePasswordAsync(
         ChangePasswordRequest req, HttpContext ctx, UserManager<AppUser> users, SignInManager<AppUser> signIn, OfficeIdentityDbContext db,
-        TimeProvider clock, CancellationToken ct)
+        AuthCacheInvalidator cache, TimeProvider clock, CancellationToken ct)
     {
         var user = await users.GetUserAsync(ctx.User);
         if (user is null) return TypedResults.Unauthorized();
@@ -134,7 +134,7 @@ internal static class AuthEndpoints
         user.MustChangePassword = false;
         await users.UpdateAsync(user);
         // ChangePasswordAsync đã đổi security stamp (phiên ở nơi khác hết hiệu lực); token AI / ứng dụng OAuth thu hồi riêng.
-        await AiAccessRevoker.RevokeAllAsync(db, user.Id, clock.GetUtcNow(), ct);
+        await AiAccessRevoker.RevokeAllAsync(db, cache, user.Id, clock.GetUtcNow(), ct);
         await signIn.RefreshSignInAsync(user); // cấp lại cookie không còn cờ must_change_password
         return TypedResults.NoContent();
     }

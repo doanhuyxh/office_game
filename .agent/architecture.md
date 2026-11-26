@@ -71,14 +71,15 @@ Bảng tiền tố `/api/*` → module và danh sách trang / guard: [routes.md]
 | `['projects', …]` | `features/projects/api/project.api.ts` (`projectKeys`) | `detail` / `tasks` `staleTime` 30s, loader route prefetch song song; `ProjectLiveUpdates` invalidate khoá hẹp ([business/projects-loading.md](business/projects-loading.md)); mutation → invalidate `['projects']` |
 
 - Đăng xuất (`useLogout`): `me` = null, xoá mọi query khác, về `/login`.
-- Không có cache phía server (không Redis), trừ `RuntimeConfig` (cấu hình S3 / SMTP / FCM / IP văn phòng từ DB, giữ 30 giây trong RAM, lưu trên trang Hệ thống thì xoá ngay — [env.md](env.md#cấu-hình-lưu-trong-db-test-41)). Bảng công tính lại mỗi lần đọc ([business/attendance.md](business/attendance.md)).
+- Cache phía server **chỉ trong RAM của tiến trình** (không Redis): `HybridCache` L1 đăng ký một chỗ ở `BuildingBlocks/Caching` (`AddOfficeHubCache`), module dùng qua lớp của mình. Đang dùng cho **xác thực** (cookie + token AI, TEST-244 — xoá cache ngay khi đổi stamp / vai trò / khoá / thu hồi, TTL 60 giây là lưới an toàn: [business/auth-cache.md](business/auth-cache.md)) và `RuntimeConfig` (cấu hình S3 / SMTP / FCM / IP văn phòng từ DB, giữ 30 giây, lưu trên trang Hệ thống thì xoá ngay — [env.md](env.md#cấu-hình-lưu-trong-db-test-41)). Dữ liệu nghiệp vụ không cache; bảng công tính lại mỗi lần đọc ([business/attendance.md](business/attendance.md)).
+- ⚠ **Chỉ đúng với MỘT bản Api**: xoá cache không tới tiến trình khác. Chạy ≥ 2 bản Api → bắt buộc làm B3 (Redis L2 + phát lệnh xoá, TEST-246) trước, nếu không thu hồi phiên ở bản này không tới bản kia.
 
 ### Đo số truy vấn DB / request (TEST-243)
 
 Chi phí chính là round trip (~30 ms prod) × số câu nối tiếp, không phải thời gian SQL (~1 ms) → đo **số câu / request** trước khi cache.
 - `BuildingBlocks/Persistence/DbQueryStats.cs`: `DbQueryCountInterceptor` (gắn mọi DbContext qua `AddModuleDbContext`) cộng vào bộ đếm `AsyncLocal` do middleware `UseDbQueryStats` mở (trong `UseOfficeHubDefaults`, trước `UseSerilogRequestLogging`). Job nền / ghi sau response (vd `audit.ai_requests` của token AI) không có bộ đếm → không tính.
 - Dòng log request: `… · {DbQueries} db / {DbMs} ms` + thuộc tính `Route` (route template), `Auth` (cookie / token / anonymous) — Seq: `DbQueries > 20`, nhóm theo `Route`. Development: header `Server-Timing` (DevTools → Network → Timing). Cấu hình `Diagnostics__*` ([env.md](env.md)).
-- Mốc số liệu (B1, ~96 nhân viên, 240 việc): `scripts/dev/db-query-count-e2e.ts`. Cookie: xác thực = 3 + 2 × số vai trò câu `identity.*` mỗi request (`SecurityStampValidator` `ValidationInterval = 0` dựng lại principal; vai trò đọc từng cái). Token AI: `access_tokens` + `users` + `user_roles` (+ claims factory ở route cho phép) + 1 `INSERT audit.ai_requests` sau response.
+- Mốc số liệu (B1, ~96 nhân viên, 240 việc): `scripts/dev/db-query-count-e2e.ts`. Trước cache — cookie: xác thực = 3 + 2 × số vai trò câu `identity.*` mỗi request; token AI: `access_tokens` + `users` + `user_roles` (+ claims) + 1 `INSERT audit.ai_requests` sau response. Sau cache xác thực (TEST-244): phần xác thực 0 câu khi cache trúng (bảng trước / sau ở [business/auth-cache.md](business/auth-cache.md)); đo Api trước cache thì đặt `BEFORE_AUTH_CACHE=1`.
 
 ## Hạ tầng & tích hợp
 

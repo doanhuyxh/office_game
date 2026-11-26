@@ -15,6 +15,8 @@
 | Khoá tài khoản (`SetActiveAsync(false)`) | ✔ | ✔ — mở lại tài khoản **không** làm sống lại token cũ |
 | Đổi vai trò | ✔ | ✘ (token đọc vai trò hiện tại mỗi request) |
 
+Mọi thay đổi ở bảng trên xoá **cache xác thực** (TEST-244) ngay khi ghi DB → có hiệu lực ở request kế tiếp dù cookie / token đọc qua cache: SaveChanges của Identity qua `AuthCacheSaveChangesInterceptor`, `ExecuteUpdate` (`AiAccessRevoker`, `/oauth/revoke`) tự gọi `AuthCacheInvalidator` — [auth-cache.md](auth-cache.md). Chỉ đúng khi chạy 1 bản Api.
+
 Thu hồi = đặt `RevokedAt` (giữ dòng để còn dấu vết) cho mọi `AccessToken` (PAT + access token OAuth) và `OAuthGrant` (refresh token) của user. Refresh OAuth đã kiểm `grant.IsActive` → không cần so security stamp (stamp đổi cả mỗi lần đăng nhập nên không dùng làm điều kiện cho token AI).
 
 ⚠ Tài khoản **bot**: HR cấp lại mật khẩu / khoá → token của agent ngừng hoạt động, phải tạo token mới.

@@ -29,13 +29,14 @@ public static class AccessTokens
 }
 
 /// <summary>
-/// Xác thực <c>Authorization: Bearer ohk_…</c>. Mỗi request đọc lại token + user từ DB nên thu hồi token,
-/// khoá tài khoản, đổi vai trò có hiệu lực ngay (giống cookie với ValidationInterval = 0).
+/// Xác thực <c>Authorization: Bearer ohk_…</c>. Token + tài khoản đọc qua <see cref="AuthCache"/> (TEST-244): mọi chỗ thu hồi token,
+/// khoá tài khoản, đổi vai trò, cấp mật khẩu tạm… xoá cache ngay khi ghi DB nên vẫn có hiệu lực ở request kế tiếp.
+/// Công tắc "Kết nối AI" toàn công ty đọc <see cref="IOptionsMonitor{T}"/> mỗi request (không cache).
 /// Route ngoài <see cref="AccessTokenAuth.IsAllowed"/> → 403 dù token hợp lệ.
 /// </summary>
 public sealed class AccessTokenHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder,
-    OfficeIdentityDbContext db, UserManager<AppUser> users, IUserClaimsPrincipalFactory<AppUser> principals, TimeProvider clock,
+    OfficeIdentityDbContext db, AuthCache cache, AuthCacheInvalidator invalidator, TimeProvider clock,
     IOptionsMonitor<AccessTokenSettings> settings)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
@@ -52,26 +53,21 @@ public sealed class AccessTokenHandler(
 
         var hash = AccessTokens.Hash(raw);
         var now = clock.GetUtcNow();
-        var token = await db.AccessTokens.FirstOrDefaultAsync(t => t.TokenHash == hash, Context.RequestAborted);
+        var ct = Context.RequestAborted;
+        var token = await cache.GetTokenAsync(hash, ct);
         if (token is null || !token.IsUsable(now)) return AuthenticateResult.Fail("Token không hợp lệ, đã hết hạn hoặc đã bị thu hồi");
+        if (token.GrantRevoked) return AuthenticateResult.Fail("Ứng dụng đã bị thu hồi quyền truy cập");
 
-        OAuthGrant? grant = null;
-        if (token.GrantId is { } gid)
-        {
-            grant = await db.OAuthGrants.FirstOrDefaultAsync(g => g.Id == gid, Context.RequestAborted);
-            if (grant is null || grant.RevokedAt is not null) return AuthenticateResult.Fail("Ứng dụng đã bị thu hồi quyền truy cập");
-        }
-
-        var user = await users.FindByIdAsync(token.UserId.ToString());
+        var user = await cache.GetUserAsync(token.UserId, ct);
         if (user is not { IsActive: true }) return AuthenticateResult.Fail("Tài khoản đã bị khoá");
         if (user.MustChangePassword) return AuthenticateResult.Fail("Tài khoản cần đổi mật khẩu trên web trước");
-        if (await users.IsLockedOutAsync(user)) return AuthenticateResult.Fail("Tài khoản đang tạm khoá");
+        if (user.IsLockedOut(now)) return AuthenticateResult.Fail("Tài khoản đang tạm khoá");
         // Admin / HR chưa bật 2FA: token cũ ngừng hoạt động tới khi bật trên web (tạo token mới cũng bị chặn ở TwoFactorGate).
-        if (!user.TwoFactorEnabled && TwoFactorPolicy.IsRequiredFor(await users.GetRolesAsync(user)))
+        if (!user.TwoFactorEnabled && TwoFactorPolicy.IsRequiredFor(user.Roles))
             return AuthenticateResult.Fail(TwoFactorPolicy.TokenBlockedMessage);
 
         // Từ đây biết chắc ai gọi → audit ghi được cả lần bị chặn route.
-        Context.Items[AccessTokenAuth.CallerItemKey] = new AccessTokenCaller(user.Id, token.Id, token.Name, token.GrantId is not null);
+        Context.Items[AccessTokenAuth.CallerItemKey] = new AccessTokenCaller(user.UserId, token.TokenId, token.Name, token.GrantId is not null);
 
         if (!AccessTokenAuth.IsAllowed(Request.Method, Request.Path.Value))
         {
@@ -81,15 +77,16 @@ public sealed class AccessTokenHandler(
 
         if (token.LastUsedAt is null || now - token.LastUsedAt > TouchInterval)
         {
-            token.LastUsedAt = now;
-            if (grant is not null) grant.LastUsedAt = now;
-            await db.SaveChangesAsync(Context.RequestAborted);
+            await db.AccessTokens.Where(t => t.Id == token.TokenId).ExecuteUpdateAsync(s => s.SetProperty(t => t.LastUsedAt, now), ct);
+            if (token.GrantId is { } gid)
+                await db.OAuthGrants.Where(g => g.Id == gid).ExecuteUpdateAsync(s => s.SetProperty(g => g.LastUsedAt, now), ct);
+            // Đọc lại ảnh chụp ở request sau để có LastUsedAt mới (không tự ghi đè: có thể vừa bị thu hồi song song).
+            await invalidator.RemoveKeyAsync(AuthCacheTags.TokenKey(hash));
         }
 
-        var basePrincipal = await principals.CreateAsync(user);
-        var identity = new ClaimsIdentity(basePrincipal.Claims, AccessTokenAuth.Scheme, ClaimTypes.Name, ClaimTypes.Role);
-        identity.AddClaim(new Claim(AccessTokenAuth.TokenIdClaim, token.Id.ToString()));
-        return AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), AccessTokenAuth.Scheme));
+        var claims = user.ToIdentity(AccessTokenAuth.Scheme, ClaimTypes.Name, ClaimTypes.Role);
+        claims.AddClaim(new Claim(AccessTokenAuth.TokenIdClaim, token.TokenId.ToString()));
+        return AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(claims), AccessTokenAuth.Scheme));
     }
 
     protected override async Task HandleChallengeAsync(AuthenticationProperties properties)

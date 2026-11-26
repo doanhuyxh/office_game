@@ -9,12 +9,15 @@ namespace OfficeHub.Modules.Identity.Infrastructure;
 /// </summary>
 internal static class AiAccessRevoker
 {
-    public static async Task<int> RevokeAllAsync(OfficeIdentityDbContext db, Guid userId, DateTimeOffset now, CancellationToken ct = default)
+    /// <remarks>ExecuteUpdate không qua SaveChanges → tự xoá cache xác thực của user (mọi token của user mang tag user — TEST-244).</remarks>
+    public static async Task<int> RevokeAllAsync(OfficeIdentityDbContext db, AuthCacheInvalidator cache, Guid userId, DateTimeOffset now,
+        CancellationToken ct = default)
     {
         var tokens = await db.AccessTokens.Where(t => t.UserId == userId && t.RevokedAt == null)
             .ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, now), ct);
         var grants = await db.OAuthGrants.Where(g => g.UserId == userId && g.RevokedAt == null)
             .ExecuteUpdateAsync(s => s.SetProperty(g => g.RevokedAt, now), ct);
+        await cache.InvalidateUserAsync(userId);
         return tokens + grants;
     }
 }

@@ -37,7 +37,7 @@ Việc **cấp tài khoản cho nhân viên** do HR làm ở module Organization
 
 - Scheme `Identity.Application`, tên `officehub.auth`, `HttpOnly`, `SameSite=Lax`, `Secure` theo request, hạn 7 ngày **trượt**.
 - Chưa đăng nhập / thiếu quyền → **401 / 403** (không redirect).
-- **Kiểm tra security stamp ở mọi request** (`SecurityStampValidatorOptions.ValidationInterval = TimeSpan.Zero` trong `IdentityModule.cs`): khoá tài khoản, đổi vai trò, cấp lại mật khẩu tạm → cookie cũ bị từ chối ngay ở request kế tiếp. Đổi lại sẽ mở lại lỗ hổng "khoá chưa có hiệu lực".
+- **Kiểm tra security stamp ở mọi request** (`CachedSecurityStampValidator` thay `SecurityStampValidator` trong `IdentityModule.cs`; stamp + claim lấy từ cache trong RAM, xoá ngay khi ghi DB — [auth-cache.md](auth-cache.md)): khoá tài khoản, đổi vai trò, cấp lại mật khẩu tạm → cookie cũ bị từ chối ngay ở request kế tiếp. Bỏ kiểm tra hoặc cache mà không xoá khi đổi stamp sẽ mở lại lỗ hổng "khoá chưa có hiệu lực".
 - Claim thêm (`AppClaimsFactory`): `full_name`; `must_change_password = "true"` khi đang dùng mật khẩu tạm; `must_setup_2fa = "true"` khi admin / hr chưa bật 2FA.
 - OfficeHub.Realtime đọc cùng cookie ([office.md](office.md)); claim `must_change_password` / `must_setup_2fa` làm hub từ chối kết nối.
 
