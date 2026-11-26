@@ -35,6 +35,9 @@ public sealed class Shift
 
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? DeletedAt { get; set; }
+
+    /// <summary>Bản sao nông (mọi thuộc tính là giá trị / chuỗi) — ảnh chụp cache không bị nơi gọi sửa (TEST-245).</summary>
+    internal Shift Copy() => (Shift)MemberwiseClone();
 }
 
 /// <summary>
@@ -51,6 +54,8 @@ public sealed class ScheduleEntry
     /// <summary>Null = ngày nghỉ.</summary>
     public Guid? ShiftId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+
+    internal ScheduleEntry Copy() => (ScheduleEntry)MemberwiseClone();
 }
 
 public enum PunchType { In = 0, Out = 1 }

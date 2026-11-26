@@ -9,9 +9,13 @@ using OfficeHub.Modules.Organization.Contracts;
 namespace OfficeHub.Modules.Attendance.Infrastructure;
 
 /// <summary>Tra ca theo lịch + tính bảng công cho một khoảng ngày (tính trực tiếp từ sự kiện, không lưu sẵn).</summary>
-internal sealed class AttendanceService(AttendanceDbContext db, IOptions<OfficeSettings> office, TimeProvider clock, ILeaveCalendar leaves)
+internal sealed class AttendanceService(AttendanceDbContext db, IOptions<OfficeSettings> office, TimeProvider clock, ILeaveCalendar leaves,
+    AttendanceCalendar calendar)
 {
     public TimeZoneInfo Tz { get; } = TimeZoneInfo.FindSystemTimeZoneById(office.Value.TimeZone);
+
+    /// <summary>Ca / lịch / ngày lễ trong RAM (TEST-245).</summary>
+    public AttendanceCalendar Calendar => calendar;
 
     public DateTimeOffset Now => clock.GetUtcNow();
     public DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(Now, Tz).DateTime);
@@ -24,10 +28,11 @@ internal sealed class AttendanceService(AttendanceDbContext db, IOptions<OfficeS
     {
         var employeeIds = employees.Select(e => e.Id).ToList();
         var employment = employees.ToDictionary(e => e.Id, e => (e.JoinedAt, e.LeftAt));
-        var shifts = await db.Shifts.IgnoreQueryFilters().AsNoTracking().ToDictionaryAsync(s => s.Id, ct);
-        var schedules = await db.Schedules.AsNoTracking()
-            .Where(s => s.EmployeeId == null || employeeIds.Contains(s.EmployeeId.Value)).ToListAsync(ct);
-        var holidays = await db.Holidays.AsNoTracking().Where(h => h.Date >= from && h.Date <= to).ToDictionaryAsync(h => h.Date, h => h.Name, ct);
+        // Ca / lịch / ngày lễ: ảnh chụp trong RAM (TEST-245), bản sao cho lần tính này.
+        var cal = await calendar.GetAsync(ct);
+        var shifts = cal.ShiftCopies();
+        var schedules = cal.SchedulesFor(employeeIds);
+        var holidays = cal.HolidaysIn(from, to);
         // Nghỉ phép đã duyệt (module Leave). Sáng + chiều cùng ngày (2 đơn nửa ngày) → cộng thành cả ngày.
         var leaveByDay = (await leaves.GetApprovedAsync(employeeIds, from, to, ct))
             .GroupBy(l => (l.EmployeeId, l.Date))
@@ -69,8 +74,8 @@ internal sealed class AttendanceService(AttendanceDbContext db, IOptions<OfficeS
 
     public async Task<Shift?> ShiftForAsync(Guid employeeId, DateOnly date, CancellationToken ct)
     {
-        var schedules = await db.Schedules.AsNoTracking().Where(s => s.EmployeeId == null || s.EmployeeId == employeeId).ToListAsync(ct);
-        return ShiftIdFor(schedules, employeeId, date) is { } id ? await db.Shifts.IgnoreQueryFilters().FirstOrDefaultAsync(s => s.Id == id, ct) : null;
+        var cal = await calendar.GetAsync(ct);
+        return ShiftIdFor(cal.SchedulesFor(employeeId), employeeId, date) is { } id ? cal.Shift(id) : null;
     }
 
     /// <summary>Lịch riêng của nhân viên (bộ mới nhất đã hiệu lực) → nếu không có thì lịch công ty.</summary>
@@ -93,12 +98,13 @@ internal sealed class AttendanceService(AttendanceDbContext db, IOptions<OfficeS
 }
 
 /// <summary>Leave dùng để đếm số ngày nghỉ: chỉ những ngày có ca và không phải ngày lễ.</summary>
-internal sealed class WorkCalendar(AttendanceDbContext db) : IWorkCalendar
+internal sealed class WorkCalendar(AttendanceCalendar calendar) : IWorkCalendar
 {
     public async Task<IReadOnlyList<DateOnly>> WorkingDaysAsync(Guid employeeId, DateOnly from, DateOnly to, CancellationToken ct = default)
     {
-        var schedules = await db.Schedules.AsNoTracking().Where(s => s.EmployeeId == null || s.EmployeeId == employeeId).ToListAsync(ct);
-        var holidays = (await db.Holidays.AsNoTracking().Where(h => h.Date >= from && h.Date <= to).Select(h => h.Date).ToListAsync(ct)).ToHashSet();
+        var cal = await calendar.GetAsync(ct);
+        var schedules = cal.SchedulesFor(employeeId);
+        var holidays = cal.HolidayDatesIn(from, to);
         var result = new List<DateOnly>();
         for (var d = from; d <= to; d = d.AddDays(1))
             if (!holidays.Contains(d) && AttendanceService.ShiftIdForDate(schedules, employeeId, d) is not null) result.Add(d);
@@ -110,7 +116,7 @@ internal sealed class WorkCalendar(AttendanceDbContext db) : IWorkCalendar
 
     public async Task<IReadOnlyList<DateOnly>> ScheduledDatesAsync(Guid employeeId, DateOnly from, DateOnly to, CancellationToken ct = default)
     {
-        var schedules = await db.Schedules.AsNoTracking().Where(s => s.EmployeeId == null || s.EmployeeId == employeeId).ToListAsync(ct);
+        var schedules = (await calendar.GetAsync(ct)).SchedulesFor(employeeId);
         var result = new List<DateOnly>();
         for (var d = from; d <= to; d = d.AddDays(1))
             if (AttendanceService.ShiftIdForDate(schedules, employeeId, d) is not null) result.Add(d);

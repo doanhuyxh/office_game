@@ -1,4 +1,5 @@
-// E2E TEST-243 (Cache phía server — B1): đo SỐ CÂU TRUY VẤN DB / request trước khi cache.
+// E2E TEST-243 (Cache phía server — B1): đo SỐ CÂU TRUY VẤN DB / request trước khi cache. TEST-244 (B2a) / TEST-245 (B2b): chạy lại so trước / sau;
+//   đo Api cũ đặt BEFORE_AUTH_CACHE=1 (trước B2a) hoặc BEFORE_CATALOG_CACHE=1 (trước B2b) để bỏ kiểm tra "cache trúng". Kịch bản đổi quản lý: catalog-cache-e2e.ts.
 // Pha seed: ~100 nhân viên, cây quản lý 3 cấp (giám đốc → 3 trưởng phòng → 9 trưởng nhóm → nhân viên), dự án 240 việc,
 //   vài đơn nghỉ (inbox duyệt của trưởng nhóm), chấm công, thông báo → ghi STATE.
 // Pha measure: mỗi request nóng gọi 1 lần làm nóng + RUNS lần; số câu lấy từ header Server-Timing (Development) — nguồn là
@@ -251,6 +252,14 @@ ok('dòng log request có "· N db" khớp Server-Timing (mọi request)', rows.
 const emptyQ = (auth: string) => rows.find((r) => r.auth === auth && r.label.startsWith('rỗng'))?.queries ?? -1;
 if (process.env.BEFORE_AUTH_CACHE === '1') ok('request rỗng đã đăng nhập (cookie) có ≥ 1 câu (chi phí xác thực đo được)', emptyQ('cookie') >= 1);
 else ok(`request rỗng đã đăng nhập: cache xác thực trúng → cookie ${emptyQ('cookie')} câu, token ${emptyQ('token')} câu (= 0)`, emptyQ('cookie') === 0 && emptyQ('token') === 0);
+// Từ TEST-245 danh mục (nhân viên / cây quản lý / phòng ban / chức vụ / quyền tài chính, ca / lịch / ngày lễ) đọc qua cache trong RAM →
+// request nóng không còn câu org.* / danh mục chấm công, trừ chính trang danh sách nhân viên (/org/employees đọc DB). Api trước B2b: BEFORE_CATALOG_CACHE=1.
+if (process.env.BEFORE_CATALOG_CACHE !== '1' && process.env.BEFORE_AUTH_CACHE !== '1') {
+  const leaks = rows.filter((r) => !r.label.includes('/api/org/employees') && Object.keys(r.tables).length > 0
+    && ((r.groups['nhân sự / phòng ban / chức vụ'] ?? 0) + (r.groups['danh mục chấm công'] ?? 0)) > 0);
+  ok('cache danh mục trúng: request nóng 0 câu org.* / ca / lịch / ngày lễ (trừ /org/employees)', leaks.length === 0,
+    leaks.map((r) => `${r.auth} ${r.label}: ${JSON.stringify(r.tables)}`));
+}
 const anon = await call({}, 'GET', NONE);
 ok('request ẩn danh: 0 câu', parseTiming(anon.timing)?.queries === 0, anon.timing);
 // N+1: cùng request ở dự án nhỏ hơn? → so số câu GET /tasks với số việc: bản gọn không tăng theo số dòng (TEST-240: 3 câu endpoint)

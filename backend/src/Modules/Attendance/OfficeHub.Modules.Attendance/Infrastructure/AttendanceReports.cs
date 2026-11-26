@@ -38,8 +38,9 @@ internal sealed class AttendanceReports(AttendanceService svc, AttendanceDbConte
             .Where(o => ids.Contains(o.EmployeeId) && o.WorkDate >= from && o.WorkDate <= to && o.Status == OvertimeStatus.Approved)
             .OrderBy(o => o.WorkDate).ThenBy(o => o.StartTime).ToListAsync(ct);
         if (rows.Count == 0) return [];
-        var holidays = (await db.Holidays.AsNoTracking().Where(h => h.Date >= from && h.Date <= to).Select(h => h.Date).ToListAsync(ct)).ToHashSet();
-        var schedules = await db.Schedules.AsNoTracking().Where(s => s.EmployeeId == null || ids.Contains(s.EmployeeId.Value)).ToListAsync(ct);
+        var cal = await svc.Calendar.GetAsync(ct);
+        var holidays = cal.HolidayDatesIn(from, to);
+        var schedules = cal.SchedulesFor(ids);
         return rows.Select(o =>
         {
             var kind = OvertimeRules.Classify(holidays.Contains(o.WorkDate), AttendanceService.ShiftIdForDate(schedules, o.EmployeeId, o.WorkDate) is not null);

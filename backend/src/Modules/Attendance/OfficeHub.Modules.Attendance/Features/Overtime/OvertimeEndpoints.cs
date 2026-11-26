@@ -69,7 +69,7 @@ internal static class OvertimeEndpoints
         if (v.Failed) return (null, new(v.Problem(), null));
 
         var shift = await svc.ShiftForAsync(me.Id, workDate, ct);
-        var isHoliday = await db.Holidays.AnyAsync(h => h.Date == workDate, ct);
+        var isHoliday = (await svc.Calendar.GetAsync(ct)).IsHoliday(workDate);
         if (!isHoliday && OvertimeRules.ShiftOverlap(shift, start, end) is { } sh)
             return (null, new(new Validation().Add("startTime", $"Giờ tăng ca trùng giờ ca làm ({sh.Start:HH:mm}–{sh.End:HH:mm})").Problem(), null));
 
@@ -145,8 +145,9 @@ internal static class OvertimeEndpoints
         if (rows.Count > 0)
         {
             var (from, to) = (rows.Min(r => r.WorkDate), rows.Max(r => r.WorkDate));
-            var holidays = (await db.Holidays.AsNoTracking().Where(h => h.Date >= from && h.Date <= to).Select(h => h.Date).ToListAsync(ct)).ToHashSet();
-            var schedules = await db.Schedules.AsNoTracking().Where(s => s.EmployeeId == null || s.EmployeeId == me.Id).ToListAsync(ct);
+            var cal = await svc.Calendar.GetAsync(ct);
+            var holidays = cal.HolidayDatesIn(from, to);
+            var schedules = cal.SchedulesFor(me.Id);
             dtos = rows.Select(o => ToDto(o, OvertimeRules.Classify(holidays.Contains(o.WorkDate),
                 AttendanceService.ShiftIdForDate(schedules, me.Id, o.WorkDate) is not null))).ToList();
         }
@@ -158,7 +159,7 @@ internal static class OvertimeEndpoints
     /// Đơn tăng ca đang chờ duyệt (TEST-79, tool list_pending_overtime) của người tôi được xem: HR → mọi người đang làm,
     /// quản lý → bản thân + cấp dưới. Gồm cả đơn đang chờ bước khác — khác hộp duyệt chỉ có đơn chờ tôi. Không có tiền (chỉ phút + hệ số).
     /// </summary>
-    private static async Task<Ok<List<TeamOvertimeDto>>> PendingAsync(ClaimsPrincipal user, IEmployeeDirectory dir, AttendanceDbContext db,
+    private static async Task<Ok<List<TeamOvertimeDto>>> PendingAsync(ClaimsPrincipal user, IEmployeeDirectory dir, AttendanceDbContext db, AttendanceCalendar calendar,
         CancellationToken ct)
     {
         var emps = (await TimesheetEndpoints.VisibleEmployeesAsync(user, dir, ct)).ToDictionary(e => e.Id);
@@ -167,9 +168,9 @@ internal static class OvertimeEndpoints
             .OrderBy(o => o.WorkDate).ThenBy(o => o.StartTime).Take(500).ToListAsync(ct);
         if (rows.Count == 0) return TypedResults.Ok(new List<TeamOvertimeDto>());
         var (from, to) = (rows.Min(r => r.WorkDate), rows.Max(r => r.WorkDate));
-        var holidays = (await db.Holidays.AsNoTracking().Where(h => h.Date >= from && h.Date <= to).Select(h => h.Date).ToListAsync(ct)).ToHashSet();
-        var owners = rows.Select(r => r.EmployeeId).Distinct().ToList();
-        var schedules = await db.Schedules.AsNoTracking().Where(s => s.EmployeeId == null || owners.Contains(s.EmployeeId.Value)).ToListAsync(ct);
+        var cal = await calendar.GetAsync(ct);
+        var holidays = cal.HolidayDatesIn(from, to);
+        var schedules = cal.SchedulesFor(rows.Select(r => r.EmployeeId));
         return TypedResults.Ok(rows.Select(o => new TeamOvertimeDto(DtoMap.Brief(emps[o.EmployeeId]), ToDto(o, OvertimeRules.Classify(holidays.Contains(o.WorkDate),
             AttendanceService.ShiftIdForDate(schedules, o.EmployeeId, o.WorkDate) is not null)))).ToList());
     }

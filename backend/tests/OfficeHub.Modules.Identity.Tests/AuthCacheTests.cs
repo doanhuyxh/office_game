@@ -167,12 +167,12 @@ public sealed class AuthCacheTests : IAsyncLifetime
     }
 
     [Fact]
-    public void Snapshot_loaded_before_invalidation_is_stale()
+    public async Task Snapshot_loaded_before_invalidation_is_stale()
     {
         var inv = _sp.GetRequiredService<AuthCacheInvalidator>();
         var tags = new[] { AuthCacheTags.User(_user.Id) };
         var loadedBefore = AuthCacheInvalidator.Now();
-        inv.InvalidateAsync(tags).AsTask().GetAwaiter().GetResult();
+        await inv.InvalidateAsync(tags);
         var loadedAfter = AuthCacheInvalidator.Now();
         Assert.True(inv.IsStale(loadedBefore, tags));   // factory đọc DB trước khi ghi xong → không được dùng
         Assert.False(inv.IsStale(loadedAfter, tags));

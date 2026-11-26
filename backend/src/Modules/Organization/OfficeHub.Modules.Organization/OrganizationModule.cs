@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using OfficeHub.BuildingBlocks.Caching;
 using OfficeHub.BuildingBlocks.Modules;
 using OfficeHub.BuildingBlocks.Persistence;
 using OfficeHub.Modules.Organization.Contracts;
@@ -27,6 +28,13 @@ public sealed class OrganizationModule : IModule
         // Cột mã hoá → job xoay khoá mã hoá lại (TEST-17)
         services.AddEncryptedColumns<OrgDbContext, Domain.Employee>(nameof(Domain.Employee.IdNumberEncrypted), nameof(Domain.Employee.BankAccountEncrypted));
         services.AddEncryptedColumns<OrgDbContext, Domain.ProfileChangeRequest>(nameof(Domain.ProfileChangeRequest.DataEncrypted));
+        // Cache danh mục trong RAM (TEST-245): EmployeeDirectory đọc ảnh chụp nhân viên / cây quản lý / phòng ban / chức vụ;
+        // mọi lệnh ghi vào bảng nguồn (SaveChanges, ExecuteUpdate / ExecuteDelete, SQL thô, commit transaction) xoá tag ngay.
+        services.AddCatalogCache<OrgDbContext>(r => r
+            .On<Domain.Employee>(OrgCacheTags.Employees)
+            .On<Domain.Department>(OrgCacheTags.Departments, OrgCacheTags.Employees)
+            .On<Domain.Position>(OrgCacheTags.Positions));
+        services.AddScoped<OrgCatalog>();
         services.AddScoped<IEmployeeDirectory, EmployeeDirectory>();
         services.AddScoped<IFinanceAccess, FinanceAccess>();
         services.AddHostedService<OrgMigrator>();

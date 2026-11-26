@@ -4,6 +4,8 @@
 
 ## Ca, lịch, ngày lễ (`Features/Shifts/ShiftEndpoints.cs`)
 
+> Tính bảng công / chấm công / tăng ca / `IWorkCalendar` đọc ca + lịch + ngày lễ từ ảnh chụp trong RAM (`Infrastructure/AttendanceCalendar.cs`, tag `attendance:calendar`, TEST-245): HR sửa ca / lịch / ngày lễ (cả xoá bằng ExecuteDelete) → xoá cache ngay. Trang cấu hình ca / lịch / ngày lễ vẫn đọc DB. Chi tiết: [catalog-cache.md](catalog-cache.md).
+
 | Path | Đọc | Ghi |
 |---|---|---|
 | `/shifts` | đăng nhập | HR: POST, PUT `/{id}`, DELETE `/{id}` (xoá mềm) |

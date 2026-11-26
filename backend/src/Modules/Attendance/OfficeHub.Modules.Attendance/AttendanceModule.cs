@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using OfficeHub.BuildingBlocks.Caching;
 using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.BuildingBlocks.Modules;
 using OfficeHub.BuildingBlocks.Persistence;
@@ -26,6 +27,12 @@ public sealed class AttendanceModule : IModule
     public void Register(IServiceCollection services, IConfiguration config)
     {
         services.AddModuleDbContext<AttendanceDbContext>(config, AttendanceDbContext.Schema);
+        // Cache ca / lịch / ngày lễ trong RAM (TEST-245): ghi vào shifts / schedules / holidays (cả ExecuteDelete) → xoá ngay.
+        services.AddCatalogCache<AttendanceDbContext>(r => r
+            .On<Domain.Shift>(AttendanceCacheTags.Calendar)
+            .On<Domain.ScheduleEntry>(AttendanceCacheTags.Calendar)
+            .On<Domain.Holiday>(AttendanceCacheTags.Calendar));
+        services.AddScoped<AttendanceCalendar>();
         services.AddScoped<AttendanceService>();
         services.AddScoped<IWorkCalendar, WorkCalendar>();
         services.AddScoped<IAttendanceReports, AttendanceReports>();
