@@ -80,3 +80,26 @@ public sealed class PasswordPolicySettings
         return parts.Count == 0 ? $"tối thiểu {MinLength} ký tự" : $"tối thiểu {MinLength} ký tự, có {string.Join(", ", parts)}";
     }
 }
+
+/// <summary>
+/// Thông tin công ty hiển thị chung (nhóm <c>company</c>, TEST-261). Chưa lưu → tên = <c>App__Name</c>, không logo.
+/// <see cref="LogoKey"/> chỉ do endpoint tải logo đặt (tiền tố <see cref="LogoPrefix"/>), không nhận từ body lưu cấu hình.
+/// </summary>
+public sealed class CompanySettings
+{
+    public const string LogoPrefix = "settings/company/";
+    public const long LogoMaxBytes = 1024 * 1024;
+
+    public string Name { get; init; } = "OfficeHub";
+    public string? LegalName { get; init; }
+    public string? TaxCode { get; init; }
+    public string? Address { get; init; }
+    public string? Phone { get; init; }
+    public string? Email { get; init; }
+    public string? Website { get; init; }
+    public string? LogoKey { get; init; }
+    /// <summary>Lần lưu gần nhất (đổi link logo để trình duyệt tải lại).</summary>
+    public DateTimeOffset? UpdatedAt { get; init; }
+
+    public static bool IsLogoKey(string? key) => key is not null && key.StartsWith(LogoPrefix, StringComparison.Ordinal) && !key.Contains("..");
+}

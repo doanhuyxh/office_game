@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using OfficeHub.BuildingBlocks.Configuration;
@@ -13,7 +14,7 @@ public sealed record SettingsGroupDef(string Group, string Name, string[] Secret
 public sealed record NormalizedSettings(JsonObject Values, Dictionary<string, string> Secrets);
 
 /// <summary>Kiểm tra + chuẩn hoá cấu hình admin gửi lên (TEST-41). Hàm thuần — test ở OfficeHub.Modules.Settings.Tests.</summary>
-public static class SettingsRules
+public static partial class SettingsRules
 {
     public static readonly IReadOnlyList<SettingsGroupDef> Groups =
     [
@@ -25,6 +26,7 @@ public static class SettingsRules
         new(SettingsGroups.TwoFactor, "Xác thực 2 lớp", []),
         new(SettingsGroups.Session, "Phiên đăng nhập", []),
         new(SettingsGroups.Password, "Mật khẩu & đăng nhập sai", []),
+        new(SettingsGroups.Company, "Thông tin công ty", []),
     ];
 
     public static SettingsGroupDef? Find(string group) => Groups.FirstOrDefault(g => g.Group == group);
@@ -32,8 +34,9 @@ public static class SettingsRules
     public const int MaxIpRanges = 100;
 
     /// <param name="currentSecret">Bí mật đang có hiệu lực (DB / .env) — ô bí mật để trống thì giữ giá trị này.</param>
+    /// <param name="stored">Giá trị đang lưu trong DB (null = chưa lưu) — trường chỉ endpoint riêng được đặt (logo công ty) lấy từ đây, không từ body.</param>
     public static NormalizedSettings Normalize(SettingsGroupDef def, JsonObject? input, IReadOnlyDictionary<string, string?>? secretsIn,
-        IReadOnlyCollection<string>? clear, Func<string, string?> currentSecret, Validation v)
+        IReadOnlyCollection<string>? clear, Func<string, string?> currentSecret, Validation v, JsonObject? stored = null)
     {
         input ??= [];
         var secrets = new Dictionary<string, string>();
@@ -53,6 +56,7 @@ public static class SettingsRules
             SettingsGroups.TwoFactor => TwoFactor(input, v),
             SettingsGroups.Session => Session(input, v),
             SettingsGroups.Password => Password(input, v),
+            SettingsGroups.Company => Company(input, stored, v),
             _ => [],
         };
         return new(values, secrets);
@@ -172,6 +176,32 @@ public static class SettingsRules
             ["requireUppercase"] = Bool(i, "requireUppercase") ?? d.RequireUppercase,
             ["requireNonAlphanumeric"] = Bool(i, "requireNonAlphanumeric") ?? d.RequireNonAlphanumeric,
             ["maxFailures"] = fails, ["blockMinutes"] = block,
+        };
+    }
+
+    /// <summary>Mã số thuế VN: 10 số, chi nhánh thêm "-" + 3 số.</summary>
+    [GeneratedRegex(@"^\d{10}(-\d{3})?$")]
+    private static partial Regex TaxCodeRegex();
+
+    /// <summary>
+    /// Thông tin công ty (TEST-261): tên hiển thị bắt buộc ≤ 100; tên pháp lý ≤ 200; MST 10 số (+ "-xxx"); địa chỉ ≤ 300; điện thoại ≤ 30;
+    /// email; website http(s). <c>logoKey</c> KHÔNG lấy từ body (không cho trỏ sang file S3 khác) — giữ giá trị đang lưu.
+    /// </summary>
+    private static JsonObject Company(JsonObject i, JsonObject? stored, Validation v)
+    {
+        var name = Str(i, "name"); var legal = Str(i, "legalName"); var tax = Str(i, "taxCode"); var address = Str(i, "address");
+        var phone = Str(i, "phone"); var email = Str(i, "email"); var website = Str(i, "website");
+        v.Required(name, "name", "Tên công ty").MaxLength(name, 100, "name", "Tên công ty");
+        v.MaxLength(legal, 200, "legalName", "Tên pháp lý").MaxLength(address, 300, "address", "Địa chỉ").MaxLength(phone, 30, "phone", "Điện thoại");
+        v.When(tax is not null && !TaxCodeRegex().IsMatch(tax), "taxCode", "Mã số thuế gồm 10 chữ số (chi nhánh: 10 số + \"-\" + 3 số)");
+        if (email is not null) v.Email(email, "email").MaxLength(email, 200, "email", "Email");
+        v.When(website is not null && (website.Length > 200 || !(Uri.TryCreate(website, UriKind.Absolute, out var u) && u.Scheme is "http" or "https")),
+            "website", "Website phải là URL http(s), vd https://congty.vn");
+        var logo = stored is null ? null : Str(stored, "logoKey");
+        return new()
+        {
+            ["name"] = name, ["legalName"] = legal, ["taxCode"] = tax, ["address"] = address, ["phone"] = phone, ["email"] = email,
+            ["website"] = website, ["logoKey"] = CompanySettings.IsLogoKey(logo) ? logo : null,
         };
     }
 

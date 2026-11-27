@@ -1,5 +1,6 @@
 import { Link, useLocation } from '@tanstack/react-router';
 import { Building2, ChevronsUpDown, KeyRound, LogOut, UserRound } from 'lucide-react';
+import { BrandLogo, BrandName } from '@/features/branding';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/common/dropdown-menu';
@@ -26,11 +27,9 @@ function AppTitle() {
       <SidebarMenuItem>
         <SidebarMenuButton size="lg" asChild>
           <Link to={PATHS.dashboard} onClick={() => setOpenMobile(false)}>
-            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-              <Building2 className="size-4" />
-            </div>
+            <BrandLogo tileClassName="bg-sidebar-primary text-sidebar-primary-foreground" />
             <div className="grid flex-1 text-start text-sm leading-tight">
-              <span className="truncate font-semibold">OfficeHub</span>
+              <BrandName className="truncate font-semibold" />
               <span className="truncate text-xs text-muted-foreground">Văn phòng ảo &amp; nhân sự</span>
             </div>
           </Link>

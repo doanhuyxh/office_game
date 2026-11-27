@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } 
 import { getRouteApi } from '@tanstack/react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { QRCodeSVG } from 'qrcode.react';
-import { Building2, CheckCircle2, Clock, File as FileIcon, Link2Off, Moon, QrCode, Send, Sun, Upload, X } from 'lucide-react';
+import { BrandLogo, BrandName } from '@/features/branding';
+import { CheckCircle2, Clock, File as FileIcon, Link2Off, Moon, QrCode, Send, Sun, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/common/button';
 import { Card, CardContent } from '@/components/common/card';
@@ -28,8 +29,8 @@ function Shell({ children }: { children: ReactNode }) {
     <div className="min-h-svh bg-background">
       <div className="mx-auto grid w-full max-w-lg gap-4 px-4 py-5 sm:py-10">
         <div className="flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"><Building2 className="size-4" /></div>
-          <span className="flex-1 text-lg font-medium">OfficeHub</span>
+          <BrandLogo />
+          <BrandName className="flex-1 text-lg font-medium" />
           <Button type="button" variant="ghost" size="icon" aria-label={dark ? 'Giao diện sáng' : 'Giao diện tối'} onClick={() => setTheme(dark ? 'light' : 'dark')}>
             {dark ? <Sun /> : <Moon />}
           </Button>

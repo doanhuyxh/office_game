@@ -13,10 +13,10 @@ public static class SettingsGroups
 {
     public const string S3 = "s3", Smtp = "smtp", Fcm = "fcm", OfficeIps = "office_ips", Telegram = "telegram";
     /// <summary>Bảo mật (TEST-258…): không có biến .env — chưa lưu = giá trị mặc định trong code.</summary>
-    public const string TwoFactor = "two_factor", Session = "session", Password = "password";
-    public static readonly string[] All = [S3, Smtp, Fcm, OfficeIps, Telegram, TwoFactor, Session, Password];
+    public const string TwoFactor = "two_factor", Session = "session", Password = "password", Company = "company";
+    public static readonly string[] All = [S3, Smtp, Fcm, OfficeIps, Telegram, TwoFactor, Session, Password, Company];
     /// <summary>Nhóm không đọc .env: chưa lưu = mặc định (FE ghi "Mặc định", nút xoá = "Về mặc định").</summary>
-    public static readonly string[] DefaultsOnly = [TwoFactor, Session, Password];
+    public static readonly string[] DefaultsOnly = [TwoFactor, Session, Password, Company];
 }
 
 /// <summary>
@@ -82,12 +82,12 @@ public sealed class OfficeIpSettings(IReadOnlyList<OfficeIpRange> ranges)
 /// Đối tượng cấu hình chỉ đổi (khác tham chiếu) khi nhóm đổi → client S3 / Firebase so tham chiếu để biết lúc tạo lại.
 /// </summary>
 public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settings> s3Env, IOptions<SmtpSettings> smtpEnv, IOptions<OfficeSettings> officeEnv,
-    IConfiguration config, IHostEnvironment env, TimeProvider clock, ILogger<RuntimeConfig> log)
+    IOptions<AppSettings> appEnv, IConfiguration config, IHostEnvironment env, TimeProvider clock, ILogger<RuntimeConfig> log)
 {
     public static readonly TimeSpan CacheFor = TimeSpan.FromSeconds(30);
 
     private sealed record Snapshot(IReadOnlyDictionary<string, StoredSettingsGroup> Groups, S3Settings S3, SmtpSettings Smtp, FcmSettings Fcm, OfficeIpSettings OfficeIps,
-        TelegramSettings Telegram, TwoFactorSettings TwoFactor, SessionSettings Session, PasswordPolicySettings Password);
+        TelegramSettings Telegram, TwoFactorSettings TwoFactor, SessionSettings Session, PasswordPolicySettings Password, CompanySettings Company);
 
     private readonly Lock _gate = new();
     private Snapshot? _snap;
@@ -103,6 +103,7 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
     public TwoFactorSettings TwoFactor => Current.TwoFactor;
     public SessionSettings Session => Current.Session;
     public PasswordPolicySettings Password => Current.Password;
+    public CompanySettings Company => Current.Company;
 
     /// <summary>Nhóm đang lấy từ DB (null = .env).</summary>
     public StoredSettingsGroup? Stored(string group) => Current.Groups.GetValueOrDefault(group);
@@ -121,6 +122,7 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
         SettingsGroups.TwoFactor => TwoFactorValues(new TwoFactorSettings()),
         SettingsGroups.Session => SessionValues(new SessionSettings()),
         SettingsGroups.Password => PasswordValues(new PasswordPolicySettings()),
+        SettingsGroups.Company => CompanyValues(new CompanySettings { Name = AppName }),
         _ => [],
     };
 
@@ -192,7 +194,9 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
         } : new SessionSettings();
         var password = Same(SettingsGroups.Password) ? prev!.Password : groups.TryGetValue(SettingsGroups.Password, out var pw) ? PasswordFrom(pw.Values)
             : new PasswordPolicySettings();
-        return new Snapshot(groups, s3, smtp, fcm, ips, tg, twoFactor, session, password);
+        var company = Same(SettingsGroups.Company) ? prev!.Company : groups.TryGetValue(SettingsGroups.Company, out var co) ? CompanyFrom(co)
+            : new CompanySettings { Name = AppName };
+        return new Snapshot(groups, s3, smtp, fcm, ips, tg, twoFactor, session, password, company);
     }
 
     private FcmSettings FcmEnv()
@@ -255,6 +259,21 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
         new() { ["ranges"] = new JsonArray([.. ranges.Select(r => (JsonNode)new JsonObject { ["cidr"] = r.Cidr, ["note"] = r.Note })]) };
 
     public static JsonObject TwoFactorValues(TwoFactorSettings s) => new() { ["scope"] = s.Scope };
+    private string AppName => string.IsNullOrWhiteSpace(appEnv.Value.Name) ? "OfficeHub" : appEnv.Value.Name;
+
+    private CompanySettings CompanyFrom(StoredSettingsGroup g) => new()
+    {
+        Name = Str(g.Values, "name") ?? AppName, LegalName = Str(g.Values, "legalName"), TaxCode = Str(g.Values, "taxCode"),
+        Address = Str(g.Values, "address"), Phone = Str(g.Values, "phone"), Email = Str(g.Values, "email"), Website = Str(g.Values, "website"),
+        LogoKey = Str(g.Values, "logoKey") is { } k && CompanySettings.IsLogoKey(k) ? k : null, UpdatedAt = g.UpdatedAt,
+    };
+
+    public static JsonObject CompanyValues(CompanySettings s) => new()
+    {
+        ["name"] = s.Name, ["legalName"] = s.LegalName, ["taxCode"] = s.TaxCode, ["address"] = s.Address, ["phone"] = s.Phone,
+        ["email"] = s.Email, ["website"] = s.Website, ["logoKey"] = s.LogoKey,
+    };
+
     private static PasswordPolicySettings PasswordFrom(JsonObject v)
     {
         var d = new PasswordPolicySettings();

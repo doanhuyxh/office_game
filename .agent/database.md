@@ -106,7 +106,7 @@ Bảng tin nội bộ: `posts` (`Seq` identity = con trỏ feed, `ContentHtml` �
 
 ## Schema `settings` — `SettingsDbContext` (migration `InitialSettings`, TEST-41)
 
-`system_settings`: một dòng / nhóm cấu hình (PK `Group` = `s3` / `smtp` / `fcm` / `office_ips` / `telegram` / `two_factor` / `session` / `password`), `Name`, `ValuesJson` (jsonb, trường thường khoá camelCase), `SecretsEncrypted` (JSON {khoá: giá trị} của trường bí mật, `IFieldEncryptor` — job xoay khoá có khai báo cột), `UpdatedAt`, `UpdatedById`, `UpdatedByName`; `[Audited]` (bí mật chỉ ghi "đã đổi"). **Có dòng = dùng DB, không có = `.env`** (nhóm bảo mật không có `.env` → mặc định trong code, `SettingsGroups.DefaultsOnly`). Đọc qua `RuntimeConfig` (BuildingBlocks, cache 30 giây, lưu / xoá → xoá cache). Module `OfficeHub.Modules.Settings`; API ở [routes.md](routes.md).
+`system_settings`: một dòng / nhóm cấu hình (PK `Group` = `s3` / `smtp` / `fcm` / `office_ips` / `telegram` / `two_factor` / `session` / `password` / `company`), `Name`, `ValuesJson` (jsonb, trường thường khoá camelCase), `SecretsEncrypted` (JSON {khoá: giá trị} của trường bí mật, `IFieldEncryptor` — job xoay khoá có khai báo cột), `UpdatedAt`, `UpdatedById`, `UpdatedByName`; `[Audited]` (bí mật chỉ ghi "đã đổi"). **Có dòng = dùng DB, không có = `.env`** (nhóm bảo mật không có `.env` → mặc định trong code, `SettingsGroups.DefaultsOnly`). Đọc qua `RuntimeConfig` (BuildingBlocks, cache 30 giây, lưu / xoá → xoá cache). Module `OfficeHub.Modules.Settings`; API ở [routes.md](routes.md).
 
 ## Schema `audit`, `meetings`, …
 

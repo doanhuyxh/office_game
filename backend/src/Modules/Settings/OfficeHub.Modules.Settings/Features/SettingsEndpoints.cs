@@ -47,6 +47,7 @@ internal static class SettingsEndpoints
         g.MapPut("/{group}", SaveAsync);
         g.MapDelete("/{group}", ResetAsync);
         g.MapPost("/{group}/test", TestAsync);
+        CompanyEndpoints.MapAdmin(g);
     }
 
     private static Ok<List<SettingsGroupDto>> ListAsync(RuntimeConfig runtime) =>
@@ -55,7 +56,7 @@ internal static class SettingsEndpoints
     private static Results<Ok<SettingsGroupDto>, ProblemHttpResult> GetAsync(string group, RuntimeConfig runtime) =>
         SettingsRules.Find(group) is { } def ? TypedResults.Ok(ToDto(def, runtime)) : Problems.NotFound("Nhóm cấu hình");
 
-    private static SettingsGroupDto ToDto(SettingsGroupDef def, RuntimeConfig runtime)
+    internal static SettingsGroupDto ToDto(SettingsGroupDef def, RuntimeConfig runtime)
     {
         if (runtime.Stored(def.Group) is { } s)
             return new(def.Group, def.Name, "db", s.UpdatedAt, s.UpdatedBy, (JsonObject)s.Values.DeepClone(),
@@ -73,43 +74,51 @@ internal static class SettingsEndpoints
         var v = new Validation();
         foreach (var (k, val) in req.Secrets ?? [])
             v.When(!def.SecretKeys.Contains(k), k, "Trường bí mật không thuộc nhóm này").MaxLength(val, 20_000, k, "Giá trị bí mật");
-        var n = SettingsRules.Normalize(def, req.Values, req.Secrets, req.ClearSecrets, k => runtime.CurrentSecret(group, k), v);
+        var n = SettingsRules.Normalize(def, req.Values, req.Secrets, req.ClearSecrets, k => runtime.CurrentSecret(group, k), v, runtime.Stored(group)?.Values);
         if (v.Failed) return v.Problem();
+        await SaveRowAsync(db, enc, def, n.Values, n.Secrets, user, clock, ct);
+        runtime.Invalidate();
+        return TypedResults.Ok(ToDto(def, runtime));
+    }
 
-        var row = await db.Settings.FirstOrDefaultAsync(s => s.Group == group, ct);
+    /// <summary>Ghi (tạo / sửa) dòng cấu hình của một nhóm. Người gọi tự <see cref="RuntimeConfig.Invalidate"/> sau đó.</summary>
+    internal static async Task SaveRowAsync(SettingsDbContext db, IFieldEncryptor enc, SettingsGroupDef def, JsonObject values,
+        Dictionary<string, string> secrets, ClaimsPrincipal user, TimeProvider clock, CancellationToken ct)
+    {
+        var row = await db.Settings.FirstOrDefaultAsync(s => s.Group == def.Group, ct);
         if (row is null)
         {
-            row = new SystemSetting { Group = group, Name = def.Name, ValuesJson = "{}" };
+            row = new SystemSetting { Group = def.Group, Name = def.Name, ValuesJson = "{}" };
             db.Settings.Add(row);
         }
-        var valuesJson = n.Values.ToJsonString();
         // Không đổi bí mật → giữ token cũ (lịch sử sửa không ghi "đã đổi" giả).
         var oldSecrets = string.IsNullOrEmpty(row.SecretsEncrypted) ? [] : SettingsStore.DecryptSecrets(enc, row.SecretsEncrypted);
-        if (!SameSecrets(oldSecrets, n.Secrets) || db.Entry(row).State == EntityState.Added)
-            row.SecretsEncrypted = SettingsStore.EncryptSecrets(enc, n.Secrets);
-        row.ValuesJson = valuesJson;
+        if (!SameSecrets(oldSecrets, secrets) || db.Entry(row).State == EntityState.Added)
+            row.SecretsEncrypted = SettingsStore.EncryptSecrets(enc, secrets);
+        row.ValuesJson = values.ToJsonString();
         row.Name = def.Name;
         row.UpdatedAt = clock.GetUtcNow();
         row.UpdatedById = user.GetUserId();
         row.UpdatedByName = user.FindFirstValue(ClaimNames.FullName) ?? user.Identity?.Name;
         await db.SaveChangesAsync(ct);
-        runtime.Invalidate();
-        return TypedResults.Ok(ToDto(def, runtime));
     }
 
     private static bool SameSecrets(Dictionary<string, string> a, Dictionary<string, string> b) =>
         a.Count == b.Count && a.All(kv => b.TryGetValue(kv.Key, out var x) && x == kv.Value);
 
     /// <summary>Xoá cấu hình trong DB → quay về đọc .env (nhóm bảo mật: về mặc định).</summary>
-    private static async Task<Results<Ok<SettingsGroupDto>, ProblemHttpResult>> ResetAsync(string group, SettingsDbContext db, RuntimeConfig runtime, CancellationToken ct)
+    private static async Task<Results<Ok<SettingsGroupDto>, ProblemHttpResult>> ResetAsync(string group, SettingsDbContext db, RuntimeConfig runtime,
+        IFileStorage files, CancellationToken ct)
     {
         if (SettingsRules.Find(group) is not { } def) return Problems.NotFound("Nhóm cấu hình");
+        var logo = group == SettingsGroups.Company ? runtime.Company.LogoKey : null;
         var row = await db.Settings.FirstOrDefaultAsync(s => s.Group == group, ct);
         if (row is not null)
         {
             db.Settings.Remove(row);
             await db.SaveChangesAsync(ct);
         }
+        if (logo is not null) await CompanyEndpoints.DeleteQuietlyAsync(files, logo, ct); // về mặc định = bỏ cả logo
         runtime.Invalidate();
         return TypedResults.Ok(ToDto(def, runtime));
     }

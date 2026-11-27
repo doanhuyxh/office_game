@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { ConfirmHost } from '@/components/common/confirm-dialog';
 import { Toaster } from '@/components/common/sonner';
 import { authKeys } from '@/features/auth';
+import { useBrandingTitle } from '@/features/branding';
 import { PATHS } from '@/config/paths';
 import { ApiError } from '@/services/api-client';
 import { useApiDown } from '@/services/maintenance';
@@ -70,6 +71,12 @@ function MaintenanceGate() {
   return down ? <MaintenancePage /> : null;
 }
 
+/** Tiêu đề tab trình duyệt theo tên công ty (cần QueryClientProvider). */
+function BrandingTitle() {
+  useBrandingTitle();
+  return null;
+}
+
 /** Root component: bọc Providers & Router. Thêm provider mới (toast, theme, i18n...) ở đây. */
 export function App() {
   useBlockContextMenu();
@@ -80,6 +87,7 @@ export function App() {
         <Toaster position="top-right" richColors closeButton />
         <ConfirmHost />
         <MaintenanceGate />
+        <BrandingTitle />
       </QueryClientProvider>
     </ThemeProvider>
   );

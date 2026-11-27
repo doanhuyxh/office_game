@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getRouteApi } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookOpen, Building2, Clock, KeyRound, Link2Off, ListTree, Moon, Sun } from 'lucide-react';
+import { BrandLogo, useBranding } from '@/features/branding';
+import { BookOpen, Clock, KeyRound, Link2Off, ListTree, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/common/button';
 import { Card, CardContent } from '@/components/common/card';
 import { Input } from '@/components/common/input';
@@ -38,15 +39,16 @@ function useIsDark() {
 /** Thanh đầu trang công khai: logo + tên dự án + "Hết hạn sau …" + nút sáng / tối. */
 function TopBar({ projectName, remaining, onMenu }: { projectName?: string; remaining?: number; onMenu?: () => void }) {
   const { dark, toggle } = useIsDark();
+  const brand = useBranding();
   return (
     <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-2 px-3 sm:px-5">
         {onMenu && (
           <Button type="button" variant="ghost" size="icon" className="lg:hidden" aria-label="Mục lục trang" onClick={onMenu} data-testid="wiki-share-menu"><ListTree /></Button>
         )}
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground"><Building2 className="size-4" /></div>
+        <BrandLogo />
         <div className="grid min-w-0 flex-1 leading-tight">
-          <span className="truncate text-sm font-semibold" data-testid="wiki-share-project">{projectName ?? 'OfficeHub'}</span>
+          <span className="truncate text-sm font-semibold" data-testid="wiki-share-project">{projectName ?? brand.name}</span>
           {remaining != null && (
             <span className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="wiki-share-countdown">
               <Clock className="size-3" /> Hết hạn sau <span className="font-medium text-foreground tabular-nums">{formatRemaining(remaining)}</span>

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
+import { brandingKeys } from '@/features/branding';
 import { systemApi, systemKeys } from '../api/system.api';
 import type { ISaveSettingsRequest, ISettingsGroup, ISettingsTestRequest, SettingsGroupKey } from '../types/system.types';
 
@@ -39,9 +40,22 @@ export function useSettingsMutations(group: SettingsGroupKey) {
     qc.setQueryData<ISettingsGroup[]>(systemKeys.settings, (old) => old?.map((x) => (x.group === g.group ? g : x)));
     void qc.invalidateQueries({ queryKey: systemKeys.info });
     void qc.invalidateQueries({ queryKey: systemKeys.channels }); // trạng thái kênh đổi theo cấu hình
+    if (g.group === 'company') void qc.invalidateQueries({ queryKey: brandingKeys.info }); // tên / logo trên sidebar, tab trình duyệt
   };
   const save = useMutation({ mutationFn: (body: ISaveSettingsRequest) => systemApi.saveSettings(group, body), onSuccess: apply });
   const reset = useMutation({ mutationFn: () => systemApi.resetSettings(group), onSuccess: apply });
   const test = useMutation({ mutationFn: (body: ISettingsTestRequest = {}) => systemApi.testSettings(group, body) });
   return { save, reset, test };
+}
+
+/** Tải lên / xoá logo công ty: cập nhật cache nhóm `company` + tên / logo đang hiển thị. */
+export function useCompanyLogo() {
+  const qc = useQueryClient();
+  const apply = (g: ISettingsGroup) => {
+    qc.setQueryData<ISettingsGroup[]>(systemKeys.settings, (old) => old?.map((x) => (x.group === g.group ? g : x)));
+    void qc.invalidateQueries({ queryKey: brandingKeys.info });
+  };
+  const upload = useMutation({ mutationFn: (file: File) => systemApi.uploadCompanyLogo(file), onSuccess: apply });
+  const remove = useMutation({ mutationFn: () => systemApi.deleteCompanyLogo(), onSuccess: apply });
+  return { upload, remove };
 }

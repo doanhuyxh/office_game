@@ -30,6 +30,9 @@ public sealed class SettingsModule : IModule
         services.AddHostedService<SettingsMigrator>();
     }
 
-    public void MapEndpoints(IEndpointRouteBuilder api) =>
+    public void MapEndpoints(IEndpointRouteBuilder api)
+    {
         SettingsEndpoints.Map(api.MapGroup("/system/settings").WithTags("System").RequireAuthorization(AuthPolicies.Admin));
+        CompanyEndpoints.MapPublic(api); // /api/branding — ẩn danh (TEST-261)
+    }
 }

@@ -1,4 +1,4 @@
-import { http, httpPost } from '@/services/api-client';
+import { http, httpPost, httpUpload } from '@/services/api-client';
 import type { INotificationChannel, INotificationEventGroup, IOpsReport, ISaveSettingsRequest, ISettingsGroup, ISettingsTestRequest, ISettingsTestResult, IStorageReport, ISystemInfo, SettingsGroupKey } from '../types/system.types';
 
 export const systemKeys = { info: ['system', 'info'] as const, storage: ['system', 'storage'] as const, ops: ['system', 'ops'] as const, settings: ['system', 'settings'] as const, channels: ['system', 'channels'] as const, events: ['system', 'channels', 'events'] as const };
@@ -24,4 +24,7 @@ export const systemApi = {
   resetSettings: (group: SettingsGroupKey) => http<ISettingsGroup>(`/api/system/settings/${group}`, { method: 'DELETE' }),
   /** Thử cấu hình đang có hiệu lực (S3 ghi + xoá file, SMTP gửi thư tới email nhập / của bạn, FCM dry run, IP so với IP của bạn). */
   testSettings: (group: SettingsGroupKey, body: ISettingsTestRequest = {}) => httpPost<ISettingsTestResult>(`/api/system/settings/${group}/test`, body),
+  /** Logo công ty (PNG / JPG / WebP ≤ 1 MB) — trả nhóm `company` sau khi lưu. */
+  uploadCompanyLogo: (file: File) => httpUpload<ISettingsGroup>('/api/system/settings/company/logo', file),
+  deleteCompanyLogo: () => http<ISettingsGroup>('/api/system/settings/company/logo', { method: 'DELETE' }),
 };

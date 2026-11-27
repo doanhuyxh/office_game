@@ -143,6 +143,33 @@ public class SettingsRulesTests
             Assert.False(n.Values["requireUppercase"]!.GetValue<bool>());
         }
     }
+
+    [Fact]
+    public void Company_logo_key_never_taken_from_body()
+    {
+        var v = new Validation();
+        var stored = JsonNode.Parse("""{"name":"A","logoKey":"settings/company/logo-1.png"}""") as JsonObject;
+        var n = SettingsRules.Normalize(Def(SettingsGroups.Company),
+            JsonNode.Parse("""{"name":"Công ty B","logoKey":"contracts/secret.pdf"}""") as JsonObject, null, null, _ => null, v, stored);
+        Assert.False(v.Failed);
+        Assert.Equal("settings/company/logo-1.png", n.Values["logoKey"]!.GetValue<string>());
+
+        var (n2, _) = Run(SettingsGroups.Company, """{"name":"B","logoKey":"settings/company/x.png"}"""); // chưa lưu → không có logo
+        Assert.Null(n2.Values["logoKey"]);
+    }
+
+    [Theory]
+    [InlineData("""{"name":"Công ty A","taxCode":"0101234567","website":"https://a.vn","email":"lienhe@a.vn"}""", null)]
+    [InlineData("""{"name":"Công ty A","taxCode":"0101234567-001"}""", null)]
+    [InlineData("""{"name":"  "}""", "name")]
+    [InlineData("""{"name":"A","taxCode":"12345"}""", "taxCode")]
+    [InlineData("""{"name":"A","website":"ftp://a.vn"}""", "website")]
+    [InlineData("""{"name":"A","email":"khong-phai-email"}""", "email")]
+    public void Company_validation(string json, string? failField)
+    {
+        var (_, v) = Run(SettingsGroups.Company, json);
+        if (failField is null) Assert.False(v.Failed); else Assert.True(v.Has(failField));
+    }
 }
 
 public class TelegramSettingsRulesTests
