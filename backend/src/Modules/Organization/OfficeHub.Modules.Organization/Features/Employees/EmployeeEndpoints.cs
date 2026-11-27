@@ -145,9 +145,9 @@ internal static class EmployeeEndpoints
         if (req.LeftAt < e.JoinedAt) return new Validation().Add("leftAt", "Ngày nghỉ việc phải sau ngày vào làm").Problem();
         e.Status = EmployeeStatus.Resigned;
         e.LeftAt = req.LeftAt;
-        // Gỡ khỏi vai trò quản lý / trưởng phòng
-        await db.Employees.Where(x => x.ManagerId == id).ExecuteUpdateAsync(s => s.SetProperty(x => x.ManagerId, (Guid?)null), ct);
-        await db.Departments.Where(x => x.HeadEmployeeId == id).ExecuteUpdateAsync(s => s.SetProperty(x => x.HeadEmployeeId, (Guid?)null), ct);
+        // Gỡ khỏi vai trò quản lý / trưởng phòng — qua entity được theo dõi để lịch sử sửa dữ liệu ([Audited]) ghi từng người / phòng (TEST-250)
+        foreach (var x in await db.Employees.Where(x => x.ManagerId == id).ToListAsync(ct)) x.ManagerId = null;
+        foreach (var d in await db.Departments.Where(x => x.HeadEmployeeId == id).ToListAsync(ct)) d.HeadEmployeeId = null;
         await db.SaveChangesAsync(ct);
         if (e.UserId is { } uid) await accounts.SetActiveAsync(uid, false, ct);
         return TypedResults.NoContent();

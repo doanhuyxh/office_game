@@ -93,10 +93,11 @@ internal static class BulkEndpoints
         await using (var tx = await db.Database.BeginTransactionAsync(ct))
         {
             foreach (var e in rows) { e.Status = EmployeeStatus.Resigned; e.LeftAt = req.LeftAt; }
-            await db.Employees.Where(x => x.ManagerId != null && resigning.Contains(x.ManagerId.Value))
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.ManagerId, (Guid?)null), ct);
-            await db.Departments.Where(x => x.HeadEmployeeId != null && resigning.Contains(x.HeadEmployeeId.Value))
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.HeadEmployeeId, (Guid?)null), ct);
+            // Qua entity được theo dõi để [Audited] ghi từng người / phòng bị gỡ quản lý / trưởng phòng (TEST-250)
+            foreach (var x in await db.Employees.Where(x => x.ManagerId != null && resigning.Contains(x.ManagerId.Value)).ToListAsync(ct))
+                x.ManagerId = null;
+            foreach (var d in await db.Departments.Where(x => x.HeadEmployeeId != null && resigning.Contains(x.HeadEmployeeId.Value)).ToListAsync(ct))
+                d.HeadEmployeeId = null;
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
         }
