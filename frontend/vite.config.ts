@@ -9,9 +9,8 @@ const shared = fileURLToPath(new URL('../shared', import.meta.url));
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
-  const buildId = makeBuildId(); // TEST-227: so với /version.json → nhắc tải lại khi có bản mới
+  const buildId = makeBuildId(); // TEST-227: nối vào VERSION của dist/sw.js → mỗi deploy dọn cache /assets cũ
   return {
-    define: { 'import.meta.env.VITE_APP_BUILD_ID': JSON.stringify(buildId) },
     plugins: [
       react(),
       tailwindcss(),
