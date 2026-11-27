@@ -1629,3 +1629,50 @@ test('TEST-200: một agent nhiều dự án — việc dự án A vào repo A (
     await runner.checkAgents({ only: 'NV120', telegram: false });
   }
 }, 60000);
+
+test('task_closed (TEST-247): việc sang Xong → dọn worktree + nhánh local ngay; còn job của việc đang chạy → dọn khi job xong; việc chưa xong → không xoá', async () => {
+  const s = runner.agents.get('NV120')!;
+  const wt = join(root, 'worktrees/NV120/TEST-45');
+  const repo = join(root, 'agent-repo');
+  const closed = (id: number) => ({
+    message_id: id,
+    date: 0,
+    chat: { id: -1001234567890, type: 'supergroup' },
+    text: `{"employee_code":"NV120","project_id":"${P}","task_id":"${T1}","task_code":"TEST-45","event":"task_closed"}`,
+  });
+  // agent làm việc T1 một lượt: worktree có commit, runner đã push nhánh (scheduler của test đầu có thể đang chạy → chờ job xong)
+  await runner.checkAgents({ only: 'NV120', telegram: false, modelCheck: false });
+  const wake = { kind: 'task' as const, employee_code: 'NV120', project_id: P, task_id: T1, task_code: 'TEST-45' };
+  const first = await runner.accept(s, wake);
+  const queued = store.claimNext(1, ['NV120']);
+  if (queued) await runner.process(queued);
+  if (first)
+    expect(await waitFor(() => ['done', 'failed', 'skipped'].includes(store.getJob(first)!.status))).toBe(true);
+  expect(existsSync(join(wt, '.git'))).toBe(true);
+  // test trước (force push bị chặn…) có thể để lại commit chưa push → đưa worktree về đúng bản trên origin (commit chưa push thì runner giữ lại)
+  await sh(['git', 'fetch', 'origin', '+refs/heads/agent/nv120/test-45:refs/remotes/origin/agent/nv120/test-45'], wt);
+  await sh(['git', 'reset', '--hard', 'origin/agent/nv120/test-45'], wt);
+  const local = () => sh(['git', 'branch', '--list', 'agent/nv120/test-45'], repo).then((r) => r.out);
+  expect(await local()).toContain('agent/nv120/test-45');
+  try {
+    // tin tới nhưng OfficeHub báo việc chưa xong (tin giả / mở lại) → giữ nguyên
+    expect(await runner.onMessage(s, closed(1) as any)).toBeNull();
+    expect(existsSync(wt)).toBe(true);
+
+    tasks[T1].task.done = true;
+    // job của việc đang chạy (giả lập: dòng running, scheduler không lấy) → chưa xoá, dọn khi job xong
+    const id = store.enqueue('NV120', T1, 'TEST-45', P)!;
+    store.db.run(`UPDATE jobs SET status = 'running', started_at = ? WHERE id = ?`, [new Date().toISOString(), id]);
+    await runner.onMessage(s, closed(2) as any);
+    expect(existsSync(wt)).toBe(true);
+    await runner.process(store.getJob(id)!); // việc đã xong → job bỏ qua, rồi dọn ở nền
+    expect(await waitFor(() => !existsSync(wt))).toBe(true);
+    expect(await local()).toBe('');
+    expect(store.session(T1)!.cleaned_at).not.toBeNull();
+    // nhánh vẫn trên origin → mở lại thì lấy về
+    const remote = await sh(['git', 'ls-remote', '--heads', 'origin', 'agent/nv120/test-45'], repo);
+    expect(remote.out).toContain('agent/nv120/test-45');
+  } finally {
+    tasks[T1].task.done = false;
+  }
+}, 30000);

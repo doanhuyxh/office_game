@@ -239,6 +239,41 @@ test('log job: thư mục jobs/{id} của job kết thúc quá logs_keep_days b�
   expect(existsSync(jobDir(config.dataDir, id))).toBe(false);
 });
 
+test('tin task_closed: dọn NGAY (không chờ after_done_hours) cả phiên làm và phiên theo dõi; việc chưa xong / đang có job → không xoá', async () => {
+  const ws = await pushedWorktree('TEST-8');
+  ranSession('t8', ws.path, 's1', { branch: ws.branch });
+  const follow = join(config.worktreesDir, 'NV120', 'FOLLOW-TEST-8');
+  await run(['git', 'worktree', 'add', '--detach', follow, 'origin/main'], repo);
+  ranSession('NV120:t8', follow, 's2', { kind: 'follow' });
+  const s = {
+    cfg: config.agents[0]!,
+    hub: { getTask: async (id: string) => ({ task: { id, done: doneOf[id] } }) },
+  } as unknown as AgentState;
+  const c = new Cleaner(config, store, git, new Map([['NV120', s]]));
+
+  doneOf.t8 = false; // tin giả / việc bị mở lại ngay → hỏi lại OfficeHub, không xoá
+  expect(await c.closeTask(s, 't8')).toEqual({ items: [], waiting: false, skipped: 'việc chưa xong' });
+  expect(existsSync(ws.path)).toBe(true);
+
+  doneOf.t8 = true;
+  const r = await c.closeTask(s, 't8'); // vừa chạy xong (updated_at = bây giờ) vẫn dọn
+  expect(r.waiting).toBe(false);
+  expect(r.items.map((i) => [i.key, i.reason, i.kept])).toEqual([
+    ['t8', 'việc đã Xong', undefined],
+    ['NV120:t8', 'việc đã Xong', undefined],
+  ]);
+  expect(existsSync(ws.path)).toBe(false);
+  expect(existsSync(follow)).toBe(false);
+  expect(await c.closeTask(s, 't8')).toMatchObject({ items: [], skipped: 'máy không có dữ liệu của việc' });
+
+  const ws9 = await pushedWorktree('TEST-9');
+  ranSession('t9', ws9.path, 's1', { branch: ws9.branch });
+  store.enqueue('NV120', 't9', 'TEST-9', 'p');
+  doneOf.t9 = true;
+  expect(await c.closeTask(s, 't9')).toEqual({ items: [], waiting: true });
+  expect(existsSync(ws9.path)).toBe(true);
+});
+
 test('cleanupDue + cấu hình runner.cleanup', () => {
   const cfg = { enabled: true, afterDoneHours: 24, staleDays: 30, logsKeepDays: 14 };
   const row = (kind: string, ageH: number) =>

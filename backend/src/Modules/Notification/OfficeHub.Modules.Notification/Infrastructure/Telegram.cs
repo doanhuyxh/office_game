@@ -78,6 +78,9 @@ internal sealed class TelegramWakeup(NotificationDbContext db, IAccountService a
         EnqueueAsync("task_column_entered", followerUserId, taskId, TelegramRules.ColumnWakeMessage(followerCode, projectId, taskId, taskCode, columnId, assigneeCode),
             $"việc {taskCode}", ct);
 
+    public Task TaskClosedAsync(Guid userId, string employeeCode, Guid projectId, Guid taskId, string taskCode, CancellationToken ct = default) =>
+        EnqueueAsync("task_closed", TelegramRules.Closed, userId, employeeCode, projectId, taskId, taskCode, null, ct);
+
     public Task ChatMentionedAsync(Guid userId, string employeeCode, Guid conversationId, Guid messageId, CancellationToken ct = default) =>
         EnqueueAsync("chat_mention", userId, null, TelegramRules.ChatWakeMessage(employeeCode, conversationId, messageId), $"tin {messageId}", ct);
 

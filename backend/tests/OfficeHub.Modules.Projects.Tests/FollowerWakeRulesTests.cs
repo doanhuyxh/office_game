@@ -105,3 +105,40 @@ public class FollowerWakeRulesTests
         Assert.Equal(["Chờ review"], defaults.Where(c => c.WakeFollowers).Select(c => c.Name));
     }
 }
+
+/// <summary>TEST-247: việc sang hoàn thành → báo bot người làm + theo dõi dọn máy (task_closed).</summary>
+public class ClosedTaskWakeRulesTests
+{
+    private static readonly Guid Todo = Guid.NewGuid(), Review = Guid.NewGuid(), Done = Guid.NewGuid(), Archived = Guid.NewGuid();
+    private static readonly Guid Bot1 = Guid.NewGuid(), Bot2 = Guid.NewGuid(), Human = Guid.NewGuid(), Locked = Guid.NewGuid();
+
+    private static readonly List<ColumnInfo> Cols =
+    [
+        new(Todo, "Cần làm", 0, false, false), new(Review, "Chờ review", 1, false, false, WakeFollowers: true),
+        new(Done, "Xong", 2, true, true), new(Archived, "Lưu trữ", 3, true, false),
+    ];
+
+    [Fact]
+    public void Entering_done_from_not_done_wakes()
+    {
+        Assert.True(ClosedTaskWakeRules.ShouldWake(Cols, Review, Done));
+        Assert.True(ClosedTaskWakeRules.ShouldWake(Cols, Todo, Archived));
+        Assert.True(ClosedTaskWakeRules.ShouldWake(Cols, Guid.NewGuid(), Done)); // cột cũ đã xoá
+    }
+
+    [Fact]
+    public void Between_done_columns_leaving_done_or_staying_does_not_wake()
+    {
+        Assert.False(ClosedTaskWakeRules.ShouldWake(Cols, Done, Archived));
+        Assert.False(ClosedTaskWakeRules.ShouldWake(Cols, Done, Review));
+        Assert.False(ClosedTaskWakeRules.ShouldWake(Cols, Done, Done));
+        Assert.False(ClosedTaskWakeRules.ShouldWake(Cols, Todo, Review));
+    }
+
+    [Fact]
+    public void Targets_are_active_bots_once_each_including_actor() =>
+        Assert.Equal([Bot1, Bot2], ClosedTaskWakeRules.BotTargets(
+        [
+            new(Bot1, true, true), new(Bot1, true, true), new(Bot2, true, true), new(Human, false, true), new(Locked, true, false), new(null, true, true),
+        ]));
+}

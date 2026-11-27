@@ -174,6 +174,13 @@ const JOB_SELECT = `SELECT id, agent, task_id AS "key", task_code AS label, proj
 const SESSION_SELECT = `SELECT task_id AS "key", agent, session_id, branch, worktree, updated_at, resumes, kind, summary,
   transcript_pending, transcript_sha, transcript_error, cleaned_at FROM task_sessions`;
 
+/** Dòng `task_sessions` + loại job mới nhất của khoá + khoá còn job đang chờ / chạy (TEST-247). */
+const CANDIDATE_SELECT = `SELECT task_id AS "key", agent, session_id, branch, worktree, updated_at, resumes, kind, summary, transcript_pending,
+    transcript_sha, transcript_error, cleaned_at,
+    (SELECT j.kind FROM jobs j WHERE j.task_id = s.task_id ORDER BY j.id DESC LIMIT 1) AS job_kind,
+    EXISTS (SELECT 1 FROM jobs j WHERE j.task_id = s.task_id AND j.status IN ('queued', 'running')) AS active
+  FROM task_sessions s`;
+
 const columnsOf = (db: Database, table: string) =>
   new Set(
     db
@@ -460,13 +467,16 @@ export class Store {
   cleanupCandidates(beforeIso: string): CleanupCandidate[] {
     return this.db
       .query<CleanupCandidate, [string]>(
-        `SELECT task_id AS "key", agent, session_id, branch, worktree, updated_at, resumes, kind, summary, transcript_pending,
-          transcript_sha, transcript_error, cleaned_at,
-          (SELECT j.kind FROM jobs j WHERE j.task_id = s.task_id ORDER BY j.id DESC LIMIT 1) AS job_kind,
-          EXISTS (SELECT 1 FROM jobs j WHERE j.task_id = s.task_id AND j.status IN ('queued', 'running')) AS active
-        FROM task_sessions s WHERE cleaned_at IS NULL AND updated_at < ? ORDER BY updated_at`,
+        `${CANDIDATE_SELECT} WHERE cleaned_at IS NULL AND updated_at < ? ORDER BY updated_at`,
       )
       .all(beforeIso);
+  }
+
+  /** Phiên chưa dọn của một khoá (dọn ngay khi việc sang Xong, TEST-247); không có / đã dọn → null. */
+  cleanupCandidateOf(key: string): CleanupCandidate | null {
+    return this.db
+      .query<CleanupCandidate, [string]>(`${CANDIDATE_SELECT} WHERE cleaned_at IS NULL AND task_id = ?`)
+      .get(key);
   }
 
   /** Khoá còn job đang chờ / chạy. */

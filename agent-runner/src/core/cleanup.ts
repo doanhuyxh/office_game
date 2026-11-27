@@ -91,6 +91,35 @@ export class Cleaner {
     private readonly now: () => number = Date.now,
   ) {}
 
+  /**
+   * Dọn NGAY một việc vừa sang Xong (tin `task_closed`, TEST-247) — không chờ `after_done_hours`: phiên làm việc (khoá = id việc) và phiên
+   * theo dõi (`<mã NV>:<id việc>`) của agent `s`. Hỏi lại `get_task` trước (tin trong nhóm không phải lớp bảo vệ): việc chưa xong / không hỏi được
+   * → không xoá (lượt dọn theo nhịp xét sau). `waiting` = khoá còn job đang chờ / chạy → runner dọn lại khi job đó xong.
+   */
+  async closeTask(
+    s: AgentState,
+    taskId: string,
+  ): Promise<{ items: CleanupItem[]; waiting: boolean; skipped?: string }> {
+    const agent = s.cfg.employeeCode;
+    const rows = [taskId, `${agent}:${taskId}`]
+      .map((k) => this.store.cleanupCandidateOf(k))
+      .filter((c): c is CleanupCandidate => !!c && c.agent === agent);
+    if (rows.length === 0) return { items: [], waiting: false, skipped: 'máy không có dữ liệu của việc' };
+    try {
+      if ((await s.hub.getTask(taskId))?.task?.done !== true)
+        return { items: [], waiting: false, skipped: 'việc chưa xong' };
+    } catch (e) {
+      return { items: [], waiting: false, skipped: `không hỏi được OfficeHub: ${errText(e)}` };
+    }
+    const items: CleanupItem[] = [];
+    let waiting = false;
+    for (const c of rows) {
+      if (c.active) waiting = true;
+      else items.push(await this.cleanOne(s, c, 'việc đã Xong', false));
+    }
+    return { items, waiting };
+  }
+
   async run(o: { dryRun?: boolean; agent?: string } = {}): Promise<CleanupReport> {
     const cfg = this.config.cleanup;
     const nowMs = this.now();

@@ -25,6 +25,11 @@ public interface ITelegramWakeup
     Task TaskColumnEnteredAsync(Guid followerUserId, string followerCode, Guid projectId, Guid taskId, string taskCode, Guid columnId, string? assigneeCode,
         CancellationToken ct = default);
 
+    /// <summary>Việc vừa vào trạng thái hoàn thành từ trạng thái chưa xong (TEST-247) → tin <c>event: task_closed</c> (4 trường như giao việc) cho người làm
+    /// + người theo dõi là bot: bộ điều phối trên máy agent dọn worktree / transcript của việc ngay (không chạy agent, hỏi lại get_task trước khi xoá).
+    /// Gửi cả cho người vừa chuyển và cả khi dự án đã đóng; người nhận không phải bot / đã khoá → bỏ qua.</summary>
+    Task TaskClosedAsync(Guid userId, string employeeCode, Guid projectId, Guid taskId, string taskCode, CancellationToken ct = default);
+
     /// <summary>Bot được @mã-nhân-viên trong bình luận việc (TEST-63) → tin <c>event: mentioned</c> + <c>comment_id</c>; agent đọc bình luận và chỉ trả lời bằng bình luận.
     /// Người gọi bỏ tác giả bình luận; người nhận không phải bot / đã khoá → bỏ qua.</summary>
     Task TaskMentionedAsync(Guid userId, string employeeCode, Guid projectId, Guid taskId, string taskCode, Guid commentId, CancellationToken ct = default);
@@ -52,6 +57,8 @@ public static partial class TelegramRules
     public const string Ready = "ready";
     /// <summary>Việc bot theo dõi vừa vào cột "Đánh thức bot theo dõi" (TEST-178; thay review_requested TEST-161 + task_done TEST-166).</summary>
     public const string ColumnEntered = "column_entered";
+    /// <summary>Việc của bot (người làm / theo dõi) vừa sang trạng thái hoàn thành (TEST-247) — bộ điều phối dọn dữ liệu việc trên máy, không chạy agent.</summary>
+    public const string Closed = "task_closed";
     /// <summary>Bot được @nhắc trong tin nhắn chat (TEST-70) — tin không có task_id / project_id.</summary>
     public const string ChatMention = "chat_mention";
     /// <summary>Bot dự họp agent tới lượt nói (TEST-75) — tin không có task_id / project_id / nội dung.</summary>

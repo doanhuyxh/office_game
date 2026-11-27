@@ -10,6 +10,7 @@
 | `chat_mention` | `chat` | `employee_code`, `conversation_id`, `message_id` (GUID) | `<mã NV>:<id hội thoại>` |
 | `meeting_turn` | `meeting` | `employee_code`, `session_id`, `conversation_id` (GUID) | `<mã NV>:<id phiên họp>` |
 | `column_entered` (+ tin cũ `review_requested` / `task_done`) | `follow` | như tin việc (`column_id`, `assignee_code`, `project_code` bị bỏ qua) | `<mã NV>:<id việc>` — [agent-runner-follow.md](agent-runner-follow.md) |
+| `task_closed` (TEST-247) | `cleanup` — **không phải job**: dọn ngay worktree / transcript của việc | như tin việc | — [agent-runner-cleanup.md](agent-runner-cleanup.md) |
 
 `employee_code` phải trùng mã NV của agent. Tin sai → bỏ, chỉ log. Khoá chat / họp **riêng từng agent** (`agentScopedKey` ở `jobs/handler.ts`): nhiều bot cùng một hội thoại / cuộc họp mỗi bot một job + một phiên CLI.
 

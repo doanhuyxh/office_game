@@ -28,9 +28,9 @@ import {
   FOLLOW_COMMIT_POLL_SEC,
   FOLLOW_COMMIT_WAIT_SEC,
 } from './policy';
-import { currentKind, type Job, type JobKind, type Store } from './store';
+import { currentKind, type Job, type JobKind, type Store, taskIdOf } from './store';
 import { TelegramClient, type TgMessage } from './telegram';
-import { parseWake, pickStartupTasks, type Wake } from './validator';
+import { type CleanupWake, parseWake, pickStartupTasks, type Wake } from './validator';
 import { Git } from './workspace';
 
 export { RunnerStopped } from './core/session';
@@ -51,6 +51,8 @@ export class Runner {
   private cleanupTimer?: ReturnType<typeof setInterval>;
   /** Lượt dọn đang chạy — nhịp tới khi lượt trước chưa xong thì bỏ. */
   private cleaning = false;
+  /** Việc đã sang Xong nhưng lúc nhận tin còn job của khoá đó (`<mã NV>\n<id việc>`) → dọn khi job xong (TEST-247). */
+  private readonly cleanupAfterJob = new Set<string>();
   /** Lần thử lại hỏi OfficeHub đang chờ ({@link accept}) — `stop()` huỷ hết. */
   private readonly admitRetries = new Set<ReturnType<typeof setTimeout>>();
   /** Nhịp thử lại khi không hỏi lại được OfficeHub (ms); test đặt ngắn hơn. */
@@ -203,7 +205,30 @@ export class Runner {
       log('info', 'bỏ qua tin Telegram', { agent: s.cfg.employeeCode, reason: wake.reason });
       return null;
     }
+    if (wake.value.kind === 'cleanup') {
+      await this.cleanupClosedTask(s, wake.value);
+      return null;
+    }
     return this.accept(s, wake.value);
+  }
+
+  /**
+   * Tin `task_closed` (TEST-247): việc vừa sang Xong → dọn ngay worktree / transcript của việc ({@link Cleaner.closeTask}); còn job của việc
+   * đang chờ / chạy → dọn khi job đó xong. `runner.cleanup.enabled: false` → bỏ qua. Lỗi chỉ ghi log.
+   */
+  async cleanupClosedTask(s: AgentState, wake: Pick<CleanupWake, 'task_id' | 'task_code'>): Promise<void> {
+    if (!this.config.cleanup.enabled) return;
+    const fields = { agent: s.cfg.employeeCode, task: wake.task_code };
+    try {
+      const r = await new Cleaner(this.config, this.store, this.git, this.agents).closeTask(s, wake.task_id);
+      if (r.skipped) log('info', 'việc sang Xong — không dọn', { ...fields, reason: r.skipped });
+      if (r.waiting) {
+        this.cleanupAfterJob.add(`${s.cfg.employeeCode}\n${wake.task_id}`);
+        log('info', 'việc sang Xong — còn job của việc, dọn khi job xong', fields);
+      }
+    } catch (e) {
+      log('warn', 'dọn việc đã Xong lỗi', { ...fields, error: errText(e) });
+    }
   }
 
   /**
@@ -379,6 +404,10 @@ export class Runner {
       // prompt + cấu hình MCP chỉ sống trong lúc chạy; giữ output.log / activity.log để tra lỗi
       const dir = jobDir(this.config.dataDir, job.id);
       for (const f of ['prompt.md', 'mcp.json']) rmSync(join(dir, f), { force: true });
+      // Việc đã sang Xong trong lúc job chạy (TEST-247) → dọn ngay sau job (ở nền)
+      const taskId = taskIdOf(job);
+      if (taskId && this.cleanupAfterJob.delete(`${job.agent}\n${taskId}`))
+        void this.cleanupClosedTask(s, { task_id: taskId, task_code: job.label });
     }
   }
 

@@ -35,6 +35,21 @@ describe('validator', () => {
       expect(parseWake(m as any, opts).ok).toBe(true);
   });
 
+  test('task_closed (TEST-247): việc sang Xong → tin dọn dẹp (không phải job), vẫn kiểm GUID / mã việc', () => {
+    const r = parseWake(msg(good.replace('"task_code"', '"event":"task_closed","task_code"')), opts);
+    expect(r.ok && r.value).toEqual({
+      kind: 'cleanup',
+      employee_code: 'NV120',
+      project_id: P,
+      task_id: T,
+      task_code: 'TEST-45',
+    });
+    const bad = good
+      .replace('"task_code"', '"event":"task_closed","task_code"')
+      .replace(`"task_id":"${T}"`, '"task_id":"x"');
+    expect(parseWake(msg(bad), opts).ok).toBe(false);
+  });
+
   test('column_entered (TEST-180): cùng 4 trường như tin việc → job follow, trường thêm bị bỏ qua; tin cũ review_requested / task_done cũng vậy', () => {
     const extra = (event: string) =>
       `"event":"${event}","column_id":"${T}","assignee_code":"NV018","project_code":"TEST","task_code"`;

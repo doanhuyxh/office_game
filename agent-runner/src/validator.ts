@@ -36,6 +36,15 @@ export type Wake =
    */
   | ({ kind: 'follow' } & WakeData);
 
+/**
+ * `event: task_closed` (TEST-247): việc của agent (người làm / theo dõi) vừa sang trạng thái hoàn thành → runner dọn worktree / transcript
+ * của việc ngay (không chạy CLI, không phải job). Runner vẫn hỏi lại `get_task` (việc phải đã xong) trước khi xoá.
+ */
+export type CleanupWake = { kind: 'cleanup' } & WakeData;
+
+/** Mọi tin runner nhận từ nhóm: tin đánh thức (thành job) hoặc tin dọn dẹp. */
+export type Incoming = Wake | CleanupWake;
+
 export type Check<T> = { ok: true; value: T } | { ok: false; reason: string };
 
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -50,7 +59,7 @@ interface WakeShape {
   guids: string[];
   /** Kiểm tra thêm; trả lý do nếu không đạt. */
   invalid?(d: Record<string, string>): string | undefined;
-  build(d: Record<string, string>): Wake;
+  build(d: Record<string, string>): Incoming;
 }
 
 /** Tin việc (không có `event`, hoặc `event` assigned / returned / ready / mentioned). */
@@ -73,9 +82,16 @@ const FOLLOW_SHAPE: WakeShape = {
   build: (d) => ({ ...(TASK_SHAPE.build(d) as WakeData), kind: 'follow' }),
 };
 
+/** Tin việc đã sang Xong (TEST-247) — runner dọn dữ liệu của việc trên máy. */
+const CLEANUP_SHAPE: WakeShape = {
+  ...TASK_SHAPE,
+  build: (d) => ({ ...(TASK_SHAPE.build(d) as WakeData), kind: 'cleanup' }),
+};
+
 /** Loại tin theo trường `event`; `event` khác → {@link TASK_SHAPE}. */
 const EVENT_SHAPES: Record<string, WakeShape> = {
   column_entered: FOLLOW_SHAPE,
+  task_closed: CLEANUP_SHAPE,
   // OfficeHub trước TEST-178 — vẫn nhận để runner và máy chủ không phải nâng cấp cùng lúc
   review_requested: FOLLOW_SHAPE,
   task_done: FOLLOW_SHAPE,
@@ -106,7 +122,7 @@ const EVENT_SHAPES: Record<string, WakeShape> = {
  * lớp bảo vệ thật là bước 2 (hỏi lại OfficeHub bằng token của agent — việc phải đang giao cho chính agent).
  * Tin không đạt bị bỏ qua (log lý do), KHÔNG trả lời vào nhóm.
  */
-export function parseWake(msg: TgMessage, opts: { groupChatId: string; employeeCode: string }): Check<Wake> {
+export function parseWake(msg: TgMessage, opts: { groupChatId: string; employeeCode: string }): Check<Incoming> {
   const fail = (reason: string) => ({ ok: false as const, reason });
   if (String(msg.chat.id) !== opts.groupChatId) return fail(`sai nhóm (${msg.chat.id})`);
   const line = (msg.text ?? '')

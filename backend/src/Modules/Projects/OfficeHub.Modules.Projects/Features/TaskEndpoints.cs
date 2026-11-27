@@ -401,6 +401,8 @@ internal static class TaskEndpoints
         await NotifyReadinessChangedAsync(notifier, dir, telegram, db, p, t, cols, wasReady, DependencyRules.IsReady(t.CompletedAt != null, t.ColumnId, readyCols), v, ct);
         if (FollowerWakeRules.ShouldWake(cols, from, t.ColumnId))
             await WakeFollowersAsync(dir, telegram, webhooks, accounts, access, db, p, t, cols, v, user, ct);
+        if (ClosedTaskWakeRules.ShouldWake(cols, from, t.ColumnId))
+            await WakeClosedAsync(telegram, accounts, access, db, p, t, ct);
         return TypedResults.NoContent();
     }
 
@@ -430,6 +432,8 @@ internal static class TaskEndpoints
         await NotifyReadinessChangedAsync(notifier, dir, telegram, db, p, t, cols, wasReady, DependencyRules.IsReady(t.CompletedAt != null, t.ColumnId, readyCols), v, ct);
         if (FollowerWakeRules.ShouldWake(cols, from, t.ColumnId))
             await WakeFollowersAsync(dir, telegram, webhooks, accounts, access, db, p, t, cols, v, user, ct);
+        if (ClosedTaskWakeRules.ShouldWake(cols, from, t.ColumnId))
+            await WakeClosedAsync(telegram, accounts, access, db, p, t, ct);
         return TypedResults.NoContent();
     }
 
@@ -561,6 +565,27 @@ internal static class TaskEndpoints
             taskId = t.Id, taskCode = code, title = t.Title, projectId = p.Id, projectCode = p.Code, projectName = p.Name, columnId = t.ColumnId, column,
             assigneeEmployeeId = t.AssigneeEmployeeId, assigneeCode = assignee?.Code, assigneeName = assignee?.FullName, movedBy = v.Name, movedByBot = user.IsAccessToken(),
         }, ct);
+    }
+
+    /// <summary>
+    /// TEST-247: việc vừa sang hoàn thành (<see cref="ClosedTaskWakeRules.ShouldWake"/>) → người làm + người theo dõi là bot nhận Telegram <c>task_closed</c>:
+    /// bộ điều phối trên máy agent dọn worktree / transcript của việc ngay. Không chuông, không webhook; gửi cả người vừa chuyển, cả dự án đã đóng.
+    /// </summary>
+    private static async Task WakeClosedAsync(ITelegramWakeup telegram, IAccountService accounts, ProjectAccess access, ProjectsDbContext db, Project p, TaskItem t,
+        CancellationToken ct)
+    {
+        var ids = await db.Followers.AsNoTracking().Where(f => f.TaskId == t.Id).Select(f => f.EmployeeId).ToListAsync(ct);
+        if (t.AssigneeEmployeeId is { } a) ids.Add(a);
+        if (ids.Count == 0) return;
+        var emps = await access.EmployeesAsync(ct);
+        var byUser = ids.Distinct().Select(i => emps.TryGetValue(i, out var e) ? e : null).OfType<EmployeeRef>().Where(e => e.UserId != null)
+            .GroupBy(e => e.UserId!.Value).ToDictionary(g => g.Key, g => g.First());
+        if (byUser.Count == 0) return;
+        var accs = await accounts.GetManyAsync(byUser.Keys.ToList(), ct);
+        var targets = ClosedTaskWakeRules.BotTargets(byUser.Select(kv => accs.TryGetValue(kv.Key, out var acc)
+            ? new FollowerWakeRules.Follower(kv.Key, acc.IsBot, acc.IsActive, kv.Value.Id) : new FollowerWakeRules.Follower(kv.Key, false, false, kv.Value.Id)));
+        var code = EffortRules.TaskCode(p.Code, t.Number);
+        foreach (var u in targets) await telegram.TaskClosedAsync(u, byUser[u].Code, p.Id, t.Id, code, ct);
     }
 
     /// <summary>Đặt danh sách việc phải chờ (thay toàn bộ). Thành viên (dự án đã đóng: quản lý dự án / HR trên web — TEST-213); cùng dự án, không vòng, ≤ 10.</summary>

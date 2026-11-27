@@ -96,6 +96,11 @@ internal static class NotificationCatalog
             "(ai chuyển cũng gửi, bỏ người chuyển; tạo việc thẳng vào cột / đổi cờ / xoá cột không gửi). " +
             "Không chuông; Telegram + webhook task.column_entered — bot tự đọc hướng dẫn để biết ở cột đó mình có việc không (review, deploy…).",
             null, Telegram: nameof(ITelegramWakeup.TaskColumnEnteredAsync), WebhookEvent: WebhookEvents.TaskColumnEntered),
+        new("projects.task_closed", "projects", "Việc sang hoàn thành — dọn máy agent",
+            "Người làm + người theo dõi là tài khoản bot đang hoạt động khi việc chuyển từ trạng thái chưa xong vào trạng thái hoàn thành (kể cả người vừa chuyển, " +
+            "kể cả dự án đã đóng; giữa hai trạng thái hoàn thành / tạo việc thẳng vào cột hoàn thành không gửi). " +
+            "Không chuông; Telegram task_closed — bộ điều phối agent dọn worktree / transcript của việc trên máy, không chạy agent.",
+            null, Telegram: nameof(ITelegramWakeup.TaskClosedAsync)),
         new("projects.task_due", "projects", "Việc đến hạn / quá hạn", "Người làm, một lần khi việc chưa xong đến hạn hoặc quá hạn.", NotificationCategories.ProjectTask),
         new("projects.updated", "projects", "Dự án được cập nhật", "Thành viên dự án khi thông tin chung / hướng dẫn làm việc của dự án đổi.", NotificationCategories.ProjectTask),
         new("projects.wiki_share_viewed", "projects", "Link chia sẻ sổ tay được mở",
