@@ -25,7 +25,7 @@ internal sealed record Viewer(
 /// Phân quyền kho tài liệu — MỌI kiểm tra quyền đi qua đây (FE chỉ hiển thị theo cờ can… trả về).
 /// Kho công ty: mọi người đọc / ghi, HR quản lý. Kho phòng ban: thành viên (gồm phòng cha / con như trên), trưởng phòng quản lý.
 /// Kho dự án: thành viên, quản lý dự án quản lý; dự án đã đóng: thành viên chỉ đọc, quản lý dự án vẫn ghi (TEST-213). HR / admin: toàn quyền mọi kho.
-/// Mức bảo mật: hiện chỉ "Nội bộ"; Restricted / Confidential (để sẵn) → chỉ HR xem.
+/// Mức bảo mật: Nội bộ theo quyền kho như trên; Hạn chế / Mật (Restricted / Confidential) → ngoài quyền đọc kho, chỉ admin / HR hoặc người tạo tài liệu xem (<see cref="CanView"/>).
 /// </summary>
 /// Dự án + thành viên thuộc module Projects (đọc qua <see cref="IProjectDirectory"/>, từ 2026-11-08).
 internal sealed class DocumentAccess(IEmployeeDirectory dir, IProjectDirectory projectDir)

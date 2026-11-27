@@ -165,6 +165,9 @@ public sealed class NewsStore(NewsDbContext db, IEmployeeDirectory directory, IA
         var mine = await db.Reactions.AsNoTracking().Where(r => r.TargetType == TargetType.Comment && ids.Contains(r.TargetId) && r.UserId == v.UserId)
             .ToDictionaryAsync(r => r.TargetId, r => r.Type, ct);
         var authors = await AuthorsAsync(comments.Select(c => (c.AuthorUserId, c.AuthorName)), ct);
+        // Chủ bài xoá được bình luận trên bài mình (khớp DELETE /comments/{id} — TEST-251)
+        var postIds = comments.Select(c => c.PostId).Distinct().ToList();
+        var myPosts = (await db.Posts.AsNoTracking().Where(p => postIds.Contains(p.Id) && p.AuthorUserId == v.UserId).Select(p => p.Id).ToListAsync(ct)).ToHashSet();
         var list = new List<CommentDto>();
         foreach (var c in comments)
         {
@@ -176,7 +179,7 @@ public sealed class NewsStore(NewsDbContext db, IEmployeeDirectory directory, IA
                 : await files.GetDownloadUrlAsync(c.ImageKey, c.ImageName ?? "image", inline: true, NewsRules.MediaUrlTtl);
             list.Add(new CommentDto(c.Id, c.Seq, c.PostId, c.ParentId, authors[c.AuthorUserId], gone || c.Text.Length == 0 ? null : c.Text, img, c.CreatedAt, c.EditedAt,
                 c.HiddenAt is not null, own || v.IsHr ? c.HiddenReason : null, deleted, c.ReactionCount, mine.TryGetValue(c.Id, out var mt) ? mt : null,
-                own && !deleted, !deleted && (own || v.IsHr), !deleted && v.IsHr));
+                own && !deleted, !deleted && (own || myPosts.Contains(c.PostId) || v.IsHr), !deleted && v.IsHr));
         }
         return list;
     }

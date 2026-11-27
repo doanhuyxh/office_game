@@ -550,12 +550,13 @@ internal static class ProjectEndpoints
         return TypedResults.Ok<IReadOnlyList<SalesContractRef>>([.. found.Where(c => visible.Contains(c.Id))]);
     }
 
-    private static async Task<Results<Ok<IReadOnlyList<InstallmentRef>>, ProblemHttpResult>> InstallmentsAsync(Guid contractId, ClaimsPrincipal user, ProjectAccess access,
+    private static async Task<Results<Ok<IReadOnlyList<InstallmentRef>>, NotFound>> InstallmentsAsync(Guid contractId, ClaimsPrincipal user, ProjectAccess access,
         ProjectsDbContext db, ISalesContractsLookup sales, CancellationToken ct)
     {
         var v = await access.ViewerAsync(user, ct);
         var projectIds = await db.ProjectContracts.Where(x => x.ContractId == contractId).Select(x => x.ProjectId).ToListAsync(ct);
-        if (!projectIds.Any(v.CanSee)) return Forbidden("Hợp đồng này không gắn với dự án bạn tham gia");
+        // Không gắn với dự án mình xem được → 404 (không lộ hợp đồng có tồn tại — TEST-251)
+        if (!projectIds.Any(v.CanSee)) return TypedResults.NotFound();
         return TypedResults.Ok(await sales.InstallmentsAsync(contractId, ct));
     }
 
