@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using OfficeHub.BuildingBlocks.Auth;
+using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.BuildingBlocks.Http;
 using OfficeHub.Modules.Identity.Contracts;
 using OfficeHub.Modules.Notification.Contracts;
@@ -40,7 +41,7 @@ internal static class AccountEndpoints
     }
 
     private static async Task<Results<Ok<AccountCreatedResponse>, NotFound, ValidationProblem, ProblemHttpResult>> CreateAsync(
-        Guid id, CreateAccountRequest req, ClaimsPrincipal user, OrgDbContext db, IAccountService accounts, CancellationToken ct)
+        Guid id, CreateAccountRequest req, ClaimsPrincipal user, OrgDbContext db, IAccountService accounts, RuntimeConfig runtime, CancellationToken ct)
     {
         var e = await db.Employees.FindAsync([id], ct);
         if (e is null) return TypedResults.NotFound();
@@ -60,7 +61,7 @@ internal static class AccountEndpoints
 
         // Thứ tự quan trọng (giữ nguyên khi sửa): 1) tạo tài khoản → 2) gắn vào hồ sơ → 3) gửi email.
         // Email lỗi ở bước 3 thì tài khoản vẫn đã gắn, HR bấm "Gửi lại lời mời" được — không còn tài khoản mồ côi.
-        var temp = mode == "password" ? GenerateTempPassword() : null;
+        var temp = mode == "password" ? GenerateTempPassword(runtime.Password) : null;
         var result = temp is null
             ? await accounts.CreateInvitedAsync(account, ct)
             : await accounts.CreateWithPasswordAsync(account, temp, ct);
@@ -97,12 +98,12 @@ internal static class AccountEndpoints
     }
 
     private static async Task<Results<Ok<TempPasswordResponse>, NotFound, ProblemHttpResult>> ResetPasswordAsync(
-        Guid id, ClaimsPrincipal user, OrgDbContext db, IAccountService accounts, INotifier notifier, CancellationToken ct)
+        Guid id, ClaimsPrincipal user, OrgDbContext db, IAccountService accounts, INotifier notifier, RuntimeConfig runtime, CancellationToken ct)
     {
         var e = await db.Employees.FindAsync([id], ct);
         if (e?.UserId is not { } uid) return TypedResults.NotFound();
         if (await IsAdminTargetByNonAdminAsync(user, uid, accounts, ct)) return Forbidden("Chỉ admin được đặt lại mật khẩu của admin");
-        var temp = GenerateTempPassword();
+        var temp = GenerateTempPassword(runtime.Password);
         var r = await accounts.ResetToTempPasswordAsync(uid, temp, ct);
         if (!r.Succeeded) return Problems.Conflict(string.Join(" ", r.Errors));
         // Báo chính chủ (email + chuông): phiên + token AI cũ đã bị thu hồi — nếu không phải họ nhờ HR thì phát hiện được ngay.
@@ -161,13 +162,18 @@ internal static class AccountEndpoints
 
     private static ProblemHttpResult Forbidden(string msg) => TypedResults.Problem(msg, statusCode: StatusCodes.Status403Forbidden);
 
-    /// <summary>Mật khẩu tạm 10 ký tự: chữ thường + chữ hoa + số (bỏ ký tự dễ nhầm 0/O, 1/l/I).</summary>
-    internal static string GenerateTempPassword()
+    /// <summary>
+    /// Mật khẩu tạm: chữ thường + chữ hoa + số (bỏ ký tự dễ nhầm 0/O, 1/l/I), dài max(10, độ dài tối thiểu của chính sách);
+    /// chính sách bắt ký tự đặc biệt → thêm một ký tự trong <c>!@#$%*-_</c> (TEST-260).
+    /// </summary>
+    internal static string GenerateTempPassword(PasswordPolicySettings policy)
     {
-        const string lower = "abcdefghijkmnpqrstuvwxyz", upper = "ABCDEFGHJKLMNPQRSTUVWXYZ", digits = "23456789";
+        const string lower = "abcdefghijkmnpqrstuvwxyz", upper = "ABCDEFGHJKLMNPQRSTUVWXYZ", digits = "23456789", special = "!@#$%*-_";
         const string all = lower + upper + digits;
-        var chars = new[] { Pick(lower), Pick(upper), Pick(digits) }
-            .Concat(Enumerable.Range(0, 7).Select(_ => Pick(all))).ToArray();
+        var required = new List<char> { Pick(lower), Pick(upper), Pick(digits) };
+        if (policy.RequireNonAlphanumeric) required.Add(Pick(special));
+        var length = Math.Max(10, policy.MinLength);
+        var chars = required.Concat(Enumerable.Range(0, length - required.Count).Select(_ => Pick(all))).ToArray();
         RandomNumberGenerator.Shuffle(chars.AsSpan());
         return new string(chars);
         static char Pick(string s) => s[RandomNumberGenerator.GetInt32(s.Length)];

@@ -7,6 +7,7 @@ import { ApiError } from '@/services/api-client';
 import { PATHS } from '@/config/paths';
 import { safeReturnPath } from '../../utils/safeReturnPath';
 import { AuthShell } from '../auth-shell';
+import { NewPasswordField } from '../new-password-field';
 
 const route = getRouteApi('/change-password');
 
@@ -36,8 +37,7 @@ export function ChangePasswordForm() {
       <form onSubmit={submit} className="grid gap-4">
         <FormField id="current" label="Mật khẩu hiện tại" type="password" required
           value={form.current} onChange={(e) => setForm({ ...form, current: e.target.value })} />
-        <FormField id="next" label="Mật khẩu mới (tối thiểu 8 ký tự, có chữ số)" type="password" required minLength={8}
-          value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} />
+        <NewPasswordField value={form.next} onChange={(next) => setForm({ ...form, next })} />
         <FormField id="again" label="Nhập lại mật khẩu mới" type="password" required
           value={form.again} onChange={(e) => setForm({ ...form, again: e.target.value })} />
         {error && <p className="text-sm text-destructive">{error}</p>}

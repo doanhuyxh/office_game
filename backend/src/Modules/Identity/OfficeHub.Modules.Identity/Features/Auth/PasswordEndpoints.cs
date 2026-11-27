@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
+using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.Modules.Identity.Domain;
 using OfficeHub.Modules.Identity.Infrastructure;
 
@@ -12,6 +13,10 @@ namespace OfficeHub.Modules.Identity.Features.Auth;
 
 public sealed record ForgotPasswordRequest([Required] string Email);
 public sealed record ResetPasswordRequest([Required] Guid UserId, [Required] string Token, [Required] string NewPassword);
+
+/// <summary>Quy tắc mật khẩu đang áp dụng (TEST-260) — trang đổi / đặt mật khẩu hiển thị. <paramref name="Description"/> = câu mô tả sẵn.</summary>
+public sealed record PasswordPolicyDto(int MinLength, bool RequireDigit, bool RequireLowercase, bool RequireUppercase, bool RequireNonAlphanumeric,
+    string Description);
 
 /// <summary>Quên mật khẩu + đặt mật khẩu qua link (dùng chung cho link mời và link quên mật khẩu).</summary>
 internal static class PasswordEndpoints
@@ -21,6 +26,14 @@ internal static class PasswordEndpoints
         var g = api.MapGroup("/auth").WithTags("Auth").AllowAnonymous();
         g.MapPost("/forgot-password", ForgotAsync).RequireRateLimiting(RateLimits.Auth);
         g.MapPost("/reset-password", ResetAsync).RequireRateLimiting(RateLimits.Auth);
+        // Ẩn danh: trang đặt mật khẩu qua link mời / quên mật khẩu chưa đăng nhập. Không có gì bí mật (chính sách áp chung).
+        g.MapGet("/password-policy", PolicyAsync);
+    }
+
+    private static Ok<PasswordPolicyDto> PolicyAsync(RuntimeConfig runtime)
+    {
+        var p = runtime.Password;
+        return TypedResults.Ok(new PasswordPolicyDto(p.MinLength, p.RequireDigit, p.RequireLowercase, p.RequireUppercase, p.RequireNonAlphanumeric, p.Describe()));
     }
 
     /// <summary>Tối đa số email quên mật khẩu / địa chỉ / giờ (chống spam hộp thư người khác).</summary>

@@ -24,6 +24,7 @@ public static class SettingsRules
         new(SettingsGroups.Telegram, "Telegram (đánh thức agent)", ["botToken"]),
         new(SettingsGroups.TwoFactor, "Xác thực 2 lớp", []),
         new(SettingsGroups.Session, "Phiên đăng nhập", []),
+        new(SettingsGroups.Password, "Mật khẩu & đăng nhập sai", []),
     ];
 
     public static SettingsGroupDef? Find(string group) => Groups.FirstOrDefault(g => g.Group == group);
@@ -51,6 +52,7 @@ public static class SettingsRules
             SettingsGroups.Telegram => Telegram(input, secrets, v),
             SettingsGroups.TwoFactor => TwoFactor(input, v),
             SettingsGroups.Session => Session(input, v),
+            SettingsGroups.Password => Password(input, v),
             _ => [],
         };
         return new(values, secrets);
@@ -149,6 +151,28 @@ public static class SettingsRules
         v.When(max is < 0 or > SessionSettings.MaxMaxDays, "maxDays", $"Thời hạn tối đa từ 0 (không giới hạn) đến {SessionSettings.MaxMaxDays} ngày");
         v.When(max > 0 && max * 24 < idle, "maxDays", "Thời hạn tối đa phải dài hơn thời gian không hoạt động");
         return new() { ["idleHours"] = idle, ["maxDays"] = max };
+    }
+
+    /// <summary>Chính sách mật khẩu (TEST-260): độ dài 8–64, 4 loại ký tự bật / tắt, số lần sai 3–20, thời gian chặn 1–1440 phút.</summary>
+    private static JsonObject Password(JsonObject i, Validation v)
+    {
+        var d = new PasswordPolicySettings();
+        var min = Int(i, "minLength") ?? d.MinLength;
+        var fails = Int(i, "maxFailures") ?? d.MaxFailures;
+        var block = Int(i, "blockMinutes") ?? d.BlockMinutes;
+        v.When(min is < PasswordPolicySettings.MinMinLength or > PasswordPolicySettings.MaxMinLength, "minLength",
+            $"Độ dài tối thiểu từ {PasswordPolicySettings.MinMinLength} đến {PasswordPolicySettings.MaxMinLength} ký tự");
+        v.When(fails is < PasswordPolicySettings.MinMaxFailures or > PasswordPolicySettings.MaxMaxFailures, "maxFailures",
+            $"Số lần sai từ {PasswordPolicySettings.MinMaxFailures} đến {PasswordPolicySettings.MaxMaxFailures}");
+        v.When(block is < PasswordPolicySettings.MinBlockMinutes or > PasswordPolicySettings.MaxBlockMinutes, "blockMinutes",
+            $"Thời gian chặn từ {PasswordPolicySettings.MinBlockMinutes} đến {PasswordPolicySettings.MaxBlockMinutes} phút");
+        return new()
+        {
+            ["minLength"] = min, ["requireDigit"] = Bool(i, "requireDigit") ?? d.RequireDigit, ["requireLowercase"] = Bool(i, "requireLowercase") ?? d.RequireLowercase,
+            ["requireUppercase"] = Bool(i, "requireUppercase") ?? d.RequireUppercase,
+            ["requireNonAlphanumeric"] = Bool(i, "requireNonAlphanumeric") ?? d.RequireNonAlphanumeric,
+            ["maxFailures"] = fails, ["blockMinutes"] = block,
+        };
     }
 
     private static JsonObject OfficeIps(JsonObject i, Validation v)

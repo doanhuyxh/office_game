@@ -60,17 +60,15 @@ public sealed class IdentityModule : IModule
 
         services.AddIdentityCore<AppUser>(o =>
             {
-                o.Password.RequiredLength = 8;
-                o.Password.RequireNonAlphanumeric = false;
-                o.Password.RequireUppercase = false;
-                o.Lockout.MaxFailedAccessAttempts = 5;
-                o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+                // Password / Lockout: theo cấu hình Bảo mật → Mật khẩu, áp mỗi request ở AppUserManager (TEST-260).
                 o.User.RequireUniqueEmail = false; // email không bắt buộc; đã có unique index lọc NULL
                 // Quên mật khẩu: link 1 giờ (provider riêng); link mời vẫn dùng provider "Default" 72 giờ — PasswordResetMailer.cs
                 o.Tokens.PasswordResetTokenProvider = PasswordResetTokens.ResetProvider;
             })
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<OfficeIdentityDbContext>()
+            .AddUserManager<AppUserManager>()
+            .AddErrorDescriber<ViIdentityErrorDescriber>()
             .AddSignInManager()
             .AddClaimsPrincipalFactory<AppClaimsFactory>()
             .AddDefaultTokenProviders()
@@ -88,7 +86,7 @@ public sealed class IdentityModule : IModule
         services.AddAuthRateLimits();
         // Bộ đếm đăng nhập sai + hạn mức email quên mật khẩu: lưu DB (TEST-27, bảng identity.attempt_counters)
         services.AddScoped<IAttemptStore, DbAttemptStore>();
-        services.AddScoped<LoginThrottle>();
+        services.AddScoped(sp => new LoginThrottle(sp.GetRequiredService<IAttemptStore>(), sp.GetRequiredService<RuntimeConfig>().Password));
         services.AddHostedService<PasswordResetMailer>(); // hàng đợi DB identity.password_reset_requests (TEST-28)
         // /api/oauth/register, /token, /revoke được gọi từ máy chủ / trình duyệt của ứng dụng AI (không cookie).
         services.AddCors(o => o.AddPolicy(OAuthEndpoints.CorsPolicy, p => p.AllowAnyOrigin().AllowAnyHeader().WithMethods("POST")));

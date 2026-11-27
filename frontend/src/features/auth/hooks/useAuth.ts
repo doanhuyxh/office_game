@@ -26,3 +26,6 @@ export function useChangePassword() {
 export const useForgotPassword = () => useMutation({ mutationFn: (email: string) => authApi.forgotPassword(email) });
 
 export const useResetPassword = () => useMutation({ mutationFn: (body: IResetPasswordRequest) => authApi.resetPassword(body) });
+
+/** Quy tắc mật khẩu hiện hành (admin đổi ở Hệ thống → Cấu hình → Bảo mật) — nhãn + minLength của ô mật khẩu mới. */
+export const usePasswordPolicy = () => useQuery({ queryKey: authKeys.passwordPolicy, queryFn: authApi.passwordPolicy, staleTime: 5 * 60_000 });

@@ -46,6 +46,7 @@ public static class TwoFactorPolicy
         "/api/auth/change-password",
         "/api/auth/forgot-password",
         "/api/auth/reset-password",
+        "/api/auth/password-policy",
         "/api/auth/2fa/status",
         "/api/auth/2fa/setup",
         "/api/auth/2fa/enable",

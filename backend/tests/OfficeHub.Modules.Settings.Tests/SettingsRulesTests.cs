@@ -124,6 +124,25 @@ public class SettingsRulesTests
         if (failField is null) Assert.False(v.Failed); else Assert.True(v.Has(failField));
         Assert.NotNull(n.Values["idleHours"]);
     }
+
+    [Theory]
+    [InlineData("""{}""", null)]
+    [InlineData("""{"minLength":12,"requireUppercase":true,"maxFailures":10,"blockMinutes":60}""", null)]
+    [InlineData("""{"minLength":6}""", "minLength")]
+    [InlineData("""{"minLength":65}""", "minLength")]
+    [InlineData("""{"maxFailures":2}""", "maxFailures")]
+    [InlineData("""{"blockMinutes":0}""", "blockMinutes")]
+    public void Password_policy_limits(string json, string? failField)
+    {
+        var (n, v) = Run(SettingsGroups.Password, json);
+        if (failField is null) Assert.False(v.Failed); else Assert.True(v.Has(failField));
+        if (json == "{}")
+        {
+            Assert.Equal(8, n.Values["minLength"]!.GetValue<int>());
+            Assert.True(n.Values["requireDigit"]!.GetValue<bool>());
+            Assert.False(n.Values["requireUppercase"]!.GetValue<bool>());
+        }
+    }
 }
 
 public class TelegramSettingsRulesTests

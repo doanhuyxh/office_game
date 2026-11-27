@@ -6,6 +6,7 @@ import { PATHS } from '@/config/paths';
 import { ApiError } from '@/services/api-client';
 import { useResetPassword } from '../../hooks/useAuth';
 import { AuthShell } from '../auth-shell';
+import { NewPasswordField } from '../new-password-field';
 
 /**
  * Đặt mật khẩu từ link trong email.
@@ -50,8 +51,7 @@ export function SetPasswordForm({ mode }: { mode: 'invite' | 'reset' }) {
   return (
     <AuthShell title={title} description={description}>
       <form onSubmit={submit} className="grid gap-4">
-        <FormField id="next" label="Mật khẩu mới (tối thiểu 8 ký tự, có chữ số)" type="password" required minLength={8} autoFocus
-          autoComplete="new-password" value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} />
+        <NewPasswordField autoFocus value={form.next} onChange={(next) => setForm({ ...form, next })} />
         <FormField id="again" label="Nhập lại mật khẩu" type="password" required autoComplete="new-password"
           value={form.again} onChange={(e) => setForm({ ...form, again: e.target.value })} />
         {error && <p className="text-sm text-destructive">{error}</p>}

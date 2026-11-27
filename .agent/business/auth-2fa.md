@@ -23,7 +23,7 @@ Chủ dự án chốt 2026-11-07: **ứng dụng TOTP** (Google / Microsoft Auth
 
 1. `POST /auth/login` mật khẩu đúng + đã bật 2FA → **403 `title: "2fa_required"`** + cookie tạm `officehub.2fa` (scheme `Identity.TwoFactorUserId`, HttpOnly, **5 phút**, `AuthCookie.ConfigureTwoFactor`). Chưa có cookie đăng nhập.
 2. `POST /auth/login/2fa`: cookie tạm hết hạn / không có → 401 `2fa_expired` (FE quay về bước mật khẩu); mã sai → 401 `2fa_invalid`; khoá → 423.
-- **Mã sai (TOTP lẫn mã dự phòng) cộng vào số lần sai** chung với mật khẩu: 5 lần → khoá 15 phút. Identity không đếm mã dự phòng → code tự gọi `AccessFailedAsync`. Đúng → reset bộ đếm, ghi `LastLoginAt`.
+- **Mã sai (TOTP lẫn mã dự phòng) cộng vào số lần sai** chung với mật khẩu: N lần → khoá M phút (cấu hình Bảo mật → Mật khẩu, mặc định 5 / 15). Identity không đếm mã dự phòng → code tự gọi `AccessFailedAsync`. Đúng → reset bộ đếm, ghi `LastLoginAt`.
 - Mã dự phòng dùng **một lần**. Đăng nhập bằng mã dự phòng vẫn cấp cookie theo `rememberMe`.
 - Không có "ghi nhớ thiết bị này" (không dùng cookie `TwoFactorRememberMe`).
 

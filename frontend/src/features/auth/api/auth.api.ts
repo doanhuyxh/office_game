@@ -1,12 +1,13 @@
 import { ApiError, http, httpPost } from '@/services/api-client';
 import type {
-  IChangePasswordRequest, ILoginRequest, ILoginTwoFactorRequest, IMe, IRecoveryCodes, IResetPasswordRequest, ITwoFactorSetup, ITwoFactorStatus,
+  IChangePasswordRequest, ILoginRequest, IPasswordPolicy, ILoginTwoFactorRequest, IMe, IRecoveryCodes, IResetPasswordRequest, ITwoFactorSetup, ITwoFactorStatus,
 } from '../types/auth.types';
 
 /** Query key của module auth (dùng để invalidate). */
 export const authKeys = {
   me: ['auth', 'me'] as const,
   twoFactor: ['auth', '2fa'] as const,
+  passwordPolicy: ['auth', 'password-policy'] as const,
 };
 
 export const authApi = {
@@ -28,6 +29,8 @@ export const authApi = {
   forgotPassword: (email: string) => httpPost<void>('/api/auth/forgot-password', { email }),
   /** Đặt mật khẩu qua link trong email (lời mời hoặc quên mật khẩu). */
   resetPassword: (body: IResetPasswordRequest) => httpPost<void>('/api/auth/reset-password', body),
+  /** Quy tắc mật khẩu hiện hành (không cần đăng nhập). */
+  passwordPolicy: () => http<IPasswordPolicy>('/api/auth/password-policy'),
 };
 
 /** Xác thực 2 lớp (TOTP) của chính mình. */

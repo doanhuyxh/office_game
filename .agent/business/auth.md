@@ -28,8 +28,8 @@ Việc **cấp tài khoản cho nhân viên** do HR làm ở module Organization
 
 | Quy tắc | Giá trị (`IdentityModule.cs`) |
 |---|---|
-| Mật khẩu | ≥ 8 ký tự, có chữ số, có chữ thường; không bắt buộc chữ hoa / ký tự đặc biệt |
-| Khoá / chặn | Đăng nhập: `LoginThrottle` — 5 lần sai / 15 phút **theo tài khoản + IP** (chỉ IP đó bị chặn), 30 lần / giờ / tài khoản từ mọi IP; **không** khoá tài khoản bằng lockout Identity. Lockout Identity (5 lần → 15 phút) còn cho: mã 2FA, mật khẩu hiện tại khi đổi mật khẩu / tắt 2FA, xác nhận tạo token |
+| Mật khẩu | Theo cấu hình Bảo mật → Mật khẩu & đăng nhập sai (nhóm `password`, TEST-260; `AppUserManager` áp mỗi request, lỗi tiếng Việt `ViIdentityErrorDescriber`, FE đọc `GET /api/auth/password-policy` ẩn danh). Mặc định: ≥ 8 ký tự, có chữ số, có chữ thường; không bắt buộc chữ hoa / ký tự đặc biệt. Mật khẩu tạm HR cấp: dài max(10, tối thiểu), có thường + hoa + số (+ đặc biệt nếu bắt buộc) |
+| Khoá / chặn | Đăng nhập: `LoginThrottle` — N lần sai / M phút (cấu hình `password`: `maxFailures` 3–20, `blockMinutes` 1–1440; mặc định 5 / 15) **theo tài khoản + IP** (chỉ IP đó bị chặn), 30 lần / giờ / tài khoản từ mọi IP; **không** khoá tài khoản bằng lockout Identity. Lockout Identity (cùng N lần → M phút) còn cho: mã 2FA, mật khẩu hiện tại khi đổi mật khẩu / tắt 2FA, xác nhận tạo token |
 | Rate limit (`RateLimits.Auth`) | 30 request / phút / (IP + path) cho login, forgot-password, reset-password, change-password, 2FA → 429. Cookie đăng nhập: trần chung 600 request / phút / người (`CookieRequestsPerMinute`) |
 | Token link email | Mời: provider `Default` 72 giờ, mục đích `Invite` (chỉ tài khoản chưa có mật khẩu); quên mật khẩu: provider `PasswordReset1h` **1 giờ**; dùng một lần (đổi security stamp). Quên mật khẩu gửi nền (`PasswordResetMailer`), tối đa 3 email / địa chỉ / giờ |
 

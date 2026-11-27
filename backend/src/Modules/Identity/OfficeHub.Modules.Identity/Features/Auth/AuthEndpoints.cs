@@ -39,8 +39,9 @@ internal static class AuthEndpoints
     /// Mọi lần đăng nhập thất bại (sai mật khẩu, không có tài khoản, tài khoản khoá / tạm khoá, bị <see cref="LoginThrottle"/> chặn) trả
     /// CÙNG một phản hồi → không dò được tài khoản nào tồn tại (TEST-20). Thông điệp nhắc khả năng bị tạm chặn để người thật hiểu.
     /// </summary>
-    internal const string LoginFailedMessage = "Sai tài khoản hoặc mật khẩu. Sai nhiều lần liên tiếp sẽ bị tạm chặn 15 phút.";
-    private static ProblemHttpResult LoginFailed() => TypedResults.Problem(LoginFailedMessage, statusCode: StatusCodes.Status401Unauthorized);
+    internal static string LoginFailedMessage(PasswordPolicySettings p) => $"Sai tài khoản hoặc mật khẩu. Sai nhiều lần liên tiếp sẽ bị tạm chặn {p.BlockText}.";
+    private static ProblemHttpResult LoginFailed(RuntimeConfig runtime) =>
+        TypedResults.Problem(LoginFailedMessage(runtime.Password), statusCode: StatusCodes.Status401Unauthorized);
 
     /// <summary>Hash giả để tài khoản không tồn tại cũng tốn thời gian băm như tài khoản thật (không dò được bằng thời gian phản hồi).</summary>
     private static readonly Lazy<string> DummyHash = new(() => new PasswordHasher<AppUser>().HashPassword(new AppUser(), Guid.NewGuid().ToString()));
@@ -55,19 +56,19 @@ internal static class AuthEndpoints
         // Đếm theo id tài khoản (đổi qua lại email / tên đăng nhập không nhân đôi lượt thử); không có tài khoản → theo chuỗi nhập.
         var account = user?.Id.ToString() ?? "?" + login.ToLowerInvariant();
         var ip = ctx.Connection.RemoteIpAddress?.ToString() ?? "?";
-        if (await throttle.IsBlockedAsync(account, ip, ct)) return LoginFailed();
+        if (await throttle.IsBlockedAsync(account, ip, ct)) return LoginFailed(runtime);
 
         if (user is null || !user.IsActive)
         {
             users.PasswordHasher.VerifyHashedPassword(new AppUser(), DummyHash.Value, req.Password ?? "");
             await throttle.FailAsync(account, ip, ct);
-            return LoginFailed();
+            return LoginFailed(runtime);
         }
 
         // lockoutOnFailure: false — sai mật khẩu không khoá cả tài khoản (người khác cố tình khoá được); LoginThrottle chặn theo IP.
         // Tài khoản vẫn có thể bị khoá bởi lần sai mã 2FA / xác nhận tạo token → IsLockedOut trả cùng phản hồi.
         var result = await signIn.PasswordSignInAsync(user, req.Password ?? "", req.RememberMe, lockoutOnFailure: false);
-        if (result.IsLockedOut) return LoginFailed();
+        if (result.IsLockedOut) return LoginFailed(runtime);
         // Đã bật 2FA: Identity cấp cookie tạm officehub.2fa (5 phút) → FE gửi mã qua POST /auth/login/2fa. Chỉ tới đây khi ĐÚNG mật khẩu.
         if (result.RequiresTwoFactor)
         {
@@ -77,7 +78,7 @@ internal static class AuthEndpoints
         if (!result.Succeeded)
         {
             await throttle.FailAsync(account, ip, ct);
-            return LoginFailed();
+            return LoginFailed(runtime);
         }
         await throttle.SucceedAsync(account, ip, ct);
 
@@ -114,7 +115,7 @@ internal static class AuthEndpoints
 
     private static async Task<Results<NoContent, ValidationProblem, UnauthorizedHttpResult>> ChangePasswordAsync(
         ChangePasswordRequest req, HttpContext ctx, UserManager<AppUser> users, SignInManager<AppUser> signIn, OfficeIdentityDbContext db,
-        AuthCacheInvalidator cache, TimeProvider clock, CancellationToken ct)
+        AuthCacheInvalidator cache, RuntimeConfig runtime, TimeProvider clock, CancellationToken ct)
     {
         var user = await users.GetUserAsync(ctx.User);
         if (user is null) return TypedResults.Unauthorized();
@@ -125,7 +126,7 @@ internal static class AuthEndpoints
         if (missing.Count > 0) return TypedResults.ValidationProblem(missing);
 
         if (await users.IsLockedOutAsync(user))
-            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["currentPassword"] = ["Tạm khoá do nhập sai nhiều lần, thử lại sau 15 phút"] });
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["currentPassword"] = [$"Tạm khoá do nhập sai nhiều lần, thử lại sau {runtime.Password.BlockText}"] });
         var result = await users.ChangePasswordAsync(user, req.CurrentPassword, req.NewPassword);
         // Sai mật khẩu hiện tại → tính vào khoá tài khoản (phiên bị chiếm không dò được mật khẩu thật bằng endpoint này).
         if (!result.Succeeded && result.Errors.Any(e => e.Code == "PasswordMismatch")) await users.AccessFailedAsync(user);

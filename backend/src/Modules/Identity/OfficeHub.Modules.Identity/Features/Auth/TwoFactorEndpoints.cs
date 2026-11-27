@@ -101,7 +101,7 @@ internal static class TwoFactorEndpoints
         if (!user.TwoFactorEnabled) return Problems.Conflict("Xác thực 2 lớp chưa bật");
         if (TwoFactorPolicy.IsRequiredFor(await users.GetRolesAsync(user), user.IsBot, runtime.TwoFactor))
             return Problems.Conflict(TwoFactorPolicy.CannotDisableMessage);
-        if (await users.IsLockedOutAsync(user)) return LockedOut();
+        if (await users.IsLockedOutAsync(user)) return LockedOut(users);
         if (!await users.CheckPasswordAsync(user, req.CurrentPassword ?? ""))
         {
             await users.AccessFailedAsync(user); // sai mật khẩu tính vào khoá tài khoản
@@ -126,7 +126,7 @@ internal static class TwoFactorEndpoints
     }
 
     /// <summary>
-    /// Bước 2 đăng nhập. Mã sai (TOTP hoặc dự phòng) cộng vào số lần sai → 5 lần khoá 15 phút như mật khẩu.
+    /// Bước 2 đăng nhập. Mã sai (TOTP hoặc dự phòng) cộng vào số lần sai → khoá theo cấu hình Bảo mật → Mật khẩu (mặc định 5 lần / 15 phút).
     /// Hết hạn cookie tạm (5 phút) → 401 <c>2fa_expired</c>, FE quay về bước mật khẩu.
     /// </summary>
     private static async Task<Results<Ok<MeResponse>, ProblemHttpResult>> LoginAsync(
@@ -138,7 +138,7 @@ internal static class TwoFactorEndpoints
             return TypedResults.Problem("Phiên đăng nhập đã hết hạn, nhập lại mật khẩu", statusCode: StatusCodes.Status401Unauthorized, title: "2fa_expired");
         if (!user.IsActive)
             return TypedResults.Problem("Sai tài khoản hoặc mật khẩu", statusCode: StatusCodes.Status401Unauthorized);
-        if (await users.IsLockedOutAsync(user)) return LockedOut();
+        if (await users.IsLockedOutAsync(user)) return LockedOut(users);
 
         SignInResult result;
         if (req.IsRecoveryCode)
@@ -153,7 +153,7 @@ internal static class TwoFactorEndpoints
             {
                 // Identity không đếm sai cho mã dự phòng → tự đếm để chống dò.
                 await users.AccessFailedAsync(user);
-                if (await users.IsLockedOutAsync(user)) return LockedOut();
+                if (await users.IsLockedOutAsync(user)) return LockedOut(users);
             }
         }
         else
@@ -162,7 +162,7 @@ internal static class TwoFactorEndpoints
             result = await signIn.TwoFactorAuthenticatorSignInAsync(code, req.RememberMe, rememberClient: false);
         }
 
-        if (result.IsLockedOut) return LockedOut();
+        if (result.IsLockedOut) return LockedOut(users);
         if (!result.Succeeded) return TypedResults.Problem(InvalidCode, statusCode: StatusCodes.Status401Unauthorized, title: "2fa_invalid");
 
         // Mỗi lúc chỉ 1 thiết bị — xem AuthEndpoints.LoginAsync. Đặt sau khi xác thực 2FA xong (không đổi stamp ở bước mật khẩu,
@@ -185,6 +185,7 @@ internal static class TwoFactorEndpoints
 
     private static ValidationProblem CodeError() => new Validation().Add("code", InvalidCode).Problem();
 
-    private static ProblemHttpResult LockedOut() =>
-        TypedResults.Problem("Tài khoản tạm khoá do đăng nhập sai nhiều lần, thử lại sau 15 phút", statusCode: StatusCodes.Status423Locked);
+    private static ProblemHttpResult LockedOut(UserManager<AppUser> users) => TypedResults.Problem(
+        $"Tài khoản tạm khoá do đăng nhập sai nhiều lần, thử lại sau {PasswordPolicySettings.FormatDuration(users.Options.Lockout.DefaultLockoutTimeSpan)}",
+        statusCode: StatusCodes.Status423Locked);
 }

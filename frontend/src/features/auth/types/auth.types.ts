@@ -57,3 +57,9 @@ export interface ITwoFactorSetup {
 export interface IRecoveryCodes {
   recoveryCodes: string[];
 }
+
+/** Quy tắc mật khẩu đang áp dụng (GET /api/auth/password-policy, ẩn danh — TEST-260). description: câu mô tả sẵn. */
+export interface IPasswordPolicy {
+  minLength: number; requireDigit: boolean; requireLowercase: boolean; requireUppercase: boolean; requireNonAlphanumeric: boolean;
+  description: string;
+}

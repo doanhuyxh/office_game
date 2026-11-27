@@ -1,3 +1,4 @@
+using OfficeHub.BuildingBlocks.Configuration;
 using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 
@@ -65,13 +66,14 @@ public sealed class MemoryAttemptStore(TimeProvider clock) : IAttemptStore
 
 /// <summary>
 /// Chặn dò mật khẩu mà KHÔNG cho người khác khoá tài khoản của nạn nhân (TEST-20):
-/// sai 5 lần / 15 phút từ một IP → chỉ IP đó bị chặn với tài khoản đó; sai tổng 30 lần / giờ từ mọi IP → chặn tài khoản (tấn công phân tán).
+/// sai N lần / M phút từ một IP (mặc định 5 / 15, theo cấu hình Bảo mật → Mật khẩu — TEST-260) → chỉ IP đó bị chặn với tài khoản đó;
+/// sai tổng 30 lần / giờ từ mọi IP → chặn tài khoản (tấn công phân tán).
 /// Đăng nhập không dùng lockout của Identity (ai biết tên đăng nhập cũng khoá được người khác 15 phút). Bộ đếm lưu DB (TEST-27).
 /// </summary>
-public sealed class LoginThrottle(IAttemptStore store)
+public sealed class LoginThrottle(IAttemptStore store, PasswordPolicySettings policy)
 {
-    public const int PerSourceLimit = 5;
-    public static readonly TimeSpan PerSourceWindow = TimeSpan.FromMinutes(15);
+    public int PerSourceLimit => policy.MaxFailures;
+    public TimeSpan PerSourceWindow => policy.BlockFor;
     public const int PerAccountLimit = 30;
     public static readonly TimeSpan PerAccountWindow = TimeSpan.FromHours(1);
 
