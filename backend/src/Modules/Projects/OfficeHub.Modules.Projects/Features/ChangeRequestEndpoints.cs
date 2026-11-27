@@ -92,6 +92,7 @@ internal static class ChangeRequestEndpoints
         var (c, p) = await LoadAsync(cid, db, ct);
         if (c is null || p is null || !v.CanSee(p.Id)) return TypedResults.NotFound();
         if (!v.CanManage(p.Id)) return ProjectEndpoints.Forbidden("Chỉ quản lý dự án hoặc HR sửa yêu cầu thay đổi");
+        if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng"); // TEST-249
         if (!ChangeRequestRules.IsEditable(c.Status)) return Problems.Conflict("Yêu cầu đã chốt (đồng ý / từ chối / huỷ), không sửa được");
         var val = await ValidateAsync(r, p, db, ct);
         if (val.Failed) return val.Problem();

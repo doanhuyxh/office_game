@@ -88,6 +88,7 @@ internal static class MilestoneEndpoints
         var (m, p) = await LoadAsync(mid, db, ct);
         if (m is null || p is null || !v.CanSee(p.Id)) return TypedResults.NotFound();
         if (!v.CanManage(p.Id)) return ProjectEndpoints.Forbidden("Chỉ quản lý dự án hoặc HR được sửa mốc");
+        if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng"); // TEST-249
         if (m.Status == MilestoneStatus.Accepted && r.InstallmentId != m.InstallmentId) return Problems.Conflict("Mốc đã nghiệm thu, không đổi đợt thu");
         var val = await ValidateAsync(r, p, mid, db, sales, ct);
         if (val.Failed) return val.Problem();
@@ -102,6 +103,7 @@ internal static class MilestoneEndpoints
         var (m, p) = await LoadAsync(mid, db, ct);
         if (m is null || p is null || !v.CanSee(p.Id)) return TypedResults.NotFound();
         if (!v.CanManage(p.Id)) return ProjectEndpoints.Forbidden("Chỉ quản lý dự án hoặc HR được xoá mốc");
+        if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng"); // TEST-249
         if (m.Status == MilestoneStatus.Accepted) return Problems.Conflict("Mốc đã nghiệm thu, không xoá được");
         db.Milestones.Remove(m); // việc gắn mốc → MilestoneId = null (FK SetNull)
         await db.SaveChangesAsync(ct);
@@ -115,6 +117,7 @@ internal static class MilestoneEndpoints
         var (m, p) = await LoadAsync(mid, db, ct);
         if (m is null || p is null || !v.CanSee(p.Id)) return TypedResults.NotFound();
         if (!v.CanManage(p.Id)) return ProjectEndpoints.Forbidden("Chỉ quản lý dự án hoặc HR được nghiệm thu");
+        if (p.Status != ProjectStatus.Active) return Problems.Conflict("Dự án đã đóng"); // TEST-249
         if (m.Status == MilestoneStatus.Accepted) return Problems.Conflict("Mốc đã nghiệm thu");
         if (r.AcceptedOn > clock.Today) return new Validation().Add("acceptedOn", "Ngày nghiệm thu không ở tương lai").Problem();
         m.Status = MilestoneStatus.Accepted;
