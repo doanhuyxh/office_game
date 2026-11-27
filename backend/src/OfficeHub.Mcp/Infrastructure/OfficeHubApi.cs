@@ -30,7 +30,15 @@ public sealed class OfficeHubApi(HttpClient http, IHttpContextAccessor ctx)
     public const string HttpClientName = "officehub-api";
     /// <summary>Tool MCP đang chạy (đặt bởi call-tool filter trong Program.cs) → header X-Mcp-Tool cho audit log của Api.</summary>
     public static readonly AsyncLocal<string?> CurrentTool = new();
-    public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = false };
+    /// <summary>
+    /// JSON của kết quả tool (<c>ToolHelpers.Out</c>) + body gửi Api. TEST-256: giữ nguyên chữ có dấu (không escape thành \uXXXX — tiếng Việt dài gấp 3–5 lần,
+    /// tốn token agent). An toàn vì đây là JSON cho LLM / Api đọc, không nhúng vào HTML / script.
+    /// </summary>
+    public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = false,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
 
     public Task<JsonNode?> GetAsync(string path, CancellationToken ct) => SendAsync(HttpMethod.Get, path, null, ct);
 
