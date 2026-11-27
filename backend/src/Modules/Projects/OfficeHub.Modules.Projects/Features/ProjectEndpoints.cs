@@ -41,10 +41,10 @@ public sealed record ProjectDescriptionDto(string? Description);
 /// <param name="MyAccess">Quyền của người xem trong dự án (khoá của <see cref="ProjectPermissions"/>: view, work, manage, columns, effort, finance, documents, wiki, wikiEdit, wikiManage).</param>
 public sealed record ProjectDetail(ProjectDto Project, List<MemberDto> Members, List<MilestoneDto> Milestones, string? WorkGuide, List<TaskColumnDto> Columns,
     List<string>? MyAccess = null);
-/// <param name="DepartmentIds">Phòng ban tham gia (≤ 20); null = giữ nguyên khi sửa.</param><param name="LeadDepartmentId">Phòng chủ trì — phải nằm trong DepartmentIds.</param>
+/// <param name="DepartmentIds">Phòng ban tham gia (≤ 20); null = giữ nguyên khi sửa.</param><param name="LeadDepartmentId">Phòng chủ trì — phải nằm trong DepartmentIds.</param><param name="Status">Chỉ dùng khi sửa; null = giữ nguyên (TEST-248). Tạo mới luôn Active.</param>
 public sealed record UpsertProject(string Code, string Name, ProjectKind Kind = ProjectKind.Internal, string? Description = null, List<Guid>? DepartmentIds = null,
     Guid? LeadDepartmentId = null, Guid? BusinessLineId = null, List<Guid>? SalesContractIds = null, DateOnly? StartOn = null, DateOnly? EndOn = null, decimal? BudgetManDays = null,
-    ProjectStatus Status = ProjectStatus.Active, List<Guid>? MemberIds = null, bool? Sequential = null, string? WorkGuide = null);
+    ProjectStatus? Status = null, List<Guid>? MemberIds = null, bool? Sequential = null, string? WorkGuide = null);
 public sealed record AddMembers(List<Guid> EmployeeIds, ProjectMemberRole Role = ProjectMemberRole.Member);
 public sealed record ChangeRole(ProjectMemberRole Role);
 public sealed record AllocationItem(Guid EmployeeId, decimal? Percent);
@@ -330,8 +330,12 @@ internal static class ProjectEndpoints
                 p.Departments.Add(new ProjectDepartment { ProjectId = p.Id, DepartmentId = dep, IsLead = dep == r.LeadDepartmentId, CreatedAt = clock.Now });
         }
         if (r.WorkGuide is not null) p.WorkGuide = Clean(r.WorkGuide); // "" → xoá
-        if (r.Status != p.Status) p.ClosedOn = r.Status == ProjectStatus.Closed ? clock.Today : null;
-        p.Status = r.Status;
+        // TEST-248: thiếu status (client cũ / chỉ sửa thông tin) → giữ nguyên, không vô tình mở lại dự án đã đóng
+        if (r.Status is { } st && st != p.Status)
+        {
+            p.ClosedOn = st == ProjectStatus.Closed ? clock.Today : null;
+            p.Status = st;
+        }
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException) { return new Validation().Add("salesContractIds", "Hợp đồng vừa được gắn với dự án khác").Problem(); }
         await NotifyChangedAsync(notifier, access, db, p, v, user, ProjectChangeRules.Diff(before, Snapshot(p, newIds, depts, codes)), ct);
