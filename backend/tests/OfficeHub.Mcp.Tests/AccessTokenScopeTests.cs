@@ -177,6 +177,7 @@ public class ProjectDocumentScopeTests
     [InlineData("POST", "/api/projects/" + G + "/wiki/pages")]
     [InlineData("PUT", "/api/projects/" + G + "/wiki/pages/" + G)]
     [InlineData("POST", "/api/projects/" + G + "/wiki/pages/" + G + "/append")]
+    [InlineData("PUT", "/api/projects/" + G + "/wiki/pages/" + G + "/move")]  // TEST-254: di chuyển trang (đổi cha / thứ tự)
     [InlineData("GET", "/api/documents/spaces")]
     [InlineData("GET", "/api/documents/folders")]
     [InlineData("GET", "/api/documents/assets")]
@@ -204,11 +205,10 @@ public class ProjectDocumentScopeTests
     [InlineData("PUT", "/api/projects/" + G + "/guide/x")]
     [InlineData("GET", "/api/projects/" + G + "/description")]
     [InlineData("POST", "/api/projects/" + G + "/description")]
-    [InlineData("DELETE", "/api/projects/" + G + "/wiki/pages/" + G)]    // TEST-215: xoá / khoá / khôi phục / di chuyển / lịch sử sổ tay: chỉ web
+    [InlineData("DELETE", "/api/projects/" + G + "/wiki/pages/" + G)]    // TEST-215: xoá / khoá / khôi phục / lịch sử sổ tay: chỉ web
     [InlineData("POST", "/api/projects/" + G + "/wiki/pages/" + G + "/lock")]
     [InlineData("POST", "/api/projects/" + G + "/wiki/pages/" + G + "/unlock")]
     [InlineData("POST", "/api/projects/" + G + "/wiki/pages/" + G + "/versions/2/restore")]
-    [InlineData("PUT", "/api/projects/" + G + "/wiki/pages/" + G + "/move")]
     [InlineData("GET", "/api/projects/" + G + "/wiki/pages/" + G + "/versions")]
     [InlineData("POST", "/api/projects/" + G + "/wiki/pages/not-a-guid/append")]
     [InlineData("POST", "/api/projects/" + G + "/wiki/shares")]             // TEST-228: link chia sẻ sổ tay công khai — chỉ quản lý dự án / HR trên web

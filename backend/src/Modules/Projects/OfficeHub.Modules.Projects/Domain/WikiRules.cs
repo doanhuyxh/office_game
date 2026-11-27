@@ -25,7 +25,7 @@ public static class WikiRules
     public const int MaxNote = 300;
     /// <summary>Cây sâu tối đa 4 cấp (trang gốc = cấp 1).</summary>
     public const int MaxDepth = 4;
-    public const int MaxPagesPerProject = 500;
+    public const int MaxPagesPerProject = 2000; // TEST-255: 500 → 2000 (SRS + đặc tả API đã ~330 trang ở dự án TEST)
     public const int MaxSearchResults = 20;
     public const int MaxQuery = 200;
     /// <summary>Số ký tự lấy mỗi bên chỗ khớp khi trích đoạn kết quả tìm.</summary>

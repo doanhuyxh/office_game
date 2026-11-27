@@ -31,7 +31,8 @@ public sealed record WikiVersionList(List<WikiVersionItem> Items, int Total, int
 public sealed record WikiVersionDto(Guid PageId, int Version, string Title, string? Summary, string Content, DateTimeOffset EditedAt, string EditedByName, bool EditedByBot, string? Note);
 
 /// <param name="ParentId">Trang cha (null = trang gốc).</param>
-public sealed record CreateWikiPage(string Title, string? Summary = null, string? Content = null, Guid? ParentId = null, string? Note = null);
+/// <param name="Position">Vị trí trong cha (0 = đầu; null / lớn hơn số trang = cuối) — TEST-254.</param>
+public sealed record CreateWikiPage(string Title, string? Summary = null, string? Content = null, Guid? ParentId = null, string? Note = null, int? Position = null);
 /// <param name="BaseVersion">Phiên bản đang sửa — khác phiên bản hiện tại → 409, không ghi đè.</param>
 /// <param name="Title">null = giữ nguyên.</param><param name="Summary">null = giữ nguyên, "" = xoá.</param><param name="Content">null = giữ nguyên (thay toàn bộ khi có).</param>
 public sealed record UpdateWikiPage(int BaseVersion, string? Title = null, string? Summary = null, string? Content = null, string? Note = null);
@@ -41,7 +42,7 @@ public sealed record MoveWikiPage(Guid? ParentId, int Position);
 
 /// <summary>
 /// Sổ tay dự án (TEST-215): <c>/api/projects/{id}/wiki</c>. Quyền + giới hạn: <see cref="WikiRules"/>. Người không xem được dự án → 404.
-/// Token AI: đọc cây / tìm / trang, tạo, sửa, nối thêm (allowlist <c>AccessTokenAuth</c>); không xoá / khoá / khôi phục / di chuyển.
+/// Token AI: đọc cây / tìm / trang, tạo, sửa, nối thêm, di chuyển (allowlist <c>AccessTokenAuth</c>, TEST-254); không xoá / khoá / khôi phục.
 /// </summary>
 internal static class WikiEndpoints
 {
@@ -209,6 +210,7 @@ internal static class WikiEndpoints
         foreach (var (f, m) in WikiRules.Errors(title, summary, content, r.Note)) val.Add(f, m);
         var nodes = await NodesAsync(db, id, ct);
         if (WikiRules.PlacementError(null, r.ParentId, nodes) is { } pe) val.Add("parentId", pe);
+        if (r.Position is < 0) val.Add("position", "Vị trí không âm");
         if (!val.Has("title") && !val.Has("parentId") && await TitleTakenAsync(db, id, r.ParentId, title, null, ct)) val.Add("title", TitleTaken);
         if (val.Failed) return val.Problem();
         if (nodes.Count >= WikiRules.MaxPagesPerProject) return Problems.Conflict($"Sổ tay tối đa {WikiRules.MaxPagesPerProject} trang / dự án");
@@ -219,6 +221,15 @@ internal static class WikiEndpoints
             CreatedAt = now, CreatedByEmployeeId = c.V.Employee?.Id, CreatedByName = c.V.Name, CreatedByBot = c.ByToken,
         };
         db.WikiPages.Add(p);
+        if (r.Position is { } want && want < p.Position)
+        {
+            // Chen vào giữa: dồn vị trí các trang cùng cha (TEST-254)
+            var siblings = await db.WikiPages.Where(x => x.ProjectId == id && x.DeletedAt == null && x.ParentId == r.ParentId).ToListAsync(ct);
+            var order = WikiRules.Reorder(siblings.OrderBy(x => x.Position).ThenBy(x => x.Title).Select(x => x.Id).ToList(), p.Id, want);
+            var byId = siblings.ToDictionary(x => x.Id);
+            byId[p.Id] = p;
+            for (var i = 0; i < order.Count; i++) byId[order[i]].Position = i;
+        }
         Save(db, p, c, title, summary, content, r.Note, now);
         await db.SaveChangesAsync(ct);
         return TypedResults.Created($"/api/projects/{id}/wiki/pages/{p.Id}", await ToDtoAsync(p, c, db, ct));

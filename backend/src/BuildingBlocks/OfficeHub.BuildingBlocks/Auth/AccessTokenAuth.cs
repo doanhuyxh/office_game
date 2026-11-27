@@ -109,13 +109,14 @@ public static class AccessTokenAuth
         ("POST", Exact($"/api/projects/tasks/{Id}/followers/{Id}")),
         ("DELETE", Exact($"/api/projects/tasks/{Id}/followers/{Id}")),
         ("PUT", Exact($"/api/projects/{Id}/(guide|description)")), // hướng dẫn làm việc / mô tả dự án (quản lý dự án / HR — Api kiểm)
-        // TEST-215: sổ tay dự án — đọc mục lục / tìm / trang, tạo, sửa (baseVersion), nối thêm; Api kiểm quyền (WikiRules: thành viên, trang khoá, dự án đóng).
-        //   Không có: xoá, khoá / mở khoá, khôi phục phiên bản, di chuyển, lịch sử phiên bản — chỉ trên web.
+        // TEST-215: sổ tay dự án — đọc mục lục / tìm / trang, tạo, sửa (baseVersion), nối thêm, di chuyển (TEST-254); Api kiểm quyền (WikiRules: thành viên, trang khoá, dự án đóng).
+        //   Không có: xoá, khoá / mở khoá, khôi phục phiên bản, lịch sử phiên bản — chỉ trên web.
         ("GET", Exact($"/api/projects/{Id}/wiki(/search)?/?")),
         ("GET", Exact($"/api/projects/{Id}/wiki/pages/{Id}")),
         ("POST", Exact($"/api/projects/{Id}/wiki/pages")),
         ("PUT", Exact($"/api/projects/{Id}/wiki/pages/{Id}")),
         ("POST", Exact($"/api/projects/{Id}/wiki/pages/{Id}/append")),
+        ("PUT", Exact($"/api/projects/{Id}/wiki/pages/{Id}/move")), // TEST-254: đổi cha / thứ tự (quyền như sửa trang — WikiRules)
         // Họp agent (TEST-75): bot giữ lượt bỏ lượt / bot chủ trì chỉ định người nói kế — Api kiểm bot dự họp + đang giữ lượt. Mở / dừng vẫn chỉ người thật.
         ("POST", Exact($"/api/meetings/sessions/{Id}/(pass|assign)")),
         // Phòng ban (HR — Api tự yêu cầu AuthPolicies.Hr): tạo / sửa / xoá mềm.

@@ -27,6 +27,82 @@ public class ProjectWikiToolsTests
     }
 
     [Fact]
+    public void Outline_compact_by_default_keeps_only_reading_fields()
+    {
+        var a = Page(A, null, "Gốc", 0);
+        a["summary"] = "Tóm tắt"; a["version"] = 2; a["locked"] = false; a["updatedByName"] = "Lan"; a["updatedAt"] = "2026-11-27T00:00:00Z";
+        var b = Page(B, A, "Con", 0);
+        b["locked"] = true;
+        var r = ProjectWikiTools.Outline(new JsonArray(a, b), detail: false).OfType<JsonObject>().ToList();
+        Assert.Equal(["depth", "id", "summary", "title", "version"], r[0].Select(kv => kv.Key).Order().ToArray());
+        Assert.True(r[1]["locked"]!.GetValue<bool>());
+        Assert.False(r[1].ContainsKey("parentId"));
+        Assert.False(r[1].ContainsKey("contentLength"));
+    }
+
+    [Fact]
+    public void Outline_subtree_and_max_depth()
+    {
+        // A ─ B ─ D ; A ─ C ; X (gốc khác)
+        var pages = new JsonArray(Page(A, null, "Gốc", 0), Page(B, A, "B", 0), Page(C, A, "C", 1), Page(D, B, "D", 0), Page(X, null, "Khác", 1));
+        var sub = ProjectWikiTools.Outline(pages, root: A).OfType<JsonObject>().ToList();
+        Assert.Equal(["B", "D", "C"], sub.Select(p => (string)p["title"]!).ToArray());
+        Assert.Equal([1, 2, 1], sub.Select(p => p["depth"]!.GetValue<int>()).ToArray());
+        var top = ProjectWikiTools.Outline(pages, maxDepth: 1).OfType<JsonObject>().ToList();
+        Assert.Equal(["Gốc", "Khác"], top.Select(p => (string)p["title"]!).ToArray());
+        Assert.Equal(["B", "C"], ProjectWikiTools.Outline(pages, root: A, maxDepth: 1).OfType<JsonObject>().Select(p => (string)p["title"]!).ToArray());
+    }
+
+    [Fact]
+    public void Match_page_or_id_checks_id_exists()
+    {
+        var pages = new List<JsonObject> { Page(A, null, "Gốc", 0) };
+        Assert.Equal(A, ProjectWikiTools.MatchPageOrId(pages, A.ToString()));
+        Assert.Equal(A, ProjectWikiTools.MatchPageOrId(pages, "gốc"));
+        Assert.Throws<McpException>(() => ProjectWikiTools.MatchPageOrId(pages, X.ToString()));
+    }
+
+    [Fact]
+    public void Apply_edit_replaces_unique_match()
+    {
+        var (c, n) = ProjectWikiTools.ApplyEdit("# A\n\nDòng 1\nDòng 2\n", "Dòng 2", "Dòng hai", false);
+        Assert.Equal("# A\n\nDòng 1\nDòng hai\n", c);
+        Assert.Equal(1, n);
+    }
+
+    [Fact]
+    public void Apply_edit_normalizes_crlf_and_can_delete()
+    {
+        var (c, _) = ProjectWikiTools.ApplyEdit("a\nb\nc", "a\r\nb\r\n", "", false);
+        Assert.Equal("c", c);
+    }
+
+    [Fact]
+    public void Apply_edit_rejects_missing_or_ambiguous_unless_replace_all()
+    {
+        Assert.Contains("get_wiki_page", Assert.Throws<McpException>(() => ProjectWikiTools.ApplyEdit("abc", "x", "y", false)).Message);
+        Assert.Contains("khớp 2 chỗ", Assert.Throws<McpException>(() => ProjectWikiTools.ApplyEdit("ab ab", "ab", "cd", false)).Message);
+        Assert.Contains("phân biệt", ProjectWikiTools.ApplyEdit("phân biệt", "phân", "phân", false).Content);
+        Assert.Throws<McpException>(() => ProjectWikiTools.ApplyEdit("Ab", "ab", "x", false)); // phân biệt hoa thường
+        var (c, n) = ProjectWikiTools.ApplyEdit("ab ab", "ab", "cd", true);
+        Assert.Equal(("cd cd", 2), (c, n));
+    }
+
+    [Fact]
+    public void Position_after_sibling()
+    {
+        // A: con B (0), C (1), D (2); X gốc khác
+        var pages = new List<JsonObject> { Page(A, null, "Gốc", 0), Page(B, A, "B", 0), Page(C, A, "C", 1), Page(D, A, "D", 2), Page(X, null, "Khác", 1) };
+        Assert.Null(ProjectWikiTools.PositionAfter(pages, A, null, null));
+        Assert.Equal(0, ProjectWikiTools.PositionAfter(pages, A, null, "first"));
+        Assert.Equal(2, ProjectWikiTools.PositionAfter(pages, A, null, "C"));            // tạo mới sau C
+        Assert.Equal(1, ProjectWikiTools.PositionAfter(pages, A, D, B.ToString()));     // chuyển D lên sau B (bỏ D khỏi danh sách)
+        Assert.Equal(1, ProjectWikiTools.PositionAfter(pages, null, null, "Gốc"));      // cấp gốc
+        Assert.Contains("cùng trang cha", Assert.Throws<McpException>(() => ProjectWikiTools.PositionAfter(pages, A, null, "Khác")).Message);
+        Assert.Throws<McpException>(() => ProjectWikiTools.PositionAfter(pages, A, C, "C"));
+    }
+
+    [Fact]
     public void Match_page_by_title_case_insensitive()
     {
         var pages = new List<JsonObject> { Page(A, null, "Quy ước", 0), Page(B, A, "Deploy", 0), Page(C, null, "deploy", 1) };

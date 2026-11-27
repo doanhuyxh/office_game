@@ -93,7 +93,7 @@ const W = `/api/projects/${P}/wiki`;
 // ---------- Thành viên tạo trang gốc + trang con, sửa → phiên bản ----------
 const tree0 = await json(M.cookie, 'GET', W);
 ok('Cây trống, cờ quyền thành viên: canEdit, không canManage', tree0.status === 200 && tree0.body.pages.length === 0 && tree0.body.canEdit === true
-  && tree0.body.canManage === false && tree0.body.maxPages === 500 && tree0.body.maxDepth === 4, tree0);
+  && tree0.body.canManage === false && tree0.body.maxPages === 2000 && tree0.body.maxDepth === 4, tree0);
 const root = await json(M.cookie, 'POST', `${W}/pages`, { title: 'Quy trình triển khai', summary: 'Cách deploy\nlên máy chủ', content: 'Bước 1: build.\r\nBước 2: kubectl apply.' });
 ok('Thành viên tạo trang gốc → 201, version 1, tóm tắt một dòng, CRLF → LF', root.status === 201 && root.body.version === 1 && root.body.summary === 'Cách deploy lên máy chủ'
   && root.body.content === 'Bước 1: build.\nBước 2: kubectl apply.' && root.body.updatedByBot === false && root.body.canEdit === true, root);

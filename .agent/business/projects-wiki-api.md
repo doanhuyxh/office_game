@@ -10,10 +10,10 @@
 | `PUT /prefs` | Lưu tuỳ chọn của CHÍNH người gọi `{tocSide?, tocCollapsed?}` (null = giữ nguyên; `tocSide` khác left / right → 400). Ai xem được dự án đều lưu được, kể cả dự án đóng / người xem nhờ phòng ban. Ngoài allowlist token AI → 403. `GET /` trả `prefs` của người gọi |
 | `GET /search?q=` | ILIKE (`Like.Contains`, `%` `_` là ký tự thường) trong tiêu đề + tóm tắt + nội dung; khớp tiêu đề lên đầu rồi mới sửa trước; ≤ 20 kết quả kèm `snippet` (±80 ký tự quanh chỗ khớp, gộp khoảng trắng, "…") |
 | `GET /pages/{pageId}` | Trang đầy đủ + `version` + `canEdit` / `canManage` + `path` (các trang cha từ gốc) |
-| `POST /pages` | Tạo `{title, summary?, content?, parentId?, note?}` → 201, version 1, cuối danh sách của cha |
+| `POST /pages` | Tạo `{title, summary?, content?, parentId?, note?, position?}` → 201, version 1; `position` (0 = đầu, TEST-254) chen vào và dồn các trang cùng cha, trống / lớn hơn số trang = cuối danh sách của cha; âm → 400 |
 | `PUT /pages/{pageId}` | Sửa `{baseVersion, title?, summary?, content?, note?}` (null = giữ nguyên, `summary: ""` = xoá). `baseVersion` ≠ hiện tại → **409** kèm `version`, `updatedByName`, `updatedAt`, `updatedByBot`, không ghi đè. Hai người lưu cùng lúc → unique index → 409 |
 | `POST /pages/{pageId}/append` | Nối `{text, note?}` vào cuối (cách một dòng trống), không cần `baseVersion`, vẫn tạo phiên bản; trùng phiên bản → thử lại một lần trên bản mới |
-| `PUT /pages/{pageId}/move` | `{parentId, position}`: không làm con của chính nó / con cháu, ≤ 4 cấp, tên không trùng ở cha mới; đánh lại `Position` 0..n ở cha cũ + mới. Không tạo phiên bản |
+| `PUT /pages/{pageId}/move` | `{parentId, position}` (token AI được — TEST-254): không làm con của chính nó / con cháu, ≤ 4 cấp, tên không trùng ở cha mới; đánh lại `Position` 0..n ở cha cũ + mới. Không tạo phiên bản |
 | `GET /pages/{pageId}/versions?page=&pageSize=` | Lịch sử mới nhất trước (≤ 100 / trang, không nội dung) `{items, total, page, pageSize}` · `GET …/versions/{n}` một bản đủ nội dung |
 | `POST /pages/{pageId}/versions/{n}/restore` | Quản lý: tạo phiên bản mới từ bản `n` (ghi chú "Khôi phục phiên bản n"); trùng nội dung hiện tại → không tạo; tên cũ trùng trang khác cùng cha → 409 |
 | `POST /pages/{pageId}/lock` · `/unlock` | Quản lý: 204 (lặp lại cũng 204) |

@@ -34,14 +34,14 @@ Chia sẻ công khai trang cho người ngoài có thời hạn (TEST-228): [pro
 - **Trang đã khoá**: chỉ quản lý dự án / HR **trên web** sửa; thành viên thường và token AI → 403 `Trang đã khoá — …`.
 - **Dự án đã đóng**: dùng lại `ClosedProjectRules.TaskWriteError` (TEST-213, [projects-closed.md](projects-closed.md)) — thành viên chỉ đọc (409
   `Dự án đã đóng — bạn chỉ bình luận được`), token AI 409, quản lý dự án + HR trên web vẫn sửa / khoá / xoá / khôi phục. Mở lại → như cũ.
-- **Token AI** (bot sửa trực tiếp, không qua duyệt): đọc cây / tìm / trang, tạo, sửa, nối thêm — ghi `CreatedByBot` / `UpdatedByBot` / `EditedByBot` = true (nhãn BOT).
-  **Không** xoá, khoá, khôi phục, di chuyển, xem lịch sử (ngoài allowlist `AccessTokenAuth` → 403; endpoint cũng tự chặn xoá / khoá / khôi phục qua token).
+- **Token AI** (bot sửa trực tiếp, không qua duyệt): đọc cây / tìm / trang, tạo (kèm `position`), sửa, nối thêm, di chuyển (TEST-254) — ghi `CreatedByBot` / `UpdatedByBot` / `EditedByBot` = true (nhãn BOT).
+  **Không** xoá, khoá, khôi phục, xem lịch sử (ngoài allowlist `AccessTokenAuth` → 403; endpoint cũng tự chặn xoá / khoá / khôi phục qua token).
 - Cờ trên DTO (`canEdit`, `canManage`) tính bằng `WikiRules.Flags` (đã xét dự án đóng, token, trang khoá) — FE / MCP chỉ dùng để hiện nút.
 - Phụ lục quyền hạn (`ProjectPermissions`, `myAccess`): thêm `wiki` (đọc), `wikiEdit` (sửa), `wikiManage` (quản lý).
 
 ## Giới hạn (hằng số trong `WikiRules`)
 
-Nội dung ≤ 50 000 ký tự / trang (400), cây sâu ≤ 4 cấp (gốc = cấp 1; 400 khi tạo / di chuyển, tính cả chiều cao cây con), ≤ 500 trang chưa xoá / dự án (409),
+Nội dung ≤ 50 000 ký tự / trang (400), cây sâu ≤ 4 cấp (gốc = cấp 1; 400 khi tạo / di chuyển, tính cả chiều cao cây con), ≤ 2000 trang chưa xoá / dự án (409; 500 → 2000 ở TEST-255),
 tóm tắt ≤ 300, tiêu đề ≤ 200, ghi chú ≤ 300. Tiêu đề / tóm tắt gộp xuống dòng thành dấu cách; nội dung CRLF → LF.
 Lưu mà tiêu đề + tóm tắt + nội dung không đổi → **không** tạo phiên bản (trả trang hiện tại).
 

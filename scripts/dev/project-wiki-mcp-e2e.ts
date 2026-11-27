@@ -97,9 +97,9 @@ const M = member.token, V = viewer.token;
 await rpc(M, 'initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'e2e', version: '1' } });
 
 const tools: any[] = (await rpc(M, 'tools/list'))?.result?.tools ?? [];
-const wikiTools = ['list_wiki_pages', 'search_wiki', 'get_wiki_page', 'create_wiki_page', 'update_wiki_page', 'append_wiki_page'];
-ok('tools/list có đủ 6 tool sổ tay (tổng 110)', wikiTools.every((n) => tools.some((t) => t.name === n)) && tools.length === 110, tools.length);
-ok('3 tool đọc readOnlyHint, 3 tool ghi không', wikiTools.slice(0, 3).every((n) => tools.find((t) => t.name === n)?.annotations?.readOnlyHint === true)
+const wikiTools = ['list_wiki_pages', 'search_wiki', 'get_wiki_page', 'create_wiki_page', 'update_wiki_page', 'append_wiki_page', 'edit_wiki_page', 'move_wiki_page'];
+ok('tools/list có đủ 8 tool sổ tay (tổng 112)', wikiTools.every((n) => tools.some((t) => t.name === n)) && tools.length === 112, tools.length);
+ok('3 tool đọc readOnlyHint, 5 tool ghi không', wikiTools.slice(0, 3).every((n) => tools.find((t) => t.name === n)?.annotations?.readOnlyHint === true)
   && wikiTools.slice(3).every((n) => tools.find((t) => t.name === n)?.annotations?.readOnlyHint !== true));
 
 // Tạo

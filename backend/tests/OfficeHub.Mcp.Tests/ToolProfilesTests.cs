@@ -24,7 +24,7 @@ public class ToolProfilesTests
     public void Every_listed_name_is_a_real_tool()
     {
         var names = All.Select(t => t.Name).ToHashSet();
-        Assert.Equal(110, names.Count);
+        Assert.Equal(112, names.Count);
         // Tên sai trong hồ sơ = tool lặng lẽ biến mất khỏi phiên agent
         foreach (var n in ToolProfiles.ChatWrites.Concat(ToolProfiles.MeetingWrites).Concat(ToolProfiles.TaskExcluded))
             Assert.Contains(n, names);
@@ -36,7 +36,7 @@ public class ToolProfilesTests
     [Fact]
     public void No_or_unknown_profile_lists_everything()
     {
-        Assert.Equal(110, Of(null).Length);
+        Assert.Equal(112, Of(null).Length);
         Assert.Null(ToolProfiles.Parse("abc"));
         Assert.Null(ToolProfiles.Parse(""));
         Assert.Equal(ToolProfiles.Meeting, ToolProfiles.Parse(" Meeting "));
@@ -69,7 +69,7 @@ public class ToolProfilesTests
         foreach (var n in new[] { "get_task", "update_task_status", "comment_task", "create_document", "present_screen", "go_to", "create_upload", "view_attachment" })
             Assert.Contains(n, task);
         foreach (var n in ToolProfiles.TaskExcluded) Assert.DoesNotContain(n, task);
-        Assert.Equal(110 - ToolProfiles.TaskExcluded.Count, task.Length);
+        Assert.Equal(112 - ToolProfiles.TaskExcluded.Count, task.Length);
     }
 
     [Fact]
