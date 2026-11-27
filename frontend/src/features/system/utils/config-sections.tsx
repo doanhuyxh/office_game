@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { BellRing, Bot, FileCheck2, Gauge, HardDrive, Mail, Network, Send, Video } from 'lucide-react';
+import { BellRing, Bot, FileCheck2, Gauge, HardDrive, Mail, Network, Send, ShieldCheck, Video } from 'lucide-react';
 import { DocumentSettingsCard } from '@/features/documents';
 import { AgentMeetingSettingsCard } from '@/features/meetings';
 import { AgentLimitsCard } from '@/features/projects';
@@ -11,10 +11,11 @@ import { OfficeIpsCard } from '../components/office-ips-card';
 import { S3SettingsSection } from '../components/s3-settings-section';
 import { SmtpSettingsSection } from '../components/smtp-settings-section';
 import { TelegramSettingsSection } from '../components/telegram-settings-section';
+import { TwoFactorPolicySection } from '../components/two-factor-policy-section';
 import type { SettingsGroupKey } from '../types/system.types';
 
 /** Nhóm của menu trái tab Cấu hình (thứ tự hiển thị). */
-export const CONFIG_GROUPS = ['Hạ tầng', 'Thông báo', 'Chấm công', 'Trợ lý AI', 'Tài liệu'] as const;
+export const CONFIG_GROUPS = ['Hạ tầng', 'Bảo mật', 'Thông báo', 'Chấm công', 'Trợ lý AI', 'Tài liệu'] as const;
 export type ConfigGroup = (typeof CONFIG_GROUPS)[number];
 
 export interface IConfigSection {
@@ -36,6 +37,7 @@ export interface IConfigSection {
 export const CONFIG_SECTIONS: readonly IConfigSection[] = [
   { id: 's3', group: 'Hạ tầng', label: 'Lưu trữ (S3)', icon: HardDrive, settingsGroup: 's3', render: () => <S3SettingsSection /> },
   { id: 'smtp', group: 'Hạ tầng', label: 'Email (SMTP)', icon: Mail, settingsGroup: 'smtp', render: () => <SmtpSettingsSection /> },
+  { id: 'two-factor', group: 'Bảo mật', label: 'Xác thực 2 lớp', icon: ShieldCheck, settingsGroup: 'two_factor', render: () => <TwoFactorPolicySection /> },
   { id: 'fcm', group: 'Thông báo', label: 'Thông báo đẩy (FCM)', icon: BellRing, settingsGroup: 'fcm', render: () => <FcmSettingsSection /> },
   { id: 'telegram', group: 'Thông báo', label: 'Telegram', icon: Send, settingsGroup: 'telegram', render: () => <TelegramSettingsSection /> },
   { id: 'office-ips', group: 'Chấm công', label: 'IP văn phòng', icon: Network, settingsGroup: 'office_ips',

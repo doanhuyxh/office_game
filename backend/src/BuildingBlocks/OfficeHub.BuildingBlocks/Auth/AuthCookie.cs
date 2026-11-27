@@ -54,6 +54,6 @@ public static class ClaimNames
 {
     public const string FullName = "full_name";
     public const string MustChangePassword = "must_change_password";
-    /// <summary>"true" khi tài khoản admin / hr chưa bật xác thực 2 lớp — xem <see cref="TwoFactorPolicy"/>.</summary>
+    /// <summary>"true" khi tài khoản bắt buộc 2FA (admin / hr, hoặc theo cấu hình Bảo mật) chưa bật xác thực 2 lớp — xem <see cref="TwoFactorPolicy"/>.</summary>
     public const string MustSetupTwoFactor = "must_setup_2fa";
 }

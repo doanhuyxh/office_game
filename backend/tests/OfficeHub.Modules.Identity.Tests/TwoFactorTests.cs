@@ -1,3 +1,4 @@
+using OfficeHub.BuildingBlocks.Configuration;
 using System.Security.Claims;
 using OfficeHub.BuildingBlocks.Auth;
 using OfficeHub.Modules.Identity.Domain;
@@ -45,8 +46,35 @@ public class TwoFactorTests
     [InlineData(new[] { "HR" }, true)]
     [InlineData(new[] { "manager", "employee" }, false)]
     [InlineData(new string[0], false)]
-    public void Required_for_admin_and_hr_only(string[] roles, bool required) =>
-        Assert.Equal(required, TwoFactorPolicy.IsRequiredFor(roles));
+    public void Default_scope_requires_admin_and_hr_only(string[] roles, bool required) =>
+        Assert.Equal(required, TwoFactorPolicy.IsRequiredFor(roles, isBot: false, new TwoFactorSettings()));
+
+    [Theory]
+    // scope, vai trò, bot, bắt buộc?
+    [InlineData(TwoFactorScopes.Managers, new[] { "manager", "employee" }, false, true)]
+    [InlineData(TwoFactorScopes.Managers, new[] { "employee" }, false, false)]
+    [InlineData(TwoFactorScopes.All, new[] { "employee" }, false, true)]
+    [InlineData(TwoFactorScopes.All, new string[0], false, true)]
+    // Bot: chỉ bắt buộc khi có admin / hr, phạm vi mở rộng không áp
+    [InlineData(TwoFactorScopes.All, new[] { "employee" }, true, false)]
+    [InlineData(TwoFactorScopes.Managers, new[] { "manager" }, true, false)]
+    [InlineData(TwoFactorScopes.AdminHr, new[] { "hr" }, true, true)]
+    [InlineData("la-lam", new[] { "manager" }, false, false)]
+    public void Scope_extends_required_roles(string scope, string[] roles, bool isBot, bool required) =>
+        Assert.Equal(required, TwoFactorPolicy.IsRequiredFor(roles, isBot, new TwoFactorSettings { Scope = scope }));
+
+    [Fact]
+    public void Cached_identity_recomputes_must_setup_claim_from_current_policy()
+    {
+        // Ảnh chụp cũ có claim must_setup_2fa (từ chính sách trước) — principal dựng lại phải theo chính sách hiện hành.
+        var snap = new OfficeHub.Modules.Identity.Infrastructure.UserAuthSnapshot(Guid.NewGuid(), "stamp", true, false, false, null,
+            TwoFactorEnabled: false, IsBot: false, ["manager", "employee"],
+            [new("sub", "x"), new(ClaimNames.MustSetupTwoFactor, "true")], 0);
+        static bool Must(System.Security.Claims.ClaimsIdentity id) => id.HasClaim(ClaimNames.MustSetupTwoFactor, "true");
+        Assert.False(Must(snap.ToIdentity("t", "name", "role", new TwoFactorSettings())));
+        Assert.True(Must(snap.ToIdentity("t", "name", "role", new TwoFactorSettings { Scope = TwoFactorScopes.Managers })));
+        Assert.False(Must((snap with { TwoFactorEnabled = true }).ToIdentity("t", "name", "role", new TwoFactorSettings { Scope = TwoFactorScopes.All })));
+    }
 
     [Theory]
     [InlineData("/api/auth/me")]

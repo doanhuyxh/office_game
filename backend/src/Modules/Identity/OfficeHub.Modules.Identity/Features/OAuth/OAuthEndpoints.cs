@@ -204,7 +204,7 @@ internal static class OAuthEndpoints
     // ---------------- Cấp token ----------------
 
     private static async Task<IResult> TokenAsync(HttpContext http, OfficeIdentityDbContext db, AuthCacheInvalidator cache, UserManager<AppUser> users,
-        IOptions<AppSettings> app, IOptionsMonitor<AccessTokenSettings> settings, TimeProvider clock, ILogger<OAuthClient> log, CancellationToken ct)
+        IOptions<AppSettings> app, IOptionsMonitor<AccessTokenSettings> settings, RuntimeConfig runtime, TimeProvider clock, ILogger<OAuthClient> log, CancellationToken ct)
     {
         if (!http.Request.HasFormContentType) return Error("invalid_request", "Cần Content-Type application/x-www-form-urlencoded");
         if (!settings.CurrentValue.Enabled) return Error("access_denied", "Kết nối AI đang tạm tắt cho toàn công ty");
@@ -237,7 +237,7 @@ internal static class OAuthEndpoints
                 if (!OAuthRules.VerifyPkce(form["code_verifier"].ToString(), code.CodeChallenge)) return Error("invalid_grant", "code_verifier sai");
                 code.ConsumedAt = now;
 
-                if (await UserProblemAsync(code.UserId, users) is { } userErr) { await db.SaveChangesAsync(ct); return userErr; }
+                if (await UserProblemAsync(code.UserId, users, runtime) is { } userErr) { await db.SaveChangesAsync(ct); return userErr; }
 
                 var refresh = OAuthRules.NewSecret("ohr_");
                 var grant = new OAuthGrant
@@ -276,7 +276,7 @@ internal static class OAuthEndpoints
                 }
                 if (grant.ClientId != client.Id) return Error("invalid_grant", "Refresh token không thuộc ứng dụng này");
                 if (!grant.IsActive(now)) return Error("invalid_grant", "Quyền truy cập đã bị thu hồi hoặc hết hạn, hãy kết nối lại");
-                if (await UserProblemAsync(grant.UserId, users) is { } userErr) return userErr;
+                if (await UserProblemAsync(grant.UserId, users, runtime) is { } userErr) return userErr;
 
                 var refresh = OAuthRules.NewSecret("ohr_");
                 grant.PreviousRefreshHash = grant.RefreshHash;
@@ -324,12 +324,12 @@ internal static class OAuthEndpoints
         });
     }
 
-    private static async Task<IResult?> UserProblemAsync(Guid userId, UserManager<AppUser> users)
+    private static async Task<IResult?> UserProblemAsync(Guid userId, UserManager<AppUser> users, RuntimeConfig runtime)
     {
         var user = await users.FindByIdAsync(userId.ToString());
         if (user is not { IsActive: true } || await users.IsLockedOutAsync(user)) return Error("invalid_grant", "Tài khoản đã bị khoá");
         if (user.MustChangePassword) return Error("invalid_grant", "Tài khoản cần đổi mật khẩu trên web trước");
-        if (!user.TwoFactorEnabled && TwoFactorPolicy.IsRequiredFor(await users.GetRolesAsync(user)))
+        if (!user.TwoFactorEnabled && TwoFactorPolicy.IsRequiredFor(await users.GetRolesAsync(user), user.IsBot, runtime.TwoFactor))
             return Error("invalid_grant", TwoFactorPolicy.TokenBlockedMessage);
         return null;
     }

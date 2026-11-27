@@ -1,3 +1,7 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.Internal;
+using OfficeHub.BuildingBlocks.Configuration;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -33,6 +37,10 @@ public sealed class AuthCacheTests : IAsyncLifetime
         s.AddSingleton<AuthCacheSaveChangesInterceptor>();
         s.AddScoped<AuthCache>();
         s.AddScoped<CachedSecurityStampValidator>();
+        // RuntimeConfig không có ISystemSettingsStore → chính sách bảo mật mặc định (2FA: admin + HR).
+        s.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        s.AddSingleton<IHostEnvironment>(new HostingEnvironment { ContentRootPath = AppContext.BaseDirectory });
+        s.AddSingleton<RuntimeConfig>();
         var dbName = Guid.NewGuid().ToString();
         s.AddDbContext<OfficeIdentityDbContext>((sp, o) => o.UseInMemoryDatabase(dbName)
             .AddInterceptors(sp.GetRequiredService<AuthCacheSaveChangesInterceptor>()));

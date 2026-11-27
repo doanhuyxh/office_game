@@ -1,24 +1,40 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using OfficeHub.BuildingBlocks.Configuration;
 
 namespace OfficeHub.BuildingBlocks.Auth;
 
 /// <summary>
-/// Xác thực 2 lớp (TOTP) bắt buộc cho admin / HR (chủ dự án chốt 2026-11-07).
-/// Tài khoản admin / hr chưa bật 2FA vẫn đăng nhập được nhưng cookie mang claim <see cref="ClaimNames.MustSetupTwoFactor"/>
+/// Xác thực 2 lớp (TOTP) bắt buộc: admin / HR luôn bắt buộc (chủ dự án chốt 2026-11-07); admin mở rộng cho quản lý / mọi người ở
+/// Hệ thống → Cấu hình → Bảo mật (<see cref="TwoFactorSettings"/>, TEST-258). Bot chỉ bắt buộc khi có vai trò admin / HR.
+/// Tài khoản bắt buộc mà chưa bật 2FA vẫn đăng nhập được nhưng phiên mang claim <see cref="ClaimNames.MustSetupTwoFactor"/>
 /// → mọi API (trừ <see cref="IsExempt"/>) trả 403 <see cref="SetupRequiredTitle"/> tới khi bật xong. Realtime hub từ chối kết nối.
 /// Token AI của tài khoản này bị từ chối ở <c>AccessTokenHandler</c> (giống "cần đổi mật khẩu").
 /// </summary>
 public static class TwoFactorPolicy
 {
     public const string SetupRequiredTitle = "2fa_setup_required";
-    public const string SetupRequiredMessage = "Cần bật xác thực 2 lớp trước khi tiếp tục (bắt buộc với tài khoản admin / HR)";
-    public const string TokenBlockedMessage = "Tài khoản admin / HR cần bật xác thực 2 lớp trên web trước khi dùng kết nối AI";
+    public const string SetupRequiredMessage = "Cần bật xác thực 2 lớp trước khi tiếp tục (bắt buộc với tài khoản của bạn)";
+    public const string TokenBlockedMessage = "Tài khoản cần bật xác thực 2 lớp trên web trước khi dùng kết nối AI (bắt buộc với tài khoản của bạn)";
+    public const string CannotDisableMessage = "Tài khoản của bạn bắt buộc dùng xác thực 2 lớp, không thể tắt. Đổi điện thoại: nhờ admin / HR đặt lại.";
 
-    /// <summary>Vai trò bắt buộc bật 2FA.</summary>
-    public static readonly string[] RequiredRoles = [Roles.Admin, Roles.Hr];
+    /// <summary>Vai trò luôn bắt buộc bật 2FA (mọi phạm vi, kể cả bot).</summary>
+    public static readonly string[] AlwaysRequiredRoles = [Roles.Admin, Roles.Hr];
 
-    public static bool IsRequiredFor(IEnumerable<string> roles) => roles.Any(r => RequiredRoles.Contains(r, StringComparer.OrdinalIgnoreCase));
+    /// <summary>Tài khoản có các vai trò này có bắt buộc bật 2FA theo chính sách hiện hành không.</summary>
+    public static bool IsRequiredFor(IEnumerable<string> roles, bool isBot, TwoFactorSettings settings)
+    {
+        var list = roles as ICollection<string> ?? [.. roles];
+        bool Has(string r) => list.Contains(r, StringComparer.OrdinalIgnoreCase);
+        if (AlwaysRequiredRoles.Any(Has)) return true;
+        if (isBot) return false;
+        return settings.Scope switch
+        {
+            TwoFactorScopes.All => true,
+            TwoFactorScopes.Managers => Has(Roles.Manager),
+            _ => false,
+        };
+    }
 
     // Đúng các route cần để tự bật 2FA / thoát ra. Thêm route vào đây = cho phép dùng khi CHƯA bật 2FA.
     private static readonly string[] Exempt =
@@ -47,7 +63,7 @@ public static class TwoFactorPolicy
     public static bool MustSetup(this System.Security.Claims.ClaimsPrincipal user) =>
         user.HasClaim(ClaimNames.MustSetupTwoFactor, "true");
 
-    /// <summary>Đặt sau <c>UseAuthentication</c>: phiên admin / HR chưa bật 2FA chỉ dùng được các route miễn.</summary>
+    /// <summary>Đặt sau <c>UseAuthentication</c>: phiên bắt buộc 2FA mà chưa bật chỉ dùng được các route miễn.</summary>
     public static IApplicationBuilder UseTwoFactorEnrollmentGate(this IApplicationBuilder app) => app.Use(async (ctx, next) =>
     {
         if (ctx.User.Identity?.IsAuthenticated == true && ctx.User.MustSetup() && !IsExempt(ctx.Request.Path.Value))

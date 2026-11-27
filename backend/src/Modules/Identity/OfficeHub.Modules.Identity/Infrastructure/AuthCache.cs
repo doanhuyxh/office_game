@@ -5,6 +5,8 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
+using OfficeHub.BuildingBlocks.Auth;
+using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.Modules.Identity.Domain;
 
 namespace OfficeHub.Modules.Identity.Infrastructure;
@@ -37,17 +39,25 @@ public sealed record CachedClaim(string Type, string Value);
 [ImmutableObject(true)]
 public sealed record UserAuthSnapshot(
     Guid UserId, string? SecurityStamp, bool IsActive, bool MustChangePassword, bool LockoutEnabled, DateTimeOffset? LockoutEnd,
-    bool TwoFactorEnabled, IReadOnlyList<string> Roles, IReadOnlyList<CachedClaim> Claims, long LoadedAt)
+    bool TwoFactorEnabled, bool IsBot, IReadOnlyList<string> Roles, IReadOnlyList<CachedClaim> Claims, long LoadedAt)
 {
     public bool IsLockedOut(DateTimeOffset now) => LockoutEnabled && LockoutEnd is { } end && end > now;
 
     public IEnumerable<string> Tags => [AuthCacheTags.All, AuthCacheTags.User(UserId)];
 
-    public ClaimsIdentity ToIdentity(string authenticationType, string nameType, string roleType) =>
-        new(Claims.Select(c => new Claim(c.Type, c.Value)), authenticationType, nameType, roleType);
+    /// <summary>
+    /// Dựng lại principal từ claim đã cache. Claim "chưa bật 2FA" tính lại theo chính sách hiện hành (<paramref name="twoFactor"/>, TEST-258)
+    /// → admin đổi phạm vi bắt buộc 2FA có hiệu lực ở request kế tiếp, không chờ cache hết hạn.
+    /// </summary>
+    public ClaimsIdentity ToIdentity(string authenticationType, string nameType, string roleType, TwoFactorSettings twoFactor)
+    {
+        var claims = Claims.Where(c => c.Type != ClaimNames.MustSetupTwoFactor).Select(c => new Claim(c.Type, c.Value)).ToList();
+        if (!TwoFactorEnabled && TwoFactorPolicy.IsRequiredFor(Roles, IsBot, twoFactor)) claims.Add(new Claim(ClaimNames.MustSetupTwoFactor, "true"));
+        return new(claims, authenticationType, nameType, roleType);
+    }
 
     public static UserAuthSnapshot From(AppUser user, ClaimsPrincipal principal, string roleClaimType, long loadedAt) =>
-        new(user.Id, user.SecurityStamp, user.IsActive, user.MustChangePassword, user.LockoutEnabled, user.LockoutEnd, user.TwoFactorEnabled,
+        new(user.Id, user.SecurityStamp, user.IsActive, user.MustChangePassword, user.LockoutEnabled, user.LockoutEnd, user.TwoFactorEnabled, user.IsBot,
             principal.FindAll(roleClaimType).Select(c => c.Value).ToArray(),
             principal.Claims.Select(c => new CachedClaim(c.Type, c.Value)).ToArray(), loadedAt);
 }

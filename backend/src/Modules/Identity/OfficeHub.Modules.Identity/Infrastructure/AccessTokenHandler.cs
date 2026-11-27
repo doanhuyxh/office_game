@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OfficeHub.BuildingBlocks.Auth;
+using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.Modules.Identity.Domain;
 
 namespace OfficeHub.Modules.Identity.Infrastructure;
@@ -37,7 +38,7 @@ public static class AccessTokens
 public sealed class AccessTokenHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder,
     OfficeIdentityDbContext db, AuthCache cache, AuthCacheInvalidator invalidator, TimeProvider clock,
-    IOptionsMonitor<AccessTokenSettings> settings)
+    IOptionsMonitor<AccessTokenSettings> settings, RuntimeConfig runtime)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     /// <summary>Ghi LastUsedAt tối đa mỗi 5 phút để không UPDATE ở mọi request.</summary>
@@ -62,8 +63,9 @@ public sealed class AccessTokenHandler(
         if (user is not { IsActive: true }) return AuthenticateResult.Fail("Tài khoản đã bị khoá");
         if (user.MustChangePassword) return AuthenticateResult.Fail("Tài khoản cần đổi mật khẩu trên web trước");
         if (user.IsLockedOut(now)) return AuthenticateResult.Fail("Tài khoản đang tạm khoá");
-        // Admin / HR chưa bật 2FA: token cũ ngừng hoạt động tới khi bật trên web (tạo token mới cũng bị chặn ở TwoFactorGate).
-        if (!user.TwoFactorEnabled && TwoFactorPolicy.IsRequiredFor(user.Roles))
+        // Tài khoản bắt buộc 2FA (admin / HR, hoặc theo cấu hình Bảo mật) chưa bật: token cũ ngừng hoạt động tới khi bật trên web
+        // (tạo token mới cũng bị chặn ở TwoFactorGate). Chính sách đọc mỗi request → đổi cấu hình có hiệu lực ngay.
+        if (!user.TwoFactorEnabled && TwoFactorPolicy.IsRequiredFor(user.Roles, user.IsBot, runtime.TwoFactor))
             return AuthenticateResult.Fail(TwoFactorPolicy.TokenBlockedMessage);
 
         // Từ đây biết chắc ai gọi → audit ghi được cả lần bị chặn route.
@@ -84,7 +86,7 @@ public sealed class AccessTokenHandler(
             await invalidator.RemoveKeyAsync(AuthCacheTags.TokenKey(hash));
         }
 
-        var claims = user.ToIdentity(AccessTokenAuth.Scheme, ClaimTypes.Name, ClaimTypes.Role);
+        var claims = user.ToIdentity(AccessTokenAuth.Scheme, ClaimTypes.Name, ClaimTypes.Role, runtime.TwoFactor);
         claims.AddClaim(new Claim(AccessTokenAuth.TokenIdClaim, token.TokenId.ToString()));
         return AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(claims), AccessTokenAuth.Scheme));
     }

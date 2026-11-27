@@ -99,6 +99,17 @@ public class SettingsRulesTests
         var s = new OfficeIpSettings([new("192.168.1.0/24", null), new("bad", null)]);
         Assert.Single(s.Networks);
     }
+
+    [Theory]
+    [InlineData("""{"scope":"managers"}""", "managers", false)]
+    [InlineData("""{}""", "admin_hr", false)]
+    [InlineData("""{"scope":"nobody"}""", "nobody", true)]
+    public void Two_factor_scope_must_be_known(string json, string expected, bool fails)
+    {
+        var (n, v) = Run(SettingsGroups.TwoFactor, json);
+        Assert.Equal(fails, v.Has("scope"));
+        Assert.Equal(expected, n.Values["scope"]!.GetValue<string>());
+    }
 }
 
 public class TelegramSettingsRulesTests

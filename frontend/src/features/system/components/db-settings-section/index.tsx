@@ -3,6 +3,7 @@ import { Spinner } from '@/components/feedback/Spinner';
 import { errorMessage } from '@/utils/errors';
 import { useSystemSettings } from '../../hooks/useSystem';
 import type { ISettingsGroup, SettingsGroupKey } from '../../types/system.types';
+import { isDefaultsGroup } from '../../utils/settings-groups';
 
 /**
  * Khung chung của mục cấu hình lưu trong DB (`/api/system/settings`: S3, SMTP, FCM, IP văn phòng, Telegram):
@@ -15,10 +16,14 @@ export function DbSettingsSection({ group, children }: { group: SettingsGroupKey
   if (error || !g) return <p className="text-sm text-destructive">{error ? errorMessage(error) : 'Không tìm thấy nhóm cấu hình.'}</p>;
   return (
     <div className="grid gap-4">
-      <p className="text-sm text-muted-foreground">
-        Lưu ở đây có hiệu lực ngay (không cần khởi động lại) và được ưu tiên hơn <code className="rounded bg-muted px-1 text-xs">.env</code>.
-        Giá trị bí mật được mã hoá, không bao giờ hiển thị lại. Nút Kiểm tra dùng cấu hình đang có hiệu lực — lưu trước rồi kiểm tra.
-      </p>
+      {isDefaultsGroup(g) ? (
+        <p className="text-sm text-muted-foreground">Lưu ở đây có hiệu lực ngay (không cần khởi động lại). Chỉ quản trị viên sửa được; mỗi lần lưu được ghi vào lịch sử sửa dữ liệu.</p>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Lưu ở đây có hiệu lực ngay (không cần khởi động lại) và được ưu tiên hơn <code className="rounded bg-muted px-1 text-xs">.env</code>.
+          Giá trị bí mật được mã hoá, không bao giờ hiển thị lại. Nút Kiểm tra dùng cấu hình đang có hiệu lực — lưu trước rồi kiểm tra.
+        </p>
+      )}
       {children(g)}
     </div>
   );

@@ -51,7 +51,7 @@ function RegenerateDialog({ open, onClose }: { open: boolean; onClose: () => voi
   );
 }
 
-/** Tự tắt 2FA (không áp dụng cho admin / HR): cần mật khẩu + mã hiện tại. */
+/** Tự tắt 2FA (không áp dụng cho tài khoản bắt buộc): cần mật khẩu + mã hiện tại. */
 function DisableDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const disable = useDisableTwoFactor();
   const [f, setF] = useState({ password: '', code: '' });
@@ -85,7 +85,7 @@ function DisableDialog({ open, onClose }: { open: boolean; onClose: () => void }
   );
 }
 
-/** Thẻ "Xác thực 2 lớp" ở trang Hồ sơ: trạng thái, bật, tạo lại mã dự phòng, tắt (trừ admin / HR — bắt buộc). */
+/** Thẻ "Xác thực 2 lớp" ở trang Hồ sơ: trạng thái, bật, tạo lại mã dự phòng, tắt (trừ tài khoản bắt buộc — admin / HR hoặc theo cấu hình Bảo mật). */
 export function TwoFactorCard() {
   const navigate = useNavigate();
   const { data: s } = useTwoFactorStatus();
@@ -101,7 +101,7 @@ export function TwoFactorCard() {
           </CardTitle>
           <CardDescription>
             Đăng nhập cần thêm mã 6 số từ ứng dụng trên điện thoại (Google / Microsoft Authenticator…).
-            {s.required && ' Bắt buộc với tài khoản admin / HR.'}
+            {s.required && ' Bắt buộc với tài khoản của bạn.'}
             {s.enabled && ` Còn ${s.recoveryCodesLeft} mã dự phòng.`}
             {s.enabled && s.recoveryCodesLeft <= 3 && ' Nên tạo lại mã dự phòng.'}
             {s.enabled && ' Mất điện thoại: dùng mã dự phòng hoặc nhờ HR đặt lại.'}

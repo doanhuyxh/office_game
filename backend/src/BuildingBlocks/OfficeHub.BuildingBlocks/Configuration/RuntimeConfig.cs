@@ -12,7 +12,11 @@ namespace OfficeHub.BuildingBlocks.Configuration;
 public static class SettingsGroups
 {
     public const string S3 = "s3", Smtp = "smtp", Fcm = "fcm", OfficeIps = "office_ips", Telegram = "telegram";
-    public static readonly string[] All = [S3, Smtp, Fcm, OfficeIps, Telegram];
+    /// <summary>Bảo mật (TEST-258…): không có biến .env — chưa lưu = giá trị mặc định trong code.</summary>
+    public const string TwoFactor = "two_factor";
+    public static readonly string[] All = [S3, Smtp, Fcm, OfficeIps, Telegram, TwoFactor];
+    /// <summary>Nhóm không đọc .env: chưa lưu = mặc định (FE ghi "Mặc định", nút xoá = "Về mặc định").</summary>
+    public static readonly string[] DefaultsOnly = [TwoFactor];
 }
 
 /// <summary>
@@ -73,7 +77,7 @@ public sealed class OfficeIpSettings(IReadOnlyList<OfficeIpRange> ranges)
 }
 
 /// <summary>
-/// Cấu hình S3 / SMTP / FCM / IP văn phòng đang có hiệu lực (TEST-41): nhóm có dòng trong DB → dùng DB, chưa có → .env như cũ.
+/// Cấu hình S3 / SMTP / FCM / IP văn phòng / Telegram / bảo mật đang có hiệu lực (TEST-41): nhóm có dòng trong DB → dùng DB, chưa có → .env như cũ.
 /// Cache <see cref="CacheFor"/>; lưu trên trang Hệ thống gọi <see cref="Invalidate"/> → lần đọc kế tiếp nạp lại (không cần khởi động lại).
 /// Đối tượng cấu hình chỉ đổi (khác tham chiếu) khi nhóm đổi → client S3 / Firebase so tham chiếu để biết lúc tạo lại.
 /// </summary>
@@ -83,7 +87,7 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
     public static readonly TimeSpan CacheFor = TimeSpan.FromSeconds(30);
 
     private sealed record Snapshot(IReadOnlyDictionary<string, StoredSettingsGroup> Groups, S3Settings S3, SmtpSettings Smtp, FcmSettings Fcm, OfficeIpSettings OfficeIps,
-        TelegramSettings Telegram);
+        TelegramSettings Telegram, TwoFactorSettings TwoFactor);
 
     private readonly Lock _gate = new();
     private Snapshot? _snap;
@@ -96,6 +100,7 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
     public FcmSettings Fcm => Current.Fcm;
     public OfficeIpSettings OfficeIps => Current.OfficeIps;
     public TelegramSettings Telegram => Current.Telegram;
+    public TwoFactorSettings TwoFactor => Current.TwoFactor;
 
     /// <summary>Nhóm đang lấy từ DB (null = .env).</summary>
     public StoredSettingsGroup? Stored(string group) => Current.Groups.GetValueOrDefault(group);
@@ -111,6 +116,7 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
         SettingsGroups.Fcm => new JsonObject { ["projectId"] = null, ["credentialsPath"] = config["Firebase:CredentialsPath"] },
         SettingsGroups.OfficeIps => IpValues(ParseEnvIps(officeEnv.Value.IpRanges)),
         SettingsGroups.Telegram => new JsonObject { ["enabled"] = false, ["chatId"] = null },
+        SettingsGroups.TwoFactor => TwoFactorValues(new TwoFactorSettings()),
         _ => [],
     };
 
@@ -172,7 +178,10 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
         {
             Enabled = Bool(t.Values, "enabled") ?? false, ChatId = Str(t.Values, "chatId"), BotToken = t.Secrets.GetValueOrDefault("botToken"),
         } : new TelegramSettings();
-        return new Snapshot(groups, s3, smtp, fcm, ips, tg);
+        var twoFactor = Same(SettingsGroups.TwoFactor) ? prev!.TwoFactor : groups.TryGetValue(SettingsGroups.TwoFactor, out var tf)
+            ? new TwoFactorSettings { Scope = Str(tf.Values, "scope") is { } sc && TwoFactorScopes.Values.Contains(sc) ? sc : TwoFactorScopes.AdminHr }
+            : new TwoFactorSettings();
+        return new Snapshot(groups, s3, smtp, fcm, ips, tg, twoFactor);
     }
 
     private FcmSettings FcmEnv()
@@ -233,6 +242,8 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
 
     public static JsonObject IpValues(IEnumerable<OfficeIpRange> ranges) =>
         new() { ["ranges"] = new JsonArray([.. ranges.Select(r => (JsonNode)new JsonObject { ["cidr"] = r.Cidr, ["note"] = r.Note })]) };
+
+    public static JsonObject TwoFactorValues(TwoFactorSettings s) => new() { ["scope"] = s.Scope };
 
     private static string? Str(JsonObject o, string k) =>
         o[k] is JsonValue v && v.TryGetValue<string>(out var s) && !string.IsNullOrWhiteSpace(s) ? s.Trim() : null;

@@ -78,7 +78,7 @@ export function TwoFactorSetupPage() {
   return (
     <AuthShell title="Bật xác thực 2 lớp"
       description={mandatory
-        ? 'Tài khoản admin / HR bắt buộc dùng xác thực 2 lớp. Hoàn tất bước này để tiếp tục làm việc.'
+        ? 'Tài khoản của bạn bắt buộc dùng xác thực 2 lớp (theo chính sách bảo mật của công ty). Hoàn tất bước này để tiếp tục làm việc.'
         : 'Bảo vệ tài khoản bằng mã 6 số từ ứng dụng trên điện thoại.'}>
       <div className="grid gap-4">
         <ol className="ml-4 list-decimal space-y-1 text-sm text-muted-foreground">

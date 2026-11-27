@@ -22,6 +22,7 @@ public static class SettingsRules
         new(SettingsGroups.Fcm, "Thông báo đẩy (FCM)", ["serviceAccountJson"]),
         new(SettingsGroups.OfficeIps, "IP văn phòng", []),
         new(SettingsGroups.Telegram, "Telegram (đánh thức agent)", ["botToken"]),
+        new(SettingsGroups.TwoFactor, "Xác thực 2 lớp", []),
     ];
 
     public static SettingsGroupDef? Find(string group) => Groups.FirstOrDefault(g => g.Group == group);
@@ -47,6 +48,7 @@ public static class SettingsRules
             SettingsGroups.Fcm => Fcm(input, secrets, v),
             SettingsGroups.OfficeIps => OfficeIps(input, v),
             SettingsGroups.Telegram => Telegram(input, secrets, v),
+            SettingsGroups.TwoFactor => TwoFactor(input, v),
             _ => [],
         };
         return new(values, secrets);
@@ -125,6 +127,14 @@ public static class SettingsRules
             v.Add("botToken", "Bot token dạng 123456789:AA… (lấy từ @BotFather)");
         else if (enabled && token is null) v.Add("botToken", "Bật kênh thì phải có bot token");
         return new() { ["enabled"] = enabled, ["chatId"] = chatId };
+    }
+
+    /// <summary>Phạm vi bắt buộc 2FA (TEST-258): admin_hr / managers / all. Admin + HR luôn bắt buộc — không có lựa chọn bỏ.</summary>
+    private static JsonObject TwoFactor(JsonObject i, Validation v)
+    {
+        var scope = Str(i, "scope") ?? TwoFactorScopes.AdminHr;
+        v.When(!TwoFactorScopes.Values.Contains(scope), "scope", "Phạm vi chỉ chọn: admin + HR / thêm quản lý / mọi người");
+        return new() { ["scope"] = scope };
     }
 
     private static JsonObject OfficeIps(JsonObject i, Validation v)

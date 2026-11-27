@@ -49,11 +49,11 @@ internal static class TwoFactorEndpoints
         api.MapPost("/auth/login/2fa", LoginAsync).WithTags("Auth").AllowAnonymous().RequireRateLimiting(RateLimits.Auth);
     }
 
-    private static async Task<Results<Ok<TwoFactorStatusDto>, UnauthorizedHttpResult>> StatusAsync(ClaimsPrincipal principal, UserManager<AppUser> users)
+    private static async Task<Results<Ok<TwoFactorStatusDto>, UnauthorizedHttpResult>> StatusAsync(ClaimsPrincipal principal, UserManager<AppUser> users, RuntimeConfig runtime)
     {
         var user = await users.GetUserAsync(principal);
         if (user is null) return TypedResults.Unauthorized();
-        return TypedResults.Ok(new TwoFactorStatusDto(user.TwoFactorEnabled, TwoFactorPolicy.IsRequiredFor(await users.GetRolesAsync(user)),
+        return TypedResults.Ok(new TwoFactorStatusDto(user.TwoFactorEnabled, TwoFactorPolicy.IsRequiredFor(await users.GetRolesAsync(user), user.IsBot, runtime.TwoFactor),
             user.TwoFactorEnabled ? await users.CountRecoveryCodesAsync(user) : 0));
     }
 
@@ -92,15 +92,15 @@ internal static class TwoFactorEndpoints
         return TypedResults.Ok(new RecoveryCodesDto([.. codes ?? []]));
     }
 
-    /// <summary>Tự tắt: cần mật khẩu + mã hiện tại. Admin / HR không được tắt (bắt buộc).</summary>
+    /// <summary>Tự tắt: cần mật khẩu + mã hiện tại. Tài khoản bắt buộc 2FA (admin / HR, hoặc theo cấu hình Bảo mật) không được tắt.</summary>
     private static async Task<Results<NoContent, ValidationProblem, UnauthorizedHttpResult, ProblemHttpResult>> DisableAsync(
-        TwoFactorDisableRequest req, ClaimsPrincipal principal, UserManager<AppUser> users, SignInManager<AppUser> signIn)
+        TwoFactorDisableRequest req, ClaimsPrincipal principal, UserManager<AppUser> users, SignInManager<AppUser> signIn, RuntimeConfig runtime)
     {
         var user = await users.GetUserAsync(principal);
         if (user is null) return TypedResults.Unauthorized();
         if (!user.TwoFactorEnabled) return Problems.Conflict("Xác thực 2 lớp chưa bật");
-        if (TwoFactorPolicy.IsRequiredFor(await users.GetRolesAsync(user)))
-            return Problems.Conflict("Tài khoản admin / HR bắt buộc dùng xác thực 2 lớp, không thể tắt. Đổi điện thoại: nhờ admin / HR khác đặt lại.");
+        if (TwoFactorPolicy.IsRequiredFor(await users.GetRolesAsync(user), user.IsBot, runtime.TwoFactor))
+            return Problems.Conflict(TwoFactorPolicy.CannotDisableMessage);
         if (await users.IsLockedOutAsync(user)) return LockedOut();
         if (!await users.CheckPasswordAsync(user, req.CurrentPassword ?? ""))
         {
@@ -130,7 +130,8 @@ internal static class TwoFactorEndpoints
     /// Hết hạn cookie tạm (5 phút) → 401 <c>2fa_expired</c>, FE quay về bước mật khẩu.
     /// </summary>
     private static async Task<Results<Ok<MeResponse>, ProblemHttpResult>> LoginAsync(
-        LoginTwoFactorRequest req, UserManager<AppUser> users, SignInManager<AppUser> signIn, OfficeIdentityDbContext db, TimeProvider clock)
+        LoginTwoFactorRequest req, UserManager<AppUser> users, SignInManager<AppUser> signIn, OfficeIdentityDbContext db, TimeProvider clock,
+        RuntimeConfig runtime)
     {
         var user = await signIn.GetTwoFactorAuthenticationUserAsync();
         if (user is null)
@@ -172,7 +173,7 @@ internal static class TwoFactorEndpoints
 
         user.LastLoginAt = clock.GetUtcNow();
         await users.UpdateAsync(user);
-        return TypedResults.Ok(await AuthEndpoints.ToMe(user, users, db));
+        return TypedResults.Ok(await AuthEndpoints.ToMe(user, users, db, runtime));
     }
 
     internal static async Task<bool> VerifyTotpAsync(UserManager<AppUser> users, AppUser user, string? raw)

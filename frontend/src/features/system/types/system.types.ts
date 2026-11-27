@@ -54,12 +54,15 @@ export interface IJobStatus {
 }
 export interface IOpsReport { generatedAt: string; build: IBuildInfo; backup: IBackupStatus; email: IEmailQueue; jobs: IJobStatus[] }
 
-/** Nhóm cấu hình hệ thống (GET /api/system/settings, TEST-41). source = 'db' (lưu trên trang) | 'env' (chưa lưu, đọc .env). secrets: chỉ cho biết đã đặt chưa. */
-export type SettingsGroupKey = 's3' | 'smtp' | 'fcm' | 'office_ips' | 'telegram';
+/**
+ * Nhóm cấu hình hệ thống (GET /api/system/settings, TEST-41). source = 'db' (lưu trên trang) | 'env' (chưa lưu, đọc .env)
+ * | 'default' (chưa lưu, nhóm không có .env — bảo mật: giá trị mặc định). secrets: chỉ cho biết đã đặt chưa.
+ */
+export type SettingsGroupKey = 's3' | 'smtp' | 'fcm' | 'office_ips' | 'telegram' | 'two_factor';
 export type SettingsValue = string | number | boolean | null | ISettingsIpRange[];
 export interface ISettingsIpRange { cidr: string; note: string | null }
 export interface ISettingsGroup {
-  group: SettingsGroupKey; name: string; source: 'db' | 'env'; updatedAt: string | null; updatedBy: string | null;
+  group: SettingsGroupKey; name: string; source: 'db' | 'env' | 'default'; updatedAt: string | null; updatedBy: string | null;
   values: Record<string, SettingsValue>; secrets: Record<string, boolean>;
 }
 /** secrets: để trống / bỏ qua = giữ giá trị cũ; clearSecrets: xoá hẳn. */

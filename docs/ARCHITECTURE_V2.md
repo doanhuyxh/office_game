@@ -271,7 +271,7 @@ Module khung hiện chỉ có `GET /api/<route>/_status` (cần đăng nhập).
 2. Tạo 4 vai trò: `admin`, `hr`, `manager`, `employee`.
 3. Nếu chưa có admin: tạo từ `Seed__AdminEmail` / `Seed__AdminPassword` với vai trò `admin` + `hr`. Thiếu hai key này thì dừng và báo lỗi.
 
-**⏳ Còn thiếu:** 2FA TOTP (bắt buộc với admin/hr), chống CSRF cho request ghi dữ liệu.
+**✅ Đã có:** 2FA TOTP (bắt buộc với admin/hr; admin mở rộng cho quản lý / mọi người ở Hệ thống → Cấu hình → Bảo mật — TEST-258), chống CSRF cho request ghi dữ liệu (`CsrfGuard`).
 
 ### 4.6 Organization ✅
 
@@ -522,10 +522,10 @@ Tăng ca tính theo giờ trên đơn đã duyệt (không đối chiếu chấm
 | Admin đầu tiên | Tạo từ `Seed__*` khi khởi động | ✅ |
 | Đăng nhập | Email hoặc tên đăng nhập + mật khẩu | ✅ |
 | Mật khẩu tạm → bắt buộc đổi | Cờ `MustChangePassword`; front-end chuyển sang `/change-password`; Realtime từ chối kết nối | ✅ |
-| Mời qua email cá nhân | HR nhập email → link mời 72 giờ → nhân viên tự đặt mật khẩu | ⏳ |
-| HR tạo sẵn | Tên đăng nhập = mã nhân viên + mật khẩu tạm | ⏳ |
-| Quên mật khẩu, 2FA TOTP (bắt buộc với admin/hr) | | ⏳ |
-| Nghỉ việc | Khoá tài khoản, ngắt mọi phiên SignalR | ⏳ |
+| Mời qua email cá nhân | HR nhập email → link mời 72 giờ → nhân viên tự đặt mật khẩu | ✅ |
+| HR tạo sẵn | Tên đăng nhập = mã nhân viên + mật khẩu tạm | ✅ |
+| Quên mật khẩu, 2FA TOTP (bắt buộc với admin/hr, mở rộng theo cấu hình Bảo mật) | | ✅ |
+| Nghỉ việc | Khoá tài khoản, ngắt mọi phiên SignalR | ✅ |
 
 ---
 

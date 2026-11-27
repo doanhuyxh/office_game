@@ -2,7 +2,7 @@
 
 > Nguồn sự thật là code: `backend/src/OfficeHub.Api/OpsReport.cs`, `BuildingBlocks/Hosting/JobMonitor.cs`, `Notification/.../EmailOutbox.cs`; FE `features/system/components/ops-tab`. Về [architecture.md](architecture.md).
 
-Tab **Cấu hình** (`?tab=config&section=…`, TEST-234): menu mục bên trái theo nhóm (Hạ tầng: `s3`, `smtp` · Thông báo: `fcm`, `telegram` · Chấm công: `office-ips` · Trợ lý AI: `ai-limits`, `ai-alerts`, `ai-meetings` · Tài liệu: `documents`), danh mục ở `features/system/utils/config-sections.tsx` — cách thêm mục: [frontend-layout.md](frontend-layout.md#trang-cài-đặt-nhiều-mục-hệ-thống--cấu-hình).
+Tab **Cấu hình** (`?tab=config&section=…`, TEST-234): menu mục bên trái theo nhóm (Hạ tầng: `s3`, `smtp` · Bảo mật: `two-factor` ([business/auth-2fa.md](business/auth-2fa.md)) · Thông báo: `fcm`, `telegram` · Chấm công: `office-ips` · Trợ lý AI: `ai-limits`, `ai-alerts`, `ai-meetings` · Tài liệu: `documents`), danh mục ở `features/system/utils/config-sections.tsx` — cách thêm mục: [frontend-layout.md](frontend-layout.md#trang-cài-đặt-nhiều-mục-hệ-thống--cấu-hình).
 
 **Log request** (mọi host): dòng `HTTP … responded … · N db / M ms` có thuộc tính `DbQueries`, `DbMs`, `Route`, `Auth` — tìm request nhiều truy vấn trong Seq; tắt / ngưỡng Warning bằng `Diagnostics__DbQueryStats` / `Diagnostics__DbQueryWarnAt` ([architecture.md](architecture.md#đo-số-truy-vấn-db--request-test-243), TEST-243).
 

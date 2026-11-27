@@ -19,7 +19,8 @@ using OfficeHub.Modules.Settings.Infrastructure;
 
 namespace OfficeHub.Modules.Settings.Features;
 
-/// <param name="Source">"db" = đang dùng cấu hình lưu trên trang; "env" = chưa lưu, đang đọc .env.</param>
+/// <param name="Source">"db" = đang dùng cấu hình lưu trên trang; "env" = chưa lưu, đang đọc .env; "default" = chưa lưu, nhóm không có .env
+/// (<see cref="SettingsGroups.DefaultsOnly"/>) → giá trị mặc định trong code.</param>
 /// <param name="Secrets">Khoá bí mật → đã đặt hay chưa. KHÔNG BAO GIỜ có giá trị.</param>
 public sealed record SettingsGroupDto(string Group, string Name, string Source, DateTimeOffset? UpdatedAt, string? UpdatedBy,
     JsonObject Values, IReadOnlyDictionary<string, bool> Secrets);
@@ -61,7 +62,8 @@ internal static class SettingsEndpoints
                 def.SecretKeys.ToDictionary(k => k, k => s.Secrets.ContainsKey(k)));
         var secrets = def.SecretKeys.ToDictionary(k => k, k => runtime.CurrentSecret(def.Group, k) is not null);
         if (def.Group == SettingsGroups.Fcm) secrets["serviceAccountJson"] = runtime.Fcm.Enabled; // .env: file service account
-        return new(def.Group, def.Name, "env", null, null, runtime.EnvValues(def.Group), secrets);
+        var source = SettingsGroups.DefaultsOnly.Contains(def.Group) ? "default" : "env";
+        return new(def.Group, def.Name, source, null, null, runtime.EnvValues(def.Group), secrets);
     }
 
     private static async Task<Results<Ok<SettingsGroupDto>, ValidationProblem, ProblemHttpResult>> SaveAsync(string group, SaveSettingsRequest req,
@@ -98,7 +100,7 @@ internal static class SettingsEndpoints
     private static bool SameSecrets(Dictionary<string, string> a, Dictionary<string, string> b) =>
         a.Count == b.Count && a.All(kv => b.TryGetValue(kv.Key, out var x) && x == kv.Value);
 
-    /// <summary>Xoá cấu hình trong DB → quay về đọc .env.</summary>
+    /// <summary>Xoá cấu hình trong DB → quay về đọc .env (nhóm bảo mật: về mặc định).</summary>
     private static async Task<Results<Ok<SettingsGroupDto>, ProblemHttpResult>> ResetAsync(string group, SettingsDbContext db, RuntimeConfig runtime, CancellationToken ct)
     {
         if (SettingsRules.Find(group) is not { } def) return Problems.NotFound("Nhóm cấu hình");
@@ -133,7 +135,8 @@ internal static class SettingsEndpoints
                 SettingsGroups.Smtp => await TestSmtpAsync(to, user, email, runtime, clock, ct),
                 SettingsGroups.Fcm => await TestFcmAsync(push, ct),
                 SettingsGroups.Telegram => await TestTelegramAsync(telegram, ct),
-                _ => TestIp(http, network, runtime),
+                SettingsGroups.OfficeIps => TestIp(http, network, runtime),
+                _ => new(true, "Nhóm này không có bước kiểm tra — lưu là có hiệu lực ngay."),
             };
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)

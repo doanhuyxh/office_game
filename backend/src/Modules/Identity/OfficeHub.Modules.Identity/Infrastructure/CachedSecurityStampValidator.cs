@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
+using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.Modules.Identity.Domain;
 
 namespace OfficeHub.Modules.Identity.Infrastructure;
@@ -14,7 +15,7 @@ namespace OfficeHub.Modules.Identity.Infrastructure;
 /// (vai trò, họ tên, cờ mật khẩu tạm / chưa bật 2FA), gia hạn cookie, stamp sai → đăng xuất.
 /// </summary>
 public sealed class CachedSecurityStampValidator(
-    AuthCache cache, SignInManager<AppUser> signIn, IOptions<IdentityOptions> identity, TimeProvider clock) : ISecurityStampValidator
+    AuthCache cache, SignInManager<AppUser> signIn, IOptions<IdentityOptions> identity, RuntimeConfig runtime, TimeProvider clock) : ISecurityStampValidator
 {
     public async Task ValidateAsync(CookieValidatePrincipalContext context)
     {
@@ -31,7 +32,7 @@ public sealed class CachedSecurityStampValidator(
             return;
         }
 
-        context.ReplacePrincipal(new(snapshot.ToIdentity(IdentityConstants.ApplicationScheme, o.UserNameClaimType, o.RoleClaimType)));
+        context.ReplacePrincipal(new(snapshot.ToIdentity(IdentityConstants.ApplicationScheme, o.UserNameClaimType, o.RoleClaimType, runtime.TwoFactor)));
         context.ShouldRenew = true;
         if (!context.Options.SlidingExpiration) context.Properties.IssuedUtc = clock.GetUtcNow();
     }

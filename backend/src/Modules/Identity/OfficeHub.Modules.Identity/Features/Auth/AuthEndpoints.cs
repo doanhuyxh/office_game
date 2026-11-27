@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using OfficeHub.BuildingBlocks.Auth;
+using OfficeHub.BuildingBlocks.Configuration;
 using OfficeHub.Modules.Identity.Domain;
 using OfficeHub.Modules.Identity.Infrastructure;
 
@@ -16,7 +17,7 @@ public sealed record LoginRequest([Required] string Login, [Required] string Pas
 public sealed record ChangePasswordRequest([Required] string CurrentPassword, [Required] string NewPassword);
 /// <summary>
 /// Avatar = ngoại hình nhân vật 3D (JSON, xem AvatarRules); null = nhân vật mặc định. Realtime đọc trường này khi vào văn phòng.
-/// MustSetupTwoFactor = admin / hr chưa bật xác thực 2 lớp → FE chuyển sang trang bật 2FA, API khác trả 403 (TwoFactorPolicy).
+/// MustSetupTwoFactor = tài khoản bắt buộc 2FA (admin / hr hoặc theo cấu hình Bảo mật) chưa bật → FE chuyển sang trang bật 2FA, API khác trả 403 (TwoFactorPolicy).
 /// IsBot = tài khoản do bot vận hành (HR đánh dấu) — OfficeHub.Mcp dựa vào đây để hiện bot trong văn phòng 3D.
 /// </summary>
 public sealed record MeResponse(Guid Id, string UserName, string? Email, string FullName, string[] Roles, bool MustChangePassword,
@@ -47,7 +48,7 @@ internal static class AuthEndpoints
     /// <summary>Đăng nhập bằng email HOẶC tên đăng nhập (mã nhân viên).</summary>
     private static async Task<Results<Ok<MeResponse>, ProblemHttpResult>> LoginAsync(
         LoginRequest req, HttpContext ctx, UserManager<AppUser> users, SignInManager<AppUser> signIn, OfficeIdentityDbContext db,
-        TimeProvider clock, LoginThrottle throttle, CancellationToken ct)
+        TimeProvider clock, LoginThrottle throttle, RuntimeConfig runtime, CancellationToken ct)
     {
         var login = (req.Login ?? "").Trim();
         var user = login.Length == 0 ? null : await users.FindByNameAsync(login) ?? await users.FindByEmailAsync(login);
@@ -90,7 +91,7 @@ internal static class AuthEndpoints
 
         user.LastLoginAt = clock.GetUtcNow();
         await users.UpdateAsync(user);
-        return TypedResults.Ok(await ToMe(user, users, db));
+        return TypedResults.Ok(await ToMe(user, users, db, runtime));
     }
 
     /// <summary>
@@ -105,10 +106,10 @@ internal static class AuthEndpoints
     }
 
     private static async Task<Results<Ok<MeResponse>, UnauthorizedHttpResult>> MeAsync(HttpContext ctx, UserManager<AppUser> users,
-        OfficeIdentityDbContext db)
+        OfficeIdentityDbContext db, RuntimeConfig runtime)
     {
         var user = await users.GetUserAsync(ctx.User);
-        return user is { IsActive: true } ? TypedResults.Ok(await ToMe(user, users, db)) : TypedResults.Unauthorized();
+        return user is { IsActive: true } ? TypedResults.Ok(await ToMe(user, users, db, runtime)) : TypedResults.Unauthorized();
     }
 
     private static async Task<Results<NoContent, ValidationProblem, UnauthorizedHttpResult>> ChangePasswordAsync(
@@ -139,12 +140,12 @@ internal static class AuthEndpoints
         return TypedResults.NoContent();
     }
 
-    internal static async Task<MeResponse> ToMe(AppUser u, UserManager<AppUser> users, OfficeIdentityDbContext db)
+    internal static async Task<MeResponse> ToMe(AppUser u, UserManager<AppUser> users, OfficeIdentityDbContext db, RuntimeConfig runtime)
     {
         var look = await db.UserAvatars.AsNoTracking().Where(a => a.UserId == u.Id).Select(a => a.Look).FirstOrDefaultAsync();
         var roles = await users.GetRolesAsync(u);
         return new(u.Id, u.UserName!, u.Email, u.FullName, [.. roles], u.MustChangePassword,
             look is null ? null : JsonDocument.Parse(look).RootElement.Clone(),
-            u.TwoFactorEnabled, !u.TwoFactorEnabled && TwoFactorPolicy.IsRequiredFor(roles), u.IsBot);
+            u.TwoFactorEnabled, !u.TwoFactorEnabled && TwoFactorPolicy.IsRequiredFor(roles, u.IsBot, runtime.TwoFactor), u.IsBot);
     }
 }

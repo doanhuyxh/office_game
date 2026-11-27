@@ -15,9 +15,10 @@ import { formatDateTime } from '@/utils/date';
 import { errorMessage, fieldErrors } from '@/utils/errors';
 import { useSettingsMutations } from '../../hooks/useSystem';
 import type { ISaveSettingsRequest, ISettingsGroup } from '../../types/system.types';
+import { isDefaultsGroup } from '../../utils/settings-groups';
 
 /**
- * Khung chung của một nhóm cấu hình (tab Cấu hình): nguồn đang dùng (DB / .env), Lưu, Kiểm tra, Dùng lại .env.
+ * Khung chung của một nhóm cấu hình (tab Cấu hình): nguồn đang dùng (DB / .env / mặc định), Lưu, Kiểm tra, Dùng lại .env / Về mặc định.
  * Form bên trong do card con vẽ (`children(errors)`); `build()` trả body PUT; `onSaved` để card con xoá ô bí mật đã nhập.
  */
 export function SettingsCardShell({ group, icon: Icon, description, dirty, build, onSaved, children, testLabel = 'Kiểm tra' }: {
@@ -36,6 +37,8 @@ export function SettingsCardShell({ group, icon: Icon, description, dirty, build
   const isSmtp = group.group === 'smtp';
   /** Nhóm không có biến .env (Telegram): "chưa lưu" = chưa cấu hình, xoá = tắt hẳn. */
   const noEnv = group.group === 'telegram';
+  /** Nhóm chỉ có mặc định trong code (bảo mật): "chưa lưu" = mặc định, xoá = về mặc định, không có nút kiểm tra. */
+  const defaults = isDefaultsGroup(group);
   // SMTP: email nhận thư thử, mặc định email tài khoản đang đăng nhập (sửa được).
   const [testTo, setTestTo] = useState('');
   useEffect(() => { if (me?.email) setTestTo((x) => x || me.email!); }, [me?.email]);
@@ -47,7 +50,7 @@ export function SettingsCardShell({ group, icon: Icon, description, dirty, build
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-2 text-base">
           <Icon className="size-4 text-muted-foreground" />{group.name}
-          <StatusBadge tone={group.source === 'db' ? 'success' : 'muted'}>{group.source === 'db' ? 'Lưu trên trang' : noEnv ? 'Chưa cấu hình' : 'Đang đọc .env'}</StatusBadge>
+          <StatusBadge tone={group.source === 'db' ? 'success' : 'muted'}>{group.source === 'db' ? 'Lưu trên trang' : defaults ? 'Mặc định' : noEnv ? 'Chưa cấu hình' : 'Đang đọc .env'}</StatusBadge>
         </CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
@@ -73,22 +76,25 @@ export function SettingsCardShell({ group, icon: Icon, description, dirty, build
           )}
           <SettingsFormFooter saveDisabled={reset.isPending || !dirty} saving={save.isPending} note={group.source === 'db'
             ? `Sửa lần cuối ${group.updatedAt ? formatDateTime(group.updatedAt) : ''}${group.updatedBy ? ` bởi ${group.updatedBy}` : ''}.`
-            : noEnv ? 'Chưa cấu hình.' : 'Chưa lưu trên trang — Lưu để chuyển sang dùng cấu hình này.'}>
+            : defaults ? 'Đang dùng giá trị mặc định.' : noEnv ? 'Chưa cấu hình.' : 'Chưa lưu trên trang — Lưu để chuyển sang dùng cấu hình này.'}>
             {group.source === 'db' && (
               <Button type="button" variant="ghost" disabled={busy} onClick={async () => {
                 if (!(await confirmDialog({
-                  ...(noEnv ? { title: `Xoá cấu hình ${group.name}?`, description: 'Kênh bị tắt và xoá cả giá trị bí mật đã lưu.', destructive: true, confirmText: 'Xoá' }
+                  ...(defaults ? { title: `Về mặc định cho ${group.name}?`, description: 'Cấu hình lưu trên trang bị xoá, hệ thống dùng lại giá trị mặc định ngay.', destructive: true, confirmText: 'Về mặc định' }
+                    : noEnv ? { title: `Xoá cấu hình ${group.name}?`, description: 'Kênh bị tắt và xoá cả giá trị bí mật đã lưu.', destructive: true, confirmText: 'Xoá' }
                     : { title: `Dùng lại .env cho ${group.name}?`, description: 'Cấu hình lưu trên trang bị xoá, hệ thống đọc lại biến trong .env ngay.', destructive: true, confirmText: 'Dùng .env' }),
                   onConfirm: () => { test.reset(); return reset.mutateAsync(undefined); },
                 }))) return;
-                onSaved(); toast.success(noEnv ? 'Đã xoá cấu hình' : 'Đã chuyển về đọc .env');
+                onSaved(); toast.success(defaults ? 'Đã về mặc định' : noEnv ? 'Đã xoá cấu hình' : 'Đã chuyển về đọc .env');
               }}>
-                <RotateCcw /> {noEnv ? 'Xoá cấu hình' : 'Dùng lại .env'}
+                <RotateCcw /> {defaults ? 'Về mặc định' : noEnv ? 'Xoá cấu hình' : 'Dùng lại .env'}
               </Button>
             )}
-            <Button type="button" variant="outline" loading={test.isPending} disabled={busy} onClick={() => test.mutate(isSmtp ? { to: testTo.trim() || undefined } : {})} data-testid={`settings-${group.group}-test`}>
-              <FlaskConical /> {testLabel}
-            </Button>
+            {!defaults && (
+              <Button type="button" variant="outline" loading={test.isPending} disabled={busy} onClick={() => test.mutate(isSmtp ? { to: testTo.trim() || undefined } : {})} data-testid={`settings-${group.group}-test`}>
+                <FlaskConical /> {testLabel}
+              </Button>
+            )}
           </SettingsFormFooter>
           {(test.data || (test.error && !testErrors.to)) && (
             <p className={`text-sm ${test.data?.ok ? 'text-success' : 'text-destructive'}`} data-testid={`settings-${group.group}-result`}>
