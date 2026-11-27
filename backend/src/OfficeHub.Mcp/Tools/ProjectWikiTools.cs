@@ -21,14 +21,15 @@ public sealed class ProjectWikiTools
 
     [McpServerTool(Name = "list_wiki_pages", Title = "Mục lục sổ tay dự án", ReadOnly = true, OpenWorld = false)]
     [Description("Mục lục Sổ tay dự án (kiến thức chung của dự án: quyết định đã chốt, cách vận hành, đặc tả…) — KHÔNG kèm nội dung để tiết kiệm token: " +
-                 "pages[] theo thứ tự cây (cha trước con) — mặc định GỌN: id, depth (1 = gốc của phần được liệt kê), title, summary (tóm tắt một dòng), version, " +
-                 "locked (chỉ hiện khi đã khoá — không sửa được qua AI); detail = true thêm parentId, contentLength, updatedAt, updatedByName, updatedByBot. " +
+                 "pages[] theo thứ tự cây (cha trước con) — mặc định GỌN: id, depth (1 = gốc của phần được liệt kê), title, version, " +
+                 "locked (chỉ hiện khi đã khoá — không sửa được qua AI), summary (tóm tắt một dòng — CHỈ khi có parent; liệt kê cả sổ tay thì bỏ để vừa kết quả); " +
+                 "detail = true thêm summary, parentId, contentLength, updatedAt, updatedByName, updatedByBot. " +
                  "Sổ tay lớn → liệt kê từng nhánh: parent = trang gốc của nhánh (chỉ các trang con cháu), maxDepth = số cấp (1 = chỉ con trực tiếp). " +
                  "Kèm total (số trang khớp), canEdit, giới hạn maxPages / maxDepth / maxContent. " +
                  "Đọc mục lục (hoặc search_wiki) rồi chỉ mở trang cần bằng get_wiki_page. " + DataNote)]
     public static async Task<string> ListWikiPages(OfficeHubApi api,
         [Description("Dự án: id hoặc mã dự án (vd WEB-2026)")] string project,
-        [Description("Chỉ liệt kê con cháu của trang này (id hoặc đúng tiêu đề; tuỳ chọn — bỏ trống = cả sổ tay)")] string? parent = null,
+        [Description("Chỉ liệt kê con cháu của trang này (id hoặc đúng tiêu đề; tuỳ chọn — bỏ trống = cả sổ tay, không kèm summary)")] string? parent = null,
         [Description("Số cấp tối đa tính từ gốc phần được liệt kê (1 = chỉ cấp đầu; tuỳ chọn — bỏ trống = mọi cấp)")] int? maxDepth = null,
         [Description("true = thêm parentId, contentLength, người / lúc sửa gần nhất (mặc định false — gọn)")] bool detail = false,
         CancellationToken ct = default)
@@ -38,7 +39,8 @@ public sealed class ProjectWikiTools
         var tree = await api.GetAsync($"/api/projects/{id}/wiki", ct) as JsonObject ?? throw new McpException("Không đọc được sổ tay");
         var all = tree["pages"] as JsonArray;
         Guid? root = string.IsNullOrWhiteSpace(parent) ? null : MatchPageOrId((all ?? []).OfType<JsonObject>().ToList(), parent.Trim());
-        var pages = Outline(all, root, maxDepth, detail);
+        // TEST-257: cả sổ tay (không parent) → bỏ summary (sổ tay TEST 328 trang: summary chiếm phần lớn ~92 KB)
+        var pages = Outline(all, root, maxDepth, detail, withSummary: root is not null);
         tree["total"] = pages.Count;
         tree["pages"] = pages;
         tree.Remove("prefs"); // tuỳ chọn giao diện web — agent không dùng
@@ -287,9 +289,9 @@ public sealed class ProjectWikiTools
     /// Mục lục theo thứ tự đọc: duyệt cây theo chiều sâu (cha trước con, trong cùng cha theo position rồi tiêu đề), thêm <c>depth</c> (1 = gốc).
     /// Trang mồ côi (cha không còn trong danh sách) coi như gốc để không mất trang.
     /// TEST-252: <paramref name="root"/> = chỉ con cháu của trang đó (depth tính lại từ 1), <paramref name="maxDepth"/> = cắt theo cấp,
-    /// <paramref name="detail"/> = false → chỉ <see cref="CompactFields"/> (+ <c>depth</c>; <c>locked</c> chỉ khi true).
+    /// <paramref name="detail"/> = false → chỉ <see cref="CompactFields"/> (+ <c>depth</c>; <c>locked</c> chỉ khi true; <c>summary</c> chỉ khi <paramref name="withSummary"/> — TEST-257).
     /// </summary>
-    internal static JsonArray Outline(JsonArray? pages, Guid? root = null, int? maxDepth = null, bool detail = true)
+    internal static JsonArray Outline(JsonArray? pages, Guid? root = null, int? maxDepth = null, bool detail = true, bool withSummary = true)
     {
         var all = (pages ?? []).OfType<JsonObject>().ToList();
         var ids = all.Select(p => (string?)p["id"]).Where(x => x is not null).ToHashSet();
@@ -310,7 +312,7 @@ public sealed class ProjectWikiTools
                 foreach (var (k, v) in p)
                 {
                     if (k == "position") continue;
-                    if (!detail && (!CompactFields.Contains(k) || (k == "locked" && v?.GetValue<bool>() != true))) continue;
+                    if (!detail && (!CompactFields.Contains(k) || (k == "locked" && v?.GetValue<bool>() != true) || (k == "summary" && !withSummary))) continue;
                     copy[k] = v?.DeepClone();
                 }
                 copy["depth"] = depth;

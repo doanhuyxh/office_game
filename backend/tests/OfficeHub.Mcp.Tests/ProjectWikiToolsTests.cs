@@ -41,6 +41,18 @@ public class ProjectWikiToolsTests
     }
 
     [Fact]
+    public void Outline_without_summary_for_whole_notebook()
+    {
+        var a = Page(A, null, "Gốc", 0);
+        a["summary"] = "Tóm tắt"; a["version"] = 2;
+        var compact = (JsonObject)ProjectWikiTools.Outline(new JsonArray(a), detail: false, withSummary: false)[0]!;
+        Assert.False(compact.ContainsKey("summary"));
+        Assert.Equal(["depth", "id", "title", "version"], compact.Select(kv => kv.Key).Order().ToArray());
+        var full = (JsonObject)ProjectWikiTools.Outline(new JsonArray(a.DeepClone()), detail: true, withSummary: false)[0]!;
+        Assert.Equal("Tóm tắt", (string)full["summary"]!); // detail luôn đủ trường
+    }
+
+    [Fact]
     public void Outline_subtree_and_max_depth()
     {
         // A ─ B ─ D ; A ─ C ; X (gốc khác)

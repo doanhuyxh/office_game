@@ -7,7 +7,7 @@
 
 | Tool | Loại | Api | Ghi chú |
 |---|---|---|---|
-| `list_wiki_pages(project, parent?, maxDepth?, detail?)` | đọc | `GET /` | `pages[]` duyệt theo chiều sâu (cha trước con), thêm `depth` (1 = gốc của phần liệt kê), bỏ `position`; không nội dung. Mặc định **gọn** (TEST-252): `id, depth, title, summary, version` + `locked` khi true; `detail` thêm `parentId, contentLength, updatedAt, updatedByName, updatedByBot`. `parent` = chỉ con cháu của trang đó, `maxDepth` = cắt cấp; kèm `total`, bỏ `prefs`. Sổ tay TEST ~330 trang: bản cũ 132.930 ký tự (vượt giới hạn kết quả client MCP) |
+| `list_wiki_pages(project, parent?, maxDepth?, detail?)` | đọc | `GET /` | `pages[]` duyệt theo chiều sâu (cha trước con), thêm `depth` (1 = gốc của phần liệt kê), bỏ `position`; không nội dung. Mặc định **gọn** (TEST-252): `id, depth, title, version` + `locked` khi true + `summary` **chỉ khi có `parent`** (cả sổ tay bỏ summary — TEST-257: TEST 328 trang ~92 KB → ~38 KB); `detail` thêm `summary, parentId, contentLength, updatedAt, updatedByName, updatedByBot`. `parent` = chỉ con cháu của trang đó, `maxDepth` = cắt cấp; kèm `total`, bỏ `prefs`. Sổ tay TEST ~330 trang: bản cũ 132.930 ký tự (vượt giới hạn kết quả client MCP) |
 | `search_wiki(project, query)` | đọc | `GET /search?q=` | ≤ 20 trang + `snippet` |
 | `get_wiki_page(project, page)` | đọc | `GET /pages/{pid}` | nội dung + `version` (= `baseVersion` khi sửa) + `path`, bỏ `projectId` |
 | `create_wiki_page(project, title, content, summary?, parent?, note?, after?)` | ghi | `POST /pages` | `parent` = id / tiêu đề; `after` = trang cùng cha để đặt ngay sau (`"first"` = đầu, trống = cuối) → `position` của Api (TEST-254) |

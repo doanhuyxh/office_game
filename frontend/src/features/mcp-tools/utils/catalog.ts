@@ -542,10 +542,10 @@ export const MCP_TOOL_GROUPS: McpToolGroup[] = [
           { name: 'description', type: 'string', required: true, description: 'Mô tả mới — thay toàn bộ, ≤ 2.000 ký tự ("none" = xoá)' },
         ] },
       { name: 'list_wiki_pages', title: 'Mục lục sổ tay dự án', kind: 'read', endpoint: 'GET /api/projects/{id}/wiki',
-        description: 'Mục lục Sổ tay dự án — KHÔNG kèm nội dung (tiết kiệm token): trang theo thứ tự cây (cha trước con). Mặc định gọn: id, depth, tiêu đề, tóm tắt, version, locked (chỉ khi đã khoá); detail thêm parentId, contentLength, sửa lần cuối. Sổ tay lớn → liệt kê từng nhánh bằng parent + maxDepth. Kèm total, canEdit, giới hạn trang / cấp / ký tự. Đọc mục lục hoặc search_wiki rồi chỉ mở trang cần.',
+        description: 'Mục lục Sổ tay dự án — KHÔNG kèm nội dung (tiết kiệm token): trang theo thứ tự cây (cha trước con). Mặc định gọn: id, depth, tiêu đề, version, locked (chỉ khi đã khoá), tóm tắt (chỉ khi có parent — cả sổ tay thì bỏ); detail thêm tóm tắt, parentId, contentLength, sửa lần cuối. Sổ tay lớn → liệt kê từng nhánh bằng parent + maxDepth. Kèm total, canEdit, giới hạn trang / cấp / ký tự. Đọc mục lục hoặc search_wiki rồi chỉ mở trang cần.',
         params: [
           { name: 'project', type: 'string', required: true, description: 'Id hoặc mã dự án' },
-          { name: 'parent', type: 'string', required: false, description: 'Chỉ con cháu của trang này (id hoặc đúng tiêu đề; trống = cả sổ tay)' },
+          { name: 'parent', type: 'string', required: false, description: 'Chỉ con cháu của trang này (id hoặc đúng tiêu đề; trống = cả sổ tay, không kèm tóm tắt)' },
           { name: 'maxDepth', type: 'int', required: false, description: 'Số cấp tối đa từ gốc phần liệt kê (1 = chỉ cấp đầu; trống = mọi cấp)' },
           { name: 'detail', type: 'bool', required: false, description: 'true = thêm parentId, contentLength, người / lúc sửa (mặc định false)' },
         ] },
