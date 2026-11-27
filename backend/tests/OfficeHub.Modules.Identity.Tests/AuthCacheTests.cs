@@ -216,14 +216,34 @@ public sealed class AuthCacheTests : IAsyncLifetime
         Assert.Null(await Validate(oldPrincipal));
     }
 
+    [Fact]
+    public async Task Cookie_validator_applies_session_lifetime()
+    {
+        var principal = await InScope(async sp =>
+        {
+            var users = sp.GetRequiredService<UserManager<AppUser>>();
+            return await sp.GetRequiredService<IUserClaimsPrincipalFactory<AppUser>>().CreateAsync((await users.FindByIdAsync(_user.Id.ToString()))!);
+        });
+        var now = DateTimeOffset.UtcNow;
+
+        // Hoạt động 1 giờ trước, cookie cũ chưa có mốc đăng nhập → hợp lệ, ghi mốc, hạn = lần hoạt động + 7 ngày (mặc định).
+        var fresh = new AuthenticationProperties { IssuedUtc = now.AddHours(-1), ExpiresUtc = now.AddDays(30) };
+        Assert.NotNull(await Validate(principal, fresh));
+        Assert.Equal(fresh.IssuedUtc!.Value.AddDays(7), fresh.ExpiresUtc); // AuthenticationProperties làm tròn tới giây
+        Assert.NotNull(SessionRules.ReadLoginAt(fresh.Items));
+
+        // Không hoạt động quá 7 ngày → từ chối.
+        Assert.Null(await Validate(principal, new AuthenticationProperties { IssuedUtc = now.AddDays(-8), ExpiresUtc = now.AddDays(1) }));
+    }
+
     /// <summary>Chạy validator như CookieAuthenticationHandler: trả principal mới, null = bị từ chối.</summary>
-    private Task<ClaimsPrincipal?> Validate(ClaimsPrincipal principal) => InScope(async sp =>
+    private Task<ClaimsPrincipal?> Validate(ClaimsPrincipal principal, AuthenticationProperties? props = null) => InScope(async sp =>
     {
         var http = new DefaultHttpContext { RequestServices = sp };
         sp.GetRequiredService<IHttpContextAccessor>().HttpContext = http;
         var scheme = new AuthenticationScheme(IdentityConstants.ApplicationScheme, null, typeof(CookieAuthenticationHandler));
         var ctx = new CookieValidatePrincipalContext(http, scheme, new CookieAuthenticationOptions { SlidingExpiration = true },
-            new AuthenticationTicket(principal, IdentityConstants.ApplicationScheme));
+            new AuthenticationTicket(principal, props ?? new AuthenticationProperties(), IdentityConstants.ApplicationScheme));
         await sp.GetRequiredService<CachedSecurityStampValidator>().ValidateAsync(ctx);
         return ctx.Principal;
     });

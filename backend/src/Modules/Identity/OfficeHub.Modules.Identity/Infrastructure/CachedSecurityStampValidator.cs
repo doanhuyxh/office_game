@@ -12,7 +12,7 @@ namespace OfficeHub.Modules.Identity.Infrastructure;
 /// nhưng stamp + claim dựng principal lấy từ <see cref="AuthCache"/> thay vì đọc users / user_claims / user_roles / roles / role_claims.
 /// Stamp đổi (đăng xuất, đăng nhập thiết bị khác, đổi / cấp mật khẩu, 2FA, khoá tài khoản, đổi vai trò) → cache đã bị xoá khi ghi DB
 /// → request kế tiếp đọc stamp mới → cookie cũ bị từ chối ngay. Hành vi còn lại giữ như bản gốc: thay principal bằng claim mới nhất
-/// (vai trò, họ tên, cờ mật khẩu tạm / chưa bật 2FA), gia hạn cookie, stamp sai → đăng xuất.
+/// (vai trò, họ tên, cờ mật khẩu tạm / chưa bật 2FA), gia hạn cookie, stamp sai → đăng xuất. Thêm: thời hạn phiên theo <see cref="SessionRules"/>.
 /// </summary>
 public sealed class CachedSecurityStampValidator(
     AuthCache cache, SignInManager<AppUser> signIn, IOptions<IdentityOptions> identity, RuntimeConfig runtime, TimeProvider clock) : ISecurityStampValidator
@@ -31,6 +31,21 @@ public sealed class CachedSecurityStampValidator(
             await context.HttpContext.SignOutAsync(IdentityConstants.TwoFactorRememberMeScheme);
             return;
         }
+
+        // Thời hạn phiên theo cấu hình Bảo mật (TEST-259): quá lâu không hoạt động / quá thời hạn tối đa kể từ lúc đăng nhập → đăng xuất.
+        var props = context.Properties;
+        var now = clock.GetUtcNow();
+        var session = runtime.Session;
+        var loginAt = SessionRules.ReadLoginAt(props.Items);
+        if (loginAt is null) SessionRules.WriteLoginAt(props.Items, now); // cookie cấp trước TEST-259: bắt đầu tính từ bây giờ
+        if (SessionRules.Check(props.IssuedUtc, loginAt, now, session) != SessionRules.Verdict.Ok)
+        {
+            context.RejectPrincipal();
+            await signIn.SignOutAsync();
+            return;
+        }
+        // Lần gia hạn kế tiếp giữ khoảng ExpiresUtc − IssuedUtc → đặt theo cấu hình hiện hành (admin đổi là áp cho phiên đang mở).
+        props.ExpiresUtc = (props.IssuedUtc ?? now) + session.Idle;
 
         context.ReplacePrincipal(new(snapshot.ToIdentity(IdentityConstants.ApplicationScheme, o.UserNameClaimType, o.RoleClaimType, runtime.TwoFactor)));
         context.ShouldRenew = true;

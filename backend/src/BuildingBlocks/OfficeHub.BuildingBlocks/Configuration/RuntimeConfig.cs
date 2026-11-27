@@ -13,10 +13,10 @@ public static class SettingsGroups
 {
     public const string S3 = "s3", Smtp = "smtp", Fcm = "fcm", OfficeIps = "office_ips", Telegram = "telegram";
     /// <summary>Bảo mật (TEST-258…): không có biến .env — chưa lưu = giá trị mặc định trong code.</summary>
-    public const string TwoFactor = "two_factor";
-    public static readonly string[] All = [S3, Smtp, Fcm, OfficeIps, Telegram, TwoFactor];
+    public const string TwoFactor = "two_factor", Session = "session";
+    public static readonly string[] All = [S3, Smtp, Fcm, OfficeIps, Telegram, TwoFactor, Session];
     /// <summary>Nhóm không đọc .env: chưa lưu = mặc định (FE ghi "Mặc định", nút xoá = "Về mặc định").</summary>
-    public static readonly string[] DefaultsOnly = [TwoFactor];
+    public static readonly string[] DefaultsOnly = [TwoFactor, Session];
 }
 
 /// <summary>
@@ -87,7 +87,7 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
     public static readonly TimeSpan CacheFor = TimeSpan.FromSeconds(30);
 
     private sealed record Snapshot(IReadOnlyDictionary<string, StoredSettingsGroup> Groups, S3Settings S3, SmtpSettings Smtp, FcmSettings Fcm, OfficeIpSettings OfficeIps,
-        TelegramSettings Telegram, TwoFactorSettings TwoFactor);
+        TelegramSettings Telegram, TwoFactorSettings TwoFactor, SessionSettings Session);
 
     private readonly Lock _gate = new();
     private Snapshot? _snap;
@@ -101,6 +101,7 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
     public OfficeIpSettings OfficeIps => Current.OfficeIps;
     public TelegramSettings Telegram => Current.Telegram;
     public TwoFactorSettings TwoFactor => Current.TwoFactor;
+    public SessionSettings Session => Current.Session;
 
     /// <summary>Nhóm đang lấy từ DB (null = .env).</summary>
     public StoredSettingsGroup? Stored(string group) => Current.Groups.GetValueOrDefault(group);
@@ -117,6 +118,7 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
         SettingsGroups.OfficeIps => IpValues(ParseEnvIps(officeEnv.Value.IpRanges)),
         SettingsGroups.Telegram => new JsonObject { ["enabled"] = false, ["chatId"] = null },
         SettingsGroups.TwoFactor => TwoFactorValues(new TwoFactorSettings()),
+        SettingsGroups.Session => SessionValues(new SessionSettings()),
         _ => [],
     };
 
@@ -181,7 +183,12 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
         var twoFactor = Same(SettingsGroups.TwoFactor) ? prev!.TwoFactor : groups.TryGetValue(SettingsGroups.TwoFactor, out var tf)
             ? new TwoFactorSettings { Scope = Str(tf.Values, "scope") is { } sc && TwoFactorScopes.Values.Contains(sc) ? sc : TwoFactorScopes.AdminHr }
             : new TwoFactorSettings();
-        return new Snapshot(groups, s3, smtp, fcm, ips, tg, twoFactor);
+        var session = Same(SettingsGroups.Session) ? prev!.Session : groups.TryGetValue(SettingsGroups.Session, out var se) ? new SessionSettings
+        {
+            IdleHours = Math.Clamp(Int(se.Values, "idleHours") ?? SessionSettings.DefaultIdleHours, SessionSettings.MinIdleHours, SessionSettings.MaxIdleHours),
+            MaxDays = Math.Clamp(Int(se.Values, "maxDays") ?? 0, 0, SessionSettings.MaxMaxDays),
+        } : new SessionSettings();
+        return new Snapshot(groups, s3, smtp, fcm, ips, tg, twoFactor, session);
     }
 
     private FcmSettings FcmEnv()
@@ -244,6 +251,7 @@ public sealed class RuntimeConfig(IServiceScopeFactory scopes, IOptions<S3Settin
         new() { ["ranges"] = new JsonArray([.. ranges.Select(r => (JsonNode)new JsonObject { ["cidr"] = r.Cidr, ["note"] = r.Note })]) };
 
     public static JsonObject TwoFactorValues(TwoFactorSettings s) => new() { ["scope"] = s.Scope };
+    public static JsonObject SessionValues(SessionSettings s) => new() { ["idleHours"] = s.IdleHours, ["maxDays"] = s.MaxDays };
 
     private static string? Str(JsonObject o, string k) =>
         o[k] is JsonValue v && v.TryGetValue<string>(out var s) && !string.IsNullOrWhiteSpace(s) ? s.Trim() : null;

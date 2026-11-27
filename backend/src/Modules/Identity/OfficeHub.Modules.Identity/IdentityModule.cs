@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
@@ -43,6 +44,19 @@ public sealed class IdentityModule : IModule
                 c.ApplicationCookie!.Configure(AuthCookie.Configure);
                 c.TwoFactorUserIdCookie!.Configure(AuthCookie.ConfigureTwoFactor); // bước mã 2FA sau mật khẩu
             });
+
+        // Thời hạn phiên (TEST-259): cookie mới / cấp lại lấy hạn theo cấu hình Bảo mật, ghi mốc đăng nhập (giữ qua các lần cấp lại).
+        services.AddOptions<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme).Configure<RuntimeConfig, TimeProvider>((o, runtime, clock) =>
+        {
+            var inner = o.Events.OnSigningIn;
+            o.Events.OnSigningIn = async ctx =>
+            {
+                var issued = ctx.Properties.IssuedUtc ?? clock.GetUtcNow();
+                if (SessionRules.ReadLoginAt(ctx.Properties.Items) is null) SessionRules.WriteLoginAt(ctx.Properties.Items, issued);
+                ctx.Properties.ExpiresUtc = issued + runtime.Session.Idle;
+                await inner(ctx);
+            };
+        });
 
         services.AddIdentityCore<AppUser>(o =>
             {

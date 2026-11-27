@@ -66,6 +66,7 @@ Admin sửa **S3 (file nghiệp vụ), SMTP, FCM, IP văn phòng** ở trang H�
 | `office_ips` | `Office__IpRanges` (DB thêm ghi chú từng dải; nhận IP đơn → /32, CIDR có bit host bị từ chối) | — |
 | `telegram` | — (chỉ cấu hình trên trang: bật / tắt, chat id, bot token — [business/notifications-telegram.md](business/notifications-telegram.md)) | `Telegram__ApiUrl` (tuỳ chọn, mặc định `https://api.telegram.org`; chỉ đổi khi test với máy chủ giả) |
 | `two_factor` | — (bảo mật, chỉ trên trang: phạm vi bắt buộc 2FA — [business/auth-2fa.md](business/auth-2fa.md); chưa lưu = mặc định trong code) | — |
+| `session` | — (bảo mật, chỉ trên trang: thời gian không hoạt động / thời hạn tối đa của phiên web — [business/auth-sessions.md](business/auth-sessions.md); chưa lưu = 7 ngày, không giới hạn) | — |
 
 Bí mật (secret key S3, mật khẩu SMTP, service account) mã hoá bằng `Encryption__Key` — mất khoá này thì phải nhập lại cấu hình. Realtime / Mcp không dùng các nhóm này (chỉ `.env`).
 

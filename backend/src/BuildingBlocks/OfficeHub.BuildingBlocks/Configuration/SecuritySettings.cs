@@ -17,3 +17,19 @@ public sealed class TwoFactorSettings
 {
     public string Scope { get; init; } = TwoFactorScopes.AdminHr;
 }
+
+/// <summary>
+/// Thời hạn phiên đăng nhập web (nhóm <c>session</c>, TEST-259). Chưa lưu = 7 ngày không hoạt động, không giới hạn tối đa (như trước).
+/// </summary>
+public sealed class SessionSettings
+{
+    public const int DefaultIdleHours = 168, MinIdleHours = 1, MaxIdleHours = 720, MaxMaxDays = 365;
+
+    /// <summary>Không có request nào trong khoảng này → phiên hết hạn (cookie trượt).</summary>
+    public int IdleHours { get; init; } = DefaultIdleHours;
+    /// <summary>Bắt đăng nhập lại sau tối đa N ngày kể từ lúc đăng nhập; 0 = không giới hạn.</summary>
+    public int MaxDays { get; init; }
+
+    public TimeSpan Idle => TimeSpan.FromHours(IdleHours);
+    public TimeSpan? MaxAge => MaxDays > 0 ? TimeSpan.FromDays(MaxDays) : null;
+}

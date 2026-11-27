@@ -43,3 +43,11 @@ Test: `tests/OfficeHub.Modules.Identity.Tests/ReauthRulesTests.cs`.
 - Chưa làm: CAPTCHA (cân nhắc nếu thấy tấn công thật).
 
 Test: `LoginThrottleTests`; e2e `scripts/dev/security-e2e.ts` (40/40, DB tạm + Mailpit, hướng dẫn đầu file).
+
+## Thời hạn phiên (TEST-259)
+
+Nhóm cấu hình `session` (Hệ thống → Cấu hình → Bảo mật → Phiên đăng nhập, chỉ admin, không có `.env`): `idleHours` 1–720 (mặc định 168) · `maxDays` 0–365 (0 = không giới hạn; đặt thì `maxDays × 24 ≥ idleHours`). Đọc `RuntimeConfig.Session`.
+- **Không hoạt động**: cookie trượt, Api gia hạn ở mọi request (`CachedSecurityStampValidator`, `ShouldRenew`) → `IssuedUtc` = lần gọi gần nhất. Validator đặt `ExpiresUtc = IssuedUtc + idle` → handler gia hạn giữ đúng khoảng đó (cấu hình mới áp cho cả phiên đang mở); quá `idle` → `RejectPrincipal` + đăng xuất. Tab đang hiện gọi API định kỳ (≥ 1 phút) nên tính là có hoạt động; tab ẩn thì React Query không gọi.
+- **Tối đa**: mốc đăng nhập ở `AuthenticationProperties.Items[".officehub.login_at"]` (`SessionRules`), ghi ở `OnSigningIn` của cookie `Identity.Application` (`IdentityModule`), giữ qua `RefreshSignInAsync`; cookie cũ chưa có mốc → ghi mốc lúc gặp lần đầu. Quá `maxDays` → đăng xuất dù đang dùng.
+- Realtime chỉ đọc hạn trong cookie; `SessionWatch` hỏi Api định kỳ bằng cookie người dùng → phiên quá hạn ở Api thì hub ngắt. Token AI không bị ảnh hưởng.
+

@@ -110,6 +110,20 @@ public class SettingsRulesTests
         Assert.Equal(fails, v.Has("scope"));
         Assert.Equal(expected, n.Values["scope"]!.GetValue<string>());
     }
+
+    [Theory]
+    [InlineData("""{}""", null)]
+    [InlineData("""{"idleHours":8,"maxDays":30}""", null)]
+    [InlineData("""{"idleHours":0}""", "idleHours")]
+    [InlineData("""{"idleHours":721}""", "idleHours")]
+    [InlineData("""{"maxDays":366}""", "maxDays")]
+    [InlineData("""{"idleHours":72,"maxDays":2}""", "maxDays")]
+    public void Session_lifetime_limits(string json, string? failField)
+    {
+        var (n, v) = Run(SettingsGroups.Session, json);
+        if (failField is null) Assert.False(v.Failed); else Assert.True(v.Has(failField));
+        Assert.NotNull(n.Values["idleHours"]);
+    }
 }
 
 public class TelegramSettingsRulesTests
