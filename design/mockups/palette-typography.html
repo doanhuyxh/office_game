@@ -34,22 +34,25 @@ section { display: grid; gap: 14px; min-width: 0; }
 .toggle button { font: inherit; font-size: .9rem; padding: 6px 14px; border: 0; background: var(--surface); color: var(--fg); cursor: pointer; }
 .toggle button[aria-pressed="true"] { background: var(--accent); color: var(--surface); font-weight: 600; }
 .toggle button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 760px) { .compare { grid-template-columns: 1fr; } }
+.compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 16px; }
+.compare > div { min-width: 0; }
 .col-label { font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
 
 /* ===== Mẫu giao diện: mỗi mẫu tự mang bảng màu riêng (đây là màu đang so sánh, không theo theme trang) ===== */
 .s { --s-radius: 10px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); display: grid; grid-template-columns: 132px 1fr; min-height: 330px; background: var(--s-bg); color: var(--s-fg); }
 .s.cur { font-family: var(--f-inter); font-size: 14px; line-height: 1.43; }
-.s.new { font-family: var(--f-body); font-size: 14px; line-height: 1.43; }
+.s.new, .s.neu { font-family: var(--f-body); font-size: 14px; line-height: 1.43; }
 .s.cur.light { --s-bg:#ffffff; --s-card:#ffffff; --s-side:#ffffff; --s-fg:#020618; --s-muted:#62748e; --s-mutedbg:#f1f5f9; --s-border:#e2e8f0; --s-input:#e2e8f0; --s-pri:#0f172b; --s-prifg:#f8fafc; --s-link:#0f172b; --s-act:#f1f5f9; }
 .s.cur.dark  { --s-bg:#020618; --s-card:#030a1f; --s-side:#020618; --s-fg:#f8fafc; --s-muted:#90a1b9; --s-mutedbg:#1d293d; --s-border:#1b1f2f; --s-input:#262a39; --s-pri:#e2e8f0; --s-prifg:#0f172b; --s-link:#f8fafc; --s-act:#1d293d; }
 .s.new.light { --s-bg:#f8fafc; --s-card:#ffffff; --s-side:#ffffff; --s-fg:#0f172b; --s-muted:#45556c; --s-mutedbg:#f1f5f9; --s-border:#cad5e2; --s-input:#90a1b9; --s-pri:#1447e6; --s-prifg:#ffffff; --s-link:#1447e6; --s-act:#e8eefe; }
+/* Trung tính (phương án 2): không ám xanh, chữ đậm hơn để chịu loá đèn; một màu nhấn xanh than trầm; mục chọn = nền xám + chữ đậm. */
+.s.neu.light { --s-bg:#ffffff; --s-card:#ffffff; --s-side:#fafafa; --s-fg:#0a0a0a; --s-muted:#404040; --s-mutedbg:#f5f5f5; --s-border:#d4d4d4; --s-input:#a1a1a1; --s-pri:#1f3a68; --s-prifg:#ffffff; --s-link:#1f3a68; --s-act:#ebebeb; --s-actfg:#0a0a0a; }
+.s.neu.dark  { --s-bg:#171717; --s-card:#1f1f1f; --s-side:#141414; --s-fg:#f5f5f5; --s-muted:#b8b8b8; --s-mutedbg:#262626; --s-border:#3a3a3a; --s-input:#525252; --s-pri:#9db8e8; --s-prifg:#171717; --s-link:#9db8e8; --s-act:#2e2e2e; --s-actfg:#ffffff; }
 .s.new.dark  { --s-bg:#0f172b; --s-card:#162032; --s-side:#131c2e; --s-fg:#e2e8f0; --s-muted:#90a1b9; --s-mutedbg:#1d293d; --s-border:#314158; --s-input:#45556c; --s-pri:#51a2ff; --s-prifg:#0f172b; --s-link:#7cb8ff; --s-act:#1c2a4a; }
 .s aside { background: var(--s-side); border-right: 1px solid var(--s-border); padding: 12px 8px; display: grid; align-content: start; gap: 2px; font-size: 13px; }
 .s aside .logo { font-weight: 700; padding: 2px 8px 10px; }
 .s aside a { padding: 5px 8px; border-radius: 6px; color: var(--s-fg); text-decoration: none; }
-.s aside a.on { background: var(--s-act); color: var(--s-link); font-weight: 600; }
+.s aside a.on { background: var(--s-act); color: var(--s-actfg, var(--s-link)); font-weight: 600; }
 .s main { padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
 .s .bar { display: flex; gap: 8px; flex-wrap: wrap; }
 .s input { font: inherit; font-size: 13px; flex: 1; min-width: 0; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--s-input); background: var(--s-card); color: var(--s-fg); }
@@ -60,7 +63,7 @@ section { display: grid; gap: 14px; min-width: 0; }
 .s th { text-align: left; font-weight: 500; color: var(--s-muted); background: var(--s-mutedbg); }
 .s th, .s td { padding: 7px 10px; border-bottom: 1px solid var(--s-border); white-space: nowrap; }
 .s.cur th, .s.cur td small { font-size: 12px; }
-.s.new th, .s.new td small { font-size: 12px; }
+.s.new th, .s.new td small, .s.neu th, .s.neu td small { font-size: 12px; }
 .s td small { display: block; color: var(--s-muted); }
 .s tr:last-child td { border-bottom: 0; }
 .s .tag { font-size: 12px; padding: 1px 8px; border-radius: 99px; font-weight: 500; }
@@ -113,13 +116,15 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .
 
   <section>
     <h2>So sánh trên cùng một màn hình</h2>
+    <p class="lead">Góp ý sau TEST-262: dưới nhiều ánh đèn chữ khó đọc hơn, màu xanh làm mất tập trung (cả sáng lẫn tối). Phương án 2 bỏ ám xanh khỏi nền / chữ / viền, chữ phụ đậm hơn (sáng 10,4:1, tối 8,3:1), chỉ giữ một màu nhấn xanh than trầm cho nút / link; mục đang chọn ở sidebar dùng nền xám + chữ đậm thay vì chữ xanh. Mở trang này đúng chỗ nhiều đèn để so.</p>
     <div class="toggle" role="group" aria-label="Chế độ xem mẫu">
       <button type="button" id="m-light" aria-pressed="true">Sáng</button>
       <button type="button" id="m-dark" aria-pressed="false">Tối</button>
     </div>
     <div class="compare">
-      <div><div class="col-label">Hiện tại · Inter, màu cũ</div><div class="s cur light" data-mode></div></div>
-      <div><div class="col-label">Đề xuất · Be Vietnam Pro, màu mới, cùng cỡ chữ</div><div class="s new light" data-mode></div></div>
+      <div><div class="col-label">Ban đầu · Inter, màu cũ</div><div class="s cur light" data-mode></div></div>
+      <div><div class="col-label">TEST-262 (đang chờ review) · ám xanh</div><div class="s new light" data-mode></div></div>
+      <div><div class="col-label">Phương án 2 · trung tính, chịu loá đèn</div><div class="s neu light" data-mode></div></div>
     </div>
   </section>
 
@@ -138,6 +143,22 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .
     <div class="tbl"><table>
       <thead><tr><th>Token</th><th>Sáng: hiện tại → đề xuất</th><th>Tương phản</th><th>Tối: hiện tại → đề xuất</th><th>Tương phản</th></tr></thead>
       <tbody id="tokens"></tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Token phương án 2 (trung tính)</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Token</th><th>Sáng</th><th>Tương phản</th><th>Tối</th><th>Tương phản</th></tr></thead>
+      <tbody>
+        <tr><td><code>--background</code> / <code>--card</code></td><td><span class="sw" style="background:#ffffff"></span><code>#ffffff</code></td><td>—</td><td><span class="sw" style="background:#171717"></span><code>#171717</code> / <code>#1f1f1f</code></td><td>—</td></tr>
+        <tr><td><code>--sidebar</code></td><td><span class="sw" style="background:#fafafa"></span><code>#fafafa</code></td><td>—</td><td><span class="sw" style="background:#141414"></span><code>#141414</code></td><td>—</td></tr>
+        <tr><td><code>--foreground</code></td><td><span class="sw" style="background:#0a0a0a"></span><code>#0a0a0a</code></td><td>19,8 : 1</td><td><span class="sw" style="background:#f5f5f5"></span><code>#f5f5f5</code></td><td>15,1 : 1</td></tr>
+        <tr><td><code>--muted-foreground</code></td><td><span class="sw" style="background:#404040"></span><code>#404040</code></td><td><span class="up">10,4 : 1</span></td><td><span class="sw" style="background:#b8b8b8"></span><code>#b8b8b8</code></td><td><span class="up">8,3 : 1</span></td></tr>
+        <tr><td><code>--border</code> / <code>--input</code></td><td><code>#d4d4d4</code> / <code>#a1a1a1</code></td><td>—</td><td><code>#3a3a3a</code> / <code>#525252</code></td><td>—</td></tr>
+        <tr><td><code>--primary</code> (nút, link)</td><td><span class="sw" style="background:#1f3a68"></span><code>#1f3a68</code></td><td>11,3 : 1</td><td><span class="sw" style="background:#9db8e8"></span><code>#9db8e8</code></td><td>8,2 : 1</td></tr>
+        <tr><td><code>--sidebar-accent</code> (mục chọn)</td><td><code>#ebebeb</code> + chữ đậm</td><td>—</td><td><code>#2e2e2e</code> + chữ đậm</td><td>—</td></tr>
+      </tbody>
     </table></div>
   </section>
 

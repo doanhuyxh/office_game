@@ -3,7 +3,7 @@
 
 /*
  * Stylesheet toàn cục — theme shadcn/ui (slate) theo mẫu shadcn-admin, Tailwind v4.
- * - Đổi màu chủ đạo: sửa --primary / --ring (blue-700, TEST-262). Font: Be Vietnam Pro (link ở index.html), Inter dự phòng.
+ * - Đổi màu chủ đạo: sửa --primary / --ring (xanh than trầm, TEST-264). Font: Be Vietnam Pro (link ở index.html), Inter dự phòng.
  * - Dark mode: class "dark" trên <html>, do src/context/theme-provider.tsx bật (nút đổi theme ở header).
  * - Thêm component: `bun run ui:add <tên>` (KHÔNG dùng trực tiếp `bunx shadcn add`, xem scripts/ui-add.ts).
  * - Văn phòng 3D dùng CSS riêng trong .office-root, không phụ thuộc theme này.
@@ -12,35 +12,35 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Bảng màu TEST-262 (mockup design/mockups/palette-typography.html): chữ phụ slate-600 (7,6:1 trên trắng), viền slate-300,
- * nền trang slate-50 + thẻ / sidebar trắng để tách lớp, primary xanh blue-700 (nút / link / mục chọn tách khỏi chữ thường).
- * Tối: nền slate-900 (không đen tuyền), chữ slate-200 (không trắng tinh) cho đỡ chói, viền đặc slate-700.
- * Chỉ đổi giá trị — tên biến giữ nguyên. Không đổi cỡ chữ.
+ * Bảng màu TEST-264 (Phương án 2 trong design/mockups/palette-typography.html, thay bản ám xanh của TEST-262):
+ * xám trung tính không ám xanh (dưới nhiều ánh đèn, nền / chữ ám màu bị bạc → khó đọc), chữ phụ đậm (sáng 10,4:1, tối 8,3:1),
+ * một màu nhấn xanh than trầm cho nút / link (ít phân tán), mục chọn sidebar = nền xám + chữ đậm. Chỉ đổi giá trị, không đổi cỡ chữ.
+ * Plugin scripts/legacy-color-fallback.ts chỉ đọc oklch(...) → giữ định dạng oklch, không dùng hex.
  */
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.984 0.003 247.858);
-  --foreground: oklch(0.208 0.042 265.755);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.208 0.042 265.755);
+  --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
-  /* Lớp phủ modal (TEST-226): sáng = ám slate nhẹ, không quá đen; nested = modal mở chồng trên modal khác, chỉ phủ thêm nhẹ. */
-  --overlay: oklch(0.129 0.042 264.695 / 40%);
-  --overlay-nested: oklch(0.129 0.042 264.695 / 15%);
-  --popover-foreground: oklch(0.208 0.042 265.755);
-  --primary: oklch(0.488 0.243 264.376);
+  /* Lớp phủ modal (TEST-226): sáng = ám nhẹ, không quá đen; nested = modal mở chồng trên modal khác, chỉ phủ thêm nhẹ. */
+  --overlay: oklch(0.145 0 0 / 40%);
+  --overlay-nested: oklch(0.145 0 0 / 15%);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.353 0.087 260.4);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.446 0.043 257.281);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.145 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.371 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.145 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.869 0.022 252.894);
-  --input: oklch(0.704 0.04 256.788);
-  --ring: oklch(0.623 0.214 259.815);
+  --border: oklch(0.87 0 0);
+  --input: oklch(0.709 0 0);
+  --ring: oklch(0.5 0.1 260.4);
   /* Màu trạng thái (ngoài bộ shadcn chuẩn): dùng text-success / bg-warning/15 / bg-info… */
   --success: oklch(0.508 0.118 165.612);
   --success-foreground: oklch(0.985 0 0);
@@ -53,39 +53,39 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(1 0 0);
+  --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: oklch(0.97 0.014 254.604);
-  --sidebar-accent-foreground: oklch(0.488 0.243 264.376);
+  --sidebar-accent: oklch(0.94 0 0);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
 }
 
 .dark {
-  --background: oklch(0.208 0.042 265.755);
-  --foreground: oklch(0.929 0.013 255.508);
-  --card: oklch(0.24 0.036 262);
-  --card-foreground: oklch(0.929 0.013 255.508);
-  --popover: oklch(0.279 0.041 260.031);
+  --background: oklch(0.205 0 0);
+  --foreground: oklch(0.97 0 0);
+  --card: oklch(0.239 0 0);
+  --card-foreground: oklch(0.97 0 0);
+  --popover: oklch(0.269 0 0);
   /* Tối: phủ đen đậm hơn để modal (bg-background + viền) tách hẳn khỏi nền. */
   --overlay: oklch(0 0 0 / 65%);
   --overlay-nested: oklch(0 0 0 / 30%);
-  --popover-foreground: oklch(0.929 0.013 255.508);
-  --primary: oklch(0.707 0.165 254.624);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.929 0.013 255.508);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.929 0.013 255.508);
+  --popover-foreground: oklch(0.97 0 0);
+  --primary: oklch(0.779 0.075 261.8);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.97 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.783 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.97 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.372 0.044 257.287);
-  --input: oklch(0.446 0.043 257.281);
-  --ring: oklch(0.707 0.165 254.624);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.348 0 0);
+  --input: oklch(0.439 0 0);
+  --ring: oklch(0.779 0.075 261.8);
   --success: oklch(0.765 0.177 163.223);
   --success-foreground: oklch(0.262 0.051 172.552);
   --warning: oklch(0.828 0.189 84.429);
@@ -97,12 +97,12 @@
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.225 0.038 264);
+  --sidebar: oklch(0.191 0 0);
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: oklch(0.29 0.06 262);
-  --sidebar-accent-foreground: oklch(0.809 0.105 251.813);
+  --sidebar-accent: oklch(0.301 0 0);
+  --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
 }
