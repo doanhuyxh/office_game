@@ -21,14 +21,14 @@ export function ReceivablesTab({ onOpenContract }: { onOpenContract: (id: string
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 @min-[112rem]/content:grid-cols-[repeat(4,minmax(0,28rem))]">
         {[
           ['Tổng còn phải thu', data.outstanding, ''],
-          ['Quá hạn', data.overdue, 'text-rose-600'],
-          ['Sắp đến hạn (≤ 7 ngày)', data.dueSoon, 'text-amber-600'],
+          ['Quá hạn', data.overdue, 'text-destructive'],
+          ['Sắp đến hạn (≤ 7 ngày)', data.dueSoon, 'text-warning'],
         ].map(([label, v, cls]) => (
           <div key={label as string} className="rounded-xl border bg-card p-3"><div className="text-sm text-muted-foreground">{label}</div><div className={`text-xl font-semibold tabular-nums ${cls}`}>{formatMoney(v as number)}</div></div>
         ))}
         <div className="rounded-xl border bg-card p-3 text-sm">
           <div className="text-muted-foreground">Tuổi nợ quá hạn (ngày)</div>
-          {Object.entries(data.buckets).map(([b, v]) => <div key={b} className="flex justify-between tabular-nums"><span>{b}</span><span className={v ? 'text-rose-600' : 'text-muted-foreground'}>{formatMoney(v)}</span></div>)}
+          {Object.entries(data.buckets).map(([b, v]) => <div key={b} className="flex justify-between tabular-nums"><span>{b}</span><span className={v ? 'text-destructive' : 'text-muted-foreground'}>{formatMoney(v)}</span></div>)}
         </div>
       </div>
       <div className="w-56"><SelectField id="r-state" label="Lọc" allowEmpty emptyLabel="Tất cả chưa thu đủ" value={state} onChange={(v) => setState(v as InstallmentState | null)}

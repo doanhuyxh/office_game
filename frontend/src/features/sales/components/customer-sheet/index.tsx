@@ -165,7 +165,7 @@ function Activities({ d }: { d: ICustomerDetail }) {
           <li key={a.id} className="rounded-lg border p-2 text-sm">
             <div className="text-xs text-muted-foreground">{ACTIVITY_KIND[a.kind]} · {fmtTime(a.at)} · {a.createdByName}</div>
             <div className="whitespace-pre-wrap">{a.content}</div>
-            {a.nextAction && <div className="mt-1 text-xs text-amber-700 dark:text-amber-400">→ {a.nextAction}{a.nextActionOn && ` (hẹn ${fmtDate(a.nextActionOn)})`}</div>}
+            {a.nextAction && <div className="mt-1 text-xs text-warning">→ {a.nextAction}{a.nextActionOn && ` (hẹn ${fmtDate(a.nextActionOn)})`}</div>}
           </li>
         ))}
       </ol>

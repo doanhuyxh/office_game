@@ -36,9 +36,9 @@ export function EffortPanel({ d }: { d: IProjectDetail }) {
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-4 text-sm">
         <span>Đã dùng <b className="tabular-nums">{n(used)}</b> ngày công{budget != null && <> / ngân sách <b>{n(budget)}</b> ({budget ? Math.round((used / budget) * 100) : 0}%)</>}</span>
-        {budget != null && used > budget && <span className="text-rose-600">Vượt ngân sách {n(used - budget)} ngày</span>}
+        {budget != null && used > budget && <span className="text-destructive">Vượt ngân sách {n(used - budget)} ngày</span>}
       </div>
-      {budget != null && budget > 0 && <div className="h-2 overflow-hidden rounded-full bg-muted"><div className={`h-full ${used > budget ? 'bg-rose-500' : 'bg-primary'}`} style={{ width: `${Math.min(100, (used / budget) * 100)}%` }} /></div>}
+      {budget != null && budget > 0 && <div className="h-2 overflow-hidden rounded-full bg-muted"><div className={`h-full ${used > budget ? 'bg-destructive' : 'bg-primary'}`} style={{ width: `${Math.min(100, (used / budget) * 100)}%` }} /></div>}
       <div className="overflow-x-auto rounded-xl border bg-card">
         <Table>
           <TableHeader><TableRow><TableHead>Thành viên</TableHead>

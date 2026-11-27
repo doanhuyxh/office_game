@@ -38,7 +38,7 @@ export function ContractsTab({ creating, onCreatedClose, onOpen }: { creating: b
                 <TableCell className="whitespace-nowrap">{fmtDate(k.signedOn)}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatMoney(k.totalValue)}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatMoney(k.collected)}</TableCell>
-                <TableCell className={`text-right tabular-nums ${k.overdue ? 'text-rose-600' : ''}`}>{formatMoney(k.outstanding)}{k.overdue > 0 && <div className="text-xs">quá hạn {formatMoney(k.overdue)}</div>}</TableCell>
+                <TableCell className={`text-right tabular-nums ${k.overdue ? 'text-destructive' : ''}`}>{formatMoney(k.outstanding)}{k.overdue > 0 && <div className="text-xs">quá hạn {formatMoney(k.overdue)}</div>}</TableCell>
                 <TableCell><StatusBadge tone={CONTRACT_STATUS[k.status].tone}>{CONTRACT_STATUS[k.status].label}</StatusBadge></TableCell>
               </TableRow>
             ))}

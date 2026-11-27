@@ -53,8 +53,8 @@ export function ChangeRequestsPanel({ d }: { d: IProjectDetail }) {
               </div>
               {c.description && <p className="whitespace-pre-wrap text-sm">{c.description}</p>}
               {c.decisionNote && <p className="text-xs text-muted-foreground">Ghi chú: {c.decisionNote}</p>}
-              {c.appendix ? <p className="text-xs text-emerald-600">Đã lập phụ lục {c.appendix.code} (HĐ {c.appendix.contractCode}, ký {fmtDate(c.appendix.signedOn)})</p>
-                : c.status === 'Approved' && c.billable && <p className="text-xs text-amber-600">Chờ người phụ trách hợp đồng / kế toán lập phụ lục</p>}
+              {c.appendix ? <p className="text-xs text-success">Đã lập phụ lục {c.appendix.code} (HĐ {c.appendix.contractCode}, ký {fmtDate(c.appendix.signedOn)})</p>
+                : c.status === 'Approved' && c.billable && <p className="text-xs text-warning">Chờ người phụ trách hợp đồng / kế toán lập phụ lục</p>}
             </div>
             {canEdit && editable(c.status) && (
               <div className="flex flex-wrap gap-1">

@@ -59,7 +59,7 @@ export function ProjectsPage() {
             {myTasks.slice(0, 8).map((t) => (
               <li key={t.id}><Link to="/projects/$projectId" params={{ projectId: t.projectId }} search={{ task: t.id }} className="hover:underline">
                 <span className="text-muted-foreground">{t.code}</span> {t.title} <span className="text-xs text-muted-foreground">· {t.projectName}</span>
-                {t.dueOn && <span className={`text-xs ${t.overdue ? 'text-rose-600' : 'text-muted-foreground'}`}> · hạn {fmtDate(t.dueOn)}</span>}
+                {t.dueOn && <span className={`text-xs ${t.overdue ? 'text-destructive' : 'text-muted-foreground'}`}> · hạn {fmtDate(t.dueOn)}</span>}
                 <ColumnBadge name={t.columnName} color={t.columnColor} className="ml-2" />
               </Link></li>
             ))}
@@ -91,11 +91,11 @@ export function ProjectsPage() {
               <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                 <span>{p.memberCount} thành viên</span>
                 <span>{p.tasks.open} việc mở · {p.tasks.done} xong</span>
-                {p.tasks.overdue > 0 && <span className="text-rose-600">{p.tasks.overdue} quá hạn</span>}
+                {p.tasks.overdue > 0 && <span className="text-destructive">{p.tasks.overdue} quá hạn</span>}
                 {(p.milestonesOpen + p.milestonesAccepted) > 0 && <span>Mốc {p.milestonesAccepted}/{p.milestonesOpen + p.milestonesAccepted}</span>}
               </div>
               {(p.progress.nextMilestone || p.endOn) && <div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-                {p.progress.nextMilestone && <span className={p.progress.nextMilestone.overdue ? 'text-rose-600' : ''}>
+                {p.progress.nextMilestone && <span className={p.progress.nextMilestone.overdue ? 'text-destructive' : ''}>
                   Mốc tiếp: {p.progress.nextMilestone.title}{p.progress.nextMilestone.dueOn && ` (${fmtDate(p.progress.nextMilestone.dueOn)})`}</span>}
                 {p.endOn && <span>Kết thúc {fmtDate(p.endOn)}</span>}
               </div>}

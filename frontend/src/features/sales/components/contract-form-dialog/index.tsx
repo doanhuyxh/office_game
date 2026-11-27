@@ -90,7 +90,7 @@ export function ContractFormDialog({ open, customerId, opportunities = [], fromQ
           <div className="grid gap-2 rounded-lg border p-3">
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
               <span className="font-medium">Lịch thu ({f.installments.length} đợt)</span>
-              <span className={sumOk ? 'text-muted-foreground' : 'text-rose-600'}>Tổng {formatMoney(sum)} / {formatMoney(total)}</span>
+              <span className={sumOk ? 'text-muted-foreground' : 'text-destructive'}>Tổng {formatMoney(sum)} / {formatMoney(total)}</span>
             </div>
             {f.billing === 'Monthly' && (
               <div className="flex flex-wrap items-end gap-2 rounded-md bg-muted/40 p-2">

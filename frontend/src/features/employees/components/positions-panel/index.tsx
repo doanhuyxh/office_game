@@ -140,7 +140,7 @@ export function PositionsPanel({ canEdit }: { canEdit: boolean }) {
                 })}
                 {errors.financePermissions && <p className="text-xs text-destructive">{errors.financePermissions}</p>}
                 {finance > 0 && (editing?.departmentCount ?? 0) > 1 && (
-                  <p className="flex items-start gap-1.5 rounded-md bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                  <p className="flex items-start gap-1.5 rounded-md bg-warning/10 p-2 text-xs text-warning">
                     <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
                     Chức vụ này đang có người ở {editing?.departmentCount} phòng ban — mọi người giữ chức vụ sẽ thấy tiền công ty. Nên tạo chức vụ riêng (vd "Kế toán trưởng") cho người cần xem.
                   </p>

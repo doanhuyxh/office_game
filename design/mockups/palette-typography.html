@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bảng màu OfficeHub mới</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Inter:wght@400..700&display=swap" rel="stylesheet">
+<style>
+/* Layout: một cột đọc, phần so sánh chia 2 cột Hiện tại | Đề xuất, xếp chồng trên điện thoại. */
+:root {
+  --bg: #f8fafc; --surface: #ffffff; --fg: #0f172b; --muted: #45556c; --line: #cad5e2; --accent: #1447e6; --chip: #eef2ff;
+  --f-body: "Be Vietnam Pro", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --f-inter: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f172b; --surface: #162032; --fg: #e2e8f0; --muted: #90a1b9; --line: #314158; --accent: #51a2ff; --chip: #1c2a4a; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0f172b; --surface: #162032; --fg: #e2e8f0; --muted: #90a1b9; --line: #314158; --accent: #51a2ff; --chip: #1c2a4a; color-scheme: dark }
+
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.65 var(--f-body); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 32px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 40px; }
+h1 { font-size: 1.75rem; line-height: 1.25; margin: 0 0 6px; text-wrap: balance; font-weight: 700; }
+h2 { font-size: 1.2rem; margin: 0 0 12px; font-weight: 600; text-wrap: balance; }
+p { margin: 0; max-width: 68ch; }
+.lead { color: var(--muted); }
+section { display: grid; gap: 14px; min-width: 0; }
+.diag { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.diag div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; }
+.diag b { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.diag span { color: var(--muted); font-size: .9rem; }
+.toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; width: max-content; }
+.toggle button { font: inherit; font-size: .9rem; padding: 6px 14px; border: 0; background: var(--surface); color: var(--fg); cursor: pointer; }
+.toggle button[aria-pressed="true"] { background: var(--accent); color: var(--surface); font-weight: 600; }
+.toggle button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .compare { grid-template-columns: 1fr; } }
+.col-label { font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+
+/* ===== Mẫu giao diện: mỗi mẫu tự mang bảng màu riêng (đây là màu đang so sánh, không theo theme trang) ===== */
+.s { --s-radius: 10px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); display: grid; grid-template-columns: 132px 1fr; min-height: 330px; background: var(--s-bg); color: var(--s-fg); }
+.s.cur { font-family: var(--f-inter); font-size: 14px; line-height: 1.43; }
+.s.new { font-family: var(--f-body); font-size: 14px; line-height: 1.43; }
+.s.cur.light { --s-bg:#ffffff; --s-card:#ffffff; --s-side:#ffffff; --s-fg:#020618; --s-muted:#62748e; --s-mutedbg:#f1f5f9; --s-border:#e2e8f0; --s-input:#e2e8f0; --s-pri:#0f172b; --s-prifg:#f8fafc; --s-link:#0f172b; --s-act:#f1f5f9; }
+.s.cur.dark  { --s-bg:#020618; --s-card:#030a1f; --s-side:#020618; --s-fg:#f8fafc; --s-muted:#90a1b9; --s-mutedbg:#1d293d; --s-border:#1b1f2f; --s-input:#262a39; --s-pri:#e2e8f0; --s-prifg:#0f172b; --s-link:#f8fafc; --s-act:#1d293d; }
+.s.new.light { --s-bg:#f8fafc; --s-card:#ffffff; --s-side:#ffffff; --s-fg:#0f172b; --s-muted:#45556c; --s-mutedbg:#f1f5f9; --s-border:#cad5e2; --s-input:#90a1b9; --s-pri:#1447e6; --s-prifg:#ffffff; --s-link:#1447e6; --s-act:#e8eefe; }
+.s.new.dark  { --s-bg:#0f172b; --s-card:#162032; --s-side:#131c2e; --s-fg:#e2e8f0; --s-muted:#90a1b9; --s-mutedbg:#1d293d; --s-border:#314158; --s-input:#45556c; --s-pri:#51a2ff; --s-prifg:#0f172b; --s-link:#7cb8ff; --s-act:#1c2a4a; }
+.s aside { background: var(--s-side); border-right: 1px solid var(--s-border); padding: 12px 8px; display: grid; align-content: start; gap: 2px; font-size: 13px; }
+.s aside .logo { font-weight: 700; padding: 2px 8px 10px; }
+.s aside a { padding: 5px 8px; border-radius: 6px; color: var(--s-fg); text-decoration: none; }
+.s aside a.on { background: var(--s-act); color: var(--s-link); font-weight: 600; }
+.s main { padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.s .bar { display: flex; gap: 8px; flex-wrap: wrap; }
+.s input { font: inherit; font-size: 13px; flex: 1; min-width: 0; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--s-input); background: var(--s-card); color: var(--s-fg); }
+.s input::placeholder { color: var(--s-muted); }
+.s .btn { font-size: 13px; font-weight: 500; padding: 6px 12px; border-radius: 8px; background: var(--s-pri); color: var(--s-prifg); white-space: nowrap; }
+.s .card { background: var(--s-card); border: 1px solid var(--s-border); border-radius: var(--s-radius); overflow-x: auto; }
+.s table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.s th { text-align: left; font-weight: 500; color: var(--s-muted); background: var(--s-mutedbg); }
+.s th, .s td { padding: 7px 10px; border-bottom: 1px solid var(--s-border); white-space: nowrap; }
+.s.cur th, .s.cur td small { font-size: 12px; }
+.s.new th, .s.new td small { font-size: 12px; }
+.s td small { display: block; color: var(--s-muted); }
+.s tr:last-child td { border-bottom: 0; }
+.s .tag { font-size: 12px; padding: 1px 8px; border-radius: 99px; font-weight: 500; }
+.s.light .ok { background: #d0fae5; color: #006045; } .s.light .warn { background: #fef3c6; color: #973c00; } .s.light .bad { background: #ffe2e2; color: #9f0712; }
+.s.dark .ok { background: #004f3b; color: #a4f4cf; } .s.dark .warn { background: #5a2a00; color: #fee685; } .s.dark .bad { background: #6b0d14; color: #ffc9c9; }
+.s .hint { font-size: 12px; color: var(--s-muted); }
+.s .hint a { color: var(--s-link); font-weight: 500; }
+@media (max-width: 460px) { .s { grid-template-columns: 1fr; } .s aside { display: none; } }
+
+/* ===== Font ===== */
+.fonts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .fonts { grid-template-columns: 1fr; } }
+.fbox { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.fbox h3 { margin: 0; font-size: 1rem; font-weight: 600; }
+.fbox .row { display: grid; grid-template-columns: 44px 1fr; gap: 10px; align-items: baseline; }
+.fbox .px { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.fi { font-family: var(--f-inter); line-height: 1.43; } .fv { font-family: var(--f-body); line-height: 1.43; }
+
+/* ===== Bảng token ===== */
+.tbl { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.tbl table { width: 100%; border-collapse: collapse; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.tbl th, .tbl td { padding: 8px 12px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.tbl th { color: var(--muted); font-weight: 500; font-size: .82rem; }
+.tbl tr:last-child td { border-bottom: 0; }
+.sw { display: inline-block; width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--line); vertical-align: -2px; margin-right: 6px; }
+.tbl code { font-size: .85rem; }
+.up { color: var(--accent); font-weight: 600; }
+ul.scope { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 72ch; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em; background: var(--chip); padding: 1px 5px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Bảng màu &amp; font mới cho OfficeHub</h1>
+    <p class="lead">Đề xuất cho giao diện web (không đụng văn phòng 3D). Mục tiêu: chữ phụ, viền bảng và nút bấm đọc rõ trên cả màn hình laptop rẻ, màn ngoài độ sáng cao và chế độ tối.</p>
+  </header>
+
+  <section>
+    <h2>Vì sao hiện tại khó nhìn</h2>
+    <div class="diag">
+      <div><b>1.004 chỗ</b><span>dùng chữ phụ màu xám nhạt (slate-500). Trên nền xám nhạt chỉ đạt 4,4:1, dưới chuẩn AA 4,5:1.</span></div>
+      <div><b>Inter ở cỡ nhỏ</b><span>663 chỗ chữ 12px và 78 chỗ 10–11px. Với Inter, dấu tiếng Việt chồng tầng (ễ, ặ, ở) dễ dính vào chữ và nét mảnh trên Windows. Giữ nguyên cỡ chữ, chỉ đổi font.</span></div>
+      <div><b>1,24 : 1</b><span>độ tương phản viền bảng / thẻ so với nền trắng. Trên màn kém, các dòng bảng gần như không có ranh giới.</span></div>
+      <div><b>Nút = màu chữ</b><span>màu chủ đạo gần đen, nên nút, link và mục đang chọn không tách khỏi chữ thường. Chế độ tối nền quá đen, chữ quá trắng gây chói.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>So sánh trên cùng một màn hình</h2>
+    <div class="toggle" role="group" aria-label="Chế độ xem mẫu">
+      <button type="button" id="m-light" aria-pressed="true">Sáng</button>
+      <button type="button" id="m-dark" aria-pressed="false">Tối</button>
+    </div>
+    <div class="compare">
+      <div><div class="col-label">Hiện tại · Inter, màu cũ</div><div class="s cur light" data-mode></div></div>
+      <div><div class="col-label">Đề xuất · Be Vietnam Pro, màu mới, cùng cỡ chữ</div><div class="s new light" data-mode></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Font: Inter so với Be Vietnam Pro</h2>
+    <p class="lead">Be Vietnam Pro do nhóm thiết kế Việt làm, dấu được đặt riêng cho tiếng Việt nên không dính vào chữ ở cỡ nhỏ, nét dày hơn Inter một chút nên đỡ mảnh trên Windows. Miễn phí trên Google Fonts, dùng thay Inter mà không phải sửa component.</p>
+    <div class="fonts">
+      <div class="fbox fi"><h3>Inter (hiện tại)</h3><div id="f-inter"></div></div>
+      <div class="fbox fv"><h3>Be Vietnam Pro (đề xuất)</h3><div id="f-bvp"></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Token đề xuất</h2>
+    <p class="lead">Chỉ đổi giá trị biến màu, giữ nguyên tên biến nên mọi component tự đổi theo. Tỷ lệ là độ tương phản với nền thẻ.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Token</th><th>Sáng: hiện tại → đề xuất</th><th>Tương phản</th><th>Tối: hiện tại → đề xuất</th><th>Tương phản</th></tr></thead>
+      <tbody id="tokens"></tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Phạm vi sửa</h2>
+    <ul class="scope">
+      <li><code>frontend/src/assets/styles/global.css</code>: đổi giá trị biến màu ở <code>:root</code> và <code>.dark</code>, đổi <code>--font-sans</code>. Không đổi cỡ chữ, giãn dòng.</li>
+      <li><code>frontend/index.html</code>: thay link Google Fonts Inter bằng Be Vietnam Pro (400/500/600/700), giữ Inter làm font dự phòng.</li>
+      <li>Rà 24 chỗ màu cứng (<code>text-emerald-600</code>, <code>bg-amber-500</code>…) chuyển sang token <code>success</code> / <code>warning</code>.</li>
+      <li>Thêm <code>tabular-nums</code> cho bảng (số tiền, giờ công thẳng cột). Văn phòng 3D dùng CSS riêng nên không bị ảnh hưởng.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+const sampleHTML = `
+  <aside><div class="logo">OfficeHub</div>
+    <a>Tổng quan</a><a class="on">Chấm công</a><a>Nghỉ phép</a><a>Dự án</a><a>Tài chính</a></aside>
+  <main>
+    <div class="bar"><input id="q-ID" placeholder="Tìm nhân viên, mã NV…" aria-label="Tìm nhân viên"><span class="btn">Xuất Excel</span></div>
+    <div class="card"><table>
+      <thead><tr><th>Nhân viên</th><th>Vào – Ra</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+        <tr><td>Nguyễn Thị Hường<small>NV012 · Kế toán</small></td><td>08:02 – 17:31</td><td><span class="tag ok">Đủ công</span></td></tr>
+        <tr><td>Trần Đức Thắng<small>NV027 · Phát triển</small></td><td>08:47 – 17:45</td><td><span class="tag warn">Đi muộn</span></td></tr>
+        <tr><td>Lê Phương Thảo<small>NV031 · Nhân sự</small></td><td>08:15 – —</td><td><span class="tag bad">Quên chấm ra</span></td></tr>
+      </tbody></table></div>
+    <div class="hint">Cập nhật 17:52 hôm nay · <a>Giải trình chấm công</a></div>
+  </main>`;
+document.querySelectorAll('.s').forEach((el, i) => el.innerHTML = sampleHTML.replace('q-ID', 'q-' + i));
+
+function setMode(mode) {
+  document.querySelectorAll('.s').forEach(el => { el.classList.toggle('light', mode === 'light'); el.classList.toggle('dark', mode === 'dark'); });
+  document.getElementById('m-light').setAttribute('aria-pressed', mode === 'light');
+  document.getElementById('m-dark').setAttribute('aria-pressed', mode === 'dark');
+}
+document.getElementById('m-light').onclick = () => setMode('light');
+document.getElementById('m-dark').onclick = () => setMode('dark');
+
+const lines = [
+  [12, 'Giải trình: quên chấm ra ngày 27/11, đã rời văn phòng lúc 17:45.'],
+  [13, 'Đơn nghỉ phép năm của Nguyễn Thị Hường chờ quản lý duyệt.'],
+  [14, 'Hợp đồng thử việc của Lê Phương Thảo hết hạn sau 5 ngày.'],
+  [16, 'Bảng lương tháng 11 – 1.284.500.000 ₫'],
+];
+const rows = lines.map(([px, t]) => `<div class="row"><span class="px">${px}px</span><span style="font-size:${px}px">${t}</span></div>`).join('');
+document.getElementById('f-inter').innerHTML = rows;
+document.getElementById('f-bvp').innerHTML = rows;
+
+const T = [
+  ['--background (nền trang)', '#ffffff', '#f8fafc', '—', '#020618', '#0f172b', '—'],
+  ['--card (thẻ, bảng)', '#ffffff', '#ffffff', '—', '#030a1f', '#162032', '—'],
+  ['--foreground (chữ chính)', '#020618', '#0f172b', '17,9 : 1', '#f8fafc', '#e2e8f0', '13,6 : 1'],
+  ['--muted-foreground (chữ phụ)', '#62748e', '#45556c', '<span class="up">7,6 : 1</span> (từ 4,8)', '#90a1b9', '#90a1b9', '6,4 : 1'],
+  ['--border (viền bảng, thẻ)', '#e2e8f0', '#cad5e2', '1,5 : 1 (từ 1,2)', 'trắng 10%', '#314158', '1,9 : 1 (từ 1,2)'],
+  ['--input (viền ô nhập)', '#e2e8f0', '#90a1b9', '<span class="up">2,6 : 1</span>', 'trắng 15%', '#45556c', '2,6 : 1'],
+  ['--primary (nút, link, mục chọn)', '#0f172b', '#1447e6', '<span class="up">7,0 : 1</span>', '#e2e8f0', '#51a2ff', '6,3 : 1'],
+  ['--ring (viền focus)', '#90a1b9', '#2b7fff', '—', '#4a5565', '#51a2ff', '—'],
+];
+document.getElementById('tokens').innerHTML = T.map(r => {
+  const sw = c => c.startsWith('#') ? `<span class="sw" style="background:${c}"></span><code>${c}</code>` : c;
+  return `<tr><td><code>${r[0].split(' ')[0]}</code> ${r[0].slice(r[0].indexOf(' ') + 1)}</td><td>${sw(r[1])} → ${sw(r[2])}</td><td>${r[3]}</td><td>${sw(r[4])} → ${sw(r[5])}</td><td>${r[6]}</td></tr>`;
+}).join('');
+</script>
+</body>
+</html>

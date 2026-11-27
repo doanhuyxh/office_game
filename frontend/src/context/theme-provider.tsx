@@ -18,7 +18,7 @@ const systemDark = () => window.matchMedia('(prefers-color-scheme: dark)').match
 function apply(theme: Theme) {
   const dark = theme === 'dark' || (theme === 'system' && systemDark());
   document.documentElement.classList.toggle('dark', dark);
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#020817' : '#ffffff');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0f172b' : '#f8fafc');
 }
 
 const ThemeContext = createContext<{ theme: Theme; setTheme: (t: Theme) => void } | null>(null);

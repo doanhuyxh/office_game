@@ -45,7 +45,7 @@ export function QuotesTab({ creating, onCreatedClose, onOpen }: { creating: bool
                 <TableCell className="text-sm"><div>{x.customerName}</div><div className="text-xs text-muted-foreground">{x.title}</div></TableCell>
                 <TableCell className="text-right tabular-nums">{formatMoney(x.total)}</TableCell>
                 <TableCell className="text-right tabular-nums">{x.discountPercent ? `${x.discountPercent}%` : '—'}</TableCell>
-                <TableCell className={`whitespace-nowrap ${x.expired ? 'text-rose-600' : ''}`}>{fmtDate(x.validUntil)}</TableCell>
+                <TableCell className={`whitespace-nowrap ${x.expired ? 'text-destructive' : ''}`}>{fmtDate(x.validUntil)}</TableCell>
                 <TableCell><StatusBadge tone={QUOTE_STATUS[x.status].tone}>{QUOTE_STATUS[x.status].label}</StatusBadge></TableCell>
                 <TableCell className="text-sm text-muted-foreground">{x.ownerName}</TableCell>
               </TableRow>

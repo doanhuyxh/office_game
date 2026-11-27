@@ -58,7 +58,7 @@ export function ExpensesTab({ creating, onCreatedClose }: { creating: boolean; o
                 <TableCell className="max-w-xs text-sm">
                   <div className="truncate" title={x.reason}>{x.reason}</div>
                   {x.payee && <div className="truncate text-xs text-muted-foreground">Nhận: {x.payee}</div>}
-                  {x.rejectReason && <div className="text-xs text-rose-600">Từ chối: {x.rejectReason}</div>}
+                  {x.rejectReason && <div className="text-xs text-destructive">Từ chối: {x.rejectReason}</div>}
                 </TableCell>
                 <TableCell className="text-sm">{x.categoryName ?? '—'}{x.businessLineName && <div className="text-xs text-muted-foreground">{x.businessLineName}</div>}
                   {x.projectName && <div className="text-xs text-primary">Dự án {x.projectName}</div>}</TableCell>

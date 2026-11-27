@@ -14,7 +14,7 @@ function Tile({ label, value, hint, tone }: { label: string; value: string; hint
   return (
     <div className="grid gap-0.5 rounded-xl border bg-card p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={`text-lg font-semibold tabular-nums ${tone === 'neg' ? 'text-rose-600' : tone === 'pos' ? 'text-emerald-600' : ''}`}>{value}</div>
+      <div className={`text-lg font-semibold tabular-nums ${tone === 'neg' ? 'text-destructive' : tone === 'pos' ? 'text-success' : ''}`}>{value}</div>
       {hint && <div className="text-xs text-muted-foreground">{hint}</div>}
     </div>
   );
@@ -89,7 +89,7 @@ export function FinancialsPanel({ d }: { d: IProjectDetail }) {
           {f.categories.length === 0 ? <p className="text-xs text-muted-foreground">Chưa có giao dịch gắn dự án — khi ghi sổ / đề nghị chi, chọn "Dự án" để tính vào đây.</p>
             : f.categories.map((c) => (
               <div key={`${c.isIncome}-${c.name}`} className="flex justify-between text-sm"><span>{c.isIncome ? 'Thu · ' : ''}{c.name}</span>
-                <span className={`tabular-nums ${c.isIncome ? 'text-emerald-600' : ''}`}>{formatMoney(c.amount)}</span></div>))}
+                <span className={`tabular-nums ${c.isIncome ? 'text-success' : ''}`}>{formatMoney(c.amount)}</span></div>))}
         </div>
         {f.people && (
           <div className="grid content-start gap-2 rounded-xl border bg-card p-3">

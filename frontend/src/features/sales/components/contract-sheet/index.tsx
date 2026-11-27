@@ -62,12 +62,12 @@ function Detail({ d, onOpenCustomer }: { d: IContractDetail; onOpenCustomer: (id
             ['Thời hạn', fmtDate(k.signedOn), k.endOn ? `đến ${fmtDate(k.endOn)}` : BILLING[k.billing]],
           ].map(([label, value, sub]) => (
             <div key={label} className="rounded-lg border p-2"><div className="text-xs text-muted-foreground">{label}</div><div className="font-semibold tabular-nums">{value}</div>
-              <div className={`text-xs ${label === 'Còn phải thu' && k.overdue ? 'text-rose-600' : 'text-muted-foreground'}`}>{sub}</div></div>
+              <div className={`text-xs ${label === 'Còn phải thu' && k.overdue ? 'text-destructive' : 'text-muted-foreground'}`}>{sub}</div></div>
           ))}
         </div>
         {d.note && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{d.note}</p>}
         {d.canEdit && d.pendingChangeRequests.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm" data-testid="pending-cr">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm" data-testid="pending-cr">
             <span>Khách đã đồng ý {d.pendingChangeRequests.length} thay đổi có tính tiền, chưa lập phụ lục: <b>{d.pendingChangeRequests.map((c) => c.code).join(', ')}</b></span>
             <Button size="sm" onClick={() => setAppendixOpen(true)}><FilePlus2 /> Lập phụ lục</Button>
           </div>
@@ -84,7 +84,7 @@ function Detail({ d, onOpenCustomer }: { d: IContractDetail; onOpenCustomer: (id
                   <div className="text-xs text-muted-foreground">Ký {fmtDate(a.signedOn)} · {a.createdByName}{a.cancelled && ` · Đã huỷ: ${a.cancelReason}`}</div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`tabular-nums font-medium ${a.totalDelta < 0 ? 'text-rose-600' : 'text-emerald-600'} ${a.cancelled ? 'line-through' : ''}`}>
+                  <span className={`tabular-nums font-medium ${a.totalDelta < 0 ? 'text-destructive' : 'text-success'} ${a.cancelled ? 'line-through' : ''}`}>
                     {a.totalDelta > 0 ? '+' : '−'}{formatMoney(Math.abs(a.totalDelta))}</span>
                   {d.canEdit && !a.cancelled && k.status === 'Active' && (
                     <Button variant="ghost" size="icon" aria-label="Huỷ phụ lục" title="Huỷ phụ lục" onClick={async () => {
@@ -108,7 +108,7 @@ function Detail({ d, onOpenCustomer }: { d: IContractDetail; onOpenCustomer: (id
                 return (
                   <TableRow key={i.id} className={i.state === 'Cancelled' ? 'opacity-60' : undefined}>
                     <TableCell className="text-sm"><div className="font-medium">{i.title}</div>
-                      {i.collections.map((c) => <div key={c.id} className={`text-xs ${c.active ? 'text-muted-foreground' : 'text-rose-600 line-through'}`}>
+                      {i.collections.map((c) => <div key={c.id} className={`text-xs ${c.active ? 'text-muted-foreground' : 'text-destructive line-through'}`}>
                         {fmtDate(c.date)} · {formatMoney(c.amount)} · {c.createdByName}{!c.active && ' (dòng sổ đã huỷ)'}</div>)}
                       {i.cancelReason && <div className="text-xs text-muted-foreground">Huỷ: {i.cancelReason}</div>}
                     </TableCell>

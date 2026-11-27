@@ -29,7 +29,7 @@ export function CustomersTab({ creating, onCreatedClose, onOpen }: { creating: b
           <ul className="grid gap-1 text-sm">
             {[...overdue, ...upcoming].map((a) => (
               <li key={a.id}><button type="button" className="text-left hover:underline" onClick={() => onOpen(a.customerId)}>
-                <span className={a.nextActionOn! < today ? 'text-rose-600' : 'text-muted-foreground'}>{fmtDate(a.nextActionOn)}</span> · <b>{a.customerName}</b>: {a.nextAction}
+                <span className={a.nextActionOn! < today ? 'text-destructive' : 'text-muted-foreground'}>{fmtDate(a.nextActionOn)}</span> · <b>{a.customerName}</b>: {a.nextAction}
               </button></li>
             ))}
           </ul>

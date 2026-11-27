@@ -18,7 +18,7 @@
 
 ## Màu & theme token
 
-- Màu dùng token (`bg-background`, `text-muted-foreground`, `border`, `bg-primary`…), không hard-code mã màu → dark mode (`.dark`, nút ở header) chạy đúng. Palette slate theo shadcn-admin; đổi màu chủ đạo: `--primary`/`--ring` trong `global.css`. Animation `animate-in/out` từ `tw-animate-css`. `sonner.tsx` dùng `useTheme` của dự án thay `next-themes`.
+- Màu dùng token (`bg-background`, `text-muted-foreground`, `border`, `bg-primary`…), không hard-code mã màu → dark mode (`.dark`, nút ở header) chạy đúng. Palette slate theo shadcn-admin, chỉnh cho dễ đọc (TEST-262): chữ phụ slate-600, viền slate-300, nền trang slate-50 + thẻ / sidebar trắng, primary xanh blue-700 (tối: nền slate-900, chữ slate-200, primary blue-400); đổi màu chủ đạo: `--primary`/`--ring` trong `global.css`. Xanh / đỏ / vàng có nghĩa (thu / chi, lãi / lỗ, quá hạn, cảnh báo) dùng `text-success` / `text-destructive` / `text-warning`, không `text-emerald-600` / `text-rose-600` (sai tương phản ở giao diện tối). Animation `animate-in/out` từ `tw-animate-css`. `sonner.tsx` dùng `useTheme` của dự án thay `next-themes`.
 - Màu trạng thái: token tự thêm `success` / `warning` / `info` (+ `-foreground`) cạnh `destructive` → `text-success`, `bg-warning/15`… Badge trạng thái dùng `StatusBadge` (`components/common/StatusBadge.tsx`, prop `tone`); map nhãn trong `features/<x>/utils/labels.ts` khai báo `tone`, không khai báo class màu. Sidebar dùng token `sidebar-*`.
 
 - Biểu đồ cột vẽ bằng CSS: thẻ nổi khi trỏ cột dùng `ChartHoverCard` + `useChartHover` (không `title`) → [frontend-charts.md](frontend-charts.md).

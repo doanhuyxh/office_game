@@ -57,8 +57,8 @@ function Detail({ d, onOpen, onOpenContract }: { d: IQuoteDetail; onOpen: (id: s
         <SheetDescription>{q.title} · {q.customerName} · Phụ trách: {q.ownerName} · {fmtDate(q.issuedOn)} → {fmtDate(q.validUntil)}</SheetDescription>
       </SheetHeader>
       <div className="grid gap-4 px-4 pb-6">
-        {d.approvalComment && s === 'Draft' && <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-2 text-sm">Không được duyệt chiết khấu: {d.approvalComment}</p>}
-        {s === 'PendingApproval' && <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-2 text-sm">Chiết khấu {q.discountPercent}% vượt ngưỡng {d.discountLimitPercent}% — đang chờ
+        {d.approvalComment && s === 'Draft' && <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-sm">Không được duyệt chiết khấu: {d.approvalComment}</p>}
+        {s === 'PendingApproval' && <p className="rounded-lg border border-warning/40 bg-warning/10 p-2 text-sm">Chiết khấu {q.discountPercent}% vượt ngưỡng {d.discountLimitPercent}% — đang chờ
           người có quyền Duyệt chi. <Link to={PATHS.approvals} className="underline">Xem luồng duyệt</Link></p>}
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={() => downloadUrl(salesApi.quoteDocxUrl(q.id))}><FileDown /> Tải Word</Button>

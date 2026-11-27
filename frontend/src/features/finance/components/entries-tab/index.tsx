@@ -64,7 +64,7 @@ export function EntriesTab({ creating, onCreatedClose }: { creating: boolean; on
               <TableRow key={e.id} data-testid="entry-row">
                 <TableCell className="whitespace-nowrap">{fmtDate(e.date)}</TableCell>
                 <TableCell><StatusBadge tone={TX_KIND_TONE[e.kind]}>{TX_KIND_LABEL[e.kind]}</StatusBadge></TableCell>
-                <TableCell className={`text-right font-medium tabular-nums whitespace-nowrap ${e.kind === 'Income' ? 'text-emerald-600' : e.kind === 'Expense' ? 'text-rose-600' : ''}`}>
+                <TableCell className={`text-right font-medium tabular-nums whitespace-nowrap ${e.kind === 'Income' ? 'text-success' : e.kind === 'Expense' ? 'text-destructive' : ''}`}>
                   {e.kind === 'Income' ? '+' : e.kind === 'Expense' ? '−' : ''}{formatMoney(e.amount)}
                 </TableCell>
                 <TableCell className="whitespace-nowrap">{e.accountName}{e.toAccountName && ` → ${e.toAccountName}`}</TableCell>
@@ -73,7 +73,7 @@ export function EntriesTab({ creating, onCreatedClose }: { creating: boolean; on
                 <TableCell className="max-w-xs text-sm">
                   <div className="truncate" title={e.description ?? undefined}>{e.description ?? '—'}</div>
                   {(e.counterparty || e.invoiceNumber) && <div className="truncate text-xs text-muted-foreground">{[e.counterparty, e.invoiceNumber && `HĐ ${e.invoiceNumber}`].filter(Boolean).join(' · ')}</div>}
-                  {e.status === 'Voided' && <div className="text-xs text-rose-600">Đã huỷ: {e.voidReason}</div>}
+                  {e.status === 'Voided' && <div className="text-xs text-destructive">Đã huỷ: {e.voidReason}</div>}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">{e.createdByName}</TableCell>
                 <TableCell>

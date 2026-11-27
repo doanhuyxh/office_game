@@ -39,7 +39,7 @@ export function ProfitTable() {
                   <TableCell className="text-right tabular-nums">{formatMoney(r.revenue)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatMoney(r.labor)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatMoney(r.directExpense)}</TableCell>
-                  <TableCell className={`text-right font-medium tabular-nums ${r.profit < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{formatMoney(r.profit)}</TableCell>
+                  <TableCell className={`text-right font-medium tabular-nums ${r.profit < 0 ? 'text-destructive' : 'text-success'}`}>{formatMoney(r.profit)}</TableCell>
                   <TableCell className="text-right tabular-nums">{r.marginPercent != null ? `${r.marginPercent.toLocaleString('vi-VN')}%` : '—'}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatMoney(r.outstanding)}</TableCell>
                   <TableCell className="text-right tabular-nums">{r.manDays.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}
@@ -54,7 +54,7 @@ export function ProfitTable() {
                 <TableCell className="text-right tabular-nums">{formatMoney(sum('revenue'))}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatMoney(sum('labor'))}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatMoney(sum('directExpense'))}</TableCell>
-                <TableCell className={`text-right tabular-nums ${sum('profit') < 0 ? 'text-rose-600' : ''}`}>{formatMoney(sum('profit'))}</TableCell>
+                <TableCell className={`text-right tabular-nums ${sum('profit') < 0 ? 'text-destructive' : ''}`}>{formatMoney(sum('profit'))}</TableCell>
                 <TableCell colSpan={3} />
               </TableRow>
             )}
