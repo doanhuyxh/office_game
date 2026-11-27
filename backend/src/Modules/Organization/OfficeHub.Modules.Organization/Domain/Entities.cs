@@ -42,6 +42,8 @@ public sealed class Position : Entity
     public int FinancePermissions { get; set; }
     /// <summary>Quản lý trạng thái (cột) công việc của mọi dự án người đó xem được: thêm, đổi tên / màu, sắp xếp, xoá (module Projects). Vai trò admin / hr không thay thế.</summary>
     public bool ManageTaskColumns { get; set; }
+    /// <summary>Được đăng bài lên Bảng tin qua trợ lý AI (MCP <c>create_news_post</c>) như admin / HR — vd nhân sự quản lý mạng xã hội (TEST-265). Trên web ai cũng đăng được, cờ này chỉ mở đường AI.</summary>
+    public bool PostNewsViaAi { get; set; }
     /// <summary>Mô tả ngắn (≤ 2.000) — hiện ở danh sách, trả cho trợ lý AI.</summary>
     public string? Description { get; set; }
     /// <summary>Hướng dẫn: trách nhiệm, quyền hạn, quy trình, đầu mối liên hệ (Markdown ≤ 40.000). Mọi nhân viên + trợ lý AI (MCP) đọc được.</summary>

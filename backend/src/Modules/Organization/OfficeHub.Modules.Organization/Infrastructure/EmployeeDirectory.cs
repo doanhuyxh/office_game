@@ -78,10 +78,10 @@ internal sealed class OrgCatalog(OrgDbContext db, CatalogCache cache)
         cache.GetAsync(OrgCacheTags.Positions, OrgCacheTags.Positions, async c =>
         {
             var rows = await db.Positions.AsNoTracking()
-                .Select(p => new { p.Id, p.Name, p.Level, p.SelfPublishDocuments, p.ManageTaskColumns, p.FinancePermissions }).ToListAsync(c);
+                .Select(p => new { p.Id, p.Name, p.Level, p.SelfPublishDocuments, p.ManageTaskColumns, p.PostNewsViaAi, p.FinancePermissions }).ToListAsync(c);
             return new OrgPositionsSnapshot(
                 rows.ToFrozenDictionary(p => p.Id,
-                    p => new PositionRef(p.Id, p.Name, p.Level, p.SelfPublishDocuments && PositionLadder.CanSelfPublish(p.Level), p.ManageTaskColumns)),
+                    p => new PositionRef(p.Id, p.Name, p.Level, p.SelfPublishDocuments && PositionLadder.CanSelfPublish(p.Level), p.ManageTaskColumns, p.PostNewsViaAi)),
                 rows.ToFrozenDictionary(p => p.Id, p => p.FinancePermissions));
         }, ct);
 }

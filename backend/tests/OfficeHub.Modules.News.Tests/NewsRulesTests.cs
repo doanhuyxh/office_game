@@ -7,6 +7,14 @@ public class NewsRulesTests
 {
     private static readonly Guid Author = Guid.NewGuid(), Viewer = Guid.NewGuid(), Dept = Guid.NewGuid(), Parent = Guid.NewGuid(), Other = Guid.NewGuid();
 
+    [Theory]
+    [InlineData(true, false, true)]   // admin / HR
+    [InlineData(false, true, true)]   // chức vụ có cờ "Đăng bảng tin qua AI" (TEST-265)
+    [InlineData(true, true, true)]
+    [InlineData(false, false, false)] // nhân viên thường → đăng trên web
+    public void Ai_posting_allowed_for_hr_or_flagged_position(bool isHr, bool positionAllows, bool expected) =>
+        Assert.Equal(expected, NewsRules.CanPostViaAi(isHr, positionAllows));
+
     [Fact]
     public void Author_always_sees_own_post_even_private() =>
         Assert.True(NewsRules.CanView(PostAudience.Private, Author, Author, new HashSet<Guid>(), []));

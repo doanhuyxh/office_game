@@ -36,6 +36,12 @@ public static partial class NewsRules
     private static readonly HashSet<string> ImageTypes = new(StringComparer.OrdinalIgnoreCase) { "image/jpeg", "image/png", "image/webp", "image/gif" };
     private static readonly HashSet<string> VideoTypes = new(StringComparer.OrdinalIgnoreCase) { "video/mp4", "video/webm", "video/quicktime" };
 
+    /// <summary>
+    /// Đăng bài qua trợ lý AI (token AI / MCP): admin / HR, hoặc chức vụ có cờ "Đăng bảng tin qua AI" (TEST-265 — vd nhân sự quản lý mạng xã hội).
+    /// Trên web ai cũng đăng được. Hạn mức email / ngày không đổi theo cờ này.
+    /// </summary>
+    public static bool CanPostViaAi(bool isHr, bool positionAllows) => isHr || positionAllows;
+
     public static MediaKind KindOf(string contentType) =>
         ImageTypes.Contains(contentType) ? MediaKind.Image : VideoTypes.Contains(contentType) ? MediaKind.Video : MediaKind.File;
 

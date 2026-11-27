@@ -85,10 +85,12 @@ public static class PostEndpoints
         IOptions<OfficeSettings> office, TimeProvider clock, CancellationToken ct)
     {
         var me = Me(user);
-        // Qua trợ lý AI (MCP) chỉ admin / HR được đăng (thông báo chung); nhân viên đăng trên web. Token AI không tải tệp được → không đính kèm.
+        // Qua trợ lý AI (MCP) chỉ admin / HR hoặc chức vụ có cờ "Đăng bảng tin qua AI" được đăng (TEST-265); người khác đăng trên web.
+        // Token AI không tải tệp được → không đính kèm.
         var forAi = user.IsAccessToken();
-        if (forAi && !user.IsHr())
-            return TypedResults.Problem("Chỉ quản trị viên / HR được đăng bài qua trợ lý AI — hãy đăng trên web", statusCode: StatusCodes.Status403Forbidden);
+        if (forAi && !NewsRules.CanPostViaAi(user.IsHr(), await PositionAllowsAiPostAsync(me, dir, ct)))
+            return TypedResults.Problem("Chỉ quản trị viên / HR hoặc chức vụ được bật \"Đăng bảng tin qua AI\" mới đăng bài qua trợ lý AI — hãy đăng trên web",
+                statusCode: StatusCodes.Status403Forbidden);
         var html = cleaner.Clean(req.ContentHtml);
         var plain = NewsRules.ToPlainText(html);
         var uploadIds = (req.UploadIds ?? []).Where(u => u != Guid.Empty).Distinct().ToList();
@@ -341,6 +343,10 @@ public static class PostEndpoints
     }
 
     // ---------------- Dùng chung ----------------
+
+    /// <summary>Chức vụ hiện tại của người gọi có cờ "Đăng bảng tin qua AI" không (tài khoản chưa gắn hồ sơ / đã nghỉ → không).</summary>
+    private static async Task<bool> PositionAllowsAiPostAsync(Guid userId, IEmployeeDirectory dir, CancellationToken ct) =>
+        await dir.GetByUserIdAsync(userId, ct) is { IsActive: true } emp && (await dir.GetPositionAsync(emp.Id, ct))?.PostNewsViaAi == true;
 
     private static async Task ValidateTargetsAsync(PostAudience audience, List<TargetRequest> targets, Validation val, IAccountService accounts,
         IEmployeeDirectory dir, CancellationToken ct)

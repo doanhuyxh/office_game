@@ -39,8 +39,9 @@ public sealed partial class NewsTools
         return Out(new JsonObject { ["post"] = post, ["comments"] = comments?["items"]?.DeepClone(), ["hasMoreComments"] = comments?["hasMore"]?.DeepClone() });
     }
 
-    [McpServerTool(Name = "create_news_post", Title = "Đăng bài lên Bảng tin (admin / HR)", Destructive = false, Idempotent = false, OpenWorld = false)]
-    [Description("(Chỉ quản trị viên / HR) Đăng một bài lên Bảng tin — vd thông báo chung, lịch nghỉ lễ, chúc mừng. Người khác gọi → lỗi, hướng dẫn họ đăng trên web. " +
+    [McpServerTool(Name = "create_news_post", Title = "Đăng bài lên Bảng tin (admin / HR / chức vụ được bật)", Destructive = false, Idempotent = false, OpenWorld = false)]
+    [Description("(Chỉ quản trị viên / HR hoặc chức vụ có quyền \"Đăng bảng tin qua AI\", vd quản lý mạng xã hội) Đăng một bài lên Bảng tin — vd thông báo chung, lịch nghỉ lễ, chúc mừng. " +
+                 "Người khác gọi → lỗi 403, hướng dẫn họ đăng trên web. Người không phải HR tối đa 3 bài gửi email / ngày. " +
                  "Nội dung viết Markdown đơn giản: dòng trống tách đoạn, '## ' tiêu đề, '- ' / '1. ' danh sách, '> ' trích dẫn, **đậm**, *nghiêng*, [chữ](https://link). " +
                  "Không đính kèm ảnh / tệp được (thêm sau bằng cách sửa bài trên web). sendEmail = true gửi email cho mọi người trong phạm vi — CHỈ bật khi người dùng yêu cầu rõ. " +
                  "Đưa người dùng xem lại toàn bộ nội dung, phạm vi người xem và có gửi email hay không, chờ đồng ý rồi mới gọi.")]

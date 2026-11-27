@@ -132,6 +132,8 @@ export interface IPosition {
   departmentCount: number;
   /** Quản lý trạng thái (cột) công việc ở mọi dự án người đó xem được. */
   manageTaskColumns: boolean;
+  /** Đăng bài Bảng tin qua trợ lý AI (MCP) như admin / HR. */
+  postNewsViaAi: boolean;
 }
 
 export interface IUpsertPosition {
@@ -143,6 +145,8 @@ export interface IUpsertPosition {
   financePermissions?: number;
   /** Bỏ trống = giữ nguyên. */
   manageTaskColumns?: boolean;
+  /** Bỏ trống = giữ nguyên. */
+  postNewsViaAi?: boolean;
 }
 
 /** Quyền tài chính của tài khoản đang đăng nhập. `canManage` = được sửa quyền tài chính trên chức vụ. */

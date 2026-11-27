@@ -260,6 +260,9 @@ namespace OfficeHub.Modules.Organization.Infrastructure.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
+                    b.Property<bool>("PostNewsViaAi")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("SelfPublishDocuments")
                         .HasColumnType("boolean");
 

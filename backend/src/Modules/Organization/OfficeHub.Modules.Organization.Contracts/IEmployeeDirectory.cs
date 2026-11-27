@@ -35,7 +35,8 @@ public interface IEmployeeDirectory
 }
 
 /// <param name="ManageTaskColumns">Quản lý trạng thái (cột) công việc dự án — cờ trên chức vụ.</param>
-public sealed record PositionRef(Guid Id, string Name, int Level, bool SelfPublishDocuments, bool ManageTaskColumns = false);
+/// <param name="PostNewsViaAi">Đăng bài Bảng tin qua trợ lý AI (MCP) như admin / HR — cờ trên chức vụ (TEST-265).</param>
+public sealed record PositionRef(Guid Id, string Name, int Level, bool SelfPublishDocuments, bool ManageTaskColumns = false, bool PostNewsViaAi = false);
 
 /// <param name="Title">Chức danh (JobTitle) hoặc tên chức vụ — dòng phụ phân biệt người trùng tên.</param>
 public sealed record EmployeeMatch(EmployeeRef Employee, string? Title);
