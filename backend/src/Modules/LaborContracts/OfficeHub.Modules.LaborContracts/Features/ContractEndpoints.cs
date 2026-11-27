@@ -304,13 +304,23 @@ internal static class ContractEndpoints
 
     // ---------- File scan (S3) ----------
 
-    private static async Task<Results<Ok<FileDto>, NotFound, ValidationProblem>> UploadFileAsync(Guid id, IFormFile file, ContractsDbContext db,
-        IFileStorage storage, CancellationToken ct)
+    /// <summary>
+    /// Thay file scan hợp đồng. Đang có yêu cầu ký chờ → 409 (huỷ yêu cầu trước). File cũ là bản gốc / bản đã ký của một yêu cầu ký
+    /// → giữ trên S3 (bằng chứng ký), chỉ xoá file cũ không ai tham chiếu.
+    /// </summary>
+    private static async Task<Results<Ok<FileDto>, NotFound, ValidationProblem, ProblemHttpResult>> UploadFileAsync(Guid id, IFormFile file, ContractsDbContext db,
+        IFileStorage storage, TimeProvider clock, CancellationToken ct)
     {
         var c = await db.Contracts.FirstOrDefaultAsync(x => x.Id == id, ct);
         if (c is null) return TypedResults.NotFound();
         if (CheckFile(file) is { } bad) return bad;
-        await StoreAsync(c.File, $"contracts/{c.EmployeeId}/{c.Id}", file, storage, ct);
+        var now = clock.GetUtcNow();
+        if (await db.SignRequests.AnyAsync(r => r.ContractId == id && r.Status == SignStatus.Pending && r.ExpiresAt > now, ct))
+            return Problems.Conflict("Hợp đồng đang chờ nhân viên ký — huỷ yêu cầu ký trước khi thay file");
+        var old = c.File.Key;
+        var keepOld = old is not null
+            && await db.SignRequests.AnyAsync(r => r.ContractId == id && (r.OriginalFileKey == old || r.SignedFileKey == old), ct);
+        await StoreAsync(c.File, $"contracts/{c.EmployeeId}/{c.Id}", file, storage, ct, deleteOld: !keepOld);
         await db.SaveChangesAsync(ct);
         return TypedResults.Ok(new FileDto(c.File.Name!, c.File.ContentType, c.File.Size));
     }
@@ -361,14 +371,14 @@ internal static class ContractEndpoints
         return v.Failed ? v.Problem() : null;
     }
 
-    /// <summary>Tải file mới lên trước, lưu thông tin, rồi xoá file cũ (best effort) — lỗi upload không làm mất file cũ.</summary>
-    private static async Task StoreAsync(StoredFile target, string folder, IFormFile file, IFileStorage storage, CancellationToken ct)
+    /// <summary>Tải file mới lên trước, lưu thông tin, rồi xoá file cũ (best effort, trừ khi <paramref name="deleteOld"/> = false) — lỗi upload không làm mất file cũ.</summary>
+    private static async Task StoreAsync(StoredFile target, string folder, IFormFile file, IFileStorage storage, CancellationToken ct, bool deleteOld = true)
     {
         var key = $"{folder}/{Guid.CreateVersion7()}{ContractRules.AllowedFiles[file.ContentType]}";
         await using (var s = file.OpenReadStream()) await storage.UploadAsync(key, s, file.ContentType, ct);
         var old = target.Key;
         (target.Key, target.Name, target.ContentType, target.Size) = (key, Path.GetFileName(file.FileName), file.ContentType, file.Length);
-        if (old is not null) try { await storage.DeleteAsync(old, ct); } catch { /* giữ file cũ cũng không sao */ }
+        if (deleteOld && old is not null) try { await storage.DeleteAsync(old, ct); } catch { /* giữ file cũ cũng không sao */ }
     }
 
     // ---------- Chung ----------

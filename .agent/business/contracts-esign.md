@@ -9,6 +9,7 @@ Chủ dự án chốt 2026-11-06: **ký nội bộ** (không qua nhà cung cấp
 3. Nhân viên mở bản gốc (presigned URL) → "Gửi mã qua email" → nhập OTP 6 số + vẽ chữ ký (canvas, PNG) + tick đồng ý → ký.
 4. BE kiểm tra OTP, **tải lại bản gốc và so SHA** (HR thay file sau khi gửi → từ chối), `PdfSigner.Stamp`: chân trang mọi trang ghi "Đã ký điện tử bởi …" + **trang chứng nhận** (người ký, mã NV, email, thời điểm giờ VN, IP, trình duyệt, SHA bản gốc, mã yêu cầu, phương thức xác thực, ảnh chữ ký). Font Noto Sans nhúng (`Resources/Fonts`, OFL) để có dấu tiếng Việt.
 5. Lưu `contracts/{emp}/{contract}/signed/{rid}/signature.png` + `hop-dong-da-ky.pdf`; **bản đã ký thành file chính thức của hợp đồng** (bản gốc vẫn còn, khoá lưu ở yêu cầu ký), ghi `SignedDate` nếu trống, chuông `contract_signed` cho HR.
+   - **Thay file scan** (`POST /api/contracts/{id}/file`): đang có yêu cầu Pending còn hạn → 409 (huỷ yêu cầu trước); file cũ là bản gốc / bản đã ký của một yêu cầu ký → **giữ trên S3** (link `document?signed=true` vẫn mở được), chỉ file không yêu cầu ký nào tham chiếu mới bị xoá.
 
 ## Quy tắc (`Domain/SignRequest.cs` → `SignRules`, test `SignRulesTests`)
 
